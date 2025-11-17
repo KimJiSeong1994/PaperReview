@@ -5,6 +5,8 @@ import os
 import sys
 from typing import Dict, List, Any, Tuple, Optional
 from collections import defaultdict
+from datetime import datetime
+import difflib
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
@@ -29,20 +31,24 @@ class EdgeCreator:
             if paper.get('title', '').lower().strip() == title_lower:
                 return self._generate_paper_id(paper)
         
-        # 부분 매칭 (제목의 80% 이상 일치)
+        # 유사도 기반 매칭
+        best_match_id = None
+        best_score = 0.0
         for paper in papers:
             paper_title = paper.get('title', '').lower().strip()
-            if len(title_lower) > 0 and len(paper_title) > 0:
-                # 간단한 유사도 계산
-                if title_lower in paper_title or paper_title in title_lower:
-                    return self._generate_paper_id(paper)
-                # 단어 기반 매칭
-                title_words = set(title_lower.split())
-                paper_words = set(paper_title.split())
-                if len(title_words) > 0:
-                    overlap = len(title_words & paper_words) / len(title_words)
-                    if overlap >= 0.8:
-                        return self._generate_paper_id(paper)
+            if not paper_title:
+                continue
+            
+            ratio = difflib.SequenceMatcher(None, title_lower, paper_title).ratio()
+            if ratio >= 0.85:
+                return self._generate_paper_id(paper)
+            
+            if ratio > best_score:
+                best_score = ratio
+                best_match_id = self._generate_paper_id(paper)
+        
+        if best_score >= 0.65:
+            return best_match_id
         
         return None
     
@@ -96,8 +102,10 @@ class EdgeCreator:
         
         # 각 논문에 대해 유사도 상위 K개만 선택
         for i, paper1 in enumerate(papers):
-            paper1_id = self._generate_paper_id(paper1)
+            paper1_id = paper1.get('node_id') or self._generate_paper_id(paper1)
             embedding1 = paper1.get('embedding')
+            if isinstance(embedding1, list):
+                embedding1 = embedding1
             
             if not embedding1:
                 continue
@@ -105,11 +113,13 @@ class EdgeCreator:
             # 다른 논문들과의 유사도 계산
             similarities = []
             for paper2 in papers:
-                if paper1_id == self._generate_paper_id(paper2):
+                paper2_id = paper2.get('node_id') or self._generate_paper_id(paper2)
+                if paper1_id == paper2_id:
                     continue
                 
-                paper2_id = self._generate_paper_id(paper2)
                 embedding2 = paper2.get('embedding')
+                if isinstance(embedding2, list):
+                    embedding2 = embedding2
                 
                 if not embedding2:
                     continue

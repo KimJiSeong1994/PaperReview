@@ -17,22 +17,35 @@ try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
+    OpenAI = None  # type: ignore
     OPENAI_AVAILABLE = False
 
 class EmbeddingGenerator:
     """논문 임베딩 생성 클래스"""
     
-    def __init__(self, model: str = "text-embedding-3-small", api_key: Optional[str] = None):
-        if not OPENAI_AVAILABLE:
-            raise ImportError("OpenAI package is required. Install with: pip install openai")
-        
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required.")
-        
-        self.client = OpenAI(api_key=self.api_key)
-        self.model = model
+    def __init__(
+        self,
+        model: str = "text-embedding-3-small",
+        api_key: Optional[str] = None,
+        use_openai: bool = True,
+        fallback_dim: int = 384
+    ):
         self.embedding_cache = {}
+        self.use_openai = use_openai and OPENAI_AVAILABLE
+        self.fallback_dim = fallback_dim
+        
+        if self.use_openai:
+            self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+            if not self.api_key:
+                raise ValueError("OpenAI API key is required.")
+            self.client = OpenAI(api_key=self.api_key)
+            self.model = model
+        else:
+            self.api_key = None
+            self.client = None
+            self.model = model
+            if use_openai and not OPENAI_AVAILABLE:
+                print("Warning: OpenAI package not available. Using deterministic fallback embeddings.")
     
     def _get_paper_text(self, paper: Dict[str, Any]) -> str:
         """논문에서 임베딩 생성용 텍스트 추출"""
@@ -41,17 +54,54 @@ class EmbeddingGenerator:
                  f"Content: {(paper['full_text'][:2000] + '...' if len(paper.get('full_text', '')) > 2000 else paper.get('full_text', ''))}" if paper.get('full_text') else None]
         return "\n\n".join([p for p in parts if p]) if any(parts) else ""
     
+    def _tokenize(self, text: str) -> List[str]:
+        """간단한 토크나이저 (알파벳/숫자 기반)"""
+        import re
+        
+        text = text.lower()
+        tokens = re.findall(r"[a-z0-9]+", text)
+        return [t for t in tokens if len(t) > 1]
+    
+    def _generate_fallback_embedding(self, text: str) -> Optional[np.ndarray]:
+        """OpenAI 미사용 시 Hashing 기반 문맥 임베딩 생성"""
+        if not text:
+            return None
+        
+        import hashlib
+        
+        vector = np.zeros(self.fallback_dim, dtype='float32')
+        tokens = self._tokenize(text)
+        if not tokens:
+            return None
+        
+        for token in tokens:
+            token_hash = hashlib.md5(token.encode('utf-8')).digest()
+            idx = int.from_bytes(token_hash[:4], 'little') % self.fallback_dim
+            vector[idx] += 1.0
+        
+        norm = np.linalg.norm(vector)
+        if norm > 0:
+            vector /= norm
+        return vector
+    
     def _get_embedding(self, text: str) -> Optional[np.ndarray]:
         """텍스트를 embedding으로 변환"""
-        if not text or not text.strip(): return None
+        if not text or not text.strip():
+            return None
         
         text_hash = hash(text)
         if text_hash in self.embedding_cache:
             return self.embedding_cache[text_hash]
         
         try:
-            response = self.client.embeddings.create(model=self.model, input=text[:8000])
-            embedding = np.array(response.data[0].embedding)
+            if self.use_openai and self.client:
+                response = self.client.embeddings.create(model=self.model, input=text[:8000])
+                embedding = np.array(response.data[0].embedding).astype('float32')
+            else:
+                embedding = self._generate_fallback_embedding(text)
+                if embedding is None:
+                    return None
+            
             self.embedding_cache[text_hash] = embedding
             return embedding
         except Exception as e:

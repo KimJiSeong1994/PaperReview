@@ -59,7 +59,7 @@ class GraphBuilder:
         if create_similarity_edges:
             print("\n[3/3] Similarity 엣지 생성 중...")
             similarity_edges = self.edge_creator.create_similarity_edges(
-                papers,
+                nodes,
                 similarity_threshold=similarity_threshold,
                 top_k=similarity_top_k
             )

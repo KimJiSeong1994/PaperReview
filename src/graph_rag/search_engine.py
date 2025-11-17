@@ -6,7 +6,15 @@ import sys
 import json
 import numpy as np
 from typing import Dict, List, Any, Optional
-import faiss
+import importlib
+
+faiss_spec = importlib.util.find_spec("faiss")
+if faiss_spec is not None:
+    faiss = importlib.import_module("faiss")
+    FAISS_AVAILABLE = True
+else:
+    faiss = None  # type: ignore
+    FAISS_AVAILABLE = False
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
@@ -19,11 +27,17 @@ class SearchEngine:
         self.index = None
         self.id_mapping = []
         
-        if embeddings_index_path and id_mapping_path:
+        if embeddings_index_path and id_mapping_path and FAISS_AVAILABLE:
             self.load_embeddings(embeddings_index_path, id_mapping_path)
+        elif not FAISS_AVAILABLE:
+            print("Warning: FAISS is not available. Vector search features are disabled.")
     
     def load_embeddings(self, index_path: str, mapping_path: str):
         """저장된 임베딩 인덱스 로드"""
+        if not FAISS_AVAILABLE:
+            print("FAISS is not available. Skipping embedding index load.")
+            return
+
         try:
             self.index = faiss.read_index(index_path)
             with open(mapping_path, 'r', encoding='utf-8') as f:
@@ -34,6 +48,17 @@ class SearchEngine:
     
     def generate_query_embedding(self, query: str, openai_client) -> Optional[np.ndarray]:
         """쿼리 임베딩 생성"""
+        if not FAISS_AVAILABLE:
+            # 기본 L2 정규화만 수행하여 numpy 배열 반환
+            embedding = np.array(openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=query
+            ).data[0].embedding).astype('float32')
+            norm = np.linalg.norm(embedding)
+            if norm > 0:
+                embedding = embedding / norm
+            return embedding.reshape(1, -1)
+
         try:
             response = openai_client.embeddings.create(
                 model="text-embedding-3-small",
@@ -49,7 +74,7 @@ class SearchEngine:
     @log_data_processing("Vector Search")
     def vector_search(self, query_embedding: np.ndarray, top_k: int = 10) -> List[Dict[str, Any]]:
         """벡터 유사도 기반 검색"""
-        if self.index is None:
+        if not FAISS_AVAILABLE or self.index is None:
             return []
         
         distances, indices = self.index.search(query_embedding, top_k)
@@ -168,7 +193,7 @@ class SearchEngine:
         expanded_papers = self.expand_graph(initial_papers, expansion_strategy=expansion_strategy)
         
         # 3. 확장된 논문 중 상위 선택
-        if len(expanded_papers) > max_expanded:
+        if FAISS_AVAILABLE and self.index is not None and len(expanded_papers) > max_expanded:
             # 벡터 유사도로 재랭킹
             expanded_results = []
             for paper_id in expanded_papers:
