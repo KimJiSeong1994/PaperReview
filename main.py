@@ -9,6 +9,7 @@ load_dotenv()
 sys.path.append('src')
 sys.path.append('app/SearchAgent')
 from search_agent import SearchAgent
+from app.LangGraphUI import run_langgraph_cli
 
 def main(queries=None, max_results=5, openai_api_key=None):
     # OpenAI API 키 설정 (환경 변수 또는 인자로 전달)
@@ -79,7 +80,12 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--extract-text', action='store_true', help='논문 본문 추출')
     parser.add_argument('--max-texts', type=int, default=None, help='본문 추출할 최대 논문 수')
     parser.add_argument('--openai-api-key', type=str, default=None, help='OpenAI API 키 (또는 OPENAI_API_KEY 환경 변수 사용)')
+    parser.add_argument('--langgraph-ui', action='store_true', help='LangGraph CLI UI 실행')
     args = parser.parse_args()
+
+    if args.langgraph_ui:
+        run_langgraph_cli()
+        sys.exit(0)
     
     # 실행
     main(queries=args.queries, max_results=args.max_results, openai_api_key=args.openai_api_key)

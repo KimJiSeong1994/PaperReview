@@ -43,6 +43,7 @@ class SearchEngine:
             with open(mapping_path, 'r', encoding='utf-8') as f:
                 self.id_mapping = json.load(f)
             print(f"✓ 임베딩 인덱스 로드 완료: {len(self.id_mapping)}개")
+        
         except Exception as e:
             print(f"임베딩 로드 실패: {e}")
     
