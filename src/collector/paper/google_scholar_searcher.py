@@ -12,7 +12,7 @@ import urllib.parse
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_search_operation
+from utils.logger import log_search_operation, logger
 
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트"""
