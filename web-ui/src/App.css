@@ -1,42 +1,229 @@
-#root {
-  max-width: 1280px;
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Roboto', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0f0f0f;
+  color: #ececec;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f0f;
+}
+
+.app-header {
+  background: transparent;
+  padding: 16px 24px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.header-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  display: block;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.logo-icon:not([src]) {
+  display: none;
 }
 
-.card {
-  padding: 2em;
+
+.brand-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-.read-the-docs {
-  color: #888;
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ececec;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 80px;
+}
+
+.centered-search {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  min-height: calc(100vh - 80px);
+}
+
+.brand-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 80px;
+}
+
+
+.brand-title {
+  font-size: 64px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -1.5px;
+  margin: 0 0 12px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.1;
+}
+
+.brand-tagline {
+  font-size: 22px;
+  font-weight: 400;
+  color: #9ca3af;
+  letter-spacing: -0.3px;
+  margin: 0 0 64px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.search-bar-fixed {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 32px;
+}
+
+.search-query-display {
+  font-size: 20px;
+  color: #ececec;
+  margin-bottom: 32px;
+  text-align: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #9ca3af;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.results-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px 24px;
+}
+
+.main-container {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  padding: 0;
+  max-width: 1920px;
+  margin: 0 auto;
+  width: 100%;
+  background: transparent;
+}
+
+.left-panel,
+.right-panel {
+  width: 320px;
+  background: #181818;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: calc(100vh - 160px);
+}
+
+.center-panel {
+  flex: 1;
+  background: #181818;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pane-title {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'Roboto', sans-serif;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 15px;
+  padding: 32px;
 }

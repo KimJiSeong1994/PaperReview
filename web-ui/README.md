@@ -1,73 +1,62 @@
-# React + TypeScript + Vite
+# Paper Review Agent - React UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Connected Papers 스타일의 인터랙티브 논문 그래프 웹 인터페이스
 
-Currently, two official plugins are available:
+## 개발 서버 실행
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 1. 백엔드 서버 실행 (FastAPI)
 
-## React Compiler
+프로젝트 루트 디렉토리에서:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd /Users/gimjiseong/git/PaperReviewAgent
+source .venv/bin/activate
+python api_server.py
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+백엔드는 `http://localhost:8000`에서 실행됩니다.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. 프론트엔드 개발 서버 실행 (React + Vite)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+`web-ui` 디렉토리에서:
+
+```bash
+cd web-ui
+npm install  # 처음 한 번만 실행
+npm run dev
+```
+
+프론트엔드는 `http://localhost:5173`에서 실행됩니다.
+
+## 기능
+
+- **논문 검색**: arXiv, Connected Papers, Google Scholar에서 논문 검색
+- **인터랙티브 그래프**: 논문 간 관계를 시각화하는 그래프 뷰
+- **논문 목록**: 검색된 논문을 좌측 패널에서 확인
+- **상세 정보**: 선택한 논문의 상세 정보를 우측 패널에서 확인
+- **Connected Papers 스타일**: Connected Papers와 유사한 UI/UX 디자인
+
+## 기술 스택
+
+- **Frontend**: React 19, TypeScript, Vite
+- **Visualization**: Plotly.js
+- **Backend**: FastAPI (Python)
+- **Styling**: CSS3 (Connected Papers 스타일)
+
+## 프로젝트 구조
+
+```
+web-ui/
+├── src/
+│   ├── components/
+│   │   ├── SearchBar.tsx       # 검색 바 컴포넌트
+│   │   ├── PaperList.tsx       # 논문 목록 컴포넌트
+│   │   ├── GraphView.tsx       # 그래프 시각화 컴포넌트
+│   │   └── DetailPanel.tsx     # 상세 정보 패널
+│   ├── api/
+│   │   └── client.ts           # API 클라이언트
+│   ├── types.ts                # TypeScript 타입 정의
+│   ├── App.tsx                 # 메인 앱 컴포넌트
+│   └── index.css               # 글로벌 스타일
+└── package.json
 ```
