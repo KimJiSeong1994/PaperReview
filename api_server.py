@@ -16,8 +16,10 @@ from pydantic import BaseModel
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 sys.path.append(str(PROJECT_ROOT / "app" / "SearchAgent"))
+sys.path.append(str(PROJECT_ROOT / "app" / "QueryAgent"))
 
 from search_agent import SearchAgent
+from query_analyzer import QueryAnalyzer
 
 load_dotenv()
 
@@ -32,8 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global agent instance
+# Global agent instances
 search_agent = SearchAgent(openai_api_key=os.getenv("OPENAI_API_KEY"))
+query_analyzer = QueryAnalyzer(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 class SearchRequest(BaseModel):
@@ -50,6 +53,21 @@ class SearchRequest(BaseModel):
 class SearchResponse(BaseModel):
     results: Dict[str, List[Dict[str, Any]]]
     total: int
+    query_analysis: Optional[Dict[str, Any]] = None
+
+
+class QueryAnalysisRequest(BaseModel):
+    query: str
+
+
+class QueryAnalysisResponse(BaseModel):
+    intent: str
+    keywords: List[str]
+    improved_query: str
+    search_filters: Dict[str, Any]
+    confidence: float
+    original_query: str
+    analysis_details: Optional[str] = None
 
 
 @app.get("/")
@@ -57,23 +75,58 @@ async def root():
     return {"message": "Paper Review Agent API", "version": "1.0.0"}
 
 
+@app.post("/api/analyze-query", response_model=QueryAnalysisResponse)
+async def analyze_query(request: QueryAnalysisRequest):
+    """Analyze user query to understand intent and extract keywords"""
+    try:
+        print(f"[API] Analyzing query: {request.query}")
+        analysis = query_analyzer.analyze_query(request.query)
+        print(f"[API] Analysis result: intent={analysis.get('intent')}, confidence={analysis.get('confidence')}")
+        return QueryAnalysisResponse(**analysis)
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in query analysis: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Query analysis failed: {str(e)}")
+
+
 @app.post("/api/search", response_model=SearchResponse)
 async def search_papers(request: SearchRequest):
-    """Search papers across multiple sources"""
+    """Search papers across multiple sources with automatic query analysis"""
     try:
         import traceback
+        
+        # 질의 분석 수행
+        query_analysis = None
+        try:
+            print(f"[API] Analyzing query: {request.query}")
+            query_analysis = query_analyzer.analyze_query(request.query)
+            print(f"[API] Query analysis: intent={query_analysis.get('intent')}, confidence={query_analysis.get('confidence')}")
+        except Exception as e:
+            print(f"[API] Query analysis failed (continuing with original query): {e}")
+        
+        # 분석 결과를 기반으로 필터 자동 적용 (사용자가 명시적으로 지정하지 않은 경우)
         filters = {
             "sources": request.sources,
             "max_results": request.max_results,
             "sort_by": request.sort_by,
-            "year_start": request.year_start,
-            "year_end": request.year_end,
-            "author": request.author,
-            "category": request.category,
+            "year_start": request.year_start or (query_analysis.get("search_filters", {}).get("year_start") if query_analysis else None),
+            "year_end": request.year_end or (query_analysis.get("search_filters", {}).get("year_end") if query_analysis else None),
+            "author": request.author or (query_analysis.get("search_filters", {}).get("author") if query_analysis else None),
+            "category": request.category or (query_analysis.get("search_filters", {}).get("category") if query_analysis else None),
         }
-        print(f"[API] Searching for: {request.query}")
+        
+        # 개선된 쿼리 사용 (분석 결과가 있고 신뢰도가 높은 경우)
+        search_query = request.query
+        if query_analysis and query_analysis.get("confidence", 0) > 0.7:
+            improved_query = query_analysis.get("improved_query")
+            if improved_query and improved_query != request.query:
+                print(f"[API] Using improved query: {improved_query}")
+                search_query = improved_query
+        
+        print(f"[API] Searching for: {search_query}")
         print(f"[API] Filters: {filters}")
-        results = search_agent.search_with_filters(request.query, filters)
+        results = search_agent.search_with_filters(search_query, filters)
         print(f"[API] Results: {sum(len(papers) for papers in results.values())} papers found")
         
         # Ensure all sources are in results
@@ -82,7 +135,11 @@ async def search_papers(request: SearchRequest):
                 results[source] = []
         
         total = sum(len(papers) for papers in results.values())
-        return SearchResponse(results=results, total=total)
+        return SearchResponse(
+            results=results, 
+            total=total,
+            query_analysis=query_analysis
+        )
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()

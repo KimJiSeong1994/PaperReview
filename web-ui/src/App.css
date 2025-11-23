@@ -21,7 +21,7 @@ body {
 
 .app-header {
   background: transparent;
-  padding: 16px 24px;
+  padding: 16px 24px 16px 24px; /* results-view와 동일한 왼쪽 패딩 */
   position: fixed;
   top: 0;
   left: 0;
@@ -34,7 +34,8 @@ body {
   justify-content: space-between;
   align-items: center;
   max-width: 1400px;
-  margin: 0 auto;
+  margin: 0 auto 0 0; /* 왼쪽 정렬 */
+  padding-left: 8px; /* 왼쪽에 작은 버퍼 추가 */
 }
 
 .logo {
