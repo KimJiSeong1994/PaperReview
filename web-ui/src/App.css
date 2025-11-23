@@ -90,7 +90,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: 80px;
+  padding-top: 70px; /* Adjusted to 70px for better positioning */
 }
 
 .centered-search {
@@ -98,8 +98,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 64px 24px;
+  justify-content: flex-start; /* Changed from center to flex-start to move content up */
+  padding: 120px 24px 64px; /* Increased top padding to 120px to move content down */
   min-height: calc(100vh - 80px);
 }
 
@@ -107,7 +107,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 80px;
+  margin-bottom: 60px; /* Reduced from 80px to 60px to move search bar up */
 }
 
 
@@ -126,14 +126,14 @@ body {
   font-weight: 400;
   color: #9ca3af;
   letter-spacing: -0.3px;
-  margin: 0 0 64px 0;
+  margin: 0 0 16px 0; /* Reduced from 28px to 16px to further reduce space between text and search bar */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 .search-bar-fixed {
   width: 100%;
   max-width: 900px;
-  margin: 0 auto 32px;
+  margin: 0 auto 16px; /* Reduced from 32px to 16px */
 }
 
 .search-query-display {
@@ -173,6 +173,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0 24px 24px;
+  gap: 8px; /* Reduced gap between search bar and content */
 }
 
 .main-container {

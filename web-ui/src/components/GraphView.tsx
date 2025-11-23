@@ -103,6 +103,14 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       }
     });
 
+    // Helper function to truncate title to a brief version
+    const truncateTitle = (title: string, maxWords: number = 5): string => {
+      if (!title) return 'Untitled';
+      const words = title.split(' ');
+      if (words.length <= maxWords) return title;
+      return words.slice(0, maxWords).join(' ') + '...';
+    };
+
     // Helper function to create node trace
     const createNodeTrace = (nodeList: typeof nodes, isHighlighted: boolean, isSelected: boolean): Data | null => {
       if (nodeList.length === 0) return null;
@@ -129,13 +137,22 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
             return 'rgba(168, 85, 247, 0.95)'; // Purple color like edges
           } else {
             // All other nodes: use original green/blue color with 0.95 opacity (exactly like web_app.py line 301)
-            return `rgba(60, ${baseGreen}, 150, 0.95)`;
+            // Ensure baseGreen is clamped to valid range
+            const clampedGreen = Math.max(150, Math.min(220, baseGreen));
+            // Return color as a proper rgba string
+            return `rgba(60, ${clampedGreen}, 150, 0.95)`;
           }
         } catch (error) {
           // Fallback color if calculation fails
+          console.error('Error calculating node color:', error, n);
           return 'rgba(60, 150, 150, 0.95)';
         }
       });
+      
+      // Debug: Log first few colors to verify they're being calculated correctly
+      if (nodeColors.length > 0) {
+        console.log('Sample node colors:', nodeColors.slice(0, 3));
+      }
 
       const nodeSizes = nodeList.map(n => {
         const citations = n.citations || 1;
@@ -149,26 +166,19 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         return size;
       });
 
-      // Helper function to truncate title to a brief version
-      const truncateTitle = (title: string, maxWords: number = 5): string => {
-        if (!title) return 'Untitled';
-        const words = title.split(' ');
-        if (words.length <= maxWords) return title;
-        return words.slice(0, maxWords).join(' ') + '...';
-      };
-
-      const nodeText = nodeList.map(n => {
-        return truncateTitle(n.title || 'Untitled', 5);
-      });
+      // Ensure nodeColors is a valid array with proper color strings
+      const validColors = nodeColors.length > 0 && nodeColors.every(c => typeof c === 'string' && c.startsWith('rgba'))
+        ? nodeColors 
+        : nodeList.map(() => 'rgba(60, 150, 150, 0.95)'); // Fallback if colors are invalid
 
       return {
         x: nodeX,
         y: nodeY,
-        mode: 'text+markers', // Enable text display on nodes
+        mode: 'markers', // Remove text from markers, use separate text trace
         type: 'scatter',
         marker: {
           size: nodeSizes,
-          color: nodeColors.length > 0 ? nodeColors : 'rgba(60, 150, 150, 0.95)', // Fallback color if empty
+          color: validColors, // Use validated colors array (opacity already in rgba values)
           line: {
             width: isSelected ? 3.5 : (isHighlighted ? 3 : 2),
             color: isSelected 
@@ -179,14 +189,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
                   ? 'rgba(255, 255, 255, 0.6)' // Slightly transparent white border for normal nodes when highlighted
                   : '#ffffff')),
           },
-        },
-        text: nodeText,
-        textposition: 'top center',
-        textfont: {
-          size: 9,
-          color: hasHighlightedNodes && !isSelected && !isHighlighted 
-            ? 'rgba(255, 255, 255, 0.6)' // More visible text for non-highlighted nodes
-            : 'rgba(255, 255, 255, 0.9)', // White text for better visibility on dark background
         },
         hovertext: nodeList.map(n => n.title || ''),
         hoverinfo: 'text',
@@ -204,18 +206,58 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const highlightedNodeTrace = createNodeTrace(highlightedNodes, true, false);
     const selectedNodeTrace = createNodeTrace(selectedNodes, false, true);
 
+    // Helper function to create text-only trace positioned above nodes
+    const createTextTrace = (nodeList: typeof nodes, isHighlighted: boolean, isSelected: boolean): Data | null => {
+      if (nodeList.length === 0) return null;
+      
+      const hasHighlightedNodes = selectedPaper || highlightedPapers.size > 0;
+      const textOffset = 0.08; // Offset to move text higher above nodes
+      
+      const nodeX = nodeList.map(n => n.x);
+      const nodeY = nodeList.map(n => n.y + textOffset); // Move text higher
+      const nodeText = nodeList.map(n => {
+        return truncateTitle(n.title || 'Untitled', 5);
+      });
+
+      return {
+        x: nodeX,
+        y: nodeY,
+        mode: 'text',
+        type: 'scatter',
+        text: nodeText,
+        textposition: 'middle center',
+        textfont: {
+          size: 9,
+          color: hasHighlightedNodes && !isSelected && !isHighlighted 
+            ? 'rgba(255, 255, 255, 0.6)' // More visible text for non-highlighted nodes
+            : 'rgba(255, 255, 255, 0.9)', // White text for better visibility on dark background
+        },
+        hoverinfo: 'skip',
+        showlegend: false,
+      };
+    };
+
+    // Create text traces
+    const normalTextTrace = createTextTrace(normalNodes, false, false);
+    const highlightedTextTrace = createTextTrace(highlightedNodes, true, false);
+    const selectedTextTrace = createTextTrace(selectedNodes, false, true);
+
     // Build plot data with proper z-ordering:
     // 1. Normal edges (bottom)
     // 2. Highlighted edges (middle)
     // 3. Normal nodes (middle)
     // 4. Highlighted nodes (upper)
     // 5. Selected node (top)
+    // 6. Text traces (on top of nodes)
     const plotData: Data[] = [
       edgeTrace,
       ...(highlightedEdgeTrace ? [highlightedEdgeTrace] : []),
       ...(normalNodeTrace ? [normalNodeTrace] : []),
       ...(highlightedNodeTrace ? [highlightedNodeTrace] : []),
       ...(selectedNodeTrace ? [selectedNodeTrace] : []),
+      ...(normalTextTrace ? [normalTextTrace] : []),
+      ...(highlightedTextTrace ? [highlightedTextTrace] : []),
+      ...(selectedTextTrace ? [selectedTextTrace] : []),
     ].filter(Boolean) as Data[];
 
     const plotLayout: Partial<Layout> = {
