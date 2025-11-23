@@ -21,11 +21,23 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const nodes = graphData.nodes;
     const edges = graphData.edges;
 
-    // Calculate year range for coloring
-    const years = nodes.map(n => n.year).filter(Boolean) as number[];
-    const minYear = years.length > 0 ? Math.min(...years) : 2010;
-    const maxYear = years.length > 0 ? Math.max(...years) : 2024;
-    const yearRange = maxYear - minYear || 1;
+      // Calculate year range for coloring
+      const years = nodes.map(n => {
+        const year = n.year;
+        if (typeof year === 'number') return year;
+        if (typeof year === 'string') {
+          const parsed = parseInt(year, 10);
+          return isNaN(parsed) ? null : parsed;
+        }
+        return null;
+      }).filter((y): y is number => y !== null && !isNaN(y));
+      
+      const minYear = years.length > 0 ? Math.min(...years) : 2010;
+      const maxYear = years.length > 0 ? Math.max(...years) : 2024;
+      const yearRange = maxYear - minYear || 1;
+      
+      // Debug: Log year range
+      console.log('Year range:', { minYear, maxYear, yearRange, yearsCount: years.length });
 
     // Edge trace - highlight edges connected to selected/highlighted papers
     const edgeX: number[] = [];
@@ -170,6 +182,12 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       const validColors = nodeColors.length > 0 && nodeColors.every(c => typeof c === 'string' && c.startsWith('rgba'))
         ? nodeColors 
         : nodeList.map(() => 'rgba(60, 150, 150, 0.95)'); // Fallback if colors are invalid
+      
+      // Debug: Verify colors
+      if (validColors.length > 0) {
+        console.log('Valid colors sample:', validColors.slice(0, 3));
+        console.log('Color types:', validColors.slice(0, 3).map(c => typeof c));
+      }
 
       return {
         x: nodeX,
@@ -179,6 +197,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         marker: {
           size: nodeSizes,
           color: validColors, // Use validated colors array (opacity already in rgba values)
+          showscale: false, // Disable color scale to use direct color values
           line: {
             width: isSelected ? 3.5 : (isHighlighted ? 3 : 2),
             color: isSelected 

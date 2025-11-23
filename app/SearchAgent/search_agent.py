@@ -13,6 +13,10 @@ from collector.paper.google_scholar_searcher import GoogleScholarSearcher
 from collector.paper.reference_collector import ReferenceCollector
 from collector.paper.text_extractor import TextExtractor
 from collector.paper.similarity_calculator import SimilarityCalculator
+from graph.embedding_generator import EmbeddingGenerator
+from graph.graph_builder import GraphBuilder
+from graph.node_creator import NodeCreator
+from graph.edge_creator import EdgeCreator
 from utils.logger import log_search_operation
 
 class SearchAgent:
@@ -44,6 +48,16 @@ class SearchAgent:
         
         # 논문 저장 파일 경로
         self.papers_file = os.path.join(self.data_dir, 'papers.json')
+        
+        # 그래프 및 embedding 경로 설정
+        project_root = os.path.join(os.path.dirname(__file__), '../..')
+        self.graph_path = os.path.join(project_root, 'data/graph/paper_graph.pkl')
+        self.embeddings_dir = os.path.join(project_root, 'data/embeddings')
+        os.makedirs(os.path.dirname(self.graph_path), exist_ok=True)
+        os.makedirs(self.embeddings_dir, exist_ok=True)
+        
+        # OpenAI API 키 저장 (embedding 생성용)
+        self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
     
     @log_search_operation("Multi-Source")
     def search_all_sources(self, query: str, max_results_per_source: int = 5) -> Dict[str, List[Dict[str, Any]]]:
@@ -237,21 +251,25 @@ class SearchAgent:
         title = paper.get('title', '').lower().strip()
         return title[:100] if title else str(hash(str(paper)))
     
-    def save_papers(self, results: Dict[str, List[Dict[str, Any]]], query: str = "") -> Dict[str, Any]:
+    def save_papers(self, results: Dict[str, List[Dict[str, Any]]], query: str = "", 
+                  generate_embeddings: bool = True, update_graph: bool = True) -> Dict[str, Any]:
         """
-        검색된 논문들을 누적형으로 JSON 파일에 저장
+        검색된 논문들을 누적형으로 JSON 파일에 저장하고, embedding 생성 및 그래프 업데이트 수행
         
         Args:
             results: 검색 결과 (소스별 논문 리스트)
             query: 검색 쿼리
+            generate_embeddings: embedding 자동 생성 여부
+            update_graph: 그래프 업데이트 여부
             
         Returns:
-            저장 결과 정보 (저장된 수, 중복 수 등)
+            저장 결과 정보 (저장된 수, 중복 수, embedding 생성 수, 그래프 업데이트 정보 등)
         """
         # 기존 논문 로드
         existing_papers = self._load_existing_papers()
         
         # 새로운 논문 추가
+        new_papers_list = []
         new_count = 0
         duplicate_count = 0
         
@@ -269,6 +287,7 @@ class SearchAgent:
                     duplicate_count += 1
                 else:
                     existing_papers[paper_id] = paper
+                    new_papers_list.append(paper)
                     new_count += 1
         
         # 전체 데이터 저장
@@ -285,13 +304,49 @@ class SearchAgent:
             with open(self.papers_file, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, ensure_ascii=False, indent=2)
             
-            return {
+            result = {
                 'success': True,
                 'file': self.papers_file,
                 'new_papers': new_count,
                 'duplicates': duplicate_count,
-                'total_papers': len(existing_papers)
+                'total_papers': len(existing_papers),
+                'embeddings_generated': 0,
+                'graph_updated': False
             }
+            
+            # Embedding 생성
+            if generate_embeddings and new_papers_list and self.openai_api_key:
+                try:
+                    print(f"\n[Embedding] {len(new_papers_list)}개 새 논문에 대한 embedding 생성 중...")
+                    embedding_generator = EmbeddingGenerator(api_key=self.openai_api_key)
+                    new_embeddings = embedding_generator.generate_batch_embeddings(new_papers_list)
+                    
+                    if new_embeddings:
+                        # 기존 embedding 로드 및 병합
+                        existing_embeddings = self._load_existing_embeddings()
+                        existing_embeddings.update(new_embeddings)
+                        
+                        # 저장
+                        embedding_generator.save_embeddings(existing_embeddings, self.embeddings_dir)
+                        result['embeddings_generated'] = len(new_embeddings)
+                        print(f"✓ {len(new_embeddings)}개 embedding 생성 및 저장 완료")
+                except Exception as e:
+                    print(f"⚠ Embedding 생성 중 오류: {e}")
+                    result['embedding_error'] = str(e)
+            
+            # 그래프 업데이트
+            if update_graph and new_papers_list:
+                try:
+                    print(f"\n[Graph] {len(new_papers_list)}개 새 논문을 그래프에 추가 중...")
+                    graph_info = self._update_graph(new_papers_list)
+                    result['graph_updated'] = True
+                    result['graph_info'] = graph_info
+                    print(f"✓ 그래프 업데이트 완료")
+                except Exception as e:
+                    print(f"⚠ 그래프 업데이트 중 오류: {e}")
+                    result['graph_error'] = str(e)
+            
+            return result
             
         except Exception as e:
             return {
@@ -315,6 +370,187 @@ class SearchAgent:
             return True
         except Exception:
             return False
+    
+    def _load_existing_embeddings(self) -> Dict[str, Any]:
+        """기존 embedding 로드 (JSON 형식)"""
+        embeddings_file = os.path.join(self.embeddings_dir, 'embeddings.json')
+        if not os.path.exists(embeddings_file):
+            return {}
+        
+        try:
+            import json
+            with open(embeddings_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # embeddings.json은 {paper_id: [embedding_array]} 형식
+                return data if isinstance(data, dict) else {}
+        except Exception as e:
+            print(f"⚠ Embedding 로드 중 오류: {e}")
+            return {}
+    
+    def _update_graph(self, new_papers: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        기존 그래프에 새 논문 추가 및 병합
+        
+        Args:
+            new_papers: 추가할 새 논문 리스트
+            
+        Returns:
+            그래프 업데이트 정보
+        """
+        import networkx as nx
+        import pickle
+        
+        # 1. 기존 그래프 로드 (없으면 새로 생성)
+        existing_graph = None
+        if os.path.exists(self.graph_path):
+            try:
+                with open(self.graph_path, 'rb') as f:
+                    existing_graph = pickle.load(f)
+                print(f"  기존 그래프 로드: {existing_graph.number_of_nodes()}개 노드, {existing_graph.number_of_edges()}개 엣지")
+            except Exception as e:
+                print(f"  ⚠ 기존 그래프 로드 실패: {e}, 새 그래프 생성")
+        
+        if existing_graph is None:
+            existing_graph = nx.MultiDiGraph()
+        
+        # 2. 기존 논문 로드 (전체 논문 목록)
+        all_papers = self._load_existing_papers()
+        all_papers_list = list(all_papers.values())
+        
+        # 3. 새 논문에 대한 embedding 로드
+        existing_embeddings = self._load_existing_embeddings()
+        embeddings_dict = {}
+        for paper in new_papers:
+            paper_id = self._generate_paper_id(paper)
+            if paper_id in existing_embeddings:
+                # embedding이 리스트 형태로 저장되어 있을 수 있음
+                import numpy as np
+                emb_data = existing_embeddings[paper_id]
+                if isinstance(emb_data, list):
+                    embeddings_dict[paper_id] = np.array(emb_data)
+                else:
+                    embeddings_dict[paper_id] = emb_data
+        
+        # 4. 새 논문을 노드로 추가
+        node_creator = NodeCreator()
+        new_nodes = node_creator.create_nodes_batch(new_papers, embeddings_dict)
+        
+        nodes_added = 0
+        for node in new_nodes:
+            node_id = node['node_id']
+            if node_id not in existing_graph:
+                # 노드 속성에서 node_id 제거 (NetworkX는 node_id를 키로 사용)
+                node_attrs = {k: v for k, v in node.items() if k != 'node_id'}
+                existing_graph.add_node(node_id, **node_attrs)
+                nodes_added += 1
+        
+        print(f"  {nodes_added}개 새 노드 추가")
+        
+        # 5. 새 논문과 기존 논문 간 엣지 생성
+        edge_creator = EdgeCreator()
+        
+        # Citation 엣지 생성 (새 논문의 참고문헌이 기존 논문에 있는 경우)
+        citation_edges = edge_creator.create_citation_edges(new_papers)
+        citation_count = 0
+        for edge in citation_edges:
+            source_id = edge['source']
+            target_id = edge['target']
+            # 기존 그래프에 노드가 있는 경우에만 엣지 추가
+            if source_id in existing_graph and target_id in existing_graph:
+                if not existing_graph.has_edge(source_id, target_id):
+                    existing_graph.add_edge(
+                        source_id, target_id,
+                        edge_type=edge['edge_type'],
+                        weight=edge['weight'],
+                        **edge.get('metadata', {})
+                    )
+                    citation_count += 1
+        
+        print(f"  {citation_count}개 Citation 엣지 추가")
+        
+        # 6. Similarity 엣지 생성 (제목 유사도 기반)
+        # 새 논문과 기존 논문 간 유사도 계산
+        similarity_count = 0
+        for new_paper in new_papers:
+            new_paper_id = self._generate_paper_id(new_paper)
+            if new_paper_id not in existing_graph:
+                continue
+            
+            # 기존 논문과의 유사도 계산
+            similarities = []
+            for existing_paper in all_papers_list:
+                existing_paper_id = self._generate_paper_id(existing_paper)
+                if existing_paper_id == new_paper_id or existing_paper_id not in existing_graph:
+                    continue
+                
+                # 제목 토큰 기반 유사도 계산
+                similarity = self._calculate_title_similarity(
+                    new_paper.get('title', ''),
+                    existing_paper.get('title', '')
+                )
+                
+                if similarity >= 0.12:  # 임계값
+                    similarities.append((existing_paper_id, similarity))
+            
+            # 상위 유사도 엣지 추가
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            for target_id, sim_score in similarities[:10]:  # 상위 10개만
+                if not existing_graph.has_edge(new_paper_id, target_id):
+                    existing_graph.add_edge(
+                        new_paper_id, target_id,
+                        edge_type='SIMILAR_TO',
+                        weight=round(sim_score, 3)
+                    )
+                    similarity_count += 1
+        
+        print(f"  {similarity_count}개 Similarity 엣지 추가")
+        
+        # 7. 그래프 저장
+        try:
+            with open(self.graph_path, 'wb') as f:
+                pickle.dump(existing_graph, f)
+            
+            # 메타데이터 저장
+            metadata = {
+                "nodes": existing_graph.number_of_nodes(),
+                "edges": existing_graph.number_of_edges(),
+                "updated_at": datetime.now().isoformat()
+            }
+            metadata_path = self.graph_path.replace('.pkl', '_metadata.json')
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            
+            return {
+                "nodes_added": nodes_added,
+                "citation_edges_added": citation_count,
+                "similarity_edges_added": similarity_count,
+                "total_nodes": existing_graph.number_of_nodes(),
+                "total_edges": existing_graph.number_of_edges()
+            }
+        except Exception as e:
+            print(f"  ⚠ 그래프 저장 실패: {e}")
+            raise
+    
+    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
+        """제목 간 유사도 계산 (Jaccard similarity)"""
+        if not title1 or not title2:
+            return 0.0
+        
+        import re
+        def _title_tokens(text: str) -> set:
+            words = re.findall(r"\b\w+\b", text.lower())
+            return {w for w in words if len(w) > 3}
+        
+        tokens1 = _title_tokens(title1)
+        tokens2 = _title_tokens(title2)
+        
+        if not tokens1 or not tokens2:
+            return 0.0
+        
+        intersection = len(tokens1 & tokens2)
+        union = len(tokens1 | tokens2)
+        
+        return intersection / union if union > 0 else 0.0
     
     def collect_references(self, max_references_per_paper: int = 10, max_papers: int = None) -> Dict[str, Any]:
         existing_papers = self._load_existing_papers()

@@ -91,13 +91,42 @@ async def search_papers(request: SearchRequest):
 
 
 @app.post("/api/save")
-async def save_papers(results: Dict[str, List[Dict[str, Any]]], query: str = ""):
-    """Save search results to database"""
+async def save_papers(
+    results: Dict[str, List[Dict[str, Any]]], 
+    query: str = "",
+    generate_embeddings: bool = True,
+    update_graph: bool = True
+):
+    """
+    Save search results to database with automatic embedding generation and graph update
+    
+    Args:
+        results: Search results (papers by source)
+        query: Search query
+        generate_embeddings: Whether to generate embeddings for new papers
+        update_graph: Whether to update the graph with new papers
+    """
     try:
-        save_info = search_agent.save_papers(results, query)
+        print(f"[API] Saving {sum(len(papers) for papers in results.values())} papers...")
+        print(f"[API] Generate embeddings: {generate_embeddings}, Update graph: {update_graph}")
+        
+        save_info = search_agent.save_papers(
+            results, 
+            query, 
+            generate_embeddings=generate_embeddings,
+            update_graph=update_graph
+        )
+        
+        print(f"[API] Save completed: {save_info.get('new_papers', 0)} new papers, "
+              f"{save_info.get('embeddings_generated', 0)} embeddings generated, "
+              f"graph updated: {save_info.get('graph_updated', False)}")
+        
         return save_info
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in save: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Save failed: {str(e)}")
 
 
 @app.get("/api/papers/count")
