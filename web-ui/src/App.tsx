@@ -10,6 +10,7 @@ import type { Paper, GraphData } from './types';
 function App() {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+  const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -73,6 +74,7 @@ function App() {
         // Select first paper by default
         if (!selectedPaper && allPapers.length > 0) {
           setSelectedPaper(allPapers[0]);
+          setHighlightedPapers(new Set());
         }
       }
     } catch (error: any) {
@@ -94,6 +96,7 @@ function App() {
       setPapers([]);
       setGraphData(null);
       setSelectedPaper(null);
+      setHighlightedPapers(new Set());
     } finally {
       setLoading(false);
     }
@@ -101,7 +104,44 @@ function App() {
 
   const handlePaperSelect = (paper: Paper) => {
     setSelectedPaper(paper);
+    // Clear previous highlights
+    setHighlightedPapers(new Set());
   };
+
+  const handleNodeClickWithHighlight = (paper: Paper) => {
+    setSelectedPaper(paper);
+    
+    // Find connected papers with highest similarity
+    if (graphData && graphData.edges) {
+      const paperId = paper.doc_id;
+      const connectedPapers: Array<{ docId: string; weight: number }> = [];
+      
+      // Find all edges connected to this paper
+      graphData.edges.forEach(edge => {
+        if (edge.source === paperId || String(edge.source) === String(paperId)) {
+          connectedPapers.push({
+            docId: edge.target,
+            weight: edge.weight || 0,
+          });
+        } else if (edge.target === paperId || String(edge.target) === String(paperId)) {
+          connectedPapers.push({
+            docId: edge.source,
+            weight: edge.weight || 0,
+          });
+        }
+      });
+      
+      // Sort by weight (similarity) descending
+      connectedPapers.sort((a, b) => b.weight - a.weight);
+      
+      // Get top 5 most similar papers (or all if less than 5)
+      const topSimilar = connectedPapers.slice(0, 5).map(p => String(p.docId));
+      
+      // Set highlighted papers
+      setHighlightedPapers(new Set(topSimilar));
+    }
+  };
+
 
   return (
     <div className="app">
@@ -173,8 +213,9 @@ function App() {
                   <GraphView
                     graphData={graphData}
                     selectedPaper={selectedPaper}
+                    highlightedPapers={highlightedPapers}
                     papers={papers}
-                    onNodeClick={handlePaperSelect}
+                    onNodeClick={handleNodeClickWithHighlight}
                   />
                 )}
               </div>

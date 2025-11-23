@@ -3,6 +3,31 @@
   padding: 16px;
   background: #181818;
   min-height: 620px;
+  position: relative;
+}
+
+/* Plotly modebar styling for dark theme */
+.graph-view .modebar {
+  background: rgba(24, 24, 24, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+.graph-view .modebar-btn {
+  color: #9ca3af !important;
+}
+
+.graph-view .modebar-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ececec !important;
+}
+
+.graph-view .modebar-btn svg {
+  fill: #9ca3af !important;
+}
+
+.graph-view .modebar-btn:hover svg {
+  fill: #ececec !important;
 }
 
 .graph-empty {
