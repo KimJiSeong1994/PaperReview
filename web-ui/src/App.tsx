@@ -182,11 +182,11 @@ function App() {
         )}
 
         {loading && (
-          <div className="centered-search">
-            <div className="search-query-display">{query}</div>
-            <div className="loading-indicator">
-              <div className="loading-spinner"></div>
-              <p>검색 중...</p>
+          <div className="loading-screen">
+            <div className="loading-message-bubble">
+              <div className="loading-text">
+                결과를 분석하고 있습니다...
+              </div>
             </div>
           </div>
         )}

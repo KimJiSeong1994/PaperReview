@@ -84,14 +84,14 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       type: 'scatter',
     };
 
-    // Highlighted edges trace - light purple, thicker
+    // Highlighted edges trace - light purple, thicker, with transparency
     const highlightedEdgeTrace: Data | null = edgeXHighlighted.length > 0 ? {
       x: edgeXHighlighted,
       y: edgeYHighlighted,
       mode: 'lines',
       line: {
         width: 2.5,
-        color: 'rgba(168, 85, 247, 0.8)', // Light purple for highlighted edges
+        color: 'rgba(168, 85, 247, 0.5)', // Light purple for highlighted edges with transparency (reduced from 0.8 to 0.5)
       },
       hoverinfo: 'skip',
       showlegend: false,

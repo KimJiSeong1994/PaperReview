@@ -253,8 +253,22 @@ async def get_graph_data(request: Dict[str, Any]):
                 if score >= 0.12:
                     graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
         
-        # Generate layout
-        layout = nx.spring_layout(graph, seed=42, k=0.55)
+        # Generate layout centered around graph centroid
+        # 먼저 기본 spring layout 생성
+        layout = nx.spring_layout(graph, seed=42, k=0.55, iterations=50)
+        
+        # 그래프의 centroid 계산
+        if len(layout) > 0:
+            # 모든 노드 위치의 평균 (centroid)
+            centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
+            centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
+            
+            # 모든 노드를 centroid를 중심으로 재배치
+            centered_layout = {}
+            for node_id, (x, y) in layout.items():
+                centered_layout[node_id] = (x - centroid_x, y - centroid_y)
+            
+            layout = centered_layout
         
         # Extract nodes and edges for frontend
         nodes = []
