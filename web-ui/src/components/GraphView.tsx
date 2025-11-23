@@ -36,19 +36,39 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       const maxYear = years.length > 0 ? Math.max(...years) : 2024;
       const yearRange = maxYear - minYear || 1;
       
-      // Debug: Log year range
-      console.log('Year range:', { minYear, maxYear, yearRange, yearsCount: years.length });
 
+    // 노드 조회 최적화: Map 사용
+    const nodeMap = new Map<string, typeof nodes[0]>();
+    nodes.forEach(node => {
+      const nodeId = String((node as any).doc_id || node.id);
+      nodeMap.set(nodeId, node);
+      nodeMap.set(String(node.id), node); // id로도 조회 가능하도록
+    });
+    
     // Edge trace - highlight edges connected to selected/highlighted papers
-    const edgeX: number[] = [];
-    const edgeY: number[] = [];
-    const edgeXHighlighted: number[] = [];
-    const edgeYHighlighted: number[] = [];
+    // Weight에 따라 투명도를 조절하기 위해 edge를 투명도 범위별로 그룹화 (성능 최적화)
+    interface EdgeGroup {
+      x: number[];
+      y: number[];
+      opacity: number;
+      isHighlighted: boolean;
+    }
+    
     const selectedPaperIdForEdges = selectedPaper?.doc_id ? String(selectedPaper.doc_id) : null;
     
+    // Weight 범위 계산 (투명도 매핑용)
+    const weights = edges.map(e => e.weight || 0.1).filter(w => w > 0);
+    const minWeight = weights.length > 0 ? Math.min(...weights) : 0.1;
+    const maxWeight = weights.length > 0 ? Math.max(...weights) : 1.0;
+    const weightRange = maxWeight - minWeight || 1.0;
+    
+    // 투명도별로 edge 그룹화 (5개 그룹으로 제한하여 trace 수 최소화)
+    const normalEdgeGroups: Map<string, EdgeGroup> = new Map();
+    const highlightedEdgeGroups: Map<string, EdgeGroup> = new Map();
+    
     edges.forEach(edge => {
-      const sourceNode = nodes.find(n => n.id === edge.source || String(n.id) === String(edge.source));
-      const targetNode = nodes.find(n => n.id === edge.target || String(n.id) === String(edge.target));
+      const sourceNode = nodeMap.get(String(edge.source));
+      const targetNode = nodeMap.get(String(edge.target));
       
       if (sourceNode && targetNode) {
         const sourceId = String(edge.source);
@@ -57,46 +77,69 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           (selectedPaperIdForEdges && (sourceId === selectedPaperIdForEdges || targetId === selectedPaperIdForEdges)) ||
           highlightedPapers.has(sourceId) || highlightedPapers.has(targetId);
         
+        const edgeWeight = edge.weight || 0.1;
+        // Weight를 0~1 범위로 정규화
+        const normalizedWeight = weightRange > 0 
+          ? (edgeWeight - minWeight) / weightRange 
+          : 0.5;
+        
+        // 투명도를 5단계로 그룹화 (0.2, 0.3, 0.4, 0.5, 0.6)
+        let opacity: number;
         if (isHighlighted) {
-          edgeXHighlighted.push(sourceNode.x, targetNode.x, NaN);
-          edgeYHighlighted.push(sourceNode.y, targetNode.y, NaN);
+          // 하이라이트된 edge: 0.3 ~ 0.7
+          opacity = Math.round((0.3 + (0.7 - 0.3) * normalizedWeight) * 10) / 10;
         } else {
-          edgeX.push(sourceNode.x, targetNode.x, NaN);
-          edgeY.push(sourceNode.y, targetNode.y, NaN);
+          // 일반 edge: hasHighlightedNodes 여부에 따라
+          const hasHighlightedNodes = selectedPaper || highlightedPapers.size > 0;
+          const baseOpacity = hasHighlightedNodes ? 0.15 : 0.3;
+          const maxOpacity = hasHighlightedNodes ? 0.35 : 0.6;
+          opacity = Math.round((baseOpacity + (maxOpacity - baseOpacity) * normalizedWeight) * 10) / 10;
         }
+        
+        const opacityKey = opacity.toFixed(1);
+        const groupMap = isHighlighted ? highlightedEdgeGroups : normalEdgeGroups;
+        
+        if (!groupMap.has(opacityKey)) {
+          groupMap.set(opacityKey, {
+            x: [],
+            y: [],
+            opacity: opacity,
+            isHighlighted: isHighlighted,
+          });
+        }
+        
+        const group = groupMap.get(opacityKey)!;
+        group.x.push(sourceNode.x, targetNode.x, NaN);
+        group.y.push(sourceNode.y, targetNode.y, NaN);
       }
     });
 
-    // Calculate opacity for non-highlighted edges based on whether there are selected/highlighted nodes
-    const hasHighlightedNodes = selectedPaper || highlightedPapers.size > 0;
-    
-    // Normal edges - light gray color
-    const edgeTrace: Data = {
-      x: edgeX,
-      y: edgeY,
-      mode: 'lines',
+    // 그룹화된 edge trace 생성
+    const normalEdgeTraces: Data[] = Array.from(normalEdgeGroups.values()).map(group => ({
+      x: group.x,
+      y: group.y,
+      mode: 'lines' as const,
       line: {
         width: 0.7,
-        color: hasHighlightedNodes ? 'rgba(156, 163, 175, 0.4)' : 'rgba(156, 163, 175, 0.6)',
+        color: `rgba(156, 163, 175, ${group.opacity})`,
       },
-      hoverinfo: 'skip',
+      hoverinfo: 'skip' as const,
       showlegend: false,
-      type: 'scatter',
-    };
+      type: 'scatter' as const,
+    }));
 
-    // Highlighted edges trace - light purple, thicker, with transparency
-    const highlightedEdgeTrace: Data | null = edgeXHighlighted.length > 0 ? {
-      x: edgeXHighlighted,
-      y: edgeYHighlighted,
-      mode: 'lines',
+    const highlightedEdgeTraces: Data[] = Array.from(highlightedEdgeGroups.values()).map(group => ({
+      x: group.x,
+      y: group.y,
+      mode: 'lines' as const,
       line: {
         width: 2.5,
-        color: 'rgba(168, 85, 247, 0.5)', // Light purple for highlighted edges with transparency (reduced from 0.8 to 0.5)
+        color: `rgba(168, 85, 247, ${group.opacity})`,
       },
-      hoverinfo: 'skip',
+      hoverinfo: 'skip' as const,
       showlegend: false,
-      type: 'scatter',
-    } : null;
+      type: 'scatter' as const,
+    }));
 
     // Separate nodes into three groups for z-ordering
     const selectedPaperId = selectedPaper ? String(selectedPaper.doc_id) : null;
@@ -161,10 +204,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         }
       });
       
-      // Debug: Log first few colors to verify they're being calculated correctly
-      if (nodeColors.length > 0) {
-        console.log('Sample node colors:', nodeColors.slice(0, 3));
-      }
 
       const nodeSizes = nodeList.map(n => {
         const citations = n.citations || 1;
@@ -183,11 +222,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         ? nodeColors 
         : nodeList.map(() => 'rgba(60, 150, 150, 0.95)'); // Fallback if colors are invalid
       
-      // Debug: Verify colors
-      if (validColors.length > 0) {
-        console.log('Valid colors sample:', validColors.slice(0, 3));
-        console.log('Color types:', validColors.slice(0, 3).map(c => typeof c));
-      }
 
       return {
         x: nodeX,
@@ -262,15 +296,15 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const selectedTextTrace = createTextTrace(selectedNodes, false, true);
 
     // Build plot data with proper z-ordering:
-    // 1. Normal edges (bottom)
-    // 2. Highlighted edges (middle)
+    // 1. Normal edges (bottom) - weight에 따라 투명도 조절
+    // 2. Highlighted edges (middle) - weight에 따라 투명도 조절
     // 3. Normal nodes (middle)
     // 4. Highlighted nodes (upper)
     // 5. Selected node (top)
     // 6. Text traces (on top of nodes)
     const plotData: Data[] = [
-      edgeTrace,
-      ...(highlightedEdgeTrace ? [highlightedEdgeTrace] : []),
+      ...normalEdgeTraces,  // Weight에 따라 투명도가 다른 일반 edge들
+      ...highlightedEdgeTraces,  // Weight에 따라 투명도가 다른 하이라이트 edge들
       ...(normalNodeTrace ? [normalNodeTrace] : []),
       ...(highlightedNodeTrace ? [highlightedNodeTrace] : []),
       ...(selectedNodeTrace ? [selectedNodeTrace] : []),
@@ -303,32 +337,45 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     return { plotData, layout: plotLayout };
   }, [graphData, selectedPaper, highlightedPapers]);
 
+  // Papers를 Map으로 변환하여 빠른 조회 (useMemo로 최적화)
+  const papersMap = useMemo(() => {
+    const map = new Map<string, Paper>();
+    papers.forEach(paper => {
+      const docId = String(paper.doc_id);
+      map.set(docId, paper);
+      // 여러 키로 저장하여 빠른 조회
+      if (paper.title) {
+        map.set(paper.title, paper);
+      }
+    });
+    return map;
+  }, [papers]);
+
   const handlePlotClick = (data: any) => {
-    if (data.points && data.points.length > 0) {
-      const point = data.points[0];
-      if (point.customdata) {
-        const nodeDocId = point.customdata;
-        // Find the corresponding paper from papers array by doc_id
-        const paper = papers.find(p => {
-          const pId = String(p.doc_id);
-          const nId = String(nodeDocId);
-          return pId === nId || pId === nodeDocId || p.doc_id === nodeDocId;
-        });
-        if (paper) {
-          onNodeClick(paper);
-        } else {
-          // Fallback: try to find by title from graph node
-          const node = graphData.nodes.find(n => {
-            const nId = (n as any).doc_id || n.id;
-            return String(nId) === String(nodeDocId) || n.id === nodeDocId;
-          });
-          if (node) {
-            const paperByTitle = papers.find(p => p.title === node.title);
-            if (paperByTitle) {
-              onNodeClick(paperByTitle);
-            }
-          }
-        }
+    if (!data.points || data.points.length === 0) return;
+    
+    const point = data.points[0];
+    if (!point.customdata) return;
+    
+    const nodeDocId = String(point.customdata);
+    
+    // Map을 사용하여 빠른 조회
+    const paper = papersMap.get(nodeDocId);
+    if (paper) {
+      onNodeClick(paper);
+      return;
+    }
+    
+    // Fallback: graph node에서 찾기
+    const node = graphData.nodes.find(n => {
+      const nId = String((n as any).doc_id || n.id);
+      return nId === nodeDocId;
+    });
+    
+    if (node && node.title) {
+      const paperByTitle = papersMap.get(node.title);
+      if (paperByTitle) {
+        onNodeClick(paperByTitle);
       }
     }
   };

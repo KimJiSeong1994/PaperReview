@@ -46,8 +46,19 @@ export interface SearchRequest {
   category?: string;
 }
 
+export interface QueryAnalysis {
+  intent: string;
+  keywords: string[];
+  improved_query: string;
+  search_filters: Record<string, any>;
+  confidence: number;
+  original_query: string;
+  analysis_details?: string;
+}
+
 export interface SearchResponse {
   results: Record<string, Paper[]>;
   total: number;
+  query_analysis?: QueryAnalysis;
 }
 

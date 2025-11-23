@@ -311,8 +311,8 @@ async def get_graph_data(request: Dict[str, Any]):
                     graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
         
         # Generate layout centered around graph centroid
-        # 먼저 기본 spring layout 생성
-        layout = nx.spring_layout(graph, seed=42, k=0.55, iterations=50)
+        # 먼저 기본 spring layout 생성 (k 값을 조정하여 노드 간 거리 설정)
+        layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
         
         # 그래프의 centroid 계산
         if len(layout) > 0:
