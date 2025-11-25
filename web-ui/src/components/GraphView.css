@@ -6,6 +6,231 @@
   position: relative;
 }
 
+/* Control Panel */
+.graph-controls {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 1000;
+  min-width: 220px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #ececec;
+  font-size: 13px;
+  user-select: none;
+}
+
+.control-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #a855f7;
+}
+
+.control-label-text {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.control-slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  cursor: pointer;
+  accent-color: #a855f7;
+}
+
+.control-value {
+  color: #ececec;
+  font-size: 12px;
+  text-align: right;
+  min-width: 40px;
+}
+
+.control-input {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #ececec;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.control-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #a855f7;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-input-small {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #ececec;
+  font-size: 12px;
+  outline: none;
+  width: 70px;
+  transition: all 0.2s;
+}
+
+.control-input-small:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #a855f7;
+}
+
+.control-reset-btn {
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 4px;
+  color: #ef4444;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stat-label {
+  color: #9ca3af;
+}
+
+.stat-value {
+  color: #ececec;
+  font-weight: 600;
+  background: rgba(168, 85, 247, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Legend */
+.graph-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ececec;
+  font-size: 12px;
+}
+
+.legend-node {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+.legend-node-old {
+  background: rgba(60, 150, 150, 0.95);
+}
+
+.legend-node-recent {
+  background: rgba(60, 220, 150, 0.95);
+}
+
+.legend-node-selected {
+  background: rgba(168, 85, 247, 0.95);
+  border-color: rgba(221, 214, 254, 1);
+}
+
+.legend-text {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Keyboard Hints */
+.graph-hints {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+  z-index: 1000;
+  display: flex;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.hint-item {
+  color: #9ca3af;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Plotly modebar styling for dark theme */
 .graph-view .modebar {
   background: rgba(24, 24, 24, 0.9) !important;
@@ -37,5 +262,33 @@
   justify-content: center;
   color: #6b7280;
   font-size: 14px;
+}
+
+/* Smooth transitions */
+.control-label:hover {
+  color: #ffffff;
+}
+
+.control-label:hover .control-checkbox {
+  transform: scale(1.05);
+}
+
+/* Scrollbar styling for controls */
+.graph-controls::-webkit-scrollbar {
+  width: 6px;
+}
+
+.graph-controls::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.graph-controls::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.graph-controls::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 

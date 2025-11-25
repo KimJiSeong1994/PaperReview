@@ -20,6 +20,7 @@ sys.path.append(str(PROJECT_ROOT / "app" / "QueryAgent"))
 
 from search_agent import SearchAgent
 from query_analyzer import QueryAnalyzer
+from relevance_filter import RelevanceFilter
 
 load_dotenv()
 
@@ -35,8 +36,22 @@ app.add_middleware(
 )
 
 # Global agent instances
-search_agent = SearchAgent(openai_api_key=os.getenv("OPENAI_API_KEY"))
-query_analyzer = QueryAnalyzer(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+search_agent = SearchAgent(openai_api_key=api_key)
+
+# Query analyzer and relevance filter (optional - only if API key available)
+query_analyzer = None
+relevance_filter = None
+
+if api_key:
+    try:
+        query_analyzer = QueryAnalyzer(api_key=api_key)
+        relevance_filter = RelevanceFilter(api_key=api_key)
+        print("[INFO] Query analyzer and relevance filter initialized")
+    except Exception as e:
+        print(f"[WARNING] Could not initialize query analyzer/filter: {e}")
+else:
+    print("[WARNING] No OpenAI API key - query analysis and relevance filtering disabled")
 
 
 class SearchRequest(BaseModel):
@@ -78,6 +93,9 @@ async def root():
 @app.post("/api/analyze-query", response_model=QueryAnalysisResponse)
 async def analyze_query(request: QueryAnalysisRequest):
     """Analyze user query to understand intent and extract keywords"""
+    if not query_analyzer:
+        raise HTTPException(status_code=503, detail="Query analysis service unavailable (OpenAI API key not configured)")
+    
     try:
         print(f"[API] Analyzing query: {request.query}")
         analysis = query_analyzer.analyze_query(request.query)
@@ -96,14 +114,17 @@ async def search_papers(request: SearchRequest):
     try:
         import traceback
         
-        # 질의 분석 수행
+        # 질의 분석 수행 (query_analyzer가 초기화된 경우에만)
         query_analysis = None
-        try:
-            print(f"[API] Analyzing query: {request.query}")
-            query_analysis = query_analyzer.analyze_query(request.query)
-            print(f"[API] Query analysis: intent={query_analysis.get('intent')}, confidence={query_analysis.get('confidence')}")
-        except Exception as e:
-            print(f"[API] Query analysis failed (continuing with original query): {e}")
+        if query_analyzer:
+            try:
+                print(f"[API] Analyzing query: {request.query}")
+                query_analysis = query_analyzer.analyze_query(request.query)
+                print(f"[API] Query analysis: intent={query_analysis.get('intent')}, keywords={query_analysis.get('keywords')}, confidence={query_analysis.get('confidence')}")
+            except Exception as e:
+                print(f"[API] Query analysis failed (continuing with original query): {e}")
+        else:
+            print(f"[API] Query analysis skipped (OpenAI API key not configured)")
         
         # 분석 결과를 기반으로 필터 자동 적용 (사용자가 명시적으로 지정하지 않은 경우)
         filters = {
@@ -127,7 +148,45 @@ async def search_papers(request: SearchRequest):
         print(f"[API] Searching for: {search_query}")
         print(f"[API] Filters: {filters}")
         results = search_agent.search_with_filters(search_query, filters)
-        print(f"[API] Results: {sum(len(papers) for papers in results.values())} papers found")
+        print(f"[API] Raw search results: {sum(len(papers) for papers in results.values())} papers found")
+        
+        # 관련성 필터링 적용 (relevance_filter가 초기화된 경우에만)
+        if relevance_filter and results:
+            try:
+                print(f"[API] Applying relevance filtering...")
+                
+                # 모든 소스의 논문을 합침
+                all_papers = []
+                for source, papers in results.items():
+                    for paper in papers:
+                        paper['source'] = source  # 소스 정보 보존
+                        all_papers.append(paper)
+                
+                if all_papers:
+                    # 관련성 필터링 (임계값 0.5)
+                    filtered_papers = relevance_filter.filter_papers(
+                        request.query,  # 원본 쿼리 사용 (사용자가 입력한 그대로)
+                        all_papers,
+                        threshold=0.5,
+                        max_papers=request.max_results
+                    )
+                    
+                    # 소스별로 다시 분류
+                    results = {}
+                    for source in request.sources:
+                        results[source] = [p for p in filtered_papers if p.get('source') == source]
+                    
+                    print(f"[API] Filtered results: {len(filtered_papers)} papers (threshold: 0.5)")
+                else:
+                    print(f"[API] No papers to filter")
+                    
+            except Exception as e:
+                print(f"[API] Relevance filtering failed (using unfiltered results): {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            if not relevance_filter:
+                print(f"[API] Relevance filtering skipped (OpenAI API key not configured)")
         
         # Ensure all sources are in results
         for source in request.sources:

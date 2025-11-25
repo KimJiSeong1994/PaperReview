@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data, Layout } from 'plotly.js';
 import './GraphView.css';
@@ -13,13 +13,30 @@ interface GraphViewProps {
 }
 
 function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNodeClick }: GraphViewProps) {
-  const { plotData, layout } = useMemo(() => {
+  const [showLabels, setShowLabels] = useState(true);
+  const [edgeOpacity, setEdgeOpacity] = useState(1.0);
+  const [minCitations, setMinCitations] = useState(0);
+  const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
+
+  const { plotData, layout, stats } = useMemo(() => {
     if (!graphData || graphData.nodes.length === 0) {
-      return { plotData: [], layout: {} };
+      return { plotData: [], layout: {}, stats: { nodes: 0, edges: 0, avgCitations: 0, yearRange: [0, 0] } };
     }
 
-    const nodes = graphData.nodes;
+    let nodes = graphData.nodes;
     const edges = graphData.edges;
+
+    // Apply filters
+    if (minCitations > 0) {
+      nodes = nodes.filter(n => (n.citations || 0) >= minCitations);
+    }
+    
+    if (yearFilter) {
+      nodes = nodes.filter(n => {
+        const year = typeof n.year === 'number' ? n.year : parseInt(String(n.year), 10);
+        return !isNaN(year) && year >= yearFilter[0] && year <= yearFilter[1];
+      });
+    }
 
       // Calculate year range for coloring
       const years = nodes.map(n => {
@@ -87,13 +104,13 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         let opacity: number;
         if (isHighlighted) {
           // 하이라이트된 edge: 0.3 ~ 0.7
-          opacity = Math.round((0.3 + (0.7 - 0.3) * normalizedWeight) * 10) / 10;
+          opacity = Math.round((0.3 + (0.7 - 0.3) * normalizedWeight) * edgeOpacity * 10) / 10;
         } else {
           // 일반 edge: hasHighlightedNodes 여부에 따라
           const hasHighlightedNodes = selectedPaper || highlightedPapers.size > 0;
           const baseOpacity = hasHighlightedNodes ? 0.15 : 0.3;
           const maxOpacity = hasHighlightedNodes ? 0.35 : 0.6;
-          opacity = Math.round((baseOpacity + (maxOpacity - baseOpacity) * normalizedWeight) * 10) / 10;
+          opacity = Math.round((baseOpacity + (maxOpacity - baseOpacity) * normalizedWeight) * edgeOpacity * 10) / 10;
         }
         
         const opacityKey = opacity.toFixed(1);
@@ -290,10 +307,10 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       };
     };
 
-    // Create text traces
-    const normalTextTrace = createTextTrace(normalNodes, false, false);
-    const highlightedTextTrace = createTextTrace(highlightedNodes, true, false);
-    const selectedTextTrace = createTextTrace(selectedNodes, false, true);
+    // Create text traces (only if labels are enabled)
+    const normalTextTrace = showLabels ? createTextTrace(normalNodes, false, false) : null;
+    const highlightedTextTrace = showLabels ? createTextTrace(highlightedNodes, true, false) : null;
+    const selectedTextTrace = showLabels ? createTextTrace(selectedNodes, false, true) : null;
 
     // Build plot data with proper z-ordering:
     // 1. Normal edges (bottom) - weight에 따라 투명도 조절
@@ -334,8 +351,20 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       dragmode: 'pan', // Enable pan mode for dragging
     };
 
-    return { plotData, layout: plotLayout };
-  }, [graphData, selectedPaper, highlightedPapers]);
+    // Calculate statistics
+    const citations = nodes.map(n => n.citations || 0);
+    const avgCitations = citations.length > 0 
+      ? Math.round(citations.reduce((a, b) => a + b, 0) / citations.length) 
+      : 0;
+    const stats = {
+      nodes: nodes.length,
+      edges: edges.length,
+      avgCitations,
+      yearRange: [minYear, maxYear] as [number, number],
+    };
+
+    return { plotData, layout: plotLayout, stats };
+  }, [graphData, selectedPaper, highlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter]);
 
   // Papers를 Map으로 변환하여 빠른 조회 (useMemo로 최적화)
   const papersMap = useMemo(() => {
@@ -390,6 +419,132 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
   return (
     <div className="graph-view">
+      {/* Control Panel */}
+      <div className="graph-controls">
+        <div className="control-section">
+          <div className="control-group">
+            <label className="control-label">
+              <input
+                type="checkbox"
+                checked={showLabels}
+                onChange={(e) => setShowLabels(e.target.checked)}
+                className="control-checkbox"
+              />
+              <span>노드 레이블</span>
+            </label>
+          </div>
+          
+          <div className="control-group">
+            <label className="control-label-text">엣지 투명도</label>
+            <input
+              type="range"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+              value={edgeOpacity}
+              onChange={(e) => setEdgeOpacity(parseFloat(e.target.value))}
+              className="control-slider"
+            />
+            <span className="control-value">{(edgeOpacity * 100).toFixed(0)}%</span>
+          </div>
+          
+          <div className="control-group">
+            <label className="control-label-text">최소 인용수</label>
+            <input
+              type="number"
+              min="0"
+              max="1000"
+              value={minCitations}
+              onChange={(e) => setMinCitations(parseInt(e.target.value) || 0)}
+              className="control-input"
+            />
+          </div>
+          
+          <div className="control-group">
+            <label className="control-label-text">연도 필터</label>
+            <div className="control-row">
+              <input
+                type="number"
+                min={stats.yearRange[0]}
+                max={stats.yearRange[1]}
+                value={yearFilter?.[0] ?? stats.yearRange[0]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val)) {
+                    setYearFilter([val, yearFilter?.[1] ?? stats.yearRange[1]]);
+                  }
+                }}
+                className="control-input-small"
+              />
+              <span>~</span>
+              <input
+                type="number"
+                min={stats.yearRange[0]}
+                max={stats.yearRange[1]}
+                value={yearFilter?.[1] ?? stats.yearRange[1]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val)) {
+                    setYearFilter([yearFilter?.[0] ?? stats.yearRange[0], val]);
+                  }
+                }}
+                className="control-input-small"
+              />
+              {yearFilter && (
+                <button
+                  onClick={() => setYearFilter(null)}
+                  className="control-reset-btn"
+                  title="필터 초기화"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="stats-section">
+          <div className="stat-item">
+            <span className="stat-label">노드:</span>
+            <span className="stat-value">{stats.nodes}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">엣지:</span>
+            <span className="stat-value">{stats.edges}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">평균 인용:</span>
+            <span className="stat-value">{stats.avgCitations}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="graph-legend">
+        <div className="legend-item">
+          <div className="legend-node legend-node-old"></div>
+          <span>과거 논문</span>
+        </div>
+        <div className="legend-item">
+          <div className="legend-node legend-node-recent"></div>
+          <span>최근 논문</span>
+        </div>
+        <div className="legend-item">
+          <div className="legend-node legend-node-selected"></div>
+          <span>선택됨</span>
+        </div>
+        <div className="legend-item">
+          <span className="legend-text">노드 크기 = 인용수</span>
+        </div>
+      </div>
+
+      {/* Keyboard shortcuts hint */}
+      <div className="graph-hints">
+        <div className="hint-item">🖱️ 드래그: 이동</div>
+        <div className="hint-item">🔍 스크롤: 줌</div>
+        <div className="hint-item">더블클릭: 리셋</div>
+      </div>
+
       <Plot
         data={plotData}
         layout={layout}

@@ -77,7 +77,23 @@ class QueryAnalyzer:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert at analyzing academic research queries. Analyze user queries to understand their intent, extract keywords, and suggest improvements for better search results."
+                        "content": """You are an expert academic research query analyzer with deep knowledge in:
+- Computer Science (ML, AI, NLP, CV, HCI, Systems, etc.)
+- Understanding research paper structures and terminology
+- Multilingual query understanding (especially Korean ↔ English)
+- Identifying research problems and solutions
+
+Your goal is to:
+1. Deeply understand the user's research intent
+2. Extract precise technical keywords
+3. Generate improved search queries that will find highly relevant papers
+4. Recommend effective search strategies
+
+Be particularly careful with:
+- Problem-focused queries (e.g., "limitations of X", "improving X")
+- Method-specific queries (e.g., "Graph RAG", "multi-agent tool chain")
+- Comparative queries (e.g., "X vs Y", "better than X")
+- Non-English queries (translate and enhance with English technical terms)"""
                     },
                     {
                         "role": "user",
@@ -95,7 +111,10 @@ class QueryAnalyzer:
             return {
                 "intent": analysis_result.get("intent", "paper_search"),
                 "keywords": analysis_result.get("keywords", []),
+                "core_concepts": analysis_result.get("core_concepts", []),
+                "research_area": analysis_result.get("research_area", ""),
                 "improved_query": analysis_result.get("improved_query", query),
+                "search_strategy": analysis_result.get("search_strategy", ""),
                 "search_filters": analysis_result.get("search_filters", {}),
                 "confidence": float(analysis_result.get("confidence", 0.8)),
                 "original_query": query,
@@ -117,9 +136,12 @@ Query: "{query}"
 
 Please analyze this query and provide a JSON response with the following structure:
 {{
-    "intent": "one of: paper_search, topic_exploration, author_search, method_search, comparison, survey, latest_research",
+    "intent": "one of: paper_search, topic_exploration, author_search, method_search, comparison, survey, latest_research, problem_solving",
     "keywords": ["list", "of", "main", "keywords"],
+    "core_concepts": ["main", "research", "concepts"],
+    "research_area": "specific research field (e.g., Machine Learning, NLP, Computer Vision)",
     "improved_query": "improved or expanded version of the query for better search results",
+    "search_strategy": "brief search strategy recommendation",
     "search_filters": {{
         "year_start": null or year number,
         "year_end": null or year number,
@@ -127,23 +149,38 @@ Please analyze this query and provide a JSON response with the following structu
         "min_citations": null or number
     }},
     "confidence": 0.0 to 1.0,
-    "analysis_details": "brief explanation of the analysis"
+    "analysis_details": "detailed explanation of the analysis"
 }}
 
 Guidelines:
 - Intent classification:
-  * paper_search: User wants to find specific papers
-  * topic_exploration: User wants to explore a research topic
+  * paper_search: User wants to find specific papers on a topic
+  * topic_exploration: User wants to explore and understand a research area
   * author_search: User is looking for papers by specific authors
-  * method_search: User is searching for specific methods or techniques
-  * comparison: User wants to compare different approaches
-  * survey: User wants survey papers or comprehensive reviews
-  * latest_research: User wants recent papers (last 1-2 years)
+  * method_search: User is searching for specific methods, techniques, or algorithms
+  * comparison: User wants to compare different approaches or methods
+  * survey: User wants comprehensive survey/review papers
+  * latest_research: User wants very recent papers (last 1-2 years)
+  * problem_solving: User is looking for papers that solve specific problems or limitations
 
-- Keywords: Extract 3-7 most important keywords that should be used for search
-- Improved query: Expand or refine the query while maintaining the original intent
-- Search filters: Suggest appropriate filters based on the query (e.g., if query mentions "recent" or "2024", set year_end)
-- Confidence: Rate how confident you are in the analysis (0.0 to 1.0)
+- Keywords: Extract 3-7 most important technical keywords that should be used for search
+- Core Concepts: Identify 2-5 main research concepts or topics
+- Research Area: Determine the specific field (ML, NLP, CV, etc.)
+- Improved Query: Create an enhanced search query using technical terms
+  * For Korean queries, translate to English and add relevant technical terms
+  * For vague queries, add specific technical keywords
+  * For problem-focused queries, include both problem and solution keywords
+- Search Strategy: Suggest how to search effectively
+- Search Filters: Recommend filters based on query context
+  * For "recent", "latest", "new": set year_start to current_year - 2
+  * For "improvement", "limitation": might want recent papers (last 3-5 years)
+  * For specific years mentioned: set appropriate year range
+- Confidence: Rate analysis confidence (0.0 to 1.0)
+
+Special handling for non-English queries:
+- If query is in Korean or other languages, identify the language
+- Translate core concepts to English for better search
+- Keep both original and English terms in keywords
 
 Return only valid JSON, no additional text."""
     
