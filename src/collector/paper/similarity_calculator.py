@@ -69,7 +69,7 @@ class SimilarityCalculator:
         """Cosine similarity 계산"""
         if vec1 is None or vec2 is None: return 0.0
         norm1, norm2 = np.linalg.norm(vec1), np.linalg.norm(vec2)
-        return float(np.dot(vec1, vec2) / (norm1 * norm2)) if norm1 and norm2 else 0.0
+        return float(np.dot(vec1, vec2) / (norm1 * norm2)) if norm1 > 0 and norm2 > 0 else 0.0
     
     @log_data_processing("Similarity Calculation")
     def calculate_similarity(self, paper1: Dict[str, Any], paper2: Dict[str, Any]) -> float:
@@ -77,14 +77,22 @@ class SimilarityCalculator:
         text1, text2 = self._get_paper_text(paper1), self._get_paper_text(paper2)
         if not text1 or not text2: return 0.0
         embedding1, embedding2 = self._get_embedding(text1), self._get_embedding(text2)
-        return max(0.0, min(1.0, self._cosine_similarity(embedding1, embedding2))) if embedding1 and embedding2 else 0.0
+        return max(0.0, min(1.0, self._cosine_similarity(embedding1, embedding2))) if embedding1 is not None and embedding2 is not None else 0.0
     
     def calculate_batch_similarities(self, main_paper: Dict[str, Any], reference_papers: List[Dict[str, Any]]) -> List[float]:
         """메인 논문과 여러 참고문헌 논문 간의 유사도 일괄 계산"""
         main_embedding = self._get_embedding(self._get_paper_text(main_paper))
         if main_embedding is None: return [0.0] * len(reference_papers)
         
-        return [max(0.0, min(1.0, self._cosine_similarity(main_embedding, self._get_embedding(self._get_paper_text(ref))))) if self._get_embedding(self._get_paper_text(ref)) else 0.0 for ref in reference_papers]
+        similarities = []
+        for ref in reference_papers:
+            ref_embedding = self._get_embedding(self._get_paper_text(ref))
+            if ref_embedding is not None:
+                sim = self._cosine_similarity(main_embedding, ref_embedding)
+                similarities.append(max(0.0, min(1.0, sim)))
+            else:
+                similarities.append(0.0)
+        return similarities
     
     def add_similarity_scores(self, main_paper: Dict[str, Any], references: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """참고문헌에 유사도 점수 추가"""

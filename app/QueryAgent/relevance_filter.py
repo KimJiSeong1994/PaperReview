@@ -5,6 +5,8 @@ LLM 기반 검색 결과 관련성 필터 에이전트
 import os
 import sys
 import json
+import asyncio
+import concurrent.futures
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 
@@ -44,7 +46,7 @@ class RelevanceFilter:
     
     @log_data_processing("Relevance Filtering")
     def filter_papers(self, query: str, papers: List[Dict[str, Any]], 
-                     threshold: float = 0.6, max_papers: int = None) -> List[Dict[str, Any]]:
+                     threshold: float = 0.6, max_papers: int = None, parallel: bool = True) -> List[Dict[str, Any]]:
         """
         검색된 논문들을 질의와의 관련성에 따라 필터링
         
@@ -53,6 +55,7 @@ class RelevanceFilter:
             papers: 검색된 논문 리스트
             threshold: 관련성 점수 임계값 (0.0 ~ 1.0)
             max_papers: 반환할 최대 논문 수
+            parallel: 병렬 처리 여부 (기본 True)
             
         Returns:
             관련성 점수가 높은 논문 리스트 (관련성 점수 포함)
@@ -60,24 +63,43 @@ class RelevanceFilter:
         if not papers:
             return []
         
-        print(f"[관련성 필터] {len(papers)}개 논문 평가 시작...")
+        print(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel})")
         
         # 배치로 처리 (한 번에 10개씩)
         batch_size = 10
-        filtered_papers = []
+        batches = [papers[i:i+batch_size] for i in range(0, len(papers), batch_size)]
         
-        for i in range(0, len(papers), batch_size):
-            batch = papers[i:i+batch_size]
-            batch_results = self._evaluate_batch(query, batch)
+        if parallel and len(batches) > 1:
+            # 병렬 처리
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(batches))) as executor:
+                futures = [executor.submit(self._evaluate_batch, query, batch) for batch in batches]
+                all_results = []
+                for future in concurrent.futures.as_completed(futures):
+                    all_results.append(future.result())
             
-            # 임계값 이상인 논문만 추가
-            for paper, score in zip(batch, batch_results):
-                if score >= threshold:
-                    paper['relevance_score'] = score
-                    filtered_papers.append(paper)
-                    print(f"  ✓ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
-                else:
-                    print(f"  ✗ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+            # 결과 병합
+            batch_idx = 0
+            filtered_papers = []
+            for batch, scores in zip(batches, all_results):
+                for paper, score in zip(batch, scores):
+                    if score >= threshold:
+                        paper['relevance_score'] = score
+                        filtered_papers.append(paper)
+                        print(f"  ✓ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                    else:
+                        print(f"  ✗ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+        else:
+            # 순차 처리
+            filtered_papers = []
+            for batch in batches:
+                batch_results = self._evaluate_batch(query, batch)
+                for paper, score in zip(batch, batch_results):
+                    if score >= threshold:
+                        paper['relevance_score'] = score
+                        filtered_papers.append(paper)
+                        print(f"  ✓ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                    else:
+                        print(f"  ✗ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
         
         # 관련성 점수 순으로 정렬
         filtered_papers.sort(key=lambda p: p['relevance_score'], reverse=True)

@@ -6,6 +6,8 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from fastapi import BackgroundTasks
+import threading
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -63,6 +65,11 @@ class SearchRequest(BaseModel):
     year_end: Optional[int] = None
     author: Optional[str] = None
     category: Optional[str] = None
+    fast_mode: bool = True  # 빠른 모드 (관련성 필터링 스킵, 백그라운드 처리)
+    save_papers: bool = True  # 검색 결과 자동 저장
+    collect_references: bool = True  # 참고문헌 자동 수집
+    extract_texts: bool = True  # 본문 자동 추출
+    max_references_per_paper: int = 20  # 논문당 최대 참고문헌 수
 
 
 class SearchResponse(BaseModel):
@@ -108,6 +115,40 @@ async def analyze_query(request: QueryAnalysisRequest):
         raise HTTPException(status_code=500, detail=f"Query analysis failed: {str(e)}")
 
 
+def _enrich_papers_background(query: str, results: Dict[str, List[Dict[str, Any]]], 
+                              collect_refs: bool, extract_text: bool, max_refs: int):
+    """백그라운드에서 논문 enrichment 수행"""
+    try:
+        print(f"[백그라운드] Enrichment 작업 시작...")
+        
+        # 논문 저장
+        save_result = search_agent.save_papers(
+            results, 
+            query,
+            generate_embeddings=False,  # OpenAI quota 초과로 비활성화
+            update_graph=True
+        )
+        print(f"[백그라운드] 저장 완료: {save_result.get('new_papers', 0)} 새 논문")
+        
+        # 참고문헌 수집
+        if collect_refs and save_result.get('new_papers', 0) > 0:
+            print(f"[백그라운드] 참고문헌 수집 중...")
+            ref_result = search_agent.collect_references(max_refs, save_result.get('new_papers'))
+            print(f"[백그라운드] 참고문헌 수집 완료: {ref_result.get('references_found', 0)}")
+        
+        # 본문 추출
+        if extract_text and save_result.get('new_papers', 0) > 0:
+            print(f"[백그라운드] 본문 추출 중...")
+            text_result = search_agent.extract_full_texts(save_result.get('new_papers'))
+            print(f"[백그라운드] 본문 추출 완료: {text_result.get('texts_extracted', 0)}")
+        
+        print(f"[백그라운드] Enrichment 완료")
+    except Exception as e:
+        print(f"[백그라운드] Enrichment 오류: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 @app.post("/api/search", response_model=SearchResponse)
 async def search_papers(request: SearchRequest):
     """Search papers across multiple sources with automatic query analysis"""
@@ -150,10 +191,10 @@ async def search_papers(request: SearchRequest):
         results = search_agent.search_with_filters(search_query, filters)
         print(f"[API] Raw search results: {sum(len(papers) for papers in results.values())} papers found")
         
-        # 관련성 필터링 적용 (relevance_filter가 초기화된 경우에만)
-        if relevance_filter and results:
+        # 관련성 필터링 적용 (fast_mode가 아니고 relevance_filter가 초기화된 경우에만)
+        if not request.fast_mode and relevance_filter and results:
             try:
-                print(f"[API] Applying relevance filtering...")
+                print(f"[API] Applying relevance filtering (parallel mode)...")
                 
                 # 모든 소스의 논문을 합침
                 all_papers = []
@@ -163,12 +204,13 @@ async def search_papers(request: SearchRequest):
                         all_papers.append(paper)
                 
                 if all_papers:
-                    # 관련성 필터링 (임계값 0.5)
+                    # 관련성 필터링 (임계값 0.5, 병렬 처리)
                     filtered_papers = relevance_filter.filter_papers(
                         request.query,  # 원본 쿼리 사용 (사용자가 입력한 그대로)
                         all_papers,
                         threshold=0.5,
-                        max_papers=request.max_results
+                        max_papers=request.max_results,
+                        parallel=True  # 병렬 처리 활성화
                     )
                     
                     # 소스별로 다시 분류
@@ -185,7 +227,9 @@ async def search_papers(request: SearchRequest):
                 import traceback
                 traceback.print_exc()
         else:
-            if not relevance_filter:
+            if request.fast_mode:
+                print(f"[API] Relevance filtering skipped (fast mode enabled)")
+            elif not relevance_filter:
                 print(f"[API] Relevance filtering skipped (OpenAI API key not configured)")
         
         # Ensure all sources are in results
@@ -194,6 +238,54 @@ async def search_papers(request: SearchRequest):
                 results[source] = []
         
         total = sum(len(papers) for papers in results.values())
+        
+        # 논문 저장 및 enrichment (옵션에 따라)
+        if request.save_papers and total > 0:
+            if request.fast_mode:
+                # Fast mode: 백그라운드에서 처리 (즉시 결과 반환)
+                print(f"[API] Fast mode: Starting background enrichment for {total} papers...")
+                thread = threading.Thread(
+                    target=_enrich_papers_background,
+                    args=(request.query, results, request.collect_references, 
+                          request.extract_texts, request.max_references_per_paper)
+                )
+                thread.daemon = True
+                thread.start()
+                print(f"[API] Background enrichment started (thread)")
+            else:
+                # Normal mode: 동기적 처리 (모든 작업 완료 후 결과 반환)
+                try:
+                    print(f"[API] Saving {total} papers...")
+                    save_result = search_agent.save_papers(
+                        results, 
+                        request.query,
+                        generate_embeddings=False,  # OpenAI quota 초과로 비활성화
+                        update_graph=True
+                    )
+                    print(f"[API] Saved: {save_result.get('new_papers', 0)} new, {save_result.get('duplicates', 0)} duplicates")
+                    
+                    # 참고문헌 수집 (옵션)
+                    if request.collect_references:
+                        print(f"[API] Collecting references for saved papers...")
+                        ref_result = search_agent.collect_references(
+                            request.max_references_per_paper,
+                            max_papers=save_result.get('new_papers', 0) if save_result.get('new_papers', 0) > 0 else None
+                        )
+                        print(f"[API] References collected: {ref_result.get('references_found', 0)}")
+                    
+                    # 본문 추출 (옵션)
+                    if request.extract_texts:
+                        print(f"[API] Extracting full texts for saved papers...")
+                        text_result = search_agent.extract_full_texts(
+                            max_papers=save_result.get('new_papers', 0) if save_result.get('new_papers', 0) > 0 else None
+                        )
+                        print(f"[API] Texts extracted: {text_result.get('texts_extracted', 0)}")
+                        
+                except Exception as e:
+                    print(f"[API] Error in saving/enriching papers: {e}")
+                    import traceback
+                    traceback.print_exc()
+        
         return SearchResponse(
             results=results, 
             total=total,
@@ -210,7 +302,7 @@ async def search_papers(request: SearchRequest):
 async def save_papers(
     results: Dict[str, List[Dict[str, Any]]], 
     query: str = "",
-    generate_embeddings: bool = True,
+    generate_embeddings: bool = False,  # OpenAI quota 초과로 기본값 비활성화
     update_graph: bool = True
 ):
     """
@@ -272,6 +364,94 @@ async def clear_papers():
     """Clear all saved papers"""
     success = search_agent.clear_saved_papers()
     return {"success": success}
+
+
+@app.post("/api/collect-references")
+async def collect_references(max_references_per_paper: int = 10, max_papers: int = None):
+    """
+    저장된 논문들의 참고문헌 수집
+    
+    Args:
+        max_references_per_paper: 논문당 최대 수집할 참고문헌 수
+        max_papers: 처리할 최대 논문 수
+    """
+    try:
+        print(f"[API] Collecting references: max_references_per_paper={max_references_per_paper}, max_papers={max_papers}")
+        result = search_agent.collect_references(max_references_per_paper, max_papers)
+        print(f"[API] References collected: {result.get('references_found', 0)} references for {result.get('papers_processed', 0)} papers")
+        return result
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in collect references: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Reference collection failed: {str(e)}")
+
+
+@app.post("/api/extract-texts")
+async def extract_texts(max_papers: int = None):
+    """
+    저장된 논문들의 본문 추출
+    
+    Args:
+        max_papers: 처리할 최대 논문 수
+    """
+    try:
+        print(f"[API] Extracting full texts: max_papers={max_papers}")
+        result = search_agent.extract_full_texts(max_papers)
+        print(f"[API] Texts extracted: {result.get('texts_extracted', 0)}/{result.get('papers_processed', 0)} papers")
+        return result
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in extract texts: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
+
+
+@app.post("/api/enrich-papers")
+async def enrich_papers(
+    collect_references: bool = True,
+    extract_texts: bool = True,
+    max_references_per_paper: int = 10,
+    max_papers: int = None
+):
+    """
+    저장된 논문들을 enrichment (참고문헌 + 본문 추출 + 그래프 업데이트)
+    
+    Args:
+        collect_references: 참고문헌 수집 여부
+        extract_texts: 본문 추출 여부
+        max_references_per_paper: 논문당 최대 참고문헌 수
+        max_papers: 처리할 최대 논문 수
+    """
+    try:
+        results = {
+            "references": None,
+            "texts": None,
+            "success": True
+        }
+        
+        # 참고문헌 수집
+        if collect_references:
+            print(f"[API] Step 1: Collecting references...")
+            ref_result = search_agent.collect_references(max_references_per_paper, max_papers)
+            results["references"] = ref_result
+            print(f"[API] References collected: {ref_result.get('references_found', 0)}")
+        
+        # 본문 추출
+        if extract_texts:
+            print(f"[API] Step 2: Extracting full texts...")
+            text_result = search_agent.extract_full_texts(max_papers)
+            results["texts"] = text_result
+            print(f"[API] Texts extracted: {text_result.get('texts_extracted', 0)}")
+        
+        print(f"[API] Paper enrichment completed")
+        return results
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in enrich papers: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Paper enrichment failed: {str(e)}")
 
 
 @app.post("/api/graph-data")
