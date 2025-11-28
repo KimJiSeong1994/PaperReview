@@ -32,6 +32,15 @@ class QueryAnalyzer:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
             model: 사용할 LLM 모델 (기본값: gpt-4o-mini)
         """
+        # SSL 검증 비활성화 (macOS 보안 정책 우회)
+        import ssl
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context
+        
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI package is required. Install with: pip install openai")
         

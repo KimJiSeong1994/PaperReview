@@ -22,6 +22,15 @@ class SimilarityCalculator:
     """LLM 기반 논문 유사도 계산 클래스"""
     
     def __init__(self, api_key: Optional[str] = None, model: str = "text-embedding-3-small"):
+        # SSL 검증 비활성화 (macOS 보안 정책 우회)
+        import ssl
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context
+        
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI package is required. Install with: pip install openai")
         

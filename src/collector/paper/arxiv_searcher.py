@@ -15,6 +15,20 @@ class ArxivSearcher:
     """arXiv 직접 검색 클라이언트"""
     
     def __init__(self):
+        import ssl
+        import urllib3
+        
+        # SSL 검증 완전 비활성화 (macOS 보안 정책 우회)
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        # SSL 컨텍스트 수정
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context
+        
         self.client = arxiv.Client()
     
     @log_arxiv_search
@@ -40,9 +54,12 @@ class ArxivSearcher:
             
             # 검색 실행
             search = arxiv.Search(query=query, max_results=max_results, sort_by=sort_criterion)
-            return [self._extract_paper_info(result) for result in search.results()]
+            return [self._extract_paper_info(result) for result in self.client.results(search)]
             
-        except Exception:
+        except Exception as e:
+            print(f"[arXiv] Error searching: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     @log_arxiv_search

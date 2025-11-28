@@ -9,6 +9,88 @@ from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks
 import threading
 
+# SSL 검증 완전 비활성화 (macOS 보안 정책 우회)
+import ssl
+import warnings
+import os
+warnings.filterwarnings('ignore')
+
+# 환경 변수 설정
+os.environ['PYTHONHTTPSVERIFY'] = '0'
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+os.environ['SSL_CERT_FILE'] = ''
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+# urllib3 SSL 경고 비활성화
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# urllib3 monkey patch - SSL 검증 완전 우회
+from urllib3.util import ssl_ as urllib3_ssl
+
+# 원본 함수 저장
+_original_ssl_wrap_socket = urllib3_ssl.ssl_wrap_socket
+
+def patched_ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
+                             ca_certs=None, server_hostname=None,
+                             ssl_version=None, ciphers=None, ssl_context=None,
+                             ca_cert_dir=None, key_password=None, ca_cert_data=None,
+                             tls_in_tls=False):
+    """SSL 검증을 완전히 우회하는 패치된 함수"""
+    try:
+        # SSL 컨텍스트 생성 (검증 없음)
+        if ssl_context is None:
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            # load_verify_locations 호출 방지
+        return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+    except Exception as e:
+        print(f"[SSL PATCH] Error in patched_ssl_wrap_socket: {e}")
+        # 실패 시 원본 함수 시도 (하지만 검증 비활성화)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+
+# 패치 적용
+urllib3_ssl.ssl_wrap_socket = patched_ssl_wrap_socket
+
+# requests 라이브러리 패치
+try:
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.poolmanager import PoolManager
+    
+    class SSLAdapter(HTTPAdapter):
+        """SSL 검증을 비활성화하는 커스텀 어댑터"""
+        def init_poolmanager(self, *args, **kwargs):
+            kwargs['ssl_context'] = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            kwargs['ssl_context'].check_hostname = False
+            kwargs['ssl_context'].verify_mode = ssl.CERT_NONE
+            return super().init_poolmanager(*args, **kwargs)
+    
+    # 기본 세션 패치
+    _original_session_init = requests.Session.__init__
+    
+    def patched_session_init(self, *args, **kwargs):
+        _original_session_init(self, *args, **kwargs)
+        self.verify = False
+        self.mount('https://', SSLAdapter())
+        self.mount('http://', HTTPAdapter())
+    
+    requests.Session.__init__ = patched_session_init
+    print("[SSL PATCH] Successfully patched requests.Session")
+except Exception as e:
+    print(f"[SSL PATCH] Warning: Could not patch requests: {e}")
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,9 +149,9 @@ class SearchRequest(BaseModel):
     category: Optional[str] = None
     fast_mode: bool = True  # 빠른 모드 (관련성 필터링 스킵, 백그라운드 처리)
     save_papers: bool = True  # 검색 결과 자동 저장
-    collect_references: bool = True  # 참고문헌 자동 수집
-    extract_texts: bool = True  # 본문 자동 추출
-    max_references_per_paper: int = 20  # 논문당 최대 참고문헌 수
+    collect_references: bool = False  # 참고문헌 자동 수집 (성능 개선: 기본 비활성화)
+    extract_texts: bool = False  # 본문 자동 추출 (성능 개선: 기본 비활성화)
+    max_references_per_paper: int = 10  # 논문당 최대 참고문헌 수 (성능 개선: 20->10)
 
 
 class SearchResponse(BaseModel):
@@ -130,10 +212,13 @@ def _enrich_papers_background(query: str, results: Dict[str, List[Dict[str, Any]
         )
         print(f"[백그라운드] 저장 완료: {save_result.get('new_papers', 0)} 새 논문")
         
-        # 참고문헌 수집
-        if collect_refs and save_result.get('new_papers', 0) > 0:
-            print(f"[백그라운드] 참고문헌 수집 중...")
-            ref_result = search_agent.collect_references(max_refs, save_result.get('new_papers'))
+        # 참고문헌 수집 (새로 저장된 논문에 대해서만)
+        new_papers_count = save_result.get('new_papers', 0)
+        if collect_refs and new_papers_count > 0:
+            # 최대 10개 논문에 대해서만 참고문헌 수집 (성능 개선)
+            max_papers_to_collect = min(new_papers_count, 10)
+            print(f"[백그라운드] 참고문헌 수집 중 (최대 {max_papers_to_collect}개 논문)...")
+            ref_result = search_agent.collect_references(max_refs, max_papers_to_collect)
             print(f"[백그라운드] 참고문헌 수집 완료: {ref_result.get('references_found', 0)}")
         
         # 본문 추출
@@ -154,14 +239,18 @@ async def search_papers(request: SearchRequest):
     """Search papers across multiple sources with automatic query analysis"""
     try:
         import traceback
+        import time
+        
+        start_time = time.time()
         
         # 질의 분석 수행 (query_analyzer가 초기화된 경우에만)
         query_analysis = None
         if query_analyzer:
             try:
+                analysis_start = time.time()
                 print(f"[API] Analyzing query: {request.query}")
                 query_analysis = query_analyzer.analyze_query(request.query)
-                print(f"[API] Query analysis: intent={query_analysis.get('intent')}, keywords={query_analysis.get('keywords')}, confidence={query_analysis.get('confidence')}")
+                print(f"[API] Query analysis: intent={query_analysis.get('intent')}, keywords={query_analysis.get('keywords')}, confidence={query_analysis.get('confidence')} (took {time.time()-analysis_start:.2f}s)")
             except Exception as e:
                 print(f"[API] Query analysis failed (continuing with original query): {e}")
         else:
@@ -186,10 +275,12 @@ async def search_papers(request: SearchRequest):
                 print(f"[API] Using improved query: {improved_query}")
                 search_query = improved_query
         
+        search_start = time.time()
         print(f"[API] Searching for: {search_query}")
         print(f"[API] Filters: {filters}")
         results = search_agent.search_with_filters(search_query, filters)
-        print(f"[API] Raw search results: {sum(len(papers) for papers in results.values())} papers found")
+        search_time = time.time() - search_start
+        print(f"[API] Raw search results: {sum(len(papers) for papers in results.values())} papers found (took {search_time:.2f}s)")
         
         # 관련성 필터링 적용 (fast_mode가 아니고 relevance_filter가 초기화된 경우에만)
         if not request.fast_mode and relevance_filter and results:
@@ -264,12 +355,14 @@ async def search_papers(request: SearchRequest):
                     )
                     print(f"[API] Saved: {save_result.get('new_papers', 0)} new, {save_result.get('duplicates', 0)} duplicates")
                     
-                    # 참고문헌 수집 (옵션)
-                    if request.collect_references:
-                        print(f"[API] Collecting references for saved papers...")
+                    # 참고문헌 수집 (옵션, 최대 10개 논문으로 제한)
+                    new_papers_count = save_result.get('new_papers', 0)
+                    if request.collect_references and new_papers_count > 0:
+                        max_papers_to_collect = min(new_papers_count, 10)
+                        print(f"[API] Collecting references for {max_papers_to_collect} papers...")
                         ref_result = search_agent.collect_references(
                             request.max_references_per_paper,
-                            max_papers=save_result.get('new_papers', 0) if save_result.get('new_papers', 0) > 0 else None
+                            max_papers=max_papers_to_collect
                         )
                         print(f"[API] References collected: {ref_result.get('references_found', 0)}")
                     
@@ -286,8 +379,11 @@ async def search_papers(request: SearchRequest):
                     import traceback
                     traceback.print_exc()
         
+        total_time = time.time() - start_time
+        print(f"[API] Search completed in {total_time:.2f}s")
+        
         return SearchResponse(
-            results=results, 
+            results=results,
             total=total,
             query_analysis=query_analysis
         )

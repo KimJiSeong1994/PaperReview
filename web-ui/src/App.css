@@ -47,8 +47,12 @@ body {
 .logo-icon {
   width: 36px;
   height: 36px;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
+  border-radius: 50%;
+  background: #fff;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .logo-icon:not([src]) {
