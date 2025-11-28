@@ -1,0 +1,332 @@
+"""
+Review Orchestrator
+N명의 연구원이 병렬로 논문을 분석하고, 지도교수가 검증하는 오케스트레이션
+"""
+import sys
+import os
+from typing import List, Dict, Any, Optional
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+
+# 경로 추가
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from app.DeepAgent.workspace_manager import WorkspaceManager
+from app.DeepAgent.tools.paper_loader import load_and_prepare_papers
+from app.DeepAgent.tools.report_generator import generate_markdown_report, generate_html_report
+from app.DeepAgent.subagents.researcher_agent import analyze_paper_deep
+from app.DeepAgent.subagents.advisor_agent import validate_and_synthesize
+
+
+class ReviewOrchestrator:
+    """
+    논문 리뷰 오케스트레이터
+    
+    역할:
+    1. 선택된 논문 로드
+    2. N명의 연구원 에이전트에게 병렬 분석 위임
+    3. 지도교수 에이전트에게 검증 요청
+    4. 최종 리포트 생성
+    """
+    
+    def __init__(
+        self, 
+        max_workers: Optional[int] = None,
+        workspace: Optional[WorkspaceManager] = None
+    ):
+        """
+        Args:
+            max_workers: 병렬 실행할 최대 워커 수 (None이면 논문 수만큼)
+            workspace: Workspace Manager (None이면 자동 생성)
+        """
+        self.workspace = workspace or WorkspaceManager()
+        self.max_workers = max_workers
+        
+        print(f"🎯 Review Orchestrator initialized")
+        print(f"   Session: {self.workspace.session_id}")
+        print(f"   Workspace: {self.workspace.session_path}")
+    
+    def review_papers(
+        self, 
+        paper_ids: List[str],
+        verbose: bool = True
+    ) -> Dict[str, Any]:
+        """
+        논문 리뷰 프로세스 실행
+        
+        Args:
+            paper_ids: 리뷰할 논문 ID 리스트
+            verbose: 상세 로그 출력 여부
+            
+        Returns:
+            리뷰 결과
+        """
+        if verbose:
+            print("\n" + "="*80)
+            print("🚀 Starting Deep Paper Review Process")
+            print("="*80 + "\n")
+        
+        # Step 1: 논문 로드
+        papers = self._load_papers(paper_ids, verbose)
+        
+        if not papers:
+            return {"error": "No papers loaded", "status": "failed"}
+        
+        # Step 2: 병렬 분석
+        analyses = self._parallel_analysis(papers, verbose)
+        
+        # Step 3: 검증 및 종합
+        validation = self._validate_and_synthesize(analyses, papers, verbose)
+        
+        # Step 4: 최종 리포트 생성
+        report = self._generate_report(papers, analyses, validation, verbose)
+        
+        # Step 5: 결과 저장
+        self._save_results(papers, analyses, validation, report, verbose)
+        
+        if verbose:
+            print("\n" + "="*80)
+            print("✅ Deep Paper Review Completed!")
+            print("="*80 + "\n")
+        
+        return {
+            "status": "completed",
+            "session_id": self.workspace.session_id,
+            "papers_reviewed": len(papers),
+            "analyses": analyses,
+            "validation": validation,
+            "report": report,
+            "workspace_path": str(self.workspace.session_path)
+        }
+    
+    def _load_papers(self, paper_ids: List[str], verbose: bool) -> List[Dict[str, Any]]:
+        """논문 로드"""
+        if verbose:
+            print("📚 Step 1: Loading Papers...")
+            print("-" * 80)
+        
+        papers = load_and_prepare_papers(paper_ids)
+        
+        # Workspace에 저장
+        self.workspace.save_selected_papers(papers)
+        self.workspace.log(f"Loaded {len(papers)} papers")
+        
+        if verbose:
+            print(f"✅ Loaded {len(papers)} papers\n")
+        
+        return papers
+    
+    def _parallel_analysis(
+        self, 
+        papers: List[Dict[str, Any]], 
+        verbose: bool
+    ) -> List[Dict[str, Any]]:
+        """
+        병렬 논문 분석
+        N명의 연구원이 동시에 각자의 논문을 분석
+        """
+        if verbose:
+            print("🔬 Step 2: Parallel Analysis by Researchers...")
+            print("-" * 80)
+            print(f"Spawning {len(papers)} researcher agents (parallel execution)")
+        
+        start_time = datetime.now()
+        
+        # 워커 수 결정
+        max_workers = self.max_workers or min(len(papers), os.cpu_count() or 4)
+        
+        analyses = []
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 각 논문에 대해 분석 작업 제출
+            future_to_paper = {
+                executor.submit(self._analyze_single_paper, i, paper): (i, paper)
+                for i, paper in enumerate(papers, 1)
+            }
+            
+            # 완료된 작업 수집
+            for future in as_completed(future_to_paper):
+                researcher_id, paper = future_to_paper[future]
+                try:
+                    analysis = future.result()
+                    analyses.append(analysis)
+                    
+                    if verbose:
+                        print(f"  ✓ Researcher {researcher_id} completed analysis")
+                    
+                except Exception as e:
+                    print(f"  ✗ Researcher {researcher_id} failed: {e}")
+                    self.workspace.log(f"Analysis failed for paper {researcher_id}: {e}", "ERROR")
+        
+        # 논문 순서대로 정렬 (완료 순서와 무관하게)
+        analyses.sort(key=lambda a: papers.index(
+            next(p for p in papers if (p.get('id') or p.get('arxiv_id')) == a.get('paper_id'))
+        ))
+        
+        elapsed = (datetime.now() - start_time).total_seconds()
+        
+        if verbose:
+            print(f"\n✅ Parallel analysis completed in {elapsed:.1f}s")
+            print(f"   Average time per paper: {elapsed/len(papers):.1f}s\n")
+        
+        return analyses
+    
+    def _analyze_single_paper(
+        self, 
+        researcher_id: int, 
+        paper: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """단일 논문 분석 (개별 연구원)"""
+        # 연구원 ID
+        rid = f"researcher_{researcher_id}"
+        
+        # 논문 분석
+        analysis = analyze_paper_deep(paper)
+        
+        # Workspace에 저장
+        self.workspace.save_researcher_analysis(
+            researcher_id=rid,
+            paper_id=analysis.get("paper_id", "unknown"),
+            analysis=analysis
+        )
+        
+        self.workspace.log(f"Researcher {researcher_id} completed analysis of paper {analysis.get('paper_id')}")
+        
+        return analysis
+    
+    def _validate_and_synthesize(
+        self,
+        analyses: List[Dict[str, Any]],
+        papers: List[Dict[str, Any]],
+        verbose: bool
+    ) -> Dict[str, Any]:
+        """지도교수에 의한 검증 및 종합"""
+        if verbose:
+            print("👨‍🏫 Step 3: Validation & Synthesis by Advisor...")
+            print("-" * 80)
+        
+        start_time = datetime.now()
+        
+        # 지도교수 검증
+        validation = validate_and_synthesize(analyses, papers)
+        
+        # Workspace에 저장
+        self.workspace.save_advisor_validation(validation)
+        self.workspace.log("Advisor validation completed")
+        
+        elapsed = (datetime.now() - start_time).total_seconds()
+        
+        if verbose:
+            summary = validation.get("summary", {})
+            print(f"  ✓ Validated {summary.get('total_papers', 0)} analyses")
+            print(f"  ✓ Approved: {summary.get('approved', 0)}")
+            print(f"  ✓ Needs Revision: {summary.get('needs_revision', 0)}")
+            print(f"\n✅ Validation completed in {elapsed:.1f}s\n")
+        
+        return validation
+    
+    def _generate_report(
+        self,
+        papers: List[Dict[str, Any]],
+        analyses: List[Dict[str, Any]],
+        validation: Dict[str, Any],
+        verbose: bool
+    ) -> Dict[str, str]:
+        """최종 리포트 생성"""
+        if verbose:
+            print("📝 Step 4: Generating Final Report...")
+            print("-" * 80)
+        
+        # Synthesis 데이터 추출
+        synthesis = validation.get("cross_paper_synthesis", {})
+        
+        # Markdown 리포트
+        markdown_report = generate_markdown_report(
+            papers, analyses, validation, synthesis
+        )
+        
+        # HTML 리포트
+        html_report = generate_html_report(
+            papers, analyses, validation, synthesis
+        )
+        
+        if verbose:
+            print(f"  ✓ Markdown report generated ({len(markdown_report)} chars)")
+            print(f"  ✓ HTML report generated ({len(html_report)} chars)")
+            print(f"\n✅ Report generation completed\n")
+        
+        return {
+            "markdown": markdown_report,
+            "html": html_report
+        }
+    
+    def _save_results(
+        self,
+        papers: List[Dict[str, Any]],
+        analyses: List[Dict[str, Any]],
+        validation: Dict[str, Any],
+        report: Dict[str, str],
+        verbose: bool
+    ):
+        """결과 저장"""
+        if verbose:
+            print("💾 Step 5: Saving Results...")
+            print("-" * 80)
+        
+        # Markdown 리포트 저장
+        md_path = self.workspace.save_final_report(
+            report["markdown"], 
+            format="markdown"
+        )
+        
+        # HTML 리포트 저장
+        html_path = self.workspace.save_final_report(
+            report["html"],
+            format="html"
+        )
+        
+        # JSON 결과 저장
+        json_result = {
+            "papers": papers,
+            "analyses": analyses,
+            "validation": validation,
+            "session_id": self.workspace.session_id,
+            "completed_at": datetime.now().isoformat()
+        }
+        json_path = self.workspace.save_final_report(
+            json_result,
+            format="json"
+        )
+        
+        # 상태 업데이트
+        self.workspace.update_status("completed")
+        
+        if verbose:
+            print(f"  ✓ Markdown report: {md_path}")
+            print(f"  ✓ HTML report: {html_path}")
+            print(f"  ✓ JSON results: {json_path}")
+            print(f"\n✅ All results saved\n")
+
+
+# ==================== Standalone Functions ====================
+
+def review_selected_papers(
+    paper_ids: List[str],
+    max_workers: Optional[int] = None,
+    verbose: bool = True
+) -> Dict[str, Any]:
+    """
+    선택된 논문들을 리뷰 (원스톱 함수)
+    
+    Args:
+        paper_ids: 논문 ID 리스트
+        max_workers: 병렬 실행 워커 수
+        verbose: 상세 로그 출력
+        
+    Returns:
+        리뷰 결과
+    """
+    orchestrator = ReviewOrchestrator(max_workers=max_workers)
+    return orchestrator.review_papers(paper_ids, verbose=verbose)
+

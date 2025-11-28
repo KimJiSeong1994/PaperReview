@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 128 128">
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="64" cy="64" r="60"/>
+    </clipPath>
+  </defs>
+  
+  <!-- White background circle -->
+  <circle cx="64" cy="64" r="62" fill="#ffffff"/>
+  
+  <!-- Image with circular clip -->
+  <g clip-path="url(#circleClip)">
+    <image href="/Jipyheonjeon_llama.png" x="4" y="4" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  
+  <!-- Subtle border -->
+  <circle cx="64" cy="64" r="60" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
+</svg>
+

@@ -6,9 +6,11 @@ interface PaperListProps {
   papers: Paper[];
   selectedPaper: Paper | null;
   onSelect: (paper: Paper) => void;
+  selectedForReview?: Set<string>;
+  onToggleForReview?: (paperId: string) => void;
 }
 
-function PaperList({ papers, selectedPaper, onSelect }: PaperListProps) {
+function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggleForReview }: PaperListProps) {
   const selectedRef = useRef<HTMLDivElement>(null);
   
   // Scroll to selected paper when it changes
@@ -41,18 +43,36 @@ function PaperList({ papers, selectedPaper, onSelect }: PaperListProps) {
     return parts.join(' · ');
   };
 
+  const handleCheckboxClick = (e: React.MouseEvent, paperId: string) => {
+    e.stopPropagation(); // Prevent paper selection when clicking checkbox
+    if (onToggleForReview) {
+      onToggleForReview(paperId);
+    }
+  };
+
   return (
     <div className="paper-list">
       {papers.length > 0 && (
         <div
           key={papers[0].doc_id}
           ref={selectedPaper?.doc_id === papers[0].doc_id ? selectedRef : null}
-          className={`paper-card ${papers[0].doc_id === selectedPaper?.doc_id ? 'selected' : ''} origin`}
+          className={`paper-card ${papers[0].doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(papers[0].doc_id) ? 'selected-for-review' : ''} origin`}
           onClick={() => onSelect(papers[0])}
         >
-          <div className="origin-badge">Origin Paper</div>
-          <div className="paper-title">{papers[0].title}</div>
-          <div className="paper-meta">{formatSummary(papers[0])}</div>
+          {onToggleForReview && (
+            <input
+              type="checkbox"
+              className="paper-checkbox"
+              checked={selectedForReview?.has(papers[0].doc_id) || false}
+              onChange={() => {}}
+              onClick={(e) => handleCheckboxClick(e, papers[0].doc_id)}
+            />
+          )}
+          <div className="paper-content">
+            <div className="origin-badge">Origin Paper</div>
+            <div className="paper-title">{papers[0].title}</div>
+            <div className="paper-meta">{formatSummary(papers[0])}</div>
+          </div>
         </div>
       )}
       
@@ -60,11 +80,22 @@ function PaperList({ papers, selectedPaper, onSelect }: PaperListProps) {
         <div
           key={paper.doc_id}
           ref={selectedPaper?.doc_id === paper.doc_id ? selectedRef : null}
-          className={`paper-card ${paper.doc_id === selectedPaper?.doc_id ? 'selected' : ''}`}
+          className={`paper-card ${paper.doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(paper.doc_id) ? 'selected-for-review' : ''}`}
           onClick={() => onSelect(paper)}
         >
-          <div className="paper-title">{paper.title}</div>
-          <div className="paper-meta">{formatSummary(paper)}</div>
+          {onToggleForReview && (
+            <input
+              type="checkbox"
+              className="paper-checkbox"
+              checked={selectedForReview?.has(paper.doc_id) || false}
+              onChange={() => {}}
+              onClick={(e) => handleCheckboxClick(e, paper.doc_id)}
+            />
+          )}
+          <div className="paper-content">
+            <div className="paper-title">{paper.title}</div>
+            <div className="paper-meta">{formatSummary(paper)}</div>
+          </div>
         </div>
       ))}
     </div>

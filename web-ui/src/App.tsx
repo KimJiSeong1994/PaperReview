@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import GraphView from './components/GraphView';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
 import SearchBar from './components/SearchBar';
-import { searchPapers, getGraphData } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport } from './api/client';
 import type { Paper, GraphData } from './types';
 
 // 질의와 논문 간 유사도 계산 함수
@@ -100,6 +100,16 @@ function App() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  
+  // Deep Review states
+  const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<string>('idle'); // idle, processing, completed, failed
+  const [reviewProgress, setReviewProgress] = useState<string>('');
+  const [reviewReport, setReviewReport] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
@@ -231,6 +241,91 @@ function App() {
     }
   };
 
+  // Deep Review handlers
+  const handlePaperToggleForReview = (paperId: string) => {
+    setSelectedPapersForReview(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(paperId)) {
+        newSet.delete(paperId);
+      } else {
+        newSet.add(paperId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleStartDeepReview = async () => {
+    if (selectedPapersForReview.size === 0) {
+      return;
+    }
+
+    try {
+      setReviewStatus('processing');
+      setShowReport(true);
+      setDetailsCollapsed(true);
+
+      const response = await startDeepReview({
+        paper_ids: Array.from(selectedPapersForReview),
+        num_researchers: Math.min(selectedPapersForReview.size, 5),
+        model: 'gpt-4o-mini'
+      });
+
+      setReviewSessionId(response.session_id);
+      setReviewProgress('Starting deep research...');
+
+    } catch (error: any) {
+      console.error('Deep review error:', error);
+      alert(`Failed to start deep research: ${error.message || error}`);
+      setReviewStatus('failed');
+      setShowReport(false);
+      setDetailsCollapsed(false);
+    }
+  };
+
+  // Poll review status
+  useEffect(() => {
+    if (!reviewSessionId || reviewStatus !== 'processing') return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await getReviewStatus(reviewSessionId);
+        
+        setReviewProgress(status.progress || 'Analyzing papers...');
+
+        if (status.status === 'completed') {
+          setReviewStatus('completed');
+          // Fetch report
+          const report = await getReviewReport(reviewSessionId);
+          setReviewReport(report.report_markdown);
+          clearInterval(pollInterval);
+        } else if (status.status === 'failed') {
+          setReviewStatus('failed');
+          setReviewProgress(status.error || 'Analysis failed');
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('Status poll error:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [reviewSessionId, reviewStatus]);
+
+  // Close tools menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.tools-dropdown-container')) {
+        setShowToolsMenu(false);
+      }
+    };
+
+    if (showToolsMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showToolsMenu]);
+
 
   return (
     <div className="app">
@@ -251,9 +346,6 @@ function App() {
               }}
             />
             <span className="brand-name">Jipyheonjeon</span>
-          </div>
-          <div className="header-actions">
-            <button className="nav-btn">Settings</button>
           </div>
         </div>
       </div>
@@ -283,16 +375,76 @@ function App() {
         {!loading && papers.length > 0 && (
           <div className="results-view">
             <div className="search-bar-fixed">
-              <SearchBar onSearch={handleSearch} loading={loading} />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', position: 'relative' }}>
+                <div style={{ flex: 1 }}>
+                  <SearchBar onSearch={handleSearch} loading={loading} />
+                </div>
+                <div className="tools-dropdown-container">
+                  <button
+                    className="tools-button"
+                    onClick={() => setShowToolsMenu(!showToolsMenu)}
+                  >
+                    <svg 
+                      className="tools-icon" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                    >
+                      <circle cx="12" cy="6" r="1" fill="currentColor"></circle>
+                      <circle cx="12" cy="12" r="1" fill="currentColor"></circle>
+                      <circle cx="12" cy="18" r="1" fill="currentColor"></circle>
+                      <circle cx="6" cy="12" r="1" fill="currentColor"></circle>
+                      <circle cx="18" cy="12" r="1" fill="currentColor"></circle>
+                    </svg>
+                    <span className="tools-text">Tools</span>
+                  </button>
+                  {showToolsMenu && (
+                    <div className="tools-dropdown-menu">
+                      <button
+                        className="tools-menu-item"
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          handleStartDeepReview();
+                        }}
+                        disabled={selectedPapersForReview.size === 0 || reviewStatus === 'processing'}
+                      >
+                        <svg 
+                          className="menu-item-icon" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                        >
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <span className="menu-item-text">
+                          {reviewStatus === 'processing' ? 'Analyzing...' : selectedPapersForReview.size > 0 ? `Deep Research (${selectedPapersForReview.size})` : 'Deep Research'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             <div className="main-container">
               <div className="left-panel">
-                <div className="pane-title">Prior & Related Works</div>
+                <div className="pane-title">
+                  Prior & Related Works
+                  {selectedPapersForReview.size > 0 && (
+                    <span style={{ marginLeft: '8px', fontSize: '0.9em', color: '#666' }}>
+                      ({selectedPapersForReview.size} 선택됨)
+                    </span>
+                  )}
+                </div>
                 <PaperList
                   papers={papers}
                   selectedPaper={selectedPaper}
                   onSelect={handlePaperSelect}
+                  selectedForReview={selectedPapersForReview}
+                  onToggleForReview={handlePaperToggleForReview}
                 />
               </div>
 
@@ -309,14 +461,58 @@ function App() {
                 )}
               </div>
 
-              <div className="right-panel">
-                <div className="pane-title">Details</div>
-                {selectedPaper ? (
-                  <DetailPanel paper={selectedPaper} />
-                ) : (
-                  <div className="no-selection">논문을 선택하세요</div>
-                )}
-              </div>
+              {!showReport && (
+                <div className="right-panel">
+                  <div className="pane-title">Details</div>
+                  {selectedPaper ? (
+                    <DetailPanel paper={selectedPaper} />
+                  ) : (
+                    <div className="no-selection">논문을 선택하세요</div>
+                  )}
+                </div>
+              )}
+
+              {showReport && (
+                <div className="right-panel">
+                  <div className="pane-title">
+                    Deep Research Report
+                    <button
+                      className="close-report-button"
+                      onClick={() => {
+                        setShowReport(false);
+                        setDetailsCollapsed(false);
+                        setReviewStatus('idle');
+                        setReviewReport(null);
+                      }}
+                      title="Close report"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="report-content">
+                    {reviewStatus === 'processing' && (
+                      <div className="review-processing">
+                        <div className="loading-spinner"></div>
+                        <p>{reviewProgress}</p>
+                        <p className="review-hint">Researchers are analyzing papers in parallel...</p>
+                      </div>
+                    )}
+                    {reviewStatus === 'completed' && reviewReport && (
+                      <div className="review-report-markdown">
+                        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                          {reviewReport}
+                        </pre>
+                      </div>
+                    )}
+                    {reviewStatus === 'failed' && (
+                      <div className="review-error">
+                        <p>❌ Analysis Failed</p>
+                        <p>{reviewProgress}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

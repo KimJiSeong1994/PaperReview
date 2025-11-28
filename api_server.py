@@ -701,6 +701,197 @@ async def get_graph_data(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== Deep Agent Review Endpoints ====================
+
+# Review session storage
+review_sessions: Dict[str, Dict[str, Any]] = {}
+review_sessions_lock = threading.Lock()
+
+class DeepReviewRequest(BaseModel):
+    paper_ids: List[str]
+    num_researchers: Optional[int] = 3
+    model: Optional[str] = "gpt-4o-mini"
+
+class ReviewStatusResponse(BaseModel):
+    session_id: str
+    status: str
+    progress: Optional[str] = None
+    report_available: bool = False
+    error: Optional[str] = None
+
+@app.post("/api/deep-review")
+async def start_deep_review(request: DeepReviewRequest, background_tasks: BackgroundTasks):
+    """
+    Start deep paper review with N researcher agents
+    Runs in background and returns session_id immediately
+    """
+    try:
+        from app.DeepAgent import WorkspaceManager
+        
+        # Create workspace for this session
+        workspace = WorkspaceManager()
+        session_id = workspace.session_id
+        
+        # Store session info
+        with review_sessions_lock:
+            review_sessions[session_id] = {
+                "status": "processing",
+                "paper_ids": request.paper_ids,
+                "num_papers": len(request.paper_ids),
+                "workspace_path": str(workspace.session_path),
+                "created_at": workspace.load_metadata().get("created_at"),
+            }
+        
+        # Start background task
+        background_tasks.add_task(
+            run_deep_review_background,
+            session_id=session_id,
+            paper_ids=request.paper_ids,
+            num_researchers=request.num_researchers,
+            model=request.model,
+            workspace=workspace
+        )
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "status": "processing",
+            "message": f"Deep review started for {len(request.paper_ids)} papers",
+            "status_url": f"/api/deep-review/status/{session_id}"
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start review: {str(e)}")
+
+
+def run_deep_review_background(
+    session_id: str,
+    paper_ids: List[str],
+    num_researchers: int,
+    model: str,
+    workspace: Any
+):
+    """
+    Background task to run deep review
+    """
+    try:
+        # Use DeepReviewAgent with deepagents package
+        from app.DeepAgent import DeepReviewAgent
+        
+        print(f"[Deep Review] Starting session {session_id}")
+        print(f"[Deep Review] Papers: {len(paper_ids)}, Researchers: {num_researchers}")
+        
+        # Update status
+        with review_sessions_lock:
+            if session_id in review_sessions:
+                review_sessions[session_id]["status"] = "analyzing"
+                review_sessions[session_id]["progress"] = "Researchers analyzing papers with deepagents..."
+        
+        # Create agent
+        agent = DeepReviewAgent(
+            model=model,
+            num_researchers=num_researchers,
+            workspace=workspace
+        )
+        
+        # Run review
+        result = agent.review_papers(paper_ids=paper_ids, verbose=True)
+        
+        # Update session with result
+        with review_sessions_lock:
+            if session_id in review_sessions:
+                if result["status"] == "completed":
+                    review_sessions[session_id]["status"] = "completed"
+                    review_sessions[session_id]["progress"] = "Review completed"
+                    review_sessions[session_id]["report_available"] = True
+                    review_sessions[session_id]["workspace_path"] = result.get("workspace_path", str(workspace.session_path))
+                    review_sessions[session_id]["num_papers"] = result.get("papers_reviewed", len(paper_ids))
+                else:
+                    review_sessions[session_id]["status"] = "failed"
+                    review_sessions[session_id]["error"] = result.get("error", "Unknown error")
+        
+        print(f"[Deep Review] Session {session_id} completed: {result['status']}")
+        
+    except Exception as e:
+        print(f"[Deep Review] Session {session_id} failed: {e}")
+        import traceback
+        traceback.print_exc()
+        with review_sessions_lock:
+            if session_id in review_sessions:
+                review_sessions[session_id]["status"] = "failed"
+                review_sessions[session_id]["error"] = str(e)
+
+
+@app.get("/api/deep-review/status/{session_id}")
+async def get_review_status(session_id: str) -> ReviewStatusResponse:
+    """
+    Get status of a deep review session
+    """
+    with review_sessions_lock:
+        if session_id not in review_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        session = review_sessions[session_id]
+        
+        return ReviewStatusResponse(
+            session_id=session_id,
+            status=session["status"],
+            progress=session.get("progress"),
+            report_available=session.get("report_available", False),
+            error=session.get("error")
+        )
+
+
+@app.get("/api/deep-review/report/{session_id}")
+async def get_review_report(session_id: str):
+    """
+    Get the generated review report
+    """
+    with review_sessions_lock:
+        if session_id not in review_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        session = review_sessions[session_id]
+        
+        if session["status"] != "completed":
+            raise HTTPException(status_code=400, detail=f"Review not completed yet (status: {session['status']})")
+        
+        workspace_path = Path(session["workspace_path"])
+        reports_dir = workspace_path / "reports"
+        
+        if not reports_dir.exists():
+            raise HTTPException(status_code=404, detail="Reports directory not found")
+        
+        # Find latest markdown report
+        md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        
+        if not md_files:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        # Read report
+        with open(md_files[0], 'r', encoding='utf-8') as f:
+            report_content = f.read()
+        
+        # Also try to get JSON results
+        json_files = sorted(reports_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        json_result = None
+        if json_files:
+            try:
+                import json
+                with open(json_files[0], 'r', encoding='utf-8') as f:
+                    json_result = json.load(f)
+            except:
+                pass
+        
+        return {
+            "session_id": session_id,
+            "report_markdown": report_content,
+            "report_json": json_result,
+            "num_papers": session.get("num_papers", 0),
+            "created_at": session.get("created_at")
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

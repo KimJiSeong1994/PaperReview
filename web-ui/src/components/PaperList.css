@@ -20,6 +20,28 @@
   border: 1px solid transparent;
   background: transparent;
   flex-shrink: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.paper-checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.paper-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.paper-card.selected-for-review {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .paper-card:hover {

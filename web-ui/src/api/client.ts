@@ -30,3 +30,49 @@ export const getGraphData = async (papers: string): Promise<GraphData> => {
   return response.data;
 };
 
+// Deep Review API
+export interface DeepReviewRequest {
+  paper_ids: string[];
+  num_researchers?: number;
+  model?: string;
+}
+
+export interface DeepReviewResponse {
+  success: boolean;
+  session_id: string;
+  status: string;
+  message: string;
+  status_url: string;
+}
+
+export interface ReviewStatusResponse {
+  session_id: string;
+  status: string;
+  progress?: string;
+  report_available: boolean;
+  error?: string;
+}
+
+export interface ReviewReportResponse {
+  session_id: string;
+  report_markdown: string;
+  report_json?: any;
+  num_papers: number;
+  created_at: string;
+}
+
+export const startDeepReview = async (request: DeepReviewRequest): Promise<DeepReviewResponse> => {
+  const response = await api.post<DeepReviewResponse>('/api/deep-review', request);
+  return response.data;
+};
+
+export const getReviewStatus = async (sessionId: string): Promise<ReviewStatusResponse> => {
+  const response = await api.get<ReviewStatusResponse>(`/api/deep-review/status/${sessionId}`);
+  return response.data;
+};
+
+export const getReviewReport = async (sessionId: string): Promise<ReviewReportResponse> => {
+  const response = await api.get<ReviewReportResponse>(`/api/deep-review/report/${sessionId}`);
+  return response.data;
+};
+
