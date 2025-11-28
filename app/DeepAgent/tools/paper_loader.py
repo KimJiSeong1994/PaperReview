@@ -51,8 +51,18 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
             print(f"⚠️ Skipping invalid paper entry (not dict): {type(paper)}")
             continue
         
-        paper_id = paper.get('id') or paper.get('arxiv_id') or paper.get('title_hash')
-        if paper_id in paper_ids:
+        # Generate doc_id from title hash (same as API server)
+        title = paper.get('title', '')
+        doc_id = str(abs(hash(title))) if title else None
+        
+        # Try multiple ID fields
+        paper_id = paper.get('id') or paper.get('arxiv_id') or paper.get('title_hash') or doc_id
+        
+        # Also check if the doc_id matches
+        if paper_id in paper_ids or doc_id in paper_ids:
+            # Add doc_id to paper for consistency
+            if doc_id and 'doc_id' not in paper:
+                paper['doc_id'] = doc_id
             selected_papers.append(paper)
     
     print(f"✅ Loaded {len(selected_papers)} papers out of {len(paper_ids)} requested IDs")
