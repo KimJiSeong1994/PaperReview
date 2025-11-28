@@ -1,0 +1,18 @@
+{
+  "validation": {
+    "paper_id": "1423873240",
+    "issues_found": [
+      {
+        "critical": "Limited discussion of the scalability concerns in practical applications."
+      },
+      {
+        "minor": "More clarity needed on hyperparameter tuning and dataset selection methods."
+      },
+      {
+        "suggestion": "Include a broader comparison with more baseline techniques to strengthen claims."
+      }
+    ],
+    "recommendation": "NEEDS_REVISION"
+  },
+  "validated_at": "2025-11-28T15:27:38.862047"
+}
