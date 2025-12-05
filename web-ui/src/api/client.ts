@@ -1,8 +1,7 @@
 import axios from 'axios';
 import type { SearchRequest, SearchResponse, GraphData } from '../types';
 
-// 같은 서버에서 서빙되므로 상대 경로 사용 (외부 접속 지원)
-const API_BASE_URL = window.location.origin;
+const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
