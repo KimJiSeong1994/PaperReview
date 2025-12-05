@@ -3,7 +3,11 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-data/
+data/*
+data/cache/*
+data/graph/*
+data/embeddings/*
+data/raw/*
 
 # C extensions
 *.so
