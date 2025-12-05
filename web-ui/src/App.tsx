@@ -108,7 +108,7 @@ function App() {
   const [reviewProgress, setReviewProgress] = useState<string>('');
   const [reviewReport, setReviewReport] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
-  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
 
   const handleSearch = async (searchQuery: string) => {
@@ -264,10 +264,21 @@ function App() {
       setShowReport(true);
       setDetailsCollapsed(true);
 
+      // 선택한 논문들의 전체 데이터 추출
+      const selectedPaperIds = Array.from(selectedPapersForReview);
+      const selectedPapersData = papers.filter(paper => 
+        selectedPaperIds.includes(paper.doc_id || '') ||
+        selectedPaperIds.includes(String(paper.doc_id || ''))
+      );
+
+      console.log('Selected paper IDs:', selectedPaperIds);
+      console.log('Selected papers data:', selectedPapersData.length);
+
       const response = await startDeepReview({
-        paper_ids: Array.from(selectedPapersForReview),
+        paper_ids: selectedPaperIds,
+        papers: selectedPapersData,  // 논문 전체 데이터 포함
         num_researchers: Math.min(selectedPapersForReview.size, 5),
-        model: 'gpt-4o-mini'
+        model: 'gpt-4.1'
       });
 
       setReviewSessionId(response.session_id);

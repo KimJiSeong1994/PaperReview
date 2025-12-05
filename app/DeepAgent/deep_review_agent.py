@@ -188,81 +188,396 @@ def generate_final_report(title: str) -> str:
         return f"Error generating report: {e}"
 
 
-# ==================== Researcher Tools (Global) ====================
+# ==================== LLM-based Deep Research Tools ====================
+
+# Global LLM instance for tools
+_llm_instance = None
+
+def get_llm():
+    """Get or create LLM instance for tools"""
+    global _llm_instance
+    if _llm_instance is None:
+        _llm_instance = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    return _llm_instance
+
+
+def _parse_paper_json(paper_json: str) -> dict:
+    """Safely parse paper JSON"""
+    try:
+        return json.loads(paper_json)
+    except json.JSONDecodeError:
+        try:
+            decoder = json.JSONDecoder()
+            data, _ = decoder.raw_decode(paper_json)
+            return data
+        except:
+            return {}
+
+
+def _format_authors(authors: list, max_count: int = 5) -> str:
+    """Safely format authors list to string, handling various formats"""
+    if not authors:
+        return "Unknown"
+    
+    formatted = []
+    for author in authors[:max_count]:
+        if isinstance(author, str):
+            formatted.append(author)
+        elif isinstance(author, dict):
+            # Try common author dict formats
+            name = author.get('name') or author.get('full_name') or author.get('author') or str(author)
+            formatted.append(name)
+        else:
+            formatted.append(str(author))
+    
+    result = ', '.join(formatted)
+    if len(authors) > max_count:
+        result += f' et al. (+{len(authors) - max_count} more)'
+    
+    return result
+
 
 @tool
-def analyze_paper_structure_tool(paper_json: str) -> str:
-        """
-        Analyze paper structure
+def analyze_paper_deep(paper_json: str) -> str:
+    """
+    Perform deep analysis of a paper using LLM
+    
+    This tool conducts comprehensive analysis including:
+    - Research problem and motivation
+    - Methodology and technical approach
+    - Key contributions and innovations
+    - Experimental results and findings
+    - Strengths and limitations
+    
+    Args:
+        paper_json: Paper data as JSON string containing title, abstract, authors, etc.
         
-        Args:
-            paper_json: Paper data as JSON string
-            
-        Returns:
-            Structure analysis
-        """
-        try:
-            paper_data = json.loads(paper_json)
-        except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parsing failed in analyze_paper_structure: {e}")
-            try:
-                decoder = json.JSONDecoder()
-                paper_data, _ = decoder.raw_decode(paper_json)
-                print(f"✓ Extracted partial JSON")
-            except Exception as e2:
-                print(f"❌ Could not extract valid JSON: {e2}")
-                return json.dumps({"error": "Invalid JSON format"})
-        
+    Returns:
+        Comprehensive analysis result as JSON string
+    """
+    paper_data = _parse_paper_json(paper_json)
+    if not paper_data:
+        return json.dumps({"error": "Invalid paper data"})
+    
+    title = paper_data.get("title", "Unknown Title")
+    abstract = paper_data.get("abstract", "")
+    authors = paper_data.get("authors", [])
+    year = paper_data.get("year", "")
+    full_text = paper_data.get("full_text", "")
+    
+    # Use abstract if no full text available
+    content = full_text if full_text else abstract
+    if not content:
         return json.dumps({
-            "has_abstract": "abstract" in paper_data and len(paper_data.get("abstract", "")) > 0,
-            "has_full_text": "full_text" in paper_data and len(paper_data.get("full_text", "")) > 0,
-            "title": paper_data.get("title", ""),
-            "authors": paper_data.get("authors", []),
-            "year": paper_data.get("year"),
+            "error": "No content available for analysis",
+            "title": title
         })
     
+    # Truncate content if too long (for API limits)
+    max_content_length = 8000
+    if len(content) > max_content_length:
+        content = content[:max_content_length] + "\n\n[Content truncated for analysis...]"
+    
+    llm = get_llm()
+    
+    # Format authors safely
+    authors_str = _format_authors(authors, max_count=5)
+    
+    analysis_prompt = f"""You are a PhD-level research analyst. Conduct a comprehensive deep analysis of this academic paper.
+
+**Paper Information:**
+- Title: {title}
+- Authors: {authors_str}
+- Year: {year}
+
+**Paper Content:**
+{content}
+
+**Provide a detailed analysis in the following structure:**
+
+## 1. Research Problem & Motivation
+- What problem does this paper address?
+- Why is this problem important?
+- What gaps in existing research does it fill?
+
+## 2. Methodology & Technical Approach
+- What methods/algorithms are proposed?
+- How does the approach work technically?
+- What are the key innovations compared to prior work?
+
+## 3. Key Contributions
+- List the main contributions (3-5 items)
+- What is novel and significant about each?
+
+## 4. Experimental Results
+- What experiments were conducted?
+- What were the main findings?
+- How does it compare to baselines?
+
+## 5. Strengths
+- What are the paper's strongest aspects?
+- What does it do exceptionally well?
+
+## 6. Limitations & Future Work
+- What are the weaknesses or limitations?
+- What questions remain unanswered?
+- What future research directions are suggested?
+
+## 7. Impact Assessment
+- What is the potential impact of this work?
+- How might it influence future research?
+
+Be specific, evidence-based, and cite paper content where relevant."""
+
+    try:
+        print(f"🔬 Deep analyzing: {title[:50]}...")
+        response = llm.invoke(analysis_prompt)
+        analysis_text = response.content
+        
+        return json.dumps({
+            "success": True,
+            "title": title,
+            "analysis_type": "deep_research",
+            "analysis": analysis_text,
+            "metadata": {
+                "authors": authors,
+                "year": year,
+                "has_full_text": bool(full_text),
+                "content_length": len(content)
+            }
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        print(f"❌ Error in deep analysis: {e}")
+        return json.dumps({
+            "error": str(e),
+            "title": title
+        })
+
+
 @tool
-def identify_methodology_tool(paper_json: str) -> str:
-        """
-        Identify methodology used in paper
+def extract_key_contributions(paper_json: str) -> str:
+    """
+    Extract and analyze the key contributions of a paper using LLM
+    
+    Args:
+        paper_json: Paper data as JSON string
         
-        Args:
-            paper_json: Paper data as JSON string
-            
-        Returns:
-            Methodology analysis
-        """
-        try:
-            paper_data = json.loads(paper_json)
-        except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parsing failed in identify_methodology: {e}")
-            try:
-                decoder = json.JSONDecoder()
-                paper_data, _ = decoder.raw_decode(paper_json)
-                print(f"✓ Extracted partial JSON")
-            except Exception as e2:
-                print(f"❌ Could not extract valid JSON: {e2}")
-                return json.dumps({"detected_methods": [], "error": "Invalid JSON format"})
+    Returns:
+        Key contributions analysis as JSON string
+    """
+    paper_data = _parse_paper_json(paper_json)
+    if not paper_data:
+        return json.dumps({"error": "Invalid paper data"})
+    
+    title = paper_data.get("title", "")
+    abstract = paper_data.get("abstract", "")
+    content = paper_data.get("full_text", "") or abstract
+    
+    if not content:
+        return json.dumps({"error": "No content available", "title": title})
+    
+    llm = get_llm()
+    
+    prompt = f"""Analyze this academic paper and extract the key contributions:
+
+**Title:** {title}
+
+**Content:**
+{content[:5000]}
+
+**Task:** Identify and explain the main contributions of this paper.
+
+For each contribution, provide:
+1. A clear, concise statement of the contribution
+2. Why it is significant
+3. How it advances the field
+
+Format your response as a numbered list with detailed explanations."""
+
+    try:
+        print(f"📊 Extracting contributions: {title[:50]}...")
+        response = llm.invoke(prompt)
         
-        text = (paper_data.get("abstract", "") + " " + paper_data.get("full_text", "")).lower()
+        return json.dumps({
+            "success": True,
+            "title": title,
+            "contributions": response.content
+        }, ensure_ascii=False)
         
-        methodologies = {
-            "deep_learning": any(kw in text for kw in ["deep learning", "neural network", "cnn", "rnn", "transformer"]),
-            "machine_learning": any(kw in text for kw in ["machine learning", "classification", "regression"]),
-            "nlp": any(kw in text for kw in ["natural language", "nlp", "language model"]),
-            "graph": any(kw in text for kw in ["graph neural", "graph convolution", "node", "edge"]),
+    except Exception as e:
+        return json.dumps({"error": str(e), "title": title})
+
+
+@tool
+def analyze_methodology(paper_json: str) -> str:
+    """
+    Perform deep methodology analysis using LLM
+    
+    Analyzes the research methodology, technical approach, and implementation details.
+    
+    Args:
+        paper_json: Paper data as JSON string
+        
+    Returns:
+        Methodology analysis as JSON string
+    """
+    paper_data = _parse_paper_json(paper_json)
+    if not paper_data:
+        return json.dumps({"error": "Invalid paper data"})
+    
+    title = paper_data.get("title", "")
+    abstract = paper_data.get("abstract", "")
+    content = paper_data.get("full_text", "") or abstract
+    
+    if not content:
+        return json.dumps({"error": "No content available", "title": title})
+    
+    llm = get_llm()
+    
+    prompt = f"""Analyze the methodology of this academic paper:
+
+**Title:** {title}
+
+**Content:**
+{content[:6000]}
+
+**Provide detailed analysis of:**
+
+## 1. Research Design
+- What type of research is this? (empirical, theoretical, experimental, etc.)
+- What is the overall research framework?
+
+## 2. Technical Approach
+- What algorithms or methods are used?
+- How do they work technically?
+- What are the key equations or formulations?
+
+## 3. Data & Experiments
+- What datasets are used?
+- How are experiments designed?
+- What metrics are used for evaluation?
+
+## 4. Implementation Details
+- What tools/frameworks are mentioned?
+- What hyperparameters or configurations are used?
+- How reproducible is the approach?
+
+## 5. Methodological Innovations
+- What is novel about this methodology?
+- How does it differ from existing approaches?
+
+## 6. Methodological Limitations
+- What are the assumptions made?
+- What are the potential weaknesses?"""
+
+    try:
+        print(f"🔧 Analyzing methodology: {title[:50]}...")
+        response = llm.invoke(prompt)
+        
+        # Detect method categories
+        content_lower = content.lower()
+        detected_methods = []
+        method_keywords = {
+            "deep_learning": ["deep learning", "neural network", "cnn", "rnn", "transformer", "attention"],
+            "machine_learning": ["machine learning", "classification", "regression", "clustering", "svm"],
+            "nlp": ["natural language", "nlp", "language model", "text", "embedding", "bert", "gpt"],
+            "graph_neural": ["graph neural", "gcn", "gnn", "node", "graph convolution"],
+            "reinforcement_learning": ["reinforcement learning", "rl", "reward", "policy"],
+            "computer_vision": ["image", "vision", "object detection", "segmentation"]
         }
         
-        detected = [k for k, v in methodologies.items() if v]
+        for method, keywords in method_keywords.items():
+            if any(kw in content_lower for kw in keywords):
+                detected_methods.append(method)
         
-        return json.dumps({"detected_methods": detected})
+        return json.dumps({
+            "success": True,
+            "title": title,
+            "methodology_analysis": response.content,
+            "detected_methods": detected_methods
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        return json.dumps({"error": str(e), "title": title})
+
+
+@tool
+def critical_analysis(paper_json: str) -> str:
+    """
+    Perform critical analysis of a paper - evaluating strengths, weaknesses, and impact
+    
+    Args:
+        paper_json: Paper data as JSON string
+        
+    Returns:
+        Critical analysis as JSON string
+    """
+    paper_data = _parse_paper_json(paper_json)
+    if not paper_data:
+        return json.dumps({"error": "Invalid paper data"})
+    
+    title = paper_data.get("title", "")
+    abstract = paper_data.get("abstract", "")
+    content = paper_data.get("full_text", "") or abstract
+    
+    if not content:
+        return json.dumps({"error": "No content available", "title": title})
+    
+    llm = get_llm()
+    
+    prompt = f"""Conduct a critical academic analysis of this paper:
+
+**Title:** {title}
+
+**Content:**
+{content[:6000]}
+
+**Provide a balanced critical analysis:**
+
+## Strengths
+1. **Technical Innovation**: What technical contributions are noteworthy?
+2. **Experimental Rigor**: How thorough and valid are the experiments?
+3. **Presentation Quality**: How well is the work presented?
+4. **Practical Impact**: What practical applications are enabled?
+
+## Weaknesses
+1. **Methodological Limitations**: What are the approach's limitations?
+2. **Experimental Gaps**: What experiments are missing or insufficient?
+3. **Assumptions**: What assumptions might not hold in practice?
+4. **Scalability Concerns**: Are there scalability or efficiency issues?
+
+## Reproducibility Assessment
+- Is the method clearly described enough to reproduce?
+- Is code/data available?
+- Are hyperparameters and configurations specified?
+
+## Impact Potential
+- How significant is this work for the field?
+- What future research does it enable?
+- What are the broader implications?
+
+Be constructive but rigorous in your critique."""
+
+    try:
+        print(f"⚖️ Critical analysis: {title[:50]}...")
+        response = llm.invoke(prompt)
+        
+        return json.dumps({
+            "success": True,
+            "title": title,
+            "critical_analysis": response.content
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        return json.dumps({"error": str(e), "title": title})
 
 
 # ==================== SubAgent Definitions ====================
 
 def create_researcher_subagent_for_deepagent(researcher_id: int) -> SubAgent:
     """
-    Create a Researcher SubAgent for deepagents
+    Create a Researcher SubAgent for deepagents with LLM-powered deep research tools
     
     Args:
         researcher_id: Researcher number
@@ -272,19 +587,60 @@ def create_researcher_subagent_for_deepagent(researcher_id: int) -> SubAgent:
     """
     researcher = SubAgent(
         name=f"researcher_{researcher_id}",
-        description=f"Expert researcher who analyzes academic papers deeply, focusing on structure, methodology, and contributions",
+        description=f"Expert PhD-level researcher who conducts deep analysis of academic papers using LLM-powered tools, focusing on methodology, contributions, and critical evaluation",
         system_prompt=f"""
 {RESEARCHER_AGENT_PROMPT}
 
-You are Researcher #{researcher_id}. Your specific role:
-- Analyze ONE paper deeply and thoroughly
-- Use analyze_paper_structure_tool and identify_methodology_tool
-- Save your analysis using save_analysis_result tool
-- Be objective and evidence-based
+You are Researcher #{researcher_id}, a PhD-level research analyst. Your mission is to conduct DEEP RESEARCH on assigned papers.
+
+## Your Deep Research Process:
+
+### Step 1: Comprehensive Analysis
+Use `analyze_paper_deep` tool to perform thorough analysis covering:
+- Research problem and motivation
+- Methodology and technical approach
+- Key contributions and innovations
+- Experimental results
+- Strengths and limitations
+- Impact assessment
+
+### Step 2: Contribution Extraction
+Use `extract_key_contributions` tool to identify:
+- Main contributions (3-5 items)
+- Significance of each contribution
+- How it advances the field
+
+### Step 3: Methodology Deep-Dive
+Use `analyze_methodology` tool to examine:
+- Research design and framework
+- Technical approach and algorithms
+- Data, experiments, and metrics
+- Implementation details
+- Methodological innovations and limitations
+
+### Step 4: Critical Evaluation
+Use `critical_analysis` tool to provide:
+- Balanced strengths and weaknesses
+- Reproducibility assessment
+- Impact potential evaluation
+
+### Step 5: Save Results
+Use `save_analysis_result` tool to save your complete analysis.
+
+## Guidelines:
+- Be OBJECTIVE and EVIDENCE-BASED
+- Quote or reference specific paper content
+- Provide constructive but rigorous critique
+- Consider both theoretical and practical implications
+- Think about how this paper fits in the broader research landscape
+
+Your analysis should be PhD thesis quality - thorough, rigorous, and insightful.
         """.strip(),
         tools=[
-            analyze_paper_structure_tool,
-            identify_methodology_tool,
+            analyze_paper_deep,
+            extract_key_contributions,
+            analyze_methodology,
+            critical_analysis,
             save_analysis_result,
         ],
     )
@@ -295,126 +651,372 @@ You are Researcher #{researcher_id}. Your specific role:
 # ==================== Advisor Tools (Global) ====================
 
 @tool
-def validate_completeness_tool(analysis_json: str) -> str:
-        """
-        Validate analysis completeness
+def validate_and_improve_analysis(analysis_json: str) -> str:
+    """
+    Validate researcher's analysis and provide improvement feedback using LLM
+    
+    Args:
+        analysis_json: Researcher's analysis as JSON string
         
-        Args:
-            analysis_json: Analysis data as JSON string
-            
-        Returns:
-            Validation result
-        """
-        try:
-            analysis = json.loads(analysis_json)
-        except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parsing failed in validate_completeness: {e}")
-            # Try to extract the first valid JSON object
-            try:
-                decoder = json.JSONDecoder()
-                analysis, idx = decoder.raw_decode(analysis_json)
-                print(f"✓ Extracted partial JSON")
-            except Exception as e2:
-                print(f"❌ Could not extract valid JSON: {e2}")
-                return json.dumps({
-                    "error": "Invalid JSON format",
-                    "completeness_score": 0,
-                    "is_complete": False,
-                    "validation": "ERROR"
-                })
-        
-        required = ["structure_analysis", "methodology"]
-        completeness = {
-            section: section in analysis.get('analysis', {})
-            for section in required
-        }
-        
-        score = sum(completeness.values()) / len(completeness) if completeness else 0
+    Returns:
+        Validation result with feedback
+    """
+    analysis_data = _parse_paper_json(analysis_json)
+    if not analysis_data:
+        return json.dumps({"error": "Invalid analysis data", "validation": "ERROR"})
+    
+    llm = get_llm()
+    
+    analysis_content = analysis_data.get("analysis", "")
+    title = analysis_data.get("title", "Unknown")
+    
+    prompt = f"""You are a Senior Professor reviewing a PhD researcher's paper analysis.
+
+**Paper Title:** {title}
+
+**Researcher's Analysis:**
+{analysis_content[:6000] if isinstance(analysis_content, str) else json.dumps(analysis_content)[:6000]}
+
+**Evaluate the analysis on these criteria:**
+
+## 1. Completeness (Score: 0-5)
+- Does it cover problem, methodology, contributions, results, and limitations?
+- Are there any major gaps?
+
+## 2. Accuracy (Score: 0-5)
+- Are the technical descriptions correct?
+- Are claims properly supported?
+
+## 3. Depth (Score: 0-5)
+- Is the analysis sufficiently detailed?
+- Does it go beyond surface-level observations?
+
+## 4. Balance (Score: 0-5)
+- Are both strengths and weaknesses identified?
+- Is the critique fair and constructive?
+
+## 5. Insight (Score: 0-5)
+- Does it provide valuable insights?
+- Does it connect to broader research context?
+
+**Provide:**
+1. Overall Score (0-25)
+2. Validation Decision: APPROVED (20+), NEEDS_REVISION (15-19), or REJECTED (<15)
+3. Specific feedback for improvement
+4. Key strengths of the analysis
+5. Areas that need more depth"""
+
+    try:
+        print(f"✅ Validating analysis for: {title[:50]}...")
+        response = llm.invoke(prompt)
         
         return json.dumps({
-            "completeness_score": score,
-            "is_complete": score >= 0.75,
-            "validation": "APPROVED" if score >= 0.75 else "NEEDS_REVISION"
-        })
+            "success": True,
+            "paper_title": title,
+            "validation_result": response.content,
+            "validated_by": "Senior Advisor Agent"
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        return json.dumps({"error": str(e), "validation": "ERROR"})
     
 @tool
-def synthesize_cross_paper_findings_tool(analyses_json: str) -> str:
-        """
-        Synthesize findings across multiple papers
+def synthesize_cross_paper_findings(analyses_json: str) -> str:
+    """
+    Perform deep cross-paper synthesis using LLM
+    
+    Synthesizes findings across multiple papers to identify:
+    - Common themes and patterns
+    - Methodological trends
+    - Research gaps
+    - Future directions
+    
+    Args:
+        analyses_json: Multiple analyses as JSON string or list
         
-        Args:
-            analyses_json: Multiple analyses as JSON string or list
-            
-        Returns:
-            Synthesis result
-        """
+    Returns:
+        Comprehensive synthesis result
+    """
+    try:
+        analyses = json.loads(analyses_json)
+    except json.JSONDecodeError:
         try:
-            # Try to parse as JSON
-            analyses = json.loads(analyses_json)
-        except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parsing failed: {e}")
-            # Try to extract the first valid JSON object
-            try:
-                # Find the first complete JSON object/array
-                decoder = json.JSONDecoder()
-                analyses, idx = decoder.raw_decode(analyses_json)
-                print(f"✓ Extracted partial JSON (used {idx} chars out of {len(analyses_json)})")
-            except Exception as e2:
-                print(f"❌ Could not extract valid JSON: {e2}")
-                return json.dumps({
-                    "error": "Invalid JSON format",
-                    "details": str(e)
-                })
+            decoder = json.JSONDecoder()
+            analyses, _ = decoder.raw_decode(analyses_json)
+        except:
+            return json.dumps({"error": "Invalid JSON format"})
+    
+    if not isinstance(analyses, list):
+        analyses = [analyses]
+    
+    if not analyses:
+        return json.dumps({"error": "No analyses to synthesize"})
+    
+    # Prepare summary of all analyses for LLM
+    papers_summary = []
+    for i, analysis in enumerate(analyses, 1):
+        if isinstance(analysis, dict):
+            title = analysis.get("title", f"Paper {i}")
+            content = analysis.get("analysis", "")
+            if isinstance(content, dict):
+                content = json.dumps(content)
+            papers_summary.append(f"**Paper {i}: {title}**\n{content[:2000]}")
+    
+    combined_summary = "\n\n---\n\n".join(papers_summary)
+    
+    llm = get_llm()
+    
+    prompt = f"""You are a Senior Research Advisor synthesizing multiple paper analyses.
+
+**Analyses from {len(analyses)} papers:**
+
+{combined_summary[:12000]}
+
+**Provide a comprehensive cross-paper synthesis:**
+
+## 1. Thematic Analysis
+- What common themes emerge across these papers?
+- How do the papers relate to each other?
+- What are the key research questions being addressed?
+
+## 2. Methodological Landscape
+- What methods are commonly used?
+- What methodological innovations are introduced?
+- How do approaches differ across papers?
+
+## 3. Key Findings Synthesis
+- What are the most significant findings across papers?
+- Where do papers agree or disagree?
+- What evidence supports the main conclusions?
+
+## 4. Research Gaps Identified
+- What questions remain unanswered?
+- What limitations are common across papers?
+- Where is more research needed?
+
+## 5. Future Research Directions
+- What promising directions emerge from this body of work?
+- What problems should be tackled next?
+- What methodological improvements are needed?
+
+## 6. Field Assessment
+- What is the current state of this research area?
+- How mature is the field?
+- What are the major open challenges?
+
+## 7. Recommendations
+- For researchers entering this field
+- For practitioners applying these methods
+- For future research priorities
+
+Provide specific examples and evidence from the analyzed papers."""
+
+    try:
+        print(f"🔗 Synthesizing {len(analyses)} paper analyses...")
+        response = llm.invoke(prompt)
         
-        # Ensure analyses is a list
-        if not isinstance(analyses, list):
-            analyses = [analyses]
-        
-        # Extract all methods
+        # Also extract method statistics
         all_methods = []
         for analysis in analyses:
             if isinstance(analysis, dict):
-                methods = analysis.get('analysis', {}).get('methodology', {}).get('detected_methods', [])
+                methods = analysis.get('detected_methods', [])
+                if not methods:
+                    # Try nested structure
+                    analysis_content = analysis.get('analysis', {})
+                    if isinstance(analysis_content, dict):
+                        methods = analysis_content.get('detected_methods', [])
                 all_methods.extend(methods)
         
-        # Count frequencies
         method_counts = {}
         for method in all_methods:
             method_counts[method] = method_counts.get(method, 0) + 1
         
-        common_themes = {m: c for m, c in method_counts.items() if c >= 2}
+        return json.dumps({
+            "success": True,
+            "synthesis": response.content,
+            "papers_analyzed": len(analyses),
+            "common_methods": method_counts,
+            "synthesized_by": "Senior Advisor Agent"
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        print(f"❌ Synthesis error: {e}")
+        return json.dumps({"error": str(e)})
+
+
+@tool
+def generate_synthesis_report(analyses_json: str, synthesis_json: str) -> str:
+    """
+    Generate a comprehensive final synthesis report using LLM
+    
+    Combines individual paper analyses and cross-paper synthesis into
+    a professional academic review report.
+    
+    Args:
+        analyses_json: All paper analyses as JSON string
+        synthesis_json: Cross-paper synthesis result as JSON string
+        
+    Returns:
+        Complete synthesis report as markdown
+    """
+    analyses = _parse_paper_json(analyses_json)
+    synthesis = _parse_paper_json(synthesis_json)
+    
+    if not analyses:
+        analyses = []
+    if not isinstance(analyses, list):
+        analyses = [analyses]
+    
+    synthesis_content = synthesis.get("synthesis", "") if isinstance(synthesis, dict) else str(synthesis)
+    
+    # Build paper summaries
+    paper_summaries = []
+    for i, analysis in enumerate(analyses, 1):
+        if isinstance(analysis, dict):
+            title = analysis.get("title", f"Paper {i}")
+            content = analysis.get("analysis", "")
+            if isinstance(content, dict):
+                content = json.dumps(content, indent=2)
+            paper_summaries.append(f"### Paper {i}: {title}\n{content[:3000]}")
+    
+    combined_papers = "\n\n".join(paper_summaries)
+    
+    llm = get_llm()
+    
+    prompt = f"""Generate a comprehensive, publication-quality literature review report.
+
+**Individual Paper Analyses:**
+{combined_papers[:15000]}
+
+**Cross-Paper Synthesis:**
+{synthesis_content[:5000]}
+
+**Generate a professional report with the following structure:**
+
+# Comprehensive Literature Review Report
+
+## Executive Summary
+- Brief overview of the review scope
+- Key findings (3-5 bullet points)
+- Main conclusions
+
+## 1. Introduction
+- Research domain background
+- Objectives of this review
+- Scope and methodology
+
+## 2. Paper-by-Paper Analysis Summary
+For each paper, provide:
+- Research question and motivation
+- Methodology highlights
+- Key contributions
+- Critical assessment
+
+## 3. Thematic Analysis
+- Common themes across papers
+- Evolution of ideas in the field
+- Methodological patterns
+
+## 4. Comparative Analysis
+- How papers relate to each other
+- Points of agreement and disagreement
+- Strengths and limitations across the body of work
+
+## 5. Research Landscape Assessment
+- Current state of the field
+- Major achievements
+- Open challenges
+
+## 6. Identified Gaps and Future Directions
+- What remains unexplored
+- Promising research directions
+- Recommendations for future work
+
+## 7. Conclusions
+- Key takeaways
+- Implications for researchers
+- Implications for practitioners
+
+## References
+- List of reviewed papers
+
+Make the report scholarly, well-organized, and insightful. Use specific evidence from the analyses."""
+
+    try:
+        print("📝 Generating comprehensive synthesis report...")
+        response = llm.invoke(prompt)
         
         return json.dumps({
-            "total_papers": len(analyses),
-            "common_themes": common_themes,
-            "unique_methods": len(method_counts)
-        })
+            "success": True,
+            "report": response.content,
+            "papers_included": len(analyses),
+            "generated_by": "Deep Research Review System"
+        }, ensure_ascii=False)
+        
+    except Exception as e:
+        print(f"❌ Report generation error: {e}")
+        return json.dumps({"error": str(e)})
 
 
 def create_advisor_subagent_for_deepagent() -> SubAgent:
     """
-    Create an Advisor SubAgent for deepagents
+    Create an Advisor SubAgent for deepagents with LLM-powered synthesis tools
     
     Returns:
         SubAgent specification (dict)
     """
     advisor = SubAgent(
         name="advisor",
-        description="Senior advisor who validates research analyses, ensures academic correctness, and synthesizes cross-paper findings",
+        description="Senior Professor who validates research analyses using LLM-powered tools, ensures academic correctness, performs deep cross-paper synthesis, and maintains contextual coherence across the entire research review",
         system_prompt=f"""
 {ADVISOR_AGENT_PROMPT}
 
-Your specific responsibilities:
-1. Get all analyses using get_all_analyses tool
-2. Validate each analysis using validate_completeness_tool
-3. Synthesize findings using synthesize_cross_paper_findings_tool
-4. Save validation result using save_validation_result
-5. Ensure academic rigor and contextual coherence
+You are a Senior Professor with 20+ years of research experience. Your role is to VALIDATE and SYNTHESIZE the deep research conducted by your PhD researchers.
+
+## Your Deep Research Synthesis Process:
+
+### Step 1: Retrieve All Analyses
+Use `get_all_analyses` tool to retrieve all researcher analyses from the workspace.
+
+### Step 2: Validate Each Analysis
+Use `validate_and_improve_analysis` tool for each analysis to:
+- Evaluate completeness, accuracy, depth, balance, and insight
+- Provide specific feedback for improvement
+- Give approval decision (APPROVED/NEEDS_REVISION/REJECTED)
+
+### Step 3: Cross-Paper Synthesis
+Use `synthesize_cross_paper_findings` tool to:
+- Identify common themes and patterns across papers
+- Analyze the methodological landscape
+- Synthesize key findings
+- Identify research gaps
+- Suggest future research directions
+- Provide field assessment and recommendations
+
+### Step 4: Generate Final Report
+Use `generate_synthesis_report` tool to create a comprehensive final report that:
+- Integrates all individual paper analyses
+- Presents cross-paper synthesis and insights
+- Provides executive summary and conclusions
+- Offers actionable recommendations
+
+### Step 5: Save Results
+Use `save_validation_result` tool to save your validation and synthesis.
+
+## Your Standards:
+- Maintain academic rigor equivalent to top-tier journal standards
+- Be constructive but critical
+- Ensure coherence and consistency across all analyses
+- Think about the big picture and broader research context
+- Provide actionable insights for researchers
+
+Your synthesis should represent the highest standard of academic review.
         """.strip(),
         tools=[
             get_all_analyses,
-            validate_completeness_tool,
-            synthesize_cross_paper_findings_tool,
+            validate_and_improve_analysis,
+            synthesize_cross_paper_findings,
+            generate_synthesis_report,
             save_validation_result,
         ],
     )
