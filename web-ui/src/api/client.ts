@@ -77,3 +77,16 @@ export const getReviewReport = async (sessionId: string): Promise<ReviewReportRe
   return response.data;
 };
 
+// Poster Visualization API
+export interface PosterResponse {
+  success: boolean;
+  session_id: string;
+  poster_html: string;
+  poster_path: string;
+}
+
+export const generatePoster = async (sessionId: string): Promise<PosterResponse> => {
+  const response = await api.post<PosterResponse>(`/api/deep-review/visualize/${sessionId}`);
+  return response.data;
+};
+

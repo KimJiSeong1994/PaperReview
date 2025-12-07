@@ -4,7 +4,7 @@ import GraphView from './components/GraphView';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
 import SearchBar from './components/SearchBar';
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster } from './api/client';
 import type { Paper, GraphData } from './types';
 
 // 질의와 논문 간 유사도 계산 함수
@@ -110,6 +110,11 @@ function App() {
   const [showReport, setShowReport] = useState(false);
   const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
+  
+  // Poster visualization states
+  const [posterHtml, setPosterHtml] = useState<string | null>(null);
+  const [showPoster, setShowPoster] = useState(false);
+  const [posterLoading, setPosterLoading] = useState(false);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
@@ -322,6 +327,31 @@ function App() {
     return () => clearInterval(pollInterval);
   }, [reviewSessionId, reviewStatus]);
 
+  // Generate poster visualization
+  const handleGeneratePoster = async () => {
+    if (!reviewSessionId) {
+      alert('No review session available');
+      return;
+    }
+
+    try {
+      setPosterLoading(true);
+      const response = await generatePoster(reviewSessionId);
+      
+      if (response.success) {
+        setPosterHtml(response.poster_html);
+        setShowPoster(true);
+      } else {
+        alert('Failed to generate poster');
+      }
+    } catch (error: any) {
+      console.error('Poster generation error:', error);
+      alert(`포스터 생성 실패: ${error.message || error}`);
+    } finally {
+      setPosterLoading(false);
+    }
+  };
+
   // Close tools menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -434,6 +464,38 @@ function App() {
                           {reviewStatus === 'processing' ? 'Analyzing...' : selectedPapersForReview.size > 0 ? `Deep Research (${selectedPapersForReview.size})` : 'Deep Research'}
                         </span>
                       </button>
+                      
+                      {/* 구분선 */}
+                      <div style={{ 
+                        height: '1px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        margin: '8px 0' 
+                      }} />
+                      
+                      {/* 학회 포스터 생성 버튼 */}
+                      <button
+                        className="tools-menu-item"
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          handleGeneratePoster();
+                        }}
+                        disabled={reviewStatus !== 'completed' || posterLoading}
+                      >
+                        <svg 
+                          className="menu-item-icon" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                        >
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="3" y1="9" x2="21" y2="9"></line>
+                          <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        <span className="menu-item-text">
+                          {posterLoading ? 'Generating...' : 'Generate Poster'}
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -535,6 +597,48 @@ function App() {
             </div>
             <div className="empty-state">
               <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Poster Modal */}
+        {showPoster && posterHtml && (
+          <div className="poster-modal-overlay" onClick={() => setShowPoster(false)}>
+            <div className="poster-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="poster-modal-header">
+                <h2>🎓 학회 포스터</h2>
+                <div className="poster-modal-actions">
+                  <button
+                    className="poster-download-button"
+                    onClick={() => {
+                      const blob = new Blob([posterHtml], { type: 'text/html' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `poster_${new Date().toISOString().split('T')[0]}.html`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    📥 HTML 다운로드
+                  </button>
+                  <button
+                    className="poster-close-button"
+                    onClick={() => setShowPoster(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div className="poster-modal-content">
+                <iframe
+                  srcDoc={posterHtml}
+                  title="Conference Poster"
+                  className="poster-iframe"
+                />
+              </div>
             </div>
           </div>
         )}

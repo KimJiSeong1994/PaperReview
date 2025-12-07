@@ -746,7 +746,7 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
     Args:
         papers_data: 프론트엔드에서 직접 전달받은 논문 데이터 (우선 사용)
     """
-    from langchain_openai import ChatOpenAI
+    from openai import OpenAI
     from app.DeepAgent.tools.paper_loader import load_papers_from_ids
     from datetime import datetime
     import hashlib
@@ -764,10 +764,10 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
     if not papers:
         return {"status": "failed", "error": "논문을 로드할 수 없습니다"}
     
-    # LLM 초기화 (Deep Research는 GPT-4.1 사용)
+    # OpenAI 클라이언트 초기화 (langchain 대신 직접 사용)
     deep_research_model = "gpt-4.1"
     print(f"🧠 Deep Research 모델: {deep_research_model}")
-    llm = ChatOpenAI(model=deep_research_model, temperature=0.3)
+    client = OpenAI()
     
     # 논문 요약 준비
     papers_text = []
@@ -1005,8 +1005,17 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
             if session_id in review_sessions:
                 review_sessions[session_id]["progress"] = "🤖 AI가 논문을 분석하고 있습니다..."
         
-        response = llm.invoke(prompt)
-        report_content = response.content
+        # OpenAI API 직접 호출 (langchain 호환성 문제 우회)
+        response = client.chat.completions.create(
+            model=deep_research_model,
+            messages=[
+                {"role": "system", "content": "당신은 20년 이상의 연구 경력을 가진 해당 분야의 석학 교수입니다. 체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=16000
+        )
+        report_content = response.choices[0].message.content
         
         print(f"✅ 분석 완료! ({len(report_content)} chars)")
         
@@ -1079,11 +1088,17 @@ async def start_deep_review(request: DeepReviewRequest, background_tasks: Backgr
     Runs in background and returns session_id immediately
     """
     try:
-        from app.DeepAgent import WorkspaceManager
+        from app.DeepAgent.workspace_manager import WorkspaceManager
+        from datetime import datetime
+        
+        print(f"[Deep Review] Starting request with {len(request.paper_ids)} papers")
+        print(f"[Deep Review] Papers data provided: {len(request.papers) if request.papers else 0}")
         
         # Create workspace for this session
         workspace = WorkspaceManager()
         session_id = workspace.session_id
+        
+        print(f"[Deep Review] Session ID: {session_id}")
         
         # Store session info
         with review_sessions_lock:
@@ -1092,7 +1107,7 @@ async def start_deep_review(request: DeepReviewRequest, background_tasks: Backgr
                 "paper_ids": request.paper_ids,
                 "num_papers": len(request.paper_ids),
                 "workspace_path": str(workspace.session_path),
-                "created_at": workspace.load_metadata().get("created_at"),
+                "created_at": datetime.now().isoformat(),
             }
         
         # Start background task
@@ -1116,6 +1131,9 @@ async def start_deep_review(request: DeepReviewRequest, background_tasks: Backgr
         }
     
     except Exception as e:
+        import traceback
+        print(f"[Deep Review] ❌ Error: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to start review: {str(e)}")
 
 
@@ -1124,7 +1142,7 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     LLM을 사용하여 선택된 논문들을 기반으로 한글 학술 리서치 논문 형태의 심층 리포트 생성
     """
     from datetime import datetime
-    from langchain_openai import ChatOpenAI
+    from openai import OpenAI
     
     # Get analyses from workspace
     analyses = []
@@ -1313,9 +1331,19 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
         # Deep Research는 GPT-4.1 모델로 심층 분석
         deep_research_model = "gpt-4.1"
         print(f"🤖 LLM으로 심층 리포트 생성 중... (모델: {deep_research_model})")
-        llm = ChatOpenAI(model=deep_research_model, temperature=0.3)
-        response = llm.invoke(prompt)
-        report_content = response.content
+        
+        # OpenAI API 직접 호출 (langchain 호환성 문제 우회)
+        client = OpenAI()
+        response = client.chat.completions.create(
+            model=deep_research_model,
+            messages=[
+                {"role": "system", "content": "당신은 해당 분야의 선임 연구 교수입니다. 체계적이고 심층적인 한글 문헌 리뷰 보고서를 작성합니다."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=16000
+        )
+        report_content = response.choices[0].message.content
         print(f"✅ 심층 리포트 생성 완료! ({len(report_content)} chars)")
         return report_content
         
@@ -1403,7 +1431,7 @@ def run_deep_review_background(
             result = run_fast_review(session_id, paper_ids, model, workspace, papers_data)
         else:
             # 🔬 Deep Mode: 전체 deepagents 분석
-            from app.DeepAgent import DeepReviewAgent
+            from app.DeepAgent.deep_review_agent import DeepReviewAgent
             
             agent = DeepReviewAgent(
                 model=model,
@@ -1526,6 +1554,67 @@ async def get_review_report(session_id: str):
             "num_papers": session.get("num_papers", 0),
             "created_at": session.get("created_at")
         }
+
+
+# ==================== Report Visualization (학회 포스터) ====================
+
+@app.post("/api/deep-review/visualize/{session_id}")
+async def generate_poster_visualization(session_id: str):
+    """
+    Deep Research 리포트를 학회 포스터 형태로 시각화
+    PosterGenerationAgent를 사용하여 HTML/SVG 포스터 생성
+    """
+    try:
+        from app.DeepAgent.agents import PosterGenerationAgent
+        
+        # 세션 확인
+        with review_sessions_lock:
+            if session_id not in review_sessions:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            session = review_sessions[session_id]
+            
+            if session["status"] != "completed":
+                raise HTTPException(status_code=400, detail="Review not completed yet")
+            
+            workspace_path = Path(session["workspace_path"])
+        
+        # 리포트 읽기
+        reports_dir = workspace_path / "reports"
+        md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        
+        if not md_files:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        with open(md_files[0], 'r', encoding='utf-8') as f:
+            report_content = f.read()
+        
+        # PosterGenerationAgent를 사용하여 포스터 생성 (Gemini 3 Pro Preview)
+        poster_agent = PosterGenerationAgent(model="gemini-3-pro-preview")
+        poster_dir = workspace_path / "posters"
+        
+        result = poster_agent.generate_poster(
+            report_content=report_content,
+            num_papers=session.get("num_papers", 0),
+            output_dir=poster_dir
+        )
+        
+        print(f"📊 Poster generated via Agent: {result.get('poster_path', 'N/A')}")
+        
+        return {
+            "success": result["success"],
+            "session_id": session_id,
+            "poster_html": result["poster_html"],
+            "poster_path": result.get("poster_path", "")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Poster generation error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
 
 
 if __name__ == "__main__":
