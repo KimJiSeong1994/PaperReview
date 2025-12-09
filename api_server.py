@@ -153,6 +153,8 @@ class SearchRequest(BaseModel):
     collect_references: bool = False  # 참고문헌 자동 수집 (성능 개선: 기본 비활성화)
     extract_texts: bool = False  # 본문 자동 추출 (성능 개선: 기본 비활성화)
     max_references_per_paper: int = 10  # 논문당 최대 참고문헌 수 (성능 개선: 20->10)
+    use_llm_search: bool = False  # LLM 컨텍스트 기반 검색 사용 여부
+    search_context: str = ""  # 추가 검색 컨텍스트
 
 
 class SearchResponse(BaseModel):
@@ -196,6 +198,148 @@ async def analyze_query(request: QueryAnalysisRequest):
         error_trace = traceback.format_exc()
         print(f"[API] Error in query analysis: {error_trace}")
         raise HTTPException(status_code=500, detail=f"Query analysis failed: {str(e)}")
+
+
+class LLMSearchRequest(BaseModel):
+    query: str
+    max_results: int = 20
+    context: str = ""  # 추가 컨텍스트 (이전 검색 등)
+    save_papers: bool = True
+
+
+class LLMSearchResponse(BaseModel):
+    results: Dict[str, List[Dict[str, Any]]]
+    total: int
+    metadata: Dict[str, Any]
+
+
+@app.post("/api/llm-search", response_model=LLMSearchResponse)
+async def llm_context_search(request: LLMSearchRequest):
+    """
+    LLM 컨텍스트 기반 검색
+    
+    LLM이 사용자 쿼리를 분석하고 최적화된 검색 쿼리를 생성하여
+    arXiv와 Google Scholar에서 검색합니다.
+    
+    한글 쿼리도 자동으로 영어로 번역하여 검색합니다.
+    """
+    if not query_analyzer:
+        raise HTTPException(
+            status_code=503, 
+            detail="LLM search service unavailable (OpenAI API key not configured)"
+        )
+    
+    try:
+        import time
+        start_time = time.time()
+        
+        print(f"[API] LLM Context Search: {request.query}")
+        
+        # LLM 컨텍스트 기반 검색 수행
+        results = search_agent.llm_context_search(
+            query=request.query,
+            max_results_per_source=request.max_results,
+            context=request.context
+        )
+        
+        # 메타데이터 분리
+        metadata = results.pop('_metadata', {})
+        
+        total = sum(len(papers) for papers in results.values())
+        search_time = time.time() - start_time
+        
+        print(f"[API] LLM Search completed: {total} papers in {search_time:.2f}s")
+        
+        # 결과 저장 (옵션)
+        if request.save_papers and total > 0:
+            try:
+                save_result = search_agent.save_papers(
+                    results, 
+                    request.query,
+                    generate_embeddings=False,
+                    update_graph=True
+                )
+                metadata['save_result'] = {
+                    'new_papers': save_result.get('new_papers', 0),
+                    'duplicates': save_result.get('duplicates', 0)
+                }
+                print(f"[API] Saved: {save_result.get('new_papers', 0)} new papers")
+            except Exception as e:
+                print(f"[API] Error saving papers: {e}")
+        
+        # 검색 시간 추가
+        metadata['search_time'] = round(search_time, 2)
+        
+        return LLMSearchResponse(
+            results=results,
+            total=total,
+            metadata=metadata
+        )
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] LLM Search error: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"LLM search failed: {str(e)}")
+
+
+@app.post("/api/smart-search")
+async def smart_search(request: LLMSearchRequest):
+    """
+    스마트 검색 - LLM 분석 + 다중 검색 전략 조합
+    
+    1. LLM이 쿼리를 분석하고 검색 전략 결정
+    2. 최적화된 쿼리로 다중 소스 검색
+    3. 결과 병합 및 중복 제거
+    4. 관련성 순 정렬
+    """
+    try:
+        import time
+        start_time = time.time()
+        
+        print(f"[API] Smart Search: {request.query}")
+        
+        # 스마트 검색 수행
+        result = search_agent.smart_search(
+            query=request.query,
+            max_results=request.max_results
+        )
+        
+        search_time = time.time() - start_time
+        result['metadata']['search_time'] = round(search_time, 2)
+        
+        print(f"[API] Smart Search completed: {len(result['papers'])} papers in {search_time:.2f}s")
+        
+        # 결과 저장 (옵션)
+        if request.save_papers and result['papers']:
+            try:
+                # papers 리스트를 소스별로 분류
+                results_by_source = {"arxiv": [], "connected_papers": [], "google_scholar": []}
+                for paper in result['papers']:
+                    source = paper.pop('_source', 'arxiv')
+                    if source in results_by_source:
+                        results_by_source[source].append(paper)
+                
+                save_result = search_agent.save_papers(
+                    results_by_source, 
+                    request.query,
+                    generate_embeddings=False,
+                    update_graph=True
+                )
+                result['metadata']['save_result'] = {
+                    'new_papers': save_result.get('new_papers', 0),
+                    'duplicates': save_result.get('duplicates', 0)
+                }
+            except Exception as e:
+                print(f"[API] Error saving papers: {e}")
+        
+        return result
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[API] Smart Search error: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Smart search failed: {str(e)}")
 
 
 def _enrich_papers_background(query: str, results: Dict[str, List[Dict[str, Any]]], 
@@ -279,7 +423,22 @@ async def search_papers(request: SearchRequest):
         search_start = time.time()
         print(f"[API] Searching for: {search_query}")
         print(f"[API] Filters: {filters}")
-        results = search_agent.search_with_filters(search_query, filters)
+        
+        # LLM 컨텍스트 기반 검색 사용 여부 확인
+        if request.use_llm_search and query_analyzer:
+            print(f"[API] Using LLM Context Search...")
+            results = search_agent.llm_context_search(
+                search_query, 
+                max_results_per_source=request.max_results,
+                context=request.search_context
+            )
+            # 메타데이터 분리
+            llm_metadata = results.pop('_metadata', None)
+            if llm_metadata:
+                print(f"[API] LLM generated queries: arXiv={len(llm_metadata.get('arxiv_queries', []))}, Scholar={len(llm_metadata.get('scholar_queries', []))}")
+        else:
+            results = search_agent.search_with_filters(search_query, filters)
+        
         search_time = time.time() - search_start
         print(f"[API] Raw search results: {sum(len(papers) for papers in results.values())} papers found (took {search_time:.2f}s)")
         

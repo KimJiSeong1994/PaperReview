@@ -272,4 +272,216 @@ Return only valid JSON, no additional text."""
         """
         analysis = self.analyze_query(query)
         return analysis.get("intent", "paper_search")
+    
+    @log_data_processing("LLM Search Query Generation")
+    def generate_search_queries(self, query: str) -> Dict[str, Any]:
+        """
+        LLM을 사용하여 arXiv와 Google Scholar에 최적화된 검색 쿼리 생성
+        
+        Args:
+            query: 사용자 검색 쿼리
+            
+        Returns:
+            검색 쿼리 딕셔너리:
+            - arxiv_queries: arXiv 검색에 최적화된 쿼리 리스트
+            - scholar_queries: Google Scholar 검색에 최적화된 쿼리 리스트
+            - keywords: 핵심 키워드 리스트
+            - search_context: 검색 맥락 설명
+        """
+        if not query or not query.strip():
+            return {
+                "arxiv_queries": [query],
+                "scholar_queries": [query],
+                "keywords": [],
+                "search_context": ""
+            }
+        
+        try:
+            prompt = self._create_search_query_prompt(query)
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are an expert academic search query optimizer.
+Your task is to generate highly effective search queries for academic paper databases.
+
+You have deep knowledge of:
+- arXiv search syntax (ti:, au:, abs:, cat:, AND, OR)
+- Google Scholar search operators (intitle:, author:, "exact phrase")
+- Academic terminology across CS, ML, AI, NLP, CV fields
+- Research paper naming conventions and common phrasings
+
+Generate queries that will find the most relevant papers for the user's research needs.
+For non-English queries, translate to English and use technical terms."""
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.4,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            
+            return {
+                "arxiv_queries": result.get("arxiv_queries", [query])[:5],
+                "scholar_queries": result.get("scholar_queries", [query])[:5],
+                "keywords": result.get("keywords", []),
+                "search_context": result.get("search_context", ""),
+                "original_query": query,
+                "translated_query": result.get("translated_query", query),
+                "related_terms": result.get("related_terms", [])
+            }
+            
+        except Exception as e:
+            print(f"⚠ Search query generation failed: {e}")
+            return self._fallback_search_queries(query)
+    
+    def _create_search_query_prompt(self, query: str) -> str:
+        """LLM 검색 쿼리 생성 프롬프트"""
+        return f"""Generate optimized search queries for finding academic papers.
+
+User Query: "{query}"
+
+Generate a JSON response with the following structure:
+{{
+    "arxiv_queries": [
+        "optimized query 1 for arXiv (can use ti:, abs:, cat: syntax)",
+        "optimized query 2 for arXiv",
+        "optimized query 3 for arXiv"
+    ],
+    "scholar_queries": [
+        "optimized query 1 for Google Scholar",
+        "optimized query 2 for Google Scholar", 
+        "optimized query 3 for Google Scholar"
+    ],
+    "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+    "search_context": "Brief explanation of what the user is searching for",
+    "translated_query": "English translation if original is non-English",
+    "related_terms": ["related term 1", "related term 2", "related term 3"]
+}}
+
+Guidelines for arXiv queries:
+- Use arXiv search syntax: ti: (title), abs: (abstract), au: (author), cat: (category)
+- Example: "ti:transformer AND abs:attention mechanism"
+- Use AND/OR operators for complex queries
+- Include relevant arXiv categories when appropriate (cs.LG, cs.CL, cs.CV, cs.AI)
+- First query should be the most specific, subsequent queries broader
+
+Guidelines for Google Scholar queries:
+- Use natural language with key technical terms
+- Use "exact phrases" for specific concepts
+- Include intitle: for title-specific searches
+- First query should be the most specific
+
+Guidelines for Keywords:
+- Extract 5-7 most important technical terms
+- Include both specific and general terms
+- Include English versions for non-English queries
+
+Special handling:
+- If query is in Korean/other language: translate and provide both versions
+- If query mentions specific paper/method name: include exact name
+- If query is about a problem/limitation: include problem terms AND solution approaches
+- If query is comparative: include all compared methods/approaches
+
+Return only valid JSON."""
+    
+    def _fallback_search_queries(self, query: str) -> Dict[str, Any]:
+        """검색 쿼리 생성 실패 시 기본 처리"""
+        import re
+        
+        # 기본 키워드 추출
+        words = re.findall(r'\b[a-zA-Z가-힣]{2,}\b', query)
+        stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+                     'of', 'with', 'by', 'from', 'is', 'are', '에서', '으로', '와', '과'}
+        keywords = [w for w in words if w.lower() not in stopwords][:7]
+        
+        # 기본 쿼리 생성
+        arxiv_queries = [
+            query,
+            f"ti:{' AND ti:'.join(keywords[:3])}" if len(keywords) >= 3 else query,
+            f"abs:{' AND abs:'.join(keywords[:4])}" if len(keywords) >= 4 else query
+        ]
+        
+        scholar_queries = [
+            query,
+            " ".join(keywords[:5]),
+            f'intitle:"{keywords[0]}" {" ".join(keywords[1:4])}' if keywords else query
+        ]
+        
+        return {
+            "arxiv_queries": arxiv_queries,
+            "scholar_queries": scholar_queries,
+            "keywords": keywords,
+            "search_context": "Fallback query generation",
+            "original_query": query,
+            "translated_query": query,
+            "related_terms": []
+        }
+    
+    @log_data_processing("LLM Context Search")
+    def search_with_context(self, query: str, context: str = "") -> Dict[str, Any]:
+        """
+        사용자 컨텍스트를 고려한 검색 쿼리 생성
+        
+        Args:
+            query: 사용자 검색 쿼리
+            context: 추가 컨텍스트 (이전 검색, 관심 분야 등)
+            
+        Returns:
+            컨텍스트 기반 검색 쿼리
+        """
+        if not query or not query.strip():
+            return self._fallback_search_queries(query)
+        
+        try:
+            prompt = f"""Based on the user's search query and context, generate optimized academic search queries.
+
+User Query: "{query}"
+Context: "{context if context else 'No additional context provided'}"
+
+Generate a JSON response with:
+{{
+    "arxiv_queries": ["query1", "query2", "query3"],
+    "scholar_queries": ["query1", "query2", "query3"],
+    "keywords": ["kw1", "kw2", "kw3", "kw4", "kw5"],
+    "search_context": "explanation",
+    "search_strategy": "recommended approach",
+    "confidence": 0.0-1.0
+}}
+
+Consider the context to:
+- Refine search focus
+- Add relevant domain-specific terms
+- Suggest related research directions
+- Improve query precision
+
+Return only valid JSON."""
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert academic search assistant that generates precise search queries based on user context."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            result["original_query"] = query
+            result["context_used"] = context
+            return result
+            
+        except Exception as e:
+            print(f"⚠ Context search failed: {e}")
+            return self._fallback_search_queries(query)
 

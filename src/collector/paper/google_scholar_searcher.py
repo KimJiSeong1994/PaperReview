@@ -1,11 +1,17 @@
 """
-Google Scholar 검색 클라이언트
+Google Scholar 검색 클라이언트 (Enhanced)
 웹 스크래핑을 통한 Google Scholar 검색
+
+강화된 기능:
+- 다중 쿼리 전략
+- 제목 정확 매칭
+- 쿼리 최적화
+- 결과 병합 및 중복 제거
 """
 
 import requests
 from bs4 import BeautifulSoup
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 import time
 import re
 import urllib.parse
@@ -15,7 +21,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation, logger
 
 class GoogleScholarSearcher:
-    """Google Scholar 검색 클라이언트"""
+    """Google Scholar 검색 클라이언트 (Enhanced)"""
     
     def __init__(self):
         import ssl
@@ -32,17 +38,66 @@ class GoogleScholarSearcher:
         
         self.base_url = "https://scholar.google.com"
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
         # SSL 검증 비활성화
         self.session.verify = False
+        
+        # 요청 간 딜레이 (Rate limiting 방지)
+        self.request_delay = 1.0
+        self.last_request_time = 0
+    
+    def _rate_limit(self):
+        """Rate limiting을 위한 요청 간 딜레이"""
+        current_time = time.time()
+        elapsed = current_time - self.last_request_time
+        if elapsed < self.request_delay:
+            time.sleep(self.request_delay - elapsed)
+        self.last_request_time = time.time()
+    
+    def _extract_keywords(self, query: str) -> List[str]:
+        """쿼리에서 핵심 키워드 추출"""
+        stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                     'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
+                     'as', 'it', 'its', 'this', 'that', 'these', 'those', 'can', 'will',
+                     'using', 'based', 'via', 'through', 'into', 'over', 'under'}
+        
+        # 소문자로 변환하고 특수문자 제거
+        query_clean = re.sub(r'[^\w\s\-]', ' ', query.lower())
+        words = query_clean.split()
+        keywords = [w for w in words if w not in stopwords and len(w) > 2]
+        return keywords
+    
+    def _build_optimized_query(self, query: str, search_type: str = "default") -> str:
+        """최적화된 검색 쿼리 생성"""
+        if search_type == "exact":
+            # 정확한 구문 검색
+            return f'"{query}"'
+        
+        elif search_type == "title":
+            # 제목에서 검색
+            return f'allintitle: {query}'
+        
+        elif search_type == "keywords":
+            # 키워드 기반 검색
+            keywords = self._extract_keywords(query)
+            if keywords:
+                return " ".join(keywords[:5])  # 상위 5개 키워드
+            return query
+        
+        else:  # default
+            return query
     
     @log_search_operation("Google Scholar")
     def search(self, query: str, max_results: int = 10, sort_by: str = "relevance") -> List[Dict[str, Any]]:
         """
-        Google Scholar에서 논문 검색
+        Google Scholar에서 논문 검색 (Enhanced)
         
         Args:
             query: 검색 쿼리
@@ -53,6 +108,8 @@ class GoogleScholarSearcher:
             논문 정보 리스트
         """
         try:
+            self._rate_limit()
+            
             # 검색 URL 구성
             search_url = f"{self.base_url}/scholar"
             params = {
@@ -65,15 +122,123 @@ class GoogleScholarSearcher:
             if sort_by == "date":
                 params['scisbd'] = '1'  # 날짜순 정렬
             
-            response = self.session.get(search_url, params=params, timeout=10)
+            response = self.session.get(search_url, params=params, timeout=15)
             response.raise_for_status()
             
             # 검색 결과 파싱
             papers = self._parse_search_results(response.text, max_results)
-            return papers
+            
+            # 결과가 부족하면 추가 검색 시도
+            if len(papers) < max_results // 2:
+                additional = self.enhanced_search(query, max_results=max_results - len(papers))
+                # 중복 제거 후 병합
+                seen_titles = {p['title'].lower() for p in papers}
+                for paper in additional:
+                    if paper['title'].lower() not in seen_titles:
+                        papers.append(paper)
+                        seen_titles.add(paper['title'].lower())
+            
+            return papers[:max_results]
             
         except Exception as e:
             logger.error(f"Google Scholar 검색 중 오류 발생: {e}")
+            return []
+    
+    @log_search_operation("Google Scholar Enhanced")
+    def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+        """
+        향상된 다중 전략 검색
+        
+        여러 검색 전략을 조합하여 더 포괄적인 결과 제공
+        """
+        all_results: List[Dict[str, Any]] = []
+        seen_titles: Set[str] = set()
+        
+        try:
+            # 다양한 검색 전략
+            strategies = [
+                ("keywords", max_results // 2),  # 키워드 기반
+                ("title", max_results // 2),     # 제목 검색
+            ]
+            
+            for strategy, limit in strategies:
+                try:
+                    self._rate_limit()
+                    
+                    optimized_query = self._build_optimized_query(query, strategy)
+                    search_url = f"{self.base_url}/scholar"
+                    params = {
+                        'q': optimized_query,
+                        'hl': 'en',
+                        'as_sdt': '0,5'
+                    }
+                    
+                    response = self.session.get(search_url, params=params, timeout=15)
+                    response.raise_for_status()
+                    
+                    papers = self._parse_search_results(response.text, limit)
+                    
+                    for paper in papers:
+                        title_lower = paper['title'].lower()
+                        if title_lower not in seen_titles:
+                            seen_titles.add(title_lower)
+                            all_results.append(paper)
+                    
+                except Exception as e:
+                    logger.warning(f"Strategy '{strategy}' failed: {e}")
+                    continue
+                
+                # 충분한 결과가 있으면 조기 종료
+                if len(all_results) >= max_results:
+                    break
+            
+            return all_results[:max_results]
+            
+        except Exception as e:
+            logger.error(f"Enhanced search error: {e}")
+            return []
+    
+    @log_search_operation("Google Scholar Title")
+    def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        """
+        논문 제목으로 정확한 검색
+        
+        Args:
+            title: 논문 제목
+            max_results: 최대 결과 수
+            
+        Returns:
+            논문 정보 리스트
+        """
+        try:
+            results = []
+            
+            # 1. 정확한 제목 검색
+            self._rate_limit()
+            exact_query = f'allintitle: "{title}"'
+            search_url = f"{self.base_url}/scholar"
+            params = {'q': exact_query, 'hl': 'en', 'as_sdt': '0,5'}
+            
+            response = self.session.get(search_url, params=params, timeout=15)
+            response.raise_for_status()
+            results.extend(self._parse_search_results(response.text, max_results))
+            
+            # 2. 결과가 없으면 키워드 기반 검색
+            if not results:
+                self._rate_limit()
+                keywords = self._extract_keywords(title)
+                if keywords:
+                    keyword_query = " ".join(keywords[:4])
+                    params = {'q': keyword_query, 'hl': 'en', 'as_sdt': '0,5'}
+                    
+                    response = self.session.get(search_url, params=params, timeout=15)
+                    response.raise_for_status()
+                    results.extend(self._parse_search_results(response.text, max_results))
+            
+            return results[:max_results]
+            
+        except Exception as e:
+            logger.error(f"Title search error: {e}")
             return []
     
     def search_by_author(self, author: str, max_results: int = 10) -> List[Dict[str, Any]]:

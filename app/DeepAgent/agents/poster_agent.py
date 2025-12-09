@@ -120,24 +120,76 @@ class PosterGenerationAgent:
             return self._generate_fallback_poster(report_content, num_papers)
     
     def _build_prompt(self, report_summary: str, num_papers: int) -> str:
-        """포스터 생성 프롬프트 구성 (Ragraph 스타일 학회 포스터 - HTML/SVG 기반)"""
+        """
+        포스터 생성 프롬프트 구성 (Paper2Poster 스타일 고도화)
         
-        return f"""당신은 전문 학술 디자이너이자 숙련된 프론트엔드 개발자입니다.
-아래에 제공되는 연구 논문 리뷰 보고서를 바탕으로, 학회 발표용 HTML 포스터를 작성해 주세요.
+        참조: https://github.com/Paper2Poster/Paper2Poster
+        - Top-down, visual-in-the-loop 멀티 에이전트 시스템 접근법 적용
+        - 구조화된 섹션 추출 → 레이아웃 결정 → 시각화 생성 → 최종 조합
+        """
+        
+        return f"""# 🎓 학술 포스터 생성 태스크 (Paper2Poster Inspired)
+
+당신은 NeurIPS 수준의 학술 포스터를 생성하는 전문 AI 시스템입니다.
+Paper2Poster 프레임워크의 접근 방식을 따라, 체계적인 단계별 프로세스로 포스터를 생성합니다.
 
 ---
 
-## 1. 입력 데이터 (연구 리뷰 보고서)
+## 🔄 생성 파이프라인 (Multi-Agent Approach)
+
+### Phase 1: Content Extraction (콘텐츠 추출)
+리포트에서 다음 요소를 정확히 추출하세요:
+- **Title**: 메인 제목 (첫 번째 # 헤더)
+- **Abstract**: 연구 요약 (300-500자)
+- **Motivation**: 연구 배경 및 문제 정의
+- **Contributions**: 핵심 기여점 (3-5개)
+- **Methodology**: 분석 방법론/프레임워크
+- **Key Findings**: 주요 발견 (4-6개)
+- **Conclusion**: 결론 및 시사점
+
+### Phase 2: Layout Planning (레이아웃 설계)
+- 3단 그리드 레이아웃 (1:2:1 비율)
+- 정보 위계: 제목 → 핵심 내용 → 세부 사항
+- 시각적 균형: SVG 다이어그램 중앙 배치
+
+### Phase 3: Visual Generation (시각화 생성)
+- Figure 1: 모델 아키텍처 SVG (상세)
+- Figure 2: 알고리즘 흐름도 SVG
+- 비교 테이블/차트
+
+### Phase 4: Final Assembly (최종 조합)
+- HTML/CSS 통합
+- 스타일 일관성 검증
+- 가독성 최적화
+
+---
+
+## 📊 입력 데이터
 
 **분석 논문 수**: {num_papers}편
 
+### 연구 리포트 내용:
 {report_summary}
 
 ---
 
-## 2. 반드시 따라야 할 HTML 템플릿 구조
+## 🎯 태스크 수행 단계
 
-아래의 정확한 CSS 스타일과 HTML 구조를 사용하세요:
+### STEP 1: 리포트에서 다음 정보 추출
+- 제목 (첫 번째 # 헤더에서)
+- 초록/요약 섹션
+- 연구 배경/동기
+- 핵심 기여점 (bullet points)
+- 분석한 논문 제목들
+- 주요 발견사항
+- 결론
+
+### STEP 2: 아래 HTML 구조에 추출한 내용 삽입
+### STEP 3: SVG 다이어그램 2개 직접 작성 (중요!)
+
+---
+
+## 🏗️ 정확히 따라야 할 HTML 구조
 
 ```html
 <!DOCTYPE html>
@@ -145,264 +197,304 @@ class PosterGenerationAgent:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[제목]</title>
+    <title>학술 포스터</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {{
-            --primary: #2563eb;
-            --secondary: #1e293b;
-            --accent: #f59e0b;
-            --bg-color: #f8fafc;
-            --box-bg: #ffffff;
-        }}
-        
-        body {{
-            font-family: 'Inter', 'Noto Sans KR', sans-serif;
-            background-color: #e2e8f0;
-            color: #1e293b;
-            margin: 0;
-            padding: 20px;
-            min-width: 1600px; 
-            overflow-x: auto;
-        }}
-
-        .poster-container {{
-            width: 100%;
-            max-width: 2200px;
-            margin: 0 auto;
-            background-color: var(--bg-color);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            padding: 40px;
-            box-sizing: border-box;
-            aspect-ratio: 20 / 9;
-        }}
-
-        header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 4px solid var(--primary);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }}
-
-        .title-area h1 {{
-            font-size: 2.8rem;
-            font-weight: 900;
-            color: var(--primary);
-            margin: 0;
-            line-height: 1.1;
-            letter-spacing: -0.02em;
-        }}
-
-        .title-area h2 {{
-            font-size: 1.4rem;
-            font-weight: 500;
-            color: var(--secondary);
-            margin: 10px 0 0 0;
-        }}
-
-        .grid-container {{
-            display: grid;
-            grid-template-columns: 1fr 2fr 1fr;
-            gap: 25px;
-            flex-grow: 1;
-        }}
-
-        .col {{
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }}
-
-        .section-box {{
-            background: var(--box-bg);
-            border-radius: 12px;
-            padding: 18px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-        }}
-
-        .section-title {{
-            font-size: 1.3rem;
-            font-weight: 800;
-            color: var(--primary);
-            border-bottom: 2px solid #cbd5e1;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
-        }}
-
-        .section-content {{
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: #334155;
-        }}
-
-        .highlight-box {{
-            background-color: #eff6ff;
-            border-left: 4px solid var(--primary);
-            padding: 12px;
-            margin: 10px 0;
-            font-style: italic;
-        }}
+        :root {{ --primary: #2563eb; --secondary: #1e293b; --accent: #f59e0b; }}
+        body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; background: #e2e8f0; margin: 0; padding: 20px; min-width: 1600px; }}
+        .poster {{ max-width: 2200px; margin: 0 auto; background: #f8fafc; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); aspect-ratio: 20/9; display: flex; flex-direction: column; }}
+        header {{ display: flex; justify-content: space-between; border-bottom: 4px solid var(--primary); padding-bottom: 20px; margin-bottom: 25px; }}
+        h1 {{ font-size: 2.5rem; font-weight: 900; color: var(--primary); margin: 0; }}
+        h2 {{ font-size: 1.3rem; color: var(--secondary); margin: 8px 0 0; }}
+        .grid {{ display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px; flex: 1; }}
+        .col {{ display: flex; flex-direction: column; gap: 15px; }}
+        .box {{ background: white; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+        .box-title {{ font-size: 1.1rem; font-weight: 800; color: var(--primary); border-bottom: 2px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 10px; }}
+        .box-content {{ font-size: 0.9rem; line-height: 1.5; color: #334155; }}
+        .highlight {{ background: #eff6ff; border-left: 3px solid var(--primary); padding: 10px; margin: 8px 0; font-style: italic; }}
+        footer {{ margin-top: 15px; padding-top: 10px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 0.8rem; }}
     </style>
 </head>
 <body>
-    <div class="poster-container">
-        <!-- Header: 제목, 부제목, 날짜 -->
-        <header>
-            <div class="title-area">
-                <h1>[메인 제목]</h1>
-                <h2>[부제목/한글 설명]</h2>
-                <div class="authors">[저자/분석 정보]</div>
+<div class="poster">
+    <header>
+        <div>
+            <h1>[리포트 제목을 여기에]</h1>
+            <h2>[한글 부제목]</h2>
+            <div style="color:#475569; margin-top:8px;">Systematic Literature Review | {num_papers} Papers</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-weight:700; color:var(--primary); font-size:1.2rem;">AI Research Analysis</div>
+            <div>[오늘 날짜]</div>
+        </div>
+    </header>
+    
+    <div class="grid">
+        <!-- 왼쪽 컬럼: 초록, 배경, 기여 -->
+        <div class="col">
+            <div class="box">
+                <div class="box-title">📋 1. 초록 (Abstract)</div>
+                <div class="box-content">[리포트 초록 내용 - 실제 내용으로]</div>
             </div>
-            <div style="text-align: right;">
-                <div style="font-weight: 700; color: var(--primary);">AI Research Analysis</div>
-                <div>[날짜]</div>
-            </div>
-        </header>
-
-        <!-- Main Grid: 3단 레이아웃 (1:2:1) -->
-        <div class="grid-container">
-            
-            <!-- Column 1: 초록, 배경, 기여 -->
-            <div class="col">
-                <div class="section-box">
-                    <div class="section-title">📋 1. 초록 (Abstract)</div>
-                    <div class="section-content">[리포트의 초록 내용]</div>
-                </div>
-                <div class="section-box">
-                    <div class="section-title">🎯 2. 연구 배경 (Motivation)</div>
-                    <div class="section-content">[연구 배경 내용]</div>
-                </div>
-                <div class="section-box">
-                    <div class="section-title">⭐ 3. 핵심 기여 (Contributions)</div>
-                    <div class="section-content">[핵심 기여 목록]</div>
+            <div class="box">
+                <div class="box-title">🎯 2. 연구 배경 (Motivation)</div>
+                <div class="box-content">
+                    <ul style="padding-left:18px; margin:0;">
+                        <li>[배경 포인트 1]</li>
+                        <li>[배경 포인트 2]</li>
+                    </ul>
+                    <div class="highlight">"[핵심 인용구]"</div>
                 </div>
             </div>
-
-            <!-- Column 2: 분석 프레임워크, SVG 다이어그램 -->
-            <div class="col">
-                <div class="section-box" style="flex: 2;">
-                    <div class="section-title">🔬 4. 분석 프레임워크</div>
-                    <div class="section-content">
-                        <!-- 상세한 SVG 다이어그램 -->
-                        <svg viewBox="0 0 800 400" style="background-color: #f8fafc; border-radius: 8px;">
-                            <!-- 논문 노드들과 연결선 -->
-                            <!-- 중앙 분석 노드 -->
-                            <!-- 화살표와 흐름 -->
-                        </svg>
-                    </div>
-                </div>
-                <div class="section-box">
-                    <div class="section-title">📊 5. 분석 논문 목록</div>
-                    <div class="section-content">[논문 목록]</div>
-                </div>
-            </div>
-
-            <!-- Column 3: 결과, 비교표, 결론 -->
-            <div class="col">
-                <div class="section-box">
-                    <div class="section-title">💡 6. 핵심 발견 (Key Findings)</div>
-                    <div class="section-content">[핵심 발견 목록]</div>
-                </div>
-                <div class="section-box">
-                    <div class="section-title">📈 7. 비교 분석</div>
-                    <div class="section-content">
-                        <!-- 비교 테이블 -->
-                        <table>...</table>
-                    </div>
-                </div>
-                <div class="section-box">
-                    <div class="section-title">🎯 8. 결론 (Conclusion)</div>
-                    <div class="section-content">[결론 내용]</div>
+            <div class="box">
+                <div class="box-title">⭐ 3. 핵심 기여 (Contributions)</div>
+                <div class="box-content">
+                    <ol style="padding-left:18px; margin:0;">
+                        <li>[기여 1]</li>
+                        <li>[기여 2]</li>
+                        <li>[기여 3]</li>
+                    </ol>
                 </div>
             </div>
         </div>
         
-        <!-- Footer -->
-        <footer>[AI 생성 정보 및 날짜]</footer>
+        <!-- 중앙 컬럼: 아키텍처 SVG + 알고리즘 SVG -->
+        <div class="col">
+            <div class="box" style="flex:2;">
+                <div class="box-title">🔬 4. 모델 아키텍처 (Architecture)</div>
+                <div class="box-content">
+                    <p style="margin-bottom:10px;">[아키텍처 설명 한 줄]</p>
+                    <!-- 아키텍처 SVG: 아래 예시 참고하여 작성 -->
+                    <svg viewBox="0 0 800 350" style="width:100%; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                        <!-- SVG 내용은 아래 예시 참고 -->
+                    </svg>
+                </div>
+            </div>
+            <div class="box" style="flex:1;">
+                <div class="box-title">📊 5. 알고리즘 흐름 (Algorithm)</div>
+                <div class="box-content">
+                    <!-- 알고리즘 순서도 SVG -->
+                    <svg viewBox="0 0 700 140" style="width:100%; background:#f8fafc; border-radius:8px;">
+                        <!-- SVG 내용 -->
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 오른쪽 컬럼: 발견, 비교, 결론 -->
+        <div class="col">
+            <div class="box">
+                <div class="box-title">💡 6. 핵심 발견 (Key Findings)</div>
+                <div class="box-content">
+                    <ul style="padding-left:18px; margin:0;">
+                        <li>✅ [발견 1]</li>
+                        <li>✅ [발견 2]</li>
+                        <li>✅ [발견 3]</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="box">
+                <div class="box-title">📈 7. 비교 분석</div>
+                <div class="box-content">
+                    <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+                        <tr style="border-bottom:2px solid #cbd5e1;"><th style="text-align:left; padding:5px;">항목</th><th style="text-align:center; padding:5px;">결과</th></tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px;">분석 논문</td><td style="text-align:center; color:#2563eb; font-weight:bold;">{num_papers}편</td></tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px;">주요 발견</td><td style="text-align:center; color:#16a34a; font-weight:bold;">[N]건</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="box">
+                <div class="box-title">🎯 8. 결론 (Conclusion)</div>
+                <div class="box-content">[리포트 결론 내용]</div>
+            </div>
+        </div>
     </div>
+    
+    <footer>🤖 AI 기반 심층 연구 분석 시스템 | Generated: [날짜]</footer>
+</div>
 </body>
 </html>
 ```
 
 ---
 
-## 3. SVG 다이어그램 요구사항 (매우 중요!)
+## 🎨 SVG 다이어그램 필수 요소 (직접 작성!)
 
-**반드시 직접 SVG 코드를 작성하세요. 외부 이미지 금지!**
+### Figure 1: 모델 아키텍처 SVG (viewBox="0 0 800 350")
 
-### Figure 1: 모델 상세 아키텍처 (Architecture Overview)
-다음과 같은 3단계 파이프라인을 SVG로 그려주세요:
+**필수 요소:**
+```svg
+<defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+    </marker>
+</defs>
 
-**STEP 1: ENCODING (파란색 영역)**
-- Query Graph (Gq) 노드: 작은 그래프 아이콘
-- GNN Layer 1 → GNN Layer 2 → Pooling/Readout 박스들 (세로로 배치)
-- Query Emb (Zq): 벡터 모양의 직사각형
+<!-- STEP 1: ENCODING 영역 (파란색 #eff6ff) -->
+<rect x="20" y="20" width="200" height="300" rx="10" fill="#eff6ff" stroke="#dbeafe" stroke-width="2" stroke-dasharray="5,5"/>
+<text x="120" y="310" text-anchor="middle" font-weight="bold" fill="#2563eb" font-size="11">STEP 1: ENCODING</text>
 
-**STEP 2: RETRIEVAL (주황색 영역)**
-- External Graph DB: 타원형 데이터베이스 모양
-- k-NN 쿼리 화살표
-- Retrieved {{Gn}}: 여러 그래프가 겹친 카드 모양
+<!-- Query Graph 아이콘 -->
+<circle cx="120" cy="60" r="25" fill="white" stroke="#2563eb" stroke-width="2"/>
+<circle cx="110" cy="55" r="4" fill="#2563eb"/>
+<circle cx="130" cy="55" r="4" fill="#2563eb"/>
+<circle cx="120" cy="70" r="4" fill="#2563eb"/>
+<text x="120" y="100" text-anchor="middle" font-size="10" font-weight="bold">Query Graph (Gq)</text>
 
-**STEP 3: AGGREGATION & PREDICTION (초록색 영역)**
-- Cross-Attention / Concat 박스
-- Non-linear Transform (MLP) 박스
-- Fusion Module 전체 박스
-- Softmax 삼각형 → Prediction (Y) 원
+<!-- GNN Layer Stack -->
+<rect x="50" y="120" width="140" height="25" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+<text x="120" y="137" text-anchor="middle" font-size="9">GNN Layer 1</text>
+<rect x="50" y="150" width="140" height="25" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+<text x="120" y="167" text-anchor="middle" font-size="9">GNN Layer 2</text>
+<rect x="50" y="180" width="140" height="25" rx="4" fill="#bfdbfe" stroke="#2563eb"/>
+<text x="120" y="197" text-anchor="middle" font-size="9">Pooling/Readout</text>
 
-**화살표와 라벨:**
-- Query Info, Knowledge Info 화살표
-- Aggr(z_q, {{z_n}}) 수학 표기
+<!-- Query Embedding 벡터 -->
+<rect x="80" y="220" width="80" height="60" fill="#1e40af" rx="4"/>
+<text x="120" y="295" text-anchor="middle" font-size="10" font-weight="bold">Query Emb (Zq)</text>
 
-### Figure 2: 알고리즘 순서도 (Detailed Algorithm)
-4단계 흐름을 수평으로 배치:
-1. Encoding (파란색): z_q = f_θ(G_q)
-2. Index Search (주황색): S = TopK(z_q, M)
-3. Fusion (초록색): h = Concat(z_q, S)
-4. Update (검은색): Loss = L(ŷ, y)
-- Backpropagation 피드백 루프 (점선)
+<!-- STEP 2: RETRIEVAL 영역 (주황색 #fff7ed) -->
+<rect x="240" y="20" width="200" height="140" rx="10" fill="#fff7ed" stroke="#ffedd5" stroke-width="2" stroke-dasharray="5,5"/>
+<text x="340" y="150" text-anchor="middle" font-weight="bold" fill="#ea580c" font-size="11">STEP 2: RETRIEVAL</text>
 
-**색상:**
-- 파란색: #2563eb, #dbeafe (ENCODING)
-- 주황색: #ea580c, #fff7ed (RETRIEVAL)
-- 초록색: #16a34a, #dcfce7 (AGGREGATION)
-- 검은색: #1e293b (UPDATE/PREDICTION)
+<!-- External DB -->
+<ellipse cx="340" cy="80" rx="70" ry="40" fill="white" stroke="#ea580c" stroke-width="2"/>
+<text x="340" y="85" text-anchor="middle" font-size="10">External Graph DB</text>
+
+<!-- STEP 3: AGGREGATION 영역 (초록색 #f0fdf4) -->
+<rect x="240" y="180" width="540" height="140" rx="10" fill="#f0fdf4" stroke="#dcfce7" stroke-width="2" stroke-dasharray="5,5"/>
+<text x="510" y="310" text-anchor="middle" font-weight="bold" fill="#16a34a" font-size="11">STEP 3: AGGREGATION & PREDICTION</text>
+
+<!-- Fusion Module -->
+<rect x="280" y="210" width="180" height="80" rx="8" fill="white" stroke="#16a34a" stroke-width="2"/>
+<rect x="295" y="225" width="150" height="22" rx="4" fill="#dcfce7" stroke="#16a34a"/>
+<text x="370" y="240" text-anchor="middle" font-size="9">Cross-Attention / Concat</text>
+<rect x="295" y="252" width="150" height="22" rx="4" fill="#dcfce7" stroke="#16a34a"/>
+<text x="370" y="267" text-anchor="middle" font-size="9">Non-linear Transform (MLP)</text>
+
+<!-- Softmax & Prediction -->
+<polygon points="520,230 570,250 570,270 520,290" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+<text x="545" y="265" text-anchor="middle" font-size="8">Softmax</text>
+<circle cx="620" cy="260" r="25" fill="#1e293b"/>
+<text x="620" y="265" text-anchor="middle" fill="white" font-weight="bold" font-size="14">Y</text>
+
+<!-- 화살표 연결 (marker-end="url(#arrow)") -->
+<line x1="160" y1="250" x2="280" y2="250" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="460" y1="250" x2="520" y2="250" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="570" y1="260" x2="595" y2="260" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+```
+
+### Figure 2: 알고리즘 순서도 SVG (viewBox="0 0 700 140")
+
+```svg
+<!-- Step 박스들 -->
+<rect x="20" y="40" width="130" height="50" rx="8" fill="white" stroke="#2563eb" stroke-width="2"/>
+<text x="85" y="60" text-anchor="middle" font-weight="bold" fill="#2563eb" font-size="10">1. Encoding</text>
+<text x="85" y="78" text-anchor="middle" font-size="9">z_q = f_θ(G_q)</text>
+
+<rect x="180" y="40" width="140" height="50" rx="8" fill="white" stroke="#ea580c" stroke-width="2"/>
+<text x="250" y="60" text-anchor="middle" font-weight="bold" fill="#ea580c" font-size="10">2. Index Search</text>
+<text x="250" y="78" text-anchor="middle" font-size="9">S = TopK(z_q, M)</text>
+
+<rect x="350" y="40" width="130" height="50" rx="8" fill="white" stroke="#16a34a" stroke-width="2"/>
+<text x="415" y="60" text-anchor="middle" font-weight="bold" fill="#16a34a" font-size="10">3. Fusion</text>
+<text x="415" y="78" text-anchor="middle" font-size="9">h = Concat(z_q, S)</text>
+
+<rect x="510" y="40" width="130" height="50" rx="8" fill="#1e293b"/>
+<text x="575" y="60" text-anchor="middle" font-weight="bold" fill="white" font-size="10">4. Update</text>
+<text x="575" y="78" text-anchor="middle" fill="#cbd5e1" font-size="9">Loss = L(ŷ, y)</text>
+
+<!-- 화살표 -->
+<line x1="150" y1="65" x2="180" y2="65" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="320" y1="65" x2="350" y2="65" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="480" y1="65" x2="510" y2="65" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+<!-- Backprop 루프 -->
+<path d="M575,90 L575,110 L85,110 L85,90" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+<text x="330" y="125" text-anchor="middle" fill="#64748b" font-size="9">Backpropagation (End-to-End)</text>
+```
 
 ---
 
-## 4. 반드시 포함할 내용 (리포트에서 추출)
+## ✅ 품질 체크리스트 (Paper2Poster Quality Criteria)
 
-1. **제목**: 리포트의 메인 제목
-2. **초록**: 연구 요약 (500자 이내)
-3. **연구 배경**: 왜 이 분석을 수행했는지
-4. **핵심 기여**: 3-5개 bullet points
-5. **논문 목록**: 분석한 논문 제목들
-6. **핵심 발견**: 4-6개 주요 발견사항
-7. **비교 분석 테이블**: 분석 논문 수, 주요 발견 수 등
-8. **결론**: 연구의 의의
+### 1. 콘텐츠 품질 (Content Quality)
+- [ ] 리포트의 **실제 내용**이 정확히 반영됨
+- [ ] 모든 섹션에 **구체적인 정보** 포함 (플레이스홀더 금지)
+- [ ] 학술적 톤과 전문 용어 사용
+- [ ] 논리적 흐름과 연결성 유지
+
+### 2. 시각적 품질 (Visual Quality)
+- [ ] SVG 다이어그램이 **상세하고 전문적**임
+- [ ] 색상 테마 일관성 (파란색/주황색/초록색)
+- [ ] 정보 위계가 시각적으로 명확함
+- [ ] 여백과 간격이 적절함
+
+### 3. 기술적 품질 (Technical Quality)
+- [ ] 완전한 HTML 문서 (<!DOCTYPE html>)
+- [ ] 모든 CSS가 <style> 태그 내에 포함
+- [ ] SVG가 직접 인라인으로 작성됨
+- [ ] 외부 의존성 최소화 (Tailwind CDN만 사용)
+
+### 4. 학술 포스터 표준 (Academic Poster Standards)
+- [ ] 제목이 명확하고 눈에 띔
+- [ ] 저자/소속 정보 포함
+- [ ] 섹션 번호와 라벨 일관성
+- [ ] 결론이 명확한 takeaway 제공
 
 ---
 
-## 5. 출력 규칙
+## 🎨 디자인 원칙 (Design Principles)
 
-- **오직 HTML 코드만 출력** (설명, 마크다운 없이)
-- **한글로 모든 텍스트 작성**
-- 복사하여 바로 실행 가능해야 함
-- 리포트의 **실제 내용**을 반영해야 함 (일반적인 문구 금지)
+### 색상 팔레트
+```
+Primary (Academic Blue): #2563eb, #dbeafe, #eff6ff
+Secondary (Dark Slate): #1e293b, #334155, #475569
+Accent Orange: #ea580c, #fff7ed, #ffedd5
+Accent Green: #16a34a, #dcfce7, #f0fdf4
+Background: #f8fafc, #e2e8f0
+```
+
+### 타이포그래피
+```
+제목: font-weight: 900, font-size: 2.5-3rem
+섹션 제목: font-weight: 800, font-size: 1.1-1.3rem
+본문: font-weight: 400, font-size: 0.9-0.95rem
+캡션: font-weight: 400, font-size: 0.8rem
+```
+
+### 레이아웃
+```
+포스터 비율: 20:9 (가로형)
+그리드: 3단 (1fr 2fr 1fr)
+간격: 20-25px
+패딩: 16-20px (섹션 박스)
+```
 
 ---
 
-위 템플릿과 가이드라인에 따라 포스터를 생성하세요.
-리포트에서 추출한 **실제 내용**으로 각 섹션을 채우세요.
+## ⚠️ 절대 규칙
 
-**중요**: HTML 코드만 출력하세요."""
+1. **HTML 코드만 출력** - 설명, 마크다운, 코드 블록 없이 순수 HTML만
+2. **모든 텍스트는 한글로** - 영어 제목/학술 용어는 그대로 유지
+3. **리포트의 실제 내용 반영** - 일반적인 플레이스홀더 절대 금지
+4. **SVG 직접 작성** - 외부 이미지 URL 사용 금지
+5. **즉시 실행 가능** - 복사해서 브라우저에서 바로 열릴 것
+6. **<!DOCTYPE html>로 시작** - 완전한 HTML 문서
+
+---
+
+## 🚀 생성 지침
+
+1. 먼저 리포트에서 각 섹션의 내용을 추출하세요
+2. 추출한 내용으로 HTML 템플릿의 각 부분을 채우세요
+3. SVG 다이어그램 2개를 상세하게 작성하세요
+4. 최종 HTML이 완전하고 실행 가능한지 확인하세요
+
+**지금 바로 완전한 HTML 포스터 코드를 출력하세요. 오직 HTML만!**"""
     
     def _generate_fallback_poster(self, report_content: str, num_papers: int) -> str:
         """Gemini 실패 시 사용하는 기본 포스터 템플릿 - Ragraph 스타일 적용"""

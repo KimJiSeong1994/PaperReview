@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Set
 import concurrent.futures
 from datetime import datetime
 import json
@@ -19,6 +19,15 @@ from graph.node_creator import NodeCreator
 from graph.edge_creator import EdgeCreator
 from utils.logger import log_search_operation
 
+# QueryAnalyzer import
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+try:
+    from QueryAgent.query_analyzer import QueryAnalyzer
+    QUERY_ANALYZER_AVAILABLE = True
+except ImportError:
+    QUERY_ANALYZER_AVAILABLE = False
+    QueryAnalyzer = None
+
 class SearchAgent:
     def __init__(self, data_dir: str = None, openai_api_key: str = None):
         self.arxiv_searcher = ArxivSearcher()
@@ -32,6 +41,15 @@ class SearchAgent:
             self.similarity_calculator = SimilarityCalculator(api_key=openai_api_key) if openai_api_key or os.getenv('OPENAI_API_KEY') else None
         except Exception:
             self.similarity_calculator = None
+        
+        # LLM 기반 쿼리 분석기 초기화
+        self.query_analyzer = None
+        if QUERY_ANALYZER_AVAILABLE and (openai_api_key or os.getenv('OPENAI_API_KEY')):
+            try:
+                self.query_analyzer = QueryAnalyzer(api_key=openai_api_key)
+                print("[SearchAgent] LLM Query Analyzer initialized")
+            except Exception as e:
+                print(f"[SearchAgent] Query Analyzer initialization failed: {e}")
         
         self.search_history = []
         
@@ -84,6 +102,368 @@ class SearchAgent:
         
         return results
     
+    @log_search_operation("Enhanced Multi-Source")
+    def enhanced_search_all_sources(self, query: str, max_results_per_source: int = 10) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        향상된 다중 소스 검색
+        
+        기본 검색 + Enhanced 검색 + 제목 검색을 병렬로 수행하여 
+        더 포괄적인 결과 제공
+        """
+        results = {
+            "arxiv": [],
+            "connected_papers": [],
+            "google_scholar": []
+        }
+        
+        self._add_to_history(query, "enhanced_multi_source")
+        
+        seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set()}
+        
+        # 병렬 검색 작업 정의
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {
+                # 기본 검색
+                executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
+                executor.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
+                executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
+                # Enhanced 검색 (arXiv, Google Scholar)
+                executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2): ("arxiv", "enhanced"),
+                executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
+            }
+            
+            for future in concurrent.futures.as_completed(futures):
+                source, search_type = futures[future]
+                try:
+                    papers = future.result()
+                    for paper in papers:
+                        title_lower = paper.get('title', '').lower()
+                        if title_lower and title_lower not in seen_titles[source]:
+                            seen_titles[source].add(title_lower)
+                            results[source].append(paper)
+                except Exception as e:
+                    print(f"[SearchAgent] {source} {search_type} search failed: {e}")
+        
+        # 결과 수 제한
+        for source in results:
+            results[source] = results[source][:max_results_per_source]
+        
+        return results
+    
+    @log_search_operation("Title Search")
+    def search_by_paper_title(self, title: str, max_results: int = 5) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        논문 제목으로 정확한 검색
+        
+        특정 논문을 찾을 때 사용
+        """
+        results = {
+            "arxiv": [],
+            "connected_papers": [],
+            "google_scholar": []
+        }
+        
+        self._add_to_history(f"title:{title}", "title_search")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
+                executor.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
+                executor.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
+            }
+            
+            for future in concurrent.futures.as_completed(futures):
+                source = futures[future]
+                try:
+                    results[source] = future.result()
+                except Exception as e:
+                    print(f"[SearchAgent] {source} title search failed: {e}")
+                    results[source] = []
+        
+        return results
+    
+    @log_search_operation("Similar Papers")
+    def find_similar_papers(self, paper_title: str, paper_abstract: str = "", max_results: int = 10) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        주어진 논문과 유사한 논문 검색
+        """
+        results = {
+            "arxiv": [],
+            "connected_papers": [],
+            "google_scholar": []
+        }
+        
+        self._add_to_history(f"similar:{paper_title[:50]}", "similar_search")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            # arXiv와 Google Scholar에서 유사 논문 검색
+            arxiv_future = executor.submit(
+                self.arxiv_searcher.search_similar_papers, 
+                paper_title, paper_abstract, max_results
+            )
+            
+            # 키워드 기반 검색으로 대체
+            keywords = self._extract_search_keywords(paper_title, paper_abstract)
+            scholar_future = executor.submit(
+                self.google_scholar_searcher.search,
+                keywords, max_results
+            )
+            
+            try:
+                results["arxiv"] = arxiv_future.result()
+            except Exception as e:
+                print(f"[SearchAgent] arXiv similar search failed: {e}")
+            
+            try:
+                results["google_scholar"] = scholar_future.result()
+            except Exception as e:
+                print(f"[SearchAgent] Google Scholar search failed: {e}")
+        
+        return results
+    
+    def _extract_search_keywords(self, title: str, abstract: str = "") -> str:
+        """제목과 초록에서 검색 키워드 추출"""
+        import re
+        
+        stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                     'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
+                     'as', 'it', 'its', 'this', 'that', 'these', 'those', 'can', 'will',
+                     'using', 'based', 'via', 'through', 'into', 'over', 'under', 'we', 'our'}
+        
+        text = f"{title} {abstract[:200] if abstract else ''}"
+        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+        keywords = [w for w in words if w not in stopwords]
+        
+        # 빈도 기반 상위 키워드 선택
+        from collections import Counter
+        word_counts = Counter(keywords)
+        top_keywords = [word for word, _ in word_counts.most_common(5)]
+        
+        return " ".join(top_keywords)
+    
+    @log_search_operation("LLM Context Search")
+    def llm_context_search(self, query: str, max_results_per_source: int = 10, context: str = "") -> Dict[str, List[Dict[str, Any]]]:
+        """
+        LLM 컨텍스트 기반 검색
+        
+        LLM이 사용자 쿼리를 분석하고 최적화된 검색 쿼리를 생성하여
+        arXiv와 Google Scholar에서 검색합니다.
+        
+        Args:
+            query: 사용자 검색 쿼리 (한글/영어)
+            max_results_per_source: 소스당 최대 결과 수
+            context: 추가 컨텍스트 (선택)
+            
+        Returns:
+            소스별 검색 결과
+        """
+        results = {
+            "arxiv": [],
+            "connected_papers": [],
+            "google_scholar": []
+        }
+        
+        self._add_to_history(query, "llm_context_search")
+        
+        # LLM 쿼리 분석기가 없으면 기본 검색으로 대체
+        if not self.query_analyzer:
+            print("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
+            return self.enhanced_search_all_sources(query, max_results_per_source)
+        
+        try:
+            # 1. LLM으로 최적화된 검색 쿼리 생성
+            print(f"[SearchAgent] Generating LLM search queries for: {query[:50]}...")
+            
+            if context:
+                search_queries = self.query_analyzer.search_with_context(query, context)
+            else:
+                search_queries = self.query_analyzer.generate_search_queries(query)
+            
+            arxiv_queries = search_queries.get("arxiv_queries", [query])
+            scholar_queries = search_queries.get("scholar_queries", [query])
+            keywords = search_queries.get("keywords", [])
+            
+            print(f"[SearchAgent] Generated {len(arxiv_queries)} arXiv queries, {len(scholar_queries)} Scholar queries")
+            print(f"[SearchAgent] Keywords: {keywords[:5]}")
+            
+            # 2. 병렬 검색 수행
+            seen_titles: Dict[str, Set[str]] = {
+                "arxiv": set(),
+                "google_scholar": set(),
+                "connected_papers": set()
+            }
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                futures = []
+                
+                # arXiv 검색 (여러 쿼리)
+                for arxiv_query in arxiv_queries[:3]:
+                    futures.append(
+                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source // 2), 
+                         "arxiv", arxiv_query)
+                    )
+                
+                # arXiv Enhanced 검색
+                futures.append(
+                    (executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2),
+                     "arxiv", "enhanced")
+                )
+                
+                # Google Scholar 검색 (여러 쿼리)
+                for scholar_query in scholar_queries[:3]:
+                    futures.append(
+                        (executor.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
+                         "google_scholar", scholar_query)
+                    )
+                
+                # Connected Papers 검색 (키워드 기반)
+                keyword_query = " ".join(keywords[:4]) if keywords else query
+                futures.append(
+                    (executor.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
+                     "connected_papers", keyword_query)
+                )
+                
+                # 결과 수집
+                for future_tuple in futures:
+                    future, source, q = future_tuple
+                    try:
+                        papers = future.result(timeout=30)
+                        for paper in papers:
+                            title_lower = paper.get('title', '').lower().strip()
+                            if title_lower and title_lower not in seen_titles[source]:
+                                seen_titles[source].add(title_lower)
+                                # 검색 쿼리 정보 추가
+                                paper['_search_query'] = q
+                                results[source].append(paper)
+                    except concurrent.futures.TimeoutError:
+                        print(f"[SearchAgent] Timeout for {source}: {q[:30]}...")
+                    except Exception as e:
+                        print(f"[SearchAgent] Error in {source} search: {e}")
+            
+            # 결과 수 제한
+            for source in results:
+                results[source] = results[source][:max_results_per_source]
+            
+            total = sum(len(papers) for papers in results.values())
+            print(f"[SearchAgent] LLM Context Search completed: {total} papers found")
+            
+            # 검색 메타데이터 추가
+            results['_metadata'] = {
+                'original_query': query,
+                'arxiv_queries': arxiv_queries,
+                'scholar_queries': scholar_queries,
+                'keywords': keywords,
+                'search_context': search_queries.get('search_context', ''),
+                'translated_query': search_queries.get('translated_query', query)
+            }
+            
+            return results
+            
+        except Exception as e:
+            print(f"[SearchAgent] LLM Context Search failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # 실패 시 기본 검색으로 대체
+            return self.enhanced_search_all_sources(query, max_results_per_source)
+    
+    @log_search_operation("Smart Search")
+    def smart_search(self, query: str, max_results: int = 20) -> Dict[str, Any]:
+        """
+        스마트 검색 - LLM 분석 + 다중 검색 전략 조합
+        
+        1. LLM이 쿼리를 분석하고 검색 전략 결정
+        2. 최적화된 쿼리로 다중 소스 검색
+        3. 결과 병합 및 중복 제거
+        4. 관련성 순 정렬
+        """
+        self._add_to_history(query, "smart_search")
+        
+        result = {
+            "papers": [],
+            "metadata": {
+                "query": query,
+                "total_found": 0,
+                "sources_searched": []
+            }
+        }
+        
+        try:
+            # 1. LLM 쿼리 분석
+            analysis = None
+            if self.query_analyzer:
+                try:
+                    analysis = self.query_analyzer.analyze_query(query)
+                    print(f"[SmartSearch] Intent: {analysis.get('intent')}, Confidence: {analysis.get('confidence')}")
+                except Exception as e:
+                    print(f"[SmartSearch] Query analysis failed: {e}")
+            
+            # 2. 검색 전략 결정
+            if analysis and analysis.get('confidence', 0) >= 0.7:
+                # LLM 분석 결과 기반 검색
+                search_results = self.llm_context_search(query, max_results // 2)
+            else:
+                # 기본 enhanced 검색
+                search_results = self.enhanced_search_all_sources(query, max_results // 2)
+            
+            # 3. 결과 병합 및 중복 제거
+            all_papers = []
+            seen_titles = set()
+            
+            for source, papers in search_results.items():
+                if source.startswith('_'):  # 메타데이터 스킵
+                    continue
+                for paper in papers:
+                    title_lower = paper.get('title', '').lower().strip()
+                    if title_lower and title_lower not in seen_titles:
+                        seen_titles.add(title_lower)
+                        paper['_source'] = source
+                        all_papers.append(paper)
+            
+            # 4. 관련성 기반 정렬 (간단한 키워드 매칭)
+            if analysis and analysis.get('keywords'):
+                keywords = set(kw.lower() for kw in analysis['keywords'])
+                
+                def relevance_score(paper):
+                    title = paper.get('title', '').lower()
+                    abstract = paper.get('abstract', '').lower()
+                    score = 0
+                    for kw in keywords:
+                        if kw in title:
+                            score += 3
+                        if kw in abstract:
+                            score += 1
+                    return score
+                
+                all_papers.sort(key=relevance_score, reverse=True)
+            
+            result["papers"] = all_papers[:max_results]
+            result["metadata"]["total_found"] = len(all_papers)
+            result["metadata"]["sources_searched"] = list(search_results.keys())
+            
+            if analysis:
+                result["metadata"]["analysis"] = {
+                    "intent": analysis.get('intent'),
+                    "keywords": analysis.get('keywords', []),
+                    "improved_query": analysis.get('improved_query'),
+                    "confidence": analysis.get('confidence')
+                }
+            
+            if '_metadata' in search_results:
+                result["metadata"]["llm_queries"] = search_results['_metadata']
+            
+            return result
+            
+        except Exception as e:
+            print(f"[SmartSearch] Error: {e}")
+            # 실패 시 기본 검색
+            basic_results = self.search_all_sources(query, max_results // 3)
+            for source, papers in basic_results.items():
+                for paper in papers:
+                    paper['_source'] = source
+                    result["papers"].append(paper)
+            result["metadata"]["total_found"] = len(result["papers"])
+            return result
+    
     def search_arxiv(self, query: str, max_results: int = 10, sort_by: str = "relevance", category: str = None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "arxiv")
         
@@ -131,7 +511,7 @@ class SearchAgent:
             else: return None
 
         except Exception as e:
-            logger.error(f"논문 상세 정보 가져오기 오류: {e}")
+            print(f"[SearchAgent] 논문 상세 정보 가져오기 오류: {e}")
             return None
     
     def get_related_papers(self, paper_url: str, source: str, max_results: int = 10) -> List[Dict[str, Any]]:
@@ -147,7 +527,7 @@ class SearchAgent:
                 return []
 
         except Exception as e:
-            logger.error(f"관련 논문 가져오기 오류: {e}")
+            print(f"[SearchAgent] 관련 논문 가져오기 오류: {e}")
             return []
     
     def get_author_profile(self, author_name: str) -> Optional[Dict[str, Any]]:
