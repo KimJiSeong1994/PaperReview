@@ -69,9 +69,9 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
             />
           )}
           <div className="paper-content">
-            <div className="origin-badge">Origin Paper</div>
-            <div className="paper-title">{papers[0].title}</div>
-            <div className="paper-meta">{formatSummary(papers[0])}</div>
+          <div className="origin-badge">Origin Paper</div>
+          <div className="paper-title">{papers[0].title}</div>
+          <div className="paper-meta">{formatSummary(papers[0])}</div>
           </div>
         </div>
       )}
@@ -93,8 +93,8 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
             />
           )}
           <div className="paper-content">
-            <div className="paper-title">{paper.title}</div>
-            <div className="paper-meta">{formatSummary(paper)}</div>
+          <div className="paper-title">{paper.title}</div>
+          <div className="paper-meta">{formatSummary(paper)}</div>
           </div>
         </div>
       ))}

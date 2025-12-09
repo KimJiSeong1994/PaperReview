@@ -25,6 +25,9 @@ class ExtractedContent:
     conclusion: str
     keywords: List[str]
     statistics: Dict[str, Any]
+    # 새로 추가: 시각화 요구사항
+    required_visualizations: List[str]
+    content_analysis: Dict[str, Any]
 
 
 class PosterContentAgent:
@@ -42,6 +45,16 @@ class PosterContentAgent:
         self.stopwords = {
             'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
             'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been'
+        }
+        
+        # 시각화 식별을 위한 키워드 패턴
+        self.viz_patterns = {
+            'pipeline_diagram': ['pipeline', 'workflow', 'architecture', 'process', 'framework', '파이프라인', '워크플로우', '아키텍처', '프로세스'],
+            'radar_chart': ['performance', 'comparison', 'metrics', 'evaluation', 'benchmark', '성능', '비교', '평가'],
+            'timeline': ['history', 'evolution', 'development', 'progress', 'timeline', '연혁', '발전', '타임라인'],
+            'bar_chart': ['results', 'scores', 'accuracy', 'rate', '결과', '점수', '정확도'],
+            'table': ['comparison table', 'summary', '비교표', '요약'],
+            'flowchart': ['algorithm', 'method', 'steps', 'procedure', '알고리즘', '방법', '절차']
         }
     
     def extract(self, report_content: str, num_papers: int = 0) -> ExtractedContent:
@@ -71,6 +84,10 @@ class PosterContentAgent:
         keywords = self._extract_keywords(report_content)
         statistics = self._extract_statistics(report_content, num_papers)
         
+        # 시각화 요구사항 식별
+        required_visualizations = self.identify_visualization_needs(report_content, methodology, key_findings)
+        content_analysis = self.analyze_content_characteristics(report_content, methodology, required_visualizations)
+        
         return ExtractedContent(
             title=title,
             subtitle=subtitle,
@@ -83,7 +100,9 @@ class PosterContentAgent:
             comparison_data=comparison_data,
             conclusion=conclusion,
             keywords=keywords,
-            statistics=statistics
+            statistics=statistics,
+            required_visualizations=required_visualizations,
+            content_analysis=content_analysis
         )
     
     def _extract_title(self, lines: List[str]) -> str:
@@ -215,5 +234,98 @@ class PosterContentAgent:
             'content_length': len(content),
             'sections_found': content.count('##'),
             'numeric_data': numbers[:5] if numbers else []
+        }
+    
+    def identify_visualization_needs(self, content: str, methodology: str, findings: List[str]) -> List[str]:
+        """
+        콘텐츠 분석 기반 필요한 시각화 타입 식별
+        
+        Args:
+            content: 전체 리포트 내용
+            methodology: 방법론 섹션
+            findings: 주요 발견 리스트
+        
+        Returns:
+            List of visualization types needed
+        """
+        visualizations = []
+        content_lower = content.lower()
+        
+        # Pipeline/Architecture Diagram 필요 여부
+        if any(keyword in content_lower or keyword in methodology.lower() 
+               for keyword in self.viz_patterns['pipeline_diagram']):
+            visualizations.append('pipeline_diagram')
+        
+        # Radar Chart 필요 여부 (성능 비교가 있을 때)
+        if any(keyword in content_lower 
+               for keyword in self.viz_patterns['radar_chart']):
+            # 숫자 데이터가 있으면 radar chart 추천
+            if re.search(r'\d+\.\d+|\d+%', content):
+                visualizations.append('radar_chart')
+        
+        # Timeline 필요 여부 (역사/발전 과정이 있을 때)
+        if any(keyword in content_lower 
+               for keyword in self.viz_patterns['timeline']):
+            visualizations.append('timeline')
+        
+        # Bar Chart 필요 여부 (결과 데이터가 있을 때)
+        findings_text = ' '.join(findings).lower()
+        if any(keyword in findings_text or keyword in content_lower
+               for keyword in self.viz_patterns['bar_chart']):
+            if not 'radar_chart' in visualizations:  # Radar chart가 없으면 bar chart
+                visualizations.append('bar_chart')
+        
+        # Flowchart 필요 여부 (알고리즘 설명이 있을 때)
+        if any(keyword in methodology.lower()
+               for keyword in self.viz_patterns['flowchart']):
+            if 'pipeline_diagram' not in visualizations:
+                visualizations.append('flowchart')
+        
+        # Table 필요 여부 (비교 분석이 있을 때)
+        if 'comparison' in content_lower or '비교' in content:
+            visualizations.append('table')
+        
+        # 기본값: 최소한 하나의 시각화는 필요
+        if not visualizations:
+            visualizations.append('bar_chart')
+        
+        return visualizations
+    
+    def analyze_content_characteristics(self, content: str, methodology: str, visualizations: List[str]) -> Dict[str, Any]:
+        """
+        콘텐츠 특성 분석 (레이아웃 패턴 선택에 사용)
+        
+        Args:
+            content: 전체 리포트 내용
+            methodology: 방법론 섹션
+            visualizations: 필요한 시각화 리스트
+        
+        Returns:
+            Content analysis dictionary
+        """
+        # 텍스트 vs 시각화 비율 추정
+        word_count = len(content.split())
+        viz_count = len(visualizations)
+        
+        # 콘텐츠 밸런스 결정
+        if viz_count >= 3:
+            content_balance = 'visual_heavy'
+        elif viz_count <= 1 and word_count > 3000:
+            content_balance = 'text_heavy'
+        else:
+            content_balance = 'balanced'
+        
+        # 섹션 수 계산
+        num_sections = content.count('##')
+        
+        return {
+            'has_pipeline': 'pipeline_diagram' in visualizations or 'flowchart' in visualizations,
+            'has_performance_metrics': 'radar_chart' in visualizations or 'bar_chart' in visualizations,
+            'has_timeline': 'timeline' in visualizations,
+            'content_balance': content_balance,
+            'num_sections': num_sections,
+            'word_count': word_count,
+            'viz_count': viz_count,
+            'has_methodology_detail': len(methodology) > 300
         }
 

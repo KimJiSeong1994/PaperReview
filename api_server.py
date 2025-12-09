@@ -1814,10 +1814,22 @@ async def generate_poster_visualization(session_id: str):
             report_content = f.read()
         print(f"[Poster API] ✅ Report content loaded: {len(report_content)} chars")
         
-        # Step 4: PosterGenerationAgent 초기화
+        # Step 4: DesignPatternManager 초기화
         try:
-            poster_agent = PosterGenerationAgent(model="gemini-3-pro-image-preview")
-            print("[Poster API] ✅ PosterGenerationAgent initialized with gemini-3-pro-image-preview")
+            from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+            pattern_manager = get_design_pattern_manager()
+            print("[Poster API] ✅ DesignPatternManager initialized")
+        except Exception as e:
+            print(f"[Poster API] ⚠️ Failed to initialize DesignPatternManager: {e}")
+            pattern_manager = None
+        
+        # Step 5: PosterGenerationAgent 초기화 (DesignPatternManager 포함)
+        try:
+            poster_agent = PosterGenerationAgent(
+                model="gemini-3-pro-image-preview",
+                design_pattern_manager=pattern_manager
+            )
+            print("[Poster API] ✅ PosterGenerationAgent initialized with gemini-3-pro-image-preview and DesignPatternManager")
         except Exception as e:
             print(f"[Poster API] ❌ Failed to initialize PosterGenerationAgent: {e}")
             import traceback

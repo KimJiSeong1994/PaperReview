@@ -336,4 +336,241 @@ class PosterVisualAgent:
         badges = " ".join([f'<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2 mb-2 inline-block">{kw}</span>' 
                           for kw in keywords[:8]])
         return f'<div class="flex flex-wrap">{badges}</div>'
+    
+    def generate_radar_chart(self, data: Dict[str, Any]) -> str:
+        """
+        Radar Chart (Multi-Crit 스타일) SVG 생성
+        
+        Args:
+            data: 차트 데이터 (dimensions, values 등)
+        
+        Returns:
+            SVG 문자열
+        """
+        dimensions = data.get('dimensions', ['Completeness', 'Efficiency', 'Grounding', 'Logic', 'Expressiveness', 'Hallucination'])
+        values = data.get('values', [0.85, 0.75, 0.90, 0.80, 0.70, 0.88])
+        
+        # 중심점과 반지름
+        cx, cy, radius = 200, 200, 150
+        n = len(dimensions)
+        
+        # 각도 계산 (시작점: 위쪽)
+        import math
+        angles = [(-90 + i * 360 / n) * math.pi / 180 for i in range(n)]
+        
+        # 데이터 포인트 계산
+        points = []
+        for i, value in enumerate(values):
+            x = cx + radius * value * math.cos(angles[i])
+            y = cy + radius * value * math.sin(angles[i])
+            points.append(f"{x},{y}")
+        
+        # 축 끝점 계산
+        axis_points = []
+        for angle in angles:
+            x = cx + radius * math.cos(angle)
+            y = cy + radius * math.sin(angle)
+            axis_points.append((x, y))
+        
+        svg = f'''<svg viewBox="0 0 400 400" style="background: white; border-radius: 8px;">
+            <defs>
+                <linearGradient id="radarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:{self.color_palette['blue']};stop-opacity:0.6" />
+                    <stop offset="100%" style="stop-color:{self.color_palette['blue_light']};stop-opacity:0.8" />
+                </linearGradient>
+            </defs>
+            
+            <!-- Background circles (grid) -->
+            <circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            <circle cx="{cx}" cy="{cy}" r="{radius * 0.67}" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            <circle cx="{cx}" cy="{cy}" r="{radius * 0.33}" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            
+            <!-- Axes -->'''
+        
+        for i, (x, y) in enumerate(axis_points):
+            svg += f'\n            <line x1="{cx}" y1="{cy}" x2="{x}" y2="{y}" stroke="#cbd5e1" stroke-width="1"/>'
+        
+        # Data polygon
+        svg += f'''
+            
+            <!-- Data polygon -->
+            <polygon points="{' '.join(points)}" 
+                     fill="url(#radarGrad)" 
+                     stroke="{self.color_palette['blue']}" 
+                     stroke-width="2" 
+                     opacity="0.7"/>'''
+        
+        # Labels
+        for i, (x, y) in enumerate(axis_points):
+            # 레이블 위치 조정 (축 끝점에서 약간 밖으로)
+            label_x = cx + (radius + 30) * math.cos(angles[i])
+            label_y = cy + (radius + 30) * math.sin(angles[i])
+            
+            svg += f'''
+            <text x="{label_x}" y="{label_y}" text-anchor="middle" font-size="12" fill="#334155">{dimensions[i]}</text>'''
+        
+        svg += '\n        </svg>'
+        return svg
+    
+    def generate_pipeline_diagram(self, steps: List[Dict[str, str]]) -> str:
+        """
+        Pipeline/Flowchart Diagram (LlamaDuo 스타일) SVG 생성
+        
+        Args:
+            steps: 파이프라인 단계 리스트 [{'title': '...', 'desc': '...'}, ...]
+        
+        Returns:
+            SVG 문자열
+        """
+        if not steps:
+            steps = [
+                {'title': 'Step 1', 'desc': 'Data Input'},
+                {'title': 'Step 2', 'desc': 'Processing'},
+                {'title': 'Step 3', 'desc': 'Output'}
+            ]
+        
+        n_steps = len(steps)
+        box_width = 120
+        box_height = 80
+        gap = 60
+        total_width = n_steps * box_width + (n_steps - 1) * gap
+        start_x = 50
+        y = 100
+        
+        svg = f'''<svg viewBox="0 0 {total_width + 100} 300" style="background: white; border-radius: 8px;">
+            <defs>
+                <marker id="pipelineArrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                </marker>
+            </defs>'''
+        
+        for i, step in enumerate(steps):
+            x = start_x + i * (box_width + gap)
+            
+            # Box
+            svg += f'''
+            
+            <!-- Step {i+1} -->
+            <rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="15" 
+                  fill="{self.color_palette['blue_bg']}" stroke="{self.color_palette['blue']}" stroke-width="2"/>
+            <text x="{x + box_width/2}" y="{y + 35}" text-anchor="middle" font-size="14" font-weight="bold" fill="{self.color_palette['blue']}">{step.get('title', f'Step {i+1}')}</text>
+            <text x="{x + box_width/2}" y="{y + 55}" text-anchor="middle" font-size="12" fill="#64748b">{step.get('desc', '')}</text>'''
+            
+            # Arrow to next step
+            if i < n_steps - 1:
+                arrow_start_x = x + box_width
+                arrow_end_x = x + box_width + gap
+                svg += f'''
+            <line x1="{arrow_start_x}" y1="{y + box_height/2}" x2="{arrow_end_x}" y2="{y + box_height/2}" 
+                  stroke="#64748b" stroke-width="2" marker-end="url(#pipelineArrow)"/>'''
+        
+        svg += '\n        </svg>'
+        return svg
+    
+    def generate_timeline(self, events: List[Dict[str, str]], style: str = 'vertical') -> str:
+        """
+        Timeline (수직형, Multi-Crit/LlamaDuo 스타일) SVG 생성
+        
+        Args:
+            events: 이벤트 리스트 [{'year': '2020', 'title': '...', 'desc': '...'}, ...]
+            style: 'vertical' or 'horizontal'
+        
+        Returns:
+            SVG 문자열
+        """
+        if not events:
+            events = [
+                {'year': '2020', 'title': 'Event 1', 'desc': 'Description'},
+                {'year': '2021', 'title': 'Event 2', 'desc': 'Description'},
+                {'year': '2022', 'title': 'Event 3', 'desc': 'Description'}
+            ]
+        
+        n_events = len(events)
+        event_gap = 100
+        total_height = n_events * event_gap + 100
+        
+        svg = f'''<svg viewBox="0 0 300 {total_height}" style="background: white; border-radius: 8px;">
+            <!-- Central line -->
+            <line x1="150" y1="50" x2="150" y2="{total_height - 50}" 
+                  stroke="#cbd5e1" stroke-width="3" stroke-dasharray="5,5"/>'''
+        
+        colors = [self.color_palette['blue'], self.color_palette['green'], self.color_palette['orange'], self.color_palette['purple']]
+        
+        for i, event in enumerate(events):
+            y = 100 + i * event_gap
+            color = colors[i % len(colors)]
+            
+            # Alternating left/right
+            is_left = i % 2 == 0
+            text_x = 130 if is_left else 170
+            text_anchor = 'end' if is_left else 'start'
+            
+            svg += f'''
+            
+            <!-- Event {i+1} -->
+            <circle cx="150" cy="{y}" r="20" fill="{color}" stroke="white" stroke-width="3"/>
+            <circle cx="150" cy="{y}" r="12" fill="white"/>
+            <text x="{text_x}" y="{y - 10}" text-anchor="{text_anchor}" font-size="14" font-weight="bold" fill="{color}">{event.get('year', '')}</text>
+            <text x="{text_x}" y="{y + 5}" text-anchor="{text_anchor}" font-size="12" fill="#334155">{event.get('title', '')}</text>
+            <text x="{text_x}" y="{y + 20}" text-anchor="{text_anchor}" font-size="11" fill="#64748b">{event.get('desc', '')[:30]}</text>'''
+        
+        svg += '\n        </svg>'
+        return svg
+    
+    def generate_bar_chart(self, data: Dict[str, Any]) -> str:
+        """
+        Bar Chart (Multi-Crit 스타일) SVG 생성
+        
+        Args:
+            data: 차트 데이터 (labels, values 등)
+        
+        Returns:
+            SVG 문자열
+        """
+        labels = data.get('labels', ['Model A', 'Model B', 'Model C'])
+        values = data.get('values', [0.85, 0.75, 0.90])
+        
+        n_bars = len(labels)
+        bar_width = 40
+        gap = 30
+        chart_width = n_bars * (bar_width + gap) + 100
+        chart_height = 300
+        
+        # Scale values to chart height
+        max_value = max(values) if values else 1.0
+        scale = 200 / max_value
+        
+        svg = f'''<svg viewBox="0 0 {chart_width} {chart_height}" style="background: white; border-radius: 8px;">
+            <!-- Axes -->
+            <line x1="50" y1="250" x2="{chart_width - 50}" y2="250" stroke="#cbd5e1" stroke-width="2"/>
+            <line x1="50" y1="50" x2="50" y2="250" stroke="#cbd5e1" stroke-width="2"/>
+            
+            <!-- Grid lines -->
+            <line x1="50" y1="200" x2="{chart_width - 50}" y2="200" stroke="#e2e8f0" stroke-width="1"/>
+            <line x1="50" y1="150" x2="{chart_width - 50}" y2="150" stroke="#e2e8f0" stroke-width="1"/>
+            <line x1="50" y1="100" x2="{chart_width - 50}" y2="100" stroke="#e2e8f0" stroke-width="1"/>'''
+        
+        colors = [self.color_palette['blue'], self.color_palette['orange'], self.color_palette['green']]
+        
+        for i, (label, value) in enumerate(zip(labels, values)):
+            x = 70 + i * (bar_width + gap)
+            bar_height = value * scale
+            y = 250 - bar_height
+            color = colors[i % len(colors)]
+            
+            svg += f'''
+            
+            <!-- Bar {i+1} -->
+            <rect x="{x}" y="{y}" width="{bar_width}" height="{bar_height}" fill="{color}" opacity="0.8"/>
+            <text x="{x + bar_width/2}" y="265" text-anchor="middle" font-size="12" fill="#334155">{label}</text>
+            <text x="{x + bar_width/2}" y="{y - 5}" text-anchor="middle" font-size="11" fill="{color}">{value:.2f}</text>'''
+        
+        # Y-axis labels
+        for i, val in enumerate([0, 0.25, 0.5, 0.75, 1.0]):
+            y = 250 - val * 200
+            svg += f'''
+            <text x="45" y="{y + 5}" text-anchor="end" font-size="11" fill="#64748b">{val:.2f}</text>'''
+        
+        svg += '\n        </svg>'
+        return svg
 

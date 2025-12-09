@@ -57,7 +57,8 @@ class PosterGenerationAgent:
         api_key: Optional[str] = None,
         max_workers: int = 4,
         enable_validation: bool = False,
-        theme: str = "default"
+        theme: str = "default",
+        design_pattern_manager=None
     ):
         """
         Args:
@@ -66,12 +67,23 @@ class PosterGenerationAgent:
             max_workers: 병렬 처리 워커 수
             enable_validation: VLM 품질 검증 활성화
             theme: YAML 테마 이름 (default, academic_blue, dark_theme 등)
+            design_pattern_manager: DesignPatternManager 인스턴스 (옵션)
         """
         self.model = model
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         self.max_workers = max_workers
         self.enable_validation = enable_validation
         self.theme = theme
+        
+        # DesignPatternManager 설정
+        if design_pattern_manager is None:
+            try:
+                from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+                self.pattern_manager = get_design_pattern_manager()
+            except Exception:
+                self.pattern_manager = None
+        else:
+            self.pattern_manager = design_pattern_manager
         
         # Gemini LLM 초기화
         self.llm = None
@@ -85,9 +97,9 @@ class PosterGenerationAgent:
             # StyleManager 초기화 실패 시 None으로 설정 (기본 CSS 사용)
             self.style_manager = None
         
-        # 하위 에이전트 초기화
+        # 하위 에이전트 초기화 (DesignPatternManager 전달)
         self.content_agent = PosterContentAgent()
-        self.layout_agent = PosterLayoutAgent()
+        self.layout_agent = PosterLayoutAgent(design_pattern_manager=self.pattern_manager)
         self.visual_agent = PosterVisualAgent()
         self.validator_agent = PosterValidatorAgent() if enable_validation else None
     
@@ -253,16 +265,42 @@ class PosterGenerationAgent:
         
         멀티 에이전트로 추출한 구조화된 정보를 활용하여
         상세하고 정확한 프롬프트를 생성합니다.
+        
+        이제 예시 포스터 분석, SVG 가이드, 디자인 패턴 정보를 포함합니다.
         """
-        return f"""# 🎓 학술 포스터 생성 태스크 (Gemini 3 Pro)
+        # DesignPatternManager에서 SVG 템플릿 및 패턴 정보 가져오기
+        svg_examples = ""
+        pattern_guidance = ""
+        
+        try:
+            from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+            pattern_manager = get_design_pattern_manager()
+            if pattern_manager:
+                svg_examples = pattern_manager.format_svg_examples()
+                
+                # 레이아웃 패턴 정보 추가
+                if hasattr(layout, 'design_pattern') and layout.design_pattern:
+                    pattern_guidance = pattern_manager.generate_design_prompt(layout.design_pattern)
+        except Exception:
+            pass
+        
+        return f"""# 🎨 저명한 학술 포스터 디자이너로서의 역할
 
-당신은 NeurIPS, ICML, ICLR 수준의 최고급 학술 포스터를 생성하는 전문 디자이너이자 프론트엔드 개발자입니다.
-"Multi-Crit: Benchmarking Multimodal Judges" 포스터와 유사한 디자인 패턴과 톤앤매너를 참고하여,
-멀티 에이전트 시스템으로 추출한 구조화된 콘텐츠를 바탕으로 고품질 포스터를 생성하세요.
+당신은 NeurIPS, ICML, ICLR, CVPR 등 최고급 학회에서 수상작을 디자인한 저명한 학술 포스터 디자이너입니다.
+당신의 전문성은 **심층 분석 내용을 가장 효과적으로 전달할 수 있는 최적의 디자인을 창조**하는 것입니다.
+
+**핵심 철학**: 
+- 고정된 틀이나 템플릿에 얽매이지 않음
+- 콘텐츠의 본질을 가장 잘 드러내는 디자인 창조
+- 각 연구의 고유한 특성에 맞는 맞춤형 레이아웃 설계
+- 시각적 스토리텔링을 통한 효과적인 정보 전달
 
 ---
 
-## 📊 입력 데이터 (정확히 사용하세요)
+## 📊 심층 분석 콘텐츠 (정확히 반영하세요)
+
+다음은 멀티 에이전트 심층 분석 시스템이 생성한 연구 리포트입니다.
+이 콘텐츠를 가장 효과적으로 전달할 수 있는 포스터를 디자인하세요.
 
 **제목**: {content.title}
 **부제목**: {content.subtitle}
@@ -290,199 +328,171 @@ class PosterGenerationAgent:
 
 ---
 
-## 🎨 디자인 참고: Multi-Crit 포스터 스타일
+## 🏆 예시 포스터 분석 (디자인 참고용)
 
-### 디자인 패턴
-- **레이아웃**: 유연한 비대칭 그리드 (좌측에 주요 내용, 중앙/우측에 시각화)
-- **톤앤매너**: 깔끔하고 모던한 학술 스타일, 전문적이면서도 접근하기 쉬운 디자인
-- **색상**: 부드럽고 조화로운 색상 팔레트, 과도한 강조 없이 명확한 계층 구조
-- **타이포그래피**: 가독성 높은 Sans-serif 폰트, 명확한 위계 구조
-- **시각화**: 다양한 다이어그램, 차트, 타임라인을 적절히 배치
+### Multi-Crit 포스터 특징
 
-### 레이아웃 가이드라인 (유연하게 적용)
-- **전체 구조**: 가로형 와이드 포스터 (20:9 또는 유사한 비율)
-- **섹션 배치**: 콘텐츠의 중요도와 흐름에 따라 자유롭게 배치
-  - 좌측: 주요 텍스트 콘텐츠 (Motivation, Abstract, Contributions 등)
-  - 중앙: 핵심 시각화 요소 (아키텍처 다이어그램, 알고리즘 순서도)
-  - 우측: 보조 정보 및 추가 시각화 (Findings, Charts, Timeline 등)
-- **그리드**: CSS Grid 또는 Flexbox를 사용하여 유연한 레이아웃 구성
-- **반응형**: 최소 너비 1600px 이상, 브라우저에서 잘 보이도록
+**레이아웃**:
+- 3단 그리드 (좌: 1fr, 중: 1.2fr, 우: 1fr)
+- 좌측: Motivation, Abstract, Methodology
+- 중앙: Architecture Diagram, Results Chart
+- 우측: Key Findings, Timeline, Conclusion
 
-### 색상 팔레트 (참고용, 자유롭게 조정 가능)
-- **Primary**: #2563eb (Academic Blue) 또는 유사한 파란색 계열
-- **Secondary**: #1e293b (Dark Slate) 또는 유사한 어두운 회색
-- **Accent**: #f59e0b (Orange) 또는 유사한 강조 색상
-- **Background**: #f8fafc (Light Gray) 또는 흰색
-- **Text**: #334155 (Dark Gray) 또는 #1e293b
-- **Borders**: #e2e8f0 (Light Gray)
+**색상 팔레트**:
+- Primary: #2563eb (Academic Blue) - 제목, 강조
+- Secondary: #1e293b (Dark Slate) - 텍스트
+- Accent: #f59e0b (Orange) - 하이라이트
+- Background: #f8fafc (Light Gray)
 
-### 타이포그래피 (참고용)
-- **제목**: 큰 크기, 굵은 weight, 명확한 계층
-- **섹션 타이틀**: 중간 크기, 굵은 weight, 하단 경계선
-- **본문**: 가독성 높은 크기, 적절한 line-height
-- **폰트**: 'Inter', 'Noto Sans KR', 또는 유사한 Sans-serif
+**시각화**:
+- Radar Chart: 5-6개 차원의 성능 비교
+- Timeline: 수직형, 아이콘 포함, 연도별 이벤트
+- Bar Chart: 그룹화된 막대 그래프
 
----
+**타이포그래피**:
+- 제목: 3.5rem, weight 900, uppercase
+- 섹션 헤더: 1.5rem, weight 800, border-bottom
+- 본문: 1.1rem, line-height 1.6
 
-## 🖼️ 시각화 요소 (이미지 생성 활용)
+### LlamaDuo 포스터 특징
 
-**중요**: Gemini 3 Pro Image Preview 모델의 이미지 생성 기능을 활용하여 고품질 시각화를 생성하세요.
+**레이아웃**:
+- 비대칭 레이아웃 (좌: 1fr, 중: 2fr, 우: 1fr)
+- 좌측: Abstract, Methodology, Key Components
+- 중앙: 대형 Pipeline Diagram, Experimental Results
+- 우측: Research History Timeline, Economic Benefits
 
-### Figure 1: 모델 아키텍처 다이어그램
-**생성 방법**:
-1. **이미지 생성 사용**: Gemini의 이미지 생성 기능을 활용하여 아키텍처 다이어그램 생성
-2. **요구사항**:
-   - 방법론에 맞는 아키텍처 구조를 시각화
-   - 데이터 흐름과 주요 컴포넌트 명확히 표시
-   - 색상으로 단계 구분
-   - 레이블과 설명 포함
-   - 학술 포스터에 적합한 깔끔한 스타일
-3. **대안**: 이미지 생성이 어려운 경우 SVG로 직접 작성
+**색상 팔레트**:
+- Primary: #3b82f6 (Blue)
+- Secondary: #64748b (Slate Gray)
+- Accent: #8b5cf6 (Purple)
+- Background: #f1f5f9 (Light Blue Gray)
 
-### Figure 2: 알고리즘/프로세스 순서도
-**생성 방법**:
-1. **이미지 생성 사용**: Gemini의 이미지 생성 기능을 활용하여 순서도 생성
-2. **요구사항**:
-   - 방법론의 주요 단계를 Flowchart 형태로 표현
-   - 화살표로 흐름 표시
-   - 각 단계별 설명 포함
-   - 전문적인 다이어그램 스타일
-3. **대안**: 이미지 생성이 어려운 경우 SVG로 직접 작성
+**시각화**:
+- Pipeline Diagram: 수평형 플로우차트, 둥근 박스
+- Timeline: 수직형, 텍스트 중심, 아이콘
+- Line Chart: 다중 시리즈, 성능 추이
+- Table: 성능 비교 테이블
 
-### Chart: 결과/데이터 시각화
-**생성 방법**:
-1. **이미지 생성 사용**: Gemini의 이미지 생성 기능을 활용하여 차트 생성
-2. **요구사항**:
-   - 주요 발견이나 결과를 시각적으로 표현
-   - 막대 그래프, 라인 차트, 레이더 차트 등 적절한 형태 선택
-   - 데이터가 없으면 논문 수나 분석 통계를 시각화
-   - 학술 포스터에 적합한 깔끔한 차트 스타일
-3. **대안**: CSS/HTML 또는 SVG로 작성
-
-### 추가 시각화 (선택적)
-- 타임라인: 연구 발전 과정 (이미지 생성 또는 SVG)
-- 비교 테이블: 방법론 비교 (HTML 테이블 또는 이미지)
-- 개념 다이어그램: 핵심 개념 관계 (이미지 생성 권장)
-
-### 이미지 생성 가이드
-- **스타일**: 학술 포스터에 적합한 깔끔하고 전문적인 스타일
-- **색상**: Multi-Crit 포스터와 유사한 부드러운 색상 팔레트
-- **해상도**: 고해상도로 생성하여 포스터에서 선명하게 보이도록
-- **포맷**: Base64 인코딩된 이미지를 HTML에 직접 포함
+**타이포그래피**:
+- 제목: 3rem, weight 800
+- 섹션 헤더: 1.3rem, weight 700, background color
+- 본문: 1rem, line-height 1.6
 
 ---
 
-## 📐 섹션 구성 가이드 (유연하게 적용)
-
-콘텐츠의 특성에 맞게 다음 섹션들을 적절히 배치하세요:
-
-**필수 섹션**:
-1. **제목 영역**: 상단에 큰 제목, 부제목, 저자 정보
-2. **초록 (Abstract)**: 연구 요약
-3. **연구 배경 (Motivation)**: 문제 정의 및 동기
-4. **방법론 (Methodology)**: 핵심 방법론 설명
-5. **주요 발견 (Key Findings)**: 핵심 결과
-6. **결론 (Conclusion)**: 결론 및 시사점
-
-**선택적 섹션**:
-- 핵심 기여 (Contributions)
-- 비교 분석
-- 향후 연구 방향
-- 참고문헌 (간략)
-
-**시각화 배치**:
-- 아키텍처 다이어그램은 방법론 섹션 근처에 배치
-- 알고리즘 순서도는 프로세스 설명과 함께 배치
-- 차트는 결과/발견 섹션에 배치
+{pattern_guidance}
 
 ---
 
-## ✅ 절대 규칙
+{svg_examples}
+
+---
+
+## 🎯 디자인 접근법
+
+### 1. 콘텐츠 중심 디자인
+- **콘텐츠 분석**: 제공된 심층 분석 내용을 먼저 깊이 이해하세요
+- **핵심 메시지 식별**: 가장 중요한 메시지가 무엇인지 파악
+- **정보 계층 구조**: 어떤 정보가 가장 중요하고, 어떤 순서로 전달해야 하는지 결정
+- **시각적 스토리**: 논리적 흐름에 따라 시각적 스토리를 구성
+
+### 2. 레이아웃 전략
+- **예시 포스터 참고**: Multi-Crit과 LlamaDuo의 레이아웃 패턴을 참고하되, 콘텐츠에 맞게 조정
+- **3단 그리드**: 내용이 균등하게 분포된 경우 (Multi-Crit 스타일)
+  - CSS: `grid-template-columns: 1fr 1.2fr 1fr;`
+  - 좌측: Introduction, 중앙: Methods/Results, 우측: Findings/Timeline
+- **비대칭 레이아웃**: 하나의 요소(예: Pipeline)가 지배적인 경우 (LlamaDuo 스타일)
+  - CSS: `grid-template-columns: 1fr 2fr 1fr;`
+  - 중앙에 대형 시각화 배치
+- **유연성**: 콘텐츠 특성에 따라 자유롭게 조정
+
+### 3. 시각화 전략
+**필요한 시각화 식별** (콘텐츠 기반):
+- **Radar Chart**: 성능 비교, 다차원 평가가 있을 때
+- **Pipeline Diagram**: 방법론, 프로세스, 아키텍처 설명이 필요할 때
+- **Timeline**: 연구 발전, 역사적 흐름이 있을 때
+- **Bar Chart**: 결과 데이터, 수치 비교가 있을 때
+- **Table**: 상세한 비교 분석이 필요할 때
+
+**SVG 생성 가이드** (위의 예시 참고):
+- Radar Chart: 중심점에서 방사형 축, 다각형으로 데이터 표현
+- Pipeline: 둥근 박스 + 화살표, 수평 배치
+- Timeline: 수직선 + 원형 마커, 좌우 교대 배치
+- Bar Chart: 축 + 그리드 + 막대, 값 레이블 표시
+
+### 4. 색상 및 타이포그래피
+**색상 선택**:
+- 학술적 느낌: Blue 계열 (Multi-Crit 스타일)
+- 모던한 느낌: Blue-Purple 계열 (LlamaDuo 스타일)
+- 일관성: Primary, Secondary, Accent 3가지 색상 체계 유지
+
+**타이포그래피**:
+- 제목: 3-3.5rem, weight 800-900
+- 섹션 헤더: 1.3-1.5rem, weight 700-800
+- 본문: 1-1.1rem, line-height 1.6
+- 폰트: Inter, Noto Sans KR 등 Sans-serif
+
+---
+
+## ✅ 필수 요구사항
 
 1. **완전한 HTML**: DOCTYPE, html, head, body 모두 포함
-2. **CSS 자유 생성**: <style> 태그 내부에 모든 CSS를 직접 작성하세요
-   - Multi-Crit 포스터 스타일을 참고하여 깔끔하고 전문적인 CSS 생성
-   - 레이아웃, 색상, 타이포그래피를 자유롭게 결정
-   - CSS Grid, Flexbox 등 최신 레이아웃 기법 활용
-   - 반응형 디자인 고려 (min-width: 1600px)
-3. **이미지 생성 활용**: Gemini 3 Pro Image Preview의 이미지 생성 기능을 적극 활용
-   - 아키텍처 다이어그램, 순서도, 차트 등을 이미지로 생성
-   - 생성된 이미지는 Base64 인코딩하여 HTML에 직접 포함
-   - 이미지 생성이 어려운 경우 SVG로 대체
-4. **SVG 직접 작성**: 이미지 생성이 불가능한 경우 SVG 코드로 직접 작성
-5. **콘텐츠 정확성**: 추출된 콘텐츠를 정확히 반영, 임의로 변경하지 말 것
-6. **한글 지원**: 한글과 영어 모두 올바르게 표시
-7. **가독성**: 충분한 여백, 명확한 계층 구조
-8. **디자인 일관성**: Multi-Crit 포스터와 유사한 깔끔하고 전문적인 스타일
+2. **CSS 자유 생성**: <style> 태그 내부에 모든 CSS를 직접 작성
+   - 예시 포스터의 디자인 패턴을 참고하되, 콘텐츠에 맞게 조정
+   - CSS Grid 또는 Flexbox 활용
+   - CSS Custom Properties (:root 변수) 사용
+   - 최소 너비 1600px 이상
+3. **SVG 시각화**: 위의 SVG 예시를 참고하여 필요한 시각화 생성
+   - Radar Chart, Pipeline Diagram, Timeline, Bar Chart 등
+   - 깔끔하고 전문적인 스타일
+   - 레이블과 값 명확히 표시
+4. **콘텐츠 정확성**: 제공된 콘텐츠를 정확히 반영, 임의로 변경하지 말 것
+5. **한글 지원**: 한글과 영어 모두 올바르게 표시
+6. **학술적 품질**: NeurIPS, ICML 수준의 전문적인 포스터
 
 ---
 
-## 🚀 생성 지시사항
+## 🚀 디자인 프로세스
 
-위의 가이드라인을 참고하여, **콘텐츠의 특성에 맞게 최적의 레이아웃과 디자인을 자유롭게 생성**하세요:
+### Step 1: 콘텐츠 분석
+1. 제공된 심층 분석 내용을 깊이 이해
+2. 핵심 메시지와 부차적 정보 구분
+3. 필요한 시각화 타입 결정 (Radar? Pipeline? Timeline?)
 
-1. **레이아웃 결정**: 콘텐츠의 양과 중요도에 따라 그리드 구조를 유연하게 결정
-   - 2단, 3단, 또는 혼합 레이아웃 모두 가능
-   - CSS Grid 또는 Flexbox를 활용하여 반응형 구조 생성
-   - Multi-Crit 포스터처럼 비대칭 레이아웃도 가능
+### Step 2: 레이아웃 선택
+1. 콘텐츠 특성 파악:
+   - 방법론이 복잡하고 Pipeline이 필요? → LlamaDuo 스타일 (비대칭)
+   - 성능 비교가 중요? → Multi-Crit 스타일 (3단 그리드)
+   - 균형 잡힌 내용? → 혼합 스타일
+2. CSS Grid 구조 결정
 
-2. **CSS 스타일 생성**: Multi-Crit 포스터 스타일을 참고하여 완전히 새로운 CSS 작성
-   - 고정된 템플릿 사용 금지, 콘텐츠에 맞는 최적의 스타일 생성
-   - 색상, 폰트, 간격, 레이아웃을 자유롭게 결정
-   - 깔끔하고 전문적인 학술 포스터 스타일 유지
+### Step 3: 포스터 생성
+1. **HTML 구조**: 선택한 레이아웃에 맞는 HTML 작성
+2. **CSS 스타일**: 예시 포스터의 색상/타이포그래피 참고하여 CSS 작성
+3. **SVG 생성**: 위의 SVG 예시를 참고하여 필요한 시각화 생성
+4. **통합**: 모든 요소를 조화롭게 배치
 
-3. **섹션 배치**: 논리적 흐름에 따라 섹션을 배치
-   - 좌측에서 우측으로, 위에서 아래로 자연스러운 읽기 흐름
-   - 중요한 내용은 눈에 띄는 위치에 배치
-   - 시각화 요소는 적절한 위치에 통합
-
-4. **시각화 생성**: Gemini의 이미지 생성 기능을 활용하여 고품질 시각화 생성
-   - **아키텍처 다이어그램**: 이미지 생성 기능으로 생성 (우선), 불가능 시 SVG
-   - **알고리즘 순서도**: 이미지 생성 기능으로 생성 (우선), 불가능 시 SVG
-   - **결과 차트**: 이미지 생성 기능으로 생성 (우선), 불가능 시 CSS/HTML 또는 SVG
-   - **타임라인/비교 테이블**: 필요시 이미지 생성 또는 HTML로 생성
-   - 생성된 이미지는 Base64 인코딩하여 `<img src="data:image/png;base64,...">` 형태로 포함
-
-5. **스타일링**: Multi-Crit 포스터와 유사한 깔끔하고 전문적인 스타일 적용
-   - 부드럽고 조화로운 색상 팔레트
-   - 명확한 타이포그래피 위계
-   - 적절한 여백과 간격
-   - 일관된 디자인 언어
-
-6. **최종 검토**: 생성된 포스터가 학회 발표 수준의 품질인지 확인
-   - 모든 콘텐츠가 정확히 반영되었는지
-   - 시각화가 명확하고 이해하기 쉬운지
-   - 디자인이 전문적이고 일관성 있는지
-
-**중요**: CSS 구조를 강제하지 말고, 콘텐츠와 디자인 요구사항에 맞게 자유롭게 생성하세요.
-Multi-Crit 포스터의 디자인 패턴과 톤앤매너를 참고하되, 고유한 레이아웃과 스타일을 만들어주세요.
+### Step 4: 품질 검증
+1. 콘텐츠가 정확히 반영되었는가?
+2. 시각화가 명확하고 이해하기 쉬운가?
+3. 디자인이 전문적이고 일관성 있는가?
+4. 예시 포스터 수준의 품질인가?
 
 ---
 
-## 🎨 이미지 생성 활용 방법
+## 🎨 최종 지시
 
-**Gemini 3 Pro Image Preview 모델의 이미지 생성 기능을 활용하세요:**
+**지금 바로 시작하세요:**
 
-1. **이미지 생성 요청**: 프롬프트에서 이미지 생성을 요청하면, Gemini가 이미지를 생성합니다
-2. **이미지 포함 방법**: 생성된 이미지는 Base64 인코딩하여 HTML에 포함
-   ```html
-   <img src="data:image/png;base64,iVBORw0KGgoAAAANS..." alt="Architecture Diagram">
-   ```
-3. **이미지 생성 프롬프트 예시**:
-   - "Create a clean academic poster diagram showing [methodology description]"
-   - "Generate a flowchart image illustrating [algorithm steps]"
-   - "Create a bar chart image showing [results data]"
+1. 제공된 심층 분석 콘텐츠를 깊이 이해
+2. Multi-Crit 또는 LlamaDuo 스타일 중 적합한 것 선택 (또는 혼합)
+3. 위의 SVG 예시를 참고하여 필요한 시각화 생성
+4. 예시 포스터의 색상/타이포그래피 패턴을 참고하여 CSS 작성
+5. 완전한 HTML 포스터 생성
 
-**이미지 생성이 가능한 경우**:
-- 아키텍처 다이어그램을 이미지로 생성하여 포스터에 포함
-- 알고리즘 순서도를 이미지로 생성하여 포스터에 포함
-- 결과 차트를 이미지로 생성하여 포스터에 포함
-
-**이미지 생성이 어려운 경우**:
-- SVG 코드로 직접 작성하여 대체
-
-**지금 바로 완전한 HTML 포스터를 생성하세요!**
-이미지 생성 기능을 적극 활용하여 고품질 시각화를 포함한 포스터를 만들어주세요.
+**핵심**: 예시 포스터의 디자인 패턴과 시각화 기법을 활용하되, 콘텐츠에 맞게 최적화하세요.
+당신은 저명한 학술 포스터 디자이너입니다. Multi-Crit과 LlamaDuo 수준의 전문적인 포스터를 만들어주세요!
 """
     
     def _assemble_poster(self, content, layout, section_htmls: dict) -> str:

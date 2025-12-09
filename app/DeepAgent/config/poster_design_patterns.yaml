@@ -1,0 +1,369 @@
+# Academic Poster Design Patterns
+# Based on award-winning conference posters (Multi-Crit, LlamaDuo, etc.)
+
+design_patterns:
+  multi_crit_style:
+    name: "Multi-Crit Style"
+    description: "3-column grid layout with radar charts, timeline, and performance visualizations"
+    
+    layout:
+      type: three_column
+      ratio: [1, 1.2, 1]  # Left:Center:Right ratio
+      aspect_ratio: "20:9"  # Ultra-wide landscape
+      min_width: "1600px"
+      sections:
+        left:
+          - motivation
+          - abstract
+          - methodology
+          - contributions
+        center:
+          - architecture_diagram
+          - algorithm_flowchart
+          - results_chart
+        right:
+          - key_findings
+          - timeline
+          - conclusion
+          - future_work
+    
+    color_scheme:
+      primary: "#2563eb"      # Academic Blue
+      secondary: "#1e293b"    # Dark Slate
+      accent: "#f59e0b"       # Highlight Orange
+      accent_green: "#16a34a" # Success Green
+      background: "#f8fafc"   # Light Gray
+      box_bg: "#ffffff"       # White
+      border: "#e2e8f0"       # Light Border
+      text: "#334155"         # Dark Gray
+      text_light: "#475569"   # Medium Gray
+    
+    typography:
+      title:
+        size: "3.5rem"
+        weight: "900"
+        transform: "uppercase"
+        letter_spacing: "-0.02em"
+      subtitle:
+        size: "1.8rem"
+        weight: "500"
+      section_title:
+        size: "1.5rem"
+        weight: "800"
+        border_bottom: "2px solid #cbd5e1"
+      body:
+        size: "1.1rem"
+        weight: "400"
+        line_height: "1.6"
+      fonts:
+        - "Inter"
+        - "Noto Sans KR"
+    
+    visualizations:
+      - type: radar_chart
+        use_case: "performance comparison"
+        position: "center or right"
+        style: "polygon with axes"
+      - type: timeline
+        orientation: vertical
+        position: "right"
+        style: "icon-based with circles"
+      - type: bar_chart
+        style: grouped
+        position: "right or center"
+      - type: conflict_chart
+        style: "side-by-side comparison"
+        position: "right"
+  
+  llamaduo_style:
+    name: "LlamaDuo Style"
+    description: "Asymmetric layout with large pipeline diagram and research history timeline"
+    
+    layout:
+      type: asymmetric
+      ratio: [1, 2, 1]  # Flexible asymmetric ratio
+      aspect_ratio: "20:9"
+      min_width: "1600px"
+      sections:
+        left:
+          - abstract
+          - methodology
+          - key_components
+        center:
+          - pipeline_diagram
+          - experimental_results
+        right:
+          - research_history
+          - timeline
+          - economic_benefits
+          - conclusion
+    
+    color_scheme:
+      primary: "#3b82f6"      # Blue
+      secondary: "#64748b"    # Slate Gray
+      accent: "#8b5cf6"       # Purple
+      accent_orange: "#f97316" # Orange
+      background: "#f1f5f9"   # Light Blue Gray
+      box_bg: "#ffffff"       # White
+      border: "#cbd5e1"       # Gray Border
+      text: "#1e293b"         # Dark
+      text_light: "#475569"   # Medium Gray
+    
+    typography:
+      title:
+        size: "3rem"
+        weight: "800"
+        transform: "none"
+      subtitle:
+        size: "1.5rem"
+        weight: "400"
+      section_title:
+        size: "1.3rem"
+        weight: "700"
+        border_bottom: "none"
+        background: "#eff6ff"
+        padding: "10px"
+      body:
+        size: "1rem"
+        weight: "400"
+        line_height: "1.6"
+      fonts:
+        - "Inter"
+        - "Noto Sans KR"
+    
+    visualizations:
+      - type: pipeline_diagram
+        orientation: horizontal
+        position: "center"
+        style: "flowchart with rounded boxes"
+      - type: timeline
+        orientation: vertical
+        position: "right"
+        style: "text-heavy with icons"
+      - type: line_chart
+        style: multi_series
+        position: "center or right"
+      - type: table
+        style: "performance comparison"
+        position: "center"
+
+# SVG Templates and Generation Guides
+svg_templates:
+  radar_chart: |
+    <!-- Radar Chart (Multi-Crit Style) -->
+    <!-- Used for multi-dimensional performance comparison -->
+    <svg viewBox="0 0 400 400" style="background: white;">
+      <defs>
+        <!-- Gradient for model lines -->
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#2563eb;stop-opacity:0.6" />
+          <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.8" />
+        </linearGradient>
+      </defs>
+      
+      <!-- Background circles (grid) -->
+      <circle cx="200" cy="200" r="150" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+      <circle cx="200" cy="200" r="100" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+      <circle cx="200" cy="200" r="50" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+      
+      <!-- Axes (5-6 dimensions) -->
+      <!-- Calculate: angle = i * (360 / n_dimensions) -->
+      <!-- x = centerX + radius * cos(angle), y = centerY + radius * sin(angle) -->
+      
+      <!-- Example polygon for one model (connect data points) -->
+      <polygon points="200,50 320,150 300,300 100,300 80,150" 
+               fill="url(#grad1)" 
+               stroke="#2563eb" 
+               stroke-width="2" 
+               opacity="0.5"/>
+      
+      <!-- Labels at each axis endpoint -->
+      <text x="200" y="40" text-anchor="middle" font-size="12" fill="#334155">Completeness</text>
+      <!-- ... more labels -->
+    </svg>
+    
+    Key features:
+    - Polygon shape connecting 5-6 data points
+    - Semi-transparent fill with gradient
+    - Grid circles at 25%, 50%, 75%, 100%
+    - Axis labels at endpoints
+    - Multiple polygons for comparison (different colors)
+    - Legend below chart
+
+  pipeline_diagram: |
+    <!-- Pipeline/Flowchart Diagram (LlamaDuo Style) -->
+    <!-- Used for showing sequential process or architecture -->
+    <svg viewBox="0 0 800 300" style="background: white;">
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+        </marker>
+      </defs>
+      
+      <!-- Step 1: Box with rounded corners -->
+      <rect x="50" y="100" width="120" height="80" rx="15" 
+            fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="110" y="140" text-anchor="middle" font-size="14" fill="#1e40af">Step 1</text>
+      <text x="110" y="160" text-anchor="middle" font-size="12" fill="#64748b">Description</text>
+      
+      <!-- Arrow -->
+      <line x1="170" y1="140" x2="230" y2="140" 
+            stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Step 2 -->
+      <rect x="230" y="100" width="120" height="80" rx="15" 
+            fill="#f0f9ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="290" y="140" text-anchor="middle" font-size="14" fill="#1e40af">Step 2</text>
+      
+      <!-- More steps... -->
+      
+      <!-- Key features:
+           - Rounded rectangles (rx=15)
+           - Light blue/purple fills
+           - Arrows between steps
+           - Icons inside boxes (optional)
+           - Labeled connections -->
+    </svg>
+
+  timeline: |
+    <!-- Vertical Timeline (Multi-Crit/LlamaDuo Style) -->
+    <!-- Used for showing evolution or research history -->
+    <svg viewBox="0 0 300 600" style="background: white;">
+      <!-- Central line -->
+      <line x1="150" y1="50" x2="150" y2="550" 
+            stroke="#cbd5e1" stroke-width="3" stroke-dasharray="5,5"/>
+      
+      <!-- Event 1 (Left) -->
+      <circle cx="150" cy="100" r="20" fill="#2563eb" stroke="white" stroke-width="3"/>
+      <circle cx="150" cy="100" r="12" fill="white"/>
+      <text x="130" y="105" text-anchor="end" font-size="14" font-weight="bold" fill="#2563eb">2020</text>
+      <text x="170" y="95" font-size="12" fill="#334155">Event Title</text>
+      <text x="170" y="110" font-size="11" fill="#64748b">Description</text>
+      
+      <!-- Event 2 (Right) -->
+      <circle cx="150" cy="200" r="20" fill="#16a34a" stroke="white" stroke-width="3"/>
+      <circle cx="150" cy="200" r="12" fill="white"/>
+      <text x="170" y="205" text-anchor="start" font-size="14" font-weight="bold" fill="#16a34a">2021</text>
+      
+      <!-- More events... alternating left/right -->
+      
+      <!-- Key features:
+           - Vertical dashed line
+           - Circles at each event (colored by category)
+           - Alternating text placement (left/right)
+           - Icons inside circles (optional)
+           - Year labels prominent -->
+    </svg>
+
+  bar_chart: |
+    <!-- Bar Chart (Multi-Crit Style) -->
+    <!-- Used for performance comparison or metrics -->
+    <svg viewBox="0 0 400 300" style="background: white;">
+      <!-- Axes -->
+      <line x1="50" y1="250" x2="350" y2="250" stroke="#cbd5e1" stroke-width="2"/>
+      <line x1="50" y1="50" x2="50" y2="250" stroke="#cbd5e1" stroke-width="2"/>
+      
+      <!-- Grid lines (horizontal) -->
+      <line x1="50" y1="200" x2="350" y2="200" stroke="#e2e8f0" stroke-width="1"/>
+      <line x1="50" y1="150" x2="350" y2="150" stroke="#e2e8f0" stroke-width="1"/>
+      <line x1="50" y1="100" x2="350" y2="100" stroke="#e2e8f0" stroke-width="1"/>
+      
+      <!-- Bar 1 -->
+      <rect x="70" y="120" width="40" height="130" fill="#2563eb" opacity="0.8"/>
+      <text x="90" y="265" text-anchor="middle" font-size="12" fill="#334155">Model A</text>
+      <text x="90" y="110" text-anchor="middle" font-size="11" fill="#2563eb">0.85</text>
+      
+      <!-- Bar 2 -->
+      <rect x="130" y="150" width="40" height="100" fill="#3b82f6" opacity="0.8"/>
+      <text x="150" y="265" text-anchor="middle" font-size="12" fill="#334155">Model B</text>
+      
+      <!-- More bars... -->
+      
+      <!-- Y-axis labels -->
+      <text x="45" y="255" text-anchor="end" font-size="11" fill="#64748b">0</text>
+      <text x="45" y="205" text-anchor="end" font-size="11" fill="#64748b">0.25</text>
+      <text x="45" y="155" text-anchor="end" font-size="11" fill="#64748b">0.5</text>
+      
+      <!-- Key features:
+           - Grouped or stacked bars
+           - Value labels on top
+           - Grid lines for readability
+           - Color-coded categories
+           - Legend if multiple series -->
+    </svg>
+
+  table_chart: |
+    <!-- Performance Table (LlamaDuo Style) -->
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <thead>
+          <tr style="background: #eff6ff; border-bottom: 2px solid #3b82f6;">
+            <th style="padding: 10px; text-align: left; font-weight: 700;">Task</th>
+            <th style="padding: 10px; text-align: center;">Metric 1</th>
+            <th style="padding: 10px; text-align: center;">Metric 2</th>
+            <th style="padding: 10px; text-align: center;">P-Match</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px;">Task Name</td>
+            <td style="padding: 10px; text-align: center;"><strong>0.715</strong></td>
+            <td style="padding: 10px; text-align: center;">0.658</td>
+            <td style="padding: 10px; text-align: center; color: #16a34a; font-weight: 700;">Match</td>
+          </tr>
+          <!-- More rows... -->
+        </tbody>
+      </table>
+    </div>
+    
+    Key features:
+    - Bordered table with alternating row colors
+    - Bold for best values
+    - Color-coded status (green/red)
+    - Compact design
+
+# Design Guidelines
+design_guidelines:
+  general:
+    - "Use consistent color palette throughout poster"
+    - "Maintain clear visual hierarchy with typography"
+    - "Ensure sufficient whitespace between sections"
+    - "Use icons to enhance visual communication"
+    - "Balance text and visual elements"
+    - "Make charts self-explanatory with labels"
+  
+  layout_selection:
+    three_column:
+      when_to_use: "When content is evenly distributed across intro, methods, and results"
+      pros:
+        - "Clear logical flow from left to right"
+        - "Easy to scan and navigate"
+        - "Good for comprehensive content"
+      cons:
+        - "May feel rigid"
+        - "Less suitable for large visualizations"
+    
+    asymmetric:
+      when_to_use: "When one element (e.g., pipeline diagram) dominates"
+      pros:
+        - "Emphasizes key visualization"
+        - "Modern and dynamic feel"
+        - "Flexible content placement"
+      cons:
+        - "Requires careful balance"
+        - "May be harder to scan"
+  
+  color_usage:
+    primary: "Main branding color, used for titles and key elements"
+    secondary: "Supporting text and borders"
+    accent: "Highlights, call-outs, important findings"
+    background: "Poster background, should be light"
+    box_bg: "Section backgrounds, typically white or light tint"
+  
+  typography_best_practices:
+    - "Use 2-3 font sizes maximum for hierarchy"
+    - "Ensure high contrast between text and background"
+    - "Limit line length to 60-80 characters"
+    - "Use bold sparingly for emphasis"
+    - "Maintain consistent spacing (margins, padding)"
+
