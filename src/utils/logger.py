@@ -28,10 +28,6 @@ class Logger:
     
     def _setup_logger(self):
         """로거 설정"""
-        # 로그 디렉토리 생성
-        log_dir = "logs"
-        os.makedirs(log_dir, exist_ok=True)
-        
         # 로거 설정
         self.logger = logging.getLogger('PaperReview')
         self.logger.setLevel(logging.INFO)
@@ -46,21 +42,27 @@ class Logger:
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         
-        # 파일 핸들러
-        file_handler = logging.FileHandler(
-            os.path.join(log_dir, f'paper_review_{datetime.now().strftime("%Y%m%d")}.log'),
-            encoding='utf-8'
-        )
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
+        # 파일 핸들러 (권한 오류 시 무시)
+        try:
+            log_dir = "logs"
+            os.makedirs(log_dir, exist_ok=True)
+            file_handler = logging.FileHandler(
+                os.path.join(log_dir, f'paper_review_{datetime.now().strftime("%Y%m%d")}.log'),
+                encoding='utf-8'
+            )
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        except (OSError, PermissionError) as e:
+            # 파일 핸들러 생성 실패 시 무시 (콘솔만 사용)
+            pass
         
         # 콘솔 핸들러
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.WARNING)
         console_handler.setFormatter(formatter)
         
-        # 핸들러 추가
-        self.logger.addHandler(file_handler)
+        # 콘솔 핸들러 추가
         self.logger.addHandler(console_handler)
         
         # 로그 레벨 설정
@@ -70,9 +72,34 @@ class Logger:
         """로거 인스턴스 반환"""
         return self.logger
 
-# 싱글톤 인스턴스 생성
-logger_instance = Logger()
-logger = logger_instance.get_logger()
+# 싱글톤 인스턴스 생성 (lazy initialization)
+_logger_instance = None
+
+def get_logger_instance():
+    """로거 인스턴스를 lazy하게 가져오기"""
+    global _logger_instance
+    if _logger_instance is None:
+        try:
+            _logger_instance = Logger()
+        except (OSError, PermissionError):
+            # Logger 초기화 실패 시 기본 로거 반환
+            import logging
+            _logger_instance = type('Logger', (), {
+                'logger': logging.getLogger('PaperReview'),
+                'get_logger': lambda self: self.logger
+            })()
+    return _logger_instance
+
+# 모듈 레벨 logger는 함수로 접근 (권한 오류 방지)
+def get_logger():
+    """로거 인스턴스 반환 (안전한 방식)"""
+    try:
+        return get_logger_instance().get_logger()
+    except (OSError, PermissionError):
+        import logging
+        return logging.getLogger('PaperReview')
+
+logger = get_logger()
 
 def log_function_call(level: str = "INFO", log_args: bool = True, log_result: bool = True, 
                      log_exceptions: bool = True) -> Callable:

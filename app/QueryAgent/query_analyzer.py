@@ -11,7 +11,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
-from utils.logger import log_data_processing
+
+# 로거는 lazy import로 처리 (권한 오류 방지)
+def log_data_processing(operation: str = None):
+    """로거 데코레이터 (lazy import)"""
+    try:
+        from utils.logger import log_data_processing as _log_data_processing
+        return _log_data_processing(operation)
+    except (ImportError, OSError, PermissionError):
+        # 로거 사용 불가 시 no-op 데코레이터 반환
+        def noop_decorator(func):
+            return func
+        return noop_decorator
 
 try:
     from openai import OpenAI
@@ -32,21 +43,19 @@ class QueryAnalyzer:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
             model: 사용할 LLM 모델 (기본값: gpt-4o-mini)
         """
-        # SSL 검증 비활성화 (macOS 보안 정책 우회)
-        import ssl
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
+        # SSL 검증은 api_server.py에서 전역으로 처리됨
         
         if not OPENAI_AVAILABLE:
-            raise ImportError("OpenAI package is required. Install with: pip install openai")
+            self.client = None
+            self.api_key = None
+            self.model = model
+            return
         
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         if not self.api_key:
-            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
+            self.client = None
+            self.model = model
+            return
         
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
@@ -76,6 +85,10 @@ class QueryAnalyzer:
                 "confidence": 0.0,
                 "error": "Empty query"
             }
+        
+        # Client가 없으면 fallback 분석 사용
+        if not self.client:
+            return self._fallback_analysis(query)
         
         try:
             # LLM을 사용하여 질의 분석

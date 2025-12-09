@@ -107,7 +107,36 @@ from search_agent import SearchAgent
 from query_analyzer import QueryAnalyzer
 from relevance_filter import RelevanceFilter
 
-load_dotenv()
+# .env 파일 로드 (프로젝트 루트에서)
+env_path = PROJECT_ROOT / '.env'
+
+# .env 파일이 존재하는지 확인
+if env_path.exists():
+    print(f"[ENV] Loading .env file from: {env_path}")
+    
+    # override=True로 기존 환경변수도 덮어쓰기
+    load_dotenv(dotenv_path=env_path, override=True)
+    
+    # .env 파일을 수동으로 파싱하여 OPENAI_API_KEY 찾기
+    try:
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        
+                        # OPENAI 관련 키만 처리
+                        if 'OPENAI' in key.upper() and value:
+                            os.environ[key] = value
+                            print(f"[ENV] Set {key} = {value[:8]}...{value[-4:] if len(value) > 12 else ''}")
+    except Exception as e:
+        print(f"[ENV] Warning: Could not parse .env file: {e}")
+else:
+    print(f"[ENV] Warning: .env file not found at: {env_path}")
+    load_dotenv()  # 기본 경로에서 시도
 
 app = FastAPI(title="Paper Review Agent API")
 
@@ -121,7 +150,14 @@ app.add_middleware(
 )
 
 # Global agent instances
-api_key = os.getenv("OPENAI_API_KEY")
+# OpenAI API 키 로드 (여러 가능한 환경 변수 이름 확인)
+api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API")
+
+if api_key:
+    print(f"[API KEY] Loaded OpenAI API key: {api_key[:8]}...{api_key[-4:]}")
+else:
+    print("[API KEY] Warning: No OpenAI API key found in environment")
+
 search_agent = SearchAgent(openai_api_key=api_key)
 
 # Query analyzer and relevance filter (optional - only if API key available)
@@ -130,9 +166,22 @@ relevance_filter = None
 
 if api_key:
     try:
-        query_analyzer = QueryAnalyzer(api_key=api_key)
-        relevance_filter = RelevanceFilter(api_key=api_key)
-        print("[INFO] Query analyzer and relevance filter initialized")
+        # QueryAnalyzer 초기화 시도
+        try:
+            query_analyzer = QueryAnalyzer(api_key=api_key)
+            print("[INFO] Query analyzer initialized")
+        except Exception as e:
+            print(f"[WARNING] Could not initialize query analyzer: {e}")
+            query_analyzer = None
+        
+        # RelevanceFilter 초기화 시도
+        try:
+            relevance_filter = RelevanceFilter(api_key=api_key)
+            print("[INFO] Relevance filter initialized")
+        except Exception as e:
+            print(f"[WARNING] Could not initialize relevance filter: {e}")
+            relevance_filter = None
+            
     except Exception as e:
         print(f"[WARNING] Could not initialize query analyzer/filter: {e}")
 else:

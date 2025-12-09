@@ -61,8 +61,11 @@ class SearchAgent:
         else:
             self.data_dir = data_dir
         
-        # 디렉토리 생성
-        os.makedirs(self.data_dir, exist_ok=True)
+        # 디렉토리 생성 (권한 오류 시 무시)
+        try:
+            os.makedirs(self.data_dir, exist_ok=True)
+        except (OSError, PermissionError):
+            pass
         
         # 논문 저장 파일 경로
         self.papers_file = os.path.join(self.data_dir, 'papers.json')
@@ -71,8 +74,12 @@ class SearchAgent:
         project_root = os.path.join(os.path.dirname(__file__), '../..')
         self.graph_path = os.path.join(project_root, 'data/graph/paper_graph.pkl')
         self.embeddings_dir = os.path.join(project_root, 'data/embeddings')
-        os.makedirs(os.path.dirname(self.graph_path), exist_ok=True)
-        os.makedirs(self.embeddings_dir, exist_ok=True)
+        
+        try:
+            os.makedirs(os.path.dirname(self.graph_path), exist_ok=True)
+            os.makedirs(self.embeddings_dir, exist_ok=True)
+        except (OSError, PermissionError):
+            pass
         
         # OpenAI API 키 저장 (embedding 생성용)
         self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
