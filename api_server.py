@@ -1773,41 +1773,74 @@ async def generate_poster_visualization(session_id: str):
     PosterGenerationAgent를 사용하여 HTML/SVG 포스터 생성
     """
     try:
-        from app.DeepAgent.agents import PosterGenerationAgent
+        print(f"[Poster API] Starting poster generation for session: {session_id}")
         
-        # 세션 확인
+        # Step 1: Import PosterGenerationAgent
+        try:
+            from app.DeepAgent.agents import PosterGenerationAgent
+            print("[Poster API] ✅ PosterGenerationAgent imported successfully")
+        except Exception as e:
+            print(f"[Poster API] ❌ Failed to import PosterGenerationAgent: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to import PosterGenerationAgent: {str(e)}")
+        
+        # Step 2: 세션 확인
         with review_sessions_lock:
             if session_id not in review_sessions:
+                print(f"[Poster API] ❌ Session not found: {session_id}")
                 raise HTTPException(status_code=404, detail="Session not found")
             
             session = review_sessions[session_id]
+            print(f"[Poster API] ✅ Session found: status={session.get('status')}")
             
             if session["status"] != "completed":
+                print(f"[Poster API] ❌ Review not completed: status={session.get('status')}")
                 raise HTTPException(status_code=400, detail="Review not completed yet")
             
             workspace_path = Path(session["workspace_path"])
+            print(f"[Poster API] ✅ Workspace path: {workspace_path}")
         
-        # 리포트 읽기
+        # Step 3: 리포트 읽기
         reports_dir = workspace_path / "reports"
         md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
         
         if not md_files:
+            print(f"[Poster API] ❌ No report files found in: {reports_dir}")
             raise HTTPException(status_code=404, detail="Report not found")
         
+        print(f"[Poster API] ✅ Found {len(md_files)} report file(s)")
         with open(md_files[0], 'r', encoding='utf-8') as f:
             report_content = f.read()
+        print(f"[Poster API] ✅ Report content loaded: {len(report_content)} chars")
         
-        # PosterGenerationAgent를 사용하여 포스터 생성 (Gemini 3 Pro Preview)
-        poster_agent = PosterGenerationAgent(model="gemini-3-pro-preview")
+        # Step 4: PosterGenerationAgent 초기화
+        try:
+            poster_agent = PosterGenerationAgent(model="gemini-3-pro-image-preview")
+            print("[Poster API] ✅ PosterGenerationAgent initialized with gemini-3-pro-image-preview")
+        except Exception as e:
+            print(f"[Poster API] ❌ Failed to initialize PosterGenerationAgent: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to initialize PosterGenerationAgent: {str(e)}")
+        
+        # Step 5: 포스터 생성
         poster_dir = workspace_path / "posters"
+        num_papers = session.get("num_papers", 0)
+        print(f"[Poster API] Generating poster: num_papers={num_papers}, output_dir={poster_dir}")
         
-        result = poster_agent.generate_poster(
-            report_content=report_content,
-            num_papers=session.get("num_papers", 0),
-            output_dir=poster_dir
-        )
-        
-        print(f"📊 Poster generated via Agent: {result.get('poster_path', 'N/A')}")
+        try:
+            result = poster_agent.generate_poster(
+                report_content=report_content,
+                num_papers=num_papers,
+                output_dir=poster_dir
+            )
+            print(f"[Poster API] ✅ Poster generated: success={result.get('success')}, path={result.get('poster_path', 'N/A')}")
+        except Exception as e:
+            print(f"[Poster API] ❌ Failed to generate poster: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
         
         return {
             "success": result["success"],
@@ -1819,7 +1852,7 @@ async def generate_poster_visualization(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Poster generation error: {e}")
+        print(f"[Poster API] ❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
