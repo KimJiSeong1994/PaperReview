@@ -47,6 +47,16 @@
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+.cite-button {
+  cursor: pointer;
+}
+
+.cite-button.copied {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
 .detail-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);

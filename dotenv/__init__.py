@@ -11,7 +11,44 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
+
+
+def find_dotenv(filename: str = '.env', raise_error_if_not_found: bool = False, usecwd: bool = False) -> str:
+    """
+    Search for .env file in current directory and parent directories.
+    
+    Args:
+        filename: Name of the file to find (default: '.env')
+        raise_error_if_not_found: Raise IOError if file not found
+        usecwd: Start search from current working directory
+        
+    Returns:
+        Path to .env file as string, or empty string if not found
+    """
+    if usecwd:
+        start_path = Path.cwd()
+    else:
+        # Start from current working directory by default
+        start_path = Path.cwd()
+    
+    # Search upwards for the file
+    current = start_path
+    for _ in range(10):  # Limit search depth
+        env_file = current / filename
+        if env_file.exists():
+            return str(env_file)
+        
+        parent = current.parent
+        if parent == current:  # Reached root
+            break
+        current = parent
+    
+    # Not found
+    if raise_error_if_not_found:
+        raise IOError(f"File {filename} not found")
+    
+    return ''
 
 
 def load_dotenv(dotenv_path: Union[str, os.PathLike[str], None] = None, override: bool = False) -> bool:
@@ -55,5 +92,5 @@ def load_dotenv(dotenv_path: Union[str, os.PathLike[str], None] = None, override
     return True
 
 
-__all__ = ["load_dotenv"]
+__all__ = ["load_dotenv", "find_dotenv"]
 

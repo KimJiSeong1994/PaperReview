@@ -141,10 +141,11 @@ else:
 app = FastAPI(title="Paper Review Agent API")
 
 # CORS middleware for React frontend
+# 내부 네트워크 접근 허용: 모든 origin 허용 (개발 환경)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],  # Vite default ports
-    allow_credentials=True,
+    allow_origins=["*"],  # 모든 origin 허용 (내부 네트워크 접근 가능)
+    allow_credentials=False,  # allow_origins=["*"]일 때는 False여야 함
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -259,6 +259,53 @@ function App() {
     });
   };
 
+  const handleDownloadPDFs = async () => {
+    if (selectedPapersForReview.size === 0) {
+      alert('다운로드할 논문을 선택해주세요.');
+      return;
+    }
+
+    const selectedPaperIds = Array.from(selectedPapersForReview);
+    const selectedPapersData = papers.filter(paper => 
+      selectedPaperIds.includes(paper.doc_id || '') ||
+      selectedPaperIds.includes(String(paper.doc_id || ''))
+    );
+
+    // PDF URL이 있는 논문들만 필터링
+    const papersWithPDF = selectedPapersData.filter(paper => paper.pdf_url);
+
+    if (papersWithPDF.length === 0) {
+      alert('선택된 논문 중 다운로드 가능한 PDF가 없습니다.');
+      return;
+    }
+
+    // 각 PDF 다운로드
+    let downloadedCount = 0;
+    for (const paper of papersWithPDF) {
+      try {
+        // PDF URL을 새 탭에서 열어 브라우저가 다운로드 처리하도록 함
+        const link = document.createElement('a');
+        link.href = paper.pdf_url || '';
+        link.target = '_blank';
+        link.download = `${paper.title.substring(0, 50).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        downloadedCount++;
+        
+        // 브라우저가 여러 다운로드를 차단하지 않도록 약간의 딜레이 추가
+        if (downloadedCount < papersWithPDF.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error(`Failed to download PDF for paper: ${paper.title}`, error);
+      }
+    }
+
+    alert(`${downloadedCount}개의 PDF 다운로드를 시작했습니다.`);
+  };
+
   const handleStartDeepReview = async () => {
     if (selectedPapersForReview.size === 0) {
       return;
@@ -496,6 +543,38 @@ function App() {
                           {posterLoading ? 'Generating...' : 'Generate Poster'}
                         </span>
                       </button>
+                      
+                      {/* 구분선 */}
+                      <div style={{ 
+                        height: '1px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        margin: '8px 0' 
+                      }} />
+                      
+                      {/* PDF 다운로드 버튼 */}
+                      <button
+                        className="tools-menu-item"
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          handleDownloadPDFs();
+                        }}
+                        disabled={selectedPapersForReview.size === 0}
+                      >
+                        <svg 
+                          className="menu-item-icon" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span className="menu-item-text">
+                          {selectedPapersForReview.size > 0 ? `Download PDFs (${selectedPapersForReview.size})` : 'Download PDFs'}
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -549,18 +628,208 @@ function App() {
                 <div className="right-panel">
                   <div className="pane-title">
                     Deep Research Report
-                    <button
-                      className="close-report-button"
-                      onClick={() => {
-                        setShowReport(false);
-                        setDetailsCollapsed(false);
-                        setReviewStatus('idle');
-                        setReviewReport(null);
-                      }}
-                      title="Close report"
-                    >
-                      ✕
-                    </button>
+                    <div className="report-title-actions">
+                      {reviewStatus === 'completed' && reviewReport && (
+                        <>
+                          <button
+                            className="cite-report-button"
+                            onClick={() => {
+                              // 선택된 논문들을 APA 형식으로 변환
+                              const selectedPaperIds = Array.from(selectedPapersForReview);
+                              const selectedPapersData = papers.filter(paper =>
+                                selectedPaperIds.includes(paper.doc_id || '') ||
+                                selectedPaperIds.includes(String(paper.doc_id || ''))
+                              );
+
+                              const apaCitations = selectedPapersData.map(paper => {
+                                // 저자 포맷팅 (APA: 성, 이니셜.)
+                                const formatAuthors = (authors: string[]) => {
+                                  if (!authors || authors.length === 0) return 'Unknown Author';
+
+                                  const formatted = authors.slice(0, 20).map((author) => {
+                                    const parts = author.trim().split(' ');
+                                    if (parts.length === 1) return parts[0];
+                                    const lastName = parts[parts.length - 1];
+                                    const initials = parts.slice(0, -1).map(p => p[0]?.toUpperCase() + '.').join(' ');
+                                    return `${lastName}, ${initials}`;
+                                  });
+
+                                  if (authors.length > 20) {
+                                    return formatted.slice(0, 19).join(', ') + ', ... ' + formatted[formatted.length - 1];
+                                  } else if (formatted.length === 1) {
+                                    return formatted[0];
+                                  } else if (formatted.length === 2) {
+                                    return formatted.join(', & ');
+                                  } else {
+                                    return formatted.slice(0, -1).join(', ') + ', & ' + formatted[formatted.length - 1];
+                                  }
+                                };
+
+                                // 연도 추출
+                                const getYear = () => {
+                                  if (paper.year) return String(paper.year);
+                                  if (paper.published_date) {
+                                    const match = String(paper.published_date).match(/(\d{4})/);
+                                    return match ? match[1] : 'n.d.';
+                                  }
+                                  return 'n.d.';
+                                };
+
+                                // 월 추출
+                                const getMonth = () => {
+                                  if (paper.month) return paper.month;
+                                  if (paper.published_date) {
+                                    const date = new Date(paper.published_date);
+                                    if (!isNaN(date.getTime())) {
+                                      return date.toLocaleString('en-US', { month: 'long' });
+                                    }
+                                  }
+                                  return '';
+                                };
+
+                                // 학회/저널 정보 추출
+                                const getVenueInfo = () => {
+                                  if (paper.journal_ref) return paper.journal_ref;
+                                  if (paper.journal) return paper.journal;
+                                  if (paper.comment) {
+                                    const match = paper.comment.match(/(?:accepted at|published in|presented at)\s+(.+?)(?:;|$)/i);
+                                    if (match) return match[1].trim();
+                                    if (/conference|proceedings|workshop|symposium|journal/i.test(paper.comment)) {
+                                      return paper.comment;
+                                    }
+                                  }
+                                  return '';
+                                };
+
+                                const authors = formatAuthors(paper.authors || []);
+                                const year = getYear();
+                                const month = getMonth();
+                                const title = paper.title || 'Untitled';
+                                const venue = getVenueInfo();
+                                const pages = paper.pages || '';
+                                const volume = paper.volume || '';
+                                const issue = paper.issue || '';
+
+                                const isConferencePaper = venue && /proceedings|conference|workshop|symposium/i.test(venue);
+                                const isArxiv = paper.source === 'arXiv' || paper.arxiv_id;
+
+                                let citation = '';
+
+                                if (isConferencePaper) {
+                                  const yearPart = month ? `${year}, ${month}` : year;
+                                  const pagesPart = pages ? ` (pp. ${pages})` : '';
+                                  citation = `${authors} (${yearPart}). ${title}. In ${venue}${pagesPart}.`;
+                                } else if (isArxiv) {
+                                  const arxivId = paper.arxiv_id || paper.url?.match(/abs\/(.+)/)?.[1] || '';
+                                  citation = `${authors} (${year}). ${title}. arXiv preprint arXiv:${arxivId}.`;
+                                } else if (venue) {
+                                  let venuePart = venue;
+                                  if (volume) {
+                                    venuePart += `, ${volume}`;
+                                    if (issue) venuePart += `(${issue})`;
+                                  }
+                                  if (pages) venuePart += `, ${pages}`;
+                                  citation = `${authors} (${year}). ${title}. ${venuePart}.`;
+                                } else {
+                                  citation = `${authors} (${year}). ${title}.`;
+                                }
+
+                                if (paper.doi) {
+                                  citation += ` https://doi.org/${paper.doi}`;
+                                } else if (paper.url) {
+                                  citation += ` ${paper.url}`;
+                                }
+
+                                return citation;
+                              }).join('\n\n');
+
+                              // Clipboard API fallback for HTTP environments
+                              const copyToClipboard = (text: string) => {
+                                if (navigator.clipboard && window.isSecureContext) {
+                                  return navigator.clipboard.writeText(text);
+                                } else {
+                                  const textArea = document.createElement('textarea');
+                                  textArea.value = text;
+                                  textArea.style.position = 'fixed';
+                                  textArea.style.left = '-999999px';
+                                  textArea.style.top = '-999999px';
+                                  document.body.appendChild(textArea);
+                                  textArea.focus();
+                                  textArea.select();
+                                  return new Promise<void>((resolve, reject) => {
+                                    document.execCommand('copy') ? resolve() : reject();
+                                    textArea.remove();
+                                  });
+                                }
+                              };
+
+                              copyToClipboard(apaCitations).then(() => {
+                                const btn = document.querySelector('.cite-report-button') as HTMLButtonElement;
+                                if (btn) {
+                                  btn.classList.add('copied');
+                                  setTimeout(() => btn.classList.remove('copied'), 1500);
+                                }
+                              });
+                            }}
+                            title="Copy APA Citations"
+                          >
+                            <svg
+                              className="cite-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7"></path>
+                              <path d="M6 15H4.5a2.5 2.5 0 0 0 0 5C7 20 7 17 7 17"></path>
+                              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7"></path>
+                              <path d="M18 15h1.5a2.5 2.5 0 0 1 0 5C17 20 17 17 17 17"></path>
+                              <line x1="7" y1="7" x2="7" y2="17"></line>
+                              <line x1="17" y1="7" x2="17" y2="17"></line>
+                            </svg>
+                          </button>
+                          <button
+                            className="download-report-button"
+                            onClick={() => {
+                              const blob = new Blob([reviewReport], { type: 'text/markdown' });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `deep_research_${new Date().toISOString().split('T')[0]}.md`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            }}
+                            title="Download as Markdown"
+                          >
+                            <svg
+                              className="download-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="7 10 12 15 17 10"></polyline>
+                              <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        className="close-report-button"
+                        onClick={() => {
+                          setShowReport(false);
+                          setDetailsCollapsed(false);
+                          setReviewStatus('idle');
+                          setReviewReport(null);
+                        }}
+                        title="Close report"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                   <div className="report-content">
                     {reviewStatus === 'processing' && (

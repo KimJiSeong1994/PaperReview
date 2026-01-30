@@ -24,6 +24,7 @@ ipykernel>=6.25.0
 
 # Web Scraping
 selenium>=4.15.0
+webdriver-manager>=4.0.0
 
 # File Processing
 openpyxl>=3.1.2

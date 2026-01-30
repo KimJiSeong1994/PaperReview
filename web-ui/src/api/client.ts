@@ -1,7 +1,19 @@
 import axios from 'axios';
 import type { SearchRequest, SearchResponse, GraphData } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000';
+// 현재 호스트를 기반으로 API URL을 동적으로 설정 (내부 네트워크 접근 지원)
+const getApiBaseUrl = () => {
+  // 프로덕션 환경에서는 환경 변수 사용
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 개발 환경에서는 현재 호스트의 8000 포트 사용
+  const hostname = window.location.hostname;
+  return `http://${hostname}:8000`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

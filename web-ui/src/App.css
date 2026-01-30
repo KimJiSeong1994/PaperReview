@@ -254,6 +254,8 @@ body {
   background: transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   font-family: 'Roboto', sans-serif;
+  display: flex;
+  align-items: center;
 }
 
 .empty-state {
@@ -397,8 +399,67 @@ body {
 }
 
 /* Report Panel */
-.close-report-button {
+.report-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
+}
+
+.cite-report-button,
+.download-report-button {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cite-report-button:hover,
+.download-report-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ececec;
+}
+
+.cite-report-button.copied {
+  color: #22c55e;
+}
+
+.cite-report-button.copied::after {
+  content: 'Copied!';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #22c55e;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  animation: fadeInOut 1.5s ease;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
+
+.cite-icon,
+.download-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.close-report-button {
   background: transparent;
   border: none;
   color: #9ca3af;
