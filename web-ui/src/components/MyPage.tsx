@@ -5,12 +5,9 @@ import './MyPage.css';
 import {
   getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
   bulkDeleteBookmarks, bulkMoveBookmarks,
-  chatWithBookmarks, queryLightRAG, buildLightRAG, getLightRAGStatus,
+  chatWithBookmarks, buildLightRAG, getLightRAGStatus,
 } from '../api/client';
 import type { ChatMessage, ChatSource } from '../api/client';
-import type { LightRAGQueryResponse } from '../types';
-
-type LightRAGMode = 'hybrid' | 'local' | 'global' | 'naive' | 'mix';
 
 const CHAT_STORAGE_KEY = 'mypage_chat_history';
 
@@ -138,20 +135,12 @@ function MyPage({ onBack }: MyPageProps) {
       .map(bm => bm.id);
   }, [bookmarks, chatTopicFilter]);
 
-  // LightRAG state
-  const [kgReady, setKgReady] = useState(false);
+  // LightRAG state (for header Build KG button)
   const [kgBuilding, setKgBuilding] = useState(false);
-  const [lightragQuery, setLightragQuery] = useState('');
-  const [lightragMode, setLightragMode] = useState<LightRAGMode>('hybrid');
-  const [lightragLoading, setLightragLoading] = useState(false);
-  const [lightragAnswer, setLightragAnswer] = useState<LightRAGQueryResponse | null>(null);
 
-  // Load bookmarks + check KG status on mount
+  // Load bookmarks on mount
   useEffect(() => {
     loadBookmarks();
-    getLightRAGStatus()
-      .then((res) => setKgReady(res.status === 'ready'))
-      .catch(() => setKgReady(false));
   }, []);
 
   // Auto-scroll chat to bottom
@@ -378,7 +367,6 @@ function MyPage({ onBack }: MyPageProps) {
         try {
           const status = await getLightRAGStatus();
           if (status.status === 'ready' && status.stats && status.stats.kg_nodes > 0) {
-            setKgReady(true);
             setKgBuilding(false);
             clearInterval(pollId);
           }
@@ -388,26 +376,6 @@ function MyPage({ onBack }: MyPageProps) {
     } catch (error: any) {
       alert(`KG build failed: ${error.message || error}`);
       setKgBuilding(false);
-    }
-  };
-
-  const handleLightragSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lightragQuery.trim() || lightragLoading) return;
-    setLightragLoading(true);
-    setLightragAnswer(null);
-    try {
-      const result = await queryLightRAG({
-        query: lightragQuery.trim(),
-        mode: lightragMode,
-        top_k: 10,
-        temperature: 0.7,
-      });
-      setLightragAnswer(result);
-    } catch (error: any) {
-      alert(`LightRAG query failed: ${error.message || error}`);
-    } finally {
-      setLightragLoading(false);
     }
   };
 
@@ -457,12 +425,12 @@ function MyPage({ onBack }: MyPageProps) {
           </div>
           <div className="mypage-header-actions">
             <button className="mypage-nav-btn" onClick={handleBuildKG} disabled={kgBuilding}
-              title={kgReady ? 'Rebuild Knowledge Graph' : 'Build Knowledge Graph'}>
+              title="Build Knowledge Graph">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
                 <circle cx="12" cy="5" r="3" /><circle cx="5" cy="19" r="3" /><circle cx="19" cy="19" r="3" />
                 <line x1="12" y1="8" x2="5" y2="16" /><line x1="12" y1="8" x2="19" y2="16" />
               </svg>
-              {kgBuilding ? 'Building...' : kgReady ? 'Rebuild KG' : 'Build KG'}
+              {kgBuilding ? 'Building...' : 'Build KG'}
             </button>
             <button className="mypage-nav-btn mypage-nav-btn-active">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
@@ -680,54 +648,6 @@ function MyPage({ onBack }: MyPageProps) {
                 </div>
               )}
 
-              {/* LightRAG Search */}
-              <div className="mypage-report-section">
-                <h3 className="mypage-report-section-title">
-                  LightRAG Search
-                  {kgReady && <span className="mypage-kg-badge">KG Ready</span>}
-                </h3>
-                <form className="mypage-lightrag-form" onSubmit={handleLightragSearch}>
-                  <div className="mypage-lightrag-input-row">
-                    <input type="text" className="mypage-lightrag-input" value={lightragQuery}
-                      onChange={(e) => setLightragQuery(e.target.value)}
-                      placeholder={kgReady ? 'Ask the knowledge graph...' : 'Build KG first...'}
-                      disabled={!kgReady || lightragLoading} />
-                    <select className="mypage-lightrag-mode" value={lightragMode}
-                      onChange={(e) => setLightragMode(e.target.value as LightRAGMode)} disabled={!kgReady}>
-                      <option value="hybrid">Hybrid</option><option value="local">Local</option>
-                      <option value="global">Global</option><option value="mix">Mix</option>
-                      <option value="naive">Naive</option>
-                    </select>
-                    <button type="submit" className="mypage-lightrag-submit"
-                      disabled={!kgReady || lightragLoading || !lightragQuery.trim()}>
-                      {lightragLoading ? '...' : 'Go'}
-                    </button>
-                  </div>
-                </form>
-                {lightragAnswer && (
-                  <div className="mypage-lightrag-result">
-                    <div className="mypage-lightrag-result-header">
-                      <span className="mypage-lightrag-badge">{lightragAnswer.mode}</span>
-                      <span className="mypage-lightrag-stats">
-                        {lightragAnswer.statistics.entities_found} entities &middot; {lightragAnswer.statistics.papers_found} papers
-                      </span>
-                    </div>
-                    {lightragAnswer.keywords && (
-                      <div className="mypage-lightrag-keywords">
-                        {lightragAnswer.keywords.low_level.map((k, i) => (
-                          <span key={`l-${i}`} className="mypage-kw-chip mypage-kw-low">{k}</span>
-                        ))}
-                        {lightragAnswer.keywords.high_level.map((k, i) => (
-                          <span key={`h-${i}`} className="mypage-kw-chip mypage-kw-high">{k}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="mypage-lightrag-answer">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{lightragAnswer.answer}</ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           ) : null}
         </div>

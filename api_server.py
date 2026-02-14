@@ -2262,17 +2262,66 @@ async def chat_with_bookmarks(request: ChatRequest):
             })
         context_text = "\n---\n".join(context_parts)
 
+    # LightRAG: automatically query knowledge graph for additional context
+    lightrag_context = ""
+    user_query = ""
+    for m in reversed(request.messages):
+        if m.get("role") == "user":
+            user_query = m.get("content", "")
+            break
+
+    if user_query:
+        try:
+            agent = _get_light_rag_agent()
+            stats = agent.get_kg_stats()
+            if stats and stats.get("kg_nodes", 0) > 0:
+                kg_result = agent.light_query(
+                    query=user_query,
+                    mode="hybrid",
+                    top_k=10,
+                    temperature=0.5,
+                )
+                kg_answer = kg_result.get("answer", "")
+                kg_entities = kg_result.get("retrieval", {}).get("entities", [])
+                kg_relationships = kg_result.get("retrieval", {}).get("relationships", [])
+
+                kg_parts = []
+                if kg_entities:
+                    entity_strs = [f"- {e.get('name', '')} ({e.get('type', '')}): {e.get('description', '')}" for e in kg_entities[:8]]
+                    kg_parts.append("Key Entities:\n" + "\n".join(entity_strs))
+                if kg_relationships:
+                    rel_strs = [f"- {r.get('source', '')} → {r.get('target', '')}: {r.get('description', '')}" for r in kg_relationships[:8]]
+                    kg_parts.append("Relationships:\n" + "\n".join(rel_strs))
+                if kg_answer:
+                    kg_parts.append(f"Knowledge Graph Analysis:\n{kg_answer[:3000]}")
+
+                if kg_parts:
+                    lightrag_context = "\n\n".join(kg_parts)
+        except Exception as e:
+            print(f"[Chat] LightRAG query skipped: {e}")
+
+    # Build system message with both bookmark and KG context
+    system_parts = [
+        "You are a research assistant helping users understand their bookmarked academic papers. "
+        "You have access to the following bookmarked research reports and paper information. "
+        "Each bookmark is numbered [1], [2], etc. When referencing information from the bookmarks, "
+        "cite them using numbered references like [1], [2], etc. "
+        "Answer questions based on this context. If the user asks about something not covered "
+        "in the bookmarks, say so clearly. Respond in the same language the user uses.",
+        f"\n\n=== BOOKMARKED PAPERS CONTEXT ===\n{context_text}\n=== END CONTEXT ===",
+    ]
+
+    if lightrag_context:
+        system_parts.append(
+            f"\n\n=== KNOWLEDGE GRAPH CONTEXT ===\n"
+            f"The following additional information was retrieved from the knowledge graph built from your papers. "
+            f"Use this to provide deeper, more connected insights.\n\n"
+            f"{lightrag_context}\n=== END KNOWLEDGE GRAPH CONTEXT ==="
+        )
+
     system_message = {
         "role": "system",
-        "content": (
-            "You are a research assistant helping users understand their bookmarked academic papers. "
-            "You have access to the following bookmarked research reports and paper information. "
-            "Each bookmark is numbered [1], [2], etc. When referencing information from the bookmarks, "
-            "cite them using numbered references like [1], [2], etc. "
-            "Answer questions based on this context. If the user asks about something not covered "
-            "in the bookmarks, say so clearly. Respond in the same language the user uses.\n\n"
-            f"=== BOOKMARKED PAPERS CONTEXT ===\n{context_text}\n=== END CONTEXT ==="
-        ),
+        "content": "".join(system_parts),
     }
 
     openai_messages = [system_message] + [
