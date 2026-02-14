@@ -155,16 +155,36 @@ export const updateBookmarkTopic = async (bookmarkId: string, topic: string) => 
   return response.data;
 };
 
+// Bulk bookmark operations
+export const bulkDeleteBookmarks = async (bookmarkIds: string[]) => {
+  const response = await api.post('/api/bookmarks/bulk-delete', { bookmark_ids: bookmarkIds });
+  return response.data;
+};
+
+export const bulkMoveBookmarks = async (bookmarkIds: string[], topic: string) => {
+  const response = await api.post('/api/bookmarks/bulk-move', { bookmark_ids: bookmarkIds, topic });
+  return response.data;
+};
+
 // Chat API (SSE streaming)
+export interface ChatSource {
+  ref: number;
+  id: string;
+  title: string;
+  num_papers: number;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  sources?: ChatSource[];
 }
 
 export const chatWithBookmarks = async (
   messages: ChatMessage[],
   bookmarkIds: string[],
   onChunk: (content: string) => void,
+  onSources: (sources: ChatSource[]) => void,
   onDone: () => void,
   onError: (error: string) => void,
 ): Promise<void> => {
@@ -202,6 +222,8 @@ export const chatWithBookmarks = async (
           const data = JSON.parse(line.slice(6));
           if (data.content) {
             onChunk(data.content);
+          } else if (data.sources) {
+            onSources(data.sources);
           } else if (data.done) {
             onDone();
             return;

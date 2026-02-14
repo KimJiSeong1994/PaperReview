@@ -2,8 +2,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './MyPage.css';
-import { getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic, chatWithBookmarks, queryLightRAG, buildLightRAG, getLightRAGStatus } from '../api/client';
-import type { ChatMessage } from '../api/client';
+import {
+  getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
+  bulkDeleteBookmarks, bulkMoveBookmarks,
+  chatWithBookmarks, queryLightRAG, buildLightRAG, getLightRAGStatus,
+} from '../api/client';
+import type { ChatMessage, ChatSource } from '../api/client';
 import type { LightRAGQueryResponse } from '../types';
 
 type LightRAGMode = 'hybrid' | 'local' | 'global' | 'naive' | 'mix';
@@ -33,6 +37,9 @@ function MyPage({ onBack }: MyPageProps) {
   const [loadingBookmarks, setLoadingBookmarks] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // M-6: Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // QW-4: Search/filter
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -49,6 +56,7 @@ function MyPage({ onBack }: MyPageProps) {
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [pendingSources, setPendingSources] = useState<ChatSource[] | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // QW-5: persist chat history
@@ -56,12 +64,8 @@ function MyPage({ onBack }: MyPageProps) {
     try { sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch { /* ignore */ }
   }, [messages]);
 
-  // Accordion state
-  const [accordionOpen, setAccordionOpen] = useState<Record<string, boolean>>({
-    detail: true,
-    report: false,
-    lightrag: false,
-  });
+  // Accordion state — for topic groups only
+  const [topicAccordionOpen, setTopicAccordionOpen] = useState<Record<string, boolean>>({});
 
   // Topic management
   const [newTopicInput, setNewTopicInput] = useState('');
@@ -69,8 +73,8 @@ function MyPage({ onBack }: MyPageProps) {
   const [showNewTopicInput, setShowNewTopicInput] = useState(false);
   const [movingBookmarkId, setMovingBookmarkId] = useState<string | null>(null);
 
-  const toggleAccordion = (key: string) => {
-    setAccordionOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleTopicAccordion = (topic: string) => {
+    setTopicAccordionOpen(prev => ({ ...prev, [topic]: !prev[topic] }));
   };
 
   // QW-4: Filter bookmarks by search query
@@ -115,11 +119,11 @@ function MyPage({ onBack }: MyPageProps) {
 
   // Initialize accordion open state for new topics
   useEffect(() => {
-    setAccordionOpen(prev => {
+    setTopicAccordionOpen(prev => {
       const next = { ...prev };
       allTopics.forEach(topic => {
-        if (!((`topic:${topic}`) in next)) {
-          next[`topic:${topic}`] = true;
+        if (!(topic in next)) {
+          next[topic] = true;
         }
       });
       return next;
@@ -169,7 +173,6 @@ function MyPage({ onBack }: MyPageProps) {
 
   const handleSelectBookmark = async (bookmark: Bookmark) => {
     setSelectedBookmark(bookmark);
-    setAccordionOpen(prev => ({ ...prev, detail: true }));
     setLoadingDetail(true);
     try {
       const detail = await getBookmarkDetail(bookmark.id);
@@ -191,6 +194,7 @@ function MyPage({ onBack }: MyPageProps) {
         setSelectedBookmark(null);
         setBookmarkDetail(null);
       }
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(bookmarkId); return next; });
     } catch (error: any) {
       console.error('Failed to delete bookmark:', error);
     }
@@ -212,7 +216,7 @@ function MyPage({ onBack }: MyPageProps) {
   const handleAddTopic = () => {
     const trimmed = newTopicInput.trim();
     if (!trimmed) return;
-    setAccordionOpen(prev => ({ ...prev, [`topic:${trimmed}`]: true }));
+    setTopicAccordionOpen(prev => ({ ...prev, [trimmed]: true }));
     if (movingBookmarkId) {
       handleMoveBookmark(movingBookmarkId, trimmed);
     }
@@ -226,21 +230,55 @@ function MyPage({ onBack }: MyPageProps) {
     handleMoveBookmark(movingBookmarkId, trimmed);
   };
 
-  // QW-7: Suggested prompts
-  const suggestedPrompts = useMemo(() => {
-    const prompts: string[] = [];
-    if (allTopics.length > 0) {
-      prompts.push(`Summarize the key findings across all my bookmarked papers.`);
+  // M-6: Bulk selection handlers
+  const handleToggleSelection = (bookmarkId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(bookmarkId)) next.delete(bookmarkId);
+      else next.add(bookmarkId);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(filteredBookmarks.map(bm => bm.id)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (!confirm(`선택한 ${count}개의 북마크를 삭제하시겠습니까?`)) return;
+    try {
+      await bulkDeleteBookmarks(Array.from(selectedIds));
+      setBookmarks(prev => prev.filter(bm => !selectedIds.has(bm.id)));
+      if (selectedBookmark && selectedIds.has(selectedBookmark.id)) {
+        setSelectedBookmark(null);
+        setBookmarkDetail(null);
+      }
+      setSelectedIds(new Set());
+    } catch (error: any) {
+      console.error('Failed to bulk delete:', error);
     }
-    if (allTopics.length > 1) {
-      prompts.push(`Compare the methodologies across my "${allTopics[0]}" and "${allTopics[1]}" topics.`);
+  };
+
+  const handleBulkMove = async (topic: string) => {
+    try {
+      await bulkMoveBookmarks(Array.from(selectedIds), topic);
+      setBookmarks(prev => prev.map(bm =>
+        selectedIds.has(bm.id) ? { ...bm, topic } : bm
+      ));
+      setSelectedIds(new Set());
+    } catch (error: any) {
+      console.error('Failed to bulk move:', error);
     }
-    if (bookmarks.length > 0) {
-      prompts.push(`What are the main research gaps identified in my papers?`);
-      prompts.push(`Create a timeline of developments based on my bookmarked papers.`);
-    }
-    return prompts.slice(0, 4);
-  }, [allTopics, bookmarks]);
+  };
+
+  // U-4: Use ref to capture sources in streaming closure
+  const pendingSourcesRef = useRef<ChatSource[] | null>(null);
 
   const handleSendMessage = useCallback(async (overrideContent?: string) => {
     const trimmed = (overrideContent || inputValue).trim();
@@ -252,6 +290,8 @@ function MyPage({ onBack }: MyPageProps) {
     setInputValue('');
     setIsStreaming(true);
     setStreamingContent('');
+    setPendingSources(null);
+    pendingSourcesRef.current = null;
 
     let accumulated = '';
 
@@ -262,14 +302,26 @@ function MyPage({ onBack }: MyPageProps) {
         accumulated += chunk;
         setStreamingContent(accumulated);
       },
+      (sources) => {
+        pendingSourcesRef.current = sources;
+        setPendingSources(sources);
+      },
       () => {
-        setMessages(prev => [...prev, { role: 'assistant', content: accumulated }]);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: accumulated,
+          sources: pendingSourcesRef.current || undefined,
+        }]);
         setStreamingContent('');
+        setPendingSources(null);
+        pendingSourcesRef.current = null;
         setIsStreaming(false);
       },
       (error) => {
         setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${error}` }]);
         setStreamingContent('');
+        setPendingSources(null);
+        pendingSourcesRef.current = null;
         setIsStreaming(false);
       },
     );
@@ -282,17 +334,13 @@ function MyPage({ onBack }: MyPageProps) {
     }
   };
 
-  // QW-8: Export bookmark as BibTeX
+  // QW-8: Export BibTeX
   const handleExportBibTeX = () => {
     if (!bookmarkDetail?.papers) return;
     const bibtex = bookmarkDetail.papers.map((p: any, i: number) => {
       const key = (p.title || 'paper').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) + (p.year || i);
       const authors = (p.authors || []).join(' and ');
-      return `@article{${key},
-  title={${p.title || 'Untitled'}},
-  author={${authors || 'Unknown'}},
-  year={${p.year || 'n.d.'}}
-}`;
+      return `@article{${key},\n  title={${p.title || 'Untitled'}},\n  author={${authors || 'Unknown'}},\n  year={${p.year || 'n.d.'}}\n}`;
     }).join('\n\n');
     const blob = new Blob([bibtex], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -325,7 +373,7 @@ function MyPage({ onBack }: MyPageProps) {
     setKgBuilding(true);
     try {
       await buildLightRAG(4, 'gpt-4o-mini');
-      alert('Knowledge Graph build started in background. This may take a few minutes.');
+      alert('Knowledge Graph build started in background.');
       const pollId = setInterval(async () => {
         try {
           const status = await getLightRAGStatus();
@@ -363,40 +411,62 @@ function MyPage({ onBack }: MyPageProps) {
     }
   };
 
+  // U-4: Render citation badges inline
+  const renderCitationText = (text: string, sources?: ChatSource[]) => {
+    if (!sources || sources.length === 0) return <>{text}</>;
+    const parts: (string | JSX.Element)[] = [];
+    let lastIndex = 0;
+    const regex = /\[(\d+)\]/g;
+    let match;
+    let key = 0;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) parts.push(text.substring(lastIndex, match.index));
+      const refNum = parseInt(match[1]);
+      const source = sources.find(s => s.ref === refNum);
+      if (source) {
+        parts.push(
+          <span
+            key={`c-${key++}`}
+            className="mypage-citation-badge"
+            onClick={(e) => {
+              e.stopPropagation();
+              const bm = bookmarks.find(b => b.id === source.id);
+              if (bm) handleSelectBookmark(bm);
+            }}
+            title={source.title}
+          >[{refNum}]</span>
+        );
+      } else {
+        parts.push(match[0]);
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) parts.push(text.substring(lastIndex));
+    return <>{parts}</>;
+  };
+
   return (
     <div className="mypage">
       {/* Header */}
       <div className="mypage-app-header">
         <div className="mypage-header-nav">
           <div className="mypage-logo" onClick={onBack} style={{ cursor: 'pointer' }}>
-            <img
-              src="/Jipyheonjeon_llama.png"
-              alt="Jipyheonjeon"
-              className="mypage-logo-icon"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+            <img src="/Jipyheonjeon_llama.png" alt="Jipyheonjeon" className="mypage-logo-icon"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <span className="mypage-brand-name">Jipyheonjeon</span>
           </div>
           <div className="mypage-header-actions">
-            <button
-              className="mypage-nav-btn"
-              onClick={handleBuildKG}
-              disabled={kgBuilding}
-              title={kgReady ? 'Rebuild Knowledge Graph' : 'Build Knowledge Graph'}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <circle cx="12" cy="5" r="3"></circle>
-                <circle cx="5" cy="19" r="3"></circle>
-                <circle cx="19" cy="19" r="3"></circle>
-                <line x1="12" y1="8" x2="5" y2="16"></line>
-                <line x1="12" y1="8" x2="19" y2="16"></line>
+            <button className="mypage-nav-btn" onClick={handleBuildKG} disabled={kgBuilding}
+              title={kgReady ? 'Rebuild Knowledge Graph' : 'Build Knowledge Graph'}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
+                <circle cx="12" cy="5" r="3" /><circle cx="5" cy="19" r="3" /><circle cx="19" cy="19" r="3" />
+                <line x1="12" y1="8" x2="5" y2="16" /><line x1="12" y1="8" x2="19" y2="16" />
               </svg>
               {kgBuilding ? 'Building...' : kgReady ? 'Rebuild KG' : 'Build KG'}
             </button>
             <button className="mypage-nav-btn mypage-nav-btn-active">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
               </svg>
               My Page
             </button>
@@ -404,90 +474,104 @@ function MyPage({ onBack }: MyPageProps) {
         </div>
       </div>
 
+      {/* 3-panel layout */}
       <div className="mypage-content">
-        {/* Left panel */}
+        {/* ===== Panel 1: Bookmarks ===== */}
         <div className="mypage-bookmarks-panel">
-          {/* QW-4: Search bar */}
+          {/* Search bar */}
           <div className="mypage-search-bar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mypage-search-icon">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <input
-              type="text"
-              className="mypage-search-input"
-              placeholder="Search bookmarks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <input type="text" className="mypage-search-input" placeholder="Search bookmarks..."
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             {searchQuery && (
               <button className="mypage-search-clear" onClick={() => setSearchQuery('')}>✕</button>
             )}
           </div>
 
-          {loadingBookmarks ? (
-            <div className="mypage-loading">Loading...</div>
-          ) : bookmarks.length === 0 ? (
-            <div className="mypage-empty">No bookmarks saved yet</div>
-          ) : filteredBookmarks.length === 0 ? (
-            <div className="mypage-empty">No bookmarks match "{searchQuery}"</div>
-          ) : (
-            <>
-              {Object.entries(topicGroups).map(([topic, topicBookmarks]) => (
+          {/* M-6: Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="mypage-bulk-bar">
+              <div className="mypage-bulk-info">
+                <span className="mypage-bulk-count">{selectedIds.size} selected</span>
+                <button className="mypage-bulk-text-btn" onClick={handleSelectAll}>All</button>
+                <button className="mypage-bulk-text-btn" onClick={handleDeselectAll}>None</button>
+              </div>
+              <div className="mypage-bulk-actions">
+                <select className="mypage-bulk-move-select" defaultValue=""
+                  onChange={(e) => { if (e.target.value) { handleBulkMove(e.target.value); e.target.value = ''; } }}>
+                  <option value="" disabled>Move to...</option>
+                  {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <button className="mypage-bulk-delete-btn" onClick={handleBulkDelete}>Delete</button>
+              </div>
+            </div>
+          )}
+
+          {/* Bookmark list */}
+          <div className="mypage-bookmarks-scroll">
+            {loadingBookmarks ? (
+              <div className="mypage-loading">Loading...</div>
+            ) : bookmarks.length === 0 ? (
+              <div className="mypage-empty">No bookmarks saved yet</div>
+            ) : filteredBookmarks.length === 0 ? (
+              <div className="mypage-empty">No bookmarks match "{searchQuery}"</div>
+            ) : (
+              Object.entries(topicGroups).map(([topic, topicBookmarks]) => (
                 <div key={topic} className="mypage-accordion">
                   <div
-                    className={`mypage-accordion-header ${accordionOpen[`topic:${topic}`] ? 'open' : ''}`}
-                    onClick={() => toggleAccordion(`topic:${topic}`)}
+                    className={`mypage-accordion-header ${topicAccordionOpen[topic] ? 'open' : ''}`}
+                    onClick={() => toggleTopicAccordion(topic)}
                   >
                     <svg className="mypage-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <polyline points="9 18 15 12 9 6"></polyline>
+                      <polyline points="9 18 15 12 9 6" />
                     </svg>
                     <span className="mypage-accordion-topic-name">{topic}</span>
                     <span className="mypage-accordion-count">{topicBookmarks.length}</span>
                   </div>
-                  {accordionOpen[`topic:${topic}`] && (
+                  {topicAccordionOpen[topic] && (
                     <div className="mypage-accordion-body">
                       <div className="mypage-bookmarks-list">
                         {topicBookmarks.map((bm) => (
                           <div
                             key={bm.id}
-                            className={`mypage-bookmark-item ${selectedBookmark?.id === bm.id ? 'active' : ''}`}
+                            className={`mypage-bookmark-item ${selectedBookmark?.id === bm.id ? 'active' : ''} ${selectedIds.has(bm.id) ? 'checked' : ''}`}
                             onClick={() => handleSelectBookmark(bm)}
                           >
-                            <div className="mypage-bookmark-title">{bm.title}</div>
-                            <div className="mypage-bookmark-meta">
-                              <span>{new Date(bm.created_at).toLocaleDateString()}</span>
-                              <span>{bm.num_papers} papers</span>
-                            </div>
-                            {/* QW-6: Display tags */}
-                            {bm.tags && bm.tags.length > 0 && (
-                              <div className="mypage-bookmark-tags">
-                                {bm.tags.map((tag, ti) => (
-                                  <span key={ti} className="mypage-tag-chip" onClick={(e) => { e.stopPropagation(); setSearchQuery(tag); }}>{tag}</span>
-                                ))}
+                            {/* M-6: Checkbox */}
+                            <input
+                              type="checkbox"
+                              className="mypage-bookmark-checkbox"
+                              checked={selectedIds.has(bm.id)}
+                              onClick={(e) => handleToggleSelection(bm.id, e as any)}
+                              onChange={() => {}}
+                            />
+                            <div className="mypage-bookmark-info">
+                              <div className="mypage-bookmark-title">{bm.title}</div>
+                              <div className="mypage-bookmark-meta">
+                                <span>{new Date(bm.created_at).toLocaleDateString()}</span>
+                                <span>{bm.num_papers} papers</span>
                               </div>
-                            )}
+                              {bm.tags && bm.tags.length > 0 && (
+                                <div className="mypage-bookmark-tags">
+                                  {bm.tags.map((tag, ti) => (
+                                    <span key={ti} className="mypage-tag-chip" onClick={(e) => { e.stopPropagation(); setSearchQuery(tag); }}>{tag}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                             <div className="mypage-bookmark-actions">
-                              <button
-                                className="mypage-bookmark-move"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setMovingBookmarkId(movingBookmarkId === bm.id ? null : bm.id);
-                                  setMoveTopicInput('');
-                                }}
-                                title="Move to topic"
-                              >
+                              <button className="mypage-bookmark-move"
+                                onClick={(e) => { e.stopPropagation(); setMovingBookmarkId(movingBookmarkId === bm.id ? null : bm.id); setMoveTopicInput(''); }}
+                                title="Move to topic">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                                 </svg>
                               </button>
-                              <button
-                                className="mypage-bookmark-delete"
+                              <button className="mypage-bookmark-delete"
                                 onClick={(e) => { e.stopPropagation(); handleDeleteBookmark(bm.id); }}
-                                title="Delete"
-                              >
-                                ✕
-                              </button>
+                                title="Delete">✕</button>
                             </div>
                             {movingBookmarkId === bm.id && (
                               <div className="mypage-move-dropdown" onClick={(e) => e.stopPropagation()}>
@@ -497,14 +581,10 @@ function MyPage({ onBack }: MyPageProps) {
                                 ))}
                                 <div className="mypage-move-dropdown-divider" />
                                 <div className="mypage-move-new-topic">
-                                  <input
-                                    type="text"
-                                    placeholder="New topic..."
-                                    value={moveTopicInput}
+                                  <input type="text" placeholder="New topic..." value={moveTopicInput}
                                     onChange={(e) => setMoveTopicInput(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddMoveTopicInline(); }}
-                                    className="mypage-move-new-input"
-                                  />
+                                    className="mypage-move-new-input" />
                                   <button className="mypage-move-new-btn" onClick={handleAddMoveTopicInline} disabled={!moveTopicInput.trim()}>+</button>
                                 </div>
                               </div>
@@ -515,95 +595,83 @@ function MyPage({ onBack }: MyPageProps) {
                     </div>
                   )}
                 </div>
-              ))}
-            </>
-          )}
+              ))
+            )}
 
-          {!loadingBookmarks && bookmarks.length > 0 && (
-            <div className="mypage-add-topic-section">
-              {showNewTopicInput ? (
-                <div className="mypage-add-topic-form">
-                  <input
-                    type="text"
-                    placeholder="Topic name..."
-                    value={newTopicInput}
-                    onChange={(e) => setNewTopicInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAddTopic();
-                      if (e.key === 'Escape') { setShowNewTopicInput(false); setNewTopicInput(''); }
-                    }}
-                    className="mypage-add-topic-input"
-                    autoFocus
-                  />
-                  <button className="mypage-add-topic-confirm" onClick={handleAddTopic} disabled={!newTopicInput.trim()}>Add</button>
-                  <button className="mypage-add-topic-cancel" onClick={() => { setShowNewTopicInput(false); setNewTopicInput(''); }}>✕</button>
-                </div>
-              ) : (
-                <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>+ New Topic</button>
-              )}
+            {!loadingBookmarks && bookmarks.length > 0 && (
+              <div className="mypage-add-topic-section">
+                {showNewTopicInput ? (
+                  <div className="mypage-add-topic-form">
+                    <input type="text" placeholder="Topic name..." value={newTopicInput}
+                      onChange={(e) => setNewTopicInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddTopic();
+                        if (e.key === 'Escape') { setShowNewTopicInput(false); setNewTopicInput(''); }
+                      }}
+                      className="mypage-add-topic-input" autoFocus />
+                    <button className="mypage-add-topic-confirm" onClick={handleAddTopic} disabled={!newTopicInput.trim()}>Add</button>
+                    <button className="mypage-add-topic-cancel" onClick={() => { setShowNewTopicInput(false); setNewTopicInput(''); }}>✕</button>
+                  </div>
+                ) : (
+                  <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>+ New Topic</button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===== Panel 2: Report / Detail ===== */}
+        <div className="mypage-report-panel">
+          {!selectedBookmark ? (
+            <div className="mypage-report-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ color: '#4b5563', marginBottom: '12px' }}>
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+              </svg>
+              <p className="mypage-report-empty-title">Select a bookmark</p>
+              <p className="mypage-report-empty-subtitle">Click a bookmark on the left to view its report and papers</p>
             </div>
-          )}
-
-          {/* Bookmark Detail Accordion */}
-          {bookmarkDetail && (
-            <div className="mypage-accordion">
-              <div
-                className={`mypage-accordion-header ${accordionOpen.detail ? 'open' : ''}`}
-                onClick={() => toggleAccordion('detail')}
-              >
-                <svg className="mypage-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-                <span>Papers</span>
-                {/* QW-8: Export buttons */}
-                <div className="mypage-detail-export-btns" onClick={(e) => e.stopPropagation()}>
+          ) : loadingDetail ? (
+            <div className="mypage-loading" style={{ padding: '40px' }}>Loading detail...</div>
+          ) : bookmarkDetail ? (
+            <div className="mypage-report-scroll">
+              {/* Header with title & export */}
+              <div className="mypage-report-header">
+                <h2 className="mypage-report-title">{bookmarkDetail.title}</h2>
+                <div className="mypage-detail-export-btns">
                   <button className="mypage-export-btn" onClick={handleExportBibTeX} title="Export BibTeX">BibTeX</button>
                   {bookmarkDetail.report_markdown && (
                     <button className="mypage-export-btn" onClick={handleExportReport} title="Download Report">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                       </svg>
+                      .md
                     </button>
                   )}
                 </div>
               </div>
-              {accordionOpen.detail && (
-                <div className="mypage-accordion-body">
-                  {loadingDetail ? (
-                    <div className="mypage-loading" style={{ padding: '16px' }}>Loading detail...</div>
-                  ) : (
-                    <div className="mypage-detail-papers">
-                      {bookmarkDetail.papers?.map((p: any, i: number) => (
-                        <div key={i} className="mypage-detail-paper">
-                          <span className="mypage-detail-paper-title">{p.title}</span>
-                          <span className="mypage-detail-paper-meta">
-                            {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+
+              {/* Papers list */}
+              {bookmarkDetail.papers && bookmarkDetail.papers.length > 0 && (
+                <div className="mypage-report-section">
+                  <h3 className="mypage-report-section-title">Papers ({bookmarkDetail.papers.length})</h3>
+                  <div className="mypage-detail-papers">
+                    {bookmarkDetail.papers.map((p: any, i: number) => (
+                      <div key={i} className="mypage-detail-paper">
+                        <span className="mypage-detail-paper-title">{p.title}</span>
+                        <span className="mypage-detail-paper-meta">
+                          {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* QW-1: Report Accordion */}
-          {bookmarkDetail?.report_markdown && (
-            <div className="mypage-accordion">
-              <div
-                className={`mypage-accordion-header ${accordionOpen.report ? 'open' : ''}`}
-                onClick={() => toggleAccordion('report')}
-              >
-                <svg className="mypage-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-                <span>Report</span>
-              </div>
-              {accordionOpen.report && (
-                <div className="mypage-accordion-body">
+              {/* Report markdown */}
+              {bookmarkDetail.report_markdown && (
+                <div className="mypage-report-section">
+                  <h3 className="mypage-report-section-title">Report</h3>
                   <div className="mypage-report-content">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {bookmarkDetail.report_markdown}
@@ -611,46 +679,27 @@ function MyPage({ onBack }: MyPageProps) {
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* LightRAG Search Accordion */}
-          <div className="mypage-accordion">
-            <div
-              className={`mypage-accordion-header ${accordionOpen.lightrag ? 'open' : ''}`}
-              onClick={() => toggleAccordion('lightrag')}
-            >
-              <svg className="mypage-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-              <span>LightRAG Search</span>
-              {kgReady && <span className="mypage-kg-badge">KG Ready</span>}
-            </div>
-            {accordionOpen.lightrag && (
-              <div className="mypage-accordion-body">
+              {/* LightRAG Search */}
+              <div className="mypage-report-section">
+                <h3 className="mypage-report-section-title">
+                  LightRAG Search
+                  {kgReady && <span className="mypage-kg-badge">KG Ready</span>}
+                </h3>
                 <form className="mypage-lightrag-form" onSubmit={handleLightragSearch}>
                   <div className="mypage-lightrag-input-row">
-                    <input
-                      type="text"
-                      className="mypage-lightrag-input"
-                      value={lightragQuery}
+                    <input type="text" className="mypage-lightrag-input" value={lightragQuery}
                       onChange={(e) => setLightragQuery(e.target.value)}
                       placeholder={kgReady ? 'Ask the knowledge graph...' : 'Build KG first...'}
-                      disabled={!kgReady || lightragLoading}
-                    />
-                    <select
-                      className="mypage-lightrag-mode"
-                      value={lightragMode}
-                      onChange={(e) => setLightragMode(e.target.value as LightRAGMode)}
-                      disabled={!kgReady}
-                    >
-                      <option value="hybrid">Hybrid</option>
-                      <option value="local">Local</option>
-                      <option value="global">Global</option>
-                      <option value="mix">Mix</option>
+                      disabled={!kgReady || lightragLoading} />
+                    <select className="mypage-lightrag-mode" value={lightragMode}
+                      onChange={(e) => setLightragMode(e.target.value as LightRAGMode)} disabled={!kgReady}>
+                      <option value="hybrid">Hybrid</option><option value="local">Local</option>
+                      <option value="global">Global</option><option value="mix">Mix</option>
                       <option value="naive">Naive</option>
                     </select>
-                    <button type="submit" className="mypage-lightrag-submit" disabled={!kgReady || lightragLoading || !lightragQuery.trim()}>
+                    <button type="submit" className="mypage-lightrag-submit"
+                      disabled={!kgReady || lightragLoading || !lightragQuery.trim()}>
                       {lightragLoading ? '...' : 'Go'}
                     </button>
                   </div>
@@ -674,41 +723,30 @@ function MyPage({ onBack }: MyPageProps) {
                       </div>
                     )}
                     <div className="mypage-lightrag-answer">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {lightragAnswer.answer}
-                      </ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{lightragAnswer.answer}</ReactMarkdown>
                     </div>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
 
-        {/* Right panel: Chat interface */}
+        {/* ===== Panel 3: Chat ===== */}
         <div className="mypage-chat-panel">
-          {/* QW-3: Chat header with topic filter */}
+          {/* Chat header with topic filter */}
           <div className="mypage-panel-header mypage-chat-header">
             <span>Chat with your papers</span>
             <div className="mypage-chat-header-actions">
-              <select
-                className="mypage-chat-topic-select"
-                value={chatTopicFilter}
-                onChange={(e) => setChatTopicFilter(e.target.value)}
-              >
+              <select className="mypage-chat-topic-select" value={chatTopicFilter}
+                onChange={(e) => setChatTopicFilter(e.target.value)}>
                 <option value="all">All topics</option>
-                {allTopics.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               {messages.length > 0 && (
-                <button
-                  className="mypage-chat-clear-btn"
+                <button className="mypage-chat-clear-btn"
                   onClick={() => { setMessages([]); sessionStorage.removeItem(CHAT_STORAGE_KEY); }}
-                  title="Clear chat"
-                >
-                  ✕
-                </button>
+                  title="Clear chat">✕</button>
               )}
             </div>
           </div>
@@ -722,30 +760,65 @@ function MyPage({ onBack }: MyPageProps) {
                     ? 'The assistant has access to all your bookmarked research reports.'
                     : `Chatting with papers in "${chatTopicFilter}" topic.`}
                 </p>
-                {/* QW-7: Suggested prompts */}
-                {suggestedPrompts.length > 0 && (
-                  <div className="mypage-chat-suggestions">
-                    {suggestedPrompts.map((prompt, i) => (
-                      <button
-                        key={i}
-                        className="mypage-chat-suggestion-btn"
-                        onClick={() => handleSendMessage(prompt)}
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
             {messages.map((msg, i) => (
               <div key={i} className={`mypage-chat-message mypage-chat-${msg.role}`}>
                 <div className="mypage-chat-bubble">
-                  {/* QW-2: Markdown rendering */}
                   {msg.role === 'assistant' ? (
                     <div className="mypage-chat-markdown">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => {
+                            // U-4: Replace [N] with citation badges in paragraph text
+                            const processNode = (node: any): any => {
+                              if (typeof node === 'string') {
+                                return renderCitationText(node, msg.sources);
+                              }
+                              return node;
+                            };
+                            const processed = Array.isArray(children)
+                              ? children.map(processNode)
+                              : processNode(children);
+                            return <p>{processed}</p>;
+                          },
+                          li: ({ children }) => {
+                            const processNode = (node: any): any => {
+                              if (typeof node === 'string') {
+                                return renderCitationText(node, msg.sources);
+                              }
+                              return node;
+                            };
+                            const processed = Array.isArray(children)
+                              ? children.map(processNode)
+                              : processNode(children);
+                            return <li>{processed}</li>;
+                          },
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                      {/* U-4: Sources section */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <details className="mypage-sources-section">
+                          <summary className="mypage-sources-header">Sources ({msg.sources.length})</summary>
+                          <div className="mypage-sources-list">
+                            {msg.sources.map(source => (
+                              <div key={source.ref} className="mypage-source-item"
+                                onClick={() => {
+                                  const bm = bookmarks.find(b => b.id === source.id);
+                                  if (bm) handleSelectBookmark(bm);
+                                }}>
+                                <span className="mypage-source-ref">[{source.ref}]</span>
+                                <span className="mypage-source-title">{source.title}</span>
+                                <span className="mypage-source-meta">{source.num_papers} papers</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </div>
                   ) : (
                     <pre className="mypage-chat-text">{msg.content}</pre>
@@ -779,23 +852,16 @@ function MyPage({ onBack }: MyPageProps) {
           </div>
 
           <div className="mypage-chat-input-area">
-            <textarea
-              className="mypage-chat-input"
-              value={inputValue}
+            <textarea className="mypage-chat-input" value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={chatTopicFilter === 'all' ? 'Ask about your bookmarked papers...' : `Ask about "${chatTopicFilter}" papers...`}
-              rows={1}
-              disabled={isStreaming}
-            />
-            <button
-              className="mypage-chat-send"
-              onClick={() => handleSendMessage()}
-              disabled={isStreaming || !inputValue.trim()}
-            >
+              rows={1} disabled={isStreaming} />
+            <button className="mypage-chat-send" onClick={() => handleSendMessage()}
+              disabled={isStreaming || !inputValue.trim()}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
             </button>
           </div>

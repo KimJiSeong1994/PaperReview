@@ -2180,6 +2180,43 @@ async def update_bookmark_topic(bookmark_id: str, request: BookmarkTopicUpdateRe
     raise HTTPException(status_code=404, detail="Bookmark not found")
 
 
+# Bulk bookmark operations
+class BulkDeleteBookmarksRequest(BaseModel):
+    bookmark_ids: List[str]
+
+class BulkMoveBookmarksRequest(BaseModel):
+    bookmark_ids: List[str]
+    topic: str
+
+@app.post("/api/bookmarks/bulk-delete")
+async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest):
+    """Delete multiple bookmarks at once"""
+    data = _load_bookmarks()
+    ids_set = set(request.bookmark_ids)
+    original = len(data["bookmarks"])
+    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm["id"] not in ids_set]
+    deleted = original - len(data["bookmarks"])
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="No bookmarks found to delete")
+    _save_bookmarks(data)
+    return {"success": True, "deleted_count": deleted}
+
+@app.post("/api/bookmarks/bulk-move")
+async def bulk_move_bookmarks(request: BulkMoveBookmarksRequest):
+    """Move multiple bookmarks to a new topic"""
+    data = _load_bookmarks()
+    ids_set = set(request.bookmark_ids)
+    updated = 0
+    for bm in data["bookmarks"]:
+        if bm["id"] in ids_set:
+            bm["topic"] = request.topic
+            updated += 1
+    if updated == 0:
+        raise HTTPException(status_code=404, detail="No bookmarks found to update")
+    _save_bookmarks(data)
+    return {"success": True, "updated_count": updated, "topic": request.topic}
+
+
 # ==================== Chat Endpoints ====================
 
 class ChatRequest(BaseModel):
@@ -2199,23 +2236,30 @@ async def chat_with_bookmarks(request: ChatRequest):
     if request.bookmark_ids:
         bookmarks = [bm for bm in bookmarks if bm["id"] in request.bookmark_ids]
 
-    # Build context from bookmark reports
+    # Build context from bookmark reports with numbered references
+    sources_metadata = []
     if not bookmarks:
         context_text = "(No bookmarked papers available.)"
     else:
         context_parts = []
         max_chars = 4000
-        for bm in bookmarks[:10]:
+        for idx, bm in enumerate(bookmarks[:10], start=1):
             report = bm.get("report_markdown", "")[:max_chars]
             papers_summary = ", ".join(
                 p.get("title", "Untitled") for p in bm.get("papers", [])[:5]
             )
             context_parts.append(
-                f"## Bookmark: {bm.get('title', 'Untitled')}\n"
+                f"[{idx}] Bookmark: {bm.get('title', 'Untitled')}\n"
                 f"Query: {bm.get('query', 'N/A')}\n"
                 f"Papers: {papers_summary}\n"
                 f"Report:\n{report}\n"
             )
+            sources_metadata.append({
+                "ref": idx,
+                "id": bm["id"],
+                "title": bm.get("title", "Untitled"),
+                "num_papers": bm.get("num_papers", 0),
+            })
         context_text = "\n---\n".join(context_parts)
 
     system_message = {
@@ -2223,6 +2267,8 @@ async def chat_with_bookmarks(request: ChatRequest):
         "content": (
             "You are a research assistant helping users understand their bookmarked academic papers. "
             "You have access to the following bookmarked research reports and paper information. "
+            "Each bookmark is numbered [1], [2], etc. When referencing information from the bookmarks, "
+            "cite them using numbered references like [1], [2], etc. "
             "Answer questions based on this context. If the user asks about something not covered "
             "in the bookmarks, say so clearly. Respond in the same language the user uses.\n\n"
             f"=== BOOKMARKED PAPERS CONTEXT ===\n{context_text}\n=== END CONTEXT ==="
@@ -2247,6 +2293,9 @@ async def chat_with_bookmarks(request: ChatRequest):
                 delta = chunk.choices[0].delta
                 if delta.content:
                     yield f"data: {json.dumps({'content': delta.content})}\n\n"
+            # Send sources metadata before done
+            if sources_metadata:
+                yield f"data: {json.dumps({'sources': sources_metadata})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
