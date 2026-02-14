@@ -62,3 +62,67 @@ export interface SearchResponse {
   query_analysis?: QueryAnalysis;
 }
 
+// LightRAG types
+export interface LightRAGQueryRequest {
+  query: string;
+  mode: string;
+  top_k: number;
+  temperature: number;
+}
+
+export interface LightRAGEntity {
+  name: string;
+  type: string;
+  description: string;
+  relevance: number;
+}
+
+export interface LightRAGRelation {
+  source: string;
+  target: string;
+  description: string;
+  keywords: string[];
+}
+
+export interface LightRAGQueryResponse {
+  answer: string;
+  query: string;
+  mode: string;
+  keywords: { low_level: string[]; high_level: string[] };
+  retrieval: {
+    entities: LightRAGEntity[];
+    relationships: LightRAGRelation[];
+    paper_count: number;
+  };
+  source_papers: {
+    title: string;
+    authors: string[];
+    published_date: string;
+    url: string;
+    source: string;
+  }[];
+  statistics: {
+    entities_found: number;
+    relationships_found: number;
+    papers_found: number;
+    chunks_found: number;
+    kg_total_nodes: number;
+    kg_total_edges: number;
+  };
+}
+
+export interface KnowledgeGraphStats {
+  status: string;
+  stats?: {
+    kg_nodes: number;
+    kg_edges: number;
+    entity_types: Record<string, number>;
+    storage: {
+      entities: number;
+      relations: number;
+      chunks: number;
+    };
+  };
+  error?: string;
+}
+

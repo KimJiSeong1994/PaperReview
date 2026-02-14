@@ -16,7 +16,6 @@ function SearchBar({ onSearch, loading }: SearchBarProps) {
     }
   };
 
-
   return (
     <div className="search-bar-container">
       <form onSubmit={handleSubmit} className="search-form">
@@ -25,17 +24,18 @@ function SearchBar({ onSearch, loading }: SearchBarProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Start typing to search..."
+            placeholder="Search papers..."
             className="search-input"
             disabled={loading}
           />
-          <button 
-            type="submit" 
-            className="search-submit-button" 
+
+          <button
+            type="submit"
+            className="search-submit-button"
             disabled={loading || !query.trim()}
             title="Search"
           >
-            <span className="search-icon">🔍</span>
+            <span className="search-icon">&#x1F50D;</span>
           </button>
         </div>
       </form>
@@ -44,4 +44,3 @@ function SearchBar({ onSearch, loading }: SearchBarProps) {
 }
 
 export default SearchBar;
-

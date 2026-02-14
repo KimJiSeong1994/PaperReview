@@ -109,9 +109,9 @@ class RelevanceFilter:
                     if score >= threshold:
                         paper['relevance_score'] = score
                         filtered_papers.append(paper)
-                        print(f"  ✓ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        print(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
                     else:
-                        print(f"  ✗ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        print(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
         else:
             # 순차 처리
             filtered_papers = []
@@ -121,9 +121,9 @@ class RelevanceFilter:
                     if score >= threshold:
                         paper['relevance_score'] = score
                         filtered_papers.append(paper)
-                        print(f"  ✓ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        print(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
                     else:
-                        print(f"  ✗ [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        print(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
         
         # 관련성 점수 순으로 정렬
         filtered_papers.sort(key=lambda p: p['relevance_score'], reverse=True)
@@ -176,13 +176,13 @@ Consider:
             # 점수 추출 및 검증
             scores = evaluation.get("scores", [])
             if len(scores) != len(papers):
-                print(f"⚠ 평가 결과 개수 불일치: {len(scores)} vs {len(papers)}")
+                print(f"[WARNING] 평가 결과 개수 불일치: {len(scores)} vs {len(papers)}")
                 return [0.5] * len(papers)  # 기본값 반환
             
             return [float(s) for s in scores]
             
         except Exception as e:
-            print(f"⚠ 관련성 평가 중 오류: {e}")
+            print(f"[WARNING] 관련성 평가 중 오류: {e}")
             # 폴백: 간단한 키워드 매칭으로 점수 계산
             return [self._fallback_score(query, paper) for paper in papers]
     

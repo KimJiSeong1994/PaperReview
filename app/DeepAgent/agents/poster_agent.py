@@ -8,7 +8,7 @@ Paper2Poster 방법론 기반의 멀티 에이전트 포스터 생성 시스템
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 하위 에이전트 임포트
@@ -53,7 +53,7 @@ class PosterGenerationAgent:
     
     def __init__(
         self, 
-        model: str = "gemini-3-pro-image-preview", 
+        model: str = "gemini-3-pro-image-preview",
         api_key: Optional[str] = None,
         max_workers: int = 4,
         enable_validation: bool = False,
@@ -62,7 +62,7 @@ class PosterGenerationAgent:
     ):
         """
         Args:
-            model: Gemini 모델 이름 (기본값: gemini-3-pro-image-preview - 이미지 생성 지원)
+            model: Gemini 모델 이름 (기본값: gemini-3-pro-image-preview)
             api_key: Google API 키
             max_workers: 병렬 처리 워커 수
             enable_validation: VLM 품질 검증 활성화
@@ -112,23 +112,31 @@ class PosterGenerationAgent:
         except Exception as e:
             self.llm = None
     
-    def generate_poster(self, report_content: str, num_papers: int = 0, output_dir: Optional[Path] = None) -> dict:
+    def generate_poster(
+        self,
+        report_content: str,
+        num_papers: int = 0,
+        output_dir: Optional[Path] = None,
+        papers_data: Optional[List[Dict[str, Any]]] = None
+    ) -> dict:
         """
         멀티 에이전트 파이프라인으로 포스터 생성
-        
+
         Pipeline:
+        0.5. Figure Extraction (논문 삽도 추출)
         1. Content Extraction (순차)
         2. Layout Planning (순차)
         3. Visual Generation (병렬)
         4. Assembly (순차)
         5. Validation (순차, 옵션)
         6. Refinement (순차, 조건부)
-        
+
         Args:
             report_content: 마크다운 형식의 리포트
             num_papers: 분석된 논문 수
             output_dir: 저장 디렉토리 (옵션)
-            
+            papers_data: 논문 데이터 리스트 (pdf_url, arxiv_id 포함, 삽도 추출용)
+
         Returns:
             dict: {
                 "success": bool,
@@ -138,30 +146,51 @@ class PosterGenerationAgent:
             }
         """
         try:
+            # Phase 0.5: Figure Extraction (논문 삽도 추출)
+            figures = []
+            figure_data = []
+            if papers_data:
+                figures = self._extract_paper_figures(papers_data)
+                if figures:
+                    figure_data = [
+                        {
+                            "image_base64": f.image_base64,
+                            "mime_type": f.mime_type,
+                            "caption": f.caption,
+                            "description": f.description,
+                            "relevance_score": f.relevance_score,
+                            "paper_title": f.paper_title,
+                            "width": f.width,
+                            "height": f.height,
+                        }
+                        for f in figures
+                    ]
+                    print(f"[PosterAgent] {len(figure_data)}개 핵심 삽도 추출 완료")
+
             # Phase 1: Content Extraction (멀티 에이전트)
-            content = self.content_agent.extract(report_content, num_papers)
-            
+            content = self.content_agent.extract(report_content, num_papers, figures=figure_data)
+
             # Phase 2: Layout Planning (멀티 에이전트)
             layout = self.layout_agent.plan(content)
-            
+
             # Phase 3: Gemini를 사용한 포스터 생성
             if self.llm:
-                poster_html = self._generate_with_gemini(content, layout, report_content, num_papers)
+                poster_html = self._generate_with_gemini(content, layout, report_content, num_papers, figures)
             else:
                 # Gemini 사용 불가 시 멀티 에이전트 방식 사용
                 section_htmls = self._generate_sections_parallel(layout.sections)
                 poster_html = self._assemble_poster(content, layout, section_htmls)
-            
+
             # Phase 4: Validation (옵션)
             validation_score = 0.8
             if self.enable_validation and self.validator_agent:
                 validation = self.validator_agent.validate(poster_html)
                 validation_score = validation.score
-                
+
                 # Phase 5: Refinement (조건부)
                 if validation_score < 0.75:
                     poster_html = self._refine_poster(poster_html, validation.suggestions)
-            
+
             # 결과 반환
             result = {
                 "success": True,
@@ -169,17 +198,17 @@ class PosterGenerationAgent:
                 "poster_path": None,
                 "validation_score": validation_score
             }
-            
+
             # 저장
             if output_dir:
                 result["poster_path"] = self._save_poster(poster_html, output_dir)
-            
+
             return result
-            
+
         except Exception as e:
             import traceback
             traceback.print_exc()
-            
+
             # Fallback
             return {
                 "success": False,
@@ -188,6 +217,20 @@ class PosterGenerationAgent:
                 "validation_score": 0.5,
                 "error": str(e)
             }
+
+    def _extract_paper_figures(self, papers_data: List[Dict[str, Any]]) -> list:
+        """논문 PDF에서 핵심 삽도 추출"""
+        try:
+            from app.DeepAgent.tools.figure_extractor import extract_paper_figures
+            figures = extract_paper_figures(
+                papers_data=papers_data,
+                api_key=self.api_key,
+                max_papers=3
+            )
+            return figures
+        except Exception as e:
+            print(f"[PosterAgent] 삽도 추출 실패 (기존 방식으로 진행): {e}")
+            return []
     
     def _generate_sections_parallel(self, sections: list) -> dict:
         """
@@ -221,23 +264,40 @@ class PosterGenerationAgent:
         
         return section_htmls
     
-    def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int) -> str:
+    def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int, figures: list = None) -> str:
         """
         Gemini를 사용하여 포스터 생성
-        
-        멀티 에이전트로 추출한 구조화된 콘텐츠를 Gemini에 전달하여
+
+        멀티 에이전트로 추출한 구조화된 콘텐츠와 논문 삽도를 Gemini에 전달하여
         고품질 학술 포스터를 생성합니다.
         """
+        import base64
+
         # 리포트 요약 (토큰 제한)
         report_summary = report_content[:8000]
-        
+
         # Gemini 프롬프트 구성
-        prompt = self._build_gemini_prompt(content, layout, report_summary, num_papers)
-        
+        prompt = self._build_gemini_prompt(content, layout, report_summary, num_papers, figures)
+
+        # Multimodal 콘텐츠 구성 (텍스트 + 이미지)
+        content_parts = [prompt]
+
+        if figures:
+            # Figure 이미지를 multimodal로 전달
+            for i, fig in enumerate(figures[:4]):
+                try:
+                    content_parts.append(f"\n\n[논문 삽도 {i+1}] - {fig.caption} (출처: {fig.paper_title[:40]})")
+                    content_parts.append({
+                        "mime_type": fig.mime_type,
+                        "data": fig.image_base64,
+                    })
+                except Exception:
+                    continue
+
         try:
-            response = self.llm.generate_content(prompt)
+            response = self.llm.generate_content(content_parts)
             poster_html = response.text
-            
+
             # HTML 코드만 추출 (마크다운 코드 블록 제거)
             if "```html" in poster_html:
                 poster_html = poster_html.split("```html")[1].split("```")[0]
@@ -245,46 +305,213 @@ class PosterGenerationAgent:
                 parts = poster_html.split("```")
                 if len(parts) > 1:
                     poster_html = parts[1]
-            
+
             poster_html = poster_html.strip()
-            
+
+            # Figure 플레이스홀더를 실제 base64 데이터로 치환
+            if figures:
+                poster_html = self._replace_figure_placeholders(poster_html, figures)
+                # 플레이스홀더도 없고 data:image도 없으면 직접 삽입
+                if "data:image" not in poster_html:
+                    poster_html = self._inject_figures_into_html(poster_html, figures)
+
             # HTML 형식 검증 및 보완
             if not poster_html.startswith("<!DOCTYPE") and not poster_html.startswith("<html"):
                 poster_html = f"<!DOCTYPE html>\n<html lang='ko'>\n{poster_html}\n</html>"
-            
+
             return poster_html
-            
+
         except Exception as e:
             # Gemini 생성 실패 시 멀티 에이전트 방식으로 fallback
             section_htmls = self._generate_sections_parallel(layout.sections)
-            return self._assemble_poster(content, layout, section_htmls)
+            poster_html = self._assemble_poster(content, layout, section_htmls)
+            # fallback에서도 Figure 삽입 시도
+            if figures:
+                poster_html = self._inject_figures_into_html(poster_html, figures)
+            return poster_html
+
+    def _format_paper_analyses_prompt(self, content) -> str:
+        """논문별 핵심 구조 분석 데이터를 프롬프트 형식으로 변환"""
+        if not hasattr(content, 'paper_analyses') or not content.paper_analyses:
+            return ""
+
+        sections = []
+        for i, paper in enumerate(content.paper_analyses[:6]):
+            title = paper.get('title', f'논문 {i+1}')
+            methodology = paper.get('methodology', '')[:500]
+            contributions = paper.get('contributions', '')[:400]
+            results = paper.get('results', '')[:400]
+
+            if not (methodology or contributions or results):
+                continue
+
+            section = f"""
+### {title}
+"""
+            if methodology:
+                section += f"**핵심 방법론/아키텍처**: {methodology}\n"
+            if contributions:
+                section += f"**주요 기여**: {contributions}\n"
+            if results:
+                section += f"**실험 결과**: {results}\n"
+
+            sections.append(section)
+
+        if not sections:
+            return ""
+
+        return f"""
+---
+
+## 논문별 핵심 구조 (반드시 포스터에 반영하세요!)
+
+**[최우선 과제]**: 아래 각 논문의 핵심 방법론, 아키텍처, 실험 결과를 포스터에 **구조도(Architecture Diagram)**로 반드시 표현하세요.
+
+**각 논문에 대해 반드시 다음 SVG 구조도를 생성하세요:**
+
+1. **알고리즘/아키텍처 구조도 (Architecture Diagram)**: 각 논문의 핵심 알고리즘 파이프라인을 SVG로 시각화
+   - 입력(Input) -> 처리 단계(Processing Steps) -> 출력(Output) 흐름을 보여주는 플로우차트
+   - 각 단계를 둥근 사각형(rounded rect) 박스로 표현
+   - 단계 간 연결을 화살표(arrow)로 표시
+   - 각 박스에 단계 이름과 핵심 설명 포함
+   - 색상 구분으로 서로 다른 모듈/컴포넌트를 구분
+
+2. **방법론 비교 다이어그램**: 논문들 간의 방법론 차이를 한눈에 비교할 수 있는 SVG 테이블 또는 비교 플로우차트
+
+3. **실험 결과 차트**: 실험 결과의 수치 데이터를 SVG Bar Chart 또는 Radar Chart로 표현
+
+**SVG 구조도 생성 규칙:**
+- 각 논문마다 최소 1개의 알고리즘 파이프라인 SVG 다이어그램을 반드시 포함
+- SVG viewBox를 적절히 설정하여 충분한 크기로 표현 (최소 600x300)
+- 박스, 화살표, 텍스트를 사용한 명확한 플로우차트 형태
+- 각 SVG에 논문 제목을 타이틀로 표시
+
+{''.join(sections)}
+"""
+
+    def _format_comparison_tables_prompt(self, content) -> str:
+        """비교 분석 테이블을 프롬프트 형식으로 변환"""
+        if not hasattr(content, 'comparison_tables') or not content.comparison_tables:
+            return ""
+
+        tables_text = '\n\n'.join(content.comparison_tables[:3])
+
+        return f"""
+---
+
+## 비교 분석 테이블 (포스터에 포함하세요)
+
+아래 비교 테이블을 포스터의 핵심 섹션에 깔끔하게 스타일링하여 포함하세요.
+테이블은 학술 포스터 스타일로 디자인하되, 원본 데이터를 정확히 반영하세요.
+
+{tables_text}
+"""
+
+    def _replace_figure_placeholders(self, poster_html: str, figures: list) -> str:
+        """Gemini가 생성한 플레이스홀더를 실제 base64 데이터로 치환"""
+        for i, fig in enumerate(figures[:4]):
+            placeholder = f"FIGURE_{i+1}_BASE64"
+            if placeholder in poster_html:
+                poster_html = poster_html.replace(placeholder, fig.image_base64)
+        return poster_html
+
+    def _inject_figures_into_html(self, poster_html: str, figures: list) -> str:
+        """포스터 HTML에 논문 삽도를 삽입"""
+        if not figures:
+            return poster_html
+
+        figures_html = '''
+        <div class="section-box" style="grid-column: 1 / -1; margin-top: 20px;">
+            <div class="section-title" style="font-size: 1.3rem; font-weight: 800; color: #2563eb; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
+                Key Figures from Papers
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: start;">
+        '''
+
+        for fig in figures[:4]:
+            figures_html += f'''
+                <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+                    <img src="data:{fig.mime_type};base64,{fig.image_base64}"
+                         alt="{fig.caption}"
+                         style="width: 100%; height: auto; border-radius: 6px; margin-bottom: 8px;" />
+                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 4px 0 2px 0;">{fig.caption}</p>
+                    <p style="font-size: 0.75rem; color: #64748b; margin: 0; line-height: 1.4;">{fig.description[:150]}</p>
+                    <p style="font-size: 0.7rem; color: #94a3b8; margin: 4px 0 0 0; font-style: italic;">Source: {fig.paper_title[:50]}</p>
+                </div>
+            '''
+
+        figures_html += '''
+            </div>
+        </div>
+        '''
+
+        # </body> 앞에 삽입
+        if '</div>\n</body>' in poster_html:
+            poster_html = poster_html.replace('</div>\n</body>', f'{figures_html}</div>\n</body>')
+        elif '</body>' in poster_html:
+            poster_html = poster_html.replace('</body>', f'{figures_html}</body>')
+
+        return poster_html
     
-    def _build_gemini_prompt(self, content, layout, report_summary: str, num_papers: int) -> str:
+    def _build_gemini_prompt(self, content, layout, report_summary: str, num_papers: int, figures: list = None) -> str:
         """
         Gemini용 포스터 생성 프롬프트 구성
-        
+
         멀티 에이전트로 추출한 구조화된 정보를 활용하여
         상세하고 정확한 프롬프트를 생성합니다.
-        
-        이제 예시 포스터 분석, SVG 가이드, 디자인 패턴 정보를 포함합니다.
+
+        논문에서 추출한 실제 삽도(Figure) 정보도 포함합니다.
         """
         # DesignPatternManager에서 SVG 템플릿 및 패턴 정보 가져오기
         svg_examples = ""
         pattern_guidance = ""
-        
+
         try:
             from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
             pattern_manager = get_design_pattern_manager()
             if pattern_manager:
                 svg_examples = pattern_manager.format_svg_examples()
-                
+
                 # 레이아웃 패턴 정보 추가
                 if hasattr(layout, 'design_pattern') and layout.design_pattern:
                     pattern_guidance = pattern_manager.generate_design_prompt(layout.design_pattern)
         except Exception:
             pass
-        
-        return f"""# 🎨 저명한 학술 포스터 디자이너로서의 역할
+
+        # 논문 삽도 정보 프롬프트 구성
+        figures_prompt = ""
+        if figures:
+            figures_info = []
+            for i, fig in enumerate(figures[:4]):
+                figures_info.append(f"""
+**삽도 {i+1}** (출처: {fig.paper_title[:50]}):
+- 캡션: {fig.caption}
+- 설명: {fig.description[:200]}
+- 핵심도: {fig.relevance_score:.1f}/1.0
+- 크기: {fig.width}x{fig.height}px""")
+
+            figures_prompt = f"""
+
+---
+
+## 논문 원본 삽도 (Key Figures from Papers)
+
+이 메시지에 첨부된 이미지들은 분석 대상 논문에서 추출한 실제 삽도입니다.
+**이 삽도들을 포스터에 반드시 포함**하여 논문의 핵심 내용을 시각적으로 전달하세요.
+
+{''.join(figures_info)}
+
+**삽도 배치 지침**:
+1. 각 삽도를 `<img src="data:image/png;base64,FIGURE_N_BASE64" />` 형태로 포함하세요
+   - FIGURE_1_BASE64, FIGURE_2_BASE64 등의 플레이스홀더를 사용하세요
+2. 삽도 아래에 캡션과 출처 논문명을 표시하세요
+3. 중앙 컬럼이나 핵심 결과 섹션에 배치하세요
+4. 삽도는 포스터의 핵심 시각 요소로, 합성 SVG 차트와 함께 배치하세요
+5. 삽도 주변에 적절한 여백과 테두리를 추가하세요
+
+"""
+
+        return f"""# 저명한 학술 포스터 디자이너로서의 역할
 
 당신은 NeurIPS, ICML, ICLR, CVPR 등 최고급 학회에서 수상작을 디자인한 저명한 학술 포스터 디자이너입니다.
 당신의 전문성은 **심층 분석 내용을 가장 효과적으로 전달할 수 있는 최적의 디자인을 창조**하는 것입니다.
@@ -297,7 +524,7 @@ class PosterGenerationAgent:
 
 ---
 
-## 📊 심층 분석 콘텐츠 (정확히 반영하세요)
+## 심층 분석 콘텐츠 (정확히 반영하세요)
 
 다음은 멀티 에이전트 심층 분석 시스템이 생성한 연구 리포트입니다.
 이 콘텐츠를 가장 효과적으로 전달할 수 있는 포스터를 디자인하세요.
@@ -319,16 +546,20 @@ class PosterGenerationAgent:
 {content.methodology[:800]}
 
 **주요 발견 (Key Findings)**:
-{chr(10).join(f"✓ {f}" for f in content.key_findings[:6])}
+{chr(10).join(f"- {f}" for f in content.key_findings[:6])}
 
 **결론 (Conclusion)**:
 {content.conclusion[:500]}
 
 **키워드**: {", ".join(content.keywords[:7])}
 
+{self._format_paper_analyses_prompt(content)}
+
+{self._format_comparison_tables_prompt(content)}
+{figures_prompt}
 ---
 
-## 🏆 예시 포스터 분석 (디자인 참고용)
+## 예시 포스터 분석 (디자인 참고용)
 
 ### Multi-Crit 포스터 특징
 
@@ -389,7 +620,7 @@ class PosterGenerationAgent:
 
 ---
 
-## 🎯 디자인 접근법
+## 디자인 접근법
 
 ### 1. 콘텐츠 중심 디자인
 - **콘텐츠 분석**: 제공된 심층 분석 내용을 먼저 깊이 이해하세요
@@ -435,7 +666,7 @@ class PosterGenerationAgent:
 
 ---
 
-## ✅ 필수 요구사항
+## 필수 요구사항
 
 1. **완전한 HTML**: DOCTYPE, html, head, body 모두 포함
 2. **CSS 자유 생성**: <style> 태그 내부에 모든 CSS를 직접 작성
@@ -453,7 +684,7 @@ class PosterGenerationAgent:
 
 ---
 
-## 🚀 디자인 프로세스
+## 디자인 프로세스
 
 ### Step 1: 콘텐츠 분석
 1. 제공된 심층 분석 내용을 깊이 이해
@@ -481,7 +712,7 @@ class PosterGenerationAgent:
 
 ---
 
-## 🎨 최종 지시
+## 최종 지시
 
 **지금 바로 시작하세요:**
 

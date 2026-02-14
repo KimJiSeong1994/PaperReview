@@ -249,9 +249,9 @@ def generate_markdown_report(
         report.append(f"**Reproducibility Score**: {repro_score:.1f}/5.0\n")
         
         report.append("**Reproducibility Factors:**")
-        report.append(f"- Code Availability: {'✅ Provided' if repro.get('code_available') else '❌ Not Available'}")
-        report.append(f"- Dataset Access: {'✅ Public' if repro.get('dataset_public') else '❌ Restricted/Private'}")
-        report.append(f"- Methodological Detail: {'✅ Comprehensive' if structure.get('has_full_text') else '⚠️ Limited (abstract only)'}")
+        report.append(f"- Code Availability: {'Provided' if repro.get('code_available') else 'Not Available'}")
+        report.append(f"- Dataset Access: {'Public' if repro.get('dataset_public') else 'Restricted/Private'}")
+        report.append(f"- Methodological Detail: {'Comprehensive' if structure.get('has_full_text') else 'Limited (abstract only)'}")
         
         if repro_score >= 4.0:
             report.append("\n*Assessment*: Highly reproducible. The paper provides sufficient detail and resources ")

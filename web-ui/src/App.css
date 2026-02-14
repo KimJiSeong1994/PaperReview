@@ -33,9 +33,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto 0 0; /* 왼쪽 정렬 */
-  padding-left: 8px; /* 왼쪽에 작은 버퍼 추가 */
+  width: 100%;
 }
 
 .logo {
@@ -89,6 +87,11 @@ body {
 .nav-btn:hover {
   background: rgba(255, 255, 255, 0.05);
   color: #ececec;
+}
+
+.nav-btn-active {
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.1);
 }
 
 .main-content {
@@ -686,4 +689,158 @@ body {
   height: 100%;
   border: none;
   background: white;
+}
+
+/* ─── LightRAG Answer Panel ─── */
+
+.lightrag-answer-panel {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.lightrag-answer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.lightrag-badge {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lightrag-stats {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.lightrag-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.keyword-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.keyword-low {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+  border: 1px solid rgba(52, 211, 153, 0.15);
+}
+
+.keyword-high {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.15);
+}
+
+.lightrag-answer-body {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #d1d5db;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ==================== Bookmarks ==================== */
+
+.bookmark-save-button {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.bookmark-save-button:hover {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.bookmark-save-button.saved {
+  color: #fbbf24;
+}
+
+.bookmark-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.bookmarks-list {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.bookmark-item {
+  position: relative;
+  padding: 12px 32px 12px 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bookmark-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.bookmark-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e7eb;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.bookmark-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.bookmark-delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.bookmark-item:hover .bookmark-delete-button {
+  opacity: 1;
+}
+
+.bookmark-delete-button:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
 }

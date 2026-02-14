@@ -32,12 +32,12 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
             
             if isinstance(data, dict) and 'papers' in data:
                 all_papers.extend(data['papers'])
-                print(f"📚 Loaded papers database: {len(data['papers'])} papers")
+                print(f"[INFO] Loaded papers database: {len(data['papers'])} papers")
             elif isinstance(data, list):
                 all_papers.extend(data)
-                print(f"📚 Loaded papers database: {len(data)} papers")
+                print(f"[INFO] Loaded papers database: {len(data)} papers")
         except Exception as e:
-            print(f"⚠️ Error loading papers.json: {e}")
+            print(f"[WARNING] Error loading papers.json: {e}")
     
     # 2. 최신 검색 결과 캐시에서도 로드 (새로 검색된 논문)
     cache_paths = [
@@ -53,18 +53,18 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
                 
                 if isinstance(cache_data, list):
                     all_papers.extend(cache_data)
-                    print(f"📦 Loaded search cache: {len(cache_data)} papers from {cache_path.name}")
+                    print(f"[INFO] Loaded search cache: {len(cache_data)} papers from {cache_path.name}")
                 elif isinstance(cache_data, dict) and 'papers' in cache_data:
                     all_papers.extend(cache_data['papers'])
-                    print(f"📦 Loaded search cache: {len(cache_data['papers'])} papers from {cache_path.name}")
+                    print(f"[INFO] Loaded search cache: {len(cache_data['papers'])} papers from {cache_path.name}")
             except Exception as e:
-                print(f"⚠️ Error loading cache {cache_path}: {e}")
+                print(f"[WARNING] Error loading cache {cache_path}: {e}")
     
     if not all_papers:
-        print(f"⚠️ No papers found in any data source")
+        print(f"[WARNING] No papers found in any data source")
         return []
     
-    print(f"📊 Total papers in pool: {len(all_papers)}")
+    print(f"[INFO] Total papers in pool: {len(all_papers)}")
     
     # Helper functions to generate doc_id (must match api_server.py)
     import hashlib
@@ -86,7 +86,7 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
         return str(int(hashlib.md5(title.encode('utf-8')).hexdigest()[:15], 16))
     
     # ID로 필터링
-    print(f"🔍 Requested paper_ids: {paper_ids[:5]}...")  # 첫 5개만 출력
+    print(f"[INFO] Requested paper_ids: {paper_ids[:5]}...")  # 첫 5개만 출력
     
     # 디버그: 첫 번째 논문의 ID 정보 출력
     if all_papers and len(all_papers) > 0:
@@ -95,7 +95,7 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
             sample_title = sample_paper.get('title', '')
             sample_djb2 = generate_djb2_doc_id(sample_title) if sample_title else 'N/A'
             sample_md5 = generate_md5_doc_id(sample_title) if sample_title else 'N/A'
-            print(f"📋 Sample paper ID info:")
+            print(f"[INFO] Sample paper ID info:")
             print(f"   Title: {sample_title[:50]}...")
             print(f"   djb2 ID: {sample_djb2}")
             print(f"   md5 ID: {sample_md5}")
@@ -106,12 +106,12 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
     for paper in all_papers:
         # paper가 string이면 skip (데이터 형식 오류)
         if isinstance(paper, str):
-            print(f"⚠️ Skipping invalid paper entry (string): {paper[:50]}...")
+            print(f"[WARNING] Skipping invalid paper entry (string): {paper[:50]}...")
             continue
         
         # paper가 dict가 아니면 skip
         if not isinstance(paper, dict):
-            print(f"⚠️ Skipping invalid paper entry (not dict): {type(paper)}")
+            print(f"[WARNING] Skipping invalid paper entry (not dict): {type(paper)}")
             continue
         
         title = paper.get('title', '')
@@ -143,7 +143,7 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
                 paper['doc_id'] = djb2_doc_id
             selected_papers.append(paper)
     
-    print(f"✅ Loaded {len(selected_papers)} papers out of {len(paper_ids)} requested IDs")
+    print(f"[OK] Loaded {len(selected_papers)} papers out of {len(paper_ids)} requested IDs")
     
     return selected_papers
 
@@ -186,7 +186,7 @@ def load_and_prepare_papers(paper_ids: List[str]) -> List[Dict[str, Any]]:
     papers = load_papers_from_ids(paper_ids)
     prepared_papers = [get_paper_content(paper) for paper in papers]
     
-    print(f"📚 Prepared {len(prepared_papers)} papers for analysis")
+    print(f"[INFO] Prepared {len(prepared_papers)} papers for analysis")
     for i, paper in enumerate(prepared_papers, 1):
         print(f"  {i}. {paper['title'][:80]}...")
     

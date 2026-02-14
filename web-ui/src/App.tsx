@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
 import GraphView from './components/GraphView';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
 import SearchBar from './components/SearchBar';
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster } from './api/client';
+import MyPage from './components/MyPage';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark } from './api/client';
 import type { Paper, GraphData } from './types';
 
 // 질의와 논문 간 유사도 계산 함수
@@ -94,6 +96,7 @@ function sortPapersByQuerySimilarity(
 }
 
 function App() {
+  const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
@@ -116,76 +119,77 @@ function App() {
   const [showPoster, setShowPoster] = useState(false);
   const [posterLoading, setPosterLoading] = useState(false);
 
+  // Bookmark states
+  const [bookmarkSaved, setBookmarkSaved] = useState(false);
+
+  const hashString = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString();
+  };
+
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
-    
+
     setLoading(true);
     setQuery(searchQuery);
+
     try {
-      const results = await searchPapers({
-        query: searchQuery,
-        max_results: 50,
-        sources: ['arxiv', 'connected_papers', 'google_scholar'],
-        sort_by: 'relevance',
-      });
+      {
+        const results = await searchPapers({
+          query: searchQuery,
+          max_results: 50,
+          sources: ['arxiv', 'connected_papers', 'google_scholar'],
+          sort_by: 'relevance',
+        });
 
-      // Flatten results from all sources
-      // Use title hash for consistent ID generation (matches backend)
-      const hashString = (str: string) => {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-          const char = str.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash; // Convert to 32bit integer
-        }
-        return Math.abs(hash).toString();
-      };
+        const allPapers: Paper[] = [];
 
-      const allPapers: Paper[] = [];
-      
-      Object.entries(results.results).forEach(([source, sourcePapers]) => {
-        sourcePapers.forEach((paper: any) => {
-          const title = paper.title || 'Untitled';
-          const doc_id = hashString(title);
-          
-          allPapers.push({
-            doc_id,
-            title,
-            authors: paper.authors || [],
-            year: paper.year || paper.published,
-            journal: paper.journal || paper.publication || '',
-            abstract: paper.abstract || '',
-            url: paper.url || paper.paper_url,
-            pdf_url: paper.pdf_url,
-            doi: paper.doi,
-            citations: paper.citations || 0,
-            source: source,
-            ...paper,
+        Object.entries(results.results).forEach(([source, sourcePapers]) => {
+          sourcePapers.forEach((paper: any) => {
+            const title = paper.title || 'Untitled';
+            const doc_id = hashString(title);
+
+            allPapers.push({
+              doc_id,
+              title,
+              authors: paper.authors || [],
+              year: paper.year || paper.published,
+              journal: paper.journal || paper.publication || '',
+              abstract: paper.abstract || '',
+              url: paper.url || paper.paper_url,
+              pdf_url: paper.pdf_url,
+              doi: paper.doi,
+              citations: paper.citations || 0,
+              source: source,
+              ...paper,
+            });
           });
         });
-      });
 
-      // 질의와 유사도 순으로 정렬
-      const queryAnalysis = (results as any).query_analysis || null;
-      const sortedPapers = sortPapersByQuerySimilarity(allPapers, searchQuery, queryAnalysis);
-      setPapers(sortedPapers);
-      
-      // Generate graph data
-      if (allPapers.length > 0) {
-        const graph = await getGraphData(JSON.stringify(allPapers));
-        setGraphData(graph);
-        
-        // Select first paper by default
-        if (!selectedPaper && allPapers.length > 0) {
-          setSelectedPaper(allPapers[0]);
-          setHighlightedPapers(new Set());
+        const queryAnalysis = (results as any).query_analysis || null;
+        const sortedPapers = sortPapersByQuerySimilarity(allPapers, searchQuery, queryAnalysis);
+        setPapers(sortedPapers);
+
+        if (allPapers.length > 0) {
+          const graph = await getGraphData(JSON.stringify(allPapers));
+          setGraphData(graph);
+
+          if (!selectedPaper && allPapers.length > 0) {
+            setSelectedPaper(allPapers[0]);
+            setHighlightedPapers(new Set());
+          }
         }
       }
     } catch (error: any) {
       console.error('Search error:', error);
-      
+
       let errorMessage = '알 수 없는 오류가 발생했습니다.';
-      
+
       if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
         errorMessage = '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요. (http://localhost:8000)';
       } else if (error.response?.data?.detail) {
@@ -193,16 +197,46 @@ function App() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       alert(`검색 중 오류가 발생했습니다: ${errorMessage}`);
-      
-      // 에러 발생 시 빈 결과 설정
+
       setPapers([]);
       setGraphData(null);
       setSelectedPaper(null);
       setHighlightedPapers(new Set());
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Bookmark handlers
+  const handleSaveBookmark = async () => {
+    if (!reviewSessionId || !reviewReport) return;
+    try {
+      const selectedPaperIds = Array.from(selectedPapersForReview);
+      const selectedPapersData = papers.filter(paper =>
+        selectedPaperIds.includes(paper.doc_id || '') ||
+        selectedPaperIds.includes(String(paper.doc_id || ''))
+      );
+      const title = query
+        ? `${query} - ${new Date().toLocaleDateString()}`
+        : `Deep Research - ${new Date().toLocaleDateString()}`;
+      await saveBookmark({
+        session_id: reviewSessionId,
+        title,
+        query,
+        papers: selectedPapersData.map(p => ({
+          title: p.title,
+          authors: p.authors,
+          year: p.year,
+        })),
+        report_markdown: reviewReport,
+      });
+      setBookmarkSaved(true);
+      setTimeout(() => setBookmarkSaved(false), 3000);
+    } catch (error: any) {
+      console.error('Bookmark save error:', error);
+      alert(`북마크 저장 실패: ${error.message || error}`);
     }
   };
 
@@ -417,28 +451,37 @@ function App() {
 
   return (
     <div className="app">
+      <Routes>
+      <Route path="/mypage" element={<MyPage onBack={() => navigate('/')} />} />
+      <Route path="*" element={<>
       {/* Minimal header */}
       <div className="app-header">
         <div className="header-nav">
-          <div className="logo">
-            <img 
-              src="/Jipyheonjeon_llama.png" 
-              alt="Jipyheonjeon" 
+          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+            <img
+              src="/Jipyheonjeon_llama.png"
+              alt="Jipyheonjeon"
               className="logo-icon"
               onError={(e) => {
-                console.error('Logo image failed to load:', '/Jipyheonjeon_llama.png');
                 e.currentTarget.style.display = 'none';
-              }}
-              onLoad={() => {
-                console.log('Logo image loaded successfully');
               }}
             />
             <span className="brand-name">Jipyheonjeon</span>
           </div>
+          <div className="header-actions">
+            <button
+              className="nav-btn"
+              onClick={() => navigate('/mypage')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              My Page
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Main content - Perplexity style */}
       <div className="main-content">
         {!loading && papers.length === 0 && !query && (
           <div className="centered-search">
@@ -560,11 +603,11 @@ function App() {
                         }}
                         disabled={selectedPapersForReview.size === 0}
                       >
-                        <svg 
-                          className="menu-item-icon" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
+                        <svg
+                          className="menu-item-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
                           strokeWidth="2"
                         >
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -575,6 +618,7 @@ function App() {
                           {selectedPapersForReview.size > 0 ? `Download PDFs (${selectedPapersForReview.size})` : 'Download PDFs'}
                         </span>
                       </button>
+
                     </div>
                   )}
                 </div>
@@ -815,6 +859,21 @@ function App() {
                               <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                           </button>
+                          <button
+                            className={`bookmark-save-button ${bookmarkSaved ? 'saved' : ''}`}
+                            onClick={handleSaveBookmark}
+                            title={bookmarkSaved ? 'Bookmarked!' : 'Save as Bookmark'}
+                          >
+                            <svg
+                              className="bookmark-icon"
+                              viewBox="0 0 24 24"
+                              fill={bookmarkSaved ? 'currentColor' : 'none'}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                          </button>
                         </>
                       )}
                       <button
@@ -824,6 +883,7 @@ function App() {
                           setDetailsCollapsed(false);
                           setReviewStatus('idle');
                           setReviewReport(null);
+                          setBookmarkSaved(false);
                         }}
                         title="Close report"
                       >
@@ -855,6 +915,7 @@ function App() {
                   </div>
                 </div>
               )}
+
             </div>
           </div>
         )}
@@ -912,6 +973,8 @@ function App() {
           </div>
         )}
       </div>
+      </>} />
+      </Routes>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { SearchRequest, SearchResponse, GraphData } from '../types';
+import type { SearchRequest, SearchResponse, GraphData, LightRAGQueryRequest, LightRAGQueryResponse, KnowledgeGraphStats } from '../types';
 
 // 현재 호스트를 기반으로 API URL을 동적으로 설정 (내부 네트워크 접근 지원)
 const getApiBaseUrl = () => {
@@ -100,5 +100,121 @@ export interface PosterResponse {
 export const generatePoster = async (sessionId: string): Promise<PosterResponse> => {
   const response = await api.post<PosterResponse>(`/api/deep-review/visualize/${sessionId}`);
   return response.data;
+};
+
+// LightRAG API
+export const queryLightRAG = async (request: LightRAGQueryRequest): Promise<LightRAGQueryResponse> => {
+  const response = await api.post<LightRAGQueryResponse>('/api/light-rag/query', request);
+  return response.data;
+};
+
+export const buildLightRAG = async (maxConcurrent: number = 4, extractionModel: string = 'gpt-4o-mini') => {
+  const response = await api.post('/api/light-rag/build', {
+    max_concurrent: maxConcurrent,
+    extraction_model: extractionModel,
+  });
+  return response.data;
+};
+
+export const getLightRAGStatus = async (): Promise<KnowledgeGraphStats> => {
+  const response = await api.get<KnowledgeGraphStats>('/api/light-rag/status');
+  return response.data;
+};
+
+// Bookmarks API
+export const saveBookmark = async (request: {
+  session_id: string;
+  title: string;
+  query: string;
+  papers: any[];
+  report_markdown: string;
+  tags?: string[];
+  topic?: string;
+}) => {
+  const response = await api.post('/api/bookmarks', request);
+  return response.data;
+};
+
+export const getBookmarks = async () => {
+  const response = await api.get('/api/bookmarks');
+  return response.data;
+};
+
+export const getBookmarkDetail = async (bookmarkId: string) => {
+  const response = await api.get(`/api/bookmarks/${bookmarkId}`);
+  return response.data;
+};
+
+export const deleteBookmark = async (bookmarkId: string) => {
+  const response = await api.delete(`/api/bookmarks/${bookmarkId}`);
+  return response.data;
+};
+
+export const updateBookmarkTopic = async (bookmarkId: string, topic: string) => {
+  const response = await api.patch(`/api/bookmarks/${bookmarkId}/topic`, { topic });
+  return response.data;
+};
+
+// Chat API (SSE streaming)
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export const chatWithBookmarks = async (
+  messages: ChatMessage[],
+  bookmarkIds: string[],
+  onChunk: (content: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, bookmark_ids: bookmarkIds }),
+  });
+
+  if (!response.ok) {
+    onError(`HTTP ${response.status}: ${response.statusText}`);
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError('No response body');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.content) {
+            onChunk(data.content);
+          } else if (data.done) {
+            onDone();
+            return;
+          } else if (data.error) {
+            onError(data.error);
+            return;
+          }
+        } catch {
+          // skip malformed lines
+        }
+      }
+    }
+  }
+  onDone();
 };
 

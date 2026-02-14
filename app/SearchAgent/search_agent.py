@@ -716,9 +716,9 @@ class SearchAgent:
                         # 저장
                         embedding_generator.save_embeddings(existing_embeddings, self.embeddings_dir)
                         result['embeddings_generated'] = len(new_embeddings)
-                        print(f"✓ {len(new_embeddings)}개 embedding 생성 및 저장 완료")
+                        print(f"[v] {len(new_embeddings)}개 embedding 생성 및 저장 완료")
                 except Exception as e:
-                    print(f"⚠ Embedding 생성 중 오류: {e}")
+                    print(f"[WARNING] Embedding 생성 중 오류: {e}")
                     result['embedding_error'] = str(e)
             
             # 그래프 업데이트
@@ -728,9 +728,9 @@ class SearchAgent:
                     graph_info = self._update_graph(new_papers_list)
                     result['graph_updated'] = True
                     result['graph_info'] = graph_info
-                    print(f"✓ 그래프 업데이트 완료")
+                    print(f"[v] 그래프 업데이트 완료")
                 except Exception as e:
-                    print(f"⚠ 그래프 업데이트 중 오류: {e}")
+                    print(f"[WARNING] 그래프 업데이트 중 오류: {e}")
                     result['graph_error'] = str(e)
             
             return result
@@ -771,7 +771,7 @@ class SearchAgent:
                 # embeddings.json은 {paper_id: [embedding_array]} 형식
                 return data if isinstance(data, dict) else {}
         except Exception as e:
-            print(f"⚠ Embedding 로드 중 오류: {e}")
+            print(f"[WARNING] Embedding 로드 중 오류: {e}")
             return {}
     
     def _update_graph(self, new_papers: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -795,7 +795,7 @@ class SearchAgent:
                     existing_graph = pickle.load(f)
                 print(f"  기존 그래프 로드: {existing_graph.number_of_nodes()}개 노드, {existing_graph.number_of_edges()}개 엣지")
             except Exception as e:
-                print(f"  ⚠ 기존 그래프 로드 실패: {e}, 새 그래프 생성")
+                print(f"  [WARNING] 기존 그래프 로드 실패: {e}, 새 그래프 생성")
         
         if existing_graph is None:
             existing_graph = nx.MultiDiGraph()
@@ -915,7 +915,7 @@ class SearchAgent:
                 "total_edges": existing_graph.number_of_edges()
             }
         except Exception as e:
-            print(f"  ⚠ 그래프 저장 실패: {e}")
+            print(f"  [WARNING] 그래프 저장 실패: {e}")
             raise
     
     def _calculate_title_similarity(self, title1: str, title2: str) -> float:
@@ -946,7 +946,7 @@ class SearchAgent:
         if max_papers:
             papers_list = papers_list[:max_papers]
         
-        print(f'\n📚 {len(papers_list)}개 논문의 참고문헌 수집 시작...')
+        print(f'\n[INFO] {len(papers_list)}개 논문의 참고문헌 수집 시작...')
         
         # 참고문헌 수집 및 각 논문에 추가
         total_references_found = 0
@@ -1027,7 +1027,7 @@ class SearchAgent:
         if max_papers:
             papers_list = papers_list[:max_papers]
         
-        print(f'\n📝 {len(papers_list)}개 논문의 본문 추출 시작...')
+        print(f'\n[INFO] {len(papers_list)}개 논문의 본문 추출 시작...')
         
         # 본문 추출
         extract_results = self.text_extractor.extract_batch(papers_list, max_papers)

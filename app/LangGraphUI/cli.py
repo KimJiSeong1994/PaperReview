@@ -51,7 +51,7 @@ class LangGraphCLI:
 
     def run(self):
         print("=" * 70)
-        print("🧠 LangGraph CLI - Graph RAG Paper Explorer")
+        print("[INFO] LangGraph CLI - Graph RAG Paper Explorer")
         print("=" * 70)
         print("질문을 입력하면 그래프 기반 RAG 응답을 생성합니다. (종료: exit/quit)\n")
 
@@ -85,13 +85,13 @@ class LangGraphCLI:
             print("응답을 생성하지 못했습니다.\n")
             return
 
-        print("\n📝 답변")
+        print("\n[INFO] 답변")
         print("-" * 70)
         print(answer)
         print("-" * 70)
 
         if sources:
-            print("\n📚 참조 논문")
+            print("\n[INFO] 참조 논문")
             for idx, paper in enumerate(sources, 1):
                 title = paper.get("title", "제목 없음")
                 score = paper.get("relevance_score", 0.0)

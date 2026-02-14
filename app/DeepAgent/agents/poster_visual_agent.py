@@ -287,7 +287,7 @@ class PosterVisualAgent:
         if not items:
             return '<p class="text-gray-500">내용 없음</p>'
         
-        list_items = "".join([f'<li class="py-1 border-b border-slate-100">✅ {item}</li>' 
+        list_items = "".join([f'<li class="py-1 border-b border-slate-100">{item}</li>'
                               for item in items])
         return f'<ul class="space-y-1">{list_items}</ul>'
     

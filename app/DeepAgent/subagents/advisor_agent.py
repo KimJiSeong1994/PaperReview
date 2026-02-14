@@ -212,11 +212,11 @@ def provide_feedback(
     # 구체적 코멘트
     if validation_result.get("validation") == "APPROVED":
         feedback["specific_comments"].append(
-            "✅ Analysis approved. High quality work."
+            "[OK] Analysis approved. High quality work."
         )
     elif validation_result.get("validation") == "NEEDS_REVISION":
         feedback["specific_comments"].append(
-            "⚠️ Revisions needed. Please address the areas for improvement."
+            "[WARNING] Revisions needed. Please address the areas for improvement."
         )
     
     return feedback

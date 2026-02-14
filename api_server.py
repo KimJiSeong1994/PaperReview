@@ -94,6 +94,7 @@ except Exception as e:
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -948,7 +949,7 @@ review_sessions_lock = threading.Lock()
 
 def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace: Any, papers_data: Optional[List[Dict[str, Any]]] = None) -> dict:
     """
-    ⚡ Fast Mode: 단일 LLM 호출로 모든 논문을 빠르게 분석
+    Fast Mode: 단일 LLM 호출로 모든 논문을 빠르게 분석
     
     기존 Deep Mode 대비 5~10배 빠름
     
@@ -960,76 +961,113 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
     from datetime import datetime
     import hashlib
     
-    print(f"⚡ Fast Review 시작: {len(paper_ids)}편 논문")
+    print(f"[Fast Review] 시작: {len(paper_ids)}편 논문")
     
     # 논문 로드 (papers_data가 있으면 직접 사용, 없으면 ID로 검색)
     if papers_data and len(papers_data) > 0:
         papers = papers_data
-        print(f"📚 {len(papers)}편 논문 (프론트엔드에서 직접 전달)")
+        print(f"[Fast Review] {len(papers)}편 논문 (프론트엔드에서 직접 전달)")
     else:
         papers = load_papers_from_ids(paper_ids)
-        print(f"📚 {len(papers)}편 논문 로드됨 (ID 검색)")
+        print(f"[Fast Review] {len(papers)}편 논문 로드됨 (ID 검색)")
     
     if not papers:
         return {"status": "failed", "error": "논문을 로드할 수 없습니다"}
     
     # OpenAI 클라이언트 초기화 (langchain 대신 직접 사용)
     deep_research_model = "gpt-4.1"
-    print(f"🧠 Deep Research 모델: {deep_research_model}")
+    print(f"[Fast Review] Deep Research 모델: {deep_research_model}")
     client = OpenAI()
     
-    # 논문 요약 준비
+    # 논문 데이터 확장 준비 (가용 메타데이터 최대 활용)
     papers_text = []
     for i, paper in enumerate(papers, 1):
         title = paper.get('title', f'Paper {i}') or f'Paper {i}'
         abstract = paper.get('abstract') or paper.get('summary') or '초록 없음'
         authors = paper.get('authors', [])
         year = paper.get('year') or paper.get('published') or 'N/A'
-        
+
         # Format authors
         if authors:
             if isinstance(authors[0], dict):
-                author_names = [a.get('name', str(a)) for a in authors[:3]]
+                author_names = [a.get('name', str(a)) for a in authors[:5]]
             else:
-                author_names = [str(a) for a in authors[:3]]
+                author_names = [str(a) for a in authors[:5]]
             author_str = ', '.join(author_names)
-            if len(authors) > 3:
-                author_str += ' 외'
+            if len(authors) > 5:
+                author_str += f' 외 {len(authors) - 5}명'
         else:
             author_str = '저자 미상'
-        
+
         # abstract가 string인지 확인
         if not isinstance(abstract, str):
             abstract = str(abstract) if abstract else '초록 없음'
-        
-        papers_text.append(f"""
+
+        # 추가 메타데이터 수집
+        categories = paper.get('categories', [])
+        keywords = paper.get('keywords', [])
+        citations = paper.get('citations')
+        doi = paper.get('doi', '')
+        url = paper.get('url', '') or paper.get('pdf_url', '')
+        venue = paper.get('venue') or paper.get('journal') or paper.get('journal_ref', '')
+        full_text = paper.get('full_text', '')
+
+        # 카테고리 포맷
+        cat_str = ', '.join(categories[:5]) if categories else ''
+        kw_str = ', '.join(keywords[:8]) if keywords else ''
+
+        paper_entry = f"""
 ### 논문 {i}: {title}
 - **저자**: {author_str}
-- **발표**: {year}
-- **초록**: {abstract[:1500]}
-""")
+- **발표**: {year}"""
+
+        if venue:
+            paper_entry += f"\n- **학회/저널**: {venue}"
+        if cat_str:
+            paper_entry += f"\n- **분야**: {cat_str}"
+        if kw_str:
+            paper_entry += f"\n- **키워드**: {kw_str}"
+        if citations is not None and citations > 0:
+            paper_entry += f"\n- **피인용 횟수**: {citations}회"
+        if doi:
+            paper_entry += f"\n- **DOI**: {doi}"
+        if url:
+            paper_entry += f"\n- **URL**: {url}"
+
+        paper_entry += f"\n- **초록**: {abstract[:3000]}"
+
+        # 전문(full_text) 가용 시 방법론/결과 부분 추가 제공
+        if full_text and len(full_text) > 500:
+            paper_entry += f"\n- **본문 발췌 (방법론/결과 중심)**: {full_text[:5000]}"
+
+        papers_text.append(paper_entry)
     
     combined_papers = "\n".join(papers_text)
     
-    # 단일 LLM 호출로 전체 분석 - 상세하고 구체적인 프롬프트
-    prompt = f"""당신은 20년 이상의 연구 경력을 가진 해당 분야의 석학 교수입니다. 
-다음 {len(papers)}편의 논문을 심층적으로 분석하여, 박사과정 학생들이 참고할 수 있는 수준의 
-체계적이고 상세한 한글 문헌 리뷰 보고서를 작성해주세요.
+    # 심층 분석 프롬프트 - 비판적 사고와 통찰력 기반
+    prompt = f"""당신은 Nature, Science 등 최상위 저널의 리뷰어이자, 해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다.
+다음 {len(papers)}편의 논문을 단순히 요약하는 것이 아니라, **비판적으로 분석하고 학술적 통찰을 도출**하여
+박사과정 학생 및 연구자들이 연구 방향 설정에 직접 활용할 수 있는 수준의 심층 문헌 고찰 보고서를 작성해주세요.
 
-## 🔬 분석할 논문들:
+**분석 철학**:
+- 표면적 요약이 아닌, 각 논문의 **핵심 아이디어의 본질**을 꿰뚫는 분석
+- "무엇을 했는가"보다 "왜 이 접근이 효과적인가/비효과적인가"에 초점
+- 논문들을 종합했을 때 비로소 보이는 **메타 수준의 패턴과 통찰** 도출
+- 모호한 표현("~할 수 있다", "중요하다") 대신 **구체적 근거와 논리적 추론** 사용
+
+## 분석 대상 논문들:
 {combined_papers}
 
 ---
 
-## 📋 작성 요구사항
+## 분석 품질 기준 (반드시 준수)
 
-**반드시 지켜야 할 원칙:**
-1. 각 논문의 초록에서 추출한 **구체적인 내용**을 바탕으로 분석
-2. 일반적인 문구가 아닌, **해당 논문만의 고유한 특성**을 서술
-3. 연구 방법론의 **기술적 세부사항**을 명시
-4. 실험 결과는 가능하면 **수치와 함께** 서술
-5. 각 논문 간의 **연관성과 차이점**을 명확히 비교
-6. 학술 논문 수준의 **전문적인 용어**와 표현 사용
+1. 모든 주장에는 **논문의 구체적 내용을 근거**로 제시할 것
+2. "일반적으로", "보통" 같은 일반론 사용 금지 - **해당 논문만의 고유한 분석**만 작성
+3. 방법론 설명 시 **알고리즘의 핵심 작동 원리**를 기술적으로 서술할 것
+4. 실험 결과는 반드시 **수치 데이터**와 함께 제시할 것
+5. 한계점 분석 시 저자가 명시하지 않은 **숨겨진 가정과 잠재적 문제**도 도출할 것
+6. 각 논문 분석은 **최소 800자 이상** 깊이 있게 작성할 것
 
 ---
 
@@ -1039,194 +1077,211 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
 
 **리뷰 날짜**: {datetime.now().strftime('%Y년 %m월 %d일')}
 **분석 논문 수**: {len(papers)}편
-**리뷰 방법론**: AI 기반 심층 연구 분석 시스템
+**리뷰 방법론**: AI 기반 심층 연구 분석 시스템 (비판적 분석 프레임워크)
 
 ---
 
 ## 초록 (Abstract)
 
-[300-500자로 작성. 다음을 반드시 포함:]
-- 분석 대상 논문들의 공통 연구 주제
-- 각 논문의 핵심 기여 요약
-- 발견된 주요 연구 트렌드
-- 본 리뷰의 학술적 의의
+[400-600자로 작성. 단순 요약이 아닌 분석적 초록:]
+- 분석 대상 논문들이 다루는 **공통 연구 질문**과 그 학술적 중요성
+- 각 논문이 이 질문에 대해 제시하는 **서로 다른 접근법**과 그 차이의 본질
+- 논문들을 종합했을 때 드러나는 **핵심 연구 트렌드와 패러다임 전환**
+- 본 리뷰가 해당 분야 연구자에게 제공하는 **고유한 학술적 가치**
 
-**키워드**: [논문들에서 추출한 핵심 키워드 7-10개]
+**키워드**: [논문들의 핵심 개념을 관통하는 키워드 7-10개]
 
 ---
 
 ## 1. 서론
 
-### 1.1 연구 배경 및 동기
-[400자 이상. 다음을 구체적으로 서술:]
-- 해당 연구 분야의 현재 상황과 발전 과정
-- 왜 이 논문들이 중요한지에 대한 학술적 맥락
-- 기존 연구의 한계와 새로운 접근의 필요성
+### 1.1 연구 배경 및 학술적 맥락
+[500자 이상. 깊이 있는 맥락 분석:]
+- 이 연구 분야가 현재 직면한 **근본적인 도전과 미해결 문제**
+- 최근 5년간 이 분야에서 일어난 **패러다임 변화**와 그 동인
+- 분석 대상 논문들이 이 큰 그림 속에서 차지하는 **위치와 의미**
+- 기존 연구의 한계 중 이 논문들이 구체적으로 **어떤 간극을 메우고 있는지**
 
-### 1.2 본 리뷰의 목적
-[구체적인 목적 4-5가지를 상세히 설명]
+### 1.2 본 리뷰의 목적과 차별점
+[단순 요약을 넘어서는 본 리뷰의 고유 가치를 4-5가지로 서술]
 
-### 1.3 분석 범위 및 논문 선정 기준
-[선정된 논문들의 공통점과 선정 이유를 구체적으로]
-
----
-
-## 2. 연구 방법론
-
-### 2.1 분석 프레임워크
-[사용된 분석 방법론을 학술적으로 설명]
-
-### 2.2 분석 차원
-| 분석 차원 | 평가 기준 | 세부 항목 |
+### 1.3 분석 프레임워크
+| 분석 차원 | 핵심 질문 | 평가 관점 |
 |-----------|----------|----------|
-| 연구 문제 | 명확성, 참신성 | 문제 정의의 구체성 |
-| 방법론 | 적절성, 혁신성 | 기술적 접근법의 타당성 |
-| 실험 설계 | 엄밀성, 재현성 | 데이터셋, 평가 지표 |
-| 결과 | 유의미성, 신뢰성 | 성능 지표, 통계적 검증 |
-| 기여도 | 학술적/실용적 가치 | 이론적/응용적 의의 |
+| 문제 정의 | 이 문제가 왜 중요하며, 어떤 실질적 영향을 미치는가? | 참신성, 실용성, 학술적 의의 |
+| 방법론적 혁신 | 기존 방법 대비 무엇이 근본적으로 다른가? | 기술적 차별성, 이론적 근거 |
+| 실험적 엄밀성 | 실험 설계가 주장을 충분히 뒷받침하는가? | 데이터셋 적절성, 베이스라인 공정성, 재현성 |
+| 이론적 깊이 | 왜 이 방법이 작동하는지 설명할 수 있는가? | 이론적 분석, 수렴성, 일반화 가능성 |
+| 실질적 영향 | 이 연구가 실제 문제 해결에 얼마나 기여하는가? | 응용 가능성, 확장성, 실무 적용 |
 
 ---
 
-## 3. 개별 논문 심층 분석
+## 2. 개별 논문 심층 분석
 
-[**각 논문에 대해 아래 형식으로 최소 500자 이상 상세 분석:**]
+[**각 논문에 대해 아래 형식으로 최소 800자 이상, 비판적 시각으로 분석:**]
 
-### 3.N [논문 제목]
+### 2.N [논문 제목]
 
-**📌 기본 정보**
+**기본 정보**
 - **저자**: [저자명]
 - **발표**: [연도/학회/저널]
 
-**🎯 연구 문제 및 동기**
-[이 논문이 해결하고자 하는 구체적인 문제와 연구 동기를 3-4문장으로 상세히 서술]
+**연구 문제의 본질 분석**
+[단순한 문제 기술이 아닌, 이 문제가 중요한 이유를 학술적 맥락에서 깊이 있게 분석.
+이 문제를 해결하면 어떤 파급 효과가 있는지, 기존에 왜 해결되지 못했는지를 3-5문장으로 서술]
 
-**🔧 핵심 방법론**
-[사용된 기술적 방법을 구체적으로 설명. 알고리즘, 모델 구조, 학습 방법 등 포함]
+**핵심 방법론 및 기술적 혁신**
+[알고리즘의 핵심 작동 원리를 기술적으로 설명. 단순히 "X 기법을 사용했다"가 아닌:
+- 이 방법이 **왜** 이 문제에 적합한지 (이론적 근거)
+- 기존 방법과 **구체적으로 어떤 점**이 다른지 (기술적 차별점)
+- 핵심 알고리즘의 **작동 메커니즘** (입력->처리->출력 흐름)
+- 계산 복잡도나 확장성 측면의 특성]
 
-**💡 주요 기여 (3-5개)**
-1. [첫 번째 기여 - 구체적으로]
-2. [두 번째 기여 - 구체적으로]
-3. [세 번째 기여 - 구체적으로]
+**주요 기여 (이론적 vs 실용적 구분)**
+- 이론적 기여: [새로운 프레임워크, 수학적 증명, 분석적 통찰 등]
+- 실용적 기여: [도구 개발, 성능 향상, 새로운 응용 등]
 
-**📊 실험 결과 및 성능**
-[주요 실험 결과를 수치와 함께 서술. 사용된 데이터셋, 비교 대상, 성능 향상 정도 등]
+**실험 결과의 비판적 검토**
+[주요 결과를 수치와 함께 서술하되, 다음도 포함:
+- 실험 설계의 **강점과 약점** (데이터셋 선택의 적절성, 베이스라인 비교의 공정성)
+- 보고된 성능 향상이 **통계적으로 유의미한지** 여부
+- 실험에서 **빠져 있는 비교/분석** (있었다면 더 설득력 있었을 실험)]
 
-**✅ 강점 분석**
-- [강점 1: 구체적 설명]
-- [강점 2: 구체적 설명]
-- [강점 3: 구체적 설명]
-
-**⚠️ 한계점 및 개선 방향**
-- [한계점 1: 구체적 설명 및 개선 제안]
-- [한계점 2: 구체적 설명 및 개선 제안]
-
-**🌟 학술적 영향력 평가**
-[이 논문이 해당 분야에 미친/미칠 영향을 구체적으로 평가]
-
----
-
-## 4. 비교 분석
-
-### 4.1 방법론적 비교
-[각 논문의 방법론을 표로 비교]
-
-| 논문 | 핵심 기법 | 데이터 | 평가 지표 | 특징 |
-|------|----------|--------|----------|------|
-[각 논문별 비교 내용]
-
-### 4.2 연구 기여 유형 분류
-| 기여 유형 | 해당 논문 | 구체적 기여 내용 |
-|----------|----------|----------------|
-| 알고리즘 혁신 | | |
-| 성능 개선 | | |
-| 새로운 응용 | | |
-| 이론적 분석 | | |
-
-### 4.3 논문 간 연관성 분석
-[논문들 간의 관계, 상호 보완점, 발전 방향 분석]
-
-### 4.4 종합 강점 및 한계점
-**공통 강점:**
-- [구체적 강점 3-4개]
-
-**공통 한계점:**
-- [구체적 한계점 3-4개]
+**숨겨진 가정과 한계**
+[저자가 명시적으로 언급하지 않은 부분 포함:
+- 방법론의 **암묵적 가정** (데이터 분포, 계산 자원 등)
+- **일반화 가능성**의 한계 (특정 도메인/규모에만 적용 가능한가?)
+- **재현성** 관련 우려 (구현 세부사항 충분히 공개되었는가?)
+- 향후 해결해야 할 **핵심 과제**]
 
 ---
 
-## 5. 논의
+## 3. 교차 분석 및 비교
 
-### 5.1 핵심 통찰 (Key Insights)
-[분석을 통해 발견한 중요한 통찰 5-7개를 상세히 설명]
+### 3.1 연구 패러다임 분류
+| 논문 | 연구 유형 | 핵심 접근법 | 데이터 | 평가 지표 | 성숙도 |
+|------|----------|-----------|--------|----------|--------|
+[각 논문의 연구 패러다임(실증적/이론적/설계과학적)과 접근법 성숙도(초기 탐색/발전/성숙) 분류]
 
-### 5.2 연구 트렌드 분석
-[논문들에서 발견되는 연구 동향과 패턴]
-- **기술적 트렌드**: [구체적 서술]
-- **방법론적 트렌드**: [구체적 서술]
-- **응용 트렌드**: [구체적 서술]
+### 3.2 방법론적 상보성과 모순점
+[논문들의 방법론이 서로 어떻게 보완할 수 있는지, 상충되는 주장이나 결과가 있는지 분석:
+- **상보적 관계**: A의 강점이 B의 약점을 보완하는 구체적 사례
+- **모순되는 결과/주장**: 같은 문제에 대해 다른 결론을 내리는 경우와 그 원인 분석
+- **방법론적 수렴**: 서로 다른 접근이 공통적으로 가리키는 방향]
 
-### 5.3 연구 공백 및 미래 기회
-[발견된 연구 공백과 향후 연구 기회를 구체적으로 제시]
+### 3.3 기여도 비교 매트릭스
+| 기여 유형 | 해당 논문 | 구체적 기여 내용 | 영향력 평가 |
+|----------|----------|----------------|-----------|
+| 이론적 프레임워크 제시 | | | |
+| 알고리즘/모델 혁신 | | | |
+| 대규모 실험적 검증 | | | |
+| 실용적 도구/시스템 | | | |
+| 새로운 연구 방향 개척 | | | |
 
 ---
 
-## 6. 결론 및 향후 연구 방향
+## 4. 핵심 통찰 및 연구 시사점
+
+### 4.1 메타 수준의 핵심 통찰 (Cross-Paper Insights)
+[개별 논문 분석만으로는 보이지 않는, 논문들을 종합했을 때 비로소 발견되는 패턴과 통찰 5-7개.
+각 통찰에 대해 근거가 되는 논문을 명시하고, 왜 이것이 중요한 발견인지 설명]
+
+1. [통찰 1: 구체적 설명 + 근거 논문]
+2. [통찰 2: 구체적 설명 + 근거 논문]
+...
+
+### 4.2 연구 공백 분석 (Research Gaps)
+[이 논문들이 다루지 못하고 있는 중요한 연구 질문을 식별하고,
+왜 이 질문들이 중요한지, 해결하기 위해 어떤 접근이 필요한지 구체적으로 서술]
+
+### 4.3 기술 융합 가능성 (Cross-Pollination Opportunities)
+[서로 다른 논문의 기법을 결합했을 때 기대되는 시너지 효과를 구체적으로 제시:
+- 논문 A의 X 기법 + 논문 B의 Y 기법 = 예상되는 개선점
+- 이 융합이 해결할 수 있는 현재의 한계점]
+
+### 4.4 실무 적용 시나리오
+[각 연구 결과의 산업/실무 적용 가능성을 구체적으로 평가:
+- 어떤 산업/분야에서 활용 가능한가?
+- 실용화까지 해결해야 할 기술적 과제는?
+- 예상되는 비즈니스 임팩트]
+
+---
+
+## 5. 연구 동향 및 미래 전망
+
+### 5.1 현재 연구 트렌드 분석
+[논문들에서 발견되는 연구 동향을 다차원적으로 분석:]
+- **기술적 트렌드**: 어떤 기술이 부상하고, 어떤 기술이 쇠퇴하고 있는가?
+- **방법론적 트렌드**: 연구 방법론은 어떻게 진화하고 있는가?
+- **데이터/벤치마크 트렌드**: 평가 기준과 데이터셋은 어떻게 변화하고 있는가?
+
+### 5.2 향후 5년 연구 전망
+[현재 트렌드를 바탕으로 한 미래 연구 방향 예측 5-7개.
+각 방향에 대해 왜 그 방향이 유망한지, 어떤 선행 조건이 필요한지 구체적으로 서술]
+
+### 5.3 연구자를 위한 실행 가능한 제언
+[이 분야에 진입하려는 연구자에게 제공하는 구체적이고 실행 가능한 연구 제언:
+- 가장 유망한 연구 주제 3가지와 그 이유
+- 피해야 할 함정과 주의사항
+- 필수적으로 읽어야 할 핵심 참고문헌]
+
+---
+
+## 6. 결론
 
 ### 6.1 주요 발견 요약
-[본 리뷰의 핵심 발견을 bullet point로 정리]
+[본 리뷰의 핵심 발견을 5-7개 bullet point로 압축 정리]
 
-### 6.2 향후 연구 방향 제언
-[구체적이고 실행 가능한 연구 방향 5-7개 제시]
-
-### 6.3 본 리뷰의 한계
-[본 리뷰의 한계점을 솔직하게 서술]
+### 6.2 본 리뷰의 한계
+[본 리뷰의 한계점과 향후 보완 방향을 솔직하게 서술]
 
 ---
 
 ## 참고문헌
 
-[분석된 모든 논문을 학술 인용 형식으로 정리]
-
----
-
-## 부록: 용어 정의
-
-[논문에서 사용된 핵심 기술 용어 설명]
+[분석된 모든 논문을 학술 인용 형식(APA)으로 정리]
 
 ---
 
 *본 체계적 문헌 고찰은 AI 기반 심층 연구 분석 시스템에 의해 생성되었습니다.*
-*각 논문의 원본 내용을 바탕으로 학술적 분석을 수행하였습니다.*
 
 ---
 
-**⚠️ 중요 지침:**
-- 위 형식을 **정확히** 따라주세요
-- 모든 섹션을 **빠짐없이** 작성해주세요
-- 각 논문 분석은 **최소 500자 이상** 작성해주세요
-- **일반적인 문구 대신 구체적인 내용**을 작성해주세요
-- 논문 초록에 나온 **실제 기술, 방법, 결과**를 인용해주세요"""
+**최종 점검 (반드시 확인):**
+- 모든 분석에 **구체적 근거**가 제시되었는가? (일반론 사용 금지)
+- 각 논문의 **고유한 특성**이 드러나는가? (복사-붙여넣기식 분석 금지)
+- **방법론의 작동 원리**가 기술적으로 설명되었는가?
+- **숨겨진 가정과 한계**가 비판적으로 분석되었는가?
+- **교차 논문 통찰**이 개별 분석을 넘어서는 새로운 가치를 제공하는가?
+- **수치 데이터**가 충분히 인용되었는가?"""
 
     try:
-        print("🤖 LLM 분석 중...")
+        print("[Fast Review] LLM 분석 중...")
         
         with review_sessions_lock:
             if session_id in review_sessions:
-                review_sessions[session_id]["progress"] = "🤖 AI가 논문을 분석하고 있습니다..."
+                review_sessions[session_id]["progress"] = "AI가 논문을 분석하고 있습니다..."
         
         # OpenAI API 직접 호출 (langchain 호환성 문제 우회)
         response = client.chat.completions.create(
             model=deep_research_model,
             messages=[
-                {"role": "system", "content": "당신은 20년 이상의 연구 경력을 가진 해당 분야의 석학 교수입니다. 체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."},
+                {"role": "system", "content": (
+                    "당신은 Nature, Science 등 최상위 저널의 리뷰어이자, "
+                    "해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다. "
+                    "단순한 논문 요약이 아닌, 비판적 사고와 학제간 통찰을 바탕으로 "
+                    "논문의 본질적 기여와 한계를 꿰뚫는 심층 분석을 수행합니다. "
+                    "모든 주장에는 구체적 근거를 제시하고, 숨겨진 가정과 잠재적 한계까지 도출합니다. "
+                    "체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."
+                )},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3,
-            max_tokens=16000
+            temperature=0.4,
+            max_tokens=32000
         )
         report_content = response.choices[0].message.content
         
-        print(f"✅ 분석 완료! ({len(report_content)} chars)")
+        print(f"[Fast Review] 분석 완료! ({len(report_content)} chars)")
         
         # 리포트 저장
         reports_dir = Path(workspace.session_path) / "reports"
@@ -1235,7 +1290,7 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
         report_filename = f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
         report_path = reports_dir / report_filename
         report_path.write_text(report_content, encoding='utf-8')
-        print(f"📝 Report saved to: {report_path}")
+        print(f"[Review] Report saved to: {report_path}")
         
         # 분석 데이터도 저장
         analyses = []
@@ -1271,7 +1326,7 @@ def run_fast_review(session_id: str, paper_ids: List[str], model: str, workspace
         }
         
     except Exception as e:
-        print(f"❌ Fast Review 오류: {e}")
+        print(f"ERROR: Fast Review 오류: {e}")
         import traceback
         traceback.print_exc()
         return {"status": "failed", "error": str(e)}
@@ -1341,7 +1396,7 @@ async def start_deep_review(request: DeepReviewRequest, background_tasks: Backgr
     
     except Exception as e:
         import traceback
-        print(f"[Deep Review] ❌ Error: {e}")
+        print(f"[Deep Review] ERROR: Error: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to start review: {str(e)}")
 
@@ -1539,7 +1594,7 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     try:
         # Deep Research는 GPT-4.1 모델로 심층 분석
         deep_research_model = "gpt-4.1"
-        print(f"🤖 LLM으로 심층 리포트 생성 중... (모델: {deep_research_model})")
+        print(f"[Deep Review] LLM으로 심층 리포트 생성 중... (모델: {deep_research_model})")
         
         # OpenAI API 직접 호출 (langchain 호환성 문제 우회)
         client = OpenAI()
@@ -1553,11 +1608,11 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
             max_tokens=16000
         )
         report_content = response.choices[0].message.content
-        print(f"✅ 심층 리포트 생성 완료! ({len(report_content)} chars)")
+        print(f"[Deep Review] 심층 리포트 생성 완료! ({len(report_content)} chars)")
         return report_content
         
     except Exception as e:
-        print(f"⚠️ LLM 리포트 생성 실패: {e}, 기본 템플릿 사용")
+        print(f"[Deep Review] LLM 리포트 생성 실패: {e}, 기본 템플릿 사용")
         # LLM 실패 시 기본 템플릿 반환
         return _generate_fallback_report(workspace, result, paper_ids, analyses, num_papers, current_date)
 
@@ -1626,7 +1681,7 @@ def run_deep_review_background(
     """
     try:
         print(f"[Deep Review] Starting session {session_id}")
-        print(f"[Deep Review] Papers: {len(paper_ids)}, Mode: {'⚡ Fast' if fast_mode else '🔬 Deep'}")
+        print(f"[Deep Review] Papers: {len(paper_ids)}, Mode: {'Fast' if fast_mode else 'Deep'}")
         print(f"[Deep Review] Direct papers data: {len(papers_data) if papers_data else 0} papers")
         
         # Update status
@@ -1636,10 +1691,10 @@ def run_deep_review_background(
                 review_sessions[session_id]["progress"] = "논문 분석 중..." if fast_mode else "Researchers analyzing papers with deepagents..."
         
         if fast_mode:
-            # ⚡ Fast Mode: 단일 LLM 호출로 빠른 분석
+            # Fast Mode: 단일 LLM 호출로 빠른 분석
             result = run_fast_review(session_id, paper_ids, model, workspace, papers_data)
         else:
-            # 🔬 Deep Mode: 전체 deepagents 분석
+            # Deep Mode: 전체 deepagents 분석
             from app.DeepAgent.deep_review_agent import DeepReviewAgent
             
             agent = DeepReviewAgent(
@@ -1666,9 +1721,9 @@ def run_deep_review_background(
                 report_filename = f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
                 report_path = reports_dir / report_filename
                 report_path.write_text(report_content, encoding='utf-8')
-                print(f"📝 Report saved to: {report_path}")
+                print(f"[Review] Report saved to: {report_path}")
             except Exception as report_error:
-                print(f"⚠️ Report generation warning: {report_error}")
+                print(f"[Deep Review] Report generation warning: {report_error}")
         
         # Update session with result
         with review_sessions_lock:
@@ -1679,6 +1734,9 @@ def run_deep_review_background(
                     review_sessions[session_id]["report_available"] = True
                     review_sessions[session_id]["workspace_path"] = workspace_path
                     review_sessions[session_id]["num_papers"] = result.get("papers_reviewed", len(paper_ids))
+                    # 포스터 생성 시 삽도 추출을 위해 논문 데이터 보존
+                    if papers_data:
+                        review_sessions[session_id]["papers_data"] = papers_data
                 else:
                     review_sessions[session_id]["status"] = "failed"
                     review_sessions[session_id]["error"] = result.get("error", "Unknown error")
@@ -1779,9 +1837,9 @@ async def generate_poster_visualization(session_id: str):
         # Step 1: Import PosterGenerationAgent
         try:
             from app.DeepAgent.agents import PosterGenerationAgent
-            print("[Poster API] ✅ PosterGenerationAgent imported successfully")
+            print("[Poster API] PosterGenerationAgent imported successfully")
         except Exception as e:
-            print(f"[Poster API] ❌ Failed to import PosterGenerationAgent: {e}")
+            print(f"[Poster API] ERROR: Failed to import PosterGenerationAgent: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Failed to import PosterGenerationAgent: {str(e)}")
@@ -1789,39 +1847,39 @@ async def generate_poster_visualization(session_id: str):
         # Step 2: 세션 확인
         with review_sessions_lock:
             if session_id not in review_sessions:
-                print(f"[Poster API] ❌ Session not found: {session_id}")
+                print(f"[Poster API] ERROR: Session not found: {session_id}")
                 raise HTTPException(status_code=404, detail="Session not found")
             
             session = review_sessions[session_id]
-            print(f"[Poster API] ✅ Session found: status={session.get('status')}")
+            print(f"[Poster API] Session found: status={session.get('status')}")
             
             if session["status"] != "completed":
-                print(f"[Poster API] ❌ Review not completed: status={session.get('status')}")
+                print(f"[Poster API] ERROR: Review not completed: status={session.get('status')}")
                 raise HTTPException(status_code=400, detail="Review not completed yet")
             
             workspace_path = Path(session["workspace_path"])
-            print(f"[Poster API] ✅ Workspace path: {workspace_path}")
+            print(f"[Poster API] Workspace path: {workspace_path}")
         
         # Step 3: 리포트 읽기
         reports_dir = workspace_path / "reports"
         md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
         
         if not md_files:
-            print(f"[Poster API] ❌ No report files found in: {reports_dir}")
+            print(f"[Poster API] ERROR: No report files found in: {reports_dir}")
             raise HTTPException(status_code=404, detail="Report not found")
         
-        print(f"[Poster API] ✅ Found {len(md_files)} report file(s)")
+        print(f"[Poster API] Found {len(md_files)} report file(s)")
         with open(md_files[0], 'r', encoding='utf-8') as f:
             report_content = f.read()
-        print(f"[Poster API] ✅ Report content loaded: {len(report_content)} chars")
+        print(f"[Poster API] Report content loaded: {len(report_content)} chars")
         
         # Step 4: DesignPatternManager 초기화
         try:
             from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
             pattern_manager = get_design_pattern_manager()
-            print("[Poster API] ✅ DesignPatternManager initialized")
+            print("[Poster API] DesignPatternManager initialized")
         except Exception as e:
-            print(f"[Poster API] ⚠️ Failed to initialize DesignPatternManager: {e}")
+            print(f"[Poster API] WARNING: Failed to initialize DesignPatternManager: {e}")
             pattern_manager = None
         
         # Step 5: PosterGenerationAgent 초기화 (DesignPatternManager 포함)
@@ -1830,27 +1888,48 @@ async def generate_poster_visualization(session_id: str):
                 model="gemini-3-pro-image-preview",
                 design_pattern_manager=pattern_manager
             )
-            print("[Poster API] ✅ PosterGenerationAgent initialized with gemini-3-pro-image-preview and DesignPatternManager")
+            print("[Poster API] PosterGenerationAgent initialized with gemini-3-pro-image-preview and DesignPatternManager")
         except Exception as e:
-            print(f"[Poster API] ❌ Failed to initialize PosterGenerationAgent: {e}")
+            print(f"[Poster API] ERROR: Failed to initialize PosterGenerationAgent: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Failed to initialize PosterGenerationAgent: {str(e)}")
         
-        # Step 5: 포스터 생성
+        # Step 5: 포스터 생성 (논문 삽도 추출 포함)
         poster_dir = workspace_path / "posters"
         num_papers = session.get("num_papers", 0)
-        print(f"[Poster API] Generating poster: num_papers={num_papers}, output_dir={poster_dir}")
-        
+
+        # 세션에 저장된 논문 데이터 가져오기 (삽도 추출용)
+        # papers.json에서 pdf_url, arxiv_id 등 전체 데이터를 가져옴
+        papers_data = None
+        try:
+            from app.DeepAgent.tools.paper_loader import load_papers_from_ids
+            paper_ids = session.get("paper_ids", [])
+            if paper_ids:
+                papers_data = load_papers_from_ids(paper_ids)
+                print(f"[Poster API] 논문 데이터 로드 (papers.json): {len(papers_data) if papers_data else 0}편")
+
+            # papers.json에서 못 찾으면 세션 데이터 사용
+            if not papers_data:
+                papers_data = session.get("papers_data")
+                if papers_data:
+                    print(f"[Poster API] 세션 논문 데이터 사용: {len(papers_data)}편")
+        except Exception as e:
+            print(f"[Poster API] WARNING: 논문 데이터 로드 실패: {e}")
+            papers_data = session.get("papers_data")
+
+        print(f"[Poster API] Generating poster: num_papers={num_papers}, output_dir={poster_dir}, papers_data={len(papers_data) if papers_data else 0}")
+
         try:
             result = poster_agent.generate_poster(
                 report_content=report_content,
                 num_papers=num_papers,
-                output_dir=poster_dir
+                output_dir=poster_dir,
+                papers_data=papers_data
             )
-            print(f"[Poster API] ✅ Poster generated: success={result.get('success')}, path={result.get('poster_path', 'N/A')}")
+            print(f"[Poster API] Poster generated: success={result.get('success')}, path={result.get('poster_path', 'N/A')}")
         except Exception as e:
-            print(f"[Poster API] ❌ Failed to generate poster: {e}")
+            print(f"[Poster API] ERROR: Failed to generate poster: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
@@ -1865,10 +1944,322 @@ async def generate_poster_visualization(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Poster API] ❌ Unexpected error: {e}")
+        print(f"[Poster API] ERROR: Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
+
+
+# ─── LightRAG API Endpoints ───
+
+class LightRAGBuildRequest(BaseModel):
+    max_concurrent: int = 4
+    extraction_model: str = "gpt-4o-mini"
+
+class LightRAGQueryRequest(BaseModel):
+    query: str
+    mode: str = "hybrid"  # naive, local, global, hybrid, mix
+    top_k: int = 10
+    temperature: float = 0.7
+
+# LightRAG 에이전트 (싱글톤)
+_light_rag_agent = None
+
+def _get_light_rag_agent():
+    global _light_rag_agent
+    if _light_rag_agent is None:
+        from app.GraphRAG.rag_agent import GraphRAGAgent
+        _light_rag_agent = GraphRAGAgent(
+            papers_json_path="data/raw/papers.json",
+            graph_path="data/graph/paper_graph.pkl",
+            light_rag_dir="data/light_rag",
+        )
+    return _light_rag_agent
+
+
+@app.post("/api/light-rag/build")
+async def light_rag_build(request: LightRAGBuildRequest, background_tasks: BackgroundTasks):
+    """LightRAG 지식 그래프 구축 (백그라운드)"""
+    def _build():
+        try:
+            agent = _get_light_rag_agent()
+            agent.build_knowledge_graph(
+                max_concurrent=request.max_concurrent,
+                extraction_model=request.extraction_model,
+            )
+            print("[LightRAG] Knowledge graph build complete")
+        except Exception as e:
+            print(f"[LightRAG] Build error: {e}")
+
+    background_tasks.add_task(_build)
+    return {
+        "status": "building",
+        "message": "Knowledge graph build started in background",
+        "config": {
+            "max_concurrent": request.max_concurrent,
+            "extraction_model": request.extraction_model,
+        },
+    }
+
+
+@app.post("/api/light-rag/query")
+async def light_rag_query(request: LightRAGQueryRequest):
+    """LightRAG 쿼리 실행"""
+    try:
+        agent = _get_light_rag_agent()
+        result = agent.light_query(
+            query=request.query,
+            mode=request.mode,
+            top_k=request.top_k,
+            temperature=request.temperature,
+        )
+        return result
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Knowledge graph not found. Run /api/light-rag/build first.",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LightRAG query failed: {str(e)}")
+
+
+@app.get("/api/light-rag/status")
+async def light_rag_status():
+    """LightRAG 지식 그래프 상태 확인"""
+    try:
+        agent = _get_light_rag_agent()
+        stats = agent.get_kg_stats()
+        return {"status": "ready", "stats": stats}
+    except Exception as e:
+        return {"status": "not_built", "error": str(e)}
+
+
+# ==================== Bookmarks Endpoints ====================
+
+BOOKMARKS_FILE = Path("data/bookmarks.json")
+
+
+def _load_bookmarks() -> dict:
+    """Load bookmarks from JSON file"""
+    if BOOKMARKS_FILE.exists():
+        with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"bookmarks": []}
+
+
+def _save_bookmarks(data: dict):
+    """Save bookmarks to JSON file"""
+    BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(BOOKMARKS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+class BookmarkCreateRequest(BaseModel):
+    session_id: str
+    title: str
+    query: str = ""
+    papers: List[dict] = []
+    report_markdown: str
+    tags: List[str] = []
+    topic: str = "General"
+
+
+class BookmarkTopicUpdateRequest(BaseModel):
+    topic: str
+
+
+class BookmarkResponse(BaseModel):
+    id: str
+    title: str
+    session_id: str
+    query: str
+    num_papers: int
+    created_at: str
+    tags: List[str]
+    topic: str = "General"
+
+
+@app.post("/api/bookmarks")
+async def create_bookmark(request: BookmarkCreateRequest):
+    """Save a deep research result as a bookmark"""
+    from datetime import datetime
+    import uuid
+
+    bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+    # Try to get workspace_path from active sessions
+    workspace_path = ""
+    with review_sessions_lock:
+        if request.session_id in review_sessions:
+            workspace_path = review_sessions[request.session_id].get("workspace_path", "")
+
+    bookmark = {
+        "id": bookmark_id,
+        "title": request.title,
+        "session_id": request.session_id,
+        "workspace_path": workspace_path,
+        "query": request.query,
+        "papers": request.papers,
+        "num_papers": len(request.papers),
+        "report_markdown": request.report_markdown,
+        "created_at": datetime.now().isoformat(),
+        "tags": request.tags,
+        "topic": request.topic,
+    }
+
+    data = _load_bookmarks()
+    data["bookmarks"].append(bookmark)
+    _save_bookmarks(data)
+
+    return BookmarkResponse(
+        id=bookmark_id,
+        title=request.title,
+        session_id=request.session_id,
+        query=request.query,
+        num_papers=len(request.papers),
+        created_at=bookmark["created_at"],
+        tags=request.tags,
+        topic=request.topic,
+    )
+
+
+@app.get("/api/bookmarks")
+async def list_bookmarks():
+    """List all bookmarks (summary only, without report content)"""
+    data = _load_bookmarks()
+    return {
+        "bookmarks": [
+            {
+                "id": bm["id"],
+                "title": bm["title"],
+                "session_id": bm["session_id"],
+                "query": bm.get("query", ""),
+                "num_papers": bm.get("num_papers", 0),
+                "created_at": bm["created_at"],
+                "tags": bm.get("tags", []),
+                "topic": bm.get("topic", "General"),
+            }
+            for bm in data["bookmarks"]
+        ]
+    }
+
+
+@app.get("/api/bookmarks/{bookmark_id}")
+async def get_bookmark(bookmark_id: str):
+    """Get full bookmark detail including report"""
+    data = _load_bookmarks()
+    for bm in data["bookmarks"]:
+        if bm["id"] == bookmark_id:
+            return bm
+    raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+@app.delete("/api/bookmarks/{bookmark_id}")
+async def delete_bookmark(bookmark_id: str):
+    """Delete a bookmark"""
+    data = _load_bookmarks()
+    original_len = len(data["bookmarks"])
+    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm["id"] != bookmark_id]
+
+    if len(data["bookmarks"]) == original_len:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    _save_bookmarks(data)
+    return {"success": True, "message": "Bookmark deleted"}
+
+
+@app.patch("/api/bookmarks/{bookmark_id}/topic")
+async def update_bookmark_topic(bookmark_id: str, request: BookmarkTopicUpdateRequest):
+    """Update a bookmark's topic"""
+    data = _load_bookmarks()
+    for bm in data["bookmarks"]:
+        if bm["id"] == bookmark_id:
+            bm["topic"] = request.topic
+            _save_bookmarks(data)
+            return {"success": True, "topic": request.topic}
+    raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+# ==================== Chat Endpoints ====================
+
+class ChatRequest(BaseModel):
+    messages: List[dict]  # [{"role": "user"|"assistant", "content": "..."}]
+    bookmark_ids: List[str] = []  # empty = use all bookmarks
+
+
+@app.post("/api/chat")
+async def chat_with_bookmarks(request: ChatRequest):
+    """Chat about bookmarked papers using their report content as context. Returns SSE stream."""
+    from openai import OpenAI
+
+    # Load bookmark context
+    data = _load_bookmarks()
+    bookmarks = data.get("bookmarks", [])
+
+    if request.bookmark_ids:
+        bookmarks = [bm for bm in bookmarks if bm["id"] in request.bookmark_ids]
+
+    # Build context from bookmark reports
+    if not bookmarks:
+        context_text = "(No bookmarked papers available.)"
+    else:
+        context_parts = []
+        max_chars = 4000
+        for bm in bookmarks[:10]:
+            report = bm.get("report_markdown", "")[:max_chars]
+            papers_summary = ", ".join(
+                p.get("title", "Untitled") for p in bm.get("papers", [])[:5]
+            )
+            context_parts.append(
+                f"## Bookmark: {bm.get('title', 'Untitled')}\n"
+                f"Query: {bm.get('query', 'N/A')}\n"
+                f"Papers: {papers_summary}\n"
+                f"Report:\n{report}\n"
+            )
+        context_text = "\n---\n".join(context_parts)
+
+    system_message = {
+        "role": "system",
+        "content": (
+            "You are a research assistant helping users understand their bookmarked academic papers. "
+            "You have access to the following bookmarked research reports and paper information. "
+            "Answer questions based on this context. If the user asks about something not covered "
+            "in the bookmarks, say so clearly. Respond in the same language the user uses.\n\n"
+            f"=== BOOKMARKED PAPERS CONTEXT ===\n{context_text}\n=== END CONTEXT ==="
+        ),
+    }
+
+    openai_messages = [system_message] + [
+        {"role": m["role"], "content": m["content"]} for m in request.messages
+    ]
+
+    client = OpenAI()
+
+    def generate():
+        try:
+            stream = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=openai_messages,
+                temperature=0.7,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    yield f"data: {json.dumps({'content': delta.content})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 if __name__ == "__main__":

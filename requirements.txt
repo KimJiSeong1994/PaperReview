@@ -43,6 +43,7 @@ playwright>=1.40.0
 # PDF and Text Processing
 PyPDF2>=3.0.0
 pdfplumber>=0.10.0
+PyMuPDF>=1.24.0
 
 # LLM and Embeddings
 openai>=1.0.0

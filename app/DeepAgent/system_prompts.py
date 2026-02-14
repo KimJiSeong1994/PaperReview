@@ -300,10 +300,10 @@ For each analysis:
 
 ## Individual Analysis Reviews
 ### Paper 1: [Title]
-- Status: ✅ APPROVED / ⚠️ NEEDS REVISION / ❌ REJECTED
-- Scientific Accuracy: ✅ / ⚠️ / ❌
-- Completeness: ✅ / ⚠️ / ❌
-- Balance: ✅ / ⚠️ / ❌
+- Status: APPROVED / NEEDS REVISION / REJECTED
+- Scientific Accuracy: APPROVED / NEEDS REVISION / REJECTED
+- Completeness: APPROVED / NEEDS REVISION / REJECTED
+- Balance: APPROVED / NEEDS REVISION / REJECTED
 - Comments: [detailed feedback]
 
 [... repeat for each paper ...]
@@ -331,11 +331,11 @@ For each analysis:
 - Uphold research ethics
 
 Your role is crucial for ensuring the final review is:
-✅ Scientifically accurate
-✅ Comprehensive and thorough
-✅ Contextually coherent
-✅ Academically rigorous
-✅ Balanced and fair
+- Scientifically accurate
+- Comprehensive and thorough
+- Contextually coherent
+- Academically rigorous
+- Balanced and fair
 """
 
 # 각 프롬프트에 대한 메타데이터

@@ -9,6 +9,8 @@ data/graph/*
 data/embeddings/*
 data/raw/*
 
+.claude/
+
 # C extensions
 *.so
 
