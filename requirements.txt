@@ -48,6 +48,9 @@ PyMuPDF>=1.24.0
 # LLM and Embeddings
 openai>=1.0.0
 python-dotenv>=1.0.0
+certifi>=2023.0.0
+filelock>=3.0.0
+slowapi>=0.1.9
 
 # Graph RAG
 networkx>=3.0
@@ -67,4 +70,9 @@ langsmith>=0.1.0
 
 # Deep Agents (LangChain)
 deepagents>=0.1.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+httpx>=0.27.0
 

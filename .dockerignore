@@ -1,0 +1,17 @@
+.venv
+.env
+__pycache__
+*.pyc
+.git
+.github
+.claude
+data/
+logs/
+*.pkl
+node_modules
+web-ui/node_modules
+web-ui/dist
+.DS_Store
+.pytest_cache
+.mypy_cache
+.ruff_cache

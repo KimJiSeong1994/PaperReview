@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
-import GraphView from './components/GraphView';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
 import SearchBar from './components/SearchBar';
-import MyPage from './components/MyPage';
+
+const MyPage = lazy(() => import('./components/MyPage'));
+const GraphView = lazy(() => import('./components/GraphView'));
 import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark } from './api/client';
 import type { Paper, GraphData } from './types';
 
@@ -452,7 +453,7 @@ function App() {
   return (
     <div className="app">
       <Routes>
-      <Route path="/mypage" element={<MyPage onBack={() => navigate('/')} />} />
+      <Route path="/mypage" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense>} />
       <Route path="*" element={<>
       {/* Minimal header */}
       <div className="app-header">
@@ -647,13 +648,15 @@ function App() {
               <div className="center-panel">
                 <div className="pane-title">Graph View</div>
                 {graphData && (
-                  <GraphView
-                    graphData={graphData}
-                    selectedPaper={selectedPaper}
-                    highlightedPapers={highlightedPapers}
-                    papers={papers}
-                    onNodeClick={handleNodeClickWithHighlight}
-                  />
+                  <Suspense fallback={<div className="app-loading">Loading graph...</div>}>
+                    <GraphView
+                      graphData={graphData}
+                      selectedPaper={selectedPaper}
+                      highlightedPapers={highlightedPapers}
+                      papers={papers}
+                      onNodeClick={handleNodeClickWithHighlight}
+                    />
+                  </Suspense>
                 )}
               </div>
 

@@ -3,11 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-data/*
-data/cache/*
-data/graph/*
-data/embeddings/*
-data/raw/*
+data/
+logs/
+.DS_Store
+*.pkl
+
+# Collector cookies/sessions
+src/collector/paper/.google_scholar_cookies.pkl
 
 .claude/
 

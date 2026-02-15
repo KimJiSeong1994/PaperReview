@@ -1,0 +1,299 @@
+"""
+Paper management endpoints:
+  POST /api/save
+  GET  /api/papers
+  GET  /api/papers/count
+  DELETE /api/papers
+  POST /api/collect-references
+  POST /api/extract-texts
+  POST /api/enrich-papers
+  POST /api/graph-data
+"""
+
+import hashlib
+import json
+import os
+import re
+import traceback
+from typing import Any, Dict, List
+
+import networkx as nx
+from fastapi import APIRouter, HTTPException
+
+from .deps import search_agent
+
+router = APIRouter(prefix="/api", tags=["papers"])
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────
+
+@router.post("/save")
+async def save_papers(
+    results: Dict[str, List[Dict[str, Any]]],
+    query: str = "",
+    generate_embeddings: bool = False,
+    update_graph: bool = True,
+):
+    """
+    Save search results to database with automatic embedding generation and graph update.
+    """
+    try:
+        print(f"[API] Saving {sum(len(papers) for papers in results.values())} papers...")
+        print(f"[API] Generate embeddings: {generate_embeddings}, Update graph: {update_graph}")
+
+        save_info = search_agent.save_papers(
+            results, query, generate_embeddings=generate_embeddings, update_graph=update_graph
+        )
+
+        print(
+            f"[API] Save completed: {save_info.get('new_papers', 0)} new papers, "
+            f"{save_info.get('embeddings_generated', 0)} embeddings generated, "
+            f"graph updated: {save_info.get('graph_updated', False)}"
+        )
+
+        return save_info
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in save: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Save failed: {str(e)}")
+
+
+@router.get("/papers/count")
+async def get_papers_count():
+    """Get count of saved papers."""
+    return {"count": search_agent.get_saved_papers_count()}
+
+
+@router.get("/papers")
+async def get_saved_papers():
+    """Get all saved papers."""
+    try:
+        papers_file = search_agent.papers_file
+        if not os.path.exists(papers_file):
+            return {"papers": []}
+
+        with open(papers_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return {"papers": data.get("papers", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/papers")
+async def clear_papers():
+    """Clear all saved papers."""
+    success = search_agent.clear_saved_papers()
+    return {"success": success}
+
+
+@router.post("/collect-references")
+async def collect_references(max_references_per_paper: int = 10, max_papers: int = None):
+    """Collect references for saved papers."""
+    try:
+        print(
+            f"[API] Collecting references: max_references_per_paper={max_references_per_paper}, "
+            f"max_papers={max_papers}"
+        )
+        result = search_agent.collect_references(max_references_per_paper, max_papers)
+        print(
+            f"[API] References collected: {result.get('references_found', 0)} "
+            f"references for {result.get('papers_processed', 0)} papers"
+        )
+        return result
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in collect references: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Reference collection failed: {str(e)}")
+
+
+@router.post("/extract-texts")
+async def extract_texts(max_papers: int = None):
+    """Extract full texts from saved papers."""
+    try:
+        print(f"[API] Extracting full texts: max_papers={max_papers}")
+        result = search_agent.extract_full_texts(max_papers)
+        print(
+            f"[API] Texts extracted: {result.get('texts_extracted', 0)}/"
+            f"{result.get('papers_processed', 0)} papers"
+        )
+        return result
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in extract texts: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
+
+
+@router.post("/enrich-papers")
+async def enrich_papers(
+    collect_references: bool = True,
+    extract_texts: bool = True,
+    max_references_per_paper: int = 10,
+    max_papers: int = None,
+):
+    """Enrich saved papers (references + full-text + graph update)."""
+    try:
+        results = {"references": None, "texts": None, "success": True}
+
+        if collect_references:
+            print("[API] Step 1: Collecting references...")
+            ref_result = search_agent.collect_references(max_references_per_paper, max_papers)
+            results["references"] = ref_result
+            print(f"[API] References collected: {ref_result.get('references_found', 0)}")
+
+        if extract_texts:
+            print("[API] Step 2: Extracting full texts...")
+            text_result = search_agent.extract_full_texts(max_papers)
+            results["texts"] = text_result
+            print(f"[API] Texts extracted: {text_result.get('texts_extracted', 0)}")
+
+        print("[API] Paper enrichment completed")
+        return results
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[API] Error in enrich papers: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Paper enrichment failed: {str(e)}")
+
+
+@router.post("/graph-data")
+async def get_graph_data(request: Dict[str, Any]):
+    """Generate graph data for visualisation. Accepts papers JSON string or uses saved papers."""
+    try:
+        papers_json = request.get("papers_json")
+        if papers_json:
+            papers_data = json.loads(papers_json)
+            for paper in papers_data:
+                if "doc_id" not in paper:
+                    title = paper.get("title", "")
+                    doc_id = (
+                        str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
+                        if title
+                        else ""
+                    )
+                    paper["doc_id"] = doc_id
+        else:
+            papers_file = search_agent.papers_file
+            if not os.path.exists(papers_file):
+                return {"nodes": [], "edges": []}
+            with open(papers_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                papers_data = data.get("papers", [])
+
+        # ── Build similarity graph ─────────────────────────────────────
+        def _title_tokens(text: str) -> List[str]:
+            words = re.findall(r"\b\w+\b", text.lower())
+            return [w for w in words if len(w) > 3]
+
+        def generate_doc_id(title: str) -> str:
+            """Generate doc_id matching frontend hashString function (djb2)."""
+            hash_value = 0
+            for char in title:
+                char_code = ord(char)
+                hash_value = ((hash_value << 5) - hash_value) + char_code
+                hash_value = hash_value & 0x7FFFFFFF
+            return str(hash_value)
+
+        graph = nx.Graph()
+
+        for paper in papers_data:
+            if "doc_id" not in paper:
+                paper["doc_id"] = generate_doc_id(paper.get("title", ""))
+
+        for paper in papers_data:
+            doc_id = paper.get("doc_id")
+            if not doc_id:
+                title = paper.get("title", "")
+                doc_id = (
+                    str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
+                    if title
+                    else ""
+                )
+                paper["doc_id"] = doc_id
+
+            node_attrs = {
+                "weight": max(paper.get("citations", 1), 1),
+                "year": paper.get("year"),
+                "title": paper.get("title", ""),
+            }
+            for key, value in paper.items():
+                if key not in node_attrs and key != "doc_id":
+                    node_attrs[key] = value
+            graph.add_node(doc_id, **node_attrs)
+
+        # Edges based on title similarity
+        token_cache = {
+            p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(_title_tokens(p.get("title", "")))
+            for p in papers_data
+        }
+
+        paper_list = list(papers_data)
+        for idx, paper in enumerate(paper_list):
+            for jdx in range(idx + 1, len(paper_list)):
+                other = paper_list[jdx]
+                doc_id1 = paper.get("doc_id") or str(abs(hash(paper.get("title", ""))))
+                doc_id2 = other.get("doc_id") or str(abs(hash(other.get("title", ""))))
+
+                base_tokens = token_cache.get(doc_id1, set())
+                other_tokens = token_cache.get(doc_id2, set())
+                if not base_tokens or not other_tokens:
+                    continue
+
+                overlap = len(base_tokens & other_tokens)
+                union = len(base_tokens | other_tokens)
+                score = overlap / union if union else 0
+
+                if score >= 0.12:
+                    graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
+
+        # Layout
+        layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
+
+        if len(layout) > 0:
+            centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
+            centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
+            centered_layout = {}
+            for node_id, (x, y) in layout.items():
+                centered_layout[node_id] = (x - centroid_x, y - centroid_y)
+            layout = centered_layout
+
+        # Extract nodes and edges for frontend
+        nodes = []
+        if len(graph.nodes()) > 0:
+            for node_id in graph.nodes():
+                node_data = graph.nodes[node_id]
+                x, y = layout.get(node_id, (0, 0))
+                nodes.append(
+                    {
+                        "id": str(node_id),
+                        "x": float(x),
+                        "y": float(y),
+                        "title": node_data.get("title", ""),
+                        "year": node_data.get("year"),
+                        "citations": node_data.get("citations", 0),
+                        "authors": node_data.get("authors", []),
+                        "abstract": node_data.get("abstract", ""),
+                        "url": node_data.get("url", ""),
+                        "pdf_url": node_data.get("pdf_url", ""),
+                        "doi": node_data.get("doi", ""),
+                        "source": node_data.get("source", ""),
+                        "journal": node_data.get("journal", ""),
+                        "doc_id": str(node_id),
+                        "weight": node_data.get("weight", 1),
+                    }
+                )
+
+            edges = []
+            for start, end in graph.edges():
+                edges.append(
+                    {
+                        "source": str(start),
+                        "target": str(end),
+                        "weight": graph.edges[start, end].get("weight", 0.1),
+                    }
+                )
+        else:
+            edges = []
+
+        return {"nodes": nodes, "edges": edges}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
