@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, cloneElement, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -36,22 +36,13 @@ interface DraggableBookmarkItemProps {
   onSelect: (bm: Bookmark) => void;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onDelete: (id: string) => void;
-  onMove: (id: string, topic: string) => void;
-  movingBookmarkId: string | null;
-  setMovingBookmarkId: (id: string | null) => void;
-  moveTopicInput: string;
-  setMoveTopicInput: (v: string) => void;
-  onAddMoveTopicInline: () => void;
-  allTopics: string[];
   currentTopic: string;
   setSearchQuery: (q: string) => void;
 }
 
 function DraggableBookmarkItem({
   bookmark: bm, isActive, isChecked,
-  onSelect, onToggleSelection, onDelete, onMove,
-  movingBookmarkId, setMovingBookmarkId, moveTopicInput, setMoveTopicInput,
-  onAddMoveTopicInline, allTopics, currentTopic, setSearchQuery,
+  onSelect, onToggleSelection, onDelete, currentTopic, setSearchQuery,
 }: DraggableBookmarkItemProps) {
   const {
     attributes, listeners, setNodeRef, transform, isDragging,
@@ -112,33 +103,10 @@ function DraggableBookmarkItem({
         )}
       </div>
       <div className="mypage-bookmark-actions">
-        <button className="mypage-bookmark-move"
-          onClick={(e) => { e.stopPropagation(); setMovingBookmarkId(movingBookmarkId === bm.id ? null : bm.id); setMoveTopicInput(''); }}
-          title="Move to topic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
         <button className="mypage-bookmark-delete"
           onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
           title="Delete">✕</button>
       </div>
-      {movingBookmarkId === bm.id && (
-        <div className="mypage-move-dropdown" onClick={(e) => e.stopPropagation()}>
-          <div className="mypage-move-dropdown-title">Move to:</div>
-          {allTopics.filter(t => t !== currentTopic).map(t => (
-            <button key={t} className="mypage-move-dropdown-item" onClick={() => onMove(bm.id, t)}>{t}</button>
-          ))}
-          <div className="mypage-move-dropdown-divider" />
-          <div className="mypage-move-new-topic">
-            <input type="text" placeholder="New topic..." value={moveTopicInput}
-              onChange={(e) => setMoveTopicInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') onAddMoveTopicInline(); }}
-              className="mypage-move-new-input" />
-            <button className="mypage-move-new-btn" onClick={onAddMoveTopicInline} disabled={!moveTopicInput.trim()}>+</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -225,6 +193,10 @@ function MyPage({ onBack }: MyPageProps) {
   const [streamingContent, setStreamingContent] = useState('');
   const [_pendingSources, setPendingSources] = useState<ChatSource[] | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const reportScrollRef = useRef<HTMLDivElement>(null);
+
+  // Highlight state — search terms to highlight in report panel
+  const [highlightTerms, setHighlightTerms] = useState<string[]>([]);
 
   // QW-5: persist chat history
   useEffect(() => {
@@ -236,9 +208,7 @@ function MyPage({ onBack }: MyPageProps) {
 
   // Topic management
   const [newTopicInput, setNewTopicInput] = useState('');
-  const [moveTopicInput, setMoveTopicInput] = useState('');
   const [showNewTopicInput, setShowNewTopicInput] = useState(false);
-  const [movingBookmarkId, setMovingBookmarkId] = useState<string | null>(null);
   const [emptyTopics, setEmptyTopics] = useState<Set<string>>(new Set());
 
   const toggleTopicAccordion = (topic: string) => {
@@ -324,7 +294,6 @@ function MyPage({ onBack }: MyPageProps) {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
-    setMovingBookmarkId(null);
   }, []);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -449,8 +418,6 @@ function MyPage({ onBack }: MyPageProps) {
         next.delete(newTopic);
         return next;
       });
-      setMovingBookmarkId(null);
-      setMoveTopicInput('');
     } catch (error: any) {
       console.error('Failed to move bookmark:', error);
     }
@@ -459,20 +426,10 @@ function MyPage({ onBack }: MyPageProps) {
   const handleAddTopic = () => {
     const trimmed = newTopicInput.trim();
     if (!trimmed) return;
-    // Add as empty topic so it appears as a droppable folder
     setEmptyTopics(prev => new Set(prev).add(trimmed));
     setTopicAccordionOpen(prev => ({ ...prev, [trimmed]: true }));
-    if (movingBookmarkId) {
-      handleMoveBookmark(movingBookmarkId, trimmed);
-    }
     setNewTopicInput('');
     setShowNewTopicInput(false);
-  };
-
-  const handleAddMoveTopicInline = () => {
-    const trimmed = moveTopicInput.trim();
-    if (!trimmed || !movingBookmarkId) return;
-    handleMoveBookmark(movingBookmarkId, trimmed);
   };
 
   // M-6: Bulk selection handlers
@@ -635,9 +592,188 @@ function MyPage({ onBack }: MyPageProps) {
     }
   };
 
+  // Extract key terms from chat text around a citation for highlighting in report
+  const extractHighlightTerms = (chatContent: string, refNum: number): string[] => {
+    // Find the sentence containing [N]
+    const citationPattern = `[${refNum}]`;
+    const idx = chatContent.indexOf(citationPattern);
+    if (idx === -1) return [];
+
+    // Get surrounding text (expand to sentence boundaries)
+    const before = chatContent.substring(Math.max(0, idx - 400), idx);
+    const after = chatContent.substring(idx + citationPattern.length, Math.min(chatContent.length, idx + citationPattern.length + 300));
+
+    // Find sentence boundaries (handle -1 from lastIndexOf)
+    const dotSpace = before.lastIndexOf('. ');
+    const dotNewline = before.lastIndexOf('.\n');
+    const doubleNewline = before.lastIndexOf('\n\n');
+    const sentStart = Math.max(
+      dotSpace >= 0 ? dotSpace + 2 : 0,
+      dotNewline >= 0 ? dotNewline + 2 : 0,
+      doubleNewline >= 0 ? doubleNewline + 2 : 0,
+      0
+    );
+    const sentEndOffset = after.search(/[.!?]\s|[.!?]$|\n\n|。|！|？/);
+    const sentEnd = sentEndOffset >= 0 ? sentEndOffset + 1 : after.length;
+
+    const sentence = (before.substring(sentStart) + after.substring(0, sentEnd))
+      .replace(/\[\d+\]/g, '') // Remove citation markers
+      .replace(/[*_#>`~]/g, '') // Remove markdown formatting
+      .trim();
+
+    if (!sentence || sentence.length < 3) return [];
+
+    // English stop words
+    const stopWords = new Set([
+      'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her',
+      'was', 'one', 'our', 'out', 'has', 'have', 'been', 'from', 'with', 'they',
+      'this', 'that', 'these', 'those', 'which', 'their', 'also', 'more', 'some',
+      'than', 'into', 'each', 'such', 'does', 'most', 'both', 'when', 'what',
+      'about', 'between', 'through', 'using', 'based', 'other', 'where', 'while',
+      'there', 'being', 'would', 'could', 'should', 'above', 'below',
+    ]);
+
+    // Korean stop words (common particles/suffixes)
+    const koStopWords = new Set([
+      '있습니다', '합니다', '됩니다', '입니다', '습니다', '것입니다',
+      '하는', '되는', '있는', '없는', '같은', '대한', '통해', '위해',
+      '에서', '으로', '에게', '까지', '부터', '처럼', '만큼',
+      '그리고', '하지만', '그러나', '따라서', '또한', '즉',
+    ]);
+
+    const terms: string[] = [];
+    const seen = new Set<string>();
+
+    // Split by whitespace and process each token
+    const tokens = sentence.split(/\s+/);
+    for (const raw of tokens) {
+      if (terms.length >= 10) break;
+
+      // Trim punctuation but preserve Unicode letters (Korean, etc.)
+      const w = raw.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+      if (!w) continue;
+
+      const lower = w.toLowerCase();
+
+      // Check if it's a Korean word (contains Hangul)
+      const isKorean = /[\u3131-\uD79D]/.test(w);
+
+      if (isKorean) {
+        // Korean: min 2 chars, skip stop words
+        if (w.length >= 2 && !koStopWords.has(w) && !seen.has(w)) {
+          seen.add(w);
+          terms.push(w);
+        }
+      } else {
+        // English/Latin: min 4 chars, skip stop words
+        if (w.length >= 4 && !stopWords.has(lower) && !seen.has(lower)) {
+          seen.add(lower);
+          terms.push(w);
+        }
+      }
+    }
+
+    return terms;
+  };
+
+  // Scroll to first highlight after render when both highlightTerms and bookmarkDetail are ready
+  const [scrollToHighlight, setScrollToHighlight] = useState(false);
+  useEffect(() => {
+    if (scrollToHighlight && highlightTerms.length > 0 && bookmarkDetail && !loadingDetail) {
+      // Wait for DOM to update with highlighted marks
+      const timer = setTimeout(() => {
+        const firstHighlight = reportScrollRef.current?.querySelector('.mypage-highlight');
+        if (firstHighlight) {
+          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setScrollToHighlight(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToHighlight, highlightTerms, bookmarkDetail, loadingDetail]);
+
+  // Handle citation click — load bookmark + highlight evidence
+  const handleCitationClick = async (source: ChatSource, chatContent: string, refNum: number) => {
+    const bm = bookmarks.find(b => b.id === source.id);
+    if (!bm) return;
+
+    // Extract terms from chat context around the citation
+    let terms = extractHighlightTerms(chatContent, refNum);
+
+    // Fallback: if no terms found, use significant words from the source title
+    if (terms.length === 0 && source.title) {
+      const titleWords = source.title.split(/\s+/)
+        .map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+        .filter(w => w.length >= 3);
+      terms = titleWords.slice(0, 6);
+    }
+
+    setHighlightTerms(terms);
+    if (terms.length > 0) {
+      setScrollToHighlight(true);
+    }
+
+    // Skip re-fetching if same bookmark is already loaded
+    if (selectedBookmark?.id === bm.id && bookmarkDetail) {
+      return;
+    }
+
+    // Load bookmark detail
+    await handleSelectBookmark(bm);
+  };
+
+  // Clear highlights when selecting a bookmark normally (not via citation)
+  const handleSelectBookmarkDirect = async (bookmark: Bookmark) => {
+    setHighlightTerms([]);
+    await handleSelectBookmark(bookmark);
+  };
+
+  // Highlight matching text in report content
+  const highlightText = (text: string): React.ReactNode => {
+    if (!highlightTerms.length) return text;
+
+    // Build regex from terms (escape special chars), case-insensitive
+    const escaped = highlightTerms.map(t =>
+      t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    );
+    const pattern = new RegExp(`(${escaped.join('|')})`, 'gi');
+
+    const parts = text.split(pattern);
+    if (parts.length === 1) return text;
+
+    // When split() uses a capture group, odd-indexed elements are matches
+    let hlKey = 0;
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        return <mark key={`hl-${hlKey++}`} className="mypage-highlight">{part}</mark>;
+      }
+      return part;
+    });
+  };
+
+  // Recursively process React children to apply highlight to all text nodes
+  const highlightChildren = (children: React.ReactNode): React.ReactNode => {
+    if (!highlightTerms.length) return children;
+
+    const processNode = (node: any, idx: number): any => {
+      if (typeof node === 'string') return highlightText(node);
+      if (isValidElement(node)) {
+        const processed = highlightChildren((node.props as any).children);
+        return cloneElement(node, { key: node.key || `hc-${idx}` }, processed);
+      }
+      return node;
+    };
+
+    if (Array.isArray(children)) {
+      return children.map((child, i) => processNode(child, i));
+    }
+    return processNode(children, 0);
+  };
+
   // U-4: Render citation badges inline
-  const renderCitationText = (text: string, sources?: ChatSource[]) => {
+  const renderCitationText = (text: string, sources?: ChatSource[], msgContent?: string) => {
     if (!sources || sources.length === 0) return <>{text}</>;
+    const fullContent = msgContent || '';
     const parts: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     const regex = /\[(\d+)\]/g;
@@ -654,8 +790,7 @@ function MyPage({ onBack }: MyPageProps) {
             className="mypage-citation-badge"
             onClick={(e) => {
               e.stopPropagation();
-              const bm = bookmarks.find(b => b.id === source.id);
-              if (bm) handleSelectBookmark(bm);
+              handleCitationClick(source, fullContent, refNum);
             }}
             title={source.title}
           >[{refNum}]</span>
@@ -667,6 +802,24 @@ function MyPage({ onBack }: MyPageProps) {
     }
     if (lastIndex < text.length) parts.push(text.substring(lastIndex));
     return <>{parts}</>;
+  };
+
+  // Recursively process children to find citation text in all nodes (including nested elements)
+  const processCitationChildren = (children: React.ReactNode, sources?: ChatSource[], msgContent?: string): React.ReactNode => {
+    const processNode = (node: any, idx: number): any => {
+      if (typeof node === 'string') {
+        return renderCitationText(node, sources, msgContent);
+      }
+      if (isValidElement(node) && (node.props as any).children) {
+        const processed = processCitationChildren((node.props as any).children, sources, msgContent);
+        return cloneElement(node, { key: node.key || `cn-${idx}` }, processed);
+      }
+      return node;
+    };
+    if (Array.isArray(children)) {
+      return children.map((child, i) => processNode(child, i));
+    }
+    return processNode(children, 0);
   };
 
   return (
@@ -765,16 +918,9 @@ function MyPage({ onBack }: MyPageProps) {
                         bookmark={bm}
                         isActive={selectedBookmark?.id === bm.id}
                         isChecked={selectedIds.has(bm.id)}
-                        onSelect={handleSelectBookmark}
+                        onSelect={handleSelectBookmarkDirect}
                         onToggleSelection={handleToggleSelection}
                         onDelete={handleDeleteBookmark}
-                        onMove={handleMoveBookmark}
-                        movingBookmarkId={movingBookmarkId}
-                        setMovingBookmarkId={setMovingBookmarkId}
-                        moveTopicInput={moveTopicInput}
-                        setMoveTopicInput={setMoveTopicInput}
-                        onAddMoveTopicInline={handleAddMoveTopicInline}
-                        allTopics={allTopics}
                         currentTopic={topic}
                         setSearchQuery={setSearchQuery}
                       />
@@ -832,7 +978,17 @@ function MyPage({ onBack }: MyPageProps) {
           ) : loadingDetail ? (
             <div className="mypage-loading" style={{ padding: '40px' }}>Loading detail...</div>
           ) : bookmarkDetail ? (
-            <div className="mypage-report-scroll">
+            <div className="mypage-report-scroll" ref={reportScrollRef}>
+              {/* Highlight indicator */}
+              {highlightTerms.length > 0 && (
+                <div className="mypage-highlight-bar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span>Evidence highlighted</span>
+                  <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>Clear</button>
+                </div>
+              )}
               {/* Header with title & export */}
               <div className="mypage-report-header">
                 <h2 className="mypage-report-title">{bookmarkDetail.title}</h2>
@@ -867,12 +1023,19 @@ function MyPage({ onBack }: MyPageProps) {
                 </div>
               )}
 
-              {/* Report markdown */}
+              {/* Report markdown with highlight support */}
               {bookmarkDetail.report_markdown && (
                 <div className="mypage-report-section">
                   <h3 className="mypage-report-section-title">Report</h3>
                   <div className="mypage-report-content">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={highlightTerms.length > 0 ? {
+                        p: ({ children }) => <p>{highlightChildren(children)}</p>,
+                        li: ({ children }) => <li>{highlightChildren(children)}</li>,
+                        td: ({ children }) => <td>{highlightChildren(children)}</td>,
+                      } : undefined}
+                    >
                       {bookmarkDetail.report_markdown}
                     </ReactMarkdown>
                   </div>
@@ -923,29 +1086,10 @@ function MyPage({ onBack }: MyPageProps) {
                         remarkPlugins={[remarkGfm]}
                         components={{
                           p: ({ children }) => {
-                            // U-4: Replace [N] with citation badges in paragraph text
-                            const processNode = (node: any): any => {
-                              if (typeof node === 'string') {
-                                return renderCitationText(node, msg.sources);
-                              }
-                              return node;
-                            };
-                            const processed = Array.isArray(children)
-                              ? children.map(processNode)
-                              : processNode(children);
-                            return <p>{processed}</p>;
+                            return <p>{processCitationChildren(children, msg.sources, msg.content)}</p>;
                           },
                           li: ({ children }) => {
-                            const processNode = (node: any): any => {
-                              if (typeof node === 'string') {
-                                return renderCitationText(node, msg.sources);
-                              }
-                              return node;
-                            };
-                            const processed = Array.isArray(children)
-                              ? children.map(processNode)
-                              : processNode(children);
-                            return <li>{processed}</li>;
+                            return <li>{processCitationChildren(children, msg.sources, msg.content)}</li>;
                           },
                         }}
                       >
@@ -958,10 +1102,7 @@ function MyPage({ onBack }: MyPageProps) {
                           <div className="mypage-sources-list">
                             {msg.sources.map(source => (
                               <div key={source.ref} className="mypage-source-item"
-                                onClick={() => {
-                                  const bm = bookmarks.find(b => b.id === source.id);
-                                  if (bm) handleSelectBookmark(bm);
-                                }}>
+                                onClick={() => handleCitationClick(source, msg.content, source.ref)}>
                                 <span className="mypage-source-ref">[{source.ref}]</span>
                                 <span className="mypage-source-title">{source.title}</span>
                                 <span className="mypage-source-meta">{source.num_papers} papers</span>

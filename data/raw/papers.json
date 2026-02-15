@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "last_updated": "2026-02-15T16:38:07.394879",
-    "total_papers": 1246,
+    "last_updated": "2026-02-15T17:30:28.563942",
+    "total_papers": 1257,
     "sources": [
       "Google Scholar",
       "arXiv",
@@ -27883,6 +27883,210 @@
       "source": "Google Scholar",
       "collected_at": "2026-02-15T16:38:07.394871",
       "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Data mining for co - location patterns: principles and applications",
+      "authors": [
+        "G Zhou"
+      ],
+      "abstract": "… the principles of co - location pattern mining and its applications in geoinformatics, such as spatial analysis , spatial … method of a geographic information system , put forward the theory of …",
+      "url": "https://api.taylorfrancis.com/content/books/mono/download?identifierName=doi&identifierValue=10.1201/9781003139416&type=googlepdf",
+      "pdf_url": "",
+      "journal": "2022",
+      "year": "2022",
+      "citations": 14,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563856",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Urban Patterns Identification by Colocation Analysis",
+      "authors": [
+        "Z Dobesova",
+        "A Tóth"
+      ],
+      "abstract": "… cities is under fluent evolution. Nowadays, processing spatial data by geographical information systems … GIS software helps to find new information and patterns in the city structure. A list …",
+      "url": "https://www.preprints.org/frontend/manuscript/0a499e28c55bc0230cadfde90fee56b7/download_pub",
+      "pdf_url": "",
+      "journal": "2024",
+      "year": "2024",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563873",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Spatial co - location patterns between early COVID-19 risk and urban facilities: a case study of Wuhan, China",
+      "authors": [
+        "G Zhi",
+        "B Meng",
+        "H Lin",
+        "X Zhang",
+        "M Xu",
+        "S Chen … - Frontiers in Public …",
+        "2024"
+      ],
+      "abstract": "… urban planning , promoting the development of safer urban … big data and the use of geographic information systems (GIS) … Many scholars have used GIS and spatial analysis methods …",
+      "url": "https://www.frontiersin.org/journals/public-health/articles/10.3389/fpubh.2023.1293888/full",
+      "pdf_url": "",
+      "journal": "frontiersin.org",
+      "year": "",
+      "citations": 8,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563884",
+      "search_query": "co-location"
+    },
+    {
+      "title": "An information ‐theoretic approach to the analysis of location and colocation patterns",
+      "authors": [
+        "A van Dam",
+        "A Gomez‐Lievano … - … of Regional  Science",
+        "2023"
+      ],
+      "abstract": "… an application to an analysis of location and colocation patterns of occupations in US cities . … We use the Pointwise Mutual Information (PMI) to express the association between a …",
+      "url": "https://onlinelibrary.wiley.com/doi/abs/10.1111/jors.12621",
+      "pdf_url": "",
+      "journal": "Wiley Online Library",
+      "year": "",
+      "citations": 18,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563895",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Local co - location pattern detection: a summary of results",
+      "authors": [
+        "Y Li",
+        "S Shekhar  - … conference on  geographic information science  …",
+        "2018"
+      ],
+      "abstract": "… is determined by both the number of core co - location patterns and their cardinalities, we conducted two controlled experiments with synthetic data and one with the Chicago crime …",
+      "url": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.GISCIENCE.2018.10",
+      "pdf_url": "",
+      "journal": "drops.dagstuhl.de",
+      "year": "",
+      "citations": 35,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563902",
+      "search_query": "co-location"
+    },
+    {
+      "title": "A buffer analysis based on co - location algorithm",
+      "authors": [
+        "G Zhou",
+        "S Huang",
+        "H Wang… - …  Information  …",
+        "2018"
+      ],
+      "abstract": "… This paper proposes a buffer analysis method based on the co - location algorithm. … the spatial co - location pattern mining .Combines the ideas of buffer analysis in spatial analysis . The …",
+      "url": "https://isprs-archives.copernicus.org/articles/XLII-3/2487/2018/isprs-archives-XLII-3-2487-2018.html",
+      "pdf_url": "",
+      "journal": "isprs-archives.copernicus.org",
+      "year": "",
+      "citations": 15,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563906",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Domain-driven co - location mining: extraction, visualization and integration in a GIS",
+      "authors": [
+        "F Flouvat",
+        "JFN Van Soc",
+        "E Desmier… - Geoinformatica",
+        "2015"
+      ],
+      "abstract": "… In this setting, we propose a domain-driven co - location mining … their analysis . These proposals have been integrated into a prototype based on PostGIS geographic information system . …",
+      "url": "https://link.springer.com/article/10.1007/s10707-014-0209-3",
+      "pdf_url": "",
+      "journal": "Springer",
+      "year": "",
+      "citations": 28,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563910",
+      "search_query": "co-location"
+    },
+    {
+      "title": "A framework of spatial co - location pattern mining for ubiquitous GIS",
+      "authors": [
+        "SK Kim",
+        "JH Lee",
+        "KH Ryu",
+        "U Kim - Multimedia tools and applications",
+        "2014"
+      ],
+      "abstract": "… The approach for extended spatial objects [34] uses the buffer operation of Geography Information System (GIS), in order to calculate the prevalent measures. The buffer of a spatial …",
+      "url": "https://link.springer.com/article/10.1007/s11042-012-1007-2",
+      "pdf_url": "",
+      "journal": "Springer",
+      "year": "",
+      "citations": 38,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563923",
+      "search_query": "co-location"
+    },
+    {
+      "title": "The effect of IT and co ‐ location on knowledge dissemination",
+      "authors": [
+        "M Song",
+        "H Berends",
+        "H Van der Bij… - Journal of product …",
+        "2007"
+      ],
+      "abstract": "… that CMC technologies and co - location of R&D staff have a … and that the effects of co - location and CMC interact negatively… support systems (GSS), executive information systems (EIS), …",
+      "url": "https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-5885.2006.00232.x",
+      "pdf_url": "",
+      "journal": "Wiley Online Library",
+      "year": "",
+      "citations": 230,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563929",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Mining co - location patterns from distributed spatial data",
+      "authors": [
+        "S Maiti",
+        "RBV Subramanyam  - … Saud University-Computer and  Information  …",
+        "2021"
+      ],
+      "abstract": "… to spatial datasets for mining co - location patterns. Conventional … is proposed to find all co - location patterns from a spatial … contains another approach for the co - location patterns set, that …",
+      "url": "https://www.sciencedirect.com/science/article/pii/S1319157818303495",
+      "pdf_url": "",
+      "journal": "Elsevier",
+      "year": "",
+      "citations": 16,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563935",
+      "search_query": "co-location"
+    },
+    {
+      "title": "Discovering co - location patterns in multivariate spatial flow data",
+      "authors": [
+        "J Cai",
+        "MP Kwan  - … Journal of  Geographical Information Science",
+        "2022"
+      ],
+      "abstract": "… Then, we analyze the forms of co - location patterns in flow space and develop a new measure, namely flow co - location index, to characterize FCLPs using the frequency of different …",
+      "url": "https://www.tandfonline.com/doi/abs/10.1080/13658816.2021.1980217",
+      "pdf_url": "",
+      "journal": "Taylor & Francis",
+      "year": "",
+      "citations": 35,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T17:30:28.563938",
+      "search_query": "co-location"
     }
   ]
 }

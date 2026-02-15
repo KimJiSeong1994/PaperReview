@@ -501,13 +501,12 @@
   opacity: 1;
 }
 
-.mypage-bookmark-move,
 .mypage-bookmark-delete {
   background: transparent;
   border: none;
   color: #6b7280;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   padding: 2px 4px;
   border-radius: 4px;
   transition: all 0.15s ease;
@@ -516,116 +515,9 @@
   justify-content: center;
 }
 
-.mypage-bookmark-move:hover {
-  color: #a5b4fc;
-  background: rgba(99, 102, 241, 0.1);
-}
-
 .mypage-bookmark-delete:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
-}
-
-/* Move to topic dropdown */
-.mypage-move-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 8px;
-  z-index: 10;
-  background: #1f1f1f;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 6px;
-  min-width: 160px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  margin-top: 4px;
-}
-
-.mypage-move-dropdown-title {
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6b7280;
-  padding: 4px 8px;
-}
-
-.mypage-move-dropdown-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: #d1d5db;
-  font-size: 12px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.1s ease;
-}
-
-.mypage-move-dropdown-item:hover {
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-}
-
-.mypage-move-dropdown-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  margin: 4px 0;
-}
-
-.mypage-move-new-topic {
-  display: flex;
-  gap: 4px;
-  padding: 2px;
-}
-
-.mypage-move-new-input {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: #ececec;
-  font-family: inherit;
-  outline: none;
-  min-width: 0;
-}
-
-.mypage-move-new-input:focus {
-  border-color: rgba(99, 102, 241, 0.5);
-}
-
-.mypage-move-new-input::placeholder {
-  color: #6b7280;
-}
-
-.mypage-move-new-btn {
-  background: rgba(99, 102, 241, 0.6);
-  border: none;
-  border-radius: 4px;
-  color: white;
-  font-size: 14px;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-}
-
-.mypage-move-new-btn:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.9);
-}
-
-.mypage-move-new-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* Add new topic section */
@@ -719,6 +611,49 @@
 
 .mypage-add-topic-cancel:hover {
   color: #ef4444;
+}
+
+/* ===== Evidence Highlight ===== */
+.mypage-highlight {
+  background: rgba(250, 204, 21, 0.4);
+  color: #fef9c3;
+  padding: 1px 3px;
+  border-radius: 2px;
+  border-bottom: 2px solid rgba(250, 204, 21, 0.7);
+  font-weight: 500;
+}
+
+.mypage-highlight-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: rgba(250, 204, 21, 0.08);
+  border-bottom: 1px solid rgba(250, 204, 21, 0.15);
+  font-size: 11px;
+  font-weight: 500;
+  color: #fbbf24;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+}
+
+.mypage-highlight-clear {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 4px;
+  color: #fbbf24;
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.mypage-highlight-clear:hover {
+  background: rgba(250, 204, 21, 0.15);
 }
 
 /* ===== Panel 2: Report / Detail ===== */
