@@ -103,19 +103,35 @@
   letter-spacing: 0.2px;
 }
 
-/* ── Divider ── */
-.login-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.06);
+/* ── Tabs ── */
+.login-tabs {
+  display: flex;
+  gap: 0;
   margin: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ── Description ── */
-.login-desc {
-  font-size: 13px;
-  line-height: 1.6;
+.login-tab {
+  flex: 1;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
   color: #6b7280;
-  margin: 0 0 20px 0;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.login-tab:hover {
+  color: #9ca3af;
+}
+
+.login-tab--active {
+  color: #a5b4fc;
+  border-bottom-color: #6366f1;
 }
 
 /* ── Login form ── */
@@ -173,6 +189,17 @@
   background: rgba(239, 68, 68, 0.06);
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+/* ── Success message ── */
+.login-success {
+  font-size: 12px;
+  color: #22c55e;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(34, 197, 94, 0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.1);
 }
 
 /* ── Submit button ── */

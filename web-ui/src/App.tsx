@@ -255,6 +255,10 @@ function App() {
   // Bookmark handlers
   const handleSaveBookmark = async () => {
     if (!reviewSessionId || !reviewReport) return;
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
     try {
       const selectedPaperIds = Array.from(selectedPapersForReview);
       const selectedPapersData = papers.filter(paper =>
@@ -278,6 +282,10 @@ function App() {
       setBookmarkSaved(true);
       setTimeout(() => setBookmarkSaved(false), 3000);
     } catch (error: any) {
+      if (error.response?.status === 401) {
+        setShowLoginModal(true);
+        return;
+      }
       console.error('Bookmark save error:', error);
       alert(`북마크 저장 실패: ${error.message || error}`);
     }

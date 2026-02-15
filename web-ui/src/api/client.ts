@@ -53,6 +53,14 @@ export const login = async (username: string, password: string) => {
   return response.data;
 };
 
+export const register = async (username: string, password: string) => {
+  const response = await api.post<{ message: string; username: string }>(
+    '/api/auth/register',
+    { username, password },
+  );
+  return response.data;
+};
+
 export const verifyToken = async (token: string) => {
   const response = await api.get<{ valid: boolean; username: string }>(
     '/api/auth/verify',
@@ -227,13 +235,23 @@ export const chatWithBookmarks = async (
   onDone: () => void,
   onError: (error: string) => void,
 ): Promise<void> => {
+  const token = localStorage.getItem('access_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ messages, bookmark_ids: bookmarkIds }),
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+    }
     onError(`HTTP ${response.status}: ${response.statusText}`);
     return;
   }

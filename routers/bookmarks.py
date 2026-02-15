@@ -1,5 +1,5 @@
 """
-Bookmark CRUD endpoints:
+Bookmark CRUD endpoints (per-user isolated):
   POST   /api/bookmarks
   GET    /api/bookmarks
   GET    /api/bookmarks/{bookmark_id}
@@ -13,10 +13,10 @@ import uuid
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from .deps import load_bookmarks, save_bookmarks, review_sessions, review_sessions_lock
+from .deps import load_bookmarks, save_bookmarks, review_sessions, review_sessions_lock, get_current_user
 
 router = APIRouter(prefix="/api", tags=["bookmarks"])
 
@@ -60,7 +60,7 @@ class BulkMoveBookmarksRequest(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/bookmarks")
-async def create_bookmark(request: BookmarkCreateRequest):
+async def create_bookmark(request: BookmarkCreateRequest, username: str = Depends(get_current_user)):
     """Save a deep research result as a bookmark."""
     bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
@@ -71,6 +71,7 @@ async def create_bookmark(request: BookmarkCreateRequest):
 
     bookmark = {
         "id": bookmark_id,
+        "username": username,
         "title": request.title,
         "session_id": request.session_id,
         "workspace_path": workspace_path,
@@ -100,8 +101,8 @@ async def create_bookmark(request: BookmarkCreateRequest):
 
 
 @router.get("/bookmarks")
-async def list_bookmarks():
-    """List all bookmarks (summary only, without report content)."""
+async def list_bookmarks(username: str = Depends(get_current_user)):
+    """List bookmarks for the current user (summary only)."""
     data = load_bookmarks()
     return {
         "bookmarks": [
@@ -116,26 +117,32 @@ async def list_bookmarks():
                 "topic": bm.get("topic", "General"),
             }
             for bm in data["bookmarks"]
+            if bm.get("username") == username
         ]
     }
 
 
 @router.get("/bookmarks/{bookmark_id}")
-async def get_bookmark(bookmark_id: str):
+async def get_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
     """Get full bookmark detail including report."""
     data = load_bookmarks()
     for bm in data["bookmarks"]:
         if bm["id"] == bookmark_id:
+            if bm.get("username") != username:
+                raise HTTPException(status_code=403, detail="Access denied")
             return bm
     raise HTTPException(status_code=404, detail="Bookmark not found")
 
 
 @router.delete("/bookmarks/{bookmark_id}")
-async def delete_bookmark(bookmark_id: str):
-    """Delete a bookmark."""
+async def delete_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+    """Delete a bookmark owned by the current user."""
     data = load_bookmarks()
     original_len = len(data["bookmarks"])
-    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm["id"] != bookmark_id]
+    data["bookmarks"] = [
+        bm for bm in data["bookmarks"]
+        if not (bm["id"] == bookmark_id and bm.get("username") == username)
+    ]
 
     if len(data["bookmarks"]) == original_len:
         raise HTTPException(status_code=404, detail="Bookmark not found")
@@ -145,11 +152,16 @@ async def delete_bookmark(bookmark_id: str):
 
 
 @router.patch("/bookmarks/{bookmark_id}/topic")
-async def update_bookmark_topic(bookmark_id: str, request: BookmarkTopicUpdateRequest):
+async def update_bookmark_topic(
+    bookmark_id: str, request: BookmarkTopicUpdateRequest,
+    username: str = Depends(get_current_user),
+):
     """Update a bookmark's topic."""
     data = load_bookmarks()
     for bm in data["bookmarks"]:
         if bm["id"] == bookmark_id:
+            if bm.get("username") != username:
+                raise HTTPException(status_code=403, detail="Access denied")
             bm["topic"] = request.topic
             save_bookmarks(data)
             return {"success": True, "topic": request.topic}
@@ -157,12 +169,15 @@ async def update_bookmark_topic(bookmark_id: str, request: BookmarkTopicUpdateRe
 
 
 @router.post("/bookmarks/bulk-delete")
-async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest):
-    """Delete multiple bookmarks at once."""
+async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest, username: str = Depends(get_current_user)):
+    """Delete multiple bookmarks owned by the current user."""
     data = load_bookmarks()
     ids_set = set(request.bookmark_ids)
     original = len(data["bookmarks"])
-    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm["id"] not in ids_set]
+    data["bookmarks"] = [
+        bm for bm in data["bookmarks"]
+        if not (bm["id"] in ids_set and bm.get("username") == username)
+    ]
     deleted = original - len(data["bookmarks"])
     if deleted == 0:
         raise HTTPException(status_code=404, detail="No bookmarks found to delete")
@@ -171,13 +186,13 @@ async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest):
 
 
 @router.post("/bookmarks/bulk-move")
-async def bulk_move_bookmarks(request: BulkMoveBookmarksRequest):
-    """Move multiple bookmarks to a new topic."""
+async def bulk_move_bookmarks(request: BulkMoveBookmarksRequest, username: str = Depends(get_current_user)):
+    """Move multiple bookmarks to a new topic (current user only)."""
     data = load_bookmarks()
     ids_set = set(request.bookmark_ids)
     updated = 0
     for bm in data["bookmarks"]:
-        if bm["id"] in ids_set:
+        if bm["id"] in ids_set and bm.get("username") == username:
             bm["topic"] = request.topic
             updated += 1
     if updated == 0:

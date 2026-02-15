@@ -6,12 +6,12 @@ Chat endpoint:
 import json
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, load_bookmarks, get_light_rag_agent
+from .deps import limiter, load_bookmarks, get_light_rag_agent, get_current_user
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -27,16 +27,17 @@ class ChatRequest(BaseModel):
 
 @router.post("/chat")
 @limiter.limit("20/minute")
-async def chat_with_bookmarks(request: Request, chat_request: ChatRequest):
+async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, username: str = Depends(get_current_user)):
     """Chat about bookmarked papers using their report content as context. Returns SSE stream."""
     from openai import OpenAI
 
-    # Load bookmark context
+    # Load bookmark context — filtered to current user only
     data = load_bookmarks()
-    bookmarks = data.get("bookmarks", [])
+    bookmarks = [bm for bm in data.get("bookmarks", []) if bm.get("username") == username]
 
     if chat_request.bookmark_ids:
-        bookmarks = [bm for bm in bookmarks if bm["id"] in chat_request.bookmark_ids]
+        bookmark_id_set = set(chat_request.bookmark_ids)
+        bookmarks = [bm for bm in bookmarks if bm["id"] in bookmark_id_set]
 
     # Build context from bookmark reports with numbered references
     sources_metadata = []

@@ -122,6 +122,61 @@ async def verify_api_key(request: Request):
 _light_rag_agent = None
 
 
+# ── JWT user extraction ─────────────────────────────────────────────
+import jwt as _pyjwt
+
+_JWT_SECRET = os.getenv("JWT_SECRET", "paper-review-agent-secret-key")
+_JWT_ALGORITHM = "HS256"
+
+
+async def get_current_user(request: Request) -> str:
+    """Extract and validate JWT from Authorization header. Returns username."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
+    token = auth_header[len("Bearer "):]
+    try:
+        payload = _pyjwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+    except _pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except _pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    return username
+
+
+# ── Bookmark migration: add username to existing bookmarks ──────────
+def _migrate_bookmarks_add_username():
+    """One-time: assign existing bookmarks without username to the default admin."""
+    default_user = os.getenv("APP_USERNAME", "Jipyheonjeon")
+    with _bookmarks_lock:
+        if not BOOKMARKS_FILE.exists():
+            return
+        with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        needs_save = False
+        for bm in data.get("bookmarks", []):
+            if "username" not in bm:
+                bm["username"] = default_user
+                needs_save = True
+
+        if needs_save:
+            tmp_file = BOOKMARKS_FILE.with_suffix(".json.tmp")
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            tmp_file.replace(BOOKMARKS_FILE)
+            print(f"[Migration] Assigned existing bookmarks to user '{default_user}'")
+
+
+_migrate_bookmarks_add_username()
+
+
+# ── LightRAG singleton ────────────────────────────────────────────────
 def get_light_rag_agent():
     """Return (and lazily create) the singleton LightRAG agent."""
     global _light_rag_agent
