@@ -18,9 +18,10 @@ import traceback
 from typing import Any, Dict, List
 
 import networkx as nx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from starlette.requests import Request
 
-from .deps import search_agent
+from .deps import get_optional_user, search_agent
 
 router = APIRouter(prefix="/api", tags=["papers"])
 
@@ -33,6 +34,7 @@ async def save_papers(
     query: str = "",
     generate_embeddings: bool = False,
     update_graph: bool = True,
+    username: str = Depends(get_optional_user),
 ):
     """
     Save search results to database with automatic embedding generation and graph update.
@@ -40,6 +42,12 @@ async def save_papers(
     try:
         print(f"[API] Saving {sum(len(papers) for papers in results.values())} papers...")
         print(f"[API] Generate embeddings: {generate_embeddings}, Update graph: {update_graph}")
+
+        # Stamp username on papers
+        if username:
+            for paper_list in results.values():
+                for paper in paper_list:
+                    paper["searched_by"] = username
 
         save_info = search_agent.save_papers(
             results, query, generate_embeddings=generate_embeddings, update_graph=update_graph

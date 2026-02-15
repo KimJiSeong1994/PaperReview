@@ -148,7 +148,7 @@ async def analyze_query(request: QueryAnalysisRequest):
 
 
 @router.post("/llm-search", response_model=LLMSearchResponse)
-async def llm_context_search(request: LLMSearchRequest):
+async def llm_context_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """
     LLM context-based search.
     Analyzes user query, optimises search terms, searches arXiv & Scholar.
@@ -178,6 +178,8 @@ async def llm_context_search(request: LLMSearchRequest):
 
         if request.save_papers and total > 0:
             try:
+                if username:
+                    _stamp_searched_by(results, username)
                 save_result = search_agent.save_papers(
                     results, request.query, generate_embeddings=False, update_graph=True
                 )
@@ -200,7 +202,7 @@ async def llm_context_search(request: LLMSearchRequest):
 
 
 @router.post("/smart-search")
-async def smart_search(request: LLMSearchRequest):
+async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """
     Smart search -- LLM analysis + multi-source strategy.
     1. LLM analyses query & decides strategy
@@ -227,6 +229,8 @@ async def smart_search(request: LLMSearchRequest):
                     if source in results_by_source:
                         results_by_source[source].append(paper)
 
+                if username:
+                    _stamp_searched_by(results_by_source, username)
                 save_result = search_agent.save_papers(
                     results_by_source, request.query, generate_embeddings=False, update_graph=True
                 )
@@ -246,7 +250,7 @@ async def smart_search(request: LLMSearchRequest):
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search_papers(request: SearchRequest):
+async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """Search papers across multiple sources with automatic query analysis."""
     try:
         start_time = time.time()
@@ -356,6 +360,10 @@ async def search_papers(request: SearchRequest):
                 results[source] = []
 
         total = sum(len(papers) for papers in results.values())
+
+        # Stamp username on papers before saving
+        if username:
+            _stamp_searched_by(results, username)
 
         # Save & enrich
         if request.save_papers and total > 0:

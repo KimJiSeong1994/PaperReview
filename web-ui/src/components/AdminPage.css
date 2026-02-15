@@ -106,12 +106,18 @@
   border-bottom-color: #6366f1;
 }
 
+/* ===== Dashboard Layout ===== */
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 /* ===== Dashboard Cards ===== */
 .admin-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .admin-stat-card {
@@ -131,16 +137,150 @@
 }
 
 .admin-stat-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 600;
   color: #e5e7eb;
   margin: 0;
 }
 
-.admin-stat-card:nth-child(1) .admin-stat-value { color: #a5b4fc; }
-.admin-stat-card:nth-child(2) .admin-stat-value { color: #34d399; }
-.admin-stat-card:nth-child(3) .admin-stat-value { color: #fbbf24; }
-.admin-stat-card:nth-child(4) .admin-stat-value { color: #f87171; }
+.admin-stat-card .admin-stat-value { color: #c7d2fe; }
+
+/* ===== Charts Row ===== */
+.admin-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 16px;
+}
+
+.admin-chart-card,
+.admin-list-card,
+.admin-recent-card {
+  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.admin-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin: 0 0 12px 0;
+}
+
+/* ===== Ranking Lists ===== */
+.admin-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-rank-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 16px;
+  text-align: right;
+}
+
+.admin-rank-bar-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.admin-rank-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 6px;
+  min-width: 4px;
+  transition: width 0.3s ease;
+}
+
+.admin-rank-bar--cat {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.admin-rank-label {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  color: #d1d5db;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-rank-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* all rank values use same indigo tone */
+
+/* ===== Recent Papers ===== */
+.admin-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.admin-recent-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-recent-source {
+  font-size: 10px;
+  font-weight: 500;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: center;
+}
+
+.admin-recent-title {
+  font-size: 13px;
+  color: #d1d5db;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-recent-date {
+  font-size: 11px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
 
 /* ===== Tables ===== */
 .admin-table-container {
@@ -597,10 +737,262 @@
   font-weight: 500;
 }
 
+/* ===== Papers Tree View ===== */
+.admin-tree-wrapper {
+  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-tree-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-tree-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.admin-tree-header-count {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+.admin-tree {
+  padding: 8px 12px 12px;
+}
+
+/* Folder */
+.admin-tree-folder {
+  position: relative;
+}
+
+.admin-tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.admin-tree-folder-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-tree-folder-row.open {
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.admin-tree-chevron {
+  flex-shrink: 0;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.admin-tree-folder-row.open .admin-tree-chevron {
+  transform: rotate(90deg);
+}
+
+.admin-tree-folder-icon {
+  flex-shrink: 0;
+}
+
+.admin-tree-folder-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #d1d5db;
+}
+
+.admin-tree-folder-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.admin-tree-folder-row.open .admin-tree-folder-name {
+  color: #a5b4fc;
+}
+
+.admin-tree-folder-row.open .admin-tree-folder-count {
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+/* Children container with tree line */
+.admin-tree-children {
+  position: relative;
+  margin-left: 17px;
+  padding-left: 16px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-tree-folder.last > .admin-tree-children {
+  border-left-color: transparent;
+}
+
+.admin-tree-empty-hint {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 8px 4px;
+}
+
+/* Select all row */
+.admin-tree-select-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 4px;
+}
+
+.admin-tree-select-all-label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* File item (paper) */
+.admin-tree-file {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+
+.admin-tree-file:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-tree-file .admin-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.admin-tree-file-icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.admin-tree-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-tree-file-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #d1d5db;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-tree-file-meta {
+  font-size: 11px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Horizontal guide line */
+.admin-tree-guide-line {
+  position: absolute;
+  left: -16px;
+  top: 15px;
+  width: 16px;
+  height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-tree-folder.last .admin-tree-guide-line {
+  border-top-color: transparent;
+}
+
+/* Bookmark tree: expand mini-button */
+.admin-tree-expand-mini {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.admin-tree-expand-mini .admin-tree-chevron {
+  transition: transform 0.15s ease;
+}
+
+.admin-tree-expand-mini.open .admin-tree-chevron {
+  transform: rotate(90deg);
+}
+
+/* Bookmark node wrapper */
+.admin-tree-bookmark-node {
+  position: relative;
+}
+
+.admin-tree-file--open {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+/* Sub-children (papers inside a bookmark) */
+.admin-tree-sub-children {
+  position: relative;
+  margin-left: 24px;
+  padding-left: 14px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-tree-sub-file {
+  padding: 4px 4px;
+}
+
+.admin-tree-sub-file .admin-tree-guide-line {
+  left: -14px;
+  width: 14px;
+  top: 13px;
+}
+
 /* ===== Responsive ===== */
+@media (max-width: 1100px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .admin-stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .admin-charts-row {
+    grid-template-columns: 1fr;
   }
 }
 

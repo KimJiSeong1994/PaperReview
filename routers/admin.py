@@ -11,6 +11,7 @@ Admin-only endpoints:
 """
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import List, Optional
 
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
 PAPERS_FILE = Path(__file__).resolve().parent.parent / "data" / "raw" / "papers.json"
+GRAPH_META_FILE = Path(__file__).resolve().parent.parent / "data" / "graph" / "paper_graph_metadata.json"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -70,16 +72,70 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
     """Return aggregate statistics for the admin dashboard."""
     users = _load_users()
     papers_data = _load_papers()
+    papers = papers_data.get("papers", [])
     bookmarks_data = load_bookmarks()
 
     with review_sessions_lock:
         session_count = len(review_sessions)
 
+    # Knowledge graph metadata
+    kg_nodes, kg_edges = 0, 0
+    if GRAPH_META_FILE.exists():
+        try:
+            with open(GRAPH_META_FILE, "r", encoding="utf-8") as f:
+                gm = json.load(f)
+            kg_nodes = gm.get("nodes", 0)
+            kg_edges = gm.get("edges", 0)
+        except Exception:
+            pass
+
+    # Papers by source
+    source_counter = Counter(p.get("source", "Unknown") for p in papers)
+    papers_by_source = [{"source": s, "count": c} for s, c in source_counter.most_common()]
+
+    # Papers by year
+    year_counter: Counter = Counter()
+    for p in papers:
+        d = p.get("published_date", "")
+        y = d[:4] if d and len(d) >= 4 else None
+        if y and y.isdigit():
+            year_counter[y] += 1
+    papers_by_year = [{"year": y, "count": c} for y, c in sorted(year_counter.items())]
+
+    # Top search queries
+    query_counter = Counter(p.get("search_query", "") for p in papers if p.get("search_query"))
+    top_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(7)]
+
+    # Top categories
+    cat_counter: Counter = Counter()
+    for p in papers:
+        for cat in p.get("categories", []):
+            cat_counter[cat] += 1
+    top_categories = [{"category": cat, "count": c} for cat, c in cat_counter.most_common(7)]
+
+    # Recent papers (by collected_at)
+    sorted_papers = sorted(papers, key=lambda p: p.get("collected_at", ""), reverse=True)
+    recent_papers = [
+        {
+            "title": p.get("title", "Untitled"),
+            "source": p.get("source", ""),
+            "collected_at": p.get("collected_at", ""),
+        }
+        for p in sorted_papers[:5]
+    ]
+
     return {
         "total_users": len(users),
-        "total_papers": len(papers_data.get("papers", [])),
+        "total_papers": len(papers),
         "total_bookmarks": len(bookmarks_data.get("bookmarks", [])),
         "total_sessions": session_count,
+        "kg_nodes": kg_nodes,
+        "kg_edges": kg_edges,
+        "papers_by_source": papers_by_source,
+        "papers_by_year": papers_by_year,
+        "top_queries": top_queries,
+        "top_categories": top_categories,
+        "recent_papers": recent_papers,
     }
 
 
@@ -150,15 +206,40 @@ async def delete_user(username: str, admin: str = Depends(get_admin_user)):
 
 # ── Papers ───────────────────────────────────────────────────────────
 
+@router.get("/papers/stats")
+async def papers_stats(admin: str = Depends(get_admin_user)):
+    """Get paper counts grouped by user for tree view."""
+    papers_data = _load_papers()
+    papers = papers_data.get("papers", [])
+    counts: dict[str, int] = {}
+    for p in papers:
+        user = p.get("searched_by", "")
+        counts[user] = counts.get(user, 0) + 1
+
+    return {
+        "total": len(papers),
+        "users": sorted(
+            [{"username": u or "(unknown)", "paper_count": c} for u, c in counts.items()],
+            key=lambda x: x["username"],
+        ),
+    }
+
+
 @router.get("/papers")
 async def list_papers(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    username: Optional[str] = Query(None),
     admin: str = Depends(get_admin_user),
 ):
-    """List papers with pagination."""
+    """List papers with pagination. Optionally filter by searched_by username."""
     papers_data = _load_papers()
     papers = papers_data.get("papers", [])
+
+    # Filter by username if provided
+    if username:
+        papers = [p for p in papers if p.get("searched_by") == username]
+
     total = len(papers)
 
     start = (page - 1) * page_size
@@ -172,14 +253,20 @@ async def list_papers(
             "source": p.get("source", ""),
             "published_date": p.get("published_date", ""),
             "search_query": p.get("search_query", ""),
+            "searched_by": p.get("searched_by", ""),
         })
+
+    # Collect unique usernames for filter dropdown
+    all_papers = papers_data.get("papers", [])
+    usernames = sorted(set(p.get("searched_by", "") for p in all_papers if p.get("searched_by")))
 
     return {
         "papers": page_papers,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
+        "total_pages": max((total + page_size - 1) // page_size, 1),
+        "usernames": usernames,
     }
 
 

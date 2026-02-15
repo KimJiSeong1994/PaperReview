@@ -304,6 +304,13 @@ export interface AdminDashboard {
   total_papers: number;
   total_bookmarks: number;
   total_sessions: number;
+  kg_nodes: number;
+  kg_edges: number;
+  papers_by_source: { source: string; count: number }[];
+  papers_by_year: { year: string; count: number }[];
+  top_queries: { query: string; count: number }[];
+  top_categories: { category: string; count: number }[];
+  recent_papers: { title: string; source: string; collected_at: string }[];
 }
 
 export interface AdminUser {
@@ -320,6 +327,7 @@ export interface AdminPaper {
   source: string;
   published_date: string;
   search_query: string;
+  searched_by: string;
 }
 
 export interface AdminPapersResponse {
@@ -328,6 +336,7 @@ export interface AdminPapersResponse {
   page: number;
   page_size: number;
   total_pages: number;
+  usernames: string[];
 }
 
 export interface AdminBookmarkPaper {
@@ -366,9 +375,19 @@ export const deleteUser = async (username: string) => {
   return response.data;
 };
 
-export const getAdminPapers = async (page: number = 1, pageSize: number = 50): Promise<AdminPapersResponse> => {
+export interface AdminPaperUserStats {
+  total: number;
+  users: { username: string; paper_count: number }[];
+}
+
+export const getAdminPaperStats = async (): Promise<AdminPaperUserStats> => {
+  const response = await api.get<AdminPaperUserStats>('/api/admin/papers/stats');
+  return response.data;
+};
+
+export const getAdminPapers = async (page: number = 1, pageSize: number = 50, username?: string): Promise<AdminPapersResponse> => {
   const response = await api.get<AdminPapersResponse>('/api/admin/papers', {
-    params: { page, page_size: pageSize },
+    params: { page, page_size: pageSize, ...(username ? { username } : {}) },
   });
   return response.data;
 };
