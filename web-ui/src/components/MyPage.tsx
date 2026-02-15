@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {
+  DndContext, DragOverlay, pointerWithin,
+  PointerSensor, useSensor, useSensors, useDraggable, useDroppable,
+  type DragStartEvent, type DragEndEvent, type DragOverEvent,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import './MyPage.css';
 import {
   getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
@@ -20,6 +26,170 @@ interface Bookmark {
   created_at: string;
   tags: string[];
   topic: string;
+}
+
+/* ===== Draggable Bookmark Item ===== */
+interface DraggableBookmarkItemProps {
+  bookmark: Bookmark;
+  isActive: boolean;
+  isChecked: boolean;
+  onSelect: (bm: Bookmark) => void;
+  onToggleSelection: (id: string, e: React.MouseEvent) => void;
+  onDelete: (id: string) => void;
+  onMove: (id: string, topic: string) => void;
+  movingBookmarkId: string | null;
+  setMovingBookmarkId: (id: string | null) => void;
+  moveTopicInput: string;
+  setMoveTopicInput: (v: string) => void;
+  onAddMoveTopicInline: () => void;
+  allTopics: string[];
+  currentTopic: string;
+  setSearchQuery: (q: string) => void;
+}
+
+function DraggableBookmarkItem({
+  bookmark: bm, isActive, isChecked,
+  onSelect, onToggleSelection, onDelete, onMove,
+  movingBookmarkId, setMovingBookmarkId, moveTopicInput, setMoveTopicInput,
+  onAddMoveTopicInline, allTopics, currentTopic, setSearchQuery,
+}: DraggableBookmarkItemProps) {
+  const {
+    attributes, listeners, setNodeRef, transform, isDragging,
+  } = useDraggable({ id: bm.id, data: { topic: currentTopic, bookmark: bm } });
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`mypage-tree-file ${isActive ? 'active' : ''} ${isChecked ? 'checked' : ''} ${isDragging ? 'dragging' : ''}`}
+      onClick={() => !isDragging && onSelect(bm)}
+    >
+      {/* Tree guide line */}
+      <span className="mypage-tree-guide-line" />
+      {/* Drag handle */}
+      <button
+        className="mypage-drag-handle"
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+        tabIndex={-1}
+      >
+        <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
+          <circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/>
+          <circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/>
+          <circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/>
+        </svg>
+      </button>
+      {/* Checkbox */}
+      <input
+        type="checkbox"
+        className="mypage-bookmark-checkbox"
+        checked={isChecked}
+        onClick={(e) => onToggleSelection(bm.id, e as any)}
+        onChange={() => {}}
+      />
+      {/* File icon */}
+      <svg className="mypage-tree-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="13" height="13">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+      <div className="mypage-bookmark-info">
+        <div className="mypage-bookmark-title">{bm.title}</div>
+        <div className="mypage-bookmark-meta">
+          <span>{new Date(bm.created_at).toLocaleDateString()}</span>
+          <span>{bm.num_papers} papers</span>
+        </div>
+        {bm.tags && bm.tags.length > 0 && (
+          <div className="mypage-bookmark-tags">
+            {bm.tags.map((tag, ti) => (
+              <span key={ti} className="mypage-tag-chip" onClick={(e) => { e.stopPropagation(); setSearchQuery(tag); }}>{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mypage-bookmark-actions">
+        <button className="mypage-bookmark-move"
+          onClick={(e) => { e.stopPropagation(); setMovingBookmarkId(movingBookmarkId === bm.id ? null : bm.id); setMoveTopicInput(''); }}
+          title="Move to topic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+        <button className="mypage-bookmark-delete"
+          onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
+          title="Delete">✕</button>
+      </div>
+      {movingBookmarkId === bm.id && (
+        <div className="mypage-move-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="mypage-move-dropdown-title">Move to:</div>
+          {allTopics.filter(t => t !== currentTopic).map(t => (
+            <button key={t} className="mypage-move-dropdown-item" onClick={() => onMove(bm.id, t)}>{t}</button>
+          ))}
+          <div className="mypage-move-dropdown-divider" />
+          <div className="mypage-move-new-topic">
+            <input type="text" placeholder="New topic..." value={moveTopicInput}
+              onChange={(e) => setMoveTopicInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onAddMoveTopicInline(); }}
+              className="mypage-move-new-input" />
+            <button className="mypage-move-new-btn" onClick={onAddMoveTopicInline} disabled={!moveTopicInput.trim()}>+</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Droppable Topic Group (Directory Tree) ===== */
+interface DroppableTopicGroupProps {
+  topic: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  bookmarkCount: number;
+  isOver: boolean;
+  isLast: boolean;
+  children: React.ReactNode;
+}
+
+function DroppableTopicGroup({ topic, isOpen, onToggle, bookmarkCount, isOver, isLast, children }: DroppableTopicGroupProps) {
+  const { setNodeRef } = useDroppable({ id: `topic:${topic}`, data: { topic } });
+
+  return (
+    <div ref={setNodeRef} className={`mypage-tree-folder ${isOver ? 'drag-over' : ''} ${isLast ? 'last' : ''}`}>
+      <div className={`mypage-tree-folder-row ${isOpen ? 'open' : ''}`} onClick={onToggle}>
+        {/* Tree chevron */}
+        <svg className="mypage-tree-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
+          <path d="M6 4l4 4-4 4z" />
+        </svg>
+        {/* Folder icon */}
+        <svg className="mypage-tree-folder-icon" viewBox="0 0 24 24" width="14" height="14">
+          {isOpen ? (
+            <>
+              <path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1" fill="rgba(99,102,241,0.15)" stroke="#818cf8" strokeWidth="1.5"/>
+              <path d="M5 19h14a2 2 0 0 0 2-2l-3-7H4l-1 7a2 2 0 0 0 2 2z" fill="rgba(99,102,241,0.25)" stroke="#818cf8" strokeWidth="1.5"/>
+            </>
+          ) : (
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="rgba(156,163,175,0.1)" stroke="#6b7280" strokeWidth="1.5"/>
+          )}
+        </svg>
+        <span className="mypage-tree-folder-name">{topic}</span>
+        <span className="mypage-tree-folder-badge">{bookmarkCount}</span>
+      </div>
+      {isOpen && (
+        <div className="mypage-tree-children">
+          {bookmarkCount === 0 ? (
+            <div className="mypage-tree-empty-hint">
+              <span className="mypage-tree-guide-line" />
+              Drag bookmarks here
+            </div>
+          ) : children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface MyPageProps {
@@ -53,7 +223,7 @@ function MyPage({ onBack }: MyPageProps) {
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [pendingSources, setPendingSources] = useState<ChatSource[] | null>(null);
+  const [_pendingSources, setPendingSources] = useState<ChatSource[] | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // QW-5: persist chat history
@@ -69,6 +239,7 @@ function MyPage({ onBack }: MyPageProps) {
   const [moveTopicInput, setMoveTopicInput] = useState('');
   const [showNewTopicInput, setShowNewTopicInput] = useState(false);
   const [movingBookmarkId, setMovingBookmarkId] = useState<string | null>(null);
+  const [emptyTopics, setEmptyTopics] = useState<Set<string>>(new Set());
 
   const toggleTopicAccordion = (topic: string) => {
     setTopicAccordionOpen(prev => ({ ...prev, [topic]: !prev[topic] }));
@@ -86,9 +257,11 @@ function MyPage({ onBack }: MyPageProps) {
     );
   }, [bookmarks, searchQuery]);
 
-  // Group filtered bookmarks by topic
+  // Group filtered bookmarks by topic (including empty user-created topics)
   const topicGroups = useMemo(() => {
     const groups: Record<string, Bookmark[]> = {};
+    // Include empty topics first
+    emptyTopics.forEach(topic => { groups[topic] = []; });
     filteredBookmarks.forEach(bm => {
       const topic = bm.topic || 'General';
       if (!groups[topic]) groups[topic] = [];
@@ -102,17 +275,18 @@ function MyPage({ onBack }: MyPageProps) {
     const sorted: Record<string, Bookmark[]> = {};
     sortedKeys.forEach(k => { sorted[k] = groups[k]; });
     return sorted;
-  }, [filteredBookmarks]);
+  }, [filteredBookmarks, emptyTopics]);
 
   const allTopics = useMemo(() => {
     const topics = new Set<string>();
     bookmarks.forEach(bm => topics.add(bm.topic || 'General'));
+    emptyTopics.forEach(t => topics.add(t));
     return Array.from(topics).sort((a, b) => {
       if (a === 'General') return -1;
       if (b === 'General') return 1;
       return a.localeCompare(b);
     });
-  }, [bookmarks]);
+  }, [bookmarks, emptyTopics]);
 
   // Initialize accordion open state for new topics
   useEffect(() => {
@@ -134,6 +308,80 @@ function MyPage({ onBack }: MyPageProps) {
       .filter(bm => (bm.topic || 'General') === chatTopicFilter)
       .map(bm => bm.id);
   }, [bookmarks, chatTopicFilter]);
+
+  // DnD state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [overTopicId, setOverTopicId] = useState<string | null>(null);
+  const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const activeDragBookmark = useMemo(() =>
+    activeDragId ? bookmarks.find(bm => bm.id === activeDragId) || null : null
+  , [activeDragId, bookmarks]);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+    setMovingBookmarkId(null);
+  }, []);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const overId = event.over?.id as string | undefined;
+    let topicId: string | null = null;
+
+    if (overId?.startsWith('topic:')) {
+      topicId = overId;
+    } else {
+      topicId = null;
+    }
+
+    setOverTopicId(topicId);
+
+    // Auto-expand collapsed topics after hovering 500ms
+    if (topicId) {
+      const topicName = topicId.replace('topic:', '');
+      if (!topicAccordionOpen[topicName]) {
+        if (autoExpandTimerRef.current) clearTimeout(autoExpandTimerRef.current);
+        autoExpandTimerRef.current = setTimeout(() => {
+          setTopicAccordionOpen(prev => ({ ...prev, [topicName]: true }));
+        }, 500);
+      }
+    } else {
+      if (autoExpandTimerRef.current) {
+        clearTimeout(autoExpandTimerRef.current);
+        autoExpandTimerRef.current = null;
+      }
+    }
+  }, [topicAccordionOpen]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setOverTopicId(null);
+    if (autoExpandTimerRef.current) {
+      clearTimeout(autoExpandTimerRef.current);
+      autoExpandTimerRef.current = null;
+    }
+
+    if (!over) return;
+
+    const draggedId = active.id as string;
+    const sourceTopic = (active.data.current as any)?.topic as string | undefined;
+    if (!sourceTopic) return;
+
+    const overId = over.id as string;
+    let targetTopic: string | null = null;
+
+    if (overId.startsWith('topic:')) {
+      targetTopic = overId.replace('topic:', '');
+    }
+
+    if (targetTopic && targetTopic !== sourceTopic) {
+      handleMoveBookmark(draggedId, targetTopic);
+    }
+  }, []);
 
   // LightRAG state (for header Build KG button)
   const [kgBuilding, setKgBuilding] = useState(false);
@@ -195,6 +443,12 @@ function MyPage({ onBack }: MyPageProps) {
       setBookmarks(prev => prev.map(bm =>
         bm.id === bookmarkId ? { ...bm, topic: newTopic } : bm
       ));
+      // Remove from emptyTopics if a bookmark was moved into it
+      setEmptyTopics(prev => {
+        const next = new Set(prev);
+        next.delete(newTopic);
+        return next;
+      });
       setMovingBookmarkId(null);
       setMoveTopicInput('');
     } catch (error: any) {
@@ -205,6 +459,8 @@ function MyPage({ onBack }: MyPageProps) {
   const handleAddTopic = () => {
     const trimmed = newTopicInput.trim();
     if (!trimmed) return;
+    // Add as empty topic so it appears as a droppable folder
+    setEmptyTopics(prev => new Set(prev).add(trimmed));
     setTopicAccordionOpen(prev => ({ ...prev, [trimmed]: true }));
     if (movingBookmarkId) {
       handleMoveBookmark(movingBookmarkId, trimmed);
@@ -382,7 +638,7 @@ function MyPage({ onBack }: MyPageProps) {
   // U-4: Render citation badges inline
   const renderCitationText = (text: string, sources?: ChatSource[]) => {
     if (!sources || sources.length === 0) return <>{text}</>;
-    const parts: (string | JSX.Element)[] = [];
+    const parts: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     const regex = /\[(\d+)\]/g;
     let match;
@@ -477,7 +733,7 @@ function MyPage({ onBack }: MyPageProps) {
             </div>
           )}
 
-          {/* Bookmark list */}
+          {/* Bookmark list with DnD */}
           <div className="mypage-bookmarks-scroll">
             {loadingBookmarks ? (
               <div className="mypage-loading">Loading...</div>
@@ -486,84 +742,59 @@ function MyPage({ onBack }: MyPageProps) {
             ) : filteredBookmarks.length === 0 ? (
               <div className="mypage-empty">No bookmarks match "{searchQuery}"</div>
             ) : (
-              Object.entries(topicGroups).map(([topic, topicBookmarks]) => (
-                <div key={topic} className="mypage-accordion">
-                  <div
-                    className={`mypage-accordion-header ${topicAccordionOpen[topic] ? 'open' : ''}`}
-                    onClick={() => toggleTopicAccordion(topic)}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={pointerWithin}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                {Object.entries(topicGroups).map(([topic, topicBookmarks], idx, arr) => (
+                  <DroppableTopicGroup
+                    key={topic}
+                    topic={topic}
+                    isOpen={!!topicAccordionOpen[topic]}
+                    onToggle={() => toggleTopicAccordion(topic)}
+                    bookmarkCount={topicBookmarks.length}
+                    isOver={overTopicId === `topic:${topic}`}
+                    isLast={idx === arr.length - 1}
                   >
-                    <svg className="mypage-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                    <span className="mypage-accordion-topic-name">{topic}</span>
-                    <span className="mypage-accordion-count">{topicBookmarks.length}</span>
-                  </div>
-                  {topicAccordionOpen[topic] && (
-                    <div className="mypage-accordion-body">
-                      <div className="mypage-bookmarks-list">
-                        {topicBookmarks.map((bm) => (
-                          <div
-                            key={bm.id}
-                            className={`mypage-bookmark-item ${selectedBookmark?.id === bm.id ? 'active' : ''} ${selectedIds.has(bm.id) ? 'checked' : ''}`}
-                            onClick={() => handleSelectBookmark(bm)}
-                          >
-                            {/* M-6: Checkbox */}
-                            <input
-                              type="checkbox"
-                              className="mypage-bookmark-checkbox"
-                              checked={selectedIds.has(bm.id)}
-                              onClick={(e) => handleToggleSelection(bm.id, e as any)}
-                              onChange={() => {}}
-                            />
-                            <div className="mypage-bookmark-info">
-                              <div className="mypage-bookmark-title">{bm.title}</div>
-                              <div className="mypage-bookmark-meta">
-                                <span>{new Date(bm.created_at).toLocaleDateString()}</span>
-                                <span>{bm.num_papers} papers</span>
-                              </div>
-                              {bm.tags && bm.tags.length > 0 && (
-                                <div className="mypage-bookmark-tags">
-                                  {bm.tags.map((tag, ti) => (
-                                    <span key={ti} className="mypage-tag-chip" onClick={(e) => { e.stopPropagation(); setSearchQuery(tag); }}>{tag}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div className="mypage-bookmark-actions">
-                              <button className="mypage-bookmark-move"
-                                onClick={(e) => { e.stopPropagation(); setMovingBookmarkId(movingBookmarkId === bm.id ? null : bm.id); setMoveTopicInput(''); }}
-                                title="Move to topic">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                </svg>
-                              </button>
-                              <button className="mypage-bookmark-delete"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteBookmark(bm.id); }}
-                                title="Delete">✕</button>
-                            </div>
-                            {movingBookmarkId === bm.id && (
-                              <div className="mypage-move-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <div className="mypage-move-dropdown-title">Move to:</div>
-                                {allTopics.filter(t => t !== topic).map(t => (
-                                  <button key={t} className="mypage-move-dropdown-item" onClick={() => handleMoveBookmark(bm.id, t)}>{t}</button>
-                                ))}
-                                <div className="mypage-move-dropdown-divider" />
-                                <div className="mypage-move-new-topic">
-                                  <input type="text" placeholder="New topic..." value={moveTopicInput}
-                                    onChange={(e) => setMoveTopicInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddMoveTopicInline(); }}
-                                    className="mypage-move-new-input" />
-                                  <button className="mypage-move-new-btn" onClick={handleAddMoveTopicInline} disabled={!moveTopicInput.trim()}>+</button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                    {topicBookmarks.map((bm) => (
+                      <DraggableBookmarkItem
+                        key={bm.id}
+                        bookmark={bm}
+                        isActive={selectedBookmark?.id === bm.id}
+                        isChecked={selectedIds.has(bm.id)}
+                        onSelect={handleSelectBookmark}
+                        onToggleSelection={handleToggleSelection}
+                        onDelete={handleDeleteBookmark}
+                        onMove={handleMoveBookmark}
+                        movingBookmarkId={movingBookmarkId}
+                        setMovingBookmarkId={setMovingBookmarkId}
+                        moveTopicInput={moveTopicInput}
+                        setMoveTopicInput={setMoveTopicInput}
+                        onAddMoveTopicInline={handleAddMoveTopicInline}
+                        allTopics={allTopics}
+                        currentTopic={topic}
+                        setSearchQuery={setSearchQuery}
+                      />
+                    ))}
+                  </DroppableTopicGroup>
+                ))}
+
+                {/* Drag overlay */}
+                <DragOverlay dropAnimation={null}>
+                  {activeDragBookmark ? (
+                    <div className="mypage-drag-overlay">
+                      <div className="mypage-bookmark-title">{activeDragBookmark.title}</div>
+                      <div className="mypage-bookmark-meta">
+                        <span>{new Date(activeDragBookmark.created_at).toLocaleDateString()}</span>
+                        <span>{activeDragBookmark.num_papers} papers</span>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             )}
 
             {!loadingBookmarks && bookmarks.length > 0 && (

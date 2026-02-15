@@ -98,6 +98,7 @@
 .mypage-bookmarks-scroll {
   flex: 1;
   overflow-y: auto;
+  padding: 4px 6px;
 }
 
 /* Search bar */
@@ -225,54 +226,57 @@
   background: rgba(239, 68, 68, 0.25);
 }
 
-/* ===== Accordion ===== */
-.mypage-accordion {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+/* ===== Directory Tree ===== */
+.mypage-tree-folder {
+  position: relative;
+  transition: background 0.15s ease;
 }
 
-.mypage-accordion:last-child {
-  border-bottom: none;
+.mypage-tree-folder.drag-over {
+  background: rgba(99, 102, 241, 0.06);
 }
 
-.mypage-accordion-header {
+.mypage-tree-folder.drag-over > .mypage-tree-folder-row {
+  color: #a5b4fc;
+}
+
+.mypage-tree-folder-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: 11px;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: #d1d5db;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s ease;
-  font-family: inherit;
+  border-radius: 4px;
+  transition: background 0.1s ease;
 }
 
-.mypage-accordion-header:hover {
-  background: rgba(255, 255, 255, 0.03);
+.mypage-tree-folder-row:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.mypage-accordion-chevron {
+/* Tree chevron (triangle) */
+.mypage-tree-chevron {
   flex-shrink: 0;
-  transition: transform 0.2s ease;
+  color: #6b7280;
+  transition: transform 0.15s ease;
 }
 
-.mypage-accordion-header.open .mypage-accordion-chevron {
+.mypage-tree-folder-row.open .mypage-tree-chevron {
   transform: rotate(90deg);
 }
 
-.mypage-accordion-body {
-  animation: accordion-slide-down 0.15s ease-out;
+/* Folder icon */
+.mypage-tree-folder-icon {
+  flex-shrink: 0;
+  margin-right: 2px;
 }
 
-@keyframes accordion-slide-down {
-  from { opacity: 0; max-height: 0; }
-  to { opacity: 1; max-height: 1000px; }
-}
-
-.mypage-accordion-topic-name {
+/* Folder name */
+.mypage-tree-folder-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -280,14 +284,34 @@
   white-space: nowrap;
 }
 
-.mypage-accordion-count {
+/* File count badge */
+.mypage-tree-folder-badge {
   flex-shrink: 0;
   font-size: 10px;
+  font-weight: 400;
   color: #6b7280;
-  background: rgba(255, 255, 255, 0.06);
-  padding: 1px 6px;
-  border-radius: 10px;
   margin-left: auto;
+}
+
+/* Children container — indented with tree guide */
+.mypage-tree-children {
+  position: relative;
+  margin-left: 11px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mypage-tree-folder.last > .mypage-tree-children {
+  border-left-color: transparent;
+}
+
+/* Empty topic hint */
+.mypage-tree-empty-hint {
+  position: relative;
+  padding: 6px 8px 6px 4px;
+  font-size: 11px;
+  color: #4b5563;
+  font-style: italic;
 }
 
 .mypage-panel-header {
@@ -303,7 +327,7 @@
 
 .mypage-bookmarks-list {
   overflow-y: auto;
-  padding: 4px 8px;
+  padding: 0;
 }
 
 .mypage-loading,
@@ -314,43 +338,110 @@
   font-size: 14px;
 }
 
-/* Bookmark item with checkbox */
-.mypage-bookmark-item {
+/* ===== Drag Handle ===== */
+.mypage-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  color: transparent;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  touch-action: none;
+}
+
+.mypage-tree-file:hover .mypage-drag-handle {
+  color: #6b7280;
+}
+
+.mypage-drag-handle:hover {
+  color: #9ca3af !important;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mypage-drag-handle:active {
+  cursor: grabbing;
+  color: #a5b4fc !important;
+}
+
+/* ===== Drag Overlay ===== */
+.mypage-drag-overlay {
+  background: #1f1f1f;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-width: 260px;
+  opacity: 0.95;
+}
+
+.mypage-drag-overlay .mypage-bookmark-title {
+  padding-right: 0;
+}
+
+/* ===== Tree File (Bookmark Item) ===== */
+.mypage-tree-file {
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
+  gap: 4px;
+  padding: 3px 6px;
+  margin: 1px 0;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.1s ease;
+  border: 1px solid transparent;
 }
 
-.mypage-bookmark-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.mypage-bookmark-item.active {
-  background: rgba(99, 102, 241, 0.1);
+.mypage-tree-file.dragging {
+  opacity: 0.3;
+  border-style: dashed;
   border-color: rgba(99, 102, 241, 0.3);
 }
 
-.mypage-bookmark-item.checked {
-  background: rgba(99, 102, 241, 0.06);
+.mypage-tree-file:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mypage-tree-file.active {
+  background: rgba(99, 102, 241, 0.12);
   border-color: rgba(99, 102, 241, 0.2);
 }
 
+.mypage-tree-file.checked {
+  background: rgba(99, 102, 241, 0.06);
+}
+
+/* Tree guide line from parent border to item */
+.mypage-tree-guide-line {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 12px;
+  height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* File icon */
+.mypage-tree-file-icon {
+  flex-shrink: 0;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
 .mypage-bookmark-checkbox {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   cursor: pointer;
   accent-color: rgba(99, 102, 241, 0.8);
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .mypage-bookmark-info {
@@ -360,10 +451,10 @@
 
 .mypage-bookmark-title {
   font-size: 12px;
-  font-weight: 500;
-  color: #e5e7eb;
+  font-weight: 400;
+  color: #d1d5db;
   line-height: 1.4;
-  padding-right: 40px;
+  padding-right: 30px;
 }
 
 .mypage-bookmark-meta {
@@ -398,15 +489,15 @@
 /* Bookmark action buttons */
 .mypage-bookmark-actions {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 3px;
+  right: 4px;
   display: flex;
-  gap: 4px;
+  gap: 2px;
   opacity: 0;
   transition: all 0.15s ease;
 }
 
-.mypage-bookmark-item:hover .mypage-bookmark-actions {
+.mypage-tree-file:hover .mypage-bookmark-actions {
   opacity: 1;
 }
 

@@ -1,11 +1,11 @@
 {
   "metadata": {
-    "last_updated": "2026-02-15T00:05:34.530326",
-    "total_papers": 1195,
+    "last_updated": "2026-02-15T16:38:07.394879",
+    "total_papers": 1246,
     "sources": [
       "Google Scholar",
-      "Connected Papers (via Semantic Scholar)",
-      "arXiv"
+      "arXiv",
+      "Connected Papers (via Semantic Scholar)"
     ]
   },
   "papers": [
@@ -26905,6 +26905,984 @@
       "journal_ref": null,
       "collected_at": "2026-02-14T23:41:34.099764",
       "search_query": "Understanding the spatial organization of urban functions based on co- location patterns mining: A comparative analysis for 25 Chinese cities"
+    },
+    {
+      "title": "Integrating ontologies and large language models to implement retrieval augmented generation",
+      "authors": [
+        "M DeBellis",
+        "N Dutta",
+        "J Gino",
+        "A Balaji - Applied Ontology",
+        "2024"
+      ],
+      "abstract": "… of alternative approaches all in one single architecture. More … One other possibility is to write a simple NLP generator that … and machine learning technology together in an integrated …",
+      "url": "https://journals.sagepub.com/doi/abs/10.1177/15705838241296446",
+      "pdf_url": "",
+      "journal": "journals.sagepub.com",
+      "year": "",
+      "citations": 16,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838700",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval - augmented generation for large language models: A survey",
+      "authors": [
+        "Y Gao",
+        "Y Xiong",
+        "X Gao",
+        "K Jia",
+        "J Pan",
+        "Y Bi … - arXiv preprint arXiv …",
+        "2023"
+      ],
+      "abstract": "… have seen in Natural Language Processing ( NLP ) before. … rewards in the reinforcement learning phase within the labeled … emerged, but an all - in - one platform still needs to be refined. …",
+      "url": "https://simg.baai.ac.cn/paperfile/25a43194-c74c-4cd3-b60f-0a1f27f8b8af.pdf",
+      "pdf_url": "",
+      "journal": "simg.baai.ac.cn",
+      "year": "",
+      "citations": 4578,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838706",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Designing a multi-perspective search system using large language models and retrieval augmented generation",
+      "authors": [
+        "U Mujumdar"
+      ],
+      "abstract": "… the field of natural language processing ( NLP ), enabling … is being done concurrently in real-time, and not all in one go. … The application scenario discussed so far for our tool has been …",
+      "url": "https://repositories.lib.utexas.edu/items/4088eec8-4a0a-4f1a-b50d-140eceac40e2",
+      "pdf_url": "",
+      "journal": "2024",
+      "year": "2024",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838710",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Fine-tuning retrieval - augmented generation with an auto-regressive language model for sentiment analysis in financial reviews",
+      "authors": [
+        "M Mathebula",
+        "A Modupe",
+        "V Marivate  - Applied Sciences",
+        "2024"
+      ],
+      "abstract": "… In Section 2.3, we look at deep learning approaches that have the … Hence, the adoption of deep learning models in NLP is … Applications of deep learning models have been successful …",
+      "url": "https://www.mdpi.com/2076-3417/14/23/10782",
+      "pdf_url": "",
+      "journal": "mdpi.com",
+      "year": "",
+      "citations": 13,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838714",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "RAG chatbot for healthcare related prompt susing Amazon Bedrock",
+      "authors": [
+        "O Richard-Ojo",
+        "H Wimmer … - J Inform Syst Appl Res",
+        "2025"
+      ],
+      "abstract": "… Natural language processing ( NLP ) models are a part of … flow advancement of Gen Ai over machine and deep learning . … -tuning and retrieval augmented generation all in one suite, we …",
+      "url": "https://www.researchgate.net/profile/Jennifer-Breese/publication/397356573_Are_Employers_Resistant_to_Change_the_Traditional_Work_Environment_A_Pilot_Study_of_Employer_Perceptions_on_Remote_Work_and_Shortened_Work_Weeks/links/690d38d79708d52f2da5f558/Are-Employers-Resistant-to-Change-the-Traditional-Work-Environment-A-Pilot-Study-of-Employer-Perceptions-on-Remote-Work-and-Shortened-Work-Weeks.pdf#page=18",
+      "pdf_url": "",
+      "journal": "researchgate.net",
+      "year": "",
+      "citations": 3,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838718",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "A REGNLP Framework : Developing Retrieval - Augmented Generation for Regulatory Document Analysis",
+      "authors": [
+        "O Bayer",
+        "EN Ulu",
+        "Y Sarkın",
+        "E Sütçü… - … 1st Regulatory  NLP  …",
+        "2025"
+      ],
+      "abstract": "… as an all - in - one embedding database that supports semantic search and language model workflows. The training … The application of RAG methods to regulatory workflows remains an …",
+      "url": "https://aclanthology.org/2025.regnlp-1.15/",
+      "pdf_url": "",
+      "journal": "aclanthology.org",
+      "year": "",
+      "citations": 1,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838722",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "R-eval: A unified toolkit for evaluating domain knowledge of retrieval augmented large language models",
+      "authors": [
+        "S Tu",
+        "Y Wang",
+        "J Yu",
+        "Y Xie",
+        "Y Shi",
+        "X Wang… - Proceedings of the 30th …",
+        "2024"
+      ],
+      "abstract": "… achieved remarkable success on gen eral NLP tasks, but … domain-specific applications such as AI healthcare assistants, … , all - in - one evaluation system for different retrieval augmented …",
+      "url": "https://dl.acm.org/doi/abs/10.1145/3637528.3671564",
+      "pdf_url": "",
+      "journal": "dl.acm.org",
+      "year": "",
+      "citations": 12,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838725",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "UniversalRAG: Retrieval - augmented generation over corpora of diverse modalities and granularities",
+      "authors": [
+        "W Yeo",
+        "K Kim",
+        "S Jeong",
+        "J Baek",
+        "SJ Hwang  - arXiv preprint arXiv …",
+        "2025"
+      ],
+      "abstract": "… -for-all framework that can flexibly handle the wide range of queries, whose knowledge requirements vary. In this work, we present UniversalRAG, a novel RAG framework that brings …",
+      "url": "https://arxiv.org/abs/2504.20734",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 3,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838729",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Enhancing Product Categorization with LLMs Enhancing Product Categorization with Retrieval Augmented Generation : A Comparative Study of Architectures …",
+      "authors": [
+        "RAM Marrero"
+      ],
+      "abstract": "… Their advanced natural language processing capabilities, … hierarchical dependencies, deep learning architectures offer a … the way for more sophisticated applications in e-commerce. …",
+      "url": "https://search.proquest.com/openview/54c8ffb41b9e4e9f6f82339eed2fcac0/1?pq-origsite=gscholar&cbl=2026366&diss=y",
+      "pdf_url": "",
+      "journal": "2025",
+      "year": "2025",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838732",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "CONTEXT-BASED USER STORY ENHANCEMENT WITH LLM AND RAG",
+      "authors": [
+        "K Nguyen"
+      ],
+      "abstract": "… (LLMs) with retrieval - augmented generation ( RAG ) to refine … The machine learning -based user story grouping framework … An initial “ all - in one ” prompt that combined roles, tasks, and …",
+      "url": "https://trepo.tuni.fi/bitstream/handle/10024/230847/NguyenKhoa.pdf?sequence=2",
+      "pdf_url": "",
+      "journal": "2025",
+      "year": "2025",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838742",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Rag -anything: All - in - one rag framework",
+      "authors": [
+        "Z Guo",
+        "X Ren",
+        "L Xu",
+        "J Zhang",
+        "C Huang - arXiv preprint arXiv:2510.12323",
+        "2025"
+      ],
+      "abstract": "… Retrieval - Augmented Generation ( RAG ) has emerged as a fundamental paradigm for expanding the knowledge boundaries of Large Language Models (LLM) beyond their static …",
+      "url": "https://arxiv.org/abs/2510.12323",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 3,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838746",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Orion: A Multi-Agent Framework for Optimizing RAG Systems through Specialized Agent Collaboration",
+      "authors": [
+        "X Fang",
+        "L Xie",
+        "W Yang",
+        "T Zhang",
+        "R Zhang… - Proceedings of the 16th …",
+        "2025"
+      ],
+      "abstract": "… Retrieval - Augmented Generation ( RAG ) systems in enterprise en… the Orion framework , a multiAgent collaborative RAG … GitHub - neuml/txtai: All - in - one open-source embeddings …",
+      "url": "https://dl.acm.org/doi/abs/10.1145/3755881.3755909",
+      "pdf_url": "",
+      "journal": "dl.acm.org",
+      "year": "",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838749",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Overcoming In-Memory Bottlenecks in Graph Foundation Models via Retrieval - Augmented Generation",
+      "authors": [
+        "H Yuan",
+        "Q Sun",
+        "J Tao",
+        "X Fu",
+        "J Li - arXiv preprint arXiv:2601.15124",
+        "2026"
+      ],
+      "abstract": "… • We propose RAG -GFM, the first retrieval - augmented graph foundation … and retrieval augmented prompting, the framework achieves … Extensive experiments demonstrate that RAG -GFM …",
+      "url": "https://arxiv.org/abs/2601.15124",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838753",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Exploring the Role of RAG in Cloud-Based Monolithic Chatbots: A Systematic Review",
+      "authors": [
+        "SM Billah",
+        "RJBR Yusof"
+      ],
+      "abstract": "… vector databases and its response logic all in one interface [11]. … a three-layer framework for integrating RAG in monolithic … systematic review of Retrieval Augmented Generation ( RAG ) in …",
+      "url": "https://www.researchgate.net/profile/Syed-Mashkur-Syed-Mashkur/publication/398689670_Exploring_the_Role_of_RAG_in_Cloud-Based_Monolithic_Chatbots_A_Systematic_Review/links/69400e4327359023a00cf81b/Exploring-the-Role-of-RAG-in-Cloud-Based-Monolithic-Chatbots-A-Systematic-Review.pdf",
+      "pdf_url": "",
+      "journal": "researchgate.net",
+      "year": "",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T00:57:17.838756",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "GenAI-powered Multi-Agent Paradigm for Smart Urban Mobility: Opportunities and Challenges for Integrating Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) with Intelligent Transportation Systems",
+      "authors": [
+        "Haowen Xu",
+        "Jinghui Yuan",
+        "Anye Zhou",
+        "Guanhao Xu",
+        "Wan Li",
+        "X. Ban",
+        "Xinyue Ye"
+      ],
+      "year": "2024",
+      "citations": 17,
+      "abstract": "Leveraging recent advances in generative AI, multi-agent systems are increasingly being developed to enhance the functionality and efficiency of smart city applications. This paper explores the transformative potential of large language models (LLMs) and emerging Retrieval-Augmented Generation (RAG) technologies in Intelligent Transportation Systems (ITS), paving the way for innovative solutions to address critical challenges in urban mobility. We begin by providing a comprehensive overview of the current state-of-the-art in mobility data, ITS, and Connected Vehicles (CV) applications. Building on this review, we discuss the rationale behind RAG and examine the opportunities for integrating these Generative AI (GenAI) technologies into the smart mobility sector. We propose a conceptual framework aimed at developing multi-agent systems capable of intelligently and conversationally delivering smart mobility services to urban commuters, transportation operators, and decision-makers. Our approach seeks to foster an autonomous and intelligent approach that (a) promotes science-based advisory to reduce traffic congestion, accidents, and carbon emissions at multiple scales, (b) facilitates public education and engagement in participatory mobility management, and (c) automates specialized transportation management tasks and the development of critical ITS platforms, such as data analytics and interpretation, knowledge representation, and traffic simulations. By integrating LLM and RAG, our approach seeks to overcome the limitations of traditional rule-based multi-agent systems, which rely on fixed knowledge bases and limited reasoning capabilities. This integration paves the way for a more scalable, intuitive, and automated multi-agent paradigm, driving advancements in ITS and urban mobility.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/ccaa1a9b70a14c6725af1b0328f9468947ab7d32",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_ccaa1a9b70a14c6725af1b0328f9468947ab7d32",
+      "collected_at": "2026-02-15T16:38:07.394598",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Automating Systematic Literature Reviews with Retrieval-Augmented Generation: A Comprehensive Overview",
+      "authors": [
+        "Binglan Han",
+        "Teo Sušnjak",
+        "A. Mathrani"
+      ],
+      "year": "2024",
+      "citations": 40,
+      "abstract": "This study examines Retrieval-Augmented Generation (RAG) in large language models (LLMs) and their significant application for undertaking systematic literature reviews (SLRs). RAG-based LLMs can potentially automate tasks like data extraction, summarization, and trend identification. However, while LLMs are exceptionally proficient in generating human-like text and interpreting complex linguistic nuances, their dependence on static, pre-trained knowledge can result in inaccuracies and hallucinations. RAG mitigates these limitations by integrating LLMs’ generative capabilities with the precision of real-time information retrieval. We review in detail the three key processes of the RAG framework—retrieval, augmentation, and generation. We then discuss applications of RAG-based LLMs to SLR automation and highlight future research topics, including integration of domain-specific LLMs, multimodal data processing and generation, and utilization of multiple retrieval sources. We propose a framework of RAG-based LLMs for automating SRLs, which covers four stages of SLR process: literature search, literature screening, data extraction, and information synthesis. Future research aims to optimize the interaction between LLM selection, training strategies, RAG techniques, and prompt engineering to implement the proposed framework, with particular emphasis on the retrieval of information from individual scientific papers and the integration of these data to produce outputs addressing various aspects such as current status, existing gaps, and emerging trends.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/74fdf8053638eb12e5cce073ab4fb476fdb9f9cb",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_74fdf8053638eb12e5cce073ab4fb476fdb9f9cb",
+      "collected_at": "2026-02-15T16:38:07.394676",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Engineering the RAG Stack: A Comprehensive Review of the Architecture and Trust Frameworks for Retrieval-Augmented Generation Systems",
+      "authors": [
+        "Dean Wampler",
+        "Dave Nielson",
+        "Alireza Seddighi"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "This article provides a comprehensive systematic literature review of academic studies, industrial applications, and real-world deployments from 2018 to 2025, providing a practical guide and detailed overview of modern Retrieval-Augmented Generation (RAG) architectures. RAG offers a modular approach for integrating external knowledge without increasing the capacity of the model as LLM systems expand. Research and engineering practices have been fragmented as a result of the increasing diversity of RAG methodologies, which encompasses a variety of fusion mechanisms, retrieval strategies, and orchestration approaches. We provide quantitative assessment frameworks, analyze the implications for trust and alignment, and systematically consolidate existing RAG techniques into a unified taxonomy. This document is a practical framework for the deployment of resilient, secure, and domain-adaptable RAG systems, synthesizing insights from academic literature, industry reports, and technical implementation guides. It also functions as a technical reference.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/b2f5ee8a742c13582a4ffe4ada2a78d60d6fe80d",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_b2f5ee8a742c13582a4ffe4ada2a78d60d6fe80d",
+      "collected_at": "2026-02-15T16:38:07.394682",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "RAG and RAU: A Survey on Retrieval-Augmented Language Model in Natural Language Processing",
+      "authors": [
+        "Yucheng Hu",
+        "Yuxing Lu"
+      ],
+      "year": "2024",
+      "citations": 32,
+      "abstract": "Large Language Models (LLMs) have catalyzed significant advancements in Natural Language Processing (NLP), yet they encounter challenges such as hallucination and the need for domain-specific knowledge. To mitigate these, recent methodologies have integrated information retrieved from external resources with LLMs, substantially enhancing their performance across NLP tasks. This survey paper addresses the absence of a comprehensive overview on Retrieval-Augmented Language Models (RALMs), both Retrieval-Augmented Generation (RAG) and Retrieval-Augmented Understanding (RAU), providing an in-depth examination of their paradigm, evolution, taxonomy, and applications. The paper discusses the essential components of RALMs, including Retrievers, Language Models, and Augmentations, and how their interactions lead to diverse model structures and applications. RALMs demonstrate utility in a spectrum of tasks, from translation and dialogue systems to knowledge-intensive applications. The survey includes several evaluation methods of RALMs, emphasizing the importance of robustness, accuracy, and relevance in their assessment. It also acknowledges the limitations of RALMs, particularly in retrieval quality and computational efficiency, offering directions for future research. In conclusion, this survey aims to offer a structured insight into RALMs, their potential, and the avenues for their future development in NLP. The paper is supplemented with a Github Repository containing the surveyed works and resources for further study: https://github.com/2471023025/RALM_Survey.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/1b7492a4b813052146300fa8c03325c4ad7a0a25",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_1b7492a4b813052146300fa8c03325c4ad7a0a25",
+      "collected_at": "2026-02-15T16:38:07.394685",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "PermitQA: A Benchmark for Retrieval Augmented Generation in Wind Siting and Permitting domain",
+      "authors": [
+        "Rounak Meyur",
+        "Hung Phan",
+        "S. Wagle",
+        "Jan Strube",
+        "M. Halappanavar",
+        "Sameera Horawalavithana",
+        "Anurag Acharya",
+        "Sai Munikoti"
+      ],
+      "year": "2024",
+      "citations": 0,
+      "abstract": null,
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/28bf2615bca7d1edce67eb2a6864bef2f236f803",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_28bf2615bca7d1edce67eb2a6864bef2f236f803",
+      "collected_at": "2026-02-15T16:38:07.394689",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "WeQA: A Benchmark for Retrieval Augmented Generation in Wind Energy Domain",
+      "authors": [
+        "Rounak Meyur",
+        "Hung Phan",
+        "S. Wagle",
+        "Jan Strube",
+        "M. Halappanavar",
+        "Sameera Horawalavithana",
+        "Anurag Acharya",
+        "Sai Munikoti"
+      ],
+      "year": "2024",
+      "citations": 4,
+      "abstract": "Wind energy project assessments present significant challenges for decision-makers, who must navigate and synthesize hundreds of pages of environmental and scientific documentation. These documents often span different regions and project scales, covering multiple domains of expertise. This process traditionally demands immense time and specialized knowledge from decision-makers. The advent of Large Language Models (LLM) and Retrieval Augmented Generation (RAG) approaches offer a transformative solution, enabling rapid, accurate cross-document information retrieval and synthesis. As the landscape of Natural Language Processing (NLP) and text generation continues to evolve, benchmarking becomes essential to evaluate and compare the performance of different RAG-based LLMs. In this paper, we present a comprehensive framework to generate a domain relevant RAG benchmark. Our framework is based on automatic question-answer generation with Human (domain experts)-AI (LLM) teaming. As a case study, we demonstrate the framework by introducing WeQA, a first-of-its-kind benchmark on the wind energy domain which comprises of multiple scientific documents/reports related to environmental aspects of wind energy projects. Our framework systematically evaluates RAG performance using diverse metrics and multiple question types with varying complexity level, providing a foundation for rigorous assessment of RAG-based systems in complex scientific domains and enabling researchers to identify areas for improvement in domain-specific applications.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/a59ea16acc9df2374b28d787d96e16a67fac3468",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_a59ea16acc9df2374b28d787d96e16a67fac3468",
+      "collected_at": "2026-02-15T16:38:07.394692",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Dynamic and Parametric Retrieval-Augmented Generation",
+      "authors": [
+        "Weihang Su",
+        "Qingyao Ai",
+        "Jingtao Zhan",
+        "Qian Dong",
+        "Yiqun Liu"
+      ],
+      "year": "2025",
+      "citations": 9,
+      "abstract": "Retrieval-Augmented Generation (RAG) has become a foundational paradigm for enhancing large language models (LLMs) with external knowledge, playing an important role in modern information retrieval and knowledge-intensive NLP applications. Standard RAG systems typically adopt a static retrieve-then-generate pipeline and rely on in-context knowledge injection, which can be suboptimal for complex tasks that require multihop reasoning, adaptive information access, and deeper integration of external knowledge. Motivated by these limitations, the research community has moved beyond static retrieval and in-context knowledge injection. Among the emerging directions, this tutorial delves into two rapidly growing and complementary research directions on RAG: Dynamic RAG and Parametric RAG. Dynamic RAG explores how LLMs can actively decide when and what to retrieve during generation, enabling real-time adaptation to evolving information needs. Parametric RAG rethinks how the retrieved knowledge should be incorporated, moving from input-level to parameter-level knowledge injection for improved efficiency and effectiveness. This tutorial offers a comprehensive overview of recent advances in both directions. It provides participants with the theoretical foundations and actionable insights needed to build flexible and scalable RAG systems.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/c2d2d5872357f2d4b95cf068ba9703f925040ca1",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_c2d2d5872357f2d4b95cf068ba9703f925040ca1",
+      "collected_at": "2026-02-15T16:38:07.394710",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Advancing Retrieval-Augmented Generation for Persian: Development of Language Models, Comprehensive Benchmarks, and Best Practices for Optimization",
+      "authors": [
+        "Sara Bourbour Hosseinbeigi",
+        "Sina Asghari",
+        "Mohammad Ali Seif Kashani",
+        "Mohammad Hossein Shalchian",
+        "Mohammad Amin Abbasi"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "This paper examines the specific obstacles of constructing Retrieval-Augmented Generation(RAG) systems in low-resource languages, with a focus on Persian's complicated morphology and versatile syntax. The research aims to improve retrieval and generation accuracy by introducing Persian-specific models, namely MatinaRoberta(a masked language model) and MatinaSRoberta(a fine-tuned Sentence-BERT), along with a comprehensive benchmarking framework. Three datasets-general knowledge(PQuad), scientifically specialized texts, and organizational reports, were used to assess these models after they were trained on a varied corpus of 73.11 billion Persian tokens. The methodology involved extensive pretraining, fine-tuning with tailored loss functions, and systematic evaluations using both traditional metrics and the Retrieval-Augmented Generation Assessment framework. The results show that MatinaSRoberta outperformed previous embeddings, achieving superior contextual relevance and retrieval accuracy across datasets. Temperature tweaking, chunk size modifications, and document summary indexing were explored to enhance RAG setups. Larger models like Llama-3.1 (70B) consistently demonstrated the highest generation accuracy, while smaller models faced challenges with domain-specific and formal contexts. The findings underscore the potential for developing RAG systems in Persian through customized embeddings and retrieval-generation settings and highlight the enhancement of NLP applications such as search engines and legal document analysis in low-resource languages.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/7ddb459ff6804cb08b887b7057a1f109e92a72a9",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_7ddb459ff6804cb08b887b7057a1f109e92a72a9",
+      "collected_at": "2026-02-15T16:38:07.394714",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Securing Rag: A Risk Assessment and Mitigation Framework",
+      "authors": [
+        "Lukas Ammann",
+        "Sara Ott",
+        "Christoph R. Landolt",
+        "Marco P. Lehmann"
+      ],
+      "year": "2025",
+      "citations": 6,
+      "abstract": "Retrieval Augmented Generation (RAG) has emerged as the de facto industry standard for user-facing NLP applications, offering the ability to integrate data without retraining or fine-tuning Large Language Models (LLMs). This capability enhances the quality and accuracy of responses but also introduces novel security and privacy challenges, particularly when sensitive data is integrated. With the rapid adoption of RAG, securing data and services has become a critical priority. This paper first reviews the vulnerabilities of RAG pipelines, and outlines the attack surface from data pre-processing and data storage management to integration with LLMs. The identified risks are then paired with corresponding mitigations in a structured overview. In a second step, the paper develops a framework that combines RAG-specific security considerations, with existing general security guidelines, industry standards, and best practices. The proposed framework aims to guide the implementation of robust, compliant, secure, and trustworthy RAG systems.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/68d2d650ea44f8502dcff008f1bd852f7a6a5b21",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_68d2d650ea44f8502dcff008f1bd852f7a6a5b21",
+      "collected_at": "2026-02-15T16:38:07.394726",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "CareerBoost: A Hybrid RAG-NLP Job Recommendation Framework",
+      "authors": [
+        "Sanskruti Deshmukh",
+        "Aaryaman Bajaj"
+      ],
+      "year": "2024",
+      "citations": 6,
+      "abstract": "The proposed system presents a novel approach to job recommendation and resume enhancement, leveraging advanced Natural Language Processing (NLP) techniques and Retrieval-Augmented Generation (RAG). We introduce a comprehensive system that combines semantic search, FAISS-based similarity matching, and a fine-tuned GPT-2 model to provide personalized job recommendations and actionable resume improvement suggestions. The evaluation, conducted through offline metrics and online A/B testing with 5,000 users, demonstrates significant improvements over traditional keyword-matching approaches. The RAG-based system achieved a 25.8% increase in recommendation relevance (Precision@10), a 45.7% increase in user engagement, and a 41.2% increase in job application rates. Furthermore, users who applied the system’s resume enhancement suggestions saw a 9.0% improvement in subsequent job matches. These results highlight the potential of AI-driven systems to revolutionize online recruitment and career development, while also emphasizing the need for ongoing consideration of ethical implications and fairness in AI-assisted hiring processes.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/721116bb0deaf24f39dd6389cd2ca7df14811ea2",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_721116bb0deaf24f39dd6389cd2ca7df14811ea2",
+      "collected_at": "2026-02-15T16:38:07.394730",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "ENHANCING ENGLISH LANGUAGE EDUCATION WITH RETRIEVALAUGMENTED GENERATION (RAG): A NEW PARADIGM FOR AI-POWERED TEACHING AND LEARNING",
+      "authors": [
+        "Scott Smith"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "Retrieval-Augmented Generation (RAG) serves as a significant natural language processing (NLP) advancement through its integration of real-time information retrieval with traditional large language models (LLMs). RAG surpasses traditional LLMs because it uses real-time information retrieval to generate responses which leads to better factual accuracy and reduced hallucinations and improved contextual understanding. This paper traces RAG's development from its beginnings in early information retrieval (IR) systems through to the implementation of transformer-based architectures. The applications of RAG include question-answering systems and AI-driven content generation and enterprise-level data processing. The research identifies essential challenges which include retrieval accuracy and computational cost and privacy concerns and multimodal data integration and biases in retrieved information. Furthermore, it discusses emerging solutions to address these limitations through fact-verification models and blockchain-based data integrity systems and quantum computing for optimized retrieval and multimodal AI alignment. After all, the future development of RAG architectures will result in self-learning decentralized ethically governed AI systems which adapt to dynamic knowledge bases across multiple domains. This indepth exploration establishes a comprehensive understanding of RAG's function in knowledgeintensive AI applications while outlining directions to enhance its operational efficiency and scalability and ethical reliability. In doing so, it shows of RAG will new framework for AIpowered learning both in and outside the classroom.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/81af09df992c3b75cbd6b420134abf5ad77b81d7",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_81af09df992c3b75cbd6b420134abf5ad77b81d7",
+      "collected_at": "2026-02-15T16:38:07.394733",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "NitiBench: A Comprehensive Study of LLM Framework Capabilities for Thai Legal Question Answering",
+      "authors": [
+        "Pawitsapak Akarajaradwong",
+        "Pirat Pothavorn",
+        "Chompakorn Chaksangchaichot",
+        "Panuthep Tasawong",
+        "Thitiwat Nopparatbundit",
+        "Keerakiat Pratai",
+        "Sarana Nutanong"
+      ],
+      "year": "2025",
+      "citations": 5,
+      "abstract": "The application of large language models (LLMs) in the legal domain holds significant potential for information retrieval and question answering, yet Thai legal QA systems face challenges due to a lack of standardized evaluation benchmarks and the complexity of Thai legal structures. This paper introduces NitiBench, a benchmark comprising two datasets: the NitiBench-CCL, covering general Thai financial law, and the NitiBench-Tax, which includes real-world tax law cases requiring advanced legal reasoning. We evaluate retrieval-augmented generation (RAG) and long-context LLM-based approaches to address three key research questions: the impact of domain-specific components like section-based chunking and cross-referencing, the comparative performance of different retrievers and LLMs, and the viability of long-context LLMs as an alternative to RAG. Our results show that section-based chunking significantly improves retrieval and end-to-end performance, current retrievers struggle with complex queries, and long-context LLMs still underperform RAG-based systems in Thai legal QA. To support fair evaluation, we propose tailored multi-label retrieval metrics and the use of an LLM-as-judge for coverage and contradiction detection method. These findings highlight the limitations of current Thai legal NLP solutions and provide a foundation for future research in the field. We also open-sourced our codes and dataset to available publicly.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/2d8a473450aabea3942d42a09f4490881041a365",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_2d8a473450aabea3942d42a09f4490881041a365",
+      "collected_at": "2026-02-15T16:38:07.394740",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "RAG based Question-Answering for Contextual Response Prediction System",
+      "authors": [
+        "Sriram Veturi",
+        "Saurabh Vaichal",
+        "Reshma Lal Jagadheesh",
+        "Nafis Irtiza Tripto",
+        "Nian Yan"
+      ],
+      "year": "2024",
+      "citations": 24,
+      "abstract": "Large Language Models (LLMs) have shown versatility in various Natural Language Processing (NLP) tasks, including their potential as effective question-answering systems. However, to provide precise and relevant information in response to specific customer queries in industry settings, LLMs require access to a comprehensive knowledge base to avoid hallucinations. Retrieval Augmented Generation (RAG) emerges as a promising technique to address this challenge. Yet, developing an accurate question-answering framework for real-world applications using RAG entails several challenges: 1) data availability issues, 2) evaluating the quality of generated content, and 3) the costly nature of human evaluation. In this paper, we introduce an end-to-end framework that employs LLMs with RAG capabilities for industry use cases. Given a customer query, the proposed system retrieves relevant knowledge documents and leverages them, along with previous chat history, to generate response suggestions for customer service agents in the contact centers of a major retail company. Through comprehensive automated and human evaluations, we show that this solution outperforms the current BERT-based algorithms in accuracy and relevance. Our findings suggest that RAG-based LLMs can be an excellent support to human customer service representatives by lightening their workload.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/4b0c63c86e8cdcc7c0f45246c92c3e98d77855d7",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_4b0c63c86e8cdcc7c0f45246c92c3e98d77855d7",
+      "collected_at": "2026-02-15T16:38:07.394744",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "An Architectural Framework for Educational Knowledge Graphs (IEEE P2807.6): Ontology Design, Llm Integration, and Adaptive Learning Applications",
+      "authors": [
+        "Bin Xu",
+        "Richard Tong",
+        "Yanyan Li",
+        "Penghe Chen",
+        "Hanming Li",
+        "Joleen Liang",
+        "Xing Fan",
+        "Jessie Tong"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "The IEEE P2807.6 Education Knowledge Graph (EduKG) standard defines a semantic infrastructure to represent educational knowledge, resources, and pedagogy in a unified graph format. This paper expands on the core EduKG architecture, detailing its ontology design and key entities-Learning Points, Resource Items, and Pedagogical Rules-that collectively model the domain, content, and instructional strategies of learning systems. We further explore how EduKG can be integrated with advanced AI technologies, including large language models (LLMs) and retrieval-augmented generation (Graph-RAG) via embedding databases, to enable intelligent behavior such as semantic search, question answering, and dynamic content generation. These integrations position EduKG as a central component in next-generation smart education systems, wherein knowledge graphs work in concert with intelligent agents and adaptive instructional systems to deliver fully automated, personalized, and interactive learning experiences. By leveraging the standardized graph-structured representation and semantic reasoning capabilities of EduKG, such systems can achieve interoperability across platforms and support complex AI-driven tutoring and training scenarios. This work provides a comprehensive overview of the EduKG framework and highlights its role in empowering adaptive, cognitive, and collaborative learning solutions for the future of digital education.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/cc91aed96c534640334574b4b8dd01dbecfaf13d",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_cc91aed96c534640334574b4b8dd01dbecfaf13d",
+      "collected_at": "2026-02-15T16:38:07.394755",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "FinS-Pilot: A Benchmark for Online Financial RAG System",
+      "authors": [
+        "Feng Wang",
+        "Yiding Sun",
+        "Jiaxin Mao",
+        "Xue Wei",
+        "Danqing Xu"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "Large language models (LLMs) have demonstrated remarkable capabilities across various professional domains, with their performance typically evaluated through standardized benchmarks. In the financial field, the stringent demands for professional accuracy and real-time data processing often necessitate the use of retrieval-augmented generation (RAG) techniques. However, the development of financial RAG benchmarks has been constrained by data confidentiality issues and the lack of dynamic data integration. To address this issue, we introduce FinS-Pilot, a novel benchmark for evaluating RAG systems in online financial applications. Constructed from real-world financial assistant interactions, our benchmark incorporates both real-time API data and text data, organized through an intent classification framework covering critical financial domains. The benchmark enables comprehensive evaluation of financial assistants' capabilities in handling both static knowledge and time-sensitive market information.Through systematic experiments with multiple Chinese leading LLMs, we demonstrate FinS-Pilot's effectiveness in identifying models suitable for financial applications while addressing the current gap in specialized evaluation tools for the financial domain. Our work contributes both a practical evaluation framework and a curated dataset to advance research in financial NLP systems. The code and dataset are accessible on GitHub.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/36c3e817b43dec70d61e53cc9fa8c581a3c28c78",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_36c3e817b43dec70d61e53cc9fa8c581a3c28c78",
+      "collected_at": "2026-02-15T16:38:07.394758",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Generative AI in Cybersecurity: A Comprehensive Review of LLM Applications and Vulnerabilities",
+      "authors": [
+        "M. Ferrag",
+        "Fatima Alwahedi",
+        "A. Battah",
+        "Bilel Cherif",
+        "Abdechakour Mechri",
+        "Norbert Tihanyi",
+        "Tamás Bisztray",
+        "M. Debbah"
+      ],
+      "year": "2024",
+      "citations": 46,
+      "abstract": "This paper provides a comprehensive review of the future of cybersecurity through Generative AI and Large Language Models (LLMs). We explore LLM applications across various domains, including hardware design security, intrusion detection, software engineering, design verification, cyber threat intelligence, malware detection, and phishing detection. We present an overview of LLM evolution and its current state, focusing on advancements in models such as GPT-4, GPT-3.5, Mixtral-8x7B, BERT, Falcon2, and LLaMA. Our analysis extends to LLM vulnerabilities, such as prompt injection, insecure output handling, data poisoning, DDoS attacks, and adversarial instructions. We delve into mitigation strategies to protect these models, providing a comprehensive look at potential attack scenarios and prevention techniques. Furthermore, we evaluate the performance of 42 LLM models in cybersecurity knowledge and hardware security, highlighting their strengths and weaknesses. We thoroughly evaluate cybersecurity datasets for LLM training and testing, covering the lifecycle from data creation to usage and identifying gaps for future research. In addition, we review new strategies for leveraging LLMs, including techniques like Half-Quadratic Quantization (HQQ), Reinforcement Learning with Human Feedback (RLHF), Direct Preference Optimization (DPO), Quantized Low-Rank Adapters (QLoRA), and Retrieval-Augmented Generation (RAG). These insights aim to enhance real-time cybersecurity defenses and improve the sophistication of LLM applications in threat detection and response. Our paper provides a foundational understanding and strategic direction for integrating LLMs into future cybersecurity frameworks, emphasizing innovation and robust model deployment to safeguard against evolving cyber threats.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/31babc068383c3966d322579eaaf79edc6a6bef4",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_31babc068383c3966d322579eaaf79edc6a6bef4",
+      "collected_at": "2026-02-15T16:38:07.394775",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Large Multi-Modal Models (LMMs) as Universal Foundation Models for AI-Native Wireless Systems",
+      "authors": [
+        "Shengzhe Xu",
+        "Christo Kurisummoottil Thomas",
+        "Omar Hashash",
+        "Nikhil Muralidhar",
+        "Walid Saad",
+        "Naren Ramakrishnan"
+      ],
+      "year": "2024",
+      "citations": 56,
+      "abstract": "Large language models (LLMs) and foundation models have been recently touted as a game-changer for 6 G systems. However, recent efforts on LLMs for wireless networks are limited to a direct application of existing language models that were designed for natural language processing (NLP) applications. To address this challenge and create wireless-centric foundation models, this paper presents a comprehensive vision on how to design universal foundation models that are tailored towards the unique needs of next-generation wireless systems, thereby paving the way towards the deployment of artificial intelligence (AI)-native networks. Diverging from NLP-based foundation models, the proposed framework promotes the design of large multi-modal models (LMMs) fostered by three key capabilities: 1) processing of multi-modal sensing data, 2) grounding of physical symbol representations in real-world wireless systems using causal reasoning and retrieval-augmented generation (RAG), and 3) enabling instructibility from the wireless environment feedback to facilitate dynamic network adaptation thanks to logical and mathematical reasoning facilitated by neuro-symbolic AI. In essence, these properties enable the proposed LMM framework to build universal capabilities that cater to various cross-layer networking tasks and alignment of intents across different domains. Preliminary results from experimental evaluation demonstrate the efficacy of grounding using RAG in LMMs, and showcase the alignment of LMMs with wireless system designs. Furthermore, the enhanced rationale exhibited in the responses to mathematical questions by LMMs, compared to vanilla LLMs, demonstrates the logical and mathematical reasoning capabilities inherent in LMMs. Building on those results, we present a sequel of open questions and challenges for LMMs. We then conclude with a set of recommendations that ignite the path towards LMM-empowered AI-native systems.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/7a57a52e1a273799bed7c882bc12177ca89609ab",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_7a57a52e1a273799bed7c882bc12177ca89609ab",
+      "collected_at": "2026-02-15T16:38:07.394785",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "DeepResearcher: Scaling Deep Research via Reinforcement Learning in Real-world Environments",
+      "authors": [
+        "Yuxiang Zheng",
+        "Dayuan Fu",
+        "Xiangkun Hu",
+        "Xiaojie Cai",
+        "Lyumanshan Ye",
+        "Pengrui Lu",
+        "Pengfei Liu"
+      ],
+      "year": "2025",
+      "citations": 149,
+      "abstract": "Large Language Models (LLMs) equipped with web search capabilities have demonstrated impressive potential for deep research tasks. However, current approaches predominantly rely on either manually engineered prompts (prompt engineering-based) with brittle performance or reinforcement learning within controlled Retrieval-Augmented Generation (RAG) environments (RAG-based) that fail to capture the complexities of real-world interaction. In this paper, we introduce DeepResearcher, the first comprehensive framework for end-to-end training of LLM-based deep research agents through scaling reinforcement learning (RL) in real-world environments with authentic web search interactions. Unlike RAG-based approaches that assume all necessary information exists within a fixed corpus, our method trains agents to navigate the noisy, unstructured, and dynamic nature of the open web. We implement a specialized multi-agent architecture where browsing agents extract relevant information from various webpage structures and overcoming significant technical challenges. Extensive experiments on open-domain research tasks demonstrate that DeepResearcher achieves substantial improvements of up to 28.9 points over prompt engineering-based baselines and up to 7.2 points over RAG-based RL agents. Our qualitative analysis reveals emergent cognitive behaviors from end-to-end RL training, including the ability to formulate plans, cross-validate information from multiple sources, engage in self-reflection to redirect research, and maintain honesty when unable to find definitive answers. Our results highlight that end-to-end training in real-world web environments is not merely an implementation detail but a fundamental requirement for developing robust research capabilities aligned with real-world applications. We release DeepResearcher at https://github.com/GAIR-NLP/DeepResearcher.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/4298a7bca88001f5df2d1ae15cca186d46271dc5",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_4298a7bca88001f5df2d1ae15cca186d46271dc5",
+      "collected_at": "2026-02-15T16:38:07.394789",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "From Extraction to Reasoning: A Systematic Review of Algorithms in Multi-Document Summarization and QA",
+      "authors": [
+        "Emmanuel Efosa-Zuwa",
+        "O. Oladipupo",
+        "Jelili O. Oyelade"
+      ],
+      "year": "2025",
+      "citations": 1,
+      "abstract": "Multi-document summarization and question-answering (QA) have become pivotal tasks in Natural Language Processing (NLP), facilitating information extraction and decision-making across various domains. This systematic review explores the evolution of algorithms used in these tasks, providing a comprehensive taxonomy of traditional, modern, and emerging approaches. We examine the progression from early extractive methods, such as TFIDF and TextRank, to the advent of neural models like BERT, GPT, and T5 and the integration of retrieval-augmented generation (RAG) for QA. Hybrid models combining traditional techniques with neural approaches and graph-based methods are also discussed. Through a detailed analysis of algorithmic frameworks, we identify key strengths, weaknesses, and challenges in current methodologies. Additionally, the review highlights recent trends such as unified models, multimodal algorithms, and the application of reinforcement learning in summarization and QA tasks. We also explore the real-world relevance of these algorithms in sectors such as news, legal, medical, and education. The paper concludes by outlining open research directions, proposing new evaluation frameworks, and emphasizing the need for cross-task annotations and ethical considerations in future algorithmic development.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/180f7fca8222ab40b9a62f960075eb0a22bfe680",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_180f7fca8222ab40b9a62f960075eb0a22bfe680",
+      "collected_at": "2026-02-15T16:38:07.394792",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Intelligent Web Search Automation",
+      "authors": [
+        "Devaiah K K"
+      ],
+      "year": "2025",
+      "citations": 0,
+      "abstract": "The Intelligent Web Search Automation project harnesses ultramodern technologies, including Artificial Intelligence (AI), Large Language Models (LLMs), and agentic AI systems, to redefine and streamline web search processes. By utilizing frameworks like LangChain—a comprehensive toolkit for constructing and managing LLM-powered applications—and integrating custom search engines with Google APIs, this project delivers a robust solution for automated search and data extraction. LangChain’s capabilities, including OpenAI embeddings, document loaders like Cheerio Web Loader, memory vector stores, and advanced chain management, form the core of the architecture. These tools enable seamless splitting, embedding, and retrieval of large-scale data with context-aware memory storage. Agentic AI, leveraging frameworks such as ReAct for synergizing reasoning and action, further enhances automation by enabling dynamic decision-making and adaptive task execution. The system employs retrieval-augmented generation (RAG) to improve knowledge-intensive searches, integrating external data sources into the language model responses for highly relevant, structured outputs. Embedding-based search powered by Deep Lake vector stores ensures efficient handling of multimodal data, including text, images, and audio. The scalable and serverless cloud infrastructure guarantees high availability and performance, supporting both small-scale and enterprise-grade deployments. This project emphasizes automation of repetitive search tasks, reducing manual effort and enhancing efficiency. Real-time data integration and analytics empower proactive decision-making, while a user-friendly, mobile-optimized interface with multilingual support broadens accessibility. By aligning with sustainable practices and global goals, Intelligent Web Search Automation advances technological inclusivity and transforms conventional web search paradigms, making AI- driven search accessible and impactful across diverse applications.\n\nKeywords— Artificial Intelligence, Language Models, Deep Learning, NLP, Transformers, Attention Mechanism, Retrieval- Augmented Generation, Generative Agents, Text Classification.",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/0274de2040897e66d41e7edb6a9673019ee773c8",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_0274de2040897e66d41e7edb6a9673019ee773c8",
+      "collected_at": "2026-02-15T16:38:07.394795",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Generative AI and Large Language Models for Cyber Security: All Insights You Need",
+      "authors": [
+        "M. Ferrag",
+        "Fatima Alwahedi",
+        "A. Battah",
+        "Bilel Cherif",
+        "Abdechakour Mechri",
+        "Norbert Tihanyi"
+      ],
+      "year": "2024",
+      "citations": 32,
+      "abstract": null,
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/03c8fe485900180be4123a4c869bb5ce1a98089f",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_03c8fe485900180be4123a4c869bb5ce1a98089f",
+      "collected_at": "2026-02-15T16:38:07.394801",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Regionalized StudentGPT for Acharjo: Curriculum-Aligned Multilingual AI Tutoring Using GPT-3.5 for Indian State Boards",
+      "authors": [
+        "Kinshuk Dutta",
+        "Alinjar Guha"
+      ],
+      "year": "2022",
+      "citations": 0,
+      "abstract": "Abstract\nThis paper introduces Regionalized StudentGPT for Acharjo, a multilingual, curriculum-aligned AI tutoring system designed for students under the West Bengal Board of Secondary Education (WBBSE) and Assam Higher Secondary Education Council (AHSEC). Building upon the foundational StudentGPT framework [1], which employed syllabus-driven fine-tuning of GPT-2, we extend the approach to GPT-3.5 for real-world deployment in regional Indian educational contexts. The system integrates bilingual corpora in English, Bengali, and Assamese, with curriculum-aware fine-tuning and retrieval-augmented generation (RAG) to maintain alignment with state-specific syllabi. Deployed via Acharjo's mobile-first platform, it addresses accessibility challenges in rural and semi-urban areas with low-bandwidth optimizations.\n\nKey contributions include: (1) a syllabus-driven fine-tuning pipeline incorporating curriculum regularization on GPT-3.5; (2) a multilingual adaptation strategy leveraging IndicBERT and MarianMT for bilingual consistency; (3) seamless integration into Acharjo's mobile application; (4) a comprehensive evaluation framework assessing pedagogical accuracy, BLEU scores, perplexity, bilingual alignment, and user satisfaction; and (5) an ethical design framework compliant with IEEE 7000-2021, draft IEEE P7001/P7003/P7004 standards, India's National Education Policy (NEP) 2020, and the Draft Digital Personal Data Protection Bill (2022).\n\nEmpirical results, derived from experiments on 150K syllabus entries and 50K bilingual pairs, demonstrate a 22% improvement in pedagogical accuracy over GPT-2 baselines (p<0.01, t-test), with reduced perplexity (17.8 ± 1.2) and enhanced bilingual BERTScores (0.68 ± 0.03). Ablation studies confirm the efficacy of custom losses, showing 15-18% drops in performance without them. Theoretical analyses include derivations of loss functions and complexity bounds.\n\nKeywords: StudentGPT, GPT-3.5, Indian education, regional NLP, syllabus-driven fine-tuning, NEP 2020, retrieval-augmented generation, ethical AI",
+      "doi": "",
+      "url": "https://www.semanticscholar.org/paper/07768c44e5de47240c3f1b4cf1aa5810a1dca31f",
+      "source": "Connected Papers (via Semantic Scholar)",
+      "connected_papers_id": "ss_07768c44e5de47240c3f1b4cf1aa5810a1dca31f",
+      "collected_at": "2026-02-15T16:38:07.394804",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Automating systematic literature reviews with retrieval - augmented generation : A comprehensive overview",
+      "authors": [
+        "B Han",
+        "T Susnjak",
+        "A Mathrani  - Applied Sciences",
+        "2024"
+      ],
+      "abstract": "… RAG framework —retrieval, augmentation, and generation . We then discuss applications of RAG -… While RAG -based LLMs hold potential for enhancing NLP tasks relevant to systematic …",
+      "url": "https://www.mdpi.com/2076-3417/14/19/9103",
+      "pdf_url": "",
+      "journal": "mdpi.com",
+      "year": "",
+      "citations": 72,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394809",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "A comprehensive survey of retrieval - augmented generation ( rag ): Evolution, current landscape and future directions",
+      "authors": [
+        "S Gupta",
+        "R Ranjan",
+        "SN Singh - arXiv preprint arXiv:2410.12837",
+        "2024"
+      ],
+      "abstract": "… 1.3 Evolution of Hybrid Models in NLP Before the introduction of RAG , NLP models primarily … al. 2024), a multimodal Retrieval - Augmented Generation ( RAG ) framework designed to …",
+      "url": "https://arxiv.org/abs/2410.12837",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 237,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394813",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "A survey on retrieval-augmentation generation ( RAG ) models for healthcare applications",
+      "authors": [
+        "M Abo El-Enen",
+        "S Saad",
+        "T Nazmy - Neural Computing and  Applications",
+        "2025"
+      ],
+      "abstract": "… interpretability and adapting RAG frameworks for specialized … Retrieval - Augmented Generation ( RAG ) models represent a … in medical natural language processing and understanding. …",
+      "url": "https://link.springer.com/article/10.1007/s00521-025-11666-9",
+      "pdf_url": "",
+      "journal": "Springer",
+      "year": "",
+      "citations": 18,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394826",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Integrating knowledge retrieval with generation : A comprehensive survey of rag models in nlp",
+      "authors": [
+        "J Genesis",
+        "F Keane"
+      ],
+      "abstract": "… In this section, we explore the various applications of Retrieval - Augmented Generation ( RAG ) models in natural language processing ( NLP ). We focus on how RAG frameworks have …",
+      "url": "https://www.preprints.org/frontend/manuscript/47f44578a239bedf539088e56c7c4b52/download_pub",
+      "pdf_url": "",
+      "journal": "2025",
+      "year": "2025",
+      "citations": 3,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394829",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval - Augmented Text Generation : Methods, Challenges, and Applications",
+      "authors": [
+        "J Genesis"
+      ],
+      "abstract": "… This survey provides a comprehensive overview of RAG , … information retrieval, natural language processing ( NLP ), and … General Framework of Retrieval - Augmented Generation …",
+      "url": "https://www.preprints.org/frontend/manuscript/10ab5f6e770b5db14b32928998dab73c/download_pub",
+      "pdf_url": "",
+      "journal": "2025",
+      "year": "2025",
+      "citations": 2,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394833",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "A systematic review of key retrieval - augmented generation ( rag ) systems: Progress, gaps, and future directions",
+      "authors": [
+        "AJ Oche",
+        "AG Folashade",
+        "T Ghosal",
+        "A Biswas  - arXiv preprint arXiv …",
+        "2025"
+      ],
+      "abstract": "… a major advancement in natural language processing ( NLP ), … a comprehensive overview of the development of RAG and its … with seq2seq generation in an end-to-end framework . The …",
+      "url": "https://arxiv.org/abs/2507.18910",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 39,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394836",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval - augmented generation for natural language processing : A survey",
+      "authors": [
+        "S Wu",
+        "Y Xiong",
+        "Y Cui",
+        "H Wu",
+        "C Chen",
+        "Y Yuan … - arXiv preprint arXiv …",
+        "2024"
+      ],
+      "abstract": "… of applications . Contributions: This paper reviews all techniques involved in RAG for natural language processing … This section will introduce these two representative RAG frameworks in …",
+      "url": "https://arxiv.org/abs/2407.13193",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 162,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394839",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval - augmented generation ( rag ) in healthcare: A comprehensive review",
+      "authors": [
+        "F Neha",
+        "D Bhati",
+        "DK Shukla  - AI",
+        "2025"
+      ],
+      "abstract": "… performance across various clinical natural language processing ( NLP ) tasks, including … RAG frameworks enable grounded generation by aligning internal parametric knowledge …",
+      "url": "https://www.mdpi.com/2673-2688/6/9/226",
+      "pdf_url": "",
+      "journal": "mdpi.com",
+      "year": "",
+      "citations": 26,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394842",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Advances in Retrieval - Augmented Generation Frameworks : A Comprehensive Review of NLP Applications for Women",
+      "authors": [
+        "SV Lade",
+        "S Ponnusamy  - Advances in Emerging Technologies …",
+        "2025"
+      ],
+      "abstract": "… By exploring state-of-the-art frameworks and case studies, … tial opportunity of enhancing RAG -based NLP systems, leading … a comprehensive overview of RAG applications frameworks . …",
+      "url": "https://books.google.com/books?hl=en&lr=&id=FhGREQAAQBAJ&oi=fnd&pg=PA36&dq=Retrieval-Augmented+Generation+(RAG)+framework:+comprehensive+overview+and+applications+in+NLP+after:2020&ots=gMBOQ6sQO_&sig=X1u1ik-FuTyVdJDVEvvrgEZpqvg",
+      "pdf_url": "",
+      "journal": "books.google.com",
+      "year": "",
+      "citations": 0,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394846",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Evaluation of retrieval - augmented generation : A survey",
+      "authors": [
+        "H Yu",
+        "A Gan",
+        "K Zhang",
+        "S Tong",
+        "Q Liu",
+        "Z Liu  - CCF Conference on Big Data",
+        "2024"
+      ],
+      "abstract": "… Process of RAG (Auepora) and aim to provide a comprehensive overview of the … Framework : In light of the challenges posed by RAG systems, we introduce an analytical framework …",
+      "url": "https://link.springer.com/chapter/10.1007/978-981-96-1024-2_8",
+      "pdf_url": "",
+      "journal": "Springer",
+      "year": "",
+      "citations": 345,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394849",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval augmented generation evaluation in the era of large language models: A comprehensive survey",
+      "authors": [
+        "A Gan",
+        "H Yu",
+        "K Zhang",
+        "Q Liu",
+        "W Yan",
+        "Z Huang … - arXiv preprint arXiv …",
+        "2025"
+      ],
+      "abstract": "… provides a comprehensive survey of RAG evaluation methods and frameworks , systematically … We also compile and categorize the RAG -specific datasets and evaluation frameworks , …",
+      "url": "https://arxiv.org/abs/2504.14891",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 40,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394852",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Lightrag: Simple and fast retrieval - augmented generation",
+      "authors": [
+        "Z Guo",
+        "L Xia",
+        "Y Yu",
+        "T Ao",
+        "C Huang  - arXiv preprint arXiv …",
+        "2024"
+      ],
+      "abstract": "… LightRAG, a novel framework that incorporates graph structures … Extensive experimental validation demonstrates … requiring comprehensive dataset understanding, graph-based RAG …",
+      "url": "https://aclanthology.org/anthology-files/anthology-files/pdf/findings/2025.findings-emnlp.568.pdf",
+      "pdf_url": "",
+      "journal": "aclanthology.org",
+      "year": "",
+      "citations": 333,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394861",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Cofe- rag : A comprehensive full -chain evaluation framework for retrieval - augmented generation with enhanced data diversity",
+      "authors": [
+        "J Liu",
+        "R Ding",
+        "L Zhang",
+        "P Xie",
+        "F Huang - arXiv preprint arXiv:2410.12248",
+        "2024"
+      ],
+      "abstract": "… In this paper, we present the CoFE- RAG framework to facilitate thorough evaluation across the entire RAG pipeline. We introduce multi-granularity keywords to assess the retrieved …",
+      "url": "https://arxiv.org/abs/2410.12248",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 12,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394865",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Retrieval - augmented generation : A comprehensive survey of architectures, enhancements, and robustness frontiers",
+      "authors": [
+        "C Sharma  - arXiv preprint arXiv:2506.00054",
+        "2025"
+      ],
+      "abstract": "… effectiveness of design innovations in Retrieval - Augmented Generation ( RAG ), this section presents a comparative analysis of representative frameworks across three key evaluation …",
+      "url": "https://arxiv.org/abs/2506.00054",
+      "pdf_url": "",
+      "journal": "arxiv.org",
+      "year": "",
+      "citations": 33,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394868",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
+    },
+    {
+      "title": "Crud- rag : A comprehensive chinese benchmark for retrieval - augmented generation of large language models",
+      "authors": [
+        "Y Lyu",
+        "Z Li",
+        "S Niu",
+        "F Xiong",
+        "B Tang",
+        "W Wang … - ACM Transactions on …",
+        "2025"
+      ],
+      "abstract": "… Retrieval - augmented generation ( RAG ) is a technique that enhances the capabilities of … , we need a framework that can evaluate the RAG system automatically. This framework would …",
+      "url": "https://dl.acm.org/doi/abs/10.1145/3701228",
+      "pdf_url": "",
+      "journal": "dl.acm.org",
+      "year": "",
+      "citations": 161,
+      "doi": "",
+      "source": "Google Scholar",
+      "collected_at": "2026-02-15T16:38:07.394871",
+      "search_query": "RAG-ANYTHING: ALL-IN-ONE RAG FRAMEWORK"
     }
   ]
 }
