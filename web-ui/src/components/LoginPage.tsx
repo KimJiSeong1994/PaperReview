@@ -62,6 +62,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
       const response = await login(username, password);
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('username', response.username);
+      localStorage.setItem('user_role', response.role || 'user');
       onLoginSuccess();
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {

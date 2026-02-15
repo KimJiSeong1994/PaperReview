@@ -8,6 +8,7 @@ import LoginModal from './components/LoginPage';
 
 const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
 import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
 import type { Paper, GraphData } from './types';
 
@@ -102,17 +103,24 @@ function App() {
 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem('access_token'));
+  const [userRole, setUserRole] = useState<string>(() => localStorage.getItem('user_role') || 'user');
 
   // Verify token on mount
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
       verifyToken(token)
-        .then(() => setIsAuthenticated(true))
+        .then((data) => {
+          setIsAuthenticated(true);
+          setUserRole(data.role || 'user');
+          localStorage.setItem('user_role', data.role || 'user');
+        })
         .catch(() => {
           localStorage.removeItem('access_token');
           localStorage.removeItem('username');
+          localStorage.removeItem('user_role');
           setIsAuthenticated(false);
+          setUserRole('user');
         });
     }
   }, []);
@@ -121,6 +129,8 @@ function App() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
+    const role = localStorage.getItem('user_role') || 'user';
+    setUserRole(role);
     setShowLoginModal(false);
     navigate('/mypage');
   };
@@ -128,7 +138,9 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('username');
+    localStorage.removeItem('user_role');
     setIsAuthenticated(false);
+    setUserRole('user');
     navigate('/');
   };
 
@@ -512,6 +524,7 @@ function App() {
 
       <Routes>
       <Route path="/mypage" element={isAuthenticated ? <Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense> : <Navigate to="/" />} />
+      <Route path="/admin" element={isAuthenticated && userRole === 'admin' ? <Suspense fallback={<div className="app-loading">Loading...</div>}><AdminPage /></Suspense> : <Navigate to="/" />} />
       <Route path="*" element={<>
       {/* Minimal header */}
       <div className="app-header">
@@ -528,6 +541,18 @@ function App() {
             <span className="brand-name">Jipyheonjeon</span>
           </div>
           <div className="header-actions">
+            {isAuthenticated && userRole === 'admin' && (
+              <button
+                className="nav-btn"
+                onClick={() => navigate('/admin')}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                Admin
+              </button>
+            )}
             <button
               className="nav-btn"
               onClick={handleMyPageClick}

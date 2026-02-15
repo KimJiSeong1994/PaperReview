@@ -46,7 +46,7 @@ api.interceptors.response.use(
 // ── Auth API ─────────────────────────────────────────────────────────
 
 export const login = async (username: string, password: string) => {
-  const response = await api.post<{ access_token: string; token_type: string; username: string }>(
+  const response = await api.post<{ access_token: string; token_type: string; username: string; role: string }>(
     '/api/auth/login',
     { username, password },
   );
@@ -62,7 +62,7 @@ export const register = async (username: string, password: string) => {
 };
 
 export const verifyToken = async (token: string) => {
-  const response = await api.get<{ valid: boolean; username: string }>(
+  const response = await api.get<{ valid: boolean; username: string; role: string }>(
     '/api/auth/verify',
     { params: { token } },
   );
@@ -297,3 +297,95 @@ export const chatWithBookmarks = async (
   onDone();
 };
 
+// ── Admin API ─────────────────────────────────────────────────────────
+
+export interface AdminDashboard {
+  total_users: number;
+  total_papers: number;
+  total_bookmarks: number;
+  total_sessions: number;
+}
+
+export interface AdminUser {
+  username: string;
+  role: string;
+  created_at: string;
+  bookmark_count: number;
+}
+
+export interface AdminPaper {
+  index: number;
+  title: string;
+  authors: string[];
+  source: string;
+  published_date: string;
+  search_query: string;
+}
+
+export interface AdminPapersResponse {
+  papers: AdminPaper[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AdminBookmarkPaper {
+  title: string;
+  authors: string[];
+}
+
+export interface AdminBookmark {
+  id: string;
+  title: string;
+  username: string;
+  query: string;
+  topic: string;
+  num_papers: number;
+  papers: AdminBookmarkPaper[];
+  created_at: string;
+}
+
+export const getAdminDashboard = async (): Promise<AdminDashboard> => {
+  const response = await api.get<AdminDashboard>('/api/admin/dashboard');
+  return response.data;
+};
+
+export const getAdminUsers = async (): Promise<{ users: AdminUser[] }> => {
+  const response = await api.get<{ users: AdminUser[] }>('/api/admin/users');
+  return response.data;
+};
+
+export const updateUserRole = async (username: string, role: string) => {
+  const response = await api.patch(`/api/admin/users/${username}/role`, { role });
+  return response.data;
+};
+
+export const deleteUser = async (username: string) => {
+  const response = await api.delete(`/api/admin/users/${username}`);
+  return response.data;
+};
+
+export const getAdminPapers = async (page: number = 1, pageSize: number = 50): Promise<AdminPapersResponse> => {
+  const response = await api.get<AdminPapersResponse>('/api/admin/papers', {
+    params: { page, page_size: pageSize },
+  });
+  return response.data;
+};
+
+export const deleteAdminPapers = async (indices: number[]) => {
+  const response = await api.delete('/api/admin/papers', { data: { indices } });
+  return response.data;
+};
+
+export const getAdminBookmarks = async (username?: string): Promise<{ bookmarks: AdminBookmark[] }> => {
+  const response = await api.get<{ bookmarks: AdminBookmark[] }>('/api/admin/bookmarks', {
+    params: username ? { username } : {},
+  });
+  return response.data;
+};
+
+export const deleteAdminBookmark = async (bookmarkId: string) => {
+  const response = await api.delete(`/api/admin/bookmarks/${bookmarkId}`);
+  return response.data;
+};

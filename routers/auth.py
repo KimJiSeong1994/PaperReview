@@ -40,6 +40,7 @@ def _load_users() -> dict:
         users = {
             default_user: {
                 "password_hash": _hash_password(default_pass),
+                "role": "admin",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
         }
@@ -47,7 +48,18 @@ def _load_users() -> dict:
         return users
 
     with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        users = json.load(f)
+
+    # Migrate: ensure every user has a role field
+    needs_save = False
+    for username, data in users.items():
+        if "role" not in data:
+            data["role"] = "admin" if username == "Jipyheonjeon" else "user"
+            needs_save = True
+    if needs_save:
+        _save_users(users)
+
+    return users
 
 
 def _save_users(users: dict) -> None:
@@ -73,6 +85,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     username: str
+    role: str = "user"
 
 
 class MessageResponse(BaseModel):
@@ -83,13 +96,15 @@ class MessageResponse(BaseModel):
 class VerifyResponse(BaseModel):
     valid: bool
     username: str
+    role: str = "user"
 
 
 # ── JWT helpers ───────────────────────────────────────────────────────
 
-def _create_token(username: str) -> str:
+def _create_token(username: str, role: str = "user") -> str:
     payload = {
         "sub": username,
+        "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
         "iat": datetime.now(timezone.utc),
     }
@@ -118,6 +133,7 @@ async def register(request: Request, reg_request: RegisterRequest):
 
     users[reg_request.username] = {
         "password_hash": _hash_password(reg_request.password),
+        "role": "user",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     _save_users(users)
@@ -135,8 +151,9 @@ async def login(request: Request, login_request: LoginRequest):
     if not user or user["password_hash"] != _hash_password(login_request.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = _create_token(login_request.username)
-    return TokenResponse(access_token=token, username=login_request.username)
+    role = user.get("role", "user")
+    token = _create_token(login_request.username, role=role)
+    return TokenResponse(access_token=token, username=login_request.username, role=role)
 
 
 @router.get("/verify", response_model=VerifyResponse)
@@ -144,4 +161,4 @@ async def login(request: Request, login_request: LoginRequest):
 async def verify_token(request: Request, token: str):
     """Verify that a JWT token is still valid."""
     payload = _decode_token(token)
-    return VerifyResponse(valid=True, username=payload["sub"])
+    return VerifyResponse(valid=True, username=payload["sub"], role=payload.get("role", "user"))

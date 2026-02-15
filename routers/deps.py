@@ -129,8 +129,8 @@ _JWT_SECRET = os.getenv("JWT_SECRET", "paper-review-agent-secret-key")
 _JWT_ALGORITHM = "HS256"
 
 
-async def get_current_user(request: Request) -> str:
-    """Extract and validate JWT from Authorization header. Returns username."""
+def _decode_jwt(request: Request) -> dict:
+    """Extract and decode JWT from Authorization header. Returns full payload."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
@@ -143,10 +143,32 @@ async def get_current_user(request: Request) -> str:
     except _pyjwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    username = payload.get("sub")
-    if not username:
+    if not payload.get("sub"):
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    return username
+    return payload
+
+
+async def get_current_user(request: Request) -> str:
+    """Extract and validate JWT from Authorization header. Returns username."""
+    payload = _decode_jwt(request)
+    return payload["sub"]
+
+
+async def get_admin_user(request: Request) -> str:
+    """Like get_current_user but requires admin role. Returns username."""
+    payload = _decode_jwt(request)
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return payload["sub"]
+
+
+async def get_optional_user(request: Request) -> Optional[str]:
+    """Extract username from JWT if present, return None otherwise (no auth required)."""
+    try:
+        payload = _decode_jwt(request)
+        return payload.get("sub")
+    except HTTPException:
+        return None
 
 
 # ── Bookmark migration: add username to existing bookmarks ──────────
@@ -174,6 +196,36 @@ def _migrate_bookmarks_add_username():
 
 
 _migrate_bookmarks_add_username()
+
+
+# ── Paper migration: add searched_by to existing papers ──────────
+PAPERS_FILE = Path("data/raw/papers.json")
+
+
+def _migrate_papers_add_searched_by():
+    """One-time: assign existing papers without searched_by to the default admin."""
+    default_user = os.getenv("APP_USERNAME", "Jipyheonjeon")
+    if not PAPERS_FILE.exists():
+        return
+    try:
+        with open(PAPERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        needs_save = False
+        for paper in data.get("papers", []):
+            if "searched_by" not in paper:
+                paper["searched_by"] = default_user
+                needs_save = True
+
+        if needs_save:
+            with open(PAPERS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"[Migration] Assigned existing papers to user '{default_user}'")
+    except Exception as e:
+        print(f"[Migration] Paper migration warning: {e}")
+
+
+_migrate_papers_add_searched_by()
 
 
 # ── LightRAG singleton ────────────────────────────────────────────────

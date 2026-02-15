@@ -13,10 +13,12 @@ import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from starlette.requests import Request
 
 from .deps import (
+    get_optional_user,
     query_analyzer,
     relevance_filter,
     search_agent,
@@ -79,6 +81,15 @@ class LLMSearchResponse(BaseModel):
 
 
 # ── Helper ─────────────────────────────────────────────────────────────
+
+def _stamp_searched_by(results: Dict[str, List[Dict[str, Any]]], username: Optional[str]):
+    """Add searched_by field to all papers in results."""
+    if not username:
+        return
+    for papers in results.values():
+        for paper in papers:
+            paper["searched_by"] = username
+
 
 def _enrich_papers_background(
     query: str,
