@@ -10,7 +10,7 @@ import sys
 import json
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import certifi
 from filelock import FileLock

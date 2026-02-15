@@ -4,6 +4,7 @@ FastAPI Router modules for Paper Review Agent API.
 Each module groups related endpoints into an APIRouter.
 """
 
+from .auth import router as auth_router
 from .search import router as search_router
 from .papers import router as papers_router
 from .reviews import router as reviews_router
@@ -12,6 +13,7 @@ from .chat import router as chat_router
 from .lightrag import router as lightrag_router
 
 __all__ = [
+    "auth_router",
     "search_router",
     "papers_router",
     "reviews_router",

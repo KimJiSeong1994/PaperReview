@@ -22,6 +22,45 @@ const api = axios.create({
   },
 });
 
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// On 401 response, clear stored token (route guard in App.tsx handles redirect)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/api/auth/')) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+    }
+    return Promise.reject(error);
+  },
+);
+
+// ── Auth API ─────────────────────────────────────────────────────────
+
+export const login = async (username: string, password: string) => {
+  const response = await api.post<{ access_token: string; token_type: string; username: string }>(
+    '/api/auth/login',
+    { username, password },
+  );
+  return response.data;
+};
+
+export const verifyToken = async (token: string) => {
+  const response = await api.get<{ valid: boolean; username: string }>(
+    '/api/auth/verify',
+    { params: { token } },
+  );
+  return response.data;
+};
+
 export const searchPapers = async (request: SearchRequest): Promise<SearchResponse> => {
   const response = await api.post<SearchResponse>('/api/search', request);
   return response.data;

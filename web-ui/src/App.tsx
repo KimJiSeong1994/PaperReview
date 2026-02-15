@@ -1,13 +1,14 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
 import SearchBar from './components/SearchBar';
+import LoginModal from './components/LoginPage';
 
 const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
 import type { Paper, GraphData } from './types';
 
 // 질의와 논문 간 유사도 계산 함수
@@ -98,6 +99,47 @@ function sortPapersByQuerySimilarity(
 
 function App() {
   const navigate = useNavigate();
+
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem('access_token'));
+
+  // Verify token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      verifyToken(token)
+        .then(() => setIsAuthenticated(true))
+        .catch(() => {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('username');
+          setIsAuthenticated(false);
+        });
+    }
+  }, []);
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setShowLoginModal(false);
+    navigate('/mypage');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('username');
+    setIsAuthenticated(false);
+    navigate('/');
+  };
+
+  const handleMyPageClick = () => {
+    if (isAuthenticated) {
+      navigate('/mypage');
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
@@ -452,8 +494,16 @@ function App() {
 
   return (
     <div className="app">
+      {/* Login modal overlay */}
+      {showLoginModal && !isAuthenticated && (
+        <LoginModal
+          onLoginSuccess={handleLoginSuccess}
+          onClose={() => setShowLoginModal(false)}
+        />
+      )}
+
       <Routes>
-      <Route path="/mypage" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense>} />
+      <Route path="/mypage" element={isAuthenticated ? <Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense> : <Navigate to="/" />} />
       <Route path="*" element={<>
       {/* Minimal header */}
       <div className="app-header">
@@ -472,7 +522,7 @@ function App() {
           <div className="header-actions">
             <button
               className="nav-btn"
-              onClick={() => navigate('/mypage')}
+              onClick={handleMyPageClick}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -480,6 +530,19 @@ function App() {
               </svg>
               My Page
             </button>
+            {isAuthenticated && (
+              <button
+                className="nav-btn"
+                onClick={handleLogout}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </div>
