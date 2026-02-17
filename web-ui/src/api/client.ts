@@ -221,6 +221,9 @@ export interface HighlightItem {
   color: string;
   memo: string;
   created_at: string;
+  category?: string;
+  significance?: number;
+  section?: string;
 }
 
 export const updateBookmarkNotes = async (

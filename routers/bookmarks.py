@@ -12,6 +12,7 @@ Bookmark CRUD endpoints (per-user isolated):
 """
 
 import json
+import re
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -202,10 +203,17 @@ async def update_bookmark_notes(
 
 
 CATEGORY_CONFIG = {
-    "finding": {"label": "[핵심 발견]", "color": "#6ee7b7"},      # emerald
-    "methodology": {"label": "[방법론]", "color": "#93c5fd"},      # blue
-    "insight": {"label": "[인사이트]", "color": "#c4b5fd"},        # violet
-    "limitation": {"label": "[연구 한계]", "color": "#fca5a5"},    # rose
+    # Green 톤 — 실증적 발견
+    "finding":         {"label": "[핵심 발견]", "color": "#6ee7b7"},
+    "evidence":        {"label": "[근거/수치]", "color": "#6ee7b7"},
+    "contribution":    {"label": "[핵심 기여]", "color": "#6ee7b7"},
+    # Blue 톤 — 분석적/구조적
+    "methodology":     {"label": "[방법론]",    "color": "#93c5fd"},
+    "insight":         {"label": "[인사이트]",  "color": "#93c5fd"},
+    "reproducibility": {"label": "[재현성]",    "color": "#93c5fd"},
+    # Rose 톤 — 비판적 평가
+    "limitation":      {"label": "[연구 한계]", "color": "#fca5a5"},
+    "gap":             {"label": "[연구 공백]", "color": "#fca5a5"},
 }
 
 AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
@@ -219,31 +227,86 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 2. **구절 길이**: 한 문장 또는 의미 있는 반 문장(20~120자) 단위로 추출하세요. 너무 짧거나(10자 미만) 너무 길면(200자 초과) 안 됩니다.
 3. **깊이 우선**: 표면적이거나 일반적인 서술이 아니라, 구체적 수치·방법·비교·한계·새로운 해석이 담긴 문장을 선택하세요.
 
-## 카테고리 가이드
-- **finding**: 실증적 연구 결과, 정량적 수치, 핵심 결론. 주로 '개별 논문 분석', '교차 분석', '결론' 섹션에 존재.
+## 카테고리 가이드 (8개 카테고리, 3가지 색상 톤)
+
+### Green 톤 (실증적/긍정적 발견)
+- **finding**: 실증적 연구 결과, 정량적 수치, 핵심 결론.
   예: 특정 수치 결과, 비교 실험 결과, 핵심 발견 요약
-- **methodology**: 핵심 알고리즘, 기술적 혁신, 연구 설계. 주로 '개별 논문 분석'의 방법론 서술에 존재.
+- **evidence**: 주장을 뒷받침하는 구체적 데이터, 통계, 실험 수치.
+  예: p-value, 성능 지표, 정확도 비교, 표본 크기
+- **contribution**: 학술적·실용적 핵심 기여, 새로운 프레임워크·도구 제시.
+  예: 새로운 분석 도구 제안, 기존 방법 대비 차별점
+
+### Blue 톤 (분석적/구조적)
+- **methodology**: 핵심 알고리즘, 기술적 혁신, 연구 설계.
   예: 모델 아키텍처 설명, 데이터 처리 방식, 새로운 접근법
-- **insight**: 논문 간 교차 해석, 메타 수준의 시사점, 독창적 통찰. 주로 '핵심 통찰', '연구 동향', '교차 분석' 섹션에 존재.
+- **insight**: 논문 간 교차 해석, 메타 수준의 시사점, 독창적 통찰.
   예: 연구 트렌드 해석, 방법론 간 시너지, 학문적 의미
-- **limitation**: 연구의 한계, 숨겨진 가정, 향후 과제. 주로 '한계', '미래 전망', '비판적 분석' 부분에 존재.
+- **reproducibility**: 재현 가능성, 데이터/코드 공개 여부, 실험 조건의 투명성.
+  예: 데이터셋 공개 수준, 파라미터 설정 기준, 재현성 우려
+
+### Rose 톤 (비판적 평가)
+- **limitation**: 연구의 명시적 한계, 숨겨진 가정, 향후 과제.
   예: 데이터 제약, 일반화 한계, 미해결 문제
+- **gap**: 연구 공백, 후속 연구 필요성, 미탐색 영역.
+  예: 다루지 못한 변수, 누락된 비교군, 확장 필요성
+
+## 중요도 (significance) 점수
+각 하이라이트에 1~5점의 중요도를 부여하세요:
+- 5: 논문 전체의 핵심 결론 또는 가장 중요한 발견
+- 4: 주요 방법론적 혁신 또는 핵심 실험 결과
+- 3: 의미 있는 기여이나 보조적 수준
+- 2: 참고할 만한 세부 사항
+- 1: 맥락적 배경 정보
+
+## 섹션 인식
+리포트는 [SECTION: 제목] 마커로 섹션이 구분되어 있습니다.
+각 하이라이트가 추출된 섹션의 제목을 section 필드에 기록하세요.
+마커가 없는 경우 가장 가까운 문맥의 섹션 제목을 추정하여 기록합니다.
 
 ## 출력 형식
 반드시 아래 JSON 형식으로만 응답하세요:
-{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|methodology|insight|limitation", "reason": "선정 이유 (한국어, 1문장)"}]}
+{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|evidence|contribution|methodology|insight|reproducibility|limitation|gap", "reason": "선정 이유 (한국어, 1~2문장)", "significance": 1, "section": "섹션 제목"}]}
 
 ## 선정 기준
-- 총 8~15개 하이라이트를 추출하세요.
-- 카테고리별 최소 1개, finding과 insight는 각 3개 이상 권장.
+- 총 10~18개 하이라이트를 추출하세요.
+- Green 톤(finding, evidence, contribution)에서 최소 3개.
+- Blue 톤(methodology, insight, reproducibility)에서 최소 3개.
+- Rose 톤(limitation, gap)에서 최소 2개.
+- significance 4~5는 전체의 30~40%를 권장합니다.
 - 리포트 전체에 걸쳐 고르게 분포시키세요 (서론~결론까지).
 - 중복되는 내용의 구절은 제외하세요.\
 """
 
 
+def _parse_report_sections(report: str) -> str:
+    """Parse report markdown and reformat with [SECTION: ...] markers for LLM."""
+    heading_pattern = re.compile(r'^(#{2,3})\s+(.+)$', re.MULTILINE)
+    matches = list(heading_pattern.finditer(report))
+
+    if not matches:
+        return report
+
+    parts: list[str] = []
+    # Content before first heading
+    if matches[0].start() > 0:
+        preamble = report[:matches[0].start()].strip()
+        if preamble:
+            parts.append(preamble)
+
+    for i, match in enumerate(matches):
+        heading = match.group(2).strip()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(report)
+        content = report[start:end].strip()
+        if content:
+            parts.append(f"\n[SECTION: {heading}]\n{content}")
+
+    return "\n".join(parts)
+
+
 def _strip_markdown(text: str) -> str:
     """Strip common markdown formatting characters for comparison."""
-    import re
     text = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)  # bold/italic
     text = re.sub(r'`([^`]+)`', r'\1', text)  # inline code
     return text.strip()
@@ -330,6 +393,9 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
     title = bookmark.get("title", "")
     topic_context = f"[연구 주제: {title or query}]\n\n" if (query or title) else ""
 
+    # Section-aware formatting for LLM
+    formatted_report = _parse_report_sections(report_text)
+
     # Phase 2: LLM call (potentially long-running, no lock held)
     client = OpenAI()
     response = client.chat.completions.create(
@@ -344,7 +410,7 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
                 "content": (
                     f"{topic_context}"
                     f"다음 연구 리포트에서 핵심 하이라이트를 추출해 주세요.\n\n"
-                    f"---\n{report_text}\n---"
+                    f"---\n{formatted_report}\n---"
                 ),
             },
         ],
@@ -379,6 +445,8 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
         if category not in valid_categories:
             category = "finding"
         reason = item.get("reason", "")
+        significance = max(1, min(5, int(item.get("significance", 3))))
+        section = item.get("section", "")
         if not text or len(text) < 5 or text in existing_texts:
             continue
 
@@ -398,6 +466,9 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
             "text": matched_text,
             "color": cfg["color"],
             "memo": memo,
+            "category": category,
+            "significance": significance,
+            "section": section,
             "created_at": datetime.now().isoformat(),
         })
         existing_texts.add(matched_text)

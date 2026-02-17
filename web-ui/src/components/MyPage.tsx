@@ -17,6 +17,21 @@ import type { ChatMessage, ChatSource, HighlightItem } from '../api/client';
 
 const CHAT_STORAGE_KEY = 'mypage_chat_history';
 
+/* ===== Highlight Tone Utilities ===== */
+const TONE_MAP: Record<string, string> = {
+  finding: 'green', evidence: 'green', contribution: 'green',
+  methodology: 'blue', insight: 'blue', reproducibility: 'blue',
+  limitation: 'rose', gap: 'rose',
+};
+
+function getTone(hl: HighlightItem): string {
+  if (hl.category && TONE_MAP[hl.category]) return TONE_MAP[hl.category];
+  if (hl.color === '#6ee7b7') return 'green';
+  if (hl.color === '#93c5fd' || hl.color === '#c4b5fd') return 'blue';
+  if (hl.color === '#fca5a5') return 'rose';
+  return 'blue';
+}
+
 interface Bookmark {
   id: string;
   title: string;
@@ -217,6 +232,11 @@ function MyPage({ onBack }: MyPageProps) {
   const memoModeRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   const [autoHighlighting, setAutoHighlighting] = useState(false);
+
+  const sortedHighlights = useMemo(() =>
+    [...userHighlights].sort((a, b) => (b.significance ?? 3) - (a.significance ?? 3)),
+    [userHighlights],
+  );
 
   // QW-5: persist chat history
   useEffect(() => {
@@ -1404,15 +1424,18 @@ function MyPage({ onBack }: MyPageProps) {
                     {userHighlights.length > 0 && (
                       <div className="mypage-highlights-list">
                         <div className="mypage-highlights-title">Highlights ({userHighlights.length})</div>
-                        {userHighlights.map(hl => (
-                          <div key={hl.id} className="mypage-highlight-item">
-                            <div className="mypage-highlight-item-content">
-                              <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
-                              {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                        {sortedHighlights.map(hl => {
+                          const tone = getTone(hl);
+                          return (
+                            <div key={hl.id} className={`mypage-highlight-item tone-${tone}`}>
+                              <div className="mypage-highlight-item-content">
+                                <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
+                                {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                              </div>
+                              <button className="mypage-highlight-remove" onClick={() => handleRemoveHighlight(hl.id)} title="Remove">&#x2715;</button>
                             </div>
-                            <button className="mypage-highlight-remove" onClick={() => handleRemoveHighlight(hl.id)} title="Remove">✕</button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
