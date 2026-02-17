@@ -1463,3 +1463,417 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ===== Notes Filter Button ===== */
+.mypage-notes-view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 3px 5px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.mypage-notes-view-btn:hover {
+  color: #9ca3af;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mypage-notes-view-btn.active {
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+/* ===== Note Indicator Icon ===== */
+.mypage-note-indicator {
+  color: #a5b4fc;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* ===== Notes & Highlights Section ===== */
+.mypage-notes-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mypage-notes-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s ease;
+}
+
+.mypage-notes-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mypage-notes-chevron {
+  flex-shrink: 0;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.mypage-notes-section:not(.collapsed) .mypage-notes-chevron {
+  transform: rotate(90deg);
+}
+
+.mypage-notes-saving {
+  font-size: 10px;
+  color: #a5b4fc;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: auto;
+  animation: notes-saving-pulse 1s ease-in-out infinite;
+}
+
+.mypage-notes-saved {
+  font-size: 10px;
+  color: #34d399;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: auto;
+  animation: notes-status-fade 2s ease-out forwards;
+}
+
+.mypage-notes-error {
+  font-size: 10px;
+  color: #ef4444;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: auto;
+  animation: notes-status-fade 2s ease-out forwards;
+}
+
+@keyframes notes-status-fade {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes notes-saving-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.mypage-notes-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.15);
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mypage-notes-body {
+  padding: 0 20px 16px;
+}
+
+.mypage-notes-textarea {
+  width: 100%;
+  min-height: 80px;
+  max-height: 200px;
+  background: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #ececec;
+  font-family: inherit;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.mypage-notes-textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.mypage-notes-textarea::placeholder {
+  color: #4b5563;
+}
+
+/* Highlights list */
+.mypage-highlights-list {
+  margin-top: 12px;
+}
+
+.mypage-highlights-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mypage-highlight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  transition: all 0.15s ease;
+}
+
+.mypage-highlight-item:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.mypage-highlight-item-text {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d1d5db;
+  background: rgba(165, 180, 252, 0.3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.mypage-highlight-remove {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.mypage-highlight-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ===== User Highlights in Report ===== */
+.mypage-user-highlight {
+  background: rgba(165, 180, 252, 0.35);
+  border-bottom: 2px solid rgba(165, 180, 252, 0.7);
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: default;
+  color: inherit;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.mypage-user-highlight:hover {
+  background: rgba(165, 180, 252, 0.45);
+  border-bottom-color: rgba(165, 180, 252, 0.85);
+}
+
+/* ===== Floating Selection Toolbar ===== */
+.mypage-selection-toolbar {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #1f1f1f;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 6px;
+  padding: 2px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  animation: selection-toolbar-in 0.15s ease-out;
+}
+
+@keyframes selection-toolbar-in {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+.mypage-selection-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mypage-selection-toolbar-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+.mypage-selection-toolbar-btn:active {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+/* Toolbar divider between Highlight and Memo */
+.mypage-selection-toolbar-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* ===== Memo Form in Selection Toolbar ===== */
+.mypage-selection-toolbar.memo-mode {
+  width: 260px;
+  padding: 8px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mypage-memo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mypage-memo-preview {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  border-left: 2px solid rgba(165, 180, 252, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mypage-memo-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #ececec;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.mypage-memo-input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.mypage-memo-input::placeholder {
+  color: #6b7280;
+}
+
+.mypage-memo-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.mypage-memo-save-btn {
+  background: rgba(99, 102, 241, 0.8);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.mypage-memo-save-btn:hover {
+  background: rgba(99, 102, 241, 1);
+}
+
+.mypage-memo-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.mypage-memo-cancel-btn:hover {
+  color: #d1d5db;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== Highlight with Memo indicator ===== */
+.mypage-user-highlight.has-memo {
+  border-bottom-style: dashed;
+  border-bottom-width: 2.5px;
+  cursor: help;
+  background: rgba(165, 180, 252, 0.42);
+  position: relative;
+}
+
+.mypage-user-highlight.has-memo::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 4px;
+  height: 4px;
+  background: #a5b4fc;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+.mypage-user-highlight.has-memo:hover {
+  background: rgba(165, 180, 252, 0.5);
+}
+
+/* Highlight item content wrapper */
+.mypage-highlight-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mypage-highlight-item-memo {
+  font-size: 11px;
+  color: #e5e7eb;
+  line-height: 1.4;
+  padding: 5px 10px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 4px;
+  border-left: 3px solid rgba(165, 180, 252, 0.7);
+}

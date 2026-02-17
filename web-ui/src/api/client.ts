@@ -202,6 +202,27 @@ export const updateBookmarkTopic = async (bookmarkId: string, topic: string) => 
   return response.data;
 };
 
+// Notes & Highlights
+export interface HighlightItem {
+  id: string;
+  text: string;
+  color: string;
+  memo: string;
+  created_at: string;
+}
+
+export const updateBookmarkNotes = async (
+  bookmarkId: string,
+  notes?: string,
+  highlights?: HighlightItem[],
+) => {
+  const body: Record<string, unknown> = {};
+  if (notes !== undefined) body.notes = notes;
+  if (highlights !== undefined) body.highlights = highlights;
+  const response = await api.patch(`/api/bookmarks/${bookmarkId}/notes`, body);
+  return response.data;
+};
+
 // Bulk bookmark operations
 export const bulkDeleteBookmarks = async (bookmarkIds: string[]) => {
   const response = await api.post('/api/bookmarks/bulk-delete', { bookmark_ids: bookmarkIds });

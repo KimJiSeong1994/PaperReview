@@ -5,13 +5,14 @@ Bookmark CRUD endpoints (per-user isolated):
   GET    /api/bookmarks/{bookmark_id}
   DELETE /api/bookmarks/{bookmark_id}
   PATCH  /api/bookmarks/{bookmark_id}/topic
+  PATCH  /api/bookmarks/{bookmark_id}/notes
   POST   /api/bookmarks/bulk-delete
   POST   /api/bookmarks/bulk-move
 """
 
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -55,6 +56,11 @@ class BulkDeleteBookmarksRequest(BaseModel):
 class BulkMoveBookmarksRequest(BaseModel):
     bookmark_ids: List[str]
     topic: str
+
+
+class BookmarkNotesUpdateRequest(BaseModel):
+    notes: Optional[str] = None
+    highlights: Optional[List[dict]] = None
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -115,6 +121,7 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
                 "created_at": bm["created_at"],
                 "tags": bm.get("tags", []),
                 "topic": bm.get("topic", "General"),
+                "has_notes": bool(bm.get("notes", "").strip()) or bool(bm.get("highlights", [])),
             }
             for bm in data["bookmarks"]
             if bm.get("username") == username
@@ -165,6 +172,30 @@ async def update_bookmark_topic(
             bm["topic"] = request.topic
             save_bookmarks(data)
             return {"success": True, "topic": request.topic}
+    raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+@router.patch("/bookmarks/{bookmark_id}/notes")
+async def update_bookmark_notes(
+    bookmark_id: str, request: BookmarkNotesUpdateRequest,
+    username: str = Depends(get_current_user),
+):
+    """Update a bookmark's personal notes and/or highlights."""
+    data = load_bookmarks()
+    for bm in data["bookmarks"]:
+        if bm["id"] == bookmark_id:
+            if bm.get("username") != username:
+                raise HTTPException(status_code=403, detail="Access denied")
+            if request.notes is not None:
+                bm["notes"] = request.notes
+            if request.highlights is not None:
+                bm["highlights"] = request.highlights
+            save_bookmarks(data)
+            return {
+                "success": True,
+                "notes": bm.get("notes", ""),
+                "highlights": bm.get("highlights", []),
+            }
     raise HTTPException(status_code=404, detail="Bookmark not found")
 
 

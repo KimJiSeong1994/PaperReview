@@ -10,10 +10,10 @@ import { CSS } from '@dnd-kit/utilities';
 import './MyPage.css';
 import {
   getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
-  bulkDeleteBookmarks, bulkMoveBookmarks,
+  bulkDeleteBookmarks, bulkMoveBookmarks, updateBookmarkNotes,
   chatWithBookmarks, buildLightRAG, getLightRAGStatus,
 } from '../api/client';
-import type { ChatMessage, ChatSource } from '../api/client';
+import type { ChatMessage, ChatSource, HighlightItem } from '../api/client';
 
 const CHAT_STORAGE_KEY = 'mypage_chat_history';
 
@@ -26,6 +26,7 @@ interface Bookmark {
   created_at: string;
   tags: string[];
   topic: string;
+  has_notes?: boolean;
 }
 
 /* ===== Draggable Bookmark Item ===== */
@@ -103,6 +104,11 @@ function DraggableBookmarkItem({
         )}
       </div>
       <div className="mypage-bookmark-actions">
+        {bm.has_notes && (
+          <svg className="mypage-note-indicator" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        )}
         <button className="mypage-bookmark-delete"
           onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
           title="Delete">✕</button>
@@ -198,6 +204,18 @@ function MyPage({ onBack }: MyPageProps) {
   // Highlight state — search terms to highlight in report panel
   const [highlightTerms, setHighlightTerms] = useState<string[]>([]);
 
+  // Notes & user highlights
+  const [notesText, setNotesText] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesCollapsed, setNotesCollapsed] = useState(true);
+  const [userHighlights, setUserHighlights] = useState<HighlightItem[]>([]);
+  const [selectionToolbar, setSelectionToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [allNotesMode, setAllNotesMode] = useState(false);
+  const [memoMode, setMemoMode] = useState(false);
+  const [memoInput, setMemoInput] = useState('');
+  const memoModeRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
   // QW-5: persist chat history
   useEffect(() => {
     try { sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch { /* ignore */ }
@@ -215,17 +233,21 @@ function MyPage({ onBack }: MyPageProps) {
     setTopicAccordionOpen(prev => ({ ...prev, [topic]: !prev[topic] }));
   };
 
-  // QW-4: Filter bookmarks by search query
+  // QW-4: Filter bookmarks by search query + notes filter
   const filteredBookmarks = useMemo(() => {
-    if (!searchQuery.trim()) return bookmarks;
+    let filtered = bookmarks;
+    if (allNotesMode) {
+      filtered = filtered.filter(bm => bm.has_notes);
+    }
+    if (!searchQuery.trim()) return filtered;
     const q = searchQuery.toLowerCase();
-    return bookmarks.filter(bm =>
+    return filtered.filter(bm =>
       bm.title.toLowerCase().includes(q) ||
       bm.query.toLowerCase().includes(q) ||
       bm.tags.some(t => t.toLowerCase().includes(q)) ||
       bm.topic.toLowerCase().includes(q)
     );
-  }, [bookmarks, searchQuery]);
+  }, [bookmarks, searchQuery, allNotesMode]);
 
   // Group filtered bookmarks by topic (including empty user-created topics)
   const topicGroups = useMemo(() => {
@@ -380,9 +402,13 @@ function MyPage({ onBack }: MyPageProps) {
   const handleSelectBookmark = async (bookmark: Bookmark) => {
     setSelectedBookmark(bookmark);
     setLoadingDetail(true);
+    setSelectionToolbar(null);
     try {
       const detail = await getBookmarkDetail(bookmark.id);
       setBookmarkDetail(detail);
+      setNotesText(detail.notes || '');
+      setUserHighlights(detail.highlights || []);
+      setNotesCollapsed(!(detail.notes || '').trim() && !(detail.highlights || []).length);
     } catch (error: any) {
       console.error('Failed to load bookmark detail:', error);
     } finally {
@@ -477,6 +503,184 @@ function MyPage({ onBack }: MyPageProps) {
     } catch (error: any) {
       console.error('Failed to bulk move:', error);
     }
+  };
+
+  // ── Notes & Highlights handlers ──
+  const showSaveStatus = (status: 'saved' | 'error') => {
+    setSaveStatus(status);
+    setTimeout(() => setSaveStatus('idle'), 2000);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedBookmark) return;
+    setNotesSaving(true);
+    try {
+      await updateBookmarkNotes(selectedBookmark.id, notesText, userHighlights);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id
+          ? { ...bm, has_notes: !!notesText.trim() || userHighlights.length > 0 }
+          : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+      showSaveStatus('error');
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  const handleAddHighlight = async () => {
+    if (!selectionToolbar || !selectedBookmark) return;
+    const text = selectionToolbar.text;
+    if (!text || text.length < 3) return;
+
+    const newHighlight: HighlightItem = {
+      id: `hl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      text,
+      color: '#a5b4fc',
+      memo: '',
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...userHighlights, newHighlight];
+    setUserHighlights(updated);
+    setSelectionToolbar(null);
+    window.getSelection()?.removeAllRanges();
+    setNotesCollapsed(false);
+
+    try {
+      await updateBookmarkNotes(selectedBookmark.id, undefined, updated);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save highlight:', error);
+      showSaveStatus('error');
+    }
+  };
+
+  const handleRemoveHighlight = async (hlId: string) => {
+    if (!selectedBookmark) return;
+    const updated = userHighlights.filter(hl => hl.id !== hlId);
+    setUserHighlights(updated);
+    try {
+      await updateBookmarkNotes(selectedBookmark.id, undefined, updated);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id
+          ? { ...bm, has_notes: !!notesText.trim() || updated.length > 0 }
+          : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to remove highlight:', error);
+      showSaveStatus('error');
+    }
+  };
+
+  // Keep memoModeRef in sync for use inside event listener closures
+  useEffect(() => { memoModeRef.current = memoMode; }, [memoMode]);
+
+  const handleStartMemo = () => {
+    if (!selectionToolbar || !selectedBookmark) return;
+    setMemoMode(true);
+    setMemoInput('');
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const handleSaveMemo = async () => {
+    if (!selectedBookmark || !selectionToolbar) return;
+    const newHighlight: HighlightItem = {
+      id: `hl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      text: selectionToolbar.text,
+      color: '#a5b4fc',
+      memo: memoInput.trim(),
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...userHighlights, newHighlight];
+    setUserHighlights(updated);
+    setSelectionToolbar(null);
+    setMemoMode(false);
+    setMemoInput('');
+    setNotesCollapsed(false);
+
+    try {
+      await updateBookmarkNotes(selectedBookmark.id, undefined, updated);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save memo:', error);
+      showSaveStatus('error');
+    }
+  };
+
+  const handleCancelMemo = () => {
+    setMemoMode(false);
+    setMemoInput('');
+    setSelectionToolbar(null);
+  };
+
+  // Selection toolbar: show on text select in report area
+  useEffect(() => {
+    const reportEl = reportScrollRef.current;
+    if (!reportEl || !bookmarkDetail) return;
+    const handleMouseUp = () => {
+      if (memoModeRef.current) return; // Don't interfere when typing memo
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.toString().trim().length >= 3) {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        setSelectionToolbar({ x: rect.left + rect.width / 2, y: rect.top - 8, text: sel.toString().trim() });
+      } else {
+        setSelectionToolbar(null);
+      }
+    };
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.mypage-selection-toolbar')) {
+        setSelectionToolbar(null);
+        if (memoModeRef.current) {
+          setMemoMode(false);
+          setMemoInput('');
+        }
+      }
+    };
+    reportEl.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => {
+      reportEl.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [bookmarkDetail]);
+
+  // Highlight matching: wrap matching text fragments in <mark>
+  const applyUserHighlights = (children: React.ReactNode): React.ReactNode => {
+    if (userHighlights.length === 0) return children;
+    const processNode = (node: React.ReactNode, key: number): React.ReactNode => {
+      if (typeof node === 'string') {
+        let result: React.ReactNode[] = [node];
+        for (const hl of userHighlights) {
+          const nextResult: React.ReactNode[] = [];
+          for (const part of result) {
+            if (typeof part !== 'string') { nextResult.push(part); continue; }
+            const idx = part.indexOf(hl.text);
+            if (idx === -1) { nextResult.push(part); continue; }
+            if (idx > 0) nextResult.push(part.slice(0, idx));
+            nextResult.push(<mark key={`hl-${hl.id}-${idx}`} className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`} title={hl.memo || undefined}>{hl.text}</mark>);
+            if (idx + hl.text.length < part.length) nextResult.push(part.slice(idx + hl.text.length));
+          }
+          result = nextResult;
+        }
+        return result.length === 1 ? result[0] : <>{result}</>;
+      }
+      if (isValidElement(node) && (node.props as any).children) {
+        return cloneElement(node, { key } as any, applyUserHighlights((node.props as any).children));
+      }
+      return node;
+    };
+    if (Array.isArray(children)) return children.map((child, i) => processNode(child, i));
+    return processNode(children, 0);
   };
 
   // U-4: Use ref to capture sources in streaming closure
@@ -865,6 +1069,15 @@ function MyPage({ onBack }: MyPageProps) {
             {searchQuery && (
               <button className="mypage-search-clear" onClick={() => setSearchQuery('')}>✕</button>
             )}
+            <button
+              className={`mypage-notes-view-btn ${allNotesMode ? 'active' : ''}`}
+              onClick={() => setAllNotesMode(!allNotesMode)}
+              title={allNotesMode ? 'Show all bookmarks' : 'Show only bookmarks with notes'}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </button>
           </div>
 
           {/* M-6: Bulk action bar */}
@@ -1030,10 +1243,25 @@ function MyPage({ onBack }: MyPageProps) {
                   <div className="mypage-report-content">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={highlightTerms.length > 0 ? {
-                        p: ({ children }) => <p>{highlightChildren(children)}</p>,
-                        li: ({ children }) => <li>{highlightChildren(children)}</li>,
-                        td: ({ children }) => <td>{highlightChildren(children)}</td>,
+                      components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
+                        p: ({ children }) => {
+                          let c: React.ReactNode = children;
+                          if (userHighlights.length > 0) c = applyUserHighlights(c);
+                          if (highlightTerms.length > 0) c = highlightChildren(c);
+                          return <p>{c}</p>;
+                        },
+                        li: ({ children }) => {
+                          let c: React.ReactNode = children;
+                          if (userHighlights.length > 0) c = applyUserHighlights(c);
+                          if (highlightTerms.length > 0) c = highlightChildren(c);
+                          return <li>{c}</li>;
+                        },
+                        td: ({ children }) => {
+                          let c: React.ReactNode = children;
+                          if (userHighlights.length > 0) c = applyUserHighlights(c);
+                          if (highlightTerms.length > 0) c = highlightChildren(c);
+                          return <td>{c}</td>;
+                        },
                       } : undefined}
                     >
                       {bookmarkDetail.report_markdown}
@@ -1041,6 +1269,48 @@ function MyPage({ onBack }: MyPageProps) {
                   </div>
                 </div>
               )}
+
+              {/* ── Notes & Highlights ── */}
+              <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`}>
+                <div className="mypage-notes-header" onClick={() => setNotesCollapsed(!notesCollapsed)}>
+                  <svg className="mypage-notes-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
+                    <path d="M6 4l4 4-4 4z" />
+                  </svg>
+                  <span>Notes & Highlights</span>
+                  {notesSaving && <span className="mypage-notes-saving">Saving...</span>}
+                  {saveStatus === 'saved' && <span className="mypage-notes-saved">Saved</span>}
+                  {saveStatus === 'error' && <span className="mypage-notes-error">Save failed</span>}
+                  {userHighlights.length > 0 && (
+                    <span className="mypage-notes-badge">{userHighlights.length}</span>
+                  )}
+                </div>
+                {!notesCollapsed && (
+                  <div className="mypage-notes-body">
+                    <textarea
+                      className="mypage-notes-textarea"
+                      value={notesText}
+                      onChange={(e) => setNotesText(e.target.value)}
+                      onBlur={handleSaveNotes}
+                      placeholder="Write your notes here (Markdown supported)..."
+                      rows={4}
+                    />
+                    {userHighlights.length > 0 && (
+                      <div className="mypage-highlights-list">
+                        <div className="mypage-highlights-title">Highlights ({userHighlights.length})</div>
+                        {userHighlights.map(hl => (
+                          <div key={hl.id} className="mypage-highlight-item">
+                            <div className="mypage-highlight-item-content">
+                              <mark className="mypage-highlight-item-text">{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
+                              {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                            </div>
+                            <button className="mypage-highlight-remove" onClick={() => handleRemoveHighlight(hl.id)} title="Remove">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
             </div>
           ) : null}
@@ -1159,6 +1429,53 @@ function MyPage({ onBack }: MyPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Floating selection toolbar for highlighting / memo */}
+      {selectionToolbar && (
+        <div
+          className={`mypage-selection-toolbar ${memoMode ? 'memo-mode' : ''}`}
+          style={{ left: selectionToolbar.x, top: selectionToolbar.y }}
+        >
+          {memoMode ? (
+            <div className="mypage-memo-form">
+              <div className="mypage-memo-preview">
+                {selectionToolbar.text.length > 60 ? selectionToolbar.text.slice(0, 60) + '...' : selectionToolbar.text}
+              </div>
+              <input
+                className="mypage-memo-input"
+                value={memoInput}
+                onChange={(e) => setMemoInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveMemo();
+                  if (e.key === 'Escape') handleCancelMemo();
+                }}
+                placeholder="Write a memo..."
+                autoFocus
+              />
+              <div className="mypage-memo-actions">
+                <button className="mypage-memo-save-btn" onClick={handleSaveMemo}>Save</button>
+                <button className="mypage-memo-cancel-btn" onClick={handleCancelMemo}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button className="mypage-selection-toolbar-btn" onClick={handleAddHighlight}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Highlight
+              </button>
+              <div className="mypage-selection-toolbar-divider" />
+              <button className="mypage-selection-toolbar-btn" onClick={handleStartMemo}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Memo
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
