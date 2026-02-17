@@ -11,6 +11,14 @@ import difflib
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
+try:
+    from collector.paper.deduplicator import PaperDeduplicator
+    _normalize_title = PaperDeduplicator.normalize_title
+    _normalize_doi = PaperDeduplicator.normalize_doi
+except ImportError:
+    _normalize_title = lambda t: t.lower().strip() if t else ""
+    _normalize_doi = lambda d: ""
+
 class EdgeCreator:
     """그래프 엣지 생성 클래스"""
     
@@ -18,28 +26,33 @@ class EdgeCreator:
         self.paper_id_map = {}  # 제목 -> node_id 매핑
     
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
-        """논문 고유 ID 생성"""
-        title = paper.get('title', '').lower().strip()
+        """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
+        doi = _normalize_doi(paper.get('doi', ''))
+        if doi:
+            return f"doi:{doi}"
+        title = _normalize_title(paper.get('title', ''))
         return title[:100] if title else str(hash(str(paper)))
     
     def _find_paper_by_title(self, title: str, papers: List[Dict[str, Any]]) -> Optional[str]:
-        """제목으로 논문 ID 찾기"""
-        title_lower = title.lower().strip()
-        
-        # 정확한 매칭
+        """제목으로 논문 ID 찾기 (정규화 매칭)"""
+        title_norm = _normalize_title(title)
+        if not title_norm:
+            return None
+
+        # 정규화 매칭
         for paper in papers:
-            if paper.get('title', '').lower().strip() == title_lower:
+            if _normalize_title(paper.get('title', '')) == title_norm:
                 return self._generate_paper_id(paper)
         
         # 유사도 기반 매칭
         best_match_id = None
         best_score = 0.0
         for paper in papers:
-            paper_title = paper.get('title', '').lower().strip()
+            paper_title = _normalize_title(paper.get('title', ''))
             if not paper_title:
                 continue
-            
-            ratio = difflib.SequenceMatcher(None, title_lower, paper_title).ratio()
+
+            ratio = difflib.SequenceMatcher(None, title_norm, paper_title).ratio()
             if ratio >= 0.85:
                 return self._generate_paper_id(paper)
             

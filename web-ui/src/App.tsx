@@ -198,7 +198,7 @@ function App() {
         const results = await searchPapers({
           query: searchQuery,
           max_results: 50,
-          sources: ['arxiv', 'connected_papers', 'google_scholar'],
+          sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp'],
           sort_by: 'relevance',
         });
 

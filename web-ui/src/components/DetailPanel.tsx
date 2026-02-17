@@ -20,6 +20,8 @@ function DetailPanel({ paper }: DetailPanelProps) {
       arxiv: 'arXiv',
       connected_papers: 'Connected Papers',
       google_scholar: 'Google Scholar',
+      openalex: 'OpenAlex',
+      dblp: 'DBLP',
     };
     return sourceMap[paper.source || ''] || paper.source || 'Unknown';
   };

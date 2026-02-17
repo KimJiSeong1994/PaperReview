@@ -6,10 +6,12 @@ Search-related endpoints:
   POST /api/llm-search
 """
 
+import hashlib
 import json
 import threading
 import time
 import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -24,6 +26,13 @@ from .deps import (
     search_agent,
 )
 
+# HybridRanker (optional) - search_agent의 similarity_calculator 재사용
+try:
+    from graph_rag.hybrid_ranker import HybridRanker
+    _hybrid_ranker = HybridRanker(similarity_calculator=search_agent.similarity_calculator)
+except Exception:
+    _hybrid_ranker = None
+
 router = APIRouter(prefix="/api", tags=["search"])
 
 
@@ -32,7 +41,7 @@ router = APIRouter(prefix="/api", tags=["search"])
 class SearchRequest(BaseModel):
     query: str
     max_results: int = 20
-    sources: List[str] = ["arxiv", "connected_papers", "google_scholar"]
+    sources: List[str] = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"]
     sort_by: str = "relevance"
     year_start: Optional[int] = None
     year_end: Optional[int] = None
@@ -123,6 +132,96 @@ def _enrich_papers_background(
     except Exception as e:
         print(f"[Background] Enrichment error: {e}")
         traceback.print_exc()
+
+
+# ── Search cache ──────────────────────────────────────────────────────
+SEARCH_CACHE_DIR = Path("data/cache/search_cache")
+SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+_search_cache: Dict[str, Dict[str, Any]] = {}
+_cache_lock = threading.Lock()
+CACHE_TTL_SECONDS = 3600  # 1시간
+CACHE_MAX_SIZE = 200  # 최대 캐시 엔트리 수
+
+
+def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
+    """검색 요청에 대한 캐시 키 생성 (fast_mode 포함)"""
+    key_data = {
+        "query": query.strip().lower(),
+        "sources": sorted(sources),
+        "year_start": filters.get("year_start"),
+        "year_end": filters.get("year_end"),
+        "author": filters.get("author"),
+        "category": filters.get("category"),
+        "sort_by": filters.get("sort_by", "relevance"),
+        "fast_mode": filters.get("fast_mode", True),
+    }
+    key_str = json.dumps(key_data, sort_keys=True)
+    return hashlib.sha256(key_str.encode()).hexdigest()[:16]
+
+
+def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
+    """인메모리 → 파일 순서로 캐시 조회"""
+    now = datetime.now()
+
+    # 1. 인메모리 캐시
+    with _cache_lock:
+        if cache_key in _search_cache:
+            entry = _search_cache[cache_key]
+            if datetime.fromisoformat(entry["expires_at"]) > now:
+                print(f"[Cache] HIT (memory): {cache_key}")
+                return entry["results"]
+            else:
+                del _search_cache[cache_key]
+
+    # 2. 파일 캐시
+    cache_file = SEARCH_CACHE_DIR / f"{cache_key}.json"
+    if cache_file.exists():
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                entry = json.load(f)
+            if datetime.fromisoformat(entry["expires_at"]) > now:
+                with _cache_lock:
+                    _search_cache[cache_key] = entry
+                print(f"[Cache] HIT (file): {cache_key}")
+                return entry["results"]
+            else:
+                cache_file.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[Cache] File read error: {e}")
+
+    print(f"[Cache] MISS: {cache_key}")
+    return None
+
+
+def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE_TTL_SECONDS):
+    """인메모리 + 파일 캐시 저장 (크기 제한 + TTL 만료 정리)"""
+    now = datetime.now()
+    expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
+    entry = {"results": results, "expires_at": expires_at, "cached_at": now.isoformat()}
+
+    with _cache_lock:
+        # 캐시 크기 초과 시 만료 엔트리 정리 + 가장 오래된 엔트리 제거
+        if len(_search_cache) >= CACHE_MAX_SIZE:
+            expired_keys = [
+                k for k, v in _search_cache.items()
+                if datetime.fromisoformat(v["expires_at"]) <= now
+            ]
+            for k in expired_keys:
+                del _search_cache[k]
+            # 여전히 초과하면 가장 오래된 엔트리 제거
+            if len(_search_cache) >= CACHE_MAX_SIZE:
+                oldest_key = min(_search_cache, key=lambda k: _search_cache[k]["cached_at"])
+                del _search_cache[oldest_key]
+        _search_cache[cache_key] = entry
+
+    try:
+        cache_file = SEARCH_CACHE_DIR / f"{cache_key}.json"
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False)
+        print(f"[Cache] STORED: {cache_key}")
+    except Exception as e:
+        print(f"[Cache] File write error: {e}")
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -223,7 +322,7 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
 
         if request.save_papers and result["papers"]:
             try:
-                results_by_source = {"arxiv": [], "connected_papers": [], "google_scholar": []}
+                results_by_source = {"arxiv": [], "connected_papers": [], "google_scholar": [], "openalex": [], "dblp": []}
                 for paper in result["papers"]:
                     source = paper.pop("_source", "arxiv")
                     if source in results_by_source:
@@ -296,6 +395,22 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 print(f"[API] Using improved query: {improved_query}")
                 search_query = improved_query
 
+        # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
+        user_filters = {
+            "sort_by": request.sort_by,
+            "year_start": request.year_start,
+            "year_end": request.year_end,
+            "author": request.author,
+            "category": request.category,
+            "fast_mode": request.fast_mode,
+        }
+        cache_key = _compute_cache_key(request.query, request.sources, user_filters)
+        cached = _get_cached_result(cache_key)
+        if cached is not None:
+            total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
+            print(f"[API] Returning cached results: {total} papers")
+            return SearchResponse(results=cached, total=total, query_analysis=query_analysis)
+
         search_start = time.time()
         print(f"[API] Searching for: {search_query}")
         print(f"[API] Filters: {filters}")
@@ -325,34 +440,65 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             f"(took {search_time:.2f}s)"
         )
 
-        # Relevance filtering (only when not fast_mode)
-        if not request.fast_mode and relevance_filter and results:
-            try:
-                print("[API] Applying relevance filtering (parallel mode)...")
-                all_papers = []
-                for source, papers in results.items():
-                    for paper in papers:
-                        paper["source"] = source
-                        all_papers.append(paper)
+        # Hybrid ranking + Relevance filtering (only when not fast_mode)
+        if not request.fast_mode and results:
+            intent = query_analysis.get("intent", "paper_search") if query_analysis else "paper_search"
 
-                if all_papers:
-                    filtered_papers = relevance_filter.filter_papers(
-                        request.query, all_papers, threshold=0.5, max_papers=request.max_results, parallel=True
-                    )
-                    results = {}
-                    for source in request.sources:
-                        results[source] = [p for p in filtered_papers if p.get("source") == source]
-                    print(f"[API] Filtered results: {len(filtered_papers)} papers (threshold: 0.5)")
-                else:
-                    print("[API] No papers to filter")
-            except Exception as e:
-                print(f"[API] Relevance filtering failed (using unfiltered results): {e}")
-                traceback.print_exc()
+            # Step 1: Hybrid ranking
+            if _hybrid_ranker:
+                try:
+                    all_papers_for_ranking = []
+                    for source, papers in results.items():
+                        for paper in papers:
+                            paper["_source_tag"] = source
+                            all_papers_for_ranking.append(paper)
+
+                    if all_papers_for_ranking:
+                        ranked = _hybrid_ranker.rank_papers(
+                            query=request.query,
+                            papers=all_papers_for_ranking,
+                            intent=intent,
+                        )
+                        # 소스별로 다시 분리
+                        results = {s: [] for s in request.sources}
+                        for paper in ranked:
+                            src = paper.pop("_source_tag", "arxiv")
+                            if src in results:
+                                results[src].append(paper)
+                        print(f"[API] Hybrid ranking applied (intent={intent})")
+                except Exception as e:
+                    print(f"[API] Hybrid ranking failed (continuing): {e}")
+
+            # Step 2: Relevance filtering (LLM)
+            if relevance_filter:
+                try:
+                    print("[API] Applying relevance filtering (parallel mode)...")
+                    all_papers = []
+                    for source, papers in results.items():
+                        for paper in papers:
+                            paper["source"] = source
+                            all_papers.append(paper)
+
+                    if all_papers:
+                        filtered_papers = relevance_filter.filter_papers(
+                            request.query, all_papers, threshold=0.5, max_papers=request.max_results, parallel=True
+                        )
+                        results = {}
+                        for source in request.sources:
+                            results[source] = [p for p in filtered_papers if p.get("source") == source]
+                        print(f"[API] Filtered results: {len(filtered_papers)} papers (threshold: 0.5)")
+                    else:
+                        print("[API] No papers to filter")
+                except Exception as e:
+                    print(f"[API] Relevance filtering failed (using unfiltered results): {e}")
+                    traceback.print_exc()
+            else:
+                print("[API] Relevance filtering skipped (OpenAI API key not configured)")
         else:
             if request.fast_mode:
                 print("[API] Relevance filtering skipped (fast mode enabled)")
-            elif not relevance_filter:
-                print("[API] Relevance filtering skipped (OpenAI API key not configured)")
+            elif not results:
+                print("[API] No results to filter")
 
         # Ensure all sources present
         for source in request.sources:
@@ -415,6 +561,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         total_time = time.time() - start_time
         print(f"[API] Search completed in {total_time:.2f}s")
 
+        # Store in query cache
+        _set_cache(cache_key, results)
+
         # Cache results for Deep Research
         try:
             cache_dir = Path("data/cache")
@@ -428,14 +577,18 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     hash_value = hash_value & 0x7FFFFFFF
                 return str(hash_value)
 
-            for paper in results:
-                if "doc_id" not in paper or not paper.get("doc_id"):
-                    title = paper.get("title", "")
-                    paper["doc_id"] = _generate_doc_id(title)
+            all_cached_papers = []
+            for source_papers in results.values():
+                if isinstance(source_papers, list):
+                    for paper in source_papers:
+                        if "doc_id" not in paper or not paper.get("doc_id"):
+                            title = paper.get("title", "")
+                            paper["doc_id"] = _generate_doc_id(title)
+                        all_cached_papers.append(paper)
 
             with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(results, f, ensure_ascii=False, indent=2)
-            print(f"[API] Search results cached: {len(results)} papers (with doc_ids)")
+                json.dump(all_cached_papers, f, ensure_ascii=False, indent=2)
+            print(f"[API] Search results cached: {len(all_cached_papers)} papers (with doc_ids)")
         except Exception as cache_error:
             print(f"[API] Cache save warning: {cache_error}")
 

@@ -7,12 +7,14 @@ from .ranker import PaperRanker
 from .context_builder import ContextBuilder
 from .llm_client import LLMClient
 from .response_generator import ResponseGenerator
+from .hybrid_ranker import HybridRanker
 
 __all__ = [
     'SearchEngine',
     'PaperRanker',
     'ContextBuilder',
     'LLMClient',
-    'ResponseGenerator'
+    'ResponseGenerator',
+    'HybridRanker',
 ]
 

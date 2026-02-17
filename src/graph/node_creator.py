@@ -9,6 +9,14 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
+try:
+    from collector.paper.deduplicator import PaperDeduplicator
+    _normalize_title = PaperDeduplicator.normalize_title
+    _normalize_doi = PaperDeduplicator.normalize_doi
+except ImportError:
+    _normalize_title = lambda t: t.lower().strip() if t else ""
+    _normalize_doi = lambda d: ""
+
 class NodeCreator:
     """논문 노드 생성 클래스"""
     
@@ -16,8 +24,11 @@ class NodeCreator:
         pass
     
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
-        """논문 고유 ID 생성"""
-        title = paper.get('title', '').lower().strip()
+        """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
+        doi = _normalize_doi(paper.get('doi', ''))
+        if doi:
+            return f"doi:{doi}"
+        title = _normalize_title(paper.get('title', ''))
         return title[:100] if title else str(hash(str(paper)))
     
     @log_data_processing("Node Creation")

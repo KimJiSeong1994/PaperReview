@@ -10,10 +10,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 from collector.paper.arxiv_searcher import ArxivSearcher
 from collector.paper.connected_papers_searcher import ConnectedPapersSearcher
 from collector.paper.google_scholar_searcher import GoogleScholarSearcher
+from collector.paper.openalex_searcher import OpenAlexSearcher
+from collector.paper.dblp_searcher import DBLPSearcher
 from collector.paper.reference_collector import ReferenceCollector
 from collector.paper.text_extractor import TextExtractor
 from collector.paper.similarity_calculator import SimilarityCalculator
+from collector.paper.deduplicator import PaperDeduplicator
 from graph.embedding_generator import EmbeddingGenerator
+
+# HybridRanker import
+try:
+    from graph_rag.hybrid_ranker import HybridRanker
+    HYBRID_RANKER_AVAILABLE = True
+except ImportError:
+    HYBRID_RANKER_AVAILABLE = False
+    HybridRanker = None
 from graph.graph_builder import GraphBuilder
 from graph.node_creator import NodeCreator
 from graph.edge_creator import EdgeCreator
@@ -33,6 +44,8 @@ class SearchAgent:
         self.arxiv_searcher = ArxivSearcher()
         self.connected_papers_searcher = ConnectedPapersSearcher()
         self.google_scholar_searcher = GoogleScholarSearcher()
+        self.openalex_searcher = OpenAlexSearcher()
+        self.dblp_searcher = DBLPSearcher()
         self.reference_collector = ReferenceCollector()
         self.text_extractor = TextExtractor()
         
@@ -51,6 +64,18 @@ class SearchAgent:
             except Exception as e:
                 print(f"[SearchAgent] Query Analyzer initialization failed: {e}")
         
+        # 중복 제거기
+        self.deduplicator = PaperDeduplicator()
+
+        # 하이브리드 랭커
+        self.hybrid_ranker = None
+        if HYBRID_RANKER_AVAILABLE:
+            try:
+                self.hybrid_ranker = HybridRanker(similarity_calculator=self.similarity_calculator)
+                print("[SearchAgent] HybridRanker initialized")
+            except Exception as e:
+                print(f"[SearchAgent] HybridRanker init failed: {e}")
+
         self.search_history = []
         
         # 데이터 저장 경로 설정
@@ -89,24 +114,30 @@ class SearchAgent:
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         # 검색 기록 저장
         self._add_to_history(query, "multi_source")
-        
+
         # 각 소스별 직접 검색 (병렬 처리)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             # 각 검색 작업을 병렬로 실행
             arxiv_future = executor.submit(self.arxiv_searcher.search, query, max_results_per_source)
             connected_papers_future = executor.submit(self.connected_papers_searcher.search, query, max_results_per_source)
             google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
-            
+            openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
+            dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
+
             # 결과 수집
             results["arxiv"] = arxiv_future.result()
             results["connected_papers"] = connected_papers_future.result()
             results["google_scholar"] = google_scholar_future.result()
-        
+            results["openalex"] = openalex_future.result()
+            results["dblp"] = dblp_future.result()
+
         return results
     
     @log_search_operation("Enhanced Multi-Source")
@@ -120,23 +151,28 @@ class SearchAgent:
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         self._add_to_history(query, "enhanced_multi_source")
-        
-        seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set()}
-        
+
+        seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set()}
+
         # 병렬 검색 작업 정의
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=9) as executor:
             futures = {
                 # 기본 검색
                 executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
                 executor.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
                 executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
-                # Enhanced 검색 (arXiv, Google Scholar)
+                executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
+                executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
+                # Enhanced 검색 (arXiv, Google Scholar, OpenAlex)
                 executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2): ("arxiv", "enhanced"),
                 executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
+                executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
             }
             
             for future in concurrent.futures.as_completed(futures):
@@ -161,22 +197,26 @@ class SearchAgent:
     def search_by_paper_title(self, title: str, max_results: int = 5) -> Dict[str, List[Dict[str, Any]]]:
         """
         논문 제목으로 정확한 검색
-        
+
         특정 논문을 찾을 때 사용
         """
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         self._add_to_history(f"title:{title}", "title_search")
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
                 executor.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
                 executor.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
                 executor.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
+                executor.submit(self.openalex_searcher.search_by_title, title, max_results): "openalex",
+                executor.submit(self.dblp_searcher.search_by_title, title, max_results): "dblp",
             }
             
             for future in concurrent.futures.as_completed(futures):
@@ -197,35 +237,59 @@ class SearchAgent:
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         self._add_to_history(f"similar:{paper_title[:50]}", "similar_search")
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             # arXiv와 Google Scholar에서 유사 논문 검색
             arxiv_future = executor.submit(
-                self.arxiv_searcher.search_similar_papers, 
+                self.arxiv_searcher.search_similar_papers,
                 paper_title, paper_abstract, max_results
             )
-            
+
             # 키워드 기반 검색으로 대체
             keywords = self._extract_search_keywords(paper_title, paper_abstract)
             scholar_future = executor.submit(
                 self.google_scholar_searcher.search,
                 keywords, max_results
             )
-            
+
+            # OpenAlex 키워드 검색
+            openalex_future = executor.submit(
+                self.openalex_searcher.search,
+                keywords, max_results
+            )
+
+            # DBLP 키워드 검색
+            dblp_future = executor.submit(
+                self.dblp_searcher.search,
+                keywords, max_results
+            )
+
             try:
                 results["arxiv"] = arxiv_future.result()
             except Exception as e:
                 print(f"[SearchAgent] arXiv similar search failed: {e}")
-            
+
             try:
                 results["google_scholar"] = scholar_future.result()
             except Exception as e:
                 print(f"[SearchAgent] Google Scholar search failed: {e}")
-        
+
+            try:
+                results["openalex"] = openalex_future.result()
+            except Exception as e:
+                print(f"[SearchAgent] OpenAlex search failed: {e}")
+
+            try:
+                results["dblp"] = dblp_future.result()
+            except Exception as e:
+                print(f"[SearchAgent] DBLP search failed: {e}")
+
         return results
     
     def _extract_search_keywords(self, title: str, abstract: str = "") -> str:
@@ -267,67 +331,83 @@ class SearchAgent:
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         self._add_to_history(query, "llm_context_search")
-        
+
         # LLM 쿼리 분석기가 없으면 기본 검색으로 대체
         if not self.query_analyzer:
             print("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
             return self.enhanced_search_all_sources(query, max_results_per_source)
-        
+
         try:
             # 1. LLM으로 최적화된 검색 쿼리 생성
             print(f"[SearchAgent] Generating LLM search queries for: {query[:50]}...")
-            
+
             if context:
                 search_queries = self.query_analyzer.search_with_context(query, context)
             else:
                 search_queries = self.query_analyzer.generate_search_queries(query)
-            
+
             arxiv_queries = search_queries.get("arxiv_queries", [query])
             scholar_queries = search_queries.get("scholar_queries", [query])
             keywords = search_queries.get("keywords", [])
-            
+
             print(f"[SearchAgent] Generated {len(arxiv_queries)} arXiv queries, {len(scholar_queries)} Scholar queries")
             print(f"[SearchAgent] Keywords: {keywords[:5]}")
-            
+
             # 2. 병렬 검색 수행
             seen_titles: Dict[str, Set[str]] = {
                 "arxiv": set(),
                 "google_scholar": set(),
-                "connected_papers": set()
+                "connected_papers": set(),
+                "openalex": set(),
+                "dblp": set()
             }
-            
-            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
                 futures = []
-                
+
                 # arXiv 검색 (여러 쿼리)
                 for arxiv_query in arxiv_queries[:3]:
                     futures.append(
-                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source // 2), 
+                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source // 2),
                          "arxiv", arxiv_query)
                     )
-                
+
                 # arXiv Enhanced 검색
                 futures.append(
                     (executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2),
                      "arxiv", "enhanced")
                 )
-                
+
                 # Google Scholar 검색 (여러 쿼리)
                 for scholar_query in scholar_queries[:3]:
                     futures.append(
                         (executor.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
                          "google_scholar", scholar_query)
                     )
-                
+
                 # Connected Papers 검색 (키워드 기반)
                 keyword_query = " ".join(keywords[:4]) if keywords else query
                 futures.append(
                     (executor.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
                      "connected_papers", keyword_query)
+                )
+
+                # OpenAlex 검색
+                futures.append(
+                    (executor.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
+                     "openalex", keyword_query)
+                )
+
+                # DBLP 검색
+                futures.append(
+                    (executor.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
+                     "dblp", keyword_query)
                 )
                 
                 # 결과 수집
@@ -412,24 +492,21 @@ class SearchAgent:
                 # 기본 enhanced 검색
                 search_results = self.enhanced_search_all_sources(query, max_results // 2)
             
-            # 3. 결과 병합 및 중복 제거
-            all_papers = []
-            seen_titles = set()
-            
-            for source, papers in search_results.items():
-                if source.startswith('_'):  # 메타데이터 스킵
-                    continue
-                for paper in papers:
-                    title_lower = paper.get('title', '').lower().strip()
-                    if title_lower and title_lower not in seen_titles:
-                        seen_titles.add(title_lower)
-                        paper['_source'] = source
-                        all_papers.append(paper)
-            
-            # 4. 관련성 기반 정렬 (간단한 키워드 매칭)
-            if analysis and analysis.get('keywords'):
+            # 3. 결과 병합 및 중복 제거 (PaperDeduplicator)
+            all_papers = self.deduplicator.deduplicate_cross_source(search_results)
+
+            # 4. 하이브리드 랭킹
+            intent = analysis.get('intent', 'paper_search') if analysis else 'paper_search'
+            if self.hybrid_ranker:
+                all_papers = self.hybrid_ranker.rank_papers(
+                    query=query,
+                    papers=all_papers,
+                    intent=intent,
+                )
+            elif analysis and analysis.get('keywords'):
+                # fallback: 키워드 매칭
                 keywords = set(kw.lower() for kw in analysis['keywords'])
-                
+
                 def relevance_score(paper):
                     title = paper.get('title', '').lower()
                     abstract = paper.get('abstract', '').lower()
@@ -440,7 +517,7 @@ class SearchAgent:
                         if kw in abstract:
                             score += 1
                     return score
-                
+
                 all_papers.sort(key=relevance_score, reverse=True)
             
             result["papers"] = all_papers[:max_results]
@@ -452,7 +529,8 @@ class SearchAgent:
                     "intent": analysis.get('intent'),
                     "keywords": analysis.get('keywords', []),
                     "improved_query": analysis.get('improved_query'),
-                    "confidence": analysis.get('confidence')
+                    "confidence": analysis.get('confidence'),
+                    "ranking_intent": intent,
                 }
             
             if '_metadata' in search_results:
@@ -491,17 +569,21 @@ class SearchAgent:
         results = {
             "arxiv": [],
             "connected_papers": [],
-            "google_scholar": []
+            "google_scholar": [],
+            "openalex": [],
+            "dblp": []
         }
-        
+
         self._add_to_history(f"author:{author}", "multi_author")
-        
+
         # 각 소스에서 저자 검색
         results["arxiv"] = self.arxiv_searcher.search_by_author(author, max_results)
         results["google_scholar"] = self.google_scholar_searcher.search_by_author(author, max_results)
-        
+
         # Connected Papers는 저자 검색이 제한적이므로 일반 검색으로 대체
         results["connected_papers"] = self.connected_papers_searcher.search(author, max_results)
+        results["openalex"] = self.openalex_searcher.search(author, max_results)
+        results["dblp"] = self.dblp_searcher.search_by_author(author, max_results)
         return results
     
     def search_recent_papers(self, category: str = None, days: int = 7, max_results: int = 20) -> List[Dict[str, Any]]:
@@ -560,7 +642,7 @@ class SearchAgent:
         Returns:
             소스별 검색 결과
         """
-        sources = filters.get("sources", ["arxiv", "connected_papers", "google_scholar"])
+        sources = filters.get("sources", ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"])
         max_results = filters.get("max_results", 5)
         
         results = {}
@@ -582,7 +664,13 @@ class SearchAgent:
                 results["google_scholar"] = self.search_google_scholar(
                     query, max_results, sort_by, year_start, year_end, author
                 )
-        
+
+            elif source == "openalex":
+                results["openalex"] = self.openalex_searcher.search(query, max_results)
+
+            elif source == "dblp":
+                results["dblp"] = self.dblp_searcher.search(query, max_results)
+
         return results
     
     def get_search_history(self) -> List[Dict[str, Any]]:
@@ -634,9 +722,28 @@ class SearchAgent:
             return {}
     
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
-        """논문 고유 ID 생성 (제목 기반)"""
-        title = paper.get('title', '').lower().strip()
+        """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
+        doi = PaperDeduplicator.normalize_doi(paper.get('doi', ''))
+        if doi:
+            return f"doi:{doi}"
+        title = PaperDeduplicator.normalize_title(paper.get('title', ''))
         return title[:100] if title else str(hash(str(paper)))
+
+    @staticmethod
+    def _legacy_paper_id(paper: Dict[str, Any]) -> str:
+        """레거시 ID 생성 (기존 그래프 호환용: title.lower().strip())"""
+        title = paper.get('title', '').lower().strip()
+        return title[:100] if title else ""
+
+    def _find_node_in_graph(self, paper: Dict[str, Any], graph) -> Optional[str]:
+        """그래프에서 논문 노드 찾기 (신규 ID → 레거시 ID 순)"""
+        new_id = self._generate_paper_id(paper)
+        if new_id in graph:
+            return new_id
+        legacy_id = self._legacy_paper_id(paper)
+        if legacy_id and legacy_id in graph:
+            return legacy_id
+        return None
     
     def save_papers(self, results: Dict[str, List[Dict[str, Any]]], query: str = "", 
                   generate_embeddings: bool = True, update_graph: bool = True) -> Dict[str, Any]:
@@ -804,15 +911,15 @@ class SearchAgent:
         all_papers = self._load_existing_papers()
         all_papers_list = list(all_papers.values())
         
-        # 3. 새 논문에 대한 embedding 로드
+        # 3. 새 논문에 대한 embedding 로드 (신규 ID + 레거시 ID 모두 탐색)
         existing_embeddings = self._load_existing_embeddings()
         embeddings_dict = {}
         for paper in new_papers:
             paper_id = self._generate_paper_id(paper)
-            if paper_id in existing_embeddings:
-                # embedding이 리스트 형태로 저장되어 있을 수 있음
+            legacy_id = self._legacy_paper_id(paper)
+            emb_data = existing_embeddings.get(paper_id) or existing_embeddings.get(legacy_id)
+            if emb_data is not None:
                 import numpy as np
-                emb_data = existing_embeddings[paper_id]
                 if isinstance(emb_data, list):
                     embeddings_dict[paper_id] = np.array(emb_data)
                 else:
@@ -859,15 +966,15 @@ class SearchAgent:
         # 새 논문과 기존 논문 간 유사도 계산
         similarity_count = 0
         for new_paper in new_papers:
-            new_paper_id = self._generate_paper_id(new_paper)
-            if new_paper_id not in existing_graph:
+            new_paper_id = self._find_node_in_graph(new_paper, existing_graph)
+            if new_paper_id is None:
                 continue
-            
+
             # 기존 논문과의 유사도 계산
             similarities = []
             for existing_paper in all_papers_list:
-                existing_paper_id = self._generate_paper_id(existing_paper)
-                if existing_paper_id == new_paper_id or existing_paper_id not in existing_graph:
+                existing_paper_id = self._find_node_in_graph(existing_paper, existing_graph)
+                if existing_paper_id is None or existing_paper_id == new_paper_id:
                     continue
                 
                 # 제목 토큰 기반 유사도 계산

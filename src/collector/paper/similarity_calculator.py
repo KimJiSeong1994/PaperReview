@@ -1,4 +1,5 @@
 import os
+import threading
 import numpy as np
 from typing import Dict, Any, Optional, List
 import sys
@@ -32,6 +33,7 @@ class SimilarityCalculator:
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
         self.embedding_cache = {}  # 캐시를 위한 딕셔너리
+        self._cache_lock = threading.Lock()  # 스레드 안전 캐시
     
     def _get_paper_text(self, paper: Dict[str, Any]) -> str:
         """논문에서 유사도 계산에 사용할 텍스트 추출"""
@@ -41,26 +43,28 @@ class SimilarityCalculator:
         return "\n\n".join([p for p in parts if p]) if any(parts) else ""
     
     def _get_embedding(self, text: str) -> Optional[np.ndarray]:
-        """텍스트를 embedding으로 변환"""
+        """텍스트를 embedding으로 변환 (스레드 안전)"""
         if not text or not text.strip():
             return None
-        
-        # 캐시 확인
+
         text_hash = hash(text)
-        if text_hash in self.embedding_cache:
-            return self.embedding_cache[text_hash]
-        
+
+        # 캐시 확인 (lock 보호)
+        with self._cache_lock:
+            if text_hash in self.embedding_cache:
+                return self.embedding_cache[text_hash]
+
         try:
             response = self.client.embeddings.create(
                 model=self.model,
-                input=text[:8000]  # 최대 토큰 제한 고려
+                input=text[:8000]
             )
             embedding = np.array(response.data[0].embedding)
-            
-            # 캐시에 저장
-            self.embedding_cache[text_hash] = embedding
+
+            with self._cache_lock:
+                self.embedding_cache[text_hash] = embedding
             return embedding
-            
+
         except Exception as e:
             print(f"Error generating embedding: {e}")
             return None
@@ -97,8 +101,46 @@ class SimilarityCalculator:
     def add_similarity_scores(self, main_paper: Dict[str, Any], references: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """참고문헌에 유사도 점수 추가"""
         if not references: return references
-        
+
         similarities = self.calculate_batch_similarities(main_paper, references)
         list(map(lambda x: x[1].update({'similarity_score': round(x[0], 4), 'similarity_percentage': round(x[0] * 100, 2)}), zip(similarities, references)))
         return references
+
+    def get_embeddings_batch(self, texts: List[str], batch_size: int = 50) -> List[Optional[np.ndarray]]:
+        """텍스트 리스트를 배치로 임베딩 변환 (N+1 → ceil(N/batch) API 호출)"""
+        results: List[Optional[np.ndarray]] = [None] * len(texts)
+        uncached_indices: List[int] = []
+        uncached_texts: List[str] = []
+
+        # 캐시 히트 먼저 처리
+        for i, text in enumerate(texts):
+            if not text or not text.strip():
+                continue
+            text_hash = hash(text)
+            with self._cache_lock:
+                if text_hash in self.embedding_cache:
+                    results[i] = self.embedding_cache[text_hash]
+                    continue
+            uncached_indices.append(i)
+            uncached_texts.append(text[:8000])
+
+        if not uncached_texts:
+            return results
+
+        # 배치 API 호출
+        try:
+            for start in range(0, len(uncached_texts), batch_size):
+                batch = uncached_texts[start:start + batch_size]
+                response = self.client.embeddings.create(model=self.model, input=batch)
+                for j, emb_data in enumerate(response.data):
+                    idx = uncached_indices[start + j]
+                    embedding = np.array(emb_data.embedding)
+                    results[idx] = embedding
+                    text_hash = hash(texts[idx])
+                    with self._cache_lock:
+                        self.embedding_cache[text_hash] = embedding
+        except Exception as e:
+            print(f"[SimilarityCalculator] Batch embedding error: {e}")
+
+        return results
 

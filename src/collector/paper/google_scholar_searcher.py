@@ -77,6 +77,12 @@ class GoogleScholarSearcher:
         self.enable_manual_captcha = True  # 수동 CAPTCHA 해결 활성화
         self.cookies_file = Path(os.path.dirname(__file__)) / '.google_scholar_cookies.pkl'
         self._load_cookies()
+
+        # Circuit breaker 설정
+        self._consecutive_failures = 0
+        self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
+        self._circuit_breaker_threshold = 3  # 연속 실패 횟수 임계값
+        self._circuit_breaker_cooldown = 300  # 비활성화 시간 (5분)
     
     def _load_cookies(self):
         """저장된 쿠키 로드"""
@@ -117,6 +123,74 @@ class GoogleScholarSearcher:
             time.sleep(delay - elapsed)
         self.last_request_time = time.time()
     
+    def _is_available(self) -> bool:
+        """Circuit breaker: Google Scholar 사용 가능 여부 확인"""
+        if self._consecutive_failures >= self._circuit_breaker_threshold:
+            now = time.time()
+            if now < self._disabled_until:
+                remaining = int(self._disabled_until - now)
+                logger.warning(f"Google Scholar temporarily disabled ({remaining}s remaining)")
+                return False
+            else:
+                logger.info("Google Scholar circuit breaker reset - retrying")
+                self._consecutive_failures = 0
+        return True
+
+    def _record_success(self):
+        """검색 성공 시 실패 카운터 초기화"""
+        self._consecutive_failures = 0
+
+    def _record_failure(self):
+        """검색 실패 시 카운터 증가 및 circuit breaker 활성화"""
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= self._circuit_breaker_threshold:
+            self._disabled_until = time.time() + self._circuit_breaker_cooldown
+            logger.error(
+                f"Google Scholar disabled for {self._circuit_breaker_cooldown}s "
+                f"after {self._consecutive_failures} consecutive failures"
+            )
+
+    def _request_with_backoff(self, url: str, params: dict) -> Optional[requests.Response]:
+        """Exponential backoff을 적용한 HTTP 요청"""
+        for attempt in range(self.max_retries):
+            try:
+                self._rate_limit()
+                response = self.session.get(url, params=params, timeout=15)
+
+                # CAPTCHA는 호출자가 처리
+                if self._is_captcha_response(response):
+                    return response
+
+                response.raise_for_status()
+                self._record_success()
+                return response
+
+            except requests.exceptions.HTTPError as e:
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
+                    logger.warning(
+                        f"Google Scholar HTTP error (attempt {attempt + 1}/{self.max_retries}): {e}. "
+                        f"Retrying in {delay:.1f}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    self._record_failure()
+                    raise
+
+            except requests.exceptions.RequestException as e:
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
+                    logger.warning(
+                        f"Google Scholar request error (attempt {attempt + 1}/{self.max_retries}): {e}. "
+                        f"Retrying in {delay:.1f}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    self._record_failure()
+                    raise
+
+        return None
+
     def _is_captcha_response(self, response) -> bool:
         """응답이 CAPTCHA인지 확인"""
         if response.status_code == 429:
@@ -270,18 +344,19 @@ class GoogleScholarSearcher:
     def search(self, query: str, max_results: int = 10, sort_by: str = "relevance") -> List[Dict[str, Any]]:
         """
         Google Scholar에서 논문 검색 (Enhanced)
-        
+
         Args:
             query: 검색 쿼리
             max_results: 최대 결과 수
             sort_by: 정렬 기준 (relevance, date)
-            
+
         Returns:
             논문 정보 리스트
         """
+        if not self._is_available():
+            return []
+
         try:
-            self._rate_limit()
-            
             # 검색 URL 구성
             search_url = f"{self.base_url}/scholar"
             params = {
@@ -289,12 +364,15 @@ class GoogleScholarSearcher:
                 'hl': 'en',
                 'as_sdt': '0,5'
             }
-            
+
             # 정렬 기준 추가
             if sort_by == "date":
                 params['scisbd'] = '1'  # 날짜순 정렬
-            
-            response = self.session.get(search_url, params=params, timeout=15)
+
+            response = self._request_with_backoff(search_url, params)
+            if response is None:
+                self._record_failure()
+                return []
             
             # CAPTCHA 확인 및 처리
             if self._is_captcha_response(response):
@@ -343,6 +421,7 @@ class GoogleScholarSearcher:
             return papers[:max_results]
             
         except Exception as e:
+            self._record_failure()
             logger.error(f"Google Scholar 검색 중 오류 발생: {e}")
             import traceback
             logger.debug(traceback.format_exc())
@@ -352,12 +431,15 @@ class GoogleScholarSearcher:
     def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         향상된 다중 전략 검색
-        
+
         여러 검색 전략을 조합하여 더 포괄적인 결과 제공
         """
+        if not self._is_available():
+            return []
+
         all_results: List[Dict[str, Any]] = []
         seen_titles: Set[str] = set()
-        
+
         try:
             # 다양한 검색 전략
             strategies = [
@@ -406,14 +488,17 @@ class GoogleScholarSearcher:
     def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
         """
         논문 제목으로 정확한 검색
-        
+
         Args:
             title: 논문 제목
             max_results: 최대 결과 수
-            
+
         Returns:
             논문 정보 리스트
         """
+        if not self._is_available():
+            return []
+
         try:
             results = []
             
