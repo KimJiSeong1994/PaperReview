@@ -198,20 +198,31 @@ class PosterLayoutAgent:
             order=3
         ))
         
-        # Column 2: 아키텍처, 알고리즘
+        # Column 2: 아키텍처, 알고리즘 (각 섹션에 관련 viz_data 서브셋만 전달)
+        viz_data = getattr(content, 'visualization_data', None)
+        if not isinstance(viz_data, dict):
+            viz_data = None
+        arch_viz = {'pipeline_steps': viz_data.get('pipeline_steps', [])} if viz_data else None
+        algo_viz = {
+            'paper_results': viz_data.get('paper_results', []),
+            'quantitative': viz_data.get('quantitative', {}),
+        } if viz_data else None
+
         sections.append(Section(
             id="architecture",
             title="4. 모델 아키텍처 (Architecture)",
-            content={"type": "svg_diagram", "content": content.methodology},
+            content={"type": "svg_diagram", "content": content.methodology,
+                     "visualization_data": arch_viz},
             size=SectionSize.LARGE,
             column=2,
             order=4
         ))
-        
+
         sections.append(Section(
             id="algorithm",
             title="5. 알고리즘 흐름 (Algorithm)",
-            content={"type": "svg_flowchart", "papers": content.paper_titles},
+            content={"type": "svg_flowchart", "papers": content.paper_titles,
+                     "visualization_data": algo_viz},
             size=SectionSize.MEDIUM,
             column=2,
             order=5
@@ -279,11 +290,16 @@ class PosterLayoutAgent:
             order=3
         ))
         
-        # Column 2
+        # Column 2 (파이프라인 관련 viz_data만 전달)
+        viz_data = getattr(content, 'visualization_data', None)
+        if not isinstance(viz_data, dict):
+            viz_data = None
+        arch_viz = {'pipeline_steps': viz_data.get('pipeline_steps', [])} if viz_data else None
         sections.append(Section(
             id="architecture",
             title="4. 분석 프레임워크",
-            content={"type": "svg_diagram", "content": content.methodology},
+            content={"type": "svg_diagram", "content": content.methodology,
+                     "visualization_data": arch_viz},
             size=SectionSize.LARGE,
             column=2,
             order=4
@@ -444,8 +460,8 @@ class PosterLayoutAgent:
         # 패턴에 정의된 섹션 배치 사용
         for column_name, section_list in section_map.items():
             # column_name을 숫자로 변환 (left=0, center=1, right=2)
-            column_mapping = {'left': 0, 'center': 1, 'right': 2}
-            column_idx = column_mapping.get(column_name, 0)
+            column_mapping = {'left': 1, 'center': 2, 'right': 3}
+            column_idx = column_mapping.get(column_name, 1)
             
             for order, section_id in enumerate(section_list):
                 # section_id에 따라 적절한 콘텐츠 매핑
@@ -468,6 +484,14 @@ class PosterLayoutAgent:
         Returns:
             Section object or None
         """
+        viz_data = getattr(content, 'visualization_data', None)
+        if not isinstance(viz_data, dict):
+            viz_data = None
+        arch_viz = {'pipeline_steps': viz_data.get('pipeline_steps', [])} if viz_data else None
+        algo_viz = {
+            'paper_results': viz_data.get('paper_results', []),
+            'quantitative': viz_data.get('quantitative', {}),
+        } if viz_data else None
         section_mapping = {
             'motivation': ('연구 배경', content.motivation, SectionSize.MEDIUM),
             'abstract': ('초록', content.abstract, SectionSize.MEDIUM),
@@ -475,16 +499,28 @@ class PosterLayoutAgent:
             'contributions': ('핵심 기여', content.contributions, SectionSize.MEDIUM),
             'key_findings': ('주요 발견', content.key_findings, SectionSize.LARGE),
             'conclusion': ('결론', content.conclusion, SectionSize.MEDIUM),
-            'timeline': ('연구 타임라인', None, SectionSize.MEDIUM),
-            'architecture_diagram': ('모델 아키텍처', None, SectionSize.LARGE),
-            'algorithm_flowchart': ('알고리즘 순서도', None, SectionSize.LARGE),
-            'results_chart': ('실험 결과', None, SectionSize.MEDIUM),
-            'pipeline_diagram': ('파이프라인', None, SectionSize.LARGE),
+            'timeline': ('연구 타임라인', content.paper_titles, SectionSize.MEDIUM),
+            'architecture_diagram': ('모델 아키텍처',
+                                     {"type": "svg_diagram", "content": content.methodology,
+                                      "visualization_data": arch_viz},
+                                     SectionSize.LARGE),
+            'algorithm_flowchart': ('알고리즘 순서도',
+                                    {"type": "svg_flowchart", "papers": content.paper_titles,
+                                     "visualization_data": algo_viz},
+                                    SectionSize.LARGE),
+            'results_chart': ('실험 결과',
+                              {"type": "svg_bar_chart",
+                               "visualization_data": algo_viz},
+                              SectionSize.MEDIUM),
+            'pipeline_diagram': ('파이프라인',
+                                 {"type": "svg_diagram", "content": content.methodology,
+                                  "visualization_data": arch_viz},
+                                 SectionSize.LARGE),
             'experimental_results': ('실험 결과', content.key_findings, SectionSize.LARGE),
-            'research_history': ('연구 연혁', None, SectionSize.MEDIUM),
-            'future_work': ('향후 연구', None, SectionSize.SMALL),
+            'research_history': ('연구 연혁', content.paper_titles, SectionSize.MEDIUM),
+            'future_work': ('향후 연구', content.conclusion, SectionSize.SMALL),
             'key_components': ('핵심 구성요소', content.contributions, SectionSize.MEDIUM),
-            'economic_benefits': ('경제적 효과', None, SectionSize.SMALL),
+            'economic_benefits': ('경제적 효과', content.key_findings, SectionSize.SMALL),
         }
         
         if section_id in section_mapping:

@@ -29,11 +29,13 @@ class ExtractedContent:
     required_visualizations: List[str]
     content_analysis: Dict[str, Any]
     # 논문 삽도 (Figure) 데이터
-    figures: List[Dict[str, Any]] = None
+    figures: Optional[List[Dict[str, Any]]] = None
     # 논문별 핵심 구조 분석 데이터
-    paper_analyses: List[Dict[str, Any]] = None
+    paper_analyses: Optional[List[Dict[str, Any]]] = None
     # 비교 분석 테이블 (마크다운 원문)
-    comparison_tables: List[str] = None
+    comparison_tables: Optional[List[str]] = None
+    # 시각화용 구조화 데이터 (파이프라인 단계, 정량 데이터, 논문별 결과)
+    visualization_data: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         if self.figures is None:
@@ -42,6 +44,8 @@ class ExtractedContent:
             self.paper_analyses = []
         if self.comparison_tables is None:
             self.comparison_tables = []
+        if self.visualization_data is None:
+            self.visualization_data = {}
 
 
 class PosterContentAgent:
@@ -85,16 +89,15 @@ class PosterContentAgent:
         """
         lines = report_content.split('\n')
 
-        # 각 섹션 추출
+        # 각 섹션 추출 (방법론은 더 긴 한도 적용)
         title = self._extract_title(lines)
         subtitle = self._generate_subtitle(title, num_papers)
         abstract = self._extract_section(lines, ['초록', 'Abstract', '요약', 'Summary'])
         motivation = self._extract_section(lines, ['배경', '동기', 'Motivation', 'Background'])
         contributions = self._extract_list_items(lines, ['기여', 'Contribution'])
-        methodology = self._extract_section(lines, ['방법론', 'Method', '분석', 'Analysis'])
+        methodology = self._extract_section(lines, ['방법론', 'Methodology', 'Method', 'Analysis'], max_length=1500)
         paper_titles = self._extract_paper_titles(lines)
         key_findings = self._extract_list_items(lines, ['핵심 발견', '주요 발견', 'Key Finding', 'Finding'])
-        comparison_data = self._extract_comparison_data(lines, num_papers)
         conclusion = self._extract_section(lines, ['결론', 'Conclusion'])
         keywords = self._extract_keywords(report_content)
         statistics = self._extract_statistics(report_content, num_papers)
@@ -103,6 +106,22 @@ class PosterContentAgent:
         paper_analyses = self._extract_paper_analyses(report_content)
         # 비교 분석 테이블 추출
         comparison_tables = self._extract_comparison_tables(report_content)
+        # 비교 데이터 (테이블 파싱 포함)
+        comparison_data = self._extract_comparison_data(lines, num_papers, comparison_tables)
+
+        # 시각화용 구조화 데이터 추출
+        quantitative_data = self._extract_quantitative_data(report_content)
+        pipeline_steps = self._extract_pipeline_steps(methodology)
+        paper_results = self._extract_paper_results(paper_analyses)
+        parsed_tables = [self._parse_markdown_table(t) for t in comparison_tables[:3] if t]
+        parsed_tables = [t for t in parsed_tables if t]  # 빈 결과 제거
+
+        visualization_data = {
+            'quantitative': quantitative_data,
+            'pipeline_steps': pipeline_steps,
+            'parsed_tables': parsed_tables,
+            'paper_results': paper_results,
+        }
 
         # 시각화 요구사항 식별
         required_visualizations = self.identify_visualization_needs(report_content, methodology, key_findings)
@@ -126,6 +145,7 @@ class PosterContentAgent:
             figures=figures or [],
             paper_analyses=paper_analyses,
             comparison_tables=comparison_tables,
+            visualization_data=visualization_data,
         )
     
     def _extract_title(self, lines: List[str]) -> str:
@@ -139,25 +159,25 @@ class PosterContentAgent:
         """부제목 생성"""
         return f"체계적 문헌 고찰 및 심층 분석 ({num_papers}편 논문)"
     
-    def _extract_section(self, lines: List[str], keywords: List[str]) -> str:
+    def _extract_section(self, lines: List[str], keywords: List[str], max_length: int = 1000) -> str:
         """특정 섹션 추출"""
         content = ""
         in_section = False
-        
+
         for i, line in enumerate(lines):
             # 섹션 시작 감지
             if any(kw in line for kw in keywords) and (line.startswith('#') or line.startswith('**')):
                 in_section = True
                 continue
-            
+
             # 섹션 종료 감지
             if in_section and (line.startswith('#') or line.startswith('---')):
                 break
-            
+
             # 내용 수집
             if in_section and line.strip() and not line.startswith('**'):
                 content += line.strip() + " "
-        
+
         # 기본값 제공
         if not content:
             if '초록' in keywords or 'Abstract' in keywords:
@@ -166,8 +186,8 @@ class PosterContentAgent:
                 content = "기존 연구의 한계를 분석하고, 새로운 접근법의 필요성을 파악하기 위해 체계적인 문헌 고찰을 수행하였습니다."
             elif '결론' in keywords or 'Conclusion' in keywords:
                 content = "본 분석을 통해 해당 분야의 연구 동향을 파악하고, 향후 연구 방향에 대한 통찰을 얻었습니다."
-        
-        return content[:600].strip()
+
+        return content[:max_length].strip()
     
     def _extract_list_items(self, lines: List[str], keywords: List[str]) -> List[str]:
         """리스트 항목 추출"""
@@ -184,12 +204,12 @@ class PosterContentAgent:
             if in_section and (line.startswith('#') or line.startswith('---')):
                 break
             
-            # 리스트 항목 수집
-            if in_section and line.strip().startswith(('•', '-', '*', '1.', '2.', '3.')):
-                item = line.strip().lstrip('•-*123456789.').strip()
+            # 리스트 항목 수집 (•/-/* 또는 숫자+구분자로 시작)
+            if in_section and re.match(r'^\s*[•\-*]\s|^\s*\d+[.)]\s', line):
+                item = re.sub(r'^\s*[•\-*]+\s*|\s*\d+[.)]\s*', '', line).strip()
                 if item and len(item) > 5:
-                    items.append(item[:150])
-        
+                    items.append(item[:250])
+
         # 기본값
         if not items:
             if '기여' in keywords or 'Contribution' in keywords:
@@ -205,8 +225,8 @@ class PosterContentAgent:
                     "성능 개선 패턴 식별",
                     "연구 공백 파악"
                 ]
-        
-        return items[:6]
+
+        return items[:8]
     
     def _extract_paper_titles(self, lines: List[str]) -> List[str]:
         """논문 제목 추출"""
@@ -218,17 +238,22 @@ class PosterContentAgent:
                 if ':' in title_part:
                     title_part = title_part.split(':', 1)[1].strip()
                 if title_part and len(title_part) > 5 and not title_part.startswith(('논문', 'Paper')):
-                    titles.append(title_part[:60])
-        
-        return titles[:6]
+                    titles.append(title_part[:120])
+
+        return titles[:8]
     
-    def _extract_comparison_data(self, lines: List[str], num_papers: int) -> Dict[str, Any]:
-        """비교 분석 데이터 추출"""
-        return {
+    def _extract_comparison_data(self, lines: List[str], num_papers: int,
+                                 comparison_tables: List[str] = None) -> Dict[str, Any]:
+        """비교 분석 데이터 추출 (테이블 파싱 포함)"""
+        base = {
             'num_papers': num_papers,
             'num_findings': len(self._extract_list_items(lines, ['발견', 'Finding'])),
-            'completion_rate': 100
+            'completion_rate': 100,
         }
+        if comparison_tables:
+            parsed = [self._parse_markdown_table(t) for t in comparison_tables[:3]]
+            base['parsed_tables'] = [t for t in parsed if t]
+        return base
     
     def _extract_keywords(self, content: str) -> List[str]:
         """키워드 추출 (TF 기반)"""
@@ -245,7 +270,7 @@ class PosterContentAgent:
         # 상위 키워드 선택
         top_keywords = [word for word, _ in word_freq.most_common(10)]
         
-        return top_keywords[:7]
+        return top_keywords[:10]
     
     def _extract_statistics(self, content: str, num_papers: int) -> Dict[str, Any]:
         """통계 데이터 추출"""
@@ -371,26 +396,208 @@ class PosterContentAgent:
         """
         리포트에서 마크다운 비교 테이블 추출
 
-        '|' 문자로 시작하는 테이블 행을 감지하여 테이블 단위로 수집
+        '|' 문자로 시작하는 테이블 행을 감지하여 테이블 단위로 수집.
+        연속 테이블을 구분선(| --- |) 중복 감지로 분리한다.
         """
         tables = []
         lines = report_content.split('\n')
-        current_table = []
+        current_table: List[str] = []
+        has_separator = False
 
         for line in lines:
             stripped = line.strip()
             if stripped.startswith('|') and '|' in stripped[1:]:
-                current_table.append(stripped)
+                # 구분선 여부 판별: 파이프와 대시/콜론/공백으로만 구성
+                is_sep = bool(re.match(r'^[\s|:\-]+$', stripped))
+
+                if is_sep and has_separator and len(current_table) >= 2:
+                    # 두 번째 구분선 → 새 테이블 시작. 직전 행은 새 테이블 헤더
+                    new_header = current_table.pop()
+                    if len(current_table) >= 2:
+                        tables.append('\n'.join(current_table))
+                    current_table = [new_header, stripped]
+                    has_separator = True
+                else:
+                    current_table.append(stripped)
+                    if is_sep:
+                        has_separator = True
             else:
                 if current_table and len(current_table) >= 2:
                     tables.append('\n'.join(current_table))
                 current_table = []
+                has_separator = False
 
         # 마지막 테이블
         if current_table and len(current_table) >= 2:
             tables.append('\n'.join(current_table))
 
         return tables
+
+    # ── 시각화 데이터 추출 메서드 ──────────────────────────────────
+
+    def _parse_markdown_table(self, table_text: str) -> List[Dict[str, str]]:
+        """마크다운 테이블을 딕셔너리 리스트로 파싱"""
+        lines = [l.strip() for l in table_text.strip().split('\n') if l.strip()]
+        if len(lines) < 3:  # 헤더 + 구분선 + 데이터 최소 1행
+            return []
+        headers = [h.strip() for h in lines[0].split('|') if h.strip()]
+        if not headers:
+            return []
+        rows = []
+        for line in lines[2:]:  # 구분선(lines[1]) 건너뜀
+            values = [v.strip() for v in line.split('|') if v.strip()]
+            if len(values) == len(headers):
+                rows.append(dict(zip(headers, values)))
+        return rows
+
+    def _extract_pipeline_steps(self, methodology: str) -> List[Dict[str, str]]:
+        """
+        방법론 텍스트에서 파이프라인/알고리즘 단계 추출.
+
+        전략 1: 화살표(→, ->) 분리
+        전략 2: 번호 매기기 (1. ..., 2. ...)
+        전략 3: 볼드 키워드 (**단계명**)
+        """
+        if not methodology:
+            return []
+
+        steps = []
+
+        # 전략 1: 화살표 분리
+        text = methodology.replace('->', '→')
+        if '→' in text:
+            parts = [p.strip() for p in text.split('→') if p.strip()]
+            for part in parts[:8]:
+                clean = re.sub(r'\*\*|\*|`', '', part).split('\n')[0].strip()
+                if clean and len(clean) > 2:
+                    steps.append({'title': clean[:40], 'desc': ''})
+
+        # 전략 2: 번호 매기기 (숫자+구분자로 분할)
+        if not steps:
+            parts = re.split(r'\d+[.)]\s*\*?\*?', methodology)
+            for part in parts[1:8]:  # 첫 빈 문자열 건너뜀
+                clean = re.sub(r'\*\*|\*|`', '', part).split('\n')[0].strip()
+                if clean and len(clean) > 1:
+                    steps.append({'title': clean[:40], 'desc': ''})
+
+        # 전략 3: 볼드 키워드
+        if not steps:
+            skip_keywords = {'결과', 'result', '한계', 'limit', '배경', 'background',
+                             '결론', 'conclusion', '요약', 'summary'}
+            bold = re.findall(r'\*\*([^*]{3,50})\*\*', methodology)
+            for b in bold[:8]:
+                if not any(skip in b.lower() for skip in skip_keywords):
+                    steps.append({'title': b.strip()[:40], 'desc': ''})
+
+        return steps
+
+    def _extract_quantitative_data(self, report_content: str) -> Dict[str, Any]:
+        """
+        리포트에서 정량적 데이터 추출 (차트 생성용).
+
+        Returns:
+            Dict with 'metrics' (메트릭-값 쌍)와 'improvements' (개선 수치)
+        """
+        metric_keywords = {
+            'accuracy', 'precision', 'recall', 'f1', 'bleu', 'rouge', 'score',
+            'rate', 'loss', 'auc', 'map', 'ndcg', 'perplexity', 'throughput',
+            '정확도', '정밀도', '재현율', '성능', '점수', '속도',
+        }
+
+        # 메트릭-값 쌍 추출 (구분자 필수): "accuracy: 95.3%", "F1= 0.87" 등
+        metrics = []
+        for match in re.finditer(
+            r'([\w가-힣\-@]+(?:[ \t]+[\w가-힣\-@]+)?)\s*[:=]\s*(\d+(?:\.\d+)?)\s*(%)?',
+            report_content
+        ):
+            name, value, unit = match.group(1), match.group(2), match.group(3) or ''
+            if any(kw in name.lower() for kw in metric_keywords):
+                metrics.append({
+                    'name': name.strip()[:30],
+                    'value': float(value),
+                    'unit': unit,
+                })
+        # 중복 제거 (이름 기준)
+        seen_names = set()
+        unique_metrics = []
+        for m in metrics:
+            key = m['name'].lower()
+            if key not in seen_names:
+                seen_names.add(key)
+                unique_metrics.append(m)
+
+        # 개선 수치 추출: "72% 시간 단축", "30% 감소", "1.5배 향상" 등
+        improvements = []
+        imp_patterns = [
+            r'(\d+(?:\.\d+)?)\s*(%|배)\s*([\w가-힣]+(?:\s+[\w가-힣]+)?)',
+            r'([\w가-힣]+)\s+대비\s+(\d+(?:\.\d+)?)\s*(%|배)',
+        ]
+        for pattern in imp_patterns:
+            for match in re.finditer(pattern, report_content):
+                groups = match.groups()
+                raw_val = groups[0] if groups[0].replace('.', '').isdigit() else groups[1]
+                try:
+                    float_val = float(raw_val)
+                except (ValueError, TypeError):
+                    continue
+                improvements.append({
+                    'description': match.group(0)[:60],
+                    'value': float_val,
+                })
+
+        return {
+            'metrics': unique_metrics[:15],
+            'improvements': improvements[:10],
+        }
+
+    def _extract_paper_results(self, paper_analyses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """논문별 수치 결과를 구조화하여 차트 생성용 데이터로 변환"""
+        results = []
+        for paper in paper_analyses:
+            result_text = paper.get('results', '')
+            if not result_text:
+                continue
+
+            metrics = []
+            seen_values = set()
+
+            # 패턴 A: 메트릭명 + 구분자 + 값: "accuracy: 0.95", "HR@10: 0.68"
+            for match in re.finditer(
+                r'([\w가-힣\-@]+)\s*[:=]\s*(\d+(?:\.\d+)?)\s*(%)?',
+                result_text
+            ):
+                name, value_str, unit = match.group(1), match.group(2), match.group(3) or ''
+                val_key = f"{name}:{value_str}"
+                if val_key not in seen_values:
+                    seen_values.add(val_key)
+                    metrics.append({
+                        'name': name.strip()[:30],
+                        'value': float(value_str),
+                        'unit': unit,
+                    })
+
+            # 패턴 B: 숫자 + 단위(% 또는 배) + 컨텍스트: "72% 시간 단축", "1.5배 향상"
+            for match in re.finditer(
+                r'(\d+(?:\.\d+)?)\s*(%|배)\s+([\w가-힣]{2,})',
+                result_text
+            ):
+                value_str, unit, context = match.group(1), match.group(2), match.group(3)
+                val_key = f"{context}:{value_str}"
+                if val_key not in seen_values:
+                    seen_values.add(val_key)
+                    metrics.append({
+                        'name': context.strip()[:30],
+                        'value': float(value_str),
+                        'unit': unit,
+                    })
+
+            if metrics:
+                results.append({
+                    'paper_title': paper.get('title', '')[:60],
+                    'metrics': metrics[:5],
+                })
+
+        return results
 
     def identify_visualization_needs(self, content: str, methodology: str, findings: List[str]) -> List[str]:
         """

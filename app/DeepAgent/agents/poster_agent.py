@@ -273,8 +273,8 @@ class PosterGenerationAgent:
         """
         import base64
 
-        # 리포트 요약 (토큰 제한)
-        report_summary = report_content[:8000]
+        # 리포트 요약 (토큰 제한 완화)
+        report_summary = report_content[:12000]
 
         # Gemini 프롬프트 구성
         prompt = self._build_gemini_prompt(content, layout, report_summary, num_papers, figures)
@@ -338,9 +338,9 @@ class PosterGenerationAgent:
         sections = []
         for i, paper in enumerate(content.paper_analyses[:6]):
             title = paper.get('title', f'논문 {i+1}')
-            methodology = paper.get('methodology', '')[:500]
-            contributions = paper.get('contributions', '')[:400]
-            results = paper.get('results', '')[:400]
+            methodology = (paper.get('methodology', '') or '')[:800]
+            contributions = (paper.get('contributions', '') or '')[:600]
+            results = (paper.get('results', '') or '')[:600]
 
             if not (methodology or contributions or results):
                 continue
@@ -407,6 +407,92 @@ class PosterGenerationAgent:
 {tables_text}
 """
 
+    @staticmethod
+    def _safe_metric_str(m) -> str:
+        """메트릭 딕셔너리를 안전한 문자열로 변환"""
+        if not isinstance(m, dict):
+            return str(m)
+        name = str(m.get('name', ''))
+        value = m.get('value', '')
+        unit = str(m.get('unit', ''))
+        try:
+            value_str = f"{float(value):.4g}" if isinstance(value, (int, float)) else str(value)
+        except (ValueError, TypeError):
+            value_str = str(value)
+        return f"{name}={value_str}{unit}"
+
+    def _format_visualization_data_prompt(self, content) -> str:
+        """구조화된 시각화 데이터를 Gemini 프롬프트 형식으로 변환"""
+        viz_data = getattr(content, 'visualization_data', None)
+        if not viz_data or not isinstance(viz_data, dict):
+            return ""
+
+        sections = []
+
+        # 파이프라인 단계
+        pipeline_steps = viz_data.get('pipeline_steps', [])
+        if isinstance(pipeline_steps, list) and pipeline_steps:
+            steps_text = ' → '.join(
+                str(s.get('title', '')) if isinstance(s, dict) else str(s)
+                for s in pipeline_steps
+            )
+            sections.append(f"**Research Pipeline**: {steps_text}")
+
+        # 정량 데이터
+        quant = viz_data.get('quantitative', {})
+        if isinstance(quant, dict) and quant:
+            metrics = quant.get('metrics', [])
+            if isinstance(metrics, list) and metrics:
+                metrics_lines = []
+                for m in metrics[:10]:
+                    if not isinstance(m, dict):
+                        continue
+                    metrics_lines.append(f"  - {self._safe_metric_str(m)}")
+                if metrics_lines:
+                    sections.append(f"**Key Metrics (차트에 사용하세요)**:\n" + '\n'.join(metrics_lines))
+
+            improvements = quant.get('improvements', [])
+            if isinstance(improvements, list) and improvements:
+                imp_lines = []
+                for imp in improvements[:6]:
+                    if isinstance(imp, dict):
+                        imp_lines.append(f"  - {imp.get('description', '')}")
+                if imp_lines:
+                    sections.append(f"**Performance Improvements**:\n" + '\n'.join(imp_lines))
+
+        # 논문별 결과
+        paper_results = viz_data.get('paper_results', [])
+        if isinstance(paper_results, list) and paper_results:
+            results_lines = []
+            for r in paper_results[:5]:
+                if not isinstance(r, dict):
+                    continue
+                title = str(r.get('paper_title', ''))
+                r_metrics = r.get('metrics', [])
+                if not isinstance(r_metrics, list):
+                    continue
+                metrics_str = ', '.join(
+                    self._safe_metric_str(m) for m in r_metrics[:3] if isinstance(m, dict)
+                )
+                if metrics_str:
+                    results_lines.append(f"  - {title}: {metrics_str}")
+            if results_lines:
+                sections.append(f"**Paper Results Data (Bar/Radar Chart에 활용)**:\n" + '\n'.join(results_lines))
+
+        if not sections:
+            return ""
+
+        return f"""
+---
+
+## 구조화된 시각화 데이터 (반드시 차트/SVG 생성에 활용하세요)
+
+아래 데이터는 리포트에서 자동 추출된 정량적 데이터입니다.
+SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확히 사용하세요.
+
+{chr(10).join(sections)}
+"""
+
     def _replace_figure_placeholders(self, poster_html: str, figures: list) -> str:
         """Gemini가 생성한 플레이스홀더를 실제 base64 데이터로 치환"""
         for i, fig in enumerate(figures[:4]):
@@ -415,10 +501,25 @@ class PosterGenerationAgent:
                 poster_html = poster_html.replace(placeholder, fig.image_base64)
         return poster_html
 
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        """HTML 특수문자를 이스케이프한다."""
+        if not text:
+            return ''
+        return (str(text)
+                .replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('"', '&quot;')
+                .replace("'", '&#39;'))
+
     def _inject_figures_into_html(self, poster_html: str, figures: list) -> str:
         """포스터 HTML에 논문 삽도를 삽입"""
         if not figures:
             return poster_html
+
+        # mime_type 허용 목록
+        allowed_mimes = ('image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml')
 
         figures_html = '''
         <div class="section-box" style="grid-column: 1 / -1; margin-top: 20px;">
@@ -429,14 +530,21 @@ class PosterGenerationAgent:
         '''
 
         for fig in figures[:4]:
+            mime = getattr(fig, 'mime_type', 'image/png')
+            if mime not in allowed_mimes:
+                mime = 'image/png'
+            caption = self._escape_html(str(getattr(fig, 'caption', '') or ''))
+            description = self._escape_html(str(getattr(fig, 'description', '') or '')[:150])
+            paper_title = self._escape_html(str(getattr(fig, 'paper_title', '') or '')[:50])
+
             figures_html += f'''
                 <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
-                    <img src="data:{fig.mime_type};base64,{fig.image_base64}"
-                         alt="{fig.caption}"
+                    <img src="data:{mime};base64,{fig.image_base64}"
+                         alt="{caption}"
                          style="width: 100%; height: auto; border-radius: 6px; margin-bottom: 8px;" />
-                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 4px 0 2px 0;">{fig.caption}</p>
-                    <p style="font-size: 0.75rem; color: #64748b; margin: 0; line-height: 1.4;">{fig.description[:150]}</p>
-                    <p style="font-size: 0.7rem; color: #94a3b8; margin: 4px 0 0 0; font-style: italic;">Source: {fig.paper_title[:50]}</p>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 4px 0 2px 0;">{caption}</p>
+                    <p style="font-size: 0.75rem; color: #64748b; margin: 0; line-height: 1.4;">{description}</p>
+                    <p style="font-size: 0.7rem; color: #94a3b8; margin: 4px 0 0 0; font-style: italic;">Source: {paper_title}</p>
                 </div>
             '''
 
@@ -534,26 +642,28 @@ class PosterGenerationAgent:
 **분석 논문 수**: {num_papers}편
 
 **초록 (Abstract)**:
-{content.abstract[:600]}
+{content.abstract[:1000]}
 
 **연구 배경 (Motivation)**:
-{content.motivation[:600]}
+{content.motivation[:1000]}
 
 **핵심 기여 (Contributions)**:
-{chr(10).join(f"• {c}" for c in content.contributions[:5])}
+{chr(10).join(f"• {c}" for c in content.contributions[:8])}
 
 **방법론 (Methodology)**:
-{content.methodology[:800]}
+{content.methodology[:1500]}
 
 **주요 발견 (Key Findings)**:
-{chr(10).join(f"- {f}" for f in content.key_findings[:6])}
+{chr(10).join(f"- {f}" for f in content.key_findings[:8])}
 
 **결론 (Conclusion)**:
-{content.conclusion[:500]}
+{content.conclusion[:800]}
 
 **키워드**: {", ".join(content.keywords[:7])}
 
 {self._format_paper_analyses_prompt(content)}
+
+{self._format_visualization_data_prompt(content)}
 
 {self._format_comparison_tables_prompt(content)}
 {figures_prompt}
