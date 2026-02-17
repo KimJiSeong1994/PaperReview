@@ -1,7 +1,7 @@
 """
 리포트 생성 도구 - 박사 수준의 논문 리뷰 보고서
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 
@@ -9,17 +9,19 @@ def generate_markdown_report(
     papers: List[Dict[str, Any]],
     analyses: List[Dict[str, Any]],
     validation: Dict[str, Any],
-    synthesis: Dict[str, Any]
+    synthesis: Dict[str, Any],
+    verification: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     박사 수준의 학술 논문 리뷰 보고서 생성
-    
+
     Args:
         papers: 논문 데이터
         analyses: 연구원 분석 결과
         validation: 지도교수 검증 결과
         synthesis: 종합 분석 결과
-        
+        verification: 사실 검증 결과 (선택)
+
     Returns:
         Markdown 형식 리포트
     """
@@ -45,7 +47,16 @@ def generate_markdown_report(
     report.append(f"- Total Papers Analyzed: {summary.get('total_papers', len(papers))}")
     report.append(f"- High-Quality Analyses: {summary.get('approved', 0)}")
     report.append(f"- Requiring Further Review: {summary.get('needs_revision', 0)}")
-    report.append(f"- Analysis Approval Rate: {summary.get('approval_rate', 0)*100:.1f}%\n")
+    report.append(f"- Analysis Approval Rate: {summary.get('approval_rate', 0)*100:.1f}%")
+
+    # 사실 검증 통계 (verification이 있을 때)
+    v_stats = verification.get("statistics", {}) if verification else {}
+    if v_stats.get("total_claims", 0) > 0:
+        rate = v_stats.get('verification_rate', 0) * 100
+        report.append(f"- Fact Verification Rate: {rate:.1f}% "
+                      f"({v_stats.get('verified', 0)} verified / "
+                      f"{v_stats.get('verifiable_claims', 0)} verifiable claims)")
+    report.append("")
     
     # Research Landscape Overview
     report.append("## Research Landscape Overview\n")
@@ -264,6 +275,54 @@ def generate_markdown_report(
             report.append("required to independently reproduce the reported results.")
         report.append("")
         
+        # Fact Verification (per-paper)
+        if verification and verification.get("claim_evidences"):
+            paper_id = (
+                paper.get("arxiv_id")
+                or paper.get("doc_id")
+                or paper.get("title", "")[:100].lower().strip().replace(" ", "_")
+            )
+            paper_ces = [
+                ce for ce in verification["claim_evidences"]
+                if ce.get("claim", {}).get("source_paper_id", "") == paper_id
+                or paper_id in ce.get("claim", {}).get("source_paper_id", "")
+                or ce.get("claim", {}).get("source_paper_id", "") in paper_id
+            ]
+
+            if paper_ces:
+                report.append("#### Fact Verification Results\n")
+
+                verified_count = 0
+                total_count = len(paper_ces)
+                for ce in paper_ces:
+                    evs = ce.get("evidences", [])
+                    if evs:
+                        best = max(evs, key=lambda e: e.get("similarity_score", 0))
+                        if best.get("verification_status") in ("verified", "partially_verified"):
+                            verified_count += 1
+
+                rate = (verified_count / total_count * 100) if total_count > 0 else 0
+                report.append(f"**Claims Verified**: {verified_count}/{total_count} ({rate:.0f}%)\n")
+
+                # 상위 주장-근거 쌍 표시 (최대 5개)
+                report.append("| Claim | Status | Match | Evidence |")
+                report.append("|-------|--------|-------|----------|")
+                for ce in paper_ces[:5]:
+                    claim_text = ce.get("claim", {}).get("text", "")[:60]
+                    evs = ce.get("evidences", [])
+                    if evs:
+                        best = max(evs, key=lambda e: e.get("similarity_score", 0))
+                        status = best.get("verification_status", "unverified").replace("_", " ").title()
+                        match = best.get("match_type", "not_found").replace("_", " ").title()
+                        ev_text = best.get("text", "")[:50]
+                    else:
+                        status = "Unverified"
+                        match = "Not Found"
+                        ev_text = "-"
+                    report.append(f"| {claim_text}... | {status} | {match} | {ev_text}... |")
+
+                report.append("")
+
         # Impact & Significance
         report.append("#### Impact & Significance")
         
@@ -342,6 +401,54 @@ def generate_markdown_report(
     report.append(f"- Limited (<3.0): {low_repro} paper(s) - Significant reproducibility challenges")
     report.append("")
     
+    # Cross-Paper Fact Verification
+    if verification and verification.get("consensus"):
+        report.append("\n### Cross-Paper Fact Verification\n")
+
+        v_stats = verification.get("statistics", {})
+        total = v_stats.get("total_claims", 0)
+        verified = v_stats.get("verified", 0)
+        partially = v_stats.get("partially_verified", 0)
+        unverified = v_stats.get("unverified", 0)
+        contradicted = v_stats.get("contradicted", 0)
+        rate = v_stats.get("verification_rate", 0) * 100
+
+        report.append("**Overall Verification Summary:**")
+        report.append(f"- Total Claims Extracted: {total}")
+        report.append(f"- Verified: {verified}")
+        report.append(f"- Partially Verified: {partially}")
+        report.append(f"- Unverified: {unverified}")
+        report.append(f"- Contradicted: {contradicted}")
+        report.append(f"- **Verification Rate: {rate:.1f}%**\n")
+
+        # Consensus Reports
+        consensus_list = verification.get("consensus", [])
+        if consensus_list:
+            report.append("**Topic Consensus Analysis:**\n")
+            report.append("| Topic | Consensus | Supporting | Contradicting | Summary |")
+            report.append("|-------|-----------|------------|---------------|---------|")
+            for cons in consensus_list:
+                topic = cons.get("topic", "General")[:25]
+                level = cons.get("consensus_level", "weak").title()
+                sup = cons.get("supporting_count", 0)
+                con = cons.get("contradicting_count", 0)
+                summ = cons.get("summary", "")[:60]
+                report.append(f"| {topic} | {level} | {sup} | {con} | {summ}... |")
+            report.append("")
+
+        # 주요 충돌 표시
+        cross_refs = verification.get("cross_references", [])
+        conflicts = [xr for xr in cross_refs if xr.get("relation") == "contradicts"]
+        if conflicts:
+            report.append("**Detected Conflicts:**\n")
+            for xr in conflicts[:5]:
+                ca = xr.get("claim_a", {}).get("text", "")[:80]
+                cb = xr.get("claim_b", {}).get("text", "")[:80]
+                expl = xr.get("explanation", "")
+                report.append(f"- **Conflict**: \"{ca}\" vs \"{cb}\"")
+                report.append(f"  - {expl}")
+            report.append("")
+
     # Conclusions & Recommendations
     report.append("\n" + "="*100)
     report.append("\n## Conclusions & Recommendations\n")
@@ -453,22 +560,26 @@ def generate_html_report(
     papers: List[Dict[str, Any]],
     analyses: List[Dict[str, Any]],
     validation: Dict[str, Any],
-    synthesis: Dict[str, Any]
+    synthesis: Dict[str, Any],
+    verification: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     HTML 형식의 리포트 생성
-    
+
     Args:
         papers: 논문 데이터
         analyses: 분석 결과
         validation: 검증 결과
         synthesis: 종합 결과
-        
+        verification: 사실 검증 결과 (선택)
+
     Returns:
         HTML 형식 리포트
     """
     # 간단한 HTML 래퍼
-    markdown_report = generate_markdown_report(papers, analyses, validation, synthesis)
+    markdown_report = generate_markdown_report(
+        papers, analyses, validation, synthesis, verification=verification
+    )
     
     html = f"""
 <!DOCTYPE html>

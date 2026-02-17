@@ -46,6 +46,7 @@ class WorkspaceManager:
             self.session_path,
             self.session_path / "analyses",      # 연구원 분석 결과
             self.session_path / "validations",   # 지도교수 검증 결과
+            self.session_path / "verifications", # 사실 검증 결과
             self.session_path / "plans",         # Todo 계획
             self.session_path / "reports",       # 최종 리포트
             self.session_path / "logs",          # 로그
@@ -201,6 +202,102 @@ class WorkspaceManager:
         with open(validation_files[0], 'r', encoding='utf-8') as f:
             return json.load(f)
     
+    # ==================== Fact Verification ====================
+
+    def save_verification_claims(
+        self,
+        claims: List[Dict[str, Any]]
+    ) -> str:
+        """
+        사실 검증 주장(Claims) 저장
+
+        Args:
+            claims: Claim 데이터 리스트 (to_dict() 변환 후)
+
+        Returns:
+            저장된 파일 경로
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = f"claims_{timestamp}.json"
+        file_path = self.session_path / "verifications" / file_name
+
+        result = {
+            "claims": claims,
+            "count": len(claims),
+            "saved_at": datetime.now().isoformat()
+        }
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+        return str(file_path)
+
+    def load_verification_claims(self) -> Optional[List[Dict[str, Any]]]:
+        """최신 검증 주장 로드"""
+        verifications_dir = self.session_path / "verifications"
+
+        claim_files = sorted(
+            verifications_dir.glob("claims_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+
+        if not claim_files:
+            return None
+
+        with open(claim_files[0], 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get("claims", [])
+
+    # ==================== Cross-Reference ====================
+
+    def save_cross_references(
+        self,
+        cross_refs: List[Dict[str, Any]],
+        consensus: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """
+        교차 검증 결과 저장
+
+        Args:
+            cross_refs: CrossReference 데이터 리스트 (to_dict() 변환 후)
+            consensus: ConsensusReport 데이터 리스트 (선택)
+
+        Returns:
+            저장된 파일 경로
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = f"crossrefs_{timestamp}.json"
+        file_path = self.session_path / "verifications" / file_name
+
+        result = {
+            "cross_references": cross_refs,
+            "consensus": consensus or [],
+            "count": len(cross_refs),
+            "saved_at": datetime.now().isoformat(),
+        }
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+        return str(file_path)
+
+    def load_cross_references(self) -> Optional[Dict[str, Any]]:
+        """최신 교차 검증 결과 로드"""
+        verifications_dir = self.session_path / "verifications"
+
+        xref_files = sorted(
+            verifications_dir.glob("crossrefs_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        if not xref_files:
+            return None
+
+        with open(xref_files[0], 'r', encoding='utf-8') as f:
+            return json.load(f)
+
     # ==================== Plans & Todos ====================
     
     def save_plan(self, plan: Dict[str, Any]) -> str:
@@ -323,6 +420,8 @@ class WorkspaceManager:
             "paper_count": len(self.load_selected_papers()),
             "analysis_count": len(analyses),
             "has_validation": self.load_latest_validation() is not None,
+            "has_verification": self.load_verification_claims() is not None,
+            "has_cross_references": self.load_cross_references() is not None,
             "has_final_report": len(list((self.session_path / "reports").glob("*.md"))) > 0
         }
     

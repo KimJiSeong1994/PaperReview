@@ -31,12 +31,23 @@ class DeepReviewRequest(BaseModel):
     fast_mode: Optional[bool] = True
 
 
+class VerificationStats(BaseModel):
+    total_claims: int = 0
+    verifiable_claims: int = 0
+    verified: int = 0
+    partially_verified: int = 0
+    unverified: int = 0
+    contradicted: int = 0
+    verification_rate: float = 0.0
+
+
 class ReviewStatusResponse(BaseModel):
     session_id: str
     status: str
     progress: Optional[str] = None
     report_available: bool = False
     error: Optional[str] = None
+    verification_stats: Optional[VerificationStats] = None
 
 
 # ── Helper functions ───────────────────────────────────────────────────
@@ -733,6 +744,20 @@ def run_deep_review_background(
                     review_sessions[session_id]["num_papers"] = result.get("papers_reviewed", len(paper_ids))
                     if papers_data:
                         review_sessions[session_id]["papers_data"] = papers_data
+
+                    # 검증 통계 저장
+                    v_result = result.get("verification", {})
+                    v_stats = v_result.get("statistics", {})
+                    if v_stats.get("total_claims", 0) > 0:
+                        review_sessions[session_id]["verification_stats"] = {
+                            "total_claims": v_stats.get("total_claims", 0),
+                            "verifiable_claims": v_stats.get("verifiable_claims", 0),
+                            "verified": v_stats.get("verified", 0),
+                            "partially_verified": v_stats.get("partially_verified", 0),
+                            "unverified": v_stats.get("unverified", 0),
+                            "contradicted": v_stats.get("contradicted", 0),
+                            "verification_rate": v_stats.get("verification_rate", 0.0),
+                        }
                 else:
                     review_sessions[session_id]["status"] = "failed"
                     review_sessions[session_id]["error"] = result.get("error", "Unknown error")
@@ -809,12 +834,16 @@ async def get_review_status(session_id: str) -> ReviewStatusResponse:
 
         session = review_sessions[session_id]
 
+        v_raw = session.get("verification_stats")
+        v_stats = VerificationStats(**v_raw) if v_raw else None
+
         return ReviewStatusResponse(
             session_id=session_id,
             status=session["status"],
             progress=session.get("progress"),
             report_available=session.get("report_available", False),
             error=session.get("error"),
+            verification_stats=v_stats,
         )
 
 
@@ -861,6 +890,7 @@ async def get_review_report(session_id: str):
             "report_json": json_result,
             "num_papers": session.get("num_papers", 0),
             "created_at": session.get("created_at"),
+            "verification_stats": session.get("verification_stats"),
         }
 
 

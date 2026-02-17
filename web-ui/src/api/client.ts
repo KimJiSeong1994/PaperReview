@@ -105,12 +105,23 @@ export interface DeepReviewResponse {
   status_url: string;
 }
 
+export interface VerificationStats {
+  total_claims: number;
+  verifiable_claims: number;
+  verified: number;
+  partially_verified: number;
+  unverified: number;
+  contradicted: number;
+  verification_rate: number;
+}
+
 export interface ReviewStatusResponse {
   session_id: string;
   status: string;
   progress?: string;
   report_available: boolean;
   error?: string;
+  verification_stats?: VerificationStats;
 }
 
 export interface ReviewReportResponse {
@@ -119,6 +130,7 @@ export interface ReviewReportResponse {
   report_json?: any;
   num_papers: number;
   created_at: string;
+  verification_stats?: VerificationStats;
 }
 
 export const startDeepReview = async (request: DeepReviewRequest): Promise<DeepReviewResponse> => {

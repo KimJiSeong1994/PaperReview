@@ -513,6 +513,81 @@ body {
   margin-top: 8px;
 }
 
+/* ─── Verification Banner ─── */
+.verification-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.verification-banner--high {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.verification-banner--medium {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.verification-banner--low {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.verification-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.verification-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.verification-bar__segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.verification-bar__segment--verified {
+  background: #4ade80;
+}
+
+.verification-bar__segment--partial {
+  background: #fbbf24;
+}
+
+.verification-bar__segment--unverified {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.verification-bar__segment--contradicted {
+  background: #f87171;
+}
+
+.verification-rate {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.verification-banner--high .verification-rate { color: #4ade80; }
+.verification-banner--medium .verification-rate { color: #fbbf24; }
+.verification-banner--low .verification-rate { color: #f87171; }
+
+.verification-detail {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
 .review-report-markdown {
   color: #d1d5db;
   line-height: 1.8;

@@ -12,6 +12,7 @@ logs/
 src/collector/paper/.google_scholar_cookies.pkl
 
 .claude/
+ROADMAP.md
 
 # C extensions
 *.so

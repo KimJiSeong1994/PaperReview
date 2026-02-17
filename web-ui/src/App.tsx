@@ -11,6 +11,7 @@ const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
 import type { Paper, GraphData } from './types';
+import type { VerificationStats } from './api/client';
 
 // 질의와 논문 간 유사도 계산 함수
 function calculateSimilarity(paper: Paper, query: string, queryKeywords: string[] = []): number {
@@ -166,6 +167,7 @@ function App() {
   const [reviewProgress, setReviewProgress] = useState<string>('');
   const [reviewReport, setReviewReport] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [verificationStats, setVerificationStats] = useState<VerificationStats | null>(null);
   const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   
@@ -457,6 +459,10 @@ function App() {
           // Fetch report
           const report = await getReviewReport(reviewSessionId);
           setReviewReport(report.report_markdown);
+          // 검증 통계 저장
+          if (report.verification_stats || status.verification_stats) {
+            setVerificationStats(report.verification_stats || status.verification_stats || null);
+          }
           clearInterval(pollInterval);
         } else if (status.status === 'failed') {
           setReviewStatus('failed');
@@ -1000,6 +1006,44 @@ function App() {
                     )}
                     {reviewStatus === 'completed' && reviewReport && (
                       <div className="review-report-markdown">
+                        {verificationStats && verificationStats.total_claims > 0 && (
+                          <div className={`verification-banner ${
+                            verificationStats.verification_rate >= 0.7 ? 'verification-banner--high' :
+                            verificationStats.verification_rate >= 0.4 ? 'verification-banner--medium' : 'verification-banner--low'
+                          }`}>
+                            <span className="verification-label">Fact Verification</span>
+                            <div className="verification-bar" role="status" aria-label={`${(verificationStats.verification_rate * 100).toFixed(0)}% verified`}>
+                              {verificationStats.verified > 0 && (
+                                <div className="verification-bar__segment verification-bar__segment--verified"
+                                  style={{ width: `${(verificationStats.verified / verificationStats.total_claims) * 100}%` }}
+                                  title={`${verificationStats.verified} verified`} />
+                              )}
+                              {verificationStats.partially_verified > 0 && (
+                                <div className="verification-bar__segment verification-bar__segment--partial"
+                                  style={{ width: `${(verificationStats.partially_verified / verificationStats.total_claims) * 100}%` }}
+                                  title={`${verificationStats.partially_verified} partial`} />
+                              )}
+                              {verificationStats.unverified > 0 && (
+                                <div className="verification-bar__segment verification-bar__segment--unverified"
+                                  style={{ width: `${(verificationStats.unverified / verificationStats.total_claims) * 100}%` }}
+                                  title={`${verificationStats.unverified} unverified`} />
+                              )}
+                              {verificationStats.contradicted > 0 && (
+                                <div className="verification-bar__segment verification-bar__segment--contradicted"
+                                  style={{ width: `${(verificationStats.contradicted / verificationStats.total_claims) * 100}%` }}
+                                  title={`${verificationStats.contradicted} contradicted`} />
+                              )}
+                            </div>
+                            <span className="verification-rate">
+                              {(verificationStats.verification_rate * 100).toFixed(0)}% verified
+                            </span>
+                            <span className="verification-detail">
+                              {verificationStats.verified} verified, {verificationStats.partially_verified} partial, {verificationStats.unverified} unverified
+                              {verificationStats.contradicted > 0 && `, ${verificationStats.contradicted} contradicted`}
+                              &nbsp;&middot;&nbsp;{verificationStats.total_claims} claims ({verificationStats.verifiable_claims} verifiable)
+                            </span>
+                          </div>
+                        )}
                         <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                           {reviewReport}
                         </pre>

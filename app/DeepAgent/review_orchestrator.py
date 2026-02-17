@@ -17,6 +17,9 @@ from app.DeepAgent.tools.paper_loader import load_and_prepare_papers
 from app.DeepAgent.tools.report_generator import generate_markdown_report, generate_html_report
 from app.DeepAgent.subagents.researcher_agent import analyze_paper_deep
 from app.DeepAgent.subagents.advisor_agent import validate_and_synthesize
+from app.DeepAgent.tools.fact_verification import (
+    ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult,
+)
 
 
 class ReviewOrchestrator:
@@ -78,12 +81,15 @@ class ReviewOrchestrator:
         
         # Step 3: 검증 및 종합
         validation = self._validate_and_synthesize(analyses, papers, verbose)
-        
+
+        # Step 3.5: 사실 검증
+        verification = self._verify_facts(papers, analyses, validation, verbose)
+
         # Step 4: 최종 리포트 생성
-        report = self._generate_report(papers, analyses, validation, verbose)
-        
+        report = self._generate_report(papers, analyses, validation, verbose, verification)
+
         # Step 5: 결과 저장
-        self._save_results(papers, analyses, validation, report, verbose)
+        self._save_results(papers, analyses, validation, report, verbose, verification)
         
         if verbose:
             print("\n" + "="*80)
@@ -96,6 +102,7 @@ class ReviewOrchestrator:
             "papers_reviewed": len(papers),
             "analyses": analyses,
             "validation": validation,
+            "verification": verification,
             "report": report,
             "workspace_path": str(self.workspace.session_path)
         }
@@ -226,29 +233,122 @@ class ReviewOrchestrator:
         
         return validation
     
+    def _verify_facts(
+        self,
+        papers: List[Dict[str, Any]],
+        analyses: List[Dict[str, Any]],
+        validation: Dict[str, Any],
+        verbose: bool,
+    ) -> Dict[str, Any]:
+        """
+        Step 3.5: 사실 검증 파이프라인
+
+        1. 초안 리포트에서 Claim 추출
+        2. 원문 논문과 Evidence 연결
+        3. 논문 간 교차 검증 및 합의도 분석
+        """
+        if verbose:
+            print("[Step 3.5] Fact Verification...")
+            print("-" * 80)
+
+        start_time = datetime.now()
+
+        try:
+            # 초안 리포트 생성 (Claim 추출용)
+            synthesis = validation.get("cross_paper_synthesis", {})
+            draft_report = generate_markdown_report(papers, analyses, validation, synthesis)
+
+            # 1. Claim 추출
+            extractor = ClaimExtractor()
+            claims = extractor.extract_claims_sync(draft_report, papers, analyses)
+
+            if verbose:
+                print(f"  [v] Extracted {len(claims)} claims from report")
+
+            # 2. Evidence 연결
+            linker = EvidenceLinker()
+            claim_evidences = linker.find_all_evidence_sync(claims, papers)
+
+            verification_result = VerificationResult(
+                claims=claims,
+                claim_evidences=claim_evidences,
+            )
+            stats = verification_result.statistics
+
+            if verbose:
+                print(f"  [v] Evidence linked: {stats['verified']} verified, "
+                      f"{stats['unverified']} unverified out of {stats['verifiable_claims']}")
+
+            # 3. 교차 검증 (2개 이상 논문일 때만)
+            cross_refs = []
+            consensus = []
+            if len(papers) >= 2:
+                validator = CrossRefValidator()
+                cross_refs = validator.detect_conflicts_sync(claims)
+                consensus = validator.build_consensus_sync(claims, cross_refs)
+
+                if verbose:
+                    conflicts = sum(1 for r in cross_refs if r.relation.value == "contradicts")
+                    print(f"  [v] Cross-validation: {len(cross_refs)} comparisons, {conflicts} conflicts")
+
+            # Workspace에 저장
+            self.workspace.save_verification_claims(
+                [c.to_dict() for c in claims]
+            )
+            if cross_refs:
+                self.workspace.save_cross_references(
+                    [xref.to_dict() for xref in cross_refs],
+                    [cons.to_dict() for cons in consensus],
+                )
+
+            self.workspace.log("Fact verification completed")
+
+            elapsed = (datetime.now() - start_time).total_seconds()
+
+            if verbose:
+                rate = stats['verification_rate'] * 100
+                print(f"\n[OK] Fact verification completed in {elapsed:.1f}s")
+                print(f"   Verification rate: {rate:.1f}%\n")
+
+            return {
+                "claims": [c.to_dict() for c in claims],
+                "claim_evidences": [ce.to_dict() for ce in claim_evidences],
+                "cross_references": [xref.to_dict() for xref in cross_refs],
+                "consensus": [cons.to_dict() for cons in consensus],
+                "statistics": stats,
+            }
+
+        except Exception as e:
+            if verbose:
+                print(f"  [!] Fact verification failed: {e}")
+            self.workspace.log(f"Fact verification failed: {e}", "WARNING")
+            return {"claims": [], "claim_evidences": [], "cross_references": [],
+                    "consensus": [], "statistics": {}}
+
     def _generate_report(
         self,
         papers: List[Dict[str, Any]],
         analyses: List[Dict[str, Any]],
         validation: Dict[str, Any],
-        verbose: bool
+        verbose: bool,
+        verification: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, str]:
         """최종 리포트 생성"""
         if verbose:
             print("[Step 4] Generating Final Report...")
             print("-" * 80)
-        
+
         # Synthesis 데이터 추출
         synthesis = validation.get("cross_paper_synthesis", {})
-        
+
         # Markdown 리포트
         markdown_report = generate_markdown_report(
-            papers, analyses, validation, synthesis
+            papers, analyses, validation, synthesis, verification=verification
         )
-        
+
         # HTML 리포트
         html_report = generate_html_report(
-            papers, analyses, validation, synthesis
+            papers, analyses, validation, synthesis, verification=verification
         )
         
         if verbose:
@@ -267,30 +367,32 @@ class ReviewOrchestrator:
         analyses: List[Dict[str, Any]],
         validation: Dict[str, Any],
         report: Dict[str, str],
-        verbose: bool
+        verbose: bool,
+        verification: Optional[Dict[str, Any]] = None,
     ):
         """결과 저장"""
         if verbose:
             print("[Step 5] Saving Results...")
             print("-" * 80)
-        
+
         # Markdown 리포트 저장
         md_path = self.workspace.save_final_report(
-            report["markdown"], 
+            report["markdown"],
             format="markdown"
         )
-        
+
         # HTML 리포트 저장
         html_path = self.workspace.save_final_report(
             report["html"],
             format="html"
         )
-        
+
         # JSON 결과 저장
         json_result = {
             "papers": papers,
             "analyses": analyses,
             "validation": validation,
+            "verification": verification or {},
             "session_id": self.workspace.session_id,
             "completed_at": datetime.now().isoformat()
         }
