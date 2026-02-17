@@ -6,6 +6,16 @@
   background: #0f0f0f;
 }
 
+/* Hide scrollbars globally within MyPage */
+.mypage *::-webkit-scrollbar {
+  display: none;
+}
+
+.mypage * {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ===== MyPage Header ===== */
 .mypage-app-header {
   background: transparent;
@@ -1572,6 +1582,47 @@
   50% { opacity: 0.4; }
 }
 
+/* Auto Highlight Button */
+.mypage-auto-highlight-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+  color: #a5b4fc;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-left: auto;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mypage-auto-highlight-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #c7d2fe;
+}
+
+.mypage-auto-highlight-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mypage-auto-highlight-spinner {
+  animation: auto-highlight-spin 1.2s linear infinite;
+}
+
+@keyframes auto-highlight-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .mypage-notes-badge {
   font-size: 10px;
   font-weight: 500;
@@ -1650,9 +1701,10 @@
   line-height: 1.5;
   color: #d1d5db;
   background: rgba(165, 180, 252, 0.3);
-  padding: 2px 4px;
+  padding: 4px 8px;
   border-radius: 3px;
   font-weight: 500;
+  border-left: 3px solid rgba(165, 180, 252, 0.6);
 }
 
 .mypage-highlight-remove {

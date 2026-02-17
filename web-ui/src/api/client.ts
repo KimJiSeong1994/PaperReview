@@ -223,6 +223,12 @@ export const updateBookmarkNotes = async (
   return response.data;
 };
 
+// Auto Highlight (LLM-based)
+export const autoHighlightBookmark = async (bookmarkId: string): Promise<{ highlights: HighlightItem[] }> => {
+  const response = await api.post<{ highlights: HighlightItem[] }>(`/api/bookmarks/${bookmarkId}/auto-highlight`);
+  return response.data;
+};
+
 // Bulk bookmark operations
 export const bulkDeleteBookmarks = async (bookmarkIds: string[]) => {
   const response = await api.post('/api/bookmarks/bulk-delete', { bookmark_ids: bookmarkIds });

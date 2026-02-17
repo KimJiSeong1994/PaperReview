@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities';
 import './MyPage.css';
 import {
   getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
-  bulkDeleteBookmarks, bulkMoveBookmarks, updateBookmarkNotes,
+  bulkDeleteBookmarks, bulkMoveBookmarks, updateBookmarkNotes, autoHighlightBookmark,
   chatWithBookmarks, buildLightRAG, getLightRAGStatus,
 } from '../api/client';
 import type { ChatMessage, ChatSource, HighlightItem } from '../api/client';
@@ -215,6 +215,7 @@ function MyPage({ onBack }: MyPageProps) {
   const [memoInput, setMemoInput] = useState('');
   const memoModeRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [autoHighlighting, setAutoHighlighting] = useState(false);
 
   // QW-5: persist chat history
   useEffect(() => {
@@ -622,6 +623,25 @@ function MyPage({ onBack }: MyPageProps) {
     setSelectionToolbar(null);
   };
 
+  const handleAutoHighlight = async () => {
+    if (!selectedBookmark || autoHighlighting) return;
+    setAutoHighlighting(true);
+    try {
+      const result = await autoHighlightBookmark(selectedBookmark.id);
+      setUserHighlights(result.highlights);
+      setNotesCollapsed(false);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Auto highlight failed:', error);
+      showSaveStatus('error');
+    } finally {
+      setAutoHighlighting(false);
+    }
+  };
+
   // Selection toolbar: show on text select in report area
   useEffect(() => {
     const reportEl = reportScrollRef.current;
@@ -667,7 +687,7 @@ function MyPage({ onBack }: MyPageProps) {
             const idx = part.indexOf(hl.text);
             if (idx === -1) { nextResult.push(part); continue; }
             if (idx > 0) nextResult.push(part.slice(0, idx));
-            nextResult.push(<mark key={`hl-${hl.id}-${idx}`} className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`} title={hl.memo || undefined}>{hl.text}</mark>);
+            nextResult.push(<mark key={`hl-${hl.id}-${idx}`} className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`} style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}33`, borderBottomColor: `${hl.color}aa` } : undefined} title={hl.memo || undefined}>{hl.text}</mark>);
             if (idx + hl.text.length < part.length) nextResult.push(part.slice(idx + hl.text.length));
           }
           result = nextResult;
@@ -1283,6 +1303,28 @@ function MyPage({ onBack }: MyPageProps) {
                   {userHighlights.length > 0 && (
                     <span className="mypage-notes-badge">{userHighlights.length}</span>
                   )}
+                  <button
+                    className="mypage-auto-highlight-btn"
+                    onClick={(e) => { e.stopPropagation(); handleAutoHighlight(); }}
+                    disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
+                    title="LLM 기반 자동 하이라이트"
+                  >
+                    {autoHighlighting ? (
+                      <>
+                        <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                          <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
+                        </svg>
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        Auto
+                      </>
+                    )}
+                  </button>
                 </div>
                 {!notesCollapsed && (
                   <div className="mypage-notes-body">
@@ -1300,7 +1342,7 @@ function MyPage({ onBack }: MyPageProps) {
                         {userHighlights.map(hl => (
                           <div key={hl.id} className="mypage-highlight-item">
                             <div className="mypage-highlight-item-content">
-                              <mark className="mypage-highlight-item-text">{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
+                              <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
                               {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
                             </div>
                             <button className="mypage-highlight-remove" onClick={() => handleRemoveHighlight(hl.id)} title="Remove">✕</button>

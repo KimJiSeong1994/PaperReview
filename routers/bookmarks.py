@@ -6,10 +6,12 @@ Bookmark CRUD endpoints (per-user isolated):
   DELETE /api/bookmarks/{bookmark_id}
   PATCH  /api/bookmarks/{bookmark_id}/topic
   PATCH  /api/bookmarks/{bookmark_id}/notes
+  POST   /api/bookmarks/{bookmark_id}/auto-highlight
   POST   /api/bookmarks/bulk-delete
   POST   /api/bookmarks/bulk-move
 """
 
+import json
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -197,6 +199,174 @@ async def update_bookmark_notes(
                 "highlights": bm.get("highlights", []),
             }
     raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+CATEGORY_CONFIG = {
+    "finding": {"label": "[핵심 발견]", "color": "#6ee7b7"},      # emerald
+    "methodology": {"label": "[방법론]", "color": "#93c5fd"},      # blue
+    "insight": {"label": "[인사이트]", "color": "#c4b5fd"},        # violet
+    "limitation": {"label": "[연구 한계]", "color": "#fca5a5"},    # rose
+}
+
+AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
+당신은 Nature, Science 등 최상위 저널의 리뷰어이자 학술 논문 분석 전문가입니다.
+주어진 연구 리포트에서 가장 핵심적이고 학술적 가치가 높은 구절을 정확히 추출하는 것이 임무입니다.
+
+## 추출 원칙
+1. **원문 정확 복사**: text 필드에는 리포트 본문에서 해당 구절을 한 글자도 바꾸지 않고 그대로 복사해야 합니다.
+   - 공백, 구두점, 특수문자까지 모두 원문 그대로여야 합니다.
+   - 마크다운 기호(#, *, -, |)는 제외하고 순수 텍스트만 복사하세요.
+2. **구절 길이**: 한 문장 또는 의미 있는 반 문장(20~120자) 단위로 추출하세요. 너무 짧거나(10자 미만) 너무 길면(200자 초과) 안 됩니다.
+3. **깊이 우선**: 표면적이거나 일반적인 서술이 아니라, 구체적 수치·방법·비교·한계·새로운 해석이 담긴 문장을 선택하세요.
+
+## 카테고리 가이드
+- **finding**: 실증적 연구 결과, 정량적 수치, 핵심 결론. 주로 '개별 논문 분석', '교차 분석', '결론' 섹션에 존재.
+  예: 특정 수치 결과, 비교 실험 결과, 핵심 발견 요약
+- **methodology**: 핵심 알고리즘, 기술적 혁신, 연구 설계. 주로 '개별 논문 분석'의 방법론 서술에 존재.
+  예: 모델 아키텍처 설명, 데이터 처리 방식, 새로운 접근법
+- **insight**: 논문 간 교차 해석, 메타 수준의 시사점, 독창적 통찰. 주로 '핵심 통찰', '연구 동향', '교차 분석' 섹션에 존재.
+  예: 연구 트렌드 해석, 방법론 간 시너지, 학문적 의미
+- **limitation**: 연구의 한계, 숨겨진 가정, 향후 과제. 주로 '한계', '미래 전망', '비판적 분석' 부분에 존재.
+  예: 데이터 제약, 일반화 한계, 미해결 문제
+
+## 출력 형식
+반드시 아래 JSON 형식으로만 응답하세요:
+{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|methodology|insight|limitation", "reason": "선정 이유 (한국어, 1문장)"}]}
+
+## 선정 기준
+- 총 8~15개 하이라이트를 추출하세요.
+- 카테고리별 최소 1개, finding과 insight는 각 3개 이상 권장.
+- 리포트 전체에 걸쳐 고르게 분포시키세요 (서론~결론까지).
+- 중복되는 내용의 구절은 제외하세요.\
+"""
+
+
+@router.post("/bookmarks/{bookmark_id}/auto-highlight")
+async def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+    """Use LLM to automatically extract key highlights from the bookmark report."""
+    from openai import OpenAI
+
+    data = load_bookmarks()
+    bookmark = None
+    for bm in data["bookmarks"]:
+        if bm["id"] == bookmark_id:
+            if bm.get("username") != username:
+                raise HTTPException(status_code=403, detail="Access denied")
+            bookmark = bm
+            break
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    report = bookmark.get("report_markdown", "")
+    if not report.strip():
+        raise HTTPException(status_code=400, detail="No report content to analyze")
+
+    # Section-aware truncation: keep structure intact up to limit
+    max_chars = 24000
+    if len(report) > max_chars:
+        # Try to cut at a section boundary (## header)
+        cutoff = report.rfind("\n## ", 0, max_chars)
+        if cutoff > max_chars * 0.6:
+            report_text = report[:cutoff]
+        else:
+            # Fallback: cut at paragraph boundary
+            cutoff = report.rfind("\n\n", 0, max_chars)
+            report_text = report[:cutoff] if cutoff > 0 else report[:max_chars]
+    else:
+        report_text = report
+
+    # Build topic context from bookmark metadata
+    query = bookmark.get("query", "")
+    title = bookmark.get("title", "")
+    topic_context = ""
+    if query or title:
+        topic_context = f"[연구 주제: {title or query}]\n\n"
+
+    client = OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-4.1",
+        temperature=0.2,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": AUTO_HIGHLIGHT_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"{topic_context}"
+                    f"다음 연구 리포트에서 핵심 하이라이트를 추출해 주세요.\n\n"
+                    f"---\n{report_text}\n---"
+                ),
+            },
+        ],
+    )
+
+    raw = response.choices[0].message.content or "{}"
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
+
+    llm_highlights = parsed.get("highlights", [])
+
+    # Build new HighlightItem list, deduplicating against existing highlights
+    existing_texts = {h["text"] for h in bookmark.get("highlights", [])}
+    new_highlights = list(bookmark.get("highlights", []))
+
+    for item in llm_highlights:
+        text = item.get("text", "").strip()
+        category = item.get("category", "finding")
+        reason = item.get("reason", "")
+        if not text or len(text) < 5 or text in existing_texts:
+            continue
+
+        # Verify text actually exists in report (verbatim match)
+        if text not in report:
+            # Fuzzy fallback: try trimming whitespace variants
+            normalized = " ".join(text.split())
+            found = False
+            for para in report.split("\n"):
+                if normalized in " ".join(para.split()):
+                    # Use the original paragraph's matching portion
+                    norm_para = " ".join(para.split())
+                    idx = norm_para.index(normalized)
+                    # Recover original text from paragraph by scanning
+                    orig_chars = []
+                    ni = 0
+                    for ch in para:
+                        if ni >= idx + len(normalized):
+                            break
+                        if ch in (' ', '\t') and (not orig_chars or orig_chars[-1] in (' ', '\t')):
+                            if ni >= idx:
+                                orig_chars.append(ch)
+                            continue
+                        if ni >= idx:
+                            orig_chars.append(ch)
+                        ni += 1
+                    # Simpler approach: just use the normalized match if it exists
+                    if normalized in report.replace("\n", " "):
+                        pass  # Can't use cross-line match for indexOf
+                    found = False
+                    break
+            if not found:
+                continue
+
+        cfg = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG["finding"])
+        label = cfg["label"]
+        color = cfg["color"]
+        memo = f"{label} {reason}" if reason else label
+        new_highlights.append({
+            "id": f"hl_{uuid.uuid4().hex[:12]}",
+            "text": text,
+            "color": color,
+            "memo": memo,
+            "created_at": datetime.now().isoformat(),
+        })
+        existing_texts.add(text)
+
+    bookmark["highlights"] = new_highlights
+    save_bookmarks(data)
+
+    return {"success": True, "highlights": new_highlights}
 
 
 @router.post("/bookmarks/bulk-delete")
