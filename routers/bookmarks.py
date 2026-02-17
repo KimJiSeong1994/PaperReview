@@ -241,11 +241,64 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 """
 
 
+def _strip_markdown(text: str) -> str:
+    """Strip common markdown formatting characters for comparison."""
+    import re
+    text = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)  # bold/italic
+    text = re.sub(r'`([^`]+)`', r'\1', text)  # inline code
+    return text.strip()
+
+
+def _find_verbatim_or_fuzzy(text: str, report: str) -> str | None:
+    """Return the original report substring matching `text`, or None."""
+    # 1. Exact verbatim match
+    if text in report:
+        return text
+
+    # 2. Whitespace-normalized match within individual lines
+    normalized = " ".join(text.split())
+    for line in report.split("\n"):
+        norm_line = " ".join(line.split())
+        idx = norm_line.find(normalized)
+        if idx == -1:
+            continue
+        # Map normalized offset back to original line
+        orig_start = 0
+        ni = 0
+        for ci, ch in enumerate(line):
+            if ni == idx:
+                orig_start = ci
+                break
+            if ch.strip() or (ci > 0 and line[ci - 1].strip()):
+                ni += 1
+        # Extract original substring of the same semantic length
+        orig_end = orig_start
+        ni = 0
+        for ci in range(orig_start, len(line)):
+            if ni >= len(normalized):
+                break
+            ch = line[ci]
+            if ch.strip() or (ci > orig_start and line[ci - 1].strip()):
+                ni += 1
+            orig_end = ci + 1
+        candidate = line[orig_start:orig_end].strip()
+        if candidate and candidate in report:
+            return candidate
+
+    # 3. Markdown-stripped match: try stripping bold/italic/code from LLM output
+    stripped = _strip_markdown(text)
+    if stripped != text and stripped in report:
+        return stripped
+
+    return None
+
+
 @router.post("/bookmarks/{bookmark_id}/auto-highlight")
-async def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
     """Use LLM to automatically extract key highlights from the bookmark report."""
     from openai import OpenAI
 
+    # Phase 1: Read bookmark and report (before LLM call)
     data = load_bookmarks()
     bookmark = None
     for bm in data["bookmarks"]:
@@ -264,28 +317,25 @@ async def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_
     # Section-aware truncation: keep structure intact up to limit
     max_chars = 24000
     if len(report) > max_chars:
-        # Try to cut at a section boundary (## header)
         cutoff = report.rfind("\n## ", 0, max_chars)
         if cutoff > max_chars * 0.6:
             report_text = report[:cutoff]
         else:
-            # Fallback: cut at paragraph boundary
             cutoff = report.rfind("\n\n", 0, max_chars)
             report_text = report[:cutoff] if cutoff > 0 else report[:max_chars]
     else:
         report_text = report
 
-    # Build topic context from bookmark metadata
     query = bookmark.get("query", "")
     title = bookmark.get("title", "")
-    topic_context = ""
-    if query or title:
-        topic_context = f"[연구 주제: {title or query}]\n\n"
+    topic_context = f"[연구 주제: {title or query}]\n\n" if (query or title) else ""
 
+    # Phase 2: LLM call (potentially long-running, no lock held)
     client = OpenAI()
     response = client.chat.completions.create(
         model="gpt-4.1",
         temperature=0.2,
+        timeout=60,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": AUTO_HIGHLIGHT_SYSTEM_PROMPT},
@@ -308,65 +358,59 @@ async def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_
 
     llm_highlights = parsed.get("highlights", [])
 
-    # Build new HighlightItem list, deduplicating against existing highlights
+    # Phase 3: Re-load bookmarks (atomic read-modify-write to avoid TOCTOU)
+    data = load_bookmarks()
+    bookmark = None
+    for bm in data["bookmarks"]:
+        if bm["id"] == bookmark_id and bm.get("username") == username:
+            bookmark = bm
+            break
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
     existing_texts = {h["text"] for h in bookmark.get("highlights", [])}
     new_highlights = list(bookmark.get("highlights", []))
+    added_count = 0
+    valid_categories = set(CATEGORY_CONFIG.keys())
 
     for item in llm_highlights:
         text = item.get("text", "").strip()
         category = item.get("category", "finding")
+        if category not in valid_categories:
+            category = "finding"
         reason = item.get("reason", "")
         if not text or len(text) < 5 or text in existing_texts:
             continue
 
-        # Verify text actually exists in report (verbatim match)
-        if text not in report:
-            # Fuzzy fallback: try trimming whitespace variants
-            normalized = " ".join(text.split())
-            found = False
-            for para in report.split("\n"):
-                if normalized in " ".join(para.split()):
-                    # Use the original paragraph's matching portion
-                    norm_para = " ".join(para.split())
-                    idx = norm_para.index(normalized)
-                    # Recover original text from paragraph by scanning
-                    orig_chars = []
-                    ni = 0
-                    for ch in para:
-                        if ni >= idx + len(normalized):
-                            break
-                        if ch in (' ', '\t') and (not orig_chars or orig_chars[-1] in (' ', '\t')):
-                            if ni >= idx:
-                                orig_chars.append(ch)
-                            continue
-                        if ni >= idx:
-                            orig_chars.append(ch)
-                        ni += 1
-                    # Simpler approach: just use the normalized match if it exists
-                    if normalized in report.replace("\n", " "):
-                        pass  # Can't use cross-line match for indexOf
-                    found = False
-                    break
-            if not found:
-                continue
+        # Verbatim match with fuzzy fallback
+        matched_text = _find_verbatim_or_fuzzy(text, report)
+        if not matched_text:
+            continue
 
-        cfg = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG["finding"])
-        label = cfg["label"]
-        color = cfg["color"]
-        memo = f"{label} {reason}" if reason else label
+        # Use matched_text (may differ from LLM output due to fuzzy recovery)
+        if matched_text in existing_texts:
+            continue
+
+        cfg = CATEGORY_CONFIG[category]
+        memo = f"{cfg['label']} {reason}" if reason else cfg["label"]
         new_highlights.append({
             "id": f"hl_{uuid.uuid4().hex[:12]}",
-            "text": text,
-            "color": color,
+            "text": matched_text,
+            "color": cfg["color"],
             "memo": memo,
             "created_at": datetime.now().isoformat(),
         })
-        existing_texts.add(text)
+        existing_texts.add(matched_text)
+        added_count += 1
 
     bookmark["highlights"] = new_highlights
     save_bookmarks(data)
 
-    return {"success": True, "highlights": new_highlights}
+    return {
+        "success": True,
+        "highlights": new_highlights,
+        "added_count": added_count,
+    }
 
 
 @router.post("/bookmarks/bulk-delete")

@@ -208,6 +208,7 @@ function MyPage({ onBack }: MyPageProps) {
   const [notesText, setNotesText] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(true);
+  const [papersCollapsed, setPapersCollapsed] = useState(true);
   const [userHighlights, setUserHighlights] = useState<HighlightItem[]>([]);
   const [selectionToolbar, setSelectionToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   const [allNotesMode, setAllNotesMode] = useState(false);
@@ -407,9 +408,11 @@ function MyPage({ onBack }: MyPageProps) {
     try {
       const detail = await getBookmarkDetail(bookmark.id);
       setBookmarkDetail(detail);
-      setNotesText(detail.notes || '');
+      const notes = detail.notes || '';
+      setNotesText(notes);
+      lastSavedNotesRef.current = notes;
       setUserHighlights(detail.highlights || []);
-      setNotesCollapsed(!(detail.notes || '').trim() && !(detail.highlights || []).length);
+      setNotesCollapsed(!notes.trim() && !(detail.highlights || []).length);
     } catch (error: any) {
       console.error('Failed to load bookmark detail:', error);
     } finally {
@@ -507,16 +510,29 @@ function MyPage({ onBack }: MyPageProps) {
   };
 
   // ── Notes & Highlights handlers ──
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedNotesRef = useRef('');
+
   const showSaveStatus = (status: 'saved' | 'error') => {
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
     setSaveStatus(status);
-    setTimeout(() => setSaveStatus('idle'), 2000);
+    saveStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
   };
+
+  // Cleanup timer on unmount
+  useEffect(() => () => {
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+  }, []);
 
   const handleSaveNotes = async () => {
     if (!selectedBookmark) return;
+    // BUG-5 fix: skip if notes haven't changed
+    if (notesText === lastSavedNotesRef.current) return;
     setNotesSaving(true);
     try {
-      await updateBookmarkNotes(selectedBookmark.id, notesText, userHighlights);
+      // BUG-4 fix: only send notes, not highlights (avoids stale closure overwriting)
+      await updateBookmarkNotes(selectedBookmark.id, notesText);
+      lastSavedNotesRef.current = notesText;
       setBookmarks(prev => prev.map(bm =>
         bm.id === selectedBookmark.id
           ? { ...bm, has_notes: !!notesText.trim() || userHighlights.length > 0 }
@@ -535,6 +551,12 @@ function MyPage({ onBack }: MyPageProps) {
     if (!selectionToolbar || !selectedBookmark) return;
     const text = selectionToolbar.text;
     if (!text || text.length < 3) return;
+    // DI-2 fix: skip if already highlighted
+    if (userHighlights.some(hl => hl.text === text)) {
+      setSelectionToolbar(null);
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
 
     const newHighlight: HighlightItem = {
       id: `hl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
@@ -627,18 +649,47 @@ function MyPage({ onBack }: MyPageProps) {
     if (!selectedBookmark || autoHighlighting) return;
     setAutoHighlighting(true);
     try {
-      const result = await autoHighlightBookmark(selectedBookmark.id);
+      const result = await autoHighlightBookmark(selectedBookmark.id) as any;
+      const addedCount = result.added_count ?? 0;
       setUserHighlights(result.highlights);
-      setNotesCollapsed(false);
-      setBookmarks(prev => prev.map(bm =>
-        bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
-      ));
-      showSaveStatus('saved');
+      if (addedCount > 0) {
+        setNotesCollapsed(false);
+        setBookmarks(prev => prev.map(bm =>
+          bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
+        ));
+      }
+      // UX-1 fix: distinct feedback for zero vs. positive results
+      if (addedCount === 0) {
+        setSaveStatus('idle');
+        alert('추출 가능한 새로운 하이라이트가 없습니다.');
+      } else {
+        showSaveStatus('saved');
+      }
     } catch (error) {
       console.error('Auto highlight failed:', error);
       showSaveStatus('error');
     } finally {
       setAutoHighlighting(false);
+    }
+  };
+
+  const handleClearAllHighlights = async () => {
+    if (!selectedBookmark || userHighlights.length === 0) return;
+    if (!confirm(`${userHighlights.length}개의 하이라이트를 모두 삭제하시겠습니까?`)) return;
+    const backup = userHighlights;
+    setUserHighlights([]);
+    try {
+      await updateBookmarkNotes(selectedBookmark.id, undefined, []);
+      setBookmarks(prev => prev.map(bm =>
+        bm.id === selectedBookmark.id
+          ? { ...bm, has_notes: !!notesText.trim() }
+          : bm
+      ));
+      showSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to clear highlights:', error);
+      setUserHighlights(backup); // rollback on failure
+      showSaveStatus('error');
     }
   };
 
@@ -1239,20 +1290,27 @@ function MyPage({ onBack }: MyPageProps) {
                 </div>
               </div>
 
-              {/* Papers list */}
+              {/* Papers list (collapsible) */}
               {bookmarkDetail.papers && bookmarkDetail.papers.length > 0 && (
-                <div className="mypage-report-section">
-                  <h3 className="mypage-report-section-title">Papers ({bookmarkDetail.papers.length})</h3>
-                  <div className="mypage-detail-papers">
-                    {bookmarkDetail.papers.map((p: any, i: number) => (
-                      <div key={i} className="mypage-detail-paper">
-                        <span className="mypage-detail-paper-title">{p.title}</span>
-                        <span className="mypage-detail-paper-meta">
-                          {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
-                        </span>
-                      </div>
-                    ))}
+                <div className={`mypage-papers-section ${papersCollapsed ? 'collapsed' : ''}`}>
+                  <div className="mypage-papers-header" onClick={() => setPapersCollapsed(!papersCollapsed)}>
+                    <svg className="mypage-papers-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
+                      <path d="M6 4l4 4-4 4z" />
+                    </svg>
+                    <span>Papers ({bookmarkDetail.papers.length})</span>
                   </div>
+                  {!papersCollapsed && (
+                    <div className="mypage-detail-papers">
+                      {bookmarkDetail.papers.map((p: any, i: number) => (
+                        <div key={i} className="mypage-detail-paper">
+                          <span className="mypage-detail-paper-title">{p.title}</span>
+                          <span className="mypage-detail-paper-meta">
+                            {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1302,6 +1360,13 @@ function MyPage({ onBack }: MyPageProps) {
                   {saveStatus === 'error' && <span className="mypage-notes-error">Save failed</span>}
                   {userHighlights.length > 0 && (
                     <span className="mypage-notes-badge">{userHighlights.length}</span>
+                  )}
+                  {userHighlights.length > 0 && (
+                    <button
+                      className="mypage-clear-highlights-btn"
+                      onClick={(e) => { e.stopPropagation(); handleClearAllHighlights(); }}
+                      title="하이라이트 전체 삭제"
+                    >Clear</button>
                   )}
                   <button
                     className="mypage-auto-highlight-btn"
