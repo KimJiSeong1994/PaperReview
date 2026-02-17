@@ -347,10 +347,16 @@ class PosterVisualAgent:
         """
         dimensions = data.get('dimensions', ['Completeness', 'Efficiency', 'Grounding', 'Logic', 'Expressiveness', 'Hallucination'])
         values = data.get('values', [0.85, 0.75, 0.90, 0.80, 0.70, 0.88])
-        
+
         # 중심점과 반지름
         cx, cy, radius = 200, 200, 150
         n = len(dimensions)
+
+        # dimensions/values 길이 맞춤
+        if len(values) > n:
+            values = values[:n]
+        elif len(values) < n:
+            values = values + [0.5] * (n - len(values))
         
         # 각도 계산 (시작점: 위쪽)
         import math
