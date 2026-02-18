@@ -19,17 +19,17 @@ logger = logging.getLogger(__name__)
 
 CATEGORY_CONFIG = {
     # Green -- empirical findings
-    "finding":         {"label": "[핵심 발견]",   "color": "#6ee7b7"},
-    "evidence":        {"label": "[근거/수치]",   "color": "#6ee7b7"},
-    "contribution":    {"label": "[핵심 기여]",   "color": "#6ee7b7"},
+    "finding":         {"label": "[핵심 발견]",   "color": "#a5b4fc"},
+    "evidence":        {"label": "[근거/수치]",   "color": "#a5b4fc"},
+    "contribution":    {"label": "[핵심 기여]",   "color": "#a5b4fc"},
     # Blue -- analytical / structural
-    "methodology":     {"label": "[방법론]",      "color": "#93c5fd"},
-    "insight":         {"label": "[인사이트]",    "color": "#93c5fd"},
-    "reproducibility": {"label": "[재현성]",      "color": "#93c5fd"},
+    "methodology":     {"label": "[방법론]",      "color": "#a5b4fc"},
+    "insight":         {"label": "[인사이트]",    "color": "#a5b4fc"},
+    "reproducibility": {"label": "[재현성]",      "color": "#a5b4fc"},
     # Rose -- critical evaluation
-    "limitation":      {"label": "[연구 한계]",   "color": "#fca5a5"},
-    "gap":             {"label": "[연구 공백]",   "color": "#fca5a5"},
-    "assumption":      {"label": "[숨겨진 가정]", "color": "#fca5a5"},
+    "limitation":      {"label": "[연구 한계]",   "color": "#a5b4fc"},
+    "gap":             {"label": "[연구 공백]",   "color": "#a5b4fc"},
+    "assumption":      {"label": "[숨겨진 가정]", "color": "#a5b4fc"},
 }
 
 AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\

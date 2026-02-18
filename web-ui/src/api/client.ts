@@ -209,6 +209,11 @@ export const deleteBookmark = async (bookmarkId: string) => {
   return response.data;
 };
 
+export const updateBookmarkTitle = async (bookmarkId: string, title: string) => {
+  const response = await api.patch(`/api/bookmarks/${bookmarkId}/title`, { title });
+  return response.data;
+};
+
 export const updateBookmarkTopic = async (bookmarkId: string, topic: string) => {
   const response = await api.patch(`/api/bookmarks/${bookmarkId}/topic`, { topic });
   return response.data;

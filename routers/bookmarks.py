@@ -39,6 +39,10 @@ class BookmarkCreateRequest(BaseModel):
     topic: str = "General"
 
 
+class BookmarkTitleUpdateRequest(BaseModel):
+    title: str
+
+
 class BookmarkTopicUpdateRequest(BaseModel):
     topic: str
 
@@ -173,6 +177,25 @@ async def update_bookmark_topic(
                     raise HTTPException(status_code=403, detail="Access denied")
                 bm["topic"] = request.topic
                 return {"success": True, "topic": request.topic}
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+@router.patch("/bookmarks/{bookmark_id}/title")
+async def update_bookmark_title(
+    bookmark_id: str, request: BookmarkTitleUpdateRequest,
+    username: str = Depends(get_current_user),
+):
+    """Update a bookmark's title."""
+    title = request.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    with modify_bookmarks() as data:
+        for bm in data["bookmarks"]:
+            if bm["id"] == bookmark_id:
+                if bm.get("username") != username:
+                    raise HTTPException(status_code=403, detail="Access denied")
+                bm["title"] = title
+                return {"success": True, "title": title}
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
 

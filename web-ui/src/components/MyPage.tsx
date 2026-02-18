@@ -172,6 +172,11 @@ function MyPage({ onBack }: MyPageProps) {
             }
           }}
           onDeleteCitationTree={exploration.handleDeleteCitationTree}
+          onRenameBookmark={(title: string) => {
+            if (bm.selectedBookmark) {
+              bm.handleRenameBookmark(bm.selectedBookmark.id, title);
+            }
+          }}
         />
 
         <ChatPanel

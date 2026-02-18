@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -56,6 +56,7 @@ export interface ReportViewerProps {
   citationTreeError: string | null;
   onGenerateCitationTree: () => void;
   onDeleteCitationTree: () => void;
+  onRenameBookmark: (title: string) => void;
 }
 
 export default function ReportViewer({
@@ -74,8 +75,13 @@ export default function ReportViewer({
   onAddHighlight, onStartMemo, onSaveMemo, onCancelMemo,
   citationTreeData, citationTreeLoading, citationTreeError,
   onGenerateCitationTree, onDeleteCitationTree,
+  onRenameBookmark,
 }: ReportViewerProps) {
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleSavingRef = useRef(false);
 
   // Group and sort citation nodes: root → backward → forward, then by citations desc
   const groupedNodes = useMemo(() => {
@@ -87,6 +93,26 @@ export default function ReportViewer({
       return (b.citations ?? 0) - (a.citations ?? 0);
     });
   }, [citationTreeData]);
+
+  // Auto-focus title input when entering edit mode
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
+
+  const handleTitleSave = () => {
+    if (titleSavingRef.current) return;
+    titleSavingRef.current = true;
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== bookmarkDetail?.title) {
+      onRenameBookmark(trimmed);
+    }
+    setEditingTitle(false);
+    // Reset guard after current event cycle
+    requestAnimationFrame(() => { titleSavingRef.current = false; });
+  };
 
   if (!hasSelectedBookmark) {
     return (
@@ -127,7 +153,30 @@ export default function ReportViewer({
 
       {/* Header */}
       <div className="mypage-report-header">
-        <h2 className="mypage-report-title">{bookmarkDetail.title}</h2>
+        {editingTitle ? (
+          <input
+            ref={titleInputRef}
+            className="mypage-report-title-input"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleTitleSave();
+              if (e.key === 'Escape') setEditingTitle(false);
+            }}
+          />
+        ) : (
+          <h2
+            className="mypage-report-title"
+            onDoubleClick={() => {
+              setTitleDraft(bookmarkDetail.title);
+              setEditingTitle(true);
+            }}
+            title="Double-click to edit title"
+          >
+            {bookmarkDetail.title}
+          </h2>
+        )}
         <div className="mypage-detail-export-btns">
           <button className="mypage-export-btn" onClick={onExportBibTeX} title="Export as BibTeX">BibTeX</button>
           {bookmarkDetail.report_markdown && (

@@ -4,7 +4,7 @@ import {
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core';
 import {
-  getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTopic,
+  getBookmarks, getBookmarkDetail, deleteBookmark, updateBookmarkTitle, updateBookmarkTopic,
   bulkDeleteBookmarks, bulkMoveBookmarks, buildLightRAG, getLightRAGStatus,
 } from '../api/client';
 import type { HighlightItem } from '../api/client';
@@ -192,6 +192,33 @@ export function useBookmarks() {
       console.error('Failed to move bookmark:', error);
     }
   }, []);
+
+  const handleRenameBookmark = useCallback(async (bookmarkId: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    // Optimistic update: reflect immediately in UI
+    const rollback = { bookmarks: bookmarks.slice() };
+    setBookmarks(prev => prev.map(bm =>
+      bm.id === bookmarkId ? { ...bm, title: trimmed } : bm
+    ));
+    setSelectedBookmark(prev => prev?.id === bookmarkId ? { ...prev, title: trimmed } : prev);
+    setBookmarkDetail((prev: any) => prev?.id === bookmarkId ? { ...prev, title: trimmed } : prev);
+    try {
+      await updateBookmarkTitle(bookmarkId, trimmed);
+    } catch (error: any) {
+      console.error('Failed to rename bookmark:', error);
+      // Rollback on failure
+      setBookmarks(rollback.bookmarks);
+      setSelectedBookmark(prev => {
+        const original = rollback.bookmarks.find(bm => bm.id === prev?.id);
+        return original ? { ...prev!, title: original.title } : prev;
+      });
+      setBookmarkDetail((prev: any) => {
+        const original = rollback.bookmarks.find(bm => bm.id === prev?.id);
+        return original ? { ...prev, title: original.title } : prev;
+      });
+    }
+  }, [bookmarks]);
 
   const handleAddTopic = useCallback(() => {
     const trimmed = newTopicInput.trim();
@@ -381,7 +408,7 @@ export function useBookmarks() {
     // KG
     kgBuilding, handleBuildKG,
     // Handlers
-    handleSelectBookmark, handleDeleteBookmark, handleMoveBookmark,
+    handleSelectBookmark, handleDeleteBookmark, handleMoveBookmark, handleRenameBookmark,
     handleAddTopic, handleToggleSelection,
     handleSelectAll, handleDeselectAll,
     handleBulkDelete, handleBulkMove,
