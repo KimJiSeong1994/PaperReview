@@ -8,6 +8,7 @@ Search-related endpoints:
 
 import hashlib
 import json
+import logging
 import threading
 import time
 import traceback
@@ -32,6 +33,8 @@ try:
     _hybrid_ranker = HybridRanker(similarity_calculator=search_agent.similarity_calculator)
 except Exception:
     _hybrid_ranker = None
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -109,29 +112,28 @@ def _enrich_papers_background(
 ):
     """Background paper enrichment (save, refs, full-text)."""
     try:
-        print("[Background] Enrichment started...")
+        logger.info("[Background] Enrichment started...")
 
         save_result = search_agent.save_papers(
             results, query, generate_embeddings=False, update_graph=True
         )
-        print(f"[Background] Saved: {save_result.get('new_papers', 0)} new papers")
+        logger.info("[Background] Saved: %s new papers", save_result.get("new_papers", 0))
 
         new_papers_count = save_result.get("new_papers", 0)
         if collect_refs and new_papers_count > 0:
             max_papers_to_collect = min(new_papers_count, 10)
-            print(f"[Background] Collecting refs (max {max_papers_to_collect} papers)...")
+            logger.info("[Background] Collecting refs (max %s papers)...", max_papers_to_collect)
             ref_result = search_agent.collect_references(max_refs, max_papers_to_collect)
-            print(f"[Background] Refs collected: {ref_result.get('references_found', 0)}")
+            logger.info("[Background] Refs collected: %s", ref_result.get("references_found", 0))
 
         if extract_text and save_result.get("new_papers", 0) > 0:
-            print("[Background] Extracting full texts...")
+            logger.info("[Background] Extracting full texts...")
             text_result = search_agent.extract_full_texts(save_result.get("new_papers"))
-            print(f"[Background] Texts extracted: {text_result.get('texts_extracted', 0)}")
+            logger.info("[Background] Texts extracted: %s", text_result.get("texts_extracted", 0))
 
-        print("[Background] Enrichment done")
+        logger.info("[Background] Enrichment done")
     except Exception as e:
-        print(f"[Background] Enrichment error: {e}")
-        traceback.print_exc()
+        logger.exception("[Background] Enrichment error: %s", e)
 
 
 # ── Search cache ──────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
         if cache_key in _search_cache:
             entry = _search_cache[cache_key]
             if datetime.fromisoformat(entry["expires_at"]) > now:
-                print(f"[Cache] HIT (memory): {cache_key}")
+                logger.debug("[Cache] HIT (memory): %s", cache_key)
                 return entry["results"]
             else:
                 del _search_cache[cache_key]
@@ -183,14 +185,14 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
             if datetime.fromisoformat(entry["expires_at"]) > now:
                 with _cache_lock:
                     _search_cache[cache_key] = entry
-                print(f"[Cache] HIT (file): {cache_key}")
+                logger.debug("[Cache] HIT (file): %s", cache_key)
                 return entry["results"]
             else:
                 cache_file.unlink(missing_ok=True)
         except Exception as e:
-            print(f"[Cache] File read error: {e}")
+            logger.warning("[Cache] File read error: %s", e)
 
-    print(f"[Cache] MISS: {cache_key}")
+    logger.debug("[Cache] MISS: %s", cache_key)
     return None
 
 
@@ -219,9 +221,9 @@ def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE
         cache_file = SEARCH_CACHE_DIR / f"{cache_key}.json"
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(entry, f, ensure_ascii=False)
-        print(f"[Cache] STORED: {cache_key}")
+        logger.debug("[Cache] STORED: %s", cache_key)
     except Exception as e:
-        print(f"[Cache] File write error: {e}")
+        logger.warning("[Cache] File write error: %s", e)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -236,13 +238,13 @@ async def analyze_query(request: QueryAnalysisRequest):
         )
 
     try:
-        print(f"[API] Analyzing query: {request.query}")
+        logger.info("[API] Analyzing query: %s", request.query)
         analysis = query_analyzer.analyze_query(request.query)
-        print(f"[API] Analysis result: intent={analysis.get('intent')}, confidence={analysis.get('confidence')}")
+        logger.info("[API] Analysis result: intent=%s, confidence=%s", analysis.get("intent"), analysis.get("confidence"))
         return QueryAnalysisResponse(**analysis)
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in query analysis: {error_trace}")
+        logger.error("[API] Error in query analysis: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Query analysis failed: {str(e)}")
 
 
@@ -261,7 +263,7 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
     try:
         start_time = time.time()
-        print(f"[API] LLM Context Search: {request.query}")
+        logger.info("[API] LLM Context Search: %s", request.query)
 
         results = search_agent.llm_context_search(
             query=request.query,
@@ -273,7 +275,7 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
         total = sum(len(papers) for papers in results.values())
         search_time = time.time() - start_time
 
-        print(f"[API] LLM Search completed: {total} papers in {search_time:.2f}s")
+        logger.info("[API] LLM Search completed: %s papers in %.2fs", total, search_time)
 
         if request.save_papers and total > 0:
             try:
@@ -286,9 +288,9 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
                     "new_papers": save_result.get("new_papers", 0),
                     "duplicates": save_result.get("duplicates", 0),
                 }
-                print(f"[API] Saved: {save_result.get('new_papers', 0)} new papers")
+                logger.info("[API] Saved: %s new papers", save_result.get("new_papers", 0))
             except Exception as e:
-                print(f"[API] Error saving papers: {e}")
+                logger.error("[API] Error saving papers: %s", e)
 
         metadata["search_time"] = round(search_time, 2)
 
@@ -296,7 +298,7 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] LLM Search error: {error_trace}")
+        logger.error("[API] LLM Search error: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"LLM search failed: {str(e)}")
 
 
@@ -311,14 +313,14 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
     """
     try:
         start_time = time.time()
-        print(f"[API] Smart Search: {request.query}")
+        logger.info("[API] Smart Search: %s", request.query)
 
         result = search_agent.smart_search(query=request.query, max_results=request.max_results)
 
         search_time = time.time() - start_time
         result["metadata"]["search_time"] = round(search_time, 2)
 
-        print(f"[API] Smart Search completed: {len(result['papers'])} papers in {search_time:.2f}s")
+        logger.info("[API] Smart Search completed: %s papers in %.2fs", len(result["papers"]), search_time)
 
         if request.save_papers and result["papers"]:
             try:
@@ -338,13 +340,13 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
                     "duplicates": save_result.get("duplicates", 0),
                 }
             except Exception as e:
-                print(f"[API] Error saving papers: {e}")
+                logger.error("[API] Error saving papers: %s", e)
 
         return result
 
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Smart Search error: {error_trace}")
+        logger.error("[API] Smart Search error: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Smart search failed: {str(e)}")
 
 
@@ -359,18 +361,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         if query_analyzer:
             try:
                 analysis_start = time.time()
-                print(f"[API] Analyzing query: {request.query}")
+                logger.info("[API] Analyzing query: %s", request.query)
                 query_analysis = query_analyzer.analyze_query(request.query)
-                print(
-                    f"[API] Query analysis: intent={query_analysis.get('intent')}, "
-                    f"keywords={query_analysis.get('keywords')}, "
-                    f"confidence={query_analysis.get('confidence')} "
-                    f"(took {time.time()-analysis_start:.2f}s)"
+                logger.info(
+                    "[API] Query analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
+                    query_analysis.get("intent"),
+                    query_analysis.get("keywords"),
+                    query_analysis.get("confidence"),
+                    time.time() - analysis_start,
                 )
             except Exception as e:
-                print(f"[API] Query analysis failed (continuing with original query): {e}")
+                logger.warning("[API] Query analysis failed (continuing with original query): %s", e)
         else:
-            print("[API] Query analysis skipped (OpenAI API key not configured)")
+            logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 
         # Auto-apply filters from analysis
         filters = {
@@ -392,7 +395,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         if query_analysis and query_analysis.get("confidence", 0) > 0.7:
             improved_query = query_analysis.get("improved_query")
             if improved_query and improved_query != request.query:
-                print(f"[API] Using improved query: {improved_query}")
+                logger.info("[API] Using improved query: %s", improved_query)
                 search_query = improved_query
 
         # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
@@ -408,16 +411,16 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         cached = _get_cached_result(cache_key)
         if cached is not None:
             total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
-            print(f"[API] Returning cached results: {total} papers")
+            logger.info("[API] Returning cached results: %s papers", total)
             return SearchResponse(results=cached, total=total, query_analysis=query_analysis)
 
         search_start = time.time()
-        print(f"[API] Searching for: {search_query}")
-        print(f"[API] Filters: {filters}")
+        logger.info("[API] Searching for: %s", search_query)
+        logger.info("[API] Filters: %s", filters)
 
         # LLM context search or standard search
         if request.use_llm_search and query_analyzer:
-            print("[API] Using LLM Context Search...")
+            logger.info("[API] Using LLM Context Search...")
             results = search_agent.llm_context_search(
                 search_query,
                 max_results_per_source=request.max_results,
@@ -425,19 +428,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             )
             llm_metadata = results.pop("_metadata", None)
             if llm_metadata:
-                print(
-                    f"[API] LLM generated queries: "
-                    f"arXiv={len(llm_metadata.get('arxiv_queries', []))}, "
-                    f"Scholar={len(llm_metadata.get('scholar_queries', []))}"
+                logger.info(
+                    "[API] LLM generated queries: arXiv=%s, Scholar=%s",
+                    len(llm_metadata.get("arxiv_queries", [])),
+                    len(llm_metadata.get("scholar_queries", [])),
                 )
         else:
             results = search_agent.search_with_filters(search_query, filters)
 
         search_time = time.time() - search_start
-        print(
-            f"[API] Raw search results: "
-            f"{sum(len(papers) for papers in results.values())} papers found "
-            f"(took {search_time:.2f}s)"
+        logger.info(
+            "[API] Raw search results: %s papers found (took %.2fs)",
+            sum(len(papers) for papers in results.values()),
+            search_time,
         )
 
         # Hybrid ranking + Relevance filtering (only when not fast_mode)
@@ -465,14 +468,14 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             src = paper.pop("_source_tag", "arxiv")
                             if src in results:
                                 results[src].append(paper)
-                        print(f"[API] Hybrid ranking applied (intent={intent})")
+                        logger.info("[API] Hybrid ranking applied (intent=%s)", intent)
                 except Exception as e:
-                    print(f"[API] Hybrid ranking failed (continuing): {e}")
+                    logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
 
             # Step 2: Relevance filtering (LLM)
             if relevance_filter:
                 try:
-                    print("[API] Applying relevance filtering (parallel mode)...")
+                    logger.info("[API] Applying relevance filtering (parallel mode)...")
                     all_papers = []
                     for source, papers in results.items():
                         for paper in papers:
@@ -486,19 +489,18 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         results = {}
                         for source in request.sources:
                             results[source] = [p for p in filtered_papers if p.get("source") == source]
-                        print(f"[API] Filtered results: {len(filtered_papers)} papers (threshold: 0.5)")
+                        logger.info("[API] Filtered results: %s papers (threshold: 0.5)", len(filtered_papers))
                     else:
-                        print("[API] No papers to filter")
+                        logger.info("[API] No papers to filter")
                 except Exception as e:
-                    print(f"[API] Relevance filtering failed (using unfiltered results): {e}")
-                    traceback.print_exc()
+                    logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
             else:
-                print("[API] Relevance filtering skipped (OpenAI API key not configured)")
+                logger.info("[API] Relevance filtering skipped (OpenAI API key not configured)")
         else:
             if request.fast_mode:
-                print("[API] Relevance filtering skipped (fast mode enabled)")
+                logger.info("[API] Relevance filtering skipped (fast mode enabled)")
             elif not results:
-                print("[API] No results to filter")
+                logger.info("[API] No results to filter")
 
         # Ensure all sources present
         for source in request.sources:
@@ -514,7 +516,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         # Save & enrich
         if request.save_papers and total > 0:
             if request.fast_mode:
-                print(f"[API] Fast mode: Starting background enrichment for {total} papers...")
+                logger.info("[API] Fast mode: Starting background enrichment for %s papers...", total)
                 t = threading.Thread(
                     target=_enrich_papers_background,
                     args=(
@@ -527,39 +529,39 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 )
                 t.daemon = True
                 t.start()
-                print("[API] Background enrichment started (thread)")
+                logger.info("[API] Background enrichment started (thread)")
             else:
                 try:
-                    print(f"[API] Saving {total} papers...")
+                    logger.info("[API] Saving %s papers...", total)
                     save_result = search_agent.save_papers(
                         results, request.query, generate_embeddings=False, update_graph=True
                     )
-                    print(
-                        f"[API] Saved: {save_result.get('new_papers', 0)} new, "
-                        f"{save_result.get('duplicates', 0)} duplicates"
+                    logger.info(
+                        "[API] Saved: %s new, %s duplicates",
+                        save_result.get("new_papers", 0),
+                        save_result.get("duplicates", 0),
                     )
                     new_papers_count = save_result.get("new_papers", 0)
                     if request.collect_references and new_papers_count > 0:
                         max_papers_to_collect = min(new_papers_count, 10)
-                        print(f"[API] Collecting references for {max_papers_to_collect} papers...")
+                        logger.info("[API] Collecting references for %s papers...", max_papers_to_collect)
                         ref_result = search_agent.collect_references(
                             request.max_references_per_paper, max_papers=max_papers_to_collect
                         )
-                        print(f"[API] References collected: {ref_result.get('references_found', 0)}")
+                        logger.info("[API] References collected: %s", ref_result.get("references_found", 0))
                     if request.extract_texts:
-                        print("[API] Extracting full texts for saved papers...")
+                        logger.info("[API] Extracting full texts for saved papers...")
                         text_result = search_agent.extract_full_texts(
                             max_papers=save_result.get("new_papers", 0)
                             if save_result.get("new_papers", 0) > 0
                             else None
                         )
-                        print(f"[API] Texts extracted: {text_result.get('texts_extracted', 0)}")
+                        logger.info("[API] Texts extracted: %s", text_result.get("texts_extracted", 0))
                 except Exception as e:
-                    print(f"[API] Error in saving/enriching papers: {e}")
-                    traceback.print_exc()
+                    logger.exception("[API] Error in saving/enriching papers: %s", e)
 
         total_time = time.time() - start_time
-        print(f"[API] Search completed in {total_time:.2f}s")
+        logger.info("[API] Search completed in %.2fs", total_time)
 
         # Store in query cache
         _set_cache(cache_key, results)
@@ -588,12 +590,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
             with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(all_cached_papers, f, ensure_ascii=False, indent=2)
-            print(f"[API] Search results cached: {len(all_cached_papers)} papers (with doc_ids)")
+            logger.info("[API] Search results cached: %s papers (with doc_ids)", len(all_cached_papers))
         except Exception as cache_error:
-            print(f"[API] Cache save warning: {cache_error}")
+            logger.warning("[API] Cache save warning: %s", cache_error)
 
         return SearchResponse(results=results, total=total, query_analysis=query_analysis)
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in search: {error_trace}")
+        logger.error("[API] Error in search: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")

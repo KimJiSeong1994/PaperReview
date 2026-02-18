@@ -5,15 +5,21 @@ Centralises agent instances, config, and session storage so that
 every router module can import from one place.
 """
 
+import logging
 import os
+import secrets
 import sys
 import json
 import threading
+from contextlib import contextmanager
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import certifi
 from filelock import FileLock
+
+logger = logging.getLogger(__name__)
 
 # SSL: certifi CA bundle (macOS certificate issue)
 os.environ.setdefault("SSL_CERT_FILE", certifi.where())
@@ -36,7 +42,7 @@ api_key: Optional[str] = (
     os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API")
 )
 if not api_key:
-    print("[WARNING] No OpenAI API key found in environment")
+    logger.warning("No OpenAI API key found in environment")
 
 # ── Agent instances ────────────────────────────────────────────────────
 from search_agent import SearchAgent
@@ -52,21 +58,21 @@ if api_key:
     try:
         try:
             query_analyzer = QueryAnalyzer(api_key=api_key)
-            print("[INFO] Query analyzer initialized")
+            logger.info("Query analyzer initialized")
         except Exception as e:
-            print(f"[WARNING] Could not initialize query analyzer: {e}")
+            logger.warning("Could not initialize query analyzer: %s", e)
             query_analyzer = None
 
         try:
             relevance_filter = RelevanceFilter(api_key=api_key)
-            print("[INFO] Relevance filter initialized")
+            logger.info("Relevance filter initialized")
         except Exception as e:
-            print(f"[WARNING] Could not initialize relevance filter: {e}")
+            logger.warning("Could not initialize relevance filter: %s", e)
             relevance_filter = None
     except Exception as e:
-        print(f"[WARNING] Could not initialize query analyzer/filter: {e}")
+        logger.warning("Could not initialize query analyzer/filter: %s", e)
 else:
-    print("[WARNING] No OpenAI API key - query analysis and relevance filtering disabled")
+    logger.warning("No OpenAI API key - query analysis and relevance filtering disabled")
 
 # ── Review session storage (shared between reviews & bookmarks) ────────
 review_sessions: Dict[str, Dict[str, Any]] = {}
@@ -80,10 +86,16 @@ _bookmarks_lock = FileLock(str(BOOKMARKS_FILE) + ".lock")
 def load_bookmarks() -> dict:
     """Load bookmarks from JSON file (thread-safe)."""
     with _bookmarks_lock:
-        if BOOKMARKS_FILE.exists():
+        if not BOOKMARKS_FILE.exists():
+            return {"bookmarks": []}
+        try:
             with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        return {"bookmarks": []}
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            backup = BOOKMARKS_FILE.with_suffix(".json.corrupt")
+            BOOKMARKS_FILE.rename(backup)
+            logger.error("Corrupt bookmarks file backed up to %s: %s", backup, e)
+            return {"bookmarks": []}
 
 
 def save_bookmarks(data: dict):
@@ -94,6 +106,90 @@ def save_bookmarks(data: dict):
         with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         tmp_file.replace(BOOKMARKS_FILE)
+
+
+@contextmanager
+def modify_bookmarks():
+    """Atomically read-modify-write bookmarks under a single lock.
+
+    Only saves if the block completes without exception.
+    Usage:
+        with modify_bookmarks() as data:
+            data["bookmarks"].append(new_bm)
+            # auto-saved on exit
+    """
+    with _bookmarks_lock:
+        if BOOKMARKS_FILE.exists():
+            with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"bookmarks": []}
+        try:
+            yield data
+        except Exception:
+            raise
+        else:
+            BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tmp_file = BOOKMARKS_FILE.with_suffix(".json.tmp")
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            tmp_file.replace(BOOKMARKS_FILE)
+
+
+# ── Users file & helpers (shared by auth + admin) ────────────────────
+USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
+_users_lock = FileLock(str(USERS_FILE) + ".lock")
+
+
+def load_users() -> dict:
+    """Load users from JSON file (thread-safe)."""
+    with _users_lock:
+        if not USERS_FILE.exists():
+            return {}
+        try:
+            with open(USERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            backup = USERS_FILE.with_suffix(".json.corrupt")
+            USERS_FILE.rename(backup)
+            logger.error("Corrupt users file backed up to %s: %s", backup, e)
+            return {}
+
+
+def save_users(users: dict) -> None:
+    """Save users to JSON file (thread-safe, atomic write)."""
+    with _users_lock:
+        USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = USERS_FILE.with_suffix(".json.tmp")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=2, ensure_ascii=False)
+        tmp_file.replace(USERS_FILE)
+
+
+@contextmanager
+def modify_users():
+    """Atomically read-modify-write users under a single lock."""
+    with _users_lock:
+        if USERS_FILE.exists():
+            with open(USERS_FILE, "r", encoding="utf-8") as f:
+                users = json.load(f)
+        else:
+            users = {}
+        try:
+            yield users
+        except Exception:
+            raise
+        else:
+            USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tmp_file = USERS_FILE.with_suffix(".json.tmp")
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(users, f, indent=2, ensure_ascii=False)
+            tmp_file.replace(USERS_FILE)
+
+
+# ── Papers file helpers ──────────────────────────────────────────────
+PAPERS_FILE = Path("data/raw/papers.json")
+_papers_lock = FileLock(str(PAPERS_FILE) + ".lock")
 
 
 # ── Rate limiting ────────────────────────────────────────────────────
@@ -122,10 +218,28 @@ async def verify_api_key(request: Request):
 _light_rag_agent = None
 
 
+# ── OpenAI client singleton ──────────────────────────────────────────
+_openai_client = None
+
+
+def get_openai_client():
+    """Return (and lazily create) the singleton OpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        from openai import OpenAI
+        _openai_client = OpenAI(timeout=120.0)
+        logger.info("OpenAI client initialized (timeout=120s)")
+    return _openai_client
+
+
 # ── JWT user extraction ─────────────────────────────────────────────
 import jwt as _pyjwt
 
-_JWT_SECRET = os.getenv("JWT_SECRET", "paper-review-agent-secret-key")
+_JWT_SECRET = os.getenv("JWT_SECRET")
+if not _JWT_SECRET:
+    _JWT_SECRET = secrets.token_hex(32)
+    logger.warning("JWT_SECRET not set! Using random secret — tokens will NOT persist across restarts.")
+    logger.warning("Set JWT_SECRET env var for production.")
 _JWT_ALGORITHM = "HS256"
 
 
@@ -192,14 +306,13 @@ def _migrate_bookmarks_add_username():
             with open(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             tmp_file.replace(BOOKMARKS_FILE)
-            print(f"[Migration] Assigned existing bookmarks to user '{default_user}'")
+            logger.info("Assigned existing bookmarks to user '%s'", default_user)
 
 
 _migrate_bookmarks_add_username()
 
 
 # ── Paper migration: add searched_by to existing papers ──────────
-PAPERS_FILE = Path("data/raw/papers.json")
 
 
 def _migrate_papers_add_searched_by():
@@ -208,21 +321,24 @@ def _migrate_papers_add_searched_by():
     if not PAPERS_FILE.exists():
         return
     try:
-        with open(PAPERS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        with _papers_lock:
+            with open(PAPERS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-        needs_save = False
-        for paper in data.get("papers", []):
-            if "searched_by" not in paper:
-                paper["searched_by"] = default_user
-                needs_save = True
+            needs_save = False
+            for paper in data.get("papers", []):
+                if "searched_by" not in paper:
+                    paper["searched_by"] = default_user
+                    needs_save = True
 
-        if needs_save:
-            with open(PAPERS_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            print(f"[Migration] Assigned existing papers to user '{default_user}'")
+            if needs_save:
+                tmp_file = PAPERS_FILE.with_suffix(".json.tmp")
+                with open(tmp_file, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                tmp_file.replace(PAPERS_FILE)
+                logger.info("Assigned existing papers to user '%s'", default_user)
     except Exception as e:
-        print(f"[Migration] Paper migration warning: {e}")
+        logger.warning("Paper migration warning: %s", e)
 
 
 _migrate_papers_add_searched_by()

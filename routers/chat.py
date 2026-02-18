@@ -4,6 +4,7 @@ Chat endpoint:
 """
 
 import json
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends
@@ -11,7 +12,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, load_bookmarks, get_light_rag_agent, get_current_user
+from .deps import limiter, load_bookmarks, get_light_rag_agent, get_current_user, get_openai_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -29,7 +32,6 @@ class ChatRequest(BaseModel):
 @limiter.limit("20/minute")
 async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, username: str = Depends(get_current_user)):
     """Chat about bookmarked papers using their report content as context. Returns SSE stream."""
-    from openai import OpenAI
 
     # Load bookmark context — filtered to current user only
     data = load_bookmarks()
@@ -104,7 +106,7 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
                 if kg_parts:
                     lightrag_context = "\n\n".join(kg_parts)
         except Exception as e:
-            print(f"[Chat] LightRAG query skipped: {e}")
+            logger.warning("LightRAG query skipped: %s", e)
 
     # Build system message with both bookmark and KG context
     system_parts = [
@@ -131,7 +133,7 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
         {"role": m["role"], "content": m["content"]} for m in chat_request.messages
     ]
 
-    client = OpenAI()
+    client = get_openai_client()
 
     def generate():
         try:

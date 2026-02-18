@@ -12,6 +12,7 @@ Paper management endpoints:
 
 import hashlib
 import json
+import logging
 import os
 import re
 import traceback
@@ -21,7 +22,9 @@ import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException
 from starlette.requests import Request
 
-from .deps import get_optional_user, search_agent
+from .deps import get_optional_user, get_admin_user, search_agent
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["papers"])
 
@@ -40,8 +43,8 @@ async def save_papers(
     Save search results to database with automatic embedding generation and graph update.
     """
     try:
-        print(f"[API] Saving {sum(len(papers) for papers in results.values())} papers...")
-        print(f"[API] Generate embeddings: {generate_embeddings}, Update graph: {update_graph}")
+        logger.info("Saving %s papers...", sum(len(papers) for papers in results.values()))
+        logger.info("Generate embeddings: %s, Update graph: %s", generate_embeddings, update_graph)
 
         # Stamp username on papers
         if username:
@@ -53,16 +56,17 @@ async def save_papers(
             results, query, generate_embeddings=generate_embeddings, update_graph=update_graph
         )
 
-        print(
-            f"[API] Save completed: {save_info.get('new_papers', 0)} new papers, "
-            f"{save_info.get('embeddings_generated', 0)} embeddings generated, "
-            f"graph updated: {save_info.get('graph_updated', False)}"
+        logger.info(
+            "Save completed: %s new papers, %s embeddings generated, graph updated: %s",
+            save_info.get('new_papers', 0),
+            save_info.get('embeddings_generated', 0),
+            save_info.get('graph_updated', False),
         )
 
         return save_info
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in save: {error_trace}")
+        logger.error("Error in save: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Save failed: {str(e)}")
 
 
@@ -88,8 +92,8 @@ async def get_saved_papers():
 
 
 @router.delete("/papers")
-async def clear_papers():
-    """Clear all saved papers."""
+async def clear_papers(username: str = Depends(get_admin_user)):
+    """Clear all saved papers (admin only)."""
     success = search_agent.clear_saved_papers()
     return {"success": success}
 
@@ -98,19 +102,19 @@ async def clear_papers():
 async def collect_references(max_references_per_paper: int = 10, max_papers: int = None):
     """Collect references for saved papers."""
     try:
-        print(
-            f"[API] Collecting references: max_references_per_paper={max_references_per_paper}, "
-            f"max_papers={max_papers}"
+        logger.info(
+            "Collecting references: max_references_per_paper=%s, max_papers=%s",
+            max_references_per_paper, max_papers,
         )
         result = search_agent.collect_references(max_references_per_paper, max_papers)
-        print(
-            f"[API] References collected: {result.get('references_found', 0)} "
-            f"references for {result.get('papers_processed', 0)} papers"
+        logger.info(
+            "References collected: %s references for %s papers",
+            result.get('references_found', 0), result.get('papers_processed', 0),
         )
         return result
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in collect references: {error_trace}")
+        logger.error("Error in collect references: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Reference collection failed: {str(e)}")
 
 
@@ -118,16 +122,16 @@ async def collect_references(max_references_per_paper: int = 10, max_papers: int
 async def extract_texts(max_papers: int = None):
     """Extract full texts from saved papers."""
     try:
-        print(f"[API] Extracting full texts: max_papers={max_papers}")
+        logger.info("Extracting full texts: max_papers=%s", max_papers)
         result = search_agent.extract_full_texts(max_papers)
-        print(
-            f"[API] Texts extracted: {result.get('texts_extracted', 0)}/"
-            f"{result.get('papers_processed', 0)} papers"
+        logger.info(
+            "Texts extracted: %s/%s papers",
+            result.get('texts_extracted', 0), result.get('papers_processed', 0),
         )
         return result
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in extract texts: {error_trace}")
+        logger.error("Error in extract texts: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
 
 
@@ -143,23 +147,23 @@ async def enrich_papers(
         results = {"references": None, "texts": None, "success": True}
 
         if collect_references:
-            print("[API] Step 1: Collecting references...")
+            logger.info("Step 1: Collecting references...")
             ref_result = search_agent.collect_references(max_references_per_paper, max_papers)
             results["references"] = ref_result
-            print(f"[API] References collected: {ref_result.get('references_found', 0)}")
+            logger.info("References collected: %s", ref_result.get('references_found', 0))
 
         if extract_texts:
-            print("[API] Step 2: Extracting full texts...")
+            logger.info("Step 2: Extracting full texts...")
             text_result = search_agent.extract_full_texts(max_papers)
             results["texts"] = text_result
-            print(f"[API] Texts extracted: {text_result.get('texts_extracted', 0)}")
+            logger.info("Texts extracted: %s", text_result.get('texts_extracted', 0))
 
-        print("[API] Paper enrichment completed")
+        logger.info("Paper enrichment completed")
         return results
 
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[API] Error in enrich papers: {error_trace}")
+        logger.error("Error in enrich papers: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Paper enrichment failed: {str(e)}")
 
 

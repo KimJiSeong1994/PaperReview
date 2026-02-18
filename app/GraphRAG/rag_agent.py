@@ -27,7 +27,7 @@ class GraphRAGAgent:
         embeddings_index_path: str = "data/embeddings/paper_embeddings.index",
         id_mapping_path: str = "data/embeddings/paper_id_mapping.json",
         light_rag_dir: str = "data/light_rag",
-        llm_model: str = "gpt-4"
+        llm_model: str = "gpt-4.1"
     ):
         self.papers_json_path = papers_json_path
         self.graph_path = graph_path

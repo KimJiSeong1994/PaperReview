@@ -1,72 +1,82 @@
 """Authentication router – JWT-based login, registration & token verification."""
 
 import hashlib
-import json
+import logging
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
+import bcrypt
 import jwt
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 
-from .deps import limiter
+from .deps import limiter, load_users, save_users, modify_users, _JWT_SECRET
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ── Config ────────────────────────────────────────────────────────────
-JWT_SECRET = os.getenv("JWT_SECRET", "paper-review-agent-secret-key")
+JWT_SECRET = _JWT_SECRET
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 
-USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
 
-
-# ── User store helpers ────────────────────────────────────────────────
+# ── Password helpers (bcrypt with legacy SHA-256 migration) ──────────
 
 def _hash_password(password: str) -> str:
-    """Hash password with SHA-256 + salt."""
-    salt = JWT_SECRET[:16]
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    """Hash password with bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    """Verify password. Supports bcrypt and legacy SHA-256 hashes."""
+    if stored_hash.startswith(("$2b$", "$2a$")):
+        return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+    # Legacy SHA-256: fixed salt from JWT_SECRET[:16]
+    salt = JWT_SECRET[:16]
+    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() == stored_hash
+
+
+def _is_legacy_hash(stored_hash: str) -> bool:
+    """Check if the hash is legacy SHA-256 format (64 hex chars)."""
+    return len(stored_hash) == 64 and not stored_hash.startswith("$")
+
+
+# ── User store helpers (using shared deps) ────────────────────────────
 
 def _load_users() -> dict:
-    """Load users from JSON file."""
-    if not USERS_FILE.exists():
-        # Seed with default admin account from env
-        default_user = os.getenv("APP_USERNAME", "Jipyheonjeon")
-        default_pass = os.getenv("APP_PASSWORD", "KGs951159**")
-        users = {
-            default_user: {
-                "password_hash": _hash_password(default_pass),
-                "role": "admin",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-        }
-        _save_users(users)
+    """Load users, seeding default admin if users.json doesn't exist."""
+    users = load_users()
+    if users:
+        # Migrate: ensure every user has a role field
+        needs_save = False
+        for uname, data in users.items():
+            if "role" not in data:
+                data["role"] = "admin" if uname == os.getenv("APP_USERNAME", "admin") else "user"
+                needs_save = True
+        if needs_save:
+            save_users(users)
         return users
 
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        users = json.load(f)
-
-    # Migrate: ensure every user has a role field
-    needs_save = False
-    for username, data in users.items():
-        if "role" not in data:
-            data["role"] = "admin" if username == "Jipyheonjeon" else "user"
-            needs_save = True
-    if needs_save:
-        _save_users(users)
-
+    # First run: create default admin
+    default_user = os.getenv("APP_USERNAME", "admin")
+    default_pass = os.getenv("APP_PASSWORD")
+    if not default_pass:
+        default_pass = secrets.token_urlsafe(16)
+        logger.warning("No APP_PASSWORD set. Generated admin password: %s", default_pass)
+        logger.warning("Set APP_PASSWORD env var to use a fixed password.")
+    users = {
+        default_user: {
+            "password_hash": _hash_password(default_pass),
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    }
+    save_users(users)
     return users
-
-
-def _save_users(users: dict) -> None:
-    """Persist users to JSON file."""
-    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
 
 
 # ── Request / Response models ────────────────────────────────────────
@@ -126,17 +136,15 @@ def _decode_token(token: str) -> dict:
 @limiter.limit("3/minute")
 async def register(request: Request, reg_request: RegisterRequest):
     """Register a new user account."""
-    users = _load_users()
+    with modify_users() as users:
+        if reg_request.username in users:
+            raise HTTPException(status_code=409, detail="Username already exists")
 
-    if reg_request.username in users:
-        raise HTTPException(status_code=409, detail="Username already exists")
-
-    users[reg_request.username] = {
-        "password_hash": _hash_password(reg_request.password),
-        "role": "user",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    _save_users(users)
+        users[reg_request.username] = {
+            "password_hash": _hash_password(reg_request.password),
+            "role": "user",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     return MessageResponse(message="Account created successfully", username=reg_request.username)
 
@@ -148,8 +156,14 @@ async def login(request: Request, login_request: LoginRequest):
     users = _load_users()
     user = users.get(login_request.username)
 
-    if not user or user["password_hash"] != _hash_password(login_request.password):
+    if not user or not _verify_password(login_request.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Migrate legacy SHA-256 hash to bcrypt on successful login
+    if _is_legacy_hash(user["password_hash"]):
+        with modify_users() as all_users:
+            if login_request.username in all_users:
+                all_users[login_request.username]["password_hash"] = _hash_password(login_request.password)
 
     role = user.get("role", "user")
     token = _create_token(login_request.username, role=role)

@@ -11,6 +11,7 @@ Admin-only endpoints:
 """
 
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 from typing import List, Optional
@@ -18,41 +19,48 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from .deps import get_admin_user, load_bookmarks, save_bookmarks, review_sessions, review_sessions_lock
+logger = logging.getLogger(__name__)
+
+from .deps import (
+    get_admin_user, load_bookmarks, save_bookmarks, modify_bookmarks,
+    load_users, save_users, modify_users,
+    review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
-PAPERS_FILE = Path(__file__).resolve().parent.parent / "data" / "raw" / "papers.json"
 GRAPH_META_FILE = Path(__file__).resolve().parent.parent / "data" / "graph" / "paper_graph_metadata.json"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
-def _load_users() -> dict:
-    if not USERS_FILE.exists():
-        return {}
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _save_users(users: dict) -> None:
-    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
+# Users: use shared load_users/save_users/modify_users from deps
+_load_users = load_users
+_save_users = save_users
 
 
 def _load_papers() -> dict:
-    if not PAPERS_FILE.exists():
-        return {"metadata": {}, "papers": []}
-    with open(PAPERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with _papers_lock:
+        if not PAPERS_FILE.exists():
+            return {"metadata": {}, "papers": []}
+        try:
+            with open(PAPERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            backup = PAPERS_FILE.with_suffix(".json.corrupt")
+            PAPERS_FILE.rename(backup)
+            logger.error("Corrupt papers file backed up to %s: %s", backup, e)
+            return {"metadata": {}, "papers": []}
 
 
 def _save_papers(data: dict) -> None:
-    PAPERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(PAPERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    with _papers_lock:
+        PAPERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = PAPERS_FILE.with_suffix(".json.tmp")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        tmp_file.replace(PAPERS_FILE)
 
 
 # ── Pydantic models ─────────────────────────────────────────────────

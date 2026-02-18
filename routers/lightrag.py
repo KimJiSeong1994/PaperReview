@@ -5,10 +5,14 @@ LightRAG endpoints:
   GET  /api/light-rag/status
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+import logging
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
-from .deps import get_light_rag_agent
+from .deps import get_light_rag_agent, get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["lightrag"])
 
@@ -30,7 +34,7 @@ class LightRAGQueryRequest(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/light-rag/build")
-async def light_rag_build(request: LightRAGBuildRequest, background_tasks: BackgroundTasks):
+async def light_rag_build(request: LightRAGBuildRequest, background_tasks: BackgroundTasks, username: str = Depends(get_current_user)):
     """Build LightRAG knowledge graph (background task)."""
 
     def _build():
@@ -40,9 +44,9 @@ async def light_rag_build(request: LightRAGBuildRequest, background_tasks: Backg
                 max_concurrent=request.max_concurrent,
                 extraction_model=request.extraction_model,
             )
-            print("[LightRAG] Knowledge graph build complete")
+            logger.info("Knowledge graph build complete")
         except Exception as e:
-            print(f"[LightRAG] Build error: {e}")
+            logger.error("Build error: %s", e)
 
     background_tasks.add_task(_build)
     return {
@@ -56,7 +60,7 @@ async def light_rag_build(request: LightRAGBuildRequest, background_tasks: Backg
 
 
 @router.post("/light-rag/query")
-async def light_rag_query(request: LightRAGQueryRequest):
+async def light_rag_query(request: LightRAGQueryRequest, username: str = Depends(get_current_user)):
     """Execute a LightRAG query."""
     try:
         agent = get_light_rag_agent()
@@ -77,7 +81,7 @@ async def light_rag_query(request: LightRAGQueryRequest):
 
 
 @router.get("/light-rag/status")
-async def light_rag_status():
+async def light_rag_status(username: str = Depends(get_current_user)):
     """Check LightRAG knowledge graph status."""
     try:
         agent = get_light_rag_agent()

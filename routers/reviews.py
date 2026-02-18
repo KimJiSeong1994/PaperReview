@@ -7,16 +7,18 @@ Deep review endpoints:
 """
 
 import json
-import traceback
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, review_sessions, review_sessions_lock
+from .deps import limiter, review_sessions, review_sessions_lock, get_current_user, get_openai_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["reviews"])
 
@@ -63,24 +65,23 @@ def run_fast_review(
     Fast Mode: single LLM call to quickly analyse all papers.
     5-10x faster than Deep Mode.
     """
-    from openai import OpenAI
     from app.DeepAgent.tools.paper_loader import load_papers_from_ids
 
-    print(f"[Fast Review] Starting: {len(paper_ids)} papers")
+    logger.info("[Fast Review] Starting: %s papers", len(paper_ids))
 
     if papers_data and len(papers_data) > 0:
         papers = papers_data
-        print(f"[Fast Review] {len(papers)} papers (from frontend)")
+        logger.info("[Fast Review] %s papers (from frontend)", len(papers))
     else:
         papers = load_papers_from_ids(paper_ids)
-        print(f"[Fast Review] {len(papers)} papers loaded (ID search)")
+        logger.info("[Fast Review] %s papers loaded (ID search)", len(papers))
 
     if not papers:
         return {"status": "failed", "error": "Cannot load papers"}
 
     deep_research_model = "gpt-4.1"
-    print(f"[Fast Review] Deep Research model: {deep_research_model}")
-    client = OpenAI()
+    logger.info("[Fast Review] Deep Research model: %s", deep_research_model)
+    client = get_openai_client()
 
     papers_text = []
     for i, paper in enumerate(papers, 1):
@@ -352,7 +353,7 @@ def run_fast_review(
 - **수치 데이터**가 충분히 인용되었는가?"""
 
     try:
-        print("[Fast Review] LLM analysing...")
+        logger.info("[Fast Review] LLM analysing...")
 
         with review_sessions_lock:
             if session_id in review_sessions:
@@ -376,10 +377,12 @@ def run_fast_review(
             ],
             temperature=0.4,
             max_tokens=32000,
+            timeout=120,
         )
         report_content = response.choices[0].message.content
+        logger.info("[Fast Review] Usage: %s", response.usage)
 
-        print(f"[Fast Review] Analysis done! ({len(report_content)} chars)")
+        logger.info("[Fast Review] Analysis done! (%s chars)", len(report_content))
 
         reports_dir = Path(workspace.session_path) / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
@@ -387,7 +390,7 @@ def run_fast_review(
         report_filename = f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
         report_path = reports_dir / report_filename
         report_path.write_text(report_content, encoding="utf-8")
-        print(f"[Review] Report saved to: {report_path}")
+        logger.info("[Review] Report saved to: %s", report_path)
 
         analyses = []
         for paper in papers:
@@ -419,8 +422,7 @@ def run_fast_review(
         }
 
     except Exception as e:
-        print(f"ERROR: Fast Review error: {e}")
-        traceback.print_exc()
+        logger.exception("Fast Review error: %s", e)
         return {"status": "failed", "error": str(e)}
 
 
@@ -428,7 +430,6 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     """
     Generate a Korean academic research-style deep report using LLM.
     """
-    from openai import OpenAI
 
     analyses = []
     try:
@@ -612,9 +613,9 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
 
     try:
         deep_research_model = "gpt-4.1"
-        print(f"[Deep Review] Generating report with LLM... (model: {deep_research_model})")
+        logger.info("[Deep Review] Generating report with LLM... (model: %s)", deep_research_model)
 
-        client = OpenAI()
+        client = get_openai_client()
         response = client.chat.completions.create(
             model=deep_research_model,
             messages=[
@@ -626,13 +627,15 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
             ],
             temperature=0.3,
             max_tokens=16000,
+            timeout=120,
         )
         report_content = response.choices[0].message.content
-        print(f"[Deep Review] Report generated! ({len(report_content)} chars)")
+        logger.info("[Deep Review] Usage: %s", response.usage)
+        logger.info("[Deep Review] Report generated! (%s chars)", len(report_content))
         return report_content
 
     except Exception as e:
-        print(f"[Deep Review] LLM report generation failed: {e}, using fallback template")
+        logger.error("[Deep Review] LLM report generation failed: %s, using fallback template", e)
         return _generate_fallback_report(workspace, result, paper_ids, analyses, num_papers, current_date)
 
 
@@ -699,9 +702,9 @@ def run_deep_review_background(
 ):
     """Background task to run deep review."""
     try:
-        print(f"[Deep Review] Starting session {session_id}")
-        print(f"[Deep Review] Papers: {len(paper_ids)}, Mode: {'Fast' if fast_mode else 'Deep'}")
-        print(f"[Deep Review] Direct papers data: {len(papers_data) if papers_data else 0} papers")
+        logger.info("[Deep Review] Starting session %s", session_id)
+        logger.info("[Deep Review] Papers: %s, Mode: %s", len(paper_ids), "Fast" if fast_mode else "Deep")
+        logger.info("[Deep Review] Direct papers data: %s papers", len(papers_data) if papers_data else 0)
 
         with review_sessions_lock:
             if session_id in review_sessions:
@@ -730,9 +733,9 @@ def run_deep_review_background(
                 report_filename = f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
                 report_path = reports_dir / report_filename
                 report_path.write_text(report_content, encoding="utf-8")
-                print(f"[Review] Report saved to: {report_path}")
+                logger.info("[Review] Report saved to: %s", report_path)
             except Exception as report_error:
-                print(f"[Deep Review] Report generation warning: {report_error}")
+                logger.warning("[Deep Review] Report generation warning: %s", report_error)
 
         with review_sessions_lock:
             if session_id in review_sessions:
@@ -762,11 +765,10 @@ def run_deep_review_background(
                     review_sessions[session_id]["status"] = "failed"
                     review_sessions[session_id]["error"] = result.get("error", "Unknown error")
 
-        print(f"[Deep Review] Session {session_id} completed: {result['status']}")
+        logger.info("[Deep Review] Session %s completed: %s", session_id, result["status"])
 
     except Exception as e:
-        print(f"[Deep Review] Session {session_id} failed: {e}")
-        traceback.print_exc()
+        logger.exception("[Deep Review] Session %s failed: %s", session_id, e)
         with review_sessions_lock:
             if session_id in review_sessions:
                 review_sessions[session_id]["status"] = "failed"
@@ -781,12 +783,13 @@ async def start_deep_review(
     request: Request,
     review_request: DeepReviewRequest,
     background_tasks: BackgroundTasks,
+    username: str = Depends(get_current_user),
 ):
     """Start deep paper review. Runs in background and returns session_id immediately."""
     try:
         from app.DeepAgent.workspace_manager import WorkspaceManager
 
-        print(f"[Deep Review] Starting with {len(review_request.paper_ids)} papers")
+        logger.info("[Deep Review] Starting with %s papers", len(review_request.paper_ids))
 
         workspace = WorkspaceManager()
         session_id = workspace.session_id
@@ -820,13 +823,12 @@ async def start_deep_review(
         }
 
     except Exception as e:
-        print(f"[Deep Review] ERROR: {e}")
-        traceback.print_exc()
+        logger.exception("[Deep Review] ERROR: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to start review: {str(e)}")
 
 
 @router.get("/deep-review/status/{session_id}")
-async def get_review_status(session_id: str) -> ReviewStatusResponse:
+async def get_review_status(session_id: str, username: str = Depends(get_current_user)) -> ReviewStatusResponse:
     """Get status of a deep review session."""
     with review_sessions_lock:
         if session_id not in review_sessions:
@@ -848,7 +850,7 @@ async def get_review_status(session_id: str) -> ReviewStatusResponse:
 
 
 @router.get("/deep-review/report/{session_id}")
-async def get_review_report(session_id: str):
+async def get_review_report(session_id: str, username: str = Depends(get_current_user)):
     """Get the generated review report."""
     with review_sessions_lock:
         if session_id not in review_sessions:
@@ -895,64 +897,62 @@ async def get_review_report(session_id: str):
 
 
 @router.post("/deep-review/visualize/{session_id}")
-async def generate_poster_visualization(session_id: str):
+async def generate_poster_visualization(session_id: str, username: str = Depends(get_current_user)):
     """Generate a conference poster from the deep research report."""
     try:
-        print(f"[Poster API] Starting poster generation for session: {session_id}")
+        logger.info("[Poster API] Starting poster generation for session: %s", session_id)
 
         try:
             from app.DeepAgent.agents import PosterGenerationAgent
 
-            print("[Poster API] PosterGenerationAgent imported successfully")
+            logger.info("[Poster API] PosterGenerationAgent imported successfully")
         except Exception as e:
-            print(f"[Poster API] ERROR: Failed to import PosterGenerationAgent: {e}")
-            traceback.print_exc()
+            logger.exception("[Poster API] Failed to import PosterGenerationAgent: %s", e)
             raise HTTPException(status_code=500, detail=f"Failed to import PosterGenerationAgent: {str(e)}")
 
         with review_sessions_lock:
             if session_id not in review_sessions:
-                print(f"[Poster API] ERROR: Session not found: {session_id}")
+                logger.error("[Poster API] Session not found: %s", session_id)
                 raise HTTPException(status_code=404, detail="Session not found")
 
             session = review_sessions[session_id]
-            print(f"[Poster API] Session found: status={session.get('status')}")
+            logger.info("[Poster API] Session found: status=%s", session.get("status"))
 
             if session["status"] != "completed":
-                print(f"[Poster API] ERROR: Review not completed: status={session.get('status')}")
+                logger.error("[Poster API] Review not completed: status=%s", session.get("status"))
                 raise HTTPException(status_code=400, detail="Review not completed yet")
 
             workspace_path = Path(session["workspace_path"])
-            print(f"[Poster API] Workspace path: {workspace_path}")
+            logger.info("[Poster API] Workspace path: %s", workspace_path)
 
         reports_dir = workspace_path / "reports"
         md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
 
         if not md_files:
-            print(f"[Poster API] ERROR: No report files found in: {reports_dir}")
+            logger.error("[Poster API] No report files found in: %s", reports_dir)
             raise HTTPException(status_code=404, detail="Report not found")
 
-        print(f"[Poster API] Found {len(md_files)} report file(s)")
+        logger.info("[Poster API] Found %s report file(s)", len(md_files))
         with open(md_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
-        print(f"[Poster API] Report content loaded: {len(report_content)} chars")
+        logger.info("[Poster API] Report content loaded: %s chars", len(report_content))
 
         try:
             from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
 
             pattern_manager = get_design_pattern_manager()
-            print("[Poster API] DesignPatternManager initialized")
+            logger.info("[Poster API] DesignPatternManager initialized")
         except Exception as e:
-            print(f"[Poster API] WARNING: Failed to initialize DesignPatternManager: {e}")
+            logger.warning("[Poster API] Failed to initialize DesignPatternManager: %s", e)
             pattern_manager = None
 
         try:
             poster_agent = PosterGenerationAgent(
                 model="gemini-3-pro-image-preview", design_pattern_manager=pattern_manager
             )
-            print("[Poster API] PosterGenerationAgent initialized")
+            logger.info("[Poster API] PosterGenerationAgent initialized")
         except Exception as e:
-            print(f"[Poster API] ERROR: Failed to initialize PosterGenerationAgent: {e}")
-            traceback.print_exc()
+            logger.exception("[Poster API] Failed to initialize PosterGenerationAgent: %s", e)
             raise HTTPException(
                 status_code=500, detail=f"Failed to initialize PosterGenerationAgent: {str(e)}"
             )
@@ -967,23 +967,24 @@ async def generate_poster_visualization(session_id: str):
             paper_ids = session.get("paper_ids", [])
             if paper_ids:
                 papers_data = load_papers_from_ids(paper_ids)
-                print(
-                    f"[Poster API] Papers loaded (papers.json): "
-                    f"{len(papers_data) if papers_data else 0}"
+                logger.info(
+                    "[Poster API] Papers loaded (papers.json): %s",
+                    len(papers_data) if papers_data else 0,
                 )
 
             if not papers_data:
                 papers_data = session.get("papers_data")
                 if papers_data:
-                    print(f"[Poster API] Using session papers data: {len(papers_data)}")
+                    logger.info("[Poster API] Using session papers data: %s", len(papers_data))
         except Exception as e:
-            print(f"[Poster API] WARNING: Failed to load papers data: {e}")
+            logger.warning("[Poster API] Failed to load papers data: %s", e)
             papers_data = session.get("papers_data")
 
-        print(
-            f"[Poster API] Generating poster: num_papers={num_papers}, "
-            f"output_dir={poster_dir}, "
-            f"papers_data={len(papers_data) if papers_data else 0}"
+        logger.info(
+            "[Poster API] Generating poster: num_papers=%s, output_dir=%s, papers_data=%s",
+            num_papers,
+            poster_dir,
+            len(papers_data) if papers_data else 0,
         )
 
         try:
@@ -993,13 +994,13 @@ async def generate_poster_visualization(session_id: str):
                 output_dir=poster_dir,
                 papers_data=papers_data,
             )
-            print(
-                f"[Poster API] Poster generated: success={result.get('success')}, "
-                f"path={result.get('poster_path', 'N/A')}"
+            logger.info(
+                "[Poster API] Poster generated: success=%s, path=%s",
+                result.get("success"),
+                result.get("poster_path", "N/A"),
             )
         except Exception as e:
-            print(f"[Poster API] ERROR: Failed to generate poster: {e}")
-            traceback.print_exc()
+            logger.exception("[Poster API] Failed to generate poster: %s", e)
             raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
 
         return {
@@ -1012,6 +1013,5 @@ async def generate_poster_visualization(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Poster API] ERROR: Unexpected error: {e}")
-        traceback.print_exc()
+        logger.exception("[Poster API] Unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
