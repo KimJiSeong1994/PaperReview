@@ -67,6 +67,28 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
             )
         context_text = "\n---\n".join(context_parts)
 
+    # Inject high-significance highlights as key findings context
+    highlights_context = ""
+    if bookmarks:
+        key_findings = []
+        for bm in bookmarks[:10]:
+            for hl in bm.get("highlights", []):
+                sig = hl.get("significance", 3)
+                if sig >= 4:
+                    key_findings.append({
+                        "text": hl.get("text", ""),
+                        "category": hl.get("category", ""),
+                        "section": hl.get("section", ""),
+                        "significance": sig,
+                        "bookmark": bm.get("title", ""),
+                    })
+        key_findings.sort(key=lambda x: x["significance"], reverse=True)
+        if key_findings:
+            hl_parts = []
+            for kf in key_findings[:5]:
+                hl_parts.append(f"- [{kf['category']}] {kf['text']}")
+            highlights_context = "\n".join(hl_parts)
+
     # LightRAG: automatically query knowledge graph for additional context
     lightrag_context = ""
     user_query = ""
@@ -118,6 +140,14 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
         "in the bookmarks, say so clearly. Respond in the same language the user uses.",
         f"\n\n=== BOOKMARKED PAPERS CONTEXT ===\n{context_text}\n=== END CONTEXT ===",
     ]
+
+    if highlights_context:
+        system_parts.append(
+            f"\n\n=== KEY FINDINGS (user-highlighted) ===\n"
+            f"The following are the most important findings highlighted by the user from their papers. "
+            f"Prioritize these when answering related questions.\n\n"
+            f"{highlights_context}\n=== END KEY FINDINGS ==="
+        )
 
     if lightrag_context:
         system_parts.append(
