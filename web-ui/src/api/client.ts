@@ -225,6 +225,9 @@ export interface HighlightItem {
   significance?: number;
   section?: string;
   implication?: string;
+  strength_or_weakness?: 'strength' | 'weakness';
+  question_for_authors?: string;
+  confidence_level?: number;
 }
 
 export const updateBookmarkNotes = async (

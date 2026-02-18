@@ -223,10 +223,31 @@ export default function ReportViewer({
           )}
 
           {/* Highlight Popover */}
-          {highlightPopover && popoverPos && (highlightPopover.hl.memo || highlightPopover.hl.implication) && (
+          {highlightPopover && popoverPos && (highlightPopover.hl.memo || highlightPopover.hl.implication || highlightPopover.hl.question_for_authors) && (
             <div className="mypage-hl-popover" style={{ left: popoverPos.x, top: popoverPos.y }}>
               <button className="mypage-hl-popover-close" onClick={() => setHighlightPopover(null)}>&times;</button>
+              {/* Strength/Weakness + Confidence badges */}
+              {(highlightPopover.hl.strength_or_weakness || highlightPopover.hl.confidence_level) && (
+                <div className="mypage-hl-popover-badges">
+                  {highlightPopover.hl.strength_or_weakness && (
+                    <span className={`mypage-hl-badge mypage-hl-badge-${highlightPopover.hl.strength_or_weakness}`}>
+                      {highlightPopover.hl.strength_or_weakness === 'strength' ? 'Strength' : 'Weakness'}
+                    </span>
+                  )}
+                  {highlightPopover.hl.confidence_level && (
+                    <span className="mypage-hl-badge mypage-hl-badge-confidence" title="Reviewer confidence level">
+                      Confidence {highlightPopover.hl.confidence_level}/5
+                    </span>
+                  )}
+                </div>
+              )}
               {highlightPopover.hl.memo && <div className="mypage-hl-popover-memo">{highlightPopover.hl.memo}</div>}
+              {highlightPopover.hl.question_for_authors && (
+                <div className="mypage-hl-popover-question">
+                  <span className="mypage-hl-popover-question-label">Question for Authors</span>
+                  {highlightPopover.hl.question_for_authors}
+                </div>
+              )}
               {highlightPopover.hl.implication && (
                 <div className="mypage-hl-popover-implication">
                   <span className="mypage-hl-popover-implication-label">Implication</span>
@@ -299,16 +320,34 @@ export default function ReportViewer({
                         key={hl.id}
                         className={`mypage-highlight-item${expandedHighlightId === hl.id ? ' expanded' : ''}`}
                         onClick={() => setExpandedHighlightId(expandedHighlightId === hl.id ? null : hl.id)}
-                        style={{ cursor: (hl.memo || hl.implication) ? 'pointer' : undefined }}
+                        style={{ cursor: (hl.memo || hl.implication || hl.question_for_authors) ? 'pointer' : undefined }}
                       >
                         <div className="mypage-highlight-item-content">
                           <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>
                             {hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}
                           </mark>
-                          {hl.section && <span className="mypage-highlight-section-badge">{hl.section}</span>}
+                          <div className="mypage-highlight-item-tags">
+                            {hl.section && <span className="mypage-highlight-section-badge">{hl.section}</span>}
+                            {hl.strength_or_weakness && (
+                              <span className={`mypage-hl-badge-inline mypage-hl-badge-${hl.strength_or_weakness}`}>
+                                {hl.strength_or_weakness === 'strength' ? 'S' : 'W'}
+                              </span>
+                            )}
+                            {hl.confidence_level && (
+                              <span className="mypage-hl-badge-inline mypage-hl-badge-confidence" title={`Confidence ${hl.confidence_level}/5`}>
+                                C{hl.confidence_level}
+                              </span>
+                            )}
+                          </div>
                           {expandedHighlightId === hl.id && (
                             <>
                               {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                              {hl.question_for_authors && (
+                                <div className="mypage-highlight-question">
+                                  <span className="mypage-highlight-question-label">Q.</span>
+                                  {hl.question_for_authors}
+                                </div>
+                              )}
                               {hl.implication && (
                                 <div className="mypage-highlight-implication">
                                   <span className="mypage-highlight-implication-label">Implication</span>
@@ -357,9 +396,9 @@ export default function ReportViewer({
             {citationTreeData && (
               <>
                 <div className="mypage-citation-table-meta">
-                  <span>{citationTreeData.nodes.length} papers</span>
-                  <span>{citationTreeData.edges.length} citations</span>
-                  <span>Generated on {new Date(citationTreeData.generated_at).toLocaleDateString()}</span>
+                  <span>{citationTreeData.nodes.length} Papers</span>
+                  <span>{citationTreeData.edges.length} Citations</span>
+                  <span>{new Date(citationTreeData.generated_at).toLocaleDateString()}</span>
                   <button
                     className="mypage-citation-delete-btn"
                     onClick={onDeleteCitationTree}
@@ -387,9 +426,9 @@ export default function ReportViewer({
                             node.title
                           )}
                         </td>
-                        <td>{node.authors?.slice(0, 2).join(', ')}{(node.authors?.length ?? 0) > 2 ? ' et al.' : ''}</td>
-                        <td>{node.year || '—'}</td>
-                        <td>{node.citations ?? 0}</td>
+                        <td className="mypage-citation-meta-cell">{node.authors?.slice(0, 2).join(', ')}{(node.authors?.length ?? 0) > 2 ? ' et al.' : ''}</td>
+                        <td className="mypage-citation-meta-cell">{node.year || '—'}</td>
+                        <td className="mypage-citation-meta-cell">{node.citations ?? 0}</td>
                       </tr>
                     ))}
                   </tbody>

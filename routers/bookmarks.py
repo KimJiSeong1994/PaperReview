@@ -246,9 +246,10 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
         if not bookmark:
             raise HTTPException(status_code=404, detail="Bookmark not found")
 
-        existing_texts = {h["text"] for h in bookmark.get("highlights", [])}
+        existing_by_text = {h["text"]: i for i, h in enumerate(bookmark.get("highlights", []))}
         new_highlights = list(bookmark.get("highlights", []))
         added_count = 0
+        enriched_count = 0
         valid_categories = set(CATEGORY_CONFIG.keys())
 
         for item in llm_highlights:
@@ -261,12 +262,20 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
             # Backward compat: fall back to legacy "reason" if reviewer_comment absent
             if not reviewer_comment:
                 reviewer_comment = item.get("reason", "").strip()
+            strength_or_weakness = item.get("strength_or_weakness", "").strip().lower()
+            if strength_or_weakness not in ("strength", "weakness"):
+                strength_or_weakness = ""
+            question_for_authors = item.get("question_for_authors", "").strip()
+            try:
+                confidence_level = max(1, min(5, int(float(item.get("confidence_level", 3)))))
+            except (ValueError, TypeError):
+                confidence_level = 3
             try:
                 significance = max(1, min(5, int(float(item.get("significance", 3)))))
             except (ValueError, TypeError):
                 significance = 3
             section = item.get("section", "")
-            if not text or len(text) < 5 or text in existing_texts:
+            if not text or len(text) < 5:
                 continue
 
             # Verbatim match with fuzzy fallback
@@ -274,12 +283,43 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
             if not matched_text:
                 continue
 
-            # Use matched_text (may differ from LLM output due to fuzzy recovery)
-            if matched_text in existing_texts:
-                continue
-
             cfg = CATEGORY_CONFIG[category]
             memo = f"{cfg['label']} {reviewer_comment}" if reviewer_comment else cfg["label"]
+
+            # Enrich existing highlight if it lacks deep comment fields
+            existing_idx = existing_by_text.get(text) if text in existing_by_text else existing_by_text.get(matched_text)
+            if existing_idx is not None:
+                existing_hl = new_highlights[existing_idx]
+                enriched = False
+                if implication and not existing_hl.get("implication"):
+                    existing_hl["implication"] = implication
+                    enriched = True
+                if section and not existing_hl.get("section"):
+                    existing_hl["section"] = section
+                    enriched = True
+                if significance and not existing_hl.get("significance"):
+                    existing_hl["significance"] = significance
+                    enriched = True
+                if not existing_hl.get("category"):
+                    existing_hl["category"] = category
+                    existing_hl["color"] = cfg["color"]
+                    enriched = True
+                if reviewer_comment and (not existing_hl.get("memo") or existing_hl["memo"] == existing_hl.get("category", "")):
+                    existing_hl["memo"] = memo
+                    enriched = True
+                if strength_or_weakness and not existing_hl.get("strength_or_weakness"):
+                    existing_hl["strength_or_weakness"] = strength_or_weakness
+                    enriched = True
+                if question_for_authors and not existing_hl.get("question_for_authors"):
+                    existing_hl["question_for_authors"] = question_for_authors
+                    enriched = True
+                if confidence_level and not existing_hl.get("confidence_level"):
+                    existing_hl["confidence_level"] = confidence_level
+                    enriched = True
+                if enriched:
+                    enriched_count += 1
+                continue
+
             new_highlights.append({
                 "id": f"hl_{uuid.uuid4().hex[:12]}",
                 "text": matched_text,
@@ -289,9 +329,12 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
                 "significance": significance,
                 "section": section,
                 "implication": implication,
+                "strength_or_weakness": strength_or_weakness,
+                "question_for_authors": question_for_authors,
+                "confidence_level": confidence_level,
                 "created_at": datetime.now().isoformat(),
             })
-            existing_texts.add(matched_text)
+            existing_by_text[matched_text] = len(new_highlights) - 1
             added_count += 1
 
         bookmark["highlights"] = new_highlights
@@ -300,6 +343,7 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
         "success": True,
         "highlights": new_highlights,
         "added_count": added_count,
+        "enriched_count": enriched_count,
     }
 
 

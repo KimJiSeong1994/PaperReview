@@ -248,18 +248,16 @@ export function useHighlights(
     try {
       const result = await autoHighlightBookmark(selectedBookmark.id) as any;
       const addedCount = result.added_count ?? 0;
+      const enrichedCount = result.enriched_count ?? 0;
       setUserHighlights(result.highlights);
-      if (addedCount > 0) {
+      if (addedCount > 0 || enrichedCount > 0) {
         setNotesCollapsed(false);
         setBookmarks(prev => prev.map(bm =>
           bm.id === selectedBookmark.id ? { ...bm, has_notes: true } : bm
         ));
-      }
-      if (addedCount === 0) {
-        setSaveStatus('idle');
-        alert('추출 가능한 새로운 하이라이트가 없습니다.');
-      } else {
         showSaveStatus('saved');
+      } else {
+        setSaveStatus('idle');
       }
     } catch (error) {
       console.error('Auto highlight failed:', error);

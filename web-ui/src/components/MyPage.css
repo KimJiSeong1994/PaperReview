@@ -1941,6 +1941,121 @@
   margin-bottom: 2px;
 }
 
+/* Popover badges row */
+.mypage-hl-popover-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mypage-hl-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+
+.mypage-hl-badge-strength {
+  background: rgba(110, 231, 183, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(110, 231, 183, 0.3);
+}
+
+.mypage-hl-badge-weakness {
+  background: rgba(252, 165, 165, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(252, 165, 165, 0.3);
+}
+
+.mypage-hl-badge-confidence {
+  background: rgba(147, 197, 253, 0.1);
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+/* Popover question block */
+.mypage-hl-popover-question {
+  font-size: 11px;
+  color: #e5e7eb;
+  line-height: 1.4;
+  padding: 6px 10px;
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 4px;
+  border-left: 3px solid rgba(251, 191, 36, 0.35);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.mypage-hl-popover-question-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fbbf24;
+  margin-bottom: 2px;
+}
+
+/* Highlight list inline badges */
+.mypage-highlight-item-tags {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.mypage-hl-badge-inline {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+}
+
+.mypage-hl-badge-inline.mypage-hl-badge-strength {
+  background: rgba(110, 231, 183, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(110, 231, 183, 0.3);
+}
+
+.mypage-hl-badge-inline.mypage-hl-badge-weakness {
+  background: rgba(252, 165, 165, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(252, 165, 165, 0.3);
+}
+
+.mypage-hl-badge-inline.mypage-hl-badge-confidence {
+  background: rgba(147, 197, 253, 0.1);
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+/* Highlight list question block */
+.mypage-highlight-question {
+  font-size: 11px;
+  color: #e5e7eb;
+  line-height: 1.4;
+  padding: 5px 8px;
+  background: rgba(251, 191, 36, 0.06);
+  border-radius: 4px;
+  border-left: 2px solid rgba(251, 191, 36, 0.3);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  margin-top: 6px;
+}
+
+.mypage-highlight-question-label {
+  font-weight: 700;
+  color: #fbbf24;
+  margin-right: 4px;
+}
+
 /* ===== Floating Selection Toolbar ===== */
 .mypage-selection-toolbar {
   position: fixed;
@@ -2245,13 +2360,13 @@
   border-radius: 10px;
 }
 
-/* ===== Citation Tree Table ===== */
+/* ===== Further Reading ===== */
 .mypage-citation-table-container {
-  padding: 16px 20px;
+  padding: 0 20px 16px;
 }
 
 .mypage-citation-table-loading {
-  padding: 20px 0;
+  padding: 32px 0;
   font-size: 12px;
   color: #a5b4fc;
   text-align: center;
@@ -2274,7 +2389,7 @@
   gap: 12px;
   padding: 48px 20px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -2304,29 +2419,38 @@
 .mypage-citation-table-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   font-size: 11px;
   color: #6b7280;
-  margin-bottom: 12px;
+  padding: 8px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mypage-citation-table-meta span::before {
+  content: '·';
+  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.mypage-citation-table-meta span:first-child::before {
+  display: none;
 }
 
 .mypage-citation-delete-btn {
   margin-left: auto;
   background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 4px;
+  border: none;
   color: #6b7280;
   font-size: 10px;
-  padding: 2px 8px;
+  padding: 2px 4px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .mypage-citation-delete-btn:hover {
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
 }
 
 .mypage-citation-table {
@@ -2336,22 +2460,21 @@
 
 .mypage-citation-table th,
 .mypage-citation-table td {
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 8px 12px;
+  padding: 7px 10px;
   font-size: 12px;
   text-align: left;
   color: #d1d5db;
+  border: none;
 }
 
 .mypage-citation-table th {
-  background: rgba(255, 255, 255, 0.04);
-  color: #9ca3af;
+  color: #6b7280;
   font-weight: 500;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  position: sticky;
-  top: 0;
+  letter-spacing: 0.4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mypage-citation-title-cell {
@@ -2362,38 +2485,39 @@
 }
 
 .mypage-citation-link {
-  color: #93c5fd;
+  color: #e5e7eb;
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .mypage-citation-link:hover {
-  color: #bfdbfe;
-  text-decoration: underline;
+  color: #a5b4fc;
 }
 
 .mypage-citation-row {
-  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.1s ease;
+}
+
+.mypage-citation-row:last-child {
+  border-bottom: none;
 }
 
 .mypage-citation-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .mypage-citation-row.mypage-citation-root {
-  border-left-color: #a855f7;
-  background: rgba(168, 85, 247, 0.06);
+  background: rgba(168, 85, 247, 0.04);
 }
 
 .mypage-citation-row.mypage-citation-root:hover {
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(168, 85, 247, 0.08);
 }
 
-.mypage-citation-row.mypage-citation-backward {
-  border-left-color: #3b82f6;
-}
-
-.mypage-citation-row.mypage-citation-forward {
-  border-left-color: #22c55e;
+.mypage-citation-meta-cell {
+  color: #6b7280;
+  font-size: 11px;
 }
 
 /* ===== Responsive Breakpoints ===== */

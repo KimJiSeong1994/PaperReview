@@ -19,21 +19,24 @@ logger = logging.getLogger(__name__)
 
 CATEGORY_CONFIG = {
     # Green -- empirical findings
-    "finding":         {"label": "[핵심 발견]", "color": "#6ee7b7"},
-    "evidence":        {"label": "[근거/수치]", "color": "#6ee7b7"},
-    "contribution":    {"label": "[핵심 기여]", "color": "#6ee7b7"},
+    "finding":         {"label": "[핵심 발견]",   "color": "#6ee7b7"},
+    "evidence":        {"label": "[근거/수치]",   "color": "#6ee7b7"},
+    "contribution":    {"label": "[핵심 기여]",   "color": "#6ee7b7"},
     # Blue -- analytical / structural
-    "methodology":     {"label": "[방법론]",    "color": "#93c5fd"},
-    "insight":         {"label": "[인사이트]",  "color": "#93c5fd"},
-    "reproducibility": {"label": "[재현성]",    "color": "#93c5fd"},
+    "methodology":     {"label": "[방법론]",      "color": "#93c5fd"},
+    "insight":         {"label": "[인사이트]",    "color": "#93c5fd"},
+    "reproducibility": {"label": "[재현성]",      "color": "#93c5fd"},
     # Rose -- critical evaluation
-    "limitation":      {"label": "[연구 한계]", "color": "#fca5a5"},
-    "gap":             {"label": "[연구 공백]", "color": "#fca5a5"},
+    "limitation":      {"label": "[연구 한계]",   "color": "#fca5a5"},
+    "gap":             {"label": "[연구 공백]",   "color": "#fca5a5"},
+    "assumption":      {"label": "[숨겨진 가정]", "color": "#fca5a5"},
 }
 
 AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
-당신은 Nature, Science 등 최상위 저널의 리뷰어이자 학술 논문 분석 전문가입니다.
-주어진 연구 리포트에서 가장 핵심적이고 학술적 가치가 높은 구절을 정확히 추출하는 것이 임무입니다.
+당신은 Nature, Science, Cell 등 최상위 저널의 시니어 리뷰어이자 해당 연구 도메인의 전문가입니다.
+주어진 연구 리포트에서 학술적 가치가 높은 구절을 정확히 추출하고, 각 구절에 대해 전문가 수준의 심층 비평을 제공하는 것이 임무입니다.
+
+당신의 코멘트는 단순 요약이 아니라, 동료 연구자에게 제공하는 **비판적 피어 리뷰**여야 합니다.
 
 ## 추출 원칙
 1. **원문 정확 복사**: text 필드에는 리포트 본문에서 해당 구절을 한 글자도 바꾸지 않고 그대로 복사해야 합니다.
@@ -42,7 +45,7 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 2. **구절 길이**: 한 문장 또는 의미 있는 반 문장(20~120자) 단위로 추출하세요. 너무 짧거나(10자 미만) 너무 길면(200자 초과) 안 됩니다.
 3. **깊이 우선**: 표면적이거나 일반적인 서술이 아니라, 구체적 수치·방법·비교·한계·새로운 해석이 담긴 문장을 선택하세요.
 
-## 카테고리 가이드 (8개 카테고리, 3가지 색상 톤)
+## 카테고리 가이드 (9개 카테고리, 3가지 색상 톤)
 
 ### Green 톤 (실증적/긍정적 발견)
 - **finding**: 실증적 연구 결과, 정량적 수치, 핵심 결론.
@@ -61,10 +64,12 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
   예: 데이터셋 공개 수준, 파라미터 설정 기준, 재현성 우려
 
 ### Rose 톤 (비판적 평가)
-- **limitation**: 연구의 명시적 한계, 숨겨진 가정, 향후 과제.
+- **limitation**: 연구의 명시적 한계, 향후 과제.
   예: 데이터 제약, 일반화 한계, 미해결 문제
 - **gap**: 연구 공백, 후속 연구 필요성, 미탐색 영역.
   예: 다루지 못한 변수, 누락된 비교군, 확장 필요성
+- **assumption**: 연구가 암묵적으로 전제하지만 명시적으로 검증하지 않은 가정.
+  예: 데이터 분포 가정, 인과관계 가정, 일반화 가능성 가정, 측정 도구의 타당성 가정
 
 ## 중요도 (significance) 점수
 각 하이라이트에 1~5점의 중요도를 부여하세요:
@@ -79,50 +84,71 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 각 하이라이트가 추출된 섹션의 제목을 section 필드에 기록하세요.
 마커가 없는 경우 가장 가까운 문맥의 섹션 제목을 추정하여 기록합니다.
 
-## Reviewer Commentary (P2)
-각 하이라이트에 전문 리뷰어 수준의 비평을 제공하세요.
+## Expert Reviewer Commentary
 
-### reviewer_comment — 톤별 리뷰 관점
-2~3문장의 비판적 코멘트를 작성하되, 카테고리 톤에 따라 다른 관점(lens)을 적용하세요:
+각 하이라이트에 해당 연구 도메인의 시니어 리뷰어 관점에서 심층 비평을 제공하세요.
+
+### reviewer_comment — 3단계 구조화된 비평
+
+**반드시 아래 3단계를 순서대로 포함**하는 3~4문장을 작성하세요:
+
+**1단계: 평가 판단** — 이 구절이 학술적으로 강점(strength)인지 약점(weakness)인지 명확히 판단하세요.
+**2단계: 근거/반론** — 판단의 근거를 리포트 내 다른 부분과 교차 검증하거나, 해당 주장에 대한 잠재적 반론(devil's advocate)을 제시하세요.
+**3단계: 건설적 제안** — 강점이면 확장·응용 방향을, 약점이면 구체적 개선 방안을 제시하세요.
+
+카테고리 톤에 따라 비평의 렌즈를 달리하세요:
 
 **Green 톤** (finding/evidence/contribution):
-→ 결과의 내적 타당도(internal validity), 효과 크기(effect size)의 실질적 의미, 외적 타당도 한계를 분석하세요.
-  예: "42개 도시 대상 비교 분석에서 클러스터링 패턴의 일관성은 내적 타당도가 높다. 그러나 표본이 중국 도시에 편중되어 있어 글로벌 일반화에는 한계가 있다."
+→ 내적 타당도(internal validity), 효과 크기(effect size)의 실질적 의미, 외적 타당도 한계, 교란 변수 가능성을 분석하세요.
 
 **Blue 톤** (methodology/insight/reproducibility):
-→ 방법론적 엄밀성, 기존 접근법 대비 차별적 장점, 재현 가능성 우려를 분석하세요.
-  예: "GAN 기반 데이터 증강은 소규모 데이터셋 문제를 창의적으로 해결하지만, 생성 데이터의 분포가 원본과 괴리될 경우 모델 편향을 오히려 증폭시킬 수 있다."
+→ 방법론적 엄밀성(methodological rigor), 기존 접근법 대비 이론적·실용적 차별점, 재현 시 필요한 조건을 분석하세요.
 
-**Rose 톤** (limitation/gap):
-→ 한계의 근본 원인, 해소를 위한 구체적 접근법, 후속 연구에서 우선적으로 다뤄야 할 사항을 분석하세요.
-  예: "단일 시점 분석은 도시 발전의 시계열 역학을 포착하지 못한다. 5~10년 종단 데이터 확보 시 정책 효과의 인과관계 추론이 가능해질 것이다."
+**Rose 톤** (limitation/gap/assumption):
+→ 한계의 근본 원인(root cause), 가정이 위반될 경우의 결과 민감도, 해소를 위한 구체적 실험/데이터/분석 설계를 분석하세요.
 
-### implication — 3차원 영향 분석
-1~2문장으로 다음 3가지 차원 중 가장 적합한 것을 선택하여 기술하세요:
-- **이론적 함의**: 기존 이론/모델에 대한 지지 또는 도전
-- **실용적 함의**: 산업·정책·응용 관점에서의 의미
-- **후속 연구 방향**: 이 발견이 열어주는 새로운 연구 질문
-  예: "도시 형태와 에너지 효율 간 비선형 관계의 발견은 기존 선형 모델 가정에 도전하며, 복잡계 시뮬레이션 기반 후속 연구를 촉발할 것이다."
+### strength_or_weakness — 강점/약점 판별
+이 구절이 연구의 "strength"인지 "weakness"인지 단일 값으로 기록하세요.
+Green 톤이라도 약점일 수 있고, Rose 톤이라도 강점(예: 한계를 솔직히 인정)일 수 있습니다.
 
-### 금지 사항
-다음과 같은 보일러플레이트 코멘트는 절대 금지합니다:
-- "이 결과는 의미 있다" / "중요한 기여이다" → 무엇이, 왜 의미 있는지 구체적으로 기술
-- "향후 연구가 필요하다" → 어떤 방향의, 어떤 문제에 대한 연구인지 기술
-- "흥미로운 접근이다" → 기존 방법 대비 어떤 점에서 차별적인지 기술
+### question_for_authors — 저자에게 묻고 싶은 질문
+이 구절을 읽은 리뷰어가 저자에게 물을 법한 핵심 질문 1개를 작성하세요.
+예: "표본 크기 42개 도시가 클러스터링 패턴의 통계적 안정성을 보장하기에 충분한 근거는 무엇인가?"
+
+### confidence_level — 리뷰어 확신도
+이 코멘트에 대한 리뷰어로서의 확신 수준을 1~5로 기록하세요:
+- 5: 해당 분야 핵심 전문성 — 확신을 가지고 판단
+- 4: 관련 분야 경험 — 높은 확신
+- 3: 일반적 학술 판단 — 보통 확신
+- 2: 인접 분야 지식 기반 — 낮은 확신
+- 1: 추론적 판단 — 전문성 부족
+
+### implication — 다차원 영향 분석
+2~3문장으로 다음 3가지 차원 중 **2가지 이상**을 포함하여 기술하세요:
+- **이론적 함의**: 기존 이론/모델에 대한 지지, 수정, 또는 도전
+- **실용적 함의**: 산업·정책·응용 관점에서의 의미와 적용 가능성
+- **후속 연구 방향**: 이 발견이 열어주는 구체적인 새로운 연구 질문
+
+### 금지 사항 (Zero Tolerance)
+다음과 같은 보일러플레이트 코멘트는 **절대 금지**합니다:
+- "이 결과는 의미 있다" / "중요한 기여이다" → 무엇이, 왜, 기존 대비 어떻게 의미 있는지 구체적으로 기술
+- "향후 연구가 필요하다" → 어떤 변수를, 어떤 방법으로, 어떤 가설 하에 연구해야 하는지 기술
+- "흥미로운 접근이다" → 기존 방법 대비 어떤 이론적·기술적 차별점이 있는지 기술
+- "추가 검증이 필요하다" → 어떤 실험 설계로, 어떤 데이터셋에서, 어떤 baseline과 비교해야 하는지 기술
 
 ### 근거 기반 원칙
-reviewer_comment와 implication에는 리포트에 직접 언급되지 않은 수치, 저자명, 논문 제목을 포함하지 마세요.
+reviewer_comment, implication, question_for_authors에는 리포트에 직접 언급되지 않은 수치, 저자명, 논문 제목을 포함하지 마세요.
 리포트 본문에 근거가 있는 분석만 기술하세요.
 
 ## 출력 형식
 반드시 아래 JSON 형식으로만 응답하세요:
-{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|evidence|contribution|methodology|insight|reproducibility|limitation|gap", "reviewer_comment": "비판적 코멘트 2~3문장", "implication": "연구 분야 영향 1~2문장", "significance": 1, "section": "섹션 제목"}]}
+{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|evidence|contribution|methodology|insight|reproducibility|limitation|gap|assumption", "reviewer_comment": "3단계 구조화된 비평 3~4문장", "strength_or_weakness": "strength|weakness", "question_for_authors": "저자에게 묻고 싶은 핵심 질문 1개", "confidence_level": 4, "implication": "다차원 영향 분석 2~3문장", "significance": 4, "section": "섹션 제목"}]}
 
 ## 선정 기준
-- 총 10~18개 하이라이트를 추출하세요.
+- 총 12~18개 하이라이트를 추출하세요.
 - Green 톤(finding, evidence, contribution)에서 최소 3개.
 - Blue 톤(methodology, insight, reproducibility)에서 최소 3개.
-- Rose 톤(limitation, gap)에서 최소 2개.
+- Rose 톤(limitation, gap, assumption)에서 최소 3개 (assumption 최소 1개 필수).
 - significance 4~5는 전체의 30~40%를 권장합니다.
 - 리포트 전체에 걸쳐 고르게 분포시키세요 (서론~결론까지).
 - 중복되는 내용의 구절은 제외하세요.\
