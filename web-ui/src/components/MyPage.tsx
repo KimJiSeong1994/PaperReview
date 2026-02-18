@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
+import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
@@ -18,6 +19,7 @@ function MyPage({ onBack }: MyPageProps) {
   // ── Hooks ──
   const bm = useBookmarks();
   const hl = useHighlights(bm.selectedBookmark, bm.bookmarkDetail, bm.setBookmarks, reportScrollRef);
+  const exploration = useExploration(bm.selectedBookmark, bm.setBookmarks);
 
   // Wrap handleSelectBookmark to also init highlights
   const selectBookmarkAndInitHighlights = useCallback(async (bookmark: Bookmark) => {
@@ -35,6 +37,13 @@ function MyPage({ onBack }: MyPageProps) {
     chat.setHighlightTerms([]);
     await selectBookmarkAndInitHighlights(bookmark);
   }, [selectBookmarkAndInitHighlights, chat.setHighlightTerms]);
+
+  // Auto-load citation tree when selecting a bookmark that has one
+  useEffect(() => {
+    if (bm.selectedBookmark?.has_citation_tree && !exploration.citationTreeData && !exploration.citationTreeLoading) {
+      exploration.handleLoadCitationTree(bm.selectedBookmark.id);
+    }
+  }, [bm.selectedBookmark?.id]);
 
   // Scroll to first highlight after render
   useEffect(() => {
@@ -154,6 +163,15 @@ function MyPage({ onBack }: MyPageProps) {
           onStartMemo={hl.handleStartMemo}
           onSaveMemo={hl.handleSaveMemo}
           onCancelMemo={hl.handleCancelMemo}
+          citationTreeData={exploration.citationTreeData}
+          citationTreeLoading={exploration.citationTreeLoading}
+          citationTreeError={exploration.citationTreeError}
+          onGenerateCitationTree={() => {
+            if (bm.selectedBookmark) {
+              exploration.handleGenerateCitationTree(bm.selectedBookmark.id);
+            }
+          }}
+          onDeleteCitationTree={exploration.handleDeleteCitationTree}
         />
 
         <ChatPanel

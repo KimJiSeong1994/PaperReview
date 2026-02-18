@@ -126,6 +126,7 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
                 "tags": bm.get("tags", []),
                 "topic": bm.get("topic", "General"),
                 "has_notes": bool(bm.get("notes", "").strip()) or bool(bm.get("highlights", [])),
+                "has_citation_tree": bool(bm.get("citation_tree")),
             }
             for bm in data["bookmarks"]
             if bm.get("username") == username

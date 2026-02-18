@@ -86,7 +86,7 @@ function DraggableBookmarkItem({
         )}
         <button className="mypage-bookmark-delete"
           onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
-          title="Delete">✕</button>
+          title="Delete bookmark">✕</button>
       </div>
     </div>
   );
@@ -203,7 +203,7 @@ export default function BookmarkSidebar({
         <button
           className={`mypage-notes-view-btn ${allNotesMode ? 'active' : ''}`}
           onClick={() => setAllNotesMode(!allNotesMode)}
-          title={allNotesMode ? 'Show all bookmarks' : 'Show only bookmarks with notes'}
+          title={allNotesMode ? 'Show all bookmarks' : 'Show bookmarks with notes only'}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
@@ -235,9 +235,9 @@ export default function BookmarkSidebar({
         {loadingBookmarks ? (
           <div className="mypage-loading">Loading...</div>
         ) : bookmarks.length === 0 ? (
-          <div className="mypage-empty">No bookmarks saved yet</div>
+          <div className="mypage-empty">No bookmarks yet</div>
         ) : filteredBookmarks.length === 0 ? (
-          <div className="mypage-empty">No bookmarks match "{searchQuery}"</div>
+          <div className="mypage-empty">No results for "{searchQuery}"</div>
         ) : (
           <DndContext
             sensors={sensors}
@@ -301,7 +301,7 @@ export default function BookmarkSidebar({
                 <button className="mypage-add-topic-cancel" onClick={() => { setShowNewTopicInput(false); setNewTopicInput(''); }}>✕</button>
               </div>
             ) : (
-              <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>+ New Topic</button>
+              <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>New Topic</button>
             )}
           </div>
         )}

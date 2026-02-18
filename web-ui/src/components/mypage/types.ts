@@ -12,6 +12,35 @@ export interface Bookmark {
   tags: string[];
   topic: string;
   has_notes?: boolean;
+  has_citation_tree?: boolean;
+}
+
+// ── Citation Tree types ──────────────────────────────────────────────
+
+export interface CitationNode {
+  id: string;
+  title: string;
+  authors: string[];
+  year: number | null;
+  citations: number;
+  depth: number;
+  direction: 'root' | 'forward' | 'backward';
+  url?: string;
+  x: number;
+  y: number;
+}
+
+export interface CitationEdge {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface CitationTreeData {
+  nodes: CitationNode[];
+  edges: CitationEdge[];
+  root_paper_ids: string[];
+  generated_at: string;
 }
 
 export type { ChatMessage, ChatSource, HighlightItem };

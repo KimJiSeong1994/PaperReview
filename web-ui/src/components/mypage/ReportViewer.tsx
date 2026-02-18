@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { HighlightItem } from '../../api/client';
+import type { CitationTreeData } from './types';
 
 export interface ReportViewerProps {
   bookmarkDetail: any;
@@ -48,6 +50,12 @@ export interface ReportViewerProps {
   onStartMemo: () => void;
   onSaveMemo: () => void;
   onCancelMemo: () => void;
+  // Citation Tree
+  citationTreeData: CitationTreeData | null;
+  citationTreeLoading: boolean;
+  citationTreeError: string | null;
+  onGenerateCitationTree: () => void;
+  onDeleteCitationTree: () => void;
 }
 
 export default function ReportViewer({
@@ -64,7 +72,22 @@ export default function ReportViewer({
   onExportBibTeX, onExportReport,
   selectionToolbar, memoMode, memoInput, setMemoInput,
   onAddHighlight, onStartMemo, onSaveMemo, onCancelMemo,
+  citationTreeData, citationTreeLoading, citationTreeError,
+  onGenerateCitationTree, onDeleteCitationTree,
 }: ReportViewerProps) {
+  const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
+
+  // Group and sort citation nodes: root → backward → forward, then by citations desc
+  const groupedNodes = useMemo(() => {
+    if (!citationTreeData) return [];
+    const order: Record<string, number> = { root: 0, backward: 1, forward: 2 };
+    return [...citationTreeData.nodes].sort((a, b) => {
+      const diff = (order[a.direction] ?? 9) - (order[b.direction] ?? 9);
+      if (diff !== 0) return diff;
+      return (b.citations ?? 0) - (a.citations ?? 0);
+    });
+  }, [citationTreeData]);
+
   if (!hasSelectedBookmark) {
     return (
       <div className="mypage-report-panel" role="region" aria-label="Research report">
@@ -72,8 +95,8 @@ export default function ReportViewer({
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ color: '#4b5563', marginBottom: '12px' }}>
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
           </svg>
-          <p className="mypage-report-empty-title">Select a bookmark</p>
-          <p className="mypage-report-empty-subtitle">Click a bookmark on the left to view its report and papers</p>
+          <p className="mypage-report-empty-title">Select a Bookmark</p>
+          <p className="mypage-report-empty-subtitle">Choose a bookmark from the sidebar to view its report</p>
         </div>
       </div>
     );
@@ -82,7 +105,7 @@ export default function ReportViewer({
   if (loadingDetail) {
     return (
       <div className="mypage-report-panel" role="region" aria-label="Research report">
-        <div className="mypage-loading" style={{ padding: '40px' }}>Loading detail...</div>
+        <div className="mypage-loading" style={{ padding: '40px' }}>Loading...</div>
       </div>
     );
   }
@@ -91,167 +114,187 @@ export default function ReportViewer({
 
   return (
     <div className="mypage-report-panel" role="region" aria-label="Research report">
-      <div className="mypage-report-scroll" ref={reportScrollRef}>
-        {/* Highlight indicator */}
-        {highlightTerms.length > 0 && (
-          <div className="mypage-highlight-bar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <span>Evidence highlighted</span>
-            <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>Clear</button>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="mypage-report-header">
-          <h2 className="mypage-report-title">{bookmarkDetail.title}</h2>
-          <div className="mypage-detail-export-btns">
-            <button className="mypage-export-btn" onClick={onExportBibTeX} title="Export BibTeX">BibTeX</button>
-            {bookmarkDetail.report_markdown && (
-              <button className="mypage-export-btn" onClick={onExportReport} title="Download Report">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                .md
-              </button>
-            )}
-          </div>
+      {/* Highlight indicator */}
+      {highlightTerms.length > 0 && (
+        <div className="mypage-highlight-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Evidence highlighted</span>
+          <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>Clear</button>
         </div>
+      )}
 
-        {/* Papers list */}
-        {bookmarkDetail.papers && bookmarkDetail.papers.length > 0 && (
-          <div className={`mypage-papers-section ${papersCollapsed ? 'collapsed' : ''}`}>
-            <div className="mypage-papers-header" onClick={() => setPapersCollapsed(!papersCollapsed)}>
-              <svg className="mypage-papers-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
+      {/* Header */}
+      <div className="mypage-report-header">
+        <h2 className="mypage-report-title">{bookmarkDetail.title}</h2>
+        <div className="mypage-detail-export-btns">
+          <button className="mypage-export-btn" onClick={onExportBibTeX} title="Export as BibTeX">BibTeX</button>
+          {bookmarkDetail.report_markdown && (
+            <button className="mypage-export-btn" onClick={onExportReport} title="Export as Markdown">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              .md
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="mypage-report-tabs">
+        <button
+          className={`mypage-report-tab ${activeTab === 'report' ? 'active' : ''}`}
+          onClick={() => setActiveTab('report')}
+        >
+          Report
+        </button>
+        <button
+          className={`mypage-report-tab ${activeTab === 'further-reading' ? 'active' : ''}`}
+          onClick={() => setActiveTab('further-reading')}
+        >
+          Further Reading
+          {citationTreeData && (
+            <span className="mypage-report-tab-badge">{citationTreeData.nodes.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* ── Report Tab ── */}
+      {activeTab === 'report' && (
+        <div className="mypage-report-scroll" ref={reportScrollRef}>
+          {/* Papers list */}
+          {bookmarkDetail.papers && bookmarkDetail.papers.length > 0 && (
+            <div className={`mypage-papers-section ${papersCollapsed ? 'collapsed' : ''}`}>
+              <div className="mypage-papers-header" onClick={() => setPapersCollapsed(!papersCollapsed)}>
+                <svg className="mypage-papers-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
+                  <path d="M6 4l4 4-4 4z" />
+                </svg>
+                <span>Papers ({bookmarkDetail.papers.length})</span>
+              </div>
+              {!papersCollapsed && (
+                <div className="mypage-detail-papers">
+                  {bookmarkDetail.papers.map((p: any, i: number) => (
+                    <div key={i} className="mypage-detail-paper">
+                      <span className="mypage-detail-paper-title">{p.title}</span>
+                      <span className="mypage-detail-paper-meta">
+                        {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Report markdown */}
+          {bookmarkDetail.report_markdown && (
+            <div className="mypage-report-section">
+              <h3 className="mypage-report-section-title">Report</h3>
+              <div className="mypage-report-content">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
+                    p: ({ children }) => {
+                      let c: React.ReactNode = children;
+                      if (userHighlights.length > 0) c = applyUserHighlights(c);
+                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      return <p>{c}</p>;
+                    },
+                    li: ({ children }) => {
+                      let c: React.ReactNode = children;
+                      if (userHighlights.length > 0) c = applyUserHighlights(c);
+                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      return <li>{c}</li>;
+                    },
+                    td: ({ children }) => {
+                      let c: React.ReactNode = children;
+                      if (userHighlights.length > 0) c = applyUserHighlights(c);
+                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      return <td>{c}</td>;
+                    },
+                  } : undefined}
+                >
+                  {bookmarkDetail.report_markdown}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          {/* Highlight Popover */}
+          {highlightPopover && popoverPos && (highlightPopover.hl.memo || highlightPopover.hl.implication) && (
+            <div className="mypage-hl-popover" style={{ left: popoverPos.x, top: popoverPos.y }}>
+              <button className="mypage-hl-popover-close" onClick={() => setHighlightPopover(null)}>&times;</button>
+              {highlightPopover.hl.memo && <div className="mypage-hl-popover-memo">{highlightPopover.hl.memo}</div>}
+              {highlightPopover.hl.implication && (
+                <div className="mypage-hl-popover-implication">
+                  <span className="mypage-hl-popover-implication-label">Implication</span>
+                  {highlightPopover.hl.implication}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Notes & Highlights */}
+          <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`} role="region" aria-label="Notes and highlights">
+            <div className="mypage-notes-header" onClick={() => setNotesCollapsed(!notesCollapsed)} role="button" aria-expanded={!notesCollapsed} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNotesCollapsed(!notesCollapsed); } }}>
+              <svg className="mypage-notes-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
                 <path d="M6 4l4 4-4 4z" />
               </svg>
-              <span>Papers ({bookmarkDetail.papers.length})</span>
-            </div>
-            {!papersCollapsed && (
-              <div className="mypage-detail-papers">
-                {bookmarkDetail.papers.map((p: any, i: number) => (
-                  <div key={i} className="mypage-detail-paper">
-                    <span className="mypage-detail-paper-title">{p.title}</span>
-                    <span className="mypage-detail-paper-meta">
-                      {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Report markdown */}
-        {bookmarkDetail.report_markdown && (
-          <div className="mypage-report-section">
-            <h3 className="mypage-report-section-title">Report</h3>
-            <div className="mypage-report-content">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
-                  p: ({ children }) => {
-                    let c: React.ReactNode = children;
-                    if (userHighlights.length > 0) c = applyUserHighlights(c);
-                    if (highlightTerms.length > 0) c = highlightChildren(c);
-                    return <p>{c}</p>;
-                  },
-                  li: ({ children }) => {
-                    let c: React.ReactNode = children;
-                    if (userHighlights.length > 0) c = applyUserHighlights(c);
-                    if (highlightTerms.length > 0) c = highlightChildren(c);
-                    return <li>{c}</li>;
-                  },
-                  td: ({ children }) => {
-                    let c: React.ReactNode = children;
-                    if (userHighlights.length > 0) c = applyUserHighlights(c);
-                    if (highlightTerms.length > 0) c = highlightChildren(c);
-                    return <td>{c}</td>;
-                  },
-                } : undefined}
-              >
-                {bookmarkDetail.report_markdown}
-              </ReactMarkdown>
-            </div>
-          </div>
-        )}
-
-        {/* Highlight Popover */}
-        {highlightPopover && popoverPos && (highlightPopover.hl.memo || highlightPopover.hl.implication) && (
-          <div className="mypage-hl-popover" style={{ left: popoverPos.x, top: popoverPos.y }}>
-            <button className="mypage-hl-popover-close" onClick={() => setHighlightPopover(null)}>&times;</button>
-            {highlightPopover.hl.memo && <div className="mypage-hl-popover-memo">{highlightPopover.hl.memo}</div>}
-            {highlightPopover.hl.implication && (
-              <div className="mypage-hl-popover-implication">
-                <span className="mypage-hl-popover-implication-label">Implication</span>
-                {highlightPopover.hl.implication}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Notes & Highlights */}
-        <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`} role="region" aria-label="Notes and highlights">
-          <div className="mypage-notes-header" onClick={() => setNotesCollapsed(!notesCollapsed)} role="button" aria-expanded={!notesCollapsed} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNotesCollapsed(!notesCollapsed); } }}>
-            <svg className="mypage-notes-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
-              <path d="M6 4l4 4-4 4z" />
-            </svg>
-            <span>Notes & Highlights</span>
-            {notesSaving && <span className="mypage-notes-saving">Saving...</span>}
-            {saveStatus === 'saved' && <span className="mypage-notes-saved">Saved</span>}
-            {saveStatus === 'error' && <span className="mypage-notes-error">Save failed</span>}
-            {userHighlights.length > 0 && (
-              <span className="mypage-notes-badge">{userHighlights.length}</span>
-            )}
-            {userHighlights.length > 0 && (
-              <button
-                className="mypage-clear-highlights-btn"
-                onClick={(e) => { e.stopPropagation(); onClearAllHighlights(); }}
-                title="하이라이트 전체 삭제"
-              >Clear</button>
-            )}
-            <button
-              className="mypage-auto-highlight-btn"
-              onClick={(e) => { e.stopPropagation(); onAutoHighlight(); }}
-              disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
-              title="LLM 기반 자동 하이라이트"
-            >
-              {autoHighlighting ? (
-                <>
-                  <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                    <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
-                  </svg>
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                    <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  Auto
-                </>
-              )}
-            </button>
-          </div>
-          {!notesCollapsed && (
-            <div className="mypage-notes-body">
-              <textarea
-                className="mypage-notes-textarea"
-                value={notesText}
-                onChange={(e) => setNotesText(e.target.value)}
-                onBlur={onSaveNotes}
-                placeholder="Write your notes here (Markdown supported)..."
-                rows={4}
-              />
+              <span>Notes & Highlights</span>
+              {notesSaving && <span className="mypage-notes-saving">Saving...</span>}
+              {saveStatus === 'saved' && <span className="mypage-notes-saved">Saved!</span>}
+              {saveStatus === 'error' && <span className="mypage-notes-error">Failed to save</span>}
               {userHighlights.length > 0 && (
-                <div className="mypage-highlights-list">
-                  <div className="mypage-highlights-title">
-                    Highlights ({userHighlights.length})
-                  </div>
-                  {sortedHighlights.map(hl => {
-                    return (
+                <span className="mypage-notes-badge">{userHighlights.length}</span>
+              )}
+              {userHighlights.length > 0 && (
+                <button
+                  className="mypage-clear-highlights-btn"
+                  onClick={(e) => { e.stopPropagation(); onClearAllHighlights(); }}
+                  title="Remove all highlights"
+                >Clear All</button>
+              )}
+              <button
+                className="mypage-auto-highlight-btn"
+                onClick={(e) => { e.stopPropagation(); onAutoHighlight(); }}
+                disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
+                title="Auto-highlight key findings"
+              >
+                {autoHighlighting ? (
+                  <>
+                    <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                      <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
+                    </svg>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Auto
+                  </>
+                )}
+              </button>
+            </div>
+            {!notesCollapsed && (
+              <div className="mypage-notes-body">
+                <textarea
+                  className="mypage-notes-textarea"
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  onBlur={onSaveNotes}
+                  placeholder="Add your notes here..."
+                  rows={4}
+                />
+                {userHighlights.length > 0 && (
+                  <div className="mypage-highlights-list">
+                    <div className="mypage-highlights-title">
+                      Highlights ({userHighlights.length})
+                    </div>
+                    {sortedHighlights.map(hl => (
                       <div
                         key={hl.id}
                         className={`mypage-highlight-item${expandedHighlightId === hl.id ? ' expanded' : ''}`}
@@ -277,14 +320,85 @@ export default function ReportViewer({
                         </div>
                         <button className="mypage-highlight-remove" onClick={(e) => { e.stopPropagation(); onRemoveHighlight(hl.id); }} title="Remove">&#x2715;</button>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Further Reading Tab ── */}
+      {activeTab === 'further-reading' && (
+        <div className="mypage-report-scroll">
+          <div className="mypage-citation-table-container">
+            {citationTreeLoading && (
+              <div className="mypage-citation-table-loading">Analyzing citations...</div>
+            )}
+            {citationTreeError && (
+              <div className="mypage-citation-table-error">{citationTreeError}</div>
+            )}
+            {!citationTreeData && !citationTreeLoading && (
+              <div className="mypage-citation-table-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: '#4b5563' }}>
+                  <path d="M12 3v6m0 0l-4 4m4-4l4 4m-8 0v4m8-4v4" /><circle cx="4" cy="21" r="2" /><circle cx="12" cy="21" r="2" /><circle cx="20" cy="21" r="2" />
+                </svg>
+                <p>Discover related papers through citation analysis</p>
+                <button
+                  className="mypage-citation-generate-btn"
+                  onClick={onGenerateCitationTree}
+                  disabled={citationTreeLoading}
+                >
+                  Generate
+                </button>
+              </div>
+            )}
+            {citationTreeData && (
+              <>
+                <div className="mypage-citation-table-meta">
+                  <span>{citationTreeData.nodes.length} papers</span>
+                  <span>{citationTreeData.edges.length} citations</span>
+                  <span>Generated on {new Date(citationTreeData.generated_at).toLocaleDateString()}</span>
+                  <button
+                    className="mypage-citation-delete-btn"
+                    onClick={onDeleteCitationTree}
+                    title="Remove all further reading data"
+                  >Delete</button>
+                </div>
+                <table className="mypage-citation-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Authors</th>
+                      <th>Year</th>
+                      <th>Citations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedNodes.map((node) => (
+                      <tr key={node.id} className={`mypage-citation-row mypage-citation-${node.direction}`}>
+                        <td className="mypage-citation-title-cell">
+                          {node.url ? (
+                            <a href={node.url} target="_blank" rel="noopener noreferrer" className="mypage-citation-link">
+                              {node.title}
+                            </a>
+                          ) : (
+                            node.title
+                          )}
+                        </td>
+                        <td>{node.authors?.slice(0, 2).join(', ')}{(node.authors?.length ?? 0) > 2 ? ' et al.' : ''}</td>
+                        <td>{node.year || '—'}</td>
+                        <td>{node.citations ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Selection toolbar */}
       {selectionToolbar && (

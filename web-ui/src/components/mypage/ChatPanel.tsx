@@ -36,13 +36,13 @@ export default function ChatPanel({
       <div className="mypage-panel-header mypage-chat-header">
         <span>
           {chatTopicFilter === 'all' && selectedCount > 0
-            ? `Chat · ${selectedCount} selected`
-            : 'Chat with your papers'}
+            ? `Chat · ${selectedCount} Selected`
+            : 'Chat with Papers'}
         </span>
         <div className="mypage-chat-header-actions">
           <select className="mypage-chat-topic-select" value={chatTopicFilter}
             onChange={(e) => setChatTopicFilter(e.target.value)}>
-            <option value="all">{selectedCount > 0 ? `Selected (${selectedCount})` : 'All topics'}</option>
+            <option value="all">{selectedCount > 0 ? `Selected (${selectedCount})` : 'All Topics'}</option>
             {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {messages.length > 0 && (

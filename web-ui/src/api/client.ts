@@ -245,6 +245,22 @@ export const autoHighlightBookmark = async (bookmarkId: string): Promise<{ highl
   return response.data;
 };
 
+// Citation Tree
+export const generateCitationTree = async (bookmarkId: string, depth: number = 1, maxPerDirection: number = 10) => {
+  const response = await api.post(`/api/bookmarks/${bookmarkId}/citation-tree`, { depth, max_per_direction: maxPerDirection });
+  return response.data;
+};
+
+export const getCitationTree = async (bookmarkId: string) => {
+  const response = await api.get(`/api/bookmarks/${bookmarkId}/citation-tree`);
+  return response.data;
+};
+
+export const deleteCitationTree = async (bookmarkId: string) => {
+  const response = await api.delete(`/api/bookmarks/${bookmarkId}/citation-tree`);
+  return response.data;
+};
+
 // Bulk bookmark operations
 export const bulkDeleteBookmarks = async (bookmarkIds: string[]) => {
   const response = await api.post('/api/bookmarks/bulk-delete', { bookmark_ids: bookmarkIds });

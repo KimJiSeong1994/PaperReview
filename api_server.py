@@ -35,6 +35,7 @@ from routers import (
     chat_router,
     lightrag_router,
     admin_router,
+    exploration_router,
 )
 from routers.deps import api_key, limiter
 
@@ -120,6 +121,7 @@ app.include_router(bookmarks_router)
 app.include_router(chat_router)
 app.include_router(lightrag_router)
 app.include_router(admin_router)
+app.include_router(exploration_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

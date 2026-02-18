@@ -12,6 +12,7 @@ from .bookmarks import router as bookmarks_router
 from .chat import router as chat_router
 from .lightrag import router as lightrag_router
 from .admin import router as admin_router
+from .exploration import router as exploration_router
 
 __all__ = [
     "auth_router",
@@ -22,4 +23,5 @@ __all__ = [
     "chat_router",
     "lightrag_router",
     "admin_router",
+    "exploration_router",
 ]
