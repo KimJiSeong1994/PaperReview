@@ -2064,18 +2064,6 @@
   border-color: rgba(165, 180, 252, 0.4);
   background: rgba(99, 102, 241, 0.06);
 }
-.mypage-highlight-item.expanded.tone-green {
-  border-color: rgba(110, 231, 183, 0.4);
-  background: rgba(110, 231, 183, 0.12);
-}
-.mypage-highlight-item.expanded.tone-blue {
-  border-color: rgba(147, 197, 253, 0.4);
-  background: rgba(147, 197, 253, 0.12);
-}
-.mypage-highlight-item.expanded.tone-rose {
-  border-color: rgba(252, 165, 165, 0.4);
-  background: rgba(252, 165, 165, 0.12);
-}
 .mypage-highlight-item .mypage-highlight-item-memo,
 .mypage-highlight-item .mypage-highlight-implication {
   margin-top: 6px;
@@ -2105,100 +2093,6 @@
   margin-bottom: 2px;
 }
 
-/* ===== Tone-based implication overrides ===== */
-.mypage-highlight-item.tone-green .mypage-highlight-implication {
-  background: rgba(110, 231, 183, 0.06);
-  border-left-color: rgba(110, 231, 183, 0.35);
-}
-.mypage-highlight-item.tone-blue .mypage-highlight-implication {
-  background: rgba(147, 197, 253, 0.06);
-  border-left-color: rgba(147, 197, 253, 0.35);
-}
-.mypage-highlight-item.tone-rose .mypage-highlight-implication {
-  background: rgba(252, 165, 165, 0.06);
-  border-left-color: rgba(252, 165, 165, 0.35);
-}
-
-/* ===== Tone-based Highlight Cards ===== */
-.mypage-highlight-item.tone-green {
-  background: rgba(110, 231, 183, 0.08);
-  border-color: rgba(110, 231, 183, 0.20);
-}
-.mypage-highlight-item.tone-green:hover {
-  background: rgba(110, 231, 183, 0.14);
-  border-color: rgba(110, 231, 183, 0.35);
-}
-.mypage-highlight-item.tone-green .mypage-highlight-item-text {
-  background: rgba(110, 231, 183, 0.15);
-  border-left-color: rgba(110, 231, 183, 0.5);
-}
-.mypage-highlight-item.tone-green .mypage-highlight-item-memo {
-  background: rgba(110, 231, 183, 0.10);
-  border-left-color: rgba(110, 231, 183, 0.4);
-}
-
-.mypage-highlight-item.tone-blue {
-  background: rgba(147, 197, 253, 0.08);
-  border-color: rgba(147, 197, 253, 0.20);
-}
-.mypage-highlight-item.tone-blue:hover {
-  background: rgba(147, 197, 253, 0.14);
-  border-color: rgba(147, 197, 253, 0.35);
-}
-.mypage-highlight-item.tone-blue .mypage-highlight-item-text {
-  background: rgba(147, 197, 253, 0.15);
-  border-left-color: rgba(147, 197, 253, 0.5);
-}
-.mypage-highlight-item.tone-blue .mypage-highlight-item-memo {
-  background: rgba(147, 197, 253, 0.10);
-  border-left-color: rgba(147, 197, 253, 0.4);
-}
-
-.mypage-highlight-item.tone-rose {
-  background: rgba(252, 165, 165, 0.08);
-  border-color: rgba(252, 165, 165, 0.20);
-}
-.mypage-highlight-item.tone-rose:hover {
-  background: rgba(252, 165, 165, 0.14);
-  border-color: rgba(252, 165, 165, 0.35);
-}
-.mypage-highlight-item.tone-rose .mypage-highlight-item-text {
-  background: rgba(252, 165, 165, 0.15);
-  border-left-color: rgba(252, 165, 165, 0.5);
-}
-.mypage-highlight-item.tone-rose .mypage-highlight-item-memo {
-  background: rgba(252, 165, 165, 0.10);
-  border-left-color: rgba(252, 165, 165, 0.4);
-}
-
-/* ===== Significance Indicators ===== */
-.mypage-highlight-item.significance-high {
-  border-left: 4px solid rgba(147, 197, 253, 0.5);
-}
-.mypage-highlight-item.significance-high.tone-green {
-  border-left-color: rgba(110, 231, 183, 0.6);
-}
-.mypage-highlight-item.significance-high.tone-rose {
-  border-left-color: rgba(252, 165, 165, 0.6);
-}
-
-.mypage-highlight-item.significance-critical {
-  border-left: 4px solid #fbbf24;
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.12);
-}
-
-.mypage-highlight-significance {
-  font-size: 10px;
-  letter-spacing: 1px;
-  flex-shrink: 0;
-}
-.mypage-highlight-significance.sig-5 {
-  color: #fbbf24;
-}
-.mypage-highlight-significance.sig-4 {
-  color: #9ca3af;
-}
-
 /* ===== Section Badge ===== */
 .mypage-highlight-section-badge {
   font-size: 9px;
@@ -2225,18 +2119,6 @@
   display: none;
 }
 
-/* ===== Key Highlights Count ===== */
-.mypage-highlights-key-count {
-  font-size: 10px;
-  font-weight: 500;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
-  padding: 1px 6px;
-  border-radius: 10px;
-  margin-left: 6px;
-  text-transform: none;
-  letter-spacing: 0;
-}
 
 /* ===== Responsive Breakpoints ===== */
 

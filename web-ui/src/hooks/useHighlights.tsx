@@ -3,7 +3,7 @@ import type React from 'react';
 import { updateBookmarkNotes, autoHighlightBookmark } from '../api/client';
 import type { HighlightItem } from '../api/client';
 import type { Bookmark } from '../components/mypage/types';
-import { getTone } from '../components/mypage/types';
+
 
 export function useHighlights(
   selectedBookmark: Bookmark | null,
@@ -353,6 +353,5 @@ export function useHighlights(
     handleAutoHighlight, handleClearAllHighlights,
     // Utilities
     applyUserHighlights,
-    getTone,
   };
 }

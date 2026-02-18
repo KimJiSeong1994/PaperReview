@@ -2,7 +2,6 @@ import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { HighlightItem } from '../../api/client';
-import { getTone } from './types';
 
 export interface ReportViewerProps {
   bookmarkDetail: any;
@@ -250,25 +249,17 @@ export default function ReportViewer({
                 <div className="mypage-highlights-list">
                   <div className="mypage-highlights-title">
                     Highlights ({userHighlights.length})
-                    {sortedHighlights.filter(h => (h.significance ?? 3) >= 4).length > 0 && (
-                      <span className="mypage-highlights-key-count">
-                        {sortedHighlights.filter(h => (h.significance ?? 3) >= 4).length} key
-                      </span>
-                    )}
                   </div>
                   {sortedHighlights.map(hl => {
-                    const tone = getTone(hl);
                     return (
                       <div
                         key={hl.id}
-                        className={`mypage-highlight-item tone-${tone}${(hl.significance ?? 3) >= 5 ? ' significance-critical' : (hl.significance ?? 3) >= 4 ? ' significance-high' : ''}${expandedHighlightId === hl.id ? ' expanded' : ''}`}
+                        className={`mypage-highlight-item${expandedHighlightId === hl.id ? ' expanded' : ''}`}
                         onClick={() => setExpandedHighlightId(expandedHighlightId === hl.id ? null : hl.id)}
                         style={{ cursor: (hl.memo || hl.implication) ? 'pointer' : undefined }}
                       >
                         <div className="mypage-highlight-item-content">
                           <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>
-                            {(hl.significance ?? 3) >= 5 && <span className="sig-5" title="Critical">★★★ </span>}
-                            {(hl.significance ?? 3) === 4 && <span className="sig-4" title="High">★★ </span>}
                             {hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}
                           </mark>
                           {hl.section && <span className="mypage-highlight-section-badge">{hl.section}</span>}
