@@ -98,11 +98,17 @@ export function useBookmarks() {
   }, [bookmarks, emptyTopics]);
 
   const chatBookmarkIds = useMemo(() => {
-    if (chatTopicFilter === 'all') return [];
-    return bookmarks
-      .filter(bm => (bm.topic || 'General') === chatTopicFilter)
-      .map(bm => bm.id);
-  }, [bookmarks, chatTopicFilter]);
+    if (chatTopicFilter !== 'all') {
+      return bookmarks
+        .filter(bm => (bm.topic || 'General') === chatTopicFilter)
+        .map(bm => bm.id);
+    }
+    // 기본("all") 모드: 체크된 북마크가 있으면 그것만 사용
+    if (selectedIds.size > 0) {
+      return Array.from(selectedIds);
+    }
+    return []; // 전체 북마크
+  }, [bookmarks, chatTopicFilter, selectedIds]);
 
   const activeDragBookmark = useMemo(() =>
     activeDragId ? bookmarks.find(bm => bm.id === activeDragId) || null : null

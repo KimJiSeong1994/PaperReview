@@ -13,6 +13,7 @@ const defaultProps = {
   chatTopicFilter: 'all',
   setChatTopicFilter: vi.fn(),
   allTopics: ['ML', 'NLP'],
+  selectedCount: 0,
   onSendMessage: vi.fn(),
   onKeyDown: vi.fn(),
   onClearChat: vi.fn(),
@@ -55,5 +56,15 @@ describe('ChatPanel', () => {
     render(<ChatPanel {...defaultProps} isStreaming={true} streamingContent="" />);
     const typingDots = document.querySelector('.mypage-chat-typing');
     expect(typingDots).toBeInTheDocument();
+  });
+
+  it('shows selected bookmark count in welcome when checkboxes checked', () => {
+    render(<ChatPanel {...defaultProps} selectedCount={3} />);
+    expect(screen.getByText(/Chatting with 3 selected bookmarks/)).toBeInTheDocument();
+  });
+
+  it('shows "Selected (N)" in topic dropdown when bookmarks selected', () => {
+    render(<ChatPanel {...defaultProps} selectedCount={2} />);
+    expect(screen.getByText('Selected (2)')).toBeInTheDocument();
   });
 });

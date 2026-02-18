@@ -13,6 +13,7 @@ export interface ChatPanelProps {
   chatTopicFilter: string;
   setChatTopicFilter: (v: string) => void;
   allTopics: string[];
+  selectedCount: number;
   onSendMessage: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onClearChat: () => void;
@@ -25,6 +26,7 @@ export default function ChatPanel({
   isStreaming, streamingContent,
   chatEndRef,
   chatTopicFilter, setChatTopicFilter, allTopics,
+  selectedCount,
   onSendMessage, onKeyDown, onClearChat,
   processCitationChildren, handleCitationClick,
 }: ChatPanelProps) {
@@ -32,11 +34,15 @@ export default function ChatPanel({
     <div className="mypage-chat-panel" role="region" aria-label="Chat with papers">
       {/* Chat header */}
       <div className="mypage-panel-header mypage-chat-header">
-        <span>Chat with your papers</span>
+        <span>
+          {chatTopicFilter === 'all' && selectedCount > 0
+            ? `Chat · ${selectedCount} selected`
+            : 'Chat with your papers'}
+        </span>
         <div className="mypage-chat-header-actions">
           <select className="mypage-chat-topic-select" value={chatTopicFilter}
             onChange={(e) => setChatTopicFilter(e.target.value)}>
-            <option value="all">All topics</option>
+            <option value="all">{selectedCount > 0 ? `Selected (${selectedCount})` : 'All topics'}</option>
             {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {messages.length > 0 && (
@@ -52,9 +58,11 @@ export default function ChatPanel({
           <div className="mypage-chat-welcome">
             <p className="mypage-chat-welcome-title">Ask about your bookmarked papers</p>
             <p className="mypage-chat-welcome-subtitle">
-              {chatTopicFilter === 'all'
-                ? 'The assistant has access to all your bookmarked research reports.'
-                : `Chatting with papers in "${chatTopicFilter}" topic.`}
+              {chatTopicFilter !== 'all'
+                ? `Chatting with papers in "${chatTopicFilter}" topic.`
+                : selectedCount > 0
+                  ? `Chatting with ${selectedCount} selected bookmark${selectedCount > 1 ? 's' : ''}. Check/uncheck in the sidebar to change scope.`
+                  : 'The assistant has access to all your bookmarked research reports. Select specific bookmarks to narrow the scope.'}
             </p>
           </div>
         )}
@@ -128,7 +136,7 @@ export default function ChatPanel({
         <textarea className="mypage-chat-input" value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={chatTopicFilter === 'all' ? 'Ask about your bookmarked papers...' : `Ask about "${chatTopicFilter}" papers...`}
+          placeholder={chatTopicFilter !== 'all' ? `Ask about "${chatTopicFilter}" papers...` : selectedCount > 0 ? `Ask about ${selectedCount} selected paper${selectedCount > 1 ? 's' : ''}...` : 'Ask about your bookmarked papers...'}
           rows={1} disabled={isStreaming} aria-label="Chat message input" />
         <button className="mypage-chat-send" onClick={onSendMessage}
           disabled={isStreaming || !inputValue.trim()} aria-label="Send message">

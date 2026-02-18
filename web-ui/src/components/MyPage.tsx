@@ -166,6 +166,7 @@ function MyPage({ onBack }: MyPageProps) {
           chatTopicFilter={bm.chatTopicFilter}
           setChatTopicFilter={bm.setChatTopicFilter}
           allTopics={bm.allTopics}
+          selectedCount={bm.selectedIds.size}
           onSendMessage={() => chat.handleSendMessage()}
           onKeyDown={chat.handleKeyDown}
           onClearChat={chat.clearChat}
