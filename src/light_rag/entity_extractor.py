@@ -58,12 +58,6 @@ class EntityExtractor:
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package is required for EntityExtractor")
 
-        import ssl
-        try:
-            ssl._create_default_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OpenAI API key is required")

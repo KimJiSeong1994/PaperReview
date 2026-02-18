@@ -56,12 +56,6 @@ Answer:"""
         llm_model: str = "gpt-4",
         storage_dir: str = "data/light_rag",
     ):
-        import ssl
-        try:
-            ssl._create_default_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-
         self.kg = kg
         self.paper_graph = paper_graph
         self.storage = storage or KGStorage(storage_dir)

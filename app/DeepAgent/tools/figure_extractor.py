@@ -151,7 +151,7 @@ class FigureExtractor:
 
         try:
             print(f"[FigureExtractor] PDF 다운로드: {pdf_url[:80]}...")
-            response = self.session.get(pdf_url, timeout=30, verify=False)
+            response = self.session.get(pdf_url, timeout=30)
             if response.status_code == 200 and len(response.content) > 1000:
                 return response.content
         except Exception as e:

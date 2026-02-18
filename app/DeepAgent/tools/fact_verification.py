@@ -822,19 +822,23 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
 
         results: List[ClaimEvidence] = []
         for claim in claims:
-            paper = paper_map.get(claim.source_paper_id)
-            if not paper:
-                # paper_id가 정확 매칭 안 되면 부분 매칭 시도
-                for pid, p in paper_map.items():
-                    if claim.source_paper_id in pid or pid in claim.source_paper_id:
-                        paper = p
-                        break
+            try:
+                paper = paper_map.get(claim.source_paper_id)
+                if not paper:
+                    # paper_id가 정확 매칭 안 되면 부분 매칭 시도
+                    for pid, p in paper_map.items():
+                        if claim.source_paper_id in pid or pid in claim.source_paper_id:
+                            paper = p
+                            break
 
-            if paper:
-                evidences = await self.find_evidence(
-                    claim, paper, kg_storage, top_k
-                )
-            else:
+                if paper:
+                    evidences = await self.find_evidence(
+                        claim, paper, kg_storage, top_k
+                    )
+                else:
+                    evidences = []
+            except Exception as e:
+                print(f"  Evidence search failed for claim '{claim.text[:60]}...': {e}")
                 evidences = []
 
             results.append(ClaimEvidence(claim=claim, evidences=evidences))

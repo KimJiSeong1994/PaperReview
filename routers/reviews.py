@@ -896,6 +896,73 @@ async def get_review_report(session_id: str, username: str = Depends(get_current
         }
 
 
+@router.get("/deep-review/verification/{session_id}")
+async def get_verification_detail(session_id: str, username: str = Depends(get_current_user)):
+    """Get detailed verification results (claims, evidence, cross-references)."""
+    with review_sessions_lock:
+        if session_id not in review_sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        session = review_sessions[session_id]
+
+        if session["status"] != "completed":
+            raise HTTPException(
+                status_code=400, detail=f"Review not completed yet (status: {session['status']})"
+            )
+
+        workspace_path = Path(session["workspace_path"])
+
+    verifications_dir = workspace_path / "verifications"
+    if not verifications_dir.exists():
+        return {
+            "session_id": session_id,
+            "claims": [],
+            "cross_references": [],
+            "consensus": [],
+            "verification_stats": session.get("verification_stats"),
+        }
+
+    # Load claims
+    claims_data = []
+    claim_files = sorted(
+        verifications_dir.glob("claims_*.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if claim_files:
+        try:
+            with open(claim_files[0], "r", encoding="utf-8") as f:
+                data = json.load(f)
+                claims_data = data.get("claims", [])
+        except Exception as e:
+            logger.warning("Failed to load claims: %s", e)
+
+    # Load cross-references and consensus
+    crossrefs_data = []
+    consensus_data = []
+    xref_files = sorted(
+        verifications_dir.glob("crossrefs_*.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if xref_files:
+        try:
+            with open(xref_files[0], "r", encoding="utf-8") as f:
+                data = json.load(f)
+                crossrefs_data = data.get("cross_references", [])
+                consensus_data = data.get("consensus", [])
+        except Exception as e:
+            logger.warning("Failed to load cross-references: %s", e)
+
+    return {
+        "session_id": session_id,
+        "claims": claims_data,
+        "cross_references": crossrefs_data,
+        "consensus": consensus_data,
+        "verification_stats": session.get("verification_stats"),
+    }
+
+
 @router.post("/deep-review/visualize/{session_id}")
 async def generate_poster_visualization(session_id: str, username: str = Depends(get_current_user)):
     """Generate a conference poster from the deep research report."""

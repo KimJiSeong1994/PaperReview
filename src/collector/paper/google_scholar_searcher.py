@@ -27,18 +27,6 @@ class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
     
     def __init__(self):
-        import ssl
-        import urllib3
-        
-        # SSL 검증 완전 비활성화 (macOS 보안 정책 우회)
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
-        
         self.base_url = "https://scholar.google.com"
         # 다양한 User-Agent 로테이션
         self.user_agents = [
@@ -62,8 +50,6 @@ class GoogleScholarSearcher:
         # 랜덤 User-Agent 선택
         self.headers['User-Agent'] = random.choice(self.user_agents)
         self.session.headers.update(self.headers)
-        # SSL 검증 비활성화
-        self.session.verify = False
         
         # 요청 간 딜레이 (Rate limiting 방지) - 더 긴 딜레이로 변경
         self.request_delay = 3.0  # 2초에서 3초로 증가

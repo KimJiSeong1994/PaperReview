@@ -22,20 +22,6 @@ class ArxivSearcher:
     """arXiv 직접 검색 클라이언트 (Enhanced)"""
     
     def __init__(self):
-        import ssl
-        import urllib3
-        
-        # SSL 검증 완전 비활성화 (macOS 보안 정책 우회)
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        
-        # SSL 컨텍스트 수정
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
-        
         self.client = arxiv.Client()
         
         # 검색어 확장을 위한 동의어 사전

@@ -42,12 +42,6 @@ class LightRetriever:
         self.storage = storage
         self.embedding_model = embedding_model
 
-        import ssl
-        try:
-            ssl._create_default_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-
         api_key = os.getenv("OPENAI_API_KEY")
         if OPENAI_AVAILABLE and api_key:
             self._openai_client = OpenAI(api_key=api_key)

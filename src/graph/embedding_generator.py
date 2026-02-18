@@ -38,15 +38,6 @@ class EmbeddingGenerator:
         use_openai: bool = True,
         fallback_dim: int = 384
     ):
-        # SSL 검증 비활성화 (macOS 보안 정책 우회)
-        import ssl
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
-        
         self.embedding_cache = {}
         self.use_openai = use_openai and OPENAI_AVAILABLE
         self.fallback_dim = fallback_dim

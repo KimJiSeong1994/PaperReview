@@ -17,18 +17,6 @@ class DBLPSearcher:
     """DBLP API 검색 클라이언트"""
 
     def __init__(self):
-        import ssl
-        import urllib3
-
-        # SSL 검증 완전 비활성화 (macOS 보안 정책 우회)
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
-
         self.base_url = "https://dblp.org/search/publ/api"
         self.headers = {
             'User-Agent': 'PaperReviewAgent/1.0',
@@ -36,7 +24,6 @@ class DBLPSearcher:
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-        self.session.verify = False
 
         # Rate limiting
         self.request_delay = 1.0

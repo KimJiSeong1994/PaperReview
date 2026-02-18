@@ -41,11 +41,6 @@ class KnowledgeGraphBuilder:
 
         api_key = os.getenv("OPENAI_API_KEY")
         if OPENAI_AVAILABLE and api_key:
-            import ssl
-            try:
-                ssl._create_default_https_context = ssl._create_unverified_context
-            except AttributeError:
-                pass
             self._openai_client = OpenAI(api_key=api_key)
         else:
             self._openai_client = None
