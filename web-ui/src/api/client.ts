@@ -224,6 +224,7 @@ export interface HighlightItem {
   category?: string;
   significance?: number;
   section?: string;
+  implication?: string;
 }
 
 export const updateBookmarkNotes = async (

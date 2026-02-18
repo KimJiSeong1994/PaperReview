@@ -264,9 +264,44 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 각 하이라이트가 추출된 섹션의 제목을 section 필드에 기록하세요.
 마커가 없는 경우 가장 가까운 문맥의 섹션 제목을 추정하여 기록합니다.
 
+## Reviewer Commentary (P2)
+각 하이라이트에 전문 리뷰어 수준의 비평을 제공하세요.
+
+### reviewer_comment — 톤별 리뷰 관점
+2~3문장의 비판적 코멘트를 작성하되, 카테고리 톤에 따라 다른 관점(lens)을 적용하세요:
+
+**Green 톤** (finding/evidence/contribution):
+→ 결과의 내적 타당도(internal validity), 효과 크기(effect size)의 실질적 의미, 외적 타당도 한계를 분석하세요.
+  예: "42개 도시 대상 비교 분석에서 클러스터링 패턴의 일관성은 내적 타당도가 높다. 그러나 표본이 중국 도시에 편중되어 있어 글로벌 일반화에는 한계가 있다."
+
+**Blue 톤** (methodology/insight/reproducibility):
+→ 방법론적 엄밀성, 기존 접근법 대비 차별적 장점, 재현 가능성 우려를 분석하세요.
+  예: "GAN 기반 데이터 증강은 소규모 데이터셋 문제를 창의적으로 해결하지만, 생성 데이터의 분포가 원본과 괴리될 경우 모델 편향을 오히려 증폭시킬 수 있다."
+
+**Rose 톤** (limitation/gap):
+→ 한계의 근본 원인, 해소를 위한 구체적 접근법, 후속 연구에서 우선적으로 다뤄야 할 사항을 분석하세요.
+  예: "단일 시점 분석은 도시 발전의 시계열 역학을 포착하지 못한다. 5~10년 종단 데이터 확보 시 정책 효과의 인과관계 추론이 가능해질 것이다."
+
+### implication — 3차원 영향 분석
+1~2문장으로 다음 3가지 차원 중 가장 적합한 것을 선택하여 기술하세요:
+- **이론적 함의**: 기존 이론/모델에 대한 지지 또는 도전
+- **실용적 함의**: 산업·정책·응용 관점에서의 의미
+- **후속 연구 방향**: 이 발견이 열어주는 새로운 연구 질문
+  예: "도시 형태와 에너지 효율 간 비선형 관계의 발견은 기존 선형 모델 가정에 도전하며, 복잡계 시뮬레이션 기반 후속 연구를 촉발할 것이다."
+
+### 금지 사항
+다음과 같은 보일러플레이트 코멘트는 절대 금지합니다:
+- "이 결과는 의미 있다" / "중요한 기여이다" → 무엇이, 왜 의미 있는지 구체적으로 기술
+- "향후 연구가 필요하다" → 어떤 방향의, 어떤 문제에 대한 연구인지 기술
+- "흥미로운 접근이다" → 기존 방법 대비 어떤 점에서 차별적인지 기술
+
+### 근거 기반 원칙
+reviewer_comment와 implication에는 리포트에 직접 언급되지 않은 수치, 저자명, 논문 제목을 포함하지 마세요.
+리포트 본문에 근거가 있는 분석만 기술하세요.
+
 ## 출력 형식
 반드시 아래 JSON 형식으로만 응답하세요:
-{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|evidence|contribution|methodology|insight|reproducibility|limitation|gap", "reason": "선정 이유 (한국어, 1~2문장)", "significance": 1, "section": "섹션 제목"}]}
+{"highlights": [{"text": "리포트 원문 그대로", "category": "finding|evidence|contribution|methodology|insight|reproducibility|limitation|gap", "reviewer_comment": "비판적 코멘트 2~3문장", "implication": "연구 분야 영향 1~2문장", "significance": 1, "section": "섹션 제목"}]}
 
 ## 선정 기준
 - 총 10~18개 하이라이트를 추출하세요.
@@ -397,24 +432,33 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
     formatted_report = _parse_report_sections(report_text)
 
     # Phase 2: LLM call (potentially long-running, no lock held)
+    from openai import OpenAI, APITimeoutError, RateLimitError, APIError
+
     client = OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-4.1",
-        temperature=0.2,
-        timeout=60,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": AUTO_HIGHLIGHT_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    f"{topic_context}"
-                    f"다음 연구 리포트에서 핵심 하이라이트를 추출해 주세요.\n\n"
-                    f"---\n{formatted_report}\n---"
-                ),
-            },
-        ],
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1",
+            temperature=0.2,
+            timeout=90,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": AUTO_HIGHLIGHT_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        f"{topic_context}"
+                        f"다음 연구 리포트에서 핵심 하이라이트를 추출해 주세요.\n\n"
+                        f"---\n{formatted_report}\n---"
+                    ),
+                },
+            ],
+        )
+    except APITimeoutError:
+        raise HTTPException(status_code=504, detail="LLM analysis timed out. Please retry.")
+    except RateLimitError:
+        raise HTTPException(status_code=429, detail="Rate limited. Please wait and retry.")
+    except APIError as e:
+        raise HTTPException(status_code=502, detail=f"LLM service error: {e.message}")
 
     raw = response.choices[0].message.content or "{}"
     try:
@@ -444,8 +488,15 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
         category = item.get("category", "finding")
         if category not in valid_categories:
             category = "finding"
-        reason = item.get("reason", "")
-        significance = max(1, min(5, int(item.get("significance", 3))))
+        reviewer_comment = item.get("reviewer_comment", "").strip()
+        implication = item.get("implication", "").strip()
+        # Backward compat: fall back to legacy "reason" if reviewer_comment absent
+        if not reviewer_comment:
+            reviewer_comment = item.get("reason", "").strip()
+        try:
+            significance = max(1, min(5, int(float(item.get("significance", 3)))))
+        except (ValueError, TypeError):
+            significance = 3
         section = item.get("section", "")
         if not text or len(text) < 5 or text in existing_texts:
             continue
@@ -460,7 +511,7 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
             continue
 
         cfg = CATEGORY_CONFIG[category]
-        memo = f"{cfg['label']} {reason}" if reason else cfg["label"]
+        memo = f"{cfg['label']} {reviewer_comment}" if reviewer_comment else cfg["label"]
         new_highlights.append({
             "id": f"hl_{uuid.uuid4().hex[:12]}",
             "text": matched_text,
@@ -469,6 +520,7 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
             "category": category,
             "significance": significance,
             "section": section,
+            "implication": implication,
             "created_at": datetime.now().isoformat(),
         })
         existing_texts.add(matched_text)

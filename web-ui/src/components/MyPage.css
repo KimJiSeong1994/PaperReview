@@ -1791,7 +1791,7 @@
   border-bottom: 2px solid rgba(165, 180, 252, 0.7);
   padding: 2px 4px;
   border-radius: 3px;
-  cursor: default;
+  cursor: pointer;
   color: inherit;
   font-weight: 500;
   transition: background 0.2s ease;
@@ -1800,6 +1800,72 @@
 .mypage-user-highlight:hover {
   background: rgba(165, 180, 252, 0.45);
   border-bottom-color: rgba(165, 180, 252, 0.85);
+}
+
+/* ===== Highlight Review Popover ===== */
+.mypage-hl-popover {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 110;
+  max-width: 420px;
+  min-width: 260px;
+  background: #1e1e2e;
+  border: 1px solid rgba(147, 197, 253, 0.3);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: hl-popover-in 0.15s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@keyframes hl-popover-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.mypage-hl-popover-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+}
+.mypage-hl-popover-close:hover {
+  color: #d1d5db;
+}
+.mypage-hl-popover-memo {
+  font-size: 12px;
+  color: #e5e7eb;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.mypage-hl-popover-implication {
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.4;
+  padding: 6px 10px;
+  background: rgba(147, 197, 253, 0.08);
+  border-radius: 4px;
+  border-left: 3px solid rgba(147, 197, 253, 0.35);
+  font-style: italic;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.mypage-hl-popover-implication-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  font-style: normal;
+  margin-bottom: 2px;
 }
 
 /* ===== Floating Selection Toolbar ===== */
@@ -1989,6 +2055,68 @@
   background: rgba(99, 102, 241, 0.2);
   border-radius: 4px;
   border-left: 3px solid rgba(165, 180, 252, 0.7);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ===== Click-to-expand highlight ===== */
+.mypage-highlight-item.expanded {
+  border-color: rgba(165, 180, 252, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+}
+.mypage-highlight-item.expanded.tone-green {
+  border-color: rgba(110, 231, 183, 0.4);
+  background: rgba(110, 231, 183, 0.12);
+}
+.mypage-highlight-item.expanded.tone-blue {
+  border-color: rgba(147, 197, 253, 0.4);
+  background: rgba(147, 197, 253, 0.12);
+}
+.mypage-highlight-item.expanded.tone-rose {
+  border-color: rgba(252, 165, 165, 0.4);
+  background: rgba(252, 165, 165, 0.12);
+}
+.mypage-highlight-item .mypage-highlight-item-memo,
+.mypage-highlight-item .mypage-highlight-implication {
+  margin-top: 6px;
+}
+
+/* ===== Implication block ===== */
+.mypage-highlight-implication {
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.4;
+  padding: 5px 10px;
+  background: rgba(147, 197, 253, 0.06);
+  border-radius: 4px;
+  border-left: 3px solid rgba(147, 197, 253, 0.35);
+  font-style: italic;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.mypage-highlight-implication-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  font-style: normal;
+  margin-bottom: 2px;
+}
+
+/* ===== Tone-based implication overrides ===== */
+.mypage-highlight-item.tone-green .mypage-highlight-implication {
+  background: rgba(110, 231, 183, 0.06);
+  border-left-color: rgba(110, 231, 183, 0.35);
+}
+.mypage-highlight-item.tone-blue .mypage-highlight-implication {
+  background: rgba(147, 197, 253, 0.06);
+  border-left-color: rgba(147, 197, 253, 0.35);
+}
+.mypage-highlight-item.tone-rose .mypage-highlight-implication {
+  background: rgba(252, 165, 165, 0.06);
+  border-left-color: rgba(252, 165, 165, 0.35);
 }
 
 /* ===== Tone-based Highlight Cards ===== */

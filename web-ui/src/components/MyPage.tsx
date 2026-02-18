@@ -232,11 +232,44 @@ function MyPage({ onBack }: MyPageProps) {
   const memoModeRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   const [autoHighlighting, setAutoHighlighting] = useState(false);
+  const [expandedHighlightId, setExpandedHighlightId] = useState<string | null>(null);
+  const [highlightPopover, setHighlightPopover] = useState<{ hl: HighlightItem } | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
 
   const sortedHighlights = useMemo(() =>
     [...userHighlights].sort((a, b) => (b.significance ?? 3) - (a.significance ?? 3)),
     [userHighlights],
   );
+
+  // Popover position: find anchor by data-hl-id and update on scroll/resize
+  useEffect(() => {
+    if (!highlightPopover) { setPopoverPos(null); return; }
+    const hlId = highlightPopover.hl.id;
+    const update = () => {
+      const anchor = reportScrollRef.current?.querySelector(`[data-hl-id="${hlId}"]`);
+      if (!anchor) { setPopoverPos(null); return; }
+      const rect = anchor.getBoundingClientRect();
+      const scrollEl = reportScrollRef.current;
+      if (scrollEl) {
+        const container = scrollEl.getBoundingClientRect();
+        if (rect.bottom < container.top || rect.top > container.bottom) {
+          setHighlightPopover(null);
+          return;
+        }
+      }
+      setPopoverPos({ x: rect.left + rect.width / 2, y: rect.bottom + 6 });
+    };
+    // Wait one frame for React to finish rendering the new <mark> elements
+    const raf = requestAnimationFrame(update);
+    const scrollEl = reportScrollRef.current;
+    scrollEl?.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      scrollEl?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [highlightPopover]);
 
   // QW-5: persist chat history
   useEffect(() => {
@@ -736,6 +769,9 @@ function MyPage({ onBack }: MyPageProps) {
           setMemoInput('');
         }
       }
+      if (!target.closest('.mypage-hl-popover') && !target.closest('.mypage-user-highlight')) {
+        setHighlightPopover(null);
+      }
     };
     reportEl.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
@@ -758,7 +794,8 @@ function MyPage({ onBack }: MyPageProps) {
             const idx = part.indexOf(hl.text);
             if (idx === -1) { nextResult.push(part); continue; }
             if (idx > 0) nextResult.push(part.slice(0, idx));
-            nextResult.push(<mark key={`hl-${hl.id}-${idx}`} className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`} style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}33`, borderBottomColor: `${hl.color}aa` } : undefined} title={hl.memo || undefined}>{hl.text}</mark>);
+            const hlRef = hl;
+            nextResult.push(<mark key={`hl-${hl.id}-${idx}`} className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`} style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}33`, borderBottomColor: `${hl.color}aa` } : undefined} title={hl.memo || undefined} data-hl-id={hl.id} onMouseDown={(e: React.MouseEvent) => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); setHighlightPopover(prev => prev?.hl.id === hlRef.id ? null : { hl: hlRef }); }}>{hl.text}</mark>);
             if (idx + hl.text.length < part.length) nextResult.push(part.slice(idx + hl.text.length));
           }
           result = nextResult;
@@ -1368,6 +1405,20 @@ function MyPage({ onBack }: MyPageProps) {
                 </div>
               )}
 
+              {/* ── Highlight Review Popover ── */}
+              {highlightPopover && popoverPos && (highlightPopover.hl.memo || highlightPopover.hl.implication) && (
+                <div className="mypage-hl-popover" style={{ left: popoverPos.x, top: popoverPos.y }}>
+                  <button className="mypage-hl-popover-close" onClick={() => setHighlightPopover(null)}>&times;</button>
+                  {highlightPopover.hl.memo && <div className="mypage-hl-popover-memo">{highlightPopover.hl.memo}</div>}
+                  {highlightPopover.hl.implication && (
+                    <div className="mypage-hl-popover-implication">
+                      <span className="mypage-hl-popover-implication-label">Implication</span>
+                      {highlightPopover.hl.implication}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── Notes & Highlights ── */}
               <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`}>
                 <div className="mypage-notes-header" onClick={() => setNotesCollapsed(!notesCollapsed)}>
@@ -1427,12 +1478,27 @@ function MyPage({ onBack }: MyPageProps) {
                         {sortedHighlights.map(hl => {
                           const tone = getTone(hl);
                           return (
-                            <div key={hl.id} className={`mypage-highlight-item tone-${tone}`}>
+                            <div
+                              key={hl.id}
+                              className={`mypage-highlight-item tone-${tone}${expandedHighlightId === hl.id ? ' expanded' : ''}`}
+                              onClick={() => setExpandedHighlightId(prev => prev === hl.id ? null : hl.id)}
+                              style={{ cursor: (hl.memo || hl.implication) ? 'pointer' : undefined }}
+                            >
                               <div className="mypage-highlight-item-content">
                                 <mark className="mypage-highlight-item-text" style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}44`, borderLeftColor: hl.color } : undefined}>{hl.text.length > 100 ? hl.text.slice(0, 100) + '...' : hl.text}</mark>
-                                {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                                {expandedHighlightId === hl.id && (
+                                  <>
+                                    {hl.memo && <div className="mypage-highlight-item-memo">{hl.memo}</div>}
+                                    {hl.implication && (
+                                      <div className="mypage-highlight-implication">
+                                        <span className="mypage-highlight-implication-label">Implication</span>
+                                        {hl.implication}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
-                              <button className="mypage-highlight-remove" onClick={() => handleRemoveHighlight(hl.id)} title="Remove">&#x2715;</button>
+                              <button className="mypage-highlight-remove" onClick={(e) => { e.stopPropagation(); handleRemoveHighlight(hl.id); }} title="Remove">&#x2715;</button>
                             </div>
                           );
                         })}
