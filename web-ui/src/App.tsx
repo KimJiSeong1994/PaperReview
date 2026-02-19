@@ -126,6 +126,17 @@ function App() {
     }
   }, []);
 
+  // Listen for forced logout from API interceptor (e.g. expired/invalid token)
+  useEffect(() => {
+    const handleForceLogout = () => {
+      setIsAuthenticated(false);
+      setUserRole('user');
+      setShowLoginModal(true);
+    };
+    window.addEventListener('auth:logout', handleForceLogout);
+    return () => window.removeEventListener('auth:logout', handleForceLogout);
+  }, []);
+
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleLoginSuccess = () => {

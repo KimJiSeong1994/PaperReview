@@ -31,13 +31,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401 response, clear stored token (route guard in App.tsx handles redirect)
+// On 401 response, clear stored token and notify App to show login modal
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !error.config?.url?.includes('/api/auth/')) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
+      localStorage.removeItem('user_role');
+      window.dispatchEvent(new Event('auth:logout'));
     }
     return Promise.reject(error);
   },

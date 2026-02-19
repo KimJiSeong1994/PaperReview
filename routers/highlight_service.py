@@ -27,9 +27,9 @@ CATEGORY_CONFIG = {
     "insight":         {"label": "[인사이트]",    "color": "#a5b4fc"},
     "reproducibility": {"label": "[재현성]",      "color": "#a5b4fc"},
     # Rose -- critical evaluation
-    "limitation":      {"label": "[연구 한계]",   "color": "#a5b4fc"},
-    "gap":             {"label": "[연구 공백]",   "color": "#a5b4fc"},
-    "assumption":      {"label": "[숨겨진 가정]", "color": "#a5b4fc"},
+    "limitation":      {"label": "[연구 한계]",   "color": "#fda4af"},
+    "gap":             {"label": "[연구 공백]",   "color": "#fda4af"},
+    "assumption":      {"label": "[숨겨진 가정]", "color": "#fda4af"},
 }
 
 AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\

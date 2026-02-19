@@ -16,7 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, review_sessions, review_sessions_lock, get_current_user, get_openai_client
+from .deps import limiter, review_sessions, review_sessions_lock, get_optional_user, get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -783,7 +783,7 @@ async def start_deep_review(
     request: Request,
     review_request: DeepReviewRequest,
     background_tasks: BackgroundTasks,
-    username: str = Depends(get_current_user),
+    username: str | None = Depends(get_optional_user),
 ):
     """Start deep paper review. Runs in background and returns session_id immediately."""
     try:
@@ -828,7 +828,7 @@ async def start_deep_review(
 
 
 @router.get("/deep-review/status/{session_id}")
-async def get_review_status(session_id: str, username: str = Depends(get_current_user)) -> ReviewStatusResponse:
+async def get_review_status(session_id: str, username: str | None = Depends(get_optional_user)) -> ReviewStatusResponse:
     """Get status of a deep review session."""
     with review_sessions_lock:
         if session_id not in review_sessions:
@@ -850,7 +850,7 @@ async def get_review_status(session_id: str, username: str = Depends(get_current
 
 
 @router.get("/deep-review/report/{session_id}")
-async def get_review_report(session_id: str, username: str = Depends(get_current_user)):
+async def get_review_report(session_id: str, username: str | None = Depends(get_optional_user)):
     """Get the generated review report."""
     with review_sessions_lock:
         if session_id not in review_sessions:
@@ -897,7 +897,7 @@ async def get_review_report(session_id: str, username: str = Depends(get_current
 
 
 @router.get("/deep-review/verification/{session_id}")
-async def get_verification_detail(session_id: str, username: str = Depends(get_current_user)):
+async def get_verification_detail(session_id: str, username: str | None = Depends(get_optional_user)):
     """Get detailed verification results (claims, evidence, cross-references)."""
     with review_sessions_lock:
         if session_id not in review_sessions:
@@ -964,7 +964,7 @@ async def get_verification_detail(session_id: str, username: str = Depends(get_c
 
 
 @router.post("/deep-review/visualize/{session_id}")
-async def generate_poster_visualization(session_id: str, username: str = Depends(get_current_user)):
+async def generate_poster_visualization(session_id: str, username: str | None = Depends(get_optional_user)):
     """Generate a conference poster from the deep research report."""
     try:
         logger.info("[Poster API] Starting poster generation for session: %s", session_id)
