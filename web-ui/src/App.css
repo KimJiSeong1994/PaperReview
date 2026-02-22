@@ -401,6 +401,25 @@ body {
   cursor: not-allowed;
 }
 
+.tools-menu-item-disabled {
+  opacity: 0.4;
+}
+
+.beta-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(165, 180, 252, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(165, 180, 252, 0.3);
+  vertical-align: middle;
+  margin-left: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
 /* Report Panel */
 .report-title-actions {
   display: flex;

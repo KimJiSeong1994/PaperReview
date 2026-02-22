@@ -9,7 +9,7 @@ import LoginModal from './components/LoginPage';
 const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, saveBookmark, verifyToken } from './api/client';
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
 
@@ -182,10 +182,9 @@ function App() {
   const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   
-  // Poster visualization states
-  const [posterHtml, setPosterHtml] = useState<string | null>(null);
+  // Poster visualization states (Beta - disabled)
+  const [posterHtml] = useState<string | null>(null);
   const [showPoster, setShowPoster] = useState(false);
-  const [posterLoading, setPosterLoading] = useState(false);
 
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
@@ -488,30 +487,8 @@ function App() {
     return () => clearInterval(pollInterval);
   }, [reviewSessionId, reviewStatus]);
 
-  // Generate poster visualization
-  const handleGeneratePoster = async () => {
-    if (!reviewSessionId) {
-      alert('No review session available');
-      return;
-    }
-
-    try {
-      setPosterLoading(true);
-      const response = await generatePoster(reviewSessionId);
-      
-      if (response.success) {
-        setPosterHtml(response.poster_html);
-        setShowPoster(true);
-      } else {
-        alert('Failed to generate poster');
-      }
-    } catch (error: any) {
-      console.error('Poster generation error:', error);
-      alert(`포스터 생성 실패: ${error.message || error}`);
-    } finally {
-      setPosterLoading(false);
-    }
-  };
+  // Generate poster visualization (Beta - disabled)
+  // const handleGeneratePoster = async () => { ... };
 
   // Close tools menu when clicking outside
   useEffect(() => {
@@ -676,20 +653,17 @@ function App() {
                         margin: '8px 0' 
                       }} />
                       
-                      {/* 학회 포스터 생성 버튼 */}
+                      {/* 학회 포스터 생성 버튼 (Beta - 비활성화) */}
                       <button
-                        className="tools-menu-item"
-                        onClick={() => {
-                          setShowToolsMenu(false);
-                          handleGeneratePoster();
-                        }}
-                        disabled={reviewStatus !== 'completed' || posterLoading}
+                        className="tools-menu-item tools-menu-item-disabled"
+                        disabled={true}
+                        title="Coming soon"
                       >
-                        <svg 
-                          className="menu-item-icon" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
+                        <svg
+                          className="menu-item-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
                           strokeWidth="2"
                         >
                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -697,7 +671,7 @@ function App() {
                           <line x1="9" y1="21" x2="9" y2="9"></line>
                         </svg>
                         <span className="menu-item-text">
-                          {posterLoading ? 'Generating...' : 'Generate Poster'}
+                          Generate Poster <span className="beta-badge">Beta</span>
                         </span>
                       </button>
                       

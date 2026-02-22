@@ -627,8 +627,8 @@ class SearchAgent:
     
     def search_with_filters(self, query: str, filters: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
-        필터를 적용한 고급 검색
-        
+        필터를 적용한 고급 검색 (병렬 실행)
+
         Args:
             query: 검색 쿼리
             filters: 필터 조건
@@ -638,38 +638,48 @@ class SearchAgent:
                 - author: 저자
                 - category: 카테고리 (arXiv)
                 - sort_by: 정렬 기준
-                
+
         Returns:
             소스별 검색 결과
         """
         sources = filters.get("sources", ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"])
         max_results = filters.get("max_results", 5)
-        
+
         results = {}
-        
-        for source in sources:
-            if source == "arxiv":
+        futures = {}
+
+        def _search_source(source_name):
+            if source_name == "arxiv":
                 category = filters.get("category")
                 sort_by = filters.get("sort_by", "relevance")
-                results["arxiv"] = self.search_arxiv(query, max_results, sort_by, category)
-                
-            elif source == "connected_papers":
-                results["connected_papers"] = self.search_connected_papers(query, max_results)
-                
-            elif source == "google_scholar":
+                return self.search_arxiv(query, max_results, sort_by, category)
+            elif source_name == "connected_papers":
+                return self.search_connected_papers(query, max_results)
+            elif source_name == "google_scholar":
                 year_start = filters.get("year_start")
                 year_end = filters.get("year_end")
                 author = filters.get("author")
                 sort_by = filters.get("sort_by", "relevance")
-                results["google_scholar"] = self.search_google_scholar(
+                return self.search_google_scholar(
                     query, max_results, sort_by, year_start, year_end, author
                 )
+            elif source_name == "openalex":
+                return self.openalex_searcher.search(query, max_results)
+            elif source_name == "dblp":
+                return self.dblp_searcher.search(query, max_results)
+            return []
 
-            elif source == "openalex":
-                results["openalex"] = self.openalex_searcher.search(query, max_results)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
+            for source in sources:
+                futures[executor.submit(_search_source, source)] = source
 
-            elif source == "dblp":
-                results["dblp"] = self.dblp_searcher.search(query, max_results)
+            for future in concurrent.futures.as_completed(futures, timeout=60):
+                source = futures[future]
+                try:
+                    results[source] = future.result(timeout=60)
+                except Exception as e:
+                    print(f"[SearchAgent] {source} search failed: {e}")
+                    results[source] = []
 
         return results
     

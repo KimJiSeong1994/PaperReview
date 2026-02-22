@@ -23,6 +23,31 @@ from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation, logger
 
+def _get_free_proxy(timeout: int = 5) -> Optional[str]:
+    """free-proxy 라이브러리로 무료 프록시 획득 (시간 제한 포함)"""
+    import threading
+
+    result = [None]
+
+    def _fetch():
+        try:
+            from fp.fp import FreeProxy
+            proxy = FreeProxy(timeout=3, rand=True, https=True).get()
+            if proxy:
+                result[0] = proxy
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_fetch, daemon=True)
+    t.start()
+    t.join(timeout=timeout)
+
+    if result[0]:
+        logger.info(f"Free proxy acquired: {result[0]}")
+    else:
+        logger.debug("Free proxy acquisition timed out or failed")
+    return result[0]
+
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
     
@@ -51,13 +76,18 @@ class GoogleScholarSearcher:
         self.headers['User-Agent'] = random.choice(self.user_agents)
         self.session.headers.update(self.headers)
         
-        # 요청 간 딜레이 (Rate limiting 방지) - 더 긴 딜레이로 변경
-        self.request_delay = 3.0  # 2초에서 3초로 증가
+        # 요청 간 딜레이 (Rate limiting 방지)
+        self.request_delay = 2.0
         self.last_request_time = 0
-        
-        # 재시도 설정 (더 강화)
-        self.max_retries = 5  # 최대 재시도 횟수 (3에서 5로 증가)
-        self.retry_delay_base = 8.0  # 기본 재시도 딜레이 (5초에서 8초로 증가)
+
+        # 재시도 설정 (빠른 실패 우선)
+        self.max_retries = 1
+        self.retry_delay_base = 2.0
+
+        # 프록시 설정 (lazy init - 첫 요청 시 설정)
+        self._proxy = None
+        self._proxy_initialized = False
+        self._proxy_failures = 0
         
         # CAPTCHA 처리 설정
         self.enable_manual_captcha = True  # 수동 CAPTCHA 해결 활성화
@@ -69,6 +99,32 @@ class GoogleScholarSearcher:
         self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
         self._circuit_breaker_threshold = 3  # 연속 실패 횟수 임계값
         self._circuit_breaker_cooldown = 300  # 비활성화 시간 (5분)
+
+    def _ensure_proxy(self):
+        """첫 요청 시 프록시 설정 (lazy init)"""
+        if self._proxy_initialized:
+            return
+        self._proxy_initialized = True
+        self._try_set_proxy()
+
+    def _try_set_proxy(self):
+        """무료 프록시 획득 및 설정"""
+        proxy_url = _get_free_proxy()
+        if proxy_url:
+            self._proxy = {"http": proxy_url, "https": proxy_url}
+            self.session.proxies.update(self._proxy)
+            logger.info(f"Google Scholar proxy configured: {proxy_url}")
+        else:
+            self._proxy = None
+            self.session.proxies.clear()
+            logger.info("Google Scholar running without proxy")
+
+    def _rotate_proxy(self):
+        """프록시 실패 시 새 프록시로 교체"""
+        self._proxy_failures += 1
+        logger.info("Rotating to new proxy after failure...")
+        self._proxy_failures = 0
+        self._try_set_proxy()
     
     def _load_cookies(self):
         """저장된 쿠키 로드"""
@@ -137,43 +193,52 @@ class GoogleScholarSearcher:
             )
 
     def _request_with_backoff(self, url: str, params: dict) -> Optional[requests.Response]:
-        """Exponential backoff을 적용한 HTTP 요청"""
+        """Exponential backoff을 적용한 HTTP 요청 (프록시 로테이션 포함)"""
+        self._ensure_proxy()
+
         for attempt in range(self.max_retries):
             try:
                 self._rate_limit()
-                response = self.session.get(url, params=params, timeout=15)
+                # 랜덤 User-Agent 로테이션
+                self.session.headers['User-Agent'] = random.choice(self.user_agents)
+                response = self.session.get(url, params=params, timeout=10)
 
                 # CAPTCHA는 호출자가 처리
                 if self._is_captcha_response(response):
                     return response
 
+                # 403 차단 시 프록시 교체 후 재시도
+                if response.status_code == 403:
+                    logger.warning(f"Google Scholar 403 blocked (attempt {attempt + 1})")
+                    self._rotate_proxy()
+                    if attempt < self.max_retries - 1:
+                        time.sleep(2)
+                        continue
+                    self._record_failure()
+                    return None
+
                 response.raise_for_status()
+                self._proxy_failures = 0
                 self._record_success()
                 return response
 
             except requests.exceptions.HTTPError as e:
+                logger.warning(f"Google Scholar HTTP error (attempt {attempt + 1}): {e}")
+                self._rotate_proxy()
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
-                    logger.warning(
-                        f"Google Scholar HTTP error (attempt {attempt + 1}/{self.max_retries}): {e}. "
-                        f"Retrying in {delay:.1f}s..."
-                    )
-                    time.sleep(delay)
+                    time.sleep(2)
                 else:
                     self._record_failure()
-                    raise
+                    return None
 
             except requests.exceptions.RequestException as e:
+                logger.warning(f"Google Scholar request error (attempt {attempt + 1}): {e}")
+                self._rotate_proxy()
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
-                    logger.warning(
-                        f"Google Scholar request error (attempt {attempt + 1}/{self.max_retries}): {e}. "
-                        f"Retrying in {delay:.1f}s..."
-                    )
-                    time.sleep(delay)
+                    time.sleep(2)
                 else:
                     self._record_failure()
-                    raise
+                    return None
 
         return None
 
