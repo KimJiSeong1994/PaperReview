@@ -242,14 +242,12 @@ function App() {
         const sortedPapers = sortPapersByQuerySimilarity(allPapers, searchQuery, queryAnalysis);
         setPapers(sortedPapers);
 
-        if (allPapers.length > 0) {
-          const graph = await getGraphData(JSON.stringify(allPapers));
+        if (sortedPapers.length > 0) {
+          const graph = await getGraphData(JSON.stringify(sortedPapers));
           setGraphData(graph);
 
-          if (!selectedPaper && allPapers.length > 0) {
-            setSelectedPaper(allPapers[0]);
-            setHighlightedPapers(new Set());
-          }
+          setSelectedPaper(sortedPapers[0]);
+          setHighlightedPapers(new Set());
         }
       }
     } catch (error: any) {

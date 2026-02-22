@@ -50,7 +50,7 @@ class SearchRequest(BaseModel):
     year_end: Optional[int] = None
     author: Optional[str] = None
     category: Optional[str] = None
-    fast_mode: bool = True
+    fast_mode: bool = False
     save_papers: bool = True
     collect_references: bool = False
     extract_texts: bool = False
@@ -156,7 +156,7 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
         "author": filters.get("author"),
         "category": filters.get("category"),
         "sort_by": filters.get("sort_by", "relevance"),
-        "fast_mode": filters.get("fast_mode", True),
+        "fast_mode": filters.get("fast_mode", False),
     }
     key_str = json.dumps(key_data, sort_keys=True)
     return hashlib.sha256(key_str.encode()).hexdigest()[:16]
@@ -392,11 +392,23 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
         # Use improved query if high-confidence analysis available
         search_query = request.query
+        source_queries = None
         if query_analysis and query_analysis.get("confidence", 0) > 0.7:
             improved_query = query_analysis.get("improved_query")
             if improved_query and improved_query != request.query:
                 logger.info("[API] Using improved query: %s", improved_query)
                 search_query = improved_query
+
+            # Generate source-specific optimized queries
+            if query_analyzer:
+                try:
+                    source_queries = query_analyzer.generate_source_specific_queries(
+                        search_query, keywords=query_analysis.get("keywords")
+                    )
+                    logger.info("[API] Source-specific queries generated: %s", {k: v[:50] for k, v in source_queries.items()})
+                    filters["source_queries"] = source_queries
+                except Exception as e:
+                    logger.warning("[API] Source-specific query generation failed: %s", e)
 
         # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
         user_filters = {
@@ -443,11 +455,35 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             search_time,
         )
 
-        # Hybrid ranking + Relevance filtering (only when not fast_mode)
-        if not request.fast_mode and results:
+        # Cross-source deduplication + Hybrid ranking (always) + Relevance filtering (non-fast only)
+        if results:
             intent = query_analysis.get("intent", "paper_search") if query_analysis else "paper_search"
 
-            # Step 1: Hybrid ranking
+            # Step 1: Cross-source deduplication
+            try:
+                all_papers_for_dedup = []
+                for source, papers in results.items():
+                    for paper in papers:
+                        paper["_source_tag"] = source
+                        all_papers_for_dedup.append(paper)
+
+                before_count = len(all_papers_for_dedup)
+                if before_count > 0:
+                    deduped = search_agent.deduplicator.deduplicate(all_papers_for_dedup)
+                    removed = before_count - len(deduped)
+                    if removed > 0:
+                        logger.info("[API] Cross-source dedup: removed %d duplicates (%d → %d)", removed, before_count, len(deduped))
+                    # 소스별로 다시 분리
+                    results = {s: [] for s in request.sources}
+                    for paper in deduped:
+                        src = paper.pop("_source_tag", paper.get("_source", "arxiv"))
+                        paper.pop("_source", None)
+                        if src in results:
+                            results[src].append(paper)
+            except Exception as e:
+                logger.warning("[API] Cross-source dedup failed (continuing): %s", e)
+
+            # Step 2: Hybrid ranking (always applied)
             if _hybrid_ranker:
                 try:
                     all_papers_for_ranking = []
@@ -472,35 +508,35 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 except Exception as e:
                     logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
 
-            # Step 2: Relevance filtering (LLM)
-            if relevance_filter:
-                try:
-                    logger.info("[API] Applying relevance filtering (parallel mode)...")
-                    all_papers = []
-                    for source, papers in results.items():
-                        for paper in papers:
-                            paper["source"] = source
-                            all_papers.append(paper)
+            # Step 3: LLM Relevance filtering (only when not fast_mode)
+            if not request.fast_mode:
+                if relevance_filter:
+                    try:
+                        logger.info("[API] Applying relevance filtering (parallel mode)...")
+                        all_papers = []
+                        for source, papers in results.items():
+                            for paper in papers:
+                                paper["source"] = source
+                                all_papers.append(paper)
 
-                    if all_papers:
-                        filtered_papers = relevance_filter.filter_papers(
-                            request.query, all_papers, threshold=0.5, max_papers=request.max_results, parallel=True
-                        )
-                        results = {}
-                        for source in request.sources:
-                            results[source] = [p for p in filtered_papers if p.get("source") == source]
-                        logger.info("[API] Filtered results: %s papers (threshold: 0.5)", len(filtered_papers))
-                    else:
-                        logger.info("[API] No papers to filter")
-                except Exception as e:
-                    logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
+                        if all_papers:
+                            filtered_papers = relevance_filter.filter_papers(
+                                request.query, all_papers, threshold=0.5, max_papers=request.max_results, parallel=True
+                            )
+                            results = {}
+                            for source in request.sources:
+                                results[source] = [p for p in filtered_papers if p.get("source") == source]
+                            logger.info("[API] Filtered results: %s papers (threshold: 0.5)", len(filtered_papers))
+                        else:
+                            logger.info("[API] No papers to filter")
+                    except Exception as e:
+                        logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
+                else:
+                    logger.info("[API] Relevance filtering skipped (OpenAI API key not configured)")
             else:
-                logger.info("[API] Relevance filtering skipped (OpenAI API key not configured)")
+                logger.info("[API] LLM relevance filtering skipped (fast mode)")
         else:
-            if request.fast_mode:
-                logger.info("[API] Relevance filtering skipped (fast mode enabled)")
-            elif not results:
-                logger.info("[API] No results to filter")
+            logger.info("[API] No results to rank/filter")
 
         # Ensure all sources present
         for source in request.sources:

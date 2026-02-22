@@ -108,10 +108,20 @@ class DBLPSearcher:
         try:
             self._rate_limit()
 
-            # DBLP는 긴 쿼리에서 500 에러 발생 → 핵심 키워드만 추출
+            # DBLP는 긴 쿼리에서 500 에러 발생 → stopword 제거 후 핵심 키워드 추출
+            _stopwords = {
+                'the', 'a', 'an', 'in', 'on', 'for', 'of', 'with', 'by', 'from',
+                'and', 'or', 'to', 'is', 'are', 'using', 'based', 'via', 'through',
+                'its', 'their', 'our', 'this', 'that', 'these', 'those', 'how',
+                'what', 'which', 'where', 'when', 'can', 'will', 'into', 'over',
+                'under', 'about', 'between', 'towards', 'toward',
+            }
             words = query.split()
-            if len(words) > 6:
-                query = " ".join(words[:6])
+            keywords = [w for w in words if w.lower() not in _stopwords and len(w) > 1]
+            if len(keywords) > 8:
+                keywords = keywords[:8]
+            if keywords:
+                query = " ".join(keywords)
 
             params = {
                 'q': query,

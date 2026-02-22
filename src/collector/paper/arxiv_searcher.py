@@ -36,7 +36,27 @@ class ArxivSearcher:
             "attention": ["self-attention", "attention mechanism", "transformer attention"],
             "agent": ["ai agent", "autonomous agent", "intelligent agent"],
             "multimodal": ["multi-modal", "vision-language", "cross-modal"],
+            "diffusion": ["diffusion model", "denoising diffusion", "score-based generative"],
+            "rlhf": ["reinforcement learning from human feedback", "human feedback", "preference learning"],
+            "cot": ["chain of thought", "chain-of-thought", "reasoning chain"],
+            "moe": ["mixture of experts", "mixture-of-experts", "sparse expert"],
+            "vit": ["vision transformer", "visual transformer", "image transformer"],
+            "lora": ["low-rank adaptation", "low rank adaptation", "parameter-efficient fine-tuning"],
+            "dpo": ["direct preference optimization", "preference optimization"],
+            "quantization": ["model quantization", "weight quantization", "post-training quantization"],
+            "distillation": ["knowledge distillation", "model distillation", "teacher-student"],
+            "federated": ["federated learning", "distributed learning", "privacy-preserving learning"],
+            "ssl": ["self-supervised learning", "contrastive learning", "pretext task"],
+            "agentic": ["agentic ai", "tool-use agent", "autonomous ai agent"],
+            "mamba": ["state space model", "selective state space", "ssm"],
+            "peft": ["parameter-efficient fine-tuning", "adapter tuning", "prompt tuning"],
+            "nerf": ["neural radiance field", "neural radiance fields", "3d reconstruction"],
         }
+        # 역방향 매핑: 풀네임 → 약어
+        self._reverse_synonyms = {}
+        for abbr, fullnames in self.synonyms.items():
+            for fullname in fullnames:
+                self._reverse_synonyms[fullname] = abbr
     
     def _normalize_query(self, query: str) -> str:
         """쿼리 정규화"""
@@ -49,18 +69,26 @@ class ArxivSearcher:
         return query
     
     def _expand_query(self, query: str) -> List[str]:
-        """쿼리 확장 - 동의어 및 관련 용어 추가"""
+        """쿼리 확장 - 동의어 및 관련 용어 추가 (정방향 + 역방향)"""
         expanded = [query]
         query_lower = query.lower()
-        
+
+        # 정방향: 약어 → 풀네임
         for key, synonyms in self.synonyms.items():
             if key in query_lower:
-                for syn in synonyms[:2]:  # 상위 2개 동의어만 사용
+                for syn in synonyms[:2]:
                     expanded_query = query_lower.replace(key, syn)
-                    if expanded_query != query_lower:
+                    if expanded_query != query_lower and expanded_query not in expanded:
                         expanded.append(expanded_query)
-        
-        return expanded[:3]  # 최대 3개 쿼리
+
+        # 역방향: 풀네임 → 약어
+        for fullname, abbr in self._reverse_synonyms.items():
+            if fullname in query_lower:
+                expanded_query = query_lower.replace(fullname, abbr)
+                if expanded_query != query_lower and expanded_query not in expanded:
+                    expanded.append(expanded_query)
+
+        return expanded[:4]  # 최대 4개 쿼리
     
     def _extract_keywords(self, query: str) -> List[str]:
         """쿼리에서 핵심 키워드 추출"""

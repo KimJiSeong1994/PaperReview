@@ -11,7 +11,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 class PaperDeduplicator:
     """3단계 논문 중복 제거"""
 
-    EMBEDDING_SIMILARITY_THRESHOLD = 0.95
+    EMBEDDING_SIMILARITY_THRESHOLD = 0.90
+    FUZZY_TITLE_JACCARD_THRESHOLD = 0.85
+    FUZZY_TITLE_LENGTH_RATIO = 0.80
 
     # ── 정규화 유틸 ──────────────────────────────────────────────────
 
@@ -148,6 +150,53 @@ class PaperDeduplicator:
                 continue
             best_idx = max(indices, key=lambda i: self._richness(papers[i]))
             for idx in indices:
+                if idx != best_idx and idx not in merged_into:
+                    papers[best_idx] = self._merge_papers(papers[best_idx], papers[idx])
+                    merged_into[idx] = best_idx
+
+        # -- Pass 2.5: Fuzzy title matching (Jaccard similarity) --
+        remaining_indices = [i for i in range(len(papers)) if i not in merged_into]
+        fuzzy_groups: Dict[int, List[int]] = {}  # representative → [members]
+        fuzzy_assigned: Set[int] = set()
+
+        for i_pos, idx_i in enumerate(remaining_indices):
+            if idx_i in fuzzy_assigned:
+                continue
+            ntitle_i = self.normalize_title(papers[idx_i].get("title", ""))
+            if not ntitle_i:
+                continue
+            words_i = set(ntitle_i.split())
+            if not words_i:
+                continue
+
+            for idx_j in remaining_indices[i_pos + 1:]:
+                if idx_j in fuzzy_assigned:
+                    continue
+                ntitle_j = self.normalize_title(papers[idx_j].get("title", ""))
+                if not ntitle_j:
+                    continue
+                words_j = set(ntitle_j.split())
+                if not words_j:
+                    continue
+
+                # 길이 비율 체크: 전혀 다른 길이의 제목은 무시
+                len_ratio = min(len(words_i), len(words_j)) / max(len(words_i), len(words_j))
+                if len_ratio < self.FUZZY_TITLE_LENGTH_RATIO:
+                    continue
+
+                # Jaccard similarity
+                intersection = len(words_i & words_j)
+                union = len(words_i | words_j)
+                if union > 0 and (intersection / union) >= self.FUZZY_TITLE_JACCARD_THRESHOLD:
+                    fuzzy_groups.setdefault(idx_i, [idx_i])
+                    fuzzy_groups[idx_i].append(idx_j)
+                    fuzzy_assigned.add(idx_j)
+
+        for representative, members in fuzzy_groups.items():
+            if len(members) <= 1:
+                continue
+            best_idx = max(members, key=lambda i: self._richness(papers[i]))
+            for idx in members:
                 if idx != best_idx and idx not in merged_into:
                     papers[best_idx] = self._merge_papers(papers[best_idx], papers[idx])
                     merged_into[idx] = best_idx

@@ -67,13 +67,23 @@ class HybridRanker:
         if not papers:
             return []
 
-        w = weights or INTENT_WEIGHT_PRESETS.get(intent, DEFAULT_WEIGHTS)
+        w = dict(weights or INTENT_WEIGHT_PRESETS.get(intent, DEFAULT_WEIGHTS))
 
         # 개별 시그널 계산
         bm25_scores = self._compute_bm25_scores(query, papers)
         semantic_scores = self._compute_semantic_scores(query, papers)
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
+
+        # Semantic fallback: 모든 semantic 점수가 0이면 가중치 재분배
+        if all(s == 0.0 for s in semantic_scores) and w.get("semantic", 0) > 0:
+            semantic_weight = w["semantic"]
+            w["bm25"] = w.get("bm25", 0) + semantic_weight * 0.6
+            w["citations"] = w.get("citations", 0) + semantic_weight * 0.2
+            w["recency"] = w.get("recency", 0) + semantic_weight * 0.2
+            w["semantic"] = 0.0
+            print("[HybridRanker] Semantic unavailable, redistributing weight: "
+                  f"bm25={w['bm25']:.2f}, citations={w['citations']:.2f}, recency={w['recency']:.2f}")
 
         # 가중 합산
         for i, paper in enumerate(papers):

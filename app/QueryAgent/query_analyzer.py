@@ -437,6 +437,84 @@ Return only valid JSON."""
             "related_terms": []
         }
     
+    @log_data_processing("Source-Specific Query Generation")
+    def generate_source_specific_queries(
+        self, query: str, keywords: List[str] = None
+    ) -> Dict[str, str]:
+        """
+        소스별 최적화 쿼리 생성.
+
+        Args:
+            query: 사용자 검색 쿼리
+            keywords: QueryAnalysis에서 추출한 키워드 (fallback용)
+
+        Returns:
+            {"arxiv": "...", "dblp": "...", "google_scholar": "...", "default": "..."}
+        """
+        default = {"arxiv": query, "dblp": query, "google_scholar": query, "default": query}
+
+        if not self.client:
+            return self._fallback_source_queries(query, keywords)
+
+        try:
+            prompt = f"""Generate optimized search queries for each academic database.
+
+User Query: "{query}"
+
+Return a JSON object with exactly these keys:
+{{
+    "arxiv": "arXiv-optimized query using ti:/abs: syntax, e.g. (ti:keyword1 AND ti:keyword2) OR abs:keyword3",
+    "dblp": "DBLP-optimized query: short keywords only (max 6 words), no operators",
+    "google_scholar": "Google Scholar-optimized query: natural language with quoted key phrases"
+}}
+
+Rules:
+- arxiv: Use arXiv field operators (ti:, abs:, cat:). Combine with AND/OR. Keep concise.
+- dblp: DBLP only supports simple keyword search. Use 3-6 core technical keywords. No operators.
+- google_scholar: Natural language, use "quoted phrases" for key concepts. Keep readable.
+- Translate non-English queries to English.
+- Return ONLY valid JSON."""
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You generate source-specific academic search queries. Return only JSON.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                response_format={"type": "json_object"},
+            )
+
+            result = json.loads(response.choices[0].message.content)
+            return {
+                "arxiv": result.get("arxiv", query),
+                "dblp": result.get("dblp", query),
+                "google_scholar": result.get("google_scholar", query),
+                "default": query,
+            }
+
+        except Exception as e:
+            print(f"[WARNING] Source-specific query generation failed: {e}")
+            return self._fallback_source_queries(query, keywords)
+
+    def _fallback_source_queries(
+        self, query: str, keywords: List[str] = None
+    ) -> Dict[str, str]:
+        """LLM 실패 시 keywords 기반 간단 분배"""
+        kw = keywords or [w for w in query.split() if len(w) > 2]
+        kw = kw[:6]
+        arxiv_q = " AND ".join([f"ti:{k}" for k in kw[:3]]) if kw else query
+        dblp_q = " ".join(kw[:6]) if kw else query
+        return {
+            "arxiv": arxiv_q,
+            "dblp": dblp_q,
+            "google_scholar": query,
+            "default": query,
+        }
+
     @log_data_processing("LLM Context Search")
     def search_with_context(self, query: str, context: str = "") -> Dict[str, Any]:
         """

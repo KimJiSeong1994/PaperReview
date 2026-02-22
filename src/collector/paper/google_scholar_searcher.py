@@ -80,9 +80,9 @@ class GoogleScholarSearcher:
         self.request_delay = 2.0
         self.last_request_time = 0
 
-        # 재시도 설정 (빠른 실패 우선)
-        self.max_retries = 1
-        self.retry_delay_base = 2.0
+        # 재시도 설정 (안정성 우선)
+        self.max_retries = 3
+        self.retry_delay_base = 3.0
 
         # 프록시 설정 (lazy init - 첫 요청 시 설정)
         self._proxy = None
@@ -97,8 +97,8 @@ class GoogleScholarSearcher:
         # Circuit breaker 설정
         self._consecutive_failures = 0
         self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
-        self._circuit_breaker_threshold = 3  # 연속 실패 횟수 임계값
-        self._circuit_breaker_cooldown = 300  # 비활성화 시간 (5분)
+        self._circuit_breaker_threshold = 5  # 연속 실패 횟수 임계값
+        self._circuit_breaker_cooldown = 120  # 비활성화 시간 (2분)
 
     def _ensure_proxy(self):
         """첫 요청 시 프록시 설정 (lazy init)"""
@@ -207,12 +207,14 @@ class GoogleScholarSearcher:
                 if self._is_captcha_response(response):
                     return response
 
-                # 403 차단 시 프록시 교체 후 재시도
+                # 403 차단 시 프록시 교체 후 재시도 (exponential backoff)
                 if response.status_code == 403:
                     logger.warning(f"Google Scholar 403 blocked (attempt {attempt + 1})")
                     self._rotate_proxy()
                     if attempt < self.max_retries - 1:
-                        time.sleep(2)
+                        delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
+                        logger.info(f"Retrying in {delay:.1f}s...")
+                        time.sleep(delay)
                         continue
                     self._record_failure()
                     return None
@@ -226,7 +228,8 @@ class GoogleScholarSearcher:
                 logger.warning(f"Google Scholar HTTP error (attempt {attempt + 1}): {e}")
                 self._rotate_proxy()
                 if attempt < self.max_retries - 1:
-                    time.sleep(2)
+                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
+                    time.sleep(delay)
                 else:
                     self._record_failure()
                     return None
@@ -235,7 +238,8 @@ class GoogleScholarSearcher:
                 logger.warning(f"Google Scholar request error (attempt {attempt + 1}): {e}")
                 self._rotate_proxy()
                 if attempt < self.max_retries - 1:
-                    time.sleep(2)
+                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
+                    time.sleep(delay)
                 else:
                     self._record_failure()
                     return None
