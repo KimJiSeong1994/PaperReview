@@ -4,6 +4,7 @@ N명의 연구원이 병렬로 논문을 분석하고, 지도교수가 검증하
 """
 import sys
 import os
+import threading
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,6 +21,8 @@ from app.DeepAgent.subagents.advisor_agent import validate_and_synthesize
 from app.DeepAgent.tools.fact_verification import (
     ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult,
 )
+
+_workspace_write_lock = threading.Lock()
 
 
 class ReviewOrchestrator:
@@ -190,14 +193,15 @@ class ReviewOrchestrator:
         
         # 논문 분석
         analysis = analyze_paper_deep(paper)
-        
-        # Workspace에 저장
-        self.workspace.save_researcher_analysis(
-            researcher_id=rid,
-            paper_id=analysis.get("paper_id", "unknown"),
-            analysis=analysis
-        )
-        
+
+        # Workspace에 저장 (thread-safe)
+        with _workspace_write_lock:
+            self.workspace.save_researcher_analysis(
+                researcher_id=rid,
+                paper_id=analysis.get("paper_id", "unknown"),
+                analysis=analysis
+            )
+
         self.workspace.log(f"Researcher {researcher_id} completed analysis of paper {analysis.get('paper_id')}")
         
         return analysis

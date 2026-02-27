@@ -3,6 +3,7 @@ Connected Papers 검색 클라이언트
 Connected Papers는 JavaScript 기반 SPA이므로 대안적 접근 방식 사용
 """
 
+import logging
 import requests
 from typing import List, Dict, Any, Optional
 import time
@@ -12,6 +13,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation
+
+logger = logging.getLogger(__name__)
 
 class ConnectedPapersSearcher:
     """Connected Papers 검색 클라이언트 (대안적 접근)"""
@@ -25,7 +28,14 @@ class ConnectedPapersSearcher:
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-    
+
+    def close(self):
+        """Close the HTTP session."""
+        self.session.close()
+
+    def __del__(self):
+        self.session.close()
+
     @log_search_operation("Connected Papers")
     def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
@@ -44,9 +54,10 @@ class ConnectedPapersSearcher:
             papers = self._search_semantic_scholar(query, max_results)
             return papers
             
-        except Exception:
+        except Exception as e:
+            logger.warning("Connected Papers search failed: %s", e)
             return []
-    
+
     def get_paper_details(self, paper_id: str) -> Optional[Dict[str, Any]]:
         """
         특정 논문의 상세 정보 가져오기 (Semantic Scholar API 사용)
@@ -84,9 +95,10 @@ class ConnectedPapersSearcher:
             
             return None
             
-        except Exception:
+        except Exception as e:
+            logger.warning("get_paper_details failed for %s: %s", paper_id, e)
             return None
-    
+
     def get_related_papers(self, paper_id: str) -> List[Dict[str, Any]]:
         """
         관련 논문 가져오기 (Semantic Scholar API 사용)
@@ -133,9 +145,10 @@ class ConnectedPapersSearcher:
             
             return []
             
-        except Exception:
+        except Exception as e:
+            logger.warning("get_related_papers failed for %s: %s", paper_id, e)
             return []
-    
+
     def _search_semantic_scholar(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """Semantic Scholar API를 통한 논문 검색"""
         try:
@@ -169,9 +182,10 @@ class ConnectedPapersSearcher:
             
             return papers
             
-        except Exception:
+        except Exception as e:
+            logger.warning("Semantic Scholar search failed: %s", e)
             return []
-    
+
     def search_by_topic(self, topic: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         주제별 논문 검색
@@ -228,5 +242,6 @@ class ConnectedPapersSearcher:
             
             return papers
             
-        except Exception:
+        except Exception as e:
+            logger.warning("get_trending_papers failed: %s", e)
             return []

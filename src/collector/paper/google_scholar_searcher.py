@@ -19,6 +19,7 @@ import sys
 import os
 import random
 import pickle
+import threading
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation, logger
@@ -84,6 +85,9 @@ class GoogleScholarSearcher:
         self.max_retries = 3
         self.retry_delay_base = 3.0
 
+        # 스레드 안전성을 위한 상태 잠금
+        self._state_lock = threading.Lock()
+
         # 프록시 설정 (lazy init - 첫 요청 시 설정)
         self._proxy = None
         self._proxy_initialized = False
@@ -102,9 +106,10 @@ class GoogleScholarSearcher:
 
     def _ensure_proxy(self):
         """첫 요청 시 프록시 설정 (lazy init)"""
-        if self._proxy_initialized:
-            return
-        self._proxy_initialized = True
+        with self._state_lock:
+            if self._proxy_initialized:
+                return
+            self._proxy_initialized = True
         self._try_set_proxy()
 
     def _try_set_proxy(self):
@@ -121,9 +126,10 @@ class GoogleScholarSearcher:
 
     def _rotate_proxy(self):
         """프록시 실패 시 새 프록시로 교체"""
-        self._proxy_failures += 1
-        logger.info("Rotating to new proxy after failure...")
-        self._proxy_failures = 0
+        with self._state_lock:
+            self._proxy_failures += 1
+            logger.info("Rotating to new proxy after failure...")
+            self._proxy_failures = 0
         self._try_set_proxy()
     
     def _load_cookies(self):
@@ -167,30 +173,33 @@ class GoogleScholarSearcher:
     
     def _is_available(self) -> bool:
         """Circuit breaker: Google Scholar 사용 가능 여부 확인"""
-        if self._consecutive_failures >= self._circuit_breaker_threshold:
-            now = time.time()
-            if now < self._disabled_until:
-                remaining = int(self._disabled_until - now)
-                logger.warning(f"Google Scholar temporarily disabled ({remaining}s remaining)")
-                return False
-            else:
-                logger.info("Google Scholar circuit breaker reset - retrying")
-                self._consecutive_failures = 0
-        return True
+        with self._state_lock:
+            if self._consecutive_failures >= self._circuit_breaker_threshold:
+                now = time.time()
+                if now < self._disabled_until:
+                    remaining = int(self._disabled_until - now)
+                    logger.warning(f"Google Scholar temporarily disabled ({remaining}s remaining)")
+                    return False
+                else:
+                    logger.info("Google Scholar circuit breaker reset - retrying")
+                    self._consecutive_failures = 0
+            return True
 
     def _record_success(self):
         """검색 성공 시 실패 카운터 초기화"""
-        self._consecutive_failures = 0
+        with self._state_lock:
+            self._consecutive_failures = 0
 
     def _record_failure(self):
         """검색 실패 시 카운터 증가 및 circuit breaker 활성화"""
-        self._consecutive_failures += 1
-        if self._consecutive_failures >= self._circuit_breaker_threshold:
-            self._disabled_until = time.time() + self._circuit_breaker_cooldown
-            logger.error(
-                f"Google Scholar disabled for {self._circuit_breaker_cooldown}s "
-                f"after {self._consecutive_failures} consecutive failures"
-            )
+        with self._state_lock:
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= self._circuit_breaker_threshold:
+                self._disabled_until = time.time() + self._circuit_breaker_cooldown
+                logger.error(
+                    f"Google Scholar disabled for {self._circuit_breaker_cooldown}s "
+                    f"after {self._consecutive_failures} consecutive failures"
+                )
 
     def _request_with_backoff(self, url: str, params: dict) -> Optional[requests.Response]:
         """Exponential backoff을 적용한 HTTP 요청 (프록시 로테이션 포함)"""
@@ -220,7 +229,8 @@ class GoogleScholarSearcher:
                     return None
 
                 response.raise_for_status()
-                self._proxy_failures = 0
+                with self._state_lock:
+                    self._proxy_failures = 0
                 self._record_success()
                 return response
 
@@ -311,8 +321,8 @@ class GoogleScholarSearcher:
                 try:
                     driver.get("https://scholar.google.com")
                     time.sleep(2)
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning("Unexpected error navigating to Scholar main page: %s", e)
                 
                 # 쿠키 가져오기
                 selenium_cookies = driver.get_cookies()

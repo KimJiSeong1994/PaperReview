@@ -1,3 +1,4 @@
+import logging
 import requests
 from typing import List, Dict, Any, Optional
 import time
@@ -5,6 +6,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation
+
+logger = logging.getLogger(__name__)
 
 class ReferenceCollector:
     """논문 참고문헌 수집 클라이언트"""
@@ -16,7 +19,14 @@ class ReferenceCollector:
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-    
+
+    def close(self):
+        """Close the HTTP session."""
+        self.session.close()
+
+    def __del__(self):
+        self.session.close()
+
     @log_search_operation("Reference Collection")
     def get_references(self, paper: Dict[str, Any], max_references: int = 10) -> List[Dict[str, Any]]:
         paper_id = self._extract_paper_id(paper)
@@ -65,9 +75,10 @@ class ReferenceCollector:
             
             return None
             
-        except Exception:
+        except Exception as e:
+            logger.warning("Paper ID search by title failed: %s", e)
             return None
-    
+
     def _fetch_references_from_semantic_scholar(self, paper_id: str, max_references: int) -> List[Dict[str, Any]]:
         """Semantic Scholar API에서 참고문헌 가져오기"""
         try:
@@ -103,9 +114,10 @@ class ReferenceCollector:
             
             return references
             
-        except Exception:
+        except Exception as e:
+            logger.warning("Semantic Scholar reference fetch failed for %s: %s", paper_id, e)
             return []
-    
+
     def _enrich_reference(self, reference: Dict[str, Any], parent_paper: Dict[str, Any]) -> Dict[str, Any]:
         """참고문헌 정보 보강"""
         reference['reference_type'] = 'citation'

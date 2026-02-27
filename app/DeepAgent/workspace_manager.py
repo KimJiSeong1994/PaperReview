@@ -4,6 +4,7 @@ Workspace Manager for Deep Agent System
 """
 import os
 import json
+import re
 import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional
@@ -63,6 +64,21 @@ class WorkspaceManager:
         }
         self.save_metadata(metadata)
     
+    @staticmethod
+    def _sanitize_id(identifier: str) -> str:
+        """Sanitize identifier to prevent path traversal."""
+        sanitized = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(identifier))
+        if not sanitized:
+            sanitized = "unknown"
+        return sanitized
+
+    def _validate_path(self, path: Path) -> Path:
+        """Ensure path is within workspace."""
+        resolved = path.resolve()
+        if not str(resolved).startswith(str(self.base_path.resolve())):
+            raise ValueError(f"Path traversal detected: {path}")
+        return resolved
+
     # ==================== Paper Management ====================
     
     def save_selected_papers(self, papers: List[Dict[str, Any]]) -> str:
@@ -100,49 +116,53 @@ class WorkspaceManager:
     # ==================== Analysis Results ====================
     
     def save_researcher_analysis(
-        self, 
-        researcher_id: str, 
-        paper_id: str, 
+        self,
+        researcher_id: str,
+        paper_id: str,
         analysis: Dict[str, Any]
     ) -> str:
         """
         연구원의 논문 분석 결과 저장
-        
+
         Args:
             researcher_id: 연구원 ID
             paper_id: 논문 ID
             analysis: 분석 결과
-            
+
         Returns:
             저장된 파일 경로
         """
-        file_name = f"{researcher_id}_paper_{paper_id}.json"
-        file_path = self.session_path / "analyses" / file_name
-        
+        safe_researcher_id = self._sanitize_id(researcher_id)
+        safe_paper_id = self._sanitize_id(paper_id)
+        file_name = f"{safe_researcher_id}_paper_{safe_paper_id}.json"
+        file_path = self._validate_path(self.session_path / "analyses" / file_name)
+
         result = {
             "researcher_id": researcher_id,
             "paper_id": paper_id,
             "analysis": analysis,
             "analyzed_at": datetime.now().isoformat()
         }
-        
+
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
-        
+
         return str(file_path)
     
     def load_researcher_analysis(
-        self, 
-        researcher_id: str, 
+        self,
+        researcher_id: str,
         paper_id: str
     ) -> Optional[Dict[str, Any]]:
         """특정 연구원의 분석 결과 로드"""
-        file_name = f"{researcher_id}_paper_{paper_id}.json"
-        file_path = self.session_path / "analyses" / file_name
-        
+        safe_researcher_id = self._sanitize_id(researcher_id)
+        safe_paper_id = self._sanitize_id(paper_id)
+        file_name = f"{safe_researcher_id}_paper_{safe_paper_id}.json"
+        file_path = self._validate_path(self.session_path / "analyses" / file_name)
+
         if not file_path.exists():
             return None
-        
+
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     

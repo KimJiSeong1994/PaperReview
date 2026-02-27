@@ -3,6 +3,7 @@ OpenAlex 검색 클라이언트
 OpenAlex REST API를 통한 학술 논문 검색 (무료, API 키 불필요)
 """
 
+import logging
 import requests
 from typing import List, Dict, Any, Optional
 import time
@@ -11,6 +12,8 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_search_operation
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAlexSearcher:
@@ -28,6 +31,13 @@ class OpenAlexSearcher:
         # Rate limiting
         self.request_delay = 0.5
         self.last_request_time = 0
+
+    def close(self):
+        """Close the HTTP session."""
+        self.session.close()
+
+    def __del__(self):
+        self.session.close()
 
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이"""
@@ -48,7 +58,8 @@ class OpenAlexSearcher:
                     word_positions.append((pos, word))
             word_positions.sort(key=lambda x: x[0])
             return " ".join(word for _, word in word_positions)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to reconstruct abstract from inverted index: %s", e)
             return ""
 
     def _parse_paper(self, work: Dict) -> Dict[str, Any]:

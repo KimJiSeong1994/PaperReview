@@ -29,6 +29,13 @@ class DBLPSearcher:
         self.request_delay = 1.0
         self.last_request_time = 0
 
+    def close(self):
+        """Close the HTTP session."""
+        self.session.close()
+
+    def __del__(self):
+        self.session.close()
+
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이"""
         current_time = time.time()

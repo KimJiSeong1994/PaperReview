@@ -9,6 +9,7 @@ arxiv 패키지를 활용한 직접 검색 (Enhanced Version)
 - 다중 검색 결과 병합
 """
 
+import logging
 import arxiv
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
@@ -17,6 +18,8 @@ import os
 import re
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_arxiv_search, log_performance
+
+logger = logging.getLogger(__name__)
 
 class ArxivSearcher:
     """arXiv 직접 검색 클라이언트 (Enhanced)"""
@@ -315,9 +318,10 @@ class ArxivSearcher:
             query = f"cat:{category}"
             return self.search(query, max_results)
             
-        except Exception:
+        except Exception as e:
+            logger.warning("arXiv category search failed for %s: %s", category, e)
             return []
-    
+
     @log_arxiv_search
     def search_by_author(self, author: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
@@ -334,9 +338,10 @@ class ArxivSearcher:
             query = f"au:{author}"
             return self.search(query, max_results)
             
-        except Exception:
+        except Exception as e:
+            logger.warning("arXiv author search failed for %s: %s", author, e)
             return []
-    
+
     @log_arxiv_search
     def get_recent_papers(self, category: str = None, days: int = 7, max_results: int = 20) -> List[Dict[str, Any]]:
         """
@@ -367,9 +372,10 @@ class ArxivSearcher:
             
             return self.search(query, max_results, sort_by="submittedDate")
             
-        except Exception:
+        except Exception as e:
+            logger.warning("arXiv recent papers search failed: %s", e)
             return []
-    
+
     def _extract_paper_info(self, result: arxiv.Result) -> Dict[str, Any]:
         """arXiv 결과에서 논문 정보 추출"""
         try:
@@ -388,7 +394,8 @@ class ArxivSearcher:
                 "comment": result.comment if hasattr(result, 'comment') else "",
                 "journal_ref": result.journal_ref if hasattr(result, 'journal_ref') else ""
             }
-        except Exception:
+        except Exception as e:
+            logger.debug("Error extracting arXiv paper info, using fallback: %s", e)
             return {
                 "title": str(result.title) if result.title else "",
                 "authors": [],

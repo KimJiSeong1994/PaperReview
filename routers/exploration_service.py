@@ -60,8 +60,8 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
             if pid:
                 url = data.get("url") or f"https://www.semanticscholar.org/paper/{pid}"
                 return {"paperId": pid, "url": url}
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Semantic Scholar lookup by ID failed for %s: %s", lookup_id, e)
 
     # Fallback to title search
     title = paper.get("title", "")
@@ -82,8 +82,8 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
             if pid:
                 url = result.get("url") or f"https://www.semanticscholar.org/paper/{pid}"
                 return {"paperId": pid, "url": url}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Semantic Scholar title search failed for '%s': %s", title[:50], e)
     return None
 
 
@@ -139,6 +139,19 @@ def generate_citation_tree(
     session = requests.Session()
     session.headers.update({"User-Agent": "PaperReviewAgent/1.0"})
 
+    try:
+        return _build_citation_tree(papers, depth, max_per_direction, session)
+    finally:
+        session.close()
+
+
+def _build_citation_tree(
+    papers: List[Dict[str, Any]],
+    depth: int,
+    max_per_direction: int,
+    session: Any,
+) -> Dict[str, Any]:
+    """Internal helper that builds the citation tree with a given session."""
     graph = nx.DiGraph()
     node_data: Dict[str, Dict[str, Any]] = {}
     # Title-based dedup: normalized_title → paperId
@@ -230,7 +243,8 @@ def generate_citation_tree(
 
     try:
         pos = nx.multipartite_layout(graph, subset_key="subset", scale=1.0)
-    except Exception:
+    except Exception as e:
+        logger.debug("Multipartite layout failed, using spring layout: %s", e)
         pos = nx.spring_layout(graph, seed=42, k=1.0, iterations=50)
 
     # Build output

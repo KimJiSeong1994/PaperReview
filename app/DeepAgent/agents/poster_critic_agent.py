@@ -222,20 +222,23 @@ Respond ONLY with valid JSON (no markdown, no extra text):
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0].strip()
 
-            data = json.loads(text)
+            try:
+                data = json.loads(text)
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"[WARNING] Gemini returned malformed JSON, falling back to rule-based: {e}")
+                logger.warning("[PosterCritic] Failed to parse Gemini response as JSON: %s", e)
+                return self._rule_based_critique(html)
+
+            score = float(data.get("score", 0.5))
+            suggestions = data.get("suggestions", "Unable to parse critique.")
 
             return CritiqueResult(
-                score=float(data.get("score", 0.5)),
-                suggestions=str(data.get("suggestions", "")),
+                score=score,
+                suggestions=str(suggestions),
                 revised_description=str(data.get("revised_description", "")),
                 metrics={k: float(v) for k, v in data.get("metrics", {}).items()},
                 structural_issues=[],
             )
-
-        except json.JSONDecodeError as e:
-            logger.warning("[PosterCritic] Failed to parse Gemini response as JSON: %s", e)
-            # Fallback: rule-based
-            return self._rule_based_critique(html)
 
         except Exception as e:
             logger.warning("[PosterCritic] Gemini critique failed: %s", e)

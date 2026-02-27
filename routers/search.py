@@ -6,6 +6,7 @@ Search-related endpoints:
   POST /api/llm-search
 """
 
+import copy
 import hashlib
 import json
 import logging
@@ -564,7 +565,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     target=_enrich_papers_background,
                     args=(
                         request.query,
-                        results,
+                        copy.deepcopy(results),
                         request.collect_references,
                         request.extract_texts,
                         request.max_references_per_paper,

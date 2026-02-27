@@ -48,6 +48,10 @@ class FigureExtractor:
     # 포스터에 포함할 최대 Figure 수
     MAX_FIGURES_FOR_POSTER = 4
 
+    # PDF 크기 및 페이지 제한
+    MAX_PDF_SIZE = 50 * 1024 * 1024  # 50MB
+    MAX_PDF_PAGES = 500
+
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         self.session = requests.Session()
@@ -153,6 +157,9 @@ class FigureExtractor:
             print(f"[FigureExtractor] PDF 다운로드: {pdf_url[:80]}...")
             response = self.session.get(pdf_url, timeout=30)
             if response.status_code == 200 and len(response.content) > 1000:
+                if len(response.content) > self.MAX_PDF_SIZE:
+                    print(f"[WARNING] PDF too large ({len(response.content) / 1024 / 1024:.1f}MB), skipping")
+                    return None
                 return response.content
         except Exception as e:
             print(f"[FigureExtractor] PDF 다운로드 실패: {e}")
@@ -172,7 +179,10 @@ class FigureExtractor:
         try:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-            for page_num in range(len(doc)):
+            if len(doc) > self.MAX_PDF_PAGES:
+                print(f"[WARNING] PDF has too many pages ({len(doc)}), limiting to {self.MAX_PDF_PAGES}")
+
+            for page_num in range(min(len(doc), self.MAX_PDF_PAGES)):
                 page = doc[page_num]
                 image_list = page.get_images(full=True)
 

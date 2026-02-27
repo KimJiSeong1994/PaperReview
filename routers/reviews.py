@@ -8,6 +8,7 @@ Deep review endpoints:
 
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -21,6 +22,33 @@ from .deps import limiter, review_sessions, review_sessions_lock, get_optional_u
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["reviews"])
+
+_SESSION_TTL_SECONDS = 86400  # 24 hours
+_last_cleanup = 0.0
+
+def _cleanup_expired_sessions():
+    """Remove review sessions older than 24 hours."""
+    global _last_cleanup
+    now = time.time()
+    if now - _last_cleanup < 600:  # Only run every 10 minutes
+        return
+    _last_cleanup = now
+    expired = []
+    with review_sessions_lock:
+        for sid, session in review_sessions.items():
+            created = session.get("created_at", "")
+            if created:
+                try:
+                    created_dt = datetime.fromisoformat(created)
+                    age = (datetime.now() - created_dt).total_seconds()
+                    if age > _SESSION_TTL_SECONDS:
+                        expired.append(sid)
+                except (ValueError, TypeError):
+                    pass
+        for sid in expired:
+            del review_sessions[sid]
+    if expired:
+        logger.info("Cleaned up %d expired review sessions", len(expired))
 
 
 # ── Pydantic models ───────────────────────────────────────────────────
@@ -786,6 +814,8 @@ async def start_deep_review(
     username: str | None = Depends(get_optional_user),
 ):
     """Start deep paper review. Runs in background and returns session_id immediately."""
+    _cleanup_expired_sessions()
+
     try:
         from app.DeepAgent.workspace_manager import WorkspaceManager
 
@@ -801,6 +831,7 @@ async def start_deep_review(
                 "num_papers": len(review_request.paper_ids),
                 "workspace_path": str(workspace.session_path),
                 "created_at": datetime.now().isoformat(),
+                "username": username,
             }
 
         background_tasks.add_task(
@@ -836,6 +867,11 @@ async def get_review_status(session_id: str, username: str | None = Depends(get_
 
         session = review_sessions[session_id]
 
+        # Allow access if no auth required or if user owns the session
+        session_owner = session.get("username")
+        if session_owner and username and session_owner != username:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         v_raw = session.get("verification_stats")
         v_stats = VerificationStats(**v_raw) if v_raw else None
 
@@ -857,6 +893,11 @@ async def get_review_report(session_id: str, username: str | None = Depends(get_
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
+
+        # Allow access if no auth required or if user owns the session
+        session_owner = session.get("username")
+        if session_owner and username and session_owner != username:
+            raise HTTPException(status_code=403, detail="Access denied")
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -904,6 +945,11 @@ async def get_verification_detail(session_id: str, username: str | None = Depend
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
+
+        # Allow access if no auth required or if user owns the session
+        session_owner = session.get("username")
+        if session_owner and username and session_owner != username:
+            raise HTTPException(status_code=403, detail="Access denied")
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -983,6 +1029,12 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
                 raise HTTPException(status_code=404, detail="Session not found")
 
             session = review_sessions[session_id]
+
+            # Allow access if no auth required or if user owns the session
+            session_owner = session.get("username")
+            if session_owner and username and session_owner != username:
+                raise HTTPException(status_code=403, detail="Access denied")
+
             logger.info("[Poster API] Session found: status=%s", session.get("status"))
 
             if session["status"] != "completed":

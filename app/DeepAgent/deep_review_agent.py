@@ -5,6 +5,8 @@ Deep Review Agent
 import os
 import sys
 import json
+import logging
+import threading
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -21,6 +23,8 @@ from app.DeepAgent.system_prompts import (
     RESEARCHER_AGENT_PROMPT,
     ADVISOR_AGENT_PROMPT
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ==================== Custom Tools ====================
@@ -190,15 +194,21 @@ def generate_final_report(title: str) -> str:
 
 # ==================== LLM-based Deep Research Tools ====================
 
-# Global LLM instance for tools
+# Global LLM instance for tools (thread-safe)
+_llm_lock = threading.Lock()
 _llm_instance = None
 
 def get_llm():
-    """Get or create LLM instance for tools"""
+    """Get or create LLM instance for tools (thread-safe)"""
     global _llm_instance
-    if _llm_instance is None:
-        _llm_instance = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    return _llm_instance
+    with _llm_lock:
+        if _llm_instance is None:
+            _llm_instance = ChatOpenAI(
+                model="gpt-4o-mini",
+                temperature=0.3,
+                request_timeout=30,
+            )
+        return _llm_instance
 
 
 def _parse_paper_json(paper_json: str) -> dict:
@@ -210,7 +220,7 @@ def _parse_paper_json(paper_json: str) -> dict:
             decoder = json.JSONDecoder()
             data, _ = decoder.raw_decode(paper_json)
             return data
-        except:
+        except Exception:
             return {}
 
 
@@ -743,7 +753,7 @@ def synthesize_cross_paper_findings(analyses_json: str) -> str:
         try:
             decoder = json.JSONDecoder()
             analyses, _ = decoder.raw_decode(analyses_json)
-        except:
+        except Exception:
             return json.dumps({"error": "Invalid JSON format"})
     
     if not isinstance(analyses, list):
@@ -1052,6 +1062,9 @@ class DeepReviewAgent:
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         self.num_researchers = num_researchers
         self.workspace = workspace or WorkspaceManager()
+
+        if not self.api_key:
+            logger.warning("OPENAI_API_KEY not set - LLM features will be unavailable")
         
         # Set workspace for tools (via function attributes)
         self._set_workspace_for_tools()
@@ -1060,7 +1073,8 @@ class DeepReviewAgent:
         self.llm = ChatOpenAI(
             model=self.model,
             api_key=self.api_key,
-            temperature=0.3
+            temperature=0.3,
+            request_timeout=30,
         )
         
         # Create subagents

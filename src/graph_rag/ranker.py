@@ -47,7 +47,7 @@ class PaperRanker:
                 return 0.4
             else:
                 return 0.2
-        except:
+        except (ValueError, IndexError):
             return 0.5
     
     def rank_papers(

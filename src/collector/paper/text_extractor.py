@@ -1,4 +1,5 @@
 import io
+import logging
 import re
 import sys
 import os
@@ -12,12 +13,21 @@ from typing import Dict, Any, Optional
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
+logger = logging.getLogger(__name__)
+
 class TextExtractor:
     def __init__(self, use_scihub: bool = True):
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         self.session = requests.Session()
         self.session.headers.update(self.headers)
         self.use_scihub = use_scihub
+
+    def close(self):
+        """Close the HTTP session."""
+        self.session.close()
+
+    def __del__(self):
+        self.session.close()
         self.scihub_mirrors = [
             'https://sci-hub.se',
             'https://sci-hub.st',
@@ -50,11 +60,13 @@ class TextExtractor:
                     full_text = '\n\n'.join([page.extract_text() for page in pdf.pages if page.extract_text()])
                     return full_text if full_text.strip() else None
 
-            except Exception:
+            except Exception as e:
+                logger.debug("pdfplumber failed for arXiv PDF, trying PyPDF2: %s", e)
                 pdf_file.seek(0)
                 return self._extract_with_pypdf2(pdf_file)
 
-        except Exception:
+        except Exception as e:
+            logger.warning("arXiv PDF extraction failed: %s", e)
             return None
     
     def _extract_with_pypdf2(self, pdf_file: io.BytesIO) -> Optional[str]:
@@ -63,7 +75,8 @@ class TextExtractor:
             full_text = '\n\n'.join([page.extract_text() for page in reader.pages if page.extract_text()])
             return full_text if full_text.strip() else None
 
-        except Exception:
+        except Exception as e:
+            logger.debug("PyPDF2 extraction failed: %s", e)
             return None
     
     def _extract_from_scihub(self, paper: Dict[str, Any]) -> Optional[str]:
@@ -97,16 +110,19 @@ class TextExtractor:
                                 full_text = '\n\n'.join([page.extract_text() for page in pdf.pages if page.extract_text()])
                                 return full_text if full_text.strip() else None
 
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("pdfplumber failed for SciHub PDF, trying PyPDF2: %s", e)
                             pdf_file.seek(0)
                             return self._extract_with_pypdf2(pdf_file)
 
-                except Exception:
+                except Exception as e:
+                    logger.debug("SciHub mirror %s failed: %s", mirror, e)
                     continue
 
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.warning("SciHub extraction failed: %s", e)
             return None
     
     def _extract_from_semantic_scholar(self, paper: Dict[str, Any]) -> Optional[str]:
@@ -122,7 +138,8 @@ class TextExtractor:
             response.raise_for_status()
             return response.json().get('abstract', None)
 
-        except Exception:
+        except Exception as e:
+            logger.warning("Semantic Scholar text extraction failed: %s", e)
             return None
     
     def extract_batch(self, papers: list, max_papers: int = None) -> Dict[str, Any]:

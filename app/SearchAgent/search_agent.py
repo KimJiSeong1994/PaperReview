@@ -132,11 +132,35 @@ class SearchAgent:
             dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
 
             # 결과 수집
-            results["arxiv"] = arxiv_future.result()
-            results["connected_papers"] = connected_papers_future.result()
-            results["google_scholar"] = google_scholar_future.result()
-            results["openalex"] = openalex_future.result()
-            results["dblp"] = dblp_future.result()
+            try:
+                results["arxiv"] = arxiv_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] arXiv search timed out or failed: {e}")
+                results["arxiv"] = []
+
+            try:
+                results["connected_papers"] = connected_papers_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] Connected Papers search timed out or failed: {e}")
+                results["connected_papers"] = []
+
+            try:
+                results["google_scholar"] = google_scholar_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] Google Scholar search timed out or failed: {e}")
+                results["google_scholar"] = []
+
+            try:
+                results["openalex"] = openalex_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] OpenAlex search timed out or failed: {e}")
+                results["openalex"] = []
+
+            try:
+                results["dblp"] = dblp_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] DBLP search timed out or failed: {e}")
+                results["dblp"] = []
 
         return results
     
@@ -178,12 +202,14 @@ class SearchAgent:
             for future in concurrent.futures.as_completed(futures):
                 source, search_type = futures[future]
                 try:
-                    papers = future.result()
+                    papers = future.result(timeout=30)
                     for paper in papers:
                         title_lower = paper.get('title', '').lower()
                         if title_lower and title_lower not in seen_titles[source]:
                             seen_titles[source].add(title_lower)
                             results[source].append(paper)
+                except concurrent.futures.TimeoutError:
+                    print(f"[WARNING] {source} {search_type} search timed out")
                 except Exception as e:
                     print(f"[SearchAgent] {source} {search_type} search failed: {e}")
         
@@ -222,7 +248,10 @@ class SearchAgent:
             for future in concurrent.futures.as_completed(futures):
                 source = futures[future]
                 try:
-                    results[source] = future.result()
+                    results[source] = future.result(timeout=30)
+                except concurrent.futures.TimeoutError:
+                    print(f"[WARNING] {source} title search timed out")
+                    results[source] = []
                 except Exception as e:
                     print(f"[SearchAgent] {source} title search failed: {e}")
                     results[source] = []
@@ -271,24 +300,28 @@ class SearchAgent:
             )
 
             try:
-                results["arxiv"] = arxiv_future.result()
-            except Exception as e:
-                print(f"[SearchAgent] arXiv similar search failed: {e}")
+                results["arxiv"] = arxiv_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] arXiv similar search timed out or failed: {e}")
+                results["arxiv"] = []
 
             try:
-                results["google_scholar"] = scholar_future.result()
-            except Exception as e:
-                print(f"[SearchAgent] Google Scholar search failed: {e}")
+                results["google_scholar"] = scholar_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] Google Scholar search timed out or failed: {e}")
+                results["google_scholar"] = []
 
             try:
-                results["openalex"] = openalex_future.result()
-            except Exception as e:
-                print(f"[SearchAgent] OpenAlex search failed: {e}")
+                results["openalex"] = openalex_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] OpenAlex search timed out or failed: {e}")
+                results["openalex"] = []
 
             try:
-                results["dblp"] = dblp_future.result()
-            except Exception as e:
-                print(f"[SearchAgent] DBLP search failed: {e}")
+                results["dblp"] = dblp_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] DBLP search timed out or failed: {e}")
+                results["dblp"] = []
 
         return results
     

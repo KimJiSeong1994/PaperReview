@@ -24,9 +24,20 @@ class LightRAGBuildRequest(BaseModel):
     extraction_model: str = "gpt-4o-mini"
 
 
+from enum import Enum as _Enum
+
+
+class LightRAGMode(str, _Enum):
+    naive = "naive"
+    local = "local"
+    global_ = "global"
+    hybrid = "hybrid"
+    mix = "mix"
+
+
 class LightRAGQueryRequest(BaseModel):
     query: str
-    mode: str = "hybrid"  # naive, local, global, hybrid, mix
+    mode: LightRAGMode = LightRAGMode.hybrid
     top_k: int = 10
     temperature: float = 0.7
 
@@ -66,7 +77,7 @@ async def light_rag_query(request: LightRAGQueryRequest, username: str = Depends
         agent = get_light_rag_agent()
         result = agent.light_query(
             query=request.query,
-            mode=request.mode,
+            mode=request.mode.value,
             top_k=request.top_k,
             temperature=request.temperature,
         )

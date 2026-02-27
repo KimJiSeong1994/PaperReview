@@ -94,8 +94,8 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
                 gm = json.load(f)
             kg_nodes = gm.get("nodes", 0)
             kg_edges = gm.get("edges", 0)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to load graph metadata: %s", e)
 
     # Papers by source
     source_counter = Counter(p.get("source", "Unknown") for p in papers)
@@ -283,6 +283,11 @@ async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_ad
     """Delete papers by their indices."""
     papers_data = _load_papers()
     papers = papers_data.get("papers", [])
+
+    # Validate indices are within range
+    invalid = [i for i in request.indices if i < 0 or i >= len(papers)]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid paper indices: {invalid}")
 
     indices_set = set(request.indices)
     papers_data["papers"] = [p for i, p in enumerate(papers) if i not in indices_set]
