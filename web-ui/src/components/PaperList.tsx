@@ -93,6 +93,7 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
             />
           )}
           <div className="paper-content">
+          {paper.source === 'reference' && <div className="ref-badge">Cited Paper</div>}
           <div className="paper-title">{paper.title}</div>
           <div className="paper-meta">{formatSummary(paper)}</div>
           </div>

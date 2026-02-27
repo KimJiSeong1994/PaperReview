@@ -188,9 +188,16 @@ Guidelines:
 - Keywords: Extract 3-7 most important technical keywords that should be used for search
 - Core Concepts: Identify 2-5 main research concepts or topics
 - Research Area: Determine the specific field (ML, NLP, CV, etc.)
-- Improved Query: Create an enhanced search query using technical terms
-  * For Korean queries, translate to English and add relevant technical terms
-  * For vague queries, add specific technical keywords
+- Improved Query: Create a MINIMALLY improved search query
+  * STRICT RULE: The improved query must be VERY CLOSE to the original. Only apply these changes:
+    1. Fix typos (e.g., "embeddng" → "embedding")
+    2. Fix singular/plural (e.g., "words embedding" → "word embeddings")
+    3. Expand abbreviations (e.g., "NLP" → "natural language processing")
+    4. For Korean queries, translate to English
+  * NEVER add domain descriptors like "in natural language processing", "for machine learning", etc.
+  * NEVER add broad field names that weren't in the original query
+  * Max length: 1.5x the original query length
+  * For vague queries, add at most 1 specific synonym (e.g., "word vectors" for "word embeddings")
   * For problem-focused queries, include both problem and solution keywords
 - Search Strategy: Suggest how to search effectively
 - Search Filters: Recommend filters based on query context
@@ -463,16 +470,18 @@ User Query: "{query}"
 
 Return a JSON object with exactly these keys:
 {{
-    "arxiv": "arXiv-optimized query using ti:/abs: syntax, e.g. (ti:keyword1 AND ti:keyword2) OR abs:keyword3",
-    "dblp": "DBLP-optimized query: short keywords only (max 6 words), no operators",
-    "google_scholar": "Google Scholar-optimized query: natural language with quoted key phrases"
+    "arxiv": "arXiv-optimized query",
+    "dblp": "DBLP-optimized query",
+    "google_scholar": "Google Scholar-optimized query"
 }}
 
-Rules:
-- arxiv: Use arXiv field operators (ti:, abs:, cat:). Combine with AND/OR. Keep concise.
-- dblp: DBLP only supports simple keyword search. Use 3-6 core technical keywords. No operators.
-- google_scholar: Natural language, use "quoted phrases" for key concepts. Keep readable.
+CRITICAL RULES:
+- STAY CLOSE to the original query. Do NOT add unrelated concepts or expand beyond the user's intent.
+- arxiv: Use (ti:keyword1 OR ti:keyword2) OR (abs:keyword1 AND abs:keyword2). Use OR between fields, not AND. Keep keyword count small (2-4 core terms).
+- dblp: Use 2-4 core technical keywords only. No operators.
+- google_scholar: Natural language with "quoted key phrases". Keep it short and focused.
 - Translate non-English queries to English.
+- Do NOT add tangential topics (e.g., if the query is about "word embeddings", do NOT add "semantic similarity" or "contextual representation" as separate search terms).
 - Return ONLY valid JSON."""
 
             response = self.client.chat.completions.create(

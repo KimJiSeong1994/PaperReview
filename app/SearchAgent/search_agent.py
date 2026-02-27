@@ -584,9 +584,13 @@ class SearchAgent:
     
     def search_arxiv(self, query: str, max_results: int = 10, sort_by: str = "relevance", category: str = None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "arxiv")
-        
-        if category: return self.arxiv_searcher.search_by_category(category, max_results)
-        else: return self.arxiv_searcher.search(query, max_results, sort_by)
+
+        if category:
+            # 카테고리와 쿼리를 결합하여 검색 (카테고리만으로 검색하면 관련 없는 결과 반환)
+            combined_query = f"cat:{category} AND ({query})"
+            return self.arxiv_searcher.search(combined_query, max_results, sort_by)
+        else:
+            return self.arxiv_searcher.search(query, max_results, sort_by)
     
     def search_connected_papers(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         self._add_to_history(query, "connected_papers")
@@ -689,7 +693,16 @@ class SearchAgent:
                 category = filters.get("category")
                 sort_by = filters.get("sort_by", "relevance")
                 arxiv_q = source_queries.get("arxiv", query)
-                return self.search_arxiv(arxiv_q, max_results, sort_by, category)
+                # 원본 쿼리와 최적화 쿼리를 모두 검색 후 병합 (중복 제거)
+                results_optimized = self.search_arxiv(arxiv_q, max_results, sort_by, category)
+                if arxiv_q != query:
+                    results_original = self.search_arxiv(query, max_results // 2, sort_by, category)
+                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
+                    for p in results_original:
+                        if p.get("title", "").lower() not in seen_titles:
+                            results_optimized.append(p)
+                            seen_titles.add(p.get("title", "").lower())
+                return results_optimized[:max_results]
             elif source_name == "connected_papers":
                 return self.search_connected_papers(query, max_results)
             elif source_name == "google_scholar":
@@ -702,7 +715,18 @@ class SearchAgent:
                     scholar_q, max_results, sort_by, year_start, year_end, author
                 )
             elif source_name == "openalex":
-                return self.openalex_searcher.search(sq, max_results)
+                # enhanced_search: 일반 검색 + 제목 필터 병합으로 노이즈 감소
+                openalex_q = source_queries.get("openalex", query)
+                results_optimized = self.openalex_searcher.enhanced_search(openalex_q, max_results)
+                # 최적화 쿼리와 원본 쿼리가 다르면 원본도 검색 후 병합
+                if openalex_q != query:
+                    results_original = self.openalex_searcher.search_by_title(query, max_results // 2)
+                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
+                    for p in results_original:
+                        if p.get("title", "").lower() not in seen_titles:
+                            results_optimized.append(p)
+                            seen_titles.add(p.get("title", "").lower())
+                return results_optimized[:max_results]
             elif source_name == "dblp":
                 dblp_q = source_queries.get("dblp", query)
                 return self.dblp_searcher.search(dblp_q, max_results)

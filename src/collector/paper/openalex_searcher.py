@@ -105,6 +105,7 @@ class OpenAlexSearcher:
             "citations": work.get("cited_by_count", 0),
             "doi": doi,
             "openalex_id": work.get("id", ""),
+            "relevance_score": work.get("relevance_score"),
         }
 
     @log_search_operation("OpenAlex")
@@ -124,7 +125,7 @@ class OpenAlexSearcher:
 
             params = {
                 'search': query,
-                'per_page': min(max_results, 50),
+                'per_page': min(max_results * 2, 50),  # 필터링 후 충분한 결과 확보
             }
 
             response = self.session.get(self.base_url, params=params, timeout=15)
@@ -138,10 +139,20 @@ class OpenAlexSearcher:
                 if paper.get("title"):
                     papers.append(paper)
 
+            # relevance_score 기반 노이즈 필터링:
+            # 상위 결과 대비 점수가 크게 떨어지는 결과 제거
+            if papers and papers[0].get("relevance_score"):
+                top_score = papers[0]["relevance_score"]
+                if top_score > 0:
+                    papers = [
+                        p for p in papers
+                        if not p.get("relevance_score") or p["relevance_score"] >= top_score * 0.3
+                    ]
+
             return papers[:max_results]
 
         except Exception as e:
-            print(f"[OpenAlex] Search error: {e}")
+            logger.error("OpenAlex search error: %s", e)
             return []
 
     @log_search_operation("OpenAlex Title")
@@ -178,7 +189,7 @@ class OpenAlexSearcher:
             return papers[:max_results]
 
         except Exception as e:
-            print(f"[OpenAlex] Title search error: {e}")
+            logger.error("OpenAlex title search error: %s", e)
             # Fallback to general search
             return self.search(title, max_results)
 
@@ -219,5 +230,5 @@ class OpenAlexSearcher:
             return all_papers[:max_results]
 
         except Exception as e:
-            print(f"[OpenAlex] Enhanced search error: {e}")
+            logger.error("OpenAlex enhanced search error: %s", e)
             return []

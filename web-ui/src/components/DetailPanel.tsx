@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './DetailPanel.css';
 import type { Paper } from '../types';
+import { fetchPaperReferences, type PaperReference } from '../api/client';
 
 interface DetailPanelProps {
   paper: Paper;
@@ -8,6 +9,30 @@ interface DetailPanelProps {
 
 function DetailPanel({ paper }: DetailPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [references, setReferences] = useState<PaperReference[]>([]);
+  const [refsLoading, setRefsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!paper.title) return;
+    let cancelled = false;
+    setReferences([]);
+    setRefsLoading(true);
+    fetchPaperReferences({
+      title: paper.title,
+      doi: paper.doi,
+      arxiv_id: paper.arxiv_id,
+    })
+      .then((data) => {
+        if (!cancelled) setReferences(data.references || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReferences([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRefsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [paper.title, paper.doi, paper.arxiv_id]);
 
   const formatAuthors = (authors: string[]): string => {
     if (!authors || authors.length === 0) return 'Unknown authors';
@@ -223,6 +248,48 @@ function DetailPanel({ paper }: DetailPanelProps) {
       <div className="detail-abstract">
         <h3>Abstract</h3>
         <p>{paper.abstract || '초록 정보가 없습니다.'}</p>
+      </div>
+
+      <div className="detail-divider" />
+
+      <div className="references-section">
+        <h3>
+          References
+          {!refsLoading && references.length > 0 && (
+            <span className="refs-count">{references.length}</span>
+          )}
+        </h3>
+        {refsLoading ? (
+          <div className="refs-loading">
+            <span className="refs-spinner" />
+            참조 논문을 불러오는 중...
+          </div>
+        ) : references.length > 0 ? (
+          <ul className="references-list">
+            {references.map((ref, idx) => (
+              <li key={idx} className="reference-item">
+                <div className="ref-title">
+                  {ref.url ? (
+                    <a href={ref.url} target="_blank" rel="noopener noreferrer">
+                      {ref.title}
+                    </a>
+                  ) : (
+                    ref.title
+                  )}
+                </div>
+                <div className="ref-meta">
+                  {ref.authors?.length > 0 && (
+                    <span>{ref.authors.slice(0, 3).join(', ')}{ref.authors.length > 3 ? ` +${ref.authors.length - 3}` : ''}</span>
+                  )}
+                  {ref.year && ref.year !== 'None' && <span> · {ref.year}</span>}
+                  {ref.citations > 0 && <span> · {ref.citations} citations</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="refs-empty">참조 논문 정보가 없습니다.</p>
+        )}
       </div>
     </div>
   );

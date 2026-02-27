@@ -376,36 +376,41 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         else:
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 
-        # Auto-apply filters from analysis
+        # Use only user-specified filters (LLM auto-filters removed — they
+        # were too aggressive and returned irrelevant results)
         filters = {
             "sources": request.sources,
             "max_results": request.max_results,
             "sort_by": request.sort_by,
-            "year_start": request.year_start
-            or (query_analysis.get("search_filters", {}).get("year_start") if query_analysis else None),
-            "year_end": request.year_end
-            or (query_analysis.get("search_filters", {}).get("year_end") if query_analysis else None),
-            "author": request.author
-            or (query_analysis.get("search_filters", {}).get("author") if query_analysis else None),
-            "category": request.category
-            or (query_analysis.get("search_filters", {}).get("category") if query_analysis else None),
+            "year_start": request.year_start,
+            "year_end": request.year_end,
+            "author": request.author,
+            "category": request.category,
         }
 
         # Use improved query only with very high confidence
         search_query = request.query
         source_queries = None
-        if query_analysis and query_analysis.get("confidence", 0) > 0.85:
+        if query_analysis and query_analysis.get("confidence", 0) >= 0.8:
             improved_query = query_analysis.get("improved_query")
             if improved_query and improved_query != request.query:
-                # 원본 쿼리 키워드가 개선 쿼리에 포함되는지 검증
-                original_words = set(request.query.lower().split())
-                improved_words = set(improved_query.lower().split())
-                overlap = len(original_words & improved_words) / max(len(original_words), 1)
-                if overlap >= 0.3:
-                    logger.info("[API] Using improved query (overlap=%.2f): %s", overlap, improved_query)
+                # 단수/복수 차이를 무시하는 간단한 정규화 (trailing 's' 제거)
+                _STOP_WORDS = {"in", "of", "for", "the", "a", "an", "and", "or", "on", "to", "with", "by", "from", "is", "are", "at", "as"}
+
+                def _stem(word: str) -> str:
+                    w = word.lower().rstrip("s")
+                    return w if w else word.lower()
+
+                original_stems = {_stem(w) for w in request.query.split() if w.lower() not in _STOP_WORDS}
+                improved_stems = {_stem(w) for w in improved_query.split() if w.lower() not in _STOP_WORDS}
+                overlap = len(original_stems & improved_stems) / max(len(original_stems), 1)
+                length_ratio = len(improved_stems) / max(len(original_stems), 1)
+                max_ratio = 2.0
+                if overlap >= 0.5 and length_ratio < max_ratio:
+                    logger.info("[API] Using improved query (overlap=%.2f, ratio=%.1f): %s", overlap, length_ratio, improved_query)
                     search_query = improved_query
                 else:
-                    logger.info("[API] Skipping improved query (overlap=%.2f too low): %s", overlap, improved_query)
+                    logger.info("[API] Skipping improved query (overlap=%.2f, ratio=%.1f): %s", overlap, length_ratio, improved_query)
 
             # Generate source-specific optimized queries
             if query_analyzer:

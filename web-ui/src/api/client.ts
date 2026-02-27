@@ -91,6 +91,45 @@ export const getGraphData = async (papers: string): Promise<GraphData> => {
   return response.data;
 };
 
+// Paper References API
+export interface PaperReference {
+  title: string;
+  authors: string[];
+  year: string;
+  citations: number;
+  abstract: string;
+  url: string;
+  source: string;
+  paper_id: string;
+  parent_paper_title?: string;
+}
+
+export const fetchPaperReferences = async (paper: {
+  title: string;
+  doi?: string;
+  arxiv_id?: string;
+}): Promise<{ references: PaperReference[] }> => {
+  const response = await api.post<{ references: PaperReference[] }>('/api/paper-references', {
+    title: paper.title,
+    doi: paper.doi,
+    arxiv_id: paper.arxiv_id,
+    max_references: 10,
+  });
+  return response.data;
+};
+
+export const fetchBatchReferences = async (papers: {
+  title: string;
+  doi?: string;
+  arxiv_id?: string;
+}[]): Promise<{ references: PaperReference[] }> => {
+  const response = await api.post<{ references: PaperReference[] }>('/api/batch-references', {
+    papers,
+    max_references: 5,
+  });
+  return response.data;
+};
+
 // Deep Review API
 export interface DeepReviewRequest {
   paper_ids: string[];

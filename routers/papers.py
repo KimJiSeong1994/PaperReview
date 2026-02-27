@@ -5,6 +5,7 @@ Paper management endpoints:
   GET  /api/papers/count
   DELETE /api/papers
   POST /api/collect-references
+  POST /api/paper-references
   POST /api/extract-texts
   POST /api/enrich-papers
   POST /api/graph-data
@@ -116,6 +117,63 @@ async def collect_references(max_references_per_paper: int = 10, max_papers: int
         error_trace = traceback.format_exc()
         logger.error("Error in collect references: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Reference collection failed: {str(e)}")
+
+
+@router.post("/paper-references")
+async def get_paper_references(request: Dict[str, Any]):
+    """Get references for a single paper (on-demand)."""
+    try:
+        paper = {
+            "title": request.get("title", ""),
+            "doi": request.get("doi"),
+            "arxiv_id": request.get("arxiv_id"),
+        }
+        max_refs = min(request.get("max_references", 10), 20)
+        logger.info("Fetching references for: %s (max=%s)", paper["title"][:60], max_refs)
+        refs = search_agent.reference_collector.get_references(paper, max_refs)
+        logger.info("Found %s references for: %s", len(refs), paper["title"][:60])
+        return {"references": refs}
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error("Error fetching paper references: %s", error_trace)
+        raise HTTPException(status_code=500, detail=f"Reference fetch failed: {str(e)}")
+
+
+@router.post("/batch-references")
+async def get_batch_references(request: Dict[str, Any]):
+    """Fetch references for multiple papers at once (max 5 papers)."""
+    import time as _time
+    try:
+        papers_list = request.get("papers", [])[:5]
+        max_refs = min(request.get("max_references", 5), 10)
+        logger.info("Batch references: %s papers, max_refs=%s", len(papers_list), max_refs)
+
+        all_refs: List[Dict[str, Any]] = []
+        seen_titles: set = set()
+
+        for i, p in enumerate(papers_list):
+            paper = {
+                "title": p.get("title", ""),
+                "doi": p.get("doi"),
+                "arxiv_id": p.get("arxiv_id"),
+            }
+            if not paper["title"]:
+                continue
+            refs = search_agent.reference_collector.get_references(paper, max_refs)
+            for ref in refs:
+                norm_title = ref.get("title", "").strip().lower()
+                if norm_title and norm_title not in seen_titles:
+                    seen_titles.add(norm_title)
+                    all_refs.append(ref)
+            if i < len(papers_list) - 1:
+                _time.sleep(0.3)
+
+        logger.info("Batch references done: %s unique refs from %s papers", len(all_refs), len(papers_list))
+        return {"references": all_refs}
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error("Error in batch references: %s", error_trace)
+        raise HTTPException(status_code=500, detail=f"Batch reference fetch failed: {str(e)}")
 
 
 @router.post("/extract-texts")

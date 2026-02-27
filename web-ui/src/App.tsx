@@ -9,7 +9,7 @@ import LoginModal from './components/LoginPage';
 const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
 
@@ -175,6 +175,38 @@ function App() {
 
           setSelectedPaper(sortedPapers[0]);
           setHighlightedPapers(new Set());
+
+          // Fetch references for top papers and merge into list + graph
+          const topPapers = sortedPapers.slice(0, 5).map(p => ({
+            title: p.title,
+            doi: p.doi,
+            arxiv_id: p.arxiv_id,
+          }));
+          fetchBatchReferences(topPapers).then(({ references }) => {
+            if (references.length === 0) return;
+            const existingTitles = new Set(sortedPapers.map(p => p.title.trim().toLowerCase()));
+            const refPapers: Paper[] = [];
+            for (const ref of references) {
+              const normTitle = (ref.title || '').trim().toLowerCase();
+              if (!normTitle || existingTitles.has(normTitle)) continue;
+              existingTitles.add(normTitle);
+              refPapers.push({
+                doc_id: hashString(ref.title),
+                title: ref.title,
+                authors: ref.authors || [],
+                year: ref.year,
+                abstract: ref.abstract || '',
+                url: ref.url || '',
+                citations: ref.citations || 0,
+                source: 'reference',
+                parent_paper_title: ref.parent_paper_title,
+              });
+            }
+            if (refPapers.length === 0) return;
+            const merged = [...sortedPapers, ...refPapers];
+            setPapers(merged);
+            getGraphData(JSON.stringify(merged)).then(g => setGraphData(g)).catch(() => {});
+          }).catch(() => {});
         }
       }
     } catch (error: any) {

@@ -81,6 +81,20 @@
   font-family: 'Roboto', sans-serif;
 }
 
+.ref-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-family: 'Roboto', sans-serif;
+}
+
 .paper-title {
   font-size: 13px;
   font-weight: 400;
