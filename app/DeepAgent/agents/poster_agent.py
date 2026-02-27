@@ -16,6 +16,7 @@ from .poster_content_agent import PosterContentAgent
 from .poster_layout_agent import PosterLayoutAgent, LayoutType
 from .poster_visual_agent import PosterVisualAgent
 from .poster_validator_agent import PosterValidatorAgent
+from .poster_critic_agent import PosterCriticAgent, CritiqueResult
 
 # 스타일 매니저 (동적 임포트)
 import sys
@@ -52,13 +53,15 @@ class PosterGenerationAgent:
     """
     
     def __init__(
-        self, 
+        self,
         model: str = "gemini-3-pro-image-preview",
         api_key: Optional[str] = None,
         max_workers: int = 4,
         enable_validation: bool = False,
         theme: str = "default",
-        design_pattern_manager=None
+        design_pattern_manager=None,
+        enable_critic: bool = True,
+        max_critic_rounds: int = 2
     ):
         """
         Args:
@@ -68,13 +71,17 @@ class PosterGenerationAgent:
             enable_validation: VLM 품질 검증 활성화
             theme: YAML 테마 이름 (default, academic_blue, dark_theme 등)
             design_pattern_manager: DesignPatternManager 인스턴스 (옵션)
+            enable_critic: Critic 반복 루프 활성화
+            max_critic_rounds: 최대 비평 라운드 수
         """
         self.model = model
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         self.max_workers = max_workers
         self.enable_validation = enable_validation
         self.theme = theme
-        
+        self.enable_critic = enable_critic
+        self.max_critic_rounds = max_critic_rounds
+
         # DesignPatternManager 설정
         if design_pattern_manager is None:
             try:
@@ -84,19 +91,30 @@ class PosterGenerationAgent:
                 self.pattern_manager = None
         else:
             self.pattern_manager = design_pattern_manager
-        
+
         # Gemini LLM 초기화
         self.llm = None
         if self.api_key:
             self._initialize_gemini()
-        
+
+        # Critic 에이전트 초기화
+        self.critic_agent = PosterCriticAgent(gemini_llm=self.llm) if enable_critic else None
+
+        # StyleGuideManager 초기화
+        self.style_guide_manager = None
+        try:
+            from app.DeepAgent.config.style_guide_manager import StyleGuideManager
+            self.style_guide_manager = StyleGuideManager()
+        except Exception:
+            pass
+
         # 스타일 매니저 초기화 (권한 오류 시 기본값 사용)
         try:
             self.style_manager = StyleManager()
         except (OSError, PermissionError, ImportError) as e:
             # StyleManager 초기화 실패 시 None으로 설정 (기본 CSS 사용)
             self.style_manager = None
-        
+
         # 하위 에이전트 초기화 (DesignPatternManager 전달)
         self.content_agent = PosterContentAgent()
         self.layout_agent = PosterLayoutAgent(design_pattern_manager=self.pattern_manager)
@@ -111,7 +129,161 @@ class PosterGenerationAgent:
             self.llm = genai.GenerativeModel(self.model)
         except Exception as e:
             self.llm = None
-    
+
+    def _get_style_guide(self, content=None) -> str:
+        """스타일 가이드 텍스트 반환"""
+        if not self.style_guide_manager:
+            return ""
+        try:
+            domain = "general"
+            if content and hasattr(content, 'keywords'):
+                domain = self.style_guide_manager.detect_domain(content.keywords)
+            return self.style_guide_manager.get_guide(domain)
+        except Exception:
+            return ""
+
+    def _critic_loop(self, poster_html: str, style_guide: str, max_rounds: int = 2) -> tuple:
+        """
+        Critic 반복 루프: 비평 → 수정 사이클.
+
+        Args:
+            poster_html: 초기 포스터 HTML
+            style_guide: 스타일 가이드 텍스트
+            max_rounds: 최대 라운드 수
+
+        Returns:
+            (최종 HTML, 최종 점수) 튜플
+        """
+        current_best = poster_html
+        score = 0.0
+
+        for round_idx in range(max_rounds):
+            print(f"[PosterAgent] Critic loop round {round_idx + 1}/{max_rounds}")
+            critique = self.critic_agent.critique(poster_html, style_guide, round_idx)
+            score = critique.score
+            print(f"[PosterAgent] Critic score: {score:.2f}")
+
+            if critique.suggestions.strip() == "No changes needed.":
+                print("[PosterAgent] Critic: No changes needed. Exiting loop.")
+                break
+            if score >= 0.85:
+                print(f"[PosterAgent] Score {score:.2f} >= 0.85. Exiting loop.")
+                break
+
+            try:
+                refined = self._refine_with_gemini(poster_html, critique, style_guide)
+                poster_html = refined
+                current_best = refined
+                print(f"[PosterAgent] Refinement applied (round {round_idx + 1})")
+            except Exception as e:
+                print(f"[PosterAgent] Refinement failed: {e}. Rolling back to previous best.")
+                poster_html = current_best
+                break
+
+        return current_best, score
+
+    def _refine_with_gemini(self, poster_html: str, critique: 'CritiqueResult', style_guide: str) -> str:
+        """
+        Gemini에 원본 HTML + 비평 피드백 전송 → 수정된 HTML 반환.
+
+        Args:
+            poster_html: 현재 포스터 HTML
+            critique: CritiqueResult 비평 결과
+            style_guide: 스타일 가이드 텍스트
+
+        Returns:
+            수정된 HTML
+        """
+        if not self.llm:
+            raise RuntimeError("Gemini LLM not available for refinement")
+
+        style_section = f"\n## Style Guide\n{style_guide}" if style_guide else ""
+
+        prompt = f"""You are an expert academic poster designer. Refine the following HTML poster based on critic feedback.
+
+## Critic Feedback
+- **Score**: {critique.score:.2f}/1.0
+- **Suggestions**: {critique.suggestions}
+- **Focus areas**: {critique.revised_description}
+- **Metrics**: {json.dumps(critique.metrics) if hasattr(critique, 'metrics') else '{}'}
+{style_section}
+
+## Current Poster HTML
+```html
+{poster_html[:25000]}
+```
+
+## Instructions
+1. Apply the critic's suggestions to improve the poster
+2. Keep the overall structure and content intact
+3. Focus on the specific issues mentioned in the feedback
+4. Output ONLY the complete, refined HTML (no explanations, no markdown fences)
+5. Ensure the output starts with <!DOCTYPE html>
+
+Output the refined HTML now:"""
+
+        import json as json_mod  # noqa: already imported at module level
+
+        response = self.llm.generate_content(prompt)
+        refined_html = response.text
+
+        # HTML 코드만 추출
+        if "```html" in refined_html:
+            refined_html = refined_html.split("```html")[1].split("```")[0]
+        elif "```" in refined_html:
+            parts = refined_html.split("```")
+            if len(parts) > 1:
+                refined_html = parts[1]
+
+        refined_html = refined_html.strip()
+
+        if not refined_html.startswith("<!DOCTYPE") and not refined_html.startswith("<html"):
+            refined_html = f"<!DOCTYPE html>\n<html lang='ko'>\n{refined_html}\n</html>"
+
+        return refined_html
+
+    def _get_style_guide_prompt(self, content=None) -> str:
+        """스타일 가이드를 Gemini 프롬프트 형식으로 반환"""
+        guide = self._get_style_guide(content)
+        if not guide:
+            return ""
+        return f"""---
+
+## Style Guide (follow these rules strictly)
+
+{guide}
+"""
+
+    def _get_reference_poster_prompt(self, content=None) -> str:
+        """참조 포스터를 Gemini 프롬프트 형식으로 반환"""
+        if not self.pattern_manager:
+            return ""
+        try:
+            if not hasattr(self.pattern_manager, 'select_reference_poster'):
+                return ""
+            content_analysis = {}
+            if content:
+                content_analysis = {
+                    'keywords': getattr(content, 'keywords', []),
+                    'has_pipeline': 'pipeline' in getattr(content, 'methodology', '').lower(),
+                    'has_performance_metrics': bool(getattr(content, 'visualization_data', None)),
+                }
+            ref_html = self.pattern_manager.select_reference_poster(content_analysis)
+            if not ref_html:
+                return ""
+            # 참조 HTML 스니펫 (너무 길면 축소)
+            snippet = ref_html[:8000]
+            return f"""---
+
+## Reference Poster Example
+Below is a high-quality poster HTML structure. Adapt the structure, NOT the content:
+```html
+{snippet}
+```
+"""
+        except Exception:
+            return ""
+
     def generate_poster(
         self,
         report_content: str,
@@ -181,9 +353,16 @@ class PosterGenerationAgent:
                 section_htmls = self._generate_sections_parallel(layout.sections)
                 poster_html = self._assemble_poster(content, layout, section_htmls)
 
-            # Phase 4: Validation (옵션)
+            # Phase 4: Critic Loop (반복 비평 → 수정)
             validation_score = 0.8
-            if self.enable_validation and self.validator_agent:
+            if self.enable_critic and self.critic_agent:
+                style_guide = self._get_style_guide(content)
+                poster_html, validation_score = self._critic_loop(
+                    poster_html,
+                    style_guide=style_guide,
+                    max_rounds=self.max_critic_rounds,
+                )
+            elif self.enable_validation and self.validator_agent:
                 validation = self.validator_agent.validate(poster_html)
                 validation_score = validation.score
 
@@ -739,6 +918,10 @@ SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확�
 ---
 
 {svg_examples}
+
+{self._get_style_guide_prompt(content)}
+
+{self._get_reference_poster_prompt(content)}
 
 ---
 

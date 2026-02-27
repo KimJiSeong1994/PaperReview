@@ -9,7 +9,7 @@ import LoginModal from './components/LoginPage';
 const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, saveBookmark, verifyToken } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, generatePoster, saveBookmark, verifyToken } from './api/client';
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
 
@@ -182,9 +182,10 @@ function App() {
   const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   
-  // Poster visualization states (Beta - disabled)
-  const [posterHtml] = useState<string | null>(null);
+  // Poster visualization states
+  const [posterHtml, setPosterHtml] = useState<string | null>(null);
   const [showPoster, setShowPoster] = useState(false);
+  const [posterLoading, setPosterLoading] = useState(false);
 
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
@@ -485,8 +486,23 @@ function App() {
     return () => clearInterval(pollInterval);
   }, [reviewSessionId, reviewStatus]);
 
-  // Generate poster visualization (Beta - disabled)
-  // const handleGeneratePoster = async () => { ... };
+  // Generate poster visualization
+  const handleGeneratePoster = async () => {
+    if (!reviewSessionId) return;
+    setPosterLoading(true);
+    setShowToolsMenu(false);
+    try {
+      const response = await generatePoster(reviewSessionId);
+      if (response.success) {
+        setPosterHtml(response.poster_html);
+        setShowPoster(true);
+      }
+    } catch (error) {
+      console.error('Poster generation error:', error);
+    } finally {
+      setPosterLoading(false);
+    }
+  };
 
   // Close tools menu when clicking outside
   useEffect(() => {
@@ -651,25 +667,31 @@ function App() {
                         margin: '8px 0' 
                       }} />
                       
-                      {/* 학회 포스터 생성 버튼 (Beta - 비활성화) */}
+                      {/* 학회 포스터 생성 버튼 */}
                       <button
-                        className="tools-menu-item tools-menu-item-disabled"
-                        disabled={true}
-                        title="Coming soon"
+                        className={`tools-menu-item ${
+                          !(reviewStatus === 'completed' && reviewSessionId) ? 'tools-menu-item-disabled' : ''
+                        }`}
+                        disabled={!(reviewStatus === 'completed' && reviewSessionId) || posterLoading}
+                        onClick={handleGeneratePoster}
                       >
-                        <svg
-                          className="menu-item-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <line x1="3" y1="9" x2="21" y2="9"></line>
-                          <line x1="9" y1="21" x2="9" y2="9"></line>
-                        </svg>
+                        {posterLoading ? (
+                          <span className="poster-loading-spinner" />
+                        ) : (
+                          <svg
+                            className="menu-item-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                          </svg>
+                        )}
                         <span className="menu-item-text">
-                          Generate Poster <span className="beta-badge">Beta</span>
+                          {posterLoading ? 'Generating Poster...' : 'Generate Poster'}
                         </span>
                       </button>
                       

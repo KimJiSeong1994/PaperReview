@@ -420,6 +420,23 @@ body {
   text-transform: uppercase;
 }
 
+/* Poster loading spinner */
+.poster-loading-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #a5b4fc;
+  border-radius: 50%;
+  animation: posterSpin 0.8s linear infinite;
+}
+
+@keyframes posterSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Report Panel */
 .report-title-actions {
   display: flex;

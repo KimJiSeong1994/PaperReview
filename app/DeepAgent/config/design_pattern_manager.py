@@ -8,6 +8,7 @@ based on content analysis.
 
 import os
 import yaml
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
@@ -343,19 +344,70 @@ class DesignPatternManager:
     def format_svg_examples(self) -> str:
         """
         Format all SVG templates as examples for Gemini prompt.
-        
+
         Returns:
             Formatted string with all SVG examples
         """
         if not self.svg_templates:
             return ""
-        
+
         output = "## SVG Generation Examples\n\n"
         for viz_type, template in self.svg_templates.items():
             output += f"### {viz_type.replace('_', ' ').title()}\n\n"
             output += f"```svg\n{template}\n```\n\n"
-        
+
         return output
+
+    def select_reference_poster(self, content_analysis: Dict[str, Any]) -> Optional[str]:
+        """
+        콘텐츠 분석 결과를 기반으로 최적 참조 포스터 HTML을 반환.
+
+        Args:
+            content_analysis: 콘텐츠 분석 결과 딕셔너리
+                - has_pipeline: bool
+                - has_performance_metrics: bool
+                - keywords: list
+
+        Returns:
+            참조 포스터 HTML 문자열 또는 None
+        """
+        ref_dir = Path(os.path.dirname(os.path.abspath(__file__))) / "reference_posters"
+        metadata_path = ref_dir / "metadata.yaml"
+
+        if not metadata_path.exists():
+            return None
+
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                metadata = yaml.safe_load(f)
+        except Exception:
+            return None
+
+        # 선택 규칙 적용
+        rules = metadata.get('selection_rules', {})
+        selected_key = rules.get('default', 'multi_crit_reference')
+
+        if content_analysis.get('has_pipeline', False):
+            selected_key = rules.get('has_pipeline', selected_key)
+        elif content_analysis.get('has_performance_metrics', False):
+            selected_key = rules.get('has_performance_metrics', selected_key)
+
+        # 참조 포스터 메타데이터에서 파일명 가져오기
+        posters = metadata.get('reference_posters', {})
+        poster_meta = posters.get(selected_key, {})
+        filename = poster_meta.get('file')
+
+        if not filename:
+            return None
+
+        poster_path = ref_dir / filename
+        if not poster_path.exists():
+            return None
+
+        try:
+            return poster_path.read_text(encoding='utf-8')
+        except Exception:
+            return None
 
 
 # Singleton instance

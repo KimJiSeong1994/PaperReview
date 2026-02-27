@@ -1,0 +1,41 @@
+# Reference Poster Metadata
+# Maps visualization types and domains to reference poster files
+
+reference_posters:
+  multi_crit_reference:
+    file: "multi_crit_reference.html"
+    description: "3-column balanced layout with radar chart and bar chart"
+    layout_type: "three_column"
+    primary_visualization: "radar_chart"
+    domains:
+      - general
+      - nlp_agent
+      - theory
+    best_for:
+      - "performance comparison"
+      - "multi-dimensional evaluation"
+      - "balanced content distribution"
+
+  pipeline_reference:
+    file: "pipeline_reference.html"
+    description: "Asymmetric layout with center pipeline diagram and result table"
+    layout_type: "asymmetric"
+    primary_visualization: "pipeline_diagram"
+    domains:
+      - nlp_agent
+      - cv
+      - general
+    best_for:
+      - "architecture/pipeline description"
+      - "system design"
+      - "process flow"
+      - "method comparison"
+
+# Selection rules
+selection_rules:
+  # If content has pipeline/architecture → pipeline_reference
+  has_pipeline: "pipeline_reference"
+  # If content has performance metrics → multi_crit_reference
+  has_performance_metrics: "multi_crit_reference"
+  # Default fallback
+  default: "multi_crit_reference"

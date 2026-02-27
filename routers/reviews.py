@@ -1015,9 +1015,12 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
 
         try:
             poster_agent = PosterGenerationAgent(
-                model="gemini-3-pro-image-preview", design_pattern_manager=pattern_manager
+                model="gemini-3-pro-image-preview",
+                design_pattern_manager=pattern_manager,
+                enable_critic=True,
+                max_critic_rounds=2,
             )
-            logger.info("[Poster API] PosterGenerationAgent initialized")
+            logger.info("[Poster API] PosterGenerationAgent initialized (critic enabled)")
         except Exception as e:
             logger.exception("[Poster API] Failed to initialize PosterGenerationAgent: %s", e)
             raise HTTPException(
