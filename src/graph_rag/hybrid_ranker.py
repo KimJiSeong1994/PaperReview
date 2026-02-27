@@ -76,10 +76,11 @@ class HybridRanker:
         recency_scores = self._compute_recency_scores(papers)
 
         # Semantic fallback: 모든 semantic 점수가 0이면 가중치 재분배
+        # BM25에 과도하게 집중하지 않도록 균등 분배
         if all(s == 0.0 for s in semantic_scores) and w.get("semantic", 0) > 0:
             semantic_weight = w["semantic"]
-            w["bm25"] = w.get("bm25", 0) + semantic_weight * 0.6
-            w["citations"] = w.get("citations", 0) + semantic_weight * 0.2
+            w["bm25"] = w.get("bm25", 0) + semantic_weight * 0.5
+            w["citations"] = w.get("citations", 0) + semantic_weight * 0.3
             w["recency"] = w.get("recency", 0) + semantic_weight * 0.2
             w["semantic"] = 0.0
             print("[HybridRanker] Semantic unavailable, redistributing weight: "

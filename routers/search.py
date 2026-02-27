@@ -390,14 +390,21 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             or (query_analysis.get("search_filters", {}).get("category") if query_analysis else None),
         }
 
-        # Use improved query if high-confidence analysis available
+        # Use improved query only with very high confidence
         search_query = request.query
         source_queries = None
-        if query_analysis and query_analysis.get("confidence", 0) > 0.7:
+        if query_analysis and query_analysis.get("confidence", 0) > 0.85:
             improved_query = query_analysis.get("improved_query")
             if improved_query and improved_query != request.query:
-                logger.info("[API] Using improved query: %s", improved_query)
-                search_query = improved_query
+                # 원본 쿼리 키워드가 개선 쿼리에 포함되는지 검증
+                original_words = set(request.query.lower().split())
+                improved_words = set(improved_query.lower().split())
+                overlap = len(original_words & improved_words) / max(len(original_words), 1)
+                if overlap >= 0.3:
+                    logger.info("[API] Using improved query (overlap=%.2f): %s", overlap, improved_query)
+                    search_query = improved_query
+                else:
+                    logger.info("[API] Skipping improved query (overlap=%.2f too low): %s", overlap, improved_query)
 
             # Generate source-specific optimized queries
             if query_analyzer:
@@ -521,12 +528,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
                         if all_papers:
                             filtered_papers = relevance_filter.filter_papers(
-                                request.query, all_papers, threshold=0.5, max_papers=request.max_results, parallel=True
+                                request.query, all_papers, threshold=0.65, max_papers=request.max_results, parallel=True
                             )
                             results = {}
                             for source in request.sources:
                                 results[source] = [p for p in filtered_papers if p.get("source") == source]
-                            logger.info("[API] Filtered results: %s papers (threshold: 0.5)", len(filtered_papers))
+                            logger.info("[API] Filtered results: %s papers (threshold: 0.65)", len(filtered_papers))
                         else:
                             logger.info("[API] No papers to filter")
                     except Exception as e:

@@ -13,90 +13,16 @@ import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReview
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
 
-// 질의와 논문 간 유사도 계산 함수
-function calculateSimilarity(paper: Paper, query: string, queryKeywords: string[] = []): number {
-  const queryLower = query.toLowerCase().trim();
-  const titleLower = (paper.title || '').toLowerCase();
-  const abstractLower = (paper.abstract || '').toLowerCase();
-  
-  // 키워드 추출 (질의 분석 결과가 있으면 사용, 없으면 간단히 추출)
-  const keywords = queryKeywords.length > 0 
-    ? queryKeywords.map(k => k.toLowerCase().trim()).filter(k => k.length > 0)
-    : queryLower.split(/\s+/).filter(w => w.length > 2);
-  
-  if (keywords.length === 0) return 0;
-  
-  let score = 0;
-  
-  // 제목 전체 매칭 (가장 높은 가중치)
-  if (titleLower.includes(queryLower) || queryLower.includes(titleLower)) {
-    score += 10;
-  }
-  
-  // 제목 키워드 매칭 (가중치 높음)
-  let titleMatchCount = 0;
-  keywords.forEach(keyword => {
-    if (titleLower.includes(keyword)) {
-      titleMatchCount++;
-      score += 3; // 제목에 키워드가 있으면 높은 점수
-    }
-  });
-  
-  // 모든 키워드가 제목에 있으면 보너스
-  if (titleMatchCount === keywords.length && keywords.length > 0) {
-    score += 5;
-  }
-  
-  // Abstract 전체 매칭
-  if (abstractLower.includes(queryLower)) {
-    score += 3;
-  }
-  
-  // Abstract 키워드 매칭
-  let abstractMatchCount = 0;
-  keywords.forEach(keyword => {
-    if (abstractLower.includes(keyword)) {
-      abstractMatchCount++;
-      score += 1; // Abstract에 키워드가 있으면 낮은 점수
-    }
-  });
-  
-  // 키워드 매칭 비율 계산
-  const totalMatches = titleMatchCount + abstractMatchCount;
-  const matchRatio = totalMatches / (keywords.length * 2); // 제목과 abstract 모두 고려
-  score += matchRatio * 2;
-  
-  // 저자 매칭 (낮은 가중치)
-  const authorsLower = (paper.authors || []).join(' ').toLowerCase();
-  if (authorsLower.includes(queryLower)) {
-    score += 0.5;
-  }
-  
-  return score;
-}
-
-// 질의와 유사도 순으로 논문 정렬
+// 백엔드 랭킹 순서 보존 — 프론트엔드 재정렬 없이 원본 순서 유지
+// 백엔드(HybridRanker + LLM Relevance Filter)가 이미 정교한 순서를 제공하므로
+// 프론트엔드에서 단순 키워드 매칭으로 덮어쓰지 않는다.
 function sortPapersByQuerySimilarity(
-  papers: Paper[], 
-  query: string, 
-  queryAnalysis: any = null
+  papers: Paper[],
+  _query: string,
+  _queryAnalysis: any = null
 ): Paper[] {
-  if (!query || papers.length === 0) return papers;
-  
-  // 질의 분석 결과에서 키워드 추출
-  const queryKeywords = queryAnalysis?.keywords || [];
-  
-  // 각 논문에 유사도 점수 계산
-  const papersWithScore = papers.map(paper => ({
-    paper,
-    similarity: calculateSimilarity(paper, query, queryKeywords),
-  }));
-  
-  // 유사도 순으로 정렬 (높은 점수부터)
-  papersWithScore.sort((a, b) => b.similarity - a.similarity);
-  
-  // 정렬된 논문 배열 반환
-  return papersWithScore.map(item => item.paper);
+  // 백엔드 순서를 그대로 유지 (소스별 인터리빙)
+  return papers;
 }
 
 function App() {
