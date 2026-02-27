@@ -150,8 +150,13 @@ class ArxivSearcher:
             elif sort_by == "lastUpdatedDate":
                 sort_criterion = arxiv.SortCriterion.LastUpdatedDate
             
-            # 1차: 기본 검색
-            search = arxiv.Search(query=query, max_results=max_results, sort_by=sort_criterion)
+            # 1차: 고급 쿼리 검색 (제목+초록 필드 지정)
+            # 이미 arXiv 구문(ti:, abs:, AND, OR)이 포함된 쿼리면 그대로 사용
+            if any(prefix in query for prefix in ("ti:", "abs:", "au:", "cat:")):
+                advanced_query = query
+            else:
+                advanced_query = self._build_advanced_query(query, search_type="all")
+            search = arxiv.Search(query=advanced_query, max_results=max_results, sort_by=sort_criterion)
             results = [self._extract_paper_info(result) for result in self.client.results(search)]
             
             # 결과가 부족하면 추가 검색 시도

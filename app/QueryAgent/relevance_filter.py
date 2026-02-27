@@ -94,17 +94,23 @@ class RelevanceFilter:
         batches = [papers[i:i+batch_size] for i in range(0, len(papers), batch_size)]
         
         if parallel and len(batches) > 1:
-            # 병렬 처리
+            # 병렬 처리 (배치 순서 보존)
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(batches))) as executor:
-                futures = [executor.submit(self._evaluate_batch, query, batch) for batch in batches]
-                all_results = []
-                for future in concurrent.futures.as_completed(futures):
-                    all_results.append(future.result())
-            
-            # 결과 병합
-            batch_idx = 0
+                future_to_idx = {}
+                for i, batch in enumerate(batches):
+                    future = executor.submit(self._evaluate_batch, query, batch)
+                    future_to_idx[future] = i
+
+                all_results = [None] * len(batches)
+                for future in concurrent.futures.as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    all_results[idx] = future.result()
+
+            # 결과 병합 (순서 보장)
             filtered_papers = []
             for batch, scores in zip(batches, all_results):
+                if scores is None:
+                    scores = [0.0] * len(batch)
                 for paper, score in zip(batch, scores):
                     if score >= threshold:
                         paper['relevance_score'] = score

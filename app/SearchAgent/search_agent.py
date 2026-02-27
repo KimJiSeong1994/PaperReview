@@ -644,15 +644,19 @@ class SearchAgent:
         """
         sources = filters.get("sources", ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"])
         max_results = filters.get("max_results", 5)
+        source_queries = filters.get("source_queries", {})
 
         results = {}
         futures = {}
 
         def _search_source(source_name):
+            # 소스별 최적화 쿼리 사용 (없으면 원본 쿼리)
+            sq = source_queries.get(source_name, query)
             if source_name == "arxiv":
                 category = filters.get("category")
                 sort_by = filters.get("sort_by", "relevance")
-                return self.search_arxiv(query, max_results, sort_by, category)
+                arxiv_q = source_queries.get("arxiv", query)
+                return self.search_arxiv(arxiv_q, max_results, sort_by, category)
             elif source_name == "connected_papers":
                 return self.search_connected_papers(query, max_results)
             elif source_name == "google_scholar":
@@ -660,13 +664,15 @@ class SearchAgent:
                 year_end = filters.get("year_end")
                 author = filters.get("author")
                 sort_by = filters.get("sort_by", "relevance")
+                scholar_q = source_queries.get("google_scholar", query)
                 return self.search_google_scholar(
-                    query, max_results, sort_by, year_start, year_end, author
+                    scholar_q, max_results, sort_by, year_start, year_end, author
                 )
             elif source_name == "openalex":
-                return self.openalex_searcher.search(query, max_results)
+                return self.openalex_searcher.search(sq, max_results)
             elif source_name == "dblp":
-                return self.dblp_searcher.search(query, max_results)
+                dblp_q = source_queries.get("dblp", query)
+                return self.dblp_searcher.search(dblp_q, max_results)
             return []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
