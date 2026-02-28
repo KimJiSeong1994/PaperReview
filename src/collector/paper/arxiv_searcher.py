@@ -10,6 +10,9 @@ arxiv 패키지를 활용한 직접 검색 (Enhanced Version)
 """
 
 import logging
+import random
+import threading
+import time
 import arxiv
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
@@ -23,9 +26,18 @@ logger = logging.getLogger(__name__)
 
 class ArxivSearcher:
     """arXiv 직접 검색 클라이언트 (Enhanced)"""
-    
+
+    # 클래스 레벨 rate limiter (모든 인스턴스 · 스레드 공유)
+    _global_lock = threading.Lock()
+    _last_request_time = 0.0
+    _min_delay = 3.5  # arXiv 권장 3초 + 여유
+
     def __init__(self):
-        self.client = arxiv.Client()
+        self.client = arxiv.Client(
+            page_size=50,
+            delay_seconds=3.5,
+            num_retries=5,
+        )
         
         # 검색어 확장을 위한 동의어 사전
         self.synonyms = {
@@ -61,6 +73,36 @@ class ArxivSearcher:
             for fullname in fullnames:
                 self._reverse_synonyms[fullname] = abbr
     
+    def _rate_limit(self):
+        """글로벌 rate limiting — 모든 스레드에서 최소 3.5초 간격 보장"""
+        with ArxivSearcher._global_lock:
+            now = time.time()
+            elapsed = now - ArxivSearcher._last_request_time
+            if elapsed < ArxivSearcher._min_delay:
+                time.sleep(ArxivSearcher._min_delay - elapsed)
+            ArxivSearcher._last_request_time = time.time()
+
+    def _safe_results(self, search: arxiv.Search) -> list:
+        """arXiv 검색 실행 — rate limiting + HTTP 429 exponential backoff"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self._rate_limit()
+                return list(self.client.results(search))
+            except Exception as e:
+                error_str = str(e)
+                if '429' in error_str:
+                    wait = (2 ** attempt) * 5 + random.uniform(0, 2)
+                    logger.warning(
+                        "arXiv rate limited (attempt %d/%d), waiting %.1fs",
+                        attempt + 1, max_retries, wait,
+                    )
+                    time.sleep(wait)
+                    continue
+                raise
+        logger.error("arXiv rate limit retries exhausted")
+        return []
+
     def _normalize_query(self, query: str) -> str:
         """쿼리 정규화"""
         # 소문자 변환
@@ -160,8 +202,8 @@ class ArxivSearcher:
             else:
                 advanced_query = self._build_advanced_query(query, search_type="all")
             search = arxiv.Search(query=advanced_query, max_results=max_results, sort_by=sort_criterion)
-            results = [self._extract_paper_info(result) for result in self.client.results(search)]
-            
+            results = [self._extract_paper_info(result) for result in self._safe_results(search)]
+
             # 결과가 부족하면 추가 검색 시도
             if len(results) < max_results // 2:
                 additional = self.enhanced_search(query, max_results=max_results - len(results))
@@ -194,34 +236,31 @@ class ArxivSearcher:
             # 쿼리 확장
             expanded_queries = self._expand_query(query)
             
-            # 검색 전략들
+            # 검색 전략: "all" (복합) 1개만 사용 — rate limit 방지
             strategies = [
-                ("title", max_results // 2),      # 제목 검색
-                ("abstract", max_results // 2),   # 초록 검색
-                ("all", max_results),             # 복합 검색
+                ("all", max_results),
             ]
-            
+
             for strategy, limit in strategies:
-                for q in expanded_queries[:2]:  # 원본 + 1개 확장 쿼리
+                for q in expanded_queries[:1]:  # 원본 쿼리만
                     try:
                         advanced_query = self._build_advanced_query(q, strategy)
                         search = arxiv.Search(
-                            query=advanced_query, 
+                            query=advanced_query,
                             max_results=limit,
                             sort_by=arxiv.SortCriterion.Relevance
                         )
-                        
-                        for result in self.client.results(search):
+
+                        for result in self._safe_results(search):
                             arxiv_id = result.get_short_id()
                             if arxiv_id not in seen_ids:
                                 seen_ids.add(arxiv_id)
                                 all_results.append(self._extract_paper_info(result))
-                                
+
                     except Exception as e:
                         print(f"[arXiv] Strategy '{strategy}' failed for query '{q[:30]}...': {e}")
                         continue
-                
-                # 충분한 결과가 있으면 조기 종료
+
                 if len(all_results) >= max_results:
                     break
             
@@ -249,7 +288,7 @@ class ArxivSearcher:
             # 1. 정확한 제목 검색
             exact_query = f'ti:"{title}"'
             search = arxiv.Search(query=exact_query, max_results=max_results)
-            results.extend([self._extract_paper_info(r) for r in self.client.results(search)])
+            results.extend([self._extract_paper_info(r) for r in self._safe_results(search)])
             
             # 2. 결과가 없으면 키워드 기반 검색
             if not results:
@@ -257,7 +296,7 @@ class ArxivSearcher:
                 if keywords:
                     keyword_query = " AND ".join([f"ti:{kw}" for kw in keywords[:5]])
                     search = arxiv.Search(query=keyword_query, max_results=max_results)
-                    results.extend([self._extract_paper_info(r) for r in self.client.results(search)])
+                    results.extend([self._extract_paper_info(r) for r in self._safe_results(search)])
             
             return results[:max_results]
             
@@ -291,7 +330,7 @@ class ArxivSearcher:
             results = []
             original_title_lower = paper_title.lower()
             
-            for result in self.client.results(search):
+            for result in self._safe_results(search):
                 # 원본 논문 제외
                 if result.title.lower() != original_title_lower:
                     results.append(self._extract_paper_info(result))

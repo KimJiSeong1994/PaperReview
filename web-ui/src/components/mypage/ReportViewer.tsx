@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { HighlightItem } from '../../api/client';
+import type { HighlightItem, ShareInfo } from '../../api/client';
 import type { CitationTreeData } from './types';
 
 export interface ReportViewerProps {
@@ -57,6 +57,11 @@ export interface ReportViewerProps {
   onGenerateCitationTree: () => void;
   onDeleteCitationTree: () => void;
   onRenameBookmark: (title: string) => void;
+  // Share
+  shareInfo: ShareInfo | null;
+  shareLoading: boolean;
+  onCreateShare: () => void;
+  onRevokeShare: () => void;
 }
 
 export default function ReportViewer({
@@ -76,10 +81,12 @@ export default function ReportViewer({
   citationTreeData, citationTreeLoading, citationTreeError,
   onGenerateCitationTree, onDeleteCitationTree,
   onRenameBookmark,
+  shareInfo, shareLoading, onCreateShare, onRevokeShare,
 }: ReportViewerProps) {
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  const [shareCopied, setShareCopied] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleSavingRef = useRef(false);
 
@@ -188,8 +195,50 @@ export default function ReportViewer({
               .md
             </button>
           )}
+          <button
+            className={`mypage-export-btn mypage-share-btn${shareInfo ? ' active' : ''}`}
+            onClick={shareInfo ? undefined : onCreateShare}
+            disabled={shareLoading}
+            title={shareInfo ? 'Share link active' : 'Create share link'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            {shareLoading ? '...' : 'Share'}
+          </button>
         </div>
       </div>
+
+      {/* Share panel */}
+      {shareInfo && (
+        <div className="mypage-share-panel">
+          <div className="mypage-share-panel-row">
+            <input
+              className="mypage-share-url-input"
+              value={`${window.location.origin}/share/${shareInfo.token}`}
+              readOnly
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+            <button
+              className="mypage-share-copy-btn"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/share/${shareInfo.token}`);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 2000);
+              }}
+            >
+              {shareCopied ? 'Copied!' : 'Copy'}
+            </button>
+            <button className="mypage-share-revoke-btn" onClick={onRevokeShare} title="Revoke share link">
+              Revoke
+            </button>
+          </div>
+          <div className="mypage-share-panel-meta">
+            Expires {new Date(shareInfo.expires_at).toLocaleDateString()}
+          </div>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="mypage-report-tabs">

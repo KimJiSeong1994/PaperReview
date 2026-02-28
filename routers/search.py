@@ -227,6 +227,52 @@ def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE
         logger.warning("[Cache] File write error: %s", e)
 
 
+def _cleanup_expired_cache():
+    """만료된 파일 캐시 정리 (서버 시작 시 및 주기적 실행)"""
+    now = datetime.now()
+    removed = 0
+    try:
+        for cache_file in SEARCH_CACHE_DIR.glob("*.json"):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    entry = json.load(f)
+                expires_at = datetime.fromisoformat(entry.get("expires_at", "2000-01-01"))
+                if expires_at <= now:
+                    cache_file.unlink(missing_ok=True)
+                    removed += 1
+            except (json.JSONDecodeError, KeyError, ValueError):
+                cache_file.unlink(missing_ok=True)
+                removed += 1
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning("[Cache] Cleanup error: %s", e)
+    if removed > 0:
+        logger.info("[Cache] Cleanup: removed %d expired cache files", removed)
+
+
+# 서버 시작 시 만료 캐시 정리
+_cleanup_expired_cache()
+
+
+def _periodic_cache_maintenance():
+    """30분 주기 백그라운드 캐시 정리"""
+    while True:
+        time.sleep(1800)
+        try:
+            _cleanup_expired_cache()
+        except Exception as e:
+            logger.warning("[Cache] Periodic cleanup error: %s", e)
+
+
+_cache_maintenance_thread = threading.Thread(
+    target=_periodic_cache_maintenance,
+    daemon=True,
+    name="cache-maintenance",
+)
+_cache_maintenance_thread.start()
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)

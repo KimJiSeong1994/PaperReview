@@ -220,9 +220,19 @@ def log_search_operation(source: str = None) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             search_source = source or func.__name__
-            query = args[0] if args else kwargs.get('query', 'Unknown')
-            max_results = kwargs.get('max_results', 'Unknown')
-            
+            # 인스턴스 메서드 대응: args[0]이 str이면 독립함수, 아니면 self
+            if args and isinstance(args[0], str):
+                query = args[0]
+                max_results = args[1] if len(args) > 1 else kwargs.get('max_results', 'Unknown')
+            elif len(args) > 1:
+                query = args[1]
+                max_results = args[2] if len(args) > 2 else kwargs.get('max_results', 'Unknown')
+            else:
+                query = kwargs.get('query', 'Unknown')
+                max_results = kwargs.get('max_results', 'Unknown')
+            if isinstance(query, str) and len(query) > 100:
+                query = query[:100] + '...'
+
             logger.info(f"Search started - Source: {search_source}, Query: {query}, Max Results: {max_results}")
             start_time = datetime.now()
             
@@ -283,7 +293,13 @@ def log_file_operation(operation: str = "file") -> Callable:
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            filename = args[0] if args else kwargs.get('filename', 'Unknown')
+            # 인스턴스 메서드 대응: args[0]이 str이면 독립함수, 아니면 self
+            if args and isinstance(args[0], str):
+                filename = args[0]
+            elif len(args) > 1:
+                filename = args[1]
+            else:
+                filename = kwargs.get('filename', 'Unknown')
             
             logger.info(f"File {operation} started: {filename}")
             start_time = datetime.now()

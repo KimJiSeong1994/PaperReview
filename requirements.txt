@@ -45,6 +45,7 @@ bcrypt>=4.0.0
 
 # Graph RAG
 networkx>=3.0
+scipy>=1.11.0
 faiss-cpu>=1.7.4
 chromadb>=0.4.0
 fastapi>=0.100.0

@@ -316,7 +316,13 @@ async def get_graph_data(request: Dict[str, Any]):
                     graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
 
         # Layout
-        layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
+        try:
+            layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
+        except ImportError:
+            logger.warning("scipy not available, using random layout fallback")
+            import random as _rand
+            _rand.seed(42)
+            layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
 
         if len(layout) > 0:
             centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)

@@ -1,9 +1,11 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
+import { createShareLink, revokeShareLink } from '../api/client';
+import type { ShareInfo } from '../api/client';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
 import ReportViewer from './mypage/ReportViewer';
@@ -15,6 +17,10 @@ interface MyPageProps {
 
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
+
+  // ── Share state ──
+  const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // ── Hooks ──
   const bm = useBookmarks();
@@ -44,6 +50,53 @@ function MyPage({ onBack }: MyPageProps) {
       exploration.handleLoadCitationTree(bm.selectedBookmark.id);
     }
   }, [bm.selectedBookmark?.id]);
+
+  // Sync share info when bookmark detail loads
+  useEffect(() => {
+    if (bm.bookmarkDetail?.share) {
+      setShareInfo(bm.bookmarkDetail.share);
+    } else {
+      setShareInfo(null);
+    }
+  }, [bm.bookmarkDetail]);
+
+  const handleCreateShare = useCallback(async () => {
+    if (!bm.selectedBookmark || shareLoading) return;
+    setShareLoading(true);
+    try {
+      const info = await createShareLink(bm.selectedBookmark.id);
+      setShareInfo(info);
+      bm.setBookmarkDetail((prev: any) => prev ? { ...prev, share: info } : prev);
+      bm.setBookmarks((prev: Bookmark[]) => prev.map(b =>
+        b.id === bm.selectedBookmark!.id ? { ...b, has_share: true } : b
+      ));
+    } catch (error) {
+      console.error('Failed to create share link:', error);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [bm.selectedBookmark, shareLoading, bm.setBookmarkDetail, bm.setBookmarks]);
+
+  const handleRevokeShare = useCallback(async () => {
+    if (!bm.selectedBookmark || shareLoading) return;
+    setShareLoading(true);
+    try {
+      await revokeShareLink(bm.selectedBookmark.id);
+      setShareInfo(null);
+      bm.setBookmarkDetail((prev: any) => {
+        if (!prev) return prev;
+        const { share: _, ...rest } = prev;
+        return rest;
+      });
+      bm.setBookmarks((prev: Bookmark[]) => prev.map(b =>
+        b.id === bm.selectedBookmark!.id ? { ...b, has_share: false } : b
+      ));
+    } catch (error) {
+      console.error('Failed to revoke share link:', error);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [bm.selectedBookmark, shareLoading, bm.setBookmarkDetail, bm.setBookmarks]);
 
   // Scroll to first highlight after render
   useEffect(() => {
@@ -177,6 +230,10 @@ function MyPage({ onBack }: MyPageProps) {
               bm.handleRenameBookmark(bm.selectedBookmark.id, title);
             }
           }}
+          shareInfo={shareInfo}
+          shareLoading={shareLoading}
+          onCreateShare={handleCreateShare}
+          onRevokeShare={handleRevokeShare}
         />
 
         <ChatPanel

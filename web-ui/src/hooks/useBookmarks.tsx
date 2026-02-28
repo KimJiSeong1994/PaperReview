@@ -391,7 +391,7 @@ export function useBookmarks() {
   return {
     // State
     bookmarks, setBookmarks,
-    selectedBookmark, bookmarkDetail,
+    selectedBookmark, bookmarkDetail, setBookmarkDetail,
     loadingBookmarks, loadingDetail,
     selectedIds,
     searchQuery, setSearchQuery,

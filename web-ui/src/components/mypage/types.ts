@@ -13,6 +13,7 @@ export interface Bookmark {
   topic: string;
   has_notes?: boolean;
   has_citation_tree?: boolean;
+  has_share?: boolean;
 }
 
 // ── Citation Tree types ──────────────────────────────────────────────

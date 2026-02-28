@@ -101,8 +101,8 @@ class GoogleScholarSearcher:
         # Circuit breaker 설정
         self._consecutive_failures = 0
         self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
-        self._circuit_breaker_threshold = 5  # 연속 실패 횟수 임계값
-        self._circuit_breaker_cooldown = 120  # 비활성화 시간 (2분)
+        self._circuit_breaker_threshold = 8  # 연속 실패 횟수 임계값 (5→8)
+        self._circuit_breaker_cooldown = 300  # 비활성화 시간 (2분→5분)
 
     def _ensure_proxy(self):
         """첫 요청 시 프록시 설정 (lazy init)"""
@@ -472,7 +472,16 @@ class GoogleScholarSearcher:
             
             # 검색 결과 파싱
             papers = self._parse_search_results(response.text, max_results)
-            
+
+            # HTML 파싱 0건이면 scholarly fallback 시도
+            if not papers:
+                logger.info("HTML scraping returned 0 results, trying scholarly fallback...")
+                papers = self._search_via_scholarly(query, max_results)
+                if papers:
+                    logger.info("scholarly fallback returned %d results", len(papers))
+                    self._record_success()
+                    return papers[:max_results]
+
             # 결과가 부족하면 추가 검색 시도
             if len(papers) < max_results // 2:
                 additional = self.enhanced_search(query, max_results=max_results - len(papers))
@@ -718,6 +727,50 @@ class GoogleScholarSearcher:
             logger.error(f"검색 결과 파싱 오류: {e}")
             return []
     
+    def _search_via_scholarly(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+        """scholarly 라이브러리를 통한 대체 검색 (HTML 스크래핑 실패 시 fallback)"""
+        try:
+            from scholarly import scholarly as scholarly_lib
+
+            search_results = scholarly_lib.search_pubs(query)
+            papers = []
+
+            for _ in range(max_results):
+                try:
+                    result = next(search_results)
+                    bib = result.get('bib', {})
+
+                    paper = {
+                        "title": bib.get('title', ''),
+                        "authors": bib.get('author', []),
+                        "abstract": bib.get('abstract', ''),
+                        "url": result.get('pub_url', result.get('eprint_url', '')),
+                        "pdf_url": result.get('eprint_url', ''),
+                        "journal": bib.get('venue', ''),
+                        "year": str(bib.get('pub_year', '')),
+                        "citations": result.get('num_citations', 0),
+                        "doi": '',
+                        "source": "Google Scholar",
+                    }
+
+                    if paper['title']:
+                        papers.append(paper)
+
+                except StopIteration:
+                    break
+                except Exception as e:
+                    logger.debug("scholarly result parse error: %s", e)
+                    continue
+
+            return papers
+
+        except ImportError:
+            logger.warning("scholarly library not available for fallback")
+            return []
+        except Exception as e:
+            logger.warning("scholarly fallback search failed: %s", e)
+            return []
+
     def _extract_paper_from_element(self, element) -> Optional[Dict[str, Any]]:
         """HTML 요소에서 논문 정보 추출"""
         try:

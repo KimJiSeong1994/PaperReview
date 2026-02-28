@@ -245,7 +245,13 @@ def _build_citation_tree(
         pos = nx.multipartite_layout(graph, subset_key="subset", scale=1.0)
     except Exception as e:
         logger.debug("Multipartite layout failed, using spring layout: %s", e)
-        pos = nx.spring_layout(graph, seed=42, k=1.0, iterations=50)
+        try:
+            pos = nx.spring_layout(graph, seed=42, k=1.0, iterations=50)
+        except ImportError:
+            logger.warning("scipy not available, using random layout fallback")
+            import random as _rand
+            _rand.seed(42)
+            pos = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
 
     # Build output
     nodes = []

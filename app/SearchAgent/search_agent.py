@@ -185,7 +185,7 @@ class SearchAgent:
         seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set()}
 
         # 병렬 검색 작업 정의
-        with concurrent.futures.ThreadPoolExecutor(max_workers=9) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
             futures = {
                 # 기본 검색
                 executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
@@ -193,8 +193,7 @@ class SearchAgent:
                 executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
                 executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
                 executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
-                # Enhanced 검색 (arXiv, Google Scholar, OpenAlex)
-                executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2): ("arxiv", "enhanced"),
+                # Enhanced 검색 (arXiv 제외 — rate limit 방지)
                 executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
                 executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
             }
@@ -401,21 +400,15 @@ class SearchAgent:
                 "dblp": set()
             }
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
                 futures = []
 
-                # arXiv 검색 (여러 쿼리)
-                for arxiv_query in arxiv_queries[:3]:
+                # arXiv 검색 (rate limit 방지: 쿼리 1개만)
+                for arxiv_query in arxiv_queries[:1]:
                     futures.append(
-                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source // 2),
+                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
                          "arxiv", arxiv_query)
                     )
-
-                # arXiv Enhanced 검색
-                futures.append(
-                    (executor.submit(self.arxiv_searcher.enhanced_search, query, max_results_per_source // 2),
-                     "arxiv", "enhanced")
-                )
 
                 # Google Scholar 검색 (여러 쿼리)
                 for scholar_query in scholar_queries[:3]:
