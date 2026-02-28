@@ -95,7 +95,7 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
     """
     base_url = "https://api.semanticscholar.org/graph/v1"
     endpoint = f"{base_url}/paper/{paper_id}/{direction}"
-    fields = "title,authors,year,citationCount,abstract,url,externalIds"
+    fields = "title,authors,year,citationCount,abstract,url,externalIds,contexts,intents,isInfluential"
 
     try:
         resp = session.get(endpoint, params={"limit": limit, "fields": fields}, timeout=15)
@@ -108,6 +108,7 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
             p = item.get(key)
             if not p or not p.get("paperId") or not p.get("title"):
                 continue
+            # contexts/intents/isInfluential are on the wrapper item, not nested paper
             results.append({
                 "paper_id": p["paperId"],
                 "title": p.get("title", ""),
@@ -116,6 +117,9 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
                 "citations": p.get("citationCount", 0),
                 "abstract": (p.get("abstract") or "")[:300],
                 "url": p.get("url") or f"https://www.semanticscholar.org/paper/{p['paperId']}",
+                "contexts": item.get("contexts") or [],
+                "intents": item.get("intents") or [],
+                "is_influential": item.get("isInfluential", False),
             })
         return results
     except Exception as e:
@@ -211,14 +215,20 @@ def _build_citation_tree(
         refs = _fetch_citations(pid, "references", session, limit=max_per_direction)
         for ref in refs:
             rid = ref["paper_id"]
+            edge_data = {
+                "weight": 1.0,
+                "contexts": ref.get("contexts", []),
+                "intents": ref.get("intents", []),
+                "is_influential": ref.get("is_influential", False),
+            }
             existing = _is_duplicate(rid, ref["title"])
             if existing:
-                graph.add_edge(pid, existing, weight=1.0)
+                graph.add_edge(pid, existing, **edge_data)
             else:
                 node_data[rid] = {**ref, "id": rid, "depth": -1, "direction": "backward"}
                 _register(rid, ref["title"])
                 graph.add_node(rid, subset=-1)
-                graph.add_edge(pid, rid, weight=1.0)
+                graph.add_edge(pid, rid, **edge_data)
 
         time.sleep(0.5)
 
@@ -226,14 +236,20 @@ def _build_citation_tree(
         cites = _fetch_citations(pid, "citations", session, limit=max_per_direction)
         for cite in cites:
             cid = cite["paper_id"]
+            edge_data = {
+                "weight": 1.0,
+                "contexts": cite.get("contexts", []),
+                "intents": cite.get("intents", []),
+                "is_influential": cite.get("is_influential", False),
+            }
             existing = _is_duplicate(cid, cite["title"])
             if existing:
-                graph.add_edge(existing, pid, weight=1.0)
+                graph.add_edge(existing, pid, **edge_data)
             else:
                 node_data[cid] = {**cite, "id": cid, "depth": 1, "direction": "forward"}
                 _register(cid, cite["title"])
                 graph.add_node(cid, subset=1)
-                graph.add_edge(cid, pid, weight=1.0)
+                graph.add_edge(cid, pid, **edge_data)
 
         time.sleep(0.3)
 
@@ -259,7 +275,17 @@ def _build_citation_tree(
         x, y = pos.get(nid, (0, 0))
         nodes.append({**data, "x": float(x), "y": float(y)})
 
-    edges = [{"source": u, "target": v, "weight": d.get("weight", 1.0)} for u, v, d in graph.edges(data=True)]
+    edges = [
+        {
+            "source": u,
+            "target": v,
+            "weight": d.get("weight", 1.0),
+            "contexts": d.get("contexts", []),
+            "intents": d.get("intents", []),
+            "is_influential": d.get("is_influential", False),
+        }
+        for u, v, d in graph.edges(data=True)
+    ]
 
     return {
         "nodes": nodes,

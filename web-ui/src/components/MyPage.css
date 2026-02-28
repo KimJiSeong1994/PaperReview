@@ -2657,13 +2657,13 @@
 /* ===== Share Button & Panel ===== */
 
 .mypage-share-btn.active {
-  color: #818cf8;
-  border-color: #818cf8;
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .mypage-share-panel {
-  background: #1a1a2e;
-  border: 1px solid #2a2a3e;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   padding: 10px 14px;
   margin: 0 16px 8px;
@@ -2677,50 +2677,54 @@
 
 .mypage-share-url-input {
   flex: 1;
-  background: #0f0f1a;
-  border: 1px solid #333;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   padding: 6px 10px;
-  color: #e0e0e0;
+  color: #ececec;
   font-size: 12px;
   font-family: monospace;
   outline: none;
+  transition: border-color 0.2s;
 }
 
 .mypage-share-url-input:focus {
-  border-color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .mypage-share-copy-btn {
-  background: #818cf8;
-  color: #fff;
-  border: none;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s;
+  font-family: inherit;
+  transition: all 0.2s;
 }
 
 .mypage-share-copy-btn:hover {
-  background: #6366f1;
+  background: rgba(99, 102, 241, 0.25);
 }
 
 .mypage-share-revoke-btn {
   background: transparent;
-  color: #ef4444;
-  border: 1px solid #ef4444;
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
+  font-family: inherit;
   transition: all 0.2s;
 }
 
 .mypage-share-revoke-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(248, 113, 113, 0.08);
 }
 
 .mypage-share-panel-meta {
@@ -2734,7 +2738,7 @@
 .shared-view {
   min-height: 100vh;
   background: #0f0f0f;
-  color: #e0e0e0;
+  color: #ececec;
 }
 
 .shared-view-loading {
@@ -2758,7 +2762,7 @@
 
 .shared-view-error h2 {
   font-size: 24px;
-  color: #e0e0e0;
+  color: #ececec;
   margin-bottom: 8px;
 }
 
@@ -2769,7 +2773,7 @@
 
 .shared-view-header {
   padding: 16px 24px;
-  border-bottom: 1px solid #1a1a2e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .shared-view-brand {
@@ -2795,12 +2799,12 @@
 }
 
 .shared-view-badge {
-  background: #1e1e3a;
-  color: #818cf8;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
   font-size: 11px;
   font-weight: 500;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 10px;
 }
 
 .shared-view-content {
@@ -2848,4 +2852,215 @@
 
 .shared-hl {
   cursor: default;
+}
+
+/* ===== Consensus Meter ===== */
+
+.mypage-consensus-meter {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.mypage-consensus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mypage-consensus-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mypage-consensus-score {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ececec;
+}
+
+.mypage-consensus-gauge {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(248, 113, 113, 0.25);
+  overflow: hidden;
+}
+
+.mypage-consensus-gauge-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #a5b4fc;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.mypage-consensus-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.mypage-consensus-label-strength {
+  color: #a5b4fc;
+}
+
+.mypage-consensus-label-weakness {
+  color: #f87171;
+}
+
+.mypage-consensus-groups {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mypage-consensus-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mypage-consensus-group-label {
+  font-size: 10px;
+  color: #6b7280;
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.mypage-consensus-group-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(248, 113, 113, 0.15);
+  display: flex;
+  overflow: hidden;
+}
+
+.mypage-consensus-group-fill-s {
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+  transition: width 0.3s ease;
+}
+
+.mypage-consensus-group-fill-w {
+  height: 100%;
+  background: rgba(248, 113, 113, 0.35);
+}
+
+.mypage-consensus-group-fill-empty {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mypage-consensus-group-count {
+  font-size: 9px;
+  color: #6b7280;
+  width: 42px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* ===== Citation Context ===== */
+
+.mypage-citation-expandable {
+  cursor: pointer;
+}
+
+.mypage-citation-expandable:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mypage-citation-expanded {
+  background: rgba(99, 102, 241, 0.03);
+}
+
+.mypage-citation-expand-icon {
+  font-size: 11px;
+  color: #6b7280;
+  transition: color 0.15s ease;
+}
+
+.mypage-citation-expandable:hover .mypage-citation-expand-icon {
+  color: #9ca3af;
+}
+
+.mypage-citation-influential-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a5b4fc;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.mypage-citation-context-row td {
+  padding: 0 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mypage-citation-context {
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 6px;
+  padding: 10px 14px;
+  border-left: 3px solid rgba(99, 102, 241, 0.2);
+}
+
+.mypage-citation-context-text {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #d1d5db;
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.mypage-citation-context-abstract {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #9ca3af;
+  margin: 4px 0;
+}
+
+.mypage-citation-context-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mypage-citation-intents {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.mypage-citation-intent-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(165, 180, 252, 0.1);
+  color: #a5b4fc;
+  border: 1px solid rgba(165, 180, 252, 0.2);
+  text-transform: capitalize;
+}
+
+.mypage-citation-influential-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #c4b5fd;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-weight: 500;
 }

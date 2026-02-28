@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { HighlightItem, ShareInfo } from '../../api/client';
 import type { CitationTreeData } from './types';
+import ConsensusMeter from './ConsensusMeter';
 
 export interface ReportViewerProps {
   bookmarkDetail: any;
@@ -87,6 +88,7 @@ export default function ReportViewer({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
+  const [expandedCitationId, setExpandedCitationId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleSavingRef = useRef(false);
 
@@ -99,6 +101,34 @@ export default function ReportViewer({
       if (diff !== 0) return diff;
       return (b.citations ?? 0) - (a.citations ?? 0);
     });
+  }, [citationTreeData]);
+
+  // Build citation context lookup: nodeId → {contexts, intents, is_influential}
+  const citationContextMap = useMemo(() => {
+    if (!citationTreeData) return new Map<string, { contexts: string[]; intents: string[]; is_influential: boolean }>();
+    const map = new Map<string, { contexts: string[]; intents: string[]; is_influential: boolean }>();
+    for (const edge of citationTreeData.edges) {
+      const nodeId = citationTreeData.root_paper_ids.includes(edge.source) ? edge.target : edge.source;
+      const existing = map.get(nodeId);
+      const edgeContexts = edge.contexts ?? [];
+      if (!existing || edgeContexts.length > existing.contexts.length) {
+        map.set(nodeId, {
+          contexts: edgeContexts,
+          intents: edge.intents ?? [],
+          is_influential: edge.is_influential ?? false,
+        });
+      }
+    }
+    return map;
+  }, [citationTreeData]);
+
+  const nodeAbstractMap = useMemo(() => {
+    if (!citationTreeData) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const node of citationTreeData.nodes) {
+      if (node.abstract) map.set(node.id, node.abstract);
+    }
+    return map;
   }, [citationTreeData]);
 
   // Auto-focus title input when entering edit mode
@@ -400,6 +430,7 @@ export default function ReportViewer({
             </div>
             {!notesCollapsed && (
               <div className="mypage-notes-body">
+                <ConsensusMeter highlights={userHighlights} />
                 <textarea
                   className="mypage-notes-textarea"
                   value={notesText}
@@ -513,22 +544,68 @@ export default function ReportViewer({
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedNodes.map((node) => (
-                      <tr key={node.id} className={`mypage-citation-row mypage-citation-${node.direction}`}>
-                        <td className="mypage-citation-title-cell">
-                          {node.url ? (
-                            <a href={node.url} target="_blank" rel="noopener noreferrer" className="mypage-citation-link">
-                              {node.title}
-                            </a>
-                          ) : (
-                            node.title
+                    {groupedNodes.map((node) => {
+                      const ctx = citationContextMap.get(node.id);
+                      const hasContext = (ctx?.contexts?.length ?? 0) > 0;
+                      const abstract = nodeAbstractMap.get(node.id);
+                      const isExpanded = expandedCitationId === node.id;
+                      const isExpandable = node.direction !== 'root' && (hasContext || !!abstract);
+
+                      return (
+                        <Fragment key={node.id}>
+                          <tr
+                            className={`mypage-citation-row mypage-citation-${node.direction}${isExpandable ? ' mypage-citation-expandable' : ''}${isExpanded ? ' mypage-citation-expanded' : ''}`}
+                            onClick={() => isExpandable && setExpandedCitationId(isExpanded ? null : node.id)}
+                          >
+                            <td className="mypage-citation-title-cell">
+                              {node.url ? (
+                                <a href={node.url} target="_blank" rel="noopener noreferrer" className="mypage-citation-link" onClick={(e) => e.stopPropagation()}>
+                                  {node.title}
+                                </a>
+                              ) : (
+                                node.title
+                              )}
+                              {isExpandable && (
+                                <span className="mypage-citation-expand-icon">{isExpanded ? ' ▾' : ' ▸'}</span>
+                              )}
+                            </td>
+                            <td className="mypage-citation-meta-cell">{node.authors?.slice(0, 2).join(', ')}{(node.authors?.length ?? 0) > 2 ? ' et al.' : ''}</td>
+                            <td className="mypage-citation-meta-cell">{node.year || '—'}</td>
+                            <td className="mypage-citation-meta-cell">
+                              {node.citations ?? 0}
+                              {ctx?.is_influential && <span className="mypage-citation-influential-dot" title="Influential citation" />}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="mypage-citation-context-row">
+                              <td colSpan={4}>
+                                <div className="mypage-citation-context">
+                                  {ctx?.intents && ctx.intents.length > 0 && (
+                                    <div className="mypage-citation-intents">
+                                      {ctx.intents.map((intent, i) => (
+                                        <span key={i} className="mypage-citation-intent-badge">{intent}</span>
+                                      ))}
+                                      {ctx.is_influential && (
+                                        <span className="mypage-citation-influential-badge">Influential</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {hasContext ? (
+                                    ctx!.contexts.map((text, i) => (
+                                      <p key={i} className="mypage-citation-context-text">"{text}"</p>
+                                    ))
+                                  ) : abstract ? (
+                                    <p className="mypage-citation-context-abstract">
+                                      <span className="mypage-citation-context-label">Abstract: </span>{abstract}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="mypage-citation-meta-cell">{node.authors?.slice(0, 2).join(', ')}{(node.authors?.length ?? 0) > 2 ? ' et al.' : ''}</td>
-                        <td className="mypage-citation-meta-cell">{node.year || '—'}</td>
-                        <td className="mypage-citation-meta-cell">{node.citations ?? 0}</td>
-                      </tr>
-                    ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </>

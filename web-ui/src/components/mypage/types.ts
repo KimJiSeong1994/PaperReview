@@ -27,6 +27,7 @@ export interface CitationNode {
   depth: number;
   direction: 'root' | 'forward' | 'backward';
   url?: string;
+  abstract?: string;
   x: number;
   y: number;
 }
@@ -35,6 +36,9 @@ export interface CitationEdge {
   source: string;
   target: string;
   weight: number;
+  contexts?: string[];
+  intents?: string[];
+  is_influential?: boolean;
 }
 
 export interface CitationTreeData {
