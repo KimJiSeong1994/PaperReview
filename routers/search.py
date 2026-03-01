@@ -45,7 +45,7 @@ router = APIRouter(prefix="/api", tags=["search"])
 class SearchRequest(BaseModel):
     query: str
     max_results: int = 20
-    sources: List[str] = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"]
+    sources: List[str] = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
     sort_by: str = "relevance"
     year_start: Optional[int] = None
     year_end: Optional[int] = None
@@ -371,7 +371,7 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
 
         if request.save_papers and result["papers"]:
             try:
-                results_by_source = {"arxiv": [], "connected_papers": [], "google_scholar": [], "openalex": [], "dblp": []}
+                results_by_source = {"arxiv": [], "connected_papers": [], "google_scholar": [], "openalex": [], "dblp": [], "openalex_korean": []}
                 for paper in result["papers"]:
                     source = paper.pop("_source", "arxiv")
                     if source in results_by_source:

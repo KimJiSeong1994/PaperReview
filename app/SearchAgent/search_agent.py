@@ -116,20 +116,22 @@ class SearchAgent:
             "connected_papers": [],
             "google_scholar": [],
             "openalex": [],
-            "dblp": []
+            "dblp": [],
+            "openalex_korean": []
         }
 
         # 검색 기록 저장
         self._add_to_history(query, "multi_source")
 
         # 각 소스별 직접 검색 (병렬 처리)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             # 각 검색 작업을 병렬로 실행
             arxiv_future = executor.submit(self.arxiv_searcher.search, query, max_results_per_source)
             connected_papers_future = executor.submit(self.connected_papers_searcher.search, query, max_results_per_source)
             google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
             openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
             dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
+            openalex_korean_future = executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
 
             # 결과 수집
             try:
@@ -162,6 +164,12 @@ class SearchAgent:
                 print(f"[WARNING] DBLP search timed out or failed: {e}")
                 results["dblp"] = []
 
+            try:
+                results["openalex_korean"] = openalex_korean_future.result(timeout=30)
+            except (concurrent.futures.TimeoutError, Exception) as e:
+                print(f"[WARNING] OpenAlex Korean search timed out or failed: {e}")
+                results["openalex_korean"] = []
+
         return results
     
     @log_search_operation("Enhanced Multi-Source")
@@ -177,15 +185,16 @@ class SearchAgent:
             "connected_papers": [],
             "google_scholar": [],
             "openalex": [],
-            "dblp": []
+            "dblp": [],
+            "openalex_korean": []
         }
 
         self._add_to_history(query, "enhanced_multi_source")
 
-        seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set()}
+        seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set(), "openalex_korean": set()}
 
         # 병렬 검색 작업 정의
-        with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = {
                 # 기본 검색
                 executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
@@ -193,6 +202,7 @@ class SearchAgent:
                 executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
                 executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
                 executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
+                executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source): ("openalex_korean", "basic"),
                 # Enhanced 검색 (arXiv 제외 — rate limit 방지)
                 executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
                 executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
@@ -365,7 +375,8 @@ class SearchAgent:
             "connected_papers": [],
             "google_scholar": [],
             "openalex": [],
-            "dblp": []
+            "dblp": [],
+            "openalex_korean": []
         }
 
         self._add_to_history(query, "llm_context_search")
@@ -397,10 +408,11 @@ class SearchAgent:
                 "google_scholar": set(),
                 "connected_papers": set(),
                 "openalex": set(),
-                "dblp": set()
+                "dblp": set(),
+                "openalex_korean": set()
             }
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
                 futures = []
 
                 # arXiv 검색 (rate limit 방지: 쿼리 1개만)
@@ -435,7 +447,13 @@ class SearchAgent:
                     (executor.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
                      "dblp", keyword_query)
                 )
-                
+
+                # OpenAlex Korean 검색
+                futures.append(
+                    (executor.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
+                     "openalex_korean", keyword_query)
+                )
+
                 # 결과 수집
                 for future_tuple in futures:
                     future, source, q = future_tuple
@@ -723,6 +741,8 @@ class SearchAgent:
             elif source_name == "dblp":
                 dblp_q = source_queries.get("dblp", query)
                 return self.dblp_searcher.search(dblp_q, max_results)
+            elif source_name == "openalex_korean":
+                return self.openalex_searcher.search_korean(query, max_results)
             return []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:

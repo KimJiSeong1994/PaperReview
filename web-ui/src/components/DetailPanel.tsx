@@ -47,6 +47,7 @@ function DetailPanel({ paper }: DetailPanelProps) {
       google_scholar: 'Google Scholar',
       openalex: 'OpenAlex',
       dblp: 'DBLP',
+      openalex_korean: 'Korean Journals',
     };
     return sourceMap[paper.source || ''] || paper.source || 'Unknown';
   };
