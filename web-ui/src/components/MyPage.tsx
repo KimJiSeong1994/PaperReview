@@ -25,7 +25,7 @@ function MyPage({ onBack }: MyPageProps) {
   // ── Hooks ──
   const bm = useBookmarks();
   const hl = useHighlights(bm.selectedBookmark, bm.bookmarkDetail, bm.setBookmarks, reportScrollRef);
-  const exploration = useExploration(bm.selectedBookmark, bm.setBookmarks);
+  const exploration = useExploration(bm.selectedBookmark, bm.setBookmarks, bm.bookmarkDetail);
 
   // Wrap handleSelectBookmark to also init highlights
   const selectBookmarkAndInitHighlights = useCallback(async (bookmark: Bookmark) => {
@@ -43,13 +43,6 @@ function MyPage({ onBack }: MyPageProps) {
     chat.setHighlightTerms([]);
     await selectBookmarkAndInitHighlights(bookmark);
   }, [selectBookmarkAndInitHighlights, chat.setHighlightTerms]);
-
-  // Auto-load citation tree when selecting a bookmark that has one
-  useEffect(() => {
-    if (bm.selectedBookmark?.has_citation_tree && !exploration.citationTreeData && !exploration.citationTreeLoading) {
-      exploration.handleLoadCitationTree(bm.selectedBookmark.id);
-    }
-  }, [bm.selectedBookmark?.id]);
 
   // Sync share info when bookmark detail loads
   useEffect(() => {
