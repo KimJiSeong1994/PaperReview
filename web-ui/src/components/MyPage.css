@@ -3064,3 +3064,35 @@
   border: 1px solid rgba(99, 102, 241, 0.2);
   font-weight: 500;
 }
+
+/* Citation Tree: empty result */
+.mypage-citation-empty-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 20px;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+}
+
+.mypage-citation-empty-result p {
+  margin: 0;
+}
+
+.mypage-citation-empty-hint {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Citation Tree: partial result warning */
+.mypage-citation-warning {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}

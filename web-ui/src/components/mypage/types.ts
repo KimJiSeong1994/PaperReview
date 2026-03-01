@@ -46,6 +46,7 @@ export interface CitationTreeData {
   edges: CitationEdge[];
   root_paper_ids: string[];
   generated_at: string;
+  skipped_papers?: string[];
 }
 
 export type { ChatMessage, ChatSource, HighlightItem };

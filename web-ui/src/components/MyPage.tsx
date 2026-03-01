@@ -219,6 +219,7 @@ function MyPage({ onBack }: MyPageProps) {
           citationTreeData={exploration.citationTreeData}
           citationTreeLoading={exploration.citationTreeLoading}
           citationTreeError={exploration.citationTreeError}
+          citationTreeWarning={exploration.citationTreeWarning}
           onGenerateCitationTree={() => {
             if (bm.selectedBookmark) {
               exploration.handleGenerateCitationTree(bm.selectedBookmark.id);

@@ -13,6 +13,7 @@ export function useExploration(
   const [citationTreeData, setCitationTreeData] = useState<CitationTreeData | null>(null);
   const [citationTreeLoading, setCitationTreeLoading] = useState(false);
   const [citationTreeError, setCitationTreeError] = useState<string | null>(null);
+  const [citationTreeWarning, setCitationTreeWarning] = useState<string | null>(null);
 
   // Track which bookmark the current data belongs to
   const dataBookmarkIdRef = useRef<string | null>(null);
@@ -23,6 +24,7 @@ export function useExploration(
     if (dataBookmarkIdRef.current && dataBookmarkIdRef.current !== newId) {
       setCitationTreeData(null);
       setCitationTreeError(null);
+      setCitationTreeWarning(null);
       dataBookmarkIdRef.current = newId;
     } else if (!dataBookmarkIdRef.current) {
       dataBookmarkIdRef.current = newId;
@@ -33,10 +35,12 @@ export function useExploration(
     if (citationTreeLoading) return;
     setCitationTreeLoading(true);
     setCitationTreeError(null);
+    setCitationTreeWarning(null);
     dataBookmarkIdRef.current = bookmarkId;
     try {
       const result = await generateCitationTree(bookmarkId);
       setCitationTreeData(result.citation_tree);
+      setCitationTreeWarning(result.warning || null);
       setBookmarks(prev => prev.map(bm =>
         bm.id === bookmarkId ? { ...bm, has_citation_tree: true } : bm
       ));
@@ -51,10 +55,21 @@ export function useExploration(
   const handleLoadCitationTree = useCallback(async (bookmarkId: string) => {
     setCitationTreeLoading(true);
     setCitationTreeError(null);
+    setCitationTreeWarning(null);
     dataBookmarkIdRef.current = bookmarkId;
     try {
       const data = await getCitationTree(bookmarkId);
       setCitationTreeData(data);
+      // Reconstruct warning from skipped_papers if present
+      const skipped = data?.skipped_papers || [];
+      if (skipped.length > 0) {
+        if (!data?.nodes?.length) {
+          const titles = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? ` 외 ${skipped.length - 3}편` : '');
+          setCitationTreeWarning(`Semantic Scholar에서 논문을 찾을 수 없습니다: ${titles}`);
+        } else {
+          setCitationTreeWarning(`${skipped.length}편의 논문을 찾지 못해 제외되었습니다.`);
+        }
+      }
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to load citation tree';
       setCitationTreeError(msg);
@@ -69,6 +84,7 @@ export function useExploration(
     try {
       await deleteCitationTree(id);
       setCitationTreeData(null);
+      setCitationTreeWarning(null);
       setBookmarks(prev => prev.map(bm =>
         bm.id === id ? { ...bm, has_citation_tree: false } : bm
       ));
@@ -78,7 +94,7 @@ export function useExploration(
   }, [selectedBookmark, setBookmarks]);
 
   return {
-    citationTreeData, citationTreeLoading, citationTreeError,
+    citationTreeData, citationTreeLoading, citationTreeError, citationTreeWarning,
     handleGenerateCitationTree, handleLoadCitationTree, handleDeleteCitationTree,
   };
 }

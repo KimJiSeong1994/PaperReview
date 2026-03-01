@@ -67,12 +67,27 @@ def create_citation_tree(
         logger.exception("Citation tree generation failed for %s", bookmark_id)
         raise HTTPException(status_code=502, detail=f"Citation tree generation failed: {e}")
 
+    # Build warning message based on skipped papers
+    skipped = tree_data.get("skipped_papers", [])
+    warning = None
+    if skipped:
+        if not tree_data.get("nodes"):
+            titles = ", ".join(skipped[:3])
+            if len(skipped) > 3:
+                titles += f" 외 {len(skipped) - 3}편"
+            warning = f"Semantic Scholar에서 논문을 찾을 수 없습니다: {titles}"
+        else:
+            warning = f"{len(skipped)}편의 논문을 찾지 못해 제외되었습니다."
+
     # Save to bookmark
     with modify_bookmarks() as store:
         bm = _find_bookmark(store, bookmark_id, username)
         bm["citation_tree"] = tree_data
 
-    return {"success": True, "citation_tree": tree_data}
+    result = {"success": True, "citation_tree": tree_data}
+    if warning:
+        result["warning"] = warning
+    return result
 
 
 @router.get("/bookmarks/{bookmark_id}/citation-tree")

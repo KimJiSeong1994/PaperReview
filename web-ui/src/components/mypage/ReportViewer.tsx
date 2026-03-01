@@ -55,6 +55,7 @@ export interface ReportViewerProps {
   citationTreeData: CitationTreeData | null;
   citationTreeLoading: boolean;
   citationTreeError: string | null;
+  citationTreeWarning?: string | null;
   onGenerateCitationTree: () => void;
   onDeleteCitationTree: () => void;
   onRenameBookmark: (title: string) => void;
@@ -79,7 +80,7 @@ export default function ReportViewer({
   onExportBibTeX, onExportReport,
   selectionToolbar, memoMode, memoInput, setMemoInput,
   onAddHighlight, onStartMemo, onSaveMemo, onCancelMemo,
-  citationTreeData, citationTreeLoading, citationTreeError,
+  citationTreeData, citationTreeLoading, citationTreeError, citationTreeWarning,
   onGenerateCitationTree, onDeleteCitationTree,
   onRenameBookmark,
   shareInfo, shareLoading, onCreateShare, onRevokeShare,
@@ -522,8 +523,27 @@ export default function ReportViewer({
                 </button>
               </div>
             )}
-            {citationTreeData && (
+            {citationTreeData && citationTreeData.nodes.length === 0 && (
+              <div className="mypage-citation-empty-result">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: '#6b7280' }}>
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <p>Semantic Scholar에서 논문을 찾을 수 없습니다.</p>
+                <p className="mypage-citation-empty-hint">DOI가 있는 논문이거나 국제 학술지 논문인 경우 더 잘 검색됩니다.</p>
+                <button
+                  className="mypage-citation-generate-btn"
+                  onClick={onGenerateCitationTree}
+                  disabled={citationTreeLoading}
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
+            {citationTreeData && citationTreeData.nodes.length > 0 && (
               <>
+                {citationTreeWarning && (
+                  <div className="mypage-citation-warning">{citationTreeWarning}</div>
+                )}
                 <div className="mypage-citation-table-meta">
                   <span>{citationTreeData.nodes.length} Papers</span>
                   <span>{citationTreeData.edges.length} Citations</span>

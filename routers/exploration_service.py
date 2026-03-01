@@ -5,6 +5,7 @@ Uses Semantic Scholar API for citation data.
 """
 
 import logging
+import os
 import re
 import time
 from datetime import datetime
@@ -30,6 +31,35 @@ def _normalize_title(title: str) -> str:
 # ── Citation Tree ─────────────────────────────────────────────────────
 
 
+def _s2_request(session: Any, url: str, params: dict, timeout: int = 10, max_retries: int = 3) -> Any:
+    """HTTP GET wrapper with 429 exponential backoff retry.
+
+    Returns the response object on success.
+    Raises the last exception after exhausting retries.
+    """
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            resp = session.get(url, params=params, timeout=timeout)
+            if resp.status_code == 429:
+                wait = min(2 ** attempt * 2, 10)
+                logger.warning("Semantic Scholar 429 rate limit, retrying in %ds (attempt %d/%d)", wait, attempt + 1, max_retries)
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp
+        except Exception as e:
+            last_exc = e
+            if hasattr(e, 'response') and getattr(e.response, 'status_code', None) == 429:
+                wait = min(2 ** attempt * 2, 10)
+                logger.warning("Semantic Scholar 429 rate limit, retrying in %ds (attempt %d/%d)", wait, attempt + 1, max_retries)
+                time.sleep(wait)
+                continue
+            raise
+    # All retries exhausted due to 429
+    raise last_exc or Exception("Max retries exceeded for Semantic Scholar API")
+
+
 def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, str]]:
     """Resolve a paper to its canonical Semantic Scholar paperId and URL.
 
@@ -49,12 +79,12 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
 
     if lookup_id:
         try:
-            resp = session.get(
+            resp = _s2_request(
+                session,
                 f"{base_url}/paper/{lookup_id}",
                 params={"fields": "paperId,url"},
                 timeout=10,
             )
-            resp.raise_for_status()
             data = resp.json()
             pid = data.get("paperId")
             if pid:
@@ -69,12 +99,12 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
         return None
 
     try:
-        resp = session.get(
+        resp = _s2_request(
+            session,
             f"{base_url}/paper/search",
             params={"query": title, "limit": 1, "fields": "paperId,url"},
             timeout=10,
         )
-        resp.raise_for_status()
         data = resp.json()
         if data.get("data"):
             result = data["data"][0]
@@ -98,8 +128,7 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
     fields = "title,authors,year,citationCount,abstract,url,externalIds,contexts,intents,isInfluential"
 
     try:
-        resp = session.get(endpoint, params={"limit": limit, "fields": fields}, timeout=15)
-        resp.raise_for_status()
+        resp = _s2_request(session, endpoint, params={"limit": limit, "fields": fields}, timeout=15)
         data = resp.json()
 
         results = []
@@ -141,7 +170,11 @@ def generate_citation_tree(
     import requests
 
     session = requests.Session()
-    session.headers.update({"User-Agent": "PaperReviewAgent/1.0"})
+    headers = {"User-Agent": "PaperReviewAgent/1.0"}
+    s2_key = os.getenv("S2_API_KEY")
+    if s2_key:
+        headers["x-api-key"] = s2_key
+    session.headers.update(headers)
 
     try:
         return _build_citation_tree(papers, depth, max_per_direction, session)
@@ -179,10 +212,13 @@ def _build_citation_tree(
 
     # Add root papers (depth=0) — skip papers not found on Semantic Scholar
     root_ids = []
+    skipped_papers = []
     for paper in papers:
         resolved = _resolve_paper(paper, session)
         if not resolved:
-            logger.info("Skipping paper not found on Semantic Scholar: %s", paper.get("title", ""))
+            title = paper.get("title", "Unknown")
+            logger.info("Skipping paper not found on Semantic Scholar: %s", title)
+            skipped_papers.append(title)
             continue
 
         pid = resolved["paperId"]
@@ -255,7 +291,7 @@ def _build_citation_tree(
 
     # Compute layout
     if len(graph.nodes) == 0:
-        return {"nodes": [], "edges": [], "root_paper_ids": root_ids, "generated_at": datetime.now().isoformat()}
+        return {"nodes": [], "edges": [], "root_paper_ids": root_ids, "skipped_papers": skipped_papers, "generated_at": datetime.now().isoformat()}
 
     try:
         pos = nx.multipartite_layout(graph, subset_key="subset", scale=1.0)
@@ -291,5 +327,6 @@ def _build_citation_tree(
         "nodes": nodes,
         "edges": edges,
         "root_paper_ids": root_ids,
+        "skipped_papers": skipped_papers,
         "generated_at": datetime.now().isoformat(),
     }
