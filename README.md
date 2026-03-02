@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="web-ui/public/Jipyheonjeon_llama.png" alt="Jipyheonjeon Logo" width="120" />
-
   <h1>Jipyheonjeon (집현전)</h1>
 
-  <p><strong>AI-powered academic research assistant for paper discovery, analysis, and organization</strong></p>
+  <p><strong>AI-Powered Research Assistant</strong></p>
+
+  <p>Search papers across multiple sources, generate in-depth review reports,<br/>and organize your findings — all in one place.</p>
 
   [![Live](https://img.shields.io/badge/Live-jipyheonjeon.kr-blue?style=flat-square&logo=googlechrome)](https://jipyheonjeon.kr)
   [![License](https://img.shields.io/badge/License-Apache_2.0-green?style=flat-square)](./LICENSE)
@@ -15,41 +15,65 @@
 
 ---
 
-## Overview
+## What is Jipyheonjeon?
 
-Jipyheonjeon is an AI-assisted research system that covers paper discovery, analysis, and organization. It performs parallel retrieval across five scholarly databases with BM25-semantic hybrid ranking, and generates systematic-literature-review-level reports through an LLM-based multi-agent system. Citation network graphs and knowledge graphs enable visual exploration of inter-document relationships.
+Jipyheonjeon helps researchers discover, analyze, and organize academic papers. It searches five scholarly databases in parallel, ranks results using hybrid signals, and generates systematic review reports through a multi-agent pipeline. You can explore citation networks, build knowledge graphs, and chat with your collected research.
 
-> **Note**: JSON-file-based storage (`papers.json`, `users.json`, `bookmarks.json`) — no external DBMS required.
+> No external database required — all data is stored as simple JSON files.
 
 ---
 
 ## Features
 
-- **Multi-Source Retrieval** — Parallel search across arXiv, Google Scholar, Connected Papers, OpenAlex, and DBLP with intent-adaptive 4-signal hybrid ranking (BM25 + semantic similarity + citation count + recency) and 3.5-stage cascade deduplication
-- **Systematic Deep Review** — Fan-out/Fan-in multi-agent orchestration with parallel Researcher agents, 5-Criterion Advisor validation (25-point scoring), and 3-Phase Fact Verification (regex → FAISS semantic search → LLM Judge)
-- **Citation Tree** — Bidirectional reference/cited-by exploration (depth 1–3) via Semantic Scholar API with exponential backoff retry
-- **Personal Research Library** — Bookmarks with topic organization, AI-generated highlights (6 categories, significance scoring), notes, BibTeX export, and token-based share links
-- **RAG Chat** — 3-Layer Context Assembly (bookmark reports + user highlights + LightRAG knowledge graph) with SSE streaming
-- **Knowledge Graph** — Custom LightRAG implementation with Triple-Index Embedding (Entity/Relation/Chunk via FAISS) and 5 retrieval modes (naive, local, global, hybrid, mix)
-- **Network Visualization** — Interactive Plotly.js graph with embedding-based similarity edges and citation relationships
+- **Search Papers** — Find relevant papers across arXiv, Google Scholar, Connected Papers, OpenAlex, and DBLP in a single query. Results are deduplicated, ranked by relevance, and filtered by an LLM judge.
+
+- **Deep Review** — Generate comprehensive review reports with multi-agent analysis, quality validation, and automated fact verification. Choose Fast Mode for quick summaries or Deep Mode for thorough analysis.
+
+- **Further Reading** — Discover related papers through citation analysis. Explore references and cited-by relationships up to 3 levels deep via Semantic Scholar.
+
+- **Notes & Highlights** — Annotate your reports with AI-generated or manual highlights across 6 categories. Add memos, take notes, and export as BibTeX or Markdown.
+
+- **Chat with Papers** — Ask questions about your bookmarked research. The assistant combines your reports, highlights, and knowledge graph context to provide grounded answers with real-time streaming.
+
+- **Knowledge Graph** — Build a knowledge graph from your collected papers. Extract entities and relationships, then query them in 5 retrieval modes powered by a custom LightRAG implementation.
+
+- **Share** — Create read-only share links for your bookmarks with configurable expiration.
 
 ---
 
 ## Pipeline
 
 ```mermaid
-flowchart LR
-    Q[User Query] --> QA[Query Analysis<br/>Intent Classification]
-    QA --> PS[Parallel Search<br/>5 sources]
-    PS --> DD[Deduplication<br/>3.5-stage cascade]
-    DD --> HR[Hybrid Ranking<br/>4-signal adaptive]
-    HR --> RF[Relevance Filter<br/>LLM-as-a-Judge]
-    RF --> SR[Search Results]
-    SR --> DR[Deep Review<br/>Multi-agent]
-    DR --> FV[Fact Verification<br/>3-phase cascade]
-    FV --> RP[Review Report]
-    RP --> KG[Knowledge Graph<br/>LightRAG]
-    KG --> RC[RAG Chat]
+flowchart TD
+    Q(["User Query"])
+    Q --> QA
+
+    subgraph S["SEARCH"]
+        direction LR
+        QA["Query Analysis<br/>Intent Classification<br/>8 categories"] --> PS["Parallel Search<br/>arXiv · Scholar · OpenAlex<br/>DBLP · Connected Papers"]
+        PS --> DD["Cascade Dedup<br/>DOI → Title → Jaccard<br/>→ Embedding"]
+        DD --> HR["Hybrid Ranking<br/>BM25 + Semantic<br/>+ Citation + Recency"]
+        HR --> RF["Relevance Filter<br/>LLM-as-a-Judge<br/>threshold 0.65"]
+    end
+
+    RF --> DR
+
+    subgraph A["ANALYSIS"]
+        direction LR
+        DR["Deep Review<br/>Fan-out / Fan-in<br/>Multi-agent"] --> FV["Fact Verification<br/>Regex → FAISS<br/>→ LLM Judge"]
+        FV --> RP(["Review Report"])
+    end
+
+    RP --> KG
+
+    subgraph K["KNOWLEDGE"]
+        direction LR
+        KG["LightRAG<br/>Triple FAISS Index<br/>5 retrieval modes"] --> RC(["RAG Chat<br/>3-Layer Context<br/>SSE Streaming"])
+    end
+
+    style S fill:#eef2ff,stroke:#6366f1,stroke-width:2px
+    style A fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+    style K fill:#fffbeb,stroke:#f59e0b,stroke-width:2px
 ```
 
 ---
@@ -58,13 +82,12 @@ flowchart LR
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | React 19, TypeScript, Vite 7, React Router 7, Plotly.js, dnd-kit, React Markdown |
-| **Backend** | FastAPI, Uvicorn, Python 3.12, JWT + bcrypt, slowapi |
-| **AI/LLM** | GPT-4.1 (review, highlights), GPT-4o-mini (query analysis, chat, fact verification), `text-embedding-3-small` |
-| **Search & Retrieval** | BM25 Okapi (Robertson et al., 1995), FAISS IndexFlatIP (Johnson et al., 2019), NetworkX MultiDiGraph (Hagberg et al., 2008) |
+| **Frontend** | React 19, TypeScript, Vite 7, React Router, Plotly.js, dnd-kit |
+| **Backend** | FastAPI, Python 3.12, JWT + bcrypt |
+| **AI / LLM** | GPT-4.1, GPT-4o-mini, text-embedding-3-small |
+| **Search & Retrieval** | BM25 Okapi, FAISS, NetworkX, LangChain, LangGraph |
 | **External APIs** | arXiv, Google Scholar, OpenAlex, DBLP, Connected Papers, Semantic Scholar |
-| **Orchestration** | LangChain 0.3, LangGraph 0.2 |
-| **Infrastructure** | AWS EC2, Nginx, Let's Encrypt, systemd |
+| **Infrastructure** | AWS EC2, Nginx, Let's Encrypt |
 
 ---
 
@@ -106,10 +129,10 @@ data/           JSON storage + FAISS indices + caches
 ## References
 
 - Robertson, S. E. et al. (1995). Okapi at TREC-3. *NIST Special Publication*, 500-225.
-- Johnson, J. et al. (2019). Billion-scale similarity search with GPUs. *IEEE Trans. Big Data*, 7(3), 535–547.
-- Hagberg, A. A. et al. (2008). Exploring network structure, dynamics, and function using NetworkX. *SciPy*, 11–15.
+- Johnson, J. et al. (2019). Billion-scale similarity search with GPUs. *IEEE Trans. Big Data*, 7(3).
+- Hagberg, A. A. et al. (2008). Exploring network structure using NetworkX. *SciPy*, 11–15.
 - Guo, Z. et al. (2024). LightRAG: Simple and Fast Retrieval-Augmented Generation. *arXiv:2410.05779*.
-- Lewis, P. et al. (2020). Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. *NeurIPS*, 33, 9459–9474.
+- Lewis, P. et al. (2020). Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. *NeurIPS*, 33.
 
 ---
 
