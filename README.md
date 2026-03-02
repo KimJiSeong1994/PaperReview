@@ -15,11 +15,17 @@
 
 ---
 
+<div align="center">
+  <img src="web-ui/public/demo.gif" alt="Jipyheonjeon Demo" width="900" />
+</div>
+
+---
+
 ## What is Jipyheonjeon?
 
 Jipyheonjeon helps researchers discover, analyze, and organize academic papers. It searches five scholarly databases in parallel, ranks results using hybrid signals, and generates systematic review reports through a multi-agent pipeline. You can explore citation networks, build knowledge graphs, and chat with your collected research.
 
-> No external database required — all data is stored as simple JSON files.
+> JSON-file-based storage — no external database required. Designed for individual researchers and small teams. For large-scale multi-user deployments, consider adding a database backend.
 
 ---
 
@@ -27,13 +33,13 @@ Jipyheonjeon helps researchers discover, analyze, and organize academic papers. 
 
 - **Search Papers** — Find relevant papers across arXiv, Google Scholar, Connected Papers, OpenAlex, and DBLP in a single query. Results are deduplicated, ranked by relevance, and filtered by an LLM judge.
 
-- **Deep Review** — Generate comprehensive review reports with multi-agent analysis, quality validation, and automated fact verification. Choose Fast Mode for quick summaries or Deep Mode for thorough analysis.
+- **Deep Review** — Generate comprehensive review reports with multi-agent analysis, quality validation, and fact verification against source texts. Choose Fast Mode for quick summaries or Deep Mode for thorough analysis.
 
 - **Further Reading** — Discover related papers through citation analysis. Explore references and cited-by relationships up to 3 levels deep via Semantic Scholar.
 
 - **Notes & Highlights** — Annotate your reports with AI-generated or manual highlights across 6 categories. Add memos, take notes, and export as BibTeX or Markdown.
 
-- **Chat with Papers** — Ask questions about your bookmarked research. The assistant combines your reports, highlights, and knowledge graph context to provide grounded answers with real-time streaming.
+- **Chat with Papers** — Ask questions about your bookmarked research. The assistant combines your reports, highlights, and knowledge graph context to provide answers with real-time streaming.
 
 - **Knowledge Graph** — Build a knowledge graph from your collected papers. Extract entities and relationships, then query them in 5 retrieval modes powered by a custom LightRAG implementation.
 
@@ -64,21 +70,32 @@ Jipyheonjeon helps researchers discover, analyze, and organize academic papers. 
 
 ## Getting Started
 
+### Prerequisites
+
+- Python 3.12+
+- Node.js 20+
+- OpenAI API Key
+
+### Setup
+
 ```bash
-# Clone & setup
-git clone https://github.com/your-repo/PaperReviewAgent.git
-cd PaperReviewAgent
+# Clone
+git clone https://github.com/KimJiSeong1994/PaperReview.git
+cd PaperReview
+
+# Backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # Environment variables
-export OPENAI_API_KEY="your-key"
-export JWT_SECRET="your-secret"
-# Optional: S2_API_KEY (Semantic Scholar), GOOGLE_API_KEY (poster generation)
+cp .env.example .env
+# Edit .env with your API keys (OPENAI_API_KEY, JWT_SECRET are required)
 
-# Run
-python api_server.py              # Backend  → http://localhost:8000
-cd web-ui && npm install && npm run dev  # Frontend → http://localhost:5173
+# Start backend (Terminal 1)
+python api_server.py                      # → http://localhost:8000
+
+# Start frontend (Terminal 2)
+cd web-ui && npm install && npm run dev   # → http://localhost:5173
 ```
 
 Full API documentation: [jipyheonjeon.kr/docs](https://jipyheonjeon.kr/docs)
@@ -94,6 +111,12 @@ src/            Core libraries (collector, graph, graph_rag, light_rag, utils)
 web-ui/         React frontend (components, hooks, api client)
 data/           JSON storage + FAISS indices + caches
 ```
+
+---
+
+## Contributing
+
+Contributions are welcome! Feel free to open an [issue](https://github.com/KimJiSeong1994/PaperReview/issues) for bug reports or feature requests, or submit a pull request.
 
 ---
 
