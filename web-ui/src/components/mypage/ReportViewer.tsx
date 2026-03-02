@@ -528,14 +528,14 @@ export default function ReportViewer({
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: '#6b7280' }}>
                   <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <p>Semantic Scholar에서 논문을 찾을 수 없습니다.</p>
-                <p className="mypage-citation-empty-hint">DOI가 있는 논문이거나 국제 학술지 논문인 경우 더 잘 검색됩니다.</p>
+                <p>No papers found on Semantic Scholar</p>
+                <p className="mypage-citation-empty-hint">Papers with DOI or indexed in international journals are more likely to be found.</p>
                 <button
                   className="mypage-citation-generate-btn"
                   onClick={onGenerateCitationTree}
                   disabled={citationTreeLoading}
                 >
-                  다시 시도
+                  Retry
                 </button>
               </div>
             )}

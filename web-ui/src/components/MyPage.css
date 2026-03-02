@@ -3090,9 +3090,9 @@
 .mypage-citation-warning {
   padding: 8px 12px;
   font-size: 11px;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.06);
-  border: 1px solid rgba(251, 191, 36, 0.15);
-  border-radius: 8px;
+  color: #9ca3af;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 6px;
   margin-bottom: 12px;
 }

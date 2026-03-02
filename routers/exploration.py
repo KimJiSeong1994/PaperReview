@@ -74,10 +74,10 @@ def create_citation_tree(
         if not tree_data.get("nodes"):
             titles = ", ".join(skipped[:3])
             if len(skipped) > 3:
-                titles += f" 외 {len(skipped) - 3}편"
-            warning = f"Semantic Scholar에서 논문을 찾을 수 없습니다: {titles}"
+                titles += f" and {len(skipped) - 3} more"
+            warning = f"Could not find on Semantic Scholar: {titles}"
         else:
-            warning = f"{len(skipped)}편의 논문을 찾지 못해 제외되었습니다."
+            warning = f"{len(skipped)} paper(s) could not be found and were excluded."
 
     # Save to bookmark
     with modify_bookmarks() as store:

@@ -42,10 +42,10 @@ export function useExploration(
         const skipped = tree.skipped_papers || [];
         if (skipped.length > 0) {
           if (!tree.nodes.length) {
-            const titles = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? ` 외 ${skipped.length - 3}편` : '');
-            setCitationTreeWarning(`Semantic Scholar에서 논문을 찾을 수 없습니다: ${titles}`);
+            const titles = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? ` and ${skipped.length - 3} more` : '');
+            setCitationTreeWarning(`Could not find on Semantic Scholar: ${titles}`);
           } else {
-            setCitationTreeWarning(`${skipped.length}편의 논문을 찾지 못해 제외되었습니다.`);
+            setCitationTreeWarning(`${skipped.length} paper(s) could not be found and were excluded.`);
           }
         } else {
           setCitationTreeWarning(null);
@@ -91,10 +91,10 @@ export function useExploration(
       const skipped = data?.skipped_papers || [];
       if (skipped.length > 0) {
         if (!data?.nodes?.length) {
-          const titles = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? ` 외 ${skipped.length - 3}편` : '');
-          setCitationTreeWarning(`Semantic Scholar에서 논문을 찾을 수 없습니다: ${titles}`);
+          const titles = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? ` and ${skipped.length - 3} more` : '');
+          setCitationTreeWarning(`Could not find on Semantic Scholar: ${titles}`);
         } else {
-          setCitationTreeWarning(`${skipped.length}편의 논문을 찾지 못해 제외되었습니다.`);
+          setCitationTreeWarning(`${skipped.length} paper(s) could not be found and were excluded.`);
         }
       }
     } catch (error: any) {
