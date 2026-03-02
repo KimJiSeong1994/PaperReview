@@ -43,38 +43,9 @@ Jipyheonjeon helps researchers discover, analyze, and organize academic papers. 
 
 ## Pipeline
 
-```mermaid
-flowchart TD
-    Q(["User Query"])
-    Q --> QA
-
-    subgraph S["SEARCH"]
-        direction LR
-        QA["Query Analysis<br/>Intent Classification<br/>8 categories"] --> PS["Parallel Search<br/>arXiv · Scholar · OpenAlex<br/>DBLP · Connected Papers"]
-        PS --> DD["Cascade Dedup<br/>DOI → Title → Jaccard<br/>→ Embedding"]
-        DD --> HR["Hybrid Ranking<br/>BM25 + Semantic<br/>+ Citation + Recency"]
-        HR --> RF["Relevance Filter<br/>LLM-as-a-Judge<br/>threshold 0.65"]
-    end
-
-    RF --> DR
-
-    subgraph A["ANALYSIS"]
-        direction LR
-        DR["Deep Review<br/>Fan-out / Fan-in<br/>Multi-agent"] --> FV["Fact Verification<br/>Regex → FAISS<br/>→ LLM Judge"]
-        FV --> RP(["Review Report"])
-    end
-
-    RP --> KG
-
-    subgraph K["KNOWLEDGE"]
-        direction LR
-        KG["LightRAG<br/>Triple FAISS Index<br/>5 retrieval modes"] --> RC(["RAG Chat<br/>3-Layer Context<br/>SSE Streaming"])
-    end
-
-    style S fill:#eef2ff,stroke:#6366f1,stroke-width:2px
-    style A fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
-    style K fill:#fffbeb,stroke:#f59e0b,stroke-width:2px
-```
+<div align="center">
+  <img src="web-ui/public/pipeline-diagram.png" alt="Jipyheonjeon Pipeline" width="900" />
+</div>
 
 ---
 
