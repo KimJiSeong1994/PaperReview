@@ -68,6 +68,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Upload build artifacts
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: web-ui/dist
+          retention-days: 1
+
   docker-build:
     runs-on: ubuntu-latest
     needs: [backend-lint, backend-test, frontend-build]
@@ -82,6 +90,11 @@ jobs:
     needs: [docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         with:
@@ -98,12 +111,6 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt --quiet
 
-            # Frontend build (t3.small 메모리 제한 대응)
-            cd web-ui
-            npm ci --silent
-            NODE_OPTIONS="--max-old-space-size=1024" npm run build
-            cd ..
-
             # Restart uvicorn
             pkill -f "uvicorn api_server:app" || true
             sleep 2
@@ -112,3 +119,13 @@ jobs:
 
             # Health check
             curl -sf http://localhost:8000/docs > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
+
+      - name: Upload frontend build to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "frontend-dist/*"
+          target: "~/PaperReviewAgent/web-ui/dist"
+          strip_components: 1
