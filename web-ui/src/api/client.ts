@@ -460,6 +460,33 @@ export const chatWithBookmarks = async (
   onDone();
 };
 
+// ── Curriculum API ────────────────────────────────────────────────────
+
+export const fetchCurricula = async () => {
+  const response = await api.get('/api/curricula');
+  return response.data;
+};
+
+export const fetchCurriculumDetail = async (id: string) => {
+  const response = await api.get(`/api/curricula/${id}`);
+  return response.data;
+};
+
+export const fetchCurriculumProgress = async (id: string) => {
+  const response = await api.get(`/api/curricula/${id}/progress`);
+  return response.data;
+};
+
+export const updateCurriculumProgress = async (id: string, paperId: string, read: boolean) => {
+  const response = await api.patch(`/api/curricula/${id}/progress`, { paper_id: paperId, read });
+  return response.data;
+};
+
+export const generateCurriculum = async (topic: string, difficulty: string, numModules: number) => {
+  const response = await api.post('/api/curricula/generate', { topic, difficulty, num_modules: numModules });
+  return response.data;
+};
+
 // ── Admin API ─────────────────────────────────────────────────────────
 
 export interface AdminDashboard {

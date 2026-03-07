@@ -14,6 +14,7 @@ from .lightrag import router as lightrag_router
 from .admin import router as admin_router
 from .exploration import router as exploration_router
 from .share import router as share_router
+from .curriculum import router as curriculum_router
 
 __all__ = [
     "auth_router",
@@ -26,4 +27,5 @@ __all__ = [
     "admin_router",
     "exploration_router",
     "share_router",
+    "curriculum_router",
 ]
