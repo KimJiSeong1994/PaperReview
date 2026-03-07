@@ -7,9 +7,8 @@ Paper2Poster의 Visual-in-the-loop 검증 구현
 
 import os
 import base64
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional, List
 from dataclasses import dataclass
-from io import BytesIO
 
 
 @dataclass
@@ -24,13 +23,13 @@ class ValidationResult:
 class PosterValidatorAgent:
     """
     VLM 기반 포스터 품질 검증 에이전트
-    
+
     역할:
     - 생성된 포스터의 시각적 품질 평가
     - 가독성, 정보 밀도, 시각적 균형 점수화
     - 개선 피드백 생성
     """
-    
+
     def __init__(self, model: str = "gpt-4o", api_key: Optional[str] = None):
         """
         Args:
@@ -40,81 +39,81 @@ class PosterValidatorAgent:
         self.model = model
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         self.client = None
-        
+
         # API 키가 있을 때만 클라이언트 초기화 시도
         self._initialize_client()
-    
+
     def _initialize_client(self):
         """OpenAI 클라이언트 초기화"""
         if not self.api_key:
             self.client = None
             return
-        
+
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=self.api_key)
-        except Exception as e:
+        except Exception:
             self.client = None
-    
+
     def validate(self, poster_html: str) -> ValidationResult:
         """
         포스터 품질 검증
-        
+
         Args:
             poster_html: 생성된 HTML 포스터
-            
+
         Returns:
             ValidationResult: 검증 결과
         """
         if not self.client:
             return self._rule_based_validation(poster_html)
-        
+
         try:
             # 1. HTML → 이미지 변환
             image_data = self._render_to_image(poster_html)
-            
+
             if not image_data:
                 return self._rule_based_validation(poster_html)
-            
+
             # 2. VLM 평가
             result = self._evaluate_with_vlm(image_data)
-            
+
             return result
-            
-        except Exception as e:
+
+        except Exception:
             return self._rule_based_validation(poster_html)
-    
+
     def _render_to_image(self, html_content: str) -> Optional[str]:
         """
         HTML을 이미지로 렌더링 (Playwright 사용)
-        
+
         Returns:
             Base64 인코딩된 이미지 데이터
         """
         try:
             from playwright.sync_api import sync_playwright
-            
+
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page(viewport={'width': 1920, 'height': 1080})
-                
+
                 # HTML 로드
                 page.set_content(html_content)
-                
+
                 # 스크린샷 생성
                 screenshot_bytes = page.screenshot(full_page=True)
-                
+
                 browser.close()
-                
+
                 # Base64 인코딩
                 image_b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
                 return f"data:image/png;base64,{image_b64}"
-                
+
         except ImportError:
             return None
-        except Exception as e:
+        except Exception:
             return None
-    
+
     def _evaluate_with_vlm(self, image_data: str) -> ValidationResult:
         """VLM을 사용한 포스터 평가"""
         prompt = """You are an expert academic poster evaluator.
@@ -137,7 +136,7 @@ Provide your evaluation in JSON format:
     "feedback": "Brief overall feedback",
     "suggestions": ["suggestion 1", "suggestion 2", "suggestion 3"]
 }"""
-        
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -151,18 +150,18 @@ Provide your evaluation in JSON format:
                 temperature=0.3,
                 max_tokens=500
             )
-            
+
             import json
             result_text = response.choices[0].message.content
-            
+
             # JSON 추출
             if "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0]
             elif "```" in result_text:
                 result_text = result_text.split("```")[1].split("```")[0]
-            
+
             evaluation = json.loads(result_text.strip())
-            
+
             return ValidationResult(
                 score=evaluation.get('overall_score', 8.0) / 10.0,
                 feedback=evaluation.get('feedback', ''),
@@ -175,14 +174,14 @@ Provide your evaluation in JSON format:
                     'academic_standards': evaluation.get('academic_standards', 8.0)
                 }
             )
-            
-        except Exception as e:
+
+        except Exception:
             return self._rule_based_validation(None)
-    
+
     def _rule_based_validation(self, poster_html: Optional[str]) -> ValidationResult:
         """
         규칙 기반 검증 (VLM 사용 불가 시)
-        
+
         HTML 구조 분석으로 간단한 품질 점수 계산
         """
         if not poster_html:
@@ -198,35 +197,35 @@ Provide your evaluation in JSON format:
                     'academic_standards': 7.0
                 }
             )
-        
+
         # 간단한 규칙 기반 점수 계산
         score = 0.0
         metrics = {}
-        
+
         # 1. 가독성 체크 (섹션 수)
         section_count = poster_html.count('section-box')
         metrics['readability'] = min(10.0, section_count * 1.2)
-        
+
         # 2. 정보 밀도 (텍스트 길이)
         text_length = len(poster_html)
         metrics['information_density'] = min(10.0, text_length / 1000)
-        
+
         # 3. 시각적 균형 (SVG 존재 여부)
         has_svg = '<svg' in poster_html
         metrics['visual_balance'] = 9.0 if has_svg else 6.0
-        
+
         # 4. 디자인 품질 (CSS 스타일 사용)
         has_styles = '<style>' in poster_html
         metrics['design_quality'] = 9.0 if has_styles else 5.0
-        
+
         # 5. 학술 표준 (구조 완성도)
         has_header = '<header>' in poster_html
         has_footer = '<footer>' in poster_html
         metrics['academic_standards'] = 8.0 if (has_header and has_footer) else 6.0
-        
+
         # 전체 점수
         score = sum(metrics.values()) / (len(metrics) * 10.0)
-        
+
         return ValidationResult(
             score=score,
             feedback=f"Rule-based validation: {score*100:.1f}% quality",
@@ -237,11 +236,11 @@ Provide your evaluation in JSON format:
             ],
             metrics=metrics
         )
-    
+
     def quick_validate(self, poster_html: str) -> bool:
         """
         빠른 검증 (필수 요소만 체크)
-        
+
         Returns:
             True if poster meets minimum requirements
         """
@@ -253,10 +252,10 @@ Provide your evaluation in JSON format:
             '<body>',
             'poster-container'
         ]
-        
+
         for element in required_elements:
             if element not in poster_html:
                 return False
-        
+
         return True
 

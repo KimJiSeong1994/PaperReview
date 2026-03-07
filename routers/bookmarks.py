@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-from .deps import load_bookmarks, save_bookmarks, modify_bookmarks, review_sessions, review_sessions_lock, get_current_user, get_openai_client
+from .deps import load_bookmarks, modify_bookmarks, review_sessions, review_sessions_lock, get_current_user, get_openai_client
 from .highlight_service import CATEGORY_CONFIG, generate_highlights, _find_verbatim_or_fuzzy
 
 router = APIRouter(prefix="/api", tags=["bookmarks"])

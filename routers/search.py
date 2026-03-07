@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from starlette.requests import Request
 
 from .deps import (
     get_optional_user,

@@ -6,7 +6,7 @@ import os
 import sys
 import json
 import networkx as nx
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 from graph.embedding_generator import EmbeddingGenerator
@@ -43,7 +43,7 @@ class GraphRAGAgent:
         self.kg = None
         self.kg_storage = None
         self.light_response_generator = None
-    
+
     def build_graph_from_papers(
         self,
         create_citation_edges: bool = True,
@@ -56,26 +56,26 @@ class GraphRAGAgent:
         print("="*70)
         print("[INFO] Graph RAG 그래프 구축 시작")
         print("="*70)
-        
+
         # 1. 논문 데이터 로드
-        print(f"\n[1/4] 논문 데이터 로드 중...")
+        print("\n[1/4] 논문 데이터 로드 중...")
         with open(self.papers_json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         papers = data.get('papers', [])
         print(f"  [v] {len(papers)}개 논문 로드 완료")
-        
+
         # 2. 임베딩 생성
-        print(f"\n[2/4] 임베딩 생성 중...")
+        print("\n[2/4] 임베딩 생성 중...")
         embedding_generator = EmbeddingGenerator()
         embeddings = embedding_generator.generate_batch_embeddings(papers, batch_size=batch_size)
         print(f"  [v] {len(embeddings)}개 임베딩 생성 완료")
-        
+
         # 3. 임베딩 저장
-        print(f"\n[3/4] 임베딩 저장 중...")
+        print("\n[3/4] 임베딩 저장 중...")
         embedding_generator.save_embeddings(embeddings)
-        
+
         # 4. 그래프 구축
-        print(f"\n[4/4] 그래프 구축 중...")
+        print("\n[4/4] 그래프 구축 중...")
         graph_builder = GraphBuilder()
         graph = graph_builder.build_graph(
             papers,
@@ -85,19 +85,19 @@ class GraphRAGAgent:
             similarity_threshold=similarity_threshold,
             similarity_top_k=similarity_top_k
         )
-        
+
         # 5. 그래프 저장
         graph_builder.save_graph(self.graph_path)
-        
+
         self.graph = graph
         return graph
-    
+
     def load_graph(self) -> nx.MultiDiGraph:
         """저장된 그래프 로드"""
         graph_builder = GraphBuilder()
         self.graph = graph_builder.load_graph(self.graph_path)
         return self.graph
-    
+
     def initialize_response_generator(self):
         """응답 생성기 초기화"""
         if self.graph is None:
@@ -105,14 +105,14 @@ class GraphRAGAgent:
                 self.load_graph()
             else:
                 raise FileNotFoundError(f"그래프 파일을 찾을 수 없습니다: {self.graph_path}")
-        
+
         self.response_generator = ResponseGenerator(
             self.graph,
             self.embeddings_index_path,
             self.id_mapping_path,
             self.llm_model
         )
-    
+
     def query(
         self,
         query: str,

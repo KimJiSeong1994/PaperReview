@@ -5,7 +5,7 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 
 import math
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 

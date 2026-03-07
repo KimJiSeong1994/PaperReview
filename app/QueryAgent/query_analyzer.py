@@ -34,40 +34,40 @@ except ImportError:
 
 class QueryAnalyzer:
     """유저 질의 분석 클래스"""
-    
+
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         """
         QueryAnalyzer 초기화
-        
+
         Args:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
             model: 사용할 LLM 모델 (기본값: gpt-4o-mini)
         """
         # SSL 검증은 api_server.py에서 전역으로 처리됨
-        
+
         if not OPENAI_AVAILABLE:
             self.client = None
             self.api_key = None
             self.model = model
             return
-        
+
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         if not self.api_key:
             self.client = None
             self.model = model
             return
-        
+
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
-    
+
     @log_data_processing("Query Analysis")
     def analyze_query(self, query: str) -> Dict[str, Any]:
         """
         사용자 질의를 분석하여 의도, 키워드, 개선 사항을 파악
-        
+
         Args:
             query: 사용자 검색 쿼리
-            
+
         Returns:
             분석 결과 딕셔너리:
             - intent: 검색 의도 (paper_search, topic_exploration, author_search, etc.)
@@ -85,15 +85,15 @@ class QueryAnalyzer:
                 "confidence": 0.0,
                 "error": "Empty query"
             }
-        
+
         # Client가 없으면 fallback 분석 사용
         if not self.client:
             return self._fallback_analysis(query)
-        
+
         try:
             # LLM을 사용하여 질의 분석
             analysis_prompt = self._create_analysis_prompt(query)
-            
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -125,10 +125,10 @@ Be particularly careful with:
                 temperature=0.3,
                 response_format={"type": "json_object"}  # JSON 형식으로 응답
             )
-            
+
             result_text = response.choices[0].message.content
             analysis_result = json.loads(result_text)
-            
+
             # 결과 검증 및 기본값 설정
             return {
                 "intent": analysis_result.get("intent", "paper_search"),
@@ -142,14 +142,14 @@ Be particularly careful with:
                 "original_query": query,
                 "analysis_details": analysis_result.get("analysis_details", "")
             }
-            
+
         except json.JSONDecodeError as e:
             print(f"[WARNING] JSON 파싱 오류: {e}")
             return self._fallback_analysis(query)
         except Exception as e:
             print(f"[WARNING] 질의 분석 중 오류: {e}")
             return self._fallback_analysis(query)
-    
+
     def _create_analysis_prompt(self, query: str) -> str:
         """질의 분석을 위한 프롬프트 생성"""
         return f"""Analyze the following academic research query and provide a structured analysis in JSON format.
@@ -212,12 +212,12 @@ Special handling for non-English queries:
 - Keep both original and English terms in keywords
 
 Return only valid JSON, no additional text."""
-    
+
     def _fallback_analysis(self, query: str) -> Dict[str, Any]:
         """LLM 분석 실패 시 기본 분석 수행"""
         # 간단한 키워드 추출
         keywords = [word.strip() for word in query.split() if len(word.strip()) > 2]
-        
+
         # 기본 의도 추정
         query_lower = query.lower()
         if any(word in query_lower for word in ['author', 'by', 'written by']):
@@ -230,7 +230,7 @@ Return only valid JSON, no additional text."""
             intent = "comparison"
         else:
             intent = "paper_search"
-        
+
         return {
             "intent": intent,
             "keywords": keywords[:7],  # 최대 7개 키워드
@@ -240,67 +240,67 @@ Return only valid JSON, no additional text."""
             "original_query": query,
             "analysis_details": "Fallback analysis using simple keyword extraction"
         }
-    
+
     def extract_keywords(self, query: str) -> List[str]:
         """
         질의에서 키워드만 추출 (간단한 버전)
-        
+
         Args:
             query: 사용자 검색 쿼리
-            
+
         Returns:
             키워드 리스트
         """
         analysis = self.analyze_query(query)
         return analysis.get("keywords", [])
-    
+
     def improve_query(self, query: str) -> str:
         """
         질의를 개선하여 반환
-        
+
         Args:
             query: 원본 검색 쿼리
-            
+
         Returns:
             개선된 검색 쿼리
         """
         analysis = self.analyze_query(query)
         return analysis.get("improved_query", query)
-    
+
     def get_search_filters(self, query: str) -> Dict[str, Any]:
         """
         질의 기반 검색 필터 추천
-        
+
         Args:
             query: 사용자 검색 쿼리
-            
+
         Returns:
             추천 검색 필터 딕셔너리
         """
         analysis = self.analyze_query(query)
         return analysis.get("search_filters", {})
-    
+
     def classify_intent(self, query: str) -> str:
         """
         질의 의도 분류
-        
+
         Args:
             query: 사용자 검색 쿼리
-            
+
         Returns:
             검색 의도 (paper_search, topic_exploration, etc.)
         """
         analysis = self.analyze_query(query)
         return analysis.get("intent", "paper_search")
-    
+
     @log_data_processing("LLM Search Query Generation")
     def generate_search_queries(self, query: str) -> Dict[str, Any]:
         """
         LLM을 사용하여 arXiv와 Google Scholar에 최적화된 검색 쿼리 생성
-        
+
         Args:
             query: 사용자 검색 쿼리
-            
+
         Returns:
             검색 쿼리 딕셔너리:
             - arxiv_queries: arXiv 검색에 최적화된 쿼리 리스트
@@ -315,10 +315,10 @@ Return only valid JSON, no additional text."""
                 "keywords": [],
                 "search_context": ""
             }
-        
+
         try:
             prompt = self._create_search_query_prompt(query)
-            
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -344,9 +344,9 @@ For non-English queries, translate to English and use technical terms."""
                 temperature=0.4,
                 response_format={"type": "json_object"}
             )
-            
+
             result = json.loads(response.choices[0].message.content)
-            
+
             return {
                 "arxiv_queries": result.get("arxiv_queries", [query])[:5],
                 "scholar_queries": result.get("scholar_queries", [query])[:5],
@@ -356,11 +356,11 @@ For non-English queries, translate to English and use technical terms."""
                 "translated_query": result.get("translated_query", query),
                 "related_terms": result.get("related_terms", [])
             }
-            
+
         except Exception as e:
             print(f"[WARNING] Search query generation failed: {e}")
             return self._fallback_search_queries(query)
-    
+
     def _create_search_query_prompt(self, query: str) -> str:
         """LLM 검색 쿼리 생성 프롬프트"""
         return f"""Generate optimized search queries for finding academic papers.
@@ -376,7 +376,7 @@ Generate a JSON response with the following structure:
     ],
     "scholar_queries": [
         "optimized query 1 for Google Scholar",
-        "optimized query 2 for Google Scholar", 
+        "optimized query 2 for Google Scholar",
         "optimized query 3 for Google Scholar"
     ],
     "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
@@ -410,30 +410,30 @@ Special handling:
 - If query is comparative: include all compared methods/approaches
 
 Return only valid JSON."""
-    
+
     def _fallback_search_queries(self, query: str) -> Dict[str, Any]:
         """검색 쿼리 생성 실패 시 기본 처리"""
         import re
-        
+
         # 기본 키워드 추출
         words = re.findall(r'\b[a-zA-Z가-힣]{2,}\b', query)
         stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
                      'of', 'with', 'by', 'from', 'is', 'are', '에서', '으로', '와', '과'}
         keywords = [w for w in words if w.lower() not in stopwords][:7]
-        
+
         # 기본 쿼리 생성
         arxiv_queries = [
             query,
             f"ti:{' AND ti:'.join(keywords[:3])}" if len(keywords) >= 3 else query,
             f"abs:{' AND abs:'.join(keywords[:4])}" if len(keywords) >= 4 else query
         ]
-        
+
         scholar_queries = [
             query,
             " ".join(keywords[:5]),
             f'intitle:"{keywords[0]}" {" ".join(keywords[1:4])}' if keywords else query
         ]
-        
+
         return {
             "arxiv_queries": arxiv_queries,
             "scholar_queries": scholar_queries,
@@ -443,7 +443,7 @@ Return only valid JSON."""
             "translated_query": query,
             "related_terms": []
         }
-    
+
     @log_data_processing("Source-Specific Query Generation")
     def generate_source_specific_queries(
         self, query: str, keywords: List[str] = None
@@ -458,7 +458,6 @@ Return only valid JSON."""
         Returns:
             {"arxiv": "...", "dblp": "...", "google_scholar": "...", "default": "..."}
         """
-        default = {"arxiv": query, "dblp": query, "google_scholar": query, "default": query}
 
         if not self.client:
             return self._fallback_source_queries(query, keywords)
@@ -528,17 +527,17 @@ CRITICAL RULES:
     def search_with_context(self, query: str, context: str = "") -> Dict[str, Any]:
         """
         사용자 컨텍스트를 고려한 검색 쿼리 생성
-        
+
         Args:
             query: 사용자 검색 쿼리
             context: 추가 컨텍스트 (이전 검색, 관심 분야 등)
-            
+
         Returns:
             컨텍스트 기반 검색 쿼리
         """
         if not query or not query.strip():
             return self._fallback_search_queries(query)
-        
+
         try:
             prompt = f"""Based on the user's search query and context, generate optimized academic search queries.
 
@@ -575,12 +574,12 @@ Return only valid JSON."""
                 temperature=0.3,
                 response_format={"type": "json_object"}
             )
-            
+
             result = json.loads(response.choices[0].message.content)
             result["original_query"] = query
             result["context_used"] = context
             return result
-            
+
         except Exception as e:
             print(f"[WARNING] Context search failed: {e}")
             return self._fallback_search_queries(query)

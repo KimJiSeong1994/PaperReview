@@ -1,0 +1,22 @@
+[lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",   # line too long
+    "E701",   # multiple statements on one line (colon) — common in compact code
+    "E731",   # lambda assignment — used intentionally for simple callbacks
+]
+
+[lint.per-file-ignores]
+# __init__.py re-exports are intentional
+"__init__.py" = ["F401"]
+# Test files use sys.path manipulation before imports
+"tests/*" = ["E402", "F401"]
+# App modules use sys.path manipulation for sibling imports
+"app/*" = ["E402"]
+# Source modules with conditional imports
+"src/*" = ["E402"]
+# Routers import after deps setup / logging config
+"routers/*" = ["E402"]
+# Main files import after logging/path setup
+"api_server.py" = ["E402"]
+"main.py" = ["E402"]

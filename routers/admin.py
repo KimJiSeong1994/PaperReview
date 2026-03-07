@@ -22,9 +22,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 from .deps import (
-    get_admin_user, load_bookmarks, save_bookmarks, modify_bookmarks,
-    load_users, save_users, modify_users,
-    review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE,
+    get_admin_user, load_bookmarks, save_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])

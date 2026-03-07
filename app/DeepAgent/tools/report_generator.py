@@ -26,23 +26,23 @@ def generate_markdown_report(
         Markdown 형식 리포트
     """
     report = []
-    
+
     # Header
     report.append("# Comprehensive Literature Review and Analysis Report")
     report.append(f"\n**Review Date**: {datetime.now().strftime('%B %d, %Y')}")
-    report.append(f"**Reviewed by**: Deep Agent Research Review System")
+    report.append("**Reviewed by**: Deep Agent Research Review System")
     report.append(f"**Number of Papers Analyzed**: {len(papers)}")
     report.append("\n" + "="*100 + "\n")
-    
+
     # Executive Summary
     report.append("## Executive Summary\n")
     summary = validation.get("summary", {})
-    
+
     report.append("This comprehensive literature review provides an in-depth analysis of ")
     report.append(f"{len(papers)} peer-reviewed research papers. Our multi-agent review system, ")
     report.append("consisting of specialized researcher agents and a senior advisor, has conducted ")
     report.append("thorough examinations of each paper's methodology, contributions, and limitations.\n")
-    
+
     report.append("**Review Statistics:**")
     report.append(f"- Total Papers Analyzed: {summary.get('total_papers', len(papers))}")
     report.append(f"- High-Quality Analyses: {summary.get('approved', 0)}")
@@ -57,26 +57,26 @@ def generate_markdown_report(
                       f"({v_stats.get('verified', 0)} verified / "
                       f"{v_stats.get('verifiable_claims', 0)} verifiable claims)")
     report.append("")
-    
+
     # Research Landscape Overview
     report.append("## Research Landscape Overview\n")
-    
+
     report.append("### Temporal Distribution")
     year_dist = {}
     for paper in papers:
         year = paper.get('year', 'Unknown')
         year_dist[year] = year_dist.get(year, 0) + 1
-    
+
     if year_dist and 'Unknown' not in year_dist or len(year_dist) > 1:
         report.append("The reviewed papers span multiple years, reflecting the evolution of research in this domain:")
         for year in sorted(year_dist.keys(), reverse=True):
             report.append(f"- **{year}**: {year_dist[year]} paper(s)")
     report.append("")
-    
+
     # Methodological Trends
     cross_analysis = synthesis.get("cross_paper_analysis", {})
     report.append("### Methodological Landscape")
-    
+
     common_themes = cross_analysis.get("common_themes", {})
     if common_themes:
         report.append("Our analysis reveals several prominent methodological approaches across the reviewed literature:")
@@ -86,14 +86,14 @@ def generate_markdown_report(
     else:
         report.append("The reviewed papers employ diverse methodological approaches, ")
         report.append("reflecting the heterogeneous nature of contemporary research in this field.")
-    
+
     report.append(f"\n**Methodological Diversity**: {cross_analysis.get('unique_methods', 0)} distinct approaches identified")
-    
+
     # Reproducibility Assessment
     report.append("\n### Reproducibility and Transparency")
     avg_repro = cross_analysis.get('avg_reproducibility', 0)
     report.append(f"Average reproducibility score across papers: **{avg_repro:.2f}/5.0**\n")
-    
+
     if avg_repro >= 4.0:
         report.append("The field demonstrates strong commitment to reproducible research, with most papers ")
         report.append("providing adequate methodological details, code availability, and dataset descriptions.")
@@ -104,35 +104,35 @@ def generate_markdown_report(
         report.append("Reproducibility remains a significant challenge, with many papers lacking ")
         report.append("sufficient implementation details or publicly available code.")
     report.append("")
-    
+
     # Individual Paper Analyses
     report.append("\n" + "="*100)
     report.append("\n## Detailed Paper-by-Paper Analysis\n")
     report.append("The following sections present in-depth reviews of each paper, examining their ")
     report.append("research questions, methodologies, key findings, and contributions to the field.\n")
-    
+
     for i, (paper, analysis) in enumerate(zip(papers, analyses), 1):
         report.append("\n" + "-"*100)
         report.append(f"\n### Paper {i}: {paper.get('title', 'Untitled')}\n")
-        
+
         # Citation Information
         authors = paper.get('authors', [])
         if len(authors) <= 3:
             author_str = ", ".join(authors)
         else:
             author_str = ", ".join(authors[:2]) + f", et al. ({len(authors)} authors)"
-        
+
         year = paper.get('year', 'n.d.')
         venue = paper.get('venue', 'Unpublished')
-        
+
         report.append(f"**Citation**: {author_str} ({year}). *{paper.get('title', 'Untitled')}*. {venue}.")
-        
+
         if paper.get('arxiv_id'):
             report.append(f"**arXiv**: [{paper['arxiv_id']}](https://arxiv.org/abs/{paper['arxiv_id']})")
         if paper.get('url'):
             report.append(f"**URL**: {paper['url']}")
         report.append("")
-        
+
         # Abstract Summary
         abstract = paper.get('abstract', '')
         if abstract:
@@ -140,11 +140,11 @@ def generate_markdown_report(
             # Truncate long abstracts
             abstract_preview = abstract[:500] + "..." if len(abstract) > 500 else abstract
             report.append(f"{abstract_preview}\n")
-        
+
         # Research Questions & Motivation
         report.append("#### Research Questions & Motivation")
         structure = analysis.get("structure_analysis", {})
-        
+
         if structure.get('has_abstract'):
             report.append("This paper addresses fundamental challenges in its domain, proposing novel ")
             report.append("approaches to advance the state of the art. The research is motivated by ")
@@ -153,18 +153,18 @@ def generate_markdown_report(
         else:
             report.append("*[Abstract not available for detailed motivation analysis]*")
         report.append("")
-        
+
         # Methodology & Approach
         report.append("#### Methodology & Technical Approach")
         methodology = analysis.get("methodology", {})
         methods = methodology.get("detected_methods", [])
-        
+
         if methods:
             report.append("**Primary Methods Employed:**")
             for method in methods:
                 method_name = method.replace('_', ' ').title()
                 report.append(f"- **{method_name}**: ")
-                
+
                 # Add method descriptions
                 method_descriptions = {
                     'deep_learning': 'The paper employs deep neural network architectures',
@@ -180,11 +180,11 @@ def generate_markdown_report(
             report.append("for comprehensive understanding. Based on the available information, the research ")
             report.append("employs rigorous experimental and analytical methods appropriate to the domain.")
             report.append("")
-        
+
         # Key Contributions
         contributions = analysis.get("key_contributions", [])
         report.append("#### Key Contributions")
-        
+
         if contributions and contributions[0] != "Contribution extraction requires full text analysis":
             report.append("The paper makes the following significant contributions to the field:\n")
             for j, contrib in enumerate(contributions, 1):
@@ -195,10 +195,10 @@ def generate_markdown_report(
             report.append("2. Provides empirical validation through comprehensive experiments")
             report.append("3. Contributes theoretical insights and practical methodologies")
             report.append("4. Establishes new benchmarks or evaluation frameworks\n")
-        
+
         # Experimental Results & Evaluation
         report.append("#### Experimental Results & Evaluation")
-        
+
         if structure.get('has_full_text'):
             report.append("The paper presents comprehensive experimental validation, including:")
             report.append("- Rigorous comparison with state-of-the-art baselines")
@@ -209,10 +209,10 @@ def generate_markdown_report(
             report.append("Experimental details require full-text access. Based on publication venue ")
             report.append(f"({venue}), the paper likely includes thorough empirical evaluation ")
             report.append("following community standards for reproducibility and rigor.\n")
-        
+
         # Critical Analysis
         report.append("#### Critical Analysis")
-        
+
         # Strengths
         report.append("**Strengths:**")
         validations = validation.get("individual_validations", [])
@@ -231,9 +231,9 @@ def generate_markdown_report(
             report.append("- Contributes to advancing knowledge in the field")
             report.append("- Published in reputable venue, suggesting peer-review validation")
             if authors:
-                report.append(f"- Authored by recognized researchers in the domain")
+                report.append("- Authored by recognized researchers in the domain")
         report.append("")
-        
+
         # Limitations & Future Work
         report.append("**Limitations & Areas for Future Research:**")
         if i-1 < len(validations):
@@ -251,19 +251,19 @@ def generate_markdown_report(
             report.append("- Comparison with recent concurrent work suggested")
             report.append("- Exploration of real-world deployment scenarios")
         report.append("")
-        
+
         # Reproducibility
         repro = analysis.get("reproducibility", {})
         report.append("#### Reproducibility Assessment")
-        
+
         repro_score = repro.get('reproducibility_score', 0)
         report.append(f"**Reproducibility Score**: {repro_score:.1f}/5.0\n")
-        
+
         report.append("**Reproducibility Factors:**")
         report.append(f"- Code Availability: {'Provided' if repro.get('code_available') else 'Not Available'}")
         report.append(f"- Dataset Access: {'Public' if repro.get('dataset_public') else 'Restricted/Private'}")
         report.append(f"- Methodological Detail: {'Comprehensive' if structure.get('has_full_text') else 'Limited (abstract only)'}")
-        
+
         if repro_score >= 4.0:
             report.append("\n*Assessment*: Highly reproducible. The paper provides sufficient detail and resources ")
             report.append("for independent replication of results.")
@@ -274,7 +274,7 @@ def generate_markdown_report(
             report.append("\n*Assessment*: Limited reproducibility. Significant additional information would be ")
             report.append("required to independently reproduce the reported results.")
         report.append("")
-        
+
         # Fact Verification (per-paper)
         if verification and verification.get("claim_evidences"):
             paper_id = (
@@ -325,33 +325,33 @@ def generate_markdown_report(
 
         # Impact & Significance
         report.append("#### Impact & Significance")
-        
+
         citations = paper.get('citations')
         if citations:
             report.append(f"**Citation Count**: {citations} (indicates research community impact)")
-        
+
         report.append(f"\nPublished in **{venue} ({year})**, this work contributes to ")
         report.append("advancing the field through its novel methodological contributions and ")
         report.append("empirical findings. The research addresses timely challenges and provides ")
         report.append("foundations for future investigations in related areas.")
-        
+
         report.append("\n")
-    
+
     # Synthesis & Comparative Analysis
     report.append("\n" + "="*100)
     report.append("\n## Cross-Paper Synthesis & Comparative Analysis\n")
-    
+
     report.append("### Thematic Connections")
-    
+
     common_themes = cross_analysis.get("common_themes", {})
     if common_themes and len(common_themes) > 0:
         report.append("Our analysis reveals several thematic threads connecting the reviewed papers:\n")
-        
+
         for i, (theme, count) in enumerate(sorted(common_themes.items(), key=lambda x: x[1], reverse=True)[:5], 1):
             percentage = (count / len(papers)) * 100 if papers else 0
             theme_name = theme.replace('_', ' ').title()
             report.append(f"**{i}. {theme_name}** ({count} papers, {percentage:.1f}%)")
-            
+
             # Add thematic description
             if 'deep' in theme.lower() or 'neural' in theme.lower():
                 report.append("   - Deep learning approaches dominate, reflecting the field's shift toward ")
@@ -371,36 +371,36 @@ def generate_markdown_report(
         report.append("perspectives and methodologies. While thematic heterogeneity limits direct ")
         report.append("comparison, the collection illustrates the breadth of contemporary research.")
         report.append("")
-    
+
     # Methodological Evolution
     report.append("### Methodological Trends & Evolution")
     report.append(f"\nAcross {len(papers)} papers, we observe {cross_analysis.get('unique_methods', 0)} ")
     report.append("distinct methodological approaches. This diversity reflects both the maturity ")
     report.append("and ongoing innovation within the field:\n")
-    
+
     report.append("- **Methodological Maturity**: Established techniques provide solid foundations")
     report.append("- **Novel Innovations**: New approaches push boundaries and explore uncharted territory")
     report.append("- **Hybrid Methods**: Combinations of classical and modern techniques emerge")
     report.append("- **Domain Adaptation**: Methods are increasingly tailored to specific application contexts")
     report.append("")
-    
+
     # Reproducibility Landscape
     report.append("### Reproducibility Landscape")
     avg_repro = cross_analysis.get('avg_reproducibility', 0)
     report.append(f"\nThe average reproducibility score of {avg_repro:.2f}/5.0 provides insight into ")
     report.append("the field's commitment to open science and transparent research practices.\n")
-    
+
     # Count papers by reproducibility level
     high_repro = sum(1 for a in analyses if a.get("reproducibility", {}).get("reproducibility_score", 0) >= 4.0)
     med_repro = sum(1 for a in analyses if 3.0 <= a.get("reproducibility", {}).get("reproducibility_score", 0) < 4.0)
     low_repro = sum(1 for a in analyses if a.get("reproducibility", {}).get("reproducibility_score", 0) < 3.0)
-    
+
     report.append("**Reproducibility Distribution:**")
     report.append(f"- High (4.0-5.0): {high_repro} paper(s) - Exemplary reproducibility standards")
     report.append(f"- Moderate (3.0-3.9): {med_repro} paper(s) - Acceptable with room for improvement")
     report.append(f"- Limited (<3.0): {low_repro} paper(s) - Significant reproducibility challenges")
     report.append("")
-    
+
     # Cross-Paper Fact Verification
     if verification and verification.get("consensus"):
         report.append("\n### Cross-Paper Fact Verification\n")
@@ -452,23 +452,23 @@ def generate_markdown_report(
     # Conclusions & Recommendations
     report.append("\n" + "="*100)
     report.append("\n## Conclusions & Recommendations\n")
-    
+
     report.append("### Summary of Key Findings\n")
     report.append(f"This comprehensive review of {len(papers)} papers reveals:\n")
-    
+
     report.append("**1. Research Quality & Rigor**")
     approval_rate = summary.get('approval_rate', 0) * 100
     report.append(f"   - {approval_rate:.1f}% of analyses met high-quality standards")
     report.append("   - Reviewed papers demonstrate methodological soundness appropriate to their domains")
     report.append("   - Peer-review publication venues ensure baseline quality thresholds")
     report.append("")
-    
+
     report.append("**2. Methodological Diversity**")
     report.append(f"   - {cross_analysis.get('unique_methods', 0)} distinct approaches identified")
     report.append("   - Field exhibits healthy balance of established and innovative methods")
     report.append("   - Cross-pollination between subdomains drives novel hybrid approaches")
     report.append("")
-    
+
     report.append("**3. Reproducibility & Transparency**")
     if avg_repro >= 3.5:
         report.append("   - Field demonstrates strong commitment to reproducible research")
@@ -477,74 +477,74 @@ def generate_markdown_report(
         report.append("   - Reproducibility remains an area requiring community attention")
         report.append("   - Greater emphasis on code sharing and detailed reporting needed")
     report.append("")
-    
+
     report.append("**4. Impact & Significance**")
     report.append("   - Papers address fundamental challenges in their respective domains")
     report.append("   - Contributions span theoretical advances, algorithmic innovations, and empirical insights")
     report.append("   - Collective work advances state of the art and enables future research")
     report.append("")
-    
+
     # Recommendations
     report.append("### Recommendations for Future Research\n")
-    
+
     report.append("Based on our comprehensive analysis, we recommend:\n")
-    
+
     report.append("**1. Enhanced Reproducibility**")
     report.append("   - Mandatory code release for empirical papers")
     report.append("   - Standardized reporting of experimental details")
     report.append("   - Public datasets and benchmarks to facilitate comparison")
     report.append("")
-    
+
     report.append("**2. Cross-Domain Integration**")
     report.append("   - Explore connections between related but distinct research areas")
     report.append("   - Develop unified frameworks that generalize across domains")
     report.append("   - Foster interdisciplinary collaborations")
     report.append("")
-    
+
     report.append("**3. Addressing Identified Gaps**")
     report.append("   - Tackle limitations explicitly acknowledged in reviewed papers")
     report.append("   - Investigate scenarios underexplored in current literature")
     report.append("   - Scale methods to more challenging real-world conditions")
     report.append("")
-    
+
     report.append("**4. Methodological Rigor**")
     report.append("   - Strengthen statistical validation and significance testing")
     report.append("   - Conduct thorough ablation studies to understand method components")
     report.append("   - Compare against strongest possible baselines")
     report.append("")
-    
+
     # Research Directions
     report.append("### Promising Research Directions\n")
-    
+
     report.append("The synthesis of reviewed papers suggests several promising avenues for future investigation:\n")
-    
+
     if 'deep' in str(common_themes) or 'neural' in str(common_themes):
         report.append("- **Theoretical Understanding**: Deepen theoretical foundations of empirically successful methods")
     if 'graph' in str(common_themes):
         report.append("- **Scalability**: Develop methods that scale to massive graphs and networks")
     if 'nlp' in str(common_themes) or 'language' in str(common_themes):
         report.append("- **Multilingual & Low-Resource**: Extend to diverse languages and limited data scenarios")
-    
+
     report.append("- **Robustness & Reliability**: Ensure methods work reliably in adversarial or noisy conditions")
     report.append("- **Interpretability**: Make complex models more transparent and explainable")
     report.append("- **Efficiency**: Reduce computational costs while maintaining performance")
     report.append("- **Real-World Deployment**: Bridge gap between research prototypes and production systems")
     report.append("")
-    
+
     # Closing Remarks
     report.append("### Concluding Remarks\n")
-    
+
     report.append(f"This review of {len(papers)} papers provides a comprehensive snapshot of current ")
     report.append("research in the domain. The papers collectively demonstrate the field's vitality, ")
     report.append("with active exploration of novel ideas alongside rigorous development of established ")
     report.append("approaches. The identified trends, gaps, and opportunities should inform future ")
     report.append("research directions and contribute to continued advancement of the field.\n")
-    
+
     report.append("The multi-agent review methodology employed here—combining specialized analytical ")
     report.append("agents with senior advisor validation—ensures thorough, balanced, and academically ")
     report.append("rigorous assessment of each paper's contributions, methodologies, and limitations.")
     report.append("")
-    
+
     # Footer
     report.append("\n" + "="*100)
     report.append(f"\n**Report Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -552,7 +552,7 @@ def generate_markdown_report(
     report.append("**Methodology**: Multi-agent collaborative analysis with advisor validation")
     report.append("\n*This report synthesizes analyses from specialized researcher agents, validated by a senior advisor agent*")
     report.append("*to ensure academic rigor, balanced critique, and comprehensive coverage.*")
-    
+
     return "\n".join(report)
 
 
@@ -580,7 +580,7 @@ def generate_html_report(
     markdown_report = generate_markdown_report(
         papers, analyses, validation, synthesis, verification=verification
     )
-    
+
     html = f"""
 <!DOCTYPE html>
 <html>
@@ -610,6 +610,6 @@ def generate_html_report(
 </body>
 </html>
     """
-    
+
     return html
 

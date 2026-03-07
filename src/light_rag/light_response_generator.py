@@ -81,7 +81,7 @@ Answer:"""
         """전체 LightRAG 파이프라인 실행"""
 
         # 1. 쿼리 키워드 추출
-        print(f"  [1/4] Extracting keywords...")
+        print("  [1/4] Extracting keywords...")
         keywords = self.keyword_extractor.extract_keywords(query)
         print(f"    Low-level: {keywords['low_level']}")
         print(f"    High-level: {keywords['high_level']}")
@@ -94,13 +94,13 @@ Answer:"""
               f"{len(retrieval_result.get('paper_ids', []))} papers")
 
         # 3. 컨텍스트 조립
-        print(f"  [3/4] Building context...")
+        print("  [3/4] Building context...")
         context = self.context_builder.build_context(
             retrieval_result, query, self.paper_graph
         )
 
         # 4. LLM 응답 생성
-        print(f"  [4/4] Generating response...")
+        print("  [4/4] Generating response...")
         answer = self._generate_llm_response(context, query, temperature)
 
         # 결과 조립

@@ -190,7 +190,8 @@ class TestVerifyToken:
 
     async def test_verify_expired_token(self, client):
         """An expired JWT returns 401."""
-        secret = "test-jwt-secret-for-testing-only"  # matches conftest env var
+        from tests.conftest import _TEST_JWT_SECRET
+        secret = _TEST_JWT_SECRET
         payload = {
             "sub": "expired_user",
             "role": "user",

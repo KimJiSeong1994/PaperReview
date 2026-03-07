@@ -6,7 +6,6 @@ All endpoint logic lives in the routers/ package.
 This file handles app creation, middleware, and router registration.
 """
 
-import asyncio
 import logging
 import os
 import time

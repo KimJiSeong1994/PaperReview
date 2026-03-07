@@ -7,7 +7,7 @@ from .logger import Logger, log_function_call, log_performance, log_api_call, lo
 __all__ = [
     'Logger',
     'log_function_call',
-    'log_performance', 
+    'log_performance',
     'log_api_call',
     'log_search_operation'
 ]

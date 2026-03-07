@@ -6,7 +6,6 @@ LLM 호출 없이 데이터 모델, 리포트 파싱, 프롬프트 생성, Evide
 import sys
 from pathlib import Path
 
-import pytest
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

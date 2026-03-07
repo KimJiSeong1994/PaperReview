@@ -51,7 +51,7 @@ def _get_free_proxy(timeout: int = 5) -> Optional[str]:
 
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
-    
+
     def __init__(self):
         self.base_url = "https://scholar.google.com"
         # 다양한 User-Agent 로테이션
@@ -76,7 +76,7 @@ class GoogleScholarSearcher:
         # 랜덤 User-Agent 선택
         self.headers['User-Agent'] = random.choice(self.user_agents)
         self.session.headers.update(self.headers)
-        
+
         # 요청 간 딜레이 (Rate limiting 방지)
         self.request_delay = 2.0
         self.last_request_time = 0
@@ -92,7 +92,7 @@ class GoogleScholarSearcher:
         self._proxy = None
         self._proxy_initialized = False
         self._proxy_failures = 0
-        
+
         # CAPTCHA 처리 설정
         self.enable_manual_captcha = True  # 수동 CAPTCHA 해결 활성화
         self.cookies_file = Path(os.path.dirname(__file__)) / '.google_scholar_cookies.pkl'
@@ -131,7 +131,7 @@ class GoogleScholarSearcher:
             logger.info("Rotating to new proxy after failure...")
             self._proxy_failures = 0
         self._try_set_proxy()
-    
+
     def _load_cookies(self):
         """저장된 쿠키 로드"""
         if self.cookies_file.exists():
@@ -143,7 +143,7 @@ class GoogleScholarSearcher:
                 logger.info("Google Scholar cookies loaded successfully")
             except Exception as e:
                 logger.warning(f"Failed to load cookies: {e}")
-    
+
     def _save_cookies(self):
         """현재 세션의 쿠키 저장"""
         try:
@@ -160,7 +160,7 @@ class GoogleScholarSearcher:
             logger.info("Google Scholar cookies saved successfully")
         except Exception as e:
             logger.warning(f"Failed to save cookies: {e}")
-    
+
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이 (랜덤 추가)"""
         current_time = time.time()
@@ -170,7 +170,7 @@ class GoogleScholarSearcher:
         if elapsed < delay:
             time.sleep(delay - elapsed)
         self.last_request_time = time.time()
-    
+
     def _is_available(self) -> bool:
         """Circuit breaker: Google Scholar 사용 가능 여부 확인"""
         with self._state_lock:
@@ -265,7 +265,7 @@ class GoogleScholarSearcher:
         if response.text and ('captcha' in response.text.lower() or 'unusual traffic' in response.text.lower()):
             return True
         return False
-    
+
     def _solve_captcha_manually(self, url: str) -> bool:
         """브라우저를 열어 사용자가 수동으로 CAPTCHA 해결"""
         try:
@@ -274,7 +274,7 @@ class GoogleScholarSearcher:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager.chrome import ChromeDriverManager
             from selenium.webdriver.support.ui import WebDriverWait
-            
+
             logger.info("=" * 60)
             logger.info("CAPTCHA DETECTED - Opening browser for manual verification")
             logger.info("=" * 60)
@@ -283,58 +283,58 @@ class GoogleScholarSearcher:
             print("브라우저가 자동으로 열립니다. CAPTCHA를 해결해주세요.")
             print("해결 후 브라우저를 닫으면 자동으로 검색이 계속됩니다.")
             print("=" * 60 + "\n")
-            
+
             # Chrome 옵션 설정
             chrome_options = Options()
             chrome_options.add_argument('--disable-blink-features=AutomationControlled')
             chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
             chrome_options.add_experimental_option('useAutomationExtension', False)
-            
+
             # WebDriver 초기화
             driver = webdriver.Chrome(
                 service=Service(ChromeDriverManager().install()),
                 options=chrome_options
             )
-            
+
             try:
                 # CAPTCHA 페이지로 이동
                 driver.get(url)
-                
+
                 logger.info("Waiting for CAPTCHA to be solved...")
                 print("⏳ CAPTCHA 해결을 기다리는 중... (최대 5분)")
-                
+
                 # CAPTCHA가 해결되고 정상 페이지로 이동할 때까지 대기 (최대 5분)
                 # 또는 사용자가 수동으로 scholar 페이지로 이동할 때까지
                 WebDriverWait(driver, 300).until(
                     lambda d: ('scholar.google.com' in d.current_url and 'sorry' not in d.current_url.lower()) or
                               (d.current_url.startswith('https://scholar.google.com/scholar'))
                 )
-                
+
                 # 추가 대기 (쿠키가 완전히 설정되도록)
                 time.sleep(3)
-                
+
                 logger.info("✅ CAPTCHA solved successfully!")
                 print("✅ CAPTCHA 해결 완료!")
                 print("🔄 쿠키를 저장하고 세션을 업데이트하는 중...")
-                
+
                 # 추가로 Google Scholar 메인 페이지 방문 (쿠키 확인)
                 try:
                     driver.get("https://scholar.google.com")
                     time.sleep(2)
                 except Exception as e:
                     logger.warning("Unexpected error navigating to Scholar main page: %s", e)
-                
+
                 # 쿠키 가져오기
                 selenium_cookies = driver.get_cookies()
                 logger.info(f"Retrieved {len(selenium_cookies)} cookies from browser")
-                
+
                 # requests 세션에 쿠키 적용
                 logger.info(f"Transferring {len(selenium_cookies)} cookies to session...")
                 cookie_count = 0
                 for cookie in selenium_cookies:
                     try:
                         self.session.cookies.set(
-                            cookie['name'], 
+                            cookie['name'],
                             cookie['value'],
                             domain=cookie.get('domain', '.google.com'),
                             path=cookie.get('path', '/'),
@@ -343,27 +343,27 @@ class GoogleScholarSearcher:
                         cookie_count += 1
                     except Exception as e:
                         logger.warning(f"Failed to set cookie {cookie.get('name')}: {e}")
-                
+
                 logger.info(f"Successfully transferred {cookie_count}/{len(selenium_cookies)} cookies")
-                
+
                 # 쿠키 저장
                 self._save_cookies()
-                
+
                 logger.info("Cookies saved to file and session updated")
-                
+
                 # 헤더도 업데이트 (브라우저처럼)
                 self.headers['User-Agent'] = driver.execute_script("return navigator.userAgent")
                 self.session.headers.update(self.headers)
                 logger.info(f"Updated User-Agent: {self.headers['User-Agent'][:50]}...")
-                
+
                 driver.quit()
                 return True
-                
+
             except Exception as e:
                 logger.error(f"Error during CAPTCHA solving: {e}")
                 driver.quit()
                 return False
-                
+
         except ImportError:
             logger.error("Selenium not installed. Install with: pip install selenium webdriver-manager")
             logger.info("Continuing without manual CAPTCHA solving...")
@@ -371,40 +371,40 @@ class GoogleScholarSearcher:
         except Exception as e:
             logger.error(f"Failed to open browser for CAPTCHA: {e}")
             return False
-    
+
     def _extract_keywords(self, query: str) -> List[str]:
         """쿼리에서 핵심 키워드 추출"""
-        stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+        stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
                      'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
                      'as', 'it', 'its', 'this', 'that', 'these', 'those', 'can', 'will',
                      'using', 'based', 'via', 'through', 'into', 'over', 'under'}
-        
+
         # 소문자로 변환하고 특수문자 제거
         query_clean = re.sub(r'[^\w\s\-]', ' ', query.lower())
         words = query_clean.split()
         keywords = [w for w in words if w not in stopwords and len(w) > 2]
         return keywords
-    
+
     def _build_optimized_query(self, query: str, search_type: str = "default") -> str:
         """최적화된 검색 쿼리 생성"""
         if search_type == "exact":
             # 정확한 구문 검색
             return f'"{query}"'
-        
+
         elif search_type == "title":
             # 제목에서 검색
             return f'allintitle: {query}'
-        
+
         elif search_type == "keywords":
             # 키워드 기반 검색
             keywords = self._extract_keywords(query)
             if keywords:
                 return " ".join(keywords[:5])  # 상위 5개 키워드
             return query
-        
+
         else:  # default
             return query
-    
+
     @log_search_operation("Google Scholar")
     def search(self, query: str, max_results: int = 10, sort_by: str = "relevance") -> List[Dict[str, Any]]:
         """
@@ -438,7 +438,7 @@ class GoogleScholarSearcher:
             if response is None:
                 self._record_failure()
                 return []
-            
+
             # CAPTCHA 확인 및 처리
             if self._is_captcha_response(response):
                 logger.warning("CAPTCHA detected, attempting manual solve...")
@@ -446,19 +446,19 @@ class GoogleScholarSearcher:
                     # CAPTCHA 해결 후 충분한 대기 (20초)
                     logger.info("✅ CAPTCHA solved! Waiting 20s for cookies to be fully recognized...")
                     time.sleep(20)  # Google 서버가 쿠키를 완전히 인식하도록 충분한 대기
-                    
+
                     # 새로운 세션으로 재시도 (쿠키는 유지)
                     logger.info("Retrying request with authenticated session...")
-                    
+
                     # User-Agent를 변경하지 않고 그대로 유지
                     response = self.session.get(search_url, params=params, timeout=15)
-                    
+
                     # 재시도 후에도 CAPTCHA면 두 번째 시도
                     if self._is_captcha_response(response):
                         logger.warning("CAPTCHA still detected. Waiting additional 30s and retrying once more...")
                         time.sleep(30)  # 추가 30초 대기
                         response = self.session.get(search_url, params=params, timeout=15)
-                        
+
                         # 그래도 실패하면 포기
                         if self._is_captcha_response(response):
                             logger.error("⚠️ CAPTCHA persists after multiple retries. Skipping Google Scholar for this search.")
@@ -467,9 +467,9 @@ class GoogleScholarSearcher:
                 else:
                     logger.error("CAPTCHA not solved, skipping Google Scholar search")
                     return []
-            
+
             response.raise_for_status()
-            
+
             # 검색 결과 파싱
             papers = self._parse_search_results(response.text, max_results)
 
@@ -491,16 +491,16 @@ class GoogleScholarSearcher:
                     if paper['title'].lower() not in seen_titles:
                         papers.append(paper)
                         seen_titles.add(paper['title'].lower())
-            
+
             return papers[:max_results]
-            
+
         except Exception as e:
             self._record_failure()
             logger.error(f"Google Scholar 검색 중 오류 발생: {e}")
             import traceback
             logger.debug(traceback.format_exc())
             return []
-    
+
     @log_search_operation("Google Scholar Enhanced")
     def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
@@ -520,11 +520,11 @@ class GoogleScholarSearcher:
                 ("keywords", max_results // 2),  # 키워드 기반
                 ("title", max_results // 2),     # 제목 검색
             ]
-            
+
             for strategy, limit in strategies:
                 try:
                     self._rate_limit()
-                    
+
                     optimized_query = self._build_optimized_query(query, strategy)
                     search_url = f"{self.base_url}/scholar"
                     params = {
@@ -532,32 +532,32 @@ class GoogleScholarSearcher:
                         'hl': 'en',
                         'as_sdt': '0,5'
                     }
-                    
+
                     response = self.session.get(search_url, params=params, timeout=15)
                     response.raise_for_status()
-                    
+
                     papers = self._parse_search_results(response.text, limit)
-                    
+
                     for paper in papers:
                         title_lower = paper['title'].lower()
                         if title_lower not in seen_titles:
                             seen_titles.add(title_lower)
                             all_results.append(paper)
-                    
+
                 except Exception as e:
                     logger.warning(f"Strategy '{strategy}' failed: {e}")
                     continue
-                
+
                 # 충분한 결과가 있으면 조기 종료
                 if len(all_results) >= max_results:
                     break
-            
+
             return all_results[:max_results]
-            
+
         except Exception as e:
             logger.error(f"Enhanced search error: {e}")
             return []
-    
+
     @log_search_operation("Google Scholar Title")
     def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
         """
@@ -575,17 +575,17 @@ class GoogleScholarSearcher:
 
         try:
             results = []
-            
+
             # 1. 정확한 제목 검색
             self._rate_limit()
             exact_query = f'allintitle: "{title}"'
             search_url = f"{self.base_url}/scholar"
             params = {'q': exact_query, 'hl': 'en', 'as_sdt': '0,5'}
-            
+
             response = self.session.get(search_url, params=params, timeout=15)
             response.raise_for_status()
             results.extend(self._parse_search_results(response.text, max_results))
-            
+
             # 2. 결과가 없으면 키워드 기반 검색
             if not results:
                 self._rate_limit()
@@ -593,54 +593,54 @@ class GoogleScholarSearcher:
                 if keywords:
                     keyword_query = " ".join(keywords[:4])
                     params = {'q': keyword_query, 'hl': 'en', 'as_sdt': '0,5'}
-                    
+
                     response = self.session.get(search_url, params=params, timeout=15)
                     response.raise_for_status()
                     results.extend(self._parse_search_results(response.text, max_results))
-            
+
             return results[:max_results]
-            
+
         except Exception as e:
             logger.error(f"Title search error: {e}")
             return []
-    
+
     def search_by_author(self, author: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         저자별 논문 검색
-        
+
         Args:
             author: 저자 이름
             max_results: 최대 결과 수
-            
+
         Returns:
             논문 정보 리스트
         """
         query = f'author:"{author}"'
         return self.search(query, max_results)
-    
+
     def search_by_year(self, query: str, year: int, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         특정 연도 논문 검색
-        
+
         Args:
             query: 검색 쿼리
             year: 연도
             max_results: 최대 결과 수
-            
+
         Returns:
             논문 정보 리스트
         """
         query_with_year = f'{query} after:{year} before:{year+1}'
         return self.search(query_with_year, max_results)
-    
+
     def get_cited_by(self, paper_url: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         특정 논문을 인용한 논문들 가져오기
-        
+
         Args:
             paper_url: 논문 URL
             max_results: 최대 결과 수
-            
+
         Returns:
             인용 논문 리스트
         """
@@ -649,35 +649,35 @@ class GoogleScholarSearcher:
             self._rate_limit()  # Rate limiting 추가
             response = self.session.get(paper_url, timeout=15)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
+
             # Cited by 링크 찾기
             cited_by_link = soup.find('a', string=re.compile(r'Cited by'))
             if not cited_by_link:
                 return []
-            
+
             cited_by_url = urllib.parse.urljoin(self.base_url, cited_by_link.get('href', ''))
-            
+
             # Cited by 페이지 접근
             self._rate_limit()  # Rate limiting 추가
             cited_response = self.session.get(cited_by_url, timeout=15)
             cited_response.raise_for_status()
-            
+
             return self._parse_search_results(cited_response.text, max_results)
-            
+
         except Exception as e:
             logger.error(f"인용 논문 가져오기 오류: {e}")
             return []
-    
+
     def get_related_articles(self, paper_url: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         관련 논문 가져오기
-        
+
         Args:
             paper_url: 논문 URL
             max_results: 최대 결과 수
-            
+
         Returns:
             관련 논문 리스트
         """
@@ -686,47 +686,47 @@ class GoogleScholarSearcher:
             self._rate_limit()  # Rate limiting 추가
             response = self.session.get(paper_url, timeout=15)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
+
             # Related articles 링크 찾기
             related_link = soup.find('a', string=re.compile(r'Related articles'))
             if not related_link:
                 return []
-            
+
             related_url = urllib.parse.urljoin(self.base_url, related_link.get('href', ''))
-            
+
             # Related articles 페이지 접근
             self._rate_limit()  # Rate limiting 추가
             related_response = self.session.get(related_url, timeout=15)
             related_response.raise_for_status()
-            
+
             return self._parse_search_results(related_response.text, max_results)
-            
+
         except Exception as e:
             logger.error(f"관련 논문 가져오기 오류: {e}")
             return []
-    
+
     def _parse_search_results(self, html_content: str, max_results: int) -> List[Dict[str, Any]]:
         """검색 결과 HTML 파싱"""
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             papers = []
-            
+
             # 검색 결과 요소 찾기
             result_elements = soup.find_all('div', class_='gs_ri')
-            
+
             for element in result_elements[:max_results]:
                 paper_info = self._extract_paper_from_element(element)
                 if paper_info:
                     papers.append(paper_info)
-            
+
             return papers
-            
+
         except Exception as e:
             logger.error(f"검색 결과 파싱 오류: {e}")
             return []
-    
+
     def _search_via_scholarly(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """scholarly 라이브러리를 통한 대체 검색 (HTML 스크래핑 실패 시 fallback)"""
         try:
@@ -785,7 +785,7 @@ class GoogleScholarSearcher:
                     url = title_link.get('href', '')
                 else:
                     title = title_elem.get_text(separator=' ', strip=True)
-            
+
             # 저자 및 출판 정보 추출
             authors_elem = element.find('div', class_='gs_a')
             authors = []
@@ -798,7 +798,7 @@ class GoogleScholarSearcher:
                 if parts:
                     authors_part = parts[0]
                     authors = [author.strip() for author in authors_part.split(',')]
-                    
+
                     # 출판 정보에서 저널과 연도 추출
                     if len(parts) > 1:
                         journal_part = parts[1]
@@ -807,11 +807,11 @@ class GoogleScholarSearcher:
                         if year_match:
                             year = year_match.group()
                         journal = journal_part
-            
+
             # 초록 추출
             abstract_elem = element.find('div', class_='gs_rs')
             abstract = abstract_elem.get_text(separator=' ', strip=True) if abstract_elem else ""
-            
+
             # 인용 수 추출
             citations_elem = element.find('a', string=re.compile(r'Cited by'))
             citations = 0
@@ -820,17 +820,17 @@ class GoogleScholarSearcher:
                 citations_match = re.search(r'(\d+)', citations_text)
                 if citations_match:
                     citations = int(citations_match.group(1))
-            
+
             # PDF 링크 추출
             pdf_link = element.find('a', string='[PDF]')
             pdf_url = pdf_link.get('href', '') if pdf_link else ""
-            
+
             # DOI 추출 (초록에서)
             doi = ""
             doi_match = re.search(r'doi\.org/([^\s]+)', abstract)
             if doi_match:
                 doi = doi_match.group(1)
-            
+
             return {
                 "title": title,
                 "authors": authors,
@@ -843,53 +843,53 @@ class GoogleScholarSearcher:
                 "doi": doi,
                 "source": "Google Scholar"
             }
-            
+
         except Exception as e:
             logger.error(f"논문 정보 추출 오류: {e}")
             return None
-    
-    def search_with_filters(self, query: str, year_start: int = None, year_end: int = None, 
+
+    def search_with_filters(self, query: str, year_start: int = None, year_end: int = None,
                           author: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
         """
         필터를 적용한 검색
-        
+
         Args:
             query: 검색 쿼리
             year_start: 시작 연도
             year_end: 종료 연도
             author: 저자
             max_results: 최대 결과 수
-            
+
         Returns:
             논문 정보 리스트
         """
         try:
             # 검색 쿼리 구성
             search_query = query
-            
+
             if author:
                 search_query += f' author:"{author}"'
-            
+
             if year_start and year_end:
                 search_query += f' after:{year_start-1} before:{year_end+1}'
             elif year_start:
                 search_query += f' after:{year_start-1}'
             elif year_end:
                 search_query += f' before:{year_end+1}'
-            
+
             return self.search(search_query, max_results)
-            
+
         except Exception as e:
             logger.error(f"필터 검색 중 오류 발생: {e}")
             return []
-    
+
     def get_author_profile(self, author_name: str) -> Optional[Dict[str, Any]]:
         """
         저자 프로필 정보 가져오기
-        
+
         Args:
             author_name: 저자 이름
-            
+
         Returns:
             저자 프로필 정보
         """
@@ -900,38 +900,38 @@ class GoogleScholarSearcher:
                 'mauthors': author_name,
                 'hl': 'en'
             }
-            
+
             self._rate_limit()  # Rate limiting 추가
             response = self.session.get(search_url, params=params, timeout=15)
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.text, 'html.parser')
-            
+
             # 저자 프로필 정보 추출
             profile_elem = soup.find('div', class_='gsc_vcd')
             if not profile_elem:
                 return None
-            
+
             # 저자 이름
             name_elem = profile_elem.find('h3', class_='gsc_oai_name')
             name = name_elem.get_text(strip=True) if name_elem else author_name
-            
+
             # 소속
             affiliation_elem = profile_elem.find('div', class_='gsc_oai_aff')
             affiliation = affiliation_elem.get_text(strip=True) if affiliation_elem else ""
-            
+
             # 연구 분야
             interests_elem = profile_elem.find('div', class_='gsc_oai_int')
             interests = []
             if interests_elem:
                 interests = [interest.strip() for interest in interests_elem.get_text().split(',')]
-            
+
             # 인용 통계
             stats_elem = profile_elem.find('table', class_='gsc_rsb_st')
             citations = 0
             h_index = 0
             i10_index = 0
-            
+
             if stats_elem:
                 rows = stats_elem.find_all('tr')
                 for row in rows:
@@ -939,14 +939,14 @@ class GoogleScholarSearcher:
                     if len(cells) >= 2:
                         label = cells[0].get_text(strip=True)
                         value = cells[1].get_text(strip=True)
-                        
+
                         if 'Citations' in label:
                             citations = int(re.sub(r'[^\d]', '', value)) if re.search(r'\d', value) else 0
                         elif 'h-index' in label:
                             h_index = int(re.sub(r'[^\d]', '', value)) if re.search(r'\d', value) else 0
                         elif 'i10-index' in label:
                             i10_index = int(re.sub(r'[^\d]', '', value)) if re.search(r'\d', value) else 0
-            
+
             return {
                 "name": name,
                 "affiliation": affiliation,
@@ -956,7 +956,7 @@ class GoogleScholarSearcher:
                 "i10_index": i10_index,
                 "source": "Google Scholar"
             }
-            
+
         except Exception as e:
             logger.error(f"저자 프로필 가져오기 오류: {e}")
             return None

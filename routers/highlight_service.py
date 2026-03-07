@@ -254,7 +254,6 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
         openai.APIError: On other API errors.
         ValueError: If the LLM returns invalid JSON.
     """
-    from openai import APITimeoutError, RateLimitError, APIError
 
     # Section-aware truncation: keep structure intact up to limit
     max_chars = 24000

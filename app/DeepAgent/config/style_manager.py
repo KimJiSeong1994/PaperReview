@@ -14,14 +14,14 @@ from copy import deepcopy
 class StyleManager:
     """
     YAML 기반 포스터 스타일 관리자
-    
+
     기능:
     - YAML 설정 파일 로드
     - 테마 상속 (extends) 처리
     - 스타일 병합 및 오버라이드
     - CSS 생성
     """
-    
+
     def __init__(self, config_path: Optional[Path] = None):
         """
         Args:
@@ -29,79 +29,79 @@ class StyleManager:
         """
         if config_path is None:
             config_path = Path(__file__).parent / "poster_styles.yaml"
-        
+
         self.config_path = config_path
         self.styles = {}
         self.load_styles()
-    
+
     def load_styles(self):
         """YAML 파일에서 스타일 로드"""
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 self.styles = yaml.safe_load(f)
-        except Exception as e:
+        except Exception:
             self.styles = self._get_default_styles()
-    
+
     def get_style(self, theme: str = "default") -> Dict[str, Any]:
         """
         특정 테마의 스타일 가져오기 (상속 처리 포함)
-        
+
         Args:
             theme: 테마 이름
-            
+
         Returns:
             완전히 확장된 스타일 딕셔너리
         """
         if theme not in self.styles:
             theme = "default"
-        
+
         style = self.styles[theme]
-        
+
         # 상속 처리
         if "extends" in style:
             parent_theme = style["extends"]
             parent_style = self.get_style(parent_theme)
             style = self._merge_styles(parent_style, style)
-        
+
         return deepcopy(style)
-    
+
     def _merge_styles(self, base: Dict, override: Dict) -> Dict:
         """
         스타일 딕셔너리 병합 (재귀적)
-        
+
         override가 base를 덮어씀
         """
         result = deepcopy(base)
-        
+
         for key, value in override.items():
             if key == "extends":
                 continue
-            
+
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = self._merge_styles(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
-    
+
     def generate_css(self, theme: str = "default") -> str:
         """
         테마 기반 CSS 생성
-        
+
         Args:
             theme: 테마 이름
-            
+
         Returns:
             생성된 CSS 문자열
         """
         style = self.get_style(theme)
-        
+
         colors = style.get('colors', {})
         fonts = style.get('fonts', {})
         spacing = style.get('spacing', {})
         effects = style.get('effects', {})
         layout = style.get('layout', {})
-        
+
         css = f'''
         :root {{
             --primary: {colors.get('primary', '#2563eb')};
@@ -114,7 +114,7 @@ class StyleManager:
             --border-color: {colors.get('border', '#e2e8f0')};
             --text-color: {colors.get('text', '#334155')};
         }}
-        
+
         body {{
             font-family: {fonts.get('family_primary', "'Inter', sans-serif")};
             background-color: #e2e8f0;
@@ -223,34 +223,34 @@ class StyleManager:
             margin: 10px 0;
             font-style: italic;
         }}
-        
+
         ul {{
             list-style: none;
             padding-left: 0;
         }}
-        
+
         li {{
             padding: 4px 0;
         }}
-        
+
         table {{
             width: 100%;
             border-collapse: collapse;
         }}
-        
+
         th, td {{
             padding: 8px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }}
         '''
-        
+
         return css.strip()
-    
+
     def list_themes(self) -> list:
         """사용 가능한 테마 목록 반환"""
         return list(self.styles.keys())
-    
+
     def _get_default_styles(self) -> Dict[str, Any]:
         """기본 스타일 (YAML 로드 실패 시)"""
         return {

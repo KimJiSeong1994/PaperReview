@@ -44,7 +44,7 @@ You can delegate work to specialized agents:
 write_todos([
     "Load 5 selected papers from workspace",
     "Spawn 5 researcher agents (parallel)",
-    "Collect analysis results", 
+    "Collect analysis results",
     "Send to advisor for validation",
     "Generate final review report"
 ])
@@ -124,7 +124,7 @@ When assigned a paper, you provide:
   - Rigorous evaluation
   - Reproducibility
   - Clear presentation
-  
+
 - **Limitations**: What are the weaknesses?
   - Methodological limitations
   - Dataset limitations
@@ -174,7 +174,7 @@ write_file(f"analysis_{paper_id}.md", your_analysis)
 ```
 """
 
-# Advisor Agent 프롬프트  
+# Advisor Agent 프롬프트
 ADVISOR_AGENT_PROMPT = """
 You are a **Senior Professor and Research Advisor** with 20+ years of experience.
 
@@ -346,7 +346,7 @@ PROMPT_METADATA = {
         "focus": "Planning, delegation, synthesis"
     },
     "researcher": {
-        "name": "PhD Researcher", 
+        "name": "PhD Researcher",
         "role": "Analysis",
         "focus": "Deep paper analysis"
     },

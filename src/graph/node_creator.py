@@ -4,7 +4,6 @@
 import os
 import sys
 from typing import Dict, List, Any
-from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
@@ -14,15 +13,18 @@ try:
     _normalize_title = PaperDeduplicator.normalize_title
     _normalize_doi = PaperDeduplicator.normalize_doi
 except ImportError:
-    _normalize_title = lambda t: t.lower().strip() if t else ""
-    _normalize_doi = lambda d: ""
+    def _normalize_title(t):
+        return t.lower().strip() if t else ""
+
+    def _normalize_doi(d):
+        return ""
 
 class NodeCreator:
     """논문 노드 생성 클래스"""
-    
+
     def __init__(self):
         pass
-    
+
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
         """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
         doi = _normalize_doi(paper.get('doi', ''))
@@ -30,12 +32,12 @@ class NodeCreator:
             return f"doi:{doi}"
         title = _normalize_title(paper.get('title', ''))
         return title[:100] if title else str(hash(str(paper)))
-    
+
     @log_data_processing("Node Creation")
     def create_node(self, paper: Dict[str, Any], embedding: Any = None) -> Dict[str, Any]:
         """단일 논문 노드 생성"""
         node_id = self._generate_paper_id(paper)
-        
+
         node = {
             "node_id": node_id,
             "title": paper.get('title', ''),
@@ -60,19 +62,19 @@ class NodeCreator:
                 "reference_count": len(paper.get('references', []))
             }
         }
-        
+
         return node
-    
+
     def create_nodes_batch(self, papers: List[Dict[str, Any]], embeddings: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """여러 논문 노드 배치 생성"""
         nodes = []
         embeddings = embeddings or {}
-        
+
         for paper in papers:
             paper_id = self._generate_paper_id(paper)
             embedding = embeddings.get(paper_id)
             node = self.create_node(paper, embedding)
             nodes.append(node)
-        
+
         return nodes
 

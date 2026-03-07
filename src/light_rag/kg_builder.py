@@ -7,7 +7,6 @@ Knowledge Graph Builder - 지식 그래프 구축 및 관리
 import os
 import json
 import pickle
-import asyncio
 import numpy as np
 import networkx as nx
 from typing import Dict, List, Any, Optional
@@ -82,7 +81,7 @@ class KnowledgeGraphBuilder:
 
         # 저장
         self.save()
-        print(f"\nKnowledge graph build complete.")
+        print("\nKnowledge graph build complete.")
         print(f"  Stats: {json.dumps(self.storage.get_stats(), indent=2)}")
 
         return self.kg
@@ -321,7 +320,7 @@ class KnowledgeGraphBuilder:
                 self.kg = pickle.load(f)
             print(f"  Knowledge graph loaded: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
         else:
-            print(f"  No existing knowledge graph found, starting fresh")
+            print("  No existing knowledge graph found, starting fresh")
             self.kg = nx.Graph()
 
         self.storage.load()

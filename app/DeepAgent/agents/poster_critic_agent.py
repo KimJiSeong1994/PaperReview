@@ -9,7 +9,7 @@ import re
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,8 @@ class PosterCriticAgent:
             issues.append("No CSS Grid layout detected. Multi-column layout is recommended.")
 
         # 6. Figure/이미지
-        img_count = len(re.findall(r'<img[\s>]', html, re.IGNORECASE))
-        figure_count = len(re.findall(r'<figure[\s>]', html, re.IGNORECASE))
+        len(re.findall(r'<img[\s>]', html, re.IGNORECASE))
+        len(re.findall(r'<figure[\s>]', html, re.IGNORECASE))
 
         # 7. 콘텐츠 길이
         # 태그 제거 후 텍스트 길이 추정

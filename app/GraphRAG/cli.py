@@ -18,7 +18,7 @@ def build_graph(args):
         embeddings_index_path=args.embeddings_index,
         id_mapping_path=args.id_mapping
     )
-    
+
     agent.build_graph_from_papers(
         create_citation_edges=args.citation_edges,
         create_similarity_edges=args.similarity_edges,
@@ -34,7 +34,7 @@ def query(args):
         id_mapping_path=args.id_mapping,
         llm_model=args.model
     )
-    
+
     result = agent.query(
         query=args.query,
         top_k=args.top_k,
@@ -42,12 +42,12 @@ def query(args):
         expansion_strategy=args.expansion_strategy,
         temperature=args.temperature
     )
-    
+
     print("\n" + "="*70)
     print("[INFO] 응답")
     print("="*70)
     print(result.get('answer', 'No answer generated'))
-    
+
     print("\n" + "="*70)
     print("[INFO] 참고 논문")
     print("="*70)

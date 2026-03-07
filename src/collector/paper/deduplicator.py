@@ -5,7 +5,7 @@
 
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set
 
 
 class PaperDeduplicator:

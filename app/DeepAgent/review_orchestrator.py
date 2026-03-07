@@ -28,16 +28,16 @@ _workspace_write_lock = threading.Lock()
 class ReviewOrchestrator:
     """
     논문 리뷰 오케스트레이터
-    
+
     역할:
     1. 선택된 논문 로드
     2. N명의 연구원 에이전트에게 병렬 분석 위임
     3. 지도교수 에이전트에게 검증 요청
     4. 최종 리포트 생성
     """
-    
+
     def __init__(
-        self, 
+        self,
         max_workers: Optional[int] = None,
         workspace: Optional[WorkspaceManager] = None
     ):
@@ -48,23 +48,23 @@ class ReviewOrchestrator:
         """
         self.workspace = workspace or WorkspaceManager()
         self.max_workers = max_workers
-        
-        print(f"[INFO] Review Orchestrator initialized")
+
+        print("[INFO] Review Orchestrator initialized")
         print(f"   Session: {self.workspace.session_id}")
         print(f"   Workspace: {self.workspace.session_path}")
-    
+
     def review_papers(
-        self, 
+        self,
         paper_ids: List[str],
         verbose: bool = True
     ) -> Dict[str, Any]:
         """
         논문 리뷰 프로세스 실행
-        
+
         Args:
             paper_ids: 리뷰할 논문 ID 리스트
             verbose: 상세 로그 출력 여부
-            
+
         Returns:
             리뷰 결과
         """
@@ -72,16 +72,16 @@ class ReviewOrchestrator:
             print("\n" + "="*80)
             print("[INFO] Starting Deep Paper Review Process")
             print("="*80 + "\n")
-        
+
         # Step 1: 논문 로드
         papers = self._load_papers(paper_ids, verbose)
-        
+
         if not papers:
             return {"error": "No papers loaded", "status": "failed"}
-        
+
         # Step 2: 병렬 분석
         analyses = self._parallel_analysis(papers, verbose)
-        
+
         # Step 3: 검증 및 종합
         validation = self._validate_and_synthesize(analyses, papers, verbose)
 
@@ -93,12 +93,12 @@ class ReviewOrchestrator:
 
         # Step 5: 결과 저장
         self._save_results(papers, analyses, validation, report, verbose, verification)
-        
+
         if verbose:
             print("\n" + "="*80)
             print("[OK] Deep Paper Review Completed!")
             print("="*80 + "\n")
-        
+
         return {
             "status": "completed",
             "session_id": self.workspace.session_id,
@@ -109,27 +109,27 @@ class ReviewOrchestrator:
             "report": report,
             "workspace_path": str(self.workspace.session_path)
         }
-    
+
     def _load_papers(self, paper_ids: List[str], verbose: bool) -> List[Dict[str, Any]]:
         """논문 로드"""
         if verbose:
             print("[Step 1] Loading Papers...")
             print("-" * 80)
-        
+
         papers = load_and_prepare_papers(paper_ids)
-        
+
         # Workspace에 저장
         self.workspace.save_selected_papers(papers)
         self.workspace.log(f"Loaded {len(papers)} papers")
-        
+
         if verbose:
             print(f"[OK] Loaded {len(papers)} papers\n")
-        
+
         return papers
-    
+
     def _parallel_analysis(
-        self, 
-        papers: List[Dict[str, Any]], 
+        self,
+        papers: List[Dict[str, Any]],
         verbose: bool
     ) -> List[Dict[str, Any]]:
         """
@@ -140,57 +140,57 @@ class ReviewOrchestrator:
             print("[Step 2] Parallel Analysis by Researchers...")
             print("-" * 80)
             print(f"Spawning {len(papers)} researcher agents (parallel execution)")
-        
+
         start_time = datetime.now()
-        
+
         # 워커 수 결정
         max_workers = self.max_workers or min(len(papers), os.cpu_count() or 4)
-        
+
         analyses = []
-        
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # 각 논문에 대해 분석 작업 제출
             future_to_paper = {
                 executor.submit(self._analyze_single_paper, i, paper): (i, paper)
                 for i, paper in enumerate(papers, 1)
             }
-            
+
             # 완료된 작업 수집
             for future in as_completed(future_to_paper):
                 researcher_id, paper = future_to_paper[future]
                 try:
                     analysis = future.result()
                     analyses.append(analysis)
-                    
+
                     if verbose:
                         print(f"  [v] Researcher {researcher_id} completed analysis")
-                    
+
                 except Exception as e:
                     print(f"  [x] Researcher {researcher_id} failed: {e}")
                     self.workspace.log(f"Analysis failed for paper {researcher_id}: {e}", "ERROR")
-        
+
         # 논문 순서대로 정렬 (완료 순서와 무관하게)
         analyses.sort(key=lambda a: papers.index(
             next(p for p in papers if (p.get('id') or p.get('arxiv_id')) == a.get('paper_id'))
         ))
-        
+
         elapsed = (datetime.now() - start_time).total_seconds()
-        
+
         if verbose:
             print(f"\n[OK] Parallel analysis completed in {elapsed:.1f}s")
             print(f"   Average time per paper: {elapsed/len(papers):.1f}s\n")
-        
+
         return analyses
-    
+
     def _analyze_single_paper(
-        self, 
-        researcher_id: int, 
+        self,
+        researcher_id: int,
         paper: Dict[str, Any]
     ) -> Dict[str, Any]:
         """단일 논문 분석 (개별 연구원)"""
         # 연구원 ID
         rid = f"researcher_{researcher_id}"
-        
+
         # 논문 분석
         analysis = analyze_paper_deep(paper)
 
@@ -203,9 +203,9 @@ class ReviewOrchestrator:
             )
 
         self.workspace.log(f"Researcher {researcher_id} completed analysis of paper {analysis.get('paper_id')}")
-        
+
         return analysis
-    
+
     def _validate_and_synthesize(
         self,
         analyses: List[Dict[str, Any]],
@@ -216,27 +216,27 @@ class ReviewOrchestrator:
         if verbose:
             print("[Step 3] Validation & Synthesis by Advisor...")
             print("-" * 80)
-        
+
         start_time = datetime.now()
-        
+
         # 지도교수 검증
         validation = validate_and_synthesize(analyses, papers)
-        
+
         # Workspace에 저장
         self.workspace.save_advisor_validation(validation)
         self.workspace.log("Advisor validation completed")
-        
+
         elapsed = (datetime.now() - start_time).total_seconds()
-        
+
         if verbose:
             summary = validation.get("summary", {})
             print(f"  [v] Validated {summary.get('total_papers', 0)} analyses")
             print(f"  [v] Approved: {summary.get('approved', 0)}")
             print(f"  [v] Needs Revision: {summary.get('needs_revision', 0)}")
             print(f"\n[OK] Validation completed in {elapsed:.1f}s\n")
-        
+
         return validation
-    
+
     def _verify_facts(
         self,
         papers: List[Dict[str, Any]],
@@ -354,17 +354,17 @@ class ReviewOrchestrator:
         html_report = generate_html_report(
             papers, analyses, validation, synthesis, verification=verification
         )
-        
+
         if verbose:
             print(f"  [v] Markdown report generated ({len(markdown_report)} chars)")
             print(f"  [v] HTML report generated ({len(html_report)} chars)")
-            print(f"\n[OK] Report generation completed\n")
-        
+            print("\n[OK] Report generation completed\n")
+
         return {
             "markdown": markdown_report,
             "html": html_report
         }
-    
+
     def _save_results(
         self,
         papers: List[Dict[str, Any]],
@@ -404,15 +404,15 @@ class ReviewOrchestrator:
             json_result,
             format="json"
         )
-        
+
         # 상태 업데이트
         self.workspace.update_status("completed")
-        
+
         if verbose:
             print(f"  [v] Markdown report: {md_path}")
             print(f"  [v] HTML report: {html_path}")
             print(f"  [v] JSON results: {json_path}")
-            print(f"\n[OK] All results saved\n")
+            print("\n[OK] All results saved\n")
 
 
 # ==================== Standalone Functions ====================
@@ -424,12 +424,12 @@ def review_selected_papers(
 ) -> Dict[str, Any]:
     """
     선택된 논문들을 리뷰 (원스톱 함수)
-    
+
     Args:
         paper_ids: 논문 ID 리스트
         max_workers: 병렬 실행 워커 수
         verbose: 상세 로그 출력
-        
+
     Returns:
         리뷰 결과
     """

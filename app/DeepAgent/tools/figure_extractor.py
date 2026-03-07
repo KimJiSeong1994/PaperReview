@@ -9,9 +9,8 @@ import io
 import os
 import base64
 import requests
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 @dataclass
@@ -295,7 +294,6 @@ class FigureExtractor:
             return self._fallback_analysis(paper_title)
 
         try:
-            import google.generativeai as genai
 
             prompt = f"""이 이미지는 학술 논문 "{paper_title}"에서 추출한 삽도입니다.
 

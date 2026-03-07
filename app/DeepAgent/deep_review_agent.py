@@ -33,15 +33,15 @@ logger = logging.getLogger(__name__)
 def load_papers_tool(paper_ids: str) -> str:
     """
     Load papers from IDs (comma-separated string or JSON list)
-    
+
     Args:
         paper_ids: Comma-separated paper IDs (e.g., "id1,id2,id3") or JSON list
-        
+
     Returns:
         JSON string with paper data
     """
     from app.DeepAgent.tools.paper_loader import load_papers_from_ids
-    
+
     # Parse IDs - handle multiple formats
     try:
         # Try to parse as JSON list first
@@ -54,15 +54,15 @@ def load_papers_tool(paper_ids: str) -> str:
         print(f"[WARNING] Error parsing paper_ids: {e}")
         # Fallback: treat as single ID
         ids = [paper_ids.strip()]
-    
+
     # Ensure all IDs are strings
     ids = [str(pid) for pid in ids if pid]
-    
+
     print(f"[INFO] Loading {len(ids)} papers: {ids}")
-    
+
     # Load papers
     papers = load_papers_from_ids(ids)
-    
+
     return json.dumps({
         "success": True,
         "count": len(papers),
@@ -74,12 +74,12 @@ def load_papers_tool(paper_ids: str) -> str:
 def save_analysis_result(researcher_id: str, paper_id: str, analysis: str) -> str:
     """
     Save researcher's analysis result to workspace
-    
+
     Args:
         researcher_id: Researcher identifier
         paper_id: Paper ID
         analysis: Analysis result (JSON string)
-        
+
     Returns:
         Confirmation message
     """
@@ -87,16 +87,16 @@ def save_analysis_result(researcher_id: str, paper_id: str, analysis: str) -> st
     workspace = getattr(save_analysis_result, '_workspace', None)
     if not workspace:
         return "Error: Workspace not available"
-    
+
     try:
         analysis_data = json.loads(analysis) if isinstance(analysis, str) else analysis
-        
+
         path = workspace.save_researcher_analysis(
             researcher_id=researcher_id,
             paper_id=paper_id,
             analysis=analysis_data
         )
-        
+
         return f"[v] Analysis saved to {path}"
     except Exception as e:
         return f"Error saving analysis: {e}"
@@ -106,16 +106,16 @@ def save_analysis_result(researcher_id: str, paper_id: str, analysis: str) -> st
 def get_all_analyses() -> str:
     """
     Get all researcher analyses from workspace
-    
+
     Returns:
         JSON string with all analyses
     """
     workspace = getattr(get_all_analyses, '_workspace', None)
     if not workspace:
         return json.dumps({"error": "Workspace not available"})
-    
+
     analyses = workspace.load_all_analyses()
-    
+
     return json.dumps({
         "count": len(analyses),
         "analyses": analyses
@@ -126,22 +126,22 @@ def get_all_analyses() -> str:
 def save_validation_result(validation: str) -> str:
     """
     Save advisor's validation result
-    
+
     Args:
         validation: Validation result (JSON string)
-        
+
     Returns:
         Confirmation message
     """
     workspace = getattr(save_validation_result, '_workspace', None)
     if not workspace:
         return "Error: Workspace not available"
-    
+
     try:
         validation_data = json.loads(validation) if isinstance(validation, str) else validation
-        
+
         path = workspace.save_advisor_validation(validation_data)
-        
+
         return f"[v] Validation saved to {path}"
     except Exception as e:
         return f"Error saving validation: {e}"
@@ -151,31 +151,31 @@ def save_validation_result(validation: str) -> str:
 def generate_final_report(title: str) -> str:
     """
     Generate and save final review report
-    
+
     Args:
         title: Report title
-        
+
     Returns:
         Report file path
     """
     workspace = getattr(generate_final_report, '_workspace', None)
     if not workspace:
         return "Error: Workspace not available"
-    
+
     try:
         from app.DeepAgent.tools.report_generator import generate_markdown_report
-        
+
         # Load data
         papers = workspace.load_selected_papers()
         analyses = workspace.load_all_analyses()
         validation = workspace.load_latest_validation()
-        
+
         if not validation:
             return "Error: No validation found"
-        
+
         # Extract analysis data
         analysis_list = [a.get('analysis', {}) for a in analyses]
-        
+
         # Generate report
         report = generate_markdown_report(
             papers=papers,
@@ -183,10 +183,10 @@ def generate_final_report(title: str) -> str:
             validation=validation.get('validation', {}),
             synthesis=validation.get('validation', {}).get('cross_paper_synthesis', {})
         )
-        
+
         # Save
         path = workspace.save_final_report(report, format="markdown")
-        
+
         return f"[v] Report saved to {path}"
     except Exception as e:
         return f"Error generating report: {e}"
@@ -228,7 +228,7 @@ def _format_authors(authors: list, max_count: int = 5) -> str:
     """Safely format authors list to string, handling various formats"""
     if not authors:
         return "Unknown"
-    
+
     formatted = []
     for author in authors[:max_count]:
         if isinstance(author, str):
@@ -239,11 +239,11 @@ def _format_authors(authors: list, max_count: int = 5) -> str:
             formatted.append(name)
         else:
             formatted.append(str(author))
-    
+
     result = ', '.join(formatted)
     if len(authors) > max_count:
         result += f' et al. (+{len(authors) - max_count} more)'
-    
+
     return result
 
 
@@ -251,30 +251,30 @@ def _format_authors(authors: list, max_count: int = 5) -> str:
 def analyze_paper_deep(paper_json: str) -> str:
     """
     Perform deep analysis of a paper using LLM
-    
+
     This tool conducts comprehensive analysis including:
     - Research problem and motivation
     - Methodology and technical approach
     - Key contributions and innovations
     - Experimental results and findings
     - Strengths and limitations
-    
+
     Args:
         paper_json: Paper data as JSON string containing title, abstract, authors, etc.
-        
+
     Returns:
         Comprehensive analysis result as JSON string
     """
     paper_data = _parse_paper_json(paper_json)
     if not paper_data:
         return json.dumps({"error": "Invalid paper data"})
-    
+
     title = paper_data.get("title", "Unknown Title")
     abstract = paper_data.get("abstract", "")
     authors = paper_data.get("authors", [])
     year = paper_data.get("year", "")
     full_text = paper_data.get("full_text", "")
-    
+
     # Use abstract if no full text available
     content = full_text if full_text else abstract
     if not content:
@@ -282,17 +282,17 @@ def analyze_paper_deep(paper_json: str) -> str:
             "error": "No content available for analysis",
             "title": title
         })
-    
+
     # Truncate content if too long (for API limits)
     max_content_length = 8000
     if len(content) > max_content_length:
         content = content[:max_content_length] + "\n\n[Content truncated for analysis...]"
-    
+
     llm = get_llm()
-    
+
     # Format authors safely
     authors_str = _format_authors(authors, max_count=5)
-    
+
     analysis_prompt = f"""You are a PhD-level research analyst. Conduct a comprehensive deep analysis of this academic paper.
 
 **Paper Information:**
@@ -343,7 +343,7 @@ Be specific, evidence-based, and cite paper content where relevant."""
         print(f"[Step] Deep analyzing: {title[:50]}...")
         response = llm.invoke(analysis_prompt)
         analysis_text = response.content
-        
+
         return json.dumps({
             "success": True,
             "title": title,
@@ -356,7 +356,7 @@ Be specific, evidence-based, and cite paper content where relevant."""
                 "content_length": len(content)
             }
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         print(f"[ERROR] Error in deep analysis: {e}")
         return json.dumps({
@@ -369,26 +369,26 @@ Be specific, evidence-based, and cite paper content where relevant."""
 def extract_key_contributions(paper_json: str) -> str:
     """
     Extract and analyze the key contributions of a paper using LLM
-    
+
     Args:
         paper_json: Paper data as JSON string
-        
+
     Returns:
         Key contributions analysis as JSON string
     """
     paper_data = _parse_paper_json(paper_json)
     if not paper_data:
         return json.dumps({"error": "Invalid paper data"})
-    
+
     title = paper_data.get("title", "")
     abstract = paper_data.get("abstract", "")
     content = paper_data.get("full_text", "") or abstract
-    
+
     if not content:
         return json.dumps({"error": "No content available", "title": title})
-    
+
     llm = get_llm()
-    
+
     prompt = f"""Analyze this academic paper and extract the key contributions:
 
 **Title:** {title}
@@ -408,13 +408,13 @@ Format your response as a numbered list with detailed explanations."""
     try:
         print(f"[INFO] Extracting contributions: {title[:50]}...")
         response = llm.invoke(prompt)
-        
+
         return json.dumps({
             "success": True,
             "title": title,
             "contributions": response.content
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         return json.dumps({"error": str(e), "title": title})
 
@@ -423,28 +423,28 @@ Format your response as a numbered list with detailed explanations."""
 def analyze_methodology(paper_json: str) -> str:
     """
     Perform deep methodology analysis using LLM
-    
+
     Analyzes the research methodology, technical approach, and implementation details.
-    
+
     Args:
         paper_json: Paper data as JSON string
-        
+
     Returns:
         Methodology analysis as JSON string
     """
     paper_data = _parse_paper_json(paper_json)
     if not paper_data:
         return json.dumps({"error": "Invalid paper data"})
-    
+
     title = paper_data.get("title", "")
     abstract = paper_data.get("abstract", "")
     content = paper_data.get("full_text", "") or abstract
-    
+
     if not content:
         return json.dumps({"error": "No content available", "title": title})
-    
+
     llm = get_llm()
-    
+
     prompt = f"""Analyze the methodology of this academic paper:
 
 **Title:** {title}
@@ -484,7 +484,7 @@ def analyze_methodology(paper_json: str) -> str:
     try:
         print(f"[INFO] Analyzing methodology: {title[:50]}...")
         response = llm.invoke(prompt)
-        
+
         # Detect method categories
         content_lower = content.lower()
         detected_methods = []
@@ -496,18 +496,18 @@ def analyze_methodology(paper_json: str) -> str:
             "reinforcement_learning": ["reinforcement learning", "rl", "reward", "policy"],
             "computer_vision": ["image", "vision", "object detection", "segmentation"]
         }
-        
+
         for method, keywords in method_keywords.items():
             if any(kw in content_lower for kw in keywords):
                 detected_methods.append(method)
-        
+
         return json.dumps({
             "success": True,
             "title": title,
             "methodology_analysis": response.content,
             "detected_methods": detected_methods
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         return json.dumps({"error": str(e), "title": title})
 
@@ -516,26 +516,26 @@ def analyze_methodology(paper_json: str) -> str:
 def critical_analysis(paper_json: str) -> str:
     """
     Perform critical analysis of a paper - evaluating strengths, weaknesses, and impact
-    
+
     Args:
         paper_json: Paper data as JSON string
-        
+
     Returns:
         Critical analysis as JSON string
     """
     paper_data = _parse_paper_json(paper_json)
     if not paper_data:
         return json.dumps({"error": "Invalid paper data"})
-    
+
     title = paper_data.get("title", "")
     abstract = paper_data.get("abstract", "")
     content = paper_data.get("full_text", "") or abstract
-    
+
     if not content:
         return json.dumps({"error": "No content available", "title": title})
-    
+
     llm = get_llm()
-    
+
     prompt = f"""Conduct a critical academic analysis of this paper:
 
 **Title:** {title}
@@ -572,13 +572,13 @@ Be constructive but rigorous in your critique."""
     try:
         print(f"[INFO] Critical analysis: {title[:50]}...")
         response = llm.invoke(prompt)
-        
+
         return json.dumps({
             "success": True,
             "title": title,
             "critical_analysis": response.content
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         return json.dumps({"error": str(e), "title": title})
 
@@ -588,16 +588,16 @@ Be constructive but rigorous in your critique."""
 def create_researcher_subagent_for_deepagent(researcher_id: int) -> SubAgent:
     """
     Create a Researcher SubAgent for deepagents with LLM-powered deep research tools
-    
+
     Args:
         researcher_id: Researcher number
-        
+
     Returns:
         SubAgent specification (dict)
     """
     researcher = SubAgent(
         name=f"researcher_{researcher_id}",
-        description=f"Expert PhD-level researcher who conducts deep analysis of academic papers using LLM-powered tools, focusing on methodology, contributions, and critical evaluation",
+        description="Expert PhD-level researcher who conducts deep analysis of academic papers using LLM-powered tools, focusing on methodology, contributions, and critical evaluation",
         system_prompt=f"""
 {RESEARCHER_AGENT_PROMPT}
 
@@ -654,7 +654,7 @@ Your analysis should be PhD thesis quality - thorough, rigorous, and insightful.
             save_analysis_result,
         ],
     )
-    
+
     return researcher
 
 
@@ -664,22 +664,22 @@ Your analysis should be PhD thesis quality - thorough, rigorous, and insightful.
 def validate_and_improve_analysis(analysis_json: str) -> str:
     """
     Validate researcher's analysis and provide improvement feedback using LLM
-    
+
     Args:
         analysis_json: Researcher's analysis as JSON string
-        
+
     Returns:
         Validation result with feedback
     """
     analysis_data = _parse_paper_json(analysis_json)
     if not analysis_data:
         return json.dumps({"error": "Invalid analysis data", "validation": "ERROR"})
-    
+
     llm = get_llm()
-    
+
     analysis_content = analysis_data.get("analysis", "")
     title = analysis_data.get("title", "Unknown")
-    
+
     prompt = f"""You are a Senior Professor reviewing a PhD researcher's paper analysis.
 
 **Paper Title:** {title}
@@ -719,31 +719,31 @@ def validate_and_improve_analysis(analysis_json: str) -> str:
     try:
         print(f"[OK] Validating analysis for: {title[:50]}...")
         response = llm.invoke(prompt)
-        
+
         return json.dumps({
             "success": True,
             "paper_title": title,
             "validation_result": response.content,
             "validated_by": "Senior Advisor Agent"
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         return json.dumps({"error": str(e), "validation": "ERROR"})
-    
+
 @tool
 def synthesize_cross_paper_findings(analyses_json: str) -> str:
     """
     Perform deep cross-paper synthesis using LLM
-    
+
     Synthesizes findings across multiple papers to identify:
     - Common themes and patterns
     - Methodological trends
     - Research gaps
     - Future directions
-    
+
     Args:
         analyses_json: Multiple analyses as JSON string or list
-        
+
     Returns:
         Comprehensive synthesis result
     """
@@ -755,13 +755,13 @@ def synthesize_cross_paper_findings(analyses_json: str) -> str:
             analyses, _ = decoder.raw_decode(analyses_json)
         except Exception:
             return json.dumps({"error": "Invalid JSON format"})
-    
+
     if not isinstance(analyses, list):
         analyses = [analyses]
-    
+
     if not analyses:
         return json.dumps({"error": "No analyses to synthesize"})
-    
+
     # Prepare summary of all analyses for LLM
     papers_summary = []
     for i, analysis in enumerate(analyses, 1):
@@ -771,11 +771,11 @@ def synthesize_cross_paper_findings(analyses_json: str) -> str:
             if isinstance(content, dict):
                 content = json.dumps(content)
             papers_summary.append(f"**Paper {i}: {title}**\n{content[:2000]}")
-    
+
     combined_summary = "\n\n---\n\n".join(papers_summary)
-    
+
     llm = get_llm()
-    
+
     prompt = f"""You are a Senior Research Advisor synthesizing multiple paper analyses.
 
 **Analyses from {len(analyses)} papers:**
@@ -824,7 +824,7 @@ Provide specific examples and evidence from the analyzed papers."""
     try:
         print(f"[INFO] Synthesizing {len(analyses)} paper analyses...")
         response = llm.invoke(prompt)
-        
+
         # Also extract method statistics
         all_methods = []
         for analysis in analyses:
@@ -836,11 +836,11 @@ Provide specific examples and evidence from the analyzed papers."""
                     if isinstance(analysis_content, dict):
                         methods = analysis_content.get('detected_methods', [])
                 all_methods.extend(methods)
-        
+
         method_counts = {}
         for method in all_methods:
             method_counts[method] = method_counts.get(method, 0) + 1
-        
+
         return json.dumps({
             "success": True,
             "synthesis": response.content,
@@ -848,7 +848,7 @@ Provide specific examples and evidence from the analyzed papers."""
             "common_methods": method_counts,
             "synthesized_by": "Senior Advisor Agent"
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         print(f"[ERROR] Synthesis error: {e}")
         return json.dumps({"error": str(e)})
@@ -858,27 +858,27 @@ Provide specific examples and evidence from the analyzed papers."""
 def generate_synthesis_report(analyses_json: str, synthesis_json: str) -> str:
     """
     Generate a comprehensive final synthesis report using LLM
-    
+
     Combines individual paper analyses and cross-paper synthesis into
     a professional academic review report.
-    
+
     Args:
         analyses_json: All paper analyses as JSON string
         synthesis_json: Cross-paper synthesis result as JSON string
-        
+
     Returns:
         Complete synthesis report as markdown
     """
     analyses = _parse_paper_json(analyses_json)
     synthesis = _parse_paper_json(synthesis_json)
-    
+
     if not analyses:
         analyses = []
     if not isinstance(analyses, list):
         analyses = [analyses]
-    
+
     synthesis_content = synthesis.get("synthesis", "") if isinstance(synthesis, dict) else str(synthesis)
-    
+
     # Build paper summaries
     paper_summaries = []
     for i, analysis in enumerate(analyses, 1):
@@ -888,11 +888,11 @@ def generate_synthesis_report(analyses_json: str, synthesis_json: str) -> str:
             if isinstance(content, dict):
                 content = json.dumps(content, indent=2)
             paper_summaries.append(f"### Paper {i}: {title}\n{content[:3000]}")
-    
+
     combined_papers = "\n\n".join(paper_summaries)
-    
+
     llm = get_llm()
-    
+
     prompt = f"""Generate a comprehensive, publication-quality literature review report.
 
 **Individual Paper Analyses:**
@@ -955,14 +955,14 @@ Make the report scholarly, well-organized, and insightful. Use specific evidence
     try:
         print("[INFO] Generating comprehensive synthesis report...")
         response = llm.invoke(prompt)
-        
+
         return json.dumps({
             "success": True,
             "report": response.content,
             "papers_included": len(analyses),
             "generated_by": "Deep Research Review System"
         }, ensure_ascii=False)
-        
+
     except Exception as e:
         print(f"[ERROR] Report generation error: {e}")
         return json.dumps({"error": str(e)})
@@ -971,7 +971,7 @@ Make the report scholarly, well-organized, and insightful. Use specific evidence
 def create_advisor_subagent_for_deepagent() -> SubAgent:
     """
     Create an Advisor SubAgent for deepagents with LLM-powered synthesis tools
-    
+
     Returns:
         SubAgent specification (dict)
     """
@@ -1030,7 +1030,7 @@ Your synthesis should represent the highest standard of academic review.
             save_validation_result,
         ],
     )
-    
+
     return advisor
 
 
@@ -1039,11 +1039,11 @@ Your synthesis should represent the highest standard of academic review.
 class DeepReviewAgent:
     """
     Deep Review Agent using deepagents package
-    
+
     Master Agent that coordinates N researcher agents and 1 advisor agent
     to perform deep paper review
     """
-    
+
     def __init__(
         self,
         model: str = "gpt-4o-mini",
@@ -1065,10 +1065,10 @@ class DeepReviewAgent:
 
         if not self.api_key:
             logger.warning("OPENAI_API_KEY not set - LLM features will be unavailable")
-        
+
         # Set workspace for tools (via function attributes)
         self._set_workspace_for_tools()
-        
+
         # Create LLM
         self.llm = ChatOpenAI(
             model=self.model,
@@ -1076,42 +1076,42 @@ class DeepReviewAgent:
             temperature=0.3,
             request_timeout=30,
         )
-        
+
         # Create subagents
         self.subagents = self._create_subagents()
-        
+
         # Create master agent
         self.agent = self._create_master_agent()
-        
-        print(f"[INFO] Deep Review Agent initialized")
+
+        print("[INFO] Deep Review Agent initialized")
         print(f"   Model: {self.model}")
         print(f"   Researchers: {self.num_researchers}")
         print(f"   Session: {self.workspace.session_id}")
-    
+
     def _set_workspace_for_tools(self):
         """Set workspace for all tools"""
         save_analysis_result._workspace = self.workspace
         get_all_analyses._workspace = self.workspace
         save_validation_result._workspace = self.workspace
         generate_final_report._workspace = self.workspace
-    
+
     def _create_subagents(self) -> List[SubAgent]:
         """Create researcher and advisor subagents"""
         subagents = []
-        
+
         # Create N researchers
         for i in range(1, self.num_researchers + 1):
             researcher = create_researcher_subagent_for_deepagent(i)
             subagents.append(researcher)
             print(f"  [v] Created Researcher {i}")
-        
+
         # Create 1 advisor
         advisor = create_advisor_subagent_for_deepagent()
         subagents.append(advisor)
-        print(f"  [v] Created Advisor")
-        
+        print("  [v] Created Advisor")
+
         return subagents
-    
+
     def _create_master_agent(self):
         """Create master deep agent"""
         # deepagents requires model string or None (will use default)
@@ -1127,23 +1127,23 @@ class DeepReviewAgent:
             # write_todos는 자동으로 포함됨
             # file system tools도 자동으로 포함됨
         )
-        
-        print(f"  [v] Created Master Agent")
-        
+
+        print("  [v] Created Master Agent")
+
         return agent
-    
+
     def review_papers(
-        self, 
+        self,
         paper_ids: List[str],
         verbose: bool = True
     ) -> Dict[str, Any]:
         """
         Review papers using deep agent system
-        
+
         Args:
             paper_ids: List of paper IDs to review
             verbose: Print progress
-            
+
         Returns:
             Review result with report path
         """
@@ -1154,10 +1154,10 @@ class DeepReviewAgent:
             print(f"Papers to review: {len(paper_ids)}")
             print(f"Researchers: {self.num_researchers}")
             print()
-        
+
         # Save paper IDs to workspace
         paper_ids_str = ','.join(paper_ids)
-        
+
         # Prepare prompt for master agent
         prompt = f"""
 I need you to conduct a comprehensive review of {len(paper_ids)} academic papers.
@@ -1179,22 +1179,22 @@ I need you to conduct a comprehensive review of {len(paper_ids)} academic papers
 
 Begin the review process now.
         """.strip()
-        
+
         try:
             # Invoke master agent
             if verbose:
                 print("[INFO] Invoking Master Agent...")
                 print()
-            
+
             result = self.agent.invoke({"messages": [{"role": "user", "content": prompt}]})
-            
+
             if verbose:
                 print("\n[OK] Review process completed!")
                 print()
-            
+
             # Get results from workspace
             summary = self.workspace.get_session_summary()
-            
+
             return {
                 "status": "completed",
                 "session_id": self.workspace.session_id,
@@ -1203,12 +1203,12 @@ Begin the review process now.
                 "summary": summary,
                 "agent_result": result
             }
-            
+
         except Exception as e:
             print(f"\n[ERROR] Error during review: {e}")
             import traceback
             traceback.print_exc()
-            
+
             return {
                 "status": "failed",
                 "error": str(e),
@@ -1227,14 +1227,14 @@ def review_papers_with_deepagents(
 ) -> Dict[str, Any]:
     """
     Review papers using deepagents (convenience function)
-    
+
     Args:
         paper_ids: Paper IDs to review
         num_researchers: Number of researcher agents
         model: LLM model
         api_key: OpenAI API key
         verbose: Print progress
-        
+
     Returns:
         Review result
     """
@@ -1243,6 +1243,6 @@ def review_papers_with_deepagents(
         api_key=api_key,
         num_researchers=num_researchers
     )
-    
+
     return agent.review_papers(paper_ids, verbose=verbose)
 
