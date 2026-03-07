@@ -35,7 +35,7 @@ except ImportError:
 class QueryAnalyzer:
     """유저 질의 분석 클래스"""
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-5-mini"):
         """
         QueryAnalyzer 초기화
         

@@ -44,6 +44,7 @@ export interface SearchRequest {
   year_end?: number;
   author?: string;
   category?: string;
+  use_llm_search?: boolean;
 }
 
 export interface QueryAnalysis {

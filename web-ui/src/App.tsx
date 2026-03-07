@@ -141,6 +141,7 @@ function App() {
           max_results: 50,
           sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
           sort_by: 'relevance',
+          use_llm_search: true,
         });
 
         const allPapers: Paper[] = [];

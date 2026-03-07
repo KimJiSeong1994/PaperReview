@@ -168,7 +168,7 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
     def generate():
         try:
             stream = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5.2",
                 messages=openai_messages,
                 temperature=0.7,
                 stream=True,
