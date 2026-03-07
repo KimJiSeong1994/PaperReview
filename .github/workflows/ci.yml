@@ -95,31 +95,23 @@ jobs:
           name: frontend-dist
           path: frontend-dist
 
-      - name: Deploy to EC2
+      # Step 1: Git pull + pip install (서버 중단 없이)
+      - name: Update code and dependencies
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 5m
           script: |
             cd ~/PaperReviewAgent
             git fetch origin main
             git checkout -f main
             git reset --hard origin/main
-
-            # Backend dependencies
             source venv/bin/activate
             pip install -r requirements.txt --quiet
 
-            # Restart uvicorn
-            pkill -f "uvicorn api_server:app" || true
-            sleep 2
-            nohup venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
-            sleep 3
-
-            # Health check
-            curl -sf http://localhost:8000/docs > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
-
+      # Step 2: GitHub Actions에서 빌드한 프론트엔드를 EC2에 전송
       - name: Upload frontend build to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -129,3 +121,20 @@ jobs:
           source: "frontend-dist/*"
           target: "~/PaperReviewAgent/web-ui/dist"
           strip_components: 1
+          overwrite: true
+
+      # Step 3: 서버 재시작 + 헬스체크
+      - name: Restart server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/PaperReviewAgent
+            source venv/bin/activate
+            pkill -f "uvicorn api_server:app" || true
+            sleep 2
+            nohup venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+            sleep 3
+            curl -sf http://localhost:8000/docs > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
