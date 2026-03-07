@@ -98,10 +98,10 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt --quiet
 
-            # Frontend build
+            # Frontend build (t3.small 메모리 제한 대응)
             cd web-ui
             npm ci --silent
-            npm run build
+            NODE_OPTIONS="--max-old-space-size=1024" npm run build
             cd ..
 
             # Restart uvicorn
