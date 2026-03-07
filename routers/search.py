@@ -6,6 +6,7 @@ Search-related endpoints:
   POST /api/llm-search
 """
 
+import asyncio
 import copy
 import hashlib
 import json
@@ -14,6 +15,7 @@ import threading
 import time
 import traceback
 from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -275,6 +277,13 @@ _cache_maintenance_thread.start()
 
 # ── Endpoints ──────────────────────────────────────────────────────────
 
+# Endpoint-level timeout constants (seconds)
+_ANALYZE_TIMEOUT = 30
+_LLM_SEARCH_TIMEOUT = 90
+_SMART_SEARCH_TIMEOUT = 90
+_SEARCH_TIMEOUT = 90
+
+
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)
 async def analyze_query(request: QueryAnalysisRequest):
     """Analyze user query to understand intent and extract keywords."""
@@ -286,9 +295,16 @@ async def analyze_query(request: QueryAnalysisRequest):
 
     try:
         logger.info("[API] Analyzing query: %s", request.query)
-        analysis = query_analyzer.analyze_query(request.query)
+        loop = asyncio.get_running_loop()
+        analysis = await asyncio.wait_for(
+            loop.run_in_executor(None, partial(query_analyzer.analyze_query, request.query)),
+            timeout=_ANALYZE_TIMEOUT,
+        )
         logger.info("[API] Analysis result: intent=%s, confidence=%s", analysis.get("intent"), analysis.get("confidence"))
         return QueryAnalysisResponse(**analysis)
+    except asyncio.TimeoutError:
+        logger.error("[API] Query analysis timed out after %ds", _ANALYZE_TIMEOUT)
+        raise HTTPException(status_code=504, detail=f"Query analysis timed out after {_ANALYZE_TIMEOUT}s")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] Error in query analysis: %s", error_trace)
@@ -312,10 +328,18 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
         start_time = time.time()
         logger.info("[API] LLM Context Search: %s", request.query)
 
-        results = search_agent.llm_context_search(
-            query=request.query,
-            max_results_per_source=request.max_results,
-            context=request.context,
+        loop = asyncio.get_running_loop()
+        results = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                partial(
+                    search_agent.llm_context_search,
+                    query=request.query,
+                    max_results_per_source=request.max_results,
+                    context=request.context,
+                ),
+            ),
+            timeout=_LLM_SEARCH_TIMEOUT,
         )
 
         metadata = results.pop("_metadata", {})
@@ -343,6 +367,9 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
         return LLMSearchResponse(results=results, total=total, metadata=metadata)
 
+    except asyncio.TimeoutError:
+        logger.error("[API] LLM Search timed out after %ds", _LLM_SEARCH_TIMEOUT)
+        raise HTTPException(status_code=504, detail=f"LLM search timed out after {_LLM_SEARCH_TIMEOUT}s")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] LLM Search error: %s", error_trace)
@@ -362,7 +389,14 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
         start_time = time.time()
         logger.info("[API] Smart Search: %s", request.query)
 
-        result = search_agent.smart_search(query=request.query, max_results=request.max_results)
+        loop = asyncio.get_running_loop()
+        result = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                partial(search_agent.smart_search, query=request.query, max_results=request.max_results),
+            ),
+            timeout=_SMART_SEARCH_TIMEOUT,
+        )
 
         search_time = time.time() - start_time
         result["metadata"]["search_time"] = round(search_time, 2)
@@ -391,6 +425,9 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
 
         return result
 
+    except asyncio.TimeoutError:
+        logger.error("[API] Smart Search timed out after %ds", _SMART_SEARCH_TIMEOUT)
+        raise HTTPException(status_code=504, detail=f"Smart search timed out after {_SMART_SEARCH_TIMEOUT}s")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] Smart Search error: %s", error_trace)
@@ -402,6 +439,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
     """Search papers across multiple sources with automatic query analysis."""
     try:
         start_time = time.time()
+        loop = asyncio.get_running_loop()
 
         # Query analysis (skip when LLM search — llm_context_search does its own)
         query_analysis = None
@@ -409,7 +447,10 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             try:
                 analysis_start = time.time()
                 logger.info("[API] Analyzing query: %s", request.query)
-                query_analysis = query_analyzer.analyze_query(request.query)
+                query_analysis = await asyncio.wait_for(
+                    loop.run_in_executor(None, partial(query_analyzer.analyze_query, request.query)),
+                    timeout=_ANALYZE_TIMEOUT,
+                )
                 logger.info(
                     "[API] Query analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
                     query_analysis.get("intent"),
@@ -417,6 +458,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     query_analysis.get("confidence"),
                     time.time() - analysis_start,
                 )
+            except asyncio.TimeoutError:
+                logger.warning("[API] Query analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
             except Exception as e:
                 logger.warning("[API] Query analysis failed (continuing with original query): %s", e)
         elif request.use_llm_search:
@@ -463,8 +506,16 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             # Generate source-specific optimized queries
             if query_analyzer:
                 try:
-                    source_queries = query_analyzer.generate_source_specific_queries(
-                        search_query, keywords=query_analysis.get("keywords")
+                    source_queries = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            None,
+                            partial(
+                                query_analyzer.generate_source_specific_queries,
+                                search_query,
+                                keywords=query_analysis.get("keywords"),
+                            ),
+                        ),
+                        timeout=_ANALYZE_TIMEOUT,
                     )
                     logger.info("[API] Source-specific queries generated: %s", {k: v[:50] for k, v in source_queries.items()})
                     filters["source_queries"] = source_queries
@@ -491,13 +542,20 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         logger.info("[API] Searching for: %s", search_query)
         logger.info("[API] Filters: %s", filters)
 
-        # LLM context search or standard search
+        # LLM context search or standard search (with timeout)
         if request.use_llm_search and query_analyzer:
             logger.info("[API] Using LLM Context Search...")
-            results = search_agent.llm_context_search(
-                search_query,
-                max_results_per_source=request.max_results,
-                context=request.search_context,
+            results = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(
+                        search_agent.llm_context_search,
+                        search_query,
+                        max_results_per_source=request.max_results,
+                        context=request.search_context,
+                    ),
+                ),
+                timeout=_SEARCH_TIMEOUT,
             )
             llm_metadata = results.pop("_metadata", None)
             if llm_metadata:
@@ -507,7 +565,13 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     len(llm_metadata.get("scholar_queries", [])),
                 )
         else:
-            results = search_agent.search_with_filters(search_query, filters)
+            results = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(search_agent.search_with_filters, search_query, filters),
+                ),
+                timeout=_SEARCH_TIMEOUT,
+            )
 
         search_time = time.time() - search_start
         logger.info(
@@ -581,8 +645,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 all_papers.append(paper)
 
                         if all_papers:
-                            filtered_papers = relevance_filter.filter_papers(
-                                request.query, all_papers, threshold=0.65, max_papers=request.max_results, parallel=True
+                            filtered_papers = await asyncio.wait_for(
+                                loop.run_in_executor(
+                                    None,
+                                    partial(
+                                        relevance_filter.filter_papers,
+                                        request.query,
+                                        all_papers,
+                                        threshold=0.65,
+                                        max_papers=request.max_results,
+                                        parallel=True,
+                                    ),
+                                ),
+                                timeout=_SEARCH_TIMEOUT,
                             )
                             results = {}
                             for source in request.sources:
@@ -692,6 +767,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             logger.warning("[API] Cache save warning: %s", cache_error)
 
         return SearchResponse(results=results, total=total, query_analysis=query_analysis)
+    except asyncio.TimeoutError:
+        logger.error("[API] Search timed out after %ds for query: %s", _SEARCH_TIMEOUT, request.query)
+        raise HTTPException(status_code=504, detail=f"Search timed out after {_SEARCH_TIMEOUT}s")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] Error in search: %s", error_trace)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './DetailPanel.css';
 import type { Paper } from '../types';
-import { fetchPaperReferences, type PaperReference } from '../api/client';
+import { fetchPaperReferences, fetchPaperCodeRepos, type PaperReference, type CodeRepo } from '../api/client';
 
 interface DetailPanelProps {
   paper: Paper;
@@ -11,6 +11,8 @@ function DetailPanel({ paper }: DetailPanelProps) {
   const [copied, setCopied] = useState(false);
   const [references, setReferences] = useState<PaperReference[]>([]);
   const [refsLoading, setRefsLoading] = useState(false);
+  const [codeRepos, setCodeRepos] = useState<CodeRepo[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
 
   useEffect(() => {
     if (!paper.title) return;
@@ -33,6 +35,24 @@ function DetailPanel({ paper }: DetailPanelProps) {
       });
     return () => { cancelled = true; };
   }, [paper.title, paper.doi, paper.arxiv_id]);
+
+  useEffect(() => {
+    if (!paper.title) return;
+    let cancelled = false;
+    setCodeRepos([]);
+    setReposLoading(true);
+    fetchPaperCodeRepos(paper.title)
+      .then((repos) => {
+        if (!cancelled) setCodeRepos(repos);
+      })
+      .catch(() => {
+        if (!cancelled) setCodeRepos([]);
+      })
+      .finally(() => {
+        if (!cancelled) setReposLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [paper.title]);
 
   const formatAuthors = (authors: string[]): string => {
     if (!authors || authors.length === 0) return 'Unknown authors';
@@ -237,6 +257,16 @@ function DetailPanel({ paper }: DetailPanelProps) {
         >
           {copied ? 'Copied!' : '인용하기'}
         </button>
+        {codeRepos.length > 0 && (
+          <a
+            href={codeRepos[0].url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="detail-button github-button"
+          >
+            {codeRepos[0].is_official ? 'GitHub (Official)' : 'GitHub'}
+          </a>
+        )}
       </div>
 
       <div className="detail-divider" />
@@ -249,6 +279,43 @@ function DetailPanel({ paper }: DetailPanelProps) {
       <div className="detail-abstract">
         <h3>Abstract</h3>
         <p>{paper.abstract || '초록 정보가 없습니다.'}</p>
+      </div>
+
+      <div className="detail-divider" />
+
+      <div className="code-repos-section">
+        <h3>
+          Code Repositories
+          {!reposLoading && codeRepos.length > 0 && (
+            <span className="repos-count">{codeRepos.length}</span>
+          )}
+        </h3>
+        {reposLoading ? (
+          <div className="refs-loading">
+            <span className="refs-spinner" />
+            코드 저장소를 검색하는 중...
+          </div>
+        ) : codeRepos.length > 0 ? (
+          <ul className="references-list">
+            {codeRepos.map((repo, idx) => (
+              <li key={idx} className="reference-item">
+                <div className="ref-title">
+                  <a href={repo.url} target="_blank" rel="noopener noreferrer">
+                    {repo.url.replace('https://github.com/', '')}
+                  </a>
+                  {repo.is_official && <span className="official-badge">Official</span>}
+                </div>
+                <div className="ref-meta">
+                  {repo.stars > 0 && <span>★ {repo.stars.toLocaleString()}</span>}
+                  {repo.language && <span> · {repo.language}</span>}
+                  {repo.description && <span> · {repo.description.slice(0, 80)}{repo.description.length > 80 ? '…' : ''}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="refs-empty">관련 코드 저장소가 없습니다.</p>
+        )}
       </div>
 
       <div className="detail-divider" />

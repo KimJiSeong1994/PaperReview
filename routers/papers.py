@@ -6,6 +6,7 @@ Paper management endpoints:
   DELETE /api/papers
   POST /api/collect-references
   POST /api/paper-references
+  POST /api/paper-code-repos
   POST /api/extract-texts
   POST /api/enrich-papers
   POST /api/graph-data
@@ -137,6 +138,23 @@ async def get_paper_references(request: Dict[str, Any]):
         error_trace = traceback.format_exc()
         logger.error("Error fetching paper references: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Reference fetch failed: {str(e)}")
+
+
+@router.post("/paper-code-repos")
+async def get_paper_code_repos(request: Dict[str, Any]):
+    """Search GitHub repositories for a paper's code implementation."""
+    try:
+        title = request.get("title", "")
+        if not title:
+            return {"repos": []}
+        logger.info("Searching code repos for: %s", title[:60])
+        repos = search_agent.github_client.search_repos_by_title(title)
+        logger.info("Found %s code repos for: %s", len(repos), title[:60])
+        return {"repos": repos}
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error("Error fetching code repos: %s", error_trace)
+        raise HTTPException(status_code=500, detail=f"Code repo search failed: {str(e)}")
 
 
 @router.post("/batch-references")

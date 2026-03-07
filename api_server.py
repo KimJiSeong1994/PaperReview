@@ -6,6 +6,7 @@ All endpoint logic lives in the routers/ package.
 This file handles app creation, middleware, and router registration.
 """
 
+import asyncio
 import logging
 import os
 import time
@@ -79,18 +80,34 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # ── Request logging middleware ────────────────────────────────────────
 
+# Per-request timeout (seconds) — configurable via REQUEST_TIMEOUT env var
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "120"))
+
+
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
+    """Log request duration and warn on slow requests."""
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
-    logger.info(
-        "%s %s → %s (%.1fms)",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration_ms,
-    )
+    duration_s = duration_ms / 1000
+    if duration_s > REQUEST_TIMEOUT:
+        logger.warning(
+            "Slow request (%ds limit exceeded): %s %s → %s (%.1fms)",
+            REQUEST_TIMEOUT,
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+    else:
+        logger.info(
+            "%s %s → %s (%.1fms)",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
     return response
 
 
@@ -129,4 +146,10 @@ app.include_router(share_router)
 # ── Entrypoint ─────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        timeout_keep_alive=120,
+        timeout_graceful_shutdown=30,
+    )

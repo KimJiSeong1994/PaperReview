@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import sys
 import os
+import time
 
 # 상위 디렉토리에서 src 모듈 import
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
@@ -16,6 +17,7 @@ from collector.paper.reference_collector import ReferenceCollector
 from collector.paper.text_extractor import TextExtractor
 from collector.paper.similarity_calculator import SimilarityCalculator
 from collector.paper.deduplicator import PaperDeduplicator
+from collector.paper.github_client import GitHubClient
 from graph.embedding_generator import EmbeddingGenerator
 
 # HybridRanker import
@@ -48,6 +50,7 @@ class SearchAgent:
         self.dblp_searcher = DBLPSearcher()
         self.reference_collector = ReferenceCollector()
         self.text_extractor = TextExtractor()
+        self.github_client = GitHubClient()
         
         # 유사도 계산기 초기화 (API 키가 있으면)
         try:
@@ -208,24 +211,27 @@ class SearchAgent:
                 executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
             }
             
-            for future in concurrent.futures.as_completed(futures):
-                source, search_type = futures[future]
-                try:
-                    papers = future.result(timeout=30)
-                    for paper in papers:
-                        title_lower = paper.get('title', '').lower()
-                        if title_lower and title_lower not in seen_titles[source]:
-                            seen_titles[source].add(title_lower)
-                            results[source].append(paper)
-                except concurrent.futures.TimeoutError:
-                    print(f"[WARNING] {source} {search_type} search timed out")
-                except Exception as e:
-                    print(f"[SearchAgent] {source} {search_type} search failed: {e}")
-        
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=60):
+                    source, search_type = futures[future]
+                    try:
+                        papers = future.result(timeout=5)
+                        for paper in papers:
+                            title_lower = paper.get('title', '').lower()
+                            if title_lower and title_lower not in seen_titles[source]:
+                                seen_titles[source].add(title_lower)
+                                results[source].append(paper)
+                    except concurrent.futures.TimeoutError:
+                        print(f"[WARNING] {source} {search_type} search timed out")
+                    except Exception as e:
+                        print(f"[SearchAgent] {source} {search_type} search failed: {e}")
+            except concurrent.futures.TimeoutError:
+                print("[WARNING] Enhanced search overall timeout (60s) — returning partial results")
+
         # 결과 수 제한
         for source in results:
             results[source] = results[source][:max_results_per_source]
-        
+
         return results
     
     @log_search_operation("Title Search")
@@ -454,11 +460,13 @@ class SearchAgent:
                      "openalex_korean", keyword_query)
                 )
 
-                # 결과 수집
+                # 결과 수집 (전체 60초 타임아웃)
+                _deadline = time.monotonic() + 60
                 for future_tuple in futures:
                     future, source, q = future_tuple
+                    remaining = max(0.1, _deadline - time.monotonic())
                     try:
-                        papers = future.result(timeout=30)
+                        papers = future.result(timeout=remaining)
                         for paper in papers:
                             title_lower = paper.get('title', '').lower().strip()
                             if title_lower and title_lower not in seen_titles[source]:
@@ -749,13 +757,19 @@ class SearchAgent:
             for source in sources:
                 futures[executor.submit(_search_source, source)] = source
 
-            for future in concurrent.futures.as_completed(futures, timeout=60):
-                source = futures[future]
-                try:
-                    results[source] = future.result(timeout=60)
-                except Exception as e:
-                    print(f"[SearchAgent] {source} search failed: {e}")
-                    results[source] = []
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=60):
+                    source = futures[future]
+                    try:
+                        results[source] = future.result(timeout=5)
+                    except Exception as e:
+                        print(f"[SearchAgent] {source} search failed: {e}")
+                        results[source] = []
+            except concurrent.futures.TimeoutError:
+                print("[WARNING] search_with_filters overall timeout (60s) — returning partial results")
+                for future, source in futures.items():
+                    if source not in results:
+                        results[source] = []
 
         return results
     

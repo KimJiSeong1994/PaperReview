@@ -14,7 +14,7 @@ interface GraphViewProps {
 
 function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNodeClick }: GraphViewProps) {
   const [showLabels, setShowLabels] = useState(true);
-  const [edgeOpacity, setEdgeOpacity] = useState(1.0);
+  const [edgeOpacity, setEdgeOpacity] = useState(0.6);
   const [minCitations, setMinCitations] = useState(0);
   const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
 

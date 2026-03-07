@@ -20,6 +20,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120_000, // 120초 — 검색 작업의 전체 타임아웃
 });
 
 // Attach JWT token to every request
@@ -128,6 +129,20 @@ export const fetchBatchReferences = async (papers: {
     max_references: 5,
   });
   return response.data;
+};
+
+// Code Repos API (GitHub)
+export interface CodeRepo {
+  url: string;
+  stars: number;
+  description: string;
+  language: string;
+  is_official: boolean;
+}
+
+export const fetchPaperCodeRepos = async (title: string): Promise<CodeRepo[]> => {
+  const response = await api.post<{ repos: CodeRepo[] }>('/api/paper-code-repos', { title });
+  return response.data.repos || [];
 };
 
 // Deep Review API
