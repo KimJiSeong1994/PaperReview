@@ -1,0 +1,369 @@
+{
+  "id": "cs224w",
+  "name": "CS224W: Machine Learning with Graphs",
+  "university": "Stanford University",
+  "instructor": "Jure Leskovec",
+  "difficulty": "advanced",
+  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "description": "Analysis of large-scale graph and network data. Graph neural networks, knowledge graphs, and applications to social networks, biology, and recommendation systems.",
+  "url": "https://web.stanford.edu/class/cs224w/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Introduction and Graph Structure",
+      "description": "Fundamentals of graph theory and network properties. Why graphs are a powerful abstraction for relational data.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Why Graphs?",
+          "papers": [
+            {
+              "id": "paper-cs224w-001",
+              "title": "The Graph Neural Network Model",
+              "authors": ["Franco Scarselli", "Marco Gori", "Ah Chung Tsoi", "Markus Hagenbuchner", "Gabriele Monfardini"],
+              "year": 2009,
+              "venue": "IEEE Transactions on Neural Networks",
+              "arxiv_id": null,
+              "doi": "10.1109/TNN.2008.2005605",
+              "category": "required",
+              "context": "GNN 프레임워크를 최초로 제안한 기초 논문. 그래프 구조 데이터에 신경망을 적용하는 개념을 정립했다."
+            },
+            {
+              "id": "paper-cs224w-002",
+              "title": "Collective Classification in Network Data",
+              "authors": ["Prithviraj Sen", "Galileo Namata", "Mustafa Bilgic", "Lise Getoor", "Brian Gallagher", "Tina Eliassi-Rad"],
+              "year": 2008,
+              "venue": "AI Magazine",
+              "arxiv_id": null,
+              "doi": "10.1609/aimag.v29i3.2157",
+              "category": "optional",
+              "context": "네트워크 데이터에서의 분류 문제를 체계적으로 정리한 서베이 논문."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "Properties of Networks",
+          "papers": [
+            {
+              "id": "paper-cs224w-003",
+              "title": "Emergence of Scaling in Random Networks",
+              "authors": ["Albert-László Barabási", "Réka Albert"],
+              "year": 1999,
+              "venue": "Science",
+              "arxiv_id": "cond-mat/9910332",
+              "doi": "10.1126/science.286.5439.509",
+              "category": "required",
+              "context": "Scale-free 네트워크의 개념을 처음 제시한 획기적 논문. 실세계 네트워크의 멱법칙 분포를 발견했다."
+            },
+            {
+              "id": "paper-cs224w-004",
+              "title": "Collective dynamics of 'small-world' networks",
+              "authors": ["Duncan J. Watts", "Steven H. Strogatz"],
+              "year": 1998,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/30918",
+              "category": "required",
+              "context": "Small-world 네트워크 모델을 제안. 높은 클러스터링 계수와 짧은 경로 길이의 공존을 설명했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Node Embeddings",
+      "description": "Representation learning on graphs. Learning low-dimensional embeddings for nodes in a network.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Random Walk Approaches",
+          "papers": [
+            {
+              "id": "paper-cs224w-005",
+              "title": "DeepWalk: Online Learning of Social Representations",
+              "authors": ["Bryan Perozzi", "Rami Al-Rfou", "Steven Skiena"],
+              "year": 2014,
+              "venue": "KDD",
+              "arxiv_id": "1403.6652",
+              "doi": "10.1145/2623330.2623732",
+              "category": "required",
+              "context": "랜덤워크와 Skip-gram을 결합하여 그래프 노드 임베딩을 학습하는 방법을 제안한 선구적 논문."
+            },
+            {
+              "id": "paper-cs224w-006",
+              "title": "node2vec: Scalable Feature Learning for Networks",
+              "authors": ["Aditya Grover", "Jure Leskovec"],
+              "year": 2016,
+              "venue": "KDD",
+              "arxiv_id": "1607.00653",
+              "doi": "10.1145/2939672.2939754",
+              "category": "required",
+              "context": "BFS/DFS 편향 랜덤워크로 네트워크의 구조적/동질적 특성을 동시에 캡처하는 임베딩 방법."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Matrix Factorization",
+          "papers": [
+            {
+              "id": "paper-cs224w-007",
+              "title": "Network Embedding as Matrix Factorization: Unifying DeepWalk, LINE, PTE, and node2vec",
+              "authors": ["Jiezhong Qiu", "Yuxiao Dong", "Hao Ma", "Jian Li", "Kuansan Wang", "Jie Tang"],
+              "year": 2018,
+              "venue": "WSDM",
+              "arxiv_id": "1710.02971",
+              "doi": "10.1145/3159652.3159706",
+              "category": "optional",
+              "context": "네트워크 임베딩 방법들이 암묵적으로 행렬 분해를 수행한다는 것을 이론적으로 통합한 논문."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Graph Neural Networks",
+      "description": "Message passing, neighborhood aggregation, and graph convolutional networks.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "GCN and Message Passing",
+          "papers": [
+            {
+              "id": "paper-cs224w-008",
+              "title": "Semi-Supervised Classification with Graph Convolutional Networks",
+              "authors": ["Thomas N. Kipf", "Max Welling"],
+              "year": 2017,
+              "venue": "ICLR",
+              "arxiv_id": "1609.02907",
+              "doi": null,
+              "category": "required",
+              "context": "스펙트럼 그래프 이론에 기반한 효율적인 GCN을 제안. 현대 GNN 연구의 초석이 되었다."
+            },
+            {
+              "id": "paper-cs224w-009",
+              "title": "Inductive Representation Learning on Large Graphs",
+              "authors": ["William L. Hamilton", "Rex Ying", "Jure Leskovec"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.02216",
+              "doi": null,
+              "category": "required",
+              "context": "GraphSAGE: 새로운 노드에도 적용 가능한 귀납적 GNN 프레임워크를 제안했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Graph Attention",
+          "papers": [
+            {
+              "id": "paper-cs224w-010",
+              "title": "Graph Attention Networks",
+              "authors": ["Petar Veličković", "Guillem Cucurull", "Arantxa Casanova", "Adriana Romero", "Pietro Liò", "Yoshua Bengio"],
+              "year": 2018,
+              "venue": "ICLR",
+              "arxiv_id": "1710.10903",
+              "doi": null,
+              "category": "required",
+              "context": "어텐션 메커니즘을 그래프에 적용하여 이웃 노드의 중요도를 학습하는 GAT를 제안했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "GNN Expressiveness and Design",
+      "description": "Understanding the expressiveness of GNNs and advanced architectures.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Weisfeiler-Leman and GNN Power",
+          "papers": [
+            {
+              "id": "paper-cs224w-011",
+              "title": "How Powerful are Graph Neural Networks?",
+              "authors": ["Keyulu Xu", "Weihua Hu", "Jure Leskovec", "Stefanie Jegelka"],
+              "year": 2019,
+              "venue": "ICLR",
+              "arxiv_id": "1810.00826",
+              "doi": null,
+              "category": "required",
+              "context": "GNN의 표현력을 WL 테스트와 연결하여 분석하고, 최대 표현력을 가진 GIN을 제안했다."
+            },
+            {
+              "id": "paper-cs224w-012",
+              "title": "Weisfeiler and Leman Go Neural: Higher-Order Graph Neural Networks",
+              "authors": ["Christopher Morris", "Martin Ritzert", "Matthias Fey", "William L. Hamilton", "Jan Eric Lenssen", "Gaurav Rattan", "Martin Grohe"],
+              "year": 2019,
+              "venue": "AAAI",
+              "arxiv_id": "1810.02244",
+              "doi": "10.1609/aaai.v33i01.33014602",
+              "category": "optional",
+              "context": "고차 WL 테스트에 기반한 k-GNN을 제안하여 GNN의 표현력 한계를 넓혔다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Over-smoothing and Deep GNNs",
+          "papers": [
+            {
+              "id": "paper-cs224w-013",
+              "title": "Deeper Insights into Graph Convolutional Networks for Semi-Supervised Learning",
+              "authors": ["Qimai Li", "Zhichao Han", "Xiao-Ming Wu"],
+              "year": 2018,
+              "venue": "AAAI",
+              "arxiv_id": "1801.07606",
+              "doi": null,
+              "category": "optional",
+              "context": "깊은 GCN에서 발생하는 over-smoothing 문제를 분석하고 이론적 근거를 제시했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Knowledge Graphs and Reasoning",
+      "description": "Knowledge graph embedding methods and reasoning on structured knowledge.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Knowledge Graph Embeddings",
+          "papers": [
+            {
+              "id": "paper-cs224w-014",
+              "title": "Translating Embeddings for Modeling Multi-relational Data",
+              "authors": ["Antoine Bordes", "Nicolas Usunier", "Alberto García-Durán", "Jason Weston", "Oksana Yakhnenko"],
+              "year": 2013,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "TransE: 관계를 번역 벡터로 모델링하는 간결하면서도 효과적인 KG 임베딩 방법."
+            },
+            {
+              "id": "paper-cs224w-015",
+              "title": "Embedding Entities and Relations for Learning and Inference in Knowledge Bases",
+              "authors": ["Bishan Yang", "Wen-tau Yih", "Xiaodong He", "Jianfeng Gao", "Li Deng"],
+              "year": 2015,
+              "venue": "ICLR",
+              "arxiv_id": "1412.6575",
+              "doi": null,
+              "category": "required",
+              "context": "DistMult: 쌍선형 모델로 지식 그래프의 관계를 학습하는 방법을 제안했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Reasoning over Knowledge Graphs",
+          "papers": [
+            {
+              "id": "paper-cs224w-016",
+              "title": "Modeling Relational Data with Graph Convolutional Networks",
+              "authors": ["Michael Schlichtkrull", "Thomas N. Kipf", "Peter Bloem", "Rianne van den Berg", "Ivan Titov", "Max Welling"],
+              "year": 2018,
+              "venue": "ESWC",
+              "arxiv_id": "1703.06103",
+              "doi": "10.1007/978-3-319-93417-4_38",
+              "category": "required",
+              "context": "R-GCN: 관계형 데이터에 GCN을 확장하여 지식 그래프에서의 엔티티 분류와 링크 예측을 수행."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Generative Models and Applications",
+      "description": "Graph generation, molecular design, and real-world applications of graph ML.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Graph Generation",
+          "papers": [
+            {
+              "id": "paper-cs224w-017",
+              "title": "GraphRNN: Generating Realistic Graphs with an Auto-Regressive Model",
+              "authors": ["Jiaxuan You", "Rex Ying", "Xiang Ren", "William L. Hamilton", "Jure Leskovec"],
+              "year": 2018,
+              "venue": "ICML",
+              "arxiv_id": "1802.08773",
+              "doi": null,
+              "category": "required",
+              "context": "자기회귀 모델로 현실적인 그래프를 생성하는 GraphRNN을 제안했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Molecular Graph Learning",
+          "papers": [
+            {
+              "id": "paper-cs224w-018",
+              "title": "Neural Message Passing for Quantum Chemistry",
+              "authors": ["Justin Gilmer", "Samuel S. Schoenholz", "Patrick F. Riley", "Oriol Vinyals", "George E. Dahl"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1704.01212",
+              "doi": null,
+              "category": "required",
+              "context": "MPNN 프레임워크로 분자 특성 예측을 위한 GNN을 통합적으로 정리한 논문."
+            },
+            {
+              "id": "paper-cs224w-019",
+              "title": "Junction Tree Variational Autoencoder for Molecular Graph Generation",
+              "authors": ["Wengong Jin", "Regina Barzilay", "Tommi Jaakkola"],
+              "year": 2018,
+              "venue": "ICML",
+              "arxiv_id": "1802.04364",
+              "doi": null,
+              "category": "optional",
+              "context": "분자 그래프 생성을 위한 VAE 기반 접근법. Junction tree 분해를 활용한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-03",
+          "title": "Scalable Graph Learning",
+          "papers": [
+            {
+              "id": "paper-cs224w-020",
+              "title": "Cluster-GCN: An Efficient Algorithm for Training Deep and Large Graph Convolutional Networks",
+              "authors": ["Wei-Lin Chiang", "Xuanqing Liu", "Si Si", "Yang Li", "Samy Bengio", "Cho-Jui Hsieh"],
+              "year": 2019,
+              "venue": "KDD",
+              "arxiv_id": "1905.07953",
+              "doi": "10.1145/3292500.3330925",
+              "category": "optional",
+              "context": "대규모 그래프에서 GCN을 효율적으로 학습하기 위한 클러스터 기반 미니배치 학습 방법."
+            },
+            {
+              "id": "paper-cs224w-021",
+              "title": "Open Graph Benchmark: Datasets for Machine Learning on Graphs",
+              "authors": ["Weihua Hu", "Matthias Fey", "Marinka Zitnik", "Yuxiao Dong", "Hongyu Ren", "Bowen Liu", "Michele Catasta", "Jure Leskovec"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2005.00687",
+              "doi": null,
+              "category": "supplementary",
+              "context": "그래프 ML 연구를 위한 표준 벤치마크 데이터셋과 평가 체계를 제공한다."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

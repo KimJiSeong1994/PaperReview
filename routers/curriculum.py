@@ -12,13 +12,13 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from filelock import FileLock
 from pydantic import BaseModel
 
-from .deps import get_current_user, get_optional_user, get_openai_client
+from .deps import get_current_user, get_openai_client
 
 logger = logging.getLogger(__name__)
 

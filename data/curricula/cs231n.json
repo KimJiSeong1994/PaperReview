@@ -1,0 +1,343 @@
+{
+  "id": "cs231n",
+  "name": "CS231N: Deep Learning for Computer Vision",
+  "university": "Stanford University",
+  "instructor": "Fei-Fei Li",
+  "difficulty": "advanced",
+  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "description": "Convolutional neural networks and their applications in computer vision. Image classification, object detection, segmentation, generative models, and visual understanding.",
+  "url": "https://cs231n.stanford.edu/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Image Classification and Linear Classifiers",
+      "description": "Fundamentals of image classification. K-Nearest Neighbors, linear classifiers, and loss functions.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Image Classification Pipeline",
+          "papers": [
+            {
+              "id": "paper-cs231n-001",
+              "title": "ImageNet Large Scale Visual Recognition Challenge",
+              "authors": ["Olga Russakovsky", "Jia Deng", "Hao Su", "Jonathan Krause", "Sanjeev Satheesh", "Sean Ma", "Zhiheng Huang", "Andrej Karpathy", "Aditya Khosla", "Michael Bernstein", "Alexander C. Berg", "Li Fei-Fei"],
+              "year": 2015,
+              "venue": "IJCV",
+              "arxiv_id": "1409.0575",
+              "doi": "10.1007/s11263-015-0816-y",
+              "category": "required",
+              "context": "ImageNet 챌린지의 역사와 데이터셋을 정리. 딥러닝 컴퓨터 비전 혁명의 촉매가 되었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Convolutional Neural Networks",
+      "description": "CNN architecture design. Convolution, pooling, normalization layers.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Classic CNN Architectures",
+          "papers": [
+            {
+              "id": "paper-cs231n-002",
+              "title": "ImageNet Classification with Deep Convolutional Neural Networks",
+              "authors": ["Alex Krizhevsky", "Ilya Sutskever", "Geoffrey E. Hinton"],
+              "year": 2012,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": "10.1145/3065386",
+              "category": "required",
+              "context": "AlexNet: 딥 CNN으로 ImageNet 대회에서 압도적 성능을 달성. 딥러닝 부흥의 시작."
+            },
+            {
+              "id": "paper-cs231n-003",
+              "title": "Very Deep Convolutional Networks for Large-Scale Image Recognition",
+              "authors": ["Karen Simonyan", "Andrew Zisserman"],
+              "year": 2015,
+              "venue": "ICLR",
+              "arxiv_id": "1409.1556",
+              "doi": null,
+              "category": "required",
+              "context": "VGGNet: 3x3 작은 필터를 깊게 쌓는 것이 효과적임을 보여준 아키텍처."
+            },
+            {
+              "id": "paper-cs231n-004",
+              "title": "Going Deeper with Convolutions",
+              "authors": ["Christian Szegedy", "Wei Liu", "Yangqing Jia", "Pierre Sermanet", "Scott Reed", "Dragomir Anguelov", "Dumitru Erhan", "Vincent Vanhoucke", "Andrew Rabinovich"],
+              "year": 2015,
+              "venue": "CVPR",
+              "arxiv_id": "1409.4842",
+              "doi": "10.1109/CVPR.2015.7298594",
+              "category": "optional",
+              "context": "GoogLeNet/Inception: 다양한 크기의 필터를 병렬로 사용하는 Inception 모듈을 제안."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Residual Networks",
+          "papers": [
+            {
+              "id": "paper-cs231n-005",
+              "title": "Deep Residual Learning for Image Recognition",
+              "authors": ["Kaiming He", "Xiangyu Zhang", "Shaoqing Ren", "Jian Sun"],
+              "year": 2016,
+              "venue": "CVPR",
+              "arxiv_id": "1512.03385",
+              "doi": "10.1109/CVPR.2016.90",
+              "category": "required",
+              "context": "ResNet: 잔차 연결(skip connection)로 매우 깊은 네트워크 학습을 가능하게 한 획기적 논문."
+            },
+            {
+              "id": "paper-cs231n-006",
+              "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+              "authors": ["Sergey Ioffe", "Christian Szegedy"],
+              "year": 2015,
+              "venue": "ICML",
+              "arxiv_id": "1502.03167",
+              "doi": null,
+              "category": "required",
+              "context": "배치 정규화를 제안. 딥 네트워크 학습의 안정성과 속도를 크게 개선했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Training Neural Networks",
+      "description": "Optimization, regularization, and training techniques for deep learning.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "Optimization",
+          "papers": [
+            {
+              "id": "paper-cs231n-007",
+              "title": "Adam: A Method for Stochastic Optimization",
+              "authors": ["Diederik P. Kingma", "Jimmy Ba"],
+              "year": 2015,
+              "venue": "ICLR",
+              "arxiv_id": "1412.6980",
+              "doi": null,
+              "category": "required",
+              "context": "Adam 옵티마이저를 제안. 적응적 학습률로 가장 널리 사용되는 최적화 알고리즘."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Regularization",
+          "papers": [
+            {
+              "id": "paper-cs231n-008",
+              "title": "Dropout: A Simple Way to Prevent Neural Networks from Overfitting",
+              "authors": ["Nitish Srivastava", "Geoffrey Hinton", "Alex Krizhevsky", "Ilya Sutskever", "Ruslan Salakhutdinov"],
+              "year": 2014,
+              "venue": "JMLR",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "드롭아웃 정규화 기법을 제안. 과적합 방지를 위한 가장 기본적이고 효과적인 방법."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Object Detection and Segmentation",
+      "description": "From image classification to localization, detection, and semantic segmentation.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Object Detection",
+          "papers": [
+            {
+              "id": "paper-cs231n-009",
+              "title": "Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks",
+              "authors": ["Shaoqing Ren", "Kaiming He", "Ross Girshick", "Jian Sun"],
+              "year": 2015,
+              "venue": "NeurIPS",
+              "arxiv_id": "1506.01497",
+              "doi": "10.1109/TPAMI.2016.2577031",
+              "category": "required",
+              "context": "Region Proposal Network을 도입하여 객체 검출을 end-to-end로 학습 가능하게 만들었다."
+            },
+            {
+              "id": "paper-cs231n-010",
+              "title": "You Only Look Once: Unified, Real-Time Object Detection",
+              "authors": ["Joseph Redmon", "Santosh Divvala", "Ross Girshick", "Ali Farhadi"],
+              "year": 2016,
+              "venue": "CVPR",
+              "arxiv_id": "1506.02640",
+              "doi": "10.1109/CVPR.2016.91",
+              "category": "required",
+              "context": "YOLO: 단일 신경망으로 실시간 객체 검출을 달성. 속도와 정확도의 균형을 제시했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Semantic Segmentation",
+          "papers": [
+            {
+              "id": "paper-cs231n-011",
+              "title": "Fully Convolutional Networks for Semantic Segmentation",
+              "authors": ["Jonathan Long", "Evan Shelhamer", "Trevor Darrell"],
+              "year": 2015,
+              "venue": "CVPR",
+              "arxiv_id": "1411.4038",
+              "doi": "10.1109/CVPR.2015.7298965",
+              "category": "required",
+              "context": "FCN: 완전 합성곱 네트워크로 픽셀 단위 분류를 수행하는 시맨틱 세그멘테이션의 시작."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Generative Models",
+      "description": "Generative Adversarial Networks, Variational Autoencoders, and diffusion models.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "GANs",
+          "papers": [
+            {
+              "id": "paper-cs231n-012",
+              "title": "Generative Adversarial Nets",
+              "authors": ["Ian Goodfellow", "Jean Pouget-Abadie", "Mehdi Mirza", "Bing Xu", "David Warde-Farley", "Sherjil Ozair", "Aaron Courville", "Yoshua Bengio"],
+              "year": 2014,
+              "venue": "NeurIPS",
+              "arxiv_id": "1406.2661",
+              "doi": null,
+              "category": "required",
+              "context": "GAN을 제안. 생성자-판별자의 적대적 학습으로 생성 모델 분야를 혁신했다."
+            },
+            {
+              "id": "paper-cs231n-013",
+              "title": "Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks",
+              "authors": ["Alec Radford", "Luke Metz", "Soumith Chintala"],
+              "year": 2016,
+              "venue": "ICLR",
+              "arxiv_id": "1511.06434",
+              "doi": null,
+              "category": "optional",
+              "context": "DCGAN: CNN 기반 GAN 아키텍처 가이드라인을 제시하여 안정적인 학습을 가능하게 했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "VAE and Diffusion",
+          "papers": [
+            {
+              "id": "paper-cs231n-014",
+              "title": "Auto-Encoding Variational Bayes",
+              "authors": ["Diederik P. Kingma", "Max Welling"],
+              "year": 2014,
+              "venue": "ICLR",
+              "arxiv_id": "1312.6114",
+              "doi": null,
+              "category": "required",
+              "context": "VAE를 제안. 변분 추론과 신경망을 결합한 생성 모델의 이론적 프레임워크."
+            },
+            {
+              "id": "paper-cs231n-015",
+              "title": "Denoising Diffusion Probabilistic Models",
+              "authors": ["Jonathan Ho", "Ajay Jain", "Pieter Abbeel"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2006.11239",
+              "doi": null,
+              "category": "required",
+              "context": "DDPM: 디퓨전 모델로 고품질 이미지 생성을 달성. 현대 생성 AI의 핵심 기반."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Vision Transformers",
+      "description": "Transformer architectures for computer vision tasks.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "ViT and Beyond",
+          "papers": [
+            {
+              "id": "paper-cs231n-016",
+              "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+              "authors": ["Alexey Dosovitskiy", "Lucas Beyer", "Alexander Kolesnikov", "Dirk Weissenborn", "Xiaohua Zhai", "Thomas Unterthiner", "Mostafa Dehghani", "Matthias Minderer", "Georg Heigold", "Sylvain Gelly", "Jakob Uszkoreit", "Neil Houlsby"],
+              "year": 2021,
+              "venue": "ICLR",
+              "arxiv_id": "2010.11929",
+              "doi": null,
+              "category": "required",
+              "context": "ViT: 트랜스포머를 이미지 인식에 직접 적용. CNN 없이도 최고 성능을 달성할 수 있음을 증명."
+            },
+            {
+              "id": "paper-cs231n-017",
+              "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+              "authors": ["Ze Liu", "Yutong Lin", "Yue Cao", "Han Hu", "Yixuan Wei", "Zheng Zhang", "Stephen Lin", "Baining Guo"],
+              "year": 2021,
+              "venue": "ICCV",
+              "arxiv_id": "2103.14030",
+              "doi": "10.1109/ICCV48922.2021.00986",
+              "category": "optional",
+              "context": "Swin Transformer: 계층적 특성 맵과 윈도우 어텐션으로 효율적인 비전 트랜스포머 설계."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-07",
+      "week": 7,
+      "title": "Multi-modal Learning and Foundation Models",
+      "description": "Vision-language models, CLIP, and visual foundation models.",
+      "topics": [
+        {
+          "id": "topic-07-01",
+          "title": "Vision-Language Models",
+          "papers": [
+            {
+              "id": "paper-cs231n-018",
+              "title": "Learning Transferable Visual Models From Natural Language Supervision",
+              "authors": ["Alec Radford", "Jong Wook Kim", "Chris Hallacy", "Aditya Ramesh", "Gabriel Goh", "Sandhini Agarwal", "Girish Sastry", "Amanda Askell", "Pamela Mishkin", "Jack Clark", "Gretchen Krueger", "Ilya Sutskever"],
+              "year": 2021,
+              "venue": "ICML",
+              "arxiv_id": "2103.00020",
+              "doi": null,
+              "category": "required",
+              "context": "CLIP: 자연어 감독으로 시각적 표현을 학습. 제로샷 이미지 분류의 새로운 패러다임."
+            },
+            {
+              "id": "paper-cs231n-019",
+              "title": "Segment Anything",
+              "authors": ["Alexander Kirillov", "Eric Mintun", "Nikhila Ravi", "Hanzi Mao", "Chloe Rolland", "Laura Gustafson", "Tete Xiao", "Spencer Whitehead", "Alexander C. Berg", "Wan-Yen Lo", "Piotr Dollár", "Ross Girshick"],
+              "year": 2023,
+              "venue": "ICCV",
+              "arxiv_id": "2304.02643",
+              "doi": null,
+              "category": "optional",
+              "context": "SAM: 프롬프트 기반 범용 세그멘테이션 모델. 비전 파운데이션 모델의 대표 사례."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "curricula": [
+    {
+      "id": "cs224w",
+      "name": "CS224W: Machine Learning with Graphs",
+      "university": "Stanford University",
+      "instructor": "Jure Leskovec",
+      "difficulty": "advanced",
+      "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+      "description": "Analysis of large-scale graph and network data. Graph neural networks, knowledge graphs, and applications to social networks, biology, and recommendation systems.",
+      "url": "https://web.stanford.edu/class/cs224w/",
+      "total_papers": 25,
+      "total_modules": 6
+    },
+    {
+      "id": "cs224n",
+      "name": "CS224N: Natural Language Processing with Deep Learning",
+      "university": "Stanford University",
+      "instructor": "Christopher Manning",
+      "difficulty": "advanced",
+      "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+      "description": "Deep learning approaches to NLP. Word vectors, neural networks, transformers, pretraining, and applications to machine translation, question answering, and text generation.",
+      "url": "https://web.stanford.edu/class/cs224n/",
+      "total_papers": 28,
+      "total_modules": 7
+    },
+    {
+      "id": "cs231n",
+      "name": "CS231N: Deep Learning for Computer Vision",
+      "university": "Stanford University",
+      "instructor": "Fei-Fei Li",
+      "difficulty": "advanced",
+      "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+      "description": "Convolutional neural networks and their applications in computer vision. Image classification, object detection, segmentation, generative models, and visual understanding.",
+      "url": "https://cs231n.stanford.edu/",
+      "total_papers": 26,
+      "total_modules": 7
+    },
+    {
+      "id": "cs229",
+      "name": "CS229: Machine Learning",
+      "university": "Stanford University",
+      "instructor": "Andrew Ng",
+      "difficulty": "intermediate",
+      "prerequisites": ["Linear Algebra", "Probability", "Calculus", "Python Programming"],
+      "description": "Broad introduction to machine learning. Supervised learning, unsupervised learning, reinforcement learning, and learning theory with mathematical foundations.",
+      "url": "https://cs229.stanford.edu/",
+      "total_papers": 22,
+      "total_modules": 6
+    }
+  ]
+}

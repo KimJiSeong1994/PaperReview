@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 data/
+!data/curricula/
 logs/
 .DS_Store
 *.pkl

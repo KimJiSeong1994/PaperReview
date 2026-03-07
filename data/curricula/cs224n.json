@@ -1,0 +1,332 @@
+{
+  "id": "cs224n",
+  "name": "CS224N: Natural Language Processing with Deep Learning",
+  "university": "Stanford University",
+  "instructor": "Christopher Manning",
+  "difficulty": "advanced",
+  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "description": "Deep learning approaches to NLP. Word vectors, neural networks, transformers, pretraining, and applications to machine translation, question answering, and text generation.",
+  "url": "https://web.stanford.edu/class/cs224n/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Word Vectors and Word Senses",
+      "description": "Distributed representations of words. From count-based to prediction-based word embeddings.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Word2Vec",
+          "papers": [
+            {
+              "id": "paper-cs224n-001",
+              "title": "Efficient Estimation of Word Representations in Vector Space",
+              "authors": ["Tomas Mikolov", "Kai Chen", "Greg Corrado", "Jeffrey Dean"],
+              "year": 2013,
+              "venue": "ICLR Workshop",
+              "arxiv_id": "1301.3781",
+              "doi": null,
+              "category": "required",
+              "context": "Word2Vec (CBOW, Skip-gram) 모델을 제안. 단어 임베딩 연구의 시작점이 되었다."
+            },
+            {
+              "id": "paper-cs224n-002",
+              "title": "Distributed Representations of Words and Phrases and their Compositionality",
+              "authors": ["Tomas Mikolov", "Ilya Sutskever", "Kai Chen", "Greg Corrado", "Jeffrey Dean"],
+              "year": 2013,
+              "venue": "NeurIPS",
+              "arxiv_id": "1310.4546",
+              "doi": null,
+              "category": "required",
+              "context": "Skip-gram의 확장판. Negative sampling과 구절(phrase) 학습을 도입했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "GloVe and Subword Models",
+          "papers": [
+            {
+              "id": "paper-cs224n-003",
+              "title": "GloVe: Global Vectors for Word Representation",
+              "authors": ["Jeffrey Pennington", "Richard Socher", "Christopher Manning"],
+              "year": 2014,
+              "venue": "EMNLP",
+              "arxiv_id": null,
+              "doi": "10.3115/v1/D14-1162",
+              "category": "required",
+              "context": "동시출현 행렬의 통계 정보를 활용한 단어 벡터 학습 방법. Word2Vec과 함께 가장 널리 사용된다."
+            },
+            {
+              "id": "paper-cs224n-004",
+              "title": "Enriching Word Vectors with Subword Information",
+              "authors": ["Piotr Bojanowski", "Edouard Grave", "Armand Joulin", "Tomas Mikolov"],
+              "year": 2017,
+              "venue": "TACL",
+              "arxiv_id": "1607.04606",
+              "doi": "10.1162/tacl_a_00051",
+              "category": "optional",
+              "context": "FastText: 서브워드(character n-gram) 정보를 활용하여 미등록 단어에도 벡터를 생성할 수 있다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Neural Networks and Backpropagation",
+      "description": "Neural network fundamentals for NLP. Feedforward networks, backpropagation, and dependency parsing.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Neural Dependency Parsing",
+          "papers": [
+            {
+              "id": "paper-cs224n-005",
+              "title": "A Fast and Accurate Dependency Parser using Neural Networks",
+              "authors": ["Danqi Chen", "Christopher Manning"],
+              "year": 2014,
+              "venue": "EMNLP",
+              "arxiv_id": null,
+              "doi": "10.3115/v1/D14-1082",
+              "category": "required",
+              "context": "신경망 기반 의존 구문 분석기를 제안. 전통적 feature engineering 없이 높은 성능을 달성했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Recurrent Neural Networks and Language Models",
+      "description": "RNNs, LSTMs, GRUs for sequence modeling. Neural language models.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "LSTM and GRU",
+          "papers": [
+            {
+              "id": "paper-cs224n-006",
+              "title": "Long Short-Term Memory",
+              "authors": ["Sepp Hochreiter", "Jürgen Schmidhuber"],
+              "year": 1997,
+              "venue": "Neural Computation",
+              "arxiv_id": null,
+              "doi": "10.1162/neco.1997.9.8.1735",
+              "category": "required",
+              "context": "LSTM 아키텍처를 제안. 장기 의존성 문제를 해결한 RNN의 핵심 발전."
+            },
+            {
+              "id": "paper-cs224n-007",
+              "title": "Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation",
+              "authors": ["Kyunghyun Cho", "Bart van Merriënboer", "Caglar Gulcehre", "Dzmitry Bahdanau", "Fethi Bougares", "Holger Schwenk", "Yoshua Bengio"],
+              "year": 2014,
+              "venue": "EMNLP",
+              "arxiv_id": "1406.1078",
+              "doi": "10.3115/v1/D14-1179",
+              "category": "required",
+              "context": "GRU(Gated Recurrent Unit)를 제안하고 인코더-디코더 구조를 기계번역에 적용했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Sequence-to-Sequence",
+          "papers": [
+            {
+              "id": "paper-cs224n-008",
+              "title": "Sequence to Sequence Learning with Neural Networks",
+              "authors": ["Ilya Sutskever", "Oriol Vinyals", "Quoc V. Le"],
+              "year": 2014,
+              "venue": "NeurIPS",
+              "arxiv_id": "1409.3215",
+              "doi": null,
+              "category": "required",
+              "context": "Seq2Seq 모델을 제안. LSTM 기반 인코더-디코더로 기계번역의 새로운 패러다임을 열었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Attention and Transformers",
+      "description": "Attention mechanism, self-attention, and the Transformer architecture.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Attention Mechanism",
+          "papers": [
+            {
+              "id": "paper-cs224n-009",
+              "title": "Neural Machine Translation by Jointly Learning to Align and Translate",
+              "authors": ["Dzmitry Bahdanau", "Kyunghyun Cho", "Yoshua Bengio"],
+              "year": 2015,
+              "venue": "ICLR",
+              "arxiv_id": "1409.0473",
+              "doi": null,
+              "category": "required",
+              "context": "어텐션 메커니즘을 NMT에 도입. 긴 문장에서의 성능 저하 문제를 해결했다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Transformer Architecture",
+          "papers": [
+            {
+              "id": "paper-cs224n-010",
+              "title": "Attention Is All You Need",
+              "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.03762",
+              "doi": null,
+              "category": "required",
+              "context": "Transformer 아키텍처를 제안. Self-attention으로 RNN을 대체하여 현대 NLP의 기반이 되었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Pretraining and Large Language Models",
+      "description": "Transfer learning in NLP. BERT, GPT, and the pretraining paradigm.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "BERT and Masked Language Modeling",
+          "papers": [
+            {
+              "id": "paper-cs224n-011",
+              "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+              "authors": ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+              "year": 2019,
+              "venue": "NAACL",
+              "arxiv_id": "1810.04805",
+              "doi": "10.18653/v1/N19-1423",
+              "category": "required",
+              "context": "양방향 트랜스포머 사전학습으로 NLP 벤치마크를 혁신한 모델. 현대 NLP의 전환점."
+            },
+            {
+              "id": "paper-cs224n-012",
+              "title": "Improving Language Understanding by Generative Pre-Training",
+              "authors": ["Alec Radford", "Karthik Narasimhan", "Tim Salimans", "Ilya Sutskever"],
+              "year": 2018,
+              "venue": "OpenAI",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "GPT-1: 자기회귀 사전학습과 fine-tuning 패러다임을 제안. GPT 시리즈의 시작."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Scaling Language Models",
+          "papers": [
+            {
+              "id": "paper-cs224n-013",
+              "title": "Language Models are Few-Shot Learners",
+              "authors": ["Tom Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2005.14165",
+              "doi": null,
+              "category": "required",
+              "context": "GPT-3: 대규모 언어 모델이 few-shot 학습 능력을 가진다는 것을 보여준 논문."
+            },
+            {
+              "id": "paper-cs224n-014",
+              "title": "Scaling Laws for Neural Language Models",
+              "authors": ["Jared Kaplan", "Sam McCandlish", "Tom Henighan", "Tom B. Brown", "Benjamin Chess", "Rewon Child", "Scott Gray", "Alec Radford", "Ilya Sutskever", "Dario Amodei"],
+              "year": 2020,
+              "venue": "arXiv",
+              "arxiv_id": "2001.08361",
+              "doi": null,
+              "category": "optional",
+              "context": "언어 모델의 성능이 모델 크기, 데이터, 연산량에 따라 예측 가능하게 스케일링됨을 발견."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Question Answering and Information Extraction",
+      "description": "Reading comprehension, QA systems, and named entity recognition.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Reading Comprehension",
+          "papers": [
+            {
+              "id": "paper-cs224n-015",
+              "title": "SQuAD: 100,000+ Questions for Machine Comprehension of Text",
+              "authors": ["Pranav Rajpurkar", "Jian Zhang", "Konstantin Lopyrev", "Percy Liang"],
+              "year": 2016,
+              "venue": "EMNLP",
+              "arxiv_id": "1606.05250",
+              "doi": "10.18653/v1/D16-1264",
+              "category": "required",
+              "context": "기계 독해를 위한 대규모 벤치마크 데이터셋. QA 연구의 표준이 되었다."
+            },
+            {
+              "id": "paper-cs224n-016",
+              "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+              "authors": ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus", "Fabio Petroni", "Vladimir Karpukhin", "Naman Goyal", "Heinrich Küttler", "Mike Lewis", "Wen-tau Yih", "Tim Rocktäschel", "Sebastian Riedel", "Douwe Kiela"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2005.11401",
+              "doi": null,
+              "category": "optional",
+              "context": "RAG: 검색 기반 생성 모델을 제안. LLM의 환각 문제를 해결하는 핵심 접근법."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-07",
+      "week": 7,
+      "title": "Instruction Tuning and RLHF",
+      "description": "Aligning language models with human preferences. Instruction following and safety.",
+      "topics": [
+        {
+          "id": "topic-07-01",
+          "title": "Instruction Tuning",
+          "papers": [
+            {
+              "id": "paper-cs224n-017",
+              "title": "Training language models to follow instructions with human feedback",
+              "authors": ["Long Ouyang", "Jeff Wu", "Xu Jiang", "Diogo Almeida", "Carroll L. Wainwright", "Pamela Mishkin", "Chong Zhang", "Sandhini Agarwal", "Katarina Slama", "Alex Ray", "John Schulman", "Jacob Hilton", "Fraser Kelton", "Luke Miller", "Maddie Simens", "Amanda Askell", "Peter Welinder", "Paul Christiano", "Jan Leike", "Ryan Lowe"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2203.02155",
+              "doi": null,
+              "category": "required",
+              "context": "InstructGPT: RLHF로 언어 모델을 인간 의도에 맞게 정렬하는 방법을 제시했다."
+            },
+            {
+              "id": "paper-cs224n-018",
+              "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+              "authors": ["Rafael Rafailov", "Archit Sharma", "Eric Mitchell", "Stefano Ermon", "Christopher D. Manning", "Chelsea Finn"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2305.18290",
+              "doi": null,
+              "category": "optional",
+              "context": "DPO: 보상 모델 없이 직접 선호도 최적화하는 간소화된 RLHF 대안."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

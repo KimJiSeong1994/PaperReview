@@ -1,0 +1,290 @@
+{
+  "id": "cs229",
+  "name": "CS229: Machine Learning",
+  "university": "Stanford University",
+  "instructor": "Andrew Ng",
+  "difficulty": "intermediate",
+  "prerequisites": ["Linear Algebra", "Probability", "Calculus", "Python Programming"],
+  "description": "Broad introduction to machine learning. Supervised learning, unsupervised learning, reinforcement learning, and learning theory with mathematical foundations.",
+  "url": "https://cs229.stanford.edu/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Supervised Learning Foundations",
+      "description": "Linear regression, logistic regression, and generalized linear models.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Linear Models and Optimization",
+          "papers": [
+            {
+              "id": "paper-cs229-001",
+              "title": "Regression Shrinkage and Selection Via the Lasso",
+              "authors": ["Robert Tibshirani"],
+              "year": 1996,
+              "venue": "Journal of the Royal Statistical Society",
+              "arxiv_id": null,
+              "doi": "10.1111/j.2517-6161.1996.tb02080.x",
+              "category": "required",
+              "context": "L1 정규화(Lasso)를 제안. 희소 모델 선택과 정규화의 기초가 되었다."
+            },
+            {
+              "id": "paper-cs229-002",
+              "title": "Regularization and Variable Selection Via the Elastic Net",
+              "authors": ["Hui Zou", "Trevor Hastie"],
+              "year": 2005,
+              "venue": "Journal of the Royal Statistical Society",
+              "arxiv_id": null,
+              "doi": "10.1111/j.1467-9868.2005.00503.x",
+              "category": "optional",
+              "context": "Elastic Net: L1과 L2 정규화를 결합하여 Lasso의 한계를 보완한 방법."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Support Vector Machines and Kernels",
+      "description": "Maximum margin classifiers, kernel methods, and the kernel trick.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "SVM Theory",
+          "papers": [
+            {
+              "id": "paper-cs229-003",
+              "title": "A Training Algorithm for Optimal Margin Classifiers",
+              "authors": ["Bernhard E. Boser", "Isabelle M. Guyon", "Vladimir N. Vapnik"],
+              "year": 1992,
+              "venue": "COLT",
+              "arxiv_id": null,
+              "doi": "10.1145/130385.130401",
+              "category": "required",
+              "context": "커널 트릭을 사용한 최대 마진 분류기(SVM)를 제안한 원조 논문."
+            },
+            {
+              "id": "paper-cs229-004",
+              "title": "Support-Vector Networks",
+              "authors": ["Corinna Cortes", "Vladimir Vapnik"],
+              "year": 1995,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00994018",
+              "category": "required",
+              "context": "소프트 마진 SVM을 제안. 노이즈가 있는 데이터에서도 강건한 분류가 가능하게 했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Decision Trees and Ensemble Methods",
+      "description": "Tree-based methods, random forests, and gradient boosting.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "Ensemble Learning",
+          "papers": [
+            {
+              "id": "paper-cs229-005",
+              "title": "Random Forests",
+              "authors": ["Leo Breiman"],
+              "year": 2001,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1023/A:1010933404324",
+              "category": "required",
+              "context": "랜덤 포레스트를 제안. 배깅과 특성 랜덤 선택으로 강력한 앙상블 모델을 구축한다."
+            },
+            {
+              "id": "paper-cs229-006",
+              "title": "XGBoost: A Scalable Tree Boosting System",
+              "authors": ["Tianqi Chen", "Carlos Guestrin"],
+              "year": 2016,
+              "venue": "KDD",
+              "arxiv_id": "1603.02754",
+              "doi": "10.1145/2939672.2939785",
+              "category": "required",
+              "context": "XGBoost: 대규모 데이터에서 효율적인 그래디언트 부스팅. Kaggle 대회를 지배한 알고리즘."
+            },
+            {
+              "id": "paper-cs229-007",
+              "title": "Greedy Function Approximation: A Gradient Boosting Machine",
+              "authors": ["Jerome H. Friedman"],
+              "year": 2001,
+              "venue": "Annals of Statistics",
+              "arxiv_id": null,
+              "doi": "10.1214/aos/1013203451",
+              "category": "optional",
+              "context": "그래디언트 부스팅의 이론적 프레임워크를 정립한 논문."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Unsupervised Learning",
+      "description": "Clustering, dimensionality reduction, and density estimation.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Clustering",
+          "papers": [
+            {
+              "id": "paper-cs229-008",
+              "title": "A Tutorial on Spectral Clustering",
+              "authors": ["Ulrike von Luxburg"],
+              "year": 2007,
+              "venue": "Statistics and Computing",
+              "arxiv_id": "0711.0189",
+              "doi": "10.1007/s11222-007-9033-z",
+              "category": "required",
+              "context": "스펙트럴 클러스터링의 이론과 실제를 체계적으로 정리한 튜토리얼 논문."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Dimensionality Reduction",
+          "papers": [
+            {
+              "id": "paper-cs229-009",
+              "title": "Visualizing Data using t-SNE",
+              "authors": ["Laurens van der Maaten", "Geoffrey Hinton"],
+              "year": 2008,
+              "venue": "JMLR",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "t-SNE: 고차원 데이터의 시각화를 위한 비선형 차원 축소 방법."
+            },
+            {
+              "id": "paper-cs229-010",
+              "title": "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction",
+              "authors": ["Leland McInnes", "John Healy", "James Melville"],
+              "year": 2018,
+              "venue": "arXiv",
+              "arxiv_id": "1802.03426",
+              "doi": null,
+              "category": "optional",
+              "context": "UMAP: t-SNE보다 빠르고 전역 구조를 더 잘 보존하는 차원 축소 방법."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Deep Learning Foundations",
+      "description": "Neural networks, backpropagation, and modern deep learning.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Neural Network Fundamentals",
+          "papers": [
+            {
+              "id": "paper-cs229-011",
+              "title": "Learning representations by back-propagating errors",
+              "authors": ["David E. Rumelhart", "Geoffrey E. Hinton", "Ronald J. Williams"],
+              "year": 1986,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/323533a0",
+              "category": "required",
+              "context": "역전파 알고리즘을 실용화한 논문. 신경망 학습의 핵심 알고리즘을 확립했다."
+            },
+            {
+              "id": "paper-cs229-012",
+              "title": "Deep Learning",
+              "authors": ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"],
+              "year": 2015,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/nature14539",
+              "category": "required",
+              "context": "딥러닝의 핵심 개념과 발전 역사를 정리한 3대 거장의 리뷰 논문."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Modern Architectures",
+          "papers": [
+            {
+              "id": "paper-cs229-013",
+              "title": "Attention Is All You Need",
+              "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.03762",
+              "doi": null,
+              "category": "required",
+              "context": "Transformer: 어텐션 기반 아키텍처로 시퀀스 모델링을 혁신한 논문."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Reinforcement Learning",
+      "description": "Markov decision processes, Q-learning, and policy gradient methods.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Deep Reinforcement Learning",
+          "papers": [
+            {
+              "id": "paper-cs229-014",
+              "title": "Playing Atari with Deep Reinforcement Learning",
+              "authors": ["Volodymyr Mnih", "Koray Kavukcuoglu", "David Silver", "Alex Graves", "Ioannis Antonoglou", "Daan Wierstra", "Martin Riedmiller"],
+              "year": 2013,
+              "venue": "NeurIPS Workshop",
+              "arxiv_id": "1312.5602",
+              "doi": null,
+              "category": "required",
+              "context": "DQN: 딥러닝으로 Atari 게임을 학습하여 딥 강화학습 시대를 연 논문."
+            },
+            {
+              "id": "paper-cs229-015",
+              "title": "Mastering the Game of Go with Deep Neural Networks and Tree Search",
+              "authors": ["David Silver", "Aja Huang", "Chris J. Maddison"],
+              "year": 2016,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/nature16961",
+              "category": "optional",
+              "context": "AlphaGo: 딥 강화학습으로 바둑에서 인간을 이긴 역사적 성과."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Policy Gradient Methods",
+          "papers": [
+            {
+              "id": "paper-cs229-016",
+              "title": "Proximal Policy Optimization Algorithms",
+              "authors": ["John Schulman", "Filip Wolski", "Parveen Dhariwal", "Alec Radford", "Oleg Klimov"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1707.06347",
+              "doi": null,
+              "category": "required",
+              "context": "PPO: 안정적이고 효율적인 정책 경사 알고리즘. RLHF에서도 핵심적으로 사용된다."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
