@@ -2,14 +2,14 @@
 
 ✅ **이미지 파일이 추가되었습니다!**
 
-현재 사용 중인 이미지: `Jipyheonjeon_llama.png`
+현재 사용 중인 이미지: `Jiphyeonjeon_llama.png`
 
 ## 파일 이름
-`Jipyheonjeon_llama.png` (PNG 형식)
+`Jiphyeonjeon_llama.png` (PNG 형식)
 
 ## 저장 위치
 ```
-web-ui/public/Jipyheonjeon_llama.png
+web-ui/public/Jiphyeonjeon_llama.png
 ```
 
 ## 이미지 내용

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def _migrate_bookmarks_add_username():
     """One-time: assign existing bookmarks without username to the default admin."""
-    default_user = os.getenv("APP_USERNAME", "Jipyheonjeon")
+    default_user = os.getenv("APP_USERNAME", "Jiphyeonjeon")
     with _bookmarks_lock:
         if not BOOKMARKS_FILE.exists():
             return
@@ -44,7 +44,7 @@ def _migrate_bookmarks_add_username():
 
 def _migrate_papers_add_searched_by():
     """One-time: assign existing papers without searched_by to the default admin."""
-    default_user = os.getenv("APP_USERNAME", "Jipyheonjeon")
+    default_user = os.getenv("APP_USERNAME", "Jiphyeonjeon")
     if not PAPERS_FILE.exists():
         return
     try:

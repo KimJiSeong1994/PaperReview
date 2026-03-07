@@ -1,11 +1,11 @@
 <div align="center">
-  <h1>Jipyheonjeon (집현전)</h1>
+  <h1>Jiphyeonjeon (집현전)</h1>
 
   <p><strong>AI-Powered Research Assistant</strong></p>
 
   <p>Search papers across multiple sources, generate in-depth review reports,<br/>and organize your findings — all in one place.</p>
 
-  [![Live](https://img.shields.io/badge/Live-jipyheonjeon.kr-blue?style=flat-square&logo=googlechrome)](https://jipyheonjeon.kr)
+  [![Live](https://img.shields.io/badge/Live-jiphyeonjeon.kr-blue?style=flat-square&logo=googlechrome)](https://jiphyeonjeon.kr)
   [![License](https://img.shields.io/badge/License-Apache_2.0-green?style=flat-square)](./LICENSE)
   [![Python](https://img.shields.io/badge/Python-3.12-3776ab?style=flat-square&logo=python)](https://python.org)
   [![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react)](https://react.dev)
@@ -16,14 +16,14 @@
 ---
 
 <div align="center">
-  <img src="web-ui/public/demo.gif" alt="Jipyheonjeon Demo" width="900" />
+  <img src="web-ui/public/demo.gif" alt="Jiphyeonjeon Demo" width="900" />
 </div>
 
 ---
 
-## What is Jipyheonjeon?
+## What is Jiphyeonjeon?
 
-Jipyheonjeon helps researchers discover, analyze, and organize academic papers. It searches five scholarly databases in parallel, ranks results using hybrid signals, and generates systematic review reports through a multi-agent pipeline. You can explore citation networks, build knowledge graphs, and chat with your collected research.
+Jiphyeonjeon helps researchers discover, analyze, and organize academic papers. It searches five scholarly databases in parallel, ranks results using hybrid signals, and generates systematic review reports through a multi-agent pipeline. You can explore citation networks, build knowledge graphs, and chat with your collected research.
 
 > JSON-file-based storage — no external database required. Designed for individual researchers and small teams. For large-scale multi-user deployments, consider adding a database backend.
 
@@ -50,7 +50,7 @@ Jipyheonjeon helps researchers discover, analyze, and organize academic papers. 
 ## Pipeline
 
 <div align="center">
-  <img src="web-ui/public/pipeline-diagram.png" alt="Jipyheonjeon Pipeline" width="900" />
+  <img src="web-ui/public/pipeline-diagram.png" alt="Jiphyeonjeon Pipeline" width="900" />
 </div>
 
 ---
@@ -98,7 +98,7 @@ python api_server.py                      # → http://localhost:8000
 cd web-ui && npm install && npm run dev   # → http://localhost:5173
 ```
 
-Full API documentation: [jipyheonjeon.kr/docs](https://jipyheonjeon.kr/docs)
+Full API documentation: [jiphyeonjeon.kr/docs](https://jiphyeonjeon.kr/docs)
 
 ---
 

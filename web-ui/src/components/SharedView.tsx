@@ -119,12 +119,12 @@ export default function SharedView() {
       <div className="shared-view-header">
         <div className="shared-view-brand">
           <img
-            src="/Jipyheonjeon_llama.png"
-            alt="Jipyheonjeon"
+            src="/Jiphyeonjeon_llama.png"
+            alt="Jiphyeonjeon"
             className="shared-view-logo"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
-          <span className="shared-view-brand-name">Jipyheonjeon</span>
+          <span className="shared-view-brand-name">Jiphyeonjeon</span>
           <span className="shared-view-badge">Shared Report</span>
         </div>
       </div>

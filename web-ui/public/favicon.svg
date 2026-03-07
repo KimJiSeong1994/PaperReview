@@ -10,7 +10,7 @@
   
   <!-- Image with circular clip -->
   <g clip-path="url(#circleClip)">
-    <image href="/Jipyheonjeon_llama.png" x="4" y="4" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
+    <image href="/Jiphyeonjeon_llama.png" x="4" y="4" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
   </g>
   
   <!-- Subtle border -->

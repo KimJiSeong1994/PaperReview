@@ -111,9 +111,9 @@ function MyPage({ onBack }: MyPageProps) {
       <div className="mypage-app-header">
         <div className="mypage-header-nav">
           <div className="mypage-logo" onClick={onBack} style={{ cursor: 'pointer' }}>
-            <img src="/Jipyheonjeon_llama.png" alt="Jipyheonjeon" className="mypage-logo-icon"
+            <img src="/Jiphyeonjeon_llama.png" alt="Jiphyeonjeon" className="mypage-logo-icon"
               onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="mypage-brand-name">Jipyheonjeon</span>
+            <span className="mypage-brand-name">Jiphyeonjeon</span>
           </div>
           <div className="mypage-header-actions">
             <button className="mypage-nav-btn" onClick={bm.handleBuildKG} disabled={bm.kgBuilding}

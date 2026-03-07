@@ -485,14 +485,14 @@ function App() {
         <div className="header-nav">
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
             <img
-              src="/Jipyheonjeon_llama.png"
-              alt="Jipyheonjeon"
+              src="/Jiphyeonjeon_llama.png"
+              alt="Jiphyeonjeon"
               className="logo-icon"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="brand-name">Jipyheonjeon</span>
+            <span className="brand-name">Jiphyeonjeon</span>
           </div>
           <div className="header-actions">
             {isAuthenticated && userRole === 'admin' && (
@@ -537,7 +537,7 @@ function App() {
         {!loading && papers.length === 0 && !query && (
           <div className="centered-search">
             <div className="brand-section">
-              <h1 className="brand-title">Jipyheonjeon</h1>
+              <h1 className="brand-title">Jiphyeonjeon</h1>
               <p className="brand-tagline">The AI Search Engine You Control</p>
             </div>
             <SearchBar onSearch={handleSearch} loading={loading} />

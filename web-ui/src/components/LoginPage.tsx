@@ -134,12 +134,12 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         {/* Brand header */}
         <div className="login-brand">
           <img
-            src="/Jipyheonjeon_llama.png"
-            alt="Jipyheonjeon"
+            src="/Jiphyeonjeon_llama.png"
+            alt="Jiphyeonjeon"
             className="login-logo"
           />
           <div className="login-brand-text">
-            <h1 className="login-brand-name">Jipyheonjeon</h1>
+            <h1 className="login-brand-name">Jiphyeonjeon</h1>
             <p className="login-brand-tagline">AI-Powered Research Assistant</p>
           </div>
         </div>
