@@ -172,7 +172,6 @@ Consider:
                         "content": evaluation_prompt
                     }
                 ],
-                temperature=0.2,  # 낮은 temperature로 일관된 평가
                 response_format={"type": "json_object"}
             )
             

@@ -403,9 +403,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
     try:
         start_time = time.time()
 
-        # Query analysis
+        # Query analysis (skip when LLM search — llm_context_search does its own)
         query_analysis = None
-        if query_analyzer:
+        if query_analyzer and not request.use_llm_search:
             try:
                 analysis_start = time.time()
                 logger.info("[API] Analyzing query: %s", request.query)
@@ -419,6 +419,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 )
             except Exception as e:
                 logger.warning("[API] Query analysis failed (continuing with original query): %s", e)
+        elif request.use_llm_search:
+            logger.info("[API] Query analysis skipped (LLM search handles query optimization)")
         else:
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 

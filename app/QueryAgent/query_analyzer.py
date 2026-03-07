@@ -35,7 +35,7 @@ except ImportError:
 class QueryAnalyzer:
     """유저 질의 분석 클래스"""
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-5-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         """
         QueryAnalyzer 초기화
         
@@ -122,7 +122,7 @@ Be particularly careful with:
                         "content": analysis_prompt
                     }
                 ],
-                temperature=0.3,  # 낮은 temperature로 일관된 분석
+                temperature=0.3,
                 response_format={"type": "json_object"}  # JSON 형식으로 응답
             )
             

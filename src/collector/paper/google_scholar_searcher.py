@@ -81,9 +81,9 @@ class GoogleScholarSearcher:
         self.request_delay = 2.0
         self.last_request_time = 0
 
-        # 재시도 설정 (안정성 우선)
-        self.max_retries = 3
-        self.retry_delay_base = 3.0
+        # 재시도 설정 (속도 우선 — 403 차단 시 빠르게 포기)
+        self.max_retries = 1
+        self.retry_delay_base = 2.0
 
         # 스레드 안전성을 위한 상태 잠금
         self._state_lock = threading.Lock()
