@@ -4,7 +4,7 @@
   "university": "Stanford University",
   "instructor": "Fei-Fei Li",
   "difficulty": "advanced",
-  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "prerequisites": ["Calculus & Linear Algebra", "CS109 (Probability & Statistics)", "CS106B (Programming Abstractions)", "CS229 or equivalent ML course", "Python/NumPy"],
   "description": "Convolutional neural networks and their applications in computer vision. Image classification, object detection, segmentation, generative models, and visual understanding.",
   "url": "https://cs231n.stanford.edu/",
   "modules": [

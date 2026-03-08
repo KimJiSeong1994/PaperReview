@@ -4,7 +4,7 @@
   "university": "Stanford University",
   "instructor": "Christopher Manning",
   "difficulty": "advanced",
-  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "prerequisites": ["Calculus", "Linear Algebra", "CS109 (Probability)", "CS229 or CS230 (ML/Deep Learning)", "Python/PyTorch", "Linguistics basics (helpful)"],
   "description": "Deep learning approaches to NLP. Word vectors, neural networks, transformers, pretraining, and applications to machine translation, question answering, and text generation.",
   "url": "https://web.stanford.edu/class/cs224n/",
   "modules": [

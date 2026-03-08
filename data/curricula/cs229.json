@@ -4,7 +4,7 @@
   "university": "Stanford University",
   "instructor": "Andrew Ng",
   "difficulty": "intermediate",
-  "prerequisites": ["Linear Algebra", "Probability", "Calculus", "Python Programming"],
+  "prerequisites": ["Linear Algebra (MATH 51)", "Probability & Statistics (CS109)", "Multivariable Calculus", "CS106A or CS106B (Programming)", "Python/NumPy"],
   "description": "Broad introduction to machine learning. Supervised learning, unsupervised learning, reinforcement learning, and learning theory with mathematical foundations.",
   "url": "https://cs229.stanford.edu/",
   "modules": [

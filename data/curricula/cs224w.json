@@ -4,7 +4,7 @@
   "university": "Stanford University",
   "instructor": "Jure Leskovec",
   "difficulty": "advanced",
-  "prerequisites": ["Linear Algebra", "Probability", "ML Basics", "Python Programming"],
+  "prerequisites": ["CS109 (Probability)", "CS161 (Algorithms)", "CS229 or equivalent ML course", "Linear Algebra", "Graph Theory Basics", "Python/PyTorch"],
   "description": "Analysis of large-scale graph and network data. Graph neural networks, knowledge graphs, and applications to social networks, biology, and recommendation systems.",
   "url": "https://web.stanford.edu/class/cs224w/",
   "modules": [

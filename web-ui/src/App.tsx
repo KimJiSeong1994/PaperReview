@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import PaperList from './components/PaperList';
 import DetailPanel from './components/DetailPanel';
@@ -28,6 +28,7 @@ function sortPapersByQuerySimilarity(
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!localStorage.getItem('access_token'));
@@ -235,6 +236,18 @@ function App() {
       setLoading(false);
     }
   };
+
+  // Auto-search from URL query param (e.g. /?q=paper+title)
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    if (q && q.trim() && q !== query) {
+      handleSearch(q.trim());
+      // Clear the query param to avoid re-triggering
+      navigate('/', { replace: true });
+    }
+  }, [location.search, location.pathname]);
 
   // Bookmark handlers
   const handleSaveBookmark = async () => {
