@@ -8,6 +8,7 @@ Admin-only endpoints:
   DELETE /api/admin/papers
   GET    /api/admin/bookmarks
   DELETE /api/admin/bookmarks/{bookmark_id}
+  GET    /api/admin/curricula
 """
 
 import json
@@ -29,6 +30,8 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
 GRAPH_META_FILE = Path(__file__).resolve().parent.parent / "data" / "graph" / "paper_graph_metadata.json"
+CURRICULA_DIR = Path(__file__).resolve().parent.parent / "data" / "curricula"
+CURRICULUM_PROGRESS_FILE = Path(__file__).resolve().parent.parent / "data" / "curriculum_progress.json"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -345,3 +348,88 @@ async def admin_delete_bookmark(bookmark_id: str, admin: str = Depends(get_admin
 
     save_bookmarks(data)
     return {"success": True, "message": "Bookmark deleted"}
+
+
+# ── Curricula ───────────────────────────────────────────────────────
+
+def _load_curriculum_progress() -> dict:
+    if not CURRICULUM_PROGRESS_FILE.exists():
+        return {}
+    try:
+        with open(CURRICULUM_PROGRESS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+
+
+def _load_user_curriculum_index() -> list:
+    user_index_file = CURRICULA_DIR / "user_index.json"
+    if not user_index_file.exists():
+        return []
+    try:
+        with open(user_index_file, "r", encoding="utf-8") as f:
+            return json.load(f).get("curricula", [])
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return []
+
+
+@router.get("/curricula")
+async def admin_curricula(admin: str = Depends(get_admin_user)):
+    """Per-user curriculum ownership and progress overview."""
+    user_entries = _load_user_curriculum_index()
+    progress_data = _load_curriculum_progress()
+
+    # Group user curricula by owner
+    owner_map: dict[str, list] = {}
+    for entry in user_entries:
+        owner = entry.get("owner", "(unknown)")
+        if owner not in owner_map:
+            owner_map[owner] = []
+        owner_map[owner].append({
+            "id": entry.get("id", ""),
+            "name": entry.get("name", "Untitled"),
+            "difficulty": entry.get("difficulty", "intermediate"),
+            "total_papers": entry.get("total_papers", 0),
+            "total_modules": entry.get("total_modules", 0),
+            "is_preset": entry.get("is_preset", False),
+            "forked_from": entry.get("forked_from"),
+            "type": "fork" if entry.get("forked_from") else "custom",
+        })
+
+    # Build per-user progress stats (covers both presets and user courses)
+    user_progress_map: dict[str, dict] = {}
+    for username, courses in progress_data.items():
+        total_read = 0
+        course_count = 0
+        for course_id, course_prog in courses.items():
+            read_papers = course_prog.get("read_papers", [])
+            total_read += len(read_papers)
+            if read_papers:
+                course_count += 1
+        user_progress_map[username] = {
+            "total_read_papers": total_read,
+            "courses_with_progress": course_count,
+        }
+
+    # Merge: all owners + users with progress only
+    all_usernames = set(owner_map.keys()) | set(user_progress_map.keys())
+
+    users = []
+    for username in sorted(all_usernames):
+        curricula = owner_map.get(username, [])
+        progress_info = user_progress_map.get(username, {"total_read_papers": 0, "courses_with_progress": 0})
+        users.append({
+            "username": username,
+            "curricula": curricula,
+            "total_curricula": len(curricula),
+            "fork_count": sum(1 for c in curricula if c["type"] == "fork"),
+            "custom_count": sum(1 for c in curricula if c["type"] == "custom"),
+            "total_read_papers": progress_info["total_read_papers"],
+            "courses_with_progress": progress_info["courses_with_progress"],
+        })
+
+    return {
+        "total_user_curricula": len(user_entries),
+        "total_users_with_curricula": len(owner_map),
+        "users": users,
+    }

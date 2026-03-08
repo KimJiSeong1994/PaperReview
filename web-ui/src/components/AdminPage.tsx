@@ -13,10 +13,11 @@ import {
   deleteAdminPapers,
   getAdminBookmarks,
   deleteAdminBookmark,
+  getAdminCurricula,
 } from '../api/client';
-import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats } from '../api/client';
+import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse, AdminCurriculumUser } from '../api/client';
 
-type Tab = 'dashboard' | 'users' | 'papers' | 'bookmarks';
+type Tab = 'dashboard' | 'users' | 'papers' | 'bookmarks' | 'curricula';
 
 /* ── Folder icon SVGs (matching MyPage style) ─────────────────────── */
 
@@ -60,6 +61,19 @@ function BookmarkIcon() {
   );
 }
 
+function CurriculumIcon({ type }: { type: 'fork' | 'custom' }) {
+  return type === 'fork' ? (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
+      <path d="M7 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm10 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm-5 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" stroke="#818cf8" strokeWidth="1.5" />
+      <path d="M7 8v4c0 2 2 4 5 4m5-8v4c0 2-2 4-5 4" stroke="#818cf8" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a5b4fc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -90,6 +104,11 @@ export default function AdminPage() {
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
   const [openBookmarkFolder, setOpenBookmarkFolder] = useState<string | null>(null);
   const [expandedBookmark, setExpandedBookmark] = useState<string | null>(null);
+
+  // Curricula – tree view
+  const [curriculaData, setCurriculaData] = useState<AdminCurriculaResponse | null>(null);
+  const [curriculaLoading, setCurriculaLoading] = useState(false);
+  const [openCurriculaFolder, setOpenCurriculaFolder] = useState<string | null>(null);
 
   // Confirm dialog
   const [confirm, setConfirm] = useState<{
@@ -163,6 +182,18 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadCurricula = useCallback(async () => {
+    setCurriculaLoading(true);
+    try {
+      const data = await getAdminCurricula();
+      setCurriculaData(data);
+    } catch {
+      /* ignore */
+    } finally {
+      setCurriculaLoading(false);
+    }
+  }, []);
+
   // ── Tab change → load data ───────────────────────────────────────
 
   useEffect(() => {
@@ -170,7 +201,8 @@ export default function AdminPage() {
     else if (activeTab === 'users') loadUsers();
     else if (activeTab === 'papers') loadPaperStats();
     else if (activeTab === 'bookmarks') loadBookmarks();
-  }, [activeTab, loadDashboard, loadUsers, loadPaperStats, loadBookmarks]);
+    else if (activeTab === 'curricula') loadCurricula();
+  }, [activeTab, loadDashboard, loadUsers, loadPaperStats, loadBookmarks, loadCurricula]);
 
   // ── Paper folder expand ──────────────────────────────────────────
 
@@ -330,7 +362,7 @@ export default function AdminPage() {
       <div className="admin-content">
         {/* Tabs */}
         <div className="admin-tabs">
-          {(['dashboard', 'users', 'papers', 'bookmarks'] as Tab[]).map((tab) => (
+          {(['dashboard', 'users', 'papers', 'bookmarks', 'curricula'] as Tab[]).map((tab) => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'admin-tab--active' : ''}`}
@@ -873,6 +905,104 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="admin-loading">No bookmarks found</div>
+            )}
+          </div>
+        )}
+        {/* Curricula Tab — Tree View */}
+        {activeTab === 'curricula' && (
+          <div className="admin-tree-wrapper">
+            {/* Tree header */}
+            <div className="admin-tree-header">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="admin-tree-header-title">User Curricula</span>
+              <span className="admin-tree-header-count">
+                {curriculaData?.total_user_curricula ?? 0} courses · {curriculaData?.total_users_with_curricula ?? 0} users
+              </span>
+            </div>
+
+            {curriculaLoading ? (
+              <div className="admin-loading">Loading...</div>
+            ) : curriculaData && curriculaData.users.length > 0 ? (
+              <div className="admin-tree">
+                {curriculaData.users.map((user: AdminCurriculumUser, idx: number) => {
+                  const isOpen = openCurriculaFolder === user.username;
+                  const isLast = idx === curriculaData.users.length - 1;
+                  return (
+                    <div key={user.username} className={`admin-tree-folder ${isLast ? 'last' : ''}`}>
+                      {/* User folder row */}
+                      <div
+                        className={`admin-tree-folder-row ${isOpen ? 'open' : ''}`}
+                        onClick={() => setOpenCurriculaFolder(isOpen ? null : user.username)}
+                      >
+                        <ChevronIcon />
+                        <FolderIcon open={isOpen} />
+                        <span className="admin-tree-folder-name">{user.username}</span>
+                        <div className="admin-cur-badges">
+                          {user.fork_count > 0 && (
+                            <span className="admin-cur-badge admin-cur-badge--fork">
+                              Fork {user.fork_count}
+                            </span>
+                          )}
+                          {user.custom_count > 0 && (
+                            <span className="admin-cur-badge admin-cur-badge--custom">
+                              Custom {user.custom_count}
+                            </span>
+                          )}
+                          {user.total_read_papers > 0 && (
+                            <span className="admin-cur-badge admin-cur-badge--progress">
+                              {user.total_read_papers} read
+                            </span>
+                          )}
+                        </div>
+                        <span className="admin-tree-folder-count">{user.total_curricula}</span>
+                      </div>
+
+                      {/* Expanded curricula list */}
+                      {isOpen && (
+                        <div className="admin-tree-children">
+                          {user.curricula.length === 0 ? (
+                            <div className="admin-tree-empty-hint">
+                              No owned curricula (progress only via presets)
+                            </div>
+                          ) : (
+                            user.curricula.map((cur) => (
+                              <div key={cur.id} className="admin-tree-file">
+                                <div className="admin-tree-guide-line" />
+                                <CurriculumIcon type={cur.type} />
+                                <div className="admin-tree-file-info" style={{ flex: 1 }}>
+                                  <span className="admin-tree-file-title">{cur.name}</span>
+                                  <span className="admin-tree-file-meta">
+                                    <span className={`admin-cur-type admin-cur-type--${cur.type}`}>
+                                      {cur.type}
+                                    </span>
+                                    {cur.forked_from && <> · from {cur.forked_from}</>}
+                                    {' · '}{cur.total_modules} modules · {cur.total_papers} papers
+                                    {' · '}{cur.difficulty}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+
+                          {/* Progress summary */}
+                          {user.total_read_papers > 0 && (
+                            <div className="admin-cur-progress-summary">
+                              <span className="admin-cur-progress-label">Reading Progress</span>
+                              <span className="admin-cur-progress-value">
+                                {user.total_read_papers} papers read across {user.courses_with_progress} course{user.courses_with_progress !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="admin-loading">No user curricula found</div>
             )}
           </div>
         )}

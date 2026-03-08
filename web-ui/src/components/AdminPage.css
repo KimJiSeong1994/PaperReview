@@ -980,6 +980,73 @@
   top: 13px;
 }
 
+/* ===== Curricula Tab ===== */
+.admin-cur-badges {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.admin-cur-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.admin-cur-badge--fork {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.admin-cur-badge--custom {
+  color: #a5b4fc;
+  background: rgba(165, 180, 252, 0.10);
+}
+
+.admin-cur-badge--progress {
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.10);
+}
+
+.admin-cur-type {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.admin-cur-type--fork {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.admin-cur-type--custom {
+  color: #a5b4fc;
+  background: rgba(165, 180, 252, 0.10);
+}
+
+.admin-cur-progress-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-cur-progress-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.admin-cur-progress-value {
+  font-size: 11px;
+  color: #5eead4;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1100px) {
   .admin-stats-grid {

@@ -718,3 +718,36 @@ export const deleteAdminBookmark = async (bookmarkId: string) => {
   const response = await api.delete(`/api/admin/bookmarks/${bookmarkId}`);
   return response.data;
 };
+
+// Admin Curricula
+export interface AdminCurriculumItem {
+  id: string;
+  name: string;
+  difficulty: string;
+  total_papers: number;
+  total_modules: number;
+  is_preset: boolean;
+  forked_from: string | null;
+  type: 'fork' | 'custom';
+}
+
+export interface AdminCurriculumUser {
+  username: string;
+  curricula: AdminCurriculumItem[];
+  total_curricula: number;
+  fork_count: number;
+  custom_count: number;
+  total_read_papers: number;
+  courses_with_progress: number;
+}
+
+export interface AdminCurriculaResponse {
+  total_user_curricula: number;
+  total_users_with_curricula: number;
+  users: AdminCurriculumUser[];
+}
+
+export const getAdminCurricula = async (): Promise<AdminCurriculaResponse> => {
+  const response = await api.get<AdminCurriculaResponse>('/api/admin/curricula');
+  return response.data;
+};
