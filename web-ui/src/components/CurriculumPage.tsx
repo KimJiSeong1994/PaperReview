@@ -8,7 +8,8 @@ import './CurriculumPage.css';
 export default function CurriculumPage() {
   const navigate = useNavigate();
   const {
-    courses,
+    presetCourses,
+    myCourses,
     loadingCourses,
     courseDetail,
     loadingCourse,
@@ -20,12 +21,15 @@ export default function CurriculumPage() {
     readPapers,
     progressStats,
     generating,
+    forking,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
     handleToggleRead,
     handleSearchPaper,
     handleGenerate,
+    handleFork,
+    handleDelete,
     getModuleProgress,
   } = useCurriculum();
 
@@ -45,7 +49,8 @@ export default function CurriculumPage() {
 
       <div className="curriculum-content">
         <CourseSidebar
-          courses={courses}
+          presetCourses={presetCourses}
+          myCourses={myCourses}
           loadingCourses={loadingCourses}
           selectedCourseId={selectedCourseId}
           selectedModuleId={selectedModuleId}
@@ -53,9 +58,12 @@ export default function CurriculumPage() {
           progressStats={progressStats}
           courseDetail={courseDetail}
           generating={generating}
+          forking={forking}
           onSelectCourse={handleSelectCourse}
           onSelectModule={setSelectedModuleId}
           onGenerate={handleGenerate}
+          onFork={handleFork}
+          onDelete={handleDelete}
           getModuleProgress={getModuleProgress}
         />
 

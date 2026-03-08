@@ -6,6 +6,8 @@ import {
   fetchCurriculumProgress,
   updateCurriculumProgress,
   generateCurriculum,
+  forkCurriculum,
+  deleteCurriculum,
 } from '../api/client';
 import type {
   CurriculumSummary,
@@ -34,8 +36,9 @@ export function useCurriculum() {
   // Progress
   const [readPapers, setReadPapers] = useState<Set<string>>(new Set());
 
-  // Generate
+  // Generate / Fork
   const [generating, setGenerating] = useState(false);
+  const [forking, setForking] = useState(false);
 
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -204,6 +207,51 @@ export function useCurriculum() {
     return { read, total };
   }, [courseDetail, readPapers]);
 
+  // Derived lists: preset (featured) vs user's own
+  const presetCourses = useMemo(() => courses.filter((c) => c.is_preset), [courses]);
+  const myCourses = useMemo(() => courses.filter((c) => !c.is_preset), [courses]);
+
+  // Fork a preset curriculum
+  const handleFork = useCallback(async (courseId: string) => {
+    setForking(true);
+    try {
+      const result = await forkCurriculum(courseId);
+      // Refresh course list
+      const data = await fetchCurricula();
+      setCourses(data.curricula || []);
+      // Auto-select the forked course
+      if (result.course_id) {
+        await handleSelectCourse(result.course_id);
+      }
+      return result;
+    } catch (err) {
+      console.error('Failed to fork curriculum:', err);
+      throw err;
+    } finally {
+      setForking(false);
+    }
+  }, [handleSelectCourse]);
+
+  // Delete a user's own curriculum
+  const handleDelete = useCallback(async (courseId: string) => {
+    try {
+      await deleteCurriculum(courseId);
+      // Refresh course list
+      const data = await fetchCurricula();
+      setCourses(data.curricula || []);
+      // Clear selection if deleted course was selected
+      if (selectedCourseId === courseId) {
+        setSelectedCourseId(null);
+        setCourseDetail(null);
+        setSelectedModuleId(null);
+        setSelectedPaperId(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete curriculum:', err);
+      throw err;
+    }
+  }, [selectedCourseId]);
+
   // Generate custom curriculum
   const handleGenerate = useCallback(async (topic: string, difficulty: string, numModules: number) => {
     setGenerating(true);
@@ -227,6 +275,8 @@ export function useCurriculum() {
 
   return {
     courses,
+    presetCourses,
+    myCourses,
     loadingCourses,
     courseDetail,
     loadingCourse,
@@ -238,12 +288,15 @@ export function useCurriculum() {
     readPapers,
     progressStats,
     generating,
+    forking,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
     handleToggleRead,
     handleSearchPaper,
     handleGenerate,
+    handleFork,
+    handleDelete,
     getModuleProgress,
   };
 }

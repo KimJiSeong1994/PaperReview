@@ -5,8 +5,11 @@ Curriculum endpoints:
   GET    /api/curricula/{id}/progress    — User reading progress
   PATCH  /api/curricula/{id}/progress    — Toggle paper read status
   POST   /api/curricula/generate         — Generate custom curriculum via LLM
+  POST   /api/curricula/{id}/fork        — Fork a preset curriculum to user's own
+  DELETE /api/curricula/{id}             — Delete user's own curriculum
 """
 
+import copy
 import hashlib
 import json
 import logging
@@ -27,6 +30,9 @@ router = APIRouter(prefix="/api", tags=["curriculum"])
 CURRICULA_DIR = Path("data/curricula")
 PROGRESS_FILE = Path("data/curriculum_progress.json")
 _progress_lock = FileLock(str(PROGRESS_FILE) + ".lock")
+
+# Preset course IDs — these are the built-in featured courses
+PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229"}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -106,10 +112,19 @@ class CurriculumGenerateRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 @router.get("/curricula")
-async def list_curricula():
-    """List all available curricula."""
+async def list_curricula(owner: Optional[str] = None):
+    """List all available curricula with preset/owner metadata."""
     index = _load_index()
-    return index
+    enriched = []
+    for c in index.get("curricula", []):
+        entry = {**c}
+        entry.setdefault("is_preset", c["id"] in PRESET_COURSE_IDS)
+        entry.setdefault("owner", None)
+        entry.setdefault("forked_from", None)
+        enriched.append(entry)
+    if owner:
+        enriched = [c for c in enriched if c.get("owner") == owner or c.get("is_preset")]
+    return {"curricula": enriched}
 
 
 @router.get("/curricula/generate")
@@ -309,3 +324,96 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
         "course_id": course_id,
         "curriculum": curriculum,
     }
+
+
+@router.post("/curricula/{course_id}/fork")
+async def fork_curriculum(
+    course_id: str,
+    username: str = Depends(get_current_user),
+):
+    """Fork a curriculum into the user's own collection."""
+    source = _load_course(course_id)
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+
+    # Generate unique forked ID
+    fork_hash = hashlib.md5(f"{username}:{course_id}:{datetime.now().isoformat()}".encode()).hexdigest()[:8]
+    forked_id = f"fork_{fork_hash}"
+
+    # Deep copy and update metadata
+    forked = copy.deepcopy(source)
+    forked["id"] = forked_id
+    forked["name"] = f"{source.get('name', course_id)}"
+    forked["forked_from"] = course_id
+    forked["owner"] = username
+
+    # Re-assign paper IDs to avoid collision
+    paper_counter = 1
+    for module in forked.get("modules", []):
+        for topic in module.get("topics", []):
+            for paper in topic.get("papers", []):
+                paper["id"] = f"paper-{forked_id}-{paper_counter:03d}"
+                paper_counter += 1
+
+    # Save course file
+    CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
+    course_path = CURRICULA_DIR / f"{forked_id}.json"
+    with open(course_path, "w", encoding="utf-8") as f:
+        json.dump(forked, f, ensure_ascii=False, indent=2)
+
+    # Register in index
+    index = _load_index()
+    total_papers = _count_papers(forked)
+    total_modules = len(forked.get("modules", []))
+
+    index["curricula"].append({
+        "id": forked_id,
+        "name": forked["name"],
+        "university": source.get("university", ""),
+        "instructor": source.get("instructor", ""),
+        "difficulty": source.get("difficulty", "intermediate"),
+        "prerequisites": source.get("prerequisites", []),
+        "description": source.get("description", ""),
+        "url": source.get("url", ""),
+        "total_papers": total_papers,
+        "total_modules": total_modules,
+        "is_preset": False,
+        "owner": username,
+        "forked_from": course_id,
+    })
+    _save_index(index)
+
+    return {
+        "success": True,
+        "course_id": forked_id,
+        "forked_from": course_id,
+    }
+
+
+@router.delete("/curricula/{course_id}")
+async def delete_curriculum(
+    course_id: str,
+    username: str = Depends(get_current_user),
+):
+    """Delete a user's own curriculum (cannot delete presets)."""
+    if course_id in PRESET_COURSE_IDS:
+        raise HTTPException(status_code=403, detail="Cannot delete preset courses")
+
+    index = _load_index()
+    entry = next((c for c in index["curricula"] if c["id"] == course_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+
+    if entry.get("owner") and entry["owner"] != username:
+        raise HTTPException(status_code=403, detail="Cannot delete another user's curriculum")
+
+    # Remove from index
+    index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
+    _save_index(index)
+
+    # Remove course file
+    course_path = CURRICULA_DIR / f"{course_id}.json"
+    if course_path.exists():
+        course_path.unlink()
+
+    return {"success": True, "deleted": course_id}

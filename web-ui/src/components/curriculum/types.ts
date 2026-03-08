@@ -9,6 +9,9 @@ export interface CurriculumSummary {
   url: string;
   total_papers: number;
   total_modules: number;
+  is_preset?: boolean;
+  owner?: string | null;
+  forked_from?: string | null;
 }
 
 export interface CurriculumPaper {

@@ -7,7 +7,12 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
+
+  // 프로덕션(HTTPS)에서는 같은 origin 사용 (Nginx가 /api를 프록시)
+  if (window.location.protocol === 'https:') {
+    return '';
+  }
+
   // 개발 환경에서는 현재 호스트의 8000 포트 사용
   const hostname = window.location.hostname;
   return `http://${hostname}:8000`;
@@ -484,6 +489,16 @@ export const updateCurriculumProgress = async (id: string, paperId: string, read
 
 export const generateCurriculum = async (topic: string, difficulty: string, numModules: number) => {
   const response = await api.post('/api/curricula/generate', { topic, difficulty, num_modules: numModules });
+  return response.data;
+};
+
+export const forkCurriculum = async (courseId: string) => {
+  const response = await api.post(`/api/curricula/${courseId}/fork`);
+  return response.data;
+};
+
+export const deleteCurriculum = async (courseId: string) => {
+  const response = await api.delete(`/api/curricula/${courseId}`);
   return response.data;
 };
 
