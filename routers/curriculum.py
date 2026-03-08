@@ -10,17 +10,18 @@ Curriculum endpoints:
 """
 
 import copy
-import hashlib
 import json
 import logging
+import re
+import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from filelock import FileLock
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .deps import get_current_user, get_openai_client
 
@@ -31,24 +32,42 @@ router = APIRouter(prefix="/api", tags=["curriculum"])
 CURRICULA_DIR = Path("data/curricula")
 PROGRESS_FILE = Path("data/curriculum_progress.json")
 _progress_lock = FileLock(str(PROGRESS_FILE) + ".lock")
+_index_lock = FileLock(str(CURRICULA_DIR / "index.json") + ".lock")
 
 # Preset course IDs — these are the built-in featured courses
-PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229"}
+PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229", "stats315a", "stats361"}
+
+# Course ID validation pattern
+_COURSE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
+def _validate_course_id(course_id: str) -> str:
+    """Validate course_id to prevent path traversal attacks."""
+    if not _COURSE_ID_RE.match(course_id) or len(course_id) > 128:
+        raise HTTPException(status_code=400, detail="Invalid course ID format")
+    resolved = (CURRICULA_DIR / f"{course_id}.json").resolve()
+    if not str(resolved).startswith(str(CURRICULA_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid course ID")
+    return course_id
+
+
 def _load_index() -> dict:
-    """Load curricula index."""
+    """Load curricula index. Caller must hold _index_lock if writing."""
     index_path = CURRICULA_DIR / "index.json"
     if not index_path.exists():
         return {"curricula": []}
-    with open(index_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(index_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.error("Corrupted index.json, returning empty list")
+        return {"curricula": []}
 
 
 def _save_index(data: dict) -> None:
-    """Save curricula index (atomic write)."""
+    """Save curricula index (atomic write). Caller must hold _index_lock."""
     index_path = CURRICULA_DIR / "index.json"
     index_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = index_path.with_suffix(".json.tmp")
@@ -62,8 +81,22 @@ def _load_course(course_id: str) -> Optional[dict]:
     course_path = CURRICULA_DIR / f"{course_id}.json"
     if not course_path.exists():
         return None
-    with open(course_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(course_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.error("Corrupted course file: %s", course_id)
+        return None
+
+
+def _save_course(course_id: str, data: dict) -> None:
+    """Save a course JSON file (atomic write)."""
+    CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
+    course_path = CURRICULA_DIR / f"{course_id}.json"
+    tmp = course_path.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    tmp.replace(course_path)
 
 
 def _load_progress() -> dict:
@@ -88,6 +121,26 @@ def _save_progress(data: dict) -> None:
         tmp.replace(PROGRESS_FILE)
 
 
+def _update_progress_atomic(updater) -> dict:
+    """Atomically read-modify-write progress data. Returns updated progress."""
+    with _progress_lock:
+        if not PROGRESS_FILE.exists():
+            progress = {}
+        else:
+            try:
+                with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+                    progress = json.load(f)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                progress = {}
+        result = updater(progress)
+        PROGRESS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = PROGRESS_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(progress, f, ensure_ascii=False, indent=2)
+        tmp.replace(PROGRESS_FILE)
+        return result
+
+
 def _count_papers(course: dict) -> int:
     """Count total papers in a course."""
     count = 0
@@ -100,22 +153,22 @@ def _count_papers(course: dict) -> int:
 # ── Pydantic models ──────────────────────────────────────────────────
 
 class ProgressUpdateRequest(BaseModel):
-    paper_id: str
+    paper_id: str = Field(..., min_length=1, max_length=200)
     read: bool
 
 
 class CurriculumGenerateRequest(BaseModel):
-    topic: str
-    difficulty: str = "intermediate"
-    num_modules: int = 5
+    topic: str = Field(..., min_length=1, max_length=200)
+    difficulty: Literal["beginner", "intermediate", "advanced"] = "intermediate"
+    num_modules: int = Field(5, ge=2, le=15)
 
 
 class CurriculumGenerateStreamRequest(BaseModel):
-    topic: str
-    difficulty: str = "intermediate"
-    num_modules: int = 5
-    learning_goals: Optional[str] = None
-    paper_preference: Optional[str] = None
+    topic: str = Field(..., min_length=1, max_length=200)
+    difficulty: Literal["beginner", "intermediate", "advanced"] = "intermediate"
+    num_modules: int = Field(5, ge=2, le=15)
+    learning_goals: Optional[str] = Field(None, max_length=500)
+    paper_preference: Optional[str] = Field(None, max_length=500)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -145,6 +198,7 @@ async def generate_placeholder():
 @router.get("/curricula/{course_id}")
 async def get_curriculum(course_id: str):
     """Get full course detail with modules, topics, and papers."""
+    _validate_course_id(course_id)
     course = _load_course(course_id)
     if not course:
         raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
@@ -154,7 +208,7 @@ async def get_curriculum(course_id: str):
 @router.get("/curricula/{course_id}/progress")
 async def get_progress(course_id: str, username: str = Depends(get_current_user)):
     """Get user's reading progress for a course."""
-    # Verify course exists
+    _validate_course_id(course_id)
     course = _load_course(course_id)
     if not course:
         raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
@@ -181,30 +235,30 @@ async def update_progress(
     username: str = Depends(get_current_user),
 ):
     """Toggle a paper's read status for the current user."""
-    # Verify course exists
+    _validate_course_id(course_id)
     course = _load_course(course_id)
     if not course:
         raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
 
-    progress = _load_progress()
+    def updater(progress):
+        if username not in progress:
+            progress[username] = {}
+        if course_id not in progress[username]:
+            progress[username][course_id] = {"read_papers": [], "updated_at": None}
 
-    if username not in progress:
-        progress[username] = {}
-    if course_id not in progress[username]:
-        progress[username][course_id] = {"read_papers": [], "updated_at": None}
+        user_course = progress[username][course_id]
+        read_set = set(user_course["read_papers"])
 
-    user_course = progress[username][course_id]
-    read_set = set(user_course["read_papers"])
+        if request.read:
+            read_set.add(request.paper_id)
+        else:
+            read_set.discard(request.paper_id)
 
-    if request.read:
-        read_set.add(request.paper_id)
-    else:
-        read_set.discard(request.paper_id)
+        user_course["read_papers"] = sorted(read_set)
+        user_course["updated_at"] = datetime.now().isoformat()
+        return user_course
 
-    user_course["read_papers"] = sorted(read_set)
-    user_course["updated_at"] = datetime.now().isoformat()
-
-    _save_progress(progress)
+    user_course = _update_progress_atomic(updater)
 
     total_papers = _count_papers(course)
     return {
@@ -223,7 +277,10 @@ async def generate_curriculum(
     """Generate a custom curriculum using LLM."""
     client = get_openai_client()
 
-    prompt = f"""You are an expert academic curriculum designer. Create a structured learning curriculum for the topic: "{request.topic}"
+    # Sanitize topic for prompt
+    safe_topic = request.topic.strip()[:200]
+
+    prompt = f"""You are an expert academic curriculum designer. Create a structured learning curriculum for the topic: "{safe_topic}"
 
 Requirements:
 - Difficulty level: {request.difficulty}
@@ -236,7 +293,7 @@ Requirements:
 Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 {{
   "id": "custom_<short_id>",
-  "name": "Custom: {request.topic}",
+  "name": "Custom: {safe_topic}",
   "university": "Custom Curriculum",
   "instructor": "AI Generated",
   "difficulty": "{request.difficulty}",
@@ -285,12 +342,15 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
     except Exception as e:
-        logger.error("LLM curriculum generation failed: %s", e)
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {str(e)}")
+        logger.error("LLM curriculum generation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=502, detail="Curriculum generation failed. Please try again.")
 
-    # Generate stable ID based on topic
-    topic_hash = hashlib.md5(request.topic.encode()).hexdigest()[:8]
-    course_id = f"custom_{topic_hash}"
+    # Validate basic structure
+    if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
+        raise HTTPException(status_code=502, detail="LLM returned curriculum without valid modules")
+
+    # Generate unique ID (UUID to avoid collisions)
+    course_id = f"custom_{uuid.uuid4().hex[:12]}"
     curriculum["id"] = course_id
 
     # Assign unique paper IDs
@@ -301,32 +361,31 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
                 paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
                 paper_counter += 1
 
-    # Save course file
-    CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
-    course_path = CURRICULA_DIR / f"{course_id}.json"
-    with open(course_path, "w", encoding="utf-8") as f:
-        json.dump(curriculum, f, ensure_ascii=False, indent=2)
+    # Save course file (atomic)
+    _save_course(course_id, curriculum)
 
-    # Register in index
-    index = _load_index()
-    total_papers = _count_papers(curriculum)
-    total_modules = len(curriculum.get("modules", []))
+    # Register in index (locked)
+    with _index_lock:
+        index = _load_index()
+        total_papers = _count_papers(curriculum)
+        total_modules = len(curriculum.get("modules", []))
 
-    # Remove existing entry with same ID if any
-    index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-    index["curricula"].append({
-        "id": course_id,
-        "name": curriculum.get("name", f"Custom: {request.topic}"),
-        "university": "Custom Curriculum",
-        "instructor": "AI Generated",
-        "difficulty": request.difficulty,
-        "prerequisites": curriculum.get("prerequisites", []),
-        "description": curriculum.get("description", ""),
-        "url": "",
-        "total_papers": total_papers,
-        "total_modules": total_modules,
-    })
-    _save_index(index)
+        index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
+        index["curricula"].append({
+            "id": course_id,
+            "name": curriculum.get("name", f"Custom: {request.topic}"),
+            "university": "Custom Curriculum",
+            "instructor": "AI Generated",
+            "difficulty": request.difficulty,
+            "prerequisites": curriculum.get("prerequisites", []),
+            "description": curriculum.get("description", ""),
+            "url": "",
+            "total_papers": total_papers,
+            "total_modules": total_modules,
+            "is_preset": False,
+            "owner": username,
+        })
+        _save_index(index)
 
     return {
         "success": True,
@@ -348,7 +407,7 @@ async def generate_curriculum_stream(
             client = get_openai_client()
         except Exception as e:
             logger.error("Failed to initialize OpenAI client: %s", e)
-            yield f"data: {json.dumps({'error': f'OpenAI client initialization failed: {e}'})}\n\n"
+            yield f"data: {json.dumps({'error': 'OpenAI client initialization failed'})}\n\n"
             return
 
         pipeline = CurriculumPipeline(client)
@@ -363,11 +422,13 @@ async def generate_curriculum_stream(
             if event.get("done") and event.get("curriculum"):
                 curriculum = event["curriculum"]
 
-                # Generate stable ID
-                topic_hash = hashlib.md5(
-                    f"{request.topic}:{datetime.now().isoformat()}".encode()
-                ).hexdigest()[:8]
-                course_id = f"custom_{topic_hash}"
+                # Validate basic structure
+                if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
+                    yield f"data: {json.dumps({'error': 'LLM returned invalid curriculum structure'})}\n\n"
+                    return
+
+                # Generate unique ID (UUID)
+                course_id = f"custom_{uuid.uuid4().hex[:12]}"
                 curriculum["id"] = course_id
 
                 # Assign unique paper IDs
@@ -378,33 +439,31 @@ async def generate_curriculum_stream(
                             paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
                             paper_counter += 1
 
-                # Save course file
-                CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
-                course_path = CURRICULA_DIR / f"{course_id}.json"
-                with open(course_path, "w", encoding="utf-8") as f:
-                    json.dump(curriculum, f, ensure_ascii=False, indent=2)
+                # Save course file (atomic)
+                _save_course(course_id, curriculum)
 
-                # Register in index
-                index = _load_index()
-                total_papers = _count_papers(curriculum)
-                total_modules = len(curriculum.get("modules", []))
+                # Register in index (locked)
+                with _index_lock:
+                    index = _load_index()
+                    total_papers = _count_papers(curriculum)
+                    total_modules = len(curriculum.get("modules", []))
 
-                index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-                index["curricula"].append({
-                    "id": course_id,
-                    "name": curriculum.get("name", f"Custom: {request.topic}"),
-                    "university": curriculum.get("university", "Multi-University Reference"),
-                    "instructor": curriculum.get("instructor", "AI Curated"),
-                    "difficulty": request.difficulty,
-                    "prerequisites": curriculum.get("prerequisites", []),
-                    "description": curriculum.get("description", ""),
-                    "url": "",
-                    "total_papers": total_papers,
-                    "total_modules": total_modules,
-                    "is_preset": False,
-                    "owner": username,
-                })
-                _save_index(index)
+                    index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
+                    index["curricula"].append({
+                        "id": course_id,
+                        "name": curriculum.get("name", f"Custom: {request.topic}"),
+                        "university": curriculum.get("university", "Multi-University Reference"),
+                        "instructor": curriculum.get("instructor", "AI Curated"),
+                        "difficulty": request.difficulty,
+                        "prerequisites": curriculum.get("prerequisites", []),
+                        "description": curriculum.get("description", ""),
+                        "url": "",
+                        "total_papers": total_papers,
+                        "total_modules": total_modules,
+                        "is_preset": False,
+                        "owner": username,
+                    })
+                    _save_index(index)
 
                 yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
             else:
@@ -427,13 +486,13 @@ async def fork_curriculum(
     username: str = Depends(get_current_user),
 ):
     """Fork a curriculum into the user's own collection."""
+    _validate_course_id(course_id)
     source = _load_course(course_id)
     if not source:
         raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
 
-    # Generate unique forked ID
-    fork_hash = hashlib.md5(f"{username}:{course_id}:{datetime.now().isoformat()}".encode()).hexdigest()[:8]
-    forked_id = f"fork_{fork_hash}"
+    # Generate unique forked ID (UUID)
+    forked_id = f"fork_{uuid.uuid4().hex[:12]}"
 
     # Deep copy and update metadata
     forked = copy.deepcopy(source)
@@ -450,33 +509,31 @@ async def fork_curriculum(
                 paper["id"] = f"paper-{forked_id}-{paper_counter:03d}"
                 paper_counter += 1
 
-    # Save course file
-    CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
-    course_path = CURRICULA_DIR / f"{forked_id}.json"
-    with open(course_path, "w", encoding="utf-8") as f:
-        json.dump(forked, f, ensure_ascii=False, indent=2)
+    # Save course file (atomic)
+    _save_course(forked_id, forked)
 
-    # Register in index
-    index = _load_index()
-    total_papers = _count_papers(forked)
-    total_modules = len(forked.get("modules", []))
+    # Register in index (locked)
+    with _index_lock:
+        index = _load_index()
+        total_papers = _count_papers(forked)
+        total_modules = len(forked.get("modules", []))
 
-    index["curricula"].append({
-        "id": forked_id,
-        "name": forked["name"],
-        "university": source.get("university", ""),
-        "instructor": source.get("instructor", ""),
-        "difficulty": source.get("difficulty", "intermediate"),
-        "prerequisites": source.get("prerequisites", []),
-        "description": source.get("description", ""),
-        "url": source.get("url", ""),
-        "total_papers": total_papers,
-        "total_modules": total_modules,
-        "is_preset": False,
-        "owner": username,
-        "forked_from": course_id,
-    })
-    _save_index(index)
+        index["curricula"].append({
+            "id": forked_id,
+            "name": forked["name"],
+            "university": source.get("university", ""),
+            "instructor": source.get("instructor", ""),
+            "difficulty": source.get("difficulty", "intermediate"),
+            "prerequisites": source.get("prerequisites", []),
+            "description": source.get("description", ""),
+            "url": source.get("url", ""),
+            "total_papers": total_papers,
+            "total_modules": total_modules,
+            "is_preset": False,
+            "owner": username,
+            "forked_from": course_id,
+        })
+        _save_index(index)
 
     return {
         "success": True,
@@ -491,24 +548,40 @@ async def delete_curriculum(
     username: str = Depends(get_current_user),
 ):
     """Delete a user's own curriculum (cannot delete presets)."""
+    _validate_course_id(course_id)
+
     if course_id in PRESET_COURSE_IDS:
         raise HTTPException(status_code=403, detail="Cannot delete preset courses")
 
-    index = _load_index()
-    entry = next((c for c in index["curricula"] if c["id"] == course_id), None)
-    if not entry:
-        raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+    with _index_lock:
+        index = _load_index()
+        entry = next((c for c in index["curricula"] if c["id"] == course_id), None)
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
 
-    if entry.get("owner") and entry["owner"] != username:
-        raise HTTPException(status_code=403, detail="Cannot delete another user's curriculum")
+        # Strict ownership check: only owner can delete
+        if entry.get("owner") != username:
+            raise HTTPException(status_code=403, detail="Cannot delete another user's curriculum")
 
-    # Remove from index
-    index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-    _save_index(index)
+        # Check is_preset field as additional safeguard
+        if entry.get("is_preset"):
+            raise HTTPException(status_code=403, detail="Cannot delete preset courses")
+
+        # Remove from index
+        index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
+        _save_index(index)
 
     # Remove course file
     course_path = CURRICULA_DIR / f"{course_id}.json"
     if course_path.exists():
         course_path.unlink()
+
+    # Clean up orphaned progress data
+    def cleanup_progress(progress):
+        for user_data in progress.values():
+            user_data.pop(course_id, None)
+        return None
+
+    _update_progress_atomic(cleanup_progress)
 
     return {"success": True, "deleted": course_id}

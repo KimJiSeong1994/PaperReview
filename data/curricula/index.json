@@ -9,7 +9,7 @@
       "prerequisites": ["CS109 (Probability)", "CS161 (Algorithms)", "CS229 or equivalent ML course", "Linear Algebra", "Graph Theory Basics", "Python/PyTorch"],
       "description": "Analysis of large-scale graph and network data. Graph neural networks, knowledge graphs, and applications to social networks, biology, and recommendation systems.",
       "url": "https://web.stanford.edu/class/cs224w/",
-      "total_papers": 25,
+      "total_papers": 22,
       "total_modules": 6
     },
     {
@@ -21,7 +21,7 @@
       "prerequisites": ["Calculus", "Linear Algebra", "CS109 (Probability)", "CS229 or CS230 (ML/Deep Learning)", "Python/PyTorch", "Linguistics basics (helpful)"],
       "description": "Deep learning approaches to NLP. Word vectors, neural networks, transformers, pretraining, and applications to machine translation, question answering, and text generation.",
       "url": "https://web.stanford.edu/class/cs224n/",
-      "total_papers": 28,
+      "total_papers": 19,
       "total_modules": 7
     },
     {
@@ -33,7 +33,7 @@
       "prerequisites": ["Calculus & Linear Algebra", "CS109 (Probability & Statistics)", "CS106B (Programming Abstractions)", "CS229 or equivalent ML course", "Python/NumPy"],
       "description": "Convolutional neural networks and their applications in computer vision. Image classification, object detection, segmentation, generative models, and visual understanding.",
       "url": "https://cs231n.stanford.edu/",
-      "total_papers": 26,
+      "total_papers": 20,
       "total_modules": 7
     },
     {
@@ -45,7 +45,31 @@
       "prerequisites": ["Linear Algebra (MATH 51)", "Probability & Statistics (CS109)", "Multivariable Calculus", "CS106A or CS106B (Programming)", "Python/NumPy"],
       "description": "Broad introduction to machine learning. Supervised learning, unsupervised learning, reinforcement learning, and learning theory with mathematical foundations.",
       "url": "https://cs229.stanford.edu/",
-      "total_papers": 22,
+      "total_papers": 17,
+      "total_modules": 6
+    },
+    {
+      "id": "stats315a",
+      "name": "STATS 315A: Modern Applied Statistics — Learning",
+      "university": "Stanford University",
+      "instructor": "Trevor Hastie, Robert Tibshirani, John Duchi",
+      "difficulty": "advanced",
+      "prerequisites": ["Linear Algebra", "Probability & Statistics (STATS 116)", "CS109 or equivalent", "Matrix Calculus", "R or Python programming", "Basic Machine Learning (CS229 or equivalent)"],
+      "description": "Advanced applied statistics focusing on modern learning methods. Covers clustering, dimensionality reduction, spectral methods, matrix decomposition, and their applications to genomics, information retrieval, and recommender systems.",
+      "url": "https://web.stanford.edu/class/stats315a/",
+      "total_papers": 25,
+      "total_modules": 6
+    },
+    {
+      "id": "stats361",
+      "name": "STATS 361: Causal Inference",
+      "university": "Stanford University",
+      "instructor": "Stefan Wager, Dirk Rothenhaeusler",
+      "difficulty": "advanced",
+      "prerequisites": ["Probability & Statistics (STATS 200 or equivalent)", "Linear Algebra", "CS109 or equivalent", "Basic Machine Learning (CS229 helpful)", "R or Python programming"],
+      "description": "Foundations of causal inference from observational and experimental data. Covers potential outcomes, randomized experiments, propensity scores, instrumental variables, regression discontinuity, and modern machine learning approaches to heterogeneous treatment effects.",
+      "url": "https://web.stanford.edu/~swager/stats361.html",
+      "total_papers": 24,
       "total_modules": 6
     }
   ]

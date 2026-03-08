@@ -1,0 +1,407 @@
+{
+  "id": "stats315a",
+  "name": "STATS 315A: Modern Applied Statistics — Learning",
+  "university": "Stanford University",
+  "instructor": "Trevor Hastie, Robert Tibshirani, John Duchi",
+  "difficulty": "advanced",
+  "prerequisites": ["Linear Algebra", "Probability & Statistics (STATS 116)", "CS109 or equivalent", "Matrix Calculus", "R or Python programming", "Basic Machine Learning (CS229 or equivalent)"],
+  "description": "Advanced applied statistics focusing on modern learning methods. Covers clustering, dimensionality reduction, spectral methods, matrix decomposition, and their applications to genomics, information retrieval, and recommender systems.",
+  "url": "https://web.stanford.edu/class/stats315a/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Statistical Learning Framework",
+      "description": "Overview of statistical learning theory, bias-variance tradeoff, and model selection.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Bias-Variance Tradeoff and Model Complexity",
+          "papers": [
+            {
+              "id": "paper-stats315a-001",
+              "title": "The Elements of Statistical Learning: Data Mining, Inference, and Prediction",
+              "authors": ["Trevor Hastie", "Robert Tibshirani", "Jerome Friedman"],
+              "year": 2009,
+              "venue": "Springer Series in Statistics",
+              "arxiv_id": null,
+              "doi": "10.1007/978-0-387-84858-7",
+              "category": "required",
+              "context": "통계적 학습의 바이블. 이 강의의 핵심 교재로 모든 주제를 아우른다."
+            },
+            {
+              "id": "paper-stats315a-002",
+              "title": "Statistical Modeling: The Two Cultures",
+              "authors": ["Leo Breiman"],
+              "year": 2001,
+              "venue": "Statistical Science",
+              "arxiv_id": null,
+              "doi": "10.1214/ss/1009213726",
+              "category": "required",
+              "context": "데이터 모델링 vs 알고리즘 모델링 문화를 비교한 영향력 있는 논문."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "Cross-Validation and Model Selection",
+          "papers": [
+            {
+              "id": "paper-stats315a-003",
+              "title": "A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model Selection",
+              "authors": ["Ron Kohavi"],
+              "year": 1995,
+              "venue": "IJCAI",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "교차검증과 부트스트랩 비교를 체계적으로 분석한 실용적 가이드."
+            },
+            {
+              "id": "paper-stats315a-004",
+              "title": "An Introduction to the Bootstrap",
+              "authors": ["Bradley Efron", "Robert J. Tibshirani"],
+              "year": 1993,
+              "venue": "Chapman & Hall/CRC",
+              "arxiv_id": null,
+              "doi": "10.1007/978-1-4899-4541-9",
+              "category": "optional",
+              "context": "부트스트랩 방법론의 교과서. 재표집을 통한 추론의 기초를 확립했다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Regularization and Sparsity",
+      "description": "Ridge regression, Lasso, elastic net, and the geometry of regularization.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "L1/L2 Regularization Methods",
+          "papers": [
+            {
+              "id": "paper-stats315a-005",
+              "title": "Regression Shrinkage and Selection Via the Lasso",
+              "authors": ["Robert Tibshirani"],
+              "year": 1996,
+              "venue": "Journal of the Royal Statistical Society: Series B",
+              "arxiv_id": null,
+              "doi": "10.1111/j.2517-6161.1996.tb02080.x",
+              "category": "required",
+              "context": "L1 정규화(Lasso)를 제안한 기념비적 논문. 희소 모델 선택의 시작."
+            },
+            {
+              "id": "paper-stats315a-006",
+              "title": "Regularization and Variable Selection Via the Elastic Net",
+              "authors": ["Hui Zou", "Trevor Hastie"],
+              "year": 2005,
+              "venue": "Journal of the Royal Statistical Society: Series B",
+              "arxiv_id": null,
+              "doi": "10.1111/j.1467-9868.2005.00503.x",
+              "category": "required",
+              "context": "Elastic Net: Lasso와 Ridge를 결합하여 상관된 변수 그룹 선택 문제를 해결."
+            },
+            {
+              "id": "paper-stats315a-007",
+              "title": "Regularization Paths for Generalized Linear Models via Coordinate Descent",
+              "authors": ["Jerome Friedman", "Trevor Hastie", "Robert Tibshirani"],
+              "year": 2010,
+              "venue": "Journal of Statistical Software",
+              "arxiv_id": null,
+              "doi": "10.18637/jss.v033.i01",
+              "category": "optional",
+              "context": "glmnet 패키지의 기반 논문. 좌표 하강법으로 정규화 경로를 효율적으로 계산."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Sparse Signal Recovery",
+          "papers": [
+            {
+              "id": "paper-stats315a-008",
+              "title": "For Most Large Underdetermined Systems of Linear Equations the Minimal L1-norm Solution Is Also the Sparsest Solution",
+              "authors": ["David L. Donoho"],
+              "year": 2006,
+              "venue": "Communications on Pure and Applied Mathematics",
+              "arxiv_id": null,
+              "doi": "10.1002/cpa.20132",
+              "category": "optional",
+              "context": "L1 최소화가 희소 해를 복원함을 증명. 압축 센싱의 이론적 기초."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Clustering Methods",
+      "description": "K-means, hierarchical clustering, spectral clustering, and model-based approaches.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "K-Means and Hierarchical Clustering",
+          "papers": [
+            {
+              "id": "paper-stats315a-009",
+              "title": "Algorithm AS 136: A K-Means Clustering Algorithm",
+              "authors": ["J. A. Hartigan", "M. A. Wong"],
+              "year": 1979,
+              "venue": "Journal of the Royal Statistical Society: Series C",
+              "arxiv_id": null,
+              "doi": "10.2307/2346830",
+              "category": "required",
+              "context": "가장 널리 사용되는 K-means 알고리즘의 원전. 효율적 구현 방법을 제시."
+            },
+            {
+              "id": "paper-stats315a-010",
+              "title": "Estimating the Number of Clusters in a Data Set Via the Gap Statistic",
+              "authors": ["Robert Tibshirani", "Guenther Walther", "Trevor Hastie"],
+              "year": 2001,
+              "venue": "Journal of the Royal Statistical Society: Series B",
+              "arxiv_id": null,
+              "doi": "10.1111/1467-9868.00293",
+              "category": "required",
+              "context": "최적 클러스터 수를 결정하는 Gap Statistic 제안. 실무에서 널리 사용된다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Spectral Clustering",
+          "papers": [
+            {
+              "id": "paper-stats315a-011",
+              "title": "A Tutorial on Spectral Clustering",
+              "authors": ["Ulrike von Luxburg"],
+              "year": 2007,
+              "venue": "Statistics and Computing",
+              "arxiv_id": "0711.0189",
+              "doi": "10.1007/s11222-007-9033-z",
+              "category": "required",
+              "context": "스펙트럼 클러스터링의 이론과 실용적 가이드를 포괄적으로 정리한 튜토리얼."
+            },
+            {
+              "id": "paper-stats315a-012",
+              "title": "Normalized Cuts and Image Segmentation",
+              "authors": ["Jianbo Shi", "Jitendra Malik"],
+              "year": 2000,
+              "venue": "IEEE Transactions on Pattern Analysis and Machine Intelligence",
+              "arxiv_id": null,
+              "doi": "10.1109/34.868688",
+              "category": "optional",
+              "context": "정규화 컷 기반 이미지 분할. 스펙트럼 클러스터링의 실제 응용을 보여준다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Dimensionality Reduction and Matrix Decomposition",
+      "description": "PCA, SVD, non-negative matrix factorization, and their applications.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "PCA and Singular Value Decomposition",
+          "papers": [
+            {
+              "id": "paper-stats315a-013",
+              "title": "Principal Component Analysis",
+              "authors": ["Ian T. Jolliffe"],
+              "year": 2002,
+              "venue": "Springer Series in Statistics",
+              "arxiv_id": null,
+              "doi": "10.1007/b98835",
+              "category": "required",
+              "context": "PCA의 이론과 응용을 집대성한 교과서. 차원 축소의 기본서."
+            },
+            {
+              "id": "paper-stats315a-014",
+              "title": "A Direct Formulation for Sparse PCA Using Semidefinite Programming",
+              "authors": ["Alexandre d'Aspremont", "Laurent El Ghaoui", "Michael I. Jordan", "Gert R. G. Lanckriet"],
+              "year": 2007,
+              "venue": "SIAM Review",
+              "arxiv_id": "0406021",
+              "doi": "10.1137/050645506",
+              "category": "optional",
+              "context": "Sparse PCA를 반정치 프로그래밍으로 정식화. 해석 가능한 주성분 추출."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Non-Negative Matrix Factorization",
+          "papers": [
+            {
+              "id": "paper-stats315a-015",
+              "title": "Learning the Parts of Objects by Non-Negative Matrix Factorization",
+              "authors": ["Daniel D. Lee", "H. Sebastian Seung"],
+              "year": 1999,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/44565",
+              "category": "required",
+              "context": "NMF를 제안한 Nature 논문. 얼굴 인식에서 부분 기반 표현 학습의 시작."
+            },
+            {
+              "id": "paper-stats315a-016",
+              "title": "Algorithms for Non-negative Matrix Factorization",
+              "authors": ["Daniel D. Lee", "H. Sebastian Seung"],
+              "year": 2001,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "optional",
+              "context": "NMF의 곱셈 업데이트 알고리즘을 제안. 수렴성 증명과 실용적 구현법."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Ensemble Methods and Boosting",
+      "description": "Bagging, random forests, gradient boosting, and AdaBoost.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Random Forests",
+          "papers": [
+            {
+              "id": "paper-stats315a-017",
+              "title": "Random Forests",
+              "authors": ["Leo Breiman"],
+              "year": 2001,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1023/A:1010933404324",
+              "category": "required",
+              "context": "랜덤 포레스트를 제안한 원전. 배깅과 랜덤 특성 선택의 결합."
+            },
+            {
+              "id": "paper-stats315a-018",
+              "title": "Bagging Predictors",
+              "authors": ["Leo Breiman"],
+              "year": 1996,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00058655",
+              "category": "optional",
+              "context": "Bootstrap Aggregating(배깅) 기법 제안. 앙상블 학습의 기초를 놓았다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Boosting Methods",
+          "papers": [
+            {
+              "id": "paper-stats315a-019",
+              "title": "A Decision-Theoretic Generalization of On-Line Learning and an Application to Boosting",
+              "authors": ["Yoav Freund", "Robert E. Schapire"],
+              "year": 1997,
+              "venue": "Journal of Computer and System Sciences",
+              "arxiv_id": null,
+              "doi": "10.1006/jcss.1997.1504",
+              "category": "required",
+              "context": "AdaBoost 알고리즘의 이론적 기초를 확립한 논문."
+            },
+            {
+              "id": "paper-stats315a-020",
+              "title": "Greedy Function Approximation: A Gradient Boosting Machine",
+              "authors": ["Jerome H. Friedman"],
+              "year": 2001,
+              "venue": "Annals of Statistics",
+              "arxiv_id": null,
+              "doi": "10.1214/aos/1013203451",
+              "category": "required",
+              "context": "Gradient Boosting을 제안. XGBoost, LightGBM 등 현대 부스팅의 기원."
+            },
+            {
+              "id": "paper-stats315a-021",
+              "title": "Additive Logistic Regression: A Statistical View of Boosting",
+              "authors": ["Jerome Friedman", "Trevor Hastie", "Robert Tibshirani"],
+              "year": 2000,
+              "venue": "Annals of Statistics",
+              "arxiv_id": null,
+              "doi": "10.1214/aos/1016218223",
+              "category": "optional",
+              "context": "부스팅을 통계적 관점에서 재해석. AdaBoost가 지수 손실의 전진 단계 가법 모델임을 증명."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Applications: Recommender Systems and Information Retrieval",
+      "description": "Collaborative filtering, matrix completion, PageRank, and latent semantic analysis.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Collaborative Filtering and Matrix Completion",
+          "papers": [
+            {
+              "id": "paper-stats315a-022",
+              "title": "Matrix Factorization Techniques for Recommender Systems",
+              "authors": ["Yehuda Koren", "Robert Bell", "Chris Volinsky"],
+              "year": 2009,
+              "venue": "Computer",
+              "arxiv_id": null,
+              "doi": "10.1109/MC.2009.263",
+              "category": "required",
+              "context": "Netflix Prize 수상팀의 행렬 분해 기반 추천 시스템 핵심 기법 정리."
+            },
+            {
+              "id": "paper-stats315a-023",
+              "title": "Exact Matrix Completion via Convex Optimization",
+              "authors": ["Emmanuel J. Candes", "Benjamin Recht"],
+              "year": 2009,
+              "venue": "Foundations of Computational Mathematics",
+              "arxiv_id": "0805.4471",
+              "doi": "10.1007/s10208-009-9045-5",
+              "category": "optional",
+              "context": "핵노름 최소화를 통한 행렬 완성의 이론적 보장을 증명한 논문."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "PageRank and Latent Semantic Indexing",
+          "papers": [
+            {
+              "id": "paper-stats315a-024",
+              "title": "The PageRank Citation Ranking: Bringing Order to the Web",
+              "authors": ["Lawrence Page", "Sergey Brin", "Rajeev Motwani", "Terry Winograd"],
+              "year": 1999,
+              "venue": "Stanford InfoLab Technical Report",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "Google의 PageRank 알고리즘 원전. 그래프 기반 랭킹의 선구적 연구."
+            },
+            {
+              "id": "paper-stats315a-025",
+              "title": "Indexing by Latent Semantic Analysis",
+              "authors": ["Scott Deerwester", "Susan T. Dumais", "George W. Furnas", "Thomas K. Landauer", "Richard Harshman"],
+              "year": 1990,
+              "venue": "Journal of the American Society for Information Science",
+              "arxiv_id": null,
+              "doi": "10.1002/(SICI)1097-4571(199009)41:6<391::AID-ASI1>3.0.CO;2-9",
+              "category": "required",
+              "context": "SVD를 활용한 잠재 의미 분석(LSA) 제안. 정보 검색의 패러다임 전환."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,396 @@
+{
+  "id": "stats361",
+  "name": "STATS 361: Causal Inference",
+  "university": "Stanford University",
+  "instructor": "Stefan Wager, Dirk Rothenhaeusler",
+  "difficulty": "advanced",
+  "prerequisites": ["Probability & Statistics (STATS 200 or equivalent)", "Linear Algebra", "CS109 or equivalent", "Basic Machine Learning (CS229 helpful)", "R or Python programming"],
+  "description": "Foundations of causal inference from observational and experimental data. Covers potential outcomes, randomized experiments, propensity scores, instrumental variables, regression discontinuity, and modern machine learning approaches to heterogeneous treatment effects.",
+  "url": "https://web.stanford.edu/~swager/stats361.html",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Foundations: Potential Outcomes and Randomization",
+      "description": "Rubin causal model, potential outcomes framework, and randomized controlled trials.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Potential Outcomes Framework",
+          "papers": [
+            {
+              "id": "paper-stats361-001",
+              "title": "Estimating Causal Effects of Treatments in Randomized and Nonrandomized Studies",
+              "authors": ["Donald B. Rubin"],
+              "year": 1974,
+              "venue": "Journal of Educational Psychology",
+              "arxiv_id": null,
+              "doi": "10.1037/h0037350",
+              "category": "required",
+              "context": "Rubin의 잠재적 결과 프레임워크를 제안한 기념비적 논문. 현대 인과추론의 시작."
+            },
+            {
+              "id": "paper-stats361-002",
+              "title": "Statistics and Causal Inference",
+              "authors": ["Paul W. Holland"],
+              "year": 1986,
+              "venue": "Journal of the American Statistical Association",
+              "arxiv_id": null,
+              "doi": "10.1080/01621459.1986.10478354",
+              "category": "required",
+              "context": "인과추론의 근본 문제(Fundamental Problem)를 명확히 정의. 'No causation without manipulation' 원칙 확립."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "Randomized Experiments and Fisher's Exact Test",
+          "papers": [
+            {
+              "id": "paper-stats361-003",
+              "title": "Causal Inference for Statistics, Social, and Biomedical Sciences: An Introduction",
+              "authors": ["Guido W. Imbens", "Donald B. Rubin"],
+              "year": 2015,
+              "venue": "Cambridge University Press",
+              "arxiv_id": null,
+              "doi": "10.1017/CBO9781139025751",
+              "category": "required",
+              "context": "Imbens-Rubin의 인과추론 교과서. 무작위 실험부터 관찰연구까지 체계적 정리."
+            },
+            {
+              "id": "paper-stats361-004",
+              "title": "Randomization Does Not Justify Logistic Regression",
+              "authors": ["David A. Freedman"],
+              "year": 2008,
+              "venue": "Statistical Science",
+              "arxiv_id": null,
+              "doi": "10.1214/08-STS262",
+              "category": "optional",
+              "context": "무작위 배정이 로지스틱 회귀의 정당성을 보장하지 않음을 보인 중요한 논문."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Observational Studies and Propensity Scores",
+      "description": "Propensity score matching, inverse probability weighting, and doubly robust estimation.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Propensity Score Methods",
+          "papers": [
+            {
+              "id": "paper-stats361-005",
+              "title": "The Central Role of the Propensity Score in Observational Studies for Causal Effects",
+              "authors": ["Paul R. Rosenbaum", "Donald B. Rubin"],
+              "year": 1983,
+              "venue": "Biometrika",
+              "arxiv_id": null,
+              "doi": "10.1093/biomet/70.1.41",
+              "category": "required",
+              "context": "성향점수(Propensity Score) 개념을 도입한 원전. 관찰연구에서 교란 변수 통제의 핵심 도구."
+            },
+            {
+              "id": "paper-stats361-006",
+              "title": "Efficient Estimation of Average Treatment Effects Using the Estimated Propensity Score",
+              "authors": ["Keisuke Hirano", "Guido W. Imbens", "Geert Ridder"],
+              "year": 2003,
+              "venue": "Econometrica",
+              "arxiv_id": null,
+              "doi": "10.1111/1468-0262.00442",
+              "category": "optional",
+              "context": "추정된 성향점수를 사용한 효율적 ATE 추정. 반모수 효율성 달성."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Doubly Robust Estimation",
+          "papers": [
+            {
+              "id": "paper-stats361-007",
+              "title": "Doubly Robust Estimation in Missing Data and Causal Inference Models",
+              "authors": ["Heejung Bang", "James M. Robins"],
+              "year": 2005,
+              "venue": "Biometrics",
+              "arxiv_id": null,
+              "doi": "10.1111/j.1541-0420.2005.00377.x",
+              "category": "required",
+              "context": "이중 강건 추정의 핵심 논문. 결과 모델 또는 성향점수 모델 중 하나만 맞아도 일치 추정량 확보."
+            },
+            {
+              "id": "paper-stats361-008",
+              "title": "Double/Debiased Machine Learning for Treatment and Structural Parameters",
+              "authors": ["Victor Chernozhukov", "Denis Chetverikov", "Mert Demirer", "Esther Duflo", "Christian Hansen", "Whitney Newey", "James Robins"],
+              "year": 2018,
+              "venue": "The Econometrics Journal",
+              "arxiv_id": "1608.00060",
+              "doi": "10.1111/ectj.12097",
+              "category": "required",
+              "context": "Double ML 프레임워크 제안. 고차원 교란변수에서 ML을 활용한 인과효과 추정."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Instrumental Variables and Regression Discontinuity",
+      "description": "IV estimation, LATE, compliance, and regression discontinuity designs.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "Instrumental Variables",
+          "papers": [
+            {
+              "id": "paper-stats361-009",
+              "title": "Identification and Estimation of Local Average Treatment Effects",
+              "authors": ["Guido W. Imbens", "Joshua D. Angrist"],
+              "year": 1994,
+              "venue": "Econometrica",
+              "arxiv_id": null,
+              "doi": "10.2307/2951620",
+              "category": "required",
+              "context": "LATE(Local Average Treatment Effect) 개념을 정의한 논문. 도구변수의 인과적 해석을 확립."
+            },
+            {
+              "id": "paper-stats361-010",
+              "title": "Does Compulsory School Attendance Affect Schooling and Earnings?",
+              "authors": ["Joshua D. Angrist", "Alan B. Krueger"],
+              "year": 1991,
+              "venue": "The Quarterly Journal of Economics",
+              "arxiv_id": null,
+              "doi": "10.2307/2937954",
+              "category": "optional",
+              "context": "출생 분기를 도구변수로 사용한 고전적 사례. IV 방법의 실제 적용을 보여준다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Regression Discontinuity Design",
+          "papers": [
+            {
+              "id": "paper-stats361-011",
+              "title": "Regression Discontinuity Designs: A Guide to Practice",
+              "authors": ["Guido W. Imbens", "Thomas Lemieux"],
+              "year": 2008,
+              "venue": "Journal of Econometrics",
+              "arxiv_id": null,
+              "doi": "10.1016/j.jeconom.2007.05.001",
+              "category": "required",
+              "context": "회귀 불연속 설계의 실용적 가이드. RDD의 설계, 추정, 검증 방법을 체계적으로 정리."
+            },
+            {
+              "id": "paper-stats361-012",
+              "title": "Optimal Bandwidth Choice for the Regression Discontinuity Estimator",
+              "authors": ["Guido Imbens", "Kalyanaraman Karthik"],
+              "year": 2012,
+              "venue": "Review of Economic Studies",
+              "arxiv_id": null,
+              "doi": "10.1093/restud/rdr043",
+              "category": "optional",
+              "context": "RDD에서 최적 대역폭 선택 방법 제안. 편향-분산 트레이드오프를 이론적으로 해결."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Heterogeneous Treatment Effects",
+      "description": "CATE estimation, causal forests, meta-learners, and personalized treatment.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Causal Forests and CATE",
+          "papers": [
+            {
+              "id": "paper-stats361-013",
+              "title": "Estimation and Inference of Heterogeneous Treatment Effects Using Random Forests",
+              "authors": ["Stefan Wager", "Susan Athey"],
+              "year": 2018,
+              "venue": "Journal of the American Statistical Association",
+              "arxiv_id": "1510.04342",
+              "doi": "10.1080/01621459.2017.1319839",
+              "category": "required",
+              "context": "Causal Forest를 제안한 핵심 논문. 랜덤 포레스트를 인과추론에 적용하여 이질적 처리효과 추정."
+            },
+            {
+              "id": "paper-stats361-014",
+              "title": "Recursive Partitioning for Heterogeneous Causal Effects",
+              "authors": ["Susan Athey", "Guido Imbens"],
+              "year": 2016,
+              "venue": "Proceedings of the National Academy of Sciences",
+              "arxiv_id": "1504.01132",
+              "doi": "10.1073/pnas.1510489113",
+              "category": "required",
+              "context": "Causal Tree 제안. 정직한 추정(honest estimation)으로 이질적 처리효과를 분할."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Meta-Learners for CATE",
+          "papers": [
+            {
+              "id": "paper-stats361-015",
+              "title": "Quasi-Oracle Estimation of Heterogeneous Treatment Effects",
+              "authors": ["Xinkun Nie", "Stefan Wager"],
+              "year": 2021,
+              "venue": "Biometrika",
+              "arxiv_id": "1712.04912",
+              "doi": "10.1093/biomet/asaa076",
+              "category": "required",
+              "context": "R-learner 제안. 로빈슨 변환 기반 CATE 추정으로 기존 메타러너 대비 효율성 향상."
+            },
+            {
+              "id": "paper-stats361-016",
+              "title": "Meta-Learners for Estimating Heterogeneous Treatment Effects Using Machine Learning",
+              "authors": ["Soren R. Kunzel", "Jasjeet S. Sekhon", "Peter J. Bickel", "Bin Yu"],
+              "year": 2019,
+              "venue": "Proceedings of the National Academy of Sciences",
+              "arxiv_id": "1706.03461",
+              "doi": "10.1073/pnas.1804597116",
+              "category": "required",
+              "context": "S-learner, T-learner, X-learner 등 메타러너 프레임워크를 체계적으로 비교."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Sensitivity Analysis and Mediation",
+      "description": "Unmeasured confounding, sensitivity analysis, and causal mediation analysis.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Sensitivity Analysis for Unmeasured Confounding",
+          "papers": [
+            {
+              "id": "paper-stats361-017",
+              "title": "Observational Studies",
+              "authors": ["Paul R. Rosenbaum"],
+              "year": 2002,
+              "venue": "Springer Series in Statistics",
+              "arxiv_id": null,
+              "doi": "10.1007/978-1-4757-3692-2",
+              "category": "required",
+              "context": "관찰연구 설계와 민감도 분석의 교과서. 숨겨진 편향에 대한 체계적 접근법 제시."
+            },
+            {
+              "id": "paper-stats361-018",
+              "title": "Making Sense of Sensitivity: Extending Omitted Variable Bias",
+              "authors": ["Carlos Cinelli", "Chad Hazlett"],
+              "year": 2020,
+              "venue": "Journal of the Royal Statistical Society: Series B",
+              "arxiv_id": "1908.01211",
+              "doi": "10.1111/rssb.12348",
+              "category": "required",
+              "context": "누락 변수 편향 프레임워크를 확장한 민감도 분석. 시각화 도구(sensemakr)와 함께 실용적 방법론 제시."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Causal Mediation",
+          "papers": [
+            {
+              "id": "paper-stats361-019",
+              "title": "Identification, Inference and Sensitivity Analysis for Causal Mediation Effects",
+              "authors": ["Kosuke Imai", "Luke Keele", "Dustin Tingley"],
+              "year": 2010,
+              "venue": "Statistical Science",
+              "arxiv_id": null,
+              "doi": "10.1214/10-STS321",
+              "category": "required",
+              "context": "인과 매개 분석의 식별, 추론, 민감도 분석을 통합한 프레임워크."
+            },
+            {
+              "id": "paper-stats361-020",
+              "title": "A General Approach to Causal Mediation Analysis",
+              "authors": ["Kosuke Imai", "Luke Keele", "Dustin Tingley", "Teppei Yamamoto"],
+              "year": 2010,
+              "venue": "Psychological Methods",
+              "arxiv_id": null,
+              "doi": "10.1037/a0020761",
+              "category": "optional",
+              "context": "비모수적 매개 분석의 일반적 접근. 전통적 Baron-Kenny 방법의 한계를 극복."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Synthetic Controls and Policy Learning",
+      "description": "Synthetic control methods, difference-in-differences, and optimal policy learning.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Synthetic Control Methods",
+          "papers": [
+            {
+              "id": "paper-stats361-021",
+              "title": "Synthetic Control Methods for Comparative Case Studies: Estimating the Effect of California's Tobacco Control Program",
+              "authors": ["Alberto Abadie", "Alexis Diamond", "Jens Hainmueller"],
+              "year": 2010,
+              "venue": "Journal of the American Statistical Association",
+              "arxiv_id": null,
+              "doi": "10.1198/jasa.2009.ap08746",
+              "category": "required",
+              "context": "합성 대조군 방법을 제안한 핵심 논문. 정책 평가에서 비교 사례 연구의 새로운 패러다임."
+            },
+            {
+              "id": "paper-stats361-022",
+              "title": "Matrix Completion Methods for Causal Panel Data Models",
+              "authors": ["Susan Athey", "Mohsen Bayati", "Nikolay Doudchenko", "Guido Imbens", "Khashayar Khosravi"],
+              "year": 2021,
+              "venue": "Journal of the American Statistical Association",
+              "arxiv_id": "1710.10251",
+              "doi": "10.1080/01621459.2021.1891924",
+              "category": "optional",
+              "context": "행렬 완성을 패널 데이터 인과추론에 적용. 합성 대조군과 DID를 일반화."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Optimal Policy Learning",
+          "papers": [
+            {
+              "id": "paper-stats361-023",
+              "title": "Policy Learning With Observational Data",
+              "authors": ["Susan Athey", "Stefan Wager"],
+              "year": 2021,
+              "venue": "Econometrica",
+              "arxiv_id": "1702.02896",
+              "doi": "10.3982/ECTA15732",
+              "category": "required",
+              "context": "관찰 데이터로부터 최적 정책을 학습하는 방법. 인과추론과 의사결정의 교차점."
+            },
+            {
+              "id": "paper-stats361-024",
+              "title": "Generalized Random Forests",
+              "authors": ["Susan Athey", "Julie Tibshirani", "Stefan Wager"],
+              "year": 2019,
+              "venue": "Annals of Statistics",
+              "arxiv_id": "1610.01271",
+              "doi": "10.1214/18-AOS1709",
+              "category": "required",
+              "context": "GRF 프레임워크 제안. 인과추론, 분위수 회귀 등 다양한 추정 문제에 적용 가능한 일반화된 랜덤 포레스트."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
