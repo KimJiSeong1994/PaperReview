@@ -95,49 +95,55 @@ jobs:
           name: frontend-dist
           path: frontend-dist
 
-      # Step 1: Git pull + pip install (서버 중단 없이)
-      - name: Update code and dependencies
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 5m
-          script: |
-            cd ~/PaperReviewAgent
-            git fetch origin main
-            git checkout -f main
-            git reset --hard origin/main
-            source venv/bin/activate
-            pip install -r requirements.txt --quiet
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      # Step 2: GitHub Actions에서 빌드한 프론트엔드를 EC2에 전송
-      - name: Upload frontend build to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "frontend-dist/*"
-          target: "~/PaperReviewAgent/web-ui/dist"
-          strip_components: 1
-          overwrite: true
+      # Step 1: Git pull + pip install
+      - name: Update code and dependencies
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          cd ~/PaperReviewAgent
+          git fetch origin main
+          git checkout -f main
+          git reset --hard origin/main
+          source venv/bin/activate
+          pip install -r requirements.txt --quiet
+          SCRIPT
+
+      # Step 2: 프론트엔드 빌드 결과물을 tar로 압축하여 EC2에 전송
+      - name: Upload frontend build
+        run: |
+          cd frontend-dist
+          tar czf /tmp/frontend-dist.tar.gz .
+          scp -i ~/.ssh/deploy_key /tmp/frontend-dist.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/frontend-dist.tar.gz
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          rm -rf ~/PaperReviewAgent/web-ui/dist
+          mkdir -p ~/PaperReviewAgent/web-ui/dist
+          tar xzf /tmp/frontend-dist.tar.gz -C ~/PaperReviewAgent/web-ui/dist
+          rm /tmp/frontend-dist.tar.gz
+          echo "Frontend upload done: $(ls ~/PaperReviewAgent/web-ui/dist/index.html)"
+          SCRIPT
 
       # Step 3: 서버 재시작 + 헬스체크
       - name: Restart server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo systemctl restart paperreview || {
-              cd ~/PaperReviewAgent
-              source venv/bin/activate
-              pkill -f "uvicorn api_server:app" || true
-              sleep 2
-              setsid venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
-              disown
-            }
-            sleep 4
-            curl -sf http://localhost:8000/docs > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          sudo systemctl restart paperreview || {
+            cd ~/PaperReviewAgent
+            source venv/bin/activate
+            pkill -f "uvicorn api_server:app" || true
+            sleep 2
+            setsid venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+            disown
+          }
+          sleep 4
+          curl -sf http://localhost:8000/docs > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
+          SCRIPT
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
