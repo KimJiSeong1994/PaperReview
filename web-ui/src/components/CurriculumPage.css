@@ -52,7 +52,7 @@
   overflow: hidden;
 }
 
-/* ── Sidebar (Course list + Module tree) ───────────────────────────── */
+/* ── Sidebar (Directory Tree) ──────────────────────────────────────── */
 .curriculum-sidebar {
   width: 320px;
   min-width: 320px;
@@ -63,165 +63,239 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 6px 0;
 }
 
-.curriculum-sidebar-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+/* ── Tree: Folder rows ── */
+.cur-tree-folder {
+  /* no extra styling — just a container */
+}
+
+.cur-tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
   font-size: 13px;
   font-weight: 600;
   color: #d1d5db;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  transition: background 0.15s;
 }
 
-.curriculum-sidebar-header.curriculum-my-section {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 0;
+.cur-tree-folder-row:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.curriculum-my-count {
+.cur-tree-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  color: #6b7280;
+}
+
+.cur-tree-folder-row.open .cur-tree-chevron {
+  transform: rotate(90deg);
+}
+
+.cur-tree-folder-icon {
+  flex-shrink: 0;
+}
+
+.cur-tree-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cur-tree-folder-badge {
   margin-left: auto;
-  background: rgba(165, 180, 252, 0.15);
+  background: rgba(165, 180, 252, 0.12);
   color: #a5b4fc;
-  font-size: 11px;
+  font-size: 10px;
   padding: 1px 7px;
   border-radius: 10px;
   font-weight: 600;
 }
 
-.curriculum-course-list {
-  padding: 8px;
-  flex-shrink: 0;
+/* ── Tree: Children container ── */
+.cur-tree-children {
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  margin-left: 16px;
 }
 
-.curriculum-course-list.curriculum-my-list {
-  flex-shrink: 0;
-}
-
-.curriculum-course-card {
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-bottom: 4px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.curriculum-course-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.curriculum-course-card.active {
-  background: rgba(165, 180, 252, 0.08);
-  border-color: rgba(165, 180, 252, 0.2);
-}
-
-.curriculum-course-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.curriculum-course-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.curriculum-course-card:hover .curriculum-course-card-actions {
-  opacity: 1;
-}
-
-.curriculum-fork-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: rgba(165, 180, 252, 0.1);
-  border: 1px solid rgba(165, 180, 252, 0.2);
-  color: #a5b4fc;
-  border-radius: 6px;
-  cursor: pointer;
+.cur-tree-empty {
+  padding: 10px 12px;
   font-size: 11px;
-  font-weight: 600;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.curriculum-fork-btn:hover {
-  background: rgba(165, 180, 252, 0.18);
-}
-
-.curriculum-fork-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.curriculum-delete-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  background: none;
-  border: 1px solid transparent;
   color: #6b7280;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.curriculum-delete-btn:hover {
-  color: #d1d5db;
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.curriculum-forked-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: #9ca3af;
-  padding: 2px 0;
-  margin-top: 2px;
-}
-
-.curriculum-forked-badge svg {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-}
-
-.curriculum-empty-small {
-  padding: 16px 12px;
-  font-size: 12px;
-  color: #6b7280;
-  text-align: center;
   line-height: 1.5;
 }
 
-.curriculum-course-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ececec;
-  flex: 1;
-  min-width: 0;
+/* ── Tree: File (course) items ── */
+.cur-tree-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
 }
 
-.curriculum-course-meta {
+.cur-tree-file:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cur-tree-file.active {
+  background: rgba(165, 180, 252, 0.08);
+}
+
+.cur-tree-guide-line {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 6px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cur-tree-file-icon {
+  flex-shrink: 0;
+  color: #818cf8;
+  opacity: 0.7;
+}
+
+.cur-tree-file.active .cur-tree-file-icon {
+  opacity: 1;
+}
+
+.cur-tree-file-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cur-tree-file-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #d1d5db;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.cur-tree-file.active .cur-tree-file-name {
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.cur-tree-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+/* ── Tree: Action buttons (fork/delete) ── */
+.cur-tree-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.cur-tree-file:hover .cur-tree-file-actions {
+  opacity: 1;
+}
+
+.cur-tree-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cur-fork-btn {
+  color: #a5b4fc;
+}
+
+.cur-fork-btn:hover {
+  background: rgba(165, 180, 252, 0.15);
+}
+
+.cur-fork-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cur-delete-btn {
+  color: #6b7280;
+}
+
+.cur-delete-btn:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* ── Module sub-tree ── */
+.cur-module-tree {
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.cur-module-item .cur-tree-file-icon {
+  color: #9ca3af;
+  opacity: 0.5;
+}
+
+.cur-module-item.active .cur-tree-file-icon {
+  color: #818cf8;
+  opacity: 0.8;
+}
+
+.cur-module-week {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #818cf8;
+  background: rgba(129, 140, 248, 0.1);
+  padding: 0 5px;
+  border-radius: 3px;
+  margin-right: 5px;
+  line-height: 1.6;
+}
+
+.cur-module-progress-badge {
+  font-size: 10px;
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.cur-tree-progress-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
-  color: #9ca3af;
-  margin-bottom: 6px;
+  padding: 4px 10px 6px;
+}
+
+.cur-tree-progress-text {
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
 }
 
 .curriculum-progress-bar {
@@ -272,60 +346,7 @@
   color: #5eead4;
 }
 
-/* Module tree */
-.curriculum-module-tree {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 8px;
-  flex-shrink: 0;
-}
-
-.curriculum-module-tree-header {
-  padding: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.curriculum-module-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #d1d5db;
-  transition: all 0.2s;
-}
-
-.curriculum-module-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.curriculum-module-item.active {
-  background: rgba(165, 180, 252, 0.1);
-  color: #a5b4fc;
-}
-
-.curriculum-module-week {
-  font-size: 11px;
-  color: #9ca3af;
-  min-width: 50px;
-}
-
-.curriculum-module-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.curriculum-module-progress-mini {
-  font-size: 11px;
-  color: #9ca3af;
-}
+/* (Module tree styles moved to cur-tree-* above) */
 
 /* Generate button */
 .curriculum-generate-section {
@@ -922,7 +943,7 @@
 
 /* Touch devices: always show action buttons */
 @media (hover: none) {
-  .curriculum-course-card-actions {
+  .cur-tree-file-actions {
     opacity: 1;
   }
 }
