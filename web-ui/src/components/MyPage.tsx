@@ -286,6 +286,7 @@ function MyPage({ onBack }: MyPageProps) {
             courseDetail={cur.courseDetail}
             generating={cur.generating}
             forking={cur.forking}
+            generateProgress={cur.generateProgress}
             onSelectCourse={cur.handleSelectCourse}
             onSelectModule={cur.setSelectedModuleId}
             onGenerate={cur.handleGenerate}

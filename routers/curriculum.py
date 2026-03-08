@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from filelock import FileLock
 from pydantic import BaseModel
 
@@ -107,6 +108,14 @@ class CurriculumGenerateRequest(BaseModel):
     topic: str
     difficulty: str = "intermediate"
     num_modules: int = 5
+
+
+class CurriculumGenerateStreamRequest(BaseModel):
+    topic: str
+    difficulty: str = "intermediate"
+    num_modules: int = 5
+    learning_goals: Optional[str] = None
+    paper_preference: Optional[str] = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -324,6 +333,92 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
         "course_id": course_id,
         "curriculum": curriculum,
     }
+
+
+@router.post("/curricula/generate-stream")
+async def generate_curriculum_stream(
+    request: CurriculumGenerateStreamRequest,
+    username: str = Depends(get_current_user),
+):
+    """Generate curriculum with 3-step pipeline and SSE progress streaming."""
+    from .curriculum_pipeline import CurriculumPipeline
+
+    async def event_stream():
+        try:
+            client = get_openai_client()
+        except Exception as e:
+            logger.error("Failed to initialize OpenAI client: %s", e)
+            yield f"data: {json.dumps({'error': f'OpenAI client initialization failed: {e}'})}\n\n"
+            return
+
+        pipeline = CurriculumPipeline(client)
+        curriculum = None
+        async for event in pipeline.generate(
+            topic=request.topic,
+            difficulty=request.difficulty,
+            num_modules=request.num_modules,
+            learning_goals=request.learning_goals,
+            paper_preference=request.paper_preference,
+        ):
+            if event.get("done") and event.get("curriculum"):
+                curriculum = event["curriculum"]
+
+                # Generate stable ID
+                topic_hash = hashlib.md5(
+                    f"{request.topic}:{datetime.now().isoformat()}".encode()
+                ).hexdigest()[:8]
+                course_id = f"custom_{topic_hash}"
+                curriculum["id"] = course_id
+
+                # Assign unique paper IDs
+                paper_counter = 1
+                for module in curriculum.get("modules", []):
+                    for topic in module.get("topics", []):
+                        for paper in topic.get("papers", []):
+                            paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
+                            paper_counter += 1
+
+                # Save course file
+                CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
+                course_path = CURRICULA_DIR / f"{course_id}.json"
+                with open(course_path, "w", encoding="utf-8") as f:
+                    json.dump(curriculum, f, ensure_ascii=False, indent=2)
+
+                # Register in index
+                index = _load_index()
+                total_papers = _count_papers(curriculum)
+                total_modules = len(curriculum.get("modules", []))
+
+                index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
+                index["curricula"].append({
+                    "id": course_id,
+                    "name": curriculum.get("name", f"Custom: {request.topic}"),
+                    "university": curriculum.get("university", "Multi-University Reference"),
+                    "instructor": curriculum.get("instructor", "AI Curated"),
+                    "difficulty": request.difficulty,
+                    "prerequisites": curriculum.get("prerequisites", []),
+                    "description": curriculum.get("description", ""),
+                    "url": "",
+                    "total_papers": total_papers,
+                    "total_modules": total_modules,
+                    "is_preset": False,
+                    "owner": username,
+                })
+                _save_index(index)
+
+                yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
+            else:
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/curricula/{course_id}/fork")

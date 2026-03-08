@@ -94,6 +94,10 @@ class OpenAlexSearcher:
         # Abstract
         abstract = self._reconstruct_abstract(work.get("abstract_inverted_index"))
 
+        # Venue (journal/conference name)
+        source_obj = primary_location.get("source") or {}
+        venue = source_obj.get("display_name", "")
+
         return {
             "title": work.get("display_name", ""),
             "authors": authors,
@@ -106,6 +110,7 @@ class OpenAlexSearcher:
             "doi": doi,
             "openalex_id": work.get("id", ""),
             "relevance_score": work.get("relevance_score"),
+            "venue": venue,
         }
 
     @log_search_operation("OpenAlex")

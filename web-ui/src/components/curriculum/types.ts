@@ -40,8 +40,16 @@ export interface CurriculumModule {
   topics: CurriculumTopic[];
 }
 
+export interface CurriculumReferenceCourse {
+  university: string;
+  course_code: string;
+  course_name: string;
+  url?: string;
+}
+
 export interface CurriculumCourse extends CurriculumSummary {
   modules: CurriculumModule[];
+  reference_courses?: CurriculumReferenceCourse[];
 }
 
 export interface CurriculumProgress {

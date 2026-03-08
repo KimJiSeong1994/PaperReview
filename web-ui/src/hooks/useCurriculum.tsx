@@ -5,10 +5,11 @@ import {
   fetchCurriculumDetail,
   fetchCurriculumProgress,
   updateCurriculumProgress,
-  generateCurriculum,
   forkCurriculum,
   deleteCurriculum,
+  generateCurriculumStream,
 } from '../api/client';
+import type { CurriculumGenerateProgress } from '../api/client';
 import type {
   CurriculumSummary,
   CurriculumCourse,
@@ -39,6 +40,7 @@ export function useCurriculum() {
   // Generate / Fork
   const [generating, setGenerating] = useState(false);
   const [forking, setForking] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState<CurriculumGenerateProgress | null>(null);
 
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -252,23 +254,36 @@ export function useCurriculum() {
     }
   }, [selectedCourseId]);
 
-  // Generate custom curriculum
-  const handleGenerate = useCallback(async (topic: string, difficulty: string, numModules: number) => {
+  // Generate custom curriculum (3-step pipeline with SSE streaming)
+  const handleGenerate = useCallback(async (
+    topic: string, difficulty: string, numModules: number,
+    options?: { learning_goals?: string; paper_preference?: string },
+  ) => {
     setGenerating(true);
+    setGenerateProgress({ step: 0, step_name: 'init', progress: 0, message: 'Starting...' });
     try {
-      const result = await generateCurriculum(topic, difficulty, numModules);
-      // Refresh course list
-      const data = await fetchCurricula();
-      setCourses(data.curricula || []);
-      // Auto-select the new course
-      if (result.course_id) {
-        await handleSelectCourse(result.course_id);
-      }
-      return result;
+      await generateCurriculumStream(
+        { topic, difficulty, num_modules: numModules, ...options },
+        (progress) => setGenerateProgress(progress),
+        async (result) => {
+          setGenerateProgress({ step: 4, step_name: 'done', progress: 100, message: 'Curriculum created successfully!' });
+          const data = await fetchCurricula();
+          setCourses(data.curricula || []);
+          if (result.course_id) {
+            await handleSelectCourse(result.course_id);
+          }
+          setGenerateProgress(null);
+          setGenerating(false);
+        },
+        (error) => {
+          console.error('Curriculum generation failed:', error);
+          setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: `Generation failed: ${error}` });
+          setGenerating(false);
+        },
+      );
     } catch (err) {
       console.error('Failed to generate curriculum:', err);
-      throw err;
-    } finally {
+      setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: `Connection failed: ${err}` });
       setGenerating(false);
     }
   }, [handleSelectCourse]);
@@ -289,6 +304,7 @@ export function useCurriculum() {
     progressStats,
     generating,
     forking,
+    generateProgress,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,

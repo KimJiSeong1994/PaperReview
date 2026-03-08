@@ -22,6 +22,7 @@ export default function CurriculumPage() {
     progressStats,
     generating,
     forking,
+    generateProgress,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
@@ -59,6 +60,7 @@ export default function CurriculumPage() {
           courseDetail={courseDetail}
           generating={generating}
           forking={forking}
+          generateProgress={generateProgress}
           onSelectCourse={handleSelectCourse}
           onSelectModule={setSelectedModuleId}
           onGenerate={handleGenerate}

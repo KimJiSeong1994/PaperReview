@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CurriculumSummary } from './types';
+import type { CurriculumGenerateProgress } from '../../api/client';
 
 interface CourseSidebarProps {
   presetCourses: CurriculumSummary[];
@@ -19,9 +20,10 @@ interface CourseSidebarProps {
   } | null;
   generating: boolean;
   forking: boolean;
+  generateProgress: CurriculumGenerateProgress | null;
   onSelectCourse: (id: string) => void;
   onSelectModule: (id: string) => void;
-  onGenerate: (topic: string, difficulty: string, numModules: number) => Promise<any>;
+  onGenerate: (topic: string, difficulty: string, numModules: number, options?: { learning_goals?: string; paper_preference?: string }) => Promise<any>;
   onFork: (courseId: string) => Promise<any>;
   onDelete: (courseId: string) => Promise<any>;
   getModuleProgress: (moduleId: string) => { read: number; total: number };
@@ -68,6 +70,7 @@ export default function CourseSidebar({
   courseDetail,
   generating,
   forking,
+  generateProgress,
   onSelectCourse,
   onSelectModule,
   onGenerate,
@@ -79,16 +82,35 @@ export default function CourseSidebar({
   const [genTopic, setGenTopic] = useState('');
   const [genDifficulty, setGenDifficulty] = useState('intermediate');
   const [genModules, setGenModules] = useState(5);
+  const [genGoals, setGenGoals] = useState('');
+  const [genPaperPref, setGenPaperPref] = useState('balanced');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const wasGenerating = useRef(false);
 
-  const handleSubmitGenerate = async () => {
-    if (!genTopic.trim()) return;
-    try {
-      await onGenerate(genTopic.trim(), genDifficulty, genModules);
+  // Auto-close modal on successful generation completion
+  useEffect(() => {
+    if (generating) {
+      wasGenerating.current = true;
+    } else if (wasGenerating.current && !generateProgress) {
+      // generating went false → null progress means success
+      wasGenerating.current = false;
       setShowGenerateModal(false);
       setGenTopic('');
-    } catch {
-      // Error handled in hook
+      setGenGoals('');
+      setShowAdvanced(false);
+    } else if (wasGenerating.current && generateProgress?.step === -1) {
+      // Error state — keep modal open to show error
+      wasGenerating.current = false;
     }
+  }, [generating, generateProgress]);
+
+  const handleSubmitGenerate = () => {
+    if (!genTopic.trim()) return;
+    const options: { learning_goals?: string; paper_preference?: string } = {};
+    if (genGoals.trim()) options.learning_goals = genGoals.trim();
+    if (genPaperPref !== 'balanced') options.paper_preference = genPaperPref;
+    // Fire and forget — modal stays open to show progress
+    onGenerate(genTopic.trim(), genDifficulty, genModules, options);
   };
 
   const renderCourseCard = (course: CurriculumSummary, showFork: boolean) => {
@@ -105,7 +127,7 @@ export default function CourseSidebar({
             {showFork && (
               <button
                 className="curriculum-fork-btn"
-                title="내 커리큘럼으로 복사"
+                title="Fork to my curricula"
                 onClick={(e) => {
                   e.stopPropagation();
                   onFork(course.id);
@@ -119,10 +141,10 @@ export default function CourseSidebar({
             {!course.is_preset && (
               <button
                 className="curriculum-delete-btn"
-                title="삭제"
+                title="Delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('이 커리큘럼을 삭제하시겠습니까?')) {
+                  if (confirm('Delete this curriculum?')) {
                     onDelete(course.id);
                   }
                 }}
@@ -162,13 +184,17 @@ export default function CourseSidebar({
     );
   };
 
+  // Compute overall generate progress percent
+  const overallPercent = generateProgress
+    ? Math.round(((generateProgress.step - 1) / 3) * 100 + (generateProgress.progress / 3))
+    : 0;
+
   return (
     <div className="curriculum-sidebar">
-      {/* Featured Courses (presets) */}
+      {/* Featured Courses */}
       <div className="curriculum-sidebar-header">
         Featured Courses
       </div>
-
       <div className="curriculum-course-list">
         {loadingCourses ? (
           <div className="curriculum-loading">Loading courses...</div>
@@ -179,14 +205,13 @@ export default function CourseSidebar({
         )}
       </div>
 
-      {/* My Curricula (forked + custom) */}
+      {/* My Curricula */}
       <div className="curriculum-sidebar-header curriculum-my-section">
         My Curricula
         {myCourses.length > 0 && (
           <span className="curriculum-my-count">{myCourses.length}</span>
         )}
       </div>
-
       <div className="curriculum-course-list curriculum-my-list">
         {loadingCourses ? null : myCourses.length === 0 ? (
           <div className="curriculum-empty-small">
@@ -197,7 +222,7 @@ export default function CourseSidebar({
         )}
       </div>
 
-      {/* Module tree for selected course */}
+      {/* Module tree */}
       {courseDetail && courseDetail.modules.length > 0 && (
         <div className="curriculum-module-tree">
           <div className="curriculum-module-tree-header">Modules</div>
@@ -220,7 +245,7 @@ export default function CourseSidebar({
         </div>
       )}
 
-      {/* Generate custom curriculum */}
+      {/* Generate button */}
       <div className="curriculum-generate-section">
         <button
           className="curriculum-generate-btn"
@@ -233,46 +258,137 @@ export default function CourseSidebar({
 
       {/* Generate modal */}
       {showGenerateModal && (
-        <div className="curriculum-generate-modal-overlay" onClick={() => setShowGenerateModal(false)}>
+        <div className="curriculum-generate-modal-overlay" onClick={() => !generating && setShowGenerateModal(false)}>
           <div className="curriculum-generate-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Generate Custom Curriculum</h3>
-            <label>Topic</label>
-            <input
-              type="text"
-              placeholder="e.g., Reinforcement Learning"
-              value={genTopic}
-              onChange={(e) => setGenTopic(e.target.value)}
-              autoFocus
-            />
-            <label>Difficulty</label>
-            <select value={genDifficulty} onChange={(e) => setGenDifficulty(e.target.value)}>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-            <label>Number of Modules</label>
-            <input
-              type="number"
-              min={2}
-              max={10}
-              value={genModules}
-              onChange={(e) => setGenModules(Number(e.target.value))}
-            />
-            <div className="curriculum-generate-modal-actions">
-              <button
-                className="curriculum-generate-cancel-btn"
-                onClick={() => setShowGenerateModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="curriculum-generate-submit-btn"
-                onClick={handleSubmitGenerate}
-                disabled={!genTopic.trim() || generating}
-              >
-                {generating ? 'Generating...' : 'Generate'}
-              </button>
-            </div>
+
+            {/* Progress display during generation */}
+            {(generating || (generateProgress && generateProgress.step === -1)) && generateProgress ? (
+              <div className="curriculum-generate-progress-section">
+                {generateProgress.step === -1 ? (
+                  <>
+                    <div className="curriculum-generate-error-msg">
+                      {generateProgress.message}
+                    </div>
+                    <div className="curriculum-generate-modal-actions" style={{ marginTop: 12 }}>
+                      <button
+                        className="curriculum-generate-cancel-btn"
+                        onClick={() => setShowGenerateModal(false)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                <>
+                <div className="curriculum-generate-step-label">
+                  Step {generateProgress.step}/3: {
+                    generateProgress.step_name === 'structure' ? 'Designing structure' :
+                    generateProgress.step_name === 'search' ? 'Searching papers' :
+                    generateProgress.step_name === 'assembly' ? 'Assembling curriculum' :
+                    'Preparing'
+                  }
+                </div>
+                <div className="curriculum-progress-bar" style={{ marginTop: 8 }}>
+                  <div
+                    className="curriculum-progress-fill"
+                    style={{ width: `${overallPercent}%`, transition: 'width 0.5s ease' }}
+                  />
+                </div>
+                <div className="curriculum-generate-progress-msg">
+                  {generateProgress.message}
+                </div>
+                {generateProgress.detail?.modules && (
+                  <div className="curriculum-generate-progress-detail">
+                    {generateProgress.detail.modules.map((m: string, i: number) => (
+                      <div key={i} className="curriculum-generate-progress-module">{m}</div>
+                    ))}
+                  </div>
+                )}
+                {generateProgress.detail?.reference_courses && (
+                  <div className="curriculum-generate-progress-refs">
+                    <div className="curriculum-generate-progress-refs-label">Referenced courses:</div>
+                    {generateProgress.detail.reference_courses.map((c: any, i: number) => (
+                      <div key={i} className="curriculum-generate-progress-ref">
+                        {c.university} {c.course_code}: {c.course_name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                </>
+                )}
+              </div>
+            ) : (
+              <>
+                <label>Topic</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Reinforcement Learning, Graph Neural Networks"
+                  value={genTopic}
+                  onChange={(e) => setGenTopic(e.target.value)}
+                  autoFocus
+                />
+                <label>Difficulty</label>
+                <select value={genDifficulty} onChange={(e) => setGenDifficulty(e.target.value)}>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+                <label>Number of Modules</label>
+                <input
+                  type="number"
+                  min={2}
+                  max={10}
+                  value={genModules}
+                  onChange={(e) => setGenModules(Number(e.target.value))}
+                />
+
+                {/* Advanced options */}
+                <div
+                  className="curriculum-generate-advanced-toggle"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"
+                    style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                  Advanced Options
+                </div>
+                {showAdvanced && (
+                  <div className="curriculum-generate-advanced-body">
+                    <label>Learning Goals (optional)</label>
+                    <textarea
+                      placeholder="e.g., Understand GNN architectures and implement them in PyTorch"
+                      value={genGoals}
+                      onChange={(e) => setGenGoals(e.target.value)}
+                      rows={2}
+                    />
+                    <label>Paper Preference</label>
+                    <select value={genPaperPref} onChange={(e) => setGenPaperPref(e.target.value)}>
+                      <option value="balanced">Balanced (default)</option>
+                      <option value="survey_heavy">Survey / Tutorial focused</option>
+                      <option value="cutting_edge">Cutting-edge research (2022+)</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="curriculum-generate-modal-actions">
+                  <button
+                    className="curriculum-generate-cancel-btn"
+                    onClick={() => setShowGenerateModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="curriculum-generate-submit-btn"
+                    onClick={handleSubmitGenerate}
+                    disabled={!genTopic.trim() || generating}
+                  >
+                    Generate
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

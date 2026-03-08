@@ -492,6 +492,80 @@ export const generateCurriculum = async (topic: string, difficulty: string, numM
   return response.data;
 };
 
+export interface CurriculumGenerateProgress {
+  step: number;
+  step_name: string;
+  progress: number;
+  message: string;
+  detail?: any;
+}
+
+export const generateCurriculumStream = async (
+  request: {
+    topic: string;
+    difficulty: string;
+    num_modules: number;
+    learning_goals?: string;
+    paper_preference?: string;
+  },
+  onProgress: (progress: CurriculumGenerateProgress) => void,
+  onComplete: (result: { course_id: string }) => void,
+  onError: (error: string) => void,
+): Promise<void> => {
+  const token = localStorage.getItem('access_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE_URL}/api/curricula/generate-stream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+    }
+    onError(`HTTP ${response.status}: ${response.statusText}`);
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) { onError('No response body'); return; }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.done && data.course_id) {
+            onComplete({ course_id: data.course_id });
+            return;
+          } else if (data.error) {
+            onError(data.error);
+            return;
+          } else if (data.step !== undefined) {
+            onProgress(data);
+          }
+        } catch {
+          // skip malformed
+        }
+      }
+    }
+  }
+};
+
 export const forkCurriculum = async (courseId: string) => {
   const response = await api.post(`/api/curricula/${courseId}/fork`);
   return response.data;
