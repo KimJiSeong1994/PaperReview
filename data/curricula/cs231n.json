@@ -198,6 +198,17 @@
               "doi": "10.1109/CVPR.2015.7298965",
               "category": "required",
               "context": "FCN: 완전 합성곱 네트워크로 픽셀 단위 분류를 수행하는 시맨틱 세그멘테이션의 시작."
+            },
+            {
+              "id": "paper-cs231n-020",
+              "title": "U-Net: Convolutional Networks for Biomedical Image Segmentation",
+              "authors": ["Olaf Ronneberger", "Philipp Fischer", "Thomas Brox"],
+              "year": 2015,
+              "venue": "MICCAI",
+              "arxiv_id": "1505.04597",
+              "doi": "10.1007/978-3-319-24574-4_28",
+              "category": "required",
+              "context": "인코더-디코더 구조와 스킵 연결을 통한 정밀한 세그멘테이션을 제안한 논문으로, 의료 영상 분석의 기초가 되었다"
             }
           ]
         }

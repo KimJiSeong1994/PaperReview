@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchCurricula,
@@ -42,20 +42,37 @@ export function useCurriculum() {
   const [forking, setForking] = useState(false);
   const [generateProgress, setGenerateProgress] = useState<CurriculumGenerateProgress | null>(null);
 
-  const isAuthenticated = !!localStorage.getItem('access_token');
+  // Refs for stable access in callbacks
+  const readPapersRef = useRef(readPapers);
+  readPapersRef.current = readPapers;
+  const selectedCourseIdRef = useRef(selectedCourseId);
+  selectedCourseIdRef.current = selectedCourseId;
+  const generateAbortRef = useRef<AbortController | null>(null);
+
+  // Auth state is checked at call sites via localStorage directly
+  // to avoid stale closure issues
 
   // Load course list on mount
   useEffect(() => {
+    let ignore = false;
     setLoadingCourses(true);
     fetchCurricula()
-      .then((data) => setCourses(data.curricula || []))
+      .then((data) => { if (!ignore) setCourses(data.curricula || []); })
       .catch((err) => console.error('Failed to load curricula:', err))
-      .finally(() => setLoadingCourses(false));
+      .finally(() => { if (!ignore) setLoadingCourses(false); });
+    return () => { ignore = true; };
+  }, []);
+
+  // Abort SSE stream on unmount
+  useEffect(() => {
+    return () => {
+      generateAbortRef.current?.abort();
+    };
   }, []);
 
   // Load course detail when selected
   const handleSelectCourse = useCallback(async (courseId: string) => {
-    if (courseId === selectedCourseId && courseDetail) return;
+    if (courseId === selectedCourseIdRef.current && courseDetail) return;
 
     setSelectedCourseId(courseId);
     setSelectedPaperId(null);
@@ -63,6 +80,10 @@ export function useCurriculum() {
 
     try {
       const detail = await fetchCurriculumDetail(courseId);
+
+      // Guard against stale response
+      if (courseId !== selectedCourseIdRef.current) return;
+
       setCourseDetail(detail);
 
       // Auto-select first module
@@ -71,14 +92,17 @@ export function useCurriculum() {
       }
 
       // Load progress
-      if (isAuthenticated) {
+      const authenticated = !!localStorage.getItem('access_token');
+      if (authenticated) {
         try {
           const prog = await fetchCurriculumProgress(courseId);
-          setReadPapers(new Set(prog.read_papers || []));
+          if (courseId === selectedCourseIdRef.current) {
+            setReadPapers(new Set(prog.read_papers || []));
+          }
         } catch {
           // Fall back to localStorage
           const stored = localStorage.getItem(LS_PREFIX + courseId);
-          if (stored) {
+          if (stored && courseId === selectedCourseIdRef.current) {
             try {
               setReadPapers(new Set(JSON.parse(stored)));
             } catch {
@@ -107,46 +131,46 @@ export function useCurriculum() {
     } finally {
       setLoadingCourse(false);
     }
-  }, [selectedCourseId, courseDetail, isAuthenticated]);
+  }, [courseDetail]);
 
   // Toggle paper read (optimistic update)
   const handleToggleRead = useCallback((paperId: string) => {
-    const newRead = !readPapers.has(paperId);
-
-    // Optimistic update
     setReadPapers((prev) => {
+      const wasRead = prev.has(paperId);
       const next = new Set(prev);
-      if (newRead) {
-        next.add(paperId);
-      } else {
+      if (wasRead) {
         next.delete(paperId);
+      } else {
+        next.add(paperId);
       }
 
       // Save to localStorage
-      if (selectedCourseId) {
-        localStorage.setItem(LS_PREFIX + selectedCourseId, JSON.stringify([...next]));
+      const courseId = selectedCourseIdRef.current;
+      if (courseId) {
+        localStorage.setItem(LS_PREFIX + courseId, JSON.stringify([...next]));
+      }
+
+      // Sync to server if authenticated
+      const authenticated = !!localStorage.getItem('access_token');
+      if (authenticated && courseId) {
+        updateCurriculumProgress(courseId, paperId, !wasRead).catch((err) => {
+          console.error('Failed to sync progress:', err);
+          // Rollback on error
+          setReadPapers((rollbackPrev) => {
+            const rollback = new Set(rollbackPrev);
+            if (wasRead) {
+              rollback.add(paperId);
+            } else {
+              rollback.delete(paperId);
+            }
+            return rollback;
+          });
+        });
       }
 
       return next;
     });
-
-    // Sync to server if authenticated
-    if (isAuthenticated && selectedCourseId) {
-      updateCurriculumProgress(selectedCourseId, paperId, newRead).catch((err) => {
-        console.error('Failed to sync progress:', err);
-        // Rollback on error
-        setReadPapers((prev) => {
-          const rollback = new Set(prev);
-          if (newRead) {
-            rollback.delete(paperId);
-          } else {
-            rollback.add(paperId);
-          }
-          return rollback;
-        });
-      });
-    }
-  }, [readPapers, selectedCourseId, isAuthenticated]);
+  }, []);
 
   // Search a paper in the main search page
   const handleSearchPaper = useCallback((paper: CurriculumPaper) => {
@@ -172,42 +196,52 @@ export function useCurriculum() {
     return null;
   }, [courseDetail, selectedPaperId]);
 
-  // Compute progress stats for current course
-  const progressStats = useMemo(() => {
-    if (!courseDetail) return { read: 0, total: 0, percent: 0 };
-    let total = 0;
+  // Pre-build a Set of all paper IDs in the course for O(1) lookups
+  const coursePaperIds = useMemo(() => {
+    if (!courseDetail) return new Set<string>();
+    const ids = new Set<string>();
     for (const mod of courseDetail.modules) {
       for (const topic of mod.topics) {
-        total += topic.papers.length;
-      }
-    }
-    const read = [...readPapers].filter((id) => {
-      // Only count papers that exist in this course
-      for (const mod of courseDetail.modules) {
-        for (const topic of mod.topics) {
-          if (topic.papers.some((p) => p.id === id)) return true;
+        for (const paper of topic.papers) {
+          ids.add(paper.id);
         }
       }
-      return false;
-    }).length;
+    }
+    return ids;
+  }, [courseDetail]);
+
+  // Compute progress stats for current course — O(readPapers) with Set lookup
+  const progressStats = useMemo(() => {
+    if (!courseDetail) return { read: 0, total: 0, percent: 0 };
+    const total = coursePaperIds.size;
+    let read = 0;
+    for (const id of readPapers) {
+      if (coursePaperIds.has(id)) read++;
+    }
     return { read, total, percent: total > 0 ? Math.round((read / total) * 100) : 0 };
+  }, [courseDetail, readPapers, coursePaperIds]);
+
+  // Module progress — memoized as a map
+  const moduleProgressMap = useMemo(() => {
+    const map: Record<string, { read: number; total: number }> = {};
+    if (!courseDetail) return map;
+    for (const mod of courseDetail.modules) {
+      let total = 0;
+      let read = 0;
+      for (const topic of mod.topics) {
+        for (const paper of topic.papers) {
+          total++;
+          if (readPapers.has(paper.id)) read++;
+        }
+      }
+      map[mod.id] = { read, total };
+    }
+    return map;
   }, [courseDetail, readPapers]);
 
-  // Module progress
   const getModuleProgress = useCallback((moduleId: string) => {
-    if (!courseDetail) return { read: 0, total: 0 };
-    const mod = courseDetail.modules.find((m) => m.id === moduleId);
-    if (!mod) return { read: 0, total: 0 };
-    let total = 0;
-    let read = 0;
-    for (const topic of mod.topics) {
-      for (const paper of topic.papers) {
-        total++;
-        if (readPapers.has(paper.id)) read++;
-      }
-    }
-    return { read, total };
-  }, [courseDetail, readPapers]);
+    return moduleProgressMap[moduleId] || { read: 0, total: 0 };
+  }, [moduleProgressMap]);
 
   // Derived lists: preset (featured) vs user's own
   const presetCourses = useMemo(() => courses.filter((c) => c.is_preset), [courses]);
@@ -242,7 +276,7 @@ export function useCurriculum() {
       const data = await fetchCurricula();
       setCourses(data.curricula || []);
       // Clear selection if deleted course was selected
-      if (selectedCourseId === courseId) {
+      if (selectedCourseIdRef.current === courseId) {
         setSelectedCourseId(null);
         setCourseDetail(null);
         setSelectedModuleId(null);
@@ -252,36 +286,50 @@ export function useCurriculum() {
       console.error('Failed to delete curriculum:', err);
       throw err;
     }
-  }, [selectedCourseId]);
+  }, []);
 
   // Generate custom curriculum (3-step pipeline with SSE streaming)
   const handleGenerate = useCallback(async (
     topic: string, difficulty: string, numModules: number,
     options?: { learning_goals?: string; paper_preference?: string },
   ) => {
+    // Abort any previous generation
+    generateAbortRef.current?.abort();
+    const abortController = new AbortController();
+    generateAbortRef.current = abortController;
+
     setGenerating(true);
     setGenerateProgress({ step: 0, step_name: 'init', progress: 0, message: 'Starting...' });
     try {
       await generateCurriculumStream(
         { topic, difficulty, num_modules: numModules, ...options },
-        (progress) => setGenerateProgress(progress),
+        (progress) => {
+          if (!abortController.signal.aborted) setGenerateProgress(progress);
+        },
         async (result) => {
-          setGenerateProgress({ step: 4, step_name: 'done', progress: 100, message: 'Curriculum created successfully!' });
-          const data = await fetchCurricula();
-          setCourses(data.curricula || []);
-          if (result.course_id) {
-            await handleSelectCourse(result.course_id);
+          if (abortController.signal.aborted) return;
+          try {
+            setGenerateProgress({ step: 4, step_name: 'done', progress: 100, message: 'Curriculum created successfully!' });
+            const data = await fetchCurricula();
+            setCourses(data.curricula || []);
+            if (result.course_id) {
+              await handleSelectCourse(result.course_id);
+            }
+          } finally {
+            setGenerateProgress(null);
+            setGenerating(false);
           }
-          setGenerateProgress(null);
-          setGenerating(false);
         },
         (error) => {
+          if (abortController.signal.aborted) return;
           console.error('Curriculum generation failed:', error);
           setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: `Generation failed: ${error}` });
           setGenerating(false);
         },
+        abortController.signal,
       );
     } catch (err) {
+      if (abortController.signal.aborted) return;
       console.error('Failed to generate curriculum:', err);
       setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: `Connection failed: ${err}` });
       setGenerating(false);

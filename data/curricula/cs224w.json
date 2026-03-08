@@ -94,6 +94,17 @@
               "context": "랜덤워크와 Skip-gram을 결합하여 그래프 노드 임베딩을 학습하는 방법을 제안한 선구적 논문."
             },
             {
+              "id": "paper-cs224w-022",
+              "title": "LINE: Large-scale Information Network Embedding",
+              "authors": ["Jian Tang", "Meng Qu", "Mingzhe Wang", "Ming Zhang", "Jun Yan", "Qiaozhu Mei"],
+              "year": 2015,
+              "venue": "WWW",
+              "arxiv_id": "1503.03578",
+              "doi": "10.1145/2736277.2741093",
+              "category": "required",
+              "context": "대규모 네트워크에서 1차 및 2차 근접성을 보존하는 임베딩 방법을 제안한 논문"
+            },
+            {
               "id": "paper-cs224w-006",
               "title": "node2vec: Scalable Feature Learning for Networks",
               "authors": ["Aditya Grover", "Jure Leskovec"],

@@ -467,18 +467,30 @@ export const chatWithBookmarks = async (
 
 // ── Curriculum API ────────────────────────────────────────────────────
 
-export const fetchCurricula = async () => {
-  const response = await api.get('/api/curricula');
+export interface CurriculumListResponse {
+  curricula: import('../components/curriculum/types').CurriculumSummary[];
+}
+
+export interface CurriculumProgressResponse {
+  course_id: string;
+  read_papers: string[];
+  total_papers: number;
+  progress_percent: number;
+  updated_at: string | null;
+}
+
+export const fetchCurricula = async (): Promise<CurriculumListResponse> => {
+  const response = await api.get<CurriculumListResponse>('/api/curricula');
   return response.data;
 };
 
-export const fetchCurriculumDetail = async (id: string) => {
+export const fetchCurriculumDetail = async (id: string): Promise<import('../components/curriculum/types').CurriculumCourse> => {
   const response = await api.get(`/api/curricula/${id}`);
   return response.data;
 };
 
-export const fetchCurriculumProgress = async (id: string) => {
-  const response = await api.get(`/api/curricula/${id}/progress`);
+export const fetchCurriculumProgress = async (id: string): Promise<CurriculumProgressResponse> => {
+  const response = await api.get<CurriculumProgressResponse>(`/api/curricula/${id}/progress`);
   return response.data;
 };
 
@@ -497,7 +509,10 @@ export interface CurriculumGenerateProgress {
   step_name: string;
   progress: number;
   message: string;
-  detail?: any;
+  detail?: {
+    modules?: string[];
+    reference_courses?: { university: string; course_code: string; course_name: string }[];
+  };
 }
 
 export const generateCurriculumStream = async (
@@ -511,6 +526,7 @@ export const generateCurriculumStream = async (
   onProgress: (progress: CurriculumGenerateProgress) => void,
   onComplete: (result: { course_id: string }) => void,
   onError: (error: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> => {
   const token = localStorage.getItem('access_token');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -520,12 +536,15 @@ export const generateCurriculumStream = async (
     method: 'POST',
     headers,
     body: JSON.stringify(request),
+    signal,
   });
 
   if (!response.ok) {
     if (response.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('username');
+      localStorage.removeItem('user_role');
+      window.dispatchEvent(new Event('auth:logout'));
     }
     onError(`HTTP ${response.status}: ${response.statusText}`);
     return;
@@ -536,42 +555,54 @@ export const generateCurriculumStream = async (
 
   const decoder = new TextDecoder();
   let buffer = '';
+  let completed = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          if (data.done && data.course_id) {
-            onComplete({ course_id: data.course_id });
-            return;
-          } else if (data.error) {
-            onError(data.error);
-            return;
-          } else if (data.step !== undefined) {
-            onProgress(data);
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.done && data.course_id) {
+              completed = true;
+              onComplete({ course_id: data.course_id });
+              return;
+            } else if (data.error) {
+              completed = true;
+              onError(data.error);
+              return;
+            } else if (data.step !== undefined) {
+              onProgress(data);
+            }
+          } catch {
+            // skip malformed
           }
-        } catch {
-          // skip malformed
         }
       }
     }
+  } finally {
+    reader.releaseLock();
+  }
+
+  // Stream ended without completion event
+  if (!completed) {
+    onError('Stream ended unexpectedly. Please try again.');
   }
 };
 
-export const forkCurriculum = async (courseId: string) => {
+export const forkCurriculum = async (courseId: string): Promise<{ success: boolean; course_id: string; forked_from: string }> => {
   const response = await api.post(`/api/curricula/${courseId}/fork`);
   return response.data;
 };
 
-export const deleteCurriculum = async (courseId: string) => {
+export const deleteCurriculum = async (courseId: string): Promise<{ success: boolean; deleted: string }> => {
   const response = await api.delete(`/api/curricula/${courseId}`);
   return response.data;
 };

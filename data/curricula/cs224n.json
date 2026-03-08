@@ -214,6 +214,17 @@
               "context": "양방향 트랜스포머 사전학습으로 NLP 벤치마크를 혁신한 모델. 현대 NLP의 전환점."
             },
             {
+              "id": "paper-cs224n-019",
+              "title": "Deep contextualized word representations",
+              "authors": ["Matthew E. Peters", "Mark Neumann", "Mohit Iyyer", "Matt Gardner", "Christopher Clark", "Kenton Lee", "Luke Zettlemoyer"],
+              "year": 2018,
+              "venue": "NAACL",
+              "arxiv_id": "1802.05365",
+              "doi": null,
+              "category": "required",
+              "context": "문맥 의존적 단어 표현을 제안한 ELMo 논문으로, BERT 이전에 사전학습 언어 모델의 가능성을 열었다"
+            },
+            {
               "id": "paper-cs224n-012",
               "title": "Improving Language Understanding by Generative Pre-Training",
               "authors": ["Alec Radford", "Karthik Narasimhan", "Tim Salimans", "Ilya Sutskever"],
@@ -233,7 +244,7 @@
             {
               "id": "paper-cs224n-013",
               "title": "Language Models are Few-Shot Learners",
-              "authors": ["Tom Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah"],
+              "authors": ["Tom B. Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah", "Jared Kaplan", "Prafulla Dhariwal", "Arvind Neelakantan", "Pranav Shyam", "Girish Sastry", "Amanda Askell", "Sandhini Agarwal", "Ariel Herbert-Voss", "Gretchen Krueger", "Tom Henighan", "Rewon Child", "Aditya Ramesh", "Daniel M. Ziegler", "Jeffrey Wu", "Clemens Winter", "Christopher Hesse", "Mark Chen", "Eric Siber", "Mateusz Litwin", "Scott Gray", "Benjamin Chess", "Jack Clark", "Christopher Berner", "Sam McCandlish", "Alec Radford", "Ilya Sutskever", "Dario Amodei"],
               "year": 2020,
               "venue": "NeurIPS",
               "arxiv_id": "2005.14165",
