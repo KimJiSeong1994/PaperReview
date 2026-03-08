@@ -158,16 +158,33 @@ Return ONLY valid JSON matching this schema:
   ]
 }}"""
 
+        # Scale max_tokens based on number of modules
+        # ~300 tokens per module (id, title, description, inspired_by, 2-3 topics with keywords)
+        structure_tokens = max(4000, num_modules * 500 + 1500)
+
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
-            max_tokens=3000,
+            max_tokens=structure_tokens,
             response_format={"type": "json_object"},
         )
 
-        return json.loads(response.choices[0].message.content)
+        result = json.loads(response.choices[0].message.content)
+
+        # Verify module count — warn if truncated
+        actual_modules = len(result.get("modules", []))
+        if actual_modules < num_modules:
+            logger.warning(
+                "Step 1: Requested %d modules but LLM returned %d (finish_reason=%s, tokens=%d/%d)",
+                num_modules, actual_modules,
+                response.choices[0].finish_reason,
+                response.usage.completion_tokens if response.usage else 0,
+                structure_tokens,
+            )
+
+        return result
 
     # ── Step 2: Paper Search & Verification ──────────────────────────
 
@@ -217,15 +234,52 @@ Return ONLY valid JSON matching this schema:
     # ── Step 3: Final Assembly ────────────────────────────────────────
 
     async def _step3_assemble(self, structure: dict, topic: str, difficulty: str) -> dict:
+        """Assemble final curriculum. For large curricula (>5 modules), process in batches."""
+        modules = structure.get("modules", [])
+        ref_courses = structure.get("reference_courses", [])
+
+        # For <=5 modules, single call. For >5, batch to avoid token truncation.
+        batch_size = 5
+        if len(modules) <= batch_size:
+            assembled_modules = await self._assemble_batch(
+                modules, topic, difficulty, ref_courses, structure,
+            )
+        else:
+            assembled_modules = []
+            for i in range(0, len(modules), batch_size):
+                batch = modules[i:i + batch_size]
+                batch_result = await self._assemble_batch(
+                    batch, topic, difficulty, ref_courses, structure,
+                    module_offset=i,
+                )
+                assembled_modules.extend(batch_result)
+
+        curriculum = {
+            "name": structure.get("name", topic),
+            "university": "Multi-University Reference",
+            "instructor": "AI Curated",
+            "difficulty": difficulty,
+            "description": structure.get("description", ""),
+            "prerequisites": structure.get("prerequisites", []),
+            "reference_courses": ref_courses,
+            "url": "",
+            "modules": assembled_modules,
+        }
+        return curriculum
+
+    async def _assemble_batch(
+        self, modules: list, topic: str, difficulty: str,
+        ref_courses: list, structure: dict, module_offset: int = 0,
+    ) -> list:
+        """Assemble a batch of modules into final format."""
         difficulty_guide = {
             "beginner": "Prioritize survey papers, tutorials, and foundational works. Context should explain concepts clearly for newcomers.",
             "intermediate": "Mix foundational papers with key methodological advances. Context should assume basic understanding.",
             "advanced": "Focus on cutting-edge research and theoretical depth. Context should analyze contributions and limitations from a researcher's perspective.",
         }
 
-        # Build the structure with verified papers for the prompt
         structure_for_prompt = []
-        for module in structure.get("modules", []):
+        for module in modules:
             mod_info = {
                 "module_title": module["title"],
                 "module_description": module.get("description", ""),
@@ -249,13 +303,16 @@ Return ONLY valid JSON matching this schema:
                 mod_info["topics"].append(topic_info)
             structure_for_prompt.append(mod_info)
 
-        ref_courses = structure.get("reference_courses", [])
         ref_text = ""
         if ref_courses:
             ref_text = "Referenced university courses:\n" + "\n".join(
                 f"- {c.get('university', '')} {c.get('course_code', '')}: {c.get('course_name', '')}"
                 for c in ref_courses
             )
+
+        batch_note = ""
+        if module_offset > 0:
+            batch_note = f"\nNote: These are modules {module_offset + 1}-{module_offset + len(modules)} of a larger curriculum. Continue numbering from mod-{module_offset + 1:02d} and week {module_offset + 1}.\n"
 
         prompt = f"""You are assembling a university-level curriculum on "{topic}".
 Below is the curriculum structure with VERIFIED real papers (confirmed from OpenAlex).
@@ -264,34 +321,28 @@ Below is the curriculum structure with VERIFIED real papers (confirmed from Open
 
 Difficulty: {difficulty}
 {difficulty_guide.get(difficulty, '')}
-
+{batch_note}
 For each topic, select 2-4 of the BEST papers from the verified list and:
 1. Use EXACT titles and metadata from the verified papers (do not modify them)
 2. Assign category: "required" (essential), "optional" (deeper understanding), or "supplementary" (reference)
 3. Write a Korean context sentence explaining why this paper matters for the topic
 
+IMPORTANT: You MUST output ALL {len(modules)} modules listed below. Do not skip or truncate any module.
+
 Structure with verified papers:
 {json.dumps(structure_for_prompt, ensure_ascii=False, indent=2)}
 
-Return ONLY valid JSON matching this EXACT schema:
+Return ONLY valid JSON with this schema:
 {{
-  "name": "{structure.get('name', topic)}",
-  "university": "Multi-University Reference",
-  "instructor": "AI Curated",
-  "difficulty": "{difficulty}",
-  "description": "{structure.get('description', '')}",
-  "prerequisites": {json.dumps(structure.get('prerequisites', []))},
-  "reference_courses": {json.dumps(ref_courses, ensure_ascii=False)},
-  "url": "",
   "modules": [
     {{
-      "id": "mod-01",
-      "week": 1,
+      "id": "mod-{module_offset + 1:02d}",
+      "week": {module_offset + 1},
       "title": "Module Title",
       "description": "Module description",
       "topics": [
         {{
-          "id": "topic-01-01",
+          "id": "topic-{module_offset + 1:02d}-01",
           "title": "Topic Title",
           "papers": [
             {{
@@ -312,21 +363,28 @@ Return ONLY valid JSON matching this EXACT schema:
   ]
 }}"""
 
+        # ~800 tokens per module (title, description, 2 topics × 3 papers with Korean context)
+        assembly_tokens = max(4000, len(modules) * 1200)
+
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
-            max_tokens=8000,
+            max_tokens=assembly_tokens,
             response_format={"type": "json_object"},
         )
 
-        curriculum = json.loads(response.choices[0].message.content)
+        result = json.loads(response.choices[0].message.content)
+        assembled = result.get("modules", [])
 
-        # Ensure required fields
-        curriculum.setdefault("university", "Multi-University Reference")
-        curriculum.setdefault("instructor", "AI Curated")
-        curriculum.setdefault("difficulty", difficulty)
-        curriculum.setdefault("reference_courses", ref_courses)
+        if len(assembled) < len(modules):
+            logger.warning(
+                "Step 3: Batch expected %d modules but got %d (finish_reason=%s, tokens=%d/%d)",
+                len(modules), len(assembled),
+                response.choices[0].finish_reason,
+                response.usage.completion_tokens if response.usage else 0,
+                assembly_tokens,
+            )
 
-        return curriculum
+        return assembled
