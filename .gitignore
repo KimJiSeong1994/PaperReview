@@ -5,6 +5,9 @@ __pycache__/
 
 data/
 !data/curricula/
+data/curricula/user_index.json
+data/curricula/custom_*.json
+data/curricula/fork_*.json
 logs/
 .DS_Store
 *.pkl

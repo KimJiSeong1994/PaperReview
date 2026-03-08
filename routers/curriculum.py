@@ -31,8 +31,9 @@ router = APIRouter(prefix="/api", tags=["curriculum"])
 
 CURRICULA_DIR = Path("data/curricula")
 PROGRESS_FILE = Path("data/curriculum_progress.json")
+USER_INDEX_FILE = CURRICULA_DIR / "user_index.json"
 _progress_lock = FileLock(str(PROGRESS_FILE) + ".lock")
-_index_lock = FileLock(str(CURRICULA_DIR / "index.json") + ".lock")
+_index_lock = FileLock(str(USER_INDEX_FILE) + ".lock")
 
 # Preset course IDs — these are the built-in featured courses
 PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229", "stats315a", "stats361"}
@@ -53,27 +54,47 @@ def _validate_course_id(course_id: str) -> str:
     return course_id
 
 
-def _load_index() -> dict:
-    """Load curricula index. Caller must hold _index_lock if writing."""
+def _load_preset_index() -> list:
+    """Load git-tracked preset curricula index."""
     index_path = CURRICULA_DIR / "index.json"
     if not index_path.exists():
-        return {"curricula": []}
+        return []
     try:
         with open(index_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            return data.get("curricula", [])
     except (json.JSONDecodeError, UnicodeDecodeError):
         logger.error("Corrupted index.json, returning empty list")
-        return {"curricula": []}
+        return []
 
 
-def _save_index(data: dict) -> None:
-    """Save curricula index (atomic write). Caller must hold _index_lock."""
-    index_path = CURRICULA_DIR / "index.json"
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = index_path.with_suffix(".json.tmp")
+def _load_user_index() -> list:
+    """Load user-generated curricula index (survives deploys)."""
+    if not USER_INDEX_FILE.exists():
+        return []
+    try:
+        with open(USER_INDEX_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("curricula", [])
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.error("Corrupted user_index.json, returning empty list")
+        return []
+
+
+def _save_user_index(entries: list) -> None:
+    """Save user-generated curricula index (atomic write). Caller must hold _index_lock."""
+    USER_INDEX_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = USER_INDEX_FILE.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    tmp.replace(index_path)
+        json.dump({"curricula": entries}, f, ensure_ascii=False, indent=2)
+    tmp.replace(USER_INDEX_FILE)
+
+
+def _load_index() -> dict:
+    """Load merged index (presets + user). Caller must hold _index_lock if writing."""
+    presets = _load_preset_index()
+    users = _load_user_index()
+    return {"curricula": presets + users}
 
 
 def _load_course(course_id: str) -> Optional[dict]:
@@ -364,14 +385,14 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     # Save course file (atomic)
     _save_course(course_id, curriculum)
 
-    # Register in index (locked)
+    # Register in user index (locked, survives deploys)
     with _index_lock:
-        index = _load_index()
+        user_entries = _load_user_index()
         total_papers = _count_papers(curriculum)
         total_modules = len(curriculum.get("modules", []))
 
-        index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-        index["curricula"].append({
+        user_entries = [c for c in user_entries if c["id"] != course_id]
+        user_entries.append({
             "id": course_id,
             "name": curriculum.get("name", f"Custom: {request.topic}"),
             "university": "Custom Curriculum",
@@ -385,7 +406,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
             "is_preset": False,
             "owner": username,
         })
-        _save_index(index)
+        _save_user_index(user_entries)
 
     return {
         "success": True,
@@ -442,14 +463,14 @@ async def generate_curriculum_stream(
                 # Save course file (atomic)
                 _save_course(course_id, curriculum)
 
-                # Register in index (locked)
+                # Register in user index (locked, survives deploys)
                 with _index_lock:
-                    index = _load_index()
+                    user_entries = _load_user_index()
                     total_papers = _count_papers(curriculum)
                     total_modules = len(curriculum.get("modules", []))
 
-                    index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-                    index["curricula"].append({
+                    user_entries = [c for c in user_entries if c["id"] != course_id]
+                    user_entries.append({
                         "id": course_id,
                         "name": curriculum.get("name", f"Custom: {request.topic}"),
                         "university": curriculum.get("university", "Multi-University Reference"),
@@ -463,7 +484,7 @@ async def generate_curriculum_stream(
                         "is_preset": False,
                         "owner": username,
                     })
-                    _save_index(index)
+                    _save_user_index(user_entries)
 
                 yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
             else:
@@ -512,13 +533,13 @@ async def fork_curriculum(
     # Save course file (atomic)
     _save_course(forked_id, forked)
 
-    # Register in index (locked)
+    # Register in user index (locked, survives deploys)
     with _index_lock:
-        index = _load_index()
+        user_entries = _load_user_index()
         total_papers = _count_papers(forked)
         total_modules = len(forked.get("modules", []))
 
-        index["curricula"].append({
+        user_entries.append({
             "id": forked_id,
             "name": forked["name"],
             "university": source.get("university", ""),
@@ -533,7 +554,7 @@ async def fork_curriculum(
             "owner": username,
             "forked_from": course_id,
         })
-        _save_index(index)
+        _save_user_index(user_entries)
 
     return {
         "success": True,
@@ -554,8 +575,8 @@ async def delete_curriculum(
         raise HTTPException(status_code=403, detail="Cannot delete preset courses")
 
     with _index_lock:
-        index = _load_index()
-        entry = next((c for c in index["curricula"] if c["id"] == course_id), None)
+        user_entries = _load_user_index()
+        entry = next((c for c in user_entries if c["id"] == course_id), None)
         if not entry:
             raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
 
@@ -567,9 +588,9 @@ async def delete_curriculum(
         if entry.get("is_preset"):
             raise HTTPException(status_code=403, detail="Cannot delete preset courses")
 
-        # Remove from index
-        index["curricula"] = [c for c in index["curricula"] if c["id"] != course_id]
-        _save_index(index)
+        # Remove from user index only
+        user_entries = [c for c in user_entries if c["id"] != course_id]
+        _save_user_index(user_entries)
 
     # Remove course file
     course_path = CURRICULA_DIR / f"{course_id}.json"
