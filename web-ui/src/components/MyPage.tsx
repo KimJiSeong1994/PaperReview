@@ -4,19 +4,27 @@ import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
+import { useCurriculum } from '../hooks/useCurriculum';
 import { createShareLink, revokeShareLink } from '../api/client';
 import type { ShareInfo } from '../api/client';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
 import ReportViewer from './mypage/ReportViewer';
 import ChatPanel from './mypage/ChatPanel';
+import CourseSidebar from './curriculum/CourseSidebar';
+import ModuleView from './curriculum/ModuleView';
+import CurriculumDetailPanel from './curriculum/CurriculumDetailPanel';
+import './CurriculumPage.css';
 
 interface MyPageProps {
   onBack: () => void;
 }
 
+type MyPageTab = 'bookmarks' | 'curriculum';
+
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<MyPageTab>('bookmarks');
 
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
@@ -105,6 +113,9 @@ function MyPage({ onBack }: MyPageProps) {
     }
   }, [chat.scrollToHighlight, chat.highlightTerms, bm.bookmarkDetail, bm.loadingDetail]);
 
+  // ── Curriculum hook ──
+  const cur = useCurriculum();
+
   return (
     <div className="mypage">
       {/* Header */}
@@ -124,7 +135,20 @@ function MyPage({ onBack }: MyPageProps) {
               </svg>
               {bm.kgBuilding ? 'Building...' : 'Build KG'}
             </button>
-            <button className="mypage-nav-btn mypage-nav-btn-active">
+            <button
+              className={`mypage-nav-btn ${activeTab === 'curriculum' ? 'mypage-nav-btn-active' : ''}`}
+              onClick={() => setActiveTab('curriculum')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+              Curriculum
+            </button>
+            <button
+              className={`mypage-nav-btn ${activeTab === 'bookmarks' ? 'mypage-nav-btn-active' : ''}`}
+              onClick={() => setActiveTab('bookmarks')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
               </svg>
@@ -134,120 +158,164 @@ function MyPage({ onBack }: MyPageProps) {
         </div>
       </div>
 
-      {/* 3-panel layout */}
-      <div className="mypage-content">
-        <BookmarkSidebar
-          bookmarks={bm.bookmarks}
-          filteredBookmarks={bm.filteredBookmarks}
-          topicGroups={bm.topicGroups}
-          allTopics={bm.allTopics}
-          selectedBookmark={bm.selectedBookmark}
-          selectedIds={bm.selectedIds}
-          loadingBookmarks={bm.loadingBookmarks}
-          searchQuery={bm.searchQuery}
-          setSearchQuery={bm.setSearchQuery}
-          allNotesMode={bm.allNotesMode}
-          setAllNotesMode={bm.setAllNotesMode}
-          topicAccordionOpen={bm.topicAccordionOpen}
-          toggleTopicAccordion={bm.toggleTopicAccordion}
-          showNewTopicInput={bm.showNewTopicInput}
-          setShowNewTopicInput={bm.setShowNewTopicInput}
-          newTopicInput={bm.newTopicInput}
-          setNewTopicInput={bm.setNewTopicInput}
-          overTopicId={bm.overTopicId}
-          activeDragBookmark={bm.activeDragBookmark}
-          sensors={bm.sensors}
-          onDragStart={bm.handleDragStart}
-          onDragOver={bm.handleDragOver}
-          onDragEnd={bm.handleDragEnd}
-          onSelect={handleSelectBookmarkDirect}
-          onDelete={bm.handleDeleteBookmark}
-          onToggleSelection={bm.handleToggleSelection}
-          onSelectAll={bm.handleSelectAll}
-          onDeselectAll={bm.handleDeselectAll}
-          onBulkDelete={bm.handleBulkDelete}
-          onBulkMove={bm.handleBulkMove}
-          onAddTopic={bm.handleAddTopic}
-        />
+      {/* Tab content */}
+      {activeTab === 'bookmarks' ? (
+        <div className="mypage-content">
+          <BookmarkSidebar
+            bookmarks={bm.bookmarks}
+            filteredBookmarks={bm.filteredBookmarks}
+            topicGroups={bm.topicGroups}
+            allTopics={bm.allTopics}
+            selectedBookmark={bm.selectedBookmark}
+            selectedIds={bm.selectedIds}
+            loadingBookmarks={bm.loadingBookmarks}
+            searchQuery={bm.searchQuery}
+            setSearchQuery={bm.setSearchQuery}
+            allNotesMode={bm.allNotesMode}
+            setAllNotesMode={bm.setAllNotesMode}
+            topicAccordionOpen={bm.topicAccordionOpen}
+            toggleTopicAccordion={bm.toggleTopicAccordion}
+            showNewTopicInput={bm.showNewTopicInput}
+            setShowNewTopicInput={bm.setShowNewTopicInput}
+            newTopicInput={bm.newTopicInput}
+            setNewTopicInput={bm.setNewTopicInput}
+            overTopicId={bm.overTopicId}
+            activeDragBookmark={bm.activeDragBookmark}
+            sensors={bm.sensors}
+            onDragStart={bm.handleDragStart}
+            onDragOver={bm.handleDragOver}
+            onDragEnd={bm.handleDragEnd}
+            onSelect={handleSelectBookmarkDirect}
+            onDelete={bm.handleDeleteBookmark}
+            onToggleSelection={bm.handleToggleSelection}
+            onSelectAll={bm.handleSelectAll}
+            onDeselectAll={bm.handleDeselectAll}
+            onBulkDelete={bm.handleBulkDelete}
+            onBulkMove={bm.handleBulkMove}
+            onAddTopic={bm.handleAddTopic}
+          />
 
-        <ReportViewer
-          bookmarkDetail={bm.bookmarkDetail}
-          loadingDetail={bm.loadingDetail}
-          hasSelectedBookmark={!!bm.selectedBookmark}
-          reportScrollRef={reportScrollRef}
-          highlightTerms={chat.highlightTerms}
-          setHighlightTerms={chat.setHighlightTerms}
-          highlightChildren={chat.highlightChildren}
-          userHighlights={hl.userHighlights}
-          sortedHighlights={hl.sortedHighlights}
-          applyUserHighlights={hl.applyUserHighlights}
-          expandedHighlightId={hl.expandedHighlightId}
-          setExpandedHighlightId={hl.setExpandedHighlightId}
-          highlightPopover={hl.highlightPopover}
-          popoverPos={hl.popoverPos}
-          setHighlightPopover={() => {}}
-          notesText={hl.notesText}
-          setNotesText={hl.setNotesText}
-          notesSaving={hl.notesSaving}
-          notesCollapsed={hl.notesCollapsed}
-          setNotesCollapsed={hl.setNotesCollapsed}
-          saveStatus={hl.saveStatus}
-          autoHighlighting={hl.autoHighlighting}
-          onSaveNotes={hl.handleSaveNotes}
-          onAutoHighlight={hl.handleAutoHighlight}
-          onClearAllHighlights={hl.handleClearAllHighlights}
-          onRemoveHighlight={hl.handleRemoveHighlight}
-          papersCollapsed={hl.papersCollapsed}
-          setPapersCollapsed={hl.setPapersCollapsed}
-          onExportBibTeX={bm.handleExportBibTeX}
-          onExportReport={bm.handleExportReport}
-          selectionToolbar={hl.selectionToolbar}
-          memoMode={hl.memoMode}
-          memoInput={hl.memoInput}
-          setMemoInput={hl.setMemoInput}
-          onAddHighlight={hl.handleAddHighlight}
-          onStartMemo={hl.handleStartMemo}
-          onSaveMemo={hl.handleSaveMemo}
-          onCancelMemo={hl.handleCancelMemo}
-          citationTreeData={exploration.citationTreeData}
-          citationTreeLoading={exploration.citationTreeLoading}
-          citationTreeError={exploration.citationTreeError}
-          citationTreeWarning={exploration.citationTreeWarning}
-          onGenerateCitationTree={() => {
-            if (bm.selectedBookmark) {
-              exploration.handleGenerateCitationTree(bm.selectedBookmark.id);
-            }
-          }}
-          onDeleteCitationTree={exploration.handleDeleteCitationTree}
-          onRenameBookmark={(title: string) => {
-            if (bm.selectedBookmark) {
-              bm.handleRenameBookmark(bm.selectedBookmark.id, title);
-            }
-          }}
-          shareInfo={shareInfo}
-          shareLoading={shareLoading}
-          onCreateShare={handleCreateShare}
-          onRevokeShare={handleRevokeShare}
-        />
+          <ReportViewer
+            bookmarkDetail={bm.bookmarkDetail}
+            loadingDetail={bm.loadingDetail}
+            hasSelectedBookmark={!!bm.selectedBookmark}
+            reportScrollRef={reportScrollRef}
+            highlightTerms={chat.highlightTerms}
+            setHighlightTerms={chat.setHighlightTerms}
+            highlightChildren={chat.highlightChildren}
+            userHighlights={hl.userHighlights}
+            sortedHighlights={hl.sortedHighlights}
+            applyUserHighlights={hl.applyUserHighlights}
+            expandedHighlightId={hl.expandedHighlightId}
+            setExpandedHighlightId={hl.setExpandedHighlightId}
+            highlightPopover={hl.highlightPopover}
+            popoverPos={hl.popoverPos}
+            setHighlightPopover={() => {}}
+            notesText={hl.notesText}
+            setNotesText={hl.setNotesText}
+            notesSaving={hl.notesSaving}
+            notesCollapsed={hl.notesCollapsed}
+            setNotesCollapsed={hl.setNotesCollapsed}
+            saveStatus={hl.saveStatus}
+            autoHighlighting={hl.autoHighlighting}
+            onSaveNotes={hl.handleSaveNotes}
+            onAutoHighlight={hl.handleAutoHighlight}
+            onClearAllHighlights={hl.handleClearAllHighlights}
+            onRemoveHighlight={hl.handleRemoveHighlight}
+            papersCollapsed={hl.papersCollapsed}
+            setPapersCollapsed={hl.setPapersCollapsed}
+            onExportBibTeX={bm.handleExportBibTeX}
+            onExportReport={bm.handleExportReport}
+            selectionToolbar={hl.selectionToolbar}
+            memoMode={hl.memoMode}
+            memoInput={hl.memoInput}
+            setMemoInput={hl.setMemoInput}
+            onAddHighlight={hl.handleAddHighlight}
+            onStartMemo={hl.handleStartMemo}
+            onSaveMemo={hl.handleSaveMemo}
+            onCancelMemo={hl.handleCancelMemo}
+            citationTreeData={exploration.citationTreeData}
+            citationTreeLoading={exploration.citationTreeLoading}
+            citationTreeError={exploration.citationTreeError}
+            citationTreeWarning={exploration.citationTreeWarning}
+            onGenerateCitationTree={() => {
+              if (bm.selectedBookmark) {
+                exploration.handleGenerateCitationTree(bm.selectedBookmark.id);
+              }
+            }}
+            onDeleteCitationTree={exploration.handleDeleteCitationTree}
+            onRenameBookmark={(title: string) => {
+              if (bm.selectedBookmark) {
+                bm.handleRenameBookmark(bm.selectedBookmark.id, title);
+              }
+            }}
+            shareInfo={shareInfo}
+            shareLoading={shareLoading}
+            onCreateShare={handleCreateShare}
+            onRevokeShare={handleRevokeShare}
+          />
 
-        <ChatPanel
-          messages={chat.messages}
-          inputValue={chat.inputValue}
-          setInputValue={chat.setInputValue}
-          isStreaming={chat.isStreaming}
-          streamingContent={chat.streamingContent}
-          chatEndRef={chat.chatEndRef}
-          chatTopicFilter={bm.chatTopicFilter}
-          setChatTopicFilter={bm.setChatTopicFilter}
-          allTopics={bm.allTopics}
-          selectedCount={bm.selectedIds.size}
-          onSendMessage={() => chat.handleSendMessage()}
-          onKeyDown={chat.handleKeyDown}
-          onClearChat={chat.clearChat}
-          processCitationChildren={chat.processCitationChildren}
-          handleCitationClick={chat.handleCitationClick}
-        />
-      </div>
+          <ChatPanel
+            messages={chat.messages}
+            inputValue={chat.inputValue}
+            setInputValue={chat.setInputValue}
+            isStreaming={chat.isStreaming}
+            streamingContent={chat.streamingContent}
+            chatEndRef={chat.chatEndRef}
+            chatTopicFilter={bm.chatTopicFilter}
+            setChatTopicFilter={bm.setChatTopicFilter}
+            allTopics={bm.allTopics}
+            selectedCount={bm.selectedIds.size}
+            onSendMessage={() => chat.handleSendMessage()}
+            onKeyDown={chat.handleKeyDown}
+            onClearChat={chat.clearChat}
+            processCitationChildren={chat.processCitationChildren}
+            handleCitationClick={chat.handleCitationClick}
+          />
+        </div>
+      ) : (
+        <div className="curriculum-content mypage-curriculum-content">
+          <CourseSidebar
+            presetCourses={cur.presetCourses}
+            myCourses={cur.myCourses}
+            loadingCourses={cur.loadingCourses}
+            selectedCourseId={cur.selectedCourseId}
+            selectedModuleId={cur.selectedModuleId}
+            readPapers={cur.readPapers}
+            progressStats={cur.progressStats}
+            courseDetail={cur.courseDetail}
+            generating={cur.generating}
+            forking={cur.forking}
+            onSelectCourse={cur.handleSelectCourse}
+            onSelectModule={cur.setSelectedModuleId}
+            onGenerate={cur.handleGenerate}
+            onFork={cur.handleFork}
+            onDelete={cur.handleDelete}
+            getModuleProgress={cur.getModuleProgress}
+          />
+
+          {cur.loadingCourse ? (
+            <div className="curriculum-main">
+              <div className="curriculum-loading">Loading course...</div>
+            </div>
+          ) : (
+            <ModuleView
+              module={cur.selectedModule}
+              readPapers={cur.readPapers}
+              selectedPaperId={cur.selectedPaperId}
+              onSelectPaper={cur.setSelectedPaperId}
+              onToggleRead={cur.handleToggleRead}
+              getModuleProgress={cur.getModuleProgress}
+            />
+          )}
+
+          <CurriculumDetailPanel
+            paper={cur.selectedPaper}
+            courseDetail={cur.courseDetail}
+            onSearchPaper={cur.handleSearchPaper}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,6 @@ const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
-const CurriculumPage = lazy(() => import('./components/CurriculumPage'));
 import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
@@ -481,7 +480,6 @@ function App() {
       <Route path="/share/:token" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><SharedView /></Suspense>} />
       <Route path="/mypage" element={isAuthenticated ? <Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense> : <Navigate to="/" />} />
       <Route path="/admin" element={isAuthenticated && userRole === 'admin' ? <Suspense fallback={<div className="app-loading">Loading...</div>}><AdminPage /></Suspense> : <Navigate to="/" />} />
-      <Route path="/curriculum" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><CurriculumPage /></Suspense>} />
       <Route path="*" element={<>
       {/* Minimal header */}
       <div className="app-header">
@@ -498,15 +496,6 @@ function App() {
             <span className="brand-name">Jiphyeonjeon</span>
           </div>
           <div className="header-actions">
-            <button
-              className="nav-btn"
-              onClick={() => navigate('/curriculum')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
-              </svg>
-              Curriculum
-            </button>
             {isAuthenticated && userRole === 'admin' && (
               <button
                 className="nav-btn"

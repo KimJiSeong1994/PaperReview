@@ -145,9 +145,9 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.25);
-  color: #34d399;
+  background: rgba(165, 180, 252, 0.1);
+  border: 1px solid rgba(165, 180, 252, 0.2);
+  color: #a5b4fc;
   border-radius: 6px;
   cursor: pointer;
   font-size: 11px;
@@ -157,7 +157,7 @@
 }
 
 .curriculum-fork-btn:hover {
-  background: rgba(52, 211, 153, 0.2);
+  background: rgba(165, 180, 252, 0.18);
 }
 
 .curriculum-fork-btn:disabled {
@@ -179,9 +179,9 @@
 }
 
 .curriculum-delete-btn:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
+  color: #d1d5db;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .curriculum-forked-badge {
@@ -189,7 +189,7 @@
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  color: #34d399;
+  color: #9ca3af;
   padding: 2px 0;
   margin-top: 2px;
 }
@@ -754,6 +754,13 @@
   content: '•';
   color: #6b7280;
   margin-right: 8px;
+}
+
+/* ── Curriculum inside MyPage ─────────────────────────────────────── */
+.mypage-curriculum-content {
+  padding: 0 24px 16px;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* ── Empty & Loading States ────────────────────────────────────────── */
