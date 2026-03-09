@@ -89,13 +89,78 @@ class CurriculumPipeline:
 
         try:
             return json.loads(content)
-        except json.JSONDecodeError as e:
-            # Log first 500 chars for debugging
+        except json.JSONDecodeError:
+            # If truncated (finish_reason=length), try to repair the JSON
+            if finish_reason == "length":
+                logger.warning(
+                    "[%s] Truncated JSON (finish_reason=length, %d chars), attempting repair...",
+                    step_label, len(content),
+                )
+                repaired = CurriculumPipeline._repair_truncated_json(content)
+                if repaired is not None:
+                    logger.info("[%s] JSON repair succeeded", step_label)
+                    return repaired
+
             logger.error(
                 "[%s] JSON parse failed — finish_reason=%s, content[:500]=%s",
                 step_label, finish_reason, content[:500],
             )
-            raise ValueError(f"[{step_label}] Invalid JSON from LLM: {e}") from e
+            raise ValueError(
+                f"[{step_label}] Invalid JSON from LLM (finish_reason={finish_reason}). "
+                "Output was truncated — try reducing the number of modules."
+            )
+
+    @staticmethod
+    def _repair_truncated_json(content: str) -> dict | None:
+        """Attempt to repair truncated JSON by closing open brackets/braces."""
+        # Strategy: progressively strip trailing chars and close brackets
+        s = content.rstrip()
+        # Try to find a valid JSON by closing open structures
+        for _ in range(200):
+            # Count open/close brackets
+            open_braces = s.count("{") - s.count("}")
+            open_brackets = s.count("[") - s.count("]")
+
+            if open_braces == 0 and open_brackets == 0:
+                try:
+                    return json.loads(s)
+                except json.JSONDecodeError:
+                    pass
+
+            # Strip trailing comma or incomplete key/value
+            s = s.rstrip(", \t\n\r")
+            # Strip incomplete string (ends with unclosed quote)
+            if s and s[-1] == '"':
+                # Check if this quote is an unclosed string
+                s = s[:-1]
+                # Find matching opening quote
+                last_quote = s.rfind('"')
+                if last_quote > 0:
+                    # Remove the entire key-value pair back to last comma or brace
+                    s = s[:last_quote].rstrip(", \t\n\r:")
+                continue
+            # Strip trailing colon (incomplete key-value)
+            if s and s[-1] == ':':
+                s = s[:-1].rstrip(", \t\n\r")
+                # Remove the key too
+                if s and s[-1] == '"':
+                    last_quote = s[:-1].rfind('"')
+                    if last_quote >= 0:
+                        s = s[:last_quote].rstrip(", \t\n\r")
+                continue
+
+            # Close innermost open structure
+            if open_brackets > 0:
+                s += "]"
+            elif open_braces > 0:
+                s += "}"
+            else:
+                break
+
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
+            return None
 
     async def generate(
         self,
@@ -387,8 +452,8 @@ Return ONLY valid JSON matching this schema:
         modules = structure.get("modules", [])
         ref_courses = structure.get("reference_courses", [])
 
-        # For <=5 modules, single call. For >5, batch to avoid token truncation.
-        batch_size = 5
+        # Process in batches of 3 to keep prompt small and leave room for output
+        batch_size = 3
         if len(modules) <= batch_size:
             assembled_modules = await self._assemble_batch(
                 modules, topic, difficulty, ref_courses, structure,
@@ -431,22 +496,21 @@ Return ONLY valid JSON matching this schema:
         for module in modules:
             mod_info = {
                 "module_title": module["title"],
-                "module_description": module.get("description", ""),
                 "topics": [],
             }
             for t in module.get("topics", []):
+                # Limit to top 4 papers, 3 authors each to reduce prompt tokens
                 topic_info = {
                     "topic_title": t["title"],
                     "verified_papers": [
                         {
                             "title": p["title"],
-                            "authors": p.get("authors", [])[:5],
+                            "authors": p.get("authors", [])[:3],
                             "year": p.get("year", ""),
                             "doi": p.get("doi", ""),
                             "citations": p.get("citations", 0),
-                            "venue": p.get("venue", ""),
                         }
-                        for p in t.get("verified_papers", [])
+                        for p in t.get("verified_papers", [])[:4]
                     ],
                 }
                 mod_info["topics"].append(topic_info)
@@ -512,8 +576,8 @@ Return ONLY valid JSON with this schema:
   ]
 }}"""
 
-        # ~800 tokens per module (title, description, 2 topics × 3 papers with Korean context)
-        assembly_tokens = max(4000, len(modules) * 1200)
+        # ~2500 tokens per module (title, description, 2-3 topics × 2-3 papers with Korean context)
+        assembly_tokens = max(6000, len(modules) * 2500)
 
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
