@@ -143,10 +143,19 @@ export interface CodeRepo {
   description: string;
   language: string;
   is_official: boolean;
+  source?: string;
 }
 
-export const fetchPaperCodeRepos = async (title: string): Promise<CodeRepo[]> => {
-  const response = await api.post<{ repos: CodeRepo[] }>('/api/paper-code-repos', { title });
+export const fetchPaperCodeRepos = async (
+  title: string,
+  opts?: { arxiv_id?: string | null; doi?: string | null; authors?: string[] },
+): Promise<CodeRepo[]> => {
+  const response = await api.post<{ repos: CodeRepo[] }>('/api/paper-code-repos', {
+    title,
+    arxiv_id: opts?.arxiv_id || undefined,
+    doi: opts?.doi || undefined,
+    authors: opts?.authors || undefined,
+  });
   return response.data.repos || [];
 };
 

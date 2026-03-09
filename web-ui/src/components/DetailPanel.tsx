@@ -41,7 +41,11 @@ function DetailPanel({ paper }: DetailPanelProps) {
     let cancelled = false;
     setCodeRepos([]);
     setReposLoading(true);
-    fetchPaperCodeRepos(paper.title)
+    fetchPaperCodeRepos(paper.title, {
+      arxiv_id: paper.arxiv_id,
+      doi: paper.doi,
+      authors: paper.authors,
+    })
       .then((repos) => {
         if (!cancelled) setCodeRepos(repos);
       })
@@ -52,7 +56,7 @@ function DetailPanel({ paper }: DetailPanelProps) {
         if (!cancelled) setReposLoading(false);
       });
     return () => { cancelled = true; };
-  }, [paper.title]);
+  }, [paper.title, paper.arxiv_id, paper.doi]);
 
   const formatAuthors = (authors: string[]): string => {
     if (!authors || authors.length === 0) return 'Unknown authors';
