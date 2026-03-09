@@ -176,7 +176,7 @@ Requirements:
 - Number of modules: {num_modules}
 - Reference ONLY real, currently-offered or well-documented university courses.
   Provide the official course URL if available. If you are not confident a course exists,
-  do NOT fabricate it — instead use "General {topic_area} Curriculum" as inspired_by.
+  do NOT fabricate it — instead use "General {topic} Curriculum" as inspired_by.
   For each module, note which real course inspired it.
 - Each module should have 1-3 focused topics
 - Do NOT include specific paper references yet
