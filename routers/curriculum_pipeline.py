@@ -215,7 +215,7 @@ Return ONLY valid JSON matching this schema:
   ]
 }}"""
 
-        # Scale max_tokens based on number of modules
+        # Scale max_completion_tokens based on number of modules
         # ~300 tokens per module (id, title, description, inspired_by, 2-3 topics with keywords)
         structure_tokens = max(4000, num_modules * 500 + 1500)
 
@@ -224,7 +224,7 @@ Return ONLY valid JSON matching this schema:
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
-            max_tokens=structure_tokens,
+            max_completion_tokens=structure_tokens,
             response_format={"type": "json_object"},
         )
 
@@ -481,7 +481,7 @@ Return ONLY valid JSON with this schema:
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
-            max_tokens=assembly_tokens,
+            max_completion_tokens=assembly_tokens,
             response_format={"type": "json_object"},
         )
 
@@ -614,7 +614,7 @@ Be selective — only flag genuine issues, not minor nitpicks."""
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=3000,
+            max_completion_tokens=3000,
             response_format={"type": "json_object"},
         )
         return json.loads(response.choices[0].message.content)
@@ -739,7 +739,7 @@ Return ONLY valid JSON:
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=refine_tokens,
+            max_completion_tokens=refine_tokens,
             response_format={"type": "json_object"},
         )
 

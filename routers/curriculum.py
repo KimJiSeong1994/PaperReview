@@ -355,7 +355,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
-            max_tokens=4096,
+            max_completion_tokens=4096,
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content
