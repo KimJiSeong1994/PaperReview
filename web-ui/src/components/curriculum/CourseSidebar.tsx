@@ -241,7 +241,7 @@ export default function CourseSidebar({
 
   // Compute overall generate progress percent
   const overallPercent = generateProgress
-    ? Math.round(((generateProgress.step - 1) / 3) * 100 + (generateProgress.progress / 3))
+    ? Math.round(((generateProgress.step - 1) / 4) * 100 + (generateProgress.progress / 4))
     : 0;
 
   return (
@@ -321,10 +321,11 @@ export default function CourseSidebar({
                 ) : (
                   <>
                     <div className="curriculum-generate-step-label">
-                      Step {generateProgress.step}/3: {
+                      Step {generateProgress.step}/4: {
                         generateProgress.step_name === 'structure' ? 'Designing structure' :
                         generateProgress.step_name === 'search' ? 'Searching papers' :
                         generateProgress.step_name === 'assembly' ? 'Assembling curriculum' :
+                        generateProgress.step_name === 'review' ? 'Quality review & refinement' :
                         'Preparing'
                       }
                     </div>

@@ -309,7 +309,7 @@ export function useCurriculum() {
         async (result) => {
           if (abortController.signal.aborted) return;
           try {
-            setGenerateProgress({ step: 4, step_name: 'done', progress: 100, message: 'Curriculum created successfully!' });
+            setGenerateProgress({ step: 5, step_name: 'done', progress: 100, message: 'Curriculum created successfully!' });
             const data = await fetchCurricula();
             setCourses(data.curricula || []);
             if (result.course_id) {

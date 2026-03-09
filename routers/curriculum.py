@@ -352,7 +352,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=4096,
@@ -369,6 +369,47 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     # Validate basic structure
     if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
         raise HTTPException(status_code=502, detail="LLM returned curriculum without valid modules")
+
+    # ── OpenAlex verification: replace LLM-hallucinated papers with real data ──
+    from src.collector.paper.openalex_searcher import OpenAlexSearcher
+    searcher = OpenAlexSearcher()
+    try:
+        for module in curriculum["modules"]:
+            for topic in module.get("topics", []):
+                verified = []
+                for paper in topic.get("papers", []):
+                    results = searcher.search_by_title(paper.get("title", ""), 1)
+                    if results:
+                        real = results[0]
+                        paper["title"] = real["title"]
+                        paper["authors"] = real["authors"][:10]
+                        paper["year"] = int(real["year"]) if real.get("year") else paper.get("year")
+                        paper["doi"] = real.get("doi") or paper.get("doi")
+                        paper["venue"] = real.get("venue") or paper.get("venue")
+                        paper["verified"] = True
+                        verified.append(paper)
+                    else:
+                        # Verification failed: search for fallback paper by topic keyword
+                        fallback = searcher.search(topic.get("title", ""), 2)
+                        if fallback:
+                            fb = fallback[0]
+                            verified.append({
+                                **paper,
+                                "title": fb["title"],
+                                "authors": fb["authors"][:10],
+                                "year": int(fb["year"]) if fb.get("year") else None,
+                                "doi": fb.get("doi"),
+                                "venue": fb.get("venue", ""),
+                                "verified": True,
+                            })
+                        else:
+                            paper["verified"] = False
+                            verified.append(paper)
+                topic["papers"] = verified
+    except Exception as e:
+        logger.warning("OpenAlex verification partially failed: %s", e)
+    finally:
+        searcher.close()
 
     # Generate unique ID (UUID to avoid collisions)
     course_id = f"custom_{uuid.uuid4().hex[:12]}"

@@ -1,18 +1,55 @@
 """
-3-step Curriculum Generation Pipeline
+4-step Curriculum Generation Pipeline
 
 Step 1: LLM generates curriculum structure (modules/topics + search keywords)
         referencing real university courses (MIT, Stanford, Oxford, CMU, etc.)
 Step 2: OpenAlex API searches and verifies real papers per topic
 Step 3: LLM assembles final curriculum with verified papers + Korean context
+Step 4: LLM auto-reviews for quality issues → searches replacements → refines
 """
 
 import json
 import logging
 import asyncio
+import datetime
+import os
+import time
 from typing import AsyncGenerator, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_paper_score(paper: dict, paper_preference: str | None = None) -> float:
+    """Composite score: citations/year + recency bonus + preference weighting."""
+    citations = paper.get("citations", 0)
+    try:
+        year = int(paper.get("year", 0))
+    except (ValueError, TypeError):
+        year = 0
+    current_year = datetime.datetime.now().year
+
+    if year > 0:
+        age = max(current_year - year, 1)
+        citations_per_year = citations / age
+    else:
+        citations_per_year = citations
+
+    # Recency bonus: recent papers (≤3 years) get extra score
+    recency_bonus = 0
+    if year >= current_year - 1:
+        recency_bonus = 50
+    elif year >= current_year - 3:
+        recency_bonus = 20
+
+    score = citations_per_year + recency_bonus
+
+    # paper_preference weighting
+    if paper_preference == "cutting_edge" and year >= current_year - 3:
+        score *= 2.0
+    elif paper_preference == "survey_heavy" and citations > 500:
+        score *= 1.5
+
+    return score
 
 
 class CurriculumPipeline:
@@ -57,7 +94,7 @@ class CurriculumPipeline:
                "message": f"Searching verified papers for {total_topics} topics..."}
 
         try:
-            async for event in self._step2_search_papers(structure, total_topics):
+            async for event in self._step2_search_papers(structure, total_topics, paper_preference):
                 if "step" in event:
                     yield event  # progress update
                 else:
@@ -88,7 +125,25 @@ class CurriculumPipeline:
             return
 
         yield {"step": 3, "step_name": "assembly", "progress": 100,
-               "message": "Curriculum complete!"}
+               "message": "Assembly complete, starting quality review..."}
+
+        # ── Step 4: Auto-Review & Refine ──
+        yield {"step": 4, "step_name": "review", "progress": 0,
+               "message": "Reviewing curriculum quality..."}
+
+        try:
+            async for event in self._step4_review_and_refine(
+                curriculum, structure, topic, difficulty, paper_preference,
+            ):
+                if event.get("done"):
+                    curriculum = event["curriculum"]
+                elif "step" in event:
+                    yield event
+        except Exception as e:
+            logger.warning("Step 4 (review) failed, using unrefined curriculum: %s", e)
+
+        yield {"step": 4, "step_name": "review", "progress": 100,
+               "message": "Quality review complete!"}
 
         yield {"done": True, "curriculum": curriculum}
 
@@ -119,7 +174,9 @@ Design a structured learning curriculum OUTLINE for: "{topic}"
 Requirements:
 - Difficulty level: {difficulty}
 - Number of modules: {num_modules}
-- Reference ACTUAL university courses that cover this topic or closely related topics.
+- Reference ONLY real, currently-offered or well-documented university courses.
+  Provide the official course URL if available. If you are not confident a course exists,
+  do NOT fabricate it — instead use "General {topic_area} Curriculum" as inspired_by.
   For each module, note which real course inspired it.
 - Each module should have 1-3 focused topics
 - Do NOT include specific paper references yet
@@ -137,7 +194,7 @@ Return ONLY valid JSON matching this schema:
       "university": "MIT",
       "course_code": "6.S898",
       "course_name": "Deep Learning",
-      "url": ""
+      "url": "https://... (official course URL, empty string if unknown)"
     }}
   ],
   "modules": [
@@ -164,7 +221,7 @@ Return ONLY valid JSON matching this schema:
 
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
-            model="gpt-4o",
+            model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
             max_tokens=structure_tokens,
@@ -190,6 +247,7 @@ Return ONLY valid JSON matching this schema:
 
     async def _step2_search_papers(
         self, structure: dict, total_topics: int,
+        paper_preference: Optional[str] = None,
     ):
         """Async generator: yields progress dicts, then yields the final structure."""
         from src.collector.paper.openalex_searcher import OpenAlexSearcher
@@ -222,14 +280,66 @@ Return ONLY valid JSON matching this schema:
                         except Exception as e:
                             logger.warning("OpenAlex search failed for '%s': %s", kw, e)
 
-                    # Sort by citation count, take top papers
-                    candidates.sort(key=lambda p: p.get("citations", 0), reverse=True)
+                    # Semantic Scholar fallback when OpenAlex results are insufficient
+                    if len(candidates) < 3:
+                        s2_results = await asyncio.to_thread(
+                            self._search_semantic_scholar, keywords, seen_titles,
+                        )
+                        candidates.extend(s2_results)
+
+                    # Composite scoring: citations/year + recency bonus + preference
+                    candidates.sort(
+                        key=lambda p: _compute_paper_score(p, paper_preference),
+                        reverse=True,
+                    )
                     topic_item["verified_papers"] = candidates[:6]
         finally:
             searcher.close()
 
         # Final yield: the updated structure (not a dict with 'step')
         yield structure
+
+    def _search_semantic_scholar(self, keywords: list, seen_titles: set, max_per_keyword: int = 5) -> list:
+        """Semantic Scholar API로 보충 검색."""
+        import requests as _requests
+
+        results = []
+        s2_api = "https://api.semanticscholar.org/graph/v1/paper/search"
+        headers = {}
+        s2_key = os.environ.get("S2_API_KEY")
+        if s2_key:
+            headers["x-api-key"] = s2_key
+
+        for kw in keywords:
+            try:
+                resp = _requests.get(s2_api, params={
+                    "query": kw,
+                    "limit": max_per_keyword,
+                    "fields": "title,authors,year,citationCount,venue,externalIds",
+                }, headers=headers, timeout=10)
+                if resp.status_code != 200:
+                    continue
+                for paper in resp.json().get("data", []):
+                    title = paper.get("title", "")
+                    title_lower = title.strip().lower()
+                    if title_lower and title_lower not in seen_titles:
+                        seen_titles.add(title_lower)
+                        ext_ids = paper.get("externalIds") or {}
+                        results.append({
+                            "title": title,
+                            "authors": [a.get("name", "") for a in paper.get("authors", [])][:10],
+                            "year": str(paper.get("year", "")),
+                            "citations": paper.get("citationCount", 0),
+                            "doi": ext_ids.get("DOI", ""),
+                            "arxiv_id": ext_ids.get("ArXiv", ""),
+                            "venue": paper.get("venue", ""),
+                            "url": f"https://api.semanticscholar.org/CorpusID:{paper.get('corpusId', '')}",
+                            "source": "SemanticScholar",
+                        })
+            except Exception as e:
+                logger.warning("S2 search failed for '%s': %s", kw, e)
+            time.sleep(0.5)  # Rate limit
+        return results
 
     # ── Step 3: Final Assembly ────────────────────────────────────────
 
@@ -368,7 +478,7 @@ Return ONLY valid JSON with this schema:
 
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
-            model="gpt-4o",
+            model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
             max_tokens=assembly_tokens,
@@ -388,3 +498,260 @@ Return ONLY valid JSON with this schema:
             )
 
         return assembled
+
+    # ── Step 4: Auto-Review & Refine ──────────────────────────────────
+
+    async def _step4_review_and_refine(
+        self,
+        curriculum: dict,
+        structure: dict,
+        topic: str,
+        difficulty: str,
+        paper_preference: Optional[str] = None,
+    ):
+        """Auto-review assembled curriculum, search replacements, and refine.
+
+        Yields progress events, then yields {"done": True, "curriculum": refined}.
+        """
+        # 4a: LLM reviews the curriculum
+        review = await self._review_curriculum(curriculum, topic, difficulty)
+
+        issues = review.get("issues", [])
+        if not issues:
+            logger.info("Step 4: No quality issues found, skipping refine")
+            yield {"step": 4, "step_name": "review", "progress": 50,
+                   "message": "Quality check passed — no issues found"}
+            yield {"done": True, "curriculum": curriculum}
+            return
+
+        logger.info("Step 4: Found %d issues, refining...", len(issues))
+        yield {"step": 4, "step_name": "review", "progress": 30,
+               "message": f"Found {len(issues)} issues, searching better papers..."}
+
+        # 4b: Search replacement papers for flagged entries
+        papers_to_replace = [
+            i for i in issues if i.get("action") == "replace"
+        ]
+        replacement_candidates = {}
+        if papers_to_replace:
+            replacement_candidates = await self._search_replacement_papers(
+                papers_to_replace, structure, paper_preference,
+            )
+
+        yield {"step": 4, "step_name": "review", "progress": 60,
+               "message": "Applying improvements..."}
+
+        # 4c: LLM refines with review feedback + replacement candidates
+        refined = await self._apply_refinements(
+            curriculum, review, replacement_candidates, topic, difficulty,
+        )
+
+        yield {"step": 4, "step_name": "review", "progress": 90,
+               "message": f"Refined: {len(papers_to_replace)} papers replaced, "
+                         f"{len(issues) - len(papers_to_replace)} issues fixed"}
+        yield {"done": True, "curriculum": refined}
+
+    async def _review_curriculum(self, curriculum: dict, topic: str, difficulty: str) -> dict:
+        """LLM reviews the assembled curriculum for quality issues."""
+        # Build compact representation for review
+        compact_modules = []
+        for module in curriculum.get("modules", []):
+            compact_topics = []
+            for t in module.get("topics", []):
+                compact_papers = [
+                    {
+                        "id": p.get("id", ""),
+                        "title": p.get("title", ""),
+                        "year": p.get("year"),
+                        "category": p.get("category", ""),
+                        "venue": p.get("venue", ""),
+                    }
+                    for p in t.get("papers", [])
+                ]
+                compact_topics.append({
+                    "title": t.get("title", ""),
+                    "papers": compact_papers,
+                })
+            compact_modules.append({
+                "title": module.get("title", ""),
+                "topics": compact_topics,
+            })
+
+        prompt = f"""You are a senior academic reviewer evaluating a generated curriculum on "{topic}" (difficulty: {difficulty}).
+
+Review the curriculum below and identify quality issues. Check for:
+1. **Relevance**: Papers not directly relevant to their assigned topic
+2. **Coverage gaps**: Important sub-areas of a topic that have no papers
+3. **Difficulty mismatch**: Papers too advanced for beginners, or too basic for advanced
+4. **Duplication**: Same paper or near-duplicate across different topics
+5. **Category errors**: Papers miscategorized (e.g., a niche paper marked "required")
+6. **Outdated selections**: Key topics relying only on very old papers (pre-2015) when newer, better alternatives exist
+
+Curriculum:
+{json.dumps(compact_modules, ensure_ascii=False, indent=2)}
+
+Return ONLY valid JSON:
+{{
+  "overall_quality": "good" | "needs_improvement" | "poor",
+  "issues": [
+    {{
+      "paper_id": "paper-001 (or empty if structural issue)",
+      "module_title": "affected module",
+      "topic_title": "affected topic",
+      "issue_type": "relevance|coverage_gap|difficulty|duplication|category|outdated",
+      "description": "brief explanation of the issue",
+      "action": "replace|recategorize|note",
+      "search_keywords": ["keyword1", "keyword2"] // only if action=replace
+    }}
+  ]
+}}
+
+If the curriculum is good and has no significant issues, return {{"overall_quality": "good", "issues": []}}.
+Be selective — only flag genuine issues, not minor nitpicks."""
+
+        response = await asyncio.to_thread(
+            self.client.chat.completions.create,
+            model="gpt-5.4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=3000,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.choices[0].message.content)
+
+    async def _search_replacement_papers(
+        self,
+        papers_to_replace: list[dict],
+        structure: dict,
+        paper_preference: Optional[str],
+    ) -> dict:
+        """Search replacement candidates for flagged papers via OpenAlex + S2."""
+        from src.collector.paper.openalex_searcher import OpenAlexSearcher
+
+        # Collect existing paper titles from the structure to avoid duplicates
+        existing_titles = set()
+        for m in structure.get("modules", []):
+            for t in m.get("topics", []):
+                for p in t.get("verified_papers", []):
+                    title_lower = (p.get("title") or "").strip().lower()
+                    if title_lower:
+                        existing_titles.add(title_lower)
+
+        replacement_candidates = {}  # paper_id -> [candidate papers]
+        searcher = OpenAlexSearcher()
+        try:
+            for issue in papers_to_replace:
+                paper_id = issue.get("paper_id", "")
+                keywords = issue.get("search_keywords", [])
+                if not keywords:
+                    continue
+
+                candidates = []
+                seen = set(existing_titles)
+
+                for kw in keywords:
+                    try:
+                        results = await asyncio.to_thread(searcher.search, kw, 5)
+                        for paper in results:
+                            title_lower = (paper.get("title") or "").strip().lower()
+                            if title_lower and title_lower not in seen:
+                                seen.add(title_lower)
+                                candidates.append(paper)
+                    except Exception as e:
+                        logger.warning("Replacement search failed for '%s': %s", kw, e)
+
+                # S2 fallback if needed
+                if len(candidates) < 2:
+                    s2_results = await asyncio.to_thread(
+                        self._search_semantic_scholar, keywords, seen, 3,
+                    )
+                    candidates.extend(s2_results)
+
+                candidates.sort(
+                    key=lambda p: _compute_paper_score(p, paper_preference),
+                    reverse=True,
+                )
+                replacement_candidates[paper_id] = [
+                    {
+                        "title": c["title"],
+                        "authors": c.get("authors", [])[:5],
+                        "year": c.get("year", ""),
+                        "doi": c.get("doi", ""),
+                        "venue": c.get("venue", ""),
+                        "citations": c.get("citations", 0),
+                    }
+                    for c in candidates[:4]
+                ]
+        finally:
+            searcher.close()
+
+        return replacement_candidates
+
+    async def _apply_refinements(
+        self,
+        curriculum: dict,
+        review: dict,
+        replacement_candidates: dict,
+        topic: str,
+        difficulty: str,
+    ) -> dict:
+        """LLM applies review feedback to produce a refined curriculum."""
+        issues = review.get("issues", [])
+
+        # Build issue summary for the prompt
+        issues_text = json.dumps(issues, ensure_ascii=False, indent=2)
+        replacements_text = json.dumps(replacement_candidates, ensure_ascii=False, indent=2)
+
+        # Current curriculum (compact: only modules for token efficiency)
+        current_modules = json.dumps(curriculum.get("modules", []), ensure_ascii=False, indent=2)
+
+        num_modules = len(curriculum.get("modules", []))
+        prompt = f"""You are refining a curriculum on "{topic}" (difficulty: {difficulty}) based on an expert review.
+
+CURRENT CURRICULUM MODULES:
+{current_modules}
+
+REVIEW ISSUES:
+{issues_text}
+
+REPLACEMENT PAPER CANDIDATES (verified from academic databases):
+{replacements_text}
+
+Instructions:
+1. For issues with action="replace": swap the flagged paper with the BEST candidate from the replacement list. Use EXACT title and metadata from the candidate.
+2. For issues with action="recategorize": change the paper's category as appropriate.
+3. For issues with action="note" (coverage gaps, structural): adjust topic descriptions or add clarifying context, but do NOT invent unverified papers.
+4. Keep ALL papers that were NOT flagged — do not remove or modify them.
+5. Preserve all module/topic IDs, structure, and Korean context sentences for unchanged papers.
+6. Write new Korean context sentences for any newly added replacement papers.
+
+IMPORTANT: Output ALL {num_modules} modules. Do not skip any.
+
+Return ONLY valid JSON:
+{{
+  "modules": [ ... same schema as input ... ]
+}}"""
+
+        refine_tokens = max(4000, num_modules * 1200)
+
+        response = await asyncio.to_thread(
+            self.client.chat.completions.create,
+            model="gpt-5.4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=refine_tokens,
+            response_format={"type": "json_object"},
+        )
+
+        result = json.loads(response.choices[0].message.content)
+        refined_modules = result.get("modules", [])
+
+        if len(refined_modules) < num_modules:
+            logger.warning(
+                "Step 4: Refine expected %d modules but got %d, keeping original for missing",
+                num_modules, len(refined_modules),
+            )
+
+        # Build refined curriculum preserving top-level metadata
+        refined = {**curriculum, "modules": refined_modules}
+        return refined
