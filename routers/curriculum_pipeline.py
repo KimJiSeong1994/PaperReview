@@ -59,6 +59,25 @@ class CurriculumPipeline:
         self.client = openai_client
 
     @staticmethod
+    def _extract_json_from_text(text: str) -> str:
+        """Extract JSON object from text that may contain markdown fences or prose."""
+        import re
+        # Try ```json ... ``` fence first
+        m = re.search(r"```(?:json)?\s*(\{.*)", text, re.DOTALL)
+        if m:
+            block = m.group(1)
+            # Try to find closing fence
+            end = block.find("```")
+            if end > 0:
+                return block[:end].strip()
+            return block.strip()
+        # Try to find first { ... last }
+        start = text.find("{")
+        if start >= 0:
+            return text[start:].strip()
+        return text.strip()
+
+    @staticmethod
     def _parse_llm_json(response, step_label: str) -> dict:
         """Safely parse JSON from LLM response with detailed error logging."""
         choice = response.choices[0] if response.choices else None
@@ -67,48 +86,53 @@ class CurriculumPipeline:
 
         content = choice.message.content
         finish_reason = choice.finish_reason
+        usage = response.usage
+
+        logger.info(
+            "[%s] LLM response — finish_reason=%s, prompt_tokens=%s, "
+            "completion_tokens=%s, content_len=%s",
+            step_label, finish_reason,
+            usage.prompt_tokens if usage else "?",
+            usage.completion_tokens if usage else "?",
+            len(content) if content else 0,
+        )
 
         if finish_reason == "content_filter":
             raise ValueError(f"[{step_label}] Response blocked by content filter")
 
         if not content or not content.strip():
-            usage = response.usage
-            logger.error(
-                "[%s] Empty content from LLM — finish_reason=%s, "
-                "prompt_tokens=%s, completion_tokens=%s, model=%s",
-                step_label, finish_reason,
-                usage.prompt_tokens if usage else "?",
-                usage.completion_tokens if usage else "?",
-                response.model if hasattr(response, "model") else "?",
-            )
             raise ValueError(
                 f"[{step_label}] LLM returned empty response "
                 f"(finish_reason={finish_reason}). "
-                "This may indicate the prompt is too large or the model is unavailable."
+                "The prompt may be too large or the model unavailable."
             )
+
+        # Extract JSON from possible markdown/prose wrapper
+        json_text = CurriculumPipeline._extract_json_from_text(content)
 
         try:
-            return json.loads(content)
+            return json.loads(json_text)
         except json.JSONDecodeError:
-            # If truncated (finish_reason=length), try to repair the JSON
-            if finish_reason == "length":
-                logger.warning(
-                    "[%s] Truncated JSON (finish_reason=length, %d chars), attempting repair...",
-                    step_label, len(content),
-                )
-                repaired = CurriculumPipeline._repair_truncated_json(content)
-                if repaired is not None:
-                    logger.info("[%s] JSON repair succeeded", step_label)
-                    return repaired
+            pass
 
-            logger.error(
-                "[%s] JSON parse failed — finish_reason=%s, content[:500]=%s",
-                step_label, finish_reason, content[:500],
+        # If truncated, try to repair
+        if finish_reason == "length":
+            logger.warning(
+                "[%s] Truncated output (%d chars), attempting JSON repair...",
+                step_label, len(json_text),
             )
-            raise ValueError(
-                f"[{step_label}] Invalid JSON from LLM (finish_reason={finish_reason}). "
-                "Output was truncated — try reducing the number of modules."
-            )
+            repaired = CurriculumPipeline._repair_truncated_json(json_text)
+            if repaired is not None:
+                logger.info("[%s] JSON repair succeeded", step_label)
+                return repaired
+
+        logger.error(
+            "[%s] JSON parse failed — content[:500]=%s",
+            step_label, content[:500],
+        )
+        raise ValueError(
+            f"[{step_label}] Invalid JSON from LLM (finish_reason={finish_reason})."
+        )
 
     @staticmethod
     def _repair_truncated_json(content: str) -> dict | None:
@@ -329,7 +353,7 @@ Return ONLY valid JSON matching this schema:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
             max_completion_tokens=structure_tokens,
-            response_format={"type": "json_object"},
+
         )
 
         result = self._parse_llm_json(response, "Step1-Structure")
@@ -576,8 +600,8 @@ Return ONLY valid JSON with this schema:
   ]
 }}"""
 
-        # ~2500 tokens per module (title, description, 2-3 topics × 2-3 papers with Korean context)
-        assembly_tokens = max(6000, len(modules) * 2500)
+        # ~3000 tokens per module (title, description, 2-3 topics × 2-3 papers with Korean context)
+        assembly_tokens = max(8000, len(modules) * 3000)
 
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
@@ -585,7 +609,7 @@ Return ONLY valid JSON with this schema:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
             max_completion_tokens=assembly_tokens,
-            response_format={"type": "json_object"},
+
         )
 
         result = self._parse_llm_json(response, f"Step3-Assembly(offset={module_offset})")
@@ -718,7 +742,7 @@ Be selective — only flag genuine issues, not minor nitpicks."""
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_completion_tokens=3000,
-            response_format={"type": "json_object"},
+
         )
         return self._parse_llm_json(response, "Step4-Review")
 
@@ -843,7 +867,7 @@ Return ONLY valid JSON:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_completion_tokens=refine_tokens,
-            response_format={"type": "json_object"},
+
         )
 
         result = self._parse_llm_json(response, "Step4-Refine")
