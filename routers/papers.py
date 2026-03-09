@@ -146,8 +146,13 @@ async def get_paper_code_repos(request: Dict[str, Any]):
         title = request.get("title", "")
         if not title:
             return {"repos": []}
-        logger.info("Searching code repos for: %s", title[:60])
-        repos = search_agent.github_client.search_repos_by_title(title)
+        arxiv_id = request.get("arxiv_id") or None
+        doi = request.get("doi") or None
+        authors = request.get("authors") or None
+        logger.info("Searching code repos for: %s (arxiv=%s, doi=%s)", title[:60], arxiv_id, doi)
+        repos = search_agent.github_client.search_repos(
+            title=title, arxiv_id=arxiv_id, doi=doi, authors=authors,
+        )
         logger.info("Found %s code repos for: %s", len(repos), title[:60])
         return {"repos": repos}
     except Exception as e:

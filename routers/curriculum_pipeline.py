@@ -58,6 +58,45 @@ class CurriculumPipeline:
     def __init__(self, openai_client):
         self.client = openai_client
 
+    @staticmethod
+    def _parse_llm_json(response, step_label: str) -> dict:
+        """Safely parse JSON from LLM response with detailed error logging."""
+        choice = response.choices[0] if response.choices else None
+        if not choice:
+            raise ValueError(f"[{step_label}] API returned no choices")
+
+        content = choice.message.content
+        finish_reason = choice.finish_reason
+
+        if finish_reason == "content_filter":
+            raise ValueError(f"[{step_label}] Response blocked by content filter")
+
+        if not content or not content.strip():
+            usage = response.usage
+            logger.error(
+                "[%s] Empty content from LLM — finish_reason=%s, "
+                "prompt_tokens=%s, completion_tokens=%s, model=%s",
+                step_label, finish_reason,
+                usage.prompt_tokens if usage else "?",
+                usage.completion_tokens if usage else "?",
+                response.model if hasattr(response, "model") else "?",
+            )
+            raise ValueError(
+                f"[{step_label}] LLM returned empty response "
+                f"(finish_reason={finish_reason}). "
+                "This may indicate the prompt is too large or the model is unavailable."
+            )
+
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            # Log first 500 chars for debugging
+            logger.error(
+                "[%s] JSON parse failed — finish_reason=%s, content[:500]=%s",
+                step_label, finish_reason, content[:500],
+            )
+            raise ValueError(f"[{step_label}] Invalid JSON from LLM: {e}") from e
+
     async def generate(
         self,
         topic: str,
@@ -228,7 +267,7 @@ Return ONLY valid JSON matching this schema:
             response_format={"type": "json_object"},
         )
 
-        result = json.loads(response.choices[0].message.content)
+        result = self._parse_llm_json(response, "Step1-Structure")
 
         # Verify module count — warn if truncated
         actual_modules = len(result.get("modules", []))
@@ -485,7 +524,7 @@ Return ONLY valid JSON with this schema:
             response_format={"type": "json_object"},
         )
 
-        result = json.loads(response.choices[0].message.content)
+        result = self._parse_llm_json(response, f"Step3-Assembly(offset={module_offset})")
         assembled = result.get("modules", [])
 
         if len(assembled) < len(modules):
@@ -617,7 +656,7 @@ Be selective — only flag genuine issues, not minor nitpicks."""
             max_completion_tokens=3000,
             response_format={"type": "json_object"},
         )
-        return json.loads(response.choices[0].message.content)
+        return self._parse_llm_json(response, "Step4-Review")
 
     async def _search_replacement_papers(
         self,
@@ -743,7 +782,7 @@ Return ONLY valid JSON:
             response_format={"type": "json_object"},
         )
 
-        result = json.loads(response.choices[0].message.content)
+        result = self._parse_llm_json(response, "Step4-Refine")
         refined_modules = result.get("modules", [])
 
         if len(refined_modules) < num_modules:
