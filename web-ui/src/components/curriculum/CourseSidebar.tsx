@@ -28,6 +28,7 @@ interface CourseSidebarProps {
   onDelete: (courseId: string) => Promise<any>;
   onShare?: (courseId: string) => Promise<any>;
   onRevokeShare?: (courseId: string) => Promise<any>;
+  shareMessage?: string | null;
   getModuleProgress: (moduleId: string) => { read: number; total: number };
 }
 
@@ -140,6 +141,7 @@ export default function CourseSidebar({
   onDelete,
   onShare,
   onRevokeShare,
+  shareMessage,
   getModuleProgress,
 }: CourseSidebarProps) {
   const [featuredOpen, setFeaturedOpen] = useState(true);
@@ -346,6 +348,11 @@ export default function CourseSidebar({
           {generating ? 'Generating...' : '+ Custom Curriculum'}
         </button>
       </div>
+
+      {/* ── Share message toast ── */}
+      {shareMessage && (
+        <div className="cur-share-toast">{shareMessage}</div>
+      )}
 
       {/* ── Generate modal ── */}
       {showGenerateModal && (

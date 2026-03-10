@@ -1035,6 +1035,23 @@
   background: rgba(239, 68, 68, 0.12);
 }
 
+.cur-share-toast {
+  padding: 8px 12px;
+  margin: 8px 12px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  text-align: center;
+  animation: cur-toast-fade 3s ease-in-out;
+}
+
+@keyframes cur-toast-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* ── Shared Curriculum View ───────────────────────────────────────── */
 .shared-curriculum-view {
   min-height: 100vh;

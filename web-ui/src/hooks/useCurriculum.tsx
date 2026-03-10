@@ -372,11 +372,23 @@ export function useCurriculum() {
   }, [selectedCourseId]);
 
   // ── Curriculum sharing ──
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+
   const handleShare = useCallback(async (courseId: string) => {
     try {
       const info = await createCurriculumShareLink(courseId);
-      // Copy share URL to clipboard
-      await navigator.clipboard.writeText(info.share_url);
+      // Build full URL from the returned path
+      const fullUrl = `${window.location.origin}${info.share_url}`;
+      // Copy share URL to clipboard (with fallback)
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        setShareMessage('Link copied!');
+      } catch {
+        // Clipboard API failed — show URL so user can copy manually
+        window.prompt('Share link (copy below):', fullUrl);
+        setShareMessage('Link created');
+      }
+      setTimeout(() => setShareMessage(null), 3000);
       // Update course list to reflect has_share
       setCourses((prev) =>
         prev.map((c) => (c.id === courseId ? { ...c, has_share: true } : c)),
@@ -384,7 +396,8 @@ export function useCurriculum() {
       return info;
     } catch (err) {
       console.error('Failed to create share link:', err);
-      throw err;
+      setShareMessage('Failed to share');
+      setTimeout(() => setShareMessage(null), 3000);
     }
   }, []);
 
@@ -394,9 +407,12 @@ export function useCurriculum() {
       setCourses((prev) =>
         prev.map((c) => (c.id === courseId ? { ...c, has_share: false } : c)),
       );
+      setShareMessage('Link revoked');
+      setTimeout(() => setShareMessage(null), 3000);
     } catch (err) {
       console.error('Failed to revoke share link:', err);
-      throw err;
+      setShareMessage('Failed to revoke');
+      setTimeout(() => setShareMessage(null), 3000);
     }
   }, []);
 
@@ -429,6 +445,7 @@ export function useCurriculum() {
     handleDelete,
     handleShare,
     handleRevokeShare,
+    shareMessage,
     handleBookmarkPaper,
     getModuleProgress,
   };

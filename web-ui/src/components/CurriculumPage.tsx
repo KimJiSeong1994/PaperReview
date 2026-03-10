@@ -35,6 +35,7 @@ export default function CurriculumPage() {
     handleDelete,
     handleShare,
     handleRevokeShare,
+    shareMessage,
     handleBookmarkPaper,
     getModuleProgress,
   } = useCurriculum();
@@ -73,6 +74,7 @@ export default function CurriculumPage() {
           onDelete={handleDelete}
           onShare={handleShare}
           onRevokeShare={handleRevokeShare}
+          shareMessage={shareMessage}
           getModuleProgress={getModuleProgress}
         />
 

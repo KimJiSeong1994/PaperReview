@@ -686,20 +686,26 @@ async def create_curriculum_share(
     expires_days = request.expires_in_days or 30
     expires_at = now + timedelta(days=expires_days)
 
-    with _index_lock:
-        user_entries = _load_user_index()
-        entry = next((c for c in user_entries if c["id"] == course_id), None)
-        if not entry:
-            raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
-        if entry.get("owner") != username:
-            raise HTTPException(status_code=403, detail="Only the owner can share this curriculum")
+    try:
+        with _index_lock:
+            user_entries = _load_user_index()
+            entry = next((c for c in user_entries if c["id"] == course_id), None)
+            if not entry:
+                raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+            if entry.get("owner") != username:
+                raise HTTPException(status_code=403, detail="Only the owner can share this curriculum")
 
-        entry["share"] = {
-            "token": token,
-            "created_at": now.isoformat(),
-            "expires_at": expires_at.isoformat(),
-        }
-        _save_user_index(user_entries)
+            entry["share"] = {
+                "token": token,
+                "created_at": now.isoformat(),
+                "expires_at": expires_at.isoformat(),
+            }
+            _save_user_index(user_entries)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create share link: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to save share data: {e}")
 
     return CurriculumShareResponse(
         token=token,

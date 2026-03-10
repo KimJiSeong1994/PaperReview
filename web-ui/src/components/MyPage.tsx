@@ -294,6 +294,7 @@ function MyPage({ onBack }: MyPageProps) {
             onDelete={cur.handleDelete}
             onShare={cur.handleShare}
             onRevokeShare={cur.handleRevokeShare}
+            shareMessage={cur.shareMessage}
             getModuleProgress={cur.getModuleProgress}
           />
 
