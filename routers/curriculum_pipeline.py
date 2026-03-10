@@ -377,50 +377,65 @@ Return ONLY valid JSON matching this schema:
         self, structure: dict, total_topics: int,
         paper_preference: Optional[str] = None,
     ):
-        """Async generator: yields progress dicts, then yields the final structure."""
+        """Async generator: yields progress dicts, then yields the final structure.
+
+        Searches all topics concurrently using asyncio.gather with a semaphore
+        to respect API rate limits while maximizing throughput.
+        """
         from src.collector.paper.openalex_searcher import OpenAlexSearcher
         searcher = OpenAlexSearcher()
+        sem = asyncio.Semaphore(5)  # Max 5 concurrent API calls
 
-        topic_idx = 0
-        try:
-            for module in structure.get("modules", []):
-                for topic_item in module.get("topics", []):
-                    topic_idx += 1
-                    pct = int((topic_idx / max(total_topics, 1)) * 100)
-                    topic_title = topic_item.get("title", "")
-                    logger.info("Step 2: Searching topic %d/%d: %s", topic_idx, total_topics, topic_title)
+        completed = {"count": 0}
 
-                    yield {"step": 2, "step_name": "search", "progress": pct,
-                           "message": f"Searching: {topic_title} ({topic_idx}/{total_topics})"}
+        async def _search_one_topic(topic_item: dict):
+            keywords = topic_item.get("search_keywords", [])
+            candidates = []
+            seen_titles: set[str] = set()
 
-                    keywords = topic_item.get("search_keywords", [])
-                    candidates = []
-                    seen_titles = set()
+            # Search all keywords for this topic concurrently
+            async def _search_kw(kw):
+                async with sem:
+                    try:
+                        return await asyncio.to_thread(searcher.search, kw, 8)
+                    except Exception as e:
+                        logger.warning("OpenAlex search failed for '%s': %s", kw, e)
+                        return []
 
-                    for kw in keywords:
-                        try:
-                            results = await asyncio.to_thread(searcher.search, kw, 8)
-                            for paper in results:
-                                title_lower = (paper.get("title") or "").strip().lower()
-                                if title_lower and title_lower not in seen_titles:
-                                    seen_titles.add(title_lower)
-                                    candidates.append(paper)
-                        except Exception as e:
-                            logger.warning("OpenAlex search failed for '%s': %s", kw, e)
+            kw_results = await asyncio.gather(*[_search_kw(kw) for kw in keywords])
+            for results in kw_results:
+                for paper in results:
+                    title_lower = (paper.get("title") or "").strip().lower()
+                    if title_lower and title_lower not in seen_titles:
+                        seen_titles.add(title_lower)
+                        candidates.append(paper)
 
-                    # Semantic Scholar fallback when OpenAlex results are insufficient
-                    if len(candidates) < 3:
-                        s2_results = await asyncio.to_thread(
-                            self._search_semantic_scholar, keywords, seen_titles,
-                        )
-                        candidates.extend(s2_results)
-
-                    # Composite scoring: citations/year + recency bonus + preference
-                    candidates.sort(
-                        key=lambda p: _compute_paper_score(p, paper_preference),
-                        reverse=True,
+            # Semantic Scholar fallback when OpenAlex results are insufficient
+            if len(candidates) < 3:
+                async with sem:
+                    s2_results = await asyncio.to_thread(
+                        self._search_semantic_scholar, keywords, seen_titles,
                     )
-                    topic_item["verified_papers"] = candidates[:6]
+                candidates.extend(s2_results)
+
+            candidates.sort(
+                key=lambda p: _compute_paper_score(p, paper_preference),
+                reverse=True,
+            )
+            topic_item["verified_papers"] = candidates[:6]
+            completed["count"] += 1
+
+        # Collect all topics and launch concurrent searches
+        all_topics = []
+        for module in structure.get("modules", []):
+            for topic_item in module.get("topics", []):
+                all_topics.append(topic_item)
+
+        yield {"step": 2, "step_name": "search", "progress": 5,
+               "message": f"Searching {total_topics} topics concurrently..."}
+
+        try:
+            await asyncio.gather(*[_search_one_topic(t) for t in all_topics])
         finally:
             searcher.close()
 
@@ -466,30 +481,33 @@ Return ONLY valid JSON matching this schema:
                         })
             except Exception as e:
                 logger.warning("S2 search failed for '%s': %s", kw, e)
-            time.sleep(0.5)  # Rate limit
+            time.sleep(0.2)  # Rate limit (reduced; semaphore limits concurrency)
         return results
 
     # ── Step 3: Final Assembly ────────────────────────────────────────
 
     async def _step3_assemble(self, structure: dict, topic: str, difficulty: str) -> dict:
-        """Assemble final curriculum. For large curricula (>5 modules), process in batches."""
+        """Assemble final curriculum. Batches run concurrently via asyncio.gather."""
         modules = structure.get("modules", [])
         ref_courses = structure.get("reference_courses", [])
 
-        # Process in batches of 3 to keep prompt small and leave room for output
         batch_size = 3
         if len(modules) <= batch_size:
             assembled_modules = await self._assemble_batch(
                 modules, topic, difficulty, ref_courses, structure,
             )
         else:
-            assembled_modules = []
+            # Build all batches and run them concurrently
+            tasks = []
             for i in range(0, len(modules), batch_size):
                 batch = modules[i:i + batch_size]
-                batch_result = await self._assemble_batch(
+                tasks.append(self._assemble_batch(
                     batch, topic, difficulty, ref_courses, structure,
                     module_offset=i,
-                )
+                ))
+            batch_results = await asyncio.gather(*tasks)
+            assembled_modules = []
+            for batch_result in batch_results:
                 assembled_modules.extend(batch_result)
 
         curriculum = {
@@ -636,230 +654,46 @@ Return ONLY valid JSON with this schema:
         difficulty: str,
         paper_preference: Optional[str] = None,
     ):
-        """Auto-review assembled curriculum, search replacements, and refine.
+        """Single-pass auto-review: LLM reviews AND fixes in one call.
 
         Yields progress events, then yields {"done": True, "curriculum": refined}.
         """
-        # 4a: LLM reviews the curriculum
-        review = await self._review_curriculum(curriculum, topic, difficulty)
-
-        issues = review.get("issues", [])
-        if not issues:
-            logger.info("Step 4: No quality issues found, skipping refine")
-            yield {"step": 4, "step_name": "review", "progress": 50,
-                   "message": "Quality check passed — no issues found"}
-            yield {"done": True, "curriculum": curriculum}
-            return
-
-        logger.info("Step 4: Found %d issues, refining...", len(issues))
-        yield {"step": 4, "step_name": "review", "progress": 30,
-               "message": f"Found {len(issues)} issues, searching better papers..."}
-
-        # 4b: Search replacement papers for flagged entries
-        papers_to_replace = [
-            i for i in issues if i.get("action") == "replace"
-        ]
-        replacement_candidates = {}
-        if papers_to_replace:
-            replacement_candidates = await self._search_replacement_papers(
-                papers_to_replace, structure, paper_preference,
-            )
-
-        yield {"step": 4, "step_name": "review", "progress": 60,
-               "message": "Applying improvements..."}
-
-        # 4c: LLM refines with review feedback + replacement candidates
-        refined = await self._apply_refinements(
-            curriculum, review, replacement_candidates, topic, difficulty,
-        )
-
-        yield {"step": 4, "step_name": "review", "progress": 90,
-               "message": f"Refined: {len(papers_to_replace)} papers replaced, "
-                         f"{len(issues) - len(papers_to_replace)} issues fixed"}
-        yield {"done": True, "curriculum": refined}
-
-    async def _review_curriculum(self, curriculum: dict, topic: str, difficulty: str) -> dict:
-        """LLM reviews the assembled curriculum for quality issues."""
         # Build compact representation for review
-        compact_modules = []
-        for module in curriculum.get("modules", []):
-            compact_topics = []
-            for t in module.get("topics", []):
-                compact_papers = [
-                    {
-                        "id": p.get("id", ""),
-                        "title": p.get("title", ""),
-                        "year": p.get("year"),
-                        "category": p.get("category", ""),
-                        "venue": p.get("venue", ""),
-                    }
-                    for p in t.get("papers", [])
-                ]
-                compact_topics.append({
-                    "title": t.get("title", ""),
-                    "papers": compact_papers,
-                })
-            compact_modules.append({
-                "title": module.get("title", ""),
-                "topics": compact_topics,
-            })
-
-        prompt = f"""You are a senior academic reviewer evaluating a generated curriculum on "{topic}" (difficulty: {difficulty}).
-
-Review the curriculum below and identify quality issues. Check for:
-1. **Relevance**: Papers not directly relevant to their assigned topic
-2. **Coverage gaps**: Important sub-areas of a topic that have no papers
-3. **Difficulty mismatch**: Papers too advanced for beginners, or too basic for advanced
-4. **Duplication**: Same paper or near-duplicate across different topics
-5. **Category errors**: Papers miscategorized (e.g., a niche paper marked "required")
-6. **Outdated selections**: Key topics relying only on very old papers (pre-2015) when newer, better alternatives exist
-
-Curriculum:
-{json.dumps(compact_modules, ensure_ascii=False, indent=2)}
-
-Return ONLY valid JSON:
-{{
-  "overall_quality": "good" | "needs_improvement" | "poor",
-  "issues": [
-    {{
-      "paper_id": "paper-001 (or empty if structural issue)",
-      "module_title": "affected module",
-      "topic_title": "affected topic",
-      "issue_type": "relevance|coverage_gap|difficulty|duplication|category|outdated",
-      "description": "brief explanation of the issue",
-      "action": "replace|recategorize|note",
-      "search_keywords": ["keyword1", "keyword2"] // only if action=replace
-    }}
-  ]
-}}
-
-If the curriculum is good and has no significant issues, return {{"overall_quality": "good", "issues": []}}.
-Be selective — only flag genuine issues, not minor nitpicks."""
-
-        response = await asyncio.to_thread(
-            self.client.chat.completions.create,
-            model="gpt-5.4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_completion_tokens=3000,
-
-        )
-        return self._parse_llm_json(response, "Step4-Review")
-
-    async def _search_replacement_papers(
-        self,
-        papers_to_replace: list[dict],
-        structure: dict,
-        paper_preference: Optional[str],
-    ) -> dict:
-        """Search replacement candidates for flagged papers via OpenAlex + S2."""
-        from src.collector.paper.openalex_searcher import OpenAlexSearcher
-
-        # Collect existing paper titles from the structure to avoid duplicates
-        existing_titles = set()
-        for m in structure.get("modules", []):
-            for t in m.get("topics", []):
-                for p in t.get("verified_papers", []):
-                    title_lower = (p.get("title") or "").strip().lower()
-                    if title_lower:
-                        existing_titles.add(title_lower)
-
-        replacement_candidates = {}  # paper_id -> [candidate papers]
-        searcher = OpenAlexSearcher()
-        try:
-            for issue in papers_to_replace:
-                paper_id = issue.get("paper_id", "")
-                keywords = issue.get("search_keywords", [])
-                if not keywords:
-                    continue
-
-                candidates = []
-                seen = set(existing_titles)
-
-                for kw in keywords:
-                    try:
-                        results = await asyncio.to_thread(searcher.search, kw, 5)
-                        for paper in results:
-                            title_lower = (paper.get("title") or "").strip().lower()
-                            if title_lower and title_lower not in seen:
-                                seen.add(title_lower)
-                                candidates.append(paper)
-                    except Exception as e:
-                        logger.warning("Replacement search failed for '%s': %s", kw, e)
-
-                # S2 fallback if needed
-                if len(candidates) < 2:
-                    s2_results = await asyncio.to_thread(
-                        self._search_semantic_scholar, keywords, seen, 3,
-                    )
-                    candidates.extend(s2_results)
-
-                candidates.sort(
-                    key=lambda p: _compute_paper_score(p, paper_preference),
-                    reverse=True,
-                )
-                replacement_candidates[paper_id] = [
-                    {
-                        "title": c["title"],
-                        "authors": c.get("authors", [])[:5],
-                        "year": c.get("year", ""),
-                        "doi": c.get("doi", ""),
-                        "venue": c.get("venue", ""),
-                        "citations": c.get("citations", 0),
-                    }
-                    for c in candidates[:4]
-                ]
-        finally:
-            searcher.close()
-
-        return replacement_candidates
-
-    async def _apply_refinements(
-        self,
-        curriculum: dict,
-        review: dict,
-        replacement_candidates: dict,
-        topic: str,
-        difficulty: str,
-    ) -> dict:
-        """LLM applies review feedback to produce a refined curriculum."""
-        issues = review.get("issues", [])
-
-        # Build issue summary for the prompt
-        issues_text = json.dumps(issues, ensure_ascii=False, indent=2)
-        replacements_text = json.dumps(replacement_candidates, ensure_ascii=False, indent=2)
-
-        # Current curriculum (compact: only modules for token efficiency)
         current_modules = json.dumps(curriculum.get("modules", []), ensure_ascii=False, indent=2)
-
         num_modules = len(curriculum.get("modules", []))
-        prompt = f"""You are refining a curriculum on "{topic}" (difficulty: {difficulty}) based on an expert review.
 
-CURRENT CURRICULUM MODULES:
+        prompt = f"""You are a senior academic reviewer AND editor for a curriculum on "{topic}" (difficulty: {difficulty}).
+
+TASK: Review the curriculum below, then output the CORRECTED version in a single pass.
+
+Review criteria:
+1. Relevance: Papers not relevant to their topic → recategorize or remove
+2. Difficulty mismatch: Papers too advanced/basic for {difficulty} level → recategorize
+3. Duplication: Same paper across topics → keep in most relevant topic only
+4. Category errors: Niche papers as "required", foundational as "supplementary" → fix
+5. Outdated: Topics relying only on pre-2015 papers when newer exist → note in description
+
+Rules for corrections:
+- Do NOT invent new papers. Only use papers already present in the curriculum.
+- Fix category assignments where needed.
+- Remove true duplicates (keep in best-fitting topic).
+- Improve Korean context sentences if they are vague.
+- Preserve all module/topic IDs and structure.
+- If the curriculum is already good, return it unchanged.
+
+CURRENT CURRICULUM:
 {current_modules}
 
-REVIEW ISSUES:
-{issues_text}
-
-REPLACEMENT PAPER CANDIDATES (verified from academic databases):
-{replacements_text}
-
-Instructions:
-1. For issues with action="replace": swap the flagged paper with the BEST candidate from the replacement list. Use EXACT title and metadata from the candidate.
-2. For issues with action="recategorize": change the paper's category as appropriate.
-3. For issues with action="note" (coverage gaps, structural): adjust topic descriptions or add clarifying context, but do NOT invent unverified papers.
-4. Keep ALL papers that were NOT flagged — do not remove or modify them.
-5. Preserve all module/topic IDs, structure, and Korean context sentences for unchanged papers.
-6. Write new Korean context sentences for any newly added replacement papers.
-
-IMPORTANT: Output ALL {num_modules} modules. Do not skip any.
-
 Return ONLY valid JSON:
 {{
-  "modules": [ ... same schema as input ... ]
-}}"""
+  "review_summary": "1-2 sentence summary of changes made (or 'No changes needed')",
+  "changes_made": 0,
+  "modules": [ ... corrected modules with same schema as input ... ]
+}}
 
-        refine_tokens = max(4000, num_modules * 1200)
+IMPORTANT: Output ALL {num_modules} modules. Do not skip any."""
+
+        refine_tokens = max(4000, num_modules * 1500)
 
         response = await asyncio.to_thread(
             self.client.chat.completions.create,
@@ -867,18 +701,26 @@ Return ONLY valid JSON:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_completion_tokens=refine_tokens,
-
         )
 
-        result = self._parse_llm_json(response, "Step4-Refine")
+        result = self._parse_llm_json(response, "Step4-ReviewRefine")
         refined_modules = result.get("modules", [])
+        changes = result.get("changes_made", 0)
+        summary = result.get("review_summary", "")
 
         if len(refined_modules) < num_modules:
             logger.warning(
-                "Step 4: Refine expected %d modules but got %d, keeping original for missing",
+                "Step 4: Expected %d modules but got %d",
                 num_modules, len(refined_modules),
             )
 
-        # Build refined curriculum preserving top-level metadata
-        refined = {**curriculum, "modules": refined_modules}
-        return refined
+        logger.info("Step 4: %s (changes=%d)", summary, changes)
+
+        if refined_modules:
+            refined = {**curriculum, "modules": refined_modules}
+        else:
+            refined = curriculum
+
+        yield {"step": 4, "step_name": "review", "progress": 90,
+               "message": f"Review complete: {summary}"}
+        yield {"done": True, "curriculum": refined}
