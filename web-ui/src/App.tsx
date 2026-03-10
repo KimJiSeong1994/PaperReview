@@ -123,6 +123,13 @@ function App() {
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
 
+  // Auto-dismiss guidance message after 3 seconds
+  useEffect(() => {
+    if (!guidanceMessage) return;
+    const timer = setTimeout(() => setGuidanceMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [guidanceMessage]);
+
   const hashString = (str: string) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -161,7 +168,6 @@ function App() {
           setGuidanceMessage(
             '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
           );
-          setTimeout(() => setGuidanceMessage(null), 3000);
           setPapers([]);
           setGraphData(null);
           setSelectedPaper(null);
