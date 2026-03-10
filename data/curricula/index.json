@@ -83,6 +83,30 @@
       "url": "https://interpretable-ml-class.github.io/",
       "total_papers": 47,
       "total_modules": 8
+    },
+    {
+      "id": "rl",
+      "name": "Reinforcement Learning: From Foundations to Deep RL and Beyond",
+      "university": "Berkeley / Stanford / DeepMind-UCL / CMU (Reference)",
+      "instructor": "Sergey Levine, Emma Brunskill, David Silver, Ruslan Salakhutdinov",
+      "difficulty": "advanced",
+      "prerequisites": ["Machine Learning fundamentals (CS229-level)", "Deep Learning basics (backpropagation, CNNs, RNNs)", "Probability and Statistics", "Linear Algebra and Calculus", "Python programming (NumPy, PyTorch or TensorFlow)"],
+      "description": "강화학습의 이론적 기초부터 심층 강화학습, 그리고 최신 응용까지 체계적으로 다루는 커리큘럼. Berkeley CS285, Stanford CS234, DeepMind/UCL RL 강의, CMU 10-703 등 세계 최고 대학의 강의와 분야를 정의한 핵심 논문들을 기반으로 구성하였다. MDP, 동적 프로그래밍에서 출발하여 가치 기반/정책 기반 심층 강화학습, 모델 기반 RL, 멀티에이전트 RL, 오프라인 RL과 RLHF, 그리고 계층적 RL·메타 RL 등 최전선 주제까지 포괄한다.",
+      "url": "http://rail.eecs.berkeley.edu/deeprlcourse/",
+      "total_papers": 58,
+      "total_modules": 8
+    },
+    {
+      "id": "genai",
+      "name": "Generative AI: Large Language Models, Diffusion Models, and AI Agents",
+      "university": "Stanford / Princeton / CMU / Berkeley (Reference)",
+      "instructor": "Percy Liang, Danqi Chen, Graham Neubig, Dawn Song",
+      "difficulty": "advanced",
+      "prerequisites": ["Deep Learning fundamentals (backpropagation, CNNs, RNNs, Transformers)", "Natural Language Processing basics (CS224N-level)", "Probability and Statistics", "Linear Algebra and Calculus", "Python programming (PyTorch or JAX)"],
+      "description": "생성형 AI와 대형 언어 모델(LLM)의 이론, 학습 방법론, 응용을 체계적으로 다루는 커리큘럼. Stanford CS324, Princeton COS 597G, CMU Advanced NLP, Berkeley CS294 등 저명 대학의 최신 강의와 분야를 정의한 핵심 논문들을 기반으로 구성하였다.",
+      "url": "https://stanford-cs324.github.io/winter2022/",
+      "total_papers": 53,
+      "total_modules": 8
     }
   ]
 }

@@ -1,0 +1,872 @@
+{
+  "id": "rl",
+  "name": "Reinforcement Learning: From Foundations to Deep RL and Beyond",
+  "university": "Berkeley / Stanford / DeepMind-UCL / CMU (Reference)",
+  "instructor": "Sergey Levine, Emma Brunskill, David Silver, Ruslan Salakhutdinov",
+  "difficulty": "advanced",
+  "prerequisites": [
+    "Machine Learning fundamentals (CS229-level)",
+    "Deep Learning basics (backpropagation, CNNs, RNNs)",
+    "Probability and Statistics",
+    "Linear Algebra and Calculus",
+    "Python programming (NumPy, PyTorch or TensorFlow)"
+  ],
+  "description": "강화학습의 이론적 기초부터 심층 강화학습, 그리고 최신 응용까지 체계적으로 다루는 커리큘럼. Berkeley CS285, Stanford CS234, DeepMind/UCL RL 강의, CMU 10-703 등 세계 최고 대학의 강의와 분야를 정의한 핵심 논문들을 기반으로 구성하였다. MDP, 동적 프로그래밍에서 출발하여 가치 기반/정책 기반 심층 강화학습, 모델 기반 RL, 멀티에이전트 RL, 오프라인 RL과 RLHF, 그리고 계층적 RL·메타 RL 등 최전선 주제까지 포괄한다.",
+  "url": "http://rail.eecs.berkeley.edu/deeprlcourse/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Foundations of Reinforcement Learning",
+      "description": "강화학습의 수학적 기초인 마르코프 결정 과정(MDP), 벨만 방정식, 동적 프로그래밍(정책 반복, 가치 반복)을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Markov Decision Processes and Bellman Equations",
+          "papers": [
+            {
+              "id": "paper-rl-001",
+              "title": "Reinforcement Learning: An Introduction",
+              "authors": ["Richard S. Sutton", "Andrew G. Barto"],
+              "year": 2018,
+              "venue": "MIT Press (2nd Edition)",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "강화학습 분야의 결정적 교과서. MDP, 벨만 방정식, TD 학습, 정책 그래디언트까지 RL의 전 범위를 체계적으로 다루며, 본 커리큘럼 전체의 이론적 기반이 된다."
+            },
+            {
+              "id": "paper-rl-002",
+              "title": "A Survey of Reinforcement Learning Algorithms, Theory, and Applications",
+              "authors": ["Kaiqing Zhang", "Zhuoran Yang", "Tamer Basar"],
+              "year": 2021,
+              "venue": "Springer Handbook of Reinforcement Learning and Control",
+              "arxiv_id": null,
+              "doi": "10.1007/978-3-030-60990-0",
+              "category": "optional",
+              "context": "RL 알고리즘의 이론과 응용을 포괄적으로 정리한 핸드북 챕터. 고전적 RL부터 멀티에이전트 RL까지의 전체 지형도를 조망한다."
+            },
+            {
+              "id": "paper-rl-003",
+              "title": "Between MDPs and Semi-MDPs: A Framework for Temporal Abstraction in Reinforcement Learning",
+              "authors": ["Richard S. Sutton", "Doina Precup", "Satinder Singh"],
+              "year": 1999,
+              "venue": "Artificial Intelligence",
+              "arxiv_id": null,
+              "doi": "10.1016/S0004-3702(99)00052-1",
+              "category": "supplementary",
+              "context": "Options 프레임워크를 제안한 논문. MDP와 Semi-MDP 사이의 시간적 추상화를 정의하여 계층적 RL의 이론적 기반을 마련하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "Dynamic Programming: Policy Iteration and Value Iteration",
+          "papers": [
+            {
+              "id": "paper-rl-004",
+              "title": "Dynamic Programming and Optimal Control",
+              "authors": ["Dimitri P. Bertsekas"],
+              "year": 2012,
+              "venue": "Athena Scientific (4th Edition)",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "동적 프로그래밍과 최적 제어의 고전적 교재. 정책 반복, 가치 반복의 수학적 엄밀한 기초를 제공하며 RL의 이론적 뿌리를 이해하는 데 필수적이다."
+            },
+            {
+              "id": "paper-rl-005",
+              "title": "Neuronlike Adaptive Elements That Can Solve Difficult Learning Control Problems",
+              "authors": ["Andrew G. Barto", "Richard S. Sutton", "Charles W. Anderson"],
+              "year": 1983,
+              "venue": "IEEE Transactions on Systems, Man, and Cybernetics",
+              "arxiv_id": null,
+              "doi": "10.1109/TSMC.1983.6313077",
+              "category": "optional",
+              "context": "신경망을 사용한 강화학습의 초기 선구적 연구. Actor-Critic 구조의 원형을 제시하며 cart-pole 문제를 성공적으로 해결하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-03",
+          "title": "Exploration vs. Exploitation and Bandit Problems",
+          "papers": [
+            {
+              "id": "paper-rl-006",
+              "title": "Finite-time Analysis of the Multiarmed Bandit Problem",
+              "authors": ["Peter Auer", "Nicolo Cesa-Bianchi", "Paul Fischer"],
+              "year": 2002,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1023/A:1013689704352",
+              "category": "required",
+              "context": "UCB(Upper Confidence Bound) 알고리즘을 제안한 논문. 다중 무장 밴딧 문제의 유한 시간 분석에서 최적에 가까운 후회 한계를 달성하며 탐색-활용 균형의 이론적 기초를 세웠다."
+            },
+            {
+              "id": "paper-rl-007",
+              "title": "An Analytic Solution to Discrete Bayesian Reinforcement Learning",
+              "authors": ["Pascal Poupart", "Nikos Vlassis", "Jesse Hoey", "Kevin Regan"],
+              "year": 2006,
+              "venue": "ICML",
+              "arxiv_id": null,
+              "doi": "10.1145/1143844.1143932",
+              "category": "supplementary",
+              "context": "베이지안 RL의 해석적 해법을 제시한 논문. 불확실성 하의 의사결정에서 최적 탐색 전략의 이론적 토대를 제공한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Model-Free Prediction and Control",
+      "description": "환경 모델 없이 가치 함수를 학습하는 모델-프리 방법 — 몬테카를로, TD 학습, SARSA, Q-러닝 — 과 함수 근사를 학습한다.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Temporal-Difference Learning and Eligibility Traces",
+          "papers": [
+            {
+              "id": "paper-rl-008",
+              "title": "Learning to Predict by the Methods of Temporal Differences",
+              "authors": ["Richard S. Sutton"],
+              "year": 1988,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00115009",
+              "category": "required",
+              "context": "TD 학습을 제안한 기념비적 논문. 몬테카를로와 동적 프로그래밍의 장점을 결합하여 경험으로부터 점진적으로 가치를 예측하는 방법을 정립하였다."
+            },
+            {
+              "id": "paper-rl-009",
+              "title": "TD-Gammon, a Self-Teaching Backgammon Program, Achieves Master-Level Play",
+              "authors": ["Gerald Tesauro"],
+              "year": 1994,
+              "venue": "Neural Computation",
+              "arxiv_id": null,
+              "doi": "10.1162/neco.1994.6.2.215",
+              "category": "required",
+              "context": "TD 학습과 신경망을 결합하여 백개먼 게임에서 마스터 수준의 성능을 달성한 연구. 심층 강화학습 이전 시대에 RL의 잠재력을 실증한 역사적 사례이다."
+            },
+            {
+              "id": "paper-rl-010",
+              "title": "A Convergent Form of Approximate Policy Iteration",
+              "authors": ["Sham Kakade", "John Langford"],
+              "year": 2002,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "supplementary",
+              "context": "근사 정책 반복의 수렴 조건을 분석한 논문. 함수 근사 하에서의 정책 개선 보장에 대한 이론적 기초를 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Q-Learning and SARSA",
+          "papers": [
+            {
+              "id": "paper-rl-011",
+              "title": "Learning from Delayed Rewards",
+              "authors": ["Christopher J. C. H. Watkins"],
+              "year": 1989,
+              "venue": "PhD Thesis, Cambridge University",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "Q-러닝을 제안한 Watkins의 박사 논문. 오프-폴리시 TD 제어의 수렴성을 증명하여 모델-프리 RL의 이론적 근간을 마련하였다."
+            },
+            {
+              "id": "paper-rl-012",
+              "title": "Q-Learning",
+              "authors": ["Christopher J. C. H. Watkins", "Peter Dayan"],
+              "year": 1992,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00992698",
+              "category": "required",
+              "context": "Q-러닝의 수렴 증명을 제시한 논문. 표 형태 설정에서 Q-값이 최적 행동-가치 함수로 수렴함을 엄밀히 증명하였다."
+            },
+            {
+              "id": "paper-rl-013",
+              "title": "On-Line Q-Learning Using Connectionist Systems",
+              "authors": ["Gavin A. Rummery", "Mahesan Niranjan"],
+              "year": 1994,
+              "venue": "Cambridge University Technical Report",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "optional",
+              "context": "SARSA(State-Action-Reward-State-Action) 알고리즘을 제안한 기술 보고서. 온-폴리시 TD 제어의 기초를 제공하며 Q-러닝과의 대비를 통해 온/오프-폴리시 학습의 차이를 이해할 수 있다."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-03",
+          "title": "Function Approximation in RL",
+          "papers": [
+            {
+              "id": "paper-rl-014",
+              "title": "Linear Least-Squares Algorithms for Temporal Difference Learning",
+              "authors": ["Steven J. Bradtke", "Andrew G. Barto"],
+              "year": 1996,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00114723",
+              "category": "optional",
+              "context": "LSTD(Least-Squares TD) 알고리즘을 제안한 논문. 선형 함수 근사와 TD 학습을 결합하여 효율적인 가치 함수 추정을 달성하였다."
+            },
+            {
+              "id": "paper-rl-015",
+              "title": "Residual Algorithms: Reinforcement Learning with Function Approximation",
+              "authors": ["Leemon Baird"],
+              "year": 1995,
+              "venue": "ICML",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "supplementary",
+              "context": "함수 근사 하의 RL에서 발생하는 발산 문제를 분석하고 잔차 알고리즘을 제안한 논문. 비선형 함수 근사의 불안정성 문제를 최초로 체계적으로 다루었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Deep Reinforcement Learning Fundamentals",
+      "description": "심층 신경망과 강화학습의 결합 — DQN, 경험 재생, 타겟 네트워크 — 을 학습하고 Atari 게임에서의 돌파구를 분석한다.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "Deep Q-Networks and Experience Replay",
+          "papers": [
+            {
+              "id": "paper-rl-016",
+              "title": "Playing Atari with Deep Reinforcement Learning",
+              "authors": ["Volodymyr Mnih", "Koray Kavukcuoglu", "David Silver", "Alex Graves", "Ioannis Antonoglou", "Daan Wierstra", "Martin Riedmiller"],
+              "year": 2013,
+              "venue": "NeurIPS Deep Learning Workshop",
+              "arxiv_id": "1312.5602",
+              "doi": null,
+              "category": "required",
+              "context": "DQN의 최초 논문. 원시 픽셀 입력에서 CNN과 Q-러닝을 결합하여 Atari 게임에서 인간 수준의 성능을 달성한 심층 강화학습의 출발점이다."
+            },
+            {
+              "id": "paper-rl-017",
+              "title": "Human-level Control through Deep Reinforcement Learning",
+              "authors": ["Volodymyr Mnih", "Koray Kavukcuoglu", "David Silver", "Andrei A. Rusu", "Joel Veness", "Marc G. Bellemare", "Alex Graves", "Martin Riedmiller", "Andreas K. Fidjeland", "Georg Ostrovski", "Stig Petersen", "Charles Beattie", "Amir Sadik", "Ioannis Antonoglou", "Helen King", "Dharshan Kumaran", "Daan Wierstra", "Shane Legg", "Demis Hassabis"],
+              "year": 2015,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/nature14236",
+              "category": "required",
+              "context": "DQN의 Nature 발표 버전. 경험 재생과 타겟 네트워크를 통해 49개 Atari 게임에서 인간 수준 성능을 달성하며 심층 강화학습 혁명을 촉발한 기념비적 논문이다."
+            },
+            {
+              "id": "paper-rl-018",
+              "title": "Prioritized Experience Replay",
+              "authors": ["Tom Schaul", "John Quan", "Ioannis Antonoglou", "David Silver"],
+              "year": 2016,
+              "venue": "ICLR",
+              "arxiv_id": "1511.05952",
+              "doi": null,
+              "category": "required",
+              "context": "TD 오차가 큰 경험을 우선적으로 재생하는 PER을 제안. 경험 재생의 효율성을 크게 개선하여 DQN 성능을 향상시켰다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "DQN Improvements and Extensions",
+          "papers": [
+            {
+              "id": "paper-rl-019",
+              "title": "Deep Reinforcement Learning with Double Q-Learning",
+              "authors": ["Hado van Hasselt", "Arthur Guez", "David Silver"],
+              "year": 2016,
+              "venue": "AAAI",
+              "arxiv_id": "1509.06461",
+              "doi": null,
+              "category": "required",
+              "context": "Double DQN을 제안하여 DQN의 Q값 과대추정 문제를 해결한 논문. 타겟 네트워크와 온라인 네트워크의 역할을 분리하여 안정적 학습을 달성하였다."
+            },
+            {
+              "id": "paper-rl-020",
+              "title": "Dueling Network Architectures for Deep Reinforcement Learning",
+              "authors": ["Ziyu Wang", "Tom Schaul", "Matteo Hessel", "Hado van Hasselt", "Marc Lanctot", "Nando de Freitas"],
+              "year": 2016,
+              "venue": "ICML",
+              "arxiv_id": "1511.06581",
+              "doi": null,
+              "category": "optional",
+              "context": "가치 함수와 어드밴티지 함수를 분리하는 Dueling 아키텍처를 제안. 행동에 무관한 상태 가치를 명시적으로 추정하여 학습 효율성을 개선하였다."
+            },
+            {
+              "id": "paper-rl-021",
+              "title": "Rainbow: Combining Improvements in Deep Reinforcement Learning",
+              "authors": ["Matteo Hessel", "Joseph Modayil", "Hado van Hasselt", "Tom Schaul", "Georg Ostrovski", "Will Dabney", "Dan Horgan", "Bilal Piot", "Mohammad Azar", "David Silver"],
+              "year": 2018,
+              "venue": "AAAI",
+              "arxiv_id": "1710.02298",
+              "doi": null,
+              "category": "required",
+              "context": "DQN의 6가지 주요 개선(Double, PER, Dueling, Multi-step, Distributional, NoisyNet)을 통합한 Rainbow. 각 구성요소의 기여도를 체계적으로 분석한 종합 연구이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-03",
+          "title": "Distributional Reinforcement Learning",
+          "papers": [
+            {
+              "id": "paper-rl-022",
+              "title": "A Distributional Perspective on Reinforcement Learning",
+              "authors": ["Marc G. Bellemare", "Will Dabney", "Remi Munos"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1707.06887",
+              "doi": null,
+              "category": "required",
+              "context": "기대 수익 대신 수익의 전체 분포를 학습하는 분포적 RL(C51)을 제안. RL의 패러다임을 확장하며 이후 QR-DQN, IQN 등 후속 연구의 기초가 되었다."
+            },
+            {
+              "id": "paper-rl-023",
+              "title": "Distributional Reinforcement Learning with Quantile Regression",
+              "authors": ["Will Dabney", "Mark Rowland", "Marc G. Bellemare", "Remi Munos"],
+              "year": 2018,
+              "venue": "AAAI",
+              "arxiv_id": "1710.10044",
+              "doi": null,
+              "category": "optional",
+              "context": "분위수 회귀를 이용한 분포적 RL(QR-DQN)을 제안. C51의 고정 이산 분포 제한을 극복하여 더 유연한 수익 분포 표현을 달성하였다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Policy Gradient Methods",
+      "description": "정책을 직접 최적화하는 정책 그래디언트 방법 — REINFORCE, Actor-Critic, A3C, TRPO, PPO — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "REINFORCE and Actor-Critic Foundations",
+          "papers": [
+            {
+              "id": "paper-rl-024",
+              "title": "Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning",
+              "authors": ["Ronald J. Williams"],
+              "year": 1992,
+              "venue": "Machine Learning",
+              "arxiv_id": null,
+              "doi": "10.1007/BF00992696",
+              "category": "required",
+              "context": "REINFORCE 알고리즘을 제안한 논문. 정책 그래디언트 정리의 원형을 제시하여 정책 기반 RL의 수학적 기초를 확립하였다."
+            },
+            {
+              "id": "paper-rl-025",
+              "title": "Policy Gradient Methods for Reinforcement Learning with Function Approximation",
+              "authors": ["Richard S. Sutton", "David McAllester", "Satinder Singh", "Yishay Mansour"],
+              "year": 2000,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "정책 그래디언트 정리(Policy Gradient Theorem)를 엄밀히 증명한 논문. 함수 근사 하에서도 정책의 기울기를 정확히 추정할 수 있음을 보여 현대 정책 그래디언트 방법의 이론적 기둥이 되었다."
+            },
+            {
+              "id": "paper-rl-026",
+              "title": "Actor-Critic Algorithms",
+              "authors": ["Vijay R. Konda", "John N. Tsitsiklis"],
+              "year": 2000,
+              "venue": "NeurIPS",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "optional",
+              "context": "Actor-Critic 구조의 수렴성을 분석한 논문. 정책(actor)과 가치 함수(critic)를 동시에 학습하는 프레임워크의 이론적 기초를 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "A2C, A3C, and Scalable Policy Gradients",
+          "papers": [
+            {
+              "id": "paper-rl-027",
+              "title": "Asynchronous Methods for Deep Reinforcement Learning",
+              "authors": ["Volodymyr Mnih", "Adria Puigdomenech Badia", "Mehdi Mirza", "Alex Graves", "Timothy Lillicrap", "Tim Harley", "David Silver", "Koray Kavukcuoglu"],
+              "year": 2016,
+              "venue": "ICML",
+              "arxiv_id": "1602.01783",
+              "doi": null,
+              "category": "required",
+              "context": "A3C(Asynchronous Advantage Actor-Critic)를 제안한 논문. 다수의 병렬 에이전트가 비동기적으로 학습하여 경험 재생 없이도 안정적 심층 RL을 달성한 획기적 연구이다."
+            },
+            {
+              "id": "paper-rl-028",
+              "title": "High-Dimensional Continuous Control Using Generalized Advantage Estimation",
+              "authors": ["John Schulman", "Philipp Moritz", "Sergey Levine", "Michael Jordan", "Pieter Abbeel"],
+              "year": 2016,
+              "venue": "ICLR",
+              "arxiv_id": "1506.02438",
+              "doi": null,
+              "category": "required",
+              "context": "GAE(Generalized Advantage Estimation)를 제안한 논문. 편향-분산 트레이드오프를 조절하는 어드밴티지 추정 방법으로, PPO와 TRPO의 핵심 구성요소이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-03",
+          "title": "Trust Region and Proximal Methods (TRPO, PPO)",
+          "papers": [
+            {
+              "id": "paper-rl-029",
+              "title": "Trust Region Policy Optimization",
+              "authors": ["John Schulman", "Sergey Levine", "Pieter Abbeel", "Michael Jordan", "Philipp Moritz"],
+              "year": 2015,
+              "venue": "ICML",
+              "arxiv_id": "1502.05477",
+              "doi": null,
+              "category": "required",
+              "context": "TRPO를 제안한 논문. KL 발산 제약을 통해 정책 업데이트의 안정성을 이론적으로 보장하며 연속 제어 문제에서의 심층 RL을 실용적으로 만들었다."
+            },
+            {
+              "id": "paper-rl-030",
+              "title": "Proximal Policy Optimization Algorithms",
+              "authors": ["John Schulman", "Filip Wolski", "Prafulla Dhariwal", "Alec Radford", "Oleg Klimov"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1707.06347",
+              "doi": null,
+              "category": "required",
+              "context": "PPO를 제안한 논문. TRPO의 복잡한 제약 최적화를 clipped surrogate objective로 단순화하여, 현재 가장 널리 사용되는 정책 그래디언트 알고리즘이 되었다. RLHF의 핵심 구성요소이다."
+            },
+            {
+              "id": "paper-rl-031",
+              "title": "Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor",
+              "authors": ["Tuomas Haarnoja", "Aubin Zhou", "Pieter Abbeel", "Sergey Levine"],
+              "year": 2018,
+              "venue": "ICML",
+              "arxiv_id": "1801.01290",
+              "doi": null,
+              "category": "required",
+              "context": "SAC를 제안한 논문. 최대 엔트로피 프레임워크를 통해 탐색 능력과 안정성을 동시에 달성하며, 연속 행동 공간에서의 오프-폴리시 정책 그래디언트의 표준이 되었다."
+            },
+            {
+              "id": "paper-rl-032",
+              "title": "Continuous Control with Deep Reinforcement Learning",
+              "authors": ["Timothy P. Lillicrap", "Jonathan J. Hunt", "Alexander Pritzel", "Nicolas Heess", "Tom Erez", "Yuval Tassa", "David Silver", "Daan Wierstra"],
+              "year": 2016,
+              "venue": "ICLR",
+              "arxiv_id": "1509.02971",
+              "doi": null,
+              "category": "optional",
+              "context": "DDPG(Deep Deterministic Policy Gradient)를 제안한 논문. DQN의 아이디어를 연속 행동 공간으로 확장하여 고차원 연속 제어 문제의 심층 RL 해법을 열었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Model-Based Reinforcement Learning",
+      "description": "환경 모델을 학습하거나 활용하는 모델 기반 RL — 월드 모델, Dreamer, MuZero, 계획 기법 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Learned World Models and Imagination-Based Learning",
+          "papers": [
+            {
+              "id": "paper-rl-033",
+              "title": "World Models",
+              "authors": ["David Ha", "Jurgen Schmidhuber"],
+              "year": 2018,
+              "venue": "NeurIPS",
+              "arxiv_id": "1803.10122",
+              "doi": null,
+              "category": "required",
+              "context": "VAE와 RNN을 결합한 월드 모델을 제안. 에이전트가 환경의 내부 모델('꿈') 속에서 학습하는 패러다임을 제시하여 모델 기반 RL의 새로운 방향을 열었다."
+            },
+            {
+              "id": "paper-rl-034",
+              "title": "Dream to Control: Learning Behaviors by Latent Imagination",
+              "authors": ["Danijar Hafner", "Timothy Lillicrap", "Jimmy Ba", "Mohammad Norouzi"],
+              "year": 2020,
+              "venue": "ICLR",
+              "arxiv_id": "1912.01603",
+              "doi": null,
+              "category": "required",
+              "context": "Dreamer를 제안한 논문. 잠재 공간에서 환경을 상상(imagination)하여 행동 정책을 학습하며, 이미지 기반 제어에서 모델-프리 방법을 능가하는 샘플 효율성을 달성하였다."
+            },
+            {
+              "id": "paper-rl-035",
+              "title": "Mastering Diverse Domains through World Models",
+              "authors": ["Danijar Hafner", "Jurgis Pasukonis", "Jimmy Ba", "Timothy Lillicrap"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2301.04104",
+              "doi": null,
+              "category": "optional",
+              "context": "DreamerV3를 제안. 하이퍼파라미터 튜닝 없이 다양한 도메인(Atari, 연속 제어, Minecraft)에서 작동하는 범용 모델 기반 RL 에이전트이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Planning with Learned Models: AlphaGo to MuZero",
+          "papers": [
+            {
+              "id": "paper-rl-036",
+              "title": "Mastering the Game of Go with Deep Neural Networks and Tree Search",
+              "authors": ["David Silver", "Aja Huang", "Chris J. Maddison", "Arthur Guez", "Laurent Sifre", "George van den Driessche", "Julian Schrittwieser", "Ioannis Antonoglou", "Veda Panneershelvam", "Marc Lanctot", "Sander Dieleman", "Dominik Grewe", "John Nham", "Nal Kalchbrenner", "Ilya Sutskever", "Timothy Lillicrap", "Madeleine Leach", "Koray Kavukcuoglu", "Thore Graepel", "Demis Hassabis"],
+              "year": 2016,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/nature16961",
+              "category": "required",
+              "context": "AlphaGo 논문. 심층 신경망과 몬테카를로 트리 탐색을 결합하여 바둑에서 인간 세계 챔피언을 처음으로 이긴 역사적 이정표이다."
+            },
+            {
+              "id": "paper-rl-037",
+              "title": "Mastering the Game of Go without Human Knowledge",
+              "authors": ["David Silver", "Julian Schrittwieser", "Karen Simonyan", "Ioannis Antonoglou", "Aja Huang", "Arthur Guez", "Thomas Hubert", "Lucas Baker", "Matthew Lai", "Adrian Bolton", "Yutian Chen", "Timothy Lillicrap", "Fan Hui", "Laurent Sifre", "George van den Driessche", "Thore Graepel", "Demis Hassabis"],
+              "year": 2017,
+              "venue": "Nature",
+              "arxiv_id": null,
+              "doi": "10.1038/nature24270",
+              "category": "required",
+              "context": "AlphaGo Zero 논문. 인간 데이터 없이 자기 대국(self-play)만으로 바둑을 초인적 수준으로 학습하며, tabula rasa 강화학습의 위력을 증명하였다."
+            },
+            {
+              "id": "paper-rl-038",
+              "title": "Mastering Atari, Go, Chess and Shogi by Planning with a Learned Model",
+              "authors": ["Julian Schrittwieser", "Ioannis Antonoglou", "Thomas Hubert", "Karen Simonyan", "Laurent Sifre", "Simon Schmitt", "Arthur Guez", "Edward Lockhart", "Demis Hassabis", "Thore Graepel", "Timothy Lillicrap", "David Silver"],
+              "year": 2020,
+              "venue": "Nature",
+              "arxiv_id": "1911.08265",
+              "doi": "10.1038/s41586-020-03051-4",
+              "category": "required",
+              "context": "MuZero 논문. 환경 규칙을 모르는 상태에서 모델을 학습하며 계획하는 알고리즘. 바둑, 체스, 쇼기, Atari에서 모두 최고 성능을 달성한 범용 모델 기반 RL이다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Multi-Agent Reinforcement Learning",
+      "description": "다수의 에이전트가 협력·경쟁·통신하는 멀티에이전트 RL의 이론과 방법론을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Cooperative and Competitive Multi-Agent Learning",
+          "papers": [
+            {
+              "id": "paper-rl-039",
+              "title": "Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments",
+              "authors": ["Ryan Lowe", "Yi Wu", "Aviv Tamar", "Jean Harb", "Pieter Abbeel", "Igor Mordatch"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.02275",
+              "doi": null,
+              "category": "required",
+              "context": "MADDPG를 제안한 논문. 중앙 집중 훈련-분산 실행(CTDE) 패러다임으로 혼합 환경에서의 멀티에이전트 학습을 가능하게 한 기초 연구이다."
+            },
+            {
+              "id": "paper-rl-040",
+              "title": "QMIX: Monotonic Value Function Factorisation for Deep Multi-Agent Reinforcement Learning",
+              "authors": ["Tabish Rashid", "Mikayel Samvelyan", "Christian Schroeder de Witt", "Gregory Farquhar", "Jakob Foerster", "Shimon Whiteson"],
+              "year": 2018,
+              "venue": "ICML",
+              "arxiv_id": "1803.11485",
+              "doi": null,
+              "category": "required",
+              "context": "단조 가치 함수 분해를 통한 멀티에이전트 Q-러닝(QMIX)을 제안. 팀 보상만으로 개별 에이전트의 가치 함수를 학습하는 효율적 방법이다."
+            },
+            {
+              "id": "paper-rl-041",
+              "title": "Emergent Complexity via Multi-Agent Competition",
+              "authors": ["Trapit Bansal", "Jakub Pachocki", "Szymon Sidor", "Ilya Sutskever", "Igor Mordatch"],
+              "year": 2018,
+              "venue": "ICLR",
+              "arxiv_id": "1710.03748",
+              "doi": null,
+              "category": "optional",
+              "context": "멀티에이전트 경쟁에서 복잡한 행동이 창발하는 현상을 연구. 단순한 보상으로 격투, 추격 등의 정교한 전략이 자연스럽게 출현함을 보여주었다."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Communication and Emergent Language in Multi-Agent Systems",
+          "papers": [
+            {
+              "id": "paper-rl-042",
+              "title": "Learning to Communicate with Deep Multi-Agent Reinforcement Learning",
+              "authors": ["Jakob N. Foerster", "Yannis M. Assael", "Nando de Freitas", "Shimon Whiteson"],
+              "year": 2016,
+              "venue": "NeurIPS",
+              "arxiv_id": "1605.06676",
+              "doi": null,
+              "category": "required",
+              "context": "에이전트 간 통신을 학습하는 DIAL과 CommNet을 제안. 멀티에이전트 RL에서 의사소통 채널이 자발적으로 형성되는 과정을 연구한 선구적 논문이다."
+            },
+            {
+              "id": "paper-rl-043",
+              "title": "OpenSpiel: A Framework for Reinforcement Learning in Games",
+              "authors": ["Marc Lanctot", "Edward Lockhart", "Jean-Baptiste Lespiau", "Vinicius Zambaldi", "Satyaki Upadhyay", "Julien Perolat", "Sriram Srinivasan", "Finbarr Timbers", "Karl Tuyls", "Shayegan Omidshafiei", "Daniel Hennes", "Dustin Morrill", "Paul Muller", "Timo Ewalds", "Ryan Faulkner", "Janos Kramar", "Bart De Vylder", "Brennan Saeta", "James Bradbury", "David Ding", "Sebastian Borgeaud", "Matthew Lai", "Julian Schrittwieser", "Thomas Anthony", "Edward Hughes", "Ivo Danihelka", "Jonah Ryan-Davis"],
+              "year": 2020,
+              "venue": "arXiv",
+              "arxiv_id": "1908.09453",
+              "doi": null,
+              "category": "supplementary",
+              "context": "DeepMind의 게임 RL 프레임워크 OpenSpiel. 다양한 게임 환경과 알고리즘을 제공하여 멀티에이전트 RL 연구의 표준 플랫폼 역할을 한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-07",
+      "week": 7,
+      "title": "Offline RL and Reinforcement Learning from Human Feedback",
+      "description": "사전 수집된 데이터로 학습하는 오프라인 RL, 그리고 인간 선호도에서 보상을 학습하는 RLHF를 학습한다.",
+      "topics": [
+        {
+          "id": "topic-07-01",
+          "title": "Offline (Batch) Reinforcement Learning",
+          "papers": [
+            {
+              "id": "paper-rl-044",
+              "title": "Off-Policy Deep Reinforcement Learning without Exploration",
+              "authors": ["Scott Fujimoto", "David Meger", "Doina Precup"],
+              "year": 2019,
+              "venue": "ICML",
+              "arxiv_id": "1812.02900",
+              "doi": null,
+              "category": "required",
+              "context": "BCQ(Batch-Constrained Q-learning)를 제안하여 오프라인 RL의 외삽 오류(extrapolation error) 문제를 최초로 체계적으로 분석한 논문. 오프라인 RL 분야의 출발점이다."
+            },
+            {
+              "id": "paper-rl-045",
+              "title": "Conservative Q-Learning for Offline Reinforcement Learning",
+              "authors": ["Aviral Kumar", "Aurick Zhou", "George Tucker", "Sergey Levine"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2006.04779",
+              "doi": null,
+              "category": "required",
+              "context": "CQL(Conservative Q-Learning)을 제안한 논문. 분포 밖 행동의 Q값을 보수적으로 추정하여 오프라인 RL의 과대추정 문제를 해결한 핵심 알고리즘이다."
+            },
+            {
+              "id": "paper-rl-046",
+              "title": "Offline Reinforcement Learning: Tutorial, Review, and Perspectives on Open Problems",
+              "authors": ["Sergey Levine", "Aviral Kumar", "George Tucker", "Justin Fu"],
+              "year": 2020,
+              "venue": "arXiv",
+              "arxiv_id": "2005.01643",
+              "doi": null,
+              "category": "required",
+              "context": "오프라인 RL의 포괄적 튜토리얼 및 서베이. 문제 정의, 핵심 도전 과제, 알고리즘 분류를 체계적으로 제시하여 분야의 전체 그림을 조망한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-07-02",
+          "title": "Reward Learning from Human Preferences",
+          "papers": [
+            {
+              "id": "paper-rl-047",
+              "title": "Deep Reinforcement Learning from Human Preferences",
+              "authors": ["Paul F. Christiano", "Jan Leike", "Tom Brown", "Miljan Martic", "Shane Legg", "Dario Amodei"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.03741",
+              "doi": null,
+              "category": "required",
+              "context": "인간의 선호도 비교에서 보상 함수를 학습하는 RLHF의 원형을 제안한 논문. 보상 설계의 어려움을 우회하여 인간의 의도를 직접 반영하는 RL의 새로운 패러다임을 열었다."
+            },
+            {
+              "id": "paper-rl-048",
+              "title": "Training Language Models to Follow Instructions with Human Feedback",
+              "authors": ["Long Ouyang", "Jeff Wu", "Xu Jiang", "Diogo Almeida", "Carroll L. Wainwright", "Pamela Mishkin", "Chong Zhang", "Sandhini Agarwal", "Katarina Slama", "Alex Ray", "John Schulman", "Jacob Hilton", "Fraser Kelton", "Luke Miller", "Maddie Simens", "Amanda Askell", "Peter Welinder", "Paul Christiano", "Jan Leike", "Ryan Lowe"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2203.02155",
+              "doi": null,
+              "category": "required",
+              "context": "InstructGPT 논문. RLHF를 대형 언어 모델에 적용하여 인간의 지시를 따르는 모델을 훈련한 혁신적 연구. ChatGPT의 기술적 기반이며 LLM 정렬(alignment)의 이정표이다."
+            },
+            {
+              "id": "paper-rl-049",
+              "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+              "authors": ["Rafael Rafailov", "Archit Sharma", "Eric Mitchell", "Stefano Ermon", "Christopher D. Manning", "Chelsea Finn"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2305.18290",
+              "doi": null,
+              "category": "required",
+              "context": "DPO를 제안한 논문. 보상 모델 학습과 RL 최적화를 단일 분류 손실로 통합하여 RLHF를 대폭 단순화하였다. LLM 정렬의 대안적 패러다임으로 빠르게 확산되었다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-08",
+      "week": 8,
+      "title": "Advanced Topics: Hierarchical RL, Meta-RL, and Sim-to-Real Transfer",
+      "description": "계층적 RL, 메타 강화학습, 시뮬레이션에서 실세계로의 전이 등 최전선 주제를 다룬다.",
+      "topics": [
+        {
+          "id": "topic-08-01",
+          "title": "Hierarchical Reinforcement Learning",
+          "papers": [
+            {
+              "id": "paper-rl-050",
+              "title": "The Option-Critic Architecture",
+              "authors": ["Pierre-Luc Bacon", "Jean Harb", "Doina Precup"],
+              "year": 2017,
+              "venue": "AAAI",
+              "arxiv_id": "1609.05140",
+              "doi": null,
+              "category": "required",
+              "context": "옵션(시간적 추상화 행동)을 종단간 학습하는 Option-Critic을 제안. Options 프레임워크를 기울기 기반 학습으로 확장하여 계층적 RL의 실용성을 높였다."
+            },
+            {
+              "id": "paper-rl-051",
+              "title": "Data-Efficient Hierarchical Reinforcement Learning",
+              "authors": ["Ofir Nachum", "Shixiang Gu", "Honglak Lee", "Sergey Levine"],
+              "year": 2018,
+              "venue": "NeurIPS",
+              "arxiv_id": "1805.08296",
+              "doi": null,
+              "category": "required",
+              "context": "HIRO를 제안한 논문. 상위 정책이 하위 정책에 목표를 설정하는 goal-conditioned 계층적 RL로, 복잡한 로봇 제어에서 데이터 효율적 학습을 달성하였다."
+            },
+            {
+              "id": "paper-rl-052",
+              "title": "FeUdal Networks for Hierarchical Reinforcement Learning",
+              "authors": ["Alexander Sasha Vezhnevets", "Simon Osindero", "Tom Schaul", "Nicolas Heess", "Max Jaderberg", "David Silver"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1703.01161",
+              "doi": null,
+              "category": "optional",
+              "context": "봉건(feudal) 구조의 계층적 RL인 FuN을 제안. 매니저가 방향 목표를 설정하고 워커가 행동을 실행하는 구조로, 장기 시간 의존성 문제에 효과적이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-08-02",
+          "title": "Meta-Reinforcement Learning",
+          "papers": [
+            {
+              "id": "paper-rl-053",
+              "title": "RL^2: Fast Reinforcement Learning via Slow Reinforcement Learning",
+              "authors": ["Yan Duan", "John Schulman", "Xi Chen", "Peter L. Bartlett", "Ilya Sutskever", "Pieter Abbeel"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1611.02779",
+              "doi": null,
+              "category": "required",
+              "context": "RNN의 은닉 상태에 RL 알고리즘 자체를 학습시키는 RL^2를 제안. 메타 학습을 통해 새로운 과제에 빠르게 적응하는 RL 에이전트를 실현하였다."
+            },
+            {
+              "id": "paper-rl-054",
+              "title": "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks",
+              "authors": ["Chelsea Finn", "Pieter Abbeel", "Sergey Levine"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1703.03400",
+              "doi": null,
+              "category": "required",
+              "context": "MAML을 제안한 논문. 소수의 그래디언트 스텝으로 새로운 과제에 적응할 수 있는 초기 파라미터를 학습하며, 메타 RL을 포함한 메타 학습 전반의 기초가 되었다."
+            },
+            {
+              "id": "paper-rl-055",
+              "title": "Learning to Reinforcement Learn",
+              "authors": ["Jane X. Wang", "Zeb Kurth-Nelson", "Dhruva Tirumala", "Hubert Soyer", "Joel Z. Leibo", "Remi Munos", "Charles Blundell", "Dharshan Kumaran", "Matt Botvinick"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1611.05763",
+              "doi": null,
+              "category": "optional",
+              "context": "메타 RL의 기초 연구 중 하나로, 순환 신경망이 경험으로부터 RL 알고리즘을 내재화할 수 있음을 보여주었다. RL^2와 독립적으로 동일한 통찰을 제시한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-08-03",
+          "title": "Sim-to-Real Transfer and Real-World RL",
+          "papers": [
+            {
+              "id": "paper-rl-056",
+              "title": "Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World",
+              "authors": ["Josh Tobin", "Rachel Fong", "Alex Ray", "Jonas Schneider", "Wojciech Zaremba", "Pieter Abbeel"],
+              "year": 2017,
+              "venue": "IROS",
+              "arxiv_id": "1703.06907",
+              "doi": null,
+              "category": "required",
+              "context": "도메인 랜덤화를 통한 sim-to-real 전이를 제안. 시뮬레이션의 시각적 속성을 무작위화하여 실세계 로봇에 직접 전이 가능한 정책을 학습하는 실용적 방법이다."
+            },
+            {
+              "id": "paper-rl-057",
+              "title": "Solving Rubik's Cube with a Robot Hand",
+              "authors": ["OpenAI", "Ilge Akkaya", "Marcin Andrychowicz", "Maciek Chociej", "Mateusz Litwin", "Bob McGrew", "Arthur Petron", "Alex Paino", "Matthias Plappert", "Glenn Powell", "Raphael Ribas", "Jonas Schneider", "Nikolas Tezak", "Jerry Tworek", "Peter Welinder", "Lilian Weng", "Qiming Yuan", "Wojciech Zaremba", "Lei Zhang"],
+              "year": 2019,
+              "venue": "arXiv",
+              "arxiv_id": "1910.07113",
+              "doi": null,
+              "category": "required",
+              "context": "로봇 손으로 루빅스 큐브를 조작하는 데 성공한 OpenAI의 연구. 자동 도메인 랜덤화(ADR)를 통해 시뮬레이션에서 현실로의 전이 한계를 크게 확장하였다."
+            },
+            {
+              "id": "paper-rl-058",
+              "title": "Learning Dexterous In-Hand Manipulation",
+              "authors": ["OpenAI", "Marcin Andrychowicz", "Bowen Baker", "Maciek Chociej", "Rafal Jozefowicz", "Bob McGrew", "Jakub Pachocki", "Arthur Petron", "Matthias Plappert", "Glenn Powell", "Alex Ray", "Jonas Schneider", "Szymon Sidor", "Josh Tobin", "Peter Welinder", "Lilian Weng", "Wojciech Zaremba"],
+              "year": 2020,
+              "venue": "International Journal of Robotics Research",
+              "arxiv_id": "1808.00177",
+              "doi": "10.1177/0278364919887447",
+              "category": "optional",
+              "context": "Shadow Dexterous Hand로 물체 재배향 과제를 해결한 연구. 대규모 분산 RL과 도메인 랜덤화를 결합하여 sim-to-real 전이의 실현 가능성을 입증하였다."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_courses": [
+    {
+      "university": "UC Berkeley",
+      "course_code": "CS 285",
+      "course_name": "Deep Reinforcement Learning",
+      "url": "http://rail.eecs.berkeley.edu/deeprlcourse/"
+    },
+    {
+      "university": "Stanford University",
+      "course_code": "CS 234",
+      "course_name": "Reinforcement Learning",
+      "url": "https://web.stanford.edu/class/cs234/"
+    },
+    {
+      "university": "University College London / DeepMind",
+      "course_code": "COMPM050",
+      "course_name": "Introduction to Reinforcement Learning (David Silver)",
+      "url": "https://www.davidsilver.uk/teaching/"
+    },
+    {
+      "university": "Carnegie Mellon University",
+      "course_code": "10-703",
+      "course_name": "Deep Reinforcement Learning",
+      "url": "https://cmudeeprl.github.io/"
+    }
+  ]
+}

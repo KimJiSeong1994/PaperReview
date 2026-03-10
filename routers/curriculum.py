@@ -36,7 +36,7 @@ _progress_lock = FileLock(str(PROGRESS_FILE) + ".lock")
 _index_lock = FileLock(str(USER_INDEX_FILE) + ".lock")
 
 # Preset course IDs — these are the built-in featured courses
-PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229", "stats315a", "stats361", "xai"}
+PRESET_COURSE_IDS = {"cs224w", "cs224n", "cs231n", "cs229", "stats315a", "stats361", "xai", "rl", "genai"}
 
 # Course ID validation pattern
 _COURSE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")

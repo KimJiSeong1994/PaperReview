@@ -1,0 +1,811 @@
+{
+  "id": "genai",
+  "name": "Generative AI: Large Language Models, Diffusion Models, and AI Agents",
+  "university": "Stanford / Princeton / CMU / Berkeley (Reference)",
+  "instructor": "Percy Liang, Danqi Chen, Graham Neubig, Dawn Song",
+  "difficulty": "advanced",
+  "prerequisites": [
+    "Deep Learning fundamentals (backpropagation, CNNs, RNNs, Transformers)",
+    "Natural Language Processing basics (CS224N-level)",
+    "Probability and Statistics",
+    "Linear Algebra and Calculus",
+    "Python programming (PyTorch or JAX)"
+  ],
+  "description": "생성형 AI와 대형 언어 모델(LLM)의 이론, 학습 방법론, 응용을 체계적으로 다루는 커리큘럼. Stanford CS324, Princeton COS 597G, CMU Advanced NLP, Berkeley CS294 등 저명 대학의 최신 강의와 분야를 정의한 핵심 논문들을 기반으로 구성하였다. Transformer 아키텍처부터 사전학습, 정렬(alignment), 프롬프트 엔지니어링, RAG, 에이전트, 확산 모델, 효율성 및 안전성까지 생성형 AI의 전 스펙트럼을 포괄한다.",
+  "url": "https://stanford-cs324.github.io/winter2022/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Foundations of Language Models",
+      "description": "언어 모델의 기초 — 통계적 언어 모델에서 신경망 기반 접근, 그리고 Transformer 아키텍처까지의 발전 과정을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Neural Language Models and Sequence-to-Sequence",
+          "papers": [
+            {
+              "id": "paper-genai-001",
+              "title": "Sequence to Sequence Learning with Neural Networks",
+              "authors": ["Ilya Sutskever", "Oriol Vinyals", "Quoc V. Le"],
+              "year": 2014,
+              "venue": "NeurIPS",
+              "arxiv_id": "1409.3215",
+              "doi": null,
+              "category": "required",
+              "context": "Encoder-Decoder 구조를 이용한 시퀀스-투-시퀀스 학습의 선구적 논문. LSTM 기반 기계 번역으로 신경망 언어 모델의 실용성을 입증하였다."
+            },
+            {
+              "id": "paper-genai-002",
+              "title": "Neural Machine Translation by Jointly Learning to Align and Translate",
+              "authors": ["Dzmitry Bahdanau", "Kyunghyun Cho", "Yoshua Bengio"],
+              "year": 2015,
+              "venue": "ICLR",
+              "arxiv_id": "1409.0473",
+              "doi": null,
+              "category": "required",
+              "context": "어텐션 메커니즘을 최초로 제안한 논문. 입력 시퀀스의 관련 부분에 동적으로 집중하는 기법으로 Transformer의 이론적 토대를 마련하였다."
+            },
+            {
+              "id": "paper-genai-003",
+              "title": "Efficient Estimation of Word Representations in Vector Space",
+              "authors": ["Tomas Mikolov", "Kai Chen", "Greg Corrado", "Jeffrey Dean"],
+              "year": 2013,
+              "venue": "ICLR Workshop",
+              "arxiv_id": "1301.3781",
+              "doi": null,
+              "category": "optional",
+              "context": "Word2Vec을 제안한 논문. 단어의 분산 표현(distributed representation)을 효율적으로 학습하는 방법을 제시하여 현대 NLP의 기초를 놓았다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "Transformer Architecture",
+          "papers": [
+            {
+              "id": "paper-genai-004",
+              "title": "Attention Is All You Need",
+              "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Lukasz Kaiser", "Illia Polosukhin"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1706.03762",
+              "doi": null,
+              "category": "required",
+              "context": "Transformer 아키텍처를 제안한 기념비적 논문. Self-attention 메커니즘으로 RNN을 대체하며 현대 LLM의 근간을 이루는 아키텍처를 정립하였다."
+            },
+            {
+              "id": "paper-genai-005",
+              "title": "A Survey of Transformers",
+              "authors": ["Tianyang Lin", "Yuxin Wang", "Xiangyang Liu", "Xipeng Qiu"],
+              "year": 2022,
+              "venue": "AI Open",
+              "arxiv_id": "2106.04554",
+              "doi": "10.1016/j.aiopen.2022.01.001",
+              "category": "optional",
+              "context": "Transformer 아키텍처의 다양한 변형과 개선을 체계적으로 정리한 서베이. 효율적 어텐션, 사전학습 전략, 응용 분야를 포괄한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-03",
+          "title": "Foundation Models and the LLM Landscape",
+          "papers": [
+            {
+              "id": "paper-genai-006",
+              "title": "On the Opportunities and Risks of Foundation Models",
+              "authors": ["Rishi Bommasani", "Drew A. Hudson", "Ehsan Adeli", "Russ Altman", "Simran Arora", "Sydney von Arx", "Michael S. Bernstein", "Jeannette Bohg", "Antoine Bosselut", "Emma Brunskill", "Erik Brynjolfsson", "Shyamal Buch", "Dallas Card", "Rodrigo Castellon", "Niladri Chatterji", "Annie Chen", "Kathleen Creel", "Jared Quincy Davis", "Dora Demszky", "Chris Donahue", "Moussa Doumbouya", "Esin Durmus", "Stefano Ermon", "John Etchemendy", "Kawin Ethayarajh", "Li Fei-Fei", "Chelsea Finn", "Trevor Gale", "Lauren Gillespie", "Karan Goel", "Noah Goodman", "Shelby Grossman", "Neel Guha", "Tatsunori Hashimoto", "Peter Henderson", "John Hewitt", "Daniel E. Ho", "Jenny Hong", "Kyle Hsu", "Jing Huang", "Thomas Iber", "Rose Jaikumar", "Wetzel Jones", "Dan Jurafsky", "Pratyusha Kalluri", "Siddharth Karamcheti", "Geoff Keeling", "Fereshte Khani", "Omar Khattab", "Pang Wei Koh", "Mark Krass", "Ranjay Krishna", "Rohith Kuditipudi", "Ananya Kumar", "Faisal Ladhak", "Mina Lee", "Tony Lee", "Jure Leskovec", "Hector Levesque", "Xiang Lisa Li", "Xuechen Li", "Tengyu Ma", "Ali Malik", "Christopher D. Manning", "Suvir Mirchandani", "Eric Mitchell", "Zanele Munyikwa", "Suraj Nair", "Avanika Narayan", "Deepak Narayanan", "Ben Newman", "Allen Nie", "Juan Carlos Niebles", "Hamed Nilforoshan", "Julian Nyarko", "Giray Ogut", "Laurel Orr", "Isabel Papadimitriou", "Joon Sung Park", "Chris Piech", "Eva Portelance", "Christopher Potts", "Aditi Raghunathan", "Rob Reich", "Hongyu Ren", "Frieda Rong", "Yusuf Roohani", "Camilo Ruiz", "Jack Ryan", "Christopher Re", "Dorsa Sadigh", "Shiori Sagawa", "Keshav Santhanam", "Andy Shih", "Krishnan Srinivasan", "Alex Tamkin", "Rohan Taori", "Armin W. Thomas", "Florian Tramer", "Rose E. Wang", "William Wang", "Bohan Wu", "Jiajun Wu", "Yuhuai Wu", "Sang Michael Xie", "Michihiro Yasunaga", "Jiaxuan You", "Matei Zaharia", "Michael Zhang", "Tianyi Zhang", "Xikun Zhang", "Yuhui Zhang", "Lucia Zheng", "Kaitlyn Zhou", "Percy Liang"],
+              "year": 2021,
+              "venue": "arXiv",
+              "arxiv_id": "2108.07258",
+              "doi": null,
+              "category": "required",
+              "context": "Stanford HAI의 100+ 연구자가 참여한 파운데이션 모델 종합 보고서. LLM의 기회와 위험, 사회적 영향을 총체적으로 분석한 분야 정의 문서이다."
+            },
+            {
+              "id": "paper-genai-007",
+              "title": "A Survey of Large Language Models",
+              "authors": ["Wayne Xin Zhao", "Kun Zhou", "Junyi Li", "Tianyi Tang", "Xiaolei Wang", "Yupeng Hou", "Yingqian Min", "Beichen Zhang", "Junjie Zhang", "Zican Dong", "Yifan Du", "Chen Yang", "Yushuo Chen", "Zhipeng Chen", "Jinhao Jiang", "Ruiyang Ren", "Yifan Li", "Xinyu Tang", "Zikang Liu", "Peiyu Liu", "Jian-Yun Nie", "Ji-Rong Wen"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2303.18223",
+              "doi": null,
+              "category": "optional",
+              "context": "LLM 분야의 포괄적 서베이. 사전학습, 적응, 활용, 평가의 전 과정을 체계적으로 정리하여 분야의 전체 지형도를 제공한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Pre-training and Scaling Laws",
+      "description": "대형 언어 모델의 사전학습 패러다임 — GPT 시리즈, BERT, T5 — 과 모델 크기·데이터·연산량의 관계를 규정하는 스케일링 법칙을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Autoregressive and Masked Language Models",
+          "papers": [
+            {
+              "id": "paper-genai-008",
+              "title": "Improving Language Understanding by Generative Pre-Training",
+              "authors": ["Alec Radford", "Karthik Narasimhan", "Tim Salimans", "Ilya Sutskever"],
+              "year": 2018,
+              "venue": "OpenAI Technical Report",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "GPT-1 논문. 비지도 사전학습 후 지도 미세조정하는 '사전학습-미세조정' 패러다임을 확립한 선구적 연구이다."
+            },
+            {
+              "id": "paper-genai-009",
+              "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+              "authors": ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+              "year": 2019,
+              "venue": "NAACL",
+              "arxiv_id": "1810.04805",
+              "doi": null,
+              "category": "required",
+              "context": "양방향 사전학습을 제안한 BERT. Masked Language Modeling과 Next Sentence Prediction으로 NLU 벤치마크를 석권하며 사전학습 모델 시대를 열었다."
+            },
+            {
+              "id": "paper-genai-010",
+              "title": "Language Models are Unsupervised Multitask Learners",
+              "authors": ["Alec Radford", "Jeffrey Wu", "Rewon Child", "David Luan", "Dario Amodei", "Ilya Sutskever"],
+              "year": 2019,
+              "venue": "OpenAI Technical Report",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "GPT-2 논문. 대규모 언어 모델이 명시적 지도 없이 다양한 NLP 태스크를 수행할 수 있음을 보여주었다. Zero-shot 학습의 가능성을 처음 시사하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Scaling to GPT-3 and Beyond",
+          "papers": [
+            {
+              "id": "paper-genai-011",
+              "title": "Language Models are Few-Shot Learners",
+              "authors": ["Tom Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah", "Jared Kaplan", "Prafulla Dhariwal", "Arvind Neelakantan", "Pranav Shyam", "Girish Sastry", "Amanda Askell", "Sandhini Agarwal", "Ariel Herbert-Voss", "Gretchen Krueger", "Tom Henighan", "Rewon Child", "Aditya Ramesh", "Daniel M. Ziegler", "Jeffrey Wu", "Clemens Winter", "Christopher Hesse", "Mark Chen", "Eric Sigler", "Mateusz Litwin", "Scott Gray", "Benjamin Chess", "Jack Clark", "Christopher Berner", "Sam McCandlish", "Alec Radford", "Ilya Sutskever", "Dario Amodei"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2005.14165",
+              "doi": null,
+              "category": "required",
+              "context": "GPT-3 논문. 175B 파라미터 모델이 few-shot 학습만으로 다양한 NLP 태스크에서 우수한 성능을 달성함을 보여준 획기적 연구. In-context learning의 위력을 입증하였다."
+            },
+            {
+              "id": "paper-genai-012",
+              "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer",
+              "authors": ["Colin Raffel", "Noam Shazeer", "Adam Roberts", "Katherine Lee", "Sharan Narang", "Michael Matena", "Yanqi Zhou", "Wei Li", "Peter J. Liu"],
+              "year": 2020,
+              "venue": "JMLR",
+              "arxiv_id": "1910.10683",
+              "doi": null,
+              "category": "required",
+              "context": "T5 논문. 모든 NLP 태스크를 텍스트-투-텍스트 프레임워크로 통합하고 사전학습 전략을 체계적으로 비교한 대규모 실험 연구이다."
+            },
+            {
+              "id": "paper-genai-013",
+              "title": "LLaMA: Open and Efficient Foundation Language Models",
+              "authors": ["Hugo Touvron", "Thibaut Lavril", "Gautier Izacard", "Xavier Martinet", "Marie-Anne Lachaux", "Timothee Lacroix", "Baptiste Roziere", "Naman Goyal", "Eric Hambro", "Faisal Azhar", "Aurelien Rodriguez", "Armand Joulin", "Edouard Grave", "Guillaume Lample"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2302.13971",
+              "doi": null,
+              "category": "optional",
+              "context": "Meta의 오픈소스 LLM. 소규모 모델도 충분한 데이터로 학습하면 대형 모델에 필적하는 성능을 달성할 수 있음을 입증하며 오픈소스 LLM 생태계를 촉발하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-03",
+          "title": "Scaling Laws and Compute-Optimal Training",
+          "papers": [
+            {
+              "id": "paper-genai-014",
+              "title": "Scaling Laws for Neural Language Models",
+              "authors": ["Jared Kaplan", "Sam McCandlish", "Tom Henighan", "Tom B. Brown", "Benjamin Chess", "Rewon Child", "Scott Gray", "Alec Radford", "Jeffrey Wu", "Dario Amodei"],
+              "year": 2020,
+              "venue": "arXiv",
+              "arxiv_id": "2001.08361",
+              "doi": null,
+              "category": "required",
+              "context": "언어 모델의 성능이 모델 크기, 데이터 크기, 연산량에 대해 멱법칙(power law)을 따른다는 스케일링 법칙을 발견한 선구적 논문이다."
+            },
+            {
+              "id": "paper-genai-015",
+              "title": "Training Compute-Optimal Large Language Models",
+              "authors": ["Jordan Hoffmann", "Sebastian Borgeaud", "Arthur Mensch", "Elena Buchatskaya", "Trevor Cai", "Eliza Rutherford", "Diego de Las Casas", "Lisa Anne Hendricks", "Johannes Welbl", "Aidan Clark", "Tom Hennigan", "Eric Noland", "Katie Millican", "George van den Driessche", "Bogdan Damoc", "Aurelia Guy", "Simon Osindero", "Karen Simonyan", "Erich Elsen", "Jack W. Rae", "Oriol Vinyals", "Laurent Sifre"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2203.15556",
+              "doi": null,
+              "category": "required",
+              "context": "Chinchilla 논문. 고정된 연산 예산에서 모델 크기와 데이터 크기를 동등하게 스케일링해야 한다는 '연산 최적' 학습 법칙을 제시하여 LLM 학습 패러다임을 전환하였다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Instruction Tuning and Alignment",
+      "description": "사전학습된 LLM을 인간의 의도와 가치에 맞게 정렬하는 방법론 — 지시 튜닝, RLHF, 헌법적 AI, DPO — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "Instruction Tuning and RLHF",
+          "papers": [
+            {
+              "id": "paper-genai-016",
+              "title": "Training language models to follow instructions with human feedback",
+              "authors": ["Long Ouyang", "Jeffrey Wu", "Xu Jiang", "Diogo Almeida", "Carroll Wainwright", "Pamela Mishkin", "Chong Zhang", "Sandhini Agarwal", "Katarina Slama", "Alex Ray", "John Schulman", "Jacob Hilton", "Fraser Kelton", "Luke Miller", "Maddie Simens", "Amanda Askell", "Peter Welinder", "Paul Christiano", "Jan Leike", "Ryan Lowe"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2203.02155",
+              "doi": null,
+              "category": "required",
+              "context": "InstructGPT 논문. RLHF(Reinforcement Learning from Human Feedback)를 적용하여 LLM을 인간의 지시에 따르도록 정렬한 핵심 연구. ChatGPT의 기술적 토대이다."
+            },
+            {
+              "id": "paper-genai-017",
+              "title": "Finetuned Language Models Are Zero-Shot Learners",
+              "authors": ["Jason Wei", "Maarten Bosma", "Vincent Y. Zhao", "Kelvin Guu", "Adams Wei Yu", "Brian Lester", "Nan Du", "Andrew M. Dai", "Quoc V. Le"],
+              "year": 2022,
+              "venue": "ICLR",
+              "arxiv_id": "2109.01652",
+              "doi": null,
+              "category": "required",
+              "context": "FLAN 논문. 다양한 태스크에 대한 지시(instruction) 미세조정이 zero-shot 성능을 크게 향상시킨다는 것을 입증한 지시 튜닝의 선구적 연구이다."
+            },
+            {
+              "id": "paper-genai-018",
+              "title": "Learning to summarize from human feedback",
+              "authors": ["Nisan Stiennon", "Long Ouyang", "Jeffrey Wu", "Daniel Ziegler", "Ryan Lowe", "Chelsea Voss", "Alec Radford", "Dario Amodei", "Paul Christiano"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2009.01325",
+              "doi": null,
+              "category": "optional",
+              "context": "인간 피드백 기반 요약 학습. InstructGPT 이전에 RLHF 파이프라인(보상 모델 학습 + PPO 최적화)을 NLP에 성공적으로 적용한 초기 연구이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "Constitutional AI and Direct Preference Optimization",
+          "papers": [
+            {
+              "id": "paper-genai-019",
+              "title": "Constitutional AI: Harmlessness from AI Feedback",
+              "authors": ["Yuntao Bai", "Saurav Kadavath", "Sandipan Kundu", "Amanda Askell", "Jackson Kernion", "Andy Jones", "Anna Chen", "Anna Goldie", "Azalia Mirhoseini", "Cameron McKinnon", "Carol Chen", "Catherine Olsson", "Christopher Olah", "Danny Hernandez", "Dawn Drain", "Deep Ganguli", "Dustin Li", "Eli Tyre", "Ethan Perez", "Jamie Kerr", "Jared Mueller", "Jeffrey Ladish", "Joshua Landau", "Kamal Ndousse", "Kamile Lukosuite", "Liane Lovitt", "Michael Sellitto", "Nelson Elhage", "Nicholas Schiefer", "Noemi Mercado", "Nova DasSarma", "Robert Lasenby", "Robin Larson", "Sam Ringer", "Scott Johnston", "Shauna Kravec", "Sheer El Showk", "Stanislav Fort", "Tamera Lanham", "Timothy Telleen-Langton", "Tom Conerly", "Tom Henighan", "Tristan Hume", "Samuel R. Bowman", "Zac Hatfield-Dodds", "Ben Mann", "Dario Amodei", "Nicholas Joseph", "Sam McCandlish", "Tom Brown", "Jared Kaplan"],
+              "year": 2022,
+              "venue": "arXiv",
+              "arxiv_id": "2212.08073",
+              "doi": null,
+              "category": "required",
+              "context": "Anthropic의 Constitutional AI. AI 자체의 피드백(RLAIF)을 활용하여 인간 라벨러 의존도를 줄이면서도 무해하고 유용한 모델을 학습하는 혁신적 접근법이다."
+            },
+            {
+              "id": "paper-genai-020",
+              "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+              "authors": ["Rafael Rafailov", "Archit Sharma", "Eric Mitchell", "Stefano Ermon", "Christopher D. Manning", "Chelsea Finn"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2305.18290",
+              "doi": null,
+              "category": "required",
+              "context": "DPO 논문. 별도의 보상 모델 없이 선호도 데이터로 직접 정책을 최적화하는 방법을 제안. RLHF의 복잡성을 크게 줄이면서 동등한 성능을 달성한다."
+            },
+            {
+              "id": "paper-genai-021",
+              "title": "RLAIF: Scaling Reinforcement Learning from Human Feedback with AI Feedback",
+              "authors": ["Harrison Lee", "Samrat Phatale", "Hassan Mansoor", "Kellie Lu", "Thomas Mesnard", "Colton Bishop", "Victor Carbune", "Abhinav Rastogi"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2309.00267",
+              "doi": null,
+              "category": "supplementary",
+              "context": "Google의 RLAIF 연구. AI 피드백이 인간 피드백과 비교할 만한 수준의 정렬 품질을 달성할 수 있음을 체계적으로 검증한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Prompt Engineering and In-Context Learning",
+      "description": "LLM의 프롬프트 기반 활용 — Chain-of-Thought, few-shot 학습, 프롬프트 튜닝 — 의 이론과 실제를 학습한다.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "In-Context Learning and Few-Shot Prompting",
+          "papers": [
+            {
+              "id": "paper-genai-022",
+              "title": "An Explanation of In-context Learning as Implicit Bayesian Inference",
+              "authors": ["Sang Michael Xie", "Aditi Raghunathan", "Percy Liang", "Tengyu Ma"],
+              "year": 2022,
+              "venue": "ICLR",
+              "arxiv_id": "2111.02080",
+              "doi": null,
+              "category": "required",
+              "context": "In-context learning을 암묵적 베이지안 추론으로 설명하는 이론적 프레임워크. LLM이 프롬프트 예시로부터 학습하는 메커니즘을 수학적으로 분석한다."
+            },
+            {
+              "id": "paper-genai-023",
+              "title": "Rethinking the Role of Demonstrations: What Makes In-Context Learning Work?",
+              "authors": ["Sewon Min", "Xinxi Lyu", "Ari Holtzman", "Mikel Artetxe", "Mike Lewis", "Hannaneh Hajishirzi", "Luke Zettlemoyer"],
+              "year": 2022,
+              "venue": "EMNLP",
+              "arxiv_id": "2202.12837",
+              "doi": null,
+              "category": "optional",
+              "context": "In-context learning에서 데모의 레이블이 아닌 입력-레이블 공간의 형태가 중요함을 발견한 분석적 연구. ICL의 작동 원리에 대한 중요한 통찰을 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Chain-of-Thought and Reasoning",
+          "papers": [
+            {
+              "id": "paper-genai-024",
+              "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+              "authors": ["Jason Wei", "Xuezhi Wang", "Dale Schuurmans", "Maarten Bosma", "Brian Ichter", "Fei Xia", "Ed Chi", "Quoc Le", "Denny Zhou"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2201.11903",
+              "doi": null,
+              "category": "required",
+              "context": "Chain-of-Thought(CoT) 프롬프팅을 제안한 논문. 중간 추론 과정을 명시적으로 생성하도록 유도하여 LLM의 수학적·논리적 추론 능력을 크게 향상시켰다."
+            },
+            {
+              "id": "paper-genai-025",
+              "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models",
+              "authors": ["Xuezhi Wang", "Jason Wei", "Dale Schuurmans", "Quoc Le", "Ed Chi", "Sharan Narang", "Aakanksha Chowdhery", "Denny Zhou"],
+              "year": 2023,
+              "venue": "ICLR",
+              "arxiv_id": "2203.11171",
+              "doi": null,
+              "category": "required",
+              "context": "Self-consistency 디코딩을 제안. 여러 추론 경로를 샘플링한 후 다수결로 최종 답을 선택하여 CoT의 성능을 추가로 향상시키는 간단하면서도 효과적인 방법이다."
+            },
+            {
+              "id": "paper-genai-026",
+              "title": "Tree of Thoughts: Deliberate Problem Solving with Large Language Models",
+              "authors": ["Shunyu Yao", "Dian Yu", "Jeffrey Zhao", "Izhak Shafran", "Thomas L. Griffiths", "Yuan Cao", "Karthik Narasimhan"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2305.10601",
+              "doi": null,
+              "category": "optional",
+              "context": "Tree of Thoughts(ToT) 프레임워크. 탐색과 역추적(backtracking)을 통한 의도적 문제 해결로 CoT의 한계를 넘는 체계적 추론을 가능케 한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-03",
+          "title": "Prompt Tuning and Parameter-Efficient Methods",
+          "papers": [
+            {
+              "id": "paper-genai-027",
+              "title": "The Power of Scale for Parameter-Efficient Prompt Tuning",
+              "authors": ["Brian Lester", "Rami Al-Rfou", "Noah Constant"],
+              "year": 2021,
+              "venue": "EMNLP",
+              "arxiv_id": "2104.08691",
+              "doi": null,
+              "category": "required",
+              "context": "Prompt tuning을 제안한 논문. 소프트 프롬프트만 학습하여 모델 미세조정에 필적하는 성능을 달성. 파라미터 효율적 적응의 핵심 기법이다."
+            },
+            {
+              "id": "paper-genai-028",
+              "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+              "authors": ["Edward J. Hu", "Yelong Shen", "Phillip Wallis", "Zeyuan Allen-Zhu", "Yuanzhi Li", "Shean Wang", "Lu Wang", "Weizhu Chen"],
+              "year": 2022,
+              "venue": "ICLR",
+              "arxiv_id": "2106.09685",
+              "doi": null,
+              "category": "required",
+              "context": "LoRA를 제안한 논문. 저랭크 행렬 분해로 LLM의 가중치를 효율적으로 적응시키는 방법. 현재 가장 널리 사용되는 파라미터 효율적 미세조정 기법이다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Retrieval-Augmented Generation",
+      "description": "외부 지식을 검색하여 LLM의 생성을 증강하는 RAG 패러다임 — 밀집 검색, 하이브리드 검색, 지식 통합 아키텍처 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Dense Retrieval and Foundations",
+          "papers": [
+            {
+              "id": "paper-genai-029",
+              "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+              "authors": ["Vladimir Karpukhin", "Barlas Oguz", "Sewon Min", "Patrick Lewis", "Ledell Wu", "Sergey Edunov", "Danqi Chen", "Wen-tau Yih"],
+              "year": 2020,
+              "venue": "EMNLP",
+              "arxiv_id": "2004.04906",
+              "doi": null,
+              "category": "required",
+              "context": "DPR(Dense Passage Retrieval)을 제안한 논문. 이중 인코더 구조로 밀집 벡터 기반 검색의 우수성을 입증하며 RAG의 검색 기반을 마련하였다."
+            },
+            {
+              "id": "paper-genai-030",
+              "title": "REALM: Retrieval-Augmented Language Model Pre-Training",
+              "authors": ["Kelvin Guu", "Kenton Lee", "Zora Tung", "Panupong Pasupat", "Ming-Wei Chang"],
+              "year": 2020,
+              "venue": "ICML",
+              "arxiv_id": "2002.08909",
+              "doi": null,
+              "category": "required",
+              "context": "REALM 논문. 사전학습 단계에서 검색을 통합한 최초의 연구. 지식 검색기를 언어 모델과 함께 end-to-end로 학습하는 패러다임을 제시하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "RAG Architectures",
+          "papers": [
+            {
+              "id": "paper-genai-031",
+              "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+              "authors": ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus", "Fabio Petroni", "Vladimir Karpukhin", "Naman Goyal", "Heinrich Kuttler", "Mike Lewis", "Wen-tau Yih", "Tim Rocktaschel", "Sebastian Riedel", "Douwe Kiela"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2005.11401",
+              "doi": null,
+              "category": "required",
+              "context": "RAG(Retrieval-Augmented Generation)를 제안한 기념비적 논문. 검색과 생성을 결합하여 지식 집약적 태스크에서 순수 파라메트릭 모델을 크게 능가한다."
+            },
+            {
+              "id": "paper-genai-032",
+              "title": "Improving language models by retrieving from trillions of tokens",
+              "authors": ["Sebastian Borgeaud", "Arthur Mensch", "Jordan Hoffmann", "Trevor Cai", "Eliza Rutherford", "Katie Millican", "George van den Driessche", "Jean-Baptiste Lespiau", "Bogdan Damoc", "Aidan Clark", "Diego de Las Casas", "Aurelia Guy", "Jacob Menick", "Roman Ring", "Tom Hennigan", "Saffron Huang", "Loren Maggiore", "Chris Jones", "Albin Cassirer", "Andy Brock", "Michela Paganini", "Geoffrey Irving", "Oriol Vinyals", "Simon Osindero", "Karen Simonyan", "Jack W. Rae", "Erich Elsen", "Laurent Sifre"],
+              "year": 2022,
+              "venue": "ICML",
+              "arxiv_id": "2112.04426",
+              "doi": null,
+              "category": "required",
+              "context": "RETRO(Retrieval-Enhanced Transformer) 논문. 수조 개 토큰에서 검색하여 25x 적은 파라미터로 대형 모델과 동등한 성능을 달성하는 검색 증강 아키텍처이다."
+            },
+            {
+              "id": "paper-genai-033",
+              "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",
+              "authors": ["Akari Asai", "Zeqiu Wu", "Yizhong Wang", "Avirup Sil", "Hannaneh Hajishirzi"],
+              "year": 2023,
+              "venue": "ICLR",
+              "arxiv_id": "2310.11511",
+              "doi": null,
+              "category": "optional",
+              "context": "Self-RAG 논문. 모델이 스스로 검색 필요성을 판단하고 생성된 내용을 비판적으로 평가하는 자기 반성적 RAG 프레임워크. 검색의 적응적 활용을 가능케 한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "LLM Agents and Tool Use",
+      "description": "LLM을 자율적 에이전트로 활용하는 방법론 — 추론과 행동의 결합, 도구 사용, 함수 호출, 멀티에이전트 시스템 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Reasoning and Acting with LLMs",
+          "papers": [
+            {
+              "id": "paper-genai-034",
+              "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+              "authors": ["Shunyu Yao", "Jeffrey Zhao", "Dian Yu", "Nan Du", "Izhak Shafran", "Karthik Narasimhan", "Yuan Cao"],
+              "year": 2023,
+              "venue": "ICLR",
+              "arxiv_id": "2210.03629",
+              "doi": null,
+              "category": "required",
+              "context": "ReAct 프레임워크를 제안한 논문. 추론(Reasoning)과 행동(Acting)을 교차하여 LLM이 외부 환경과 상호작용하며 문제를 해결하는 에이전트 패러다임을 확립하였다."
+            },
+            {
+              "id": "paper-genai-035",
+              "title": "Toolformer: Language Models Can Teach Themselves to Use Tools",
+              "authors": ["Timo Schick", "Jane Dwivedi-Yu", "Roberto Dessi", "Roberta Raileanu", "Maria Lomeli", "Luke Zettlemoyer", "Nicola Cancedda", "Thomas Scialom"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2302.04761",
+              "doi": null,
+              "category": "required",
+              "context": "Toolformer 논문. LLM이 스스로 API 호출(계산기, 검색엔진 등)을 학습하는 방법을 제안. 외부 도구 사용을 자기 지도 방식으로 학습하는 선구적 연구이다."
+            },
+            {
+              "id": "paper-genai-036",
+              "title": "Gorilla: Large Language Model Connected with Massive APIs",
+              "authors": ["Shishir G. Patil", "Tianjun Zhang", "Xin Wang", "Joseph E. Gonzalez"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2305.15334",
+              "doi": null,
+              "category": "optional",
+              "context": "Gorilla 논문. 1,600+ API를 정확하게 호출할 수 있도록 미세조정된 LLM. 대규모 API 환경에서의 함수 호출 정확도와 할루시네이션 감소를 다룬다."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Multi-Agent Systems and Autonomous Agents",
+          "papers": [
+            {
+              "id": "paper-genai-037",
+              "title": "Generative Agents: Interactive Simulacra of Human Behavior",
+              "authors": ["Joon Sung Park", "Joseph C. O'Brien", "Carrie Jun Cai", "Meredith Ringel Morris", "Percy Liang", "Michael S. Bernstein"],
+              "year": 2023,
+              "venue": "UIST",
+              "arxiv_id": "2304.03442",
+              "doi": null,
+              "category": "required",
+              "context": "생성형 에이전트 논문. LLM 기반의 25명의 가상 에이전트가 샌드박스 환경에서 인간과 유사한 사회적 행동을 시연한 획기적 연구. LLM 에이전트의 가능성을 대중에게 각인시켰다."
+            },
+            {
+              "id": "paper-genai-038",
+              "title": "AutoGPT: An Autonomous GPT-4 Experiment / A Survey on Large Language Model based Autonomous Agents",
+              "authors": ["Lei Wang", "Chen Ma", "Xueyang Feng", "Zeyu Zhang", "Hao Yang", "Jingsen Zhang", "Zhiyuan Chen", "Jiakai Tang", "Xu Chen", "Yankai Lin", "Wayne Xin Zhao", "Zhewei Wei", "Ji-Rong Wen"],
+              "year": 2024,
+              "venue": "Frontiers of Computer Science",
+              "arxiv_id": "2308.11432",
+              "doi": null,
+              "category": "required",
+              "context": "LLM 기반 자율 에이전트의 포괄적 서베이. 에이전트의 구성 요소(프로파일, 메모리, 계획, 행동)를 체계적으로 분류하고 주요 프레임워크를 비교 분석한다."
+            },
+            {
+              "id": "paper-genai-039",
+              "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+              "authors": ["Noah Shinn", "Federico Cassano", "Ashwin Gopinath", "Karthik Narasimhan", "Shunyu Yao"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2303.11366",
+              "doi": null,
+              "category": "optional",
+              "context": "Reflexion 논문. 언어적 피드백을 통한 자기 반성(self-reflection)으로 에이전트가 시행착오에서 학습하는 방법을 제안. 가중치 갱신 없이 성능을 개선한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-07",
+      "week": 7,
+      "title": "Diffusion Models and Image Generation",
+      "description": "확산 모델의 이론적 기초와 텍스트-이미지 생성의 발전 — DDPM, Stable Diffusion, DALL-E, 일관성 모델 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-07-01",
+          "title": "Denoising Diffusion Probabilistic Models",
+          "papers": [
+            {
+              "id": "paper-genai-040",
+              "title": "Denoising Diffusion Probabilistic Models",
+              "authors": ["Jonathan Ho", "Ajay Jain", "Pieter Abbeel"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "2006.11239",
+              "doi": null,
+              "category": "required",
+              "context": "DDPM 논문. 확산 과정의 역변환을 학습하여 고품질 이미지를 생성하는 프레임워크. GAN을 대체하는 확산 모델 시대를 연 기념비적 연구이다."
+            },
+            {
+              "id": "paper-genai-041",
+              "title": "Denoising Diffusion Implicit Models",
+              "authors": ["Jiaming Song", "Chenlin Meng", "Stefano Ermon"],
+              "year": 2021,
+              "venue": "ICLR",
+              "arxiv_id": "2010.02502",
+              "doi": null,
+              "category": "required",
+              "context": "DDIM 논문. 비마르코프 확산 과정을 도입하여 DDPM의 샘플링 속도를 10-50배 가속화. 확산 모델의 실용성을 크게 향상시켰다."
+            },
+            {
+              "id": "paper-genai-042",
+              "title": "Score-Based Generative Modeling through Stochastic Differential Equations",
+              "authors": ["Yang Song", "Jascha Sohl-Dickstein", "Diederik P. Kingma", "Abhishek Kumar", "Stefano Ermon", "Ben Poole"],
+              "year": 2021,
+              "venue": "ICLR",
+              "arxiv_id": "2011.13456",
+              "doi": null,
+              "category": "optional",
+              "context": "확산 모델을 연속 시간 SDE로 통합하는 프레임워크. Score matching과 확산 모델을 하나의 이론적 체계로 연결하여 확산 생성 모델의 수학적 토대를 확립하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-07-02",
+          "title": "Text-to-Image Generation",
+          "papers": [
+            {
+              "id": "paper-genai-043",
+              "title": "High-Resolution Image Synthesis with Latent Diffusion Models",
+              "authors": ["Robin Rombach", "Andreas Blattmann", "Dominik Lorenz", "Patrick Esser", "Bjorn Ommer"],
+              "year": 2022,
+              "venue": "CVPR",
+              "arxiv_id": "2112.10752",
+              "doi": null,
+              "category": "required",
+              "context": "Latent Diffusion Models(Stable Diffusion) 논문. 잠재 공간에서 확산을 수행하여 연산 비용을 크게 줄이면서 고해상도 이미지를 생성. 오픈소스 이미지 생성의 토대가 되었다."
+            },
+            {
+              "id": "paper-genai-044",
+              "title": "Hierarchical Text-Conditional Image Generation with CLIP Latents",
+              "authors": ["Aditya Ramesh", "Prafulla Dhariwal", "Alex Nichol", "Casey Chu", "Mark Chen"],
+              "year": 2022,
+              "venue": "arXiv",
+              "arxiv_id": "2204.06125",
+              "doi": null,
+              "category": "required",
+              "context": "DALL-E 2 논문. CLIP 임베딩을 조건으로 확산 모델로 이미지를 생성하는 계층적 접근법. 텍스트-이미지 생성의 품질과 다양성을 크게 향상시켰다."
+            },
+            {
+              "id": "paper-genai-045",
+              "title": "Consistency Models",
+              "authors": ["Yang Song", "Prafulla Dhariwal", "Mark Chen", "Ilya Sutskever"],
+              "year": 2023,
+              "venue": "ICML",
+              "arxiv_id": "2303.01469",
+              "doi": null,
+              "category": "optional",
+              "context": "일관성 모델 논문. 단일 스텝으로 고품질 이미지를 생성하여 확산 모델의 느린 샘플링 문제를 근본적으로 해결하는 새로운 생성 모델 패밀리를 제시한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-08",
+      "week": 8,
+      "title": "Efficiency, Safety, and Frontier Topics",
+      "description": "LLM의 효율적 배포(양자화, 증류, MoE), 안전성(할루시네이션, 편향, 평가), 멀티모달 모델 등 최전선 주제를 다룬다.",
+      "topics": [
+        {
+          "id": "topic-08-01",
+          "title": "Efficient LLM Deployment",
+          "papers": [
+            {
+              "id": "paper-genai-046",
+              "title": "LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale",
+              "authors": ["Tim Dettmers", "Mike Lewis", "Younes Belkada", "Luke Zettlemoyer"],
+              "year": 2022,
+              "venue": "NeurIPS",
+              "arxiv_id": "2208.07339",
+              "doi": null,
+              "category": "required",
+              "context": "LLM의 8비트 양자화를 제안한 논문. 대형 모델의 성능 저하 없이 메모리 사용량을 절반으로 줄여 소비자 GPU에서의 추론을 가능케 하였다."
+            },
+            {
+              "id": "paper-genai-047",
+              "title": "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer",
+              "authors": ["Noam Shazeer", "Azalia Mirhoseini", "Krzysztof Matyjas", "Andy Davis", "Quoc Le", "Geoffrey Hinton", "Jeff Dean"],
+              "year": 2017,
+              "venue": "ICLR",
+              "arxiv_id": "1701.06538",
+              "doi": null,
+              "category": "required",
+              "context": "Sparse MoE(Mixture of Experts)를 제안한 논문. 게이팅 네트워크로 전문가를 선택적으로 활성화하여 연산 비용 대비 모델 용량을 극대화하는 핵심 아키텍처이다."
+            },
+            {
+              "id": "paper-genai-048",
+              "title": "Distilling the Knowledge in a Neural Network",
+              "authors": ["Geoffrey Hinton", "Oriol Vinyals", "Jeff Dean"],
+              "year": 2015,
+              "venue": "NeurIPS Workshop",
+              "arxiv_id": "1503.02531",
+              "doi": null,
+              "category": "optional",
+              "context": "지식 증류(Knowledge Distillation)의 개념을 정립한 논문. 대형 교사 모델의 지식을 소형 학생 모델로 전달하여 효율적 배포를 가능케 하는 기초 기법이다."
+            }
+          ]
+        },
+        {
+          "id": "topic-08-02",
+          "title": "Safety, Hallucination, and Evaluation",
+          "papers": [
+            {
+              "id": "paper-genai-049",
+              "title": "A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions",
+              "authors": ["Lei Huang", "Weijiang Yu", "Weitao Ma", "Weihong Zhong", "Zhangyin Feng", "Haotian Wang", "Qianglong Chen", "Weihua Peng", "Xiaocheng Feng", "Bing Qin", "Ting Liu"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2311.05232",
+              "doi": null,
+              "category": "required",
+              "context": "LLM 할루시네이션의 포괄적 서베이. 할루시네이션의 원인, 분류, 탐지 및 완화 방법을 체계적으로 정리한다."
+            },
+            {
+              "id": "paper-genai-050",
+              "title": "Holistic Evaluation of Language Models",
+              "authors": ["Percy Liang", "Rishi Bommasani", "Tony Lee", "Dimitris Tsipras", "Dilara Soylu", "Michihiro Yasunaga", "Yian Zhang", "Deepak Narayanan", "Yuhuai Wu", "Ananya Kumar", "Benjamin Newman", "Binhang Yuan", "Bobby Yan", "Ce Zhang", "Christian Cosgrove", "Christopher D. Manning", "Christopher Re", "Diana Acosta-Navas", "Drew A. Hudson", "Eric Zelikman", "Esin Durmus", "Faisal Ladhak", "Frieda Rong", "Hongyu Ren", "Huaxiu Yao", "Jue Wang", "Keshav Santhanam", "Laurel Orr", "Lucia Zheng", "Mert Yuksekgonul", "Mirac Suzgun", "Nathan Kim", "Neel Guha", "Niladri Chatterji", "Omar Khattab", "Peter Henderson", "Qian Huang", "Ryan Chi", "Sang Michael Xie", "Shibani Santurkar", "Surya Ganguli", "Tatsunori Hashimoto", "Thomas Icard", "Tianyi Zhang", "Vishrav Chaudhary", "William Wang", "Xuechen Li", "Yifan Mai", "Yuhui Zhang", "Yuta Koreeda"],
+              "year": 2023,
+              "venue": "Transactions on Machine Learning Research",
+              "arxiv_id": "2211.09110",
+              "doi": null,
+              "category": "required",
+              "context": "HELM(Holistic Evaluation of Language Models) 논문. 정확도, 공정성, 편향, 독성, 효율성 등 다차원에서 LLM을 체계적으로 평가하는 표준 프레임워크를 제시한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-08-03",
+          "title": "Multimodal LLMs and Frontier Research",
+          "papers": [
+            {
+              "id": "paper-genai-051",
+              "title": "Visual Instruction Tuning",
+              "authors": ["Haotian Liu", "Chunyuan Li", "Qingyang Wu", "Yong Jae Lee"],
+              "year": 2023,
+              "venue": "NeurIPS",
+              "arxiv_id": "2304.08485",
+              "doi": null,
+              "category": "required",
+              "context": "LLaVA(Large Language and Vision Assistant) 논문. 시각적 지시 튜닝으로 LLM에 시각 이해 능력을 부여하는 효과적 방법을 제안. 멀티모달 LLM 연구의 핵심 참조점이다."
+            },
+            {
+              "id": "paper-genai-052",
+              "title": "GPT-4 Technical Report",
+              "authors": ["OpenAI"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2303.08774",
+              "doi": null,
+              "category": "required",
+              "context": "GPT-4 기술 보고서. 텍스트와 이미지를 모두 처리하는 대규모 멀티모달 모델의 능력과 한계를 기술한다. 현대 LLM의 최전선 성능 기준점이다."
+            },
+            {
+              "id": "paper-genai-053",
+              "title": "Gemini: A Family of Highly Capable Multimodal Models",
+              "authors": ["Gemini Team", "Google DeepMind"],
+              "year": 2024,
+              "venue": "arXiv",
+              "arxiv_id": "2312.11805",
+              "doi": null,
+              "category": "supplementary",
+              "context": "Google의 Gemini 기술 보고서. 텍스트, 이미지, 오디오, 비디오를 네이티브로 처리하는 멀티모달 모델 패밀리. GPT-4와 함께 최전선 멀티모달 LLM의 양대 축이다."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_courses": [
+    {
+      "university": "Stanford University",
+      "course_code": "CS324",
+      "course_name": "Large Language Models",
+      "url": "https://stanford-cs324.github.io/winter2022/"
+    },
+    {
+      "university": "Princeton University",
+      "course_code": "COS 597G",
+      "course_name": "Understanding Large Language Models",
+      "url": "https://www.cs.princeton.edu/courses/archive/fall22/cos597G/"
+    },
+    {
+      "university": "Carnegie Mellon University",
+      "course_code": "11-667",
+      "course_name": "Large Language Models: Methods and Applications",
+      "url": "https://cmu-llms.org/"
+    },
+    {
+      "university": "UC Berkeley",
+      "course_code": "CS294/194-267",
+      "course_name": "Understanding Large Language Models: Foundations and Safety",
+      "url": "https://rdi.berkeley.edu/understanding_llms/s24"
+    }
+  ]
+}
