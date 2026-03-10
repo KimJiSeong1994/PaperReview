@@ -440,6 +440,29 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         start_time = time.time()
         loop = asyncio.get_running_loop()
 
+        # ── Quick topic classification (academic vs non-academic) ──
+        is_academic = True
+        if query_analyzer:
+            try:
+                classify_result = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        partial(query_analyzer.classify_topic, request.query),
+                    ),
+                    timeout=5,
+                )
+                is_academic = classify_result.get("is_academic", True)
+            except Exception:
+                pass  # timeout or error → assume academic
+
+        if not is_academic:
+            logger.info("[API] Non-academic query blocked: %s", request.query)
+            return SearchResponse(
+                results={s: [] for s in request.sources},
+                total=0,
+                query_analysis={"is_academic": False, "original_query": request.query},
+            )
+
         # Query analysis (skip when LLM search — llm_context_search does its own)
         query_analysis = None
         if query_analyzer and not request.use_llm_search:

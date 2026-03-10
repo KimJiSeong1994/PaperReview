@@ -293,6 +293,50 @@ Return only valid JSON, no additional text."""
         analysis = self.analyze_query(query)
         return analysis.get("intent", "paper_search")
 
+    def classify_topic(self, query: str) -> Dict[str, Any]:
+        """
+        쿼리가 학술/논문 검색 주제인지 경량 분류.
+
+        gpt-4o-mini + max_tokens=20으로 빠르게 판정한다.
+        실패 시 항상 is_academic=True를 반환하여 정상 검색이 차단되지 않도록 한다.
+
+        Args:
+            query: 사용자 검색 쿼리
+
+        Returns:
+            {"is_academic": True/False}
+        """
+        if not self.client or not query.strip():
+            return {"is_academic": True}
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You classify whether a search query is related to academic research, "
+                            "scientific papers, or scholarly topics. Return JSON: {\"is_academic\": true/false}\n\n"
+                            "Return false ONLY for clearly non-academic queries like:\n"
+                            "- Weather, food, shopping, travel, entertainment, sports\n"
+                            "- Personal questions, greetings, chitchat\n"
+                            "- Software installation guides, product reviews, news\n\n"
+                            "Return true for anything that could relate to research, even if vague.\n"
+                            "When in doubt, return true."
+                        ),
+                    },
+                    {"role": "user", "content": query},
+                ],
+                temperature=0,
+                max_tokens=20,
+                response_format={"type": "json_object"},
+            )
+            result = json.loads(response.choices[0].message.content)
+            return {"is_academic": bool(result.get("is_academic", True))}
+        except Exception:
+            return {"is_academic": True}
+
     @log_data_processing("LLM Search Query Generation")
     def generate_search_queries(self, query: str) -> Dict[str, Any]:
         """

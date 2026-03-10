@@ -120,6 +120,9 @@ function App() {
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
 
+  // Query guidance (non-academic query feedback)
+  const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
+
   const hashString = (str: string) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -135,6 +138,7 @@ function App() {
 
     setLoading(true);
     setQuery(searchQuery);
+    setGuidanceMessage(null);
 
     try {
       {
@@ -145,6 +149,20 @@ function App() {
           sort_by: 'relevance',
           use_llm_search: true,
         });
+
+        // Check if query was classified as non-academic
+        const qa = (results as any).query_analysis;
+        if (qa && qa.is_academic === false) {
+          setGuidanceMessage(
+            '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
+          );
+          setPapers([]);
+          setGraphData(null);
+          setSelectedPaper(null);
+          setHighlightedPapers(new Set());
+          setLoading(false);
+          return;
+        }
 
         const allPapers: Paper[] = [];
 
@@ -556,7 +574,7 @@ function App() {
               <h1 className="brand-title">Jiphyeonjeon</h1>
               <p className="brand-tagline">The AI Search Engine You Control</p>
             </div>
-            <SearchBar onSearch={handleSearch} loading={loading} />
+            <SearchBar onSearch={handleSearch} loading={loading} guidanceMessage={guidanceMessage} onQueryChange={() => setGuidanceMessage(null)} />
           </div>
         )}
 
@@ -575,7 +593,7 @@ function App() {
             <div className="search-bar-fixed">
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', position: 'relative' }}>
                 <div style={{ flex: 1 }}>
-                  <SearchBar onSearch={handleSearch} loading={loading} />
+                  <SearchBar onSearch={handleSearch} loading={loading} guidanceMessage={guidanceMessage} onQueryChange={() => setGuidanceMessage(null)} />
                 </div>
                 <div className="tools-dropdown-container">
                   <button
@@ -1028,7 +1046,7 @@ function App() {
         {!loading && papers.length === 0 && query && (
           <div className="centered-search">
             <div className="search-bar-fixed">
-              <SearchBar onSearch={handleSearch} loading={loading} />
+              <SearchBar onSearch={handleSearch} loading={loading} guidanceMessage={guidanceMessage} onQueryChange={() => setGuidanceMessage(null)} />
             </div>
             <div className="empty-state">
               <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
