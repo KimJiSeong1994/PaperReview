@@ -3,7 +3,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-data/
+data/*
 !data/curricula/
 data/curricula/user_index.json
 data/curricula/custom_*.json

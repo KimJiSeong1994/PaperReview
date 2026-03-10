@@ -1,0 +1,738 @@
+{
+  "id": "xai",
+  "name": "Explainable AI: Interpretability and Explainability in Machine Learning",
+  "university": "Harvard / Cambridge / UW (Reference)",
+  "instructor": "Hima Lakkaraju, Cynthia Rudin, Been Kim, Christoph Molnar",
+  "difficulty": "advanced",
+  "prerequisites": [
+    "Machine Learning fundamentals (CS229-level)",
+    "Deep Learning basics (backpropagation, CNNs, Transformers)",
+    "Probability and Statistics",
+    "Python programming (NumPy, PyTorch or TensorFlow)"
+  ],
+  "description": "설명 가능한 AI(XAI)와 해석 가능한 머신러닝의 이론, 방법론, 평가를 체계적으로 다루는 커리큘럼. Harvard CS 282BR, Cambridge L193, UW CSE 574 등 저명 대학 강의와 핵심 서베이 논문을 기반으로 구성하였다.",
+  "url": "https://interpretable-ml-class.github.io/",
+  "modules": [
+    {
+      "id": "mod-01",
+      "week": 1,
+      "title": "Introduction to Explainable AI",
+      "description": "XAI의 필요성, 정의, 분류 체계를 이해하고 해석 가능성의 의미와 다양한 관점을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-01-01",
+          "title": "Definitions, Motivation, and Taxonomy",
+          "papers": [
+            {
+              "id": "paper-xai-001",
+              "title": "Towards A Rigorous Science of Interpretable Machine Learning",
+              "authors": ["Finale Doshi-Velez", "Been Kim"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1702.08608",
+              "doi": null,
+              "category": "required",
+              "context": "해석 가능한 ML의 과학적 프레임워크를 최초로 제안한 논문. 해석성의 정의와 평가 방법론을 체계화하였다."
+            },
+            {
+              "id": "paper-xai-002",
+              "title": "A Survey of Methods for Explaining Black Box Models",
+              "authors": ["Riccardo Guidotti", "Anna Monreale", "Salvatore Ruggieri", "Franco Turini", "Fosca Giannotti", "Dino Pedreschi"],
+              "year": 2018,
+              "venue": "ACM Computing Surveys",
+              "arxiv_id": null,
+              "doi": "10.1145/3236009",
+              "category": "required",
+              "context": "블랙박스 모델 설명 방법의 포괄적 분류 체계를 제시한 서베이. XAI 분야의 전체 지형도를 파악하는 데 필수적이다."
+            },
+            {
+              "id": "paper-xai-003",
+              "title": "Interpretable Machine Learning -- A Brief History, State-of-the-Art and Challenges",
+              "authors": ["Christoph Molnar", "Giuseppe Casalicchio", "Bernd Bischl"],
+              "year": 2020,
+              "venue": "ECML PKDD Workshop",
+              "arxiv_id": "2010.09337",
+              "doi": null,
+              "category": "optional",
+              "context": "Molnar의 IML 교재를 압축한 학술 논문. XAI의 역사, 현황, 도전 과제를 간결히 정리하였다."
+            }
+          ]
+        },
+        {
+          "id": "topic-01-02",
+          "title": "The Case for Interpretability",
+          "papers": [
+            {
+              "id": "paper-xai-004",
+              "title": "Stop Explaining Black Box Machine Learning Models for High Stakes Decisions and Use Interpretable Models Instead",
+              "authors": ["Cynthia Rudin"],
+              "year": 2019,
+              "venue": "Nature Machine Intelligence",
+              "arxiv_id": "1811.10154",
+              "doi": "10.1038/s42256-019-0048-x",
+              "category": "required",
+              "context": "고위험 의사결정에서 사후 설명(post-hoc)보다 내재적 해석 가능 모델(inherently interpretable)을 사용해야 한다는 강력한 주장. XAI 분야의 방향성을 규정한 기념비적 논문이다."
+            },
+            {
+              "id": "paper-xai-005",
+              "title": "Interpretable Machine Learning: Fundamental Principles and 10 Grand Challenges",
+              "authors": ["Cynthia Rudin", "Chaofan Chen", "Zhi Chen", "Haiyang Huang", "Lesia Semenova", "Chudi Zhong"],
+              "year": 2022,
+              "venue": "Statistics Surveys",
+              "arxiv_id": "2103.11251",
+              "doi": null,
+              "category": "required",
+              "context": "해석 가능한 ML의 기본 원칙 10가지와 미해결 과제를 체계적으로 제시. 분야의 로드맵 역할을 한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-02",
+      "week": 2,
+      "title": "Inherently Interpretable Models",
+      "description": "설계 자체가 해석 가능한 모델들 — GAM, 규칙 기반 모델, 프로토타입 기반 모델 등 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-02-01",
+          "title": "Generalized Additive Models and Explainable Boosting Machines",
+          "papers": [
+            {
+              "id": "paper-xai-006",
+              "title": "Intelligible Models for HealthCare: Predicting Pneumonia Risk and Hospital 30-day Readmission",
+              "authors": ["Rich Caruana", "Yin Lou", "Johannes Gehrke", "Paul Koch", "Marc Sturm", "Noemie Elhadad"],
+              "year": 2015,
+              "venue": "KDD",
+              "arxiv_id": null,
+              "doi": "10.1145/2783258.2788613",
+              "category": "required",
+              "context": "GA2M(Explainable Boosting Machine)을 의료 분야에 적용한 논문. 블랙박스 모델과 동등한 성능을 보이면서도 해석 가능한 모델의 실용성을 입증하였다."
+            },
+            {
+              "id": "paper-xai-007",
+              "title": "InterpretML: A Unified Framework for Machine Learning Interpretability",
+              "authors": ["Harsha Nori", "Samuel Jenkins", "Paul Koch", "Rich Caruana"],
+              "year": 2019,
+              "venue": "arXiv",
+              "arxiv_id": "1909.09223",
+              "doi": null,
+              "category": "optional",
+              "context": "Microsoft의 해석 가능 ML 통합 프레임워크. EBM(Explainable Boosting Machine)의 구현체와 다양한 XAI 도구를 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-02-02",
+          "title": "Rule-Based and Bayesian Interpretable Models",
+          "papers": [
+            {
+              "id": "paper-xai-008",
+              "title": "Interpretable Classifiers Using Rules and Bayesian Analysis: Building a Better Stroke Prediction Model",
+              "authors": ["Benjamin Letham", "Cynthia Rudin", "Tyler H. McCormick", "David Madigan"],
+              "year": 2015,
+              "venue": "Annals of Applied Statistics",
+              "arxiv_id": "1511.01644",
+              "doi": null,
+              "category": "required",
+              "context": "Bayesian Rule Lists(BRL)를 제안한 논문. 규칙 기반 분류기가 의료 분야에서 높은 정확도와 해석성을 동시에 달성할 수 있음을 보여준다."
+            },
+            {
+              "id": "paper-xai-009",
+              "title": "Learning Certifiably Optimal Rule Lists for Categorical Data",
+              "authors": ["Elaine Angelino", "Nicholas Larus-Stone", "Daniel Alabi", "Margo Seltzer", "Cynthia Rudin"],
+              "year": 2017,
+              "venue": "KDD",
+              "arxiv_id": "1704.01701",
+              "doi": null,
+              "category": "optional",
+              "context": "최적 규칙 리스트를 인증 가능하게 학습하는 CORELS 알고리즘. 해석 가능한 모델의 최적성을 보장한다."
+            },
+            {
+              "id": "paper-xai-010",
+              "title": "Scalable Bayesian Rule Lists",
+              "authors": ["Hongyu Yang", "Cynthia Rudin", "Margo Seltzer"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1602.08610",
+              "doi": null,
+              "category": "supplementary",
+              "context": "BRL의 확장성 문제를 해결한 논문. 대규모 데이터에서도 해석 가능한 규칙 리스트를 효율적으로 학습한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-03",
+      "week": 3,
+      "title": "Feature Attribution Methods",
+      "description": "모델의 개별 예측에 대해 각 특성의 기여도를 산출하는 사후 설명 기법 — LIME, SHAP, gradient 기반 방법 — 을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-03-01",
+          "title": "LIME and Perturbation-Based Methods",
+          "papers": [
+            {
+              "id": "paper-xai-011",
+              "title": "\"Why Should I Trust You?\": Explaining the Predictions of Any Classifier",
+              "authors": ["Marco Tulio Ribeiro", "Sameer Singh", "Carlos Guestrin"],
+              "year": 2016,
+              "venue": "KDD",
+              "arxiv_id": "1602.04938",
+              "doi": "10.1145/2939672.2939778",
+              "category": "required",
+              "context": "LIME(Local Interpretable Model-agnostic Explanations)을 제안한 기념비적 논문. 모델에 구애받지 않는 지역적 설명을 통해 XAI의 실용적 패러다임을 열었다."
+            },
+            {
+              "id": "paper-xai-012",
+              "title": "Anchors: High-Precision Model-Agnostic Explanations",
+              "authors": ["Marco Tulio Ribeiro", "Sameer Singh", "Carlos Guestrin"],
+              "year": 2018,
+              "venue": "AAAI",
+              "arxiv_id": "1801.10247",
+              "doi": null,
+              "category": "optional",
+              "context": "LIME의 후속 연구로, IF-THEN 규칙 형태의 설명(앵커)을 생성한다. LIME 대비 더 안정적이고 이해하기 쉬운 설명을 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-02",
+          "title": "SHAP and Shapley Value-Based Methods",
+          "papers": [
+            {
+              "id": "paper-xai-013",
+              "title": "A Unified Approach to Interpreting Model Predictions",
+              "authors": ["Scott M. Lundberg", "Su-In Lee"],
+              "year": 2017,
+              "venue": "NeurIPS",
+              "arxiv_id": "1705.07874",
+              "doi": null,
+              "category": "required",
+              "context": "SHAP(SHapley Additive exPlanations)을 제안한 논문. 게임 이론의 Shapley 값을 ML 해석에 통합하여 이론적 보장이 있는 특성 기여도를 산출한다. 현재 가장 널리 사용되는 XAI 방법론이다."
+            },
+            {
+              "id": "paper-xai-014",
+              "title": "From Local Explanations to Global Understanding with Explainable AI for Trees",
+              "authors": ["Scott M. Lundberg", "Gabriel Erion", "Hugh Chen", "Alex DeGrave", "Jordan M. Prutkin", "Bala Nair", "Ronit Katz", "Jonathan Himmelfarb", "Nisha Bansal", "Su-In Lee"],
+              "year": 2020,
+              "venue": "Nature Machine Intelligence",
+              "arxiv_id": "1905.04610",
+              "doi": "10.1038/s42256-019-0138-9",
+              "category": "optional",
+              "context": "TreeSHAP을 확장하여 지역 설명에서 전역 이해로 나아가는 방법론을 제시. 의료 분야 적용 사례를 포함한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-03-03",
+          "title": "Gradient-Based Attribution Methods",
+          "papers": [
+            {
+              "id": "paper-xai-015",
+              "title": "Axiomatic Attribution for Deep Networks",
+              "authors": ["Mukund Sundararajan", "Ankur Taly", "Qiqi Yan"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1703.01365",
+              "doi": null,
+              "category": "required",
+              "context": "Integrated Gradients를 제안한 논문. 완전성(completeness)과 민감도(sensitivity) 두 공리를 만족하는 유일한 경로 기반 귀인 방법임을 증명하였다."
+            },
+            {
+              "id": "paper-xai-016",
+              "title": "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization",
+              "authors": ["Ramprasaath R. Selvaraju", "Michael Cogswell", "Abhishek Das", "Ramakrishna Vedantam", "Devi Parikh", "Dhruv Batra"],
+              "year": 2017,
+              "venue": "ICCV",
+              "arxiv_id": "1610.02391",
+              "doi": null,
+              "category": "required",
+              "context": "CNN의 시각적 설명을 생성하는 Grad-CAM. 그래디언트 가중 클래스 활성화 맵을 통해 모델이 '어디를 보는지' 직관적으로 시각화한다."
+            },
+            {
+              "id": "paper-xai-017",
+              "title": "Learning Important Features Through Propagating Activation Differences",
+              "authors": ["Avanti Shrikumar", "Peyton Greenside", "Anshul Kundaje"],
+              "year": 2017,
+              "venue": "ICML",
+              "arxiv_id": "1704.02685",
+              "doi": null,
+              "category": "optional",
+              "context": "DeepLIFT를 제안한 논문. 참조 입력 대비 활성화 차이를 역전파하여 특성 기여도를 산출한다."
+            },
+            {
+              "id": "paper-xai-018",
+              "title": "SmoothGrad: Removing Noise by Adding Noise",
+              "authors": ["Daniel Smilkov", "Nikhil Thorat", "Been Kim", "Fernanda Viegas", "Martin Wattenberg"],
+              "year": 2017,
+              "venue": "arXiv",
+              "arxiv_id": "1706.03825",
+              "doi": null,
+              "category": "supplementary",
+              "context": "그래디언트 기반 설명의 노이즈를 줄이는 기법. 입력에 노이즈를 추가한 뒤 평균을 취하여 선명한 시각적 설명을 생성한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-04",
+      "week": 4,
+      "title": "Concept-Based Explanations",
+      "description": "개별 특성이 아닌 인간이 이해할 수 있는 '개념(concept)' 수준에서 모델을 해석하는 방법론을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-04-01",
+          "title": "Testing with Concepts (TCAV) and Network Dissection",
+          "papers": [
+            {
+              "id": "paper-xai-019",
+              "title": "Interpretability Beyond Feature Attribution: Quantitative Testing with Concept Activation Vectors (TCAV)",
+              "authors": ["Been Kim", "Martin Wattenberg", "Justin Gilmer", "Carrie Cai", "James Wexler", "Fernanda Viegas", "Rory Sayres"],
+              "year": 2018,
+              "venue": "ICML",
+              "arxiv_id": "1711.11279",
+              "doi": null,
+              "category": "required",
+              "context": "TCAV를 제안한 논문. 사용자가 정의한 개념(예: '줄무늬')이 모델 예측에 미치는 영향을 정량화한다. 개념 기반 XAI의 시작점이다."
+            },
+            {
+              "id": "paper-xai-020",
+              "title": "Network Dissection: Quantifying Interpretability of Deep Visual Representations",
+              "authors": ["David Bau", "Bolei Zhou", "Aditya Khosla", "Aude Oliva", "Antonio Torralba"],
+              "year": 2017,
+              "venue": "CVPR",
+              "arxiv_id": "1704.05796",
+              "doi": null,
+              "category": "required",
+              "context": "CNN 내부 뉴런이 의미론적 개념(색상, 질감, 객체 등)과 얼마나 정렬되는지 정량화하는 Network Dissection. 딥러닝 해석성 측정의 기초가 되었다."
+            }
+          ]
+        },
+        {
+          "id": "topic-04-02",
+          "title": "Concept Bottleneck Models",
+          "papers": [
+            {
+              "id": "paper-xai-021",
+              "title": "Concept Bottleneck Models",
+              "authors": ["Pang Wei Koh", "Thao Nguyen", "Yew Siang Tang", "Stephen Mussmann", "Emma Pierson", "Been Kim", "Percy Liang"],
+              "year": 2020,
+              "venue": "ICML",
+              "arxiv_id": "2007.04612",
+              "doi": null,
+              "category": "required",
+              "context": "Concept Bottleneck Model(CBM)을 제안. 모델이 먼저 해석 가능한 개념을 예측하고 이를 바탕으로 최종 판단을 내리는 구조. 인간이 개입하여 개념 수준에서 수정 가능하다."
+            },
+            {
+              "id": "paper-xai-022",
+              "title": "Post-hoc Concept Bottleneck Models",
+              "authors": ["Mert Yuksekgonul", "Maggie Wang", "James Zou"],
+              "year": 2023,
+              "venue": "ICLR",
+              "arxiv_id": "2205.15480",
+              "doi": null,
+              "category": "optional",
+              "context": "사전 학습된 모델에 사후적으로 개념 병목층을 추가하는 Post-hoc CBM. 기존 CBM의 한계(전용 학습 필요)를 극복하였다."
+            },
+            {
+              "id": "paper-xai-023",
+              "title": "On Completeness-aware Concept-Based Explanations in Deep Neural Networks",
+              "authors": ["Chih-Kuan Yeh", "Been Kim", "Sercan Arik", "Chun-Liang Li", "Tomas Pfister", "Pradeep Ravikumar"],
+              "year": 2020,
+              "venue": "NeurIPS",
+              "arxiv_id": "1910.07969",
+              "doi": null,
+              "category": "supplementary",
+              "context": "개념 기반 설명의 완전성(completeness) 문제를 다룬 논문. 발견된 개념들이 모델 행동을 충분히 설명하는지 측정하는 프레임워크를 제안한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-05",
+      "week": 5,
+      "title": "Counterfactual Explanations and Algorithmic Recourse",
+      "description": "'결과가 달라지려면 무엇이 바뀌어야 했는가?'를 답하는 반사실적 설명과, 부정적 결정을 받은 개인이 결과를 바꿀 수 있는 경로(알고리즘적 구제)를 학습한다.",
+      "topics": [
+        {
+          "id": "topic-05-01",
+          "title": "Counterfactual Explanations",
+          "papers": [
+            {
+              "id": "paper-xai-024",
+              "title": "Counterfactual Explanations Without Opening the Black Box: Automated Decisions and the GDPR",
+              "authors": ["Sandra Wachter", "Brent Mittelstadt", "Chris Russell"],
+              "year": 2018,
+              "venue": "Harvard Journal of Law & Technology",
+              "arxiv_id": "1711.00399",
+              "doi": null,
+              "category": "required",
+              "context": "반사실적 설명의 개념을 법적 맥락(GDPR)에서 정의한 선구적 논문. '설명받을 권리'에 대한 실질적 구현 방안을 제시한다."
+            },
+            {
+              "id": "paper-xai-025",
+              "title": "Explaining Machine Learning Classifiers through Diverse Counterfactual Explanations",
+              "authors": ["Ramaravind K. Mothilal", "Amit Sharma", "Chenhao Tan"],
+              "year": 2020,
+              "venue": "FAccT",
+              "arxiv_id": "1905.07697",
+              "doi": null,
+              "category": "required",
+              "context": "DiCE(Diverse Counterfactual Explanations)를 제안. 단일 반사실이 아닌 다양한 반사실적 설명을 생성하여 사용자에게 여러 대안 경로를 제공한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-05-02",
+          "title": "Algorithmic Recourse",
+          "papers": [
+            {
+              "id": "paper-xai-026",
+              "title": "Algorithmic Recourse: from Counterfactual Explanations to Interventions",
+              "authors": ["Amir-Hossein Karimi", "Bernhard Scholkopf", "Isabel Valera"],
+              "year": 2021,
+              "venue": "FAccT",
+              "arxiv_id": "2002.06278",
+              "doi": null,
+              "category": "required",
+              "context": "반사실적 설명을 인과적 개입(intervention)으로 확장한 논문. 상관관계가 아닌 인과 구조를 고려하여 실행 가능한 구제 방안을 제안한다."
+            },
+            {
+              "id": "paper-xai-027",
+              "title": "Counterfactual Explanations Can Be Manipulated",
+              "authors": ["Dylan Slack", "Sophie Hilgard", "Himabindu Lakkaraju", "Sameer Singh"],
+              "year": 2021,
+              "venue": "NeurIPS",
+              "arxiv_id": "2106.02666",
+              "doi": null,
+              "category": "optional",
+              "context": "반사실적 설명이 조작될 수 있음을 보여주는 비판적 논문. XAI 방법론의 신뢰성 문제를 제기하며 방어 전략을 논의한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-06",
+      "week": 6,
+      "title": "Evaluation of Explanations",
+      "description": "XAI 방법론의 품질을 평가하는 기준 — 충실도(faithfulness), 타당성(plausibility), 안정성(stability) — 과 벤치마크를 학습한다.",
+      "topics": [
+        {
+          "id": "topic-06-01",
+          "title": "Faithfulness and Sanity Checks",
+          "papers": [
+            {
+              "id": "paper-xai-028",
+              "title": "Sanity Checks for Saliency Maps",
+              "authors": ["Julius Adebayo", "Justin Gilmer", "Michael Muelly", "Ian Goodfellow", "Moritz Hardt", "Been Kim"],
+              "year": 2018,
+              "venue": "NeurIPS",
+              "arxiv_id": "1810.03292",
+              "doi": null,
+              "category": "required",
+              "context": "주요 saliency 기법들이 모델 파라미터를 랜덤화해도 동일한 결과를 내는 충격적 발견. XAI 방법의 신뢰성 검증이 반드시 필요함을 입증한 전환점적 논문이다."
+            },
+            {
+              "id": "paper-xai-029",
+              "title": "Towards Faithfully Interpretable NLP Systems: How Should We Define and Evaluate Faithfulness?",
+              "authors": ["Alon Jacovi", "Yoav Goldberg"],
+              "year": 2020,
+              "venue": "ACL",
+              "arxiv_id": "2004.03685",
+              "doi": null,
+              "category": "required",
+              "context": "NLP에서 설명의 충실도(faithfulness)를 정의하고 평가하는 프레임워크를 제시. 설명이 '모델의 실제 추론'을 반영하는가라는 근본 질문을 다룬다."
+            },
+            {
+              "id": "paper-xai-030",
+              "title": "Do Feature Attribution Methods Correctly Attribute Features?",
+              "authors": ["Yilun Zhou", "Serena Booth", "Marco Tulio Ribeiro", "Julie Shah"],
+              "year": 2022,
+              "venue": "AAAI",
+              "arxiv_id": "2104.14403",
+              "doi": null,
+              "category": "optional",
+              "context": "특성 귀인 방법이 정말 올바른 특성을 귀인하는지 검증. 통제된 환경에서 기존 방법들의 한계를 실증적으로 분석한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-06-02",
+          "title": "Benchmarks and Metrics",
+          "papers": [
+            {
+              "id": "paper-xai-031",
+              "title": "A Benchmark for Interpretability Methods in Deep Neural Networks",
+              "authors": ["Sara Hooker", "Dumitru Erhan", "Pieter-Jan Kindermans", "Been Kim"],
+              "year": 2019,
+              "venue": "NeurIPS",
+              "arxiv_id": "1806.10758",
+              "doi": null,
+              "category": "required",
+              "context": "ROAR(RemOve And Retrain) 벤치마크를 제안. 중요하다고 판단된 특성을 제거 후 재학습하여 설명의 품질을 객관적으로 평가한다."
+            },
+            {
+              "id": "paper-xai-032",
+              "title": "FIND: A Function Description Benchmark for Evaluating Interpretability Methods",
+              "authors": ["Sarah Schwettmann", "Tamar Rott Shaham", "Joanna Materzynska", "Neil Chowdhury", "Shuang Li", "Jacob Andreas", "David Bau", "Antonio Torralba"],
+              "year": 2023,
+              "venue": "NeurIPS Datasets and Benchmarks",
+              "arxiv_id": "2309.03886",
+              "doi": null,
+              "category": "optional",
+              "context": "해석성 방법을 함수 설명 정확도로 평가하는 FIND 벤치마크. 뉴런 수준 해석의 품질을 체계적으로 측정한다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-07",
+      "week": 7,
+      "title": "Mechanistic Interpretability",
+      "description": "신경망 내부의 회로(circuits)와 특성(features)을 역공학하여 모델의 작동 원리를 이해하는 기계적 해석성을 학습한다.",
+      "topics": [
+        {
+          "id": "topic-07-01",
+          "title": "Feature Visualization and Circuits",
+          "papers": [
+            {
+              "id": "paper-xai-033",
+              "title": "Feature Visualization",
+              "authors": ["Chris Olah", "Alexander Mordvintsev", "Ludwig Schubert"],
+              "year": 2017,
+              "venue": "Distill",
+              "arxiv_id": null,
+              "doi": "10.23915/distill.00007",
+              "category": "required",
+              "context": "신경망의 개별 뉴런/채널이 학습한 특성을 최적화 기반으로 시각화하는 기법. 기계적 해석성의 출발점이 된 Distill 논문이다."
+            },
+            {
+              "id": "paper-xai-034",
+              "title": "Zoom In: An Introduction to Circuits",
+              "authors": ["Chris Olah", "Nick Cammarata", "Ludwig Schubert", "Gabriel Goh", "Michael Petrov", "Shan Carter"],
+              "year": 2020,
+              "venue": "Distill",
+              "arxiv_id": null,
+              "doi": "10.23915/distill.00024.001",
+              "category": "required",
+              "context": "신경망을 뉴런(features)과 가중치(circuits)로 분해하여 이해하는 '회로' 프레임워크. '뉴런은 의미 있는 특성을 표현하고, 가중치는 알고리즘을 구현한다'는 핵심 가설을 제시한다."
+            },
+            {
+              "id": "paper-xai-035",
+              "title": "A Mathematical Framework for Transformer Circuits",
+              "authors": ["Nelson Elhage", "Neel Nanda", "Catherine Olsson", "Tom Henighan", "Nicholas Joseph", "Ben Mann", "Amanda Askell", "Yuntao Bai", "Anna Chen", "Tom Conerly", "Nova DasSarma", "Dawn Drain", "Deep Ganguli", "Zac Hatfield-Dodds", "Danny Hernandez", "Andy Jones", "Jackson Kernion", "Liane Lovitt", "Kamal Ndousse", "Dario Amodei", "Tom Brown", "Jack Clark", "Jared Kaplan", "Sam McCandlish", "Chris Olah"],
+              "year": 2021,
+              "venue": "Transformer Circuits Thread",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "트랜스포머의 수학적 회로 분석 프레임워크. Attention head의 역할을 QK/OV 행렬로 분해하고 잔차 스트림(residual stream)의 의미를 밝힌다."
+            }
+          ]
+        },
+        {
+          "id": "topic-07-02",
+          "title": "Sparse Autoencoders and Monosemanticity",
+          "papers": [
+            {
+              "id": "paper-xai-036",
+              "title": "Towards Monosemanticity: Decomposing Language Models With Dictionary Learning",
+              "authors": ["Trenton Bricken", "Adly Templeton", "Joshua Batson", "Brian Chen", "Adam Jermyn", "Tom Conerly", "Nick Turner", "Cem Anil", "Carson Denison", "Amanda Askell", "Robert Lasenby", "Yifan Wu", "Shauna Kravec", "Nicholas Schiefer", "Tim Maxwell", "Nicholas Joseph", "Zac Hatfield-Dodds", "Alex Tamkin", "Karina Nguyen", "Brayden McLean", "Josiah E Burke", "Tristan Hume", "Shan Carter", "Tom Henighan", "Chris Olah"],
+              "year": 2023,
+              "venue": "Transformer Circuits Thread (Anthropic)",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "Sparse Autoencoder로 언어 모델의 다의성(polysemanticity)을 단의적(monosemantic) 특성으로 분해. 개별 특성이 'Golden Gate Bridge', '학술 인용' 등 명확한 개념에 대응함을 발견한 획기적 연구이다."
+            },
+            {
+              "id": "paper-xai-037",
+              "title": "Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet",
+              "authors": ["Adly Templeton", "Tom Conerly", "Jonathan Marcus", "Jack Clark", "Yan Sez", "Sam Bowman", "et al."],
+              "year": 2024,
+              "venue": "Transformer Circuits Thread (Anthropic)",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "Sparse Autoencoder를 프로덕션 모델(Claude 3 Sonnet)에 확장 적용. 수백만 개의 해석 가능한 특성을 추출하고 특성 조작(steering)까지 시연한 최전선 연구이다."
+            },
+            {
+              "id": "paper-xai-038",
+              "title": "Sparse Autoencoders Find Highly Interpretable Features in Language Models",
+              "authors": ["Hoagy Cunningham", "Aidan Ewart", "Logan Riggs", "Robert Huben", "Lee Sharkey"],
+              "year": 2023,
+              "venue": "arXiv",
+              "arxiv_id": "2309.08600",
+              "doi": null,
+              "category": "optional",
+              "context": "Sparse Autoencoder를 GPT-2에 적용하여 해석 가능한 특성을 발견한 독립 연구. Anthropic의 연구와 함께 SAE 기반 해석의 타당성을 교차 검증한다."
+            }
+          ]
+        },
+        {
+          "id": "topic-07-03",
+          "title": "Automated Circuit Discovery",
+          "papers": [
+            {
+              "id": "paper-xai-039",
+              "title": "Towards Automated Circuit Discovery for Mechanistic Interpretability",
+              "authors": ["Arthur Conmy", "Augustine N. Mavor-Parker", "Aengus Lynch", "Stefan Heimersheim", "Adria Garriga-Alonso"],
+              "year": 2023,
+              "venue": "NeurIPS Spotlight",
+              "arxiv_id": "2304.14997",
+              "doi": null,
+              "category": "required",
+              "context": "ACDC(Automatic Circuit DisCovery) 알고리즘을 제안. 수동 회로 분석을 자동화하여 트랜스포머 내부의 특정 행동을 담당하는 회로를 체계적으로 발견한다."
+            },
+            {
+              "id": "paper-xai-040",
+              "title": "In-context Learning and Induction Heads",
+              "authors": ["Catherine Olsson", "Nelson Elhage", "Neel Nanda", "Nicholas Joseph", "Nova DasSarma", "Tom Henighan", "Ben Mann", "Amanda Askell", "Yuntao Bai", "Anna Chen", "Tom Conerly", "Dawn Drain", "Deep Ganguli", "Zac Hatfield-Dodds", "Danny Hernandez", "Scott Johnston", "Andy Jones", "Jackson Kernion", "Liane Lovitt", "Kamal Ndousse", "Dario Amodei", "Tom Brown", "Jack Clark", "Jared Kaplan", "Sam McCandlish", "Chris Olah"],
+              "year": 2022,
+              "venue": "Transformer Circuits Thread",
+              "arxiv_id": "2209.11895",
+              "doi": null,
+              "category": "optional",
+              "context": "인컨텍스트 학습의 핵심 메커니즘인 Induction Head를 발견한 연구. 회로 수준의 분석으로 트랜스포머의 창발적 능력의 기계적 기초를 밝힌다."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-08",
+      "week": 8,
+      "title": "XAI for LLMs and Frontier Topics",
+      "description": "LLM 시대의 XAI — 대형 언어 모델의 해석, 공정성과의 연결, XAI의 미래 방향 — 을 다루는 최전선 주제.",
+      "topics": [
+        {
+          "id": "topic-08-01",
+          "title": "Explainability for Large Language Models",
+          "papers": [
+            {
+              "id": "paper-xai-041",
+              "title": "Explainability for Large Language Models: A Survey",
+              "authors": ["Haiyan Zhao", "Hanjie Chen", "Fan Yang", "Ninghao Liu", "Huiqi Deng", "Hengyi Cai", "Shuaiqiang Wang", "Dawei Yin", "Mengnan Du"],
+              "year": 2024,
+              "venue": "ACM Transactions on Intelligent Systems and Technology",
+              "arxiv_id": "2309.01029",
+              "doi": "10.1145/3639372",
+              "category": "required",
+              "context": "LLM 설명 가능성의 최신 서베이. 전통적 XAI 기법의 LLM 적용, 프롬프트 기반 설명, 기계적 해석까지 포괄적으로 다룬다."
+            },
+            {
+              "id": "paper-xai-042",
+              "title": "Language Models Can Explain Neurons in Language Models",
+              "authors": ["Steven Bills", "Nick Cammarata", "Dan Mossing", "Henk Tillman", "Leo Gao", "Gabriel Goh", "Ilya Sutskever", "Jan Leike", "Jeff Wu", "William Saunders"],
+              "year": 2023,
+              "venue": "OpenAI Technical Report",
+              "arxiv_id": null,
+              "doi": null,
+              "category": "required",
+              "context": "GPT-4로 GPT-2의 뉴런 역할을 자연어로 설명하는 자동화 파이프라인. LLM을 XAI 도구로 활용하는 새로운 패러다임을 제시한다."
+            },
+            {
+              "id": "paper-xai-043",
+              "title": "Attention is not Explanation",
+              "authors": ["Sarthak Jain", "Byron C. Wallace"],
+              "year": 2019,
+              "venue": "NAACL",
+              "arxiv_id": "1902.10186",
+              "doi": null,
+              "category": "optional",
+              "context": "어텐션 가중치가 모델의 설명으로 기능할 수 없음을 실증적으로 보여준 논문. 어텐션 기반 해석의 한계를 명확히 규정한다."
+            },
+            {
+              "id": "paper-xai-044",
+              "title": "Attention is not not Explanation",
+              "authors": ["Sarah Wiegreffe", "Yuval Pinter"],
+              "year": 2019,
+              "venue": "EMNLP",
+              "arxiv_id": "1908.04626",
+              "doi": null,
+              "category": "optional",
+              "context": "Jain & Wallace(2019)에 대한 반론. 어텐션이 설명으로 전적으로 무용하지는 않음을 실험으로 보인다. 두 논문의 대비를 통해 어텐션 해석의 복잡성을 이해할 수 있다."
+            }
+          ]
+        },
+        {
+          "id": "topic-08-02",
+          "title": "Fairness, Trust, and the Future of XAI",
+          "papers": [
+            {
+              "id": "paper-xai-045",
+              "title": "A Survey on Bias and Fairness in Machine Learning",
+              "authors": ["Ninareh Mehrabi", "Fred Morstatter", "Nripsuta Saxena", "Kristina Lerman", "Aram Galstyan"],
+              "year": 2021,
+              "venue": "ACM Computing Surveys",
+              "arxiv_id": "1908.09635",
+              "doi": "10.1145/3457607",
+              "category": "required",
+              "context": "ML 공정성의 포괄적 서베이. 편향의 유형, 공정성 정의, 편향 완화 기법을 체계적으로 분류한다. XAI와 공정성의 교차점을 이해하는 데 필수적이다."
+            },
+            {
+              "id": "paper-xai-046",
+              "title": "A Critical Survey on Fairness Benefits of Explainable AI",
+              "authors": ["Luca Deck", "Astrid Schomacker", "Timo Speith", "Jakob Karalus", "Lena Kastner", "Martin Schneider"],
+              "year": 2024,
+              "venue": "ACM FAccT",
+              "arxiv_id": "2404.18736",
+              "doi": null,
+              "category": "optional",
+              "context": "XAI가 공정성에 실질적으로 기여하는지 비판적으로 분석한 서베이. XAI의 공정성 이점에 대한 과장된 주장을 검증한다."
+            },
+            {
+              "id": "paper-xai-047",
+              "title": "A Practical Review of Mechanistic Interpretability for Transformer-Based Language Models",
+              "authors": ["Daking Rai", "Yilun Zhou", "Shi Feng", "Abulhair Saparov", "Ziyu Yao"],
+              "year": 2024,
+              "venue": "arXiv",
+              "arxiv_id": "2407.02646",
+              "doi": null,
+              "category": "supplementary",
+              "context": "트랜스포머 기계적 해석성의 실용적 리뷰. 현재 기법들의 성숙도, 한계, 실무 적용 가능성을 평가한다."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_courses": [
+    {
+      "university": "Harvard University",
+      "course_code": "COMPSCI 282BR",
+      "course_name": "Topics in Machine Learning: Interpretability and Explainability",
+      "url": "https://interpretable-ml-class.github.io/"
+    },
+    {
+      "university": "University of Cambridge",
+      "course_code": "L193",
+      "course_name": "Explainable Artificial Intelligence",
+      "url": "https://www.cl.cam.ac.uk/teaching/2425/L193/"
+    },
+    {
+      "university": "University of Washington",
+      "course_code": "CSE 574",
+      "course_name": "Explainable Artificial Intelligence",
+      "url": "https://sites.google.com/cs.washington.edu/xai/home"
+    },
+    {
+      "university": "LMU Munich",
+      "course_code": "IML",
+      "course_name": "Interpretable Machine Learning",
+      "url": "https://slds-lmu.github.io/iml/"
+    },
+    {
+      "university": "University of Warsaw",
+      "course_code": "1000-319bEML",
+      "course_name": "eXplainable Machine Learning",
+      "url": "https://github.com/mim-uw/eXplainableMachineLearning-2024"
+    }
+  ]
+}

@@ -71,6 +71,18 @@
       "url": "https://web.stanford.edu/~swager/stats361.html",
       "total_papers": 24,
       "total_modules": 6
+    },
+    {
+      "id": "xai",
+      "name": "Explainable AI: Interpretability and Explainability in Machine Learning",
+      "university": "Harvard / Cambridge / UW (Reference)",
+      "instructor": "Hima Lakkaraju, Cynthia Rudin, Been Kim, Christoph Molnar",
+      "difficulty": "advanced",
+      "prerequisites": ["Machine Learning fundamentals (CS229-level)", "Deep Learning basics (backpropagation, CNNs, Transformers)", "Probability and Statistics", "Python programming (NumPy, PyTorch or TensorFlow)"],
+      "description": "설명 가능한 AI(XAI)와 해석 가능한 머신러닝의 이론, 방법론, 평가를 체계적으로 다루는 커리큘럼. Harvard CS 282BR, Cambridge L193, UW CSE 574 등 저명 대학 강의와 핵심 서베이 논문을 기반으로 구성하였다.",
+      "url": "https://interpretable-ml-class.github.io/",
+      "total_papers": 47,
+      "total_modules": 8
     }
   ]
 }
