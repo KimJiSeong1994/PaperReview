@@ -26,6 +26,8 @@ interface CourseSidebarProps {
   onGenerate: (topic: string, difficulty: string, numModules: number, options?: { learning_goals?: string; paper_preference?: string }) => Promise<any>;
   onFork: (courseId: string) => Promise<any>;
   onDelete: (courseId: string) => Promise<any>;
+  onShare?: (courseId: string) => Promise<any>;
+  onRevokeShare?: (courseId: string) => Promise<any>;
   getModuleProgress: (moduleId: string) => { read: number; total: number };
 }
 
@@ -93,6 +95,31 @@ function TrashIcon() {
   );
 }
 
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
+}
+
+function UnshareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+      <line x1="2" y1="2" x2="22" y2="22" stroke="#ef4444" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
 /* ── Main Component ── */
 
 export default function CourseSidebar({
@@ -111,6 +138,8 @@ export default function CourseSidebar({
   onGenerate,
   onFork,
   onDelete,
+  onShare,
+  onRevokeShare,
   getModuleProgress,
 }: CourseSidebarProps) {
   const [featuredOpen, setFeaturedOpen] = useState(true);
@@ -178,6 +207,25 @@ export default function CourseSidebar({
               >
                 <ForkIcon />
               </button>
+            )}
+            {!course.is_preset && onShare && onRevokeShare && (
+              course.has_share ? (
+                <button
+                  className="cur-tree-action-btn cur-share-btn active"
+                  title="Revoke share link"
+                  onClick={(e) => { e.stopPropagation(); onRevokeShare(course.id); }}
+                >
+                  <UnshareIcon />
+                </button>
+              ) : (
+                <button
+                  className="cur-tree-action-btn cur-share-btn"
+                  title="Create share link"
+                  onClick={(e) => { e.stopPropagation(); onShare(course.id); }}
+                >
+                  <ShareIcon />
+                </button>
+              )
             )}
             {!course.is_preset && (
               <button

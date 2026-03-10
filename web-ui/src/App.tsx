@@ -10,6 +10,7 @@ const MyPage = lazy(() => import('./components/MyPage'));
 const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
+const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
 import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
 import type { Paper, GraphData } from './types';
 import type { VerificationStats } from './api/client';
@@ -491,6 +492,7 @@ function App() {
 
       <Routes>
       <Route path="/share/:token" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><SharedView /></Suspense>} />
+      <Route path="/share/curriculum/:token" element={<Suspense fallback={<div className="app-loading">Loading...</div>}><SharedCurriculumView /></Suspense>} />
       <Route path="/mypage" element={isAuthenticated ? <Suspense fallback={<div className="app-loading">Loading...</div>}><MyPage onBack={() => navigate('/')} /></Suspense> : <Navigate to="/" />} />
       <Route path="/admin" element={isAuthenticated && userRole === 'admin' ? <Suspense fallback={<div className="app-loading">Loading...</div>}><AdminPage /></Suspense> : <Navigate to="/" />} />
       <Route path="*" element={<>

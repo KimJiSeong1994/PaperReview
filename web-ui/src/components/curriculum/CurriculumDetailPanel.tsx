@@ -4,12 +4,18 @@ interface CurriculumDetailPanelProps {
   paper: CurriculumPaper | null;
   courseDetail: CurriculumCourse | null;
   onSearchPaper: (paper: CurriculumPaper) => void;
+  onBookmarkPaper?: (paper: CurriculumPaper) => void;
+  bookmarkLoading?: boolean;
+  bookmarkSuccess?: string | null;
 }
 
 export default function CurriculumDetailPanel({
   paper,
   courseDetail,
   onSearchPaper,
+  onBookmarkPaper,
+  bookmarkLoading,
+  bookmarkSuccess,
 }: CurriculumDetailPanelProps) {
   // No paper selected — show course overview
   if (!paper) {
@@ -107,6 +113,19 @@ export default function CurriculumDetailPanel({
           >
             Open via DOI
           </a>
+        )}
+        {onBookmarkPaper && (
+          <button
+            className={`curriculum-detail-action-btn bookmark ${bookmarkSuccess === paper.id ? 'success' : ''}`}
+            onClick={() => onBookmarkPaper(paper)}
+            disabled={bookmarkLoading}
+          >
+            {bookmarkLoading
+              ? 'Saving...'
+              : bookmarkSuccess === paper.id
+                ? 'Bookmarked!'
+                : 'Save to Bookmarks'}
+          </button>
         )}
       </div>
     </div>

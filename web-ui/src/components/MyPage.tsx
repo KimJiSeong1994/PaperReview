@@ -292,6 +292,8 @@ function MyPage({ onBack }: MyPageProps) {
             onGenerate={cur.handleGenerate}
             onFork={cur.handleFork}
             onDelete={cur.handleDelete}
+            onShare={cur.handleShare}
+            onRevokeShare={cur.handleRevokeShare}
             getModuleProgress={cur.getModuleProgress}
           />
 
@@ -314,6 +316,9 @@ function MyPage({ onBack }: MyPageProps) {
             paper={cur.selectedPaper}
             courseDetail={cur.courseDetail}
             onSearchPaper={cur.handleSearchPaper}
+            onBookmarkPaper={cur.handleBookmarkPaper}
+            bookmarkLoading={cur.bookmarkLoading}
+            bookmarkSuccess={cur.bookmarkSuccess}
           />
         </div>
       )}

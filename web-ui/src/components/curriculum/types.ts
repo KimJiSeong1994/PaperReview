@@ -12,6 +12,7 @@ export interface CurriculumSummary {
   is_preset?: boolean;
   owner?: string | null;
   forked_from?: string | null;
+  has_share?: boolean;
 }
 
 export interface CurriculumPaper {

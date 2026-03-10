@@ -10,6 +10,7 @@ Step 4: LLM auto-reviews for quality issues → searches replacements → refine
 
 import json
 import logging
+import math
 import asyncio
 import datetime
 import os
@@ -19,8 +20,32 @@ from typing import AsyncGenerator, Optional
 logger = logging.getLogger(__name__)
 
 
+# Tier-1 venue keywords for quality bonus
+_TIER1_VENUES = {
+    "neurips", "nips", "icml", "iclr", "cvpr", "iccv", "eccv",
+    "acl", "emnlp", "naacl", "aaai", "ijcai", "kdd", "www",
+    "sigir", "chi", "usenix", "sosp", "osdi",
+    "nature", "science", "cell", "pnas",
+    "transactions on", "journal of machine learning",
+}
+
+
+def _venue_tier_bonus(venue: str) -> float:
+    """Return bonus points based on venue prestige."""
+    if not venue:
+        return 0
+    venue_lower = venue.lower()
+    for keyword in _TIER1_VENUES:
+        if keyword in venue_lower:
+            return 30
+    # Tier 2: any identifiable journal/conference
+    if len(venue.strip()) > 3:
+        return 10
+    return 0
+
+
 def _compute_paper_score(paper: dict, paper_preference: str | None = None) -> float:
-    """Composite score: citations/year + recency bonus + preference weighting."""
+    """Composite score: log-normalized citations/year + recency + venue + preference."""
     citations = paper.get("citations", 0)
     try:
         year = int(paper.get("year", 0))
@@ -34,18 +59,25 @@ def _compute_paper_score(paper: dict, paper_preference: str | None = None) -> fl
     else:
         citations_per_year = citations
 
-    # Recency bonus: recent papers (≤3 years) get extra score
+    # Log-normalize to compress extreme ranges
+    log_score = math.log1p(citations_per_year) * 20
+
+    # Recency bonus (reduced to curb bias toward very recent papers)
     recency_bonus = 0
     if year >= current_year - 1:
-        recency_bonus = 50
+        recency_bonus = 25
     elif year >= current_year - 3:
-        recency_bonus = 20
+        recency_bonus = 15
 
-    score = citations_per_year + recency_bonus
+    # Venue quality bonus
+    venue = paper.get("venue", "")
+    venue_bonus = _venue_tier_bonus(venue)
+
+    score = log_score + recency_bonus + venue_bonus
 
     # paper_preference weighting
     if paper_preference == "cutting_edge" and year >= current_year - 3:
-        score *= 2.0
+        score *= 1.8
     elif paper_preference == "survey_heavy" and citations > 500:
         score *= 1.5
 
@@ -307,6 +339,9 @@ Requirements:
   do NOT fabricate it — instead use "General {topic} Curriculum" as inspired_by.
   For each module, note which real course inspired it.
 - Each module should have 1-3 focused topics
+- IMPORTANT: Design modules with PROGRESSIVE difficulty. Module 1 should cover
+  foundational concepts, and each subsequent module should increase in depth.
+  Final module = advanced topics or open problems. Specify difficulty_level per module.
 - Do NOT include specific paper references yet
 - For each topic, provide 2-3 search keywords that would find the most
   important/foundational papers on OpenAlex/Google Scholar
@@ -331,6 +366,7 @@ Return ONLY valid JSON matching this schema:
       "week": 1,
       "title": "Module Title",
       "description": "What this module covers and why",
+      "difficulty_level": "foundational|intermediate|advanced",
       "inspired_by": "MIT 6.S898 Week 1-2",
       "topics": [
         {{
@@ -424,9 +460,16 @@ Return ONLY valid JSON matching this schema:
                     reverse=True,
                 )
                 topic_item["verified_papers"] = candidates[:6]
+                if len(candidates) < 2:
+                    topic_item["low_paper_count"] = True
+                    logger.warning(
+                        "Topic '%s' has only %d verified papers (min 2 recommended)",
+                        topic_item.get("title", "?"), len(candidates),
+                    )
             except Exception as e:
                 logger.error("Topic search failed for '%s': %s", topic_item.get("title", "?"), e)
                 topic_item["verified_papers"] = []
+                topic_item["low_paper_count"] = True
             finally:
                 completed["count"] += 1
 
@@ -443,6 +486,18 @@ Return ONLY valid JSON matching this schema:
             await asyncio.gather(*[_search_one_topic(t) for t in all_topics])
         finally:
             searcher.close()
+
+        # Warn about topics with insufficient papers
+        low_count_topics = [
+            t.get("title", "?")
+            for m in structure.get("modules", [])
+            for t in m.get("topics", [])
+            if t.get("low_paper_count")
+        ]
+        if low_count_topics:
+            yield {"step": 2, "step_name": "search", "progress": 90,
+                   "message": f"Warning: {len(low_count_topics)} topics have fewer than 2 papers",
+                   "detail": {"low_paper_topics": low_count_topics}}
 
         # Final yield: the updated structure (not a dict with 'step')
         yield structure
@@ -680,6 +735,9 @@ Review criteria:
 3. Duplication: Same paper across topics → keep in most relevant topic only
 4. Category errors: Niche papers as "required", foundational as "supplementary" → fix
 5. Outdated: Topics relying only on pre-2015 papers when newer exist → note in description
+6. Difficulty progression: Earlier modules should be more foundational, later modules more advanced. Reorder if needed.
+7. Minimum papers: Each topic should have at least 2 papers. Flag topics with fewer.
+8. Venue quality: Prefer papers from well-known conferences/journals (NeurIPS, ICML, CVPR, ACL, etc.) for "required" category.
 
 Rules for corrections:
 - Do NOT invent new papers. Only use papers already present in the curriculum.

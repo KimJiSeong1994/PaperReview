@@ -8,6 +8,9 @@ import {
   forkCurriculum,
   deleteCurriculum,
   generateCurriculumStream,
+  saveBookmarkFromPaper,
+  createCurriculumShareLink,
+  revokeCurriculumShareLink,
 } from '../api/client';
 import type { CurriculumGenerateProgress } from '../api/client';
 import type {
@@ -339,6 +342,64 @@ export function useCurriculum() {
     }
   }, [handleSelectCourse]);
 
+  // ── Bookmark integration ──
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [bookmarkSuccess, setBookmarkSuccess] = useState<string | null>(null);
+
+  const handleBookmarkPaper = useCallback(async (paper: CurriculumPaper) => {
+    setBookmarkLoading(true);
+    setBookmarkSuccess(null);
+    try {
+      await saveBookmarkFromPaper({
+        title: paper.title,
+        authors: paper.authors,
+        year: paper.year,
+        venue: paper.venue,
+        doi: paper.doi,
+        arxiv_id: paper.arxiv_id,
+        context: paper.context,
+        source_curriculum: selectedCourseId || undefined,
+        topic: 'Curriculum Papers',
+        tags: ['curriculum'],
+      });
+      setBookmarkSuccess(paper.id);
+      setTimeout(() => setBookmarkSuccess(null), 3000);
+    } catch (err) {
+      console.error('Failed to bookmark paper:', err);
+    } finally {
+      setBookmarkLoading(false);
+    }
+  }, [selectedCourseId]);
+
+  // ── Curriculum sharing ──
+  const handleShare = useCallback(async (courseId: string) => {
+    try {
+      const info = await createCurriculumShareLink(courseId);
+      // Copy share URL to clipboard
+      await navigator.clipboard.writeText(info.share_url);
+      // Update course list to reflect has_share
+      setCourses((prev) =>
+        prev.map((c) => (c.id === courseId ? { ...c, has_share: true } : c)),
+      );
+      return info;
+    } catch (err) {
+      console.error('Failed to create share link:', err);
+      throw err;
+    }
+  }, []);
+
+  const handleRevokeShare = useCallback(async (courseId: string) => {
+    try {
+      await revokeCurriculumShareLink(courseId);
+      setCourses((prev) =>
+        prev.map((c) => (c.id === courseId ? { ...c, has_share: false } : c)),
+      );
+    } catch (err) {
+      console.error('Failed to revoke share link:', err);
+      throw err;
+    }
+  }, []);
+
   return {
     courses,
     presetCourses,
@@ -356,6 +417,8 @@ export function useCurriculum() {
     generating,
     forking,
     generateProgress,
+    bookmarkLoading,
+    bookmarkSuccess,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
@@ -364,6 +427,9 @@ export function useCurriculum() {
     handleGenerate,
     handleFork,
     handleDelete,
+    handleShare,
+    handleRevokeShare,
+    handleBookmarkPaper,
     getModuleProgress,
   };
 }

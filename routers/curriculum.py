@@ -189,7 +189,18 @@ class CurriculumGenerateStreamRequest(BaseModel):
     difficulty: Literal["beginner", "intermediate", "advanced"] = "intermediate"
     num_modules: int = Field(5, ge=2, le=15)
     learning_goals: Optional[str] = Field(None, max_length=500)
-    paper_preference: Optional[str] = Field(None, max_length=500)
+    paper_preference: Optional[Literal["cutting_edge", "survey_heavy", "balanced"]] = None
+
+
+class CurriculumShareRequest(BaseModel):
+    expires_in_days: Optional[int] = 30
+
+
+class CurriculumShareResponse(BaseModel):
+    token: str
+    share_url: str
+    created_at: str
+    expires_at: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -204,6 +215,8 @@ async def list_curricula(owner: Optional[str] = None):
         entry.setdefault("is_preset", c["id"] in PRESET_COURSE_IDS)
         entry.setdefault("owner", None)
         entry.setdefault("forked_from", None)
+        entry["has_share"] = bool(entry.get("share"))
+        entry.pop("share", None)  # Don't expose share token in list
         enriched.append(entry)
     if owner:
         enriched = [c for c in enriched if c.get("owner") == owner or c.get("is_preset")]
@@ -651,3 +664,103 @@ async def delete_curriculum(
     _update_progress_atomic(cleanup_progress)
 
     return {"success": True, "deleted": course_id}
+
+
+# ── Share endpoints ───────────────────────────────────────────────────
+
+
+@router.post("/curricula/{course_id}/share")
+async def create_curriculum_share(
+    course_id: str,
+    request: CurriculumShareRequest = CurriculumShareRequest(),
+    username: str = Depends(get_current_user),
+):
+    """Generate a public share token for a curriculum."""
+    import secrets
+    from datetime import timedelta
+
+    _validate_course_id(course_id)
+
+    token = f"sc_{secrets.token_urlsafe(16)}"
+    now = datetime.now()
+    expires_days = request.expires_in_days or 30
+    expires_at = now + timedelta(days=expires_days)
+
+    with _index_lock:
+        user_entries = _load_user_index()
+        entry = next((c for c in user_entries if c["id"] == course_id), None)
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+        if entry.get("owner") != username:
+            raise HTTPException(status_code=403, detail="Only the owner can share this curriculum")
+
+        entry["share"] = {
+            "token": token,
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        }
+        _save_user_index(user_entries)
+
+    return CurriculumShareResponse(
+        token=token,
+        share_url=f"/share/curriculum/{token}",
+        created_at=now.isoformat(),
+        expires_at=expires_at.isoformat(),
+    )
+
+
+@router.delete("/curricula/{course_id}/share")
+async def revoke_curriculum_share(
+    course_id: str,
+    username: str = Depends(get_current_user),
+):
+    """Revoke the public share link for a curriculum."""
+    _validate_course_id(course_id)
+
+    with _index_lock:
+        user_entries = _load_user_index()
+        entry = next((c for c in user_entries if c["id"] == course_id), None)
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Course '{course_id}' not found")
+        if entry.get("owner") != username:
+            raise HTTPException(status_code=403, detail="Access denied")
+        if "share" not in entry:
+            raise HTTPException(status_code=404, detail="No share link exists")
+        del entry["share"]
+        _save_user_index(user_entries)
+
+    return {"success": True, "message": "Share link revoked"}
+
+
+@router.get("/shared/curriculum/{share_token}")
+async def get_shared_curriculum(share_token: str):
+    """Public endpoint: retrieve a shared curriculum by token (no auth required)."""
+    user_entries = _load_user_index()
+    entry = None
+    for e in user_entries:
+        share = e.get("share")
+        if share and share.get("token") == share_token:
+            entry = e
+            break
+
+    if not entry:
+        raise HTTPException(status_code=404, detail="Shared curriculum not found")
+
+    # Check expiration
+    share = entry["share"]
+    expires_at = share.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.fromisoformat(expires_at) < datetime.now():
+                raise HTTPException(status_code=410, detail="Share link has expired")
+        except ValueError:
+            pass
+
+    # Load full course data
+    course = _load_course(entry["id"])
+    if not course:
+        raise HTTPException(status_code=404, detail="Course data not found")
+
+    # Build safe summary (strip owner and share token)
+    safe_entry = {k: v for k, v in entry.items() if k not in ("owner", "share")}
+    return {"summary": safe_entry, "course": course}

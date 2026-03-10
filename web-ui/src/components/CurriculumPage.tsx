@@ -23,6 +23,8 @@ export default function CurriculumPage() {
     generating,
     forking,
     generateProgress,
+    bookmarkLoading,
+    bookmarkSuccess,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
@@ -31,6 +33,9 @@ export default function CurriculumPage() {
     handleGenerate,
     handleFork,
     handleDelete,
+    handleShare,
+    handleRevokeShare,
+    handleBookmarkPaper,
     getModuleProgress,
   } = useCurriculum();
 
@@ -66,6 +71,8 @@ export default function CurriculumPage() {
           onGenerate={handleGenerate}
           onFork={handleFork}
           onDelete={handleDelete}
+          onShare={handleShare}
+          onRevokeShare={handleRevokeShare}
           getModuleProgress={getModuleProgress}
         />
 
@@ -88,6 +95,9 @@ export default function CurriculumPage() {
           paper={selectedPaper}
           courseDetail={courseDetail}
           onSearchPaper={handleSearchPaper}
+          onBookmarkPaper={handleBookmarkPaper}
+          bookmarkLoading={bookmarkLoading}
+          bookmarkSuccess={bookmarkSuccess}
         />
       </div>
     </div>

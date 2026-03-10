@@ -264,6 +264,22 @@ export const saveBookmark = async (request: {
   return response.data;
 };
 
+export const saveBookmarkFromPaper = async (request: {
+  title: string;
+  authors: string[];
+  year?: number;
+  venue?: string;
+  doi?: string | null;
+  arxiv_id?: string | null;
+  context?: string;
+  source_curriculum?: string;
+  topic?: string;
+  tags?: string[];
+}) => {
+  const response = await api.post('/api/bookmarks/from-paper', request);
+  return response.data;
+};
+
 export const getBookmarks = async () => {
   const response = await api.get('/api/bookmarks');
   return response.data;
@@ -630,6 +646,71 @@ export const forkCurriculum = async (courseId: string): Promise<{ success: boole
 
 export const deleteCurriculum = async (courseId: string): Promise<{ success: boolean; deleted: string }> => {
   const response = await api.delete(`/api/curricula/${courseId}`);
+  return response.data;
+};
+
+// ── Curriculum Sharing ────────────────────────────────────────────────
+
+export interface CurriculumShareInfo {
+  token: string;
+  share_url: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export const createCurriculumShareLink = async (
+  courseId: string,
+  expiresInDays: number = 30,
+): Promise<CurriculumShareInfo> => {
+  const response = await api.post(`/api/curricula/${courseId}/share`, { expires_in_days: expiresInDays });
+  return response.data;
+};
+
+export const revokeCurriculumShareLink = async (courseId: string): Promise<{ success: boolean }> => {
+  const response = await api.delete(`/api/curricula/${courseId}/share`);
+  return response.data;
+};
+
+export interface SharedCurriculumData {
+  summary: {
+    id: string;
+    name: string;
+    university: string;
+    instructor: string;
+    difficulty: string;
+    prerequisites: string[];
+    description: string;
+    total_papers: number;
+    total_modules: number;
+  };
+  course: {
+    modules: {
+      id: string;
+      week: number;
+      title: string;
+      description: string;
+      topics: {
+        id: string;
+        title: string;
+        papers: {
+          id: string;
+          title: string;
+          authors: string[];
+          year: number;
+          venue: string;
+          arxiv_id?: string | null;
+          doi?: string | null;
+          category: string;
+          context: string;
+        }[];
+      }[];
+    }[];
+    reference_courses?: { university: string; course_code: string; course_name: string; url?: string }[];
+  };
+}
+
+export const getSharedCurriculum = async (token: string): Promise<SharedCurriculumData> => {
+  const response = await axios.get<SharedCurriculumData>(`${API_BASE_URL}/api/shared/curriculum/${token}`);
   return response.data;
 };
 

@@ -58,6 +58,19 @@ class BookmarkResponse(BaseModel):
     topic: str = "General"
 
 
+class BookmarkFromPaperRequest(BaseModel):
+    title: str
+    authors: List[str] = []
+    year: Optional[int] = None
+    venue: Optional[str] = None
+    doi: Optional[str] = None
+    arxiv_id: Optional[str] = None
+    context: Optional[str] = None
+    source_curriculum: Optional[str] = None
+    topic: str = "Curriculum Papers"
+    tags: List[str] = []
+
+
 class BulkDeleteBookmarksRequest(BaseModel):
     bookmark_ids: List[str]
 
@@ -110,6 +123,63 @@ async def create_bookmark(request: BookmarkCreateRequest, username: str = Depend
         num_papers=len(request.papers),
         created_at=bookmark["created_at"],
         tags=request.tags,
+        topic=request.topic,
+    )
+
+
+@router.post("/bookmarks/from-paper")
+async def create_bookmark_from_paper(
+    request: BookmarkFromPaperRequest,
+    username: str = Depends(get_current_user),
+):
+    """Create a lightweight bookmark from a paper's metadata (e.g., from curriculum)."""
+    bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+    report_lines = [f"# {request.title}\n"]
+    if request.authors:
+        report_lines.append(f"**Authors**: {', '.join(request.authors)}\n")
+    if request.year:
+        report_lines.append(f"**Year**: {request.year}\n")
+    if request.venue:
+        report_lines.append(f"**Venue**: {request.venue}\n")
+    if request.context:
+        report_lines.append(f"\n## Context\n{request.context}\n")
+
+    paper_entry = {
+        "title": request.title,
+        "authors": request.authors,
+        "year": str(request.year) if request.year else "",
+        "venue": request.venue or "",
+        "doi": request.doi or "",
+        "arxiv_id": request.arxiv_id or "",
+    }
+
+    bookmark = {
+        "id": bookmark_id,
+        "username": username,
+        "title": request.title,
+        "session_id": "",
+        "workspace_path": "",
+        "query": "",
+        "papers": [paper_entry],
+        "num_papers": 1,
+        "report_markdown": "\n".join(report_lines),
+        "created_at": datetime.now().isoformat(),
+        "tags": request.tags or (["curriculum"] if request.source_curriculum else []),
+        "topic": request.topic,
+    }
+
+    with modify_bookmarks() as data:
+        data["bookmarks"].append(bookmark)
+
+    return BookmarkResponse(
+        id=bookmark_id,
+        title=request.title,
+        session_id="",
+        query="",
+        num_papers=1,
+        created_at=bookmark["created_at"],
+        tags=bookmark["tags"],
         topic=request.topic,
     )
 
