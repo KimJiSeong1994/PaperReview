@@ -161,6 +161,7 @@ function App() {
           setGuidanceMessage(
             '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
           );
+          setTimeout(() => setGuidanceMessage(null), 3000);
           setPapers([]);
           setGraphData(null);
           setSelectedPaper(null);
