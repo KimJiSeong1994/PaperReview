@@ -541,12 +541,20 @@ export const generateCurriculumStream = async (
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE_URL}/api/curricula/generate-stream`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(request),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/curricula/generate-stream`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+      signal,
+    });
+  } catch (err) {
+    // Network-level failure (server unreachable, DNS error, CORS block, etc.)
+    if (signal?.aborted) return;
+    onError(err instanceof TypeError ? `서버 연결 실패: ${err.message}` : String(err));
+    return;
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -596,6 +604,15 @@ export const generateCurriculumStream = async (
         }
       }
     }
+  } catch (err) {
+    // Stream read error (connection dropped mid-stream)
+    if (signal?.aborted) return;
+    if (!completed) {
+      onError(err instanceof TypeError
+        ? '스트림이 중단되었습니다. 다시 시도해주세요.'
+        : `Stream error: ${err}`);
+    }
+    return;
   } finally {
     reader.releaseLock();
   }

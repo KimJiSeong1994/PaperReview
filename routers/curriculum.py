@@ -474,62 +474,66 @@ async def generate_curriculum_stream(
 
         pipeline = CurriculumPipeline(client)
         curriculum = None
-        async for event in pipeline.generate(
-            topic=request.topic,
-            difficulty=request.difficulty,
-            num_modules=request.num_modules,
-            learning_goals=request.learning_goals,
-            paper_preference=request.paper_preference,
-        ):
-            if event.get("done") and event.get("curriculum"):
-                curriculum = event["curriculum"]
+        try:
+            async for event in pipeline.generate(
+                topic=request.topic,
+                difficulty=request.difficulty,
+                num_modules=request.num_modules,
+                learning_goals=request.learning_goals,
+                paper_preference=request.paper_preference,
+            ):
+                if event.get("done") and event.get("curriculum"):
+                    curriculum = event["curriculum"]
 
-                # Validate basic structure
-                if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
-                    yield f"data: {json.dumps({'error': 'LLM returned invalid curriculum structure'})}\n\n"
-                    return
+                    # Validate basic structure
+                    if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
+                        yield f"data: {json.dumps({'error': 'LLM returned invalid curriculum structure'})}\n\n"
+                        return
 
-                # Generate unique ID (UUID)
-                course_id = f"custom_{uuid.uuid4().hex[:12]}"
-                curriculum["id"] = course_id
+                    # Generate unique ID (UUID)
+                    course_id = f"custom_{uuid.uuid4().hex[:12]}"
+                    curriculum["id"] = course_id
 
-                # Assign unique paper IDs
-                paper_counter = 1
-                for module in curriculum.get("modules", []):
-                    for topic in module.get("topics", []):
-                        for paper in topic.get("papers", []):
-                            paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
-                            paper_counter += 1
+                    # Assign unique paper IDs
+                    paper_counter = 1
+                    for module in curriculum.get("modules", []):
+                        for topic in module.get("topics", []):
+                            for paper in topic.get("papers", []):
+                                paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
+                                paper_counter += 1
 
-                # Save course file (atomic)
-                _save_course(course_id, curriculum)
+                    # Save course file (atomic)
+                    _save_course(course_id, curriculum)
 
-                # Register in user index (locked, survives deploys)
-                with _index_lock:
-                    user_entries = _load_user_index()
-                    total_papers = _count_papers(curriculum)
-                    total_modules = len(curriculum.get("modules", []))
+                    # Register in user index (locked, survives deploys)
+                    with _index_lock:
+                        user_entries = _load_user_index()
+                        total_papers = _count_papers(curriculum)
+                        total_modules = len(curriculum.get("modules", []))
 
-                    user_entries = [c for c in user_entries if c["id"] != course_id]
-                    user_entries.append({
-                        "id": course_id,
-                        "name": curriculum.get("name", f"Custom: {request.topic}"),
-                        "university": curriculum.get("university", "Multi-University Reference"),
-                        "instructor": curriculum.get("instructor", "AI Curated"),
-                        "difficulty": request.difficulty,
-                        "prerequisites": curriculum.get("prerequisites", []),
-                        "description": curriculum.get("description", ""),
-                        "url": "",
-                        "total_papers": total_papers,
-                        "total_modules": total_modules,
-                        "is_preset": False,
-                        "owner": username,
-                    })
-                    _save_user_index(user_entries)
+                        user_entries = [c for c in user_entries if c["id"] != course_id]
+                        user_entries.append({
+                            "id": course_id,
+                            "name": curriculum.get("name", f"Custom: {request.topic}"),
+                            "university": curriculum.get("university", "Multi-University Reference"),
+                            "instructor": curriculum.get("instructor", "AI Curated"),
+                            "difficulty": request.difficulty,
+                            "prerequisites": curriculum.get("prerequisites", []),
+                            "description": curriculum.get("description", ""),
+                            "url": "",
+                            "total_papers": total_papers,
+                            "total_modules": total_modules,
+                            "is_preset": False,
+                            "owner": username,
+                        })
+                        _save_user_index(user_entries)
 
-                yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
-            else:
-                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("Pipeline stream error: %s", e, exc_info=True)
+            yield f"data: {json.dumps({'error': f'Pipeline error: {str(e)}'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_stream(),

@@ -331,7 +331,10 @@ export function useCurriculum() {
     } catch (err) {
       if (abortController.signal.aborted) return;
       console.error('Failed to generate curriculum:', err);
-      setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: `Connection failed: ${err}` });
+      const errMsg = err instanceof TypeError && /network|fetch|failed/i.test(err.message)
+        ? '서버 연결에 실패했습니다. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.'
+        : `Connection failed: ${err}`;
+      setGenerateProgress({ step: -1, step_name: 'error', progress: 0, message: errMsg });
       setGenerating(false);
     }
   }, [handleSelectCourse]);

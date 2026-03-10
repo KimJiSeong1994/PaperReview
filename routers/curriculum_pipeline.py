@@ -389,41 +389,46 @@ Return ONLY valid JSON matching this schema:
         completed = {"count": 0}
 
         async def _search_one_topic(topic_item: dict):
-            keywords = topic_item.get("search_keywords", [])
-            candidates = []
-            seen_titles: set[str] = set()
+            try:
+                keywords = topic_item.get("search_keywords", [])
+                candidates = []
+                seen_titles: set[str] = set()
 
-            # Search all keywords for this topic concurrently
-            async def _search_kw(kw):
-                async with sem:
-                    try:
-                        return await asyncio.to_thread(searcher.search, kw, 8)
-                    except Exception as e:
-                        logger.warning("OpenAlex search failed for '%s': %s", kw, e)
-                        return []
+                # Search all keywords for this topic concurrently
+                async def _search_kw(kw):
+                    async with sem:
+                        try:
+                            return await asyncio.to_thread(searcher.search, kw, 8)
+                        except Exception as e:
+                            logger.warning("OpenAlex search failed for '%s': %s", kw, e)
+                            return []
 
-            kw_results = await asyncio.gather(*[_search_kw(kw) for kw in keywords])
-            for results in kw_results:
-                for paper in results:
-                    title_lower = (paper.get("title") or "").strip().lower()
-                    if title_lower and title_lower not in seen_titles:
-                        seen_titles.add(title_lower)
-                        candidates.append(paper)
+                kw_results = await asyncio.gather(*[_search_kw(kw) for kw in keywords])
+                for results in kw_results:
+                    for paper in results:
+                        title_lower = (paper.get("title") or "").strip().lower()
+                        if title_lower and title_lower not in seen_titles:
+                            seen_titles.add(title_lower)
+                            candidates.append(paper)
 
-            # Semantic Scholar fallback when OpenAlex results are insufficient
-            if len(candidates) < 3:
-                async with sem:
-                    s2_results = await asyncio.to_thread(
-                        self._search_semantic_scholar, keywords, seen_titles,
-                    )
-                candidates.extend(s2_results)
+                # Semantic Scholar fallback when OpenAlex results are insufficient
+                if len(candidates) < 3:
+                    async with sem:
+                        s2_results = await asyncio.to_thread(
+                            self._search_semantic_scholar, keywords, seen_titles,
+                        )
+                    candidates.extend(s2_results)
 
-            candidates.sort(
-                key=lambda p: _compute_paper_score(p, paper_preference),
-                reverse=True,
-            )
-            topic_item["verified_papers"] = candidates[:6]
-            completed["count"] += 1
+                candidates.sort(
+                    key=lambda p: _compute_paper_score(p, paper_preference),
+                    reverse=True,
+                )
+                topic_item["verified_papers"] = candidates[:6]
+            except Exception as e:
+                logger.error("Topic search failed for '%s': %s", topic_item.get("title", "?"), e)
+                topic_item["verified_papers"] = []
+            finally:
+                completed["count"] += 1
 
         # Collect all topics and launch concurrent searches
         all_topics = []
@@ -505,9 +510,12 @@ Return ONLY valid JSON matching this schema:
                     batch, topic, difficulty, ref_courses, structure,
                     module_offset=i,
                 ))
-            batch_results = await asyncio.gather(*tasks)
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
             assembled_modules = []
-            for batch_result in batch_results:
+            for i, batch_result in enumerate(batch_results):
+                if isinstance(batch_result, Exception):
+                    logger.error("Step 3 batch %d failed: %s", i, batch_result)
+                    continue
                 assembled_modules.extend(batch_result)
 
         curriculum = {
