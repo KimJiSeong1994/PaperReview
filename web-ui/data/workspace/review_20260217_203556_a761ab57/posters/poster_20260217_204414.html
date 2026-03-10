@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>체계적 문헌 고찰: 공간 정보 과학 및 공간적 공존 패턴 탐색의 심층 분석</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb; /* Academic Blue */
+            --secondary-color: #1e293b; /* Dark Slate */
+            --accent-color: #f59e0b; /* Orange Highlight */
+            --bg-color: #f8fafc; /* Light Gray Background */
+            --container-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-color: #334155;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            min-width: 1600px; /* Requirement */
+            box-sizing: border-box;
+        }
+
+        /* Title Section */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 4px solid var(--primary-color);
+            padding-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--primary-color);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-top: 0.5rem;
+        }
+
+        .meta-info {
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        /* Main Grid Layout - Multi-Crit Style Balanced Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr 1fr; /* Slightly wider center */
+            gap: 2.5rem;
+        }
+
+        /* Section Styling */
+        section {
+            background: var(--container-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 2rem;
+            border-top: 4px solid var(--primary-color);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.8rem;
+            margin-top: 0;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 1.5rem;
+            background-color: var(--accent-color);
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+
+        p, li {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        ul {
+            padding-left: 1.2rem;
+        }
+
+        li {
+            margin-bottom: 0.8rem;
+        }
+
+        strong {
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
+
+        .highlight {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        /* Visualizations & Tables */
+        .viz-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .viz-title {
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Modern Table Styling */
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 700;
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 2px solid var(--accent-color);
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--secondary-color);
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:nth-child(even) {
+            background-color: #f1f5f9;
+        }
+        .criteria-table th { background-color: var(--secondary-color); }
+
+
+        /* Specific Column Adjustments */
+        .col-center section {
+            border-top-color: var(--accent-color); /* Accent color for center column */
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>체계적 문헌 고찰: 공간 정보 과학 및 공간적 공존 패턴 탐색의 심층 분석</h1>
+        <div class="subtitle">SYSTEMATIC LITERATURE REVIEW & DEEP ANALYSIS</div>
+        <div class="meta-info">분석 논문 수: 4편 | 핵심 키워드: 데이터, 네트워크, 사회현상, 의미론적</div>
+    </header>
+
+    <main class="main-grid">
+        <!-- Left Column: Context & Methodology -->
+        <div class="col-left">
+            <section>
+                <h2>초록 (Abstract)</h2>
+                <p>본 리뷰는 공간 정보 과학(GISc)과 공간적 공존 패턴(co-location pattern) 탐색 분야의 대표적 논문 4편을 심층 분석합니다. 이들은 <span class="highlight">“공간적 객체 간의 내재적 관계를 어떻게 효과적으로 탐지·이해·활용할 것인가?”</span>라는 공통된 질문을 다룹니다.</p>
+                <p>도로망 기반 패턴 마이닝, GISc 이론적 프레임워크, 사회현상 기반 의미적 모델 등 상이한 접근법을 제시하며, 특히 위상적 제약, VGI의 부상, 사회적 맥락 통합이라는 패러다임 전환을 반영합니다. 방법론적 차별성과 한계 분석을 통해 향후 연구 방향성을 도출합니다.</p>
+            </section>
+
+            <section>
+                <h2>연구 배경 (Motivation): 패러다임의 전환</h2>
+                <p>최근 10년간 공간 정보 과학은 세 가지 축에서 근본적 변화를 겪고 있습니다:</p>
+                <ul>
+                    <li><strong>데이터의 양적/질적 변화:</strong> 모바일 센서, IoT, VGI 등 대규모 동적 데이터가 기존 정적 분석의 한계를 노출시킴.</li>
+                    <li><strong>네트워크 공간의 부상:</strong> 단순 유클리드 거리를 넘어 도로망 등 위상적 제약이 있는 공간에서의 패턴 탐색 필요성 증대.</li>
+                    <li><strong>의미적(Semantic) 분석 요구:</strong> 도시 구조와 사회현상(상권, 범죄 등)의 상호작용 해석을 위한 의미론적 접근 대두.</li>
+                </ul>
+            </section>
+
+             <section>
+                <h2>방법론 (Methodology)</h2>
+                <p>선정된 4편의 논문에 대해 체계적인 문헌 고찰을 수행하였습니다. 주요 분석 차원은 다음과 같습니다:</p>
+                <div class="table-container criteria-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>분석 차원</th>
+                                <th>평가 관점 (Criteria)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>문제 정의</strong></td><td>참신성, 실용성, 학술적 의의</td></tr>
+                            <tr><td><strong>방법론적 혁신</strong></td><td>기술적 차별성, 이론적 근거</td></tr>
+                            <tr><td><strong>실험적 엄밀성</strong></td><td>데이터셋 적절성, 베이스라인 공정성</td></tr>
+                            <tr><td><strong>이론적 깊이</strong></td><td>이론적 분석, 일반화 가능성</td></tr>
+                            <tr><td><strong>실질적 영향</strong></td><td>응용 가능성, 확장성, 실무 적용</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Center Column: Core Analysis & Visuals -->
+        <div class="col-center">
+            <section>
+                 <h2>핵심 발견: 공간 관계 정의의 진화</h2>
+                 <p>공간 분석의 패러다임이 단순 거리 기반에서 의미와 사회적 맥락을 포함하는 방향으로 다차원화되고 있습니다.</p>
+                 
+                 <!-- SVG: Paradigm Shift Visualization (Pipeline style) -->
+                 <div class="viz-container">
+                    <div class="viz-title">Fig 1. 공간적 관계 정의의 다차원적 진화 (Paradigm Shift)</div>
+                    <svg viewBox="0 0 800 220" style="width: 100%; height: auto;">
+                        <defs>
+                            <marker id="arrowhead-accent" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+                            </marker>
+                            <linearGradient id="boxGrad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#e0f2fe"/><stop offset="100%" style="stop-color:#bae6fd"/></linearGradient>
+                            <linearGradient id="boxGrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#bae6fd"/><stop offset="100%" style="stop-color:#7dd3fc"/></linearGradient>
+                            <linearGradient id="boxGrad3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7dd3fc"/><stop offset="100%" style="stop-color:#38bdf8"/></linearGradient>
+                        </defs>
+                        
+                        <!-- Step 1: Euclidean -->
+                        <rect x="20" y="60" width="200" height="100" rx="15" fill="url(#boxGrad1)" stroke="#2563eb" stroke-width="2"/>
+                        <text x="120" y="100" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e3a8a">1. 유클리드 거리 기반</text>
+                        <text x="120" y="125" text-anchor="middle" font-size="13" fill="#334155">정적, 격자 중심</text>
+                        
+                        <line x1="220" y1="110" x2="280" y2="110" stroke="#f59e0b" stroke-width="4" marker-end="url(#arrowhead-accent)"/>
+                        
+                        <!-- Step 2: Network -->
+                        <rect x="290" y="60" width="200" height="100" rx="15" fill="url(#boxGrad2)" stroke="#2563eb" stroke-width="3"/>
+                        <text x="390" y="100" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e3a8a">2. 네트워크 위상 기반</text>
+                        <text x="390" y="125" text-anchor="middle" font-size="13" fill="#334155">도로망 제약, 실제 이동</text>
+                        <text x="390" y="145" text-anchor="middle" font-size="13" font-weight="bold" fill="#f59e0b">(논문 1)</text>
+
+                        <line x1="490" y1="110" x2="550" y2="110" stroke="#f59e0b" stroke-width="4" marker-end="url(#arrowhead-accent)"/>
+
+                        <!-- Step 3: Semantic + Social -->
+                        <rect x="560" y="60" width="220" height="100" rx="15" fill="url(#boxGrad3)" stroke="#2563eb" stroke-width="4"/>
+                        <text x="670" y="95" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e3a8a">3. 의미론적 + 사회현상</text>
+                        <text x="670" y="120" text-anchor="middle" font-size="13" fill="#334155">도시 구조, 상호작용 해석</text>
+                        <text x="670" y="140" text-anchor="middle" font-size="13" font-weight="bold" fill="#f59e0b">(논문 4) Future Direction</text>
+                    </svg>
+                 </div>
+            </section>
+
+            <section>
+                <h2>비교 분석 테이블 (Comparative Analysis)</h2>
+                <p>각 논문의 접근법, 데이터, 성숙도 및 기여 유형에 대한 심층 비교 분석 결과입니다.</p>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>논문</th>
+                                <th>연구 유형</th>
+                                <th>핵심 접근법 (Key Approach)</th>
+                                <th>평가 지표</th>
+                                <th>성숙도</th>
+                                <th>주요 기여</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>1</strong></td>
+                                <td>실증적+설계과학</td>
+                                <td>네트워크 기반 co-location mining<br>(실제 도로망+객체 데이터)</td>
+                                <td>Precision, Recall, Participation Index</td>
+                                <td>발전단계</td>
+                                <td>알고리즘 혁신, 실용적 도구</td>
+                            </tr>
+                            <tr>
+                                <td><strong>2</strong></td>
+                                <td>이론적+종합적</td>
+                                <td>GISc 이론적 프레임워크,<br>수학적 모델 정립</td>
+                                <td>Moran’s I, R^2 등<br>(사례별 데이터)</td>
+                                <td><strong>성숙</strong></td>
+                                <td>학제간 프레임워크 제시</td>
+                            </tr>
+                            <tr>
+                                <td><strong>3</strong></td>
+                                <td>이론적+종합적</td>
+                                <td>GISc 응용 프레임워크,<br>수학적 모델 확장</td>
+                                <td>Moran’s I, R^2 등<br>(사례별 데이터)</td>
+                                <td><strong>성숙</strong></td>
+                                <td>이론적 모델 심화</td>
+                            </tr>
+                            <tr>
+                                <td><strong>4</strong></td>
+                                <td>실증적+설계과학</td>
+                                <td><span class="highlight">의미론적 co-location mining</span><br>(도시 상점+이벤트 데이터)</td>
+                                <td>F1-score, Semantic PI</td>
+                                <td>초기-발전</td>
+                                <td><strong>새로운 연구 방향 개척</strong>,<br>사회현상 통합</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Column: Findings & Conclusion -->
+        <div class="col-right">
+            <section>
+                <h2>주요 발견 및 정량적 성과 (Key Findings)</h2>
+                
+                <!-- SVG: Performance Bar Chart based on provided data -->
+                 <div class="viz-container">
+                    <div class="viz-title">Fig 2. 주요 모델 성능 향상 (Performance Improvements)</div>
+                    <svg viewBox="0 0 400 250" style="width: 100%; height: auto;">
+                        <!-- Grid -->
+                        <line x1="50" y1="200" x2="380" y2="200" stroke="#cbd5e1" stroke-width="2"/> <!-- X-axis -->
+                        <line x1="50" y1="200" x2="50" y2="20" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4"/> <!-- Y-axis line -->
+                        <line x1="50" y1="150" x2="380" y2="150" stroke="#e2e8f0" stroke-width="1"/>
+                        <line x1="50" y1="100" x2="380" y2="100" stroke="#e2e8f0" stroke-width="1"/>
+                        <line x1="50" y1="50" x2="380" y2="50" stroke="#e2e8f0" stroke-width="1"/>
+
+                        <!-- Y-axis Labels -->
+                        <text x="40" y="205" text-anchor="end" font-size="12" fill="#64748b">0%</text>
+                        <text x="40" y="155" text-anchor="end" font-size="12" fill="#64748b">10%</text>
+                        <text x="40" y="105" text-anchor="end" font-size="12" fill="#64748b">20%</text>
+                        <text x="40" y="55" text-anchor="end" font-size="12" fill="#64748b">30%</text>
+
+                        <!-- Bars (Data: 18.7%, 22.3%, 21.4%(F1), 28%(Pred)) -->
+                        <!-- Bar 1: 18.7% -->
+                        <rect x="70" y="106.5" width="50" height="93.5" fill="#3b82f6" rx="4"/>
+                        <text x="95" y="100" text-anchor="middle" font-size="13" font-weight="bold" fill="#2563eb">18.7%</text>
+                        <text x="95" y="220" text-anchor="middle" font-size="11" fill="#334155">Metric A</text>
+
+                        <!-- Bar 2: 22.3% -->
+                        <rect x="150" y="88.5" width="50" height="111.5" fill="#3b82f6" rx="4"/>
+                        <text x="175" y="82" text-anchor="middle" font-size="13" font-weight="bold" fill="#2563eb">22.3%</text>
+                        <text x="175" y="220" text-anchor="middle" font-size="11" fill="#334155">Metric B</text>
+                        
+                        <!-- Bar 3: 21.4% F1 -->
+                        <rect x="230" y="93" width="50" height="107" fill="#2563eb" rx="4"/>
+                        <text x="255" y="87" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">21.4%</text>
+                        <text x="255" y="220" text-anchor="middle" font-size="11" fill="#334155">Higher F1</text>
+
+                        <!-- Bar 4: 28% Pred -->
+                        <rect x="310" y="60" width="50" height="140" fill="#f59e0b" rx="4"/> <!-- Highlighted -->
+                        <text x="335" y="54" text-anchor="middle" font-size="13" font-weight="bold" fill="#b45309">28%</text>
+                        <text x="335" y="220" text-anchor="middle" font-size="11" fill="#334155">Prediction</text>
+                    </svg>
+                </div>
+                
+                <ul>
+                    <li><strong>네트워크 및 의미론적 접근의 통합:</strong> 미래 도시 공간 분석의 핵심 방향으로 식별됨 (논문 1과 4의 결합).</li>
+                    <li><strong>데이터 품질의 중요성:</strong> 공간 분석 정확도 및 실무 적용의 핵심 병목 현상으로 작용.</li>
+                    <li><strong>이론과 실증의 융합 필요:</strong> GISc 이론적 프레임워크(논문 2, 3)는 실증적/의미론적 분석과의 융합이 필수적임.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>핵심 기여 (Contributions)</h2>
+                <ul>
+                    <li>선정 논문들의 방법론적 특징 및 한계의 구체적 분석.</li>
+                    <li>공간 정보 과학 연구의 현재 위치 파악 및 미래 방향성 도출.</li>
+                    <li>박사과정 학생 및 연구자를 위한 실질적 통찰 제공.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>결론 및 향후 과제 (Conclusion & Future Work)</h2>
+                <p>본 분석을 통해 공간 정보 과학이 정적 분석에서 벗어나 복잡계적·의미론적·사회적 맥락을 통합하는 새로운 패러다임으로 이동하고 있음을 확인했습니다.</p>
+                <p style="margin-top: 1rem;"><strong>미해결 핵심 과제:</strong></p>
+                <ul>
+                    <li>실시간/동적 변화 처리 및 다중 계층 네트워크 분석.</li>
+                    <li>데이터 노이즈에 대한 견고성(Robustness) 확보.</li>
+                    <li>실무 적용을 위한 의미 태깅 자동화 및 인프라 구축.</li>
+                </ul>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

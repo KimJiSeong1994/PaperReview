@@ -1,0 +1,366 @@
+[
+  {
+    "title": "Spatial co - location pattern mining for location - based services in road networks",
+    "authors": [
+      "W Yu  - Expert  Systems  with  Applications",
+      "2016"
+    ],
+    "abstract": "… geographic information capture and the emergency of volunteered geographic information , … Then, considering that the co - location mining in networks suffers from expensive spatial -join …",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417415006971",
+    "pdf_url": "",
+    "journal": "Elsevier",
+    "year": "",
+    "citations": 118,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1785066008"
+  },
+  {
+    "title": "Data mining for co - location patterns: principles and applications",
+    "authors": [
+      "G Zhou"
+    ],
+    "abstract": "… principles of co - location pattern mining and its applications in … tree induction method called co - location based decision tree (… method of a geographic information system , put forward the …",
+    "url": "https://api.taylorfrancis.com/content/books/mono/download?identifierName=doi&identifierValue=10.1201/9781003139416&type=googlepdf",
+    "pdf_url": "",
+    "journal": "2022",
+    "year": "2022",
+    "citations": 14,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1538481975"
+  },
+  {
+    "title": "Semantic co - location model: a novel approach to explore the urban spatial structure with a social phenomenon",
+    "authors": [
+      "S Zeng",
+      "X Meng",
+      "C Zhong",
+      "Y Shen",
+      "Y Xie … -  Geo"
+    ],
+    "abstract": "… of spatial co - location based on contextual information , and … for urban planning . By identifying areas of high thematic and … He is currently a professor of geographic information science …",
+    "url": "https://www.tandfonline.com/doi/abs/10.1080/10095020.2025.2601314",
+    "pdf_url": "",
+    "journal": "spatial Information  …, 2025",
+    "year": "2025",
+    "citations": 0,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1321782133"
+  },
+  {
+    "title": "Location - based intelligence at the crossroads of information systems and social media: a societal perspective",
+    "authors": [
+      "M Ahmad - Research Handbook on  Information Systems  and …",
+      "2025"
+    ],
+    "abstract": "… , encompassing geographic information … Location - based intelligence can assist city planners in identifying locations where the population is concentrated by analyzing location - based …",
+    "url": "https://www.elgaronline.com/abstract/book/9781035318148/chapter3.xml",
+    "pdf_url": "",
+    "journal": "elgaronline.com",
+    "year": "",
+    "citations": 1,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1281371113"
+  },
+  {
+    "title": "Preference-based spatial co - location pattern mining",
+    "authors": [
+      "L Wang",
+      "Y Fang",
+      "L Zhou"
+    ],
+    "abstract": "… System (GPS) accuracy, our location - based services have … - information system (GIS), and military strategy planning . We … from urban planning data indicate that the planning of the postal …",
+    "url": "https://link.springer.com/content/pdf/10.1007/978-981-16-7566-9.pdf",
+    "pdf_url": "",
+    "journal": "2022",
+    "year": "2022",
+    "citations": 46,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1903252223"
+  },
+  {
+    "title": "Understanding the spatial organization of urban functions based on co - location patterns mining: A comparative analysis for 25 Chinese cities",
+    "authors": [
+      "Y Chen",
+      "X Chen",
+      "Z Liu",
+      "X Li  -  Cities",
+      "2020"
+    ],
+    "abstract": "… from the perspective of spatial co-occurrence of … co - location patterns (CPs) of urban activities with ‘Point-of-Interest’ (POI) data. We implement a comparative analysis with 25 major cities …",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0264275119307553",
+    "pdf_url": "",
+    "journal": "Elsevier",
+    "year": "",
+    "citations": 103,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1813803145"
+  },
+  {
+    "title": "Identifying and analyzing the prevalent regions of a co - location pattern using polygons clustering approach",
+    "authors": [
+      "W Yu  - ISPRS International Journal of  Geo"
+    ],
+    "abstract": "… spatial data collected by sensors, location based services and scientific simulation [9,10]. Application domains of co - location … prevalent regions can help urban planners and managers …",
+    "url": "https://www.mdpi.com/2220-9964/6/9/259",
+    "pdf_url": "",
+    "journal": "Information , 2017",
+    "year": "2017",
+    "citations": 13,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1236112036"
+  },
+  {
+    "title": "Spatial -Temporal Data Mining: Co - location Detection and Flow Forecasting",
+    "authors": [
+      "G Li"
+    ],
+    "abstract": "… city applications , such as urban planning , traffic management … topic of co - location detection, which is to measure the spatial -… It has many important smart city applications , such as contact …",
+    "url": "https://search.proquest.com/openview/70ff71d3a4d8055a2d8415926de5e55b/1?pq-origsite=gscholar&cbl=2026366&diss=y",
+    "pdf_url": "",
+    "journal": "2022",
+    "year": "2022",
+    "citations": 0,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1176715740"
+  },
+  {
+    "title": "An exact statistical method for analyzing co - location on a street network and its computational implementation",
+    "authors": [
+      "W Morioka",
+      "A Okabe",
+      "MP Kwan … - …  Information Science",
+      "2022"
+    ],
+    "abstract": "… Visually, as depicted in Figure 1b , this implies that we analyze co - location in terms of the … A reason for this assumption is that we are concerned with the co - location of stores in an urban …",
+    "url": "https://www.tandfonline.com/doi/abs/10.1080/13658816.2021.1976409",
+    "pdf_url": "",
+    "journal": "Taylor & Francis",
+    "year": "",
+    "citations": 21,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1160814472"
+  },
+  {
+    "title": "Exploring Co - Location Patterns in London with Social Media and Spatial Data",
+    "authors": [
+      "S Zeng"
+    ],
+    "abstract": "… (topics) of spatial co - location based on contextual information , and discovering unknown … domains, including urban planning , social science research, and location - based services , by …",
+    "url": "https://discovery.ucl.ac.uk/id/eprint/10201894/",
+    "pdf_url": "",
+    "journal": "2024",
+    "year": "2024",
+    "citations": 0,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "716625274"
+  },
+  {
+    "title": "Spatial co - location pattern mining for location-based services in road networks",
+    "authors": [
+      "W Yu  - Expert  Systems  with Applications",
+      "2016"
+    ],
+    "abstract": "… capture and the emergency of volunteered geographic information , it is … co - location patterns represent the subsets of spatial features whose objects are often located in close geographic …",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417415006971",
+    "pdf_url": "",
+    "journal": "Elsevier",
+    "year": "",
+    "citations": 118,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1963725662"
+  },
+  {
+    "title": "A buffer analysis based on co - location algorithm",
+    "authors": [
+      "G Zhou",
+      "S Huang",
+      "H Wang… - …  Information  …",
+      "2018"
+    ],
+    "abstract": "… This paper proposes a buffer analysis method based on the co - location algorithm. … the spatial co - location pattern mining .Combines the ideas of buffer analysis in spatial analysis . The …",
+    "url": "https://isprs-archives.copernicus.org/articles/XLII-3/2487/2018/isprs-archives-XLII-3-2487-2018.html",
+    "pdf_url": "",
+    "journal": "isprs-archives.copernicus.org",
+    "year": "",
+    "citations": 15,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "565499898"
+  },
+  {
+    "title": "An information ‐theoretic approach to the analysis of location and colocation patterns",
+    "authors": [
+      "A van Dam",
+      "A Gomez‐Lievano … - … of Regional  Science",
+      "2023"
+    ],
+    "abstract": "… The study of location and colocation of economic activities lies at the heart of economic geography … We illustrate this framework in an application to an analysis of location and colocation …",
+    "url": "https://onlinelibrary.wiley.com/doi/abs/10.1111/jors.12621",
+    "pdf_url": "",
+    "journal": "Wiley Online Library",
+    "year": "",
+    "citations": 18,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1878308987"
+  },
+  {
+    "title": "Domain-driven co - location mining: extraction, visualization and integration in a GIS",
+    "authors": [
+      "F Flouvat",
+      "JFN Van Soc",
+      "E Desmier… - Geoinformatica",
+      "2015"
+    ],
+    "abstract": "… In this setting, we propose a domain-driven co - location mining … their analysis . These proposals have been integrated into a prototype based on PostGIS geographic information system . …",
+    "url": "https://link.springer.com/article/10.1007/s10707-014-0209-3",
+    "pdf_url": "",
+    "journal": "Springer",
+    "year": "",
+    "citations": 28,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1530148528"
+  },
+  {
+    "title": "A framework of spatial co - location pattern mining for ubiquitous GIS",
+    "authors": [
+      "SK Kim",
+      "JH Lee",
+      "KH Ryu",
+      "U Kim - Multimedia tools and applications",
+      "2014"
+    ],
+    "abstract": "… The approach for extended spatial objects [34] uses the buffer operation of Geography Information System (GIS), in order to calculate the prevalent measures. The buffer of a spatial …",
+    "url": "https://link.springer.com/article/10.1007/s11042-012-1007-2",
+    "pdf_url": "",
+    "journal": "Springer",
+    "year": "",
+    "citations": 38,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1632981122"
+  },
+  {
+    "title": "Discovering spatial co - location patterns: A summary of results",
+    "authors": [
+      "S Shekhar",
+      "Y Huang  - International symposium on spatial and temporal …",
+      "2001"
+    ],
+    "abstract": "… The spatial co - location rule problem is different from the … New interest measures for spatial co - location patterns are pro… frequent spatial co - location patterns and analyze its correctness, …",
+    "url": "https://link.springer.com/chapter/10.1007/3-540-47724-1_13",
+    "pdf_url": "",
+    "journal": "Springer",
+    "year": "",
+    "citations": 536,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1817637558"
+  },
+  {
+    "title": "The effect of IT and co ‐ location on knowledge dissemination",
+    "authors": [
+      "M Song",
+      "H Berends",
+      "H Van der Bij… - Journal of product …",
+      "2007"
+    ],
+    "abstract": "… that CMC technologies and co - location of R&D staff have a … and that the effects of co - location and CMC interact negatively… support systems (GSS), executive information systems (EIS), …",
+    "url": "https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-5885.2006.00232.x",
+    "pdf_url": "",
+    "journal": "Wiley Online Library",
+    "year": "",
+    "citations": 230,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1029259004"
+  },
+  {
+    "title": "Local co - location pattern detection: a summary of results",
+    "authors": [
+      "Y Li",
+      "S Shekhar  - … conference on  geographic information science  …",
+      "2018"
+    ],
+    "abstract": "… , geographic proximity), the problem of local co - location pattern detection (LCPD) pairs co - location patterns and localities such that the co - location … A co - location pattern is a set of spatial …",
+    "url": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.GISCIENCE.2018.10",
+    "pdf_url": "",
+    "journal": "drops.dagstuhl.de",
+    "year": "",
+    "citations": 35,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "958858536"
+  },
+  {
+    "title": "Mining co - location patterns from distributed spatial data",
+    "authors": [
+      "S Maiti",
+      "RBV Subramanyam  - … Saud University-Computer and  Information  …",
+      "2021"
+    ],
+    "abstract": "… to spatial datasets for mining co - location patterns. Conventional … is proposed to find all co - location patterns from a spatial … contains another approach for the co - location patterns set, that …",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1319157818303495",
+    "pdf_url": "",
+    "journal": "Elsevier",
+    "year": "",
+    "citations": 16,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "883415728"
+  },
+  {
+    "title": "Discovering co - location patterns in multivariate spatial flow data",
+    "authors": [
+      "J Cai",
+      "MP Kwan  - … Journal of  Geographical Information Science",
+      "2022"
+    ],
+    "abstract": "… Then, we analyze the forms of co - location patterns in flow space and develop a new measure, namely flow co - location index, to characterize FCLPs using the frequency of different …",
+    "url": "https://www.tandfonline.com/doi/abs/10.1080/13658816.2021.1980217",
+    "pdf_url": "",
+    "journal": "Taylor & Francis",
+    "year": "",
+    "citations": 35,
+    "doi": "",
+    "source": "Google Scholar",
+    "searched_by": "Jipyheonjeon",
+    "doc_id": "1821677760"
+  },
+  {
+    "title": "Heuristic Methods for Location-Allocation Problems",
+    "authors": [
+      "Leon N. Cooper"
+    ],
+    "abstract": "Previous article Next article Heuristic Methods for Location-Allocation ProblemsLeon CooperLeon Cooperhttps://doi.org/10.1137/1006005PDFBibTexSections ToolsAdd to favoritesExport CitationTrack CitationsEmail SectionsAbout[1] Leon Cooper, Location-allocation problems, Operations Res., 11 (1963), 331–343, No. 3 MR0152365 0113.14201 CrossrefISIGoogle Scholar[2] Google Scholar[3] D. H. Lehmer, Teaching combinatorial tricks to a computerProc. Sympos. Appl. Math., Vol. 10, American Mathematical Society, Providence, R.I., 1960, 179–193, Combinatorial Analysis MR0113289 0096.00504 CrossrefGoogle Scholar[4] J. Heller, Some numerical experiments for an $M\\times J$ flow shop and its decision-theoretical aspects, Operations Res., 8 (1960), 178–184, No. 2 MR0111626 0092.27910 CrossrefISIGoogle Scholar[5] J. Moshman, The Application of Sequential Estimation To Computer Simulation and Monte Carlo Procedures, J. Association for Computing Machinery, 5 (1958), 0086.11603 CrossrefISIGoogle Scholar[6] A. Wald, Sequential Analysis, John Wiley and Sons, New York, 1952 Google Scholar Previous article Next article FiguresRelatedReferencesCited ByDetails An elliptical cover problem in drone delivery network design and its solution algorithmsEuropean Journal of Operational Research, Vol. 304, No. 3 | 1 Feb 2023 Cross Ref Two lower-bounding algorithms for the p-center problem in an areaComputational Urban Science, Vol. 2, No. 1 | 24 January 2022 Cross Ref Optimal planar facility location with dense demands along a curveJournal of the Operational Research Society, Vol. 73, No. 8 | 8 May 2021 Cross Ref A continuous location and maintenance routing problem for offshore wind farms: Mathematical models and hybrid methodsComputers & Operations Research, Vol. 144 | 1 Aug 2022 Cross Ref Spatial autocorrelation informed approaches to solving location–allocation problemsSpatial Statistics, Vol. 50 | 1 Aug 2022 Cross Ref Electric vehicle charging stations emplacement using genetic algorithms and agent-based simulationExpert Systems with Applications, Vol. 197 | 1 Jul 2022 Cross Ref Less is more: simple algorithms for the minimum sum of squares clustering problemIMA Journal of Management Mathematics, Vol. 33, No. 3 | 19 August 2021 Cross Ref Less is more: discrete starting solutions in the planar p-median problemTOP, Vol. 30, No. 1 | 6 April 2021 Cross Ref A two-level off-grid electric distribution problem on the continuous spaceComputers & Operations Research, Vol. 67 | 1 Apr 2022 Cross Ref Continuous Facility Location ProblemsThe Palgrave Handbook of Operations Research | 8 July 2022 Cross Ref The New Era of Hybridisation and Learning in Heuristic Search DesignThe Palgrave Handbook of Operations Research | 8 July 2022 Cross Ref Less Is More Approach in Heuristic OptimizationThe Palgrave Handbook of Operations Research | 8 July 2022 Cross Ref Formulation Space Search MetaheuristicThe Palgrave Handbook of Operations Research | 8 July 2022 Cross Ref Surface ozone monitoring and policy: A geospatial decision support tool for suitable location of monitoring stations in urban areasEnvironmental Science & Policy, Vol. 126 | 1 Dec 2021 Cross Ref Articulating Spatial Statistics and Spatial Optimization Relationships: Expanding the Relevance of StatisticsStats, Vol. 4, No. 4 | 19 October 2021 Cross Ref Discrete Facility Location in Machine LearningJournal of Applied and Industrial Mathematics, Vol. 15, No. 4 | 10 July 2022 Cross Ref Teaching Spreadsheet‐Based Analysis of Multisource Continuous Facility Location ProblemsDecision Sciences Journal of Innovative Education | 9 August 2021 Cross Ref A matheuristic for the stochastic facility location problemJournal of Heuristics, Vol. 27, No. 4 | 26 February 2021 Cross Ref Edge computing server placement with capacitated location allocationJournal of Parallel and Distributed Computing, Vol. 153 | 1 Jul 2021 Cross Ref Evaluation of heuristics for the p-median problem: Scale and spatial demand distributionComputers, Environment and Urban Systems, Vol. 88 | 1 Jul 2021 Cross Ref Self-Configuring (1 + 1)-Evolutionary Algorithm for the Continuous p-Median Problem with Agglomerative MutationAlgorithms, Vol. 14, No. 5 | 22 April 2021 Cross Ref Complex Energy Networks Optimization: Part I—Development and Validation of a Software for Optimal Load AllocationJournal of Engineering for Gas Turbines and Power, Vol. 143, No. 4 | 22 February 2021 Cross Ref Fiber to the Home (FTTH) Automation Planning, Its Impact on Customer Satisfaction & Cost-EffectivenessWireless Personal Communications, Vol. 117, No. 2 | 24 November 2020 Cross Ref Heuristic-Based Location Allocation of Single Frequency Network StationsIEEE Transactions on Broadcasting, Vol. 67, No. 1 | 1 Mar 2021 Cross Ref Multi-objective solid transportation-location problem with variable carbon emission in inventory management: a hybrid approachAnnals of Operations Research, Vol. 41 | 5 February 2021 Cross Ref Optimized Supply Chain Management of Rice in South Korea: Location–Allocation Model of Rice ProductionAgronomy, Vol. 11, No. 2 | 31 January 2021 Cross Ref When closest is not always the best: The distributed p-median problemJournal of the Operational Research Society, Vol. 72, No. 1 | 12 December 2019 Cross Ref Particle Swarm Optimization and Grey Wolf Optimizer to Solve Continuous p-Median Location ProblemsMachine Learning and Big Data Analytics Paradigms: Analysis, Applications and Challenges | 15 December 2020 Cross Ref Location and capacity decisions for electric bus charging stations considering waiting timesTransportation Research Part D: Transport and Environment, Vol. 90 | 1 Jan 2021 Cross Ref APPROPRIATE ALLOCATIONS AND LOCATIONS ANALYSIS OF INCINERATION FACILITIES BY MULTI-OBJECTIVE OPTIMIZATION USING VORONOI DIAGRAM AND GENETIC ALGORITHM: A CASE STUDY OF THE NORTHWESTERN BAY AREA IN CHIBA PREFECTURETransactions of the Operations Research Society of Japan, Vol. 64, No. 0 | 1 Jan 2021 Cross Ref Directional approach to gradual cover: the continuous caseComputational Management Science, Vol. 18, No. 1 | 18 October 2020 Cross Ref An Approximation Approach for Fixed-Charge Transportation-p-Facility Location ProblemLogistics and Supply Chain Management | 30 October 2021 Cross Ref Self-Adjusting Variable Neighborhood Search Algorithm for Near-Optimal k-Means ClusteringComputation, Vol. 8, No. 4 | 5 November 2020 Cross Ref K-Means Genetic Algorithms with Greedy Genetic OperatorsMathematical Problems in Engineering, Vol. 2020 | 27 Nov 2020 Cross Ref On the convergence of the Cooper’s algorithmOptimization Letters, Vol. 14, No. 8 | 23 March 2020 Cross Ref The continuous single-source capacitated multi-facility Weber problem with setup costs: formulation and solution methodsJournal of Global Optimization, Vol. 78, No. 2 | 6 December 2019 Cross Ref An exact and a heuristic approach for the transportation-p-facility location problemComputational Management Science, Vol. 17, No. 3 | 30 January 2020 Cross Ref Heuristic approaches for solid transportation-p-facility location problemCentral European Journal of Operations Research, Vol. 28, No. 3 | 28 January 2019 Cross Ref A voltage drop limited decentralized electric power distribution networkComputers & Operations Research, Vol. 118 | 1 Jun 2020 Cross Ref ReferencesLocation‐based Marketing | 17 April 2020 Cross Ref An ADMM-based location–allocation algorithm for nonconvex constrained multi-source Weber problem under gaugeJournal of Global Optimization, Vol. 76, No. 4 | 11 June 2019 Cross Ref The blockwise coordinate descent method for integer programsMathematical Methods of Operations Research, Vol. 91, No. 2 | 15 June 2019 Cross Ref Biologically Inspired Parent Selection in Genetic AlgorithmsAnnals of Operations Research, Vol. 287, No. 1 | 22 July 2019 Cross Ref Accelerated hyperbolic smoothing method for solving the multisource Fermat–Weber and k-Median problemsKnowledge-Based Systems, Vol. 191 | 1 Mar 2020 Cross Ref Scaling up an Edge Server Deployment2020 IEEE International Conference on Pervasive Computing and Communications Workshops (PerCom Workshops) | 1 Mar 2020 Cross Ref Classical and Inverse Median Location Problems under Uncertain EnvironmentActa Mathematicae Applicatae Sinica, English Series, Vol. 36, No. 2 | 11 April 2020 Cross Ref 2020 Cross Ref Multi-facility green Weber problemComputers & Operations Research, Vol. 113 | 1 Jan 2020 Cross Ref A Spatial Optimization Approach for Solving a Multi-facility Location Problem with Continuously Distributed DemandInnovations in Urban and Regional Systems | 12 May 2020 Cross Ref Optimizing Field Productivity by Mobile Warehouse Deployment Using Evolutionary Algorithms2019 IEEE Symposium Series on Computational Intelligence (SSCI) | 1 Dec 2019 Cross Ref Hub relay network design for daily driver routesInternational Journal of Production Research, Vol. 57, No. 19 | 12 February 2019 Cross Ref Revised Weighted Fuzzy C-Means and Fortified Weiszfeld Hybrid Method for Uncapacitated Multi-Facility Location ProblemsInternational Journal of Operations Research and Information Systems, Vol. 10, No. 4 | 1 Oct 2019 Cross Ref Solving multiple facilities location problems with separated clustersOperations Research Letters, Vol. 47, No. 5 | 1 Sep 2019 Cross Ref A Benders Decomposition Method for Designing Reliable Supply Chain Networks Accounting for Multimitigation Strategies and Demand LossesTransportation Science, Vol. 53, No. 5 | 1 Sep 2019 Cross Ref Spatial optimization for land acquisition problems: A review of models, solution methods, and GIS supportTransactions in GIS, Vol. 16 | 6 June 2019 Cross Ref Uncertain multi-objective multi-commodity multi-period multi-vehicle location-allocation model for earthquake evacuation planningApplied Mathematics and Computation, Vol. 350 | 1 Jun 2019 Cross Ref The location-allocation problem of drone base stationsComputers & Operations Research | 1 Jun 2019 Cross Ref Optimizing the spatial relocation of hospitals to reduce urban traffic congestion: A case study of BeijingTransactions in GIS, Vol. 23, No. 2 | 1 April 2019 Cross Ref The incorporation of fixed cost and multilevel capacities into the discrete and continuous single source capacitated facility location problemAnnals of Operations Research, Vol. 275, No. 2 | 23 August 2018 Cross Ref A directional approach to gradual coverTOP, Vol. 27, No. 1 | 15 November 2018 Cross Ref The Optimal Solution Set of the Multi-source Weber ProblemBulletin of the Iranian Mathematical Society, Vol. 45, No. 2 | 12 July 2018 Cross Ref Give-And-Take heuristic model to political redistricting problemsSpatial Information Research, Vol. 5 | 2 March 2019 Cross Ref Crowdsourcing planar facility location allocation problemsComputing, Vol. 101, No. 3 | 20 October 2018 Cross Ref The planar multifacility collection depots location problemComputers & Operations Research, Vol. 102 | 1 Feb 2019 Cross Ref Mathematical modelling and heuristic approaches to the location-routing problem of a cost-effective integrated solid waste managementAnnals of Operations Research, Vol. 273, No. 1-2 | 4 June 2018 Cross Ref Optimization of competitive facility location for chain storesAnnals of Operations Research, Vol. 273, No. 1-2 | 15 July 2017 Cross Ref Optimal solutions for the continuous p -centre problem and related -neighbour and conditional problems: A relaxation-based algorithmJournal of the Operational Research Society, Vol. 70, No. 2 | 19 January 2018 Cross Ref Introduction: The Practice of Spatial AnalysisThe Practice of Spatial Analysis | 29 June 2018 Cross Ref 2019 Cross Ref 2019 Cross Ref 2019 Cross Ref 2019 Cross Ref Understanding the Weber Location ParadigmContributions to Location Analysis | 8 October 2019 Cross Ref Locating Dimensional Facilities in a Continuous SpaceLocation Science | 17 March 2020 Cross Ref An algorithm for generalized constrained multi-source Weber problem with demand substations4OR, Vol. 16, No. 4 | 2 December 2017 Cross Ref The Weber obnoxious facility location model: A Big Arc Small Arc approachComputers & Operations Research, Vol. 98 | 1 Oct 2018 Cross Ref MIP model for efficient dimensioning of real-world FTTH treesTelecommunication Systems, Vol. 68, No. 2 | 27 September 2017 Cross Ref Classifiers Applied to Dimensioning of Splitters in PON DesignJournal of Optical Communications and Networking, Vol. 10, No. 6 | 21 May 2018 Cross Ref Optimal number and location of storage hubs and biogas production reactors in farmlands with allocation of multiple feedstocksApplied Mathematical Modelling, Vol. 55 | 1 Mar 2018 Cross Ref Considering Diversity in Spatial Decision Support SystemsGeoComputational Analysis and Modeling of Regional Systems | 31 July 2017 Cross Ref Spatial Autocorrelation and the p-Median ProblemMorphisms for Quantitative Spatial Analysis | 8 March 2018 Cross Ref Location Modeling and Covering MetricsLocation Covering Models | 23 December 2018 Cross Ref Vers un merchandising multi-agentsRetailing et localisation | 1 Jan 2018 Cross Ref A distance-limited continuous location-allocation problem for spatial planning of decentralized systemsComputers & Operations Research, Vol. 88 | 1 Dec 2017 Cross Ref A Two-echelon joint continuous-discrete location modelEuropean Journal of Operational Research, Vol. 262, No. 3 | 1 Nov 2017 Cross Ref Incorporating neighborhood reduction for the solution of the planar p-median problemAnnals of Operations Research, Vol. 258, No. 2 | 12 August 2015 Cross Ref The continuous single source location problem with capacity and zone-dependent fixed cost: Models and solution approachesEuropean Journal of Operational Research, Vol. 263, No. 1 | 1 Nov 2017 Cross Ref The capacitated multi-facility weber problem with polyhedral barriers: Efficient heuristic methodsComputers & Industrial Engineering, Vol. 113 | 1 Nov 2017 Cross Ref Transportation-location problem with unknown number of facilitiesComputers & Industrial Engineering, Vol. 112 | 1 Oct 2017 Cross Ref Non-myopic relocation of idle mobility-on-demand vehicles as a dynamic location-allocation-queueing problemTransportation Research Part E: Logistics and Transportation Review, Vol. 106 | 1 Oct 2017 Cross Ref A versatile adaptive aggregation framework for spatially large discrete location-allocation problemsComputers & Industrial Engineering, Vol. 111 | 1 Sep 2017 Cross Ref On Strategies to Fix Degenerate k-means SolutionsJournal of Classification, Vol. 34, No. 2 | 10 June 2017 Cross Ref Speeding up the optimal method of Drezner for the p -centre problem in the planeEuropean Journal of Operational Research, Vol. 257, No. 3 | 1 Mar 2017 Cross Ref 2-Facility manifold location routing problemOptimization Letters, Vol. 11, No. 2 | 26 December 2015 Cross Ref Location Planning and Network DesignComputational Intelligence in Logistics and Supply Chain Management | 28 July 2016 Cross Ref Hybridisation SearchHeuristic Search | 21 February 2017 Cross Ref Bringing infrastructure into pricing in road freight transportation – A measuring concept based on navigation service dataTransportation Research Procedia, Vol. 25 | 1 Jan 2017 Cross Ref A Genetic Algorithm to Solve the Optimum Location Problem for Surveillance SensorsJournal of the Korean Society of Surveying, Geodesy, Photogrammetry and Cartography, Vol. 34, No. 6 | 31 Dec 2016 Cross Ref Mixed planar and network single-facility location problemsNetworks, Vol. 68, No. 4 | 18 August 2016 Cross Ref Sequential location of two facilities: comparing random to optimal location of the first facilityAnnals of Operations Research, Vol. 246, No. 1-2 | 19 August 2014 Cross Ref New local searches for solving the multi-source Weber problemAnnals of Operations Research, Vol. 246, No. 1-2 | 5 February 2015 Cross Ref An adaptive perturbation-based heuristic: An application to the continuous p-centre problemComputers & Operations Research, Vol. 75 | 1 Nov 2016 Cross Ref Insights into the effect of traffic congestion on distribution network characteristics – a numerical analysis based on navigation service dataInternational Journal of Logistics Research and Applications, Vol. 19, No. 5 | 13 November 2015 Cross Ref Modeling and solving a capacitated stochastic location-allocation problem using sub-sourcesSoft Computing, Vol. 20, No. 6 | 17 March 2015 Cross Ref A minisum location problem with regional demand considering farthest Euclidean distancesOptimization Methods and Software, Vol. 31, No. 3 | 23 December 2015 Cross Ref Hybrid self-adaptive-velocity particle swarm optimisation-Cooper heuristic for the facility location allocation problem in JakartaInternational Journal of Systems Science: Operations & Logistics, Vol. 3, No. 2 | 14 April 2015 Cross Ref Planning the City Logistics Terminal Location by Applying the Green p -Median Model and Type-2 Neurofuzzy NetworkComputational Intelligence and Neuroscience, Vol. 2016 | 1 Jan 2016 Cross Ref Manifold Location Routing Problem with Applications in Network TheoryModels, Algorithms and Technologies for Network Analysis | 21 October 2016 Cross Ref Prepositioning of Relief Items Under Uncertainty: A Classification of Modeling and Solution Approaches for Disaster ManagementLogistics Management | 9 August 2015 Cross Ref StandortmanagementStrategisches und operatives Logistikmanagement: Distribution | 15 October 2015 Cross Ref A location–allocation problem with concentric circlesIIE Transactions, Vol. 47, No. 12 | 28 April 2015 Cross Ref Solving the planar p-median problem by variable neighborhood and concentric searchesJournal of Global Optimization, Vol. 63, No. 3 | 23 April 2014 Cross Ref A Parallel Algorithm for the Facility Location Problem Applied to Oil and Gas Logistics2015 International Symposium on Computer Architecture and High Performance Computing Workshop (SBAC-PADW) | 1 Oct 2015 Cross Ref A capacitated location-allocation problem with stochastic demands using sub-sources: An empirical studyApplied Soft Computing, Vol. 34 | 1 Sep 2015 Cross Ref A Heuristic for the Multisource Weber Problem with Service Level ConstraintsTransportation Science, Vol. 49, No. 3 | 1 Aug 2015 Cross Ref A heuristic algorithm to solve the single-facility location routing problem on Riemannian surfacesComputational Management Science, Vol. 12, No. 3 | 23 December 2014 Cross Ref A Constructive Method and a Guided Hybrid GRASP for the Capacitated Multi-Source Weber Problem in the Presence of Fixed CostJournal of Algorithms & Computational Technology, Vol. 9, No. 2 | 1 June 2015 Cross Ref Approximation methods for large-scale spatial queueing systemsTransportation Research Part B: Methodological, Vol. 74 | 1 Apr 2015 Cross Ref The continuous p-centre problem: An investigation into variable neighbourhood search with memoryEuropean Journal of Operational Research, Vol. 241, No. 3 | 1 Mar 2015 Cross Ref Applied Soft Computing | 2015 Cross Ref Investigating Metaheuristics Applications for Capacitated Location Allocation Problem on Logistics NetworksChaos Modeling and Control Systems Design | 4 December 2014 Cross Ref Heuristics for a continuous multi-facility location problem with demand regionsComputers & Operations Research | 1 Sep 2014 Cross Ref Serving regional demand in facility locationPapers in Regional Science, Vol. 93, No. 3 | 4 April 2013 Cross Ref A historical perspective on location problemsBSHM Bulletin: Journal of the British Society for the History of Mathematics, Vol. 29, No. 2 | 9 May 2014 Cross Ref New heuristic algorithms for solving the planar p-median problemComputers & Operations Research | 1 May 2014 Cross Ref Modeling Influenza Pandemic and Planning Food DistributionManufacturing & Service Operations Management, Vol. 16, No. 1 | 1 Feb 2014 Cross Ref A new local search for continuous location problemsEuropean Journal of Operational Research, Vol. No. 2 | 1 Jan 2014 Cross Ref Location for a continuous competitive facility location problem under & Operations Research, Vol. 41 | 1 Jan 2014 Cross Ref The planar location problem: a clustering approachAnnals of Operations Research, Vol. No. 1 | 1 June 2013 Cross Ref Location of a distribution for a Methods of Operations Research, Vol. 78, No. 3 | 13 July 2013 Cross Ref search heuristics for the single and multi-commodity capacitated Multi-facility Weber & Operations Research, Vol. No. 12 | 1 Dec 2013 Cross Ref New heuristic methods for the single-source capacitated facility Weber International Journal of Technology, Vol. No. | 28 June 2013 Cross Ref Continuous and problems with a on of the Operational Research Society, Vol. 64, No. 11 | 21 December 2017 Cross Ref A hybrid approach for the capacitated p-median Soft Computing, Vol. No. 9 | 1 Sep 2013 Cross Ref An efficient heuristic algorithm for the capacitated Vol. 11, No. 3 | 16 December Cross Ref Continuous location of an Vol. No. 2 | 13 April Cross Ref Heuristics for the single source capacitated multi-facility Weber problemComputers & Industrial Engineering, Vol. 64, No. 4 | 1 Apr 2013 Cross Ref Models and Algorithms for Hub and for Service Facilities in to and An International Vol. 19, No. 2 | 4 Mar 2013 Cross Ref allocation and planning Vol. No. 2 | 9 September Cross Ref A new heuristic for solving the p-median problem in the & Operations Research, Vol. No. 1 | 1 Jan 2013 Cross Ref solution methods for the capacitated multi-facility Weber Transactions, Vol. 45, No. 1 | 1 Jan 2013 Cross Ref A Heuristic Algorithm for Multi-Source Location Problem with under The and Applied Analysis, Vol. 2013 | 1 Jan 2013 Cross Ref Research on Multi-Facility Weber Problem to | 3 May 2013 Cross Ref Investigating of Hybrid to Solve the Multi-Source Weber Problems and Performance of with Optimization Algorithms in Engineering, and | 1 Jan 2013 Cross Ref starting solutions for the p-median problem in the in Discrete Mathematics, Vol. | 1 Dec Cross Ref An Efficient Hybrid Particle Swarm Optimization Algorithm for Solving the Uncapacitated Continuous Location-Allocation and Spatial Vol. 12, No. 3 | 5 July Cross Ref Capacitated Multi-Facility Weber two heuristic & Operations Research, Vol. No. | 1 Jul Cross Ref of and and application in and Vol. No. 2 | 17 March Cross Ref Solving the multi-commodity capacitated multi-facility Weber problem using and a algorithmJournal of the Operational Research Society, Vol. 63, No. 6 | 21 December 2017 Cross Ref Distributed Service Design with and Science, Vol. No. 2 | 1 May Cross Ref A framework of GIS and computing for spatial problems – a case study of Journal of Information Science, Vol. No. 4 | 1 Apr Cross Ref A heuristic algorithm for multiple facilities with regional Optimization and Applications, Vol. No. 3 | 13 January Cross Ref Facility location under demand to a large-scale Planning Vol. No. 1 | 1 Mar Cross Ref Efficient solution methods for the multi-commodity capacitated multi-facility Weber problemComputers & Operations Research, Vol. No. 2 | 1 Feb Cross Ref A algorithm for the planar single-facility location routing problemComputers & Operations Research, Vol. No. 2 | 1 Feb Cross Ref location of two on Journal of Research, Vol. No. 2 | 1 Feb Cross Ref the convergence in the single-source and multi-source Weber Mathematics and Computation, Vol. No. 12 | 1 Feb Cross Ref StandortmanagementStrategisches und operatives Logistikmanagement: Distribution | 25 September Cross Ref A Analysis Method for International Conference on Computational Intelligence and | 1 Dec Cross Ref Solving a continuous local network design problem with a Journal of Operational Research, Vol. No. 3 | 1 Nov Cross Ref Variable neighbourhood search heuristics for the multi-source Weber problemJournal of the Operational Research Society, Vol. No. 10 | 21 December 2017 Cross Ref A GRASP for the capacitated multi-source Weber problemComputers & Operations Research, Vol. No. | 1 Jul Cross Ref Prepositioning in for Journal of Operational Research, Vol. No. 2 | 1 Mar Cross Ref A algorithm for the location–allocation problem with dense & Operations Research, Vol. No. 2 | 1 Feb Cross Ref Continuous of Location Analysis | 13 January Cross Ref Median Problems in of Location Analysis | 13 January Cross Ref Heuristics for Location of Location Analysis | 13 January Cross Ref An Algorithm for a Capacitated Multi-Facility Weber Problem with Fuzzy International Conference on and | 1 Nov Cross Ref New in location & Operations Research, Vol. No. 10 | 1 Oct Cross Ref The multi-commodity capacitated multi-facility Weber problem: heuristics and Transactions, Vol. No. 11 | 31 Aug Cross Ref Efficient integer for location and routing in Vol. No. 11 | 1 Aug Cross Ref and the spatial and Computer Modelling, Vol. No. 1-2 | 1 Jul Cross Ref Hybrid random algorithm for solving problem of of Computer Applications, Vol. 30, No. 6 | 23 Jun Cross Ref in variable neighborhood Vol. 8, No. 2 | 16 September Cross Ref and heuristic solutions of the chain problem with Journal of Operational Research, Vol. No. 3 | 1 May Cross Ref A generalized Weiszfeld method for the multi-facility location Research Letters, Vol. No. 3 | 1 May Cross Ref based heuristics for the generalized location problemComputers & Industrial Engineering, Vol. No. 4 | 1 May Cross Ref A continuous analysis framework for the solution of location–allocation problems with dense & Operations Research, Vol. No. 1 | 1 Jan Cross Ref A Weiszfeld algorithm for the solution of an of the generalized location problemComputers & Mathematics with Applications, Vol. No. 1 | 1 Jan Cross Ref Locating a facility using a hybrid optimization Journal of Production Vol. No. 1 | 1 Jan Cross Ref cover location problems: The planar Transactions, Vol. No. 3 | 19 December Cross Ref A location–allocation heuristic for the capacitated multi-facility Weber problem with Journal of Operational Research, Vol. No. 3 | 1 Nov Cross Ref based optimization approach for network design problemComputers & Industrial Engineering, Vol. 57, No. 1 | 1 Aug Cross Ref The variable Journal of Operational Research, Vol. No. 2 | 1 Jul Cross Ref Discrete heuristics for the capacitated continuous location–allocation problem with & Operations Research, Vol. 36, No. | 1 Jul Cross Ref Planning for Optical of Optical Communications and Networking, Vol. No. 1 | 1 June Cross Ref based heuristics for the capacitated multi-source Weber problemComputers & Operations Research, Vol. 36, No. 6 | 1 Jun Cross Ref Spatial models for location–allocation Statistics & Data Analysis, Vol. 53, No. 8 | 1 Jun Cross Ref Solving multi-facility Weber problem by Vol. 31, No. 3 | 1 January Cross Ref The multi-facility location–allocation problem with polyhedral & Operations Research, Vol. 36, No. 5 | 1 May Cross Ref of to of the Operational Research Society, Vol. No. | 21 December 2017 Cross Ref and of distribution on a of Operations Research, Vol. No. 1 | 14 June Cross Ref Distribution Network for"
