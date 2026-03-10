@@ -136,9 +136,13 @@ function App() {
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
 
-    setLoading(true);
-    setQuery(searchQuery);
     setGuidanceMessage(null);
+
+    // Delay loading indicator so non-academic responses (~0.5s) don't flash it
+    const loadingTimer = setTimeout(() => {
+      setLoading(true);
+      setQuery(searchQuery);
+    }, 500);
 
     try {
       {
@@ -153,6 +157,7 @@ function App() {
         // Check if query was classified as non-academic
         const qa = (results as any).query_analysis;
         if (qa && qa.is_academic === false) {
+          clearTimeout(loadingTimer);
           setGuidanceMessage(
             '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
           );
@@ -160,9 +165,15 @@ function App() {
           setGraphData(null);
           setSelectedPaper(null);
           setHighlightedPapers(new Set());
+          setQuery('');
           setLoading(false);
           return;
         }
+
+        // Academic query confirmed — ensure loading is shown
+        clearTimeout(loadingTimer);
+        setLoading(true);
+        setQuery(searchQuery);
 
         const allPapers: Paper[] = [];
 
@@ -233,6 +244,7 @@ function App() {
         }
       }
     } catch (error: any) {
+      clearTimeout(loadingTimer);
       console.error('Search error:', error);
 
       let errorMessage = '알 수 없는 오류가 발생했습니다.';
