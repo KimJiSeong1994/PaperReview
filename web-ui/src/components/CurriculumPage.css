@@ -1438,9 +1438,9 @@
   margin-top: 5px;
   flex-shrink: 0;
 }
-.shared-cur-cat-dot.cat-required { background: #34d399; }
-.shared-cur-cat-dot.cat-optional { background: #fbbf24; }
-.shared-cur-cat-dot.cat-supplementary { background: #6b7280; }
+.shared-cur-cat-dot.cat-required { background: #a5b4fc; }
+.shared-cur-cat-dot.cat-optional { background: #94a3b8; }
+.shared-cur-cat-dot.cat-supplementary { background: #4b5563; }
 .shared-cur-paper-title {
   font-size: 0.84rem;
   font-weight: 500;
