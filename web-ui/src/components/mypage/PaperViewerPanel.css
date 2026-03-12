@@ -31,6 +31,41 @@
   color: #9ca3af;
   border-bottom: 1px solid #1e1e1e;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paper-viewer-resolve-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #a5b4fc;
+}
+
+.paper-viewer-resolve-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #1e1e1e;
+  border-top-color: #a5b4fc;
+  border-radius: 50%;
+  animation: paper-viewer-spin 0.7s linear infinite;
+}
+
+.paper-viewer-resolve-done {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #6b7280;
+}
+
+.paper-viewer-no-pdf-desc {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .paper-viewer-list-scroll {

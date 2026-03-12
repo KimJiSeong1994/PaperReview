@@ -867,3 +867,10 @@ export async function resolvePdfUrl(title: string, doi?: string): Promise<{pdf_u
   const { data } = await api.get('/api/pdf/resolve', { params });
   return data;
 }
+
+export async function batchResolvePdfUrls(
+  papers: { title: string; doi?: string }[],
+): Promise<{ results: { pdf_url: string | null; source: string | null }[] }> {
+  const { data } = await api.post('/api/pdf/resolve-batch', { papers });
+  return data;
+}

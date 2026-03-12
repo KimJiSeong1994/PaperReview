@@ -2,13 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { resolvePdfUrl, batchResolvePdfUrls } from '../../api/client';
 import './PaperViewerPanel.css';
 
-// Configure pdf.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Configure pdf.js worker via CDN (avoids Vite bundling issues with import.meta.url)
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -20,6 +18,11 @@ interface BookmarkPaper {
   doi?: string | null;
   url?: string | null;
   source?: string | null;
+}
+
+interface ResolvedUrl {
+  pdf_url: string | null;
+  source: string | null;
 }
 
 export interface PaperViewerPanelProps {
@@ -164,11 +167,18 @@ export default function PaperViewerPanel({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // Auto-resolve: cache of resolved pdf_urls keyed by paper title
+  const [resolvedUrls, setResolvedUrls] = useState<Record<string, ResolvedUrl>>({});
+  const [resolving, setResolving] = useState(false);
+  const [resolveProgress, setResolveProgress] = useState<{ done: number; total: number } | null>(null);
+
   const docScrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(600);
 
-  // Reset viewer state whenever bookmark changes
+  // Reset viewer state AND auto-resolve PDF URLs in a single effect
+  // to avoid race conditions between separate reset/resolve effects
   useEffect(() => {
+    // ── Reset all viewer state ──
     setSelectedIndex(null);
     setNumPages(null);
     setCurrentPage(1);
@@ -177,6 +187,47 @@ export default function PaperViewerPanel({
     setFitWidth(false);
     setPdfError(null);
     setPdfLoading(false);
+    setResolvedUrls({});
+    setResolving(false);
+    setResolveProgress(null);
+
+    // ── Auto-resolve PDF URLs for papers without pdf_url ──
+    const currentPapers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
+    if (currentPapers.length === 0) return;
+
+    const needResolve = currentPapers.filter(p => !p.pdf_url);
+    if (needResolve.length === 0) return;
+
+    let cancelled = false;
+    setResolving(true);
+    setResolveProgress({ done: 0, total: needResolve.length });
+
+    (async () => {
+      try {
+        const data = await batchResolvePdfUrls(
+          needResolve.map(p => ({ title: p.title, doi: p.doi || undefined })),
+        );
+        if (cancelled) return;
+
+        const newResolved: Record<string, ResolvedUrl> = {};
+        let doneCount = 0;
+        needResolve.forEach((paper, i) => {
+          const r = data.results?.[i];
+          if (r?.pdf_url) {
+            newResolved[paper.title] = { pdf_url: r.pdf_url, source: r.source };
+            doneCount++;
+          }
+        });
+        setResolvedUrls(newResolved);
+        setResolveProgress({ done: doneCount, total: needResolve.length });
+      } catch (err) {
+        console.error('PDF batch resolve error:', err);
+      } finally {
+        if (!cancelled) setResolving(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [bookmarkDetail]);
 
   // Track container width for fit-width mode
@@ -196,16 +247,49 @@ export default function PaperViewerPanel({
 
   const selectedPaper = selectedIndex !== null ? papers[selectedIndex] ?? null : null;
 
-  const pdfSrc = selectedPaper?.pdf_url ? buildPdfSrc(selectedPaper.pdf_url) : null;
+  // Get effective pdf_url: from paper data or resolved cache
+  const getEffectivePdfUrl = (paper: BookmarkPaper | null): string | null => {
+    if (!paper) return null;
+    if (paper.pdf_url) return paper.pdf_url;
+    return resolvedUrls[paper.title]?.pdf_url ?? null;
+  };
 
-  const handleSelectPaper = useCallback((index: number) => {
+  const effectivePdfUrl = getEffectivePdfUrl(selectedPaper);
+  const pdfSrc = effectivePdfUrl ? buildPdfSrc(effectivePdfUrl) : null;
+
+  // On-demand resolve: when clicking a paper without pdf_url, resolve individually
+  const resolveAndSelect = useCallback(async (index: number) => {
     setSelectedIndex(index);
     setNumPages(null);
     setCurrentPage(1);
     setPageInputValue('1');
     setPdfError(null);
+
+    const paper = papers[index];
+    if (!paper) return;
+
+    // Already has pdf_url (from data or resolved cache)
+    if (paper.pdf_url || resolvedUrls[paper.title]?.pdf_url) {
+      setPdfLoading(true);
+      return;
+    }
+
+    // Try to resolve on-demand via api client
     setPdfLoading(true);
-  }, []);
+    try {
+      const data = await resolvePdfUrl(paper.title, paper.doi || undefined);
+      if (data.pdf_url) {
+        setResolvedUrls(prev => ({
+          ...prev,
+          [paper.title]: { pdf_url: data.pdf_url, source: data.source },
+        }));
+        return;
+      }
+    } catch {
+      // Ignore errors — will show "not available"
+    }
+    setPdfLoading(false);
+  }, [papers, resolvedUrls]);
 
   const handleDocumentLoadSuccess = useCallback(({ numPages: n }: { numPages: number }) => {
     setNumPages(n);
@@ -289,6 +373,16 @@ export default function PaperViewerPanel({
     }
 
     if (!pdfSrc) {
+      // Still resolving (batch or on-demand) — show a waiting indicator
+      if (resolving || pdfLoading) {
+        return (
+          <div className="paper-viewer-loading">
+            <div className="paper-viewer-spinner" />
+            <span>Searching for PDF...</span>
+          </div>
+        );
+      }
+
       const externalUrl = paperExternalUrl(selectedPaper);
       return (
         <div className="paper-viewer-no-pdf">
@@ -296,8 +390,8 @@ export default function PaperViewerPanel({
             <IconAlertCircle />
           </span>
           <div>
-            <div className="paper-viewer-no-pdf-title">PDF not available for this paper</div>
-            <div>No PDF URL is associated with this paper.</div>
+            <div className="paper-viewer-no-pdf-title">PDF not available</div>
+            <div className="paper-viewer-no-pdf-desc">Open access PDF could not be found for this paper.</div>
           </div>
           {externalUrl && (
             <a
@@ -339,7 +433,7 @@ export default function PaperViewerPanel({
                     setPdfError(null);
                     setPdfLoading(true);
                     // Force re-mount by toggling a key via re-select
-                    handleSelectPaper(selectedIndex!);
+                    resolveAndSelect(selectedIndex!);
                   }}
                 >
                   Retry
@@ -449,7 +543,20 @@ export default function PaperViewerPanel({
     <div className="paper-viewer-panel">
       {/* ── Left: Paper list ── */}
       <div className="paper-viewer-list">
-        <div className="paper-viewer-list-header">Papers</div>
+        <div className="paper-viewer-list-header">
+          <span>Papers</span>
+          {resolving && (
+            <span className="paper-viewer-resolve-status">
+              <span className="paper-viewer-resolve-spinner" />
+              Searching PDFs...
+            </span>
+          )}
+          {!resolving && resolveProgress && (
+            <span className="paper-viewer-resolve-done">
+              {resolveProgress.done}/{resolveProgress.total} found
+            </span>
+          )}
+        </div>
 
         <div className="paper-viewer-list-scroll">
           {loadingDetail ? (
@@ -460,13 +567,13 @@ export default function PaperViewerPanel({
             <div className="paper-viewer-list-empty">No papers in this bookmark</div>
           ) : (
             papers.map((paper, index) => {
-              const hasPdf = Boolean(paper.pdf_url);
+              const hasPdf = Boolean(getEffectivePdfUrl(paper));
               const isSelected = selectedIndex === index;
               return (
                 <div
                   key={index}
                   className={`paper-viewer-item${isSelected ? ' selected' : ''}`}
-                  onClick={() => handleSelectPaper(index)}
+                  onClick={() => resolveAndSelect(index)}
                   title={paper.title}
                 >
                   {hasPdf && (
