@@ -3323,3 +3323,52 @@
   border-radius: 6px;
   margin-bottom: 12px;
 }
+
+/* ===== Direct Paper Viewer Sidebar ===== */
+.paper-viewer-direct-sidebar {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: #161616;
+  border-right: 1px solid #1e1e1e;
+  border-radius: 12px 0 0 12px;
+}
+
+.paper-viewer-direct-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.paper-viewer-direct-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+}
+
+.paper-viewer-direct-info {
+  padding: 16px;
+}
+
+.paper-viewer-direct-info .paper-viewer-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e7eb;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.paper-viewer-direct-info .paper-viewer-item-meta {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}

@@ -769,7 +769,12 @@ function App() {
                 <div className="right-panel">
                   <div className="pane-title">Details</div>
                   {selectedPaper ? (
-                    <DetailPanel paper={selectedPaper} />
+                    <DetailPanel
+                      paper={selectedPaper}
+                      onViewPaper={(paper) => {
+                        navigate('/mypage', { state: { viewPaper: paper } });
+                      }}
+                    />
                   ) : (
                     <div className="no-selection">논문을 선택하세요</div>
                   )}

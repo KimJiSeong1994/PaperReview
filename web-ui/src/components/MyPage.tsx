@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
@@ -25,7 +26,21 @@ type MyPageTab = 'bookmarks' | 'curriculum' | 'papers';
 
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<MyPageTab>('bookmarks');
+
+  // Direct paper view from search results (via router state)
+  const [directPaper, setDirectPaper] = useState<any>(null);
+
+  useEffect(() => {
+    const state = location.state as { viewPaper?: any } | null;
+    if (state?.viewPaper) {
+      setDirectPaper(state.viewPaper);
+      setActiveTab('papers');
+      // Clear router state so refresh doesn't re-trigger
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
@@ -172,44 +187,86 @@ function MyPage({ onBack }: MyPageProps) {
       {/* Tab content */}
       {activeTab === 'papers' ? (
         <div className="mypage-content">
-          <BookmarkSidebar
-            bookmarks={bm.bookmarks}
-            filteredBookmarks={bm.filteredBookmarks}
-            topicGroups={bm.topicGroups}
-            allTopics={bm.allTopics}
-            selectedBookmark={bm.selectedBookmark}
-            selectedIds={bm.selectedIds}
-            loadingBookmarks={bm.loadingBookmarks}
-            searchQuery={bm.searchQuery}
-            setSearchQuery={bm.setSearchQuery}
-            allNotesMode={bm.allNotesMode}
-            setAllNotesMode={bm.setAllNotesMode}
-            topicAccordionOpen={bm.topicAccordionOpen}
-            toggleTopicAccordion={bm.toggleTopicAccordion}
-            showNewTopicInput={bm.showNewTopicInput}
-            setShowNewTopicInput={bm.setShowNewTopicInput}
-            newTopicInput={bm.newTopicInput}
-            setNewTopicInput={bm.setNewTopicInput}
-            overTopicId={bm.overTopicId}
-            activeDragBookmark={bm.activeDragBookmark}
-            sensors={bm.sensors}
-            onDragStart={bm.handleDragStart}
-            onDragOver={bm.handleDragOver}
-            onDragEnd={bm.handleDragEnd}
-            onSelect={handleSelectBookmarkDirect}
-            onDelete={bm.handleDeleteBookmark}
-            onToggleSelection={bm.handleToggleSelection}
-            onSelectAll={bm.handleSelectAll}
-            onDeselectAll={bm.handleDeselectAll}
-            onBulkDelete={bm.handleBulkDelete}
-            onBulkMove={bm.handleBulkMove}
-            onAddTopic={bm.handleAddTopic}
-          />
-          <PaperViewerPanel
-            bookmarkDetail={bm.bookmarkDetail}
-            loadingDetail={bm.loadingDetail}
-            hasSelectedBookmark={!!bm.selectedBookmark}
-          />
+          {directPaper ? (
+            <>
+              <div className="paper-viewer-direct-sidebar">
+                <div className="paper-viewer-list-header">
+                  <span>Search Result</span>
+                  <button
+                    className="paper-viewer-direct-close"
+                    onClick={() => setDirectPaper(null)}
+                    title="Close and return to bookmarks"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="paper-viewer-direct-info">
+                  <div className="paper-viewer-item-title">{directPaper.title}</div>
+                  <div className="paper-viewer-item-meta">
+                    {directPaper.authors?.slice(0, 2).join(', ')}{directPaper.authors?.length > 2 ? ' et al.' : ''}
+                    {directPaper.year ? ` · ${directPaper.year}` : ''}
+                  </div>
+                </div>
+              </div>
+              <PaperViewerPanel
+                bookmarkDetail={{ papers: [{
+                  title: directPaper.title,
+                  authors: directPaper.authors || [],
+                  year: directPaper.year,
+                  pdf_url: directPaper.pdf_url || undefined,
+                  doi: directPaper.doi || undefined,
+                  url: directPaper.url || undefined,
+                  source: directPaper.source || undefined,
+                }]}}
+                loadingDetail={false}
+                hasSelectedBookmark={true}
+                autoSelectFirst={true}
+              />
+            </>
+          ) : (
+            <>
+              <BookmarkSidebar
+                bookmarks={bm.bookmarks}
+                filteredBookmarks={bm.filteredBookmarks}
+                topicGroups={bm.topicGroups}
+                allTopics={bm.allTopics}
+                selectedBookmark={bm.selectedBookmark}
+                selectedIds={bm.selectedIds}
+                loadingBookmarks={bm.loadingBookmarks}
+                searchQuery={bm.searchQuery}
+                setSearchQuery={bm.setSearchQuery}
+                allNotesMode={bm.allNotesMode}
+                setAllNotesMode={bm.setAllNotesMode}
+                topicAccordionOpen={bm.topicAccordionOpen}
+                toggleTopicAccordion={bm.toggleTopicAccordion}
+                showNewTopicInput={bm.showNewTopicInput}
+                setShowNewTopicInput={bm.setShowNewTopicInput}
+                newTopicInput={bm.newTopicInput}
+                setNewTopicInput={bm.setNewTopicInput}
+                overTopicId={bm.overTopicId}
+                activeDragBookmark={bm.activeDragBookmark}
+                sensors={bm.sensors}
+                onDragStart={bm.handleDragStart}
+                onDragOver={bm.handleDragOver}
+                onDragEnd={bm.handleDragEnd}
+                onSelect={handleSelectBookmarkDirect}
+                onDelete={bm.handleDeleteBookmark}
+                onToggleSelection={bm.handleToggleSelection}
+                onSelectAll={bm.handleSelectAll}
+                onDeselectAll={bm.handleDeselectAll}
+                onBulkDelete={bm.handleBulkDelete}
+                onBulkMove={bm.handleBulkMove}
+                onAddTopic={bm.handleAddTopic}
+              />
+              <PaperViewerPanel
+                bookmarkDetail={bm.bookmarkDetail}
+                loadingDetail={bm.loadingDetail}
+                hasSelectedBookmark={!!bm.selectedBookmark}
+              />
+            </>
+          )}
         </div>
       ) : activeTab === 'bookmarks' ? (
         <div className="mypage-content">

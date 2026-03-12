@@ -29,6 +29,7 @@ export interface PaperViewerPanelProps {
   bookmarkDetail: any;
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
+  autoSelectFirst?: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -39,8 +40,13 @@ const ZOOM_MAX = 3.0;
 const ZOOM_DEFAULT = 1.0;
 
 function buildPdfSrc(pdfUrl: string): string {
-  if (pdfUrl.includes('arxiv.org')) {
-    return pdfUrl;
+  try {
+    const hostname = new URL(pdfUrl).hostname;
+    if (hostname === 'arxiv.org' || hostname.endsWith('.arxiv.org')) {
+      return pdfUrl;
+    }
+  } catch {
+    // Invalid URL — fall through to proxy
   }
   return `/api/pdf/proxy?url=${encodeURIComponent(pdfUrl)}`;
 }
@@ -155,6 +161,7 @@ export default function PaperViewerPanel({
   bookmarkDetail,
   loadingDetail,
   hasSelectedBookmark,
+  autoSelectFirst = false,
 }: PaperViewerPanelProps) {
   const papers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
 
@@ -166,6 +173,7 @@ export default function PaperViewerPanel({
   const [fitWidth, setFitWidth] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [documentKey, setDocumentKey] = useState(0);
 
   // Auto-resolve: cache of resolved pdf_urls keyed by paper title
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, ResolvedUrl>>({});
@@ -174,6 +182,11 @@ export default function PaperViewerPanel({
 
   const docScrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(600);
+
+  // H-4: track the index for which we last started resolving, to discard stale results
+  const resolveRequestIndexRef = useRef<number | null>(null);
+  // H-5: track whether auto-select has fired for the current bookmarkDetail
+  const autoSelectTriggered = useRef(false);
 
   // Reset viewer state AND auto-resolve PDF URLs in a single effect
   // to avoid race conditions between separate reset/resolve effects
@@ -187,9 +200,13 @@ export default function PaperViewerPanel({
     setFitWidth(false);
     setPdfError(null);
     setPdfLoading(false);
+    setDocumentKey(0);
     setResolvedUrls({});
     setResolving(false);
     setResolveProgress(null);
+    // H-5: reset auto-select trigger so the first paper is re-selected on new bookmark
+    autoSelectTriggered.current = false;
+    resolveRequestIndexRef.current = null;
 
     // ── Auto-resolve PDF URLs for papers without pdf_url ──
     const currentPapers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
@@ -258,12 +275,18 @@ export default function PaperViewerPanel({
   const pdfSrc = effectivePdfUrl ? buildPdfSrc(effectivePdfUrl) : null;
 
   // On-demand resolve: when clicking a paper without pdf_url, resolve individually
+  // H-4: uses a ref to track the "current" request index; stale responses are silently dropped
   const resolveAndSelect = useCallback(async (index: number) => {
+    // Mark this as the active request, cancelling any in-flight prior request
+    resolveRequestIndexRef.current = index;
+    const requestIndex = index;
+
     setSelectedIndex(index);
     setNumPages(null);
     setCurrentPage(1);
     setPageInputValue('1');
     setPdfError(null);
+    setDocumentKey(k => k + 1);
 
     const paper = papers[index];
     if (!paper) return;
@@ -278,6 +301,8 @@ export default function PaperViewerPanel({
     setPdfLoading(true);
     try {
       const data = await resolvePdfUrl(paper.title, paper.doi || undefined);
+      // H-4: discard result if a newer selection was made while we were awaiting
+      if (resolveRequestIndexRef.current !== requestIndex) return;
       if (data.pdf_url) {
         setResolvedUrls(prev => ({
           ...prev,
@@ -287,9 +312,18 @@ export default function PaperViewerPanel({
       }
     } catch {
       // Ignore errors — will show "not available"
+      if (resolveRequestIndexRef.current !== requestIndex) return;
     }
     setPdfLoading(false);
   }, [papers, resolvedUrls]);
+
+  // Auto-select first paper when autoSelectFirst is enabled (e.g., from search results)
+  useEffect(() => {
+    if (autoSelectFirst && papers.length > 0 && !autoSelectTriggered.current) {
+      autoSelectTriggered.current = true;
+      resolveAndSelect(0);
+    }
+  }, [autoSelectFirst, papers.length, resolveAndSelect]);
 
   const handleDocumentLoadSuccess = useCallback(({ numPages: n }: { numPages: number }) => {
     setNumPages(n);
@@ -412,6 +446,7 @@ export default function PaperViewerPanel({
       <>
         <div className="paper-viewer-doc-scroll" ref={docScrollRef}>
           <Document
+            key={documentKey}
             file={pdfSrc}
             onLoadSuccess={handleDocumentLoadSuccess}
             onLoadError={handleDocumentLoadError}
@@ -432,8 +467,8 @@ export default function PaperViewerPanel({
                   onClick={() => {
                     setPdfError(null);
                     setPdfLoading(true);
-                    // Force re-mount by toggling a key via re-select
-                    resolveAndSelect(selectedIndex!);
+                    // M-3/M-4: increment documentKey to force Document re-mount
+                    setDocumentKey(k => k + 1);
                   }}
                 >
                   Retry
@@ -571,7 +606,7 @@ export default function PaperViewerPanel({
               const isSelected = selectedIndex === index;
               return (
                 <div
-                  key={index}
+                  key={paper.doi || paper.title}
                   className={`paper-viewer-item${isSelected ? ' selected' : ''}`}
                   onClick={() => resolveAndSelect(index)}
                   title={paper.title}

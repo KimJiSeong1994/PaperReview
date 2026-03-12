@@ -51,6 +51,19 @@
   cursor: pointer;
 }
 
+.view-paper-button {
+  cursor: pointer;
+  background: rgba(165, 180, 252, 0.1) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(165, 180, 252, 0.2) !important;
+}
+
+.view-paper-button:hover {
+  background: rgba(165, 180, 252, 0.18) !important;
+  border-color: rgba(165, 180, 252, 0.35) !important;
+  color: #c7d2fe !important;
+}
+
 .cite-button.copied {
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;

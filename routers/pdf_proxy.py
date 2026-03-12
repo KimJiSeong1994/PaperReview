@@ -6,10 +6,14 @@ PDF proxy and resolver endpoints:
 """
 
 import asyncio
+import ipaddress
 import logging
+import os
 import re
-from typing import List, Optional
-from urllib.parse import quote, urlparse
+import socket
+import time
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -38,7 +42,38 @@ ALLOWED_DOMAINS: set[str] = {
 
 _ARXIV_ID_RE = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
 _HTTPX_TIMEOUT = 30.0
-_UNPAYWALL_EMAIL = "paperreview@example.com"
+_UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "paperreview@example.com")
+
+_MAX_REDIRECTS = 5
+
+# ── Private-IP ranges for SSRF protection ────────────────────────────
+
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Return True if *hostname* resolves to a private/loopback IP address."""
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+        for family, _type, _proto, _canonname, sockaddr in addr_infos:
+            ip = ipaddress.ip_address(sockaddr[0])
+            for network in _PRIVATE_NETWORKS:
+                if ip in network:
+                    return True
+    except (socket.gaierror, ValueError, OSError):
+        # If we cannot resolve the hostname, treat it as blocked.
+        return True
+    return False
 
 
 # ── Pydantic models ──────────────────────────────────────────────────
@@ -61,14 +96,102 @@ class BatchResolveResponse(BaseModel):
     results: List[PdfResolveResponse]
 
 
+# ── TTL Cache for resolve results ────────────────────────────────────
+
+_RESOLVE_CACHE_MAXSIZE = 2000
+_RESOLVE_CACHE_TTL = 6 * 3600  # 6 hours in seconds
+_resolve_cache: Dict[str, Tuple[PdfResolveResponse, float]] = {}
+_resolve_cache_lock = asyncio.Lock()
+
+
+def _cache_key(title: str, doi: Optional[str]) -> str:
+    """Build a normalised cache key from title and optional DOI."""
+    key = title.strip().lower()
+    if doi:
+        key += "|" + doi.strip().lower()
+    return key
+
+
+async def _cache_get(title: str, doi: Optional[str]) -> Optional[PdfResolveResponse]:
+    """Return a cached result if it exists and is still valid."""
+    key = _cache_key(title, doi)
+    async with _resolve_cache_lock:
+        entry = _resolve_cache.get(key)
+        if entry is None:
+            return None
+        result, ts = entry
+        if time.monotonic() - ts > _RESOLVE_CACHE_TTL:
+            del _resolve_cache[key]
+            return None
+        return result
+
+
+async def _cache_put(title: str, doi: Optional[str], result: PdfResolveResponse) -> None:
+    """Store a successful result in the cache, evicting oldest if full."""
+    key = _cache_key(title, doi)
+    async with _resolve_cache_lock:
+        # Evict expired entries if we are at capacity
+        if len(_resolve_cache) >= _RESOLVE_CACHE_MAXSIZE and key not in _resolve_cache:
+            now = time.monotonic()
+            expired_keys = [
+                k for k, (_, ts) in _resolve_cache.items()
+                if now - ts > _RESOLVE_CACHE_TTL
+            ]
+            for k in expired_keys:
+                del _resolve_cache[k]
+            # If still full, evict the oldest entry
+            if len(_resolve_cache) >= _RESOLVE_CACHE_MAXSIZE:
+                oldest_key = min(_resolve_cache, key=lambda k: _resolve_cache[k][1])
+                del _resolve_cache[oldest_key]
+        _resolve_cache[key] = (result, time.monotonic())
+
+
+# ── Singleton httpx.AsyncClient (H-2) ────────────────────────────────
+
+_http_client: Optional[httpx.AsyncClient] = None
+_http_client_lock = asyncio.Lock()
+
+
+async def _get_http_client() -> httpx.AsyncClient:
+    """Return the module-level singleton AsyncClient, creating it on first call."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        async with _http_client_lock:
+            # Double-check after acquiring the lock
+            if _http_client is None or _http_client.is_closed:
+                _http_client = httpx.AsyncClient(
+                    follow_redirects=False,
+                    timeout=_HTTPX_TIMEOUT,
+                    limits=httpx.Limits(
+                        max_connections=20,
+                        max_keepalive_connections=10,
+                    ),
+                )
+    return _http_client
+
+
+async def close_http_client() -> None:
+    """Close the singleton client. Call during application shutdown."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        await _http_client.aclose()
+        _http_client = None
+
+
 # ── Helpers ───────────────────────────────────────────────────────────
 
 def _is_allowed_url(url: str) -> bool:
-    """Return True if *url* belongs to one of the allowed academic domains."""
+    """Return True if *url* belongs to an allowed academic domain with a safe scheme and non-private IP."""
     try:
         parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
         hostname = parsed.hostname or ""
-        return any(hostname == domain or hostname.endswith(f".{domain}") for domain in ALLOWED_DOMAINS)
+        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in ALLOWED_DOMAINS):
+            return False
+        if _is_private_ip(hostname):
+            return False
+        return True
     except Exception:
         return False
 
@@ -79,6 +202,37 @@ def _extract_arxiv_id(text: str) -> Optional[str]:
     if match:
         return match.group(0)
     return None
+
+
+async def _resolve_final_url(
+    client: httpx.AsyncClient,
+    url: str,
+) -> str:
+    """Follow redirects via HEAD requests, re-validating SSRF at each hop.
+
+    Returns the final URL after all redirects have been resolved.
+    Raises HTTPException if any redirect targets a disallowed URL.
+    """
+    current_url = url
+    for _ in range(_MAX_REDIRECTS):
+        resp = await client.head(current_url)
+        if resp.is_redirect:
+            location = resp.headers.get("location")
+            if not location:
+                raise HTTPException(status_code=502, detail="Redirect without Location header")
+            # Resolve relative redirects
+            if not location.startswith(("http://", "https://")):
+                location = urljoin(str(resp.url), location)
+            if not _is_allowed_url(location):
+                logger.warning("Blocked redirect to disallowed URL: %s", location)
+                raise HTTPException(
+                    status_code=403,
+                    detail="Redirect target is not in the allowed domain list",
+                )
+            current_url = location
+        else:
+            return current_url
+    raise HTTPException(status_code=502, detail="Too many redirects")
 
 
 async def _resolve_single(
@@ -105,10 +259,10 @@ async def _resolve_single(
                 pdf_url = best_oa.get("url_for_pdf") or best_oa.get("url")
                 if pdf_url:
                     return PdfResolveResponse(pdf_url=pdf_url, source="unpaywall")
-        except httpx.RequestError:
-            pass
+        except httpx.RequestError as exc:
+            logger.debug("Unpaywall request failed for DOI '%s': %s", doi, exc)
 
-    # ── 3. Semantic Scholar (title search → openAccessPdf) ───────────
+    # ── 3. Semantic Scholar (title search -> openAccessPdf) ───────────
     try:
         resp = await client.get(
             "https://api.semanticscholar.org/graph/v1/paper/search",
@@ -129,29 +283,28 @@ async def _resolve_single(
                         pdf_url=f"https://arxiv.org/pdf/{s2_arxiv_id}.pdf",
                         source="arxiv",
                     )
-    except httpx.RequestError:
-        pass
+    except httpx.RequestError as exc:
+        logger.debug("Semantic Scholar request failed for '%s': %s", title[:50], exc)
 
     # ── 4. arXiv API title search (fallback) ─────────────────────────
     try:
         arxiv_search_url = (
-            "http://export.arxiv.org/api/query"
+            "https://export.arxiv.org/api/query"
             f"?search_query=ti:%22{quote(title)}%22&max_results=1"
         )
         resp = await client.get(arxiv_search_url)
         if resp.status_code == 200:
             body = resp.text
             # Extract arXiv ID from Atom XML <id> tag
-            import re as _re
-            id_match = _re.search(r"<id>http://arxiv\.org/abs/([^<]+)</id>", body)
+            id_match = re.search(r"<id>http://arxiv\.org/abs/([^<]+)</id>", body)
             if id_match:
                 found_id = id_match.group(1).strip()
                 return PdfResolveResponse(
                     pdf_url=f"https://arxiv.org/pdf/{found_id}.pdf",
                     source="arxiv",
                 )
-    except httpx.RequestError:
-        pass
+    except httpx.RequestError as exc:
+        logger.debug("arXiv API request failed for '%s': %s", title[:50], exc)
 
     return PdfResolveResponse(pdf_url=None, source=None)
 
@@ -168,37 +321,61 @@ async def proxy_pdf(
     if not _is_allowed_url(url):
         raise HTTPException(
             status_code=400,
-            detail=f"URL domain is not in the allowed list: {ALLOWED_DOMAINS}",
+            detail="URL domain is not in the allowed list",
         )
 
     logger.info("Proxying PDF request: %s", url)
 
+    client = await _get_http_client()
+
+    # C-1: Resolve the final URL via HEAD requests, re-validating SSRF at each hop
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=_HTTPX_TIMEOUT) as client:
-            resp = await client.get(url)
+        final_url = await _resolve_final_url(client, url)
     except httpx.TimeoutException:
-        logger.warning("Timeout while fetching PDF: %s", url)
+        logger.warning("Timeout while resolving PDF redirects: %s", url)
         raise HTTPException(status_code=504, detail="Upstream PDF server timed out")
     except httpx.RequestError as exc:
-        logger.error("Request error while fetching PDF: %s – %s", url, exc)
+        logger.error("Request error while resolving PDF redirects: %s - %s", url, exc)
         raise HTTPException(status_code=502, detail="Failed to reach the PDF server")
 
-    if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="PDF not found at the given URL")
-    if resp.status_code >= 400:
-        logger.warning("Upstream returned %d for %s", resp.status_code, url)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Upstream server returned HTTP {resp.status_code}",
-        )
+    # H-1: True streaming -- open a streaming connection to the final URL
+    # and yield chunks without loading the entire body into memory.
+    # We capture content-length from the stream's initial headers.
+    async def _stream_pdf():
+        try:
+            async with client.stream("GET", final_url) as stream_resp:
+                if stream_resp.status_code == 404:
+                    raise HTTPException(status_code=404, detail="PDF not found at the given URL")
+                if stream_resp.status_code >= 400:
+                    logger.warning("Upstream returned %d for %s", stream_resp.status_code, final_url)
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Upstream server returned HTTP {stream_resp.status_code}",
+                    )
+                async for chunk in stream_resp.aiter_bytes(chunk_size=64 * 1024):
+                    yield chunk
+        except httpx.TimeoutException:
+            logger.warning("Timeout while streaming PDF: %s", final_url)
+        except httpx.RequestError as exc:
+            logger.error("Streaming error for %s: %s", final_url, exc)
+
+    # Use a HEAD request to get Content-Length for the response headers
+    response_headers: dict[str, str] = {
+        "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=3600",
+    }
+    try:
+        head_resp = await client.head(final_url)
+        cl = head_resp.headers.get("content-length")
+        if cl:
+            response_headers["Content-Length"] = cl
+    except httpx.RequestError as exc:
+        logger.debug("HEAD request for Content-Length failed for %s: %s", final_url, exc)
 
     return StreamingResponse(
-        iter([resp.content]),
+        _stream_pdf(),
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": "inline",
-            "Cache-Control": "public, max-age=3600",
-        },
+        headers=response_headers,
     )
 
 
@@ -210,11 +387,19 @@ async def resolve_pdf(
     doi: Optional[str] = Query(None, description="DOI of the paper"),
 ) -> PdfResolveResponse:
     """Try to find an open-access PDF URL for a paper."""
-    async with httpx.AsyncClient(follow_redirects=True, timeout=_HTTPX_TIMEOUT) as client:
-        result = await _resolve_single(client, title, doi)
+    # H-3: Check cache first
+    cached = await _cache_get(title, doi)
+    if cached is not None:
+        logger.debug("Cache hit for resolve('%s')", title[:50])
+        return cached
+
+    client = await _get_http_client()
+    result = await _resolve_single(client, title, doi)
 
     if result.pdf_url:
         logger.info("Resolved PDF for '%s': %s (%s)", title[:50], result.pdf_url, result.source)
+        # Only cache successful results
+        await _cache_put(title, doi, result)
     else:
         logger.info("Could not resolve PDF for '%s'", title[:50])
     return result
@@ -229,28 +414,55 @@ async def resolve_pdf_batch(
     """Batch resolve PDF URLs for multiple papers.
 
     Runs up to 5 concurrent lookups. Each paper goes through the same
-    resolution chain as the single endpoint (arXiv ID → Unpaywall → S2 → arXiv search).
+    resolution chain as the single endpoint (arXiv ID -> Unpaywall -> S2 -> arXiv search).
     """
     papers = body.papers[:20]  # Cap at 20 papers per batch
     semaphore = asyncio.Semaphore(5)
+    client = await _get_http_client()
+
+    # H-3: Check cache first, only resolve cache misses
+    cached_results: Dict[int, PdfResolveResponse] = {}
+    papers_to_resolve: List[Tuple[int, PaperResolveRequest]] = []
+
+    for i, paper in enumerate(papers):
+        cached = await _cache_get(paper.title, paper.doi)
+        if cached is not None:
+            cached_results[i] = cached
+        else:
+            papers_to_resolve.append((i, paper))
+
+    if cached_results:
+        logger.debug(
+            "Batch resolve: %d/%d cache hits", len(cached_results), len(papers)
+        )
 
     async def resolve_with_limit(paper: PaperResolveRequest) -> PdfResolveResponse:
         async with semaphore:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=_HTTPX_TIMEOUT) as client:
-                return await _resolve_single(client, paper.title, paper.doi)
+            return await _resolve_single(client, paper.title, paper.doi)
 
-    results = await asyncio.gather(
-        *(resolve_with_limit(p) for p in papers),
-        return_exceptions=True,
-    )
+    # Resolve only cache misses
+    if papers_to_resolve:
+        fetch_results = await asyncio.gather(
+            *(resolve_with_limit(p) for _, p in papers_to_resolve),
+            return_exceptions=True,
+        )
+    else:
+        fetch_results = []
 
-    resolved = []
-    for i, r in enumerate(results):
+    # Merge cached and freshly resolved results
+    resolved: List[PdfResolveResponse] = [PdfResolveResponse()] * len(papers)
+    for i, result in cached_results.items():
+        resolved[i] = result
+
+    for (idx, paper), r in zip(papers_to_resolve, fetch_results):
         if isinstance(r, Exception):
-            logger.warning("Batch resolve error for '%s': %s", papers[i].title[:50], r)
-            resolved.append(PdfResolveResponse(pdf_url=None, source=None))
+            logger.warning("Batch resolve error for '%s': %s", paper.title[:50], r)
+            resolved[idx] = PdfResolveResponse(pdf_url=None, source=None)
         else:
-            resolved.append(r)
+            resolved[idx] = r
+            # Only cache successful results
+            if r.pdf_url:
+                await _cache_put(paper.title, paper.doi, r)
 
     found = sum(1 for r in resolved if r.pdf_url)
     logger.info("Batch resolve: %d/%d papers found PDF URLs", found, len(papers))
