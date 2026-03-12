@@ -413,5 +413,6 @@ export function useBookmarks() {
     handleSelectAll, handleDeselectAll,
     handleBulkDelete, handleBulkMove,
     handleExportBibTeX, handleExportReport,
+    loadBookmarks,
   };
 }

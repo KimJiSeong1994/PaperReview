@@ -4,18 +4,20 @@ interface CurriculumDetailPanelProps {
   paper: CurriculumPaper | null;
   courseDetail: CurriculumCourse | null;
   onSearchPaper: (paper: CurriculumPaper) => void;
-  onBookmarkPaper?: (paper: CurriculumPaper) => void;
-  bookmarkLoading?: boolean;
-  bookmarkSuccess?: string | null;
+  onDeepReview?: (paper: CurriculumPaper) => void;
+  reviewStatus?: 'idle' | 'processing' | 'completed' | 'failed';
+  reviewProgress?: string;
+  reviewingPaperIds?: Set<string>;
 }
 
 export default function CurriculumDetailPanel({
   paper,
   courseDetail,
   onSearchPaper,
-  onBookmarkPaper,
-  bookmarkLoading,
-  bookmarkSuccess,
+  onDeepReview,
+  reviewStatus = 'idle',
+  reviewProgress = '',
+  reviewingPaperIds = new Set(),
 }: CurriculumDetailPanelProps) {
   // No paper selected — show course overview
   if (!paper) {
@@ -66,6 +68,9 @@ export default function CurriculumDetailPanel({
     );
   }
 
+  const isReviewingThis = reviewingPaperIds.has(paper.id);
+  const isAnyReviewing = reviewStatus === 'processing';
+
   // Paper selected — show detail
   return (
     <div className="curriculum-detail">
@@ -114,20 +119,31 @@ export default function CurriculumDetailPanel({
             Open via DOI
           </a>
         )}
-        {onBookmarkPaper && (
+        {onDeepReview && (
           <button
-            className={`curriculum-detail-action-btn bookmark ${bookmarkSuccess === paper.id ? 'success' : ''}`}
-            onClick={() => onBookmarkPaper(paper)}
-            disabled={bookmarkLoading}
+            className={`curriculum-detail-action-btn deep-review ${
+              isReviewingThis && reviewStatus === 'completed' ? 'success' : ''
+            }`}
+            onClick={() => onDeepReview(paper)}
+            disabled={isAnyReviewing}
           >
-            {bookmarkLoading
-              ? 'Saving...'
-              : bookmarkSuccess === paper.id
-                ? 'Bookmarked!'
-                : 'Save to Bookmarks'}
+            {isReviewingThis && reviewStatus === 'processing'
+              ? 'Analyzing...'
+              : isReviewingThis && reviewStatus === 'completed'
+                ? 'Saved to Bookmarks!'
+                : isReviewingThis && reviewStatus === 'failed'
+                  ? 'Failed'
+                  : 'Deep Research & Bookmark'}
           </button>
         )}
       </div>
+
+      {isReviewingThis && reviewStatus === 'processing' && reviewProgress && (
+        <div className="curriculum-review-progress">
+          <div className="curriculum-review-progress-spinner" />
+          <span>{reviewProgress}</span>
+        </div>
+      )}
     </div>
   );
 }

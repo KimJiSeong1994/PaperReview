@@ -82,6 +82,38 @@ class ReviewStatusResponse(BaseModel):
 
 # ── Helper functions ───────────────────────────────────────────────────
 
+def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Fetch abstracts from arXiv for papers that lack them."""
+    try:
+        import arxiv
+    except ImportError:
+        logger.warning("arxiv package not available for abstract enrichment")
+        return papers_data
+
+    enriched = []
+    for paper in papers_data:
+        paper = dict(paper)  # shallow copy to avoid mutating original
+        if not (paper.get("abstract") or paper.get("summary")):
+            aid = paper.get("arxiv_id")
+            if aid:
+                try:
+                    clean_id = aid.split("/")[-1] if "/" in aid else aid
+                    client = arxiv.Client()
+                    search = arxiv.Search(id_list=[clean_id])
+                    for result in client.results(search):
+                        paper["abstract"] = result.summary
+                        if not paper.get("categories") and result.categories:
+                            paper["categories"] = list(result.categories)
+                        if result.pdf_url:
+                            paper["pdf_url"] = result.pdf_url
+                        break
+                    logger.info("Enriched paper with arXiv abstract: %s", paper.get("title", "?")[:60])
+                except Exception as e:
+                    logger.warning("Failed to fetch arXiv abstract for %s: %s", aid, e)
+        enriched.append(paper)
+    return enriched
+
+
 def run_fast_review(
     session_id: str,
     paper_ids: List[str],
@@ -740,6 +772,13 @@ def run_deep_review_background(
                 review_sessions[session_id]["progress"] = (
                     "Analysing papers..." if fast_mode else "Researchers analyzing papers with deepagents..."
                 )
+
+        # Enrich papers lacking abstracts (e.g. curriculum papers with arxiv_id)
+        if papers_data:
+            with review_sessions_lock:
+                if session_id in review_sessions:
+                    review_sessions[session_id]["progress"] = "Fetching paper abstracts..."
+            papers_data = _enrich_papers_with_abstracts(papers_data)
 
         if fast_mode:
             result = run_fast_review(session_id, paper_ids, model, workspace, papers_data)

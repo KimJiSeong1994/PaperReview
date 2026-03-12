@@ -113,6 +113,13 @@ function MyPage({ onBack }: MyPageProps) {
     }
   }, [chat.scrollToHighlight, chat.highlightTerms, bm.bookmarkDetail, bm.loadingDetail]);
 
+  // Refresh bookmarks when switching back from curriculum tab
+  useEffect(() => {
+    if (activeTab === 'bookmarks') {
+      bm.loadBookmarks();
+    }
+  }, [activeTab]);
+
   // ── Curriculum hook ──
   const cur = useCurriculum();
 
@@ -310,6 +317,10 @@ function MyPage({ onBack }: MyPageProps) {
               onSelectPaper={cur.setSelectedPaperId}
               onToggleRead={cur.handleToggleRead}
               getModuleProgress={cur.getModuleProgress}
+              onDeepReviewModule={cur.handleDeepReviewModule}
+              reviewStatus={cur.reviewStatus}
+              reviewProgress={cur.reviewProgress}
+              reviewingModuleId={cur.reviewingModuleId}
             />
           )}
 
@@ -317,9 +328,10 @@ function MyPage({ onBack }: MyPageProps) {
             paper={cur.selectedPaper}
             courseDetail={cur.courseDetail}
             onSearchPaper={cur.handleSearchPaper}
-            onBookmarkPaper={cur.handleBookmarkPaper}
-            bookmarkLoading={cur.bookmarkLoading}
-            bookmarkSuccess={cur.bookmarkSuccess}
+            onDeepReview={cur.handleDeepReviewPaper}
+            reviewStatus={cur.reviewStatus}
+            reviewProgress={cur.reviewProgress}
+            reviewingPaperIds={cur.reviewingPaperIds}
           />
         </div>
       )}

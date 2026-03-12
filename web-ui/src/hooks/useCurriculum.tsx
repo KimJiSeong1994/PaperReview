@@ -8,7 +8,10 @@ import {
   forkCurriculum,
   deleteCurriculum,
   generateCurriculumStream,
-  saveBookmarkFromPaper,
+  startDeepReview,
+  getReviewStatus,
+  getReviewReport,
+  saveBookmark,
   createCurriculumShareLink,
   revokeCurriculumShareLink,
 } from '../api/client';
@@ -342,34 +345,138 @@ export function useCurriculum() {
     }
   }, [handleSelectCourse]);
 
-  // ── Bookmark integration ──
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
-  const [bookmarkSuccess, setBookmarkSuccess] = useState<string | null>(null);
+  // ── Deep Review & Bookmark integration ──
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle');
+  const [reviewProgress, setReviewProgress] = useState('');
+  const [reviewingPaperIds, setReviewingPaperIds] = useState<Set<string>>(new Set());
+  const [reviewingModuleId, setReviewingModuleId] = useState<string | null>(null);
+  const reviewPapersRef = useRef<CurriculumPaper[]>([]);
 
-  const handleBookmarkPaper = useCallback(async (paper: CurriculumPaper) => {
-    setBookmarkLoading(true);
-    setBookmarkSuccess(null);
+  const resetReviewState = useCallback(() => {
+    setReviewStatus('idle');
+    setReviewSessionId(null);
+    setReviewProgress('');
+    setReviewingPaperIds(new Set());
+    setReviewingModuleId(null);
+  }, []);
+
+  const handleDeepReviewPaper = useCallback(async (paper: CurriculumPaper) => {
+    if (reviewStatus === 'processing') return;
+    setReviewStatus('processing');
+    setReviewProgress('Starting deep research...');
+    setReviewingPaperIds(new Set([paper.id]));
+    setReviewingModuleId(null);
+    reviewPapersRef.current = [paper];
     try {
-      await saveBookmarkFromPaper({
-        title: paper.title,
-        authors: paper.authors,
-        year: paper.year,
-        venue: paper.venue,
-        doi: paper.doi,
-        arxiv_id: paper.arxiv_id,
-        context: paper.context,
-        source_curriculum: selectedCourseId || undefined,
-        topic: 'Curriculum Papers',
-        tags: ['curriculum'],
+      const response = await startDeepReview({
+        paper_ids: [paper.id],
+        papers: [{
+          title: paper.title,
+          authors: paper.authors,
+          year: paper.year,
+          venue: paper.venue,
+          doi: paper.doi || undefined,
+          arxiv_id: paper.arxiv_id || undefined,
+          context: paper.context,
+        }],
       });
-      setBookmarkSuccess(paper.id);
-      setTimeout(() => setBookmarkSuccess(null), 3000);
+      setReviewSessionId(response.session_id);
     } catch (err) {
-      console.error('Failed to bookmark paper:', err);
-    } finally {
-      setBookmarkLoading(false);
+      console.error('Failed to start deep review:', err);
+      setReviewStatus('failed');
+      setReviewProgress('Failed to start analysis');
+      setTimeout(resetReviewState, 3000);
     }
-  }, [selectedCourseId]);
+  }, [reviewStatus, resetReviewState]);
+
+  const handleDeepReviewModule = useCallback(async (moduleId: string) => {
+    if (reviewStatus === 'processing') return;
+    if (!courseDetail) return;
+    const mod = courseDetail.modules.find(m => m.id === moduleId);
+    if (!mod) return;
+    const allPapers = mod.topics.flatMap(t => t.papers);
+    if (allPapers.length === 0) return;
+
+    setReviewStatus('processing');
+    setReviewProgress(`Analyzing ${allPapers.length} papers...`);
+    setReviewingPaperIds(new Set(allPapers.map(p => p.id)));
+    setReviewingModuleId(moduleId);
+    reviewPapersRef.current = allPapers;
+    try {
+      const response = await startDeepReview({
+        paper_ids: allPapers.map(p => p.id),
+        papers: allPapers.map(p => ({
+          title: p.title,
+          authors: p.authors,
+          year: p.year,
+          venue: p.venue,
+          doi: p.doi || undefined,
+          arxiv_id: p.arxiv_id || undefined,
+          context: p.context,
+        })),
+      });
+      setReviewSessionId(response.session_id);
+    } catch (err) {
+      console.error('Failed to start module review:', err);
+      setReviewStatus('failed');
+      setReviewProgress('Failed to start analysis');
+      setTimeout(resetReviewState, 3000);
+    }
+  }, [reviewStatus, courseDetail, resetReviewState]);
+
+  // Poll review status + auto-save bookmark on completion
+  useEffect(() => {
+    if (!reviewSessionId || reviewStatus !== 'processing') return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await getReviewStatus(reviewSessionId);
+        setReviewProgress(status.progress || 'Analyzing papers...');
+
+        if (status.status === 'completed') {
+          clearInterval(pollInterval);
+          try {
+            const report = await getReviewReport(reviewSessionId);
+            const papers = reviewPapersRef.current;
+            const title = papers.length === 1
+              ? papers[0].title
+              : `${courseDetail?.name || 'Curriculum'} - Module Analysis`;
+
+            await saveBookmark({
+              session_id: reviewSessionId,
+              title,
+              query: '',
+              papers: papers.map(p => ({
+                title: p.title,
+                authors: p.authors,
+                year: String(p.year),
+              })),
+              report_markdown: report.report_markdown,
+              tags: ['curriculum'],
+              topic: 'Curriculum Papers',
+            });
+            setReviewStatus('completed');
+            setReviewProgress('Analysis complete! Saved to bookmarks.');
+          } catch (err) {
+            console.error('Failed to save bookmark after review:', err);
+            setReviewStatus('failed');
+            setReviewProgress('Analysis done but bookmark save failed');
+          }
+          setTimeout(resetReviewState, 3000);
+        } else if (status.status === 'failed') {
+          clearInterval(pollInterval);
+          setReviewStatus('failed');
+          setReviewProgress(status.error || 'Analysis failed');
+          setTimeout(resetReviewState, 3000);
+        }
+      } catch (err) {
+        console.error('Status poll error:', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [reviewSessionId, reviewStatus, courseDetail, resetReviewState]);
 
   // ── Curriculum sharing ──
   const [shareMessage, setShareMessage] = useState<string | null>(null);
@@ -433,8 +540,10 @@ export function useCurriculum() {
     generating,
     forking,
     generateProgress,
-    bookmarkLoading,
-    bookmarkSuccess,
+    reviewStatus,
+    reviewProgress,
+    reviewingPaperIds,
+    reviewingModuleId,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
@@ -446,7 +555,8 @@ export function useCurriculum() {
     handleShare,
     handleRevokeShare,
     shareMessage,
-    handleBookmarkPaper,
+    handleDeepReviewPaper,
+    handleDeepReviewModule,
     getModuleProgress,
   };
 }

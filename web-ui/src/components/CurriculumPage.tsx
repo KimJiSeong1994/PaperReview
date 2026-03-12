@@ -23,8 +23,10 @@ export default function CurriculumPage() {
     generating,
     forking,
     generateProgress,
-    bookmarkLoading,
-    bookmarkSuccess,
+    reviewStatus,
+    reviewProgress,
+    reviewingPaperIds,
+    reviewingModuleId,
     handleSelectCourse,
     setSelectedModuleId,
     setSelectedPaperId,
@@ -36,7 +38,8 @@ export default function CurriculumPage() {
     handleShare,
     handleRevokeShare,
     shareMessage,
-    handleBookmarkPaper,
+    handleDeepReviewPaper,
+    handleDeepReviewModule,
     getModuleProgress,
   } = useCurriculum();
 
@@ -90,6 +93,10 @@ export default function CurriculumPage() {
             onSelectPaper={setSelectedPaperId}
             onToggleRead={handleToggleRead}
             getModuleProgress={getModuleProgress}
+            onDeepReviewModule={handleDeepReviewModule}
+            reviewStatus={reviewStatus}
+            reviewProgress={reviewProgress}
+            reviewingModuleId={reviewingModuleId}
           />
         )}
 
@@ -97,9 +104,10 @@ export default function CurriculumPage() {
           paper={selectedPaper}
           courseDetail={courseDetail}
           onSearchPaper={handleSearchPaper}
-          onBookmarkPaper={handleBookmarkPaper}
-          bookmarkLoading={bookmarkLoading}
-          bookmarkSuccess={bookmarkSuccess}
+          onDeepReview={handleDeepReviewPaper}
+          reviewStatus={reviewStatus}
+          reviewProgress={reviewProgress}
+          reviewingPaperIds={reviewingPaperIds}
         />
       </div>
     </div>

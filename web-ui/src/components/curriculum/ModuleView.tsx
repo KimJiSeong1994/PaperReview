@@ -7,6 +7,10 @@ interface ModuleViewProps {
   onSelectPaper: (id: string) => void;
   onToggleRead: (id: string) => void;
   getModuleProgress: (moduleId: string) => { read: number; total: number };
+  onDeepReviewModule?: (moduleId: string) => void;
+  reviewStatus?: 'idle' | 'processing' | 'completed' | 'failed';
+  reviewProgress?: string;
+  reviewingModuleId?: string | null;
 }
 
 function CheckIcon() {
@@ -68,6 +72,10 @@ export default function ModuleView({
   onSelectPaper,
   onToggleRead,
   getModuleProgress,
+  onDeepReviewModule,
+  reviewStatus = 'idle',
+  reviewProgress = '',
+  reviewingModuleId = null,
 }: ModuleViewProps) {
   if (!module) {
     return (
@@ -98,6 +106,31 @@ export default function ModuleView({
             {mp.read} / {mp.total} ({percent}%)
           </span>
         </div>
+        {onDeepReviewModule && (
+          <div className="curriculum-module-header-actions">
+            <button
+              className={`curriculum-detail-action-btn deep-review module-review ${
+                reviewingModuleId === module.id && reviewStatus === 'completed' ? 'success' : ''
+              }`}
+              onClick={() => onDeepReviewModule(module.id)}
+              disabled={reviewStatus === 'processing'}
+            >
+              {reviewingModuleId === module.id && reviewStatus === 'processing'
+                ? 'Analyzing...'
+                : reviewingModuleId === module.id && reviewStatus === 'completed'
+                  ? 'Saved to Bookmarks!'
+                  : reviewingModuleId === module.id && reviewStatus === 'failed'
+                    ? 'Failed'
+                    : `Analyze All Papers (${mp.total})`}
+            </button>
+            {reviewingModuleId === module.id && reviewStatus === 'processing' && reviewProgress && (
+              <div className="curriculum-review-progress" style={{ marginTop: 8 }}>
+                <div className="curriculum-review-progress-spinner" />
+                <span>{reviewProgress}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="curriculum-papers-scroll">
