@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from .deps import (
+    get_openai_client,
     get_optional_user,
     query_analyzer,
     relevance_filter,
@@ -644,6 +645,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             query=request.query,
                             papers=all_papers_for_ranking,
                             intent=intent,
+                            openai_client=get_openai_client(),
+                            use_rrf=True,
                         )
                         # 소스별로 다시 분리
                         results = {s: [] for s in request.sources}
@@ -651,7 +654,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             src = paper.pop("_source_tag", "arxiv")
                             if src in results:
                                 results[src].append(paper)
-                        logger.info("[API] Hybrid ranking applied (intent=%s)", intent)
+                        logger.info("[API] Hybrid ranking applied (intent=%s, mode=rrf+hyde)", intent)
                 except Exception as e:
                     logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
 

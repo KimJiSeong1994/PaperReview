@@ -1,8 +1,15 @@
 """
 하이브리드 랭커: BM25 + Semantic + Citations + Recency
 QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
+
+개선 사항:
+- HyDE (Hypothetical Document Embedding) + Multi-Query 지원
+- RRF (Reciprocal Rank Fusion) 지원
+- Field-Weighted Semantic Scoring (title 0.6 + abstract 0.4)
+- 기존 weighted-sum 방식은 fallback으로 유지
 """
 
+import logging
 import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -14,6 +21,8 @@ try:
     BM25_AVAILABLE = True
 except ImportError:
     BM25_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 # ── Intent별 가중치 프리셋 ─────────────────────────────────────────
 
@@ -35,9 +44,18 @@ SOURCE_BOOST: Dict[str, float] = {
     "arxiv": 0.15,
 }
 
+# ── RRF 상수 ──────────────────────────────────────────────────────
+RRF_K = 60
+
 
 class HybridRanker:
-    """BM25 + Dense + Citations + Recency 하이브리드 랭커"""
+    """BM25 + Dense + Citations + Recency 하이브리드 랭커
+
+    지원 모드:
+    - use_rrf=True (기본): RRF (Reciprocal Rank Fusion) 점수로 최종 정렬
+    - use_rrf=False (fallback): 기존 weighted-sum 방식
+    - openai_client 제공 시: HyDE + Multi-Query로 semantic 품질 향상
+    """
 
     def __init__(self, similarity_calculator=None):
         """
@@ -55,6 +73,8 @@ class HybridRanker:
         intent: str = "paper_search",
         weights: Optional[Dict[str, float]] = None,
         top_k: Optional[int] = None,
+        openai_client=None,
+        use_rrf: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         논문 리스트를 하이브리드 점수로 랭킹.
@@ -63,8 +83,10 @@ class HybridRanker:
             query: 사용자 검색 쿼리
             papers: 랭킹할 논문 리스트
             intent: QueryAnalyzer가 판별한 검색 의도
-            weights: 커스텀 가중치 (None이면 intent 프리셋 사용)
+            weights: 커스텀 가중치 (None이면 intent 프리셋 사용, use_rrf=False일 때만 의미 있음)
             top_k: 상위 K개만 반환 (None이면 전부)
+            openai_client: OpenAI 클라이언트 (HyDE 활성화용, 선택)
+            use_rrf: True면 RRF 방식, False면 weighted-sum 방식 (기존 동작)
 
         Returns:
             랭킹된 논문 리스트 (_hybrid_score, _score_breakdown 포함)
@@ -72,26 +94,36 @@ class HybridRanker:
         if not papers:
             return []
 
+        if use_rrf:
+            return self.rank_papers_rrf(
+                query=query,
+                papers=papers,
+                intent=intent,
+                top_k=top_k,
+                openai_client=openai_client,
+            )
+
+        # ── Weighted-sum fallback (기존 동작 유지) ──────────────────
         w = dict(weights or INTENT_WEIGHT_PRESETS.get(intent, DEFAULT_WEIGHTS))
 
-        # 개별 시그널 계산
         bm25_scores = self._compute_bm25_scores(query, papers)
-        semantic_scores = self._compute_semantic_scores(query, papers)
+        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client)
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
 
         # Semantic fallback: 모든 semantic 점수가 0이면 가중치 재분배
-        # BM25에 과도하게 집중하지 않도록 균등 분배
         if all(s == 0.0 for s in semantic_scores) and w.get("semantic", 0) > 0:
             semantic_weight = w["semantic"]
             w["bm25"] = w.get("bm25", 0) + semantic_weight * 0.5
             w["citations"] = w.get("citations", 0) + semantic_weight * 0.3
             w["recency"] = w.get("recency", 0) + semantic_weight * 0.2
             w["semantic"] = 0.0
-            print("[HybridRanker] Semantic unavailable, redistributing weight: "
-                  f"bm25={w['bm25']:.2f}, citations={w['citations']:.2f}, recency={w['recency']:.2f}")
+            logger.info(
+                "[HybridRanker] Semantic unavailable, redistributing weight: "
+                "bm25=%.2f, citations=%.2f, recency=%.2f",
+                w["bm25"], w["citations"], w["recency"],
+            )
 
-        # 가중 합산 + 소스 부스트
         for i, paper in enumerate(papers):
             breakdown = {
                 "bm25": round(bm25_scores[i], 4),
@@ -105,7 +137,6 @@ class HybridRanker:
                 + w["citations"] * citation_scores[i]
                 + w["recency"] * recency_scores[i]
             )
-            # 소스 부스트 적용 (arXiv 우선)
             source = paper.get("_source_tag") or paper.get("source", "")
             boost = SOURCE_BOOST.get(source, 0.0)
             if boost:
@@ -115,7 +146,97 @@ class HybridRanker:
             paper["_hybrid_score"] = round(hybrid, 4)
             paper["_score_breakdown"] = breakdown
 
-        # 내림차순 정렬
+        papers.sort(key=lambda p: p.get("_hybrid_score", 0), reverse=True)
+
+        if top_k is not None:
+            papers = papers[:top_k]
+
+        return papers
+
+    def rank_papers_rrf(
+        self,
+        query: str,
+        papers: List[Dict[str, Any]],
+        intent: str = "paper_search",
+        top_k: Optional[int] = None,
+        openai_client=None,
+    ) -> List[Dict[str, Any]]:
+        """
+        RRF (Reciprocal Rank Fusion) 방식으로 논문 랭킹.
+
+        각 신호(BM25, Semantic, Citations, Recency)로 독립 정렬 후
+        RRF 공식 score(d) = Σ 1/(k + rank_i(d)) 로 통합.
+        마지막에 SOURCE_BOOST를 가산.
+
+        Args:
+            query: 사용자 검색 쿼리
+            papers: 랭킹할 논문 리스트
+            intent: QueryAnalyzer가 판별한 검색 의도 (현재 미사용, 향후 확장)
+            top_k: 상위 K개만 반환 (None이면 전부)
+            openai_client: OpenAI 클라이언트 (HyDE 활성화용, 선택)
+
+        Returns:
+            RRF 점수 기준으로 정렬된 논문 리스트 (_hybrid_score, _score_breakdown 포함)
+        """
+        if not papers:
+            return []
+
+        n = len(papers)
+
+        bm25_scores = self._compute_bm25_scores(query, papers)
+        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client)
+        citation_scores = self._compute_citation_scores(papers)
+        recency_scores = self._compute_recency_scores(papers)
+
+        # 각 신호별로 내림차순 순위 계산 (rank: 1-based)
+        def _ranks_from_scores(scores: List[float]) -> List[int]:
+            """점수 리스트를 받아 각 원소의 1-based 순위 반환 (높을수록 rank=1)."""
+            indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+            ranks = [0] * n
+            for rank, (idx, _) in enumerate(indexed, start=1):
+                ranks[idx] = rank
+            return ranks
+
+        bm25_ranks = _ranks_from_scores(bm25_scores)
+        semantic_ranks = _ranks_from_scores(semantic_scores)
+        citation_ranks = _ranks_from_scores(citation_scores)
+        recency_ranks = _ranks_from_scores(recency_scores)
+
+        # semantic 전부 0이면 해당 신호 제외 (rank 기여 없음 처리)
+        semantic_zero = all(s == 0.0 for s in semantic_scores)
+        if semantic_zero:
+            logger.info("[HybridRanker] RRF: Semantic unavailable, excluding from fusion")
+
+        for i, paper in enumerate(papers):
+            rrf_bm25 = 1.0 / (RRF_K + bm25_ranks[i])
+            rrf_semantic = 0.0 if semantic_zero else 1.0 / (RRF_K + semantic_ranks[i])
+            rrf_citations = 1.0 / (RRF_K + citation_ranks[i])
+            rrf_recency = 1.0 / (RRF_K + recency_ranks[i])
+
+            rrf_score = rrf_bm25 + rrf_semantic + rrf_citations + rrf_recency
+
+            breakdown = {
+                "bm25": round(bm25_scores[i], 4),
+                "semantic": round(semantic_scores[i], 4),
+                "citations": round(citation_scores[i], 4),
+                "recency": round(recency_scores[i], 4),
+                "rrf_bm25": round(rrf_bm25, 6),
+                "rrf_semantic": round(rrf_semantic, 6),
+                "rrf_citations": round(rrf_citations, 6),
+                "rrf_recency": round(rrf_recency, 6),
+                "rrf_mode": True,
+            }
+
+            # SOURCE_BOOST 적용 (arXiv 우선)
+            source = paper.get("_source_tag") or paper.get("source", "")
+            boost = SOURCE_BOOST.get(source, 0.0)
+            if boost:
+                rrf_score += boost
+                breakdown["source_boost"] = boost
+
+            paper["_hybrid_score"] = round(rrf_score, 6)
+            paper["_score_breakdown"] = breakdown
+
         papers.sort(key=lambda p: p.get("_hybrid_score", 0), reverse=True)
 
         if top_k is not None:
@@ -148,7 +269,7 @@ class HybridRanker:
 
             return self._min_max_normalize(raw_scores)
         except Exception as e:
-            print(f"[HybridRanker] BM25 error, falling back to keyword: {e}")
+            logger.warning("[HybridRanker] BM25 error, falling back to keyword: %s", e)
             return self._keyword_fallback(query, papers)
 
     def _keyword_fallback(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
@@ -165,41 +286,200 @@ class HybridRanker:
 
     # ── Semantic (dense) ─────────────────────────────────────────────
 
-    def _compute_semantic_scores(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
-        """OpenAI embedding 코사인 유사도 (배치 API). calculator 없으면 0."""
+    def _generate_hyde_embedding(
+        self,
+        query: str,
+        openai_client,
+    ) -> Optional[np.ndarray]:
+        """
+        HyDE (Hypothetical Document Embedding) + Multi-Query 평균 임베딩 생성.
+
+        1. gpt-4o-mini로 가상 초록(hypothetical abstract) 생성
+        2. gpt-4o-mini로 대안 검색 쿼리 2개 생성
+        3. [원본 쿼리, 가상 초록, 대안1, 대안2] 배치 임베딩
+        4. L2-정규화 후 평균 반환
+
+        Args:
+            query: 원본 사용자 쿼리
+            openai_client: OpenAI 클라이언트
+
+        Returns:
+            L2-정규화된 평균 임베딩 벡터, 실패 시 None
+        """
+        try:
+            # 1. 가상 초록 생성
+            hyde_response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a scientific paper abstract generator. "
+                            "Write a concise hypothetical abstract for a paper that would best answer the given research query. "
+                            "Output only the abstract text, no title or labels."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Research query: {query}",
+                    },
+                ],
+                max_tokens=200,
+                temperature=0.1,
+            )
+            hypothetical_abstract = hyde_response.choices[0].message.content or ""
+            hypothetical_abstract = hypothetical_abstract.strip()
+
+            # 2. 대안 검색 쿼리 2개 생성
+            alt_response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Generate 2 alternative search queries for academic paper search. "
+                            "Each query should rephrase the original from a different angle. "
+                            "Output exactly 2 lines, one query per line, no numbering or labels."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Original query: {query}",
+                    },
+                ],
+                max_tokens=100,
+                temperature=0.3,
+            )
+            alt_content = alt_response.choices[0].message.content or ""
+            alt_queries = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
+            alt_queries = alt_queries[:2]  # 최대 2개
+
+            # 3. 배치 임베딩: [원본 쿼리, 가상 초록] + 대안들
+            texts_to_embed = [query]
+            if hypothetical_abstract:
+                texts_to_embed.append(hypothetical_abstract)
+            texts_to_embed.extend(alt_queries)
+
+            embed_response = openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=[t[:8000] for t in texts_to_embed],
+            )
+            vectors = [np.array(d.embedding) for d in embed_response.data]
+
+            if not vectors:
+                return None
+
+            # 4. L2-정규화 후 평균
+            normalized = []
+            for v in vectors:
+                norm = np.linalg.norm(v)
+                if norm > 1e-9:
+                    normalized.append(v / norm)
+
+            if not normalized:
+                return None
+
+            avg = np.mean(np.stack(normalized), axis=0)
+            final_norm = np.linalg.norm(avg)
+            result = avg / final_norm if final_norm > 1e-9 else avg
+
+            logger.debug(
+                "[HybridRanker] HyDE embedding built from %d texts (query + %d alts + abstract)",
+                len(texts_to_embed),
+                len(alt_queries),
+            )
+            return result
+
+        except Exception as e:
+            logger.warning("[HybridRanker] HyDE embedding failed, will fall back to raw query: %s", e)
+            return None
+
+    def _compute_semantic_scores(
+        self,
+        query: str,
+        papers: List[Dict[str, Any]],
+        openai_client=None,
+    ) -> List[float]:
+        """
+        Field-Weighted Semantic 점수 (title 0.6 + abstract 0.4 코사인 유사도).
+
+        HyDE 활성화 시 openai_client를 이용해 더 풍부한 쿼리 임베딩을 생성.
+        SimilarityCalculator가 없으면 모두 0.0 반환.
+
+        배치 임베딩 구성:
+            [query, title_0, abstract_0, title_1, abstract_1, ...]
+
+        Args:
+            query: 검색 쿼리 (또는 HyDE 임베딩 소스)
+            papers: 랭킹할 논문 리스트
+            openai_client: HyDE 생성용 OpenAI 클라이언트 (선택)
+
+        Returns:
+            0~1 범위 semantic 점수 리스트
+        """
         if not self.similarity_calculator:
             return [0.0] * len(papers)
 
         try:
-            # 텍스트 준비: [query, paper1_text, paper2_text, ...]
-            texts = [query]
-            for p in papers:
-                title = p.get("title", "")
-                abstract = p.get("abstract", "")
-                texts.append(f"{title}. {abstract}" if abstract else title)
+            # HyDE 임베딩 시도 (openai_client 있을 때)
+            hyde_query_emb: Optional[np.ndarray] = None
+            if openai_client is not None:
+                hyde_query_emb = self._generate_hyde_embedding(query, openai_client)
+                if hyde_query_emb is not None:
+                    logger.info("[HybridRanker] HyDE embedding active for semantic scoring")
 
-            # 배치 임베딩 (get_embeddings_batch가 있으면 사용, 없으면 fallback)
-            if hasattr(self.similarity_calculator, 'get_embeddings_batch'):
+            # 배치 텍스트 구성: [query, title_0, abstract_0, title_1, abstract_1, ...]
+            texts: List[str] = [query]
+            for p in papers:
+                title = p.get("title", "") or ""
+                abstract = p.get("abstract", "") or ""
+                texts.append(title)
+                texts.append(abstract if abstract else title)
+
+            # 배치 임베딩
+            if hasattr(self.similarity_calculator, "get_embeddings_batch"):
                 embeddings = self.similarity_calculator.get_embeddings_batch(texts)
             else:
-                # fallback: 순차 호출
-                embeddings = [self.similarity_calculator._get_embedding(t[:8000]) for t in texts]
+                embeddings = [
+                    self.similarity_calculator._get_embedding(t[:8000]) for t in texts
+                ]
 
-            query_emb = embeddings[0]
-            if query_emb is None:
+            # 쿼리 임베딩 결정: HyDE 우선, 없으면 raw query 임베딩
+            raw_query_emb = embeddings[0]
+            if hyde_query_emb is not None:
+                query_emb = hyde_query_emb
+            elif raw_query_emb is not None:
+                query_emb = raw_query_emb
+            else:
                 return [0.0] * len(papers)
 
-            scores = []
+            scores: List[float] = []
             for i in range(len(papers)):
-                paper_emb = embeddings[i + 1]
-                if paper_emb is not None:
-                    sim = self.similarity_calculator._cosine_similarity(query_emb, paper_emb)
-                    scores.append(max(0.0, sim))
+                title_emb = embeddings[1 + i * 2]
+                abstract_emb = embeddings[2 + i * 2]
+
+                # title 유사도
+                if title_emb is not None:
+                    title_sim = self.similarity_calculator._cosine_similarity(query_emb, title_emb)
+                    title_sim = max(0.0, title_sim)
                 else:
-                    scores.append(0.0)
+                    title_sim = 0.0
+
+                # abstract 유사도
+                if abstract_emb is not None:
+                    abstract_sim = self.similarity_calculator._cosine_similarity(query_emb, abstract_emb)
+                    abstract_sim = max(0.0, abstract_sim)
+                else:
+                    abstract_sim = 0.0
+
+                # Field-weighted combination
+                weighted_sim = 0.6 * title_sim + 0.4 * abstract_sim
+                scores.append(weighted_sim)
+
             return scores
+
         except Exception as e:
-            print(f"[HybridRanker] Semantic scoring error: {e}")
+            logger.warning("[HybridRanker] Semantic scoring error: %s", e)
             return [0.0] * len(papers)
 
     # ── Citations ────────────────────────────────────────────────────
