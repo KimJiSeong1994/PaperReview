@@ -40,7 +40,6 @@ export interface ReportViewerProps {
   papersCollapsed: boolean;
   setPapersCollapsed: (v: boolean) => void;
   // Export
-  onExportBibTeX: () => void;
   onExportReport: () => void;
   // Selection toolbar
   selectionToolbar: { x: number; y: number; text: string } | null;
@@ -77,7 +76,7 @@ export default function ReportViewer({
   saveStatus, autoHighlighting,
   onSaveNotes, onAutoHighlight, onClearAllHighlights, onRemoveHighlight,
   papersCollapsed, setPapersCollapsed,
-  onExportBibTeX, onExportReport,
+  onExportReport,
   selectionToolbar, memoMode, memoInput, setMemoInput,
   onAddHighlight, onStartMemo, onSaveMemo, onCancelMemo,
   citationTreeData, citationTreeLoading, citationTreeError, citationTreeWarning,
@@ -216,7 +215,28 @@ export default function ReportViewer({
           </h2>
         )}
         <div className="mypage-detail-export-btns">
-          <button className="mypage-export-btn" onClick={onExportBibTeX} title="Export as BibTeX">BibTeX</button>
+          <button
+            className="mypage-export-btn"
+            onClick={onAutoHighlight}
+            disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
+            title="Auto-highlight key findings"
+          >
+            {autoHighlighting ? (
+              <>
+                <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                  <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Auto Review
+              </>
+            )}
+          </button>
           {bookmarkDetail.report_markdown && (
             <button className="mypage-export-btn" onClick={onExportReport} title="Export as Markdown">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
@@ -406,28 +426,6 @@ export default function ReportViewer({
                   title="Remove all highlights"
                 >Clear All</button>
               )}
-              <button
-                className="mypage-auto-highlight-btn"
-                onClick={(e) => { e.stopPropagation(); onAutoHighlight(); }}
-                disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
-                title="Auto-highlight key findings"
-              >
-                {autoHighlighting ? (
-                  <>
-                    <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                      <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
-                    </svg>
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    Auto
-                  </>
-                )}
-              </button>
             </div>
             {!notesCollapsed && (
               <div className="mypage-notes-body">

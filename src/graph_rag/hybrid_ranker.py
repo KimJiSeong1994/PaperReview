@@ -30,6 +30,11 @@ INTENT_WEIGHT_PRESETS: Dict[str, Dict[str, float]] = {
 
 DEFAULT_WEIGHTS = INTENT_WEIGHT_PRESETS["paper_search"]
 
+# ── 소스별 부스트 (arXiv 우선) ──────────────────────────────────────
+SOURCE_BOOST: Dict[str, float] = {
+    "arxiv": 0.15,
+}
+
 
 class HybridRanker:
     """BM25 + Dense + Citations + Recency 하이브리드 랭커"""
@@ -86,7 +91,7 @@ class HybridRanker:
             print("[HybridRanker] Semantic unavailable, redistributing weight: "
                   f"bm25={w['bm25']:.2f}, citations={w['citations']:.2f}, recency={w['recency']:.2f}")
 
-        # 가중 합산
+        # 가중 합산 + 소스 부스트
         for i, paper in enumerate(papers):
             breakdown = {
                 "bm25": round(bm25_scores[i], 4),
@@ -100,6 +105,13 @@ class HybridRanker:
                 + w["citations"] * citation_scores[i]
                 + w["recency"] * recency_scores[i]
             )
+            # 소스 부스트 적용 (arXiv 우선)
+            source = paper.get("_source_tag") or paper.get("source", "")
+            boost = SOURCE_BOOST.get(source, 0.0)
+            if boost:
+                hybrid += boost
+                breakdown["source_boost"] = boost
+
             paper["_hybrid_score"] = round(hybrid, 4)
             paper["_score_breakdown"] = breakdown
 

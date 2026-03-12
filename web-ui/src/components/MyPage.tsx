@@ -231,7 +231,6 @@ function MyPage({ onBack }: MyPageProps) {
             onRemoveHighlight={hl.handleRemoveHighlight}
             papersCollapsed={hl.papersCollapsed}
             setPapersCollapsed={hl.setPapersCollapsed}
-            onExportBibTeX={bm.handleExportBibTeX}
             onExportReport={bm.handleExportReport}
             selectionToolbar={hl.selectionToolbar}
             memoMode={hl.memoMode}
