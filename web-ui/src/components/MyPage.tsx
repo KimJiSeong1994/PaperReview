@@ -319,7 +319,6 @@ function MyPage({ onBack }: MyPageProps) {
               getModuleProgress={cur.getModuleProgress}
               onDeepReviewModule={cur.handleDeepReviewModule}
               reviewStatus={cur.reviewStatus}
-              reviewProgress={cur.reviewProgress}
               reviewingModuleId={cur.reviewingModuleId}
             />
           )}
@@ -332,6 +331,7 @@ function MyPage({ onBack }: MyPageProps) {
             reviewStatus={cur.reviewStatus}
             reviewProgress={cur.reviewProgress}
             reviewingPaperIds={cur.reviewingPaperIds}
+            reviewingModuleId={cur.reviewingModuleId}
           />
         </div>
       )}

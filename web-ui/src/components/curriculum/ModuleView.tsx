@@ -9,7 +9,6 @@ interface ModuleViewProps {
   getModuleProgress: (moduleId: string) => { read: number; total: number };
   onDeepReviewModule?: (moduleId: string) => void;
   reviewStatus?: 'idle' | 'processing' | 'completed' | 'failed';
-  reviewProgress?: string;
   reviewingModuleId?: string | null;
 }
 
@@ -74,7 +73,6 @@ export default function ModuleView({
   getModuleProgress,
   onDeepReviewModule,
   reviewStatus = 'idle',
-  reviewProgress = '',
   reviewingModuleId = null,
 }: ModuleViewProps) {
   if (!module) {
@@ -123,12 +121,6 @@ export default function ModuleView({
                     ? 'Failed'
                     : `Analyze All Papers (${mp.total})`}
             </button>
-            {reviewingModuleId === module.id && reviewStatus === 'processing' && reviewProgress && (
-              <div className="curriculum-review-progress" style={{ marginTop: 8 }}>
-                <div className="curriculum-review-progress-spinner" />
-                <span>{reviewProgress}</span>
-              </div>
-            )}
           </div>
         )}
       </div>

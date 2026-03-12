@@ -732,13 +732,14 @@
 }
 
 .curriculum-detail-action-btn.primary {
-  background: rgba(165, 180, 252, 0.1);
-  border-color: rgba(165, 180, 252, 0.2);
-  color: #a5b4fc;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
 }
 
 .curriculum-detail-action-btn.primary:hover {
-  background: rgba(165, 180, 252, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ececec;
 }
 
 /* Course overview in detail panel */
@@ -1527,15 +1528,15 @@
 
 /* ── Deep Review ───────────────────────────────────────────────────── */
 .curriculum-detail-action-btn.deep-review {
-  background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.25);
-  color: #c4b5fd;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
   font-weight: 500;
 }
 
 .curriculum-detail-action-btn.deep-review:hover:not(:disabled) {
-  background: rgba(139, 92, 246, 0.18);
-  color: #ddd6fe;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ececec;
 }
 
 .curriculum-detail-action-btn.deep-review:disabled {
@@ -1544,16 +1545,16 @@
 }
 
 .curriculum-detail-action-btn.deep-review.success {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.25);
+  background: rgba(52, 211, 153, 0.06);
+  border-color: rgba(52, 211, 153, 0.2);
   color: #6ee7b7;
 }
 
 .curriculum-btn-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(196, 181, 253, 0.25);
-  border-top-color: #c4b5fd;
+  border: 2px solid rgba(209, 213, 219, 0.25);
+  border-top-color: #d1d5db;
   border-radius: 50%;
   animation: curriculum-spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -1565,18 +1566,18 @@
   gap: 8px;
   margin-top: 12px;
   padding: 10px 14px;
-  background: rgba(139, 92, 246, 0.06);
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   font-size: 12px;
-  color: #a78bfa;
+  color: #9ca3af;
 }
 
 .curriculum-review-progress-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(167, 139, 250, 0.25);
-  border-top-color: #a78bfa;
+  border: 2px solid rgba(209, 213, 219, 0.2);
+  border-top-color: #9ca3af;
   border-radius: 50%;
   animation: curriculum-spin 0.8s linear infinite;
   flex-shrink: 0;

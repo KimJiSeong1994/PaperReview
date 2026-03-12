@@ -8,6 +8,7 @@ interface CurriculumDetailPanelProps {
   reviewStatus?: 'idle' | 'processing' | 'completed' | 'failed';
   reviewProgress?: string;
   reviewingPaperIds?: Set<string>;
+  reviewingModuleId?: string | null;
 }
 
 function SearchIcon() {
@@ -62,6 +63,7 @@ export default function CurriculumDetailPanel({
   reviewStatus = 'idle',
   reviewProgress = '',
   reviewingPaperIds = new Set(),
+  reviewingModuleId = null,
 }: CurriculumDetailPanelProps) {
   // No paper selected — show course overview
   if (!paper) {
@@ -113,6 +115,7 @@ export default function CurriculumDetailPanel({
   }
 
   const isReviewingThis = reviewingPaperIds.has(paper.id);
+  const isModuleReview = !!reviewingModuleId;
   const isAnyReviewing = reviewStatus === 'processing';
 
   // Paper selected — show detail
@@ -169,22 +172,22 @@ export default function CurriculumDetailPanel({
         {onDeepReview && (
           <button
             className={`curriculum-detail-action-btn deep-review ${
-              isReviewingThis && reviewStatus === 'completed' ? 'success' : ''
+              isReviewingThis && !isModuleReview && reviewStatus === 'completed' ? 'success' : ''
             }`}
             onClick={() => onDeepReview(paper)}
             disabled={isAnyReviewing}
           >
-            {isReviewingThis && reviewStatus === 'processing' ? (
+            {isReviewingThis && !isModuleReview && reviewStatus === 'processing' ? (
               <>
                 <div className="curriculum-btn-spinner" />
                 Analyzing...
               </>
-            ) : isReviewingThis && reviewStatus === 'completed' ? (
+            ) : isReviewingThis && !isModuleReview && reviewStatus === 'completed' ? (
               <>
                 <CheckIcon />
                 Saved to Bookmarks!
               </>
-            ) : isReviewingThis && reviewStatus === 'failed' ? (
+            ) : isReviewingThis && !isModuleReview && reviewStatus === 'failed' ? (
               'Failed'
             ) : (
               <>
@@ -196,10 +199,25 @@ export default function CurriculumDetailPanel({
         )}
       </div>
 
-      {isReviewingThis && reviewStatus === 'processing' && reviewProgress && (
+      {/* Individual paper review progress */}
+      {isReviewingThis && !isModuleReview && reviewStatus === 'processing' && reviewProgress && (
         <div className="curriculum-review-progress">
           <div className="curriculum-review-progress-spinner" />
           <span>{reviewProgress}</span>
+        </div>
+      )}
+
+      {/* Module-level review progress */}
+      {isModuleReview && reviewStatus === 'processing' && reviewProgress && (
+        <div className="curriculum-review-progress">
+          <div className="curriculum-review-progress-spinner" />
+          <span>{reviewProgress}</span>
+        </div>
+      )}
+      {isModuleReview && reviewStatus === 'completed' && (
+        <div className="curriculum-review-progress" style={{ color: '#22c55e' }}>
+          <CheckIcon />
+          <span>All papers saved to Bookmarks!</span>
         </div>
       )}
     </div>

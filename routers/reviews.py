@@ -419,26 +419,46 @@ def run_fast_review(
             if session_id in review_sessions:
                 review_sessions[session_id]["progress"] = "AI is analysing the papers..."
 
-        response = client.chat.completions.create(
-            model=deep_research_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "당신은 Nature, Science 등 최상위 저널의 리뷰어이자, "
-                        "해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다. "
-                        "단순한 논문 요약이 아닌, 비판적 사고와 학제간 통찰을 바탕으로 "
-                        "논문의 본질적 기여와 한계를 꿰뚫는 심층 분석을 수행합니다. "
-                        "모든 주장에는 구체적 근거를 제시하고, 숨겨진 가정과 잠재적 한계까지 도출합니다. "
-                        "체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.4,
-            max_tokens=32000,
-            timeout=120,
-        )
+        # Scale timeout with number of papers (min 180s, +60s per paper, max 600s)
+        api_timeout = min(600, max(180, 60 * len(papers)))
+        logger.info("[Fast Review] API timeout: %ds for %d papers", api_timeout, len(papers))
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "당신은 Nature, Science 등 최상위 저널의 리뷰어이자, "
+                    "해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다. "
+                    "단순한 논문 요약이 아닌, 비판적 사고와 학제간 통찰을 바탕으로 "
+                    "논문의 본질적 기여와 한계를 꿰뚫는 심층 분석을 수행합니다. "
+                    "모든 주장에는 구체적 근거를 제시하고, 숨겨진 가정과 잠재적 한계까지 도출합니다. "
+                    "체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        max_retries = 2
+        response = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = client.chat.completions.create(
+                    model=deep_research_model,
+                    messages=messages,
+                    temperature=0.4,
+                    max_tokens=32000,
+                    timeout=api_timeout,
+                )
+                break
+            except Exception as retry_err:
+                if "timeout" in str(retry_err).lower() and attempt < max_retries:
+                    logger.warning("[Fast Review] Attempt %d timed out, retrying...", attempt)
+                    with review_sessions_lock:
+                        if session_id in review_sessions:
+                            review_sessions[session_id]["progress"] = f"Retrying analysis (attempt {attempt + 1})..."
+                else:
+                    raise
+
         report_content = response.choices[0].message.content
         logger.info("[Fast Review] Usage: %s", response.usage)
 

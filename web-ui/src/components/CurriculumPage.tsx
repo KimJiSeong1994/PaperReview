@@ -95,7 +95,6 @@ export default function CurriculumPage() {
             getModuleProgress={getModuleProgress}
             onDeepReviewModule={handleDeepReviewModule}
             reviewStatus={reviewStatus}
-            reviewProgress={reviewProgress}
             reviewingModuleId={reviewingModuleId}
           />
         )}
@@ -108,6 +107,7 @@ export default function CurriculumPage() {
           reviewStatus={reviewStatus}
           reviewProgress={reviewProgress}
           reviewingPaperIds={reviewingPaperIds}
+          reviewingModuleId={reviewingModuleId}
         />
       </div>
     </div>
