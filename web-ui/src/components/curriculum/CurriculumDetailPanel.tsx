@@ -10,6 +10,50 @@ interface CurriculumDetailPanelProps {
   reviewingPaperIds?: Set<string>;
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function ArxivIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+function DoiIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function DeepReviewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 export default function CurriculumDetailPanel({
   paper,
   courseDetail,
@@ -97,6 +141,7 @@ export default function CurriculumDetailPanel({
           className="curriculum-detail-action-btn primary"
           onClick={() => onSearchPaper(paper)}
         >
+          <SearchIcon />
           Search in Jiphyeonjeon
         </button>
         {paper.arxiv_id && (
@@ -106,6 +151,7 @@ export default function CurriculumDetailPanel({
             rel="noopener noreferrer"
             className="curriculum-detail-action-btn"
           >
+            <ArxivIcon />
             Open on arXiv
           </a>
         )}
@@ -116,6 +162,7 @@ export default function CurriculumDetailPanel({
             rel="noopener noreferrer"
             className="curriculum-detail-action-btn"
           >
+            <DoiIcon />
             Open via DOI
           </a>
         )}
@@ -127,13 +174,24 @@ export default function CurriculumDetailPanel({
             onClick={() => onDeepReview(paper)}
             disabled={isAnyReviewing}
           >
-            {isReviewingThis && reviewStatus === 'processing'
-              ? 'Analyzing...'
-              : isReviewingThis && reviewStatus === 'completed'
-                ? 'Saved to Bookmarks!'
-                : isReviewingThis && reviewStatus === 'failed'
-                  ? 'Failed'
-                  : 'Deep Research & Bookmark'}
+            {isReviewingThis && reviewStatus === 'processing' ? (
+              <>
+                <div className="curriculum-btn-spinner" />
+                Analyzing...
+              </>
+            ) : isReviewingThis && reviewStatus === 'completed' ? (
+              <>
+                <CheckIcon />
+                Saved to Bookmarks!
+              </>
+            ) : isReviewingThis && reviewStatus === 'failed' ? (
+              'Failed'
+            ) : (
+              <>
+                <DeepReviewIcon />
+                Deep Research &amp; Bookmark
+              </>
+            )}
           </button>
         )}
       </div>
