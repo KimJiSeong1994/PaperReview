@@ -14,13 +14,14 @@ import ChatPanel from './mypage/ChatPanel';
 import CourseSidebar from './curriculum/CourseSidebar';
 import ModuleView from './curriculum/ModuleView';
 import CurriculumDetailPanel from './curriculum/CurriculumDetailPanel';
+import PaperViewerPanel from './mypage/PaperViewerPanel';
 import './CurriculumPage.css';
 
 interface MyPageProps {
   onBack: () => void;
 }
 
-type MyPageTab = 'bookmarks' | 'curriculum';
+type MyPageTab = 'bookmarks' | 'curriculum' | 'papers';
 
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
@@ -113,9 +114,9 @@ function MyPage({ onBack }: MyPageProps) {
     }
   }, [chat.scrollToHighlight, chat.highlightTerms, bm.bookmarkDetail, bm.loadingDetail]);
 
-  // Refresh bookmarks when switching back from curriculum tab
+  // Refresh bookmarks when switching to bookmarks or papers tab
   useEffect(() => {
-    if (activeTab === 'bookmarks') {
+    if (activeTab === 'bookmarks' || activeTab === 'papers') {
       bm.loadBookmarks();
     }
   }, [activeTab]);
@@ -134,13 +135,16 @@ function MyPage({ onBack }: MyPageProps) {
             <span className="mypage-brand-name">Jiphyeonjeon</span>
           </div>
           <div className="mypage-header-actions">
-            <button className="mypage-nav-btn" onClick={bm.handleBuildKG} disabled={bm.kgBuilding}
-              title="Build Knowledge Graph">
+            <button
+              className={`mypage-nav-btn ${activeTab === 'papers' ? 'mypage-nav-btn-active' : ''}`}
+              onClick={() => setActiveTab('papers')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
-                <circle cx="12" cy="5" r="3" /><circle cx="5" cy="19" r="3" /><circle cx="19" cy="19" r="3" />
-                <line x1="12" y1="8" x2="5" y2="16" /><line x1="12" y1="8" x2="19" y2="16" />
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
               </svg>
-              {bm.kgBuilding ? 'Building...' : 'Build KG'}
+              Papers
             </button>
             <button
               className={`mypage-nav-btn ${activeTab === 'curriculum' ? 'mypage-nav-btn-active' : ''}`}
@@ -166,7 +170,48 @@ function MyPage({ onBack }: MyPageProps) {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'bookmarks' ? (
+      {activeTab === 'papers' ? (
+        <div className="mypage-content">
+          <BookmarkSidebar
+            bookmarks={bm.bookmarks}
+            filteredBookmarks={bm.filteredBookmarks}
+            topicGroups={bm.topicGroups}
+            allTopics={bm.allTopics}
+            selectedBookmark={bm.selectedBookmark}
+            selectedIds={bm.selectedIds}
+            loadingBookmarks={bm.loadingBookmarks}
+            searchQuery={bm.searchQuery}
+            setSearchQuery={bm.setSearchQuery}
+            allNotesMode={bm.allNotesMode}
+            setAllNotesMode={bm.setAllNotesMode}
+            topicAccordionOpen={bm.topicAccordionOpen}
+            toggleTopicAccordion={bm.toggleTopicAccordion}
+            showNewTopicInput={bm.showNewTopicInput}
+            setShowNewTopicInput={bm.setShowNewTopicInput}
+            newTopicInput={bm.newTopicInput}
+            setNewTopicInput={bm.setNewTopicInput}
+            overTopicId={bm.overTopicId}
+            activeDragBookmark={bm.activeDragBookmark}
+            sensors={bm.sensors}
+            onDragStart={bm.handleDragStart}
+            onDragOver={bm.handleDragOver}
+            onDragEnd={bm.handleDragEnd}
+            onSelect={handleSelectBookmarkDirect}
+            onDelete={bm.handleDeleteBookmark}
+            onToggleSelection={bm.handleToggleSelection}
+            onSelectAll={bm.handleSelectAll}
+            onDeselectAll={bm.handleDeselectAll}
+            onBulkDelete={bm.handleBulkDelete}
+            onBulkMove={bm.handleBulkMove}
+            onAddTopic={bm.handleAddTopic}
+          />
+          <PaperViewerPanel
+            bookmarkDetail={bm.bookmarkDetail}
+            loadingDetail={bm.loadingDetail}
+            hasSelectedBookmark={!!bm.selectedBookmark}
+          />
+        </div>
+      ) : activeTab === 'bookmarks' ? (
         <div className="mypage-content">
           <BookmarkSidebar
             bookmarks={bm.bookmarks}

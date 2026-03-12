@@ -858,3 +858,12 @@ export const getAdminCurricula = async (): Promise<AdminCurriculaResponse> => {
   const response = await api.get<AdminCurriculaResponse>('/api/admin/curricula');
   return response.data;
 };
+
+// ── PDF API ───────────────────────────────────────────────────────────
+
+export async function resolvePdfUrl(title: string, doi?: string): Promise<{pdf_url: string | null; source: string | null}> {
+  const params: any = { title };
+  if (doi) params.doi = doi;
+  const { data } = await api.get('/api/pdf/resolve', { params });
+  return data;
+}

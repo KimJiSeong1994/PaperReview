@@ -311,6 +311,10 @@ function App() {
           title: p.title,
           authors: p.authors,
           year: p.year,
+          pdf_url: p.pdf_url || undefined,
+          doi: p.doi || undefined,
+          url: p.url || undefined,
+          source: p.source || undefined,
         })),
         report_markdown: reviewReport,
       });
