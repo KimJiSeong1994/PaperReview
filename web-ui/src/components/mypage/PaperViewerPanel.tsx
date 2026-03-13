@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -38,6 +38,34 @@ const ZOOM_STEP = 0.15;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
 const ZOOM_DEFAULT = 1.0;
+const PAGE_BUFFER = 2; // render ±2 pages around the visible one
+const ESTIMATED_PAGE_HEIGHT = 1100; // fallback height for placeholder pages
+
+/** Memoised wrapper – only re-renders when its own props change. */
+const MemoPage = memo(function MemoPage({
+  pageNumber,
+  scale,
+  width,
+  onHeight,
+}: {
+  pageNumber: number;
+  scale?: number;
+  width?: number;
+  onHeight?: (page: number, h: number) => void;
+}) {
+  return (
+    <Page
+      pageNumber={pageNumber}
+      scale={scale}
+      width={width}
+      renderTextLayer={true}
+      renderAnnotationLayer={true}
+      onRenderSuccess={() => {
+        // not needed for height tracking — handled via ref
+      }}
+    />
+  );
+});
 
 function buildPdfSrc(pdfUrl: string): string {
   try {
@@ -183,7 +211,11 @@ export default function PaperViewerPanel({
   const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pageHeights = useRef<Map<number, number>>(new Map());
   const isScrollingToPage = useRef(false);
+  const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([1, 2, 3]));
+  const zoomRafRef = useRef<number | null>(null);
+  const pendingZoomRef = useRef<number | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(600);
 
   // H-4: track the index for which we last started resolving, to discard stale results
@@ -265,27 +297,40 @@ export default function PaperViewerPanel({
     return () => obs.disconnect();
   }, []);
 
-  // Track visible page via IntersectionObserver
+  // Track visible page + virtualization via IntersectionObserver
   useEffect(() => {
     const scrollEl = docScrollRef.current;
     if (!scrollEl || !numPages) return;
 
+    const intersecting = new Set<number>();
     const observer = new IntersectionObserver(
       (entries) => {
-        if (isScrollingToPage.current) return;
-        let mostVisible: { page: number; ratio: number } | null = null;
         for (const entry of entries) {
           const page = Number(entry.target.getAttribute('data-page'));
-          if (!isNaN(page) && entry.intersectionRatio > (mostVisible?.ratio ?? 0)) {
-            mostVisible = { page, ratio: entry.intersectionRatio };
-          }
+          if (isNaN(page)) continue;
+          if (entry.isIntersecting) intersecting.add(page);
+          else intersecting.delete(page);
         }
-        if (mostVisible) {
-          setCurrentPage(mostVisible.page);
-          setPageInputValue(String(mostVisible.page));
+
+        if (intersecting.size === 0) return;
+
+        // Update current page (most visible)
+        if (!isScrollingToPage.current) {
+          const best = Math.min(...intersecting);
+          setCurrentPage(best);
+          setPageInputValue(String(best));
         }
+
+        // Build render window: visible pages ± buffer
+        const minPage = Math.min(...intersecting);
+        const maxPage = Math.max(...intersecting);
+        const renderFrom = Math.max(1, minPage - PAGE_BUFFER);
+        const renderTo = Math.min(numPages, maxPage + PAGE_BUFFER);
+        const newVisible = new Set<number>();
+        for (let p = renderFrom; p <= renderTo; p++) newVisible.add(p);
+        setVisiblePages(newVisible);
       },
-      { root: scrollEl, threshold: [0, 0.25, 0.5, 0.75, 1] },
+      { root: scrollEl, rootMargin: '200px 0px', threshold: 0 },
     );
 
     pageRefs.current.forEach((el) => observer.observe(el));
@@ -426,20 +471,37 @@ export default function PaperViewerPanel({
   const effectiveWidth = fitWidth ? containerWidth : undefined;
   const effectiveScale = fitWidth ? undefined : zoom;
 
-  // Ctrl+Scroll → PDF zoom (non-passive listener to prevent browser zoom)
+  // Ctrl+Scroll → PDF zoom (debounced via rAF to avoid per-event re-renders)
   useEffect(() => {
     const el = pdfAreaRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        if (e.deltaY < 0) handleZoomIn();
-        else handleZoomOut();
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+
+      // Accumulate delta into pending zoom
+      const current = pendingZoomRef.current ?? zoom;
+      const step = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+      pendingZoomRef.current = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, parseFloat((current + step).toFixed(2))));
+
+      // Batch into a single rAF
+      if (zoomRafRef.current === null) {
+        zoomRafRef.current = requestAnimationFrame(() => {
+          zoomRafRef.current = null;
+          if (pendingZoomRef.current !== null) {
+            setFitWidth(false);
+            setZoom(pendingZoomRef.current);
+            pendingZoomRef.current = null;
+          }
+        });
       }
     };
     el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-  }, [handleZoomIn, handleZoomOut]);
+    return () => {
+      el.removeEventListener('wheel', handler);
+      if (zoomRafRef.current !== null) cancelAnimationFrame(zoomRafRef.current);
+    };
+  }, [zoom]);
 
   // ── Render ─────────────────────────────────────────────────────────
 
@@ -540,25 +602,39 @@ export default function PaperViewerPanel({
               </div>
             }
           >
-            {numPages !== null && Array.from({ length: numPages }, (_, i) => (
-              <div
-                key={i + 1}
-                data-page={i + 1}
-                ref={(el) => {
-                  if (el) pageRefs.current.set(i + 1, el);
-                  else pageRefs.current.delete(i + 1);
-                }}
-                style={{ marginBottom: '8px' }}
-              >
-                <Page
-                  pageNumber={i + 1}
-                  scale={effectiveScale}
-                  width={effectiveWidth}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                />
-              </div>
-            ))}
+            {numPages !== null && Array.from({ length: numPages }, (_, i) => {
+              const pageNum = i + 1;
+              const shouldRender = visiblePages.has(pageNum);
+              const knownHeight = pageHeights.current.get(pageNum);
+              return (
+                <div
+                  key={pageNum}
+                  data-page={pageNum}
+                  ref={(el) => {
+                    if (el) {
+                      pageRefs.current.set(pageNum, el);
+                      // Cache rendered page height for placeholder sizing
+                      if (el.offsetHeight > 50) {
+                        pageHeights.current.set(pageNum, el.offsetHeight);
+                      }
+                    } else {
+                      pageRefs.current.delete(pageNum);
+                    }
+                  }}
+                  style={{ marginBottom: '8px' }}
+                >
+                  {shouldRender ? (
+                    <MemoPage
+                      pageNumber={pageNum}
+                      scale={effectiveScale}
+                      width={effectiveWidth}
+                    />
+                  ) : (
+                    <div style={{ height: knownHeight || ESTIMATED_PAGE_HEIGHT, background: 'var(--bg-secondary, #f5f5f5)' }} />
+                  )}
+                </div>
+              );
+            })}
           </Document>
 
           {pdfLoading && numPages === null && (
