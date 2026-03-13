@@ -45,11 +45,33 @@ ALLOWED_DOMAINS: set[str] = {
     "aclanthology.org",
     "www.nature.com",
     "www.science.org",
+    "pnas.org",
+    "journals.aps.org",
+    "iopscience.iop.org",
+    "www.mdpi.com",
+    "www.frontiersin.org",
+    "onlinelibrary.wiley.com",
+    "www.sciencedirect.com",
+    "academic.oup.com",
+    "royalsocietypublishing.org",
+    "journals.plos.org",
+    "www.cell.com",
+    "www.jmlr.org",
+    "openreview.net",
+    "eprint.iacr.org",
+    "www.cambridge.org",
+    "journals.sagepub.com",
+    "www.tandfonline.com",
+    "www.annualreviews.org",
     # Aggregators
     "ncbi.nlm.nih.gov",
     "europepmc.org",
     "core.ac.uk",
     "semanticscholar.org",
+    "unpaywall.org",
+    "pdfs.semanticscholar.org",
+    "huggingface.co",
+    "cdn-lfs.huggingface.co",
 }
 
 _ARXIV_ID_RE = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
@@ -192,14 +214,33 @@ async def close_http_client() -> None:
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
+_runtime_allowed_domains: set[str] = set()
+
+
+def allow_domain_at_runtime(url: str) -> None:
+    """Register a domain discovered via trusted resolve APIs (Unpaywall, S2)."""
+    try:
+        hostname = urlparse(url).hostname
+        if hostname and not _is_private_ip(hostname):
+            _runtime_allowed_domains.add(hostname)
+    except Exception:
+        pass
+
+
 def _is_allowed_url(url: str) -> bool:
-    """Return True if *url* belongs to an allowed academic domain with a safe scheme and non-private IP."""
+    """Return True if *url* has a safe scheme, non-private IP, and an allowed domain.
+
+    Domains are allowed if they are in the static ALLOWED_DOMAINS set or were
+    dynamically registered via ``allow_domain_at_runtime`` (i.e. URLs that our
+    own resolve pipeline discovered from trusted academic APIs).
+    """
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return False
         hostname = parsed.hostname or ""
-        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in ALLOWED_DOMAINS):
+        all_allowed = ALLOWED_DOMAINS | _runtime_allowed_domains
+        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in all_allowed):
             return False
         if _is_private_ip(hostname):
             return False
@@ -270,6 +311,7 @@ async def _resolve_single(
                 best_oa = resp.json().get("best_oa_location") or {}
                 pdf_url = best_oa.get("url_for_pdf") or best_oa.get("url")
                 if pdf_url:
+                    allow_domain_at_runtime(pdf_url)
                     return PdfResolveResponse(pdf_url=pdf_url, source="unpaywall")
         except httpx.RequestError as exc:
             logger.debug("Unpaywall request failed for DOI '%s': %s", doi, exc)
@@ -286,6 +328,7 @@ async def _resolve_single(
                 oa_pdf = results[0].get("openAccessPdf") or {}
                 pdf_url = oa_pdf.get("url")
                 if pdf_url:
+                    allow_domain_at_runtime(pdf_url)
                     return PdfResolveResponse(pdf_url=pdf_url, source="semantic_scholar")
                 # If S2 has an arXiv ID in externalIds, build URL from it
                 ext_ids = results[0].get("externalIds") or {}
