@@ -181,6 +181,8 @@ export default function PaperViewerPanel({
   const [resolveProgress, setResolveProgress] = useState<{ done: number; total: number } | null>(null);
 
   const docScrollRef = useRef<HTMLDivElement>(null);
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const isScrollingToPage = useRef(false);
   const [containerWidth, setContainerWidth] = useState<number>(600);
 
   // H-4: track the index for which we last started resolving, to discard stale results
@@ -247,6 +249,21 @@ export default function PaperViewerPanel({
     return () => { cancelled = true; };
   }, [bookmarkDetail]);
 
+  // Ctrl+Scroll → PDF zoom (non-passive listener to prevent browser zoom)
+  useEffect(() => {
+    const el = docScrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) handleZoomIn();
+        else handleZoomOut();
+      }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [handleZoomIn, handleZoomOut]);
+
   // Track container width for fit-width mode
   useEffect(() => {
     const el = docScrollRef.current;
@@ -261,6 +278,33 @@ export default function PaperViewerPanel({
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  // Track visible page via IntersectionObserver
+  useEffect(() => {
+    const scrollEl = docScrollRef.current;
+    if (!scrollEl || !numPages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isScrollingToPage.current) return;
+        let mostVisible: { page: number; ratio: number } | null = null;
+        for (const entry of entries) {
+          const page = Number(entry.target.getAttribute('data-page'));
+          if (!isNaN(page) && entry.intersectionRatio > (mostVisible?.ratio ?? 0)) {
+            mostVisible = { page, ratio: entry.intersectionRatio };
+          }
+        }
+        if (mostVisible) {
+          setCurrentPage(mostVisible.page);
+          setPageInputValue(String(mostVisible.page));
+        }
+      },
+      { root: scrollEl, threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+
+    pageRefs.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [numPages, documentKey]);
 
   const selectedPaper = selectedIndex !== null ? papers[selectedIndex] ?? null : null;
 
@@ -336,21 +380,26 @@ export default function PaperViewerPanel({
     setPdfError(err.message || 'Failed to load PDF.');
   }, []);
 
-  const goToPrevPage = useCallback(() => {
-    setCurrentPage((p) => {
-      const next = Math.max(1, p - 1);
-      setPageInputValue(String(next));
-      return next;
-    });
+  const scrollToPage = useCallback((page: number) => {
+    const el = pageRefs.current.get(page);
+    if (el) {
+      isScrollingToPage.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setCurrentPage(page);
+      setPageInputValue(String(page));
+      setTimeout(() => { isScrollingToPage.current = false; }, 600);
+    }
   }, []);
 
+  const goToPrevPage = useCallback(() => {
+    const prev = Math.max(1, currentPage - 1);
+    scrollToPage(prev);
+  }, [currentPage, scrollToPage]);
+
   const goToNextPage = useCallback(() => {
-    setCurrentPage((p) => {
-      const next = Math.min(numPages ?? p, p + 1);
-      setPageInputValue(String(next));
-      return next;
-    });
-  }, [numPages]);
+    const next = Math.min(numPages ?? currentPage, currentPage + 1);
+    scrollToPage(next);
+  }, [currentPage, numPages, scrollToPage]);
 
   const handlePageInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setPageInputValue(e.target.value);
@@ -360,12 +409,11 @@ export default function PaperViewerPanel({
     const parsed = parseInt(pageInputValue, 10);
     if (!isNaN(parsed) && numPages !== null) {
       const clamped = Math.min(numPages, Math.max(1, parsed));
-      setCurrentPage(clamped);
-      setPageInputValue(String(clamped));
+      scrollToPage(clamped);
     } else {
       setPageInputValue(String(currentPage));
     }
-  }, [pageInputValue, numPages, currentPage]);
+  }, [pageInputValue, numPages, currentPage, scrollToPage]);
 
   const handlePageInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -444,7 +492,10 @@ export default function PaperViewerPanel({
 
     return (
       <>
-        <div className="paper-viewer-doc-scroll" ref={docScrollRef}>
+        <div
+          className="paper-viewer-doc-scroll"
+          ref={docScrollRef}
+        >
           <Document
             key={documentKey}
             file={pdfSrc}
@@ -468,7 +519,6 @@ export default function PaperViewerPanel({
                     onClick={() => {
                       setPdfError(null);
                       setPdfLoading(true);
-                      // M-3/M-4: increment documentKey to force Document re-mount
                       setDocumentKey(k => k + 1);
                     }}
                   >
@@ -489,15 +539,25 @@ export default function PaperViewerPanel({
               </div>
             }
           >
-            {numPages !== null && (
-              <Page
-                pageNumber={currentPage}
-                scale={effectiveScale}
-                width={effectiveWidth}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-            )}
+            {numPages !== null && Array.from({ length: numPages }, (_, i) => (
+              <div
+                key={i + 1}
+                data-page={i + 1}
+                ref={(el) => {
+                  if (el) pageRefs.current.set(i + 1, el);
+                  else pageRefs.current.delete(i + 1);
+                }}
+                style={{ marginBottom: '8px' }}
+              >
+                <Page
+                  pageNumber={i + 1}
+                  scale={effectiveScale}
+                  width={effectiveWidth}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                />
+              </div>
+            ))}
           </Document>
 
           {pdfLoading && numPages === null && (
