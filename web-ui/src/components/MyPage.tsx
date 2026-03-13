@@ -428,6 +428,10 @@ function MyPage({ onBack }: MyPageProps) {
             paper={cur.selectedPaper}
             courseDetail={cur.courseDetail}
             onSearchPaper={cur.handleSearchPaper}
+            onViewPaper={(paper) => {
+              setDirectPaper({ title: paper.title, authors: paper.authors, year: paper.year, doi: paper.doi, arxiv_id: paper.arxiv_id });
+              setActiveTab('papers');
+            }}
             onDeepReview={cur.handleDeepReviewPaper}
             reviewStatus={cur.reviewStatus}
             reviewProgress={cur.reviewProgress}

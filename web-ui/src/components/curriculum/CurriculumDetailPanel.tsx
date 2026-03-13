@@ -4,6 +4,7 @@ interface CurriculumDetailPanelProps {
   paper: CurriculumPaper | null;
   courseDetail: CurriculumCourse | null;
   onSearchPaper: (paper: CurriculumPaper) => void;
+  onViewPaper?: (paper: CurriculumPaper) => void;
   onDeepReview?: (paper: CurriculumPaper) => void;
   reviewStatus?: 'idle' | 'processing' | 'completed' | 'failed';
   reviewProgress?: string;
@@ -59,6 +60,7 @@ export default function CurriculumDetailPanel({
   paper,
   courseDetail,
   onSearchPaper,
+  onViewPaper,
   onDeepReview,
   reviewStatus = 'idle',
   reviewProgress = '',
@@ -147,7 +149,15 @@ export default function CurriculumDetailPanel({
           <SearchIcon />
           Search in Jiphyeonjeon
         </button>
-        {(paper.arxiv_id || paper.doi) && (
+        {onViewPaper ? (
+          <button
+            className="curriculum-detail-action-btn"
+            onClick={() => onViewPaper(paper)}
+          >
+            {paper.arxiv_id ? <ArxivIcon /> : <DoiIcon />}
+            View Paper
+          </button>
+        ) : (paper.arxiv_id || paper.doi) && (
           <a
             href={paper.arxiv_id ? `https://arxiv.org/abs/${paper.arxiv_id}` : `https://doi.org/${paper.doi}`}
             target="_blank"

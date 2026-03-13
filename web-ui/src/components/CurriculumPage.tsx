@@ -103,6 +103,9 @@ export default function CurriculumPage() {
           paper={selectedPaper}
           courseDetail={courseDetail}
           onSearchPaper={handleSearchPaper}
+          onViewPaper={(paper) => {
+            navigate('/mypage', { state: { viewPaper: { title: paper.title, authors: paper.authors, year: paper.year, doi: paper.doi, arxiv_id: paper.arxiv_id } } });
+          }}
           onDeepReview={handleDeepReviewPaper}
           reviewStatus={reviewStatus}
           reviewProgress={reviewProgress}
