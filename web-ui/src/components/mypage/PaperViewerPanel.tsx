@@ -435,7 +435,7 @@ export default function PaperViewerPanel({
               rel="noopener noreferrer"
             >
               <IconExternalLink />
-              Open paper page
+              View Paper
             </a>
           )}
         </div>
@@ -462,17 +462,30 @@ export default function PaperViewerPanel({
                   <IconAlertCircle />
                 </span>
                 <span>{pdfError ?? 'Failed to load PDF.'}</span>
-                <button
-                  className="paper-viewer-error-retry"
-                  onClick={() => {
-                    setPdfError(null);
-                    setPdfLoading(true);
-                    // M-3/M-4: increment documentKey to force Document re-mount
-                    setDocumentKey(k => k + 1);
-                  }}
-                >
-                  Retry
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    className="paper-viewer-error-retry"
+                    onClick={() => {
+                      setPdfError(null);
+                      setPdfLoading(true);
+                      // M-3/M-4: increment documentKey to force Document re-mount
+                      setDocumentKey(k => k + 1);
+                    }}
+                  >
+                    Retry
+                  </button>
+                  {selectedPaper && paperExternalUrl(selectedPaper) && (
+                    <a
+                      className="paper-viewer-error-retry"
+                      href={paperExternalUrl(selectedPaper)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      View Paper
+                    </a>
+                  )}
+                </div>
               </div>
             }
           >

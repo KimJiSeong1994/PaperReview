@@ -29,15 +29,27 @@ router = APIRouter(prefix="/api", tags=["pdf"])
 # ── Constants ─────────────────────────────────────────────────────────
 
 ALLOWED_DOMAINS: set[str] = {
+    # Preprints
     "arxiv.org",
     "export.arxiv.org",
     "biorxiv.org",
     "medrxiv.org",
+    # Publishers
+    "ieeexplore.ieee.org",
+    "dl.acm.org",
+    "link.springer.com",
+    "openaccess.thecvf.com",
+    "proceedings.mlr.press",
+    "proceedings.neurips.cc",
+    "papers.nips.cc",
+    "aclanthology.org",
+    "www.nature.com",
+    "www.science.org",
+    # Aggregators
     "ncbi.nlm.nih.gov",
     "europepmc.org",
     "core.ac.uk",
     "semanticscholar.org",
-    "dl.acm.org",
 }
 
 _ARXIV_ID_RE = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")

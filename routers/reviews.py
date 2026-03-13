@@ -91,6 +91,12 @@ def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dic
         return papers_data
 
     enriched = []
+    # Reuse a single client with built-in retry and rate-limit delay
+    client = arxiv.Client(
+        page_size=1,
+        delay_seconds=3.5,
+        num_retries=3,
+    )
     for paper in papers_data:
         paper = dict(paper)  # shallow copy to avoid mutating original
         if not (paper.get("abstract") or paper.get("summary")):
@@ -98,7 +104,6 @@ def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dic
             if aid:
                 try:
                     clean_id = aid.split("/")[-1] if "/" in aid else aid
-                    client = arxiv.Client()
                     search = arxiv.Search(id_list=[clean_id])
                     for result in client.results(search):
                         paper["abstract"] = result.summary

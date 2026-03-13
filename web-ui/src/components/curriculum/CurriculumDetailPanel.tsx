@@ -147,26 +147,15 @@ export default function CurriculumDetailPanel({
           <SearchIcon />
           Search in Jiphyeonjeon
         </button>
-        {paper.arxiv_id && (
+        {(paper.arxiv_id || paper.doi) && (
           <a
-            href={`https://arxiv.org/abs/${paper.arxiv_id}`}
+            href={paper.arxiv_id ? `https://arxiv.org/abs/${paper.arxiv_id}` : `https://doi.org/${paper.doi}`}
             target="_blank"
             rel="noopener noreferrer"
             className="curriculum-detail-action-btn"
           >
-            <ArxivIcon />
-            Open on arXiv
-          </a>
-        )}
-        {paper.doi && (
-          <a
-            href={`https://doi.org/${paper.doi}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="curriculum-detail-action-btn"
-          >
-            <DoiIcon />
-            Open via DOI
+            {paper.arxiv_id ? <ArxivIcon /> : <DoiIcon />}
+            View Paper
           </a>
         )}
         {onDeepReview && (

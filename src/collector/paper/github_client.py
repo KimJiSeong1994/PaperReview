@@ -17,6 +17,9 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
 class GitHubClient:
     """Search GitHub repositories related to academic papers."""
 
@@ -34,6 +37,45 @@ class GitHubClient:
         })
         if self.token:
             self.session.headers["Authorization"] = f"Bearer {self.token}"
+
+    def _request_with_retry(
+        self,
+        url: str,
+        params: Optional[dict] = None,
+        headers: Optional[dict] = None,
+        timeout: int = 15,
+        max_retries: int = 3,
+    ) -> Optional[requests.Response]:
+        """HTTP GET with exponential backoff retry for transient errors."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(max_retries):
+            try:
+                resp = self.session.get(url, params=params, headers=headers, timeout=timeout)
+                if resp.status_code in _RETRYABLE_STATUS:
+                    wait = min(2 ** attempt * 2, 10)
+                    logger.warning(
+                        "%s returned %d, retry in %ds (%d/%d)",
+                        url, resp.status_code, wait, attempt + 1, max_retries,
+                    )
+                    time.sleep(wait)
+                    last_exc = requests.RequestException(f"status {resp.status_code}")
+                    continue
+                return resp
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                wait = min(2 ** attempt * 2, 10)
+                logger.warning(
+                    "Network error for %s, retry in %ds (%d/%d): %s",
+                    url, wait, attempt + 1, max_retries, e,
+                )
+                time.sleep(wait)
+                last_exc = e
+                continue
+            except Exception as e:
+                last_exc = e
+                break
+        if last_exc:
+            raise last_exc
+        return None
 
     def search_repos(
         self,
@@ -114,12 +156,11 @@ class GitHubClient:
         if arxiv_id:
             clean_id = arxiv_id.strip().replace("arXiv:", "")
             try:
-                resp = self.session.get(
+                resp = self._request_with_retry(
                     f"{self.PWC_API}/papers",
                     params={"arxiv_id": clean_id},
-                    timeout=10,
                 )
-                if resp.status_code == 200:
+                if resp and resp.status_code == 200:
                     results = resp.json().get("results", [])
                     if results:
                         paper_id = results[0].get("id", "")
@@ -131,12 +172,11 @@ class GitHubClient:
         # Fallback: search by title
         if not repos:
             try:
-                resp = self.session.get(
+                resp = self._request_with_retry(
                     f"{self.PWC_API}/papers",
                     params={"q": title[:200]},
-                    timeout=10,
                 )
-                if resp.status_code == 200:
+                if resp and resp.status_code == 200:
                     for paper in resp.json().get("results", [])[:3]:
                         paper_title = (paper.get("title") or "").lower().strip()
                         if self._title_similarity(title, paper_title) > 0.6:
@@ -153,11 +193,10 @@ class GitHubClient:
         """Fetch repositories for a Papers With Code paper ID."""
         repos = []
         try:
-            resp = self.session.get(
+            resp = self._request_with_retry(
                 f"{self.PWC_API}/papers/{paper_id}/repositories/",
-                timeout=10,
             )
-            if resp.status_code != 200:
+            if not resp or resp.status_code != 200:
                 return []
             for item in resp.json().get("results", [])[:5]:
                 url = item.get("url", "")
@@ -197,13 +236,12 @@ class GitHubClient:
         if not paper_id:
             # Search by title
             try:
-                resp = requests.get(
+                resp = self._request_with_retry(
                     f"{self.S2_API}/paper/search",
                     params={"query": title[:200], "limit": 3, "fields": "title,externalIds,openAccessPdf"},
                     headers=headers,
-                    timeout=10,
                 )
-                if resp.status_code == 200:
+                if resp and resp.status_code == 200:
                     for p in resp.json().get("data", []):
                         if self._title_similarity(title, p.get("title", "")) > 0.6:
                             ext_ids = p.get("externalIds") or {}
@@ -220,13 +258,12 @@ class GitHubClient:
 
         # Fetch paper details with links
         try:
-            resp = requests.get(
+            resp = self._request_with_retry(
                 f"{self.S2_API}/paper/{paper_id}",
                 params={"fields": "title,externalIds,openAccessPdf,url"},
                 headers=headers,
-                timeout=10,
             )
-            if resp.status_code != 200:
+            if not resp or resp.status_code != 200:
                 return []
             data = resp.json()
         except requests.RequestException as e:
@@ -266,7 +303,7 @@ class GitHubClient:
                 query = f"{query} {last_name}"
 
         try:
-            resp = self.session.get(
+            resp = self._request_with_retry(
                 f"{self.BASE_URL}/search/repositories",
                 params={
                     "q": query,
@@ -274,10 +311,8 @@ class GitHubClient:
                     "order": "desc",
                     "per_page": min(max_results * 2, 20),
                 },
-                timeout=10,
             )
-            if resp.status_code == 403:
-                logger.warning("GitHub API rate limit exceeded")
+            if not resp:
                 return []
             resp.raise_for_status()
             data = resp.json()

@@ -9,6 +9,9 @@ from utils.logger import log_search_operation
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
 class ReferenceCollector:
     """논문 참고문헌 수집 클라이언트"""
 
@@ -57,6 +60,43 @@ class ReferenceCollector:
 
         return None
 
+    def _request_with_retry(
+        self, url: str, params: dict, timeout: int = 20, max_retries: int = 3,
+    ) -> Optional[requests.Response]:
+        """HTTP GET with exponential backoff retry for transient errors."""
+        last_exc = None
+        for attempt in range(max_retries):
+            try:
+                resp = self.session.get(url, params=params, timeout=timeout)
+                if resp.status_code in _RETRYABLE_STATUS:
+                    wait = min(2 ** attempt * 2, 10)
+                    logger.warning(
+                        "S2 %d for %s, retry in %ds (%d/%d)",
+                        resp.status_code, url, wait, attempt + 1, max_retries,
+                    )
+                    time.sleep(wait)
+                    last_exc = requests.exceptions.HTTPError(
+                        f"status {resp.status_code}", response=resp,
+                    )
+                    continue
+                resp.raise_for_status()
+                return resp
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                wait = min(2 ** attempt * 2, 10)
+                logger.warning(
+                    "S2 network error for %s, retry in %ds (%d/%d): %s",
+                    url, wait, attempt + 1, max_retries, e,
+                )
+                time.sleep(wait)
+                last_exc = e
+                continue
+            except Exception as e:
+                last_exc = e
+                break
+        if last_exc:
+            raise last_exc
+        return None
+
     def _search_paper_id_by_title(self, title: str) -> Optional[str]:
         """제목으로 논문 ID 검색"""
         try:
@@ -67,8 +107,9 @@ class ReferenceCollector:
                 'fields': 'paperId'
             }
 
-            response = self.session.get(api_url, params=params, timeout=10)
-            response.raise_for_status()
+            response = self._request_with_retry(api_url, params=params)
+            if response is None:
+                return None
 
             data = response.json()
             if data.get('data') and len(data['data']) > 0:
@@ -93,8 +134,9 @@ class ReferenceCollector:
                 'fields': 'title,authors,year,citationCount,abstract,url'
             }
 
-            response = self.session.get(api_url, params=params, timeout=10)
-            response.raise_for_status()
+            response = self._request_with_retry(api_url, params=params)
+            if response is None:
+                return []
 
             data = response.json()
             references = []

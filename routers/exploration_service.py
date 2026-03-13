@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -31,32 +32,61 @@ def _normalize_title(title: str) -> str:
 # ── Citation Tree ─────────────────────────────────────────────────────
 
 
-def _s2_request(session: Any, url: str, params: dict, timeout: int = 10, max_retries: int = 3) -> Any:
-    """HTTP GET wrapper with 429 exponential backoff retry.
+_S2_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
+
+def _s2_request(session: Any, url: str, params: dict, timeout: int = 20, max_retries: int = 3) -> Any:
+    """HTTP GET wrapper with exponential backoff retry for transient errors.
+
+    Retries on 429 (rate limit) and 5xx server errors.
     Returns the response object on success.
     Raises the last exception after exhausting retries.
     """
-    last_exc = None
+    last_exc: Optional[Exception] = None
     for attempt in range(max_retries):
         try:
             resp = session.get(url, params=params, timeout=timeout)
-            if resp.status_code == 429:
+            if resp.status_code in _S2_RETRYABLE_STATUS:
                 wait = min(2 ** attempt * 2, 10)
-                logger.warning("Semantic Scholar 429 rate limit, retrying in %ds (attempt %d/%d)", wait, attempt + 1, max_retries)
+                logger.warning(
+                    "Semantic Scholar %d, retrying in %ds (attempt %d/%d)",
+                    resp.status_code, wait, attempt + 1, max_retries,
+                )
                 time.sleep(wait)
+                last_exc = Exception(f"Semantic Scholar returned {resp.status_code}")
                 continue
             resp.raise_for_status()
             return resp
-        except Exception as e:
+        except requests.exceptions.Timeout as e:
+            wait = min(2 ** attempt * 2, 10)
+            logger.warning(
+                "Semantic Scholar timeout, retrying in %ds (attempt %d/%d)",
+                wait, attempt + 1, max_retries,
+            )
+            time.sleep(wait)
             last_exc = e
-            if hasattr(e, 'response') and getattr(e.response, 'status_code', None) == 429:
+            continue
+        except requests.exceptions.ConnectionError as e:
+            wait = min(2 ** attempt * 2, 10)
+            logger.warning(
+                "Semantic Scholar connection error, retrying in %ds (attempt %d/%d)",
+                wait, attempt + 1, max_retries,
+            )
+            time.sleep(wait)
+            last_exc = e
+            continue
+        except Exception as e:
+            status = getattr(getattr(e, 'response', None), 'status_code', None)
+            if status in _S2_RETRYABLE_STATUS:
                 wait = min(2 ** attempt * 2, 10)
-                logger.warning("Semantic Scholar 429 rate limit, retrying in %ds (attempt %d/%d)", wait, attempt + 1, max_retries)
+                logger.warning(
+                    "Semantic Scholar %s, retrying in %ds (attempt %d/%d)",
+                    status, wait, attempt + 1, max_retries,
+                )
                 time.sleep(wait)
+                last_exc = e
                 continue
             raise
-    # All retries exhausted due to 429
     raise last_exc or Exception("Max retries exceeded for Semantic Scholar API")
 
 
@@ -83,7 +113,7 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
                 session,
                 f"{base_url}/paper/{lookup_id}",
                 params={"fields": "paperId,url"},
-                timeout=10,
+                timeout=20,
             )
             data = resp.json()
             pid = data.get("paperId")
@@ -103,7 +133,7 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
             session,
             f"{base_url}/paper/search",
             params={"query": title, "limit": 1, "fields": "paperId,url"},
-            timeout=10,
+            timeout=20,
         )
         data = resp.json()
         if data.get("data"):
@@ -128,7 +158,7 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
     fields = "title,authors,year,citationCount,abstract,url,externalIds,contexts,intents,isInfluential"
 
     try:
-        resp = _s2_request(session, endpoint, params={"limit": limit, "fields": fields}, timeout=15)
+        resp = _s2_request(session, endpoint, params={"limit": limit, "fields": fields}, timeout=20)
         data = resp.json()
 
         results = []
