@@ -180,6 +180,7 @@ export default function PaperViewerPanel({
   const [resolving, setResolving] = useState(false);
   const [resolveProgress, setResolveProgress] = useState<{ done: number; total: number } | null>(null);
 
+  const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isScrollingToPage = useRef(false);
@@ -427,7 +428,7 @@ export default function PaperViewerPanel({
 
   // Ctrl+Scroll → PDF zoom (non-passive listener to prevent browser zoom)
   useEffect(() => {
-    const el = docScrollRef.current;
+    const el = pdfAreaRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -704,7 +705,7 @@ export default function PaperViewerPanel({
       </div>
 
       {/* ── Right: PDF viewer ── */}
-      <div className="paper-viewer-pdf-area">{renderPdfArea()}</div>
+      <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
     </div>
   );
 }
