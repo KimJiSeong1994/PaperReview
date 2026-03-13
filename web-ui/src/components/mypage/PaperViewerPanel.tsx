@@ -249,21 +249,6 @@ export default function PaperViewerPanel({
     return () => { cancelled = true; };
   }, [bookmarkDetail]);
 
-  // Ctrl+Scroll → PDF zoom (non-passive listener to prevent browser zoom)
-  useEffect(() => {
-    const el = docScrollRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        if (e.deltaY < 0) handleZoomIn();
-        else handleZoomOut();
-      }
-    };
-    el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-  }, [handleZoomIn, handleZoomOut]);
-
   // Track container width for fit-width mode
   useEffect(() => {
     const el = docScrollRef.current;
@@ -439,6 +424,21 @@ export default function PaperViewerPanel({
 
   const effectiveWidth = fitWidth ? containerWidth : undefined;
   const effectiveScale = fitWidth ? undefined : zoom;
+
+  // Ctrl+Scroll → PDF zoom (non-passive listener to prevent browser zoom)
+  useEffect(() => {
+    const el = docScrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) handleZoomIn();
+        else handleZoomOut();
+      }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [handleZoomIn, handleZoomOut]);
 
   // ── Render ─────────────────────────────────────────────────────────
 
