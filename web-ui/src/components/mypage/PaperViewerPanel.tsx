@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -46,12 +46,10 @@ const MemoPage = memo(function MemoPage({
   pageNumber,
   scale,
   width,
-  onHeight,
 }: {
   pageNumber: number;
   scale?: number;
   width?: number;
-  onHeight?: (page: number, h: number) => void;
 }) {
   return (
     <Page
@@ -60,9 +58,6 @@ const MemoPage = memo(function MemoPage({
       width={width}
       renderTextLayer={true}
       renderAnnotationLayer={true}
-      onRenderSuccess={() => {
-        // not needed for height tracking — handled via ref
-      }}
     />
   );
 });
