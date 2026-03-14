@@ -11,21 +11,9 @@ const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
-import { searchPapers, getGraphData, startDeepReview, getReviewStatus, getReviewReport, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
 import type { Paper, GraphData } from './types';
-import type { VerificationStats } from './api/client';
-
-// 백엔드 랭킹 순서 보존 — 프론트엔드 재정렬 없이 원본 순서 유지
-// 백엔드(HybridRanker + LLM Relevance Filter)가 이미 정교한 순서를 제공하므로
-// 프론트엔드에서 단순 키워드 매칭으로 덮어쓰지 않는다.
-function sortPapersByQuerySimilarity(
-  papers: Paper[],
-  _query: string,
-  _queryAnalysis: any = null
-): Paper[] {
-  // 백엔드 순서를 그대로 유지 (소스별 인터리빙)
-  return papers;
-}
+import { useDeepReview } from './hooks/useDeepReview';
 
 function App() {
   const navigate = useNavigate();
@@ -102,20 +90,12 @@ function App() {
   
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
-  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
-  const [reviewStatus, setReviewStatus] = useState<string>('idle'); // idle, processing, completed, failed
-  const [reviewProgress, setReviewProgress] = useState<string>('');
-  const [reviewReport, setReviewReport] = useState<string | null>(null);
+  const {
+    reviewSessionId, reviewStatus, reviewProgress, reviewReport,
+    verificationStats, startReview: startReviewHook, resetReview,
+  } = useDeepReview();
   const [showReport, setShowReport] = useState(false);
-  const [verificationStats, setVerificationStats] = useState<VerificationStats | null>(null);
-  const [, setDetailsCollapsed] = useState(false);  // detailsCollapsed 사용 안함
   const [showToolsMenu, setShowToolsMenu] = useState(false);
-  
-  // Poster visualization states
-  // Poster states (beta 비활성화 - 향후 재활성화 시 사용)
-  const [posterHtml] = useState<string | null>(null);
-  const [showPoster, setShowPoster] = useState(false);
-  // posterLoading: beta 비활성화로 제거
 
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
@@ -206,26 +186,24 @@ function App() {
           });
         });
 
-        const queryAnalysis = (results as any).query_analysis || null;
-        const sortedPapers = sortPapersByQuerySimilarity(allPapers, searchQuery, queryAnalysis);
-        setPapers(sortedPapers);
+        setPapers(allPapers);
 
-        if (sortedPapers.length > 0) {
-          const graph = await getGraphData(JSON.stringify(sortedPapers));
+        if (allPapers.length > 0) {
+          const graph = await getGraphData(JSON.stringify(allPapers));
           setGraphData(graph);
 
-          setSelectedPaper(sortedPapers[0]);
+          setSelectedPaper(allPapers[0]);
           setHighlightedPapers(new Set());
 
           // Fetch references for top papers and merge into list + graph
-          const topPapers = sortedPapers.slice(0, 5).map(p => ({
+          const topPapers = allPapers.slice(0, 5).map(p => ({
             title: p.title,
             doi: p.doi,
             arxiv_id: p.arxiv_id,
           }));
           fetchBatchReferences(topPapers).then(({ references }) => {
             if (references.length === 0) return;
-            const existingTitles = new Set(sortedPapers.map(p => p.title.trim().toLowerCase()));
+            const existingTitles = new Set(allPapers.map(p => p.title.trim().toLowerCase()));
             const refPapers: Paper[] = [];
             for (const ref of references) {
               const normTitle = (ref.title || '').trim().toLowerCase();
@@ -244,7 +222,7 @@ function App() {
               });
             }
             if (refPapers.length === 0) return;
-            const merged = [...sortedPapers, ...refPapers];
+            const merged = [...allPapers, ...refPapers];
             setPapers(merged);
             getGraphData(JSON.stringify(merged)).then(g => setGraphData(g)).catch(() => {});
           }).catch(() => {});
@@ -436,74 +414,30 @@ function App() {
     }
 
     try {
-      setReviewStatus('processing');
       setShowReport(true);
-      setDetailsCollapsed(true);
 
       // 선택한 논문들의 전체 데이터 추출
       const selectedPaperIds = Array.from(selectedPapersForReview);
-      const selectedPapersData = papers.filter(paper => 
+      const selectedPapersData = papers.filter(paper =>
         selectedPaperIds.includes(paper.doc_id || '') ||
         selectedPaperIds.includes(String(paper.doc_id || ''))
       );
 
-      console.log('Selected paper IDs:', selectedPaperIds);
-      console.log('Selected papers data:', selectedPapersData.length);
-
       const response = await startDeepReview({
         paper_ids: selectedPaperIds,
-        papers: selectedPapersData,  // 논문 전체 데이터 포함
+        papers: selectedPapersData,
         num_researchers: Math.min(selectedPapersForReview.size, 5),
         model: 'gpt-4.1'
       });
 
-      setReviewSessionId(response.session_id);
-      setReviewProgress('Starting deep research...');
+      startReviewHook(response.session_id);
 
     } catch (error: any) {
       console.error('Deep review error:', error);
       alert(`Failed to start deep research: ${error.message || error}`);
-      setReviewStatus('failed');
       setShowReport(false);
-      setDetailsCollapsed(false);
     }
   };
-
-  // Poll review status
-  useEffect(() => {
-    if (!reviewSessionId || reviewStatus !== 'processing') return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const status = await getReviewStatus(reviewSessionId);
-        
-        setReviewProgress(status.progress || 'Analyzing papers...');
-
-        if (status.status === 'completed') {
-          setReviewStatus('completed');
-          // Fetch report
-          const report = await getReviewReport(reviewSessionId);
-          setReviewReport(report.report_markdown);
-          // 검증 통계 저장
-          if (report.verification_stats || status.verification_stats) {
-            setVerificationStats(report.verification_stats || status.verification_stats || null);
-          }
-          clearInterval(pollInterval);
-        } else if (status.status === 'failed') {
-          setReviewStatus('failed');
-          setReviewProgress(status.error || 'Analysis failed');
-          clearInterval(pollInterval);
-        }
-      } catch (error) {
-        console.error('Status poll error:', error);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [reviewSessionId, reviewStatus]);
-
-  // Generate poster visualization (Beta - 비활성화)
-  // handleGeneratePoster는 beta 기간 동안 사용하지 않음
 
   // Close tools menu when clicking outside
   useEffect(() => {
@@ -993,9 +927,7 @@ function App() {
                         className="close-report-button"
                         onClick={() => {
                           setShowReport(false);
-                          setDetailsCollapsed(false);
-                          setReviewStatus('idle');
-                          setReviewReport(null);
+                          resetReview();
                           setBookmarkSaved(false);
                         }}
                         title="Close report"
@@ -1082,47 +1014,6 @@ function App() {
           </div>
         )}
 
-        {/* Poster Modal */}
-        {showPoster && posterHtml && (
-          <div className="poster-modal-overlay" onClick={() => setShowPoster(false)}>
-            <div className="poster-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="poster-modal-header">
-                <h2>🎓 학회 포스터</h2>
-                <div className="poster-modal-actions">
-                  <button
-                    className="poster-download-button"
-                    onClick={() => {
-                      const blob = new Blob([posterHtml], { type: 'text/html' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `poster_${new Date().toISOString().split('T')[0]}.html`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    }}
-                  >
-                    📥 HTML 다운로드
-                  </button>
-                  <button
-                    className="poster-close-button"
-                    onClick={() => setShowPoster(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              <div className="poster-modal-content">
-                <iframe
-                  srcDoc={posterHtml}
-                  title="Conference Poster"
-                  className="poster-iframe"
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       </>} />
       </Routes>

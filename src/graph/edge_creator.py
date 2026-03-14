@@ -10,16 +10,7 @@ import difflib
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
-try:
-    from collector.paper.deduplicator import PaperDeduplicator
-    _normalize_title = PaperDeduplicator.normalize_title
-    _normalize_doi = PaperDeduplicator.normalize_doi
-except ImportError:
-    def _normalize_title(t):
-        return t.lower().strip() if t else ""
-
-    def _normalize_doi(d):
-        return ""
+from utils.paper_utils import normalize_title as _normalize_title, normalize_doi as _normalize_doi, generate_paper_id as _generate_paper_id_util
 
 class EdgeCreator:
     """그래프 엣지 생성 클래스"""
@@ -29,11 +20,7 @@ class EdgeCreator:
 
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
         """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
-        doi = _normalize_doi(paper.get('doi', ''))
-        if doi:
-            return f"doi:{doi}"
-        title = _normalize_title(paper.get('title', ''))
-        return title[:100] if title else str(hash(str(paper)))
+        return _generate_paper_id_util(paper)
 
     def _find_paper_by_title(self, title: str, papers: List[Dict[str, Any]]) -> Optional[str]:
         """제목으로 논문 ID 찾기 (정규화 매칭)"""

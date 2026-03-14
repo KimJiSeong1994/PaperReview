@@ -17,80 +17,13 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def _normalize_title(title: str) -> str:
-    """Normalize a paper title for deduplication.
-
-    Strips whitespace, lowercases, removes punctuation so that
-    'Attention Is All You Need' and 'Attention is All You Need.'
-    are treated as the same paper.
-    """
-    t = title.strip().lower()
-    t = re.sub(r'[^\w\s]', '', t)
-    t = re.sub(r'\s+', ' ', t)
-    return t
+from src.utils.paper_utils import normalize_title as _normalize_title
+from src.collector.paper.semantic_scholar_client import SemanticScholarClient
 
 # ── Citation Tree ─────────────────────────────────────────────────────
 
 
-_S2_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
-
-
-def _s2_request(session: Any, url: str, params: dict, timeout: int = 20, max_retries: int = 3) -> Any:
-    """HTTP GET wrapper with exponential backoff retry for transient errors.
-
-    Retries on 429 (rate limit) and 5xx server errors.
-    Returns the response object on success.
-    Raises the last exception after exhausting retries.
-    """
-    last_exc: Optional[Exception] = None
-    for attempt in range(max_retries):
-        try:
-            resp = session.get(url, params=params, timeout=timeout)
-            if resp.status_code in _S2_RETRYABLE_STATUS:
-                wait = min(2 ** attempt * 2, 10)
-                logger.warning(
-                    "Semantic Scholar %d, retrying in %ds (attempt %d/%d)",
-                    resp.status_code, wait, attempt + 1, max_retries,
-                )
-                time.sleep(wait)
-                last_exc = Exception(f"Semantic Scholar returned {resp.status_code}")
-                continue
-            resp.raise_for_status()
-            return resp
-        except requests.exceptions.Timeout as e:
-            wait = min(2 ** attempt * 2, 10)
-            logger.warning(
-                "Semantic Scholar timeout, retrying in %ds (attempt %d/%d)",
-                wait, attempt + 1, max_retries,
-            )
-            time.sleep(wait)
-            last_exc = e
-            continue
-        except requests.exceptions.ConnectionError as e:
-            wait = min(2 ** attempt * 2, 10)
-            logger.warning(
-                "Semantic Scholar connection error, retrying in %ds (attempt %d/%d)",
-                wait, attempt + 1, max_retries,
-            )
-            time.sleep(wait)
-            last_exc = e
-            continue
-        except Exception as e:
-            status = getattr(getattr(e, 'response', None), 'status_code', None)
-            if status in _S2_RETRYABLE_STATUS:
-                wait = min(2 ** attempt * 2, 10)
-                logger.warning(
-                    "Semantic Scholar %s, retrying in %ds (attempt %d/%d)",
-                    status, wait, attempt + 1, max_retries,
-                )
-                time.sleep(wait)
-                last_exc = e
-                continue
-            raise
-    raise last_exc or Exception("Max retries exceeded for Semantic Scholar API")
-
-
-def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, str]]:
+def _resolve_paper(paper: Dict[str, Any], s2_client: SemanticScholarClient) -> Optional[Dict[str, str]]:
     """Resolve a paper to its canonical Semantic Scholar paperId and URL.
 
     Returns dict with 'paperId' and 'url', or None if not found.
@@ -109,8 +42,7 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
 
     if lookup_id:
         try:
-            resp = _s2_request(
-                session,
+            resp = s2_client.request_with_retry(
                 f"{base_url}/paper/{lookup_id}",
                 params={"fields": "paperId,url"},
                 timeout=20,
@@ -147,7 +79,7 @@ def _resolve_paper(paper: Dict[str, Any], session: Any) -> Optional[Dict[str, st
     return None
 
 
-def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 20) -> List[Dict[str, Any]]:
+def _fetch_citations(paper_id: str, direction: str, s2_client: SemanticScholarClient, limit: int = 20) -> List[Dict[str, Any]]:
     """Fetch forward or backward citations from Semantic Scholar.
 
     Args:
@@ -158,7 +90,7 @@ def _fetch_citations(paper_id: str, direction: str, session: Any, limit: int = 2
     fields = "title,authors,year,citationCount,abstract,url,externalIds,contexts,intents,isInfluential"
 
     try:
-        resp = _s2_request(session, endpoint, params={"limit": limit, "fields": fields}, timeout=20)
+        resp = s2_client.request_with_retry(endpoint, params={"limit": limit, "fields": fields}, timeout=20)
         data = resp.json()
 
         results = []
@@ -197,26 +129,18 @@ def generate_citation_tree(
     builds a NetworkX DiGraph, computes hierarchical layout,
     and returns positioned nodes + edges.
     """
-    import requests
-
-    session = requests.Session()
-    headers = {"User-Agent": "PaperReviewAgent/1.0"}
-    s2_key = os.getenv("S2_API_KEY")
-    if s2_key:
-        headers["x-api-key"] = s2_key
-    session.headers.update(headers)
-
+    s2_client = SemanticScholarClient()
     try:
-        return _build_citation_tree(papers, depth, max_per_direction, session)
+        return _build_citation_tree(papers, depth, max_per_direction, s2_client)
     finally:
-        session.close()
+        s2_client.close()
 
 
 def _build_citation_tree(
     papers: List[Dict[str, Any]],
     depth: int,
     max_per_direction: int,
-    session: Any,
+    s2_client: SemanticScholarClient,
 ) -> Dict[str, Any]:
     """Internal helper that builds the citation tree with a given session."""
     graph = nx.DiGraph()
@@ -244,7 +168,7 @@ def _build_citation_tree(
     root_ids = []
     skipped_papers = []
     for paper in papers:
-        resolved = _resolve_paper(paper, session)
+        resolved = _resolve_paper(paper, s2_client)
         if not resolved:
             title = paper.get("title", "Unknown")
             logger.info("Skipping paper not found on Semantic Scholar: %s", title)
@@ -278,7 +202,7 @@ def _build_citation_tree(
         time.sleep(0.3)
 
         # Backward citations (references)
-        refs = _fetch_citations(pid, "references", session, limit=max_per_direction)
+        refs = _fetch_citations(pid, "references", s2_client, limit=max_per_direction)
         for ref in refs:
             rid = ref["paper_id"]
             edge_data = {
@@ -299,7 +223,7 @@ def _build_citation_tree(
         time.sleep(0.5)
 
         # Forward citations (citing papers)
-        cites = _fetch_citations(pid, "citations", session, limit=max_per_direction)
+        cites = _fetch_citations(pid, "citations", s2_client, limit=max_per_direction)
         for cite in cites:
             cid = cite["paper_id"]
             edge_data = {

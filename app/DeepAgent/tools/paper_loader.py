@@ -66,24 +66,8 @@ def load_papers_from_ids(paper_ids: List[str], papers_file: str = "data/raw/pape
 
     print(f"[INFO] Total papers in pool: {len(all_papers)}")
 
-    # Helper functions to generate doc_id (must match api_server.py)
-    import hashlib
-
-    def generate_djb2_doc_id(title: str) -> str:
-        """Generate doc_id using djb2 hash (matches frontend hashString function)"""
-        if not title:
-            return ""
-        hash_value = 0
-        for char in title:
-            hash_value = ((hash_value << 5) - hash_value) + ord(char)
-            hash_value = hash_value & 0x7FFFFFFF  # Keep positive
-        return str(hash_value)
-
-    def generate_md5_doc_id(title: str) -> str:
-        """Generate stable doc_id using hashlib.md5"""
-        if not title:
-            return ""
-        return str(int(hashlib.md5(title.encode('utf-8')).hexdigest()[:15], 16))
+    # Shared doc_id generation utilities
+    from src.utils.paper_utils import generate_doc_id as generate_djb2_doc_id, generate_md5_doc_id
 
     # ID로 필터링
     print(f"[INFO] Requested paper_ids: {paper_ids[:5]}...")  # 첫 5개만 출력

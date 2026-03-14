@@ -769,12 +769,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             cache_dir.mkdir(parents=True, exist_ok=True)
             cache_file = cache_dir / "last_search_results.json"
 
-            def _generate_doc_id(title: str) -> str:
-                hash_value = 0
-                for char in title:
-                    hash_value = ((hash_value << 5) - hash_value) + ord(char)
-                    hash_value = hash_value & 0x7FFFFFFF
-                return str(hash_value)
+            from src.utils.paper_utils import generate_doc_id as _generate_doc_id
 
             all_cached_papers = []
             for source_papers in results.values():

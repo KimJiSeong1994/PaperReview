@@ -276,14 +276,7 @@ async def get_graph_data(request: Dict[str, Any]):
             words = re.findall(r"\b\w+\b", text.lower())
             return [w for w in words if len(w) > 3]
 
-        def generate_doc_id(title: str) -> str:
-            """Generate doc_id matching frontend hashString function (djb2)."""
-            hash_value = 0
-            for char in title:
-                char_code = ord(char)
-                hash_value = ((hash_value << 5) - hash_value) + char_code
-                hash_value = hash_value & 0x7FFFFFFF
-            return str(hash_value)
+        from src.utils.paper_utils import generate_doc_id
 
         graph = nx.Graph()
 

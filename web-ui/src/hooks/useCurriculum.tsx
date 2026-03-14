@@ -9,8 +9,6 @@ import {
   deleteCurriculum,
   generateCurriculumStream,
   startDeepReview,
-  getReviewStatus,
-  getReviewReport,
   saveBookmark,
   createCurriculumShareLink,
   revokeCurriculumShareLink,
@@ -21,6 +19,7 @@ import type {
   CurriculumCourse,
   CurriculumPaper,
 } from '../components/curriculum/types';
+import { useDeepReview } from './useDeepReview';
 
 const LS_PREFIX = 'curriculum_progress_';
 
@@ -346,25 +345,52 @@ export function useCurriculum() {
   }, [handleSelectCourse]);
 
   // ── Deep Review & Bookmark integration ──
-  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
-  const [reviewStatus, setReviewStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle');
-  const [reviewProgress, setReviewProgress] = useState('');
   const [reviewingPaperIds, setReviewingPaperIds] = useState<Set<string>>(new Set());
   const [reviewingModuleId, setReviewingModuleId] = useState<string | null>(null);
   const reviewPapersRef = useRef<CurriculumPaper[]>([]);
 
   const resetReviewState = useCallback(() => {
-    setReviewStatus('idle');
-    setReviewSessionId(null);
-    setReviewProgress('');
+    resetReview();
     setReviewingPaperIds(new Set());
     setReviewingModuleId(null);
   }, []);
 
+  const {
+    reviewStatus, reviewProgress, startReview: startReviewHook, resetReview,
+  } = useDeepReview({
+    autoResetDelay: 3000,
+    onCompleted: async (sessionId, reportMarkdown) => {
+      try {
+        const papers = reviewPapersRef.current;
+        const title = papers.length === 1
+          ? papers[0].title
+          : `${courseDetail?.name || 'Curriculum'} - Module Analysis`;
+
+        await saveBookmark({
+          session_id: sessionId,
+          title,
+          query: '',
+          papers: papers.map(p => ({
+            title: p.title,
+            authors: p.authors,
+            year: String(p.year),
+          })),
+          report_markdown: reportMarkdown,
+          tags: ['curriculum'],
+          topic: 'Curriculum Papers',
+        });
+      } catch (err) {
+        console.error('Failed to save bookmark after review:', err);
+      }
+      setTimeout(resetReviewState, 3000);
+    },
+    onFailed: () => {
+      setTimeout(resetReviewState, 3000);
+    },
+  });
+
   const handleDeepReviewPaper = useCallback(async (paper: CurriculumPaper) => {
     if (reviewStatus === 'processing') return;
-    setReviewStatus('processing');
-    setReviewProgress('Starting deep research...');
     setReviewingPaperIds(new Set([paper.id]));
     setReviewingModuleId(null);
     reviewPapersRef.current = [paper];
@@ -381,14 +407,12 @@ export function useCurriculum() {
           context: paper.context,
         }],
       });
-      setReviewSessionId(response.session_id);
+      startReviewHook(response.session_id);
     } catch (err) {
       console.error('Failed to start deep review:', err);
-      setReviewStatus('failed');
-      setReviewProgress('Failed to start analysis');
       setTimeout(resetReviewState, 3000);
     }
-  }, [reviewStatus, resetReviewState]);
+  }, [reviewStatus, resetReviewState, startReviewHook]);
 
   const handleDeepReviewModule = useCallback(async (moduleId: string) => {
     if (reviewStatus === 'processing') return;
@@ -398,8 +422,6 @@ export function useCurriculum() {
     const allPapers = mod.topics.flatMap(t => t.papers);
     if (allPapers.length === 0) return;
 
-    setReviewStatus('processing');
-    setReviewProgress(`Analyzing ${allPapers.length} papers...`);
     setReviewingPaperIds(new Set(allPapers.map(p => p.id)));
     setReviewingModuleId(moduleId);
     reviewPapersRef.current = allPapers;
@@ -416,67 +438,14 @@ export function useCurriculum() {
           context: p.context,
         })),
       });
-      setReviewSessionId(response.session_id);
+      startReviewHook(response.session_id);
     } catch (err) {
       console.error('Failed to start module review:', err);
-      setReviewStatus('failed');
-      setReviewProgress('Failed to start analysis');
       setTimeout(resetReviewState, 3000);
     }
-  }, [reviewStatus, courseDetail, resetReviewState]);
+  }, [reviewStatus, courseDetail, resetReviewState, startReviewHook]);
 
-  // Poll review status + auto-save bookmark on completion
-  useEffect(() => {
-    if (!reviewSessionId || reviewStatus !== 'processing') return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const status = await getReviewStatus(reviewSessionId);
-        setReviewProgress(status.progress || 'Analyzing papers...');
-
-        if (status.status === 'completed') {
-          clearInterval(pollInterval);
-          try {
-            const report = await getReviewReport(reviewSessionId);
-            const papers = reviewPapersRef.current;
-            const title = papers.length === 1
-              ? papers[0].title
-              : `${courseDetail?.name || 'Curriculum'} - Module Analysis`;
-
-            await saveBookmark({
-              session_id: reviewSessionId,
-              title,
-              query: '',
-              papers: papers.map(p => ({
-                title: p.title,
-                authors: p.authors,
-                year: String(p.year),
-              })),
-              report_markdown: report.report_markdown,
-              tags: ['curriculum'],
-              topic: 'Curriculum Papers',
-            });
-            setReviewStatus('completed');
-            setReviewProgress('Analysis complete! Saved to bookmarks.');
-          } catch (err) {
-            console.error('Failed to save bookmark after review:', err);
-            setReviewStatus('failed');
-            setReviewProgress('Analysis done but bookmark save failed');
-          }
-          setTimeout(resetReviewState, 3000);
-        } else if (status.status === 'failed') {
-          clearInterval(pollInterval);
-          setReviewStatus('failed');
-          setReviewProgress(status.error || 'Analysis failed');
-          setTimeout(resetReviewState, 3000);
-        }
-      } catch (err) {
-        console.error('Status poll error:', err);
-      }
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
-  }, [reviewSessionId, reviewStatus, courseDetail, resetReviewState]);
+  // Polling is now handled by useDeepReview hook
 
   // ── Curriculum sharing ──
   const [shareMessage, setShareMessage] = useState<string | null>(null);

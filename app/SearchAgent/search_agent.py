@@ -18,6 +18,11 @@ from collector.paper.text_extractor import TextExtractor
 from collector.paper.similarity_calculator import SimilarityCalculator
 from collector.paper.deduplicator import PaperDeduplicator
 from collector.paper.github_client import GitHubClient
+
+
+def _contains_korean(text: str) -> bool:
+    """텍스트에 한글 음절(U+AC00-U+D7A3)이 포함되어 있는지 확인."""
+    return any('\uAC00' <= c <= '\uD7A3' for c in text)
 from graph.embedding_generator import EmbeddingGenerator
 
 # HybridRanker import
@@ -133,7 +138,10 @@ class SearchAgent:
             google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
             openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
             dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
-            openalex_korean_future = executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
+            openalex_korean_future = (
+                executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
+                if _contains_korean(query) else None
+            )
 
             # 결과 수집
             try:
@@ -166,11 +174,12 @@ class SearchAgent:
                 print(f"[WARNING] DBLP search timed out or failed: {e}")
                 results["dblp"] = []
 
-            try:
-                results["openalex_korean"] = openalex_korean_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] OpenAlex Korean search timed out or failed: {e}")
-                results["openalex_korean"] = []
+            if openalex_korean_future is not None:
+                try:
+                    results["openalex_korean"] = openalex_korean_future.result(timeout=30)
+                except (concurrent.futures.TimeoutError, Exception) as e:
+                    print(f"[WARNING] OpenAlex Korean search timed out or failed: {e}")
+                    results["openalex_korean"] = []
 
         return results
 
@@ -204,11 +213,13 @@ class SearchAgent:
                 executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
                 executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
                 executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
-                executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source): ("openalex_korean", "basic"),
                 # Enhanced 검색 (arXiv 제외 — rate limit 방지)
                 executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
                 executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
             }
+            # 한국어 쿼리일 때만 OpenAlex Korean 검색 추가
+            if _contains_korean(query):
+                futures[executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)] = ("openalex_korean", "basic")
 
             try:
                 for future in concurrent.futures.as_completed(futures, timeout=60):
@@ -826,11 +837,8 @@ class SearchAgent:
 
     def _generate_paper_id(self, paper: Dict[str, Any]) -> str:
         """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
-        doi = PaperDeduplicator.normalize_doi(paper.get('doi', ''))
-        if doi:
-            return f"doi:{doi}"
-        title = PaperDeduplicator.normalize_title(paper.get('title', ''))
-        return title[:100] if title else str(hash(str(paper)))
+        from src.utils.paper_utils import generate_paper_id
+        return generate_paper_id(paper)
 
     @staticmethod
     def _legacy_paper_id(paper: Dict[str, Any]) -> str:
