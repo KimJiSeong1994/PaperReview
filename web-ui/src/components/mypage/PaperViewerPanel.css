@@ -451,39 +451,10 @@
   color: #a5b4fc;
 }
 
-/* ===== Semantic Reader Fallback ===== */
+/* ===== Semantic Reader Link ===== */
 
-.paper-viewer-reader-banner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: rgba(165, 180, 252, 0.06);
-  border-bottom: 1px solid rgba(165, 180, 252, 0.12);
-  color: #a5b4fc;
-  font-size: 11px;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.paper-viewer-reader-newtab {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  color: #6b7280;
-  padding: 2px;
-  border-radius: 4px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.paper-viewer-reader-newtab:hover {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.paper-viewer-reader-iframe {
-  flex: 1;
-  width: 100%;
-  border: none;
-  background: #111111;
+.paper-viewer-reader-link {
+  background: rgba(129, 140, 248, 0.1);
+  border-color: rgba(129, 140, 248, 0.25);
+  color: #818cf8;
 }

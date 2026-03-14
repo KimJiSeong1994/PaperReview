@@ -209,8 +209,6 @@ export default function PaperViewerPanel({
 
   // Semantic Reader fallback state
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
-  const [readerLoading, setReaderLoading] = useState(false);
-  const [readerError, setReaderError] = useState(false);
 
   // Auto-resolve: cache of resolved pdf_urls keyed by paper title
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, ResolvedUrl>>({});
@@ -249,8 +247,6 @@ export default function PaperViewerPanel({
     setResolving(false);
     setResolveProgress(null);
     setReaderUrl(null);
-    setReaderLoading(false);
-    setReaderError(false);
     // H-5: reset auto-select trigger so the first paper is re-selected on new bookmark
     autoSelectTriggered.current = false;
     resolveRequestIndexRef.current = null;
@@ -366,8 +362,6 @@ export default function PaperViewerPanel({
   // Fetch S2 Reader URL for a paper (fire-and-forget, updates readerUrl state)
   const fetchReaderUrl = useCallback(async (paper: BookmarkPaper, requestIndex: number) => {
     setReaderUrl(null);
-    setReaderLoading(true);
-    setReaderError(false);
     try {
       const result = await getS2ReaderUrl(
         paper.title,
@@ -377,11 +371,7 @@ export default function PaperViewerPanel({
       if (resolveRequestIndexRef.current !== requestIndex) return;
       setReaderUrl(result.reader_url);
     } catch {
-      if (resolveRequestIndexRef.current !== requestIndex) return;
-    } finally {
-      if (resolveRequestIndexRef.current === requestIndex) {
-        setReaderLoading(false);
-      }
+      // Ignore — reader link simply won't appear
     }
   }, []);
 
@@ -396,7 +386,6 @@ export default function PaperViewerPanel({
     setPageInputValue('1');
     setPdfError(null);
     setDocumentKey(k => k + 1);
-    setReaderError(false);
 
     const paper = papers[index];
     if (!paper) return;
@@ -544,63 +533,6 @@ export default function PaperViewerPanel({
   // ── Render ─────────────────────────────────────────────────────────
 
   const renderSemanticReaderFallback = () => {
-    if (readerLoading) {
-      return (
-        <div className="paper-viewer-loading">
-          <div className="paper-viewer-spinner" />
-          <span>Loading Semantic Reader...</span>
-        </div>
-      );
-    }
-
-    if (readerError && readerUrl) {
-      return (
-        <div className="paper-viewer-no-pdf">
-          <span className="paper-viewer-no-pdf-icon"><IconAlertCircle /></span>
-          <div>
-            <div className="paper-viewer-no-pdf-title">Cannot embed Semantic Reader</div>
-            <div className="paper-viewer-no-pdf-desc">Open it in a new tab instead.</div>
-          </div>
-          <a
-            className="paper-viewer-no-pdf-link"
-            href={readerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <IconExternalLink /> Open Semantic Reader
-          </a>
-        </div>
-      );
-    }
-
-    if (readerUrl) {
-      return (
-        <>
-          <div className="paper-viewer-reader-banner">
-            <IconBookOpen />
-            <span>Semantic Reader</span>
-            <a
-              className="paper-viewer-reader-newtab"
-              href={readerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open in new tab"
-            >
-              <IconExternalLink />
-            </a>
-          </div>
-          <iframe
-            className="paper-viewer-reader-iframe"
-            src={readerUrl}
-            title="Semantic Reader"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            onError={() => setReaderError(true)}
-          />
-        </>
-      );
-    }
-
-    // Neither PDF nor Semantic Reader available
     const externalUrl = selectedPaper ? paperExternalUrl(selectedPaper) : null;
     return (
       <div className="paper-viewer-no-pdf">
@@ -609,6 +541,16 @@ export default function PaperViewerPanel({
           <div className="paper-viewer-no-pdf-title">PDF not available</div>
           <div className="paper-viewer-no-pdf-desc">Open access PDF could not be found for this paper.</div>
         </div>
+        {readerUrl && (
+          <a
+            className="paper-viewer-no-pdf-link paper-viewer-reader-link"
+            href={readerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconBookOpen /> Open in Semantic Reader
+          </a>
+        )}
         {externalUrl && (
           <a
             className="paper-viewer-no-pdf-link"
@@ -636,9 +578,8 @@ export default function PaperViewerPanel({
     }
 
     if (!pdfSrc) {
-      // Still resolving PDF (batch or on-demand) — show waiting indicator
-      // but only if Semantic Reader is also not ready yet
-      if ((resolving || pdfLoading) && !readerUrl && readerLoading) {
+      // Still resolving PDF — show waiting indicator
+      if (resolving || pdfLoading) {
         return (
           <div className="paper-viewer-loading">
             <div className="paper-viewer-spinner" />
@@ -647,22 +588,8 @@ export default function PaperViewerPanel({
         );
       }
 
-      // PDF not found — fall back to Semantic Reader
-      if (!resolving && !pdfLoading) {
-        return renderSemanticReaderFallback();
-      }
-
-      // Still searching for PDF, but reader already resolved — show reader
-      if (readerUrl && !readerLoading) {
-        return renderSemanticReaderFallback();
-      }
-
-      return (
-        <div className="paper-viewer-loading">
-          <div className="paper-viewer-spinner" />
-          <span>Searching for PDF...</span>
-        </div>
-      );
+      // PDF not found — show fallback with Semantic Reader link (if available)
+      return renderSemanticReaderFallback();
     }
 
     return (
