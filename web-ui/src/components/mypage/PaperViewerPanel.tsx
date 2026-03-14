@@ -829,6 +829,51 @@ export default function PaperViewerPanel({
           </button>
 
           <div className="paper-viewer-toolbar-spacer" />
+
+          {/* Review & Highlight actions */}
+          {bookmarkId && selectedIndex !== null && (
+            <>
+              <div className="paper-viewer-toolbar-sep" />
+              {selectedPaper?.review ? (
+                <button
+                  className={`paper-viewer-fit-btn${pr.reviewPanelOpen ? ' active' : ''}`}
+                  title="Show review & highlights"
+                  onClick={() => {
+                    if (pr.reviewPanelOpen) {
+                      pr.toggleReviewPanel();
+                    } else {
+                      pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
+                      pr.setActiveReviewTab('highlights');
+                    }
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>
+                  </svg>
+                  Highlights
+                  {selectedPaper.review_highlights?.length ? ` (${selectedPaper.review_highlights.length})` : ''}
+                </button>
+              ) : (
+                <button
+                  className="paper-viewer-fit-btn paper-viewer-review-toolbar-btn"
+                  title="Review & auto-highlight this paper"
+                  onClick={() => handleReviewPaper(selectedIndex!)}
+                  disabled={pr.reviewLoading}
+                >
+                  {pr.reviewLoading ? (
+                    <><span className="paper-viewer-resolve-spinner" /> Reviewing...</>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>
+                      </svg>
+                      Auto Highlight
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          )}
         </div>
       </>
     );
@@ -916,9 +961,19 @@ export default function PaperViewerPanel({
                           </span>
                         )}
                         {paper.review_highlights && paper.review_highlights.length > 0 && (
-                          <span className="paper-viewer-hl-count" title={`${paper.review_highlights.length} highlights`}>
+                          <button
+                            className="paper-viewer-hl-count-btn"
+                            title={`${paper.review_highlights.length} highlights — click to view`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              resolveAndSelect(index);
+                              pr.setReviewFromCache(paper.review, paper.review_highlights || []);
+                              pr.setActiveReviewTab('highlights');
+                            }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
                             {paper.review_highlights.length}
-                          </span>
+                          </button>
                         )}
                         <button
                           className="paper-viewer-review-btn"
