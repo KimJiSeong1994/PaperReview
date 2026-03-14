@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { resolvePdfUrl, batchResolvePdfUrls } from '../../api/client';
+import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl } from '../../api/client';
 import './PaperViewerPanel.css';
 
 // Configure pdf.js worker via CDN (avoids Vite bundling issues with import.meta.url)
@@ -178,6 +178,15 @@ function IconFitWidth() {
   );
 }
 
+function IconBookOpen() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────
 
 export default function PaperViewerPanel({
@@ -197,6 +206,11 @@ export default function PaperViewerPanel({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [documentKey, setDocumentKey] = useState(0);
+
+  // Semantic Reader fallback state
+  const [readerUrl, setReaderUrl] = useState<string | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
+  const [readerError, setReaderError] = useState(false);
 
   // Auto-resolve: cache of resolved pdf_urls keyed by paper title
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, ResolvedUrl>>({});
@@ -234,6 +248,9 @@ export default function PaperViewerPanel({
     setResolvedUrls({});
     setResolving(false);
     setResolveProgress(null);
+    setReaderUrl(null);
+    setReaderLoading(false);
+    setReaderError(false);
     // H-5: reset auto-select trigger so the first paper is re-selected on new bookmark
     autoSelectTriggered.current = false;
     resolveRequestIndexRef.current = null;
@@ -346,6 +363,28 @@ export default function PaperViewerPanel({
 
   // On-demand resolve: when clicking a paper without pdf_url, resolve individually
   // H-4: uses a ref to track the "current" request index; stale responses are silently dropped
+  // Fetch S2 Reader URL for a paper (fire-and-forget, updates readerUrl state)
+  const fetchReaderUrl = useCallback(async (paper: BookmarkPaper, requestIndex: number) => {
+    setReaderUrl(null);
+    setReaderLoading(true);
+    setReaderError(false);
+    try {
+      const result = await getS2ReaderUrl(
+        paper.title,
+        paper.doi || undefined,
+        (paper as any).arxiv_id || undefined,
+      );
+      if (resolveRequestIndexRef.current !== requestIndex) return;
+      setReaderUrl(result.reader_url);
+    } catch {
+      if (resolveRequestIndexRef.current !== requestIndex) return;
+    } finally {
+      if (resolveRequestIndexRef.current === requestIndex) {
+        setReaderLoading(false);
+      }
+    }
+  }, []);
+
   const resolveAndSelect = useCallback(async (index: number) => {
     // Mark this as the active request, cancelling any in-flight prior request
     resolveRequestIndexRef.current = index;
@@ -357,9 +396,13 @@ export default function PaperViewerPanel({
     setPageInputValue('1');
     setPdfError(null);
     setDocumentKey(k => k + 1);
+    setReaderError(false);
 
     const paper = papers[index];
     if (!paper) return;
+
+    // Fetch S2 Reader URL in parallel
+    fetchReaderUrl(paper, requestIndex);
 
     // Already has pdf_url (from data or resolved cache)
     if (paper.pdf_url || resolvedUrls[paper.title]?.pdf_url) {
@@ -385,7 +428,7 @@ export default function PaperViewerPanel({
       if (resolveRequestIndexRef.current !== requestIndex) return;
     }
     setPdfLoading(false);
-  }, [papers, resolvedUrls]);
+  }, [papers, resolvedUrls, fetchReaderUrl]);
 
   // Auto-select first paper when autoSelectFirst is enabled (e.g., from search results)
   useEffect(() => {
@@ -500,6 +543,86 @@ export default function PaperViewerPanel({
 
   // ── Render ─────────────────────────────────────────────────────────
 
+  const renderSemanticReaderFallback = () => {
+    if (readerLoading) {
+      return (
+        <div className="paper-viewer-loading">
+          <div className="paper-viewer-spinner" />
+          <span>Loading Semantic Reader...</span>
+        </div>
+      );
+    }
+
+    if (readerError && readerUrl) {
+      return (
+        <div className="paper-viewer-no-pdf">
+          <span className="paper-viewer-no-pdf-icon"><IconAlertCircle /></span>
+          <div>
+            <div className="paper-viewer-no-pdf-title">Cannot embed Semantic Reader</div>
+            <div className="paper-viewer-no-pdf-desc">Open it in a new tab instead.</div>
+          </div>
+          <a
+            className="paper-viewer-no-pdf-link"
+            href={readerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconExternalLink /> Open Semantic Reader
+          </a>
+        </div>
+      );
+    }
+
+    if (readerUrl) {
+      return (
+        <>
+          <div className="paper-viewer-reader-banner">
+            <IconBookOpen />
+            <span>Semantic Reader</span>
+            <a
+              className="paper-viewer-reader-newtab"
+              href={readerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open in new tab"
+            >
+              <IconExternalLink />
+            </a>
+          </div>
+          <iframe
+            className="paper-viewer-reader-iframe"
+            src={readerUrl}
+            title="Semantic Reader"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            onError={() => setReaderError(true)}
+          />
+        </>
+      );
+    }
+
+    // Neither PDF nor Semantic Reader available
+    const externalUrl = selectedPaper ? paperExternalUrl(selectedPaper) : null;
+    return (
+      <div className="paper-viewer-no-pdf">
+        <span className="paper-viewer-no-pdf-icon"><IconAlertCircle /></span>
+        <div>
+          <div className="paper-viewer-no-pdf-title">PDF not available</div>
+          <div className="paper-viewer-no-pdf-desc">Open access PDF could not be found for this paper.</div>
+        </div>
+        {externalUrl && (
+          <a
+            className="paper-viewer-no-pdf-link"
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconExternalLink /> View Paper
+          </a>
+        )}
+      </div>
+    );
+  };
+
   const renderPdfArea = () => {
     if (!selectedPaper) {
       return (
@@ -513,8 +636,9 @@ export default function PaperViewerPanel({
     }
 
     if (!pdfSrc) {
-      // Still resolving (batch or on-demand) — show a waiting indicator
-      if (resolving || pdfLoading) {
+      // Still resolving PDF (batch or on-demand) — show waiting indicator
+      // but only if Semantic Reader is also not ready yet
+      if ((resolving || pdfLoading) && !readerUrl && readerLoading) {
         return (
           <div className="paper-viewer-loading">
             <div className="paper-viewer-spinner" />
@@ -523,27 +647,20 @@ export default function PaperViewerPanel({
         );
       }
 
-      const externalUrl = paperExternalUrl(selectedPaper);
+      // PDF not found — fall back to Semantic Reader
+      if (!resolving && !pdfLoading) {
+        return renderSemanticReaderFallback();
+      }
+
+      // Still searching for PDF, but reader already resolved — show reader
+      if (readerUrl && !readerLoading) {
+        return renderSemanticReaderFallback();
+      }
+
       return (
-        <div className="paper-viewer-no-pdf">
-          <span className="paper-viewer-no-pdf-icon">
-            <IconAlertCircle />
-          </span>
-          <div>
-            <div className="paper-viewer-no-pdf-title">PDF not available</div>
-            <div className="paper-viewer-no-pdf-desc">Open access PDF could not be found for this paper.</div>
-          </div>
-          {externalUrl && (
-            <a
-              className="paper-viewer-no-pdf-link"
-              href={externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <IconExternalLink />
-              View Paper
-            </a>
-          )}
+        <div className="paper-viewer-loading">
+          <div className="paper-viewer-spinner" />
+          <span>Searching for PDF...</span>
         </div>
       );
     }

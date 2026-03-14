@@ -11,8 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 
-from .deps import get_current_user, limiter, load_bookmarks, modify_bookmarks
+from .deps import get_current_user, get_optional_user, limiter, load_bookmarks, modify_bookmarks
 from .exploration_service import generate_citation_tree
+from src.collector.paper.semantic_scholar_client import SemanticScholarClient
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +112,38 @@ async def delete_citation_tree(bookmark_id: str, username: str = Depends(get_cur
             raise HTTPException(status_code=404, detail="No citation tree to delete")
         del bm["citation_tree"]
     return {"success": True}
+
+
+# ── Semantic Scholar Reader URL ──────────────────────────────────────
+
+@router.get("/s2/reader-url")
+async def get_s2_reader_url(
+    title: str = "",
+    doi: str = "",
+    arxiv_id: str = "",
+    _username: str = Depends(get_optional_user),
+):
+    """Resolve a paper to its Semantic Scholar Reader URL.
+
+    Returns the reader URL (https://www.semanticscholar.org/reader/{paperId})
+    if the paper is found on Semantic Scholar.
+    """
+    if not title and not doi and not arxiv_id:
+        raise HTTPException(status_code=400, detail="At least one of title, doi, or arxiv_id is required")
+
+    paper = {"title": title, "doi": doi, "arxiv_id": arxiv_id}
+
+    from .exploration_service import _resolve_paper
+
+    s2_client = SemanticScholarClient()
+    try:
+        resolved = _resolve_paper(paper, s2_client)
+    finally:
+        s2_client.close()
+
+    if not resolved:
+        return {"reader_url": None, "paper_id": None}
+
+    paper_id = resolved["paperId"]
+    reader_url = f"https://www.semanticscholar.org/reader/{paper_id}"
+    return {"reader_url": reader_url, "paper_id": paper_id}
