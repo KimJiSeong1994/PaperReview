@@ -138,12 +138,32 @@ async def get_s2_reader_url(
     s2_client = SemanticScholarClient()
     try:
         resolved = _resolve_paper(paper, s2_client)
+        if not resolved:
+            return {"reader_url": None, "paper_id": None, "pdf_url": None}
+
+        paper_id = resolved["paperId"]
+        reader_url = f"https://www.semanticscholar.org/reader/{paper_id}"
+
+        # Fetch openAccessPdf and externalIds to provide PDF URL
+        pdf_url = None
+        try:
+            base_url = "https://api.semanticscholar.org/graph/v1"
+            resp = s2_client.request_with_retry(
+                f"{base_url}/paper/{paper_id}",
+                params={"fields": "openAccessPdf,externalIds"},
+                timeout=15,
+            )
+            data = resp.json()
+            oa_pdf = data.get("openAccessPdf") or {}
+            pdf_url = oa_pdf.get("url") or None
+            if not pdf_url:
+                ext_ids = data.get("externalIds") or {}
+                s2_arxiv = ext_ids.get("ArXiv")
+                if s2_arxiv:
+                    pdf_url = f"https://arxiv.org/pdf/{s2_arxiv.split('v')[0]}.pdf"
+        except Exception as e:
+            logger.debug("S2 PDF lookup failed for %s: %s", paper_id, e)
+
+        return {"reader_url": reader_url, "paper_id": paper_id, "pdf_url": pdf_url}
     finally:
         s2_client.close()
-
-    if not resolved:
-        return {"reader_url": None, "paper_id": None}
-
-    paper_id = resolved["paperId"]
-    reader_url = f"https://www.semanticscholar.org/reader/{paper_id}"
-    return {"reader_url": reader_url, "paper_id": paper_id}

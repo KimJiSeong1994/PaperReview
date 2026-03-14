@@ -367,14 +367,21 @@ export default function PaperViewerPanel({
       const result = await getS2ReaderUrl(
         paper.title,
         paper.doi || undefined,
-        (paper as any).arxiv_id || undefined,
+        paper.arxiv_id || undefined,
       );
       if (resolveRequestIndexRef.current !== requestIndex) return;
       setReaderUrl(result.reader_url);
+      // If S2 returned a PDF URL and we don't have one yet, use it as fallback
+      if (result.pdf_url && !paper.pdf_url && !resolvedUrls[paper.title]?.pdf_url) {
+        setResolvedUrls(prev => ({
+          ...prev,
+          [paper.title]: { pdf_url: result.pdf_url!, source: 'semantic_scholar' },
+        }));
+      }
     } catch {
       // Ignore — reader link simply won't appear
     }
-  }, []);
+  }, [resolvedUrls]);
 
   const resolveAndSelect = useCallback(async (index: number) => {
     // Mark this as the active request, cancelling any in-flight prior request

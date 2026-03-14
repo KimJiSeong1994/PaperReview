@@ -881,7 +881,7 @@ export async function getS2ReaderUrl(
   title: string,
   doi?: string,
   arxivId?: string,
-): Promise<{ reader_url: string | null; paper_id: string | null }> {
+): Promise<{ reader_url: string | null; paper_id: string | null; pdf_url: string | null }> {
   const params: Record<string, string> = { title };
   if (doi) params.doi = doi;
   if (arxivId) params.arxiv_id = arxivId;
