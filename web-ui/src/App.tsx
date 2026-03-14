@@ -291,6 +291,7 @@ function App() {
           year: p.year,
           pdf_url: p.pdf_url || undefined,
           doi: p.doi || undefined,
+          arxiv_id: p.arxiv_id || undefined,
           url: p.url || undefined,
           source: p.source || undefined,
         })),

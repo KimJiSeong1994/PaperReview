@@ -740,16 +740,35 @@ class GoogleScholarSearcher:
                     result = next(search_results)
                     bib = result.get('bib', {})
 
+                    # Extract DOI from bib or URL
+                    doi = bib.get('doi', '')
+                    pub_url = result.get('pub_url', '')
+                    eprint_url = result.get('eprint_url', '')
+                    if not doi and pub_url:
+                        doi_match = re.search(r'doi\.org/(10\.\S+)', pub_url)
+                        if doi_match:
+                            doi = doi_match.group(1)
+
+                    # Extract arxiv_id from URL or eprint_url
+                    arxiv_id = ''
+                    for candidate_url in [eprint_url, pub_url]:
+                        if candidate_url:
+                            arxiv_match = re.search(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})', candidate_url)
+                            if arxiv_match:
+                                arxiv_id = arxiv_match.group(1)
+                                break
+
                     paper = {
                         "title": bib.get('title', ''),
                         "authors": bib.get('author', []),
                         "abstract": bib.get('abstract', ''),
-                        "url": result.get('pub_url', result.get('eprint_url', '')),
-                        "pdf_url": result.get('eprint_url', ''),
+                        "url": pub_url or eprint_url,
+                        "pdf_url": eprint_url,
                         "journal": bib.get('venue', ''),
                         "year": str(bib.get('pub_year', '')),
                         "citations": result.get('num_citations', 0),
-                        "doi": '',
+                        "doi": doi,
+                        "arxiv_id": arxiv_id,
                         "source": "Google Scholar",
                     }
 
@@ -831,6 +850,15 @@ class GoogleScholarSearcher:
             if doi_match:
                 doi = doi_match.group(1)
 
+            # arXiv ID 추출 (URL 또는 PDF 링크에서)
+            arxiv_id = ""
+            for candidate_url in [pdf_url, url]:
+                if candidate_url:
+                    arxiv_match = re.search(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})', candidate_url)
+                    if arxiv_match:
+                        arxiv_id = arxiv_match.group(1)
+                        break
+
             return {
                 "title": title,
                 "authors": authors,
@@ -841,6 +869,7 @@ class GoogleScholarSearcher:
                 "year": year,
                 "citations": citations,
                 "doi": doi,
+                "arxiv_id": arxiv_id,
                 "source": "Google Scholar"
             }
 
