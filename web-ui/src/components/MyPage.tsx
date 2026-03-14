@@ -264,6 +264,21 @@ function MyPage({ onBack }: MyPageProps) {
                 bookmarkDetail={bm.bookmarkDetail}
                 loadingDetail={bm.loadingDetail}
                 hasSelectedBookmark={!!bm.selectedBookmark}
+                bookmarkId={bm.selectedBookmark?.id}
+                onPaperReviewUpdate={(paperIndex, review, highlights) => {
+                  bm.setBookmarkDetail((prev: any) => {
+                    if (!prev?.papers) return prev;
+                    const updatedPapers = [...prev.papers];
+                    if (paperIndex < updatedPapers.length) {
+                      updatedPapers[paperIndex] = {
+                        ...updatedPapers[paperIndex],
+                        review,
+                        review_highlights: highlights,
+                      };
+                    }
+                    return { ...prev, papers: updatedPapers };
+                  });
+                }}
               />
             </>
           )}

@@ -9,6 +9,7 @@ from .search import router as search_router
 from .papers import router as papers_router
 from .reviews import router as reviews_router
 from .bookmarks import router as bookmarks_router
+from .paper_reviews import router as paper_reviews_router
 from .chat import router as chat_router
 from .lightrag import router as lightrag_router
 from .admin import router as admin_router
@@ -23,6 +24,7 @@ __all__ = [
     "papers_router",
     "reviews_router",
     "bookmarks_router",
+    "paper_reviews_router",
     "chat_router",
     "lightrag_router",
     "admin_router",

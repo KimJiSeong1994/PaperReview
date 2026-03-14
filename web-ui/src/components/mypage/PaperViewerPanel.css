@@ -458,3 +458,92 @@
   border-color: rgba(129, 140, 248, 0.25);
   color: #818cf8;
 }
+
+/* ===== Paper Review integration ===== */
+
+.paper-viewer-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.paper-viewer-review-btn {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(165, 180, 252, 0.08);
+  border: 1px solid rgba(165, 180, 252, 0.15);
+  color: #a5b4fc;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.paper-viewer-review-btn:hover:not(:disabled) {
+  background: rgba(165, 180, 252, 0.15);
+  border-color: rgba(165, 180, 252, 0.3);
+}
+
+.paper-viewer-review-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Cross-paper Review Summary ===== */
+
+.paper-viewer-review-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-bottom: 1px solid #1e1e1e;
+  font-size: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  background: rgba(165, 180, 252, 0.03);
+}
+
+.paper-viewer-review-summary-count {
+  color: #a5b4fc;
+  font-weight: 500;
+}
+
+.paper-viewer-review-summary-sep {
+  color: #374151;
+}
+
+.paper-viewer-review-summary-avg {
+  color: #d1d5db;
+  font-weight: 500;
+}
+
+.paper-viewer-review-summary-range {
+  color: #6b7280;
+}
+
+/* ===== Circular Score Badge ===== */
+
+.paper-viewer-score-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--score-color, #a5b4fc);
+  background: color-mix(in srgb, var(--score-color, #a5b4fc) 12%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--score-color, #a5b4fc) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.paper-viewer-hl-count {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #1e1e1e;
+  color: #6b7280;
+}

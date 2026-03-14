@@ -1,8 +1,10 @@
-import { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl } from '../../api/client';
+import { usePaperReview } from '../../hooks/usePaperReview';
+import PaperReviewPanel from './PaperReviewPanel';
 import './PaperViewerPanel.css';
 
 // Configure pdf.js worker via CDN (avoids Vite bundling issues with import.meta.url)
@@ -19,6 +21,8 @@ interface BookmarkPaper {
   arxiv_id?: string | null;
   url?: string | null;
   source?: string | null;
+  review?: any;
+  review_highlights?: any[];
 }
 
 interface ResolvedUrl {
@@ -31,6 +35,9 @@ export interface PaperViewerPanelProps {
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   autoSelectFirst?: boolean;
+  // NEW: for review integration
+  bookmarkId?: string;
+  onPaperReviewUpdate?: (paperIndex: number, review: any, highlights: any[]) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -195,8 +202,26 @@ export default function PaperViewerPanel({
   loadingDetail,
   hasSelectedBookmark,
   autoSelectFirst = false,
+  bookmarkId,
+  onPaperReviewUpdate,
 }: PaperViewerPanelProps) {
   const papers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
+  const pr = usePaperReview();
+
+  // Cross-paper review summary
+  const reviewSummary = useMemo(() => {
+    const reviewed = papers.filter(p => p.review);
+    if (reviewed.length === 0) return null;
+    const scores = reviewed.map(p => p.review.overall_score);
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    return {
+      count: reviewed.length,
+      total: papers.length,
+      avg: avg.toFixed(1),
+      min: Math.min(...scores),
+      max: Math.max(...scores),
+    };
+  }, [papers]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
@@ -218,6 +243,7 @@ export default function PaperViewerPanel({
 
   const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
+  const pdfDocRef = useRef<any>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const pageHeights = useRef<Map<number, number>>(new Map());
   const isScrollingToPage = useRef(false);
@@ -398,6 +424,13 @@ export default function PaperViewerPanel({
     const paper = papers[index];
     if (!paper) return;
 
+    // Load cached review if exists, otherwise clear previous review
+    if (paper.review) {
+      pr.setReviewFromCache(paper.review, paper.review_highlights || []);
+    } else {
+      pr.clearReview();
+    }
+
     // Fetch S2 Reader URL in parallel
     fetchReaderUrl(paper, requestIndex);
 
@@ -435,10 +468,40 @@ export default function PaperViewerPanel({
     }
   }, [autoSelectFirst, papers.length, resolveAndSelect]);
 
-  const handleDocumentLoadSuccess = useCallback(({ numPages: n }: { numPages: number }) => {
-    setNumPages(n);
+  // PDF text extraction helper (up to 30 pages)
+  const extractPdfText = useCallback(async (pdfDoc: any): Promise<string> => {
+    const pages: string[] = [];
+    const maxPages = Math.min(pdfDoc.numPages, 30);
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item: any) => item.str).join(' '));
+    }
+    return pages.join('\n\n');
+  }, []);
+
+  // Review button handler: extracts PDF text when possible then starts review
+  const handleReviewPaper = useCallback(async (index: number) => {
+    if (!bookmarkId) return;
+    let fullText: string | undefined;
+    if (pdfDocRef.current && selectedIndex === index) {
+      try {
+        fullText = await extractPdfText(pdfDocRef.current);
+      } catch {
+        // Fall back to review without full text
+      }
+    }
+    const result = await pr.startReview(bookmarkId, index, fullText);
+    if (result && onPaperReviewUpdate) {
+      onPaperReviewUpdate(index, result.review, result.highlights);
+    }
+  }, [bookmarkId, selectedIndex, pr, extractPdfText, onPaperReviewUpdate]);
+
+  const handleDocumentLoadSuccess = useCallback((pdf: any) => {
+    setNumPages(pdf.numPages);
     setPdfLoading(false);
     setPdfError(null);
+    pdfDocRef.current = pdf;
   }, []);
 
   const handleDocumentLoadError = useCallback((err: Error) => {
@@ -790,6 +853,26 @@ export default function PaperViewerPanel({
           )}
         </div>
 
+        {reviewSummary && (
+          <div className="paper-viewer-review-summary">
+            <span className="paper-viewer-review-summary-count">
+              Reviews: {reviewSummary.count}/{reviewSummary.total}
+            </span>
+            <span className="paper-viewer-review-summary-sep">|</span>
+            <span className="paper-viewer-review-summary-avg">
+              Avg: {reviewSummary.avg}
+            </span>
+            {reviewSummary.count > 1 && (
+              <>
+                <span className="paper-viewer-review-summary-sep">|</span>
+                <span className="paper-viewer-review-summary-range">
+                  {reviewSummary.min}-{reviewSummary.max}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="paper-viewer-list-scroll">
           {loadingDetail ? (
             <div className="paper-viewer-list-loading">Loading papers...</div>
@@ -819,6 +902,34 @@ export default function PaperViewerPanel({
                       {formatAuthors(paper.authors)}
                       {paper.year ? ` · ${paper.year}` : ''}
                     </div>
+                    {bookmarkId && (
+                      <div className="paper-viewer-item-actions">
+                        {paper.review && (
+                          <span
+                            className="paper-viewer-score-circle"
+                            style={{
+                              '--score-color': paper.review.overall_score >= 8 ? '#4ade80' : paper.review.overall_score >= 6 ? '#a5b4fc' : paper.review.overall_score >= 4 ? '#fbbf24' : '#f87171'
+                            } as React.CSSProperties}
+                            title={`Score: ${paper.review.overall_score}/10 | Confidence: ${paper.review.confidence}/5`}
+                          >
+                            {paper.review.overall_score}
+                          </span>
+                        )}
+                        {paper.review_highlights && paper.review_highlights.length > 0 && (
+                          <span className="paper-viewer-hl-count" title={`${paper.review_highlights.length} highlights`}>
+                            {paper.review_highlights.length}
+                          </span>
+                        )}
+                        <button
+                          className="paper-viewer-review-btn"
+                          onClick={(e) => { e.stopPropagation(); handleReviewPaper(index); }}
+                          disabled={pr.reviewLoading}
+                          title={paper.review ? 'Re-review this paper' : 'Review this paper'}
+                        >
+                          {paper.review ? 'Re-review' : 'Review'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -829,6 +940,29 @@ export default function PaperViewerPanel({
 
       {/* ── Right: PDF viewer ── */}
       <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
+
+      {/* ── Far right: Review panel ── */}
+      {pr.reviewPanelOpen && (
+        <PaperReviewPanel
+          review={pr.review}
+          loading={pr.reviewLoading}
+          error={pr.reviewError}
+          highlights={pr.reviewHighlights}
+          activeTab={pr.activeReviewTab}
+          highlightFilter={pr.highlightFilter}
+          onTabChange={pr.setActiveReviewTab}
+          onFilterChange={pr.setHighlightFilter}
+          onClose={pr.toggleReviewPanel}
+          onDelete={pr.review && bookmarkId && selectedIndex !== null ? () => {
+            pr.deleteReview(bookmarkId!, selectedIndex!);
+            if (onPaperReviewUpdate) onPaperReviewUpdate(selectedIndex!, null as any, []);
+          } : undefined}
+          onReReview={selectedIndex !== null ? () => handleReviewPaper(selectedIndex!) : undefined}
+          onRemoveHighlight={(hlId) => pr.removeHighlight(hlId)}
+          onAutoHighlight={bookmarkId && selectedIndex !== null ? () => pr.runAutoHighlight(bookmarkId!, selectedIndex!) : undefined}
+          autoHighlighting={pr.autoHighlighting}
+        />
+      )}
     </div>
   );
 }

@@ -32,6 +32,7 @@ from routers import (
     papers_router,
     reviews_router,
     bookmarks_router,
+    paper_reviews_router,
     chat_router,
     lightrag_router,
     admin_router,
@@ -137,6 +138,7 @@ app.include_router(search_router)
 app.include_router(papers_router)
 app.include_router(reviews_router)
 app.include_router(bookmarks_router)
+app.include_router(paper_reviews_router)
 app.include_router(chat_router)
 app.include_router(lightrag_router)
 app.include_router(admin_router)
