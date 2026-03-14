@@ -120,6 +120,7 @@ class PdfResolveResponse(BaseModel):
 class PaperResolveRequest(BaseModel):
     title: str
     doi: Optional[str] = None
+    arxiv_id: Optional[str] = None
 
 
 class BatchResolveRequest(BaseModel):
@@ -292,13 +293,20 @@ async def _resolve_single(
     client: httpx.AsyncClient,
     title: str,
     doi: Optional[str] = None,
+    arxiv_id: Optional[str] = None,
 ) -> PdfResolveResponse:
     """Core resolution logic shared by single and batch endpoints."""
 
-    # ── 1. arXiv ID shortcut ──────────────────────────────────────────
-    arxiv_id = _extract_arxiv_id(title)
+    # ── 0. Explicit arXiv ID (from paper metadata) ───────────────────
     if arxiv_id:
-        pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+        clean_id = arxiv_id.split("v")[0]  # strip version suffix
+        pdf_url = f"https://arxiv.org/pdf/{clean_id}.pdf"
+        return PdfResolveResponse(pdf_url=pdf_url, source="arxiv")
+
+    # ── 1. arXiv ID shortcut (from title text) ───────────────────────
+    extracted_id = _extract_arxiv_id(title)
+    if extracted_id:
+        pdf_url = f"https://arxiv.org/pdf/{extracted_id}.pdf"
         return PdfResolveResponse(pdf_url=pdf_url, source="arxiv")
 
     # ── 2. Unpaywall (requires DOI) ──────────────────────────────────
@@ -440,6 +448,7 @@ async def resolve_pdf(
     request: Request,
     title: str = Query(..., description="Paper title to search for"),
     doi: Optional[str] = Query(None, description="DOI of the paper"),
+    arxiv_id: Optional[str] = Query(None, description="arXiv ID of the paper"),
 ) -> PdfResolveResponse:
     """Try to find an open-access PDF URL for a paper."""
     # H-3: Check cache first
@@ -449,7 +458,7 @@ async def resolve_pdf(
         return cached
 
     client = await _get_http_client()
-    result = await _resolve_single(client, title, doi)
+    result = await _resolve_single(client, title, doi, arxiv_id=arxiv_id)
 
     if result.pdf_url:
         logger.info("Resolved PDF for '%s': %s (%s)", title[:50], result.pdf_url, result.source)
@@ -493,7 +502,7 @@ async def resolve_pdf_batch(
 
     async def resolve_with_limit(paper: PaperResolveRequest) -> PdfResolveResponse:
         async with semaphore:
-            return await _resolve_single(client, paper.title, paper.doi)
+            return await _resolve_single(client, paper.title, paper.doi, arxiv_id=paper.arxiv_id)
 
     # Resolve only cache misses
     if papers_to_resolve:

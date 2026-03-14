@@ -16,6 +16,7 @@ interface BookmarkPaper {
   year?: number | string;
   pdf_url?: string | null;
   doi?: string | null;
+  arxiv_id?: string | null;
   url?: string | null;
   source?: string | null;
 }
@@ -265,7 +266,7 @@ export default function PaperViewerPanel({
     (async () => {
       try {
         const data = await batchResolvePdfUrls(
-          needResolve.map(p => ({ title: p.title, doi: p.doi || undefined })),
+          needResolve.map(p => ({ title: p.title, doi: p.doi || undefined, arxiv_id: p.arxiv_id || undefined })),
         );
         if (cancelled) return;
 
@@ -402,7 +403,7 @@ export default function PaperViewerPanel({
     // Try to resolve on-demand via api client
     setPdfLoading(true);
     try {
-      const data = await resolvePdfUrl(paper.title, paper.doi || undefined);
+      const data = await resolvePdfUrl(paper.title, paper.doi || undefined, paper.arxiv_id || undefined);
       // H-4: discard result if a newer selection was made while we were awaiting
       if (resolveRequestIndexRef.current !== requestIndex) return;
       if (data.pdf_url) {

@@ -861,15 +861,16 @@ export const getAdminCurricula = async (): Promise<AdminCurriculaResponse> => {
 
 // ── PDF API ───────────────────────────────────────────────────────────
 
-export async function resolvePdfUrl(title: string, doi?: string): Promise<{pdf_url: string | null; source: string | null}> {
-  const params: any = { title };
+export async function resolvePdfUrl(title: string, doi?: string, arxivId?: string): Promise<{pdf_url: string | null; source: string | null}> {
+  const params: Record<string, string> = { title };
   if (doi) params.doi = doi;
+  if (arxivId) params.arxiv_id = arxivId;
   const { data } = await api.get('/api/pdf/resolve', { params });
   return data;
 }
 
 export async function batchResolvePdfUrls(
-  papers: { title: string; doi?: string }[],
+  papers: { title: string; doi?: string; arxiv_id?: string }[],
 ): Promise<{ results: { pdf_url: string | null; source: string | null }[] }> {
   const { data } = await api.post('/api/pdf/resolve-batch', { papers });
   return data;
