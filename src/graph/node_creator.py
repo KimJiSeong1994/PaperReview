@@ -8,7 +8,7 @@ from typing import Dict, List, Any
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
-from utils.paper_utils import normalize_title as _normalize_title, normalize_doi as _normalize_doi, generate_paper_id as _generate_paper_id_util
+from utils.paper_utils import generate_paper_id as _generate_paper_id_util
 
 class NodeCreator:
     """논문 노드 생성 클래스"""

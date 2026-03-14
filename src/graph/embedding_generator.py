@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from utils.logger import log_data_processing
 
 import hashlib as _hashlib
-from utils.paper_utils import normalize_title as _normalize_title, normalize_doi as _normalize_doi, generate_paper_id as _generate_paper_id_util
+from utils.paper_utils import generate_paper_id as _generate_paper_id_util
 
 try:
     from openai import OpenAI

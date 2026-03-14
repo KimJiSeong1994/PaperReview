@@ -5,14 +5,11 @@ Uses Semantic Scholar API for citation data.
 """
 
 import logging
-import os
-import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +58,7 @@ def _resolve_paper(paper: Dict[str, Any], s2_client: SemanticScholarClient) -> O
         return None
 
     try:
-        resp = _s2_request(
-            session,
+        resp = s2_client.request_with_retry(
             f"{base_url}/paper/search",
             params={"query": title, "limit": 1, "fields": "paperId,url"},
             timeout=20,
