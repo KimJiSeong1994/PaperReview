@@ -599,10 +599,40 @@ def preprocess_pdf_text(text: str) -> str:
     # 6. Merge hyphenated line breaks ("meth-\nod" -> "method")
     text = re.sub(r'(\w)-\s*\n\s*(\w)', r'\1\2', text)
 
-    # 7. Normalise consecutive blank lines (max 2)
+    # 7. Merge paragraph-internal line breaks.
+    #    Lines that do NOT end with sentence-ending punctuation (.!?:;)
+    #    or a section heading pattern are joined with the next line.
+    #    This turns column-wrapped text back into continuous paragraphs.
+    merged_lines: list[str] = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        if not stripped:
+            # Blank line = paragraph boundary
+            merged_lines.append('')
+            continue
+        if (
+            merged_lines
+            and merged_lines[-1]
+            and not merged_lines[-1].rstrip().endswith(('.', '!', '?', ':', ';'))
+            and not re.match(
+                r'^(?:\d+\.[\d.]*\s|[IVX]+\.\s|[A-Z][A-Z\s]{2,}$)',
+                stripped,
+            )
+            and not stripped.startswith('[SECTION:')
+            and not stripped.startswith('[MATH]')
+            and not stripped.startswith('[TABLE_DATA]')
+            and len(stripped) > 5
+        ):
+            # Continue previous line (same paragraph)
+            merged_lines[-1] = merged_lines[-1].rstrip() + ' ' + stripped
+        else:
+            merged_lines.append(stripped)
+    text = '\n'.join(merged_lines)
+
+    # 8. Normalise consecutive blank lines (max 2)
     text = re.sub(r'\n{3,}', '\n\n', text)
 
-    # 8. Normalise consecutive spaces within lines
+    # 9. Normalise consecutive spaces within lines
     text = re.sub(r'[^\S\n]{2,}', ' ', text)
 
     return text.strip()
