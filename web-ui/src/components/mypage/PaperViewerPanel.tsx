@@ -537,75 +537,69 @@ export default function PaperViewerPanel({
       const textLayers = scrollEl.querySelectorAll('.react-pdf__Page__textContent');
       if (textLayers.length === 0) return;
 
-      interface GlobalSpanInfo {
-        span: HTMLSpanElement;
-        globalStart: number;
-        globalEnd: number;
-      }
-
-      const globalSpanInfos: GlobalSpanInfo[] = [];
-      let globalText = '';
+      // Build normalised text and a char→span mapping at build time.
+      // Each char in normText maps to a span, so no reverse-mapping is needed.
+      const charToSpan: HTMLSpanElement[] = [];
+      let normText = '';
 
       textLayers.forEach(layer => {
         const spans = Array.from(layer.querySelectorAll('span')) as HTMLSpanElement[];
         for (const span of spans) {
           const raw = span.textContent || '';
           if (!raw) continue;
-          const t = normalizeLigatures(raw);
-          const start = globalText.length;
-          globalText += t + ' ';
-          globalSpanInfos.push({ span, globalStart: start, globalEnd: start + t.length });
+          const t = normalizeLigatures(raw).replace(/\s+/g, ' ');
+          // Add space between spans if needed
+          if (normText.length > 0 && !normText.endsWith(' ') && !t.startsWith(' ')) {
+            normText += ' ';
+            charToSpan.push(span); // space char belongs to this span
+          }
+          for (let ci = 0; ci < t.length; ci++) {
+            charToSpan.push(span);
+          }
+          normText += t;
         }
       });
 
-      if (globalSpanInfos.length === 0) return;
+      if (normText.length === 0) return;
 
-      const globalTextLower = normalizeLigatures(globalText).toLowerCase();
+      const normTextLower = normText.toLowerCase();
 
-      // Step 3: Match each highlight against global text
+      // Step 3: Match each highlight and colour the exact spans
       for (const hl of pdfHighlights) {
-        const hlText = normalizeLigatures(hl.text.replace(/\s+/g, ' ').trim());
+        const hlText = normalizeLigatures(hl.text).replace(/\s+/g, ' ').trim().toLowerCase();
         if (hlText.length < 5) continue;
 
-        const hlLower = hlText.toLowerCase();
+        // Strategy 1: exact match on normalised text
+        let matchIdx = normTextLower.indexOf(hlText);
+        let matchLen = hlText.length;
 
-        // Strategy 1: exact case-insensitive substring match
-        let matchIdx = globalTextLower.indexOf(hlLower);
-
-        // Strategy 2: try first 50 chars if full match fails
-        if (matchIdx === -1 && hlLower.length > 50) {
-          const partial = hlLower.slice(0, 50);
-          matchIdx = globalTextLower.indexOf(partial);
-        }
-
-        // Strategy 3: try words-based matching (first 5 significant words)
-        if (matchIdx === -1) {
-          const words = hlLower.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
-          if (words.length >= 2) {
-            // Escape regex special chars in each word
-            const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-            const wordPattern = escaped.join('[\\s\\S]{0,30}?');
-            try {
-              const re = new RegExp(wordPattern);
-              const m = re.exec(globalTextLower);
-              if (m) matchIdx = m.index;
-            } catch {
-              // regex failed, skip
+        // Strategy 2: progressively shorter prefix (only colour what matched)
+        if (matchIdx === -1 && hlText.length > 60) {
+          for (const ratio of [0.8, 0.6]) {
+            const pLen = Math.floor(hlText.length * ratio);
+            const partial = hlText.slice(0, pLen);
+            const idx = normTextLower.indexOf(partial);
+            if (idx !== -1) {
+              matchIdx = idx;
+              matchLen = pLen;
+              break;
             }
           }
         }
 
         if (matchIdx === -1) continue;
 
-        const matchEnd = matchIdx + Math.min(hlLower.length, hlText.length);
-
-        // Step 4: Map global match range back to individual spans
-        for (const info of globalSpanInfos) {
-          if (info.globalEnd > matchIdx && info.globalStart < matchEnd) {
-            info.span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
-            info.span.style.borderRadius = '2px';
-            info.span.setAttribute('data-pdf-hl', hl.id);
-            info.span.title = hl.memo || hl.category || '';
+        // Colour the spans that own the matched characters
+        const matchEnd = matchIdx + matchLen;
+        const colored = new Set<HTMLSpanElement>();
+        for (let ci = matchIdx; ci < matchEnd && ci < charToSpan.length; ci++) {
+          const span = charToSpan[ci];
+          if (!colored.has(span)) {
+            colored.add(span);
+            span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
+            span.style.borderRadius = '2px';
+            span.setAttribute('data-pdf-hl', hl.id);
+            span.title = hl.memo || hl.category || '';
           }
         }
       }
