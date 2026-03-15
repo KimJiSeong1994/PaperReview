@@ -993,8 +993,75 @@ export default function PaperViewerPanel({
         </div>
       </div>
 
-      {/* ── Right: PDF viewer ── */}
-      <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
+      {/* ── Center: PDF viewer + action bar ── */}
+      <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>
+        {/* Persistent action bar — always visible when a paper is selected */}
+        {bookmarkId && selectedPaper && (
+          <div className="paper-viewer-action-bar">
+            <div className="paper-viewer-action-bar-title">
+              {selectedPaper.title}
+            </div>
+            <div className="paper-viewer-action-bar-btns">
+              {selectedPaper.review ? (
+                <>
+                  <button
+                    className={`paper-viewer-action-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'review' ? ' active' : ''}`}
+                    onClick={() => {
+                      if (pr.reviewPanelOpen && pr.activeReviewTab === 'review') {
+                        pr.toggleReviewPanel();
+                      } else {
+                        pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
+                        pr.setActiveReviewTab('review');
+                      }
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Review
+                    <span className="paper-viewer-action-score" style={{
+                      color: selectedPaper.review.overall_score >= 8 ? '#4ade80' : selectedPaper.review.overall_score >= 6 ? '#a5b4fc' : '#fbbf24'
+                    }}>
+                      {selectedPaper.review.overall_score}/10
+                    </span>
+                  </button>
+                  <button
+                    className={`paper-viewer-action-btn paper-viewer-action-hl${pr.reviewPanelOpen && pr.activeReviewTab === 'highlights' ? ' active' : ''}`}
+                    onClick={() => {
+                      if (pr.reviewPanelOpen && pr.activeReviewTab === 'highlights') {
+                        pr.toggleReviewPanel();
+                      } else {
+                        pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
+                        pr.setActiveReviewTab('highlights');
+                      }
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
+                    Highlights
+                    {selectedPaper.review_highlights?.length ? (
+                      <span className="paper-viewer-action-badge">{selectedPaper.review_highlights.length}</span>
+                    ) : null}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="paper-viewer-action-btn paper-viewer-action-primary"
+                  onClick={() => selectedIndex !== null && handleReviewPaper(selectedIndex)}
+                  disabled={pr.reviewLoading}
+                >
+                  {pr.reviewLoading ? (
+                    <><span className="paper-viewer-resolve-spinner" /> Analyzing...</>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
+                      Review &amp; Auto Highlight
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {renderPdfArea()}
+      </div>
 
       {/* ── Far right: Review panel ── */}
       {pr.reviewPanelOpen && (
