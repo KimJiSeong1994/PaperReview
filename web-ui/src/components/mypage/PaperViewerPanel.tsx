@@ -996,7 +996,7 @@ export default function PaperViewerPanel({
       {/* ── Center: PDF viewer + action bar ── */}
       <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>
         {/* Persistent action bar — always visible when a paper is selected */}
-        {bookmarkId && selectedPaper && (
+        {selectedPaper && (
           <div className="paper-viewer-action-bar">
             <div className="paper-viewer-action-bar-title">
               {selectedPaper.title}
@@ -1041,7 +1041,7 @@ export default function PaperViewerPanel({
                     ) : null}
                   </button>
                 </>
-              ) : (
+              ) : bookmarkId ? (
                 <button
                   className="paper-viewer-action-btn paper-viewer-action-primary"
                   onClick={() => selectedIndex !== null && handleReviewPaper(selectedIndex)}
@@ -1056,6 +1056,10 @@ export default function PaperViewerPanel({
                     </>
                   )}
                 </button>
+              ) : (
+                <span className="paper-viewer-action-hint">
+                  Bookmark this paper to enable Review &amp; Auto Highlight
+                </span>
               )}
             </div>
           </div>
