@@ -482,51 +482,86 @@ export default function PaperViewerPanel({
       if (!scrollEl) return;
 
       const textLayers = scrollEl.querySelectorAll('.react-pdf__Page__textContent');
+      if (textLayers.length === 0) return;
 
       textLayers.forEach(layer => {
-        const spans = layer.querySelectorAll('span');
+        const spans = Array.from(layer.querySelectorAll('span')) as HTMLSpanElement[];
+        if (spans.length === 0) return;
 
-        // Build concatenated text with per-span index tracking
-        const spanTexts: { span: HTMLSpanElement; text: string; startIdx: number }[] = [];
-        let fullText = '';
+        // Build page text by concatenating span texts with space separators
+        const spanInfos: { span: HTMLSpanElement; start: number; end: number }[] = [];
+        let pageText = '';
+        for (const span of spans) {
+          const t = span.textContent || '';
+          if (!t) continue;
+          const start = pageText.length;
+          pageText += t + ' ';
+          spanInfos.push({ span, start, end: start + t.length });
+        }
 
-        spans.forEach(span => {
-          const text = span.textContent || '';
-          spanTexts.push({ span, text, startIdx: fullText.length });
-          fullText += text;
-        });
-
-        // Normalise whitespace for matching
-        const normalizedFull = fullText.replace(/\s+/g, ' ');
+        const pageTextLower = pageText.toLowerCase();
 
         for (const hl of pdfHighlights) {
-          const normalizedHl = hl.text.replace(/\s+/g, ' ');
+          // Try multiple matching strategies
+          const hlText = hl.text.replace(/\s+/g, ' ').trim();
+          if (hlText.length < 5) continue;
 
-          let searchIdx = 0;
-          while (true) {
-            const matchIdx = normalizedFull.indexOf(normalizedHl, searchIdx);
-            if (matchIdx === -1) break;
-            searchIdx = matchIdx + 1;
+          const hlLower = hlText.toLowerCase();
 
-            const matchEnd = matchIdx + normalizedHl.length;
+          // Strategy 1: exact case-insensitive substring match
+          let matchIdx = pageTextLower.indexOf(hlLower);
 
-            // Mark spans that overlap the matched range
-            for (const { span, startIdx, text } of spanTexts) {
-              const spanEnd = startIdx + text.length;
-              if (spanEnd > matchIdx && startIdx < matchEnd) {
-                span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
-                span.style.borderRadius = '2px';
-                span.setAttribute('data-pdf-hl', hl.id);
-                span.title = hl.memo || hl.category || '';
+          // Strategy 2: try first 40 chars if full match fails
+          if (matchIdx === -1 && hlLower.length > 40) {
+            const partial = hlLower.slice(0, 40);
+            matchIdx = pageTextLower.indexOf(partial);
+          }
+
+          // Strategy 3: try words-based matching (find first 4 consecutive words)
+          if (matchIdx === -1) {
+            const words = hlLower.split(/\s+/).filter(w => w.length > 3).slice(0, 4);
+            if (words.length >= 2) {
+              const wordPattern = words.join('.*?');
+              try {
+                const re = new RegExp(wordPattern);
+                const m = re.exec(pageTextLower);
+                if (m) matchIdx = m.index;
+              } catch {
+                // regex failed, skip
               }
+            }
+          }
+
+          if (matchIdx === -1) continue;
+
+          const matchEnd = matchIdx + Math.min(hlLower.length, hlText.length);
+
+          // Color matching spans
+          for (const info of spanInfos) {
+            if (info.end > matchIdx && info.start < matchEnd) {
+              info.span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
+              info.span.style.borderRadius = '2px';
+              info.span.setAttribute('data-pdf-hl', hl.id);
+              info.span.title = hl.memo || hl.category || '';
             }
           }
         }
       });
     };
 
-    // Delay to allow text layer rendering to finish
-    const timer = setTimeout(applyHighlights, 500);
+    // Retry until text layers are actually rendered
+    let attempts = 0;
+    const tryApply = () => {
+      const scrollEl = docScrollRef.current;
+      const hasTextLayers = scrollEl?.querySelector('.react-pdf__Page__textContent span');
+      if (hasTextLayers) {
+        applyHighlights();
+      } else if (attempts < 10) {
+        attempts++;
+        setTimeout(tryApply, 500);
+      }
+    };
+    const timer = setTimeout(tryApply, 300);
     return () => clearTimeout(timer);
   }, [pdfHighlights, visiblePages, documentKey]);
 
