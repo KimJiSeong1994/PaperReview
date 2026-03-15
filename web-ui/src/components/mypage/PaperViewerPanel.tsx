@@ -445,14 +445,46 @@ export default function PaperViewerPanel({
     }
   }, [autoSelectFirst, papers.length, resolveAndSelect]);
 
-  // PDF text extraction helper (up to 30 pages)
+  // PDF text extraction helper — uses position info to restore line breaks and spacing (up to 40 pages)
   const extractPdfText = useCallback(async (pdfDoc: any): Promise<string> => {
     const pages: string[] = [];
-    const maxPages = Math.min(pdfDoc.numPages, 30);
+    const maxPages = Math.min(pdfDoc.numPages, 40);
     for (let i = 1; i <= maxPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      pages.push(content.items.map((item: any) => item.str).join(' '));
+      const items = content.items as any[];
+
+      // Use position info to reconstruct line breaks and word spacing
+      let pageText = '';
+      let lastY: number | null = null;
+      let lastRight = 0;
+
+      for (const item of items) {
+        if (!item.str) continue;
+        const [, , , , tx, ty] = item.transform; // transform matrix [a,b,c,d,tx,ty]
+        const fontSize = Math.abs(item.transform[0]) || 12;
+
+        if (lastY !== null) {
+          const yDiff = Math.abs(ty - lastY);
+          if (yDiff > fontSize * 0.5) {
+            // Line break
+            pageText += '\n';
+            lastRight = 0;
+          } else {
+            // Same line — insert space based on gap
+            const gap = tx - lastRight;
+            if (gap > fontSize * 0.3) {
+              pageText += ' ';
+            }
+          }
+        }
+
+        pageText += item.str;
+        lastY = ty;
+        lastRight = tx + (item.width || item.str.length * fontSize * 0.5);
+      }
+
+      pages.push(pageText);
     }
     return pages.join('\n\n');
   }, []);
@@ -473,87 +505,116 @@ export default function PaperViewerPanel({
     }
   }, [selectedPaper, extractPdfText]);
 
-  // Apply PDF overlay highlights onto the react-pdf text layer spans
+  // Apply PDF overlay highlights onto the react-pdf text layer spans.
+  // Uses global text construction across all pages for cross-page matching,
+  // plus MutationObserver for auto-reapply when new text layers render.
   useEffect(() => {
-    if (pdfHighlights.length === 0) return;
+    const scrollEl = docScrollRef.current;
+    if (!scrollEl) return;
+
+    // Normalise common ligature characters to their ASCII equivalents
+    function normalizeLigatures(text: string): string {
+      return text
+        .replace(/\ufb01/g, 'fi')
+        .replace(/\ufb02/g, 'fl')
+        .replace(/\ufb00/g, 'ff')
+        .replace(/\ufb03/g, 'ffi')
+        .replace(/\ufb04/g, 'ffl');
+    }
 
     const applyHighlights = () => {
-      const scrollEl = docScrollRef.current;
-      if (!scrollEl) return;
+      if (pdfHighlights.length === 0) return;
 
+      // Step 1: Clear previous highlights
+      scrollEl.querySelectorAll('span[data-pdf-hl]').forEach(span => {
+        (span as HTMLElement).style.backgroundColor = '';
+        (span as HTMLElement).style.borderRadius = '';
+        span.removeAttribute('data-pdf-hl');
+        (span as HTMLElement).title = '';
+      });
+
+      // Step 2: Build global text and span index across ALL rendered pages
       const textLayers = scrollEl.querySelectorAll('.react-pdf__Page__textContent');
       if (textLayers.length === 0) return;
 
+      interface GlobalSpanInfo {
+        span: HTMLSpanElement;
+        globalStart: number;
+        globalEnd: number;
+      }
+
+      const globalSpanInfos: GlobalSpanInfo[] = [];
+      let globalText = '';
+
       textLayers.forEach(layer => {
         const spans = Array.from(layer.querySelectorAll('span')) as HTMLSpanElement[];
-        if (spans.length === 0) return;
-
-        // Build page text by concatenating span texts with space separators
-        const spanInfos: { span: HTMLSpanElement; start: number; end: number }[] = [];
-        let pageText = '';
         for (const span of spans) {
-          const t = span.textContent || '';
-          if (!t) continue;
-          const start = pageText.length;
-          pageText += t + ' ';
-          spanInfos.push({ span, start, end: start + t.length });
-        }
-
-        const pageTextLower = pageText.toLowerCase();
-
-        for (const hl of pdfHighlights) {
-          // Try multiple matching strategies
-          const hlText = hl.text.replace(/\s+/g, ' ').trim();
-          if (hlText.length < 5) continue;
-
-          const hlLower = hlText.toLowerCase();
-
-          // Strategy 1: exact case-insensitive substring match
-          let matchIdx = pageTextLower.indexOf(hlLower);
-
-          // Strategy 2: try first 40 chars if full match fails
-          if (matchIdx === -1 && hlLower.length > 40) {
-            const partial = hlLower.slice(0, 40);
-            matchIdx = pageTextLower.indexOf(partial);
-          }
-
-          // Strategy 3: try words-based matching (find first 4 consecutive words)
-          if (matchIdx === -1) {
-            const words = hlLower.split(/\s+/).filter(w => w.length > 3).slice(0, 4);
-            if (words.length >= 2) {
-              const wordPattern = words.join('.*?');
-              try {
-                const re = new RegExp(wordPattern);
-                const m = re.exec(pageTextLower);
-                if (m) matchIdx = m.index;
-              } catch {
-                // regex failed, skip
-              }
-            }
-          }
-
-          if (matchIdx === -1) continue;
-
-          const matchEnd = matchIdx + Math.min(hlLower.length, hlText.length);
-
-          // Color matching spans
-          for (const info of spanInfos) {
-            if (info.end > matchIdx && info.start < matchEnd) {
-              info.span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
-              info.span.style.borderRadius = '2px';
-              info.span.setAttribute('data-pdf-hl', hl.id);
-              info.span.title = hl.memo || hl.category || '';
-            }
-          }
+          const raw = span.textContent || '';
+          if (!raw) continue;
+          const t = normalizeLigatures(raw);
+          const start = globalText.length;
+          globalText += t + ' ';
+          globalSpanInfos.push({ span, globalStart: start, globalEnd: start + t.length });
         }
       });
+
+      if (globalSpanInfos.length === 0) return;
+
+      const globalTextLower = normalizeLigatures(globalText).toLowerCase();
+
+      // Step 3: Match each highlight against global text
+      for (const hl of pdfHighlights) {
+        const hlText = normalizeLigatures(hl.text.replace(/\s+/g, ' ').trim());
+        if (hlText.length < 5) continue;
+
+        const hlLower = hlText.toLowerCase();
+
+        // Strategy 1: exact case-insensitive substring match
+        let matchIdx = globalTextLower.indexOf(hlLower);
+
+        // Strategy 2: try first 50 chars if full match fails
+        if (matchIdx === -1 && hlLower.length > 50) {
+          const partial = hlLower.slice(0, 50);
+          matchIdx = globalTextLower.indexOf(partial);
+        }
+
+        // Strategy 3: try words-based matching (first 5 significant words)
+        if (matchIdx === -1) {
+          const words = hlLower.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+          if (words.length >= 2) {
+            // Escape regex special chars in each word
+            const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const wordPattern = escaped.join('[\\s\\S]{0,30}?');
+            try {
+              const re = new RegExp(wordPattern);
+              const m = re.exec(globalTextLower);
+              if (m) matchIdx = m.index;
+            } catch {
+              // regex failed, skip
+            }
+          }
+        }
+
+        if (matchIdx === -1) continue;
+
+        const matchEnd = matchIdx + Math.min(hlLower.length, hlText.length);
+
+        // Step 4: Map global match range back to individual spans
+        for (const info of globalSpanInfos) {
+          if (info.globalEnd > matchIdx && info.globalStart < matchEnd) {
+            info.span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
+            info.span.style.borderRadius = '2px';
+            info.span.setAttribute('data-pdf-hl', hl.id);
+            info.span.title = hl.memo || hl.category || '';
+          }
+        }
+      }
     };
 
-    // Retry until text layers are actually rendered
+    // Initial application with retry for text layer rendering
     let attempts = 0;
     const tryApply = () => {
-      const scrollEl = docScrollRef.current;
-      const hasTextLayers = scrollEl?.querySelector('.react-pdf__Page__textContent span');
+      const hasTextLayers = scrollEl.querySelector('.react-pdf__Page__textContent span');
       if (hasTextLayers) {
         applyHighlights();
       } else if (attempts < 10) {
@@ -562,7 +623,17 @@ export default function PaperViewerPanel({
       }
     };
     const timer = setTimeout(tryApply, 300);
-    return () => clearTimeout(timer);
+
+    // MutationObserver: auto-reapply when new text layers render (virtualisation / scroll)
+    const observer = new MutationObserver(() => {
+      applyHighlights();
+    });
+    observer.observe(scrollEl, { childList: true, subtree: true });
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
   }, [pdfHighlights, visiblePages, documentKey]);
 
   const handleDocumentLoadSuccess = useCallback((pdf: any) => {

@@ -16,7 +16,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from .deps import load_bookmarks, modify_bookmarks, get_current_user, get_openai_client
-from .highlight_service import CATEGORY_CONFIG, generate_highlights, _find_verbatim_or_fuzzy
+from .highlight_service import (
+    CATEGORY_CONFIG,
+    PDF_CATEGORY_CONFIG,
+    generate_highlights,
+    generate_pdf_highlights as generate_pdf_highlights_llm,
+    _find_verbatim_or_fuzzy,
+)
 from .paper_review_service import generate_paper_review
 
 logger = logging.getLogger(__name__)
@@ -362,7 +368,7 @@ def auto_highlight_paper_review(
 
 
 @router.post("/pdf-highlights")
-def generate_pdf_highlights(
+def pdf_highlights_endpoint(
     request: PdfHighlightRequest,
     username: str = Depends(get_current_user),
 ):
@@ -371,6 +377,9 @@ def generate_pdf_highlights(
     This endpoint is independent of bookmarks — it takes arbitrary text
     (typically extracted from a PDF via pdfjs) and returns highlight
     spans with category, color, and reviewer commentary.
+
+    Uses the PDF-specific prompt and preprocessing pipeline for better
+    accuracy on academic paper text.
     """
     from openai import APIError, APITimeoutError, RateLimitError
 
@@ -385,7 +394,7 @@ def generate_pdf_highlights(
 
     client = get_openai_client()
     try:
-        llm_highlights = generate_highlights(text, title, title, client)
+        llm_highlights = generate_pdf_highlights_llm(text, title, client)
     except APITimeoutError:
         raise HTTPException(
             status_code=504,
@@ -405,7 +414,7 @@ def generate_pdf_highlights(
         raise HTTPException(status_code=502, detail=str(e))
 
     highlights: list[dict] = []
-    valid_categories = set(CATEGORY_CONFIG.keys())
+    valid_categories = set(PDF_CATEGORY_CONFIG.keys())
 
     for item in llm_highlights:
         raw_text = item.get("text", "").strip()
@@ -448,7 +457,7 @@ def generate_pdf_highlights(
             # frontend will attempt its own fuzzy matching.
             matched_text = raw_text
 
-        cfg = CATEGORY_CONFIG[category]
+        cfg = PDF_CATEGORY_CONFIG[category]
         memo = (
             f"{cfg['label']} {reviewer_comment}"
             if reviewer_comment
