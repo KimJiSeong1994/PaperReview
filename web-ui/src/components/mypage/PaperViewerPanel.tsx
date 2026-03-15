@@ -224,6 +224,9 @@ export default function PaperViewerPanel({
   const [resolving, setResolving] = useState(false);
   const [resolveProgress, setResolveProgress] = useState<{ done: number; total: number } | null>(null);
 
+  // PDF highlight popover state
+  const [hlPopover, setHlPopover] = useState<{ hl: HighlightItem; x: number; y: number } | null>(null);
+
   const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
   const pdfDocRef = useRef<any>(null);
@@ -404,6 +407,7 @@ export default function PaperViewerPanel({
     setPdfError(null);
     setDocumentKey(k => k + 1);
     setPdfHighlights([]);
+    setHlPopover(null);
 
     const paper = papers[index];
     if (!paper) return;
@@ -629,6 +633,33 @@ export default function PaperViewerPanel({
       observer.disconnect();
     };
   }, [pdfHighlights, visiblePages, documentKey]);
+
+  // Click handler for PDF highlight spans → show popover
+  useEffect(() => {
+    const scrollEl = docScrollRef.current;
+    if (!scrollEl || pdfHighlights.length === 0) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const hlId = target.getAttribute('data-pdf-hl');
+      if (!hlId) {
+        // Click outside highlight → close popover
+        setHlPopover(null);
+        return;
+      }
+      const hl = pdfHighlights.find(h => h.id === hlId);
+      if (!hl) return;
+      const rect = target.getBoundingClientRect();
+      setHlPopover({
+        hl,
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 8,
+      });
+    };
+
+    scrollEl.addEventListener('click', handleClick);
+    return () => scrollEl.removeEventListener('click', handleClick);
+  }, [pdfHighlights]);
 
   const handleDocumentLoadSuccess = useCallback((pdf: any) => {
     setNumPages(pdf.numPages);
@@ -1046,6 +1077,54 @@ export default function PaperViewerPanel({
 
       {/* ── Center: PDF viewer ── */}
       <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
+
+      {/* ── Highlight popover (reuses bookmark popover CSS) ── */}
+      {hlPopover && (
+        <div className="mypage-hl-popover" style={{ left: hlPopover.x, top: hlPopover.y }}>
+          <button className="mypage-hl-popover-close" onClick={() => setHlPopover(null)}>&times;</button>
+          {(hlPopover.hl.category || hlPopover.hl.strength_or_weakness || hlPopover.hl.confidence_level) && (
+            <div className="mypage-hl-popover-badges">
+              {hlPopover.hl.category && (
+                <span className="mypage-hl-badge" style={{
+                  color: hlPopover.hl.color || '#a5b4fc',
+                  background: (hlPopover.hl.color || '#a5b4fc') + '18',
+                  border: `1px solid ${(hlPopover.hl.color || '#a5b4fc')}44`,
+                }}>
+                  {hlPopover.hl.category}
+                </span>
+              )}
+              {hlPopover.hl.strength_or_weakness && (
+                <span className={`mypage-hl-badge mypage-hl-badge-${hlPopover.hl.strength_or_weakness}`}>
+                  {hlPopover.hl.strength_or_weakness === 'strength' ? 'Strength' : 'Weakness'}
+                </span>
+              )}
+              {hlPopover.hl.significance && (
+                <span className="mypage-hl-badge" style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)' }}>
+                  {'★'.repeat(hlPopover.hl.significance)}{'☆'.repeat(5 - hlPopover.hl.significance)}
+                </span>
+              )}
+              {hlPopover.hl.confidence_level && (
+                <span className="mypage-hl-badge mypage-hl-badge-confidence" title="Evidence grounding">
+                  Confidence {hlPopover.hl.confidence_level}/5
+                </span>
+              )}
+            </div>
+          )}
+          {hlPopover.hl.memo && <div className="mypage-hl-popover-memo">{hlPopover.hl.memo}</div>}
+          {hlPopover.hl.question_for_authors && (
+            <div className="mypage-hl-popover-question">
+              <span className="mypage-hl-popover-question-label">Question for Authors</span>
+              {hlPopover.hl.question_for_authors}
+            </div>
+          )}
+          {hlPopover.hl.implication && (
+            <div className="mypage-hl-popover-implication">
+              <span className="mypage-hl-popover-implication-label">Implication</span>
+              {hlPopover.hl.implication}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
