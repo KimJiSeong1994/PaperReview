@@ -1085,11 +1085,7 @@ export default function PaperViewerPanel({
           {(hlPopover.hl.category || hlPopover.hl.strength_or_weakness || hlPopover.hl.confidence_level) && (
             <div className="mypage-hl-popover-badges">
               {hlPopover.hl.category && (
-                <span className="mypage-hl-badge" style={{
-                  color: hlPopover.hl.color || '#a5b4fc',
-                  background: (hlPopover.hl.color || '#a5b4fc') + '18',
-                  border: `1px solid ${(hlPopover.hl.color || '#a5b4fc')}44`,
-                }}>
+                <span className="mypage-hl-badge mypage-hl-badge-strength">
                   {hlPopover.hl.category}
                 </span>
               )}
@@ -1098,13 +1094,8 @@ export default function PaperViewerPanel({
                   {hlPopover.hl.strength_or_weakness === 'strength' ? 'Strength' : 'Weakness'}
                 </span>
               )}
-              {hlPopover.hl.significance && (
-                <span className="mypage-hl-badge" style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.1)' }}>
-                  {'★'.repeat(hlPopover.hl.significance)}{'☆'.repeat(5 - hlPopover.hl.significance)}
-                </span>
-              )}
               {hlPopover.hl.confidence_level && (
-                <span className="mypage-hl-badge mypage-hl-badge-confidence" title="Evidence grounding">
+                <span className="mypage-hl-badge mypage-hl-badge-confidence">
                   Confidence {hlPopover.hl.confidence_level}/5
                 </span>
               )}
