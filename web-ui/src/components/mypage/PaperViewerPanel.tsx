@@ -632,17 +632,20 @@ export default function PaperViewerPanel({
     };
     const timer = setTimeout(tryApply, 300);
 
-    // MutationObserver: auto-reapply when new text layers render (virtualisation / scroll)
+    // MutationObserver: debounced reapply when text layers change (zoom / scroll / virtualisation)
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new MutationObserver(() => {
-      applyHighlights();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applyHighlights, 200);
     });
     observer.observe(scrollEl, { childList: true, subtree: true });
 
     return () => {
       clearTimeout(timer);
+      if (debounceTimer) clearTimeout(debounceTimer);
       observer.disconnect();
     };
-  }, [pdfHighlights, visiblePages, documentKey]);
+  }, [pdfHighlights, visiblePages, documentKey, zoom, fitWidth]);
 
   // Mark math formula spans in the PDF text layer
   useEffect(() => {
@@ -671,7 +674,7 @@ export default function PaperViewerPanel({
     const observer = new MutationObserver(markMathSpans);
     observer.observe(scrollEl, { childList: true, subtree: true });
     return () => { clearTimeout(timer); observer.disconnect(); };
-  }, [numPages, documentKey, visiblePages]);
+  }, [numPages, documentKey, visiblePages, zoom, fitWidth]);
 
   // Click handler for PDF highlight spans and math formula spans → show popover
   useEffect(() => {
