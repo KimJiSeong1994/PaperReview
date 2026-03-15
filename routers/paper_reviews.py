@@ -5,8 +5,10 @@ Per-paper review endpoints:
   DELETE /api/bookmarks/{bookmark_id}/papers/{paper_index}/review
   POST   /api/bookmarks/{bookmark_id}/papers/{paper_index}/auto-highlight
   POST   /api/pdf-highlights  (standalone, no bookmark required)
+  POST   /api/math-explain    (explain a formula from a PDF)
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime
@@ -16,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from .deps import load_bookmarks, modify_bookmarks, get_current_user, get_openai_client
+from .llm_cache import get_cached, set_cache
 from .highlight_service import (
     CATEGORY_CONFIG,
     PDF_CATEGORY_CONFIG,
@@ -480,3 +483,119 @@ def pdf_highlights_endpoint(
         })
 
     return {"highlights": highlights}
+
+
+# ── Math formula explanation ────────────────────────────────────────
+
+
+class MathExplainRequest(BaseModel):
+    """Request body for explaining a math formula extracted from a PDF."""
+
+    formula_text: str
+    context: str = ""
+    paper_title: str = ""
+
+
+_MATH_EXPLAIN_SYSTEM = """You are a math tutor explaining formulas from academic papers.
+Given a formula and its surrounding context, provide:
+1. A clear explanation of what the formula computes
+2. The meaning of each variable/symbol
+3. The type of formula (loss function, probability, optimization, definition, theorem, other)
+
+Respond in JSON format:
+{
+  "explanation": "1-3 sentences explaining the formula in plain language",
+  "variables": [{"symbol": "x", "meaning": "input features"}, ...],
+  "formula_type": "loss function | probability | optimization | definition | theorem | other"
+}
+
+Keep explanations concise. Match the language of the paper context."""
+
+_MATH_MODEL = "gpt-4.1"
+_MATH_TEMPERATURE = 0.2
+
+
+@router.post("/math-explain")
+def explain_math_formula(
+    request: MathExplainRequest,
+    username: str = Depends(get_current_user),
+) -> dict:
+    """Explain a math formula extracted from a PDF paper.
+
+    Sends the formula text and surrounding context to an LLM and returns
+    a structured explanation with variable definitions and formula type.
+    Uses file-based LLM cache to avoid repeated calls for the same formula.
+    """
+    from openai import APIError, APITimeoutError, RateLimitError
+
+    formula_text = request.formula_text.strip()
+    if not formula_text:
+        raise HTTPException(status_code=400, detail="formula_text is required")
+
+    context = request.context.strip()
+    paper_title = request.paper_title.strip()
+
+    # Build user prompt
+    parts: list[str] = []
+    if paper_title:
+        parts.append(f"Paper: {paper_title}")
+    parts.append(f"Formula: {formula_text}")
+    if context:
+        parts.append(f"Context: {context}")
+    user_prompt = "\n".join(parts)
+
+    # Check LLM cache
+    cached = get_cached(_MATH_EXPLAIN_SYSTEM, user_prompt, _MATH_MODEL, _MATH_TEMPERATURE)
+    if cached is not None:
+        try:
+            return json.loads(cached)
+        except (json.JSONDecodeError, TypeError):
+            pass  # stale/corrupt cache entry — regenerate
+
+    client = get_openai_client()
+    try:
+        response = client.chat.completions.create(
+            model=_MATH_MODEL,
+            messages=[
+                {"role": "system", "content": _MATH_EXPLAIN_SYSTEM},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=_MATH_TEMPERATURE,
+            timeout=30,
+            response_format={"type": "json_object"},
+        )
+    except APITimeoutError:
+        raise HTTPException(status_code=504, detail="Formula explanation timed out. Please retry.")
+    except RateLimitError:
+        raise HTTPException(status_code=429, detail="Rate limited. Please wait and retry.")
+    except APIError as e:
+        raise HTTPException(status_code=502, detail=f"LLM service error: {e.message}")
+
+    content = (response.choices[0].message.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=502, detail="LLM returned an empty response")
+
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError:
+        logger.warning("Math explain: failed to parse LLM JSON: %s", content[:200])
+        raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
+
+    # Normalise shape — ensure expected keys exist
+    explanation = result.get("explanation", "")
+    variables: list[dict[str, str]] = []
+    for v in result.get("variables", []):
+        if isinstance(v, dict) and v.get("symbol"):
+            variables.append({"symbol": v["symbol"], "meaning": v.get("meaning", "")})
+    formula_type = result.get("formula_type", "other")
+
+    normalised: dict = {
+        "explanation": explanation,
+        "variables": variables,
+        "formula_type": formula_type,
+    }
+
+    # Persist to cache
+    set_cache(_MATH_EXPLAIN_SYSTEM, user_prompt, _MATH_MODEL, _MATH_TEMPERATURE, json.dumps(normalised, ensure_ascii=False))
+
+    return normalised

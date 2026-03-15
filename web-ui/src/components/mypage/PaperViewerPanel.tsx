@@ -2,8 +2,8 @@ import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl, generatePdfHighlights } from '../../api/client';
-import type { HighlightItem } from '../../api/client';
+import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl, generatePdfHighlights, explainMathFormula } from '../../api/client';
+import type { HighlightItem, MathExplanation } from '../../api/client';
 import './PaperViewerPanel.css';
 
 // Configure pdf.js worker via CDN (avoids Vite bundling issues with import.meta.url)
@@ -227,6 +227,15 @@ export default function PaperViewerPanel({
   // PDF highlight popover state
   const [hlPopover, setHlPopover] = useState<{ hl: HighlightItem; x: number; y: number } | null>(null);
 
+  // Math formula popover state
+  const [mathPopover, setMathPopover] = useState<{
+    x: number;
+    y: number;
+    loading: boolean;
+    explanation?: MathExplanation;
+    formulaText: string;
+  } | null>(null);
+
   const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
   const pdfDocRef = useRef<any>(null);
@@ -408,6 +417,7 @@ export default function PaperViewerPanel({
     setDocumentKey(k => k + 1);
     setPdfHighlights([]);
     setHlPopover(null);
+    setMathPopover(null);
 
     const paper = papers[index];
     if (!paper) return;
@@ -634,32 +644,120 @@ export default function PaperViewerPanel({
     };
   }, [pdfHighlights, visiblePages, documentKey]);
 
-  // Click handler for PDF highlight spans → show popover
+  // Mark math formula spans in the PDF text layer
   useEffect(() => {
     const scrollEl = docScrollRef.current;
-    if (!scrollEl || pdfHighlights.length === 0) return;
+    if (!scrollEl || !numPages) return;
+
+    const mathPattern = /[∀∃∈∉∪∩⊆⊇⊂⊃≤≥≠≈∝∞∑∏∫√∂∇αβγδεζηθλμνξπρστφχψω]/;
+
+    const markMathSpans = () => {
+      const textLayers = scrollEl.querySelectorAll('.react-pdf__Page__textContent');
+      textLayers.forEach(layer => {
+        const spans = Array.from(layer.querySelectorAll('span')) as HTMLSpanElement[];
+        for (const span of spans) {
+          const text = span.textContent || '';
+          // Only mark spans that contain math characters and have some length,
+          // and skip spans already marked as highlights
+          if (mathPattern.test(text) && text.length > 1 && !span.hasAttribute('data-pdf-hl')) {
+            span.classList.add('pdf-math-formula');
+            span.setAttribute('data-math-formula', 'true');
+          }
+        }
+      });
+    };
+
+    const timer = setTimeout(markMathSpans, 800);
+    const observer = new MutationObserver(markMathSpans);
+    observer.observe(scrollEl, { childList: true, subtree: true });
+    return () => { clearTimeout(timer); observer.disconnect(); };
+  }, [numPages, documentKey, visiblePages]);
+
+  // Click handler for PDF highlight spans and math formula spans → show popover
+  useEffect(() => {
+    const scrollEl = docScrollRef.current;
+    if (!scrollEl) return;
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const hlId = target.getAttribute('data-pdf-hl');
-      if (!hlId) {
-        // Click outside highlight → close popover
-        setHlPopover(null);
+      const isMath = target.getAttribute('data-math-formula') === 'true';
+
+      // Highlight popover takes priority over math popover
+      if (hlId) {
+        setMathPopover(null);
+        const hl = pdfHighlights.find(h => h.id === hlId);
+        if (!hl) return;
+        const rect = target.getBoundingClientRect();
+        setHlPopover({
+          hl,
+          x: rect.left + rect.width / 2,
+          y: rect.bottom + 8,
+        });
         return;
       }
-      const hl = pdfHighlights.find(h => h.id === hlId);
-      if (!hl) return;
-      const rect = target.getBoundingClientRect();
-      setHlPopover({
-        hl,
-        x: rect.left + rect.width / 2,
-        y: rect.bottom + 8,
-      });
+
+      // Math formula click (only when no highlight attribute)
+      if (isMath) {
+        setHlPopover(null);
+        const rect = target.getBoundingClientRect();
+
+        // Collect formula text from adjacent math-formula spans
+        const formulaText = target.textContent || '';
+
+        // Collect surrounding context (~200 chars) from sibling spans
+        const parent = target.parentElement;
+        let contextBefore = '';
+        let contextAfter = '';
+        if (parent) {
+          const siblings = Array.from(parent.querySelectorAll('span')) as HTMLSpanElement[];
+          const idx = siblings.indexOf(target);
+          // Gather before
+          for (let i = idx - 1; i >= 0 && contextBefore.length < 200; i--) {
+            contextBefore = (siblings[i].textContent || '') + ' ' + contextBefore;
+          }
+          // Gather after
+          for (let i = idx + 1; i < siblings.length && contextAfter.length < 200; i++) {
+            contextAfter += ' ' + (siblings[i].textContent || '');
+          }
+        }
+        const context = (contextBefore.trim() + ' ' + formulaText + ' ' + contextAfter.trim()).trim();
+        const paperTitle = selectedPaper?.title || '';
+
+        setMathPopover({
+          x: rect.left + rect.width / 2,
+          y: rect.bottom + 8,
+          loading: true,
+          formulaText,
+        });
+
+        explainMathFormula(formulaText, context, paperTitle)
+          .then(explanation => {
+            setMathPopover(prev => prev ? { ...prev, loading: false, explanation } : null);
+          })
+          .catch(err => {
+            console.error('Math explain failed:', err);
+            setMathPopover(prev => prev ? {
+              ...prev,
+              loading: false,
+              explanation: {
+                explanation: 'Failed to analyze formula. Please try again.',
+                variables: [],
+                formula_type: 'other',
+              },
+            } : null);
+          });
+        return;
+      }
+
+      // Click outside → close both popovers
+      setHlPopover(null);
+      setMathPopover(null);
     };
 
     scrollEl.addEventListener('click', handleClick);
     return () => scrollEl.removeEventListener('click', handleClick);
-  }, [pdfHighlights]);
+  }, [pdfHighlights, selectedPaper]);
 
   const handleDocumentLoadSuccess = useCallback((pdf: any) => {
     setNumPages(pdf.numPages);
@@ -1114,6 +1212,40 @@ export default function PaperViewerPanel({
               {hlPopover.hl.implication}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Math formula popover (reuses highlight popover CSS) ── */}
+      {mathPopover && (
+        <div className="mypage-hl-popover" style={{ left: mathPopover.x, top: mathPopover.y }}>
+          <button className="mypage-hl-popover-close" onClick={() => setMathPopover(null)}>&times;</button>
+          <div className="mypage-hl-popover-badges">
+            <span className="mypage-hl-badge mypage-hl-badge-strength">
+              {mathPopover.explanation?.formula_type || 'Formula'}
+            </span>
+          </div>
+          {mathPopover.loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9ca3af', fontSize: 12 }}>
+              <span className="paper-viewer-resolve-spinner" />
+              Analyzing formula...
+            </div>
+          ) : mathPopover.explanation ? (
+            <>
+              <div className="mypage-hl-popover-memo">{mathPopover.explanation.explanation}</div>
+              {mathPopover.explanation.variables.length > 0 && (
+                <div className="mypage-hl-popover-question">
+                  <span className="mypage-hl-popover-question-label">Variables</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {mathPopover.explanation.variables.map((v, i) => (
+                      <span key={i} style={{ fontSize: 11 }}>
+                        <strong style={{ color: '#a5b4fc' }}>{v.symbol}</strong>: {v.meaning}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
       )}
     </div>
