@@ -297,21 +297,30 @@ def auto_highlight_paper_review(
                         existing_hl = existing_highlights[existing_idx]
                         enriched = False
                         if implication and not existing_hl.get("implication"):
-                            existing_hl["implication"] = implication; enriched = True
+                            existing_hl["implication"] = implication
+                            enriched = True
                         if section and not existing_hl.get("section"):
-                            existing_hl["section"] = section; enriched = True
+                            existing_hl["section"] = section
+                            enriched = True
                         if significance and not existing_hl.get("significance"):
-                            existing_hl["significance"] = significance; enriched = True
+                            existing_hl["significance"] = significance
+                            enriched = True
                         if not existing_hl.get("category"):
-                            existing_hl["category"] = category; existing_hl["color"] = cfg["color"]; enriched = True
+                            existing_hl["category"] = category
+                            existing_hl["color"] = cfg["color"]
+                            enriched = True
                         if reviewer_comment and (not existing_hl.get("memo") or existing_hl["memo"] == existing_hl.get("category", "")):
-                            existing_hl["memo"] = memo; enriched = True
+                            existing_hl["memo"] = memo
+                            enriched = True
                         if strength_or_weakness and not existing_hl.get("strength_or_weakness"):
-                            existing_hl["strength_or_weakness"] = strength_or_weakness; enriched = True
+                            existing_hl["strength_or_weakness"] = strength_or_weakness
+                            enriched = True
                         if question_for_authors and not existing_hl.get("question_for_authors"):
-                            existing_hl["question_for_authors"] = question_for_authors; enriched = True
+                            existing_hl["question_for_authors"] = question_for_authors
+                            enriched = True
                         if confidence_level and not existing_hl.get("confidence_level"):
-                            existing_hl["confidence_level"] = confidence_level; enriched = True
+                            existing_hl["confidence_level"] = confidence_level
+                            enriched = True
                         if enriched:
                             enriched_count += 1
                         continue
