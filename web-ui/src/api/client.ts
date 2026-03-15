@@ -434,7 +434,7 @@ export const generatePdfHighlights = async (
   const response = await api.post<{ highlights: HighlightItem[] }>(
     '/api/pdf-highlights',
     { text, title },
-    { timeout: 180_000 },
+    { timeout: 300_000 },
   );
   return response.data;
 };

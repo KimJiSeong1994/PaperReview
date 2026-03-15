@@ -862,8 +862,9 @@ def generate_pdf_highlights(
     # Step 1: Preprocess
     cleaned = preprocess_pdf_text(text)
 
-    # Step 2: Structure-aware truncation
-    max_chars = 40000
+    # Step 2: Structure-aware truncation (30K keeps most papers intact
+    # while ensuring LLM responds within ~60s)
+    max_chars = 30000
     truncated = truncate_paper_text(cleaned, max_chars=max_chars)
 
     # Step 3: Dynamic highlight range based on text length
@@ -895,7 +896,7 @@ def generate_pdf_highlights(
         response = client.chat.completions.create(
             model=model,
             temperature=temperature,
-            timeout=180,
+            timeout=110,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": PDF_HIGHLIGHT_SYSTEM_PROMPT},
