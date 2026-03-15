@@ -828,52 +828,63 @@ export default function PaperViewerPanel({
             Fit width
           </button>
 
-          <div className="paper-viewer-toolbar-spacer" />
+          <div className="paper-viewer-toolbar-sep" />
 
-          {/* Review & Highlight actions */}
-          {bookmarkId && selectedIndex !== null && (
+          {/* Review & Highlight — always next to Fit width */}
+          {selectedPaper?.review ? (
             <>
-              <div className="paper-viewer-toolbar-sep" />
-              {selectedPaper?.review ? (
-                <button
-                  className={`paper-viewer-fit-btn${pr.reviewPanelOpen ? ' active' : ''}`}
-                  title="Show review & highlights"
-                  onClick={() => {
-                    if (pr.reviewPanelOpen) {
-                      pr.toggleReviewPanel();
-                    } else {
-                      pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
-                      pr.setActiveReviewTab('highlights');
-                    }
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>
-                  </svg>
-                  Highlights
-                  {selectedPaper.review_highlights?.length ? ` (${selectedPaper.review_highlights.length})` : ''}
-                </button>
-              ) : (
-                <button
-                  className="paper-viewer-fit-btn paper-viewer-review-toolbar-btn"
-                  title="Review & auto-highlight this paper"
-                  onClick={() => handleReviewPaper(selectedIndex!)}
-                  disabled={pr.reviewLoading}
-                >
-                  {pr.reviewLoading ? (
-                    <><span className="paper-viewer-resolve-spinner" /> Reviewing...</>
-                  ) : (
-                    <>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>
-                      </svg>
-                      Auto Highlight
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                className={`paper-viewer-fit-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'review' ? ' active' : ''}`}
+                title="Show review"
+                onClick={() => {
+                  if (pr.reviewPanelOpen && pr.activeReviewTab === 'review') {
+                    pr.toggleReviewPanel();
+                  } else {
+                    pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
+                    pr.setActiveReviewTab('review');
+                  }
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Review
+              </button>
+              <button
+                className={`paper-viewer-fit-btn paper-viewer-review-toolbar-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'highlights' ? ' active' : ''}`}
+                title="Show highlights"
+                onClick={() => {
+                  if (pr.reviewPanelOpen && pr.activeReviewTab === 'highlights') {
+                    pr.toggleReviewPanel();
+                  } else {
+                    pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
+                    pr.setActiveReviewTab('highlights');
+                  }
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
+                Highlights{selectedPaper.review_highlights?.length ? ` (${selectedPaper.review_highlights.length})` : ''}
+              </button>
             </>
+          ) : (
+            <button
+              className="paper-viewer-fit-btn paper-viewer-review-toolbar-btn"
+              title={bookmarkId ? 'Review & auto-highlight this paper' : 'Bookmark first to enable review'}
+              onClick={() => {
+                if (bookmarkId && selectedIndex !== null) handleReviewPaper(selectedIndex);
+              }}
+              disabled={pr.reviewLoading || !bookmarkId}
+            >
+              {pr.reviewLoading ? (
+                <><span className="paper-viewer-resolve-spinner" /> Reviewing...</>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
+                  Auto Highlight
+                </>
+              )}
+            </button>
           )}
+
+          <div className="paper-viewer-toolbar-spacer" />
         </div>
       </>
     );
@@ -993,79 +1004,8 @@ export default function PaperViewerPanel({
         </div>
       </div>
 
-      {/* ── Center: PDF viewer + action bar ── */}
-      <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>
-        {/* Persistent action bar — always visible when a paper is selected */}
-        {selectedPaper && (
-          <div className="paper-viewer-action-bar">
-            <div className="paper-viewer-action-bar-title">
-              {selectedPaper.title}
-            </div>
-            <div className="paper-viewer-action-bar-btns">
-              {selectedPaper.review ? (
-                <>
-                  <button
-                    className={`paper-viewer-action-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'review' ? ' active' : ''}`}
-                    onClick={() => {
-                      if (pr.reviewPanelOpen && pr.activeReviewTab === 'review') {
-                        pr.toggleReviewPanel();
-                      } else {
-                        pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
-                        pr.setActiveReviewTab('review');
-                      }
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Review
-                    <span className="paper-viewer-action-score" style={{
-                      color: selectedPaper.review.overall_score >= 8 ? '#4ade80' : selectedPaper.review.overall_score >= 6 ? '#a5b4fc' : '#fbbf24'
-                    }}>
-                      {selectedPaper.review.overall_score}/10
-                    </span>
-                  </button>
-                  <button
-                    className={`paper-viewer-action-btn paper-viewer-action-hl${pr.reviewPanelOpen && pr.activeReviewTab === 'highlights' ? ' active' : ''}`}
-                    onClick={() => {
-                      if (pr.reviewPanelOpen && pr.activeReviewTab === 'highlights') {
-                        pr.toggleReviewPanel();
-                      } else {
-                        pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
-                        pr.setActiveReviewTab('highlights');
-                      }
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                    Highlights
-                    {selectedPaper.review_highlights?.length ? (
-                      <span className="paper-viewer-action-badge">{selectedPaper.review_highlights.length}</span>
-                    ) : null}
-                  </button>
-                </>
-              ) : bookmarkId ? (
-                <button
-                  className="paper-viewer-action-btn paper-viewer-action-primary"
-                  onClick={() => selectedIndex !== null && handleReviewPaper(selectedIndex)}
-                  disabled={pr.reviewLoading}
-                >
-                  {pr.reviewLoading ? (
-                    <><span className="paper-viewer-resolve-spinner" /> Analyzing...</>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                      Review &amp; Auto Highlight
-                    </>
-                  )}
-                </button>
-              ) : (
-                <span className="paper-viewer-action-hint">
-                  Bookmark this paper to enable Review &amp; Auto Highlight
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-        {renderPdfArea()}
-      </div>
+      {/* ── Center: PDF viewer ── */}
+      <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
 
       {/* ── Far right: Review panel ── */}
       {pr.reviewPanelOpen && (
