@@ -685,18 +685,18 @@
 /* ===== PDF Overlay Highlight Button ===== */
 
 .paper-viewer-pdf-hl-btn {
-  color: #34d399 !important;
+  color: #a5b4fc !important;
 }
 
 .paper-viewer-pdf-hl-btn:hover:not(:disabled) {
-  background: rgba(52, 211, 153, 0.1) !important;
-  border-color: rgba(52, 211, 153, 0.2) !important;
+  background: rgba(165, 180, 252, 0.1) !important;
+  border-color: rgba(165, 180, 252, 0.2) !important;
 }
 
 .paper-viewer-pdf-hl-btn.active {
-  background: rgba(52, 211, 153, 0.1) !important;
-  border-color: rgba(52, 211, 153, 0.25) !important;
-  color: #34d399 !important;
+  background: rgba(165, 180, 252, 0.1) !important;
+  border-color: rgba(165, 180, 252, 0.25) !important;
+  color: #a5b4fc !important;
 }
 
 .paper-viewer-pdf-hl-btn:disabled {
