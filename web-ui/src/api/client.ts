@@ -426,6 +426,19 @@ export const autoHighlightPaperReview = async (
   return response.data;
 };
 
+// PDF Overlay Highlights (standalone — no bookmark required)
+export const generatePdfHighlights = async (
+  text: string,
+  title: string,
+): Promise<{ highlights: HighlightItem[] }> => {
+  const response = await api.post<{ highlights: HighlightItem[] }>(
+    '/api/pdf-highlights',
+    { text, title },
+    { timeout: 180_000 },
+  );
+  return response.data;
+};
+
 // Citation Tree
 export const generateCitationTree = async (bookmarkId: string, depth: number = 1, maxPerDirection: number = 10) => {
   const response = await api.post(`/api/bookmarks/${bookmarkId}/citation-tree`, { depth, max_per_direction: maxPerDirection });

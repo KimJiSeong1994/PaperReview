@@ -4,6 +4,7 @@ Per-paper review endpoints:
   GET    /api/bookmarks/{bookmark_id}/papers/{paper_index}/review
   DELETE /api/bookmarks/{bookmark_id}/papers/{paper_index}/review
   POST   /api/bookmarks/{bookmark_id}/papers/{paper_index}/auto-highlight
+  POST   /api/pdf-highlights  (standalone, no bookmark required)
 """
 
 import logging
@@ -27,6 +28,13 @@ class PaperReviewRequest(BaseModel):
     full_text: Optional[str] = None
     abstract: Optional[str] = None
     review_mode: str = "fast"
+
+
+class PdfHighlightRequest(BaseModel):
+    """Request body for standalone PDF text highlight extraction."""
+
+    text: str
+    title: str = ""
 
 
 def _get_bookmark_paper(bookmark_id: str, paper_index: int, username: str):
@@ -351,3 +359,115 @@ def auto_highlight_paper_review(
         "added_count": added_count,
         "enriched_count": enriched_count,
     }
+
+
+@router.post("/pdf-highlights")
+def generate_pdf_highlights(
+    request: PdfHighlightRequest,
+    username: str = Depends(get_current_user),
+):
+    """Extract highlights from raw PDF text for overlay display.
+
+    This endpoint is independent of bookmarks — it takes arbitrary text
+    (typically extracted from a PDF via pdfjs) and returns highlight
+    spans with category, color, and reviewer commentary.
+    """
+    from openai import APIError, APITimeoutError, RateLimitError
+
+    text = request.text.strip()
+    if not text or len(text) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="PDF text is too short to generate meaningful highlights.",
+        )
+
+    title = request.title.strip()
+
+    client = get_openai_client()
+    try:
+        llm_highlights = generate_highlights(text, title, title, client)
+    except APITimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="LLM analysis timed out. Please retry.",
+        )
+    except RateLimitError:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limited. Please wait and retry.",
+        )
+    except APIError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM service error: {e.message}",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    highlights: list[dict] = []
+    valid_categories = set(CATEGORY_CONFIG.keys())
+
+    for item in llm_highlights:
+        raw_text = item.get("text", "").strip()
+        category = item.get("category", "finding")
+        if category not in valid_categories:
+            category = "finding"
+
+        reviewer_comment = item.get("reviewer_comment", "").strip()
+        if not reviewer_comment:
+            reviewer_comment = item.get("reason", "").strip()
+
+        implication = item.get("implication", "").strip()
+        strength_or_weakness = item.get("strength_or_weakness", "").strip().lower()
+        if strength_or_weakness not in ("strength", "weakness"):
+            strength_or_weakness = ""
+        question_for_authors = item.get("question_for_authors", "").strip()
+
+        try:
+            confidence_level = max(
+                1, min(5, int(float(item.get("confidence_level", 3))))
+            )
+        except (ValueError, TypeError):
+            confidence_level = 3
+        try:
+            significance = max(
+                1, min(5, int(float(item.get("significance", 3))))
+            )
+        except (ValueError, TypeError):
+            significance = 3
+
+        section = item.get("section", "")
+
+        if not raw_text or len(raw_text) < 5:
+            continue
+
+        # For PDF overlay we try to match against the full text
+        matched_text = _find_verbatim_or_fuzzy(raw_text, text)
+        if not matched_text:
+            # Keep original text even if not matched verbatim — the
+            # frontend will attempt its own fuzzy matching.
+            matched_text = raw_text
+
+        cfg = CATEGORY_CONFIG[category]
+        memo = (
+            f"{cfg['label']} {reviewer_comment}"
+            if reviewer_comment
+            else cfg["label"]
+        )
+
+        highlights.append({
+            "id": f"phl_{uuid.uuid4().hex[:12]}",
+            "text": matched_text,
+            "color": cfg["color"],
+            "memo": memo,
+            "category": category,
+            "significance": significance,
+            "section": section,
+            "implication": implication,
+            "strength_or_weakness": strength_or_weakness,
+            "question_for_authors": question_for_authors,
+            "confidence_level": confidence_level,
+            "created_at": datetime.now().isoformat(),
+        })
+
+    return {"highlights": highlights}

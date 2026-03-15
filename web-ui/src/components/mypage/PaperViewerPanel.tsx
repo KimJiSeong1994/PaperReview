@@ -1,10 +1,9 @@
-import { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl } from '../../api/client';
-import { usePaperReview } from '../../hooks/usePaperReview';
-import PaperReviewPanel from './PaperReviewPanel';
+import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl, generatePdfHighlights } from '../../api/client';
+import type { HighlightItem } from '../../api/client';
 import './PaperViewerPanel.css';
 
 // Configure pdf.js worker via CDN (avoids Vite bundling issues with import.meta.url)
@@ -35,9 +34,6 @@ export interface PaperViewerPanelProps {
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   autoSelectFirst?: boolean;
-  // NEW: for review integration
-  bookmarkId?: string;
-  onPaperReviewUpdate?: (paperIndex: number, review: any, highlights: any[]) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -202,26 +198,9 @@ export default function PaperViewerPanel({
   loadingDetail,
   hasSelectedBookmark,
   autoSelectFirst = false,
-  bookmarkId,
-  onPaperReviewUpdate,
 }: PaperViewerPanelProps) {
   const papers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
-  const pr = usePaperReview();
 
-  // Cross-paper review summary
-  const reviewSummary = useMemo(() => {
-    const reviewed = papers.filter(p => p.review);
-    if (reviewed.length === 0) return null;
-    const scores = reviewed.map(p => p.review.overall_score);
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    return {
-      count: reviewed.length,
-      total: papers.length,
-      avg: avg.toFixed(1),
-      min: Math.min(...scores),
-      max: Math.max(...scores),
-    };
-  }, [papers]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
@@ -235,6 +214,10 @@ export default function PaperViewerPanel({
 
   // Semantic Reader fallback state
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
+
+  // PDF overlay highlight state
+  const [pdfHighlights, setPdfHighlights] = useState<HighlightItem[]>([]);
+  const [highlightingPdf, setHighlightingPdf] = useState(false);
 
   // Auto-resolve: cache of resolved pdf_urls keyed by paper title
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, ResolvedUrl>>({});
@@ -420,16 +403,10 @@ export default function PaperViewerPanel({
     setPageInputValue('1');
     setPdfError(null);
     setDocumentKey(k => k + 1);
+    setPdfHighlights([]);
 
     const paper = papers[index];
     if (!paper) return;
-
-    // Load cached review if exists, otherwise clear previous review
-    if (paper.review) {
-      pr.setReviewFromCache(paper.review, paper.review_highlights || []);
-    } else {
-      pr.clearReview();
-    }
 
     // Fetch S2 Reader URL in parallel
     fetchReaderUrl(paper, requestIndex);
@@ -480,22 +457,78 @@ export default function PaperViewerPanel({
     return pages.join('\n\n');
   }, []);
 
-  // Review button handler: extracts PDF text when possible then starts review
-  const handleReviewPaper = useCallback(async (index: number) => {
-    if (!bookmarkId) return;
-    let fullText: string | undefined;
-    if (pdfDocRef.current && selectedIndex === index) {
-      try {
-        fullText = await extractPdfText(pdfDocRef.current);
-      } catch {
-        // Fall back to review without full text
-      }
+  // PDF overlay highlight handler — extract text from PDF and call LLM
+  const handleAutoHighlightPdf = useCallback(async () => {
+    if (!pdfDocRef.current) return;
+    setHighlightingPdf(true);
+    try {
+      const text = await extractPdfText(pdfDocRef.current);
+      const title = selectedPaper?.title || '';
+      const result = await generatePdfHighlights(text, title);
+      setPdfHighlights(result.highlights);
+    } catch (err) {
+      console.error('PDF highlight failed:', err);
+    } finally {
+      setHighlightingPdf(false);
     }
-    const result = await pr.startReview(bookmarkId, index, fullText);
-    if (result && onPaperReviewUpdate) {
-      onPaperReviewUpdate(index, result.review, result.highlights);
-    }
-  }, [bookmarkId, selectedIndex, pr, extractPdfText, onPaperReviewUpdate]);
+  }, [selectedPaper, extractPdfText]);
+
+  // Apply PDF overlay highlights onto the react-pdf text layer spans
+  useEffect(() => {
+    if (pdfHighlights.length === 0) return;
+
+    const applyHighlights = () => {
+      const scrollEl = docScrollRef.current;
+      if (!scrollEl) return;
+
+      const textLayers = scrollEl.querySelectorAll('.react-pdf__Page__textContent');
+
+      textLayers.forEach(layer => {
+        const spans = layer.querySelectorAll('span');
+
+        // Build concatenated text with per-span index tracking
+        const spanTexts: { span: HTMLSpanElement; text: string; startIdx: number }[] = [];
+        let fullText = '';
+
+        spans.forEach(span => {
+          const text = span.textContent || '';
+          spanTexts.push({ span, text, startIdx: fullText.length });
+          fullText += text;
+        });
+
+        // Normalise whitespace for matching
+        const normalizedFull = fullText.replace(/\s+/g, ' ');
+
+        for (const hl of pdfHighlights) {
+          const normalizedHl = hl.text.replace(/\s+/g, ' ');
+
+          let searchIdx = 0;
+          while (true) {
+            const matchIdx = normalizedFull.indexOf(normalizedHl, searchIdx);
+            if (matchIdx === -1) break;
+            searchIdx = matchIdx + 1;
+
+            const matchEnd = matchIdx + normalizedHl.length;
+
+            // Mark spans that overlap the matched range
+            for (const { span, startIdx, text } of spanTexts) {
+              const spanEnd = startIdx + text.length;
+              if (spanEnd > matchIdx && startIdx < matchEnd) {
+                span.style.backgroundColor = (hl.color || '#a5b4fc') + '40';
+                span.style.borderRadius = '2px';
+                span.setAttribute('data-pdf-hl', hl.id);
+                span.title = hl.memo || hl.category || '';
+              }
+            }
+          }
+        }
+      });
+    };
+
+    // Delay to allow text layer rendering to finish
+    const timer = setTimeout(applyHighlights, 500);
+    return () => clearTimeout(timer);
+  }, [pdfHighlights, visiblePages, documentKey]);
 
   const handleDocumentLoadSuccess = useCallback((pdf: any) => {
     setNumPages(pdf.numPages);
@@ -830,59 +863,22 @@ export default function PaperViewerPanel({
 
           <div className="paper-viewer-toolbar-sep" />
 
-          {/* Review & Highlight — always next to Fit width */}
-          {selectedPaper?.review ? (
-            <>
-              <button
-                className={`paper-viewer-fit-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'review' ? ' active' : ''}`}
-                title="Show review"
-                onClick={() => {
-                  if (pr.reviewPanelOpen && pr.activeReviewTab === 'review') {
-                    pr.toggleReviewPanel();
-                  } else {
-                    pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
-                    pr.setActiveReviewTab('review');
-                  }
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Review
-              </button>
-              <button
-                className={`paper-viewer-fit-btn paper-viewer-review-toolbar-btn${pr.reviewPanelOpen && pr.activeReviewTab === 'highlights' ? ' active' : ''}`}
-                title="Show highlights"
-                onClick={() => {
-                  if (pr.reviewPanelOpen && pr.activeReviewTab === 'highlights') {
-                    pr.toggleReviewPanel();
-                  } else {
-                    pr.setReviewFromCache(selectedPaper.review, selectedPaper.review_highlights || []);
-                    pr.setActiveReviewTab('highlights');
-                  }
-                }}
-              >
+          {/* PDF overlay highlight button — works without bookmark */}
+          <button
+            className={`paper-viewer-fit-btn paper-viewer-pdf-hl-btn${pdfHighlights.length > 0 ? ' active' : ''}`}
+            title="Auto-highlight key findings on PDF"
+            onClick={handleAutoHighlightPdf}
+            disabled={highlightingPdf || !pdfDocRef.current}
+          >
+            {highlightingPdf ? (
+              <><span className="paper-viewer-resolve-spinner" /> Highlighting...</>
+            ) : (
+              <>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                Highlights{selectedPaper.review_highlights?.length ? ` (${selectedPaper.review_highlights.length})` : ''}
-              </button>
-            </>
-          ) : (
-            <button
-              className="paper-viewer-fit-btn paper-viewer-review-toolbar-btn"
-              title={bookmarkId ? 'Review & auto-highlight this paper' : 'Bookmark first to enable review'}
-              onClick={() => {
-                if (bookmarkId && selectedIndex !== null) handleReviewPaper(selectedIndex);
-              }}
-              disabled={pr.reviewLoading || !bookmarkId}
-            >
-              {pr.reviewLoading ? (
-                <><span className="paper-viewer-resolve-spinner" /> Reviewing...</>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                  Auto Highlight
-                </>
-              )}
-            </button>
-          )}
+                {pdfHighlights.length > 0 ? `Highlights (${pdfHighlights.length})` : 'Auto Highlight'}
+              </>
+            )}
+          </button>
 
           <div className="paper-viewer-toolbar-spacer" />
         </div>
@@ -909,25 +905,7 @@ export default function PaperViewerPanel({
           )}
         </div>
 
-        {reviewSummary && (
-          <div className="paper-viewer-review-summary">
-            <span className="paper-viewer-review-summary-count">
-              Reviews: {reviewSummary.count}/{reviewSummary.total}
-            </span>
-            <span className="paper-viewer-review-summary-sep">|</span>
-            <span className="paper-viewer-review-summary-avg">
-              Avg: {reviewSummary.avg}
-            </span>
-            {reviewSummary.count > 1 && (
-              <>
-                <span className="paper-viewer-review-summary-sep">|</span>
-                <span className="paper-viewer-review-summary-range">
-                  {reviewSummary.min}-{reviewSummary.max}
-                </span>
-              </>
-            )}
-          </div>
-        )}
+
 
         <div className="paper-viewer-list-scroll">
           {loadingDetail ? (
@@ -958,44 +936,6 @@ export default function PaperViewerPanel({
                       {formatAuthors(paper.authors)}
                       {paper.year ? ` · ${paper.year}` : ''}
                     </div>
-                    {bookmarkId && (
-                      <div className="paper-viewer-item-actions">
-                        {paper.review && (
-                          <span
-                            className="paper-viewer-score-circle"
-                            style={{
-                              '--score-color': paper.review.overall_score >= 8 ? '#4ade80' : paper.review.overall_score >= 6 ? '#a5b4fc' : paper.review.overall_score >= 4 ? '#fbbf24' : '#f87171'
-                            } as React.CSSProperties}
-                            title={`Score: ${paper.review.overall_score}/10 | Confidence: ${paper.review.confidence}/5`}
-                          >
-                            {paper.review.overall_score}
-                          </span>
-                        )}
-                        {paper.review_highlights && paper.review_highlights.length > 0 && (
-                          <button
-                            className="paper-viewer-hl-count-btn"
-                            title={`${paper.review_highlights.length} highlights — click to view`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              resolveAndSelect(index);
-                              pr.setReviewFromCache(paper.review, paper.review_highlights || []);
-                              pr.setActiveReviewTab('highlights');
-                            }}
-                          >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                            {paper.review_highlights.length}
-                          </button>
-                        )}
-                        <button
-                          className="paper-viewer-review-btn"
-                          onClick={(e) => { e.stopPropagation(); handleReviewPaper(index); }}
-                          disabled={pr.reviewLoading}
-                          title={paper.review ? 'Re-review this paper' : 'Review this paper'}
-                        >
-                          {paper.review ? 'Re-review' : 'Review'}
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -1006,29 +946,6 @@ export default function PaperViewerPanel({
 
       {/* ── Center: PDF viewer ── */}
       <div className="paper-viewer-pdf-area" ref={pdfAreaRef}>{renderPdfArea()}</div>
-
-      {/* ── Far right: Review panel ── */}
-      {pr.reviewPanelOpen && (
-        <PaperReviewPanel
-          review={pr.review}
-          loading={pr.reviewLoading}
-          error={pr.reviewError}
-          highlights={pr.reviewHighlights}
-          activeTab={pr.activeReviewTab}
-          highlightFilter={pr.highlightFilter}
-          onTabChange={pr.setActiveReviewTab}
-          onFilterChange={pr.setHighlightFilter}
-          onClose={pr.toggleReviewPanel}
-          onDelete={pr.review && bookmarkId && selectedIndex !== null ? () => {
-            pr.deleteReview(bookmarkId!, selectedIndex!);
-            if (onPaperReviewUpdate) onPaperReviewUpdate(selectedIndex!, null as any, []);
-          } : undefined}
-          onReReview={selectedIndex !== null ? () => handleReviewPaper(selectedIndex!) : undefined}
-          onRemoveHighlight={(hlId) => pr.removeHighlight(hlId)}
-          onAutoHighlight={bookmarkId && selectedIndex !== null ? () => pr.runAutoHighlight(bookmarkId!, selectedIndex!) : undefined}
-          autoHighlighting={pr.autoHighlighting}
-        />
-      )}
     </div>
   );
 }

@@ -681,3 +681,36 @@
   background: rgba(251, 191, 36, 0.1) !important;
   border-color: rgba(251, 191, 36, 0.2) !important;
 }
+
+/* ===== PDF Overlay Highlight Button ===== */
+
+.paper-viewer-pdf-hl-btn {
+  color: #34d399 !important;
+}
+
+.paper-viewer-pdf-hl-btn:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.1) !important;
+  border-color: rgba(52, 211, 153, 0.2) !important;
+}
+
+.paper-viewer-pdf-hl-btn.active {
+  background: rgba(52, 211, 153, 0.1) !important;
+  border-color: rgba(52, 211, 153, 0.25) !important;
+  color: #34d399 !important;
+}
+
+.paper-viewer-pdf-hl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== PDF Highlight Overlay on Text Layer ===== */
+
+.react-pdf__Page__textContent span[data-pdf-hl] {
+  cursor: pointer;
+  transition: background-color 0.2s, filter 0.2s;
+}
+
+.react-pdf__Page__textContent span[data-pdf-hl]:hover {
+  filter: brightness(1.3);
+}
