@@ -222,13 +222,13 @@ async def papers_stats(admin: str = Depends(get_admin_user)):
     papers = papers_data.get("papers", [])
     counts: dict[str, int] = {}
     for p in papers:
-        user = p.get("searched_by", "")
+        user = p.get("searched_by", "") or "(unknown)"
         counts[user] = counts.get(user, 0) + 1
 
     return {
         "total": len(papers),
         "users": sorted(
-            [{"username": u or "(unknown)", "paper_count": c} for u, c in counts.items()],
+            [{"username": u, "paper_count": c} for u, c in counts.items()],
             key=lambda x: x["username"],
         ),
     }
@@ -246,7 +246,9 @@ async def list_papers(
     papers = papers_data.get("papers", [])
 
     # Filter by username if provided
-    if username:
+    if username == "(unknown)":
+        papers = [p for p in papers if not p.get("searched_by") or p.get("searched_by") == "(unknown)"]
+    elif username:
         papers = [p for p in papers if p.get("searched_by") == username]
 
     total = len(papers)
@@ -265,9 +267,11 @@ async def list_papers(
             "searched_by": p.get("searched_by", ""),
         })
 
-    # Collect unique usernames for filter dropdown
+    # Collect unique usernames for filter dropdown (include unknown users)
     all_papers = papers_data.get("papers", [])
-    usernames = sorted(set(p.get("searched_by", "") for p in all_papers if p.get("searched_by")))
+    usernames = sorted(set(p.get("searched_by", "") for p in all_papers if p.get("searched_by") and p.get("searched_by") != "(unknown)"))
+    if any(not p.get("searched_by") or p.get("searched_by") == "(unknown)" for p in all_papers):
+        usernames = ["(unknown)"] + usernames
 
     return {
         "papers": page_papers,

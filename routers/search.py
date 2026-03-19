@@ -99,11 +99,10 @@ class LLMSearchResponse(BaseModel):
 
 def _stamp_searched_by(results: Dict[str, List[Dict[str, Any]]], username: Optional[str]):
     """Add searched_by field to all papers in results."""
-    if not username:
-        return
+    stamp = username or "(unknown)"
     for papers in results.values():
         for paper in papers:
-            paper["searched_by"] = username
+            paper["searched_by"] = stamp
 
 
 def _enrich_papers_background(
@@ -350,8 +349,7 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
         if request.save_papers and total > 0:
             try:
-                if username:
-                    _stamp_searched_by(results, username)
+                _stamp_searched_by(results, username)
                 save_result = search_agent.save_papers(
                     results, request.query, generate_embeddings=False, update_graph=True
                 )
@@ -411,8 +409,7 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
                     if source in results_by_source:
                         results_by_source[source].append(paper)
 
-                if username:
-                    _stamp_searched_by(results_by_source, username)
+                _stamp_searched_by(results_by_source, username)
                 save_result = search_agent.save_papers(
                     results_by_source, request.query, generate_embeddings=False, update_graph=True
                 )
@@ -707,8 +704,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         total = sum(len(papers) for papers in results.values())
 
         # Stamp username on papers before saving
-        if username:
-            _stamp_searched_by(results, username)
+        _stamp_searched_by(results, username)
 
         # Save & enrich
         if request.save_papers and total > 0:
