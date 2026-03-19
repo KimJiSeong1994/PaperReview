@@ -31,7 +31,15 @@ class PosterVisualAgent:
                 .replace('"', '&quot;')
                 .replace("'", '&#39;'))
 
-    def __init__(self):
+    def __init__(self, autofigure_svgs: Optional[List[Dict[str, Any]]] = None):
+        """
+        Args:
+            autofigure_svgs: AutoFigure-Edit로 생성된 SVG 리스트 (옵션).
+                [{"paper_title": str, "svg_content": str}, ...]
+                제공되면 아키텍처/파이프라인 다이어그램에 우선 사용된다.
+        """
+        self._autofigure_svgs = autofigure_svgs or []
+        self._autofigure_used = 0  # 사용된 AutoFigure SVG 카운터
         self.color_palette = {
             'blue': '#2563eb',
             'blue_light': '#dbeafe',
@@ -48,6 +56,20 @@ class PosterVisualAgent:
             'red': '#ef4444'
         }
 
+    def _try_autofigure_svg(self) -> Optional[str]:
+        """AutoFigure SVG가 남아있으면 하나를 소비하여 반환한다."""
+        if self._autofigure_used < len(self._autofigure_svgs):
+            fig = self._autofigure_svgs[self._autofigure_used]
+            svg = fig.get("svg_content", "")
+            title = fig.get("paper_title", "")
+            self._autofigure_used += 1
+            if svg:
+                return f'''<div style="text-align: center;">
+                    {svg}
+                    <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px; font-style: italic;">{self._escape_xml(title)}</p>
+                </div>'''
+        return None
+
     def generate_section(self, section) -> str:
         """
         섹션별 HTML 생성 (병렬 처리 가능)
@@ -61,11 +83,19 @@ class PosterVisualAgent:
         if section.content is None:
             return self.generate_text_html('')
         if isinstance(section.content, dict) and section.content.get('type') == 'svg_diagram':
+            # 하이브리드: AutoFigure SVG가 있으면 우선 사용
+            af_svg = self._try_autofigure_svg()
+            if af_svg:
+                return af_svg
             return self.generate_architecture_svg(
                 section.content.get('content', ''),
                 visualization_data=section.content.get('visualization_data'),
             )
         elif isinstance(section.content, dict) and section.content.get('type') == 'svg_flowchart':
+            # 하이브리드: AutoFigure SVG가 있으면 우선 사용
+            af_svg = self._try_autofigure_svg()
+            if af_svg:
+                return af_svg
             return self.generate_algorithm_svg(
                 section.content.get('papers', []),
                 visualization_data=section.content.get('visualization_data'),

@@ -121,6 +121,14 @@ class PosterGenerationAgent:
         self.visual_agent = PosterVisualAgent()
         self.validator_agent = PosterValidatorAgent() if enable_validation else None
 
+        # AutoFigure-Edit 클라이언트 (옵션)
+        self._autofigure_client = None
+        try:
+            from app.DeepAgent.tools.autofigure_client import get_autofigure_client
+            self._autofigure_client = get_autofigure_client()
+        except ImportError:
+            pass
+
     def _initialize_gemini(self):
         """Gemini LLM 초기화"""
         try:
@@ -341,16 +349,31 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # Phase 1: Content Extraction (멀티 에이전트)
             content = self.content_agent.extract(report_content, num_papers, figures=figure_data)
 
+            # Phase 1.5: AutoFigure-Edit SVG 생성 (방법론 → 편집 가능 SVG)
+            autofigure_svgs = self._generate_autofigure_svgs(content)
+            if autofigure_svgs:
+                print(f"[PosterAgent] AutoFigure: {len(autofigure_svgs)}개 SVG 다이어그램 생성 완료")
+
             # Phase 2: Layout Planning (멀티 에이전트)
             layout = self.layout_agent.plan(content)
 
             # Phase 3: Gemini를 사용한 포스터 생성
             if self.llm:
-                poster_html = self._generate_with_gemini(content, layout, report_content, num_papers, figures)
+                poster_html = self._generate_with_gemini(
+                    content, layout, report_content, num_papers, figures,
+                    autofigure_svgs=autofigure_svgs,
+                )
             else:
                 # Gemini 사용 불가 시 멀티 에이전트 방식 사용
+                # AutoFigure SVG를 visual_agent에 전달하여 하이브리드 시각화 활용
+                if autofigure_svgs:
+                    self.visual_agent = PosterVisualAgent(autofigure_svgs=autofigure_svgs)
                 section_htmls = self._generate_sections_parallel(layout.sections)
                 poster_html = self._assemble_poster(content, layout, section_htmls)
+                # 남은 AutoFigure SVG가 있으면 직접 삽입
+                unused_svgs = autofigure_svgs[self.visual_agent._autofigure_used:] if autofigure_svgs else []
+                if unused_svgs:
+                    poster_html = self._inject_autofigure_svgs(poster_html, unused_svgs)
 
             # Phase 4: Critic Loop (반복 비평 → 수정)
             validation_score = 0.8
@@ -395,6 +418,152 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 "validation_score": 0.5,
                 "error": str(e)
             }
+
+    def _generate_autofigure_svgs(self, content) -> List[Dict[str, Any]]:
+        """AutoFigure-Edit로 방법론 텍스트에서 SVG 다이어그램을 생성한다.
+
+        심층 리뷰의 methodology와 paper_analyses에서 프롬프트를 구성하여
+        AutoFigure-Edit 서비스에 전달하고, 편집 가능한 SVG를 받아온다.
+
+        Args:
+            content: ExtractedContent 객체
+
+        Returns:
+            [{"paper_title": str, "svg_content": str, "figure_png_b64": str}, ...]
+        """
+        if not self._autofigure_client:
+            return []
+
+        try:
+            import asyncio
+            from app.DeepAgent.tools.autofigure_client import (
+                build_method_prompt,
+                build_paper_figure_prompts,
+            )
+
+            paper_analyses = getattr(content, 'paper_analyses', []) or []
+
+            # 전체 방법론 프롬프트 구성
+            method_prompt = build_method_prompt(content, paper_analyses)
+            # 논문별 프롬프트 구성
+            paper_prompts = build_paper_figure_prompts(paper_analyses)[:2]  # 최대 2개
+
+            async def _run() -> List[Dict[str, Any]]:
+                results: List[Dict[str, Any]] = []
+
+                # 전체 방법론 SVG 생성
+                if method_prompt.strip():
+                    result = await self._autofigure_client.method_to_svg(method_prompt)
+                    if result.success:
+                        results.append({
+                            "paper_title": "Overall Methodology",
+                            "svg_content": result.final_svg,
+                            "figure_png_b64": result.figure_png_b64,
+                        })
+
+                # 논문별 SVG 생성
+                for prompt_info in paper_prompts:
+                    result = await self._autofigure_client.method_to_svg(
+                        prompt_info["method_prompt"]
+                    )
+                    if result.success:
+                        results.append({
+                            "paper_title": prompt_info["paper_title"],
+                            "svg_content": result.final_svg,
+                            "figure_png_b64": result.figure_png_b64,
+                        })
+
+                return results
+
+            # 이벤트 루프에서 비동기 실행
+            try:
+                asyncio.get_running_loop()
+                # 이미 이벤트 루프 안이면 새 스레드에서 실행
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, _run())
+                    return future.result(timeout=300)
+            except RuntimeError:
+                return asyncio.run(_run())
+
+        except Exception as e:
+            print(f"[PosterAgent] AutoFigure SVG 생성 실패 (기존 방식으로 진행): {e}")
+            return []
+
+    def _format_autofigure_prompt(self, autofigure_svgs: List[Dict[str, Any]]) -> str:
+        """AutoFigure-Edit로 생성된 SVG를 Gemini 프롬프트에 포함할 텍스트로 변환한다."""
+        if not autofigure_svgs:
+            return ""
+
+        sections = []
+        for i, fig in enumerate(autofigure_svgs[:3]):
+            title = fig.get("paper_title", f"Figure {i + 1}")
+            svg = fig.get("svg_content", "")
+            if svg:
+                # SVG 크기 제한 (Gemini 토큰 절약)
+                svg_snippet = svg[:3000]
+                sections.append(f"""
+**AutoFigure SVG {i + 1}** ({title}):
+아래 SVG는 AutoFigure-Edit가 논문 방법론에서 자동 생성한 편집 가능 다이어그램입니다.
+이 SVG를 포스터의 방법론/아키텍처 섹션에 **그대로 포함**하세요.
+```svg
+{svg_snippet}
+```""")
+
+        if not sections:
+            return ""
+
+        return f"""
+
+---
+
+## AutoFigure-Edit 생성 다이어그램 (반드시 포스터에 포함!)
+
+아래 SVG 다이어그램들은 AutoFigure-Edit 파이프라인이 논문의 방법론 텍스트로부터
+자동 생성한 고품질 벡터 삽도입니다. 포스터의 핵심 시각 요소로 배치하세요.
+
+{''.join(sections)}
+
+**배치 지침**:
+1. 각 SVG를 포스터 HTML 내에 직접 삽입하세요 (<svg> 태그 그대로 사용)
+2. 중앙 컬럼 또는 방법론 섹션에 배치
+3. SVG 아래에 캡션을 추가하세요
+"""
+
+    def _inject_autofigure_svgs(self, poster_html: str, autofigure_svgs: List[Dict[str, Any]]) -> str:
+        """멀티에이전트 방식 fallback 시 AutoFigure SVG를 포스터에 직접 삽입한다."""
+        if not autofigure_svgs:
+            return poster_html
+
+        svgs_html = '''
+        <div class="section-box" style="grid-column: 1 / -1; margin-top: 20px;">
+            <div class="section-title" style="font-size: 1.3rem; font-weight: 800; color: #2563eb; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
+                Architecture Diagrams (AutoFigure-Edit)
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+        '''
+
+        for fig in autofigure_svgs[:3]:
+            title = self._escape_html(fig.get("paper_title", ""))
+            svg_content = fig.get("svg_content", "")
+            svgs_html += f'''
+                <div style="background: #f8fafc; border-radius: 8px; padding: 16px; border: 1px solid #e2e8f0;">
+                    {svg_content}
+                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 8px 0 0 0; text-align: center;">{title}</p>
+                </div>
+            '''
+
+        svgs_html += '''
+            </div>
+        </div>
+        '''
+
+        if '</div>\n</body>' in poster_html:
+            poster_html = poster_html.replace('</div>\n</body>', f'{svgs_html}</div>\n</body>')
+        elif '</body>' in poster_html:
+            poster_html = poster_html.replace('</body>', f'{svgs_html}</body>')
+
+        return poster_html
 
     def _extract_paper_figures(self, papers_data: List[Dict[str, Any]]) -> list:
         """논문 PDF에서 핵심 삽도 추출"""
@@ -442,7 +611,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         return section_htmls
 
-    def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int, figures: list = None) -> str:
+    def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int,
+                              figures: list = None, autofigure_svgs: list = None) -> str:
         """
         Gemini를 사용하여 포스터 생성
 
@@ -455,6 +625,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         # Gemini 프롬프트 구성
         prompt = self._build_gemini_prompt(content, layout, report_summary, num_papers, figures)
+
+        # AutoFigure SVG를 프롬프트에 추가
+        if autofigure_svgs:
+            prompt += self._format_autofigure_prompt(autofigure_svgs)
 
         # Multimodal 콘텐츠 구성 (텍스트 + 이미지)
         content_parts = [prompt]

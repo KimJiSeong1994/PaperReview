@@ -40,6 +40,7 @@ from routers import (
     share_router,
     curriculum_router,
     pdf_proxy_router,
+    autofigure_router,
 )
 from routers.deps import api_key, limiter
 
@@ -146,6 +147,7 @@ app.include_router(exploration_router)
 app.include_router(share_router)
 app.include_router(curriculum_router)
 app.include_router(pdf_proxy_router)
+app.include_router(autofigure_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────
