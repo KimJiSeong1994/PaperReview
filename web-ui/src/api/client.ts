@@ -227,7 +227,11 @@ export interface PosterResponse {
 }
 
 export const generatePoster = async (sessionId: string): Promise<PosterResponse> => {
-  const response = await api.post<PosterResponse>(`/api/deep-review/visualize/${sessionId}`);
+  const response = await api.post<PosterResponse>(
+    `/api/deep-review/visualize/${sessionId}`,
+    {},
+    { timeout: 300_000 },  // 5분 (Gemini + Critic Loop)
+  );
   return response.data;
 };
 

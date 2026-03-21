@@ -1201,11 +1201,17 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
             logger.exception("[Poster API] Failed to generate poster: %s", e)
             raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
 
+        if not result.get("poster_html"):
+            error_msg = result.get("error", "Poster HTML generation returned empty")
+            logger.error("[Poster API] Empty poster HTML: %s", error_msg)
+            raise HTTPException(status_code=500, detail=error_msg)
+
         return {
             "success": result["success"],
             "session_id": session_id,
             "poster_html": result["poster_html"],
             "poster_path": result.get("poster_path", ""),
+            "error": result.get("error", ""),
         }
 
     except HTTPException:

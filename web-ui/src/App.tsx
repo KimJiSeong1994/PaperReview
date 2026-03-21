@@ -393,14 +393,17 @@ function App() {
       setPosterLoading(true);
       try {
         const result = await generatePoster(reviewSessionId);
-        if (result.success && result.poster_html) {
+        if (result.poster_html) {
+          // success가 false여도 poster_html이 있으면 표시 (fallback 포스터)
           setPosterHtml(result.poster_html);
         } else {
-          alert('포스터 생성에 실패했습니다.');
+          const detail = (result as any).error || (result as any).detail || '서버에서 포스터 HTML을 생성하지 못했습니다.';
+          alert(`포스터 생성 실패: ${detail}`);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Poster generation failed:', err);
-        alert('포스터 생성 중 오류가 발생했습니다.');
+        const detail = err?.response?.data?.detail || err?.message || '알 수 없는 오류';
+        alert(`포스터 생성 중 오류: ${detail}`);
       } finally {
         setPosterLoading(false);
       }
