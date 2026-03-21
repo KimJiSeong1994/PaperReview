@@ -54,7 +54,7 @@ class PosterGenerationAgent:
 
     def __init__(
         self,
-        model: str = "gemini-3-pro-image-preview",
+        model: str = "gemini-2.5-flash-preview-05-20",
         api_key: Optional[str] = None,
         max_workers: int = 4,
         enable_validation: bool = False,
@@ -65,7 +65,7 @@ class PosterGenerationAgent:
     ):
         """
         Args:
-            model: Gemini 모델 이름 (기본값: gemini-3-pro-image-preview)
+            model: Gemini 모델 이름 (기본값: gemini-2.5-flash-preview-05-20)
             api_key: Google API 키
             max_workers: 병렬 처리 워커 수
             enable_validation: VLM 품질 검증 활성화
@@ -609,14 +609,25 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
             return poster_html
 
-        except Exception:
-            # Fallback
+        except Exception as e:
+            # Gemini 생성 실패 → 멀티에이전트 fallback
+            import traceback
+            traceback.print_exc()
+            print(f"[PosterAgent] Gemini 포스터 생성 실패, 멀티에이전트 fallback: {e}")
+
             section_htmls = self._generate_sections_parallel(layout.sections)
             poster_html = self._assemble_poster(content, layout, section_htmls)
-            if autofigure_svgs:
-                poster_html = self._inject_autofigure_svgs(poster_html, autofigure_svgs)
+
+            # SVG 시각화 삽입 (fallback에서도 시각화 보장)
+            viz_html = self._build_visualizations_html(content, autofigure_svgs)
+            if viz_html:
+                poster_html = poster_html.replace("</body>", f"{viz_html}</body>")
+
             if figures:
-                poster_html = self._inject_figures_into_html(poster_html, figures)
+                fig_html = self._build_figures_html(figures)
+                if fig_html:
+                    poster_html = poster_html.replace("</body>", f"{fig_html}</body>")
+
             return poster_html
 
     def _format_paper_analyses_prompt(self, content) -> str:
@@ -914,14 +925,27 @@ SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확�
         items = []
 
         for fig in figures[:4]:
-            mime = getattr(fig, 'mime_type', 'image/png')
+            # ExtractedFigure 객체 또는 dict 모두 지원
+            if isinstance(fig, dict):
+                mime = fig.get('mime_type', 'image/png')
+                b64 = fig.get('image_base64', '')
+                caption = fig.get('caption', '')
+                paper_title = fig.get('paper_title', '')
+            else:
+                mime = getattr(fig, 'mime_type', 'image/png')
+                b64 = getattr(fig, 'image_base64', '')
+                caption = getattr(fig, 'caption', '')
+                paper_title = getattr(fig, 'paper_title', '')
+
+            if not b64:
+                continue
             if mime not in allowed_mimes:
                 mime = 'image/png'
-            caption = self._escape_html(str(getattr(fig, 'caption', '') or ''))
-            paper_title = self._escape_html(str(getattr(fig, 'paper_title', '') or '')[:50])
+            caption = self._escape_html(str(caption or ''))
+            paper_title = self._escape_html(str(paper_title or '')[:50])
 
             items.append(f'''<div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0;">
-            <img src="data:{mime};base64,{fig.image_base64}"
+            <img src="data:{mime};base64,{b64}"
                  alt="{caption}" style="width:100%; height:auto; border-radius:6px; margin-bottom:8px;" />
             <p style="font-size:0.85rem; font-weight:600; color:#1e293b; margin:4px 0 2px;">{caption}</p>
             <p style="font-size:0.7rem; color:#94a3b8; margin:0; font-style:italic;">Source: {paper_title}</p>
@@ -1236,24 +1260,57 @@ HTML만 출력하세요. 설명이나 마크다운 코드블록 없이 <!DOCTYPE
         '''
 
     def _generate_simple_fallback(self, report_content: str, num_papers: int) -> str:
-        """간단한 fallback 포스터"""
+        """Fallback 포스터 — Gemini/멀티에이전트 모두 실패 시 사용"""
+        # 리포트에서 기본 섹션 추출
+        lines = report_content.split('\n')
+        title = "Systematic Literature Review"
+        for line in lines[:20]:
+            if line.startswith('# '):
+                title = line.replace('# ', '').strip()
+                break
+
+        # 섹션 분리 (간이)
+        sections = report_content.split('\n## ')
+        body_parts = []
+        for sec in sections[1:6]:  # 최대 5개 섹션
+            sec_lines = sec.split('\n')
+            sec_title = self._escape_html(sec_lines[0].strip())
+            sec_body = self._escape_html('\n'.join(sec_lines[1:])[:600])
+            body_parts.append(f'''<div class="section-box">
+                <div class="section-title">{sec_title}</div>
+                <p style="white-space:pre-wrap; line-height:1.6;">{sec_body}</p>
+            </div>''')
+
+        sections_html = '\n'.join(body_parts) if body_parts else f'<pre style="white-space:pre-wrap;">{self._escape_html(report_content[:3000])}</pre>'
+
         return f'''<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Fallback Poster</title>
+    <title>{self._escape_html(title)} - Academic Poster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body {{ font-family: sans-serif; padding: 40px; background: #f0f0f0; }}
-        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 40px; }}
-        h1 {{ color: #2563eb; }}
+        :root {{ --primary: #2563eb; --secondary: #1e293b; --accent: #f59e0b; --bg: #f8fafc; }}
+        * {{ margin:0; padding:0; box-sizing:border-box; }}
+        body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:var(--bg); padding:24px; }}
+        .poster {{ max-width:1600px; margin:0 auto; background:white; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.08); overflow:hidden; }}
+        header {{ background:linear-gradient(135deg, var(--primary), #1d4ed8); color:white; padding:32px 40px; }}
+        header h1 {{ font-size:2.5rem; font-weight:800; margin-bottom:8px; }}
+        header p {{ font-size:1.1rem; opacity:0.9; }}
+        .content {{ padding:32px 40px; display:grid; grid-template-columns:1fr 1fr; gap:24px; }}
+        .section-box {{ background:var(--bg); border-radius:8px; padding:20px; border-left:4px solid var(--primary); }}
+        .section-title {{ font-size:1.2rem; font-weight:700; color:var(--primary); margin-bottom:12px; }}
+        p {{ font-size:0.95rem; color:var(--secondary); line-height:1.7; }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Research Analysis Poster</h1>
-        <p><strong>Papers Analyzed:</strong> {num_papers}</p>
-        <div style="white-space: pre-wrap; margin-top: 20px;">
-            {report_content[:2000]}
+    <div class="poster">
+        <header>
+            <h1>{self._escape_html(title)}</h1>
+            <p>Systematic Literature Review &middot; {num_papers} papers analyzed</p>
+        </header>
+        <div class="content">
+            {sections_html}
         </div>
     </div>
 </body>

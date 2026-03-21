@@ -1131,7 +1131,7 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
 
         try:
             poster_agent = PosterGenerationAgent(
-                model="gemini-3-pro-image-preview",
+                model="gemini-2.5-flash-preview-05-20",
                 design_pattern_manager=pattern_manager,
                 enable_critic=True,
                 max_critic_rounds=2,
