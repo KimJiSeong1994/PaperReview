@@ -22,6 +22,73 @@ logger = logging.getLogger(__name__)
 review_sessions: Dict[str, Dict[str, Any]] = {}
 review_sessions_lock = threading.Lock()
 
+# ── Workspace 기반 세션 복원 (서버 재시작 시 인메모리 세션 유실 방지) ──
+WORKSPACE_DIR = Path("data/workspace")
+
+
+def _restore_sessions_from_workspace() -> int:
+    """서버 시작 시 workspace 디렉토리에서 완료된 세션을 복원한다.
+
+    각 workspace 폴더의 metadata.json과 reports/*.md를 확인하여
+    review_sessions에 재등록한다. 리포트 파일이 있으면 status=completed로 복원.
+
+    Returns:
+        복원된 세션 수
+    """
+    if not WORKSPACE_DIR.exists():
+        return 0
+
+    restored = 0
+    for session_dir in WORKSPACE_DIR.iterdir():
+        if not session_dir.is_dir() or not session_dir.name.startswith("review_"):
+            continue
+
+        session_id = session_dir.name
+        if session_id in review_sessions:
+            continue
+
+        # metadata.json 로드
+        metadata_file = session_dir / "metadata.json"
+        metadata: Dict[str, Any] = {}
+        if metadata_file.exists():
+            try:
+                with open(metadata_file, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # 리포트 파일 존재 여부로 완료 상태 판단
+        reports_dir = session_dir / "reports"
+        has_report = False
+        if reports_dir.exists():
+            md_files = list(reports_dir.glob("*.md"))
+            has_report = len(md_files) > 0
+
+        if not has_report:
+            continue  # 리포트 없는 세션은 복원하지 않음
+
+        # 세션 복원
+        review_sessions[session_id] = {
+            "status": "completed",
+            "workspace_path": str(session_dir),
+            "created_at": metadata.get("created_at", ""),
+            "num_papers": metadata.get("num_papers", 0),
+            "paper_ids": metadata.get("paper_ids", []),
+            "papers_data": metadata.get("papers_data"),
+            "progress": "Restored from workspace",
+            "username": metadata.get("username"),
+        }
+        restored += 1
+
+    if restored > 0:
+        logger.info("Restored %d review sessions from workspace", restored)
+
+    return restored
+
+
+# 모듈 로드 시 자동 복원
+_restore_sessions_from_workspace()
+
 # ── Bookmarks file & helpers ──────────────────────────────────────────
 BOOKMARKS_FILE = Path("data/bookmarks.json")
 _bookmarks_lock = FileLock(str(BOOKMARKS_FILE) + ".lock")

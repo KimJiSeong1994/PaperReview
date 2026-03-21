@@ -852,6 +852,19 @@ def run_deep_review_background(
                     if papers_data:
                         review_sessions[session_id]["papers_data"] = papers_data
 
+                    # metadata.json 갱신 (서버 재시작 시 세션 복원용)
+                    try:
+                        meta_path = Path(workspace_path) / "metadata.json"
+                        meta = {"session_id": session_id, "status": "completed",
+                                "num_papers": review_sessions[session_id]["num_papers"],
+                                "paper_ids": paper_ids}
+                        if papers_data:
+                            meta["papers_data"] = papers_data
+                        with open(meta_path, "w", encoding="utf-8") as mf:
+                            json.dump(meta, mf, ensure_ascii=False, indent=2)
+                    except Exception as me:
+                        logger.warning("[Deep Review] Failed to update metadata.json: %s", me)
+
                     # 검증 통계 저장
                     v_result = result.get("verification", {})
                     v_stats = v_result.get("statistics", {})

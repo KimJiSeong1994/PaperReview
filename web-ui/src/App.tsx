@@ -402,8 +402,13 @@ function App() {
         }
       } catch (err: any) {
         console.error('Poster generation failed:', err);
+        const status = err?.response?.status;
         const detail = err?.response?.data?.detail || err?.message || '알 수 없는 오류';
-        alert(`포스터 생성 중 오류: ${detail}`);
+        if (status === 404) {
+          alert('서버가 재시작되어 세션이 만료되었습니다.\nDeep Research를 다시 실행한 후 포스터를 생성해주세요.');
+        } else {
+          alert(`포스터 생성 중 오류: ${detail}`);
+        }
       } finally {
         setPosterLoading(false);
       }
