@@ -111,9 +111,19 @@ class PosterCriticAgent:
         if not has_grid:
             issues.append("No CSS Grid layout detected. Multi-column layout is recommended.")
 
-        # 6. Figure/이미지
-        len(re.findall(r'<img[\s>]', html, re.IGNORECASE))
-        len(re.findall(r'<figure[\s>]', html, re.IGNORECASE))
+        # 6. Figure/이미지 — base64 직삽입 여부 체크
+        img_count = len(re.findall(r'<img[\s>]', html, re.IGNORECASE))
+        has_base64_images = 'data:image' in html
+        if img_count > 0 and not has_base64_images:
+            issues.append("Images use external URLs instead of base64 data URIs — they may not render.")
+
+        # 6.5. 플레이스홀더 잔류 체크
+        if '<!-- VISUALIZATIONS_PLACEHOLDER -->' in html:
+            issues.append("Visualization placeholder was not replaced — SVGs missing.")
+        if '<!-- FIGURES_PLACEHOLDER -->' in html:
+            issues.append("Figures placeholder was not replaced — paper figures missing.")
+        if 'FIGURE_' in html and 'BASE64' in html:
+            issues.append("Figure base64 placeholders (FIGURE_N_BASE64) were not replaced.")
 
         # 7. 콘텐츠 길이
         # 태그 제거 후 텍스트 길이 추정
