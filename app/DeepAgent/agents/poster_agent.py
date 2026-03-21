@@ -135,7 +135,12 @@ class PosterGenerationAgent:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
             self.llm = genai.GenerativeModel(self.model)
-        except Exception:
+            print(f"[PosterAgent] Gemini LLM 초기화 성공: {self.model}")
+        except ImportError:
+            print("[PosterAgent] google-generativeai 패키지 미설치 — pip install google-generativeai 필요")
+            self.llm = None
+        except Exception as e:
+            print(f"[PosterAgent] Gemini LLM 초기화 실패: {e}")
             self.llm = None
 
     def _get_style_guide(self, content=None) -> str:
