@@ -447,7 +447,9 @@ class PosterVisualAgent:
 
     def generate_pipeline_diagram(self, steps: List[Dict[str, str]]) -> str:
         """
-        Pipeline/Flowchart Diagram (LlamaDuo 스타일) SVG 생성
+        Pipeline/Flowchart Diagram (학회 포스터 수준) SVG 생성
+
+        그라데이션, 그림자, 단계 번호 아이콘을 포함한 고품질 SVG.
 
         Args:
             steps: 파이프라인 단계 리스트 [{'title': '...', 'desc': '...'}, ...]
@@ -462,40 +464,53 @@ class PosterVisualAgent:
                 {'title': 'Step 3', 'desc': 'Output'}
             ]
 
-        n_steps = len(steps)
-        box_width = 120
-        box_height = 80
-        gap = 60
-        total_width = n_steps * box_width + (n_steps - 1) * gap
-        start_x = 50
-        y = 100
+        n_steps = min(len(steps), 8)
+        box_width = 150
+        box_height = 90
+        gap = 50
+        total_width = n_steps * box_width + (n_steps - 1) * gap + 80
+        start_x = 40
+        y = 60
 
-        svg = f'''<svg viewBox="0 0 {total_width + 100} 300" style="background: white; border-radius: 8px;">
+        colors = [
+            ('#2563eb', '#dbeafe'), ('#7c3aed', '#ede9fe'), ('#059669', '#d1fae5'),
+            ('#ea580c', '#ffedd5'), ('#0891b2', '#cffafe'), ('#d97706', '#fef3c7'),
+            ('#e11d48', '#ffe4e6'), ('#4f46e5', '#e0e7ff'),
+        ]
+
+        svg = f'''<svg viewBox="0 0 {total_width} {box_height + 100}" style="background:white; border-radius:12px; width:100%;">
             <defs>
-                <marker id="pipelineArrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                <marker id="pipeArrow" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+                    <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#94a3b8"/>
                 </marker>
+                <filter id="pipeShadow" x="-5%" y="-5%" width="110%" height="120%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+                </filter>
             </defs>'''
 
-        for i, step in enumerate(steps):
+        for i, step in enumerate(steps[:n_steps]):
             x = start_x + i * (box_width + gap)
+            color, bg_color = colors[i % len(colors)]
+            title = self._escape_xml(step.get('title', f'Step {i+1}')[:22])
+            desc = self._escape_xml(step.get('desc', '')[:28])
 
-            # Box
+            # Box with shadow
             svg += f'''
+            <rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="12"
+                  fill="{bg_color}" stroke="{color}" stroke-width="2" filter="url(#pipeShadow)"/>
+            <circle cx="{x + 20}" cy="{y + 20}" r="12" fill="{color}"/>
+            <text x="{x + 20}" y="{y + 24}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">{i + 1}</text>
+            <text x="{x + 40}" y="{y + 24}" font-size="13" font-weight="bold" fill="{color}">{title}</text>
+            <text x="{x + box_width / 2}" y="{y + 55}" text-anchor="middle" font-size="11" fill="#64748b">{desc}</text>'''
 
-            <!-- Step {i+1} -->
-            <rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="15"
-                  fill="{self.color_palette['blue_bg']}" stroke="{self.color_palette['blue']}" stroke-width="2"/>
-            <text x="{x + box_width/2}" y="{y + 35}" text-anchor="middle" font-size="14" font-weight="bold" fill="{self.color_palette['blue']}">{self._escape_xml(step.get('title', f'Step {i+1}'))}</text>
-            <text x="{x + box_width/2}" y="{y + 55}" text-anchor="middle" font-size="12" fill="#64748b">{self._escape_xml(step.get('desc', ''))}</text>'''
-
-            # Arrow to next step
+            # Arrow
             if i < n_steps - 1:
-                arrow_start_x = x + box_width
-                arrow_end_x = x + box_width + gap
+                ax1 = x + box_width + 4
+                ax2 = x + box_width + gap - 4
+                ay = y + box_height / 2
                 svg += f'''
-            <line x1="{arrow_start_x}" y1="{y + box_height/2}" x2="{arrow_end_x}" y2="{y + box_height/2}"
-                  stroke="#64748b" stroke-width="2" marker-end="url(#pipelineArrow)"/>'''
+            <line x1="{ax1}" y1="{ay}" x2="{ax2}" y2="{ay}"
+                  stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#pipeArrow)"/>'''
 
         svg += '\n        </svg>'
         return svg
