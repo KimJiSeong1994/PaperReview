@@ -795,11 +795,33 @@ body {
   background: #f5f5f5;
 }
 
-.poster-iframe {
+.poster-iframe,
+.poster-modal-iframe {
   width: 100%;
   height: 100%;
   border: none;
   background: white;
+  flex: 1;
+}
+
+.poster-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.poster-modal-btn {
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.poster-modal-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* ─── LightRAG Answer Panel ─── */

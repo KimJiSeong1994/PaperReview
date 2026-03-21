@@ -11,7 +11,7 @@ const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
-import { searchPapers, getGraphData, startDeepReview, saveBookmark, verifyToken, fetchBatchReferences } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, saveBookmark, verifyToken, fetchBatchReferences, generatePoster } from './api/client';
 import type { Paper, GraphData } from './types';
 import { useDeepReview } from './hooks/useDeepReview';
 
@@ -99,6 +99,10 @@ function App() {
 
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
+
+  // Poster states
+  const [posterLoading, setPosterLoading] = useState(false);
+  const [posterHtml, setPosterHtml] = useState<string | null>(null);
 
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
@@ -362,6 +366,27 @@ function App() {
     });
   };
 
+  const handleGeneratePoster = async () => {
+    if (!reviewSessionId || reviewStatus !== 'completed') {
+      alert('포스터를 생성하려면 먼저 Deep Research를 완료해주세요.');
+      return;
+    }
+    setPosterLoading(true);
+    try {
+      const result = await generatePoster(reviewSessionId);
+      if (result.success && result.poster_html) {
+        setPosterHtml(result.poster_html);
+      } else {
+        alert('포스터 생성에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('Poster generation failed:', err);
+      alert('포스터 생성 중 오류가 발생했습니다.');
+    } finally {
+      setPosterLoading(false);
+    }
+  };
+
   const handleDownloadPDFs = async () => {
     if (selectedPapersForReview.size === 0) {
       alert('다운로드할 논문을 선택해주세요.');
@@ -605,11 +630,15 @@ function App() {
                         margin: '8px 0' 
                       }} />
                       
-                      {/* 학회 포스터 생성 버튼 (Beta - 비활성화) */}
+                      {/* 학회 포스터 생성 버튼 */}
                       <button
-                        className="tools-menu-item tools-menu-item-disabled"
-                        disabled={true}
-                        title="This feature is currently in beta and temporarily disabled"
+                        className="tools-menu-item"
+                        disabled={reviewStatus !== 'completed' || posterLoading}
+                        onClick={() => {
+                          setShowToolsMenu(false);
+                          handleGeneratePoster();
+                        }}
+                        title={reviewStatus !== 'completed' ? 'Deep Research 완료 후 사용 가능합니다' : 'Generate Conference Poster'}
                       >
                         <svg
                           className="menu-item-icon"
@@ -623,9 +652,8 @@ function App() {
                           <line x1="9" y1="21" x2="9" y2="9"></line>
                         </svg>
                         <span className="menu-item-text">
-                          Generate Poster
+                          {posterLoading ? 'Generating...' : 'Generate Poster'}
                         </span>
-                        <span className="beta-badge">Beta</span>
                       </button>
                       
                       {/* 구분선 */}
@@ -1018,6 +1046,42 @@ function App() {
       </div>
       </>} />
       </Routes>
+
+      {/* Poster Viewer Modal */}
+      {posterHtml && (
+        <div className="poster-modal-overlay" onClick={() => setPosterHtml(null)}>
+          <div className="poster-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="poster-modal-header">
+              <span className="poster-modal-title">Conference Poster</span>
+              <div className="poster-modal-actions">
+                <button
+                  className="poster-modal-btn"
+                  onClick={() => {
+                    const blob = new Blob([posterHtml], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'poster.html';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  title="Download HTML"
+                >
+                  Download
+                </button>
+                <button className="poster-modal-close" onClick={() => setPosterHtml(null)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            <iframe
+              className="poster-modal-iframe"
+              srcDoc={posterHtml}
+              title="Poster Preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
