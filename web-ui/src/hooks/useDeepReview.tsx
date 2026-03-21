@@ -48,13 +48,15 @@ export function useDeepReview(options: UseDeepReviewOptions = {}) {
   useEffect(() => {
     if (!reviewSessionId || reviewStatus !== 'processing') return;
 
-    const pollInterval = setInterval(async () => {
+    const startTime = Date.now();
+    let timerRef: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
       try {
         const status = await getReviewStatus(reviewSessionId);
         setReviewProgress(status.progress || 'Analyzing papers...');
 
         if (status.status === 'completed') {
-          clearInterval(pollInterval);
           try {
             const report = await getReviewReport(reviewSessionId);
             const stats = report.verification_stats || status.verification_stats || null;
@@ -75,8 +77,8 @@ export function useDeepReview(options: UseDeepReviewOptions = {}) {
               setReviewProgress('');
             }, autoResetDelay);
           }
+          return; // stop polling
         } else if (status.status === 'failed') {
-          clearInterval(pollInterval);
           const errorMsg = status.error || 'Analysis failed';
           setReviewStatus('failed');
           setReviewProgress(errorMsg);
@@ -88,13 +90,29 @@ export function useDeepReview(options: UseDeepReviewOptions = {}) {
               setReviewProgress('');
             }, autoResetDelay);
           }
+          return; // stop polling
         }
       } catch (error) {
         console.error('Status poll error:', error);
       }
-    }, 3000);
 
-    return () => clearInterval(pollInterval);
+      // Adaptive interval: fast at start, progressively slower for long-running reviews
+      const elapsed = Date.now() - startTime;
+      let nextInterval: number;
+      if (elapsed < 30000) {
+        nextInterval = 2000;    // First 30s: every 2s
+      } else if (elapsed < 120000) {
+        nextInterval = 5000;    // 30s-2min: every 5s
+      } else {
+        nextInterval = 10000;   // After 2min: every 10s
+      }
+
+      timerRef = setTimeout(poll, nextInterval);
+    };
+
+    timerRef = setTimeout(poll, 2000);
+
+    return () => clearTimeout(timerRef);
   }, [reviewSessionId, reviewStatus, autoResetDelay]);
 
   return {

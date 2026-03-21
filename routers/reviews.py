@@ -83,39 +83,51 @@ class ReviewStatusResponse(BaseModel):
 # ── Helper functions ───────────────────────────────────────────────────
 
 def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Fetch abstracts from arXiv for papers that lack them."""
+    """Fetch abstracts from arXiv for papers that lack them (batch mode)."""
     try:
         import arxiv
     except ImportError:
         logger.warning("arxiv package not available for abstract enrichment")
         return papers_data
 
-    enriched = []
-    # Reuse a single client with built-in retry and rate-limit delay
-    client = arxiv.Client(
-        page_size=1,
-        delay_seconds=3.5,
-        num_retries=3,
-    )
-    for paper in papers_data:
-        paper = dict(paper)  # shallow copy to avoid mutating original
+    # Collect papers needing enrichment
+    needs_abstract: Dict[str, int] = {}  # clean_arxiv_id -> index in enriched
+    enriched = [dict(p) for p in papers_data]  # shallow copy all
+
+    for i, paper in enumerate(enriched):
         if not (paper.get("abstract") or paper.get("summary")):
             aid = paper.get("arxiv_id")
             if aid:
-                try:
-                    clean_id = aid.split("/")[-1] if "/" in aid else aid
-                    search = arxiv.Search(id_list=[clean_id])
-                    for result in client.results(search):
-                        paper["abstract"] = result.summary
-                        if not paper.get("categories") and result.categories:
-                            paper["categories"] = list(result.categories)
-                        if result.pdf_url:
-                            paper["pdf_url"] = result.pdf_url
-                        break
-                    logger.info("Enriched paper with arXiv abstract: %s", paper.get("title", "?")[:60])
-                except Exception as e:
-                    logger.warning("Failed to fetch arXiv abstract for %s: %s", aid, e)
-        enriched.append(paper)
+                clean_id = aid.split("/")[-1] if "/" in aid else aid
+                clean_id = clean_id.split("v")[0]  # Remove version suffix
+                needs_abstract[clean_id] = i
+
+    if not needs_abstract:
+        return enriched
+
+    logger.info("Fetching %d arXiv abstracts in batch...", len(needs_abstract))
+
+    try:
+        client = arxiv.Client(page_size=100, delay_seconds=3.5, num_retries=3)
+        search = arxiv.Search(id_list=list(needs_abstract.keys()))
+
+        for result in client.results(search):
+            # Match result back to paper
+            result_id = result.entry_id.split("/abs/")[-1].split("v")[0] if result.entry_id else ""
+            if not result_id:
+                result_id = result.get_short_id().split("v")[0] if hasattr(result, "get_short_id") else ""
+
+            idx = needs_abstract.get(result_id)
+            if idx is not None:
+                enriched[idx]["abstract"] = result.summary
+                if not enriched[idx].get("categories") and result.categories:
+                    enriched[idx]["categories"] = list(result.categories)
+                if result.pdf_url:
+                    enriched[idx]["pdf_url"] = result.pdf_url
+                logger.info("Enriched: %s", enriched[idx].get("title", "?")[:60])
+    except Exception as e:
+        logger.warning("Batch arXiv abstract fetch failed: %s", e)
+
     return enriched
 
 

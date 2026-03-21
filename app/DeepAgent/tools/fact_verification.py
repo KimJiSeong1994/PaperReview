@@ -727,6 +727,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
 
     def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
         self.model = model
+        self._chunk_embedding_cache: Dict[str, List] = {}  # paper_id -> embeddings
 
         if OPENAI_AVAILABLE:
             self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -820,30 +821,33 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             )
             paper_map[pid] = paper
 
-        results: List[ClaimEvidence] = []
-        for claim in claims:
-            try:
-                paper = paper_map.get(claim.source_paper_id)
-                if not paper:
-                    # paper_id가 정확 매칭 안 되면 부분 매칭 시도
-                    for pid, p in paper_map.items():
-                        if claim.source_paper_id in pid or pid in claim.source_paper_id:
-                            paper = p
-                            break
+        # Semaphore to limit concurrent LLM calls
+        sem = asyncio.Semaphore(5)
 
-                if paper:
-                    evidences = await self.find_evidence(
-                        claim, paper, kg_storage, top_k
-                    )
-                else:
+        async def _process_claim(claim: Claim) -> ClaimEvidence:
+            async with sem:
+                try:
+                    paper = paper_map.get(claim.source_paper_id)
+                    if not paper:
+                        # paper_id가 정확 매칭 안 되면 부분 매칭 시도
+                        for pid, p in paper_map.items():
+                            if claim.source_paper_id in pid or pid in claim.source_paper_id:
+                                paper = p
+                                break
+
+                    if paper:
+                        evidences = await self.find_evidence(
+                            claim, paper, kg_storage, top_k
+                        )
+                    else:
+                        evidences = []
+                except Exception as e:
+                    print(f"  Evidence search failed for claim '{claim.text[:60]}...': {e}")
                     evidences = []
-            except Exception as e:
-                print(f"  Evidence search failed for claim '{claim.text[:60]}...': {e}")
-                evidences = []
+                return ClaimEvidence(claim=claim, evidences=evidences)
 
-            results.append(ClaimEvidence(claim=claim, evidences=evidences))
-
-        return results
+        results = await asyncio.gather(*[_process_claim(c) for c in claims])
+        return list(results)
 
     def find_all_evidence_sync(
         self,
@@ -979,9 +983,18 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
 
         import numpy as np
 
-        # 청크 임베딩 생성 (배치 API 호출)
-        chunk_texts = [c.get("text", "") for c in chunks]
-        chunk_embeddings = await self._get_embeddings_batch(chunk_texts)
+        # 청크 임베딩 생성 (배치 API 호출) — 논문 단위 캐시 적용
+        cache_key = chunks[0].get("paper_id", "") if chunks else ""
+        if not cache_key:
+            cache_key = str(hash(tuple(c.get("text", "")[:50] for c in chunks[:5])))
+
+        if cache_key in self._chunk_embedding_cache:
+            chunk_embeddings = self._chunk_embedding_cache[cache_key]
+        else:
+            chunk_texts = [c.get("text", "") for c in chunks]
+            chunk_embeddings = await self._get_embeddings_batch(chunk_texts)
+            if chunk_embeddings:
+                self._chunk_embedding_cache[cache_key] = chunk_embeddings
 
         # 유사도 계산
         scored_chunks = []
@@ -1300,9 +1313,17 @@ Determine the relationship between these two claims. Respond in JSON only.
         cross_refs: List[CrossReference] = []
         for topic, group_claims in topic_groups.items():
             pairs = self._get_cross_paper_pairs(group_claims)
-            for claim_a, claim_b in pairs:
-                ref = await self._compare_claims(claim_a, claim_b, topic)
-                cross_refs.append(ref)
+            pairs = pairs[:15]  # Cap to prevent O(N^2) explosion
+
+            # Parallelize with semaphore
+            sem = asyncio.Semaphore(5)
+
+            async def _compare(a: Claim, b: Claim, t: str = topic) -> CrossReference:
+                async with sem:
+                    return await self._compare_claims(a, b, t)
+
+            refs = await asyncio.gather(*[_compare(a, b) for a, b in pairs])
+            cross_refs.extend(refs)
 
         return cross_refs
 
