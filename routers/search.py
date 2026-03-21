@@ -5,6 +5,7 @@ Search-related endpoints:
   POST /api/smart-search
   POST /api/analyze-query
   POST /api/llm-search
+  POST /api/prefetch-popular  (admin)
 """
 
 import asyncio
@@ -297,6 +298,78 @@ _cache_maintenance_thread = threading.Thread(
 _cache_maintenance_thread.start()
 
 
+# ── Popular query prefetching ──────────────────────────────────────
+_POPULAR_QUERIES = [
+    "transformer",
+    "large language model",
+    "reinforcement learning",
+    "diffusion model",
+    "graph neural network",
+    "retrieval augmented generation",
+    "computer vision",
+    "natural language processing",
+    "federated learning",
+    "self-supervised learning",
+    "multimodal learning",
+    "knowledge graph",
+    "attention mechanism",
+    "generative adversarial network",
+    "prompt engineering",
+]
+
+
+def _prefetch_popular_queries():
+    """Background thread: pre-fetches popular query results into cache."""
+    import time as _time
+
+    # Wait for server startup to complete
+    _time.sleep(30)
+
+    logger.info("[Prefetch] Starting popular query prefetch (%d queries)...", len(_POPULAR_QUERIES))
+
+    default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
+    default_filters = {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": True}
+
+    fetched = 0
+    for query in _POPULAR_QUERIES:
+        try:
+            cache_key = _compute_cache_key(query, default_sources, default_filters)
+            if _get_cached_result(cache_key) is not None:
+                logger.debug("[Prefetch] Cache hit for '%s', skipping", query)
+                continue
+
+            filters = {
+                "sources": default_sources,
+                "max_results": 20,
+                "sort_by": "relevance",
+            }
+            results = search_agent.search_with_filters(query, filters)
+
+            if results:
+                total = sum(len(papers) for papers in results.values())
+                _set_cache(cache_key, results, ttl_seconds=7200)  # 2 hour TTL for prefetch
+                logger.info("[Prefetch] Cached '%s': %d papers", query, total)
+                fetched += 1
+
+            # Respect rate limits between queries
+            _time.sleep(10)
+
+        except Exception as e:
+            logger.warning("[Prefetch] Failed for '%s': %s", query, e)
+            _time.sleep(5)
+
+    logger.info("[Prefetch] Complete: %d/%d queries prefetched", fetched, len(_POPULAR_QUERIES))
+
+
+# Start prefetch in background thread on module load
+_prefetch_thread = threading.Thread(
+    target=_prefetch_popular_queries,
+    daemon=True,
+    name="query-prefetch",
+)
+_prefetch_thread.start()
+
+
 # ── SSE helpers ───────────────────────────────────────────────────────
 
 _SSE_PAPER_FIELDS = (
@@ -317,67 +390,16 @@ def _search_single_source(
 ) -> tuple:
     """Search a single source and return ``(source_name, papers)``.
 
-    Each source is handled independently so that one failure does not block
-    the others.  The logic mirrors ``SearchAgent.search_with_filters._search_source``.
+    Delegates to ``SearchAgent._search_single_source`` to avoid duplicating
+    the per-source dispatch logic.
     """
     max_results = filters.get("max_results", 20)
     source_queries: Dict[str, str] = filters.get("source_queries", {})
 
-    try:
-        if source_name == "arxiv":
-            category = filters.get("category")
-            sort_by = filters.get("sort_by", "relevance")
-            arxiv_q = source_queries.get("arxiv", query)
-            papers = search_agent.search_arxiv(arxiv_q, max_results, sort_by, category)
-            if arxiv_q != query and len(papers) < max_results // 2:
-                originals = search_agent.search_arxiv(query, max_results // 2, sort_by, category)
-                seen = {p.get("title", "").lower() for p in papers}
-                for p in originals:
-                    if p.get("title", "").lower() not in seen:
-                        papers.append(p)
-                        seen.add(p.get("title", "").lower())
-            return source_name, papers[:max_results]
-
-        elif source_name == "connected_papers":
-            return source_name, search_agent.search_connected_papers(query, max_results)
-
-        elif source_name == "google_scholar":
-            scholar_q = source_queries.get("google_scholar", query)
-            return source_name, search_agent.search_google_scholar(
-                scholar_q,
-                max_results,
-                filters.get("sort_by", "relevance"),
-                filters.get("year_start"),
-                filters.get("year_end"),
-                filters.get("author"),
-            )
-
-        elif source_name == "openalex":
-            openalex_q = source_queries.get("openalex", query)
-            papers = search_agent.openalex_searcher.enhanced_search(openalex_q, max_results)
-            if openalex_q != query:
-                originals = search_agent.openalex_searcher.search_by_title(query, max_results // 2)
-                seen = {p.get("title", "").lower() for p in papers}
-                for p in originals:
-                    if p.get("title", "").lower() not in seen:
-                        papers.append(p)
-                        seen.add(p.get("title", "").lower())
-            return source_name, papers[:max_results]
-
-        elif source_name == "dblp":
-            dblp_q = source_queries.get("dblp", query)
-            return source_name, search_agent.dblp_searcher.search(dblp_q, max_results)
-
-        elif source_name == "openalex_korean":
-            return source_name, search_agent.openalex_searcher.search_korean(query, max_results)
-
-        else:
-            logger.warning("[SSE] Unknown source: %s", source_name)
-            return source_name, []
-
-    except Exception as e:
-        logger.error("[SSE] Source %s failed: %s", source_name, e)
-        return source_name, []
+    papers = search_agent._search_single_source(
+        source_name, query, filters, source_queries, max_results,
+    )
+    return source_name, papers
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -714,10 +736,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 )
         else:
             results = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    partial(search_agent.search_with_filters, search_query, filters),
-                ),
+                search_agent.async_search_with_filters(search_query, filters),
                 timeout=_SEARCH_TIMEOUT,
             )
 
@@ -1191,3 +1210,17 @@ async def search_papers_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ── Admin: manual prefetch trigger ───────────────────────────────────
+
+@router.post("/prefetch-popular")
+async def trigger_prefetch():
+    """Manually trigger popular query prefetch (admin use)."""
+    t = threading.Thread(
+        target=_prefetch_popular_queries,
+        daemon=True,
+        name="query-prefetch-manual",
+    )
+    t.start()
+    return {"message": "Prefetch started", "queries": len(_POPULAR_QUERIES)}

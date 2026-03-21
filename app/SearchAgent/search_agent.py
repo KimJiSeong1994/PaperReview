@@ -1,7 +1,9 @@
 from typing import Dict, List, Any, Optional, Set
+import asyncio
 import concurrent.futures
 from datetime import datetime
 import json
+import logging
 import sys
 import os
 import time
@@ -44,6 +46,9 @@ try:
 except ImportError:
     QUERY_ANALYZER_AVAILABLE = False
     QueryAnalyzer = None
+
+logger = logging.getLogger(__name__)
+
 
 class SearchAgent:
     def __init__(self, data_dir: str = None, openai_api_key: str = None):
@@ -695,6 +700,84 @@ class SearchAgent:
     def get_categories(self) -> Dict[str, List[Dict[str, str]]]:
         return {"arxiv": self.arxiv_searcher.get_categories()}
 
+    def _search_single_source(
+        self,
+        source_name: str,
+        query: str,
+        filters: Dict[str, Any],
+        source_queries: Dict[str, str],
+        max_results: int,
+    ) -> List[Dict[str, Any]]:
+        """Search a single source. Extracted for reuse by sync and async orchestration.
+
+        Args:
+            source_name: Name of the source to search (e.g. "arxiv", "openalex").
+            query: Original user search query.
+            filters: Full filter dict (category, sort_by, year_start, etc.).
+            source_queries: Per-source optimized query overrides.
+            max_results: Maximum papers to return from this source.
+
+        Returns:
+            List of paper dicts from the given source.
+        """
+        try:
+            if source_name == "arxiv":
+                category = filters.get("category")
+                sort_by = filters.get("sort_by", "relevance")
+                arxiv_q = source_queries.get("arxiv", query)
+                results_optimized = self.search_arxiv(arxiv_q, max_results, sort_by, category)
+                # Only do 2nd search if optimized query differs AND first search
+                # returned fewer than half the requested results — avoids wasting
+                # a rate-limited arXiv API slot when results are already sufficient.
+                if arxiv_q != query and len(results_optimized) < max_results // 2:
+                    results_original = self.search_arxiv(query, max_results // 2, sort_by, category)
+                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
+                    for p in results_original:
+                        if p.get("title", "").lower() not in seen_titles:
+                            results_optimized.append(p)
+                            seen_titles.add(p.get("title", "").lower())
+                return results_optimized[:max_results]
+
+            elif source_name == "connected_papers":
+                return self.search_connected_papers(query, max_results)
+
+            elif source_name == "google_scholar":
+                year_start = filters.get("year_start")
+                year_end = filters.get("year_end")
+                author = filters.get("author")
+                sort_by = filters.get("sort_by", "relevance")
+                scholar_q = source_queries.get("google_scholar", query)
+                return self.search_google_scholar(
+                    scholar_q, max_results, sort_by, year_start, year_end, author
+                )
+
+            elif source_name == "openalex":
+                openalex_q = source_queries.get("openalex", query)
+                results_optimized = self.openalex_searcher.enhanced_search(openalex_q, max_results)
+                if openalex_q != query:
+                    results_original = self.openalex_searcher.search_by_title(query, max_results // 2)
+                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
+                    for p in results_original:
+                        if p.get("title", "").lower() not in seen_titles:
+                            results_optimized.append(p)
+                            seen_titles.add(p.get("title", "").lower())
+                return results_optimized[:max_results]
+
+            elif source_name == "dblp":
+                dblp_q = source_queries.get("dblp", query)
+                return self.dblp_searcher.search(dblp_q, max_results)
+
+            elif source_name == "openalex_korean":
+                return self.openalex_searcher.search_korean(query, max_results)
+
+            else:
+                logger.warning("Unknown search source: %s", source_name)
+                return []
+
+        except Exception as e:
+            logger.warning("Source %s search failed: %s", source_name, e)
+            return []
+
     def search_with_filters(self, query: str, filters: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
         필터를 적용한 고급 검색 (병렬 실행)
@@ -716,63 +799,16 @@ class SearchAgent:
         max_results = filters.get("max_results", 5)
         source_queries = filters.get("source_queries", {})
 
-        results = {}
-        futures = {}
-
-        def _search_source(source_name):
-            # 소스별 최적화 쿼리 사용 (없으면 원본 쿼리)
-            source_queries.get(source_name, query)
-            if source_name == "arxiv":
-                category = filters.get("category")
-                sort_by = filters.get("sort_by", "relevance")
-                arxiv_q = source_queries.get("arxiv", query)
-                # 원본 쿼리와 최적화 쿼리를 모두 검색 후 병합 (중복 제거)
-                results_optimized = self.search_arxiv(arxiv_q, max_results, sort_by, category)
-                # Only do 2nd search if optimized query differs AND first search
-                # returned fewer than half the requested results — avoids wasting
-                # a rate-limited arXiv API slot when results are already sufficient.
-                if arxiv_q != query and len(results_optimized) < max_results // 2:
-                    results_original = self.search_arxiv(query, max_results // 2, sort_by, category)
-                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
-                    for p in results_original:
-                        if p.get("title", "").lower() not in seen_titles:
-                            results_optimized.append(p)
-                            seen_titles.add(p.get("title", "").lower())
-                return results_optimized[:max_results]
-            elif source_name == "connected_papers":
-                return self.search_connected_papers(query, max_results)
-            elif source_name == "google_scholar":
-                year_start = filters.get("year_start")
-                year_end = filters.get("year_end")
-                author = filters.get("author")
-                sort_by = filters.get("sort_by", "relevance")
-                scholar_q = source_queries.get("google_scholar", query)
-                return self.search_google_scholar(
-                    scholar_q, max_results, sort_by, year_start, year_end, author
-                )
-            elif source_name == "openalex":
-                # enhanced_search: 일반 검색 + 제목 필터 병합으로 노이즈 감소
-                openalex_q = source_queries.get("openalex", query)
-                results_optimized = self.openalex_searcher.enhanced_search(openalex_q, max_results)
-                # 최적화 쿼리와 원본 쿼리가 다르면 원본도 검색 후 병합
-                if openalex_q != query:
-                    results_original = self.openalex_searcher.search_by_title(query, max_results // 2)
-                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
-                    for p in results_original:
-                        if p.get("title", "").lower() not in seen_titles:
-                            results_optimized.append(p)
-                            seen_titles.add(p.get("title", "").lower())
-                return results_optimized[:max_results]
-            elif source_name == "dblp":
-                dblp_q = source_queries.get("dblp", query)
-                return self.dblp_searcher.search(dblp_q, max_results)
-            elif source_name == "openalex_korean":
-                return self.openalex_searcher.search_korean(query, max_results)
-            return []
+        results: Dict[str, List[Dict[str, Any]]] = {}
+        futures: Dict[concurrent.futures.Future, str] = {}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
             for source in sources:
-                futures[executor.submit(_search_source, source)] = source
+                fut = executor.submit(
+                    self._search_single_source,
+                    source, query, filters, source_queries, max_results,
+                )
+                futures[fut] = source
 
             try:
                 for future in concurrent.futures.as_completed(futures, timeout=60):
@@ -780,13 +816,66 @@ class SearchAgent:
                     try:
                         results[source] = future.result(timeout=5)
                     except Exception as e:
-                        print(f"[SearchAgent] {source} search failed: {e}")
+                        logger.warning("[SearchAgent] %s search failed: %s", source, e)
                         results[source] = []
             except concurrent.futures.TimeoutError:
-                print("[WARNING] search_with_filters overall timeout (60s) — returning partial results")
+                logger.warning(
+                    "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
+                )
                 for future, source in futures.items():
                     if source not in results:
                         results[source] = []
+
+        return results
+
+    async def async_search_with_filters(
+        self, query: str, filters: Dict[str, Any],
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Async version of search_with_filters using asyncio.gather for parallelism.
+
+        Each source search is dispatched to the default executor via
+        ``run_in_executor`` so that blocking I/O (requests, scholarly, etc.)
+        does not block the event loop.  Results are gathered concurrently with
+        ``asyncio.gather``.
+
+        Args:
+            query: 검색 쿼리
+            filters: 필터 조건 (same schema as search_with_filters)
+
+        Returns:
+            소스별 검색 결과
+        """
+        sources = filters.get(
+            "sources",
+            ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"],
+        )
+        max_results = filters.get("max_results", 5)
+        source_queries: Dict[str, str] = filters.get("source_queries", {})
+
+        loop = asyncio.get_running_loop()
+
+        async def _run_source(source_name: str) -> tuple:
+            """Run a single source search in the thread-pool executor."""
+            papers = await loop.run_in_executor(
+                None,
+                self._search_single_source,
+                source_name, query, filters, source_queries, max_results,
+            )
+            return source_name, papers
+
+        tasks = [_run_source(s) for s in sources]
+        completed = await asyncio.gather(*tasks, return_exceptions=True)
+
+        results: Dict[str, List[Dict[str, Any]]] = {}
+        for source, outcome in zip(sources, completed):
+            if isinstance(outcome, Exception):
+                logger.warning(
+                    "[SearchAgent] async source %s failed: %s", source, outcome,
+                )
+                results[source] = []
+            else:
+                _source_name, papers = outcome
+                results[_source_name] = papers
 
         return results
 

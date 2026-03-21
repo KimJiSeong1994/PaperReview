@@ -388,23 +388,43 @@ function App() {
   };
 
   const handleGeneratePoster = async () => {
-    if (!reviewSessionId || reviewStatus !== 'completed') {
-      alert('포스터를 생성하려면 먼저 Deep Research를 완료해주세요.');
+    // Deep Research 완료 상태면 세션 기반 포스터 생성
+    if (reviewSessionId && reviewStatus === 'completed') {
+      setPosterLoading(true);
+      try {
+        const result = await generatePoster(reviewSessionId);
+        if (result.success && result.poster_html) {
+          setPosterHtml(result.poster_html);
+        } else {
+          alert('포스터 생성에 실패했습니다.');
+        }
+      } catch (err) {
+        console.error('Poster generation failed:', err);
+        alert('포스터 생성 중 오류가 발생했습니다.');
+      } finally {
+        setPosterLoading(false);
+      }
       return;
     }
-    setPosterLoading(true);
-    try {
-      const result = await generatePoster(reviewSessionId);
-      if (result.success && result.poster_html) {
-        setPosterHtml(result.poster_html);
-      } else {
-        alert('포스터 생성에 실패했습니다.');
-      }
-    } catch (err) {
-      console.error('Poster generation failed:', err);
-      alert('포스터 생성 중 오류가 발생했습니다.');
-    } finally {
-      setPosterLoading(false);
+
+    // Deep Research 미완료 시 — 논문 선택 후 Deep Research 먼저 실행 안내
+    if (selectedPapersForReview.size === 0) {
+      alert('포스터를 생성하려면 논문을 선택한 후 Deep Research를 먼저 실행해주세요.');
+      return;
+    }
+
+    // 논문이 선택되어 있지만 Deep Research가 아직 완료되지 않은 경우
+    if (reviewStatus === 'processing') {
+      alert('Deep Research가 진행 중입니다. 완료 후 다시 시도해주세요.');
+      return;
+    }
+
+    // Deep Research를 시작하고 포스터 생성 안내
+    const confirmed = confirm(
+      `선택된 ${selectedPapersForReview.size}편의 논문으로 Deep Research를 실행한 후 포스터를 생성합니다.\n계속하시겠습니까?`
+    );
+    if (confirmed) {
+      await handleStartDeepReview();
     }
   };
 
@@ -654,12 +674,12 @@ function App() {
                       {/* 학회 포스터 생성 버튼 */}
                       <button
                         className="tools-menu-item"
-                        disabled={reviewStatus !== 'completed' || posterLoading}
+                        disabled={posterLoading}
                         onClick={() => {
                           setShowToolsMenu(false);
                           handleGeneratePoster();
                         }}
-                        title={reviewStatus !== 'completed' ? 'Deep Research 완료 후 사용 가능합니다' : 'Generate Conference Poster'}
+                        title="Generate Conference Poster"
                       >
                         <svg
                           className="menu-item-icon"
@@ -1037,6 +1057,38 @@ function App() {
                         <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
                           {reviewReport}
                         </pre>
+                        {/* 포스터 생성 CTA */}
+                        <div style={{
+                          marginTop: '16px',
+                          padding: '12px 16px',
+                          background: 'rgba(99, 102, 241, 0.1)',
+                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}>
+                          <span style={{ color: '#a5b4fc', fontSize: '13px' }}>
+                            Deep Research 완료 — 결과를 학회 포스터로 변환할 수 있습니다
+                          </span>
+                          <button
+                            onClick={handleGeneratePoster}
+                            disabled={posterLoading}
+                            style={{
+                              padding: '6px 16px',
+                              background: '#6366f1',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: posterLoading ? 'wait' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: 500,
+                              opacity: posterLoading ? 0.7 : 1,
+                            }}
+                          >
+                            {posterLoading ? 'Generating...' : 'Generate Poster'}
+                          </button>
+                        </div>
                       </div>
                     )}
                     {reviewStatus === 'failed' && (

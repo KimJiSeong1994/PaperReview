@@ -5,9 +5,12 @@ LLM 기반 검색 결과 관련성 필터 에이전트
 import os
 import sys
 import json
+import logging
 import concurrent.futures
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -31,6 +34,85 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     OpenAI = None
+
+
+class LocalRelevanceScorer:
+    """로컬 cross-encoder 모델 기반 관련성 스코어러.
+
+    sentence-transformers의 CrossEncoder를 사용하여
+    LLM API 호출 없이 빠르게 관련성을 평가한다.
+    """
+
+    _instance = None
+    _model = None
+
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def get_model(cls):
+        """Lazy initialization of cross-encoder model (singleton)."""
+        if cls._model is None:
+            try:
+                from sentence_transformers import CrossEncoder  # type: ignore
+                cls._model = CrossEncoder(
+                    "cross-encoder/ms-marco-MiniLM-L-6-v2",  # 22MB, fast
+                    max_length=512,
+                )
+                logger.info("[LocalScorer] Cross-encoder model loaded successfully")
+            except ImportError:
+                logger.warning(
+                    "[LocalScorer] sentence-transformers not installed, local scoring unavailable"
+                )
+                return None
+            except Exception as e:
+                logger.warning("[LocalScorer] Failed to load cross-encoder: %s", e)
+                return None
+        return cls._model
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if local scoring is available."""
+        try:
+            from sentence_transformers import CrossEncoder  # noqa: F401  # type: ignore
+            return True
+        except ImportError:
+            return False
+
+    @classmethod
+    def score_papers(cls, query: str, papers: List[Dict[str, Any]]) -> List[float]:
+        """Score papers using local cross-encoder.
+
+        Args:
+            query: Search query
+            papers: List of paper dicts with 'title' and optional 'abstract'
+
+        Returns:
+            List of relevance scores (0.0-1.0)
+        """
+        model = cls.get_model()
+        if model is None:
+            return []
+
+        pairs = []
+        for paper in papers:
+            title = paper.get("title", "")
+            abstract = (paper.get("abstract", "") or "")[:500]
+            doc_text = f"{title}. {abstract}" if abstract else title
+            pairs.append((query, doc_text))
+
+        if not pairs:
+            return []
+
+        try:
+            import numpy as np
+            raw_scores = model.predict(pairs, show_progress_bar=False)
+            # Sigmoid normalization to 0-1 range
+            scores = 1 / (1 + np.exp(-raw_scores))
+            return scores.tolist()
+        except Exception as e:
+            logger.warning("[LocalScorer] Scoring failed: %s", e)
+            return []
 
 
 class RelevanceFilter:
@@ -85,6 +167,33 @@ class RelevanceFilter:
             for paper in papers:
                 paper['relevance_score'] = 0.8  # 기본 점수
             return papers[:max_papers] if max_papers else papers
+
+        # Try local cross-encoder scoring first (fast, no API cost)
+        local_scorer = LocalRelevanceScorer
+        if local_scorer.is_available() and len(papers) > 0:
+            try:
+                local_scores = local_scorer.score_papers(query, papers)
+                if local_scores and len(local_scores) == len(papers):
+                    # Attach scores and filter
+                    scored_papers = list(zip(papers, local_scores))
+                    scored_papers.sort(key=lambda x: x[1], reverse=True)
+
+                    # Apply threshold and limit
+                    filtered = [
+                        {**p, "relevance_score": round(s, 3)}
+                        for p, s in scored_papers
+                        if s >= threshold
+                    ][:max_papers]
+
+                    logger.info(
+                        "[RelevanceFilter] Local cross-encoder: %d/%d papers passed (threshold=%.2f)",
+                        len(filtered), len(papers), threshold,
+                    )
+                    return filtered
+            except Exception as e:
+                logger.warning(
+                    "[RelevanceFilter] Local scoring failed, falling back to LLM: %s", e
+                )
 
         print(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel})")
 
