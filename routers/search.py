@@ -438,20 +438,68 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         start_time = time.time()
         loop = asyncio.get_running_loop()
 
-        # ── Quick topic classification (academic vs non-academic) ──
+        # ── Parallel topic classification + query analysis ──
         is_academic = True
+        query_analysis = None
+
         if query_analyzer:
-            try:
-                classify_result = await asyncio.wait_for(
+            analysis_start = time.time()
+
+            # Build tasks to run concurrently
+            classify_coro = asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(query_analyzer.classify_topic, request.query),
+                ),
+                timeout=5,
+            )
+
+            if not request.use_llm_search:
+                # Run classify_topic and analyze_query in parallel
+                logger.info("[API] Analyzing query: %s", request.query)
+                analyze_coro = asyncio.wait_for(
                     loop.run_in_executor(
                         None,
-                        partial(query_analyzer.classify_topic, request.query),
+                        partial(query_analyzer.analyze_query, request.query),
                     ),
-                    timeout=5,
+                    timeout=_ANALYZE_TIMEOUT,
                 )
-                is_academic = classify_result.get("is_academic", True)
-            except Exception:
-                pass  # timeout or error → assume academic
+                results = await asyncio.gather(
+                    classify_coro, analyze_coro, return_exceptions=True
+                )
+                classify_result, analyze_result = results
+
+                # Process classify_topic result
+                if isinstance(classify_result, Exception):
+                    pass  # error → assume academic
+                else:
+                    is_academic = classify_result.get("is_academic", True)
+
+                # Process analyze_query result
+                if isinstance(analyze_result, asyncio.TimeoutError):
+                    logger.warning("[API] Query analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
+                elif isinstance(analyze_result, Exception):
+                    logger.warning("[API] Query analysis failed (continuing with original query): %s", analyze_result)
+                else:
+                    query_analysis = analyze_result
+                    logger.info(
+                        "[API] Query analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
+                        query_analysis.get("intent"),
+                        query_analysis.get("keywords"),
+                        query_analysis.get("confidence"),
+                        time.time() - analysis_start,
+                    )
+            else:
+                # LLM search mode: only classify, skip analyze
+                logger.info("[API] Query analysis skipped (LLM search handles query optimization)")
+                results = await asyncio.gather(
+                    classify_coro, return_exceptions=True
+                )
+                classify_result = results[0]
+                if not isinstance(classify_result, Exception):
+                    is_academic = classify_result.get("is_academic", True)
+        else:
+            logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 
         if not is_academic:
             logger.info("[API] Non-academic query blocked: %s", request.query)
@@ -460,32 +508,6 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 total=0,
                 query_analysis={"is_academic": False, "original_query": request.query},
             )
-
-        # Query analysis (skip when LLM search — llm_context_search does its own)
-        query_analysis = None
-        if query_analyzer and not request.use_llm_search:
-            try:
-                analysis_start = time.time()
-                logger.info("[API] Analyzing query: %s", request.query)
-                query_analysis = await asyncio.wait_for(
-                    loop.run_in_executor(None, partial(query_analyzer.analyze_query, request.query)),
-                    timeout=_ANALYZE_TIMEOUT,
-                )
-                logger.info(
-                    "[API] Query analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
-                    query_analysis.get("intent"),
-                    query_analysis.get("keywords"),
-                    query_analysis.get("confidence"),
-                    time.time() - analysis_start,
-                )
-            except asyncio.TimeoutError:
-                logger.warning("[API] Query analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
-            except Exception as e:
-                logger.warning("[API] Query analysis failed (continuing with original query): %s", e)
-        elif request.use_llm_search:
-            logger.info("[API] Query analysis skipped (LLM search handles query optimization)")
-        else:
-            logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 
         # Use only user-specified filters (LLM auto-filters removed — they
         # were too aggressive and returned irrelevant results)
@@ -706,52 +728,22 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         # Stamp username on papers before saving
         _stamp_searched_by(results, username)
 
-        # Save & enrich
+        # Save & enrich (always in background to keep response fast)
         if request.save_papers and total > 0:
-            if request.fast_mode:
-                logger.info("[API] Fast mode: Starting background enrichment for %s papers...", total)
-                t = threading.Thread(
-                    target=_enrich_papers_background,
-                    args=(
-                        request.query,
-                        copy.deepcopy(results),
-                        request.collect_references,
-                        request.extract_texts,
-                        request.max_references_per_paper,
-                    ),
-                )
-                t.daemon = True
-                t.start()
-                logger.info("[API] Background enrichment started (thread)")
-            else:
-                try:
-                    logger.info("[API] Saving %s papers...", total)
-                    save_result = search_agent.save_papers(
-                        results, request.query, generate_embeddings=False, update_graph=True
-                    )
-                    logger.info(
-                        "[API] Saved: %s new, %s duplicates",
-                        save_result.get("new_papers", 0),
-                        save_result.get("duplicates", 0),
-                    )
-                    new_papers_count = save_result.get("new_papers", 0)
-                    if request.collect_references and new_papers_count > 0:
-                        max_papers_to_collect = min(new_papers_count, 10)
-                        logger.info("[API] Collecting references for %s papers...", max_papers_to_collect)
-                        ref_result = search_agent.collect_references(
-                            request.max_references_per_paper, max_papers=max_papers_to_collect
-                        )
-                        logger.info("[API] References collected: %s", ref_result.get("references_found", 0))
-                    if request.extract_texts:
-                        logger.info("[API] Extracting full texts for saved papers...")
-                        text_result = search_agent.extract_full_texts(
-                            max_papers=save_result.get("new_papers", 0)
-                            if save_result.get("new_papers", 0) > 0
-                            else None
-                        )
-                        logger.info("[API] Texts extracted: %s", text_result.get("texts_extracted", 0))
-                except Exception as e:
-                    logger.exception("[API] Error in saving/enriching papers: %s", e)
+            logger.info("[API] Starting background enrichment for %s papers...", total)
+            t = threading.Thread(
+                target=_enrich_papers_background,
+                args=(
+                    request.query,
+                    copy.deepcopy(results),
+                    request.collect_references,
+                    request.extract_texts,
+                    request.max_references_per_paper,
+                ),
+            )
+            t.daemon = True
+            t.start()
+            logger.info("[API] Background enrichment started (thread)")
 
         total_time = time.time() - start_time
         logger.info("[API] Search completed in %.2fs", total_time)

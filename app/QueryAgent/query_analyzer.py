@@ -2,11 +2,42 @@
 유저 질의 분석 에이전트
 사용자의 검색 쿼리를 분석하여 의도, 키워드, 개선 사항을 파악
 """
+import hashlib
 import os
 import sys
 import json
+import time as _time
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
+
+# Module-level query analysis cache (TTL-based)
+_analysis_cache: Dict[str, Dict[str, Any]] = {}
+_CACHE_TTL = 86400  # 24 hours
+_CACHE_MAX_SIZE = 500
+
+
+def _cache_key(prefix: str, query: str) -> str:
+    """Cache key from prefix and normalized query."""
+    return hashlib.sha256(f"{prefix}:{query.strip().lower()}".encode()).hexdigest()[:16]
+
+
+def _get_from_cache(key: str) -> Optional[Dict]:
+    """Return cached data if present and not expired, otherwise None."""
+    entry = _analysis_cache.get(key)
+    if entry and (_time.time() - entry["ts"]) < _CACHE_TTL:
+        return entry["data"]
+    if entry:
+        del _analysis_cache[key]
+    return None
+
+
+def _set_in_cache(key: str, data: Any) -> None:
+    """Store data in cache, evicting the 50 oldest entries when full."""
+    if len(_analysis_cache) >= _CACHE_MAX_SIZE:
+        oldest = sorted(_analysis_cache.items(), key=lambda x: x[1]["ts"])[:50]
+        for k, _ in oldest:
+            del _analysis_cache[k]
+    _analysis_cache[key] = {"data": data, "ts": _time.time()}
 
 load_dotenv()
 
@@ -86,6 +117,11 @@ class QueryAnalyzer:
                 "error": "Empty query"
             }
 
+        key = _cache_key("analyze", query)
+        cached = _get_from_cache(key)
+        if cached is not None:
+            return cached
+
         # Client가 없으면 fallback 분석 사용
         if not self.client:
             return self._fallback_analysis(query)
@@ -130,7 +166,7 @@ Be particularly careful with:
             analysis_result = json.loads(result_text)
 
             # 결과 검증 및 기본값 설정
-            return {
+            result = {
                 "intent": analysis_result.get("intent", "paper_search"),
                 "keywords": analysis_result.get("keywords", []),
                 "core_concepts": analysis_result.get("core_concepts", []),
@@ -142,6 +178,8 @@ Be particularly careful with:
                 "original_query": query,
                 "analysis_details": analysis_result.get("analysis_details", "")
             }
+            _set_in_cache(key, result)
+            return result
 
         except json.JSONDecodeError as e:
             print(f"[WARNING] JSON 파싱 오류: {e}")
@@ -309,6 +347,11 @@ Return only valid JSON, no additional text."""
         if not self.client or not query.strip():
             return {"is_academic": True}
 
+        key = _cache_key("classify", query)
+        cached = _get_from_cache(key)
+        if cached is not None:
+            return cached
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -332,8 +375,9 @@ Return only valid JSON, no additional text."""
                 max_tokens=20,
                 response_format={"type": "json_object"},
             )
-            result = json.loads(response.choices[0].message.content)
-            return {"is_academic": bool(result.get("is_academic", True))}
+            result = {"is_academic": bool(json.loads(response.choices[0].message.content).get("is_academic", True))}
+            _set_in_cache(key, result)
+            return result
         except Exception:
             return {"is_academic": True}
 
@@ -506,6 +550,12 @@ Return only valid JSON."""
         if not self.client:
             return self._fallback_source_queries(query, keywords)
 
+        kw_suffix = ",".join(sorted(keywords)) if keywords else ""
+        key = _cache_key("source_queries", f"{query}|{kw_suffix}")
+        cached = _get_from_cache(key)
+        if cached is not None:
+            return cached
+
         try:
             prompt = f"""Generate optimized search queries for each academic database.
 
@@ -541,12 +591,14 @@ CRITICAL RULES:
             )
 
             result = json.loads(response.choices[0].message.content)
-            return {
+            source_result = {
                 "arxiv": result.get("arxiv", query),
                 "dblp": result.get("dblp", query),
                 "google_scholar": result.get("google_scholar", query),
                 "default": query,
             }
+            _set_in_cache(key, source_result)
+            return source_result
 
         except Exception as e:
             print(f"[WARNING] Source-specific query generation failed: {e}")

@@ -11,6 +11,7 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 
 import logging
 import math
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -307,52 +308,60 @@ class HybridRanker:
             L2-정규화된 평균 임베딩 벡터, 실패 시 None
         """
         try:
-            # 1. 가상 초록 생성
-            hyde_response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a scientific paper abstract generator. "
-                            "Write a concise hypothetical abstract for a paper that would best answer the given research query. "
-                            "Output only the abstract text, no title or labels."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Research query: {query}",
-                    },
-                ],
-                max_tokens=200,
-                temperature=0.1,
-            )
-            hypothetical_abstract = hyde_response.choices[0].message.content or ""
-            hypothetical_abstract = hypothetical_abstract.strip()
+            # 1 & 2. 가상 초록 + 대안 쿼리 생성을 병렬 실행 (독립적인 LLM 호출)
+            def _generate_hypothetical_abstract() -> str:
+                hyde_response = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a scientific paper abstract generator. "
+                                "Write a concise hypothetical abstract for a paper that would best answer the given research query. "
+                                "Output only the abstract text, no title or labels."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Research query: {query}",
+                        },
+                    ],
+                    max_tokens=200,
+                    temperature=0.1,
+                )
+                content = hyde_response.choices[0].message.content or ""
+                return content.strip()
 
-            # 2. 대안 검색 쿼리 2개 생성
-            alt_response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Generate 2 alternative search queries for academic paper search. "
-                            "Each query should rephrase the original from a different angle. "
-                            "Output exactly 2 lines, one query per line, no numbering or labels."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Original query: {query}",
-                    },
-                ],
-                max_tokens=100,
-                temperature=0.3,
-            )
-            alt_content = alt_response.choices[0].message.content or ""
-            alt_queries = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
-            alt_queries = alt_queries[:2]  # 최대 2개
+            def _generate_alt_queries() -> List[str]:
+                alt_response = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "Generate 2 alternative search queries for academic paper search. "
+                                "Each query should rephrase the original from a different angle. "
+                                "Output exactly 2 lines, one query per line, no numbering or labels."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Original query: {query}",
+                        },
+                    ],
+                    max_tokens=100,
+                    temperature=0.3,
+                )
+                alt_content = alt_response.choices[0].message.content or ""
+                lines = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
+                return lines[:2]  # 최대 2개
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                abstract_future = executor.submit(_generate_hypothetical_abstract)
+                alt_future = executor.submit(_generate_alt_queries)
+
+                hypothetical_abstract = abstract_future.result()
+                alt_queries = alt_future.result()
 
             # 3. 배치 임베딩: [원본 쿼리, 가상 초록] + 대안들
             texts_to_embed = [query]

@@ -36,7 +36,7 @@ except ImportError:
 class RelevanceFilter:
     """LLM 기반 검색 결과 관련성 필터"""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-5-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         """
         RelevanceFilter 초기화
 

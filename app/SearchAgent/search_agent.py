@@ -728,7 +728,10 @@ class SearchAgent:
                 arxiv_q = source_queries.get("arxiv", query)
                 # 원본 쿼리와 최적화 쿼리를 모두 검색 후 병합 (중복 제거)
                 results_optimized = self.search_arxiv(arxiv_q, max_results, sort_by, category)
-                if arxiv_q != query:
+                # Only do 2nd search if optimized query differs AND first search
+                # returned fewer than half the requested results — avoids wasting
+                # a rate-limited arXiv API slot when results are already sufficient.
+                if arxiv_q != query and len(results_optimized) < max_results // 2:
                     results_original = self.search_arxiv(query, max_results // 2, sort_by, category)
                     seen_titles = {p.get("title", "").lower() for p in results_optimized}
                     for p in results_original:
