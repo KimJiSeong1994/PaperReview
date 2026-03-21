@@ -28,7 +28,7 @@ class ArxivSearcher:
     """arXiv 직접 검색 클라이언트 (Enhanced)"""
 
     # 클래스 레벨 rate limiter (모든 인스턴스 · 스레드 공유)
-    _global_lock = threading.Lock()
+    _global_semaphore = threading.Semaphore(1)
     _last_request_time = 0.0
     _min_delay = 3.5  # arXiv 권장 3초 + 여유
 
@@ -74,13 +74,16 @@ class ArxivSearcher:
                 self._reverse_synonyms[fullname] = abbr
 
     def _rate_limit(self):
-        """글로벌 rate limiting — 모든 스레드에서 최소 3.5초 간격 보장"""
-        with ArxivSearcher._global_lock:
+        """글로벌 rate limiting — Semaphore 기반 공정한 스케줄링"""
+        ArxivSearcher._global_semaphore.acquire()
+        try:
             now = time.time()
             elapsed = now - ArxivSearcher._last_request_time
             if elapsed < ArxivSearcher._min_delay:
                 time.sleep(ArxivSearcher._min_delay - elapsed)
             ArxivSearcher._last_request_time = time.time()
+        finally:
+            ArxivSearcher._global_semaphore.release()
 
     def _safe_results(self, search: arxiv.Search) -> list:
         """arXiv 검색 실행 — rate limiting + HTTP 429 exponential backoff"""

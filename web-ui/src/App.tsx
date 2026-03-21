@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import PaperList from './components/PaperList';
@@ -107,6 +107,9 @@ function App() {
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
 
+  // AbortController ref for cancelling in-flight search requests
+  const searchAbortRef = useRef<AbortController | null>(null);
+
   // Auto-dismiss guidance message after 3 seconds
   useEffect(() => {
     if (!guidanceMessage) return;
@@ -127,6 +130,12 @@ function App() {
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
 
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    searchAbortRef.current = abortController;
+
     setGuidanceMessage(null);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
@@ -143,7 +152,7 @@ function App() {
           sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
           sort_by: 'relevance',
           use_llm_search: true,
-        });
+        }, abortController.signal);
 
         // Check if query was classified as non-academic
         const qa = (results as any).query_analysis;
@@ -193,47 +202,59 @@ function App() {
         setPapers(allPapers);
 
         if (allPapers.length > 0) {
-          const graph = await getGraphData(JSON.stringify(allPapers));
-          setGraphData(graph);
-
           setSelectedPaper(allPapers[0]);
           setHighlightedPapers(new Set());
 
-          // Fetch references for top papers and merge into list + graph
           const topPapers = allPapers.slice(0, 5).map(p => ({
             title: p.title,
             doi: p.doi,
             arxiv_id: p.arxiv_id,
           }));
-          fetchBatchReferences(topPapers).then(({ references }) => {
-            if (references.length === 0) return;
-            const existingTitles = new Set(allPapers.map(p => p.title.trim().toLowerCase()));
-            const refPapers: Paper[] = [];
-            for (const ref of references) {
-              const normTitle = (ref.title || '').trim().toLowerCase();
-              if (!normTitle || existingTitles.has(normTitle)) continue;
-              existingTitles.add(normTitle);
-              refPapers.push({
-                doc_id: hashString(ref.title),
-                title: ref.title,
-                authors: ref.authors || [],
-                year: ref.year,
-                abstract: ref.abstract || '',
-                url: ref.url || '',
-                citations: ref.citations || 0,
-                source: 'reference',
-                parent_paper_title: ref.parent_paper_title,
-              });
+
+          const [graphResult, refsResult] = await Promise.allSettled([
+            getGraphData(JSON.stringify(allPapers)),
+            fetchBatchReferences(topPapers),
+          ]);
+
+          if (graphResult.status === 'fulfilled') {
+            setGraphData(graphResult.value);
+          }
+
+          if (refsResult.status === 'fulfilled') {
+            const { references } = refsResult.value;
+            if (references.length > 0) {
+              const existingTitles = new Set(allPapers.map(p => p.title.trim().toLowerCase()));
+              const refPapers: Paper[] = [];
+              for (const ref of references) {
+                const normTitle = (ref.title || '').trim().toLowerCase();
+                if (!normTitle || existingTitles.has(normTitle)) continue;
+                existingTitles.add(normTitle);
+                refPapers.push({
+                  doc_id: hashString(ref.title),
+                  title: ref.title,
+                  authors: ref.authors || [],
+                  year: ref.year,
+                  abstract: ref.abstract || '',
+                  url: ref.url || '',
+                  citations: ref.citations || 0,
+                  source: 'reference',
+                  parent_paper_title: ref.parent_paper_title,
+                });
+              }
+              if (refPapers.length > 0) {
+                const merged = [...allPapers, ...refPapers];
+                setPapers(merged);
+                getGraphData(JSON.stringify(merged)).then(g => setGraphData(g)).catch(() => {});
+              }
             }
-            if (refPapers.length === 0) return;
-            const merged = [...allPapers, ...refPapers];
-            setPapers(merged);
-            getGraphData(JSON.stringify(merged)).then(g => setGraphData(g)).catch(() => {});
-          }).catch(() => {});
+          }
         }
       }
     } catch (error: any) {
       clearTimeout(loadingTimer);
+
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+
       console.error('Search error:', error);
 
       let errorMessage = '알 수 없는 오류가 발생했습니다.';

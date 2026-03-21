@@ -77,8 +77,8 @@ export const verifyToken = async (token: string) => {
   return response.data;
 };
 
-export const searchPapers = async (request: SearchRequest): Promise<SearchResponse> => {
-  const response = await api.post<SearchResponse>('/api/search', request);
+export const searchPapers = async (request: SearchRequest, signal?: AbortSignal): Promise<SearchResponse> => {
+  const response = await api.post<SearchResponse>('/api/search', request, { signal });
   return response.data;
 };
 

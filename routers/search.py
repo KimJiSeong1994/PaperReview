@@ -1,6 +1,7 @@
 """
 Search-related endpoints:
   POST /api/search
+  POST /api/search-stream  (SSE)
   POST /api/smart-search
   POST /api/analyze-query
   POST /api/llm-search
@@ -20,6 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from .deps import (
@@ -120,6 +122,27 @@ def _enrich_papers_background(
             results, query, generate_embeddings=False, update_graph=True
         )
         logger.info("[Background] Saved: %s new papers", save_result.get("new_papers", 0))
+
+        # Pre-compute embeddings for ranking cache (speeds up future HyDE scoring)
+        new_count = save_result.get("new_papers", 0)
+        if new_count > 0 and hasattr(search_agent, 'similarity_calculator'):
+            try:
+                texts_to_embed = []
+                for source_papers in results.values():
+                    if not isinstance(source_papers, list):
+                        continue
+                    for paper in source_papers:
+                        title = paper.get("title", "")
+                        abstract = paper.get("abstract", "") or title
+                        if title:
+                            texts_to_embed.append(title)
+                        if abstract and abstract != title:
+                            texts_to_embed.append(abstract)
+                if texts_to_embed:
+                    search_agent.similarity_calculator.get_embeddings_batch(texts_to_embed[:200])
+                    logger.info("[Background] Pre-computed %d embeddings for ranking cache", len(texts_to_embed[:200]))
+            except Exception as emb_err:
+                logger.warning("[Background] Embedding pre-cache failed (non-critical): %s", emb_err)
 
         new_papers_count = save_result.get("new_papers", 0)
         if collect_refs and new_papers_count > 0:
@@ -272,6 +295,89 @@ _cache_maintenance_thread = threading.Thread(
     name="cache-maintenance",
 )
 _cache_maintenance_thread.start()
+
+
+# ── SSE helpers ───────────────────────────────────────────────────────
+
+_SSE_PAPER_FIELDS = (
+    "title", "authors", "abstract", "url", "pdf_url",
+    "doi", "citations", "source", "published_date", "year",
+)
+
+
+def _slim_paper(paper: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a paper dict trimmed to essential fields for SSE payloads."""
+    return {k: paper[k] for k in _SSE_PAPER_FIELDS if k in paper}
+
+
+def _search_single_source(
+    source_name: str,
+    query: str,
+    filters: Dict[str, Any],
+) -> tuple:
+    """Search a single source and return ``(source_name, papers)``.
+
+    Each source is handled independently so that one failure does not block
+    the others.  The logic mirrors ``SearchAgent.search_with_filters._search_source``.
+    """
+    max_results = filters.get("max_results", 20)
+    source_queries: Dict[str, str] = filters.get("source_queries", {})
+
+    try:
+        if source_name == "arxiv":
+            category = filters.get("category")
+            sort_by = filters.get("sort_by", "relevance")
+            arxiv_q = source_queries.get("arxiv", query)
+            papers = search_agent.search_arxiv(arxiv_q, max_results, sort_by, category)
+            if arxiv_q != query and len(papers) < max_results // 2:
+                originals = search_agent.search_arxiv(query, max_results // 2, sort_by, category)
+                seen = {p.get("title", "").lower() for p in papers}
+                for p in originals:
+                    if p.get("title", "").lower() not in seen:
+                        papers.append(p)
+                        seen.add(p.get("title", "").lower())
+            return source_name, papers[:max_results]
+
+        elif source_name == "connected_papers":
+            return source_name, search_agent.search_connected_papers(query, max_results)
+
+        elif source_name == "google_scholar":
+            scholar_q = source_queries.get("google_scholar", query)
+            return source_name, search_agent.search_google_scholar(
+                scholar_q,
+                max_results,
+                filters.get("sort_by", "relevance"),
+                filters.get("year_start"),
+                filters.get("year_end"),
+                filters.get("author"),
+            )
+
+        elif source_name == "openalex":
+            openalex_q = source_queries.get("openalex", query)
+            papers = search_agent.openalex_searcher.enhanced_search(openalex_q, max_results)
+            if openalex_q != query:
+                originals = search_agent.openalex_searcher.search_by_title(query, max_results // 2)
+                seen = {p.get("title", "").lower() for p in papers}
+                for p in originals:
+                    if p.get("title", "").lower() not in seen:
+                        papers.append(p)
+                        seen.add(p.get("title", "").lower())
+            return source_name, papers[:max_results]
+
+        elif source_name == "dblp":
+            dblp_q = source_queries.get("dblp", query)
+            return source_name, search_agent.dblp_searcher.search(dblp_q, max_results)
+
+        elif source_name == "openalex_korean":
+            return source_name, search_agent.openalex_searcher.search_korean(query, max_results)
+
+        else:
+            logger.warning("[SSE] Unknown source: %s", source_name)
+            return source_name, []
+
+    except Exception as e:
+        logger.error("[SSE] Source %s failed: %s", source_name, e)
+        return source_name, []
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -782,3 +888,306 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         error_trace = traceback.format_exc()
         logger.error("[API] Error in search: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+# ── SSE streaming search ─────────────────────────────────────────────
+
+_STREAM_SEARCH_TIMEOUT = 120  # per-source timeout (seconds)
+
+
+@router.post("/search-stream")
+async def search_papers_stream(
+    request: SearchRequest,
+    username: Optional[str] = Depends(get_optional_user),
+):
+    """Stream search results via Server-Sent Events.
+
+    Event flow:
+      1. ``{type: "analysis", ...}`` -- query classification & analysis
+      2. ``{type: "source", source: "<name>", papers: [...]}`` -- per-source results
+      3. ``{type: "ranked", papers: [...]}`` -- deduplicated & hybrid-ranked
+      4. ``{type: "filtered", papers: [...]}`` -- LLM relevance filter (non-fast only)
+      5. ``{type: "done"}`` -- stream complete
+    """
+
+    async def generate():  # noqa: C901  (complexity justified by streaming phases)
+        try:
+            start_time = time.time()
+            loop = asyncio.get_running_loop()
+
+            # ── Phase 1: Classify + Analyse ──────────────────────────
+            is_academic = True
+            query_analysis = None
+
+            if query_analyzer:
+                classify_coro = asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        partial(query_analyzer.classify_topic, request.query),
+                    ),
+                    timeout=5,
+                )
+
+                if not request.use_llm_search:
+                    analyze_coro = asyncio.wait_for(
+                        loop.run_in_executor(
+                            None,
+                            partial(query_analyzer.analyze_query, request.query),
+                        ),
+                        timeout=_ANALYZE_TIMEOUT,
+                    )
+                    results_gathered = await asyncio.gather(
+                        classify_coro, analyze_coro, return_exceptions=True
+                    )
+                    classify_result, analyze_result = results_gathered
+
+                    if not isinstance(classify_result, Exception):
+                        is_academic = classify_result.get("is_academic", True)
+
+                    if isinstance(analyze_result, asyncio.TimeoutError):
+                        logger.warning("[SSE] Query analysis timed out")
+                    elif isinstance(analyze_result, Exception):
+                        logger.warning("[SSE] Query analysis failed: %s", analyze_result)
+                    else:
+                        query_analysis = analyze_result
+                else:
+                    results_gathered = await asyncio.gather(
+                        classify_coro, return_exceptions=True
+                    )
+                    classify_result = results_gathered[0]
+                    if not isinstance(classify_result, Exception):
+                        is_academic = classify_result.get("is_academic", True)
+
+            # Yield analysis event
+            yield f"data: {json.dumps({'type': 'analysis', 'query_analysis': query_analysis, 'is_academic': is_academic})}\n\n"
+
+            if not is_academic:
+                logger.info("[SSE] Non-academic query blocked: %s", request.query)
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+
+            # ── Build search query & filters ─────────────────────────
+            search_query = request.query
+            filters: Dict[str, Any] = {
+                "sources": request.sources,
+                "max_results": request.max_results,
+                "sort_by": request.sort_by,
+                "year_start": request.year_start,
+                "year_end": request.year_end,
+                "author": request.author,
+                "category": request.category,
+            }
+
+            if query_analysis and query_analysis.get("confidence", 0) >= 0.8:
+                improved_query = query_analysis.get("improved_query")
+                if improved_query and improved_query != request.query:
+                    _STOP_WORDS = {"in", "of", "for", "the", "a", "an", "and", "or", "on", "to", "with", "by", "from", "is", "are", "at", "as"}
+
+                    def _stem(word: str) -> str:
+                        w = word.lower().rstrip("s")
+                        return w if w else word.lower()
+
+                    original_stems = {_stem(w) for w in request.query.split() if w.lower() not in _STOP_WORDS}
+                    improved_stems = {_stem(w) for w in improved_query.split() if w.lower() not in _STOP_WORDS}
+                    overlap = len(original_stems & improved_stems) / max(len(original_stems), 1)
+                    length_ratio = len(improved_stems) / max(len(original_stems), 1)
+                    if overlap >= 0.5 and length_ratio < 2.0:
+                        search_query = improved_query
+
+                # Source-specific queries
+                if query_analyzer:
+                    try:
+                        source_queries = await asyncio.wait_for(
+                            loop.run_in_executor(
+                                None,
+                                partial(
+                                    query_analyzer.generate_source_specific_queries,
+                                    search_query,
+                                    keywords=query_analysis.get("keywords"),
+                                ),
+                            ),
+                            timeout=_ANALYZE_TIMEOUT,
+                        )
+                        filters["source_queries"] = source_queries
+                    except Exception as e:
+                        logger.warning("[SSE] Source-specific query generation failed: %s", e)
+
+            # ── Cache check ──────────────────────────────────────────
+            user_filters = {
+                "sort_by": request.sort_by,
+                "year_start": request.year_start,
+                "year_end": request.year_end,
+                "author": request.author,
+                "category": request.category,
+                "fast_mode": request.fast_mode,
+            }
+            cache_key = _compute_cache_key(request.query, request.sources, user_filters)
+            cached = _get_cached_result(cache_key)
+            if cached is not None:
+                # Stream cached results all at once
+                for source_name, papers in cached.items():
+                    if isinstance(papers, list) and papers:
+                        yield f"data: {json.dumps({'type': 'source', 'source': source_name, 'papers': [_slim_paper(p) for p in papers]})}\n\n"
+                all_cached = [p for papers in cached.values() if isinstance(papers, list) for p in papers]
+                yield f"data: {json.dumps({'type': 'ranked', 'papers': [_slim_paper(p) for p in all_cached]})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+
+            # ── Phase 2: Per-source search (stream as each completes) ─
+            logger.info("[SSE] Streaming search for: %s", search_query)
+            source_futures: Dict[asyncio.Future, str] = {}
+            for source in request.sources:
+                fut = asyncio.ensure_future(
+                    loop.run_in_executor(
+                        None,
+                        partial(_search_single_source, source, search_query, filters),
+                    )
+                )
+                source_futures[fut] = source
+
+            all_source_results: Dict[str, List[Dict[str, Any]]] = {s: [] for s in request.sources}
+
+            for coro in asyncio.as_completed(source_futures.keys()):
+                try:
+                    source_name, papers = await asyncio.wait_for(coro, timeout=_STREAM_SEARCH_TIMEOUT)
+                    all_source_results[source_name] = papers
+                    yield f"data: {json.dumps({'type': 'source', 'source': source_name, 'papers': [_slim_paper(p) for p in papers]})}\n\n"
+                except asyncio.TimeoutError:
+                    logger.warning("[SSE] Source timed out after %ds", _STREAM_SEARCH_TIMEOUT)
+                except Exception as e:
+                    logger.error("[SSE] Source streaming error: %s", e)
+
+            # ── Phase 3: Dedup + Hybrid ranking ──────────────────────
+            intent = query_analysis.get("intent", "paper_search") if query_analysis else "paper_search"
+            all_papers: List[Dict[str, Any]] = []
+            for source, papers in all_source_results.items():
+                for paper in papers:
+                    paper["_source_tag"] = source
+                    all_papers.append(paper)
+
+            # Cross-source deduplication
+            if all_papers:
+                try:
+                    before = len(all_papers)
+                    all_papers = search_agent.deduplicator.deduplicate(all_papers)
+                    removed = before - len(all_papers)
+                    if removed > 0:
+                        logger.info("[SSE] Dedup removed %d duplicates (%d -> %d)", removed, before, len(all_papers))
+                except Exception as e:
+                    logger.warning("[SSE] Dedup failed (continuing): %s", e)
+
+            # Hybrid ranking
+            ranked_papers = all_papers
+            if _hybrid_ranker and all_papers:
+                try:
+                    ranked_papers = _hybrid_ranker.rank_papers(
+                        query=request.query,
+                        papers=all_papers,
+                        intent=intent,
+                        openai_client=get_openai_client(),
+                        use_rrf=True,
+                    )
+                    logger.info("[SSE] Hybrid ranking applied (intent=%s)", intent)
+                except Exception as e:
+                    logger.warning("[SSE] Hybrid ranking failed (continuing): %s", e)
+
+            # Clean internal tags before emitting
+            for p in ranked_papers:
+                p.pop("_source_tag", None)
+                p.pop("_source", None)
+
+            yield f"data: {json.dumps({'type': 'ranked', 'papers': [_slim_paper(p) for p in ranked_papers]})}\n\n"
+
+            # ── Phase 4: LLM relevance filter (non-blocking) ────────
+            if not request.fast_mode and relevance_filter and ranked_papers:
+                try:
+                    logger.info("[SSE] Applying relevance filtering...")
+                    filtered_papers = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            None,
+                            partial(
+                                relevance_filter.filter_papers,
+                                request.query,
+                                ranked_papers,
+                                threshold=0.65,
+                                max_papers=request.max_results,
+                                parallel=True,
+                            ),
+                        ),
+                        timeout=_SEARCH_TIMEOUT,
+                    )
+                    yield f"data: {json.dumps({'type': 'filtered', 'papers': [_slim_paper(p) for p in filtered_papers]})}\n\n"
+                    logger.info("[SSE] Filtered: %d papers", len(filtered_papers))
+                    # Use filtered results for caching / saving
+                    final_papers = filtered_papers
+                except Exception as e:
+                    logger.warning("[SSE] Relevance filtering failed: %s", e)
+                    final_papers = ranked_papers
+            else:
+                final_papers = ranked_papers
+
+            # ── Phase 5: Done ────────────────────────────────────────
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+            # ── Background: save & cache (non-blocking) ──────────────
+            # Rebuild source-keyed results for saving
+            results_by_source: Dict[str, List[Dict[str, Any]]] = {s: [] for s in request.sources}
+            for paper in final_papers:
+                src = paper.get("source", "arxiv")
+                if src in results_by_source:
+                    results_by_source[src].append(paper)
+
+            _stamp_searched_by(results_by_source, username)
+            _set_cache(cache_key, results_by_source)
+
+            total = sum(len(papers) for papers in results_by_source.values())
+            if request.save_papers and total > 0:
+                t = threading.Thread(
+                    target=_enrich_papers_background,
+                    args=(
+                        request.query,
+                        copy.deepcopy(results_by_source),
+                        request.collect_references,
+                        request.extract_texts,
+                        request.max_references_per_paper,
+                    ),
+                )
+                t.daemon = True
+                t.start()
+
+            # Cache for Deep Research
+            try:
+                cache_dir = Path("data/cache")
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_file = cache_dir / "last_search_results.json"
+
+                from src.utils.paper_utils import generate_doc_id as _generate_doc_id
+
+                all_cached_papers = []
+                for paper in final_papers:
+                    if "doc_id" not in paper or not paper.get("doc_id"):
+                        paper["doc_id"] = _generate_doc_id(paper.get("title", ""))
+                    all_cached_papers.append(paper)
+
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(all_cached_papers, f, ensure_ascii=False, indent=2)
+                logger.info("[SSE] Results cached: %d papers", len(all_cached_papers))
+            except Exception as cache_error:
+                logger.warning("[SSE] Cache save warning: %s", cache_error)
+
+            total_time = time.time() - start_time
+            logger.info("[SSE] Stream search completed in %.2fs", total_time)
+
+        except Exception as e:
+            logger.exception("[SSE] Stream search error: %s", e)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
