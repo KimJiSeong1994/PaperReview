@@ -640,7 +640,6 @@ table.comparison-table tr:nth-child(even) td {{
             af_idx = self._match_autofigure_to_paper(title, autofigure_svgs, assigned_autofigures)
             if af_idx is not None:
                 assigned_autofigures.add(af_idx)
-                af = autofigure_svgs[af_idx]
                 fig_placements.append(FigurePlacement(
                     figure_index=af_idx,
                     source="autofigure",
