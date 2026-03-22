@@ -4,15 +4,24 @@ Highlight extraction service.
 Contains the LLM-based auto-highlight logic:
 - CATEGORY_CONFIG, prompt template, and helper functions
 - generate_highlights() – calls LLM to extract highlights from a report
+
+PDF-specific highlight pipeline:
+- PDF_CATEGORY_CONFIG – extended 11-category config for academic papers
+- PDF_HIGHLIGHT_SYSTEM_PROMPT – optimised for raw paper text
+- preprocess_pdf_text() – clean raw PDF extraction artefacts
+- truncate_paper_text() – structure-aware truncation for long papers
+- generate_pdf_highlights() – end-to-end PDF highlight generation
 """
 
 import json
 import logging
 import re
+from collections import Counter
 
 from .llm_cache import get_cached, set_cache
 
 logger = logging.getLogger(__name__)
+
 
 # ── Category configuration ────────────────────────────────────────────
 
@@ -74,7 +83,7 @@ AUTO_HIGHLIGHT_SYSTEM_PROMPT = """\
 각 하이라이트에 1~5점의 중요도를 부여하세요:
 - 5: 논문 전체의 핵심 결론 또는 가장 중요한 발견
 - 4: 주요 방법론적 혁신 또는 핵심 실험 결과
-- 3: 의미 있는 기여22이나 보조적 수준
+- 3: 의미 있는 기여이나 보조적 수준
 - 2: 참고할 만한 세부 사항
 - 1: 맥락적 배경 정보
 
@@ -152,6 +161,7 @@ reviewer_comment, implication, question_for_authors에는 리포트에 직접 �
 - 리포트 전체에 걸쳐 고르게 분포시키세요 (서론~결론까지).
 - 중복되는 내용의 구절은 제외하세요.\
 """
+
 
 # ── Helper functions ──────────────────────────────────────────────────
 
@@ -306,3 +316,611 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
         raise ValueError("LLM returned invalid JSON")
 
     return parsed.get("highlights", [])
+
+
+# ══════════════════════════════════════════════════════════════════════
+# PDF-specific highlight pipeline
+# ══════════════════════════════════════════════════════════════════════
+
+PDF_CATEGORY_CONFIG: dict[str, dict[str, str]] = {
+    # Green tone — empirical / positive findings
+    "finding":            {"label": "[Key Finding]",          "color": "#86efac"},
+    "evidence":           {"label": "[Evidence/Data]",        "color": "#86efac"},
+    "contribution":       {"label": "[Contribution]",         "color": "#4ade80"},
+    "claim":              {"label": "[Author Claim]",         "color": "#86efac"},
+    # Blue tone — analytical / structural
+    "methodology":        {"label": "[Methodology]",          "color": "#93c5fd"},
+    "insight":            {"label": "[Insight]",              "color": "#93c5fd"},
+    "reproducibility":    {"label": "[Reproducibility]",      "color": "#7dd3fc"},
+    "experimental_setup": {"label": "[Experimental Setup]",   "color": "#93c5fd"},
+    # Rose tone — critical evaluation
+    "limitation":         {"label": "[Limitation]",           "color": "#fda4af"},
+    "gap":                {"label": "[Research Gap]",         "color": "#fda4af"},
+    "assumption":         {"label": "[Hidden Assumption]",    "color": "#fb923c"},
+}
+
+PDF_HIGHLIGHT_SYSTEM_PROMPT = """\
+You are a senior peer reviewer for top-tier venues (Nature, Science, NeurIPS, ACL, \
+CVPR) and a domain expert in the field of the paper under review.
+
+Your task is to analyse the **original academic paper text** provided below, extract \
+passages of high scholarly value, and write expert-level critical commentary for each.
+
+Your comments must be **critical peer review**, not summaries.
+
+## Step 1: Paper Type Detection
+Before extracting highlights, identify the paper type from the text:
+- EMPIRICAL: proposes method + experiments (most CS/ML papers)
+- THEORETICAL: proves theorems or derives formal results
+- CLINICAL: RCT, cohort study, or clinical research
+- SURVEY: systematic review, meta-analysis, or literature survey
+
+State the detected type in a `paper_type` field in your JSON output.
+
+## Step 2: Apply Type-Specific Critical Lens
+Adapt your critical analysis based on the detected paper type:
+- EMPIRICAL: ablation completeness, baseline fairness, dataset leakage, \
+hyperparameter sensitivity
+- THEORETICAL: proof validity, assumption necessity, bound tightness, constructiveness
+- CLINICAL: CONSORT/PRISMA compliance, confounders, p-hacking risk, \
+intention-to-treat
+- SURVEY: search protocol, inclusion/exclusion criteria, coverage, synthesis quality
+
+## Extraction Rules
+1. **Verbatim copy**: The `text` field must be copied character-for-character from the \
+paper text. Preserve whitespace, punctuation, and special characters exactly.
+2. **Passage length**: English 30-200 characters; Korean/CJK 20-120 characters. \
+Do not extract passages shorter than 15 characters or longer than 250 characters.
+3. **Depth first**: Prefer sentences with specific numbers, methods, comparisons, \
+limitations, or novel interpretations over generic statements.
+
+## Paper Structure Awareness
+The paper text may contain `[SECTION: ...]` markers denoting standard academic sections \
+(Abstract, Introduction, Related Work, Methods/Methodology, \
+Results/Experiments, Discussion, Conclusion).
+Record the section each highlight belongs to in the `section` field.
+
+## EXCLUSION: Do NOT highlight any text from the References / Bibliography section.
+
+## Category Guide (11 categories, 3 colour tones)
+
+### Green tone (empirical / positive findings)
+- **finding**: A measured or observed result — quantitative outcomes, statistical \
+test results, or empirical observations directly obtained from experiments or data. \
+A finding is something that was *measured*, not *interpreted*.
+- **evidence**: Specific data points, statistics, or metrics that support or \
+contradict a claim. Includes p-values, confidence intervals, effect sizes, \
+accuracy/F1/BLEU scores, and ablation deltas.
+- **contribution**: The paper's core scholarly or practical contribution — a novel \
+framework, algorithm, dataset, or tool that did not exist before this work. \
+Use only when the text explicitly states what is new.
+- **claim**: An author's interpretive assertion, thesis statement, or causal \
+argument that goes beyond what the data strictly show. A claim is something \
+the authors *argue*, not something they *measured*. Finding vs claim boundary: \
+"accuracy improved by 3.2%" is a finding; "this demonstrates the superiority of \
+our approach" is a claim.
+
+### Blue tone (analytical / structural)
+- **methodology**: Core algorithm, technical innovation, research design, or \
+theoretical framework that underpins the work.
+- **insight**: Cross-paper interpretation, meta-level implications, novel \
+perspective, or synthesis that connects multiple findings.
+- **reproducibility**: Reproducibility concerns, data/code availability, \
+experimental transparency, or missing details that would hinder replication.
+- **experimental_setup**: Experimental design details — datasets, baselines, \
+hyperparameters, evaluation protocol, train/test splits, hardware specifications.
+
+### Rose tone (critical evaluation)
+- **limitation**: A shortcoming *of this specific paper* — methodological \
+weaknesses, data constraints, scope restrictions, or acknowledged caveats. \
+Limitation = this-paper shortfall.
+- **gap**: A void in the *broader research field* that this paper does not address \
+and that represents an opportunity for future work. Gap = field-level void. \
+Gap vs limitation boundary: "our model was only tested on English" is a \
+limitation; "no prior work has explored this phenomenon in low-resource \
+languages" is a gap.
+- **assumption**: An implicit premise that the authors rely on but do not \
+explicitly validate — distributional assumptions, causal structure, \
+generalisability claims, or measurement validity.
+
+## Significance Score (1-5)
+- 5: The single most important claim or result of the entire paper (max 2 per paper)
+- 4: Top-3 methodological innovation or primary experimental result
+- 3: Secondary result, ablation finding, or supporting evidence
+- 2: Implementation detail, dataset description, or background context
+- 1: Bibliographic or framing context
+
+## Distribution Requirements
+Ensure highlights are distributed across the paper's structure:
+- Abstract: 1-2 highlights (primary claim)
+- Introduction: 1-2 highlights (problem statement, contribution positioning)
+- Methods/Methodology: at least 2 highlights
+- Results/Experiments: at least 4 highlights (evidence lives here)
+- Discussion: at least 2 highlights
+- Conclusion: 1 highlight
+- Remaining slots: distribute by importance
+
+## Expert Reviewer Commentary
+
+For each highlight, provide commentary from a senior reviewer perspective.
+
+### reviewer_comment — 3-step structured critique (3-4 sentences)
+1. **Assessment**: Is this a strength or weakness? State clearly.
+2. **Evidence / Counter-argument**: Cross-reference with other parts of the paper, \
+or present a devil's advocate challenge.
+3. **Constructive suggestion**: For strengths, suggest extensions; for weaknesses, \
+propose concrete improvements.
+
+Adapt the critical lens to the colour tone:
+
+**Green tone** (finding/evidence/contribution/claim):
+Analyse internal validity, effect size significance, potential confounders. \
+Also assess novelty: is this genuinely new relative to prior work cited, \
+or does it replicate known findings with marginal variation?
+
+**Blue tone** (methodology/insight/reproducibility/experimental_setup):
+Evaluate methodological rigour, differentiation from prior work, \
+conditions for reproducibility.
+
+**Rose tone** (limitation/gap/assumption):
+Root cause of the limitation, sensitivity if assumption is violated, \
+concrete experimental designs to address the gap.
+
+### strength_or_weakness — "strength" or "weakness"
+### question_for_authors — One key question a reviewer would ask.
+
+### confidence_level — Evidence grounding (1-5)
+Rate how well the paper text supports your commentary:
+- 5: Paper provides explicit data/proof directly supporting this highlight
+- 4: Strong indirect evidence exists in the paper
+- 3: Reasonable inference from available text
+- 2: Speculative — paper text is ambiguous on this point
+- 1: Commentary relies on background knowledge not present in the paper
+
+### implication — 2-3 sentences covering at least 2 of: theoretical, practical, \
+future research implications.
+
+## Language
+Write all commentary fields (reviewer_comment, question_for_authors, implication) \
+in the **same language as the paper**. If the paper is in English, comment in English. \
+If in Korean, comment in Korean.
+
+## Zero-Tolerance Boilerplate
+- Do NOT write "This is an interesting approach" — state precisely what differs \
+from prior methods and why it matters.
+- Do NOT write "Further research is needed" — specify which variables, methods, \
+hypotheses, and datasets.
+- Do NOT write "This result is meaningful" or "Important contribution" — explain \
+what, why, and how it differs from existing work.
+- Do NOT write "Additional validation is needed" — specify which experimental \
+design, which datasets, and which baselines to compare against.
+- Do NOT fabricate author names, paper titles, or numbers not present in the text.
+
+## Output Format
+Respond ONLY with the following JSON:
+{"paper_type": "EMPIRICAL|THEORETICAL|CLINICAL|SURVEY", \
+"highlights": [{"text": "exact paper text", \
+"category": "finding|evidence|contribution|claim|methodology|insight|\
+reproducibility|experimental_setup|limitation|gap|assumption", \
+"reviewer_comment": "3-step critique", \
+"strength_or_weakness": "strength|weakness", \
+"question_for_authors": "one key question", \
+"confidence_level": 4, \
+"implication": "multi-dimensional impact", \
+"significance": 4, \
+"section": "section title"}]}
+
+## Selection Criteria
+- Extract the number of highlights as specified in the user prompt.
+- Green tone: at least 4 (including at least 1 claim).
+- Blue tone: at least 4 (including at least 1 experimental_setup).
+- Rose tone: at least 3 (including at least 1 assumption).
+- significance 4-5 should be 30-40% of total.
+- Distribute evenly from Abstract through Conclusion following the \
+Distribution Requirements above.
+- No duplicate content.\
+"""
+
+
+# ── PDF text preprocessing ───────────────────────────────────────────
+
+_SECTION_WHITELIST: set[str] = {
+    "abstract", "introduction", "background", "related work",
+    "methodology", "methods", "approach", "model",
+    "experiments", "experiment", "results", "result", "evaluation",
+    "discussion", "conclusion", "conclusions", "acknowledgments",
+    "acknowledgements", "appendix", "supplementary",
+}
+
+# Math unicode block characters (e.g. 𝒜-𝟿, ∀∃∅∇∈∉ etc.)
+_MATH_UNICODE_RE = re.compile(
+    r'[\u2200-\u22FF\u2A00-\u2AFF\U0001D400-\U0001D7FF]{3,}'
+)
+
+# Sequences of 4+ decimal numbers (typical of table data rows)
+_TABLE_DATA_RE = re.compile(
+    r'(?:\d+\.\d+[\s,;|/&]+){3,}\d+\.\d+'
+)
+
+
+def preprocess_pdf_text(text: str) -> str:
+    """Clean raw PDF-extracted text for LLM consumption.
+
+    Performs:
+    - References/Bibliography section removal
+    - Repeated header/footer pattern removal (preserving section headings)
+    - Math unicode artefact replacement
+    - Table data normalisation
+    - Hyphenated line-break merging
+    - Whitespace normalisation
+    - Page-number-only line removal
+    """
+    # 1. Remove References / Bibliography section (and everything after)
+    ref_pattern = re.compile(
+        r'^\s*(References|Bibliography|REFERENCES|BIBLIOGRAPHY'
+        r'|참고\s*문헌|참\s*고\s*문\s*헌)\s*$',
+        re.MULTILINE,
+    )
+    match = ref_pattern.search(text)
+    if match:
+        text = text[:match.start()]
+
+    # 2. Remove page-number-only lines (e.g. "  12  " or "- 5 -")
+    text = re.sub(r'^\s*[-–—]?\s*\d{1,4}\s*[-–—]?\s*$', '', text, flags=re.MULTILINE)
+
+    # 3. Remove repeated header/footer patterns (short lines appearing 3+ times)
+    #    but preserve lines whose text matches a known section heading.
+    lines = text.split('\n')
+    short_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if 3 <= len(stripped) <= 80:
+            short_lines.append(stripped)
+
+    counts = Counter(short_lines)
+    repeated = {
+        line for line, count in counts.items()
+        if count >= 3 and line.lower() not in _SECTION_WHITELIST
+    }
+
+    if repeated:
+        lines = [
+            line for line in lines
+            if line.strip() not in repeated
+        ]
+        text = '\n'.join(lines)
+
+    # 4. Replace math unicode artefacts (3+ consecutive math symbols -> [MATH])
+    text = _MATH_UNICODE_RE.sub('[MATH]', text)
+
+    # 5. Replace dense table data (4+ consecutive decimal numbers -> [TABLE_DATA])
+    text = _TABLE_DATA_RE.sub('[TABLE_DATA]', text)
+
+    # 6. Merge hyphenated line breaks ("meth-\nod" -> "method")
+    text = re.sub(r'(\w)-\s*\n\s*(\w)', r'\1\2', text)
+
+    # 7. Merge paragraph-internal line breaks.
+    #    Lines that do NOT end with sentence-ending punctuation (.!?:;)
+    #    or a section heading pattern are joined with the next line.
+    #    This turns column-wrapped text back into continuous paragraphs.
+    merged_lines: list[str] = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        if not stripped:
+            # Blank line = paragraph boundary
+            merged_lines.append('')
+            continue
+        if (
+            merged_lines
+            and merged_lines[-1]
+            and not merged_lines[-1].rstrip().endswith(('.', '!', '?', ':', ';'))
+            and not re.match(
+                r'^(?:\d+\.[\d.]*\s|[IVX]+\.\s|[A-Z][A-Z\s]{2,}$)',
+                stripped,
+            )
+            and not stripped.startswith('[SECTION:')
+            and not stripped.startswith('[MATH]')
+            and not stripped.startswith('[TABLE_DATA]')
+            and len(stripped) > 5
+        ):
+            # Continue previous line (same paragraph)
+            merged_lines[-1] = merged_lines[-1].rstrip() + ' ' + stripped
+        else:
+            merged_lines.append(stripped)
+    text = '\n'.join(merged_lines)
+
+    # 8. Normalise consecutive blank lines (max 2)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    # 9. Normalise consecutive spaces within lines
+    text = re.sub(r'[^\S\n]{2,}', ' ', text)
+
+    return text.strip()
+
+
+# ── Structure-aware truncation ───────────────────────────────────────
+
+_HEADING_RE = re.compile(
+    r'^'
+    r'(?:'
+    r'(?:\d+\.[\d.]*)\s+'            # "1.", "2.1.", "3.2.1."
+    r'|(?:[IVX]+\.)\s+'              # "I.", "II.", "IV."
+    r'|(?:[A-Z][A-Z\s]{2,})\s*$'    # ALL-CAPS line (e.g. "ABSTRACT")
+    r')',
+    re.MULTILINE,
+)
+
+_KNOWN_SECTIONS_RE = re.compile(
+    r'^\s*(Abstract|Introduction|Background|Related\s+Work|'
+    r'Methodology|Methods|Approach|Model|Framework|'
+    r'Experiments?|Results?|Evaluation|Analysis|'
+    r'Discussion|Conclusion|Conclusions|Limitations?|'
+    r'Future\s+Work|Acknowledgm|Ethical)\s*$',
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Priority map: section keyword -> priority (lower = keep more)
+_SECTION_PRIORITY: dict[str, int] = {
+    "abstract": 1,
+    "introduction": 1,
+    "result": 1,
+    "experiment": 1,
+    "evaluation": 1,
+    "discussion": 1,
+    "conclusion": 1,
+    "method": 2,
+    "approach": 2,
+    "model": 2,
+    "framework": 2,
+    "related": 3,
+    "background": 3,
+    "literature": 3,
+    "prior": 3,
+}
+
+
+def _classify_section(heading: str) -> int:
+    """Return priority level for a section heading (1=high, 3=low)."""
+    lower = heading.lower()
+    for keyword, priority in _SECTION_PRIORITY.items():
+        if keyword in lower:
+            return priority
+    return 2  # default: medium priority
+
+
+def _detect_paper_type_hint(text: str) -> str:
+    """Detect paper type from title and first 2000 chars for keep_ratio tuning.
+
+    Returns one of: 'survey', 'theoretical', 'empirical'.
+    """
+    probe = text[:2000].lower()
+    survey_kw = ["survey", "review", "meta-analysis", "systematic review",
+                 "literature review"]
+    theory_kw = ["theorem", "proof", "lemma", "corollary", "proposition"]
+
+    if any(kw in probe for kw in survey_kw):
+        return "survey"
+    if any(kw in probe for kw in theory_kw):
+        return "theoretical"
+    return "empirical"
+
+
+def truncate_paper_text(text: str, max_chars: int = 40000) -> str:
+    """Truncate paper text with structure-aware prioritisation.
+
+    Detects section headings via heuristics (numbered/all-caps headings and
+    known section names) and inserts [SECTION: title] markers. When text
+    exceeds *max_chars*, truncates low-priority sections with ratios that
+    adapt to the detected paper type (survey, theoretical, empirical).
+
+    Args:
+        text: Preprocessed paper text.
+        max_chars: Maximum character budget for the output.
+
+    Returns:
+        Truncated text with [SECTION: ...] markers inserted.
+    """
+    # Detect section headings
+    lines = text.split('\n')
+    sections: list[tuple[str, int, int]] = []  # (heading, start_line, priority)
+    section_start_indices: list[int] = []
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # Heuristic: numbered heading, ALL-CAPS line, or known section name
+        is_heading = False
+        if _HEADING_RE.match(stripped):
+            is_heading = True
+        elif stripped.isupper() and 3 <= len(stripped) <= 60:
+            is_heading = True
+        elif _KNOWN_SECTIONS_RE.match(stripped):
+            is_heading = True
+
+        if is_heading:
+            priority = _classify_section(stripped)
+            sections.append((stripped, i, priority))
+            section_start_indices.append(i)
+
+    # If no sections detected, just truncate plainly
+    if not sections:
+        if len(text) <= max_chars:
+            return text
+        cutoff = text.rfind('\n', 0, max_chars)
+        if cutoff < max_chars * 0.6:
+            cutoff = max_chars
+        return text[:cutoff]
+
+    # Build section content blocks
+    section_blocks: list[dict] = []
+    for idx, (heading, start_line, priority) in enumerate(sections):
+        end_line = sections[idx + 1][1] if idx + 1 < len(sections) else len(lines)
+        content_lines = lines[start_line + 1:end_line]
+        content = '\n'.join(content_lines).strip()
+        section_blocks.append({
+            "heading": heading,
+            "content": content,
+            "priority": priority,
+            "original_length": len(content),
+        })
+
+    # Preamble (content before first section)
+    preamble = '\n'.join(lines[:sections[0][1]]).strip()
+
+    # Check total length
+    total = len(preamble) + sum(
+        len(f"\n[SECTION: {b['heading']}]\n") + b["original_length"]
+        for b in section_blocks
+    )
+
+    if total <= max_chars:
+        # No truncation needed, just add markers
+        parts: list[str] = []
+        if preamble:
+            parts.append(preamble)
+        for block in section_blocks:
+            parts.append(f"\n[SECTION: {block['heading']}]")
+            if block["content"]:
+                parts.append(block["content"])
+        return '\n'.join(parts)
+
+    # Truncation needed — choose keep_ratios based on paper type
+    paper_hint = _detect_paper_type_hint(text)
+    if paper_hint == "survey":
+        # Surveys: keep Methods heavily (coverage analysis lives there)
+        keep_ratios: dict[int, float] = {1: 1.0, 2: 0.6, 3: 0.3}
+    elif paper_hint == "theoretical":
+        # Theoretical: keep Methods fully (proofs are critical)
+        keep_ratios = {1: 1.0, 2: 1.0, 3: 0.3}
+    else:
+        # Empirical (default): moderate Methods truncation
+        keep_ratios = {1: 1.0, 2: 0.4, 3: 0.3}
+
+    for block in section_blocks:
+        ratio = keep_ratios.get(block["priority"], 0.5)
+        if ratio < 1.0:
+            keep_chars = int(block["original_length"] * ratio)
+            if keep_chars < block["original_length"]:
+                # Cut at a sentence or line boundary
+                cutoff = block["content"].rfind('. ', 0, keep_chars)
+                if cutoff < keep_chars * 0.5:
+                    cutoff = block["content"].rfind('\n', 0, keep_chars)
+                if cutoff < keep_chars * 0.3:
+                    cutoff = keep_chars
+                block["content"] = (
+                    block["content"][:cutoff + 1].rstrip() + "\n[...]"
+                )
+
+    # Assemble
+    parts = []
+    if preamble:
+        parts.append(preamble)
+    for block in section_blocks:
+        parts.append(f"\n[SECTION: {block['heading']}]")
+        if block["content"]:
+            parts.append(block["content"])
+
+    result = '\n'.join(parts)
+
+    # Final hard truncation if still over budget
+    if len(result) > max_chars:
+        cutoff = result.rfind('\n', 0, max_chars)
+        if cutoff < max_chars * 0.6:
+            cutoff = max_chars
+        result = result[:cutoff]
+
+    return result
+
+
+# ── PDF highlight generation ─────────────────────────────────────────
+
+def generate_pdf_highlights(
+    text: str,
+    title: str,
+    client: object,
+) -> list[dict]:
+    """Generate highlights from raw PDF paper text.
+
+    Pipeline: preprocess -> truncate -> determine dynamic highlight count
+    -> LLM call with PDF-specific prompt.
+
+    Args:
+        text: Raw text extracted from PDF (e.g. via pdfjs).
+        title: Paper title for context.
+        client: An OpenAI-compatible client instance.
+
+    Returns:
+        A list of highlight dicts as returned by the LLM (unprocessed).
+
+    Raises:
+        openai.APITimeoutError: If the LLM call times out.
+        openai.RateLimitError: If the API rate limit is hit.
+        openai.APIError: On other API errors.
+        ValueError: If the LLM returns invalid JSON.
+    """
+    # Step 1: Preprocess
+    cleaned = preprocess_pdf_text(text)
+
+    # Step 2: Structure-aware truncation (30K keeps most papers intact
+    # while ensuring LLM responds within ~60s)
+    max_chars = 30000
+    truncated = truncate_paper_text(cleaned, max_chars=max_chars)
+
+    # Step 3: Dynamic highlight range based on text length
+    char_count = len(truncated)
+    if char_count < 10000:
+        highlight_range = "10-15"
+    elif char_count < 25000:
+        highlight_range = "15-20"
+    else:
+        highlight_range = "20-25"
+
+    # Step 4: Build prompt
+    topic_context = f"[Paper Title: {title}]\n\n" if title else ""
+    model = "gpt-4.1"
+    temperature = 0.2
+    user_prompt = (
+        f"{topic_context}"
+        f"Analyse the following academic paper and extract "
+        f"**{highlight_range} highlights**.\n\n"
+        f"---\n{truncated}\n---"
+    )
+
+    # Step 5: Check LLM cache
+    cached = get_cached(PDF_HIGHLIGHT_SYSTEM_PROMPT, user_prompt, model, temperature)
+    if cached is not None:
+        logger.info("Using cached LLM response for PDF highlight")
+        raw = cached
+    else:
+        response = client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            timeout=110,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": PDF_HIGHLIGHT_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        logger.info("PDF highlight token usage: %s", response.usage)
+        raw = response.choices[0].message.content or "{}"
+
+        # Store in cache
+        set_cache(PDF_HIGHLIGHT_SYSTEM_PROMPT, user_prompt, model, temperature, raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        raise ValueError("LLM returned invalid JSON for PDF highlights")
+
+    # Extract paper_type for logging
+    paper_type: str = parsed.get("paper_type", "UNKNOWN")
+    highlights: list[dict] = parsed.get("highlights", [])
+    logger.info(
+        "Detected paper type: %s, highlights: %d",
+        paper_type,
+        len(highlights),
+    )
+
+    return highlights
