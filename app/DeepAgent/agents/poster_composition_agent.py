@@ -14,6 +14,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from .poster_content_agent import ExtractedContent
+from .poster_visual_agent import PosterVisualAgent
 
 logger = logging.getLogger(__name__)
 
@@ -958,6 +959,7 @@ table.comparison-table tr:nth-child(even) td {{
         )
 
         # 논문 카드 HTML
+        visual_agent = PosterVisualAgent()
         paper_cards_html = ''
         paper_sections = [s for s in composition.sections if s.role == SectionRole.PAPER_CARD]
         if paper_sections:
@@ -965,10 +967,18 @@ table.comparison-table tr:nth-child(even) td {{
             for sec in paper_sections:
                 color = sec.color_code or '#2563eb'
 
-                # figure 삽입
+                # figure 삽입 (외부 서비스 생성 figure)
                 fig_html = ''
                 for fp in sec.figures:
                     fig_html += self._render_figure_html(fp, autofigure_svgs, figures)
+
+                # figure가 없으면 방법론 텍스트로부터 데이터 기반 SVG 생성
+                if not fig_html and sec.text_content:
+                    method_text = sec.text_content.split('**주요 기여**')[0] if '**주요 기여**' in sec.text_content else sec.text_content[:600]
+                    steps = visual_agent._parse_methodology_steps(method_text)
+                    if steps:
+                        svg = visual_agent.generate_pipeline_diagram(steps)
+                        fig_html = f'<div style="margin:12px 0;">{svg}</div>'
 
                 # 텍스트를 단락으로 변환
                 text_html = self._text_to_html(sec.text_content)
@@ -992,6 +1002,18 @@ table.comparison-table tr:nth-child(even) td {{
         overview_html = ''
         if overview_sec:
             fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in overview_sec.figures)
+
+            # figure가 없으면 전체 방법론에서 파이프라인 SVG 생성
+            if not fig_html:
+                methodology = getattr(composition, '_methodology_text', '') or ''
+                # composition에 methodology가 없으면 overview 텍스트에서 추출
+                if not methodology:
+                    methodology = overview_sec.text_content
+                steps = visual_agent._parse_methodology_steps(methodology)
+                if steps:
+                    svg = visual_agent.generate_pipeline_diagram(steps)
+                    fig_html = f'<div style="margin:12px 0;">{svg}<p style="font-size:0.8rem;color:#64748b;text-align:center;margin-top:6px;">연구 파이프라인 다이어그램</p></div>'
+
             overview_html = f'''<section style="background:white;border-radius:12px;padding:24px;
                 box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
                 <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">연구 개요</h2>
