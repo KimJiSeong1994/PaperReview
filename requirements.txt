@@ -37,6 +37,7 @@ PyMuPDF>=1.24.0
 # LLM and Embeddings
 openai>=1.0.0
 google-generativeai>=0.8.0
+sentence-transformers>=2.2.0
 python-dotenv>=1.0.0
 certifi>=2023.0.0
 filelock>=3.0.0

@@ -247,59 +247,6 @@ export const generatePosterDirect = async (
   return response.data;
 };
 
-// AutoFigure-Edit API
-export interface AutoFigureHealthResponse {
-  available: boolean;
-  service_url: string;
-}
-
-export interface MethodToSvgResponse {
-  success: boolean;
-  svg_content: string;
-  figure_png_b64: string;
-  error: string;
-}
-
-export interface PosterFiguresResponse {
-  success: boolean;
-  figures: { paper_title: string; svg_content: string; figure_png_b64: string }[];
-  total_generated: number;
-  errors: string[];
-}
-
-export const getAutoFigureHealth = async (): Promise<AutoFigureHealthResponse> => {
-  const response = await api.get<AutoFigureHealthResponse>('/api/autofigure/health');
-  return response.data;
-};
-
-export const methodToSvg = async (
-  methodText: string,
-  paperTitle?: string,
-  optimizeIterations?: number,
-): Promise<MethodToSvgResponse> => {
-  const response = await api.post<MethodToSvgResponse>('/api/autofigure/method-to-svg', {
-    method_text: methodText,
-    paper_title: paperTitle || '',
-    optimize_iterations: optimizeIterations || 1,
-  });
-  return response.data;
-};
-
-export const generatePosterFigures = async (
-  sessionId: string,
-  methodology: string,
-  paperAnalyses: Record<string, unknown>[],
-  maxFigures?: number,
-): Promise<PosterFiguresResponse> => {
-  const response = await api.post<PosterFiguresResponse>('/api/autofigure/generate-poster-figures', {
-    session_id: sessionId,
-    methodology,
-    paper_analyses: paperAnalyses,
-    max_figures: maxFigures || 3,
-  });
-  return response.data;
-};
-
 // LightRAG API
 export const queryLightRAG = async (request: LightRAGQueryRequest): Promise<LightRAGQueryResponse> => {
   const response = await api.post<LightRAGQueryResponse>('/api/light-rag/query', request);

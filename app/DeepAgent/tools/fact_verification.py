@@ -728,6 +728,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
     def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
         self.model = model
         self._chunk_embedding_cache: Dict[str, List] = {}  # paper_id -> embeddings
+        self._CHUNK_CACHE_MAX = 50  # Max papers cached
 
         if OPENAI_AVAILABLE:
             self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -994,6 +995,13 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             chunk_texts = [c.get("text", "") for c in chunks]
             chunk_embeddings = await self._get_embeddings_batch(chunk_texts)
             if chunk_embeddings:
+                # LRU eviction: remove oldest entry if cache is full
+                if len(self._chunk_embedding_cache) >= self._CHUNK_CACHE_MAX:
+                    try:
+                        oldest_key = next(iter(self._chunk_embedding_cache))
+                        del self._chunk_embedding_cache[oldest_key]
+                    except StopIteration:
+                        pass
                 self._chunk_embedding_cache[cache_key] = chunk_embeddings
 
         # 유사도 계산

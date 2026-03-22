@@ -6,11 +6,14 @@ Paper2Poster 방법론 기반의 멀티 에이전트 포스터 생성 시스템
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+logger = logging.getLogger(__name__)
 
 # 하위 에이전트 임포트
 from .poster_content_agent import PosterContentAgent
@@ -135,12 +138,12 @@ class PosterGenerationAgent:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
             self.llm = genai.GenerativeModel(self.model)
-            print(f"[PosterAgent] Gemini LLM 초기화 성공: {self.model}")
+            logger.info("Gemini LLM 초기화 성공: %s", self.model)
         except ImportError:
-            print("[PosterAgent] google-generativeai 패키지 미설치 — pip install google-generativeai 필요")
+            logger.warning("google-generativeai 패키지 미설치 — pip install google-generativeai 필요")
             self.llm = None
         except Exception as e:
-            print(f"[PosterAgent] Gemini LLM 초기화 실패: {e}")
+            logger.warning("Gemini LLM 초기화 실패: %s", e)
             self.llm = None
 
     def _get_style_guide(self, content=None) -> str:
@@ -171,25 +174,25 @@ class PosterGenerationAgent:
         score = 0.0
 
         for round_idx in range(max_rounds):
-            print(f"[PosterAgent] Critic loop round {round_idx + 1}/{max_rounds}")
+            logger.info("Critic loop round %d/%d", round_idx + 1, max_rounds)
             critique = self.critic_agent.critique(poster_html, style_guide, round_idx)
             score = critique.score
-            print(f"[PosterAgent] Critic score: {score:.2f}")
+            logger.info("Critic score: %.2f", score)
 
             if critique.suggestions.strip() == "No changes needed.":
-                print("[PosterAgent] Critic: No changes needed. Exiting loop.")
+                logger.info("Critic: No changes needed. Exiting loop.")
                 break
             if score >= 0.85:
-                print(f"[PosterAgent] Score {score:.2f} >= 0.85. Exiting loop.")
+                logger.info("Score %.2f >= 0.85. Exiting loop.", score)
                 break
 
             try:
                 refined = self._refine_with_gemini(poster_html, critique, style_guide)
                 poster_html = refined
                 current_best = refined
-                print(f"[PosterAgent] Refinement applied (round {round_idx + 1})")
+                logger.info("Refinement applied (round %d)", round_idx + 1)
             except Exception as e:
-                print(f"[PosterAgent] Refinement failed: {e}. Rolling back to previous best.")
+                logger.warning("Refinement failed: %s. Rolling back to previous best.", e)
                 poster_html = current_best
                 break
 
@@ -349,7 +352,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                         }
                         for f in figures
                     ]
-                    print(f"[PosterAgent] {len(figure_data)}개 핵심 삽도 추출 완료")
+                    logger.info("%d개 핵심 삽도 추출 완료", len(figure_data))
 
             # Phase 1: Content Extraction (멀티 에이전트)
             content = self.content_agent.extract(report_content, num_papers, figures=figure_data)
@@ -357,7 +360,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # Phase 1.5: AutoFigure-Edit SVG 생성 (방법론 → 편집 가능 SVG)
             autofigure_svgs = self._generate_autofigure_svgs(content)
             if autofigure_svgs:
-                print(f"[PosterAgent] AutoFigure: {len(autofigure_svgs)}개 SVG 다이어그램 생성 완료")
+                logger.info("AutoFigure: %d개 SVG 다이어그램 생성 완료", len(autofigure_svgs))
 
             # Phase 2: Layout Planning (멀티 에이전트)
             layout = self.layout_agent.plan(content)
@@ -375,10 +378,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                     self.visual_agent = PosterVisualAgent(autofigure_svgs=autofigure_svgs)
                 section_htmls = self._generate_sections_parallel(layout.sections)
                 poster_html = self._assemble_poster(content, layout, section_htmls)
-                # 남은 AutoFigure SVG가 있으면 직접 삽입
-                unused_svgs = autofigure_svgs[self.visual_agent._autofigure_used:] if autofigure_svgs else []
-                if unused_svgs:
-                    poster_html = self._inject_autofigure_svgs(poster_html, unused_svgs)
+                poster_html = self._inject_visuals_into_poster(poster_html, content, figures, autofigure_svgs)
 
             # Phase 4: Critic Loop (반복 비평 → 수정)
             validation_score = 0.8
@@ -412,8 +412,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             return result
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.error("포스터 생성 실패, fallback 사용: %s", e, exc_info=True)
 
             # Fallback
             return {
@@ -492,43 +491,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 return asyncio.run(_run())
 
         except Exception as e:
-            print(f"[PosterAgent] AutoFigure SVG 생성 실패 (기존 방식으로 진행): {e}")
+            logger.warning("AutoFigure SVG 생성 실패 (기존 방식으로 진행): %s", e)
             return []
-
-    def _inject_autofigure_svgs(self, poster_html: str, autofigure_svgs: List[Dict[str, Any]]) -> str:
-        """멀티에이전트 방식 fallback 시 AutoFigure SVG를 포스터에 직접 삽입한다."""
-        if not autofigure_svgs:
-            return poster_html
-
-        svgs_html = '''
-        <div class="section-box" style="grid-column: 1 / -1; margin-top: 20px;">
-            <div class="section-title" style="font-size: 1.3rem; font-weight: 800; color: #2563eb; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
-                Architecture Diagrams (AutoFigure-Edit)
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
-        '''
-
-        for fig in autofigure_svgs[:3]:
-            title = self._escape_html(fig.get("paper_title", ""))
-            svg_content = fig.get("svg_content", "")
-            svgs_html += f'''
-                <div style="background: #f8fafc; border-radius: 8px; padding: 16px; border: 1px solid #e2e8f0;">
-                    {svg_content}
-                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 8px 0 0 0; text-align: center;">{title}</p>
-                </div>
-            '''
-
-        svgs_html += '''
-            </div>
-        </div>
-        '''
-
-        if '</div>\n</body>' in poster_html:
-            poster_html = poster_html.replace('</div>\n</body>', f'{svgs_html}</div>\n</body>')
-        elif '</body>' in poster_html:
-            poster_html = poster_html.replace('</body>', f'{svgs_html}</body>')
-
-        return poster_html
 
     def _extract_paper_figures(self, papers_data: List[Dict[str, Any]]) -> list:
         """논문 PDF에서 핵심 삽도 추출"""
@@ -541,7 +505,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             )
             return figures
         except Exception as e:
-            print(f"[PosterAgent] 삽도 추출 실패 (기존 방식으로 진행): {e}")
+            logger.warning("삽도 추출 실패 (기존 방식으로 진행): %s", e)
             return []
 
     def _generate_sections_parallel(self, sections: list) -> dict:
@@ -633,9 +597,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         except Exception as e:
             # Gemini 생성 실패 → 멀티에이전트 fallback
-            import traceback
-            traceback.print_exc()
-            print(f"[PosterAgent] Gemini 포스터 생성 실패, 멀티에이전트 fallback: {e}")
+            logger.error("Gemini 포스터 생성 실패, 멀티에이전트 fallback: %s", e, exc_info=True)
 
             section_htmls = self._generate_sections_parallel(layout.sections)
             poster_html = self._assemble_poster(content, layout, section_htmls)
@@ -827,54 +789,6 @@ SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확�
                 .replace('>', '&gt;')
                 .replace('"', '&quot;')
                 .replace("'", '&#39;'))
-
-    def _inject_figures_into_html(self, poster_html: str, figures: list) -> str:
-        """포스터 HTML에 논문 삽도를 삽입"""
-        if not figures:
-            return poster_html
-
-        # mime_type 허용 목록
-        allowed_mimes = ('image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml')
-
-        figures_html = '''
-        <div class="section-box" style="grid-column: 1 / -1; margin-top: 20px;">
-            <div class="section-title" style="font-size: 1.3rem; font-weight: 800; color: #2563eb; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
-                Key Figures from Papers
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: start;">
-        '''
-
-        for fig in figures[:4]:
-            mime = getattr(fig, 'mime_type', 'image/png')
-            if mime not in allowed_mimes:
-                mime = 'image/png'
-            caption = self._escape_html(str(getattr(fig, 'caption', '') or ''))
-            description = self._escape_html(str(getattr(fig, 'description', '') or '')[:150])
-            paper_title = self._escape_html(str(getattr(fig, 'paper_title', '') or '')[:50])
-
-            figures_html += f'''
-                <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
-                    <img src="data:{mime};base64,{fig.image_base64}"
-                         alt="{caption}"
-                         style="width: 100%; height: auto; border-radius: 6px; margin-bottom: 8px;" />
-                    <p style="font-size: 0.85rem; font-weight: 600; color: #1e293b; margin: 4px 0 2px 0;">{caption}</p>
-                    <p style="font-size: 0.75rem; color: #64748b; margin: 0; line-height: 1.4;">{description}</p>
-                    <p style="font-size: 0.7rem; color: #94a3b8; margin: 4px 0 0 0; font-style: italic;">Source: {paper_title}</p>
-                </div>
-            '''
-
-        figures_html += '''
-            </div>
-        </div>
-        '''
-
-        # </body> 앞에 삽입
-        if '</div>\n</body>' in poster_html:
-            poster_html = poster_html.replace('</div>\n</body>', f'{figures_html}</div>\n</body>')
-        elif '</body>' in poster_html:
-            poster_html = poster_html.replace('</body>', f'{figures_html}</body>')
-
-        return poster_html
 
     def _build_visualizations_html(self, content, autofigure_svgs: list = None) -> str:
         """Gemini가 생성한 SVG가 부족할 때 보조 시각화를 생성한다.

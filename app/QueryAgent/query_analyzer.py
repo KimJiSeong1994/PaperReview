@@ -6,12 +6,14 @@ import hashlib
 import os
 import sys
 import json
+import threading
 import time as _time
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 
-# Module-level query analysis cache (TTL-based)
+# Module-level query analysis cache (TTL-based, thread-safe)
 _analysis_cache: Dict[str, Dict[str, Any]] = {}
+_analysis_cache_lock = threading.Lock()
 _CACHE_TTL = 86400  # 24 hours
 _CACHE_MAX_SIZE = 500
 
@@ -23,21 +25,23 @@ def _cache_key(prefix: str, query: str) -> str:
 
 def _get_from_cache(key: str) -> Optional[Dict]:
     """Return cached data if present and not expired, otherwise None."""
-    entry = _analysis_cache.get(key)
-    if entry and (_time.time() - entry["ts"]) < _CACHE_TTL:
-        return entry["data"]
-    if entry:
-        del _analysis_cache[key]
-    return None
+    with _analysis_cache_lock:
+        entry = _analysis_cache.get(key)
+        if entry and (_time.time() - entry["ts"]) < _CACHE_TTL:
+            return entry["data"]
+        if entry:
+            _analysis_cache.pop(key, None)
+        return None
 
 
 def _set_in_cache(key: str, data: Any) -> None:
     """Store data in cache, evicting the 50 oldest entries when full."""
-    if len(_analysis_cache) >= _CACHE_MAX_SIZE:
-        oldest = sorted(_analysis_cache.items(), key=lambda x: x[1]["ts"])[:50]
-        for k, _ in oldest:
-            del _analysis_cache[k]
-    _analysis_cache[key] = {"data": data, "ts": _time.time()}
+    with _analysis_cache_lock:
+        if len(_analysis_cache) >= _CACHE_MAX_SIZE:
+            oldest = sorted(_analysis_cache.items(), key=lambda x: x[1]["ts"])[:50]
+            for k, _ in oldest:
+                _analysis_cache.pop(k, None)
+        _analysis_cache[key] = {"data": data, "ts": _time.time()}
 
 load_dotenv()
 
