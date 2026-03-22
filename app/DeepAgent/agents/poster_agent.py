@@ -556,7 +556,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # 프롬프트 구성
             source_context = build_diagram_prompt(content, paper_analyses)
             caption = build_diagram_caption(content)
-            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:2]
+            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:6]
 
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []

@@ -48,6 +48,9 @@ faiss-cpu>=1.7.4
 fastapi>=0.100.0
 uvicorn>=0.23.0
 
+# Academic Diagram Generation
+paperbanana>=0.1.0
+
 # LangChain & Deep Agents
 langchain>=0.3.0
 langchain-openai>=0.2.0
