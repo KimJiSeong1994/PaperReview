@@ -933,6 +933,243 @@ table.comparison-table tr:nth-child(even) td {{
             f"{tables_text}"
         )
 
+    # ── Gemini 없이 자체 HTML 렌더링 ──────────────────────────────────────
+
+    def render_html(
+        self,
+        composition: PosterComposition,
+        autofigure_svgs: Optional[List[Dict[str, Any]]] = None,
+        figures: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Gemini 없이 PosterComposition을 완전한 HTML로 렌더링한다.
+
+        Gemini LLM이 가용하지 않을 때 fallback으로 사용된다.
+        composition의 섹션 구조를 그대로 HTML로 변환하며,
+        figure placeholder를 실제 콘텐츠로 치환한다.
+        """
+        autofigure_svgs = autofigure_svgs or []
+        figures = figures or []
+        esc = self._esc
+
+        keywords_html = ' '.join(
+            f'<span style="background:#dbeafe;color:#1e40af;padding:4px 12px;'
+            f'border-radius:20px;font-size:0.85rem;margin:2px;">{esc(k)}</span>'
+            for k in composition.keywords[:8]
+        )
+
+        # 논문 카드 HTML
+        paper_cards_html = ''
+        paper_sections = [s for s in composition.sections if s.role == SectionRole.PAPER_CARD]
+        if paper_sections:
+            cards = []
+            for sec in paper_sections:
+                color = sec.color_code or '#2563eb'
+
+                # figure 삽입
+                fig_html = ''
+                for fp in sec.figures:
+                    fig_html += self._render_figure_html(fp, autofigure_svgs, figures)
+
+                # 텍스트를 단락으로 변환
+                text_html = self._text_to_html(sec.text_content)
+
+                cards.append(f'''<div style="background:white;border-radius:12px;padding:24px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid {color};">
+                    <h3 style="font-size:1.1rem;font-weight:700;color:{color};margin:0 0 12px;">{esc(sec.title)}</h3>
+                    {text_html}
+                    {fig_html}
+                </div>''')
+
+            paper_cards_html = f'''<section style="margin-bottom:24px;">
+                <h2 style="font-size:1.4rem;font-weight:800;color:#1e293b;margin-bottom:16px;">논문별 분석</h2>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
+                    {''.join(cards)}
+                </div>
+            </section>'''
+
+        # Overview 섹션
+        overview_sec = next((s for s in composition.sections if s.role == SectionRole.OVERVIEW), None)
+        overview_html = ''
+        if overview_sec:
+            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in overview_sec.figures)
+            overview_html = f'''<section style="background:white;border-radius:12px;padding:24px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
+                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">연구 개요</h2>
+                {self._text_to_html(overview_sec.text_content)}
+                {fig_html}
+            </section>'''
+
+        # Comparison 섹션
+        comp_sec = next((s for s in composition.sections if s.role == SectionRole.COMPARISON), None)
+        comparison_html = ''
+        if comp_sec and comp_sec.text_content.strip():
+            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in comp_sec.figures)
+            comparison_html = f'''<section style="background:white;border-radius:12px;padding:24px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
+                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">비교 분석</h2>
+                {self._markdown_table_to_html(comp_sec.text_content)}
+                {fig_html}
+            </section>'''
+
+        # Findings 섹션
+        find_sec = next((s for s in composition.sections if s.role == SectionRole.FINDINGS), None)
+        findings_html = ''
+        if find_sec:
+            findings_html = f'''<section style="background:white;border-radius:12px;padding:24px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
+                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">핵심 발견 및 기여</h2>
+                {self._text_to_html(find_sec.text_content)}
+            </section>'''
+
+        # Conclusion 섹션
+        conc_sec = next((s for s in composition.sections if s.role == SectionRole.CONCLUSION), None)
+        conclusion_html = ''
+        if conc_sec and conc_sec.text_content.strip():
+            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in conc_sec.figures)
+            conclusion_html = f'''<section style="background:white;border-radius:12px;padding:24px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
+                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">결론</h2>
+                {self._text_to_html(conc_sec.text_content)}
+                {fig_html}
+            </section>'''
+
+        return f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{esc(composition.title)} - Academic Poster</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margin:0; padding:20px; color:#334155; }}
+.poster {{ max-width:1800px; margin:0 auto; background:#f8fafc; padding:40px; box-shadow:0 10px 25px rgba(0,0,0,0.1); }}
+</style>
+</head>
+<body>
+<div class="poster">
+  <header style="border-bottom:4px solid #2563eb;padding-bottom:20px;margin-bottom:30px;">
+    <h1 style="font-size:2.2rem;font-weight:900;color:#2563eb;margin:0;">{esc(composition.title)}</h1>
+    <p style="font-size:1.2rem;color:#475569;margin:8px 0;">{esc(composition.subtitle)}</p>
+    <div style="margin-top:10px;">{keywords_html}</div>
+  </header>
+  {overview_html}
+  {paper_cards_html}
+  {comparison_html}
+  {findings_html}
+  {conclusion_html}
+</div>
+</body>
+</html>'''
+
+    def _render_figure_html(
+        self,
+        fp: FigurePlacement,
+        autofigure_svgs: List[Dict[str, Any]],
+        figures: List[Dict[str, Any]],
+    ) -> str:
+        """FigurePlacement를 실제 HTML로 렌더링한다."""
+        if fp.source == 'autofigure' and fp.figure_index < len(autofigure_svgs):
+            af = autofigure_svgs[fp.figure_index]
+            svg = af.get('svg_content', '')
+            if svg:
+                return f'''<div style="margin:12px 0;text-align:center;">
+                    {svg}
+                    <p style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</p>
+                </div>'''
+        elif fp.source == 'paper_figure' and fp.figure_index < len(figures):
+            fig = figures[fp.figure_index]
+            b64 = fig.get('image_base64', '') if isinstance(fig, dict) else getattr(fig, 'image_base64', '')
+            if b64:
+                return f'''<figure style="margin:12px 0;">
+                    <img src="data:image/png;base64,{b64}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
+                    <figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
+                </figure>'''
+        return ''
+
+    def _text_to_html(self, text: str) -> str:
+        """마크다운 텍스트를 간단한 HTML로 변환한다."""
+        import re
+        lines = text.strip().split('\n')
+        parts = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith('- ') or stripped.startswith('* '):
+                parts.append(f'<li style="margin:4px 0;padding-left:8px;">{self._esc(stripped[2:])}</li>')
+            elif stripped.startswith('**') and stripped.endswith('**'):
+                parts.append(f'<h4 style="font-size:1rem;font-weight:700;color:#1e293b;margin:10px 0 4px;">{self._esc(stripped.strip("*"))}</h4>')
+            elif stripped.startswith('**'):
+                clean = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', stripped)
+                parts.append(f'<p style="margin:4px 0;line-height:1.6;">{clean}</p>')
+            else:
+                parts.append(f'<p style="margin:4px 0;line-height:1.6;">{self._esc(stripped)}</p>')
+
+        # 연속 li를 ul로 묶기
+        result = []
+        in_list = False
+        for p in parts:
+            if p.startswith('<li'):
+                if not in_list:
+                    result.append('<ul style="list-style:disc;padding-left:20px;margin:8px 0;">')
+                    in_list = True
+                result.append(p)
+            else:
+                if in_list:
+                    result.append('</ul>')
+                    in_list = False
+                result.append(p)
+        if in_list:
+            result.append('</ul>')
+
+        return '\n'.join(result)
+
+    def _markdown_table_to_html(self, text: str) -> str:
+        """마크다운 테이블을 HTML 테이블로 변환한다."""
+        import re
+        lines = text.strip().split('\n')
+        tables_html = []
+        current_rows: List[List[str]] = []
+        in_table = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('|') and '|' in stripped[1:]:
+                cells = [c.strip() for c in stripped.split('|')[1:-1]]
+                if re.match(r'^[\s\-:]+$', ''.join(cells)):
+                    continue  # 구분선 스킵
+                current_rows.append(cells)
+                in_table = True
+            else:
+                if in_table and current_rows:
+                    tables_html.append(self._rows_to_table(current_rows))
+                    current_rows = []
+                    in_table = False
+                if stripped:
+                    tables_html.append(f'<p style="margin:4px 0;">{self._esc(stripped)}</p>')
+
+        if current_rows:
+            tables_html.append(self._rows_to_table(current_rows))
+
+        return '\n'.join(tables_html)
+
+    @staticmethod
+    def _rows_to_table(rows: List[List[str]]) -> str:
+        """행 리스트를 HTML 테이블로 변환한다."""
+        if not rows:
+            return ''
+        header = rows[0]
+        body = rows[1:]
+        th = ''.join(f'<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #cbd5e1;font-weight:600;color:#1e293b;">{h}</th>' for h in header)
+        trs = []
+        for row in body:
+            tds = ''.join(f'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">{c}</td>' for c in row)
+            trs.append(f'<tr>{tds}</tr>')
+        return f'''<table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin:12px 0;">
+            <thead><tr>{th}</tr></thead>
+            <tbody>{''.join(trs)}</tbody>
+        </table>'''
+
     # ── 유틸리티 ────────────────────────────────────────────────────────────
 
     @staticmethod

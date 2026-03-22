@@ -391,12 +391,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                     autofigure_svgs=autofigure_svgs, figures=figure_data,
                 )
             else:
-                # Gemini 사용 불가 시 멀티 에이전트 방식 사용
-                if autofigure_svgs:
-                    self.visual_agent = PosterVisualAgent(autofigure_svgs=autofigure_svgs)
-                section_htmls = self._generate_sections_parallel(layout.sections)
-                poster_html = self._assemble_poster(content, layout, section_htmls)
-                poster_html = self._inject_visuals_into_poster(poster_html, content, figure_data, autofigure_svgs)
+                # Gemini 사용 불가 시 Composition 기반 자체 렌더링
+                poster_html = self.composition_agent.render_html(
+                    composition, autofigure_svgs, figure_data,
+                )
 
             # Phase 4: Critic Loop (반복 비평 → 수정)
             validation_score = 0.8
