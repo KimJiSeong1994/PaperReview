@@ -72,7 +72,7 @@ class PaperBananaClient:
 
     def __init__(
         self,
-        iterations: int = 2,
+        iterations: int = 1,
         optimize: bool = False,
         auto_refine: bool = False,
     ) -> None:

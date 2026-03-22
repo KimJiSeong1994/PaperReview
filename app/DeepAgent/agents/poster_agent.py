@@ -556,7 +556,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # 프롬프트 구성
             source_context = build_diagram_prompt(content, paper_analyses)
             caption = build_diagram_caption(content)
-            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:6]
+            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:2]
 
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []
@@ -603,13 +603,13 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
                 return results
 
-            # 이벤트 루프에서 비동기 실행
+            # 이벤트 루프에서 비동기 실행 (120초 타임아웃)
             try:
                 asyncio.get_running_loop()
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, _run())
-                    return future.result(timeout=600)
+                    return future.result(timeout=120)
             except RuntimeError:
                 return asyncio.run(_run())
 
