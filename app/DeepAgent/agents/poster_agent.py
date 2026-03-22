@@ -453,6 +453,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
         """
         # PaperBanana 우선 시도
         if self._paperbanana_client:
+            logger.info("PaperBanana 다이어그램 생성 시도 중...")
             results = self._generate_with_paperbanana(content)
             if results:
                 return results
@@ -603,13 +604,13 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
                 return results
 
-            # 이벤트 루프에서 비동기 실행 (120초 타임아웃)
+            # 이벤트 루프에서 비동기 실행 (60초 타임아웃)
             try:
                 asyncio.get_running_loop()
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, _run())
-                    return future.result(timeout=120)
+                    return future.result(timeout=60)
             except RuntimeError:
                 return asyncio.run(_run())
 
