@@ -724,7 +724,12 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
         prompt = self.composition_agent.to_gemini_prompt(composition, content)
 
         try:
-            response = self.llm.generate_content([prompt])
+            import concurrent.futures
+            # Gemini 호출에 60초 타임아웃 적용
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(self.llm.generate_content, [prompt])
+                response = future.result(timeout=60)
+
             poster_html = response.text
 
             # HTML 코드 추출
@@ -747,7 +752,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             return poster_html
 
         except Exception as e:
-            logger.error("Composition 기반 Gemini 생성 실패, render_html fallback: %s", e, exc_info=True)
+            logger.error("Composition Gemini 생성 실패 (%.0fs), render_html fallback: %s",
+                         60, e)
             return self.composition_agent.render_html(
                 composition, autofigure_svgs or [], figures or [],
             )
