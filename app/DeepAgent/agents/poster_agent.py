@@ -751,9 +751,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             return poster_html
 
         except Exception as e:
-            logger.error("Composition 기반 Gemini 생성 실패, legacy fallback: %s", e, exc_info=True)
-            return self._generate_with_gemini(
-                content, layout, report_content, num_papers, figures, autofigure_svgs,
+            logger.error("Composition 기반 Gemini 생성 실패, render_html fallback: %s", e, exc_info=True)
+            return self.composition_agent.render_html(
+                composition, autofigure_svgs or [], figures or [],
             )
 
     def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int,
