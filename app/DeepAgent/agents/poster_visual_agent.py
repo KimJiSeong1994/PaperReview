@@ -155,34 +155,55 @@ class PosterVisualAgent:
     # ── 데이터 기반 SVG 헬퍼 ────────────────────────────────────────
 
     def _parse_methodology_steps(self, methodology: str) -> List[Dict[str, str]]:
-        """방법론 텍스트에서 파이프라인 단계를 추출한다."""
+        """방법론 텍스트에서 파이프라인 단계를 추출한다.
+
+        아키텍처 핵심 구성요소(제목+설명)를 함께 반환하여
+        다이어그램에서 모델 세부사항이 표시되도록 한다.
+        """
         steps: List[Dict[str, str]] = []
 
-        # 전략 1: 화살표 분리
-        text = methodology.replace('->', '→')
-        if '→' in text:
-            parts = [p.strip() for p in text.split('→') if p.strip()]
-            for part in parts[:8]:
-                clean = re.sub(r'\*\*|\*|`', '', part).split('\n')[0].strip()
-                if clean and len(clean) > 2:
-                    steps.append({'title': clean[:30], 'desc': ''})
+        # 전략 1: 볼드 키워드 + 설명 패턴 ("- **키워드**: 설명...")
+        bold_desc = re.findall(
+            r'[\-\*]\s*\*\*([^*]{2,40})\*\*\s*[:：]\s*([^\n\-*]{5,})',
+            methodology,
+        )
+        if bold_desc:
+            for title, desc in bold_desc[:8]:
+                clean_title = title.strip()
+                clean_desc = desc.strip().rstrip('.')
+                # 첫 문장만 사용 (마침표 또는 콤마 기준)
+                first_sent = re.split(r'[.。,，]', clean_desc)[0].strip()
+                steps.append({
+                    'title': clean_title[:35],
+                    'desc': first_sent[:50],
+                })
 
-        # 전략 2: 번호 매기기 (숫자+구분자로 분할)
+        # 전략 2: 화살표 분리 ("A→B→C")
+        if not steps:
+            text = methodology.replace('->', '→')
+            if '→' in text:
+                parts = [p.strip() for p in text.split('→') if p.strip()]
+                for part in parts[:8]:
+                    clean = re.sub(r'\*\*|\*|`', '', part).split('\n')[0].strip()
+                    if clean and len(clean) > 2:
+                        steps.append({'title': clean[:35], 'desc': ''})
+
+        # 전략 3: 번호 매기기 ("1. ...", "2) ...")
         if not steps:
             parts = re.split(r'\d+[.)]\s*\*?\*?', methodology)
             for part in parts[1:8]:
                 clean = re.sub(r'\*\*|\*|`', '', part).split('\n')[0].strip()
                 if clean and len(clean) > 1:
-                    steps.append({'title': clean[:30], 'desc': ''})
+                    steps.append({'title': clean[:35], 'desc': ''})
 
-        # 전략 3: 볼드 키워드
+        # 전략 4: 볼드 키워드만 (설명 없이)
         if not steps:
             skip_kw = {'결과', 'result', '한계', 'limit', '배경', 'background',
                        '결론', 'conclusion', '요약', 'summary'}
             bold = re.findall(r'\*\*([^*]{3,50})\*\*', methodology)
             for b in bold[:8]:
                 if not any(sk in b.lower() for sk in skip_kw):
-                    steps.append({'title': b.strip()[:30], 'desc': ''})
+                    steps.append({'title': b.strip()[:35], 'desc': ''})
 
         return steps
 
@@ -457,12 +478,15 @@ class PosterVisualAgent:
             ]
 
         n_steps = min(len(steps), 8)
-        box_width = 150
-        box_height = 90
-        gap = 50
-        total_width = n_steps * box_width + (n_steps - 1) * gap + 80
-        start_x = 40
-        y = 60
+        has_desc = any(step.get('desc', '') for step in steps[:n_steps])
+
+        # 설명이 있으면 박스를 크게
+        box_width = 190 if has_desc else 150
+        box_height = 110 if has_desc else 90
+        gap = 40
+        total_width = n_steps * box_width + (n_steps - 1) * gap + 60
+        start_x = 30
+        y = 50
 
         colors = [
             ('#2563eb', '#dbeafe'), ('#7c3aed', '#ede9fe'), ('#059669', '#d1fae5'),
@@ -470,7 +494,7 @@ class PosterVisualAgent:
             ('#e11d48', '#ffe4e6'), ('#4f46e5', '#e0e7ff'),
         ]
 
-        svg = f'''<svg viewBox="0 0 {total_width} {box_height + 100}" style="background:white; border-radius:12px; width:100%;">
+        svg = f'''<svg viewBox="0 0 {total_width} {box_height + 80}" style="background:white; border-radius:12px; width:100%;">
             <defs>
                 <marker id="pipeArrow" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
                     <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#94a3b8"/>
@@ -483,22 +507,33 @@ class PosterVisualAgent:
         for i, step in enumerate(steps[:n_steps]):
             x = start_x + i * (box_width + gap)
             color, bg_color = colors[i % len(colors)]
-            title = self._escape_xml(step.get('title', f'Step {i+1}')[:22])
-            desc = self._escape_xml(step.get('desc', '')[:28])
+            title = self._escape_xml(step.get('title', f'Step {i+1}')[:35])
+            desc = self._escape_xml(step.get('desc', '')[:50])
 
-            # Box with shadow
             svg += f'''
             <rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="12"
                   fill="{bg_color}" stroke="{color}" stroke-width="2" filter="url(#pipeShadow)"/>
-            <circle cx="{x + 20}" cy="{y + 20}" r="12" fill="{color}"/>
-            <text x="{x + 20}" y="{y + 24}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">{i + 1}</text>
-            <text x="{x + 40}" y="{y + 24}" font-size="13" font-weight="bold" fill="{color}">{title}</text>
-            <text x="{x + box_width / 2}" y="{y + 55}" text-anchor="middle" font-size="11" fill="#64748b">{desc}</text>'''
+            <circle cx="{x + 18}" cy="{y + 20}" r="12" fill="{color}"/>
+            <text x="{x + 18}" y="{y + 24}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">{i + 1}</text>
+            <text x="{x + 36}" y="{y + 24}" font-size="12" font-weight="bold" fill="{color}">{title}</text>'''
 
-            # Arrow
+            # 설명 텍스트 (2줄로 분할)
+            if desc:
+                mid = len(desc) // 2
+                # 공백 기준 분할점 탐색
+                split_at = desc.rfind(' ', 0, mid + 5)
+                if split_at <= 0:
+                    split_at = mid
+                line1 = desc[:split_at].strip()
+                line2 = desc[split_at:].strip()
+                svg += f'''
+            <text x="{x + box_width / 2}" y="{y + 50}" text-anchor="middle" font-size="10" fill="#64748b">{line1}</text>
+            <text x="{x + box_width / 2}" y="{y + 65}" text-anchor="middle" font-size="10" fill="#64748b">{line2}</text>'''
+
+            # 화살표
             if i < n_steps - 1:
-                ax1 = x + box_width + 4
-                ax2 = x + box_width + gap - 4
+                ax1 = x + box_width + 3
+                ax2 = x + box_width + gap - 3
                 ay = y + box_height / 2
                 svg += f'''
             <line x1="{ax1}" y1="{ay}" x2="{ax2}" y2="{ay}"
