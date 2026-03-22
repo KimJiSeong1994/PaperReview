@@ -1161,7 +1161,12 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
                 enable_critic=True,
                 max_critic_rounds=2,
             )
-            logger.info("[Poster API] PosterGenerationAgent initialized (critic enabled)")
+            logger.info(
+                "[Poster API] PosterGenerationAgent initialized: llm=%s, critic=%s, api_key=%s",
+                poster_agent.llm is not None,
+                poster_agent.critic_agent is not None,
+                bool(poster_agent.api_key),
+            )
         except Exception as e:
             logger.exception("[Poster API] Failed to initialize PosterGenerationAgent: %s", e)
             raise HTTPException(
@@ -1232,3 +1237,58 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
     except Exception as e:
         logger.exception("[Poster API] Unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
+
+
+class DirectPosterRequest(BaseModel):
+    """세션 없이 리포트 콘텐츠로 직접 포스터를 생성하는 요청."""
+    report_content: str
+    num_papers: int = 0
+
+
+@router.post("/deep-review/visualize-direct")
+async def generate_poster_direct(
+    request: DirectPosterRequest,
+    username: str | None = Depends(get_optional_user),
+):
+    """세션 없이 리포트 마크다운으로 직접 포스터를 생성한다.
+
+    세션이 유실된 경우 프론트엔드가 reviewReport를 직접 전달하여 포스터를 생성할 수 있다.
+    """
+    try:
+        logger.info("[Poster Direct] Starting: %d chars, %d papers", len(request.report_content), request.num_papers)
+
+        from app.DeepAgent.agents import PosterGenerationAgent
+        try:
+            from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+            pattern_manager = get_design_pattern_manager()
+        except Exception:
+            pattern_manager = None
+
+        poster_agent = PosterGenerationAgent(
+            model="gemini-2.5-flash-preview-05-20",
+            design_pattern_manager=pattern_manager,
+            enable_critic=True,
+            max_critic_rounds=1,  # 직접 생성은 1라운드로 빠르게
+        )
+        logger.info("[Poster Direct] Agent: llm=%s, api_key=%s", poster_agent.llm is not None, bool(poster_agent.api_key))
+
+        result = poster_agent.generate_poster(
+            report_content=request.report_content,
+            num_papers=request.num_papers,
+        )
+
+        if not result.get("poster_html"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Empty poster"))
+
+        return {
+            "success": result["success"],
+            "session_id": "",
+            "poster_html": result["poster_html"],
+            "poster_path": "",
+            "error": result.get("error", ""),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("[Poster Direct] Failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))

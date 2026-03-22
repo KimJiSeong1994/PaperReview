@@ -230,7 +230,19 @@ export const generatePoster = async (sessionId: string): Promise<PosterResponse>
   const response = await api.post<PosterResponse>(
     `/api/deep-review/visualize/${sessionId}`,
     {},
-    { timeout: 300_000 },  // 5분 (Gemini + Critic Loop)
+    { timeout: 300_000 },
+  );
+  return response.data;
+};
+
+export const generatePosterDirect = async (
+  reportContent: string,
+  numPapers: number,
+): Promise<PosterResponse> => {
+  const response = await api.post<PosterResponse>(
+    '/api/deep-review/visualize-direct',
+    { report_content: reportContent, num_papers: numPapers },
+    { timeout: 300_000 },
   );
   return response.data;
 };

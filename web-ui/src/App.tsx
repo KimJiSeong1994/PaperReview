@@ -11,7 +11,7 @@ const GraphView = lazy(() => import('./components/GraphView'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
-import { searchPapers, getGraphData, startDeepReview, saveBookmark, verifyToken, fetchBatchReferences, generatePoster } from './api/client';
+import { searchPapers, getGraphData, startDeepReview, saveBookmark, verifyToken, fetchBatchReferences, generatePoster, generatePosterDirect } from './api/client';
 import type { Paper, GraphData } from './types';
 import { useDeepReview } from './hooks/useDeepReview';
 
@@ -388,27 +388,32 @@ function App() {
   };
 
   const handleGeneratePoster = async () => {
-    // Deep Research 완료 상태면 세션 기반 포스터 생성
-    if (reviewSessionId && reviewStatus === 'completed') {
+    // Deep Research 완료 상태면 포스터 생성
+    if (reviewSessionId && reviewStatus === 'completed' && reviewReport) {
       setPosterLoading(true);
       try {
+        // 1차: 세션 기반 API
         const result = await generatePoster(reviewSessionId);
         if (result.poster_html) {
-          // success가 false여도 poster_html이 있으면 표시 (fallback 포스터)
           setPosterHtml(result.poster_html);
-        } else {
-          const detail = (result as any).error || (result as any).detail || '서버에서 포스터 HTML을 생성하지 못했습니다.';
-          alert(`포스터 생성 실패: ${detail}`);
+          return;
         }
       } catch (err: any) {
-        console.error('Poster generation failed:', err);
-        const status = err?.response?.status;
-        const detail = err?.response?.data?.detail || err?.message || '알 수 없는 오류';
-        if (status === 404) {
-          alert('서버가 재시작되어 세션이 만료되었습니다.\nDeep Research를 다시 실행한 후 포스터를 생성해주세요.');
+        console.warn('Session-based poster failed, trying direct:', err?.response?.status);
+        // 세션 유실(404) 또는 기타 에러 시 → direct API로 자동 fallback
+      }
+
+      try {
+        // 2차: 리포트 콘텐츠로 직접 생성 (세션 불필요)
+        const result = await generatePosterDirect(reviewReport, selectedPapersForReview.size);
+        if (result.poster_html) {
+          setPosterHtml(result.poster_html);
         } else {
-          alert(`포스터 생성 중 오류: ${detail}`);
+          alert(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
         }
+      } catch (err: any) {
+        console.error('Direct poster generation failed:', err);
+        alert(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
       } finally {
         setPosterLoading(false);
       }
