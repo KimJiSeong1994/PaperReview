@@ -582,7 +582,11 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if not tasks:
                     return []
 
-                raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+                # 60초 타임아웃 적용
+                raw_results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=60,
+                )
 
                 results: List[Dict[str, Any]] = []
                 for label, result in zip(task_labels, raw_results):
@@ -590,7 +594,6 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                         logger.warning("PaperBanana 다이어그램 생성 실패 (%s): %s", label, result)
                         continue
                     if result.success and result.image_base64:
-                        # PaperBanana는 PNG 이미지를 반환 → img 태그로 변환
                         img_html = (
                             f'<img src="data:image/png;base64,{result.image_base64}" '
                             f'style="max-width:100%; height:auto; border-radius:8px;" '
@@ -604,15 +607,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
                 return results
 
-            # 이벤트 루프에서 비동기 실행 (60초 타임아웃)
-            try:
-                asyncio.get_running_loop()
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, _run())
-                    return future.result(timeout=60)
-            except RuntimeError:
-                return asyncio.run(_run())
+            return asyncio.run(_run())
 
         except Exception as e:
             logger.warning("PaperBanana 다이어그램 생성 실패: %s", e)
