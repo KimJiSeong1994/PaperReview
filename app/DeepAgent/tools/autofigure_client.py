@@ -17,7 +17,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
@@ -163,7 +163,7 @@ class AutoFigureClient:
         self,
         method_text: str,
         reference_image_b64: Optional[str] = None,
-        style_hints: Optional[str] = None,
+        style_hints: Optional[Union[str, Dict[str, Any]]] = None,
         optimize_iterations: int = 1,
         timeout: float = 180.0,
     ) -> AutoFigureResult:
@@ -194,7 +194,9 @@ class AutoFigureClient:
         if reference_image_b64:
             payload["reference_image_b64"] = reference_image_b64
         if style_hints:
-            payload["style_hints"] = style_hints
+            payload["style_hints"] = (
+                json.dumps(style_hints) if isinstance(style_hints, dict) else style_hints
+            )
 
         try:
             async with self._make_client(timeout=timeout) as client:

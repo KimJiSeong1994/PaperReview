@@ -56,7 +56,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware - configurable via environment
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "https://jiphyeonjeon.kr").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -104,7 +104,7 @@ async def request_logging_middleware(request: Request, call_next):
             duration_ms,
         )
     else:
-        logger.info(
+        logger.debug(
             "%s %s → %s (%.1fms)",
             request.method,
             request.url.path,

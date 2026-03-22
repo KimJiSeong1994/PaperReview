@@ -8,6 +8,7 @@ Paper2Poster 방법론 기반의 멀티 에이전트 포스터 생성 시스템
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -453,26 +454,40 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             paper_prompts = build_paper_figure_prompts(paper_analyses)[:2]  # 최대 2개
 
             async def _run() -> List[Dict[str, Any]]:
-                results: List[Dict[str, Any]] = []
+                # Health check: AutoFigure-Edit 서비스 가용성 확인
+                if not await self._autofigure_client.health_check():
+                    logger.warning("AutoFigure-Edit 서비스 미가용 — SVG 생성 건너뜀")
+                    return []
 
-                # 전체 방법론 SVG 생성
+                tasks = []
+                task_labels: List[str] = []
+
+                # 전체 방법론 SVG 생성 태스크
                 if method_prompt.strip():
-                    result = await self._autofigure_client.method_to_svg(method_prompt)
-                    if result.success:
-                        results.append({
-                            "paper_title": "Overall Methodology",
-                            "svg_content": result.final_svg,
-                            "figure_png_b64": result.figure_png_b64,
-                        })
+                    tasks.append(self._autofigure_client.method_to_svg(method_prompt))
+                    task_labels.append("Overall Methodology")
 
-                # 논문별 SVG 생성
+                # 논문별 SVG 생성 태스크
                 for prompt_info in paper_prompts:
-                    result = await self._autofigure_client.method_to_svg(
-                        prompt_info["method_prompt"]
+                    tasks.append(
+                        self._autofigure_client.method_to_svg(prompt_info["method_prompt"])
                     )
+                    task_labels.append(prompt_info["paper_title"])
+
+                if not tasks:
+                    return []
+
+                # 모든 태스크를 동시에 실행, 개별 실패를 허용
+                raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                results: List[Dict[str, Any]] = []
+                for label, result in zip(task_labels, raw_results):
+                    if isinstance(result, Exception):
+                        logger.warning("AutoFigure SVG 생성 실패 (%s): %s", label, result)
+                        continue
                     if result.success:
                         results.append({
-                            "paper_title": prompt_info["paper_title"],
+                            "paper_title": label,
                             "svg_content": result.final_svg,
                             "figure_png_b64": result.figure_png_b64,
                         })
@@ -540,14 +555,44 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         return section_htmls
 
+    @staticmethod
+    def _has_substantial_svg(html: str) -> bool:
+        """포스터에 실질적인 SVG 다이어그램이 포함되어 있는지 확인한다.
+
+        아이콘이나 작은 장식 SVG가 아닌, viewBox가 있고 일정 크기 이상인
+        SVG 요소가 하나 이상 있으면 True를 반환한다.
+        """
+        for m in re.finditer(r'<svg[^>]*>', html, re.IGNORECASE):
+            tag = m.group(0)
+            # viewBox 기반 판정
+            vb = re.search(r'viewBox\s*=\s*"([^"]*)"', tag, re.IGNORECASE)
+            if vb:
+                parts = vb.group(1).split()
+                if len(parts) == 4:
+                    try:
+                        if float(parts[2]) >= 100 and float(parts[3]) >= 60:
+                            return True
+                    except (ValueError, IndexError):
+                        pass
+            # width/height 속성 기반 판정
+            w_m = re.search(r'width\s*=\s*"(\d+)', tag, re.IGNORECASE)
+            h_m = re.search(r'height\s*=\s*"(\d+)', tag, re.IGNORECASE)
+            if w_m and h_m:
+                try:
+                    if int(w_m.group(1)) >= 100 and int(h_m.group(1)) >= 60:
+                        return True
+                except ValueError:
+                    pass
+        return False
+
     def _inject_visuals_into_poster(self, poster_html: str, content, figures, autofigure_svgs) -> str:
         """포스터 HTML에 보조 시각화 + Figure를 삽입한다.
 
         Gemini가 이미 인라인 SVG를 포함했으면 보조 시각화는 최소한으로 추가.
         Figure(논문 삽도)는 항상 삽입.
         """
-        # Gemini가 SVG를 이미 생성했는지 확인
-        has_gemini_svg = '<svg' in poster_html.lower()
+        # Gemini가 실질적인 SVG 다이어그램을 이미 생성했는지 확인
+        has_gemini_svg = self._has_substantial_svg(poster_html)
 
         # 보조 시각화: Gemini SVG가 없거나 AutoFigure SVG가 있을 때만
         if not has_gemini_svg or autofigure_svgs:
@@ -598,6 +643,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
         except Exception as e:
             # Gemini 생성 실패 → 멀티에이전트 fallback
             logger.error("Gemini 포스터 생성 실패, 멀티에이전트 fallback: %s", e, exc_info=True)
+
+            # AutoFigure SVG를 visual_agent에 전달하여 하이브리드 시각화 활용
+            if autofigure_svgs:
+                self.visual_agent = PosterVisualAgent(autofigure_svgs=autofigure_svgs)
 
             section_htmls = self._generate_sections_parallel(layout.sections)
             poster_html = self._assemble_poster(content, layout, section_htmls)

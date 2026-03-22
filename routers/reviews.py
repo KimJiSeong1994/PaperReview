@@ -6,6 +6,7 @@ Deep review endpoints:
   POST /api/deep-review/visualize/{session_id}
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -1204,7 +1205,8 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
         )
 
         try:
-            result = poster_agent.generate_poster(
+            result = await asyncio.to_thread(
+                poster_agent.generate_poster,
                 report_content=report_content,
                 num_papers=num_papers,
                 output_dir=poster_dir,
@@ -1272,7 +1274,8 @@ async def generate_poster_direct(
         )
         logger.info("[Poster Direct] Agent: llm=%s, api_key=%s", poster_agent.llm is not None, bool(poster_agent.api_key))
 
-        result = poster_agent.generate_poster(
+        result = await asyncio.to_thread(
+            poster_agent.generate_poster,
             report_content=request.report_content,
             num_papers=request.num_papers,
         )

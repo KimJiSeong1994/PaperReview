@@ -15,10 +15,6 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
-# Natural Language Processing
-nltk>=3.8.1
-wordcloud>=1.9.3
-
 # Progress Bar
 tqdm>=4.66.0
 
@@ -49,7 +45,6 @@ bcrypt>=4.0.0
 networkx>=3.0
 scipy>=1.11.0
 faiss-cpu>=1.7.4
-chromadb>=0.4.0
 fastapi>=0.100.0
 uvicorn>=0.23.0
 
