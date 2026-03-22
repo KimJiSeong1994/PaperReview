@@ -83,27 +83,19 @@ class PosterVisualAgent:
         if section.content is None:
             return self.generate_text_html('')
         if isinstance(section.content, dict) and section.content.get('type') == 'svg_diagram':
-            # 하이브리드: AutoFigure SVG가 있으면 우선 사용
+            # 동적 생성 figure만 사용, 없으면 빈 콘텐츠
             af_svg = self._try_autofigure_svg()
             if af_svg:
                 return af_svg
-            return self.generate_architecture_svg(
-                section.content.get('content', ''),
-                visualization_data=section.content.get('visualization_data'),
-            )
+            return ''
         elif isinstance(section.content, dict) and section.content.get('type') == 'svg_flowchart':
-            # 하이브리드: AutoFigure SVG가 있으면 우선 사용
+            # 동적 생성 figure만 사용, 없으면 빈 콘텐츠
             af_svg = self._try_autofigure_svg()
             if af_svg:
                 return af_svg
-            return self.generate_algorithm_svg(
-                section.content.get('papers', []),
-                visualization_data=section.content.get('visualization_data'),
-            )
+            return ''
         elif isinstance(section.content, dict) and section.content.get('type') == 'svg_bar_chart':
-            return self._generate_quantitative_chart(
-                section.content.get('visualization_data'),
-            )
+            return ''
         elif isinstance(section.content, dict):
             return self.generate_comparison_table(section.content)
         elif isinstance(section.content, list):
