@@ -104,6 +104,18 @@ class PosterContentAgent:
 
         # 논문별 핵심 구조 추출
         paper_analyses = self._extract_paper_analyses(report_content)
+
+        # 방법론이 비어있고 paper_analyses가 있으면, 논문별 방법론을 종합
+        if not methodology and paper_analyses:
+            method_parts = []
+            for pa in paper_analyses[:6]:
+                m = (pa.get('methodology') or '').strip()
+                t = (pa.get('title') or '').strip()[:60]
+                if m:
+                    method_parts.append(f"**{t}**: {m[:300]}")
+            if method_parts:
+                methodology = '\n'.join(method_parts)[:1500]
+
         # 비교 분석 테이블 추출
         comparison_tables = self._extract_comparison_tables(report_content)
         # 비교 데이터 (테이블 파싱 포함)
@@ -285,45 +297,53 @@ class PosterContentAgent:
         }
 
     def _extract_paper_analyses(self, report_content: str) -> List[Dict[str, Any]]:
-        """
-        리포트에서 논문별 핵심 구조 분석 데이터 추출
+        """리포트에서 논문별 핵심 구조 분석 데이터 추출.
 
-        '개별 논문 심층 분석' 섹션 (보통 ## 3.)의 ### 3.N 하위 섹션에서
-        각 논문의 제목, 핵심 방법론, 주요 기여, 실험 결과를 파싱
+        다양한 리포트 형식을 지원한다:
+        - ``## 2. 개별 논문 심층 분석`` + ``### 2.1 ...``
+        - ``## 3. 개별 논문 심층 분석`` + ``### 3.1 ...``
+        - ``### 논문 1: ...``
         """
         analyses = []
         lines = report_content.split('\n')
 
-        # 먼저 '개별 논문 심층 분석' 또는 '## 3.' 섹션의 범위를 찾음
+        # 논문 분석 섹션 범위 탐색 (키워드 확장)
         analysis_start = -1
         analysis_end = len(lines)
+        _section_kw = ['개별 논문', '심층 분석', '논문 분석', '논문별 분석',
+                        'Paper Analysis', 'Individual Paper']
 
         for i, line in enumerate(lines):
-            if line.startswith('## ') and ('개별 논문' in line or '심층 분석' in line or '논문 분석' in line):
+            if line.startswith('## ') and any(kw in line for kw in _section_kw):
                 analysis_start = i
                 continue
-            # 개별 논문 분석 섹션 이후의 다음 ## 섹션 (비교 분석 등)
             if analysis_start >= 0 and i > analysis_start and line.startswith('## '):
                 analysis_end = i
                 break
 
-        # '개별 논문 심층 분석' 섹션을 못 찾으면, ### 3.1, ### 3.2 패턴으로 직접 탐색
+        # 키워드로 못 찾으면, ### N.1 패턴 (N=아무 숫자)으로 직접 탐색
         if analysis_start < 0:
-            paper_section_pattern = re.compile(r'^###\s+3\.\d+\s+')
+            paper_section_pattern = re.compile(r'^###\s+\d+\.\d+\s+')
             for i, line in enumerate(lines):
                 if paper_section_pattern.match(line):
-                    analysis_start = i - 1
+                    analysis_start = max(0, i - 1)
                     break
             if analysis_start < 0:
                 return []
 
         current_paper = None
         current_field = None
-        current_text = []
+        current_text: List[str] = []
+
+        # ### N.M 패턴 (N=아무 숫자) 또는 ### 논문 N
+        _paper_header = re.compile(r'^###\s+(\d+\.\d+)\s+')
+        _paper_header_alt = re.compile(r'^###\s+논문\s*\d+')
 
         for line in lines[analysis_start:analysis_end]:
-            # 논문 섹션 헤더 감지: ### 3.1 ..., ### 3.2 ..., ### 논문 1: ...
-            if line.startswith('### ') and (re.match(r'###\s+3\.\d+', line) or re.match(r'###\s+논문\s*\d+', line)):
+            m = _paper_header.match(line)
+            is_paper_header = bool(m) or bool(_paper_header_alt.match(line))
+
+            if line.startswith('### ') and is_paper_header:
                 # 이전 논문 저장
                 if current_paper and self._has_paper_data(current_paper):
                     if current_field and current_text:
@@ -331,7 +351,6 @@ class PosterContentAgent:
                     analyses.append(current_paper)
 
                 title = line.replace('###', '').strip()
-                # 숫자 접두사 제거: "3.1 Title..." → "Title..."
                 title = re.sub(r'^\d+\.\d+\s+', '', title)
                 current_paper = {
                     'title': title[:120],
@@ -348,7 +367,6 @@ class PosterContentAgent:
             if current_paper is None:
                 continue
 
-            # 필드 감지 (이모지 또는 한글/영문 키워드)
             stripped = line.strip()
             new_field = self._detect_paper_field(stripped)
             if new_field:
@@ -358,7 +376,6 @@ class PosterContentAgent:
                 current_text = []
                 continue
 
-            # 내용 수집
             if current_field and stripped:
                 current_text.append(stripped)
 
