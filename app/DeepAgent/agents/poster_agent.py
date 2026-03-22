@@ -557,7 +557,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # 프롬프트 구성
             source_context = build_diagram_prompt(content, paper_analyses)
             caption = build_diagram_caption(content)
-            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:2]
+            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:1]
 
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []
@@ -582,10 +582,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if not tasks:
                     return []
 
-                # 60초 타임아웃 적용
+                # 90초 타임아웃 (단일 다이어그램 ~60초)
                 raw_results = await asyncio.wait_for(
                     asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=60,
+                    timeout=90,
                 )
 
                 results: List[Dict[str, Any]] = []
@@ -725,10 +725,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         try:
             import concurrent.futures
-            # Gemini 호출에 60초 타임아웃 적용
+            # Gemini 호출에 90초 타임아웃 적용
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(self.llm.generate_content, [prompt])
-                response = future.result(timeout=60)
+                response = future.result(timeout=90)
 
             poster_html = response.text
 
