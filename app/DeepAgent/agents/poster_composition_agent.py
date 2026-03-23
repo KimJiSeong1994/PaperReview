@@ -1343,11 +1343,14 @@ body {{
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
   overflow-wrap: break-word;
+  overflow-x: auto;       /* 좁은 뷰포트에서 가로 스크롤 */
 }}
 
-/* ── Poster shell ── */
+/* ── Poster shell — wide format, height grows with content ── */
 .poster {{
-  max-width: 1600px;
+  width: 100%;
+  min-width: 1200px;
+  max-width: 1800px;
   margin: 0 auto;
   background: var(--c-bg);
   border-radius: var(--radius-modal);
@@ -1449,6 +1452,7 @@ body {{
   grid-template-columns: 1fr 1fr;
   gap: var(--gap);
   padding: var(--gap);
+  min-height: 60vw;         /* 와이드 비율 유지 (4:3 ≈ 75vw, 여유있게) */
 }}
 
 /* ── Panel — flow-based grid item ── */
