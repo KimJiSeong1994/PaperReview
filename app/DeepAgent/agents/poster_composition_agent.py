@@ -952,9 +952,8 @@ table.comparison-table tr:nth-child(even) td {{
         figures = figures or []
         esc = self._esc
 
-        keywords_html = ' '.join(
-            f'<span style="background:#dbeafe;color:#1e40af;padding:4px 12px;'
-            f'border-radius:20px;font-size:0.85rem;margin:2px;">{esc(k)}</span>'
+        keywords_html = ''.join(
+            f'<span class="keyword">{esc(k)}</span>'
             for k in composition.keywords[:8]
         )
 
@@ -983,18 +982,15 @@ table.comparison-table tr:nth-child(even) td {{
                 # 텍스트를 단락으로 변환
                 text_html = self._text_to_html(sec.text_content)
 
-                cards.append(f'''<div style="background:white;border-radius:12px;padding:24px;
-                    box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid {color};">
-                    <h3 style="font-size:1.1rem;font-weight:700;color:{color};margin:0 0 12px;">{esc(sec.title)}</h3>
+                cards.append(f'''<div class="paper-card" style="border-left-color:{color};">
+                    <h3 style="color:{color};">{esc(sec.title)}</h3>
                     {text_html}
                     {fig_html}
                 </div>''')
 
             paper_cards_html = f'''<section style="margin-bottom:24px;">
-                <h2 style="font-size:1.4rem;font-weight:800;color:#1e293b;margin-bottom:16px;">논문별 분석</h2>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
-                    {''.join(cards)}
-                </div>
+                <h2 style="font-size:1.35rem;font-weight:800;color:#1e293b;margin-bottom:18px;">논문별 분석</h2>
+                <div class="paper-grid">{''.join(cards)}</div>
             </section>'''
 
         # Overview 섹션
@@ -1014,9 +1010,8 @@ table.comparison-table tr:nth-child(even) td {{
                     svg = visual_agent.generate_pipeline_diagram(steps)
                     fig_html = f'<div style="margin:12px 0;">{svg}<p style="font-size:0.8rem;color:#64748b;text-align:center;margin-top:6px;">연구 파이프라인 다이어그램</p></div>'
 
-            overview_html = f'''<section style="background:white;border-radius:12px;padding:24px;
-                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
-                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">연구 개요</h2>
+            overview_html = f'''<section class="section-card">
+                <h2>연구 개요</h2>
                 {self._text_to_html(overview_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1026,9 +1021,8 @@ table.comparison-table tr:nth-child(even) td {{
         comparison_html = ''
         if comp_sec and comp_sec.text_content.strip():
             fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in comp_sec.figures)
-            comparison_html = f'''<section style="background:white;border-radius:12px;padding:24px;
-                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
-                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">비교 분석</h2>
+            comparison_html = f'''<section class="section-card">
+                <h2>비교 분석</h2>
                 {self._markdown_table_to_html(comp_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1037,9 +1031,8 @@ table.comparison-table tr:nth-child(even) td {{
         find_sec = next((s for s in composition.sections if s.role == SectionRole.FINDINGS), None)
         findings_html = ''
         if find_sec:
-            findings_html = f'''<section style="background:white;border-radius:12px;padding:24px;
-                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
-                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">핵심 발견 및 기여</h2>
+            findings_html = f'''<section class="section-card">
+                <h2>핵심 발견 및 기여</h2>
                 {self._text_to_html(find_sec.text_content)}
             </section>'''
 
@@ -1048,9 +1041,8 @@ table.comparison-table tr:nth-child(even) td {{
         conclusion_html = ''
         if conc_sec and conc_sec.text_content.strip():
             fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in conc_sec.figures)
-            conclusion_html = f'''<section style="background:white;border-radius:12px;padding:24px;
-                box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:24px;">
-                <h2 style="font-size:1.3rem;font-weight:700;color:#2563eb;margin:0 0 12px;">결론</h2>
+            conclusion_html = f'''<section class="section-card">
+                <h2>결론</h2>
                 {self._text_to_html(conc_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1061,18 +1053,162 @@ table.comparison-table tr:nth-child(even) td {{
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{esc(composition.title)} - Academic Poster</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 <style>
-body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margin:0; padding:20px; color:#334155; }}
-.poster {{ max-width:1800px; margin:0 auto; background:#f8fafc; padding:40px; box-shadow:0 10px 25px rgba(0,0,0,0.1); }}
+:root {{
+  --font-main: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --c-primary: #2563eb;
+  --c-primary-light: #dbeafe;
+  --c-text: #1e293b;
+  --c-text-secondary: #475569;
+  --c-text-muted: #64748b;
+  --c-bg: #f8fafc;
+  --c-card: #ffffff;
+  --c-border: #e2e8f0;
+  --radius: 14px;
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+}}
+*,*::before,*::after {{ box-sizing:border-box; }}
+body {{
+  font-family: var(--font-main);
+  background: #e2e8f0;
+  margin: 0; padding: 24px;
+  color: var(--c-text);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}}
+.poster {{
+  max-width: 1800px; margin: 0 auto;
+  background: var(--c-bg);
+  padding: 48px; border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+}}
+/* ── 헤더 ── */
+.poster-header {{
+  border-bottom: 3px solid var(--c-primary);
+  padding-bottom: 24px; margin-bottom: 32px;
+}}
+.poster-header h1 {{
+  font-size: 2rem; font-weight: 800;
+  color: var(--c-primary); margin: 0;
+  letter-spacing: -0.02em; line-height: 1.3;
+}}
+.poster-header .subtitle {{
+  font-size: 1.1rem; font-weight: 400;
+  color: var(--c-text-secondary); margin: 8px 0 0;
+}}
+.keyword-bar {{ margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }}
+.keyword {{
+  background: var(--c-primary-light); color: #1e40af;
+  padding: 4px 14px; border-radius: 20px;
+  font-size: 0.82rem; font-weight: 500;
+}}
+/* ── 섹션 카드 ── */
+.section-card {{
+  background: var(--c-card);
+  border-radius: var(--radius);
+  padding: 28px; margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--c-border);
+}}
+.section-card h2 {{
+  font-size: 1.25rem; font-weight: 700;
+  color: var(--c-primary); margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--c-primary-light);
+}}
+/* ── 논문 카드 ── */
+.paper-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+}}
+.paper-card {{
+  background: var(--c-card);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--c-border);
+  border-left-width: 4px;
+  transition: box-shadow 0.15s;
+}}
+.paper-card:hover {{ box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+.paper-card h3 {{
+  font-size: 1.05rem; font-weight: 700;
+  margin: 0 0 14px; line-height: 1.4;
+}}
+/* ── 타이포그래피 ── */
+.section-card h4, .paper-card h4 {{
+  font-size: 0.92rem; font-weight: 700;
+  color: var(--c-text); margin: 16px 0 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--c-primary-light);
+}}
+.section-card p, .paper-card p {{
+  font-size: 0.9rem; line-height: 1.75;
+  color: var(--c-text-secondary); margin: 6px 0;
+}}
+.section-card strong, .paper-card strong {{
+  font-weight: 600; color: var(--c-text);
+}}
+.section-card ul, .paper-card ul {{
+  list-style: none; padding-left: 0; margin: 10px 0;
+}}
+.section-card li, .paper-card li {{
+  position: relative; padding: 5px 0 5px 18px;
+  font-size: 0.9rem; line-height: 1.65;
+  color: var(--c-text-secondary);
+}}
+.section-card li::before, .paper-card li::before {{
+  content: ''; position: absolute;
+  left: 0; top: 12px;
+  width: 6px; height: 6px;
+  background: var(--c-primary); border-radius: 50%;
+}}
+/* ── 테이블 ── */
+.section-card table {{
+  width: 100%; border-collapse: collapse;
+  font-size: 0.85rem; margin: 14px 0;
+}}
+.section-card th {{
+  padding: 10px 14px; text-align: left;
+  font-weight: 600; color: var(--c-text);
+  border-bottom: 2px solid var(--c-primary-light);
+  background: #f1f5f9;
+}}
+.section-card td {{
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--c-border);
+  color: var(--c-text-secondary);
+}}
+.section-card tr:hover td {{ background: #f8fafc; }}
+/* ── Figure ── */
+.section-card figure, .paper-card figure {{
+  margin: 14px 0; text-align: center;
+}}
+.section-card figcaption, .paper-card figcaption {{
+  font-size: 0.78rem; color: var(--c-text-muted);
+  margin-top: 8px; font-style: italic;
+}}
+.section-card img, .paper-card img {{
+  max-width: 100%; height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+}}
 </style>
 </head>
 <body>
 <div class="poster">
-  <header style="border-bottom:4px solid #2563eb;padding-bottom:20px;margin-bottom:30px;">
-    <h1 style="font-size:2.2rem;font-weight:900;color:#2563eb;margin:0;">{esc(composition.title)}</h1>
-    <p style="font-size:1.2rem;color:#475569;margin:8px 0;">{esc(composition.subtitle)}</p>
-    <div style="margin-top:10px;">{keywords_html}</div>
+  <header class="poster-header">
+    <h1>{esc(composition.title)}</h1>
+    <p class="subtitle">{esc(composition.subtitle)}</p>
+    <div class="keyword-bar">{keywords_html}</div>
   </header>
   {overview_html}
   {paper_cards_html}
@@ -1109,7 +1245,7 @@ body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margi
         return ''
 
     def _text_to_html(self, text: str) -> str:
-        """마크다운 텍스트를 간단한 HTML로 변환한다."""
+        """마크다운 텍스트를 HTML로 변환한다 (CSS 클래스 기반)."""
         import re
         lines = text.strip().split('\n')
         parts = []
@@ -1118,14 +1254,15 @@ body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margi
             if not stripped:
                 continue
             if stripped.startswith('- ') or stripped.startswith('* '):
-                parts.append(f'<li style="margin:4px 0;padding-left:8px;">{self._esc(stripped[2:])}</li>')
+                item = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', stripped[2:])
+                parts.append(f'<li>{item}</li>')
             elif stripped.startswith('**') and stripped.endswith('**'):
-                parts.append(f'<h4 style="font-size:1rem;font-weight:700;color:#1e293b;margin:10px 0 4px;">{self._esc(stripped.strip("*"))}</h4>')
+                parts.append(f'<h4>{self._esc(stripped.strip("*"))}</h4>')
             elif stripped.startswith('**'):
                 clean = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', stripped)
-                parts.append(f'<p style="margin:4px 0;line-height:1.6;">{clean}</p>')
+                parts.append(f'<p>{clean}</p>')
             else:
-                parts.append(f'<p style="margin:4px 0;line-height:1.6;">{self._esc(stripped)}</p>')
+                parts.append(f'<p>{self._esc(stripped)}</p>')
 
         # 연속 li를 ul로 묶기
         result = []
@@ -1133,7 +1270,7 @@ body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margi
         for p in parts:
             if p.startswith('<li'):
                 if not in_list:
-                    result.append('<ul style="list-style:disc;padding-left:20px;margin:8px 0;">')
+                    result.append('<ul>')
                     in_list = True
                 result.append(p)
             else:
@@ -1182,12 +1319,12 @@ body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:#e2e8f0; margi
             return ''
         header = rows[0]
         body = rows[1:]
-        th = ''.join(f'<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #cbd5e1;font-weight:600;color:#1e293b;">{h}</th>' for h in header)
+        th = ''.join(f'<th>{h}</th>' for h in header)
         trs = []
         for row in body:
-            tds = ''.join(f'<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">{c}</td>' for c in row)
+            tds = ''.join(f'<td>{c}</td>' for c in row)
             trs.append(f'<tr>{tds}</tr>')
-        return f'''<table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin:12px 0;">
+        return f'''<table>
             <thead><tr>{th}</tr></thead>
             <tbody>{''.join(trs)}</tbody>
         </table>'''
