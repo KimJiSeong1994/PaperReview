@@ -934,6 +934,137 @@ table.comparison-table tr:nth-child(even) td {{
             f"{tables_text}"
         )
 
+    # ── Paper2Poster Binary-Tree 레이아웃 ─────────────────────────────────
+
+    def _compute_panel_layout(
+        self,
+        composition: PosterComposition,
+    ) -> List[Dict[str, Any]]:
+        """Paper2Poster 논문의 binary-tree 분할 알고리즘으로 패널 레이아웃을 계산한다.
+
+        각 섹션(HEADER 제외)에 대해 text proportion(tp)과 figure proportion(gp)을
+        산출하고, 선형 모델로 size proportion(sp)과 aspect ratio(rp)를 추론한 뒤,
+        재귀적 이진 분할로 (x, y, w, h) 좌표를 결정한다.
+
+        Args:
+            composition: design()이 반환한 포스터 구성.
+
+        Returns:
+            패널 레이아웃 리스트. 각 원소:
+            ``{"section_index": int, "x": float, "y": float, "w": float, "h": float}``
+            좌표는 콘텐츠 영역 내 퍼센트(0-100).
+        """
+        sections = [
+            (i, s) for i, s in enumerate(composition.sections)
+            if s.role != SectionRole.HEADER
+        ]
+        if not sections:
+            return []
+
+        # tp, gp 계산
+        total_text = sum(len(s.text_content) for _, s in sections) or 1
+        total_figs = sum(len(s.figures) for _, s in sections) or 1
+
+        panels: List[Dict[str, Any]] = []
+        for idx, sec in sections:
+            tp = len(sec.text_content) / total_text
+            gp = len(sec.figures) / total_figs
+            sp = max(0.6 * tp + 0.3 * gp + 0.05, 0.08)
+            rp = max(0.4 * tp + 0.5 * gp + 1.0, 0.5)
+            panels.append({
+                "index": idx,
+                "sp": sp,
+                "rp": rp,
+                "section": sec,
+            })
+
+        # binary tree 분할 (콘텐츠 영역 전체 = 0,0,100,100)
+        _, layout = self._binary_tree_split(panels, 0.0, 0.0, 100.0, 100.0)
+
+        logger.debug(
+            "Binary-tree 레이아웃 계산 완료: %d panels",
+            len(layout),
+        )
+        return layout
+
+    def _binary_tree_split(
+        self,
+        panels: List[Dict[str, Any]],
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+    ) -> tuple:
+        """패널 리스트를 재귀적으로 이진 분할하여 좌표를 결정한다.
+
+        Paper2Poster의 핵심 알고리즘: N개 패널을 (1..N-1)로 분할하고,
+        수평(상/하) 및 수직(좌/우) 분할을 모두 시도하여
+        aspect-ratio deviation loss가 최소인 분할을 선택한다.
+
+        Args:
+            panels: 분할 대상 패널 리스트.
+            x: 현재 영역 좌상단 X (퍼센트).
+            y: 현재 영역 좌상단 Y (퍼센트).
+            w: 현재 영역 너비 (퍼센트).
+            h: 현재 영역 높이 (퍼센트).
+
+        Returns:
+            (loss, layout) 튜플. layout은 각 패널의 좌표 딕셔너리 리스트.
+        """
+        if len(panels) == 1:
+            actual_rp = w / h if h > 0 else 1.0
+            target_rp = panels[0]["rp"]
+            loss = abs(actual_rp - target_rp)
+            return loss, [{
+                "section_index": panels[0]["index"],
+                "x": x, "y": y, "w": w, "h": h,
+            }]
+
+        best_loss = float('inf')
+        best_layout: List[Dict[str, Any]] = []
+        total_sp = sum(p["sp"] for p in panels)
+
+        for i in range(1, len(panels)):
+            left, right = panels[:i], panels[i:]
+            ratio = sum(p["sp"] for p in left) / total_sp if total_sp > 0 else 0.5
+
+            # 수평 분할 (상/하)
+            h_top = ratio * h
+            if 0.15 * h < h_top < 0.85 * h:
+                l1, a1 = self._binary_tree_split(left, x, y, w, h_top)
+                l2, a2 = self._binary_tree_split(right, x, y + h_top, w, h - h_top)
+                loss = l1 + l2
+                if loss < best_loss:
+                    best_loss = loss
+                    best_layout = a1 + a2
+
+            # 수직 분할 (좌/우)
+            w_left = ratio * w
+            if 0.15 * w < w_left < 0.85 * w:
+                l1, a1 = self._binary_tree_split(left, x, y, w_left, h)
+                l2, a2 = self._binary_tree_split(right, x + w_left, y, w - w_left, h)
+                loss = l1 + l2
+                if loss < best_loss:
+                    best_loss = loss
+                    best_layout = a1 + a2
+
+        if not best_layout:
+            # Fallback: 균등 수평 분할
+            each_h = h / len(panels)
+            best_layout = [
+                {
+                    "section_index": p["index"],
+                    "x": x,
+                    "y": y + i * each_h,
+                    "w": w,
+                    "h": each_h,
+                }
+                for i, p in enumerate(panels)
+            ]
+            best_loss = 0.0
+
+        return best_loss, best_layout
+
     # ── Gemini 없이 자체 HTML 렌더링 ──────────────────────────────────────
 
     def render_html(
@@ -957,95 +1088,177 @@ table.comparison-table tr:nth-child(even) td {{
             for k in composition.keywords[:8]
         )
 
-        # 논문 카드 HTML
+        # ── Binary-tree 레이아웃 계산 ─────────────────────────────────
+        layout = self._compute_panel_layout(composition)
+
+        # 섹션 인덱스 → 레이아웃 좌표 매핑
+        layout_map: Dict[int, Dict[str, float]] = {
+            item["section_index"]: item for item in layout
+        }
+
+        # 섹션 번호 부여 (HEADER 제외, 순서대로)
+        section_numbers: Dict[int, int] = {}
+        num = 1
+        for idx, sec in enumerate(composition.sections):
+            if sec.role != SectionRole.HEADER:
+                section_numbers[idx] = num
+                num += 1
+
+        # 섹션 역할 → 제목 매핑
+        _role_titles = {
+            SectionRole.OVERVIEW: "연구 개요",
+            SectionRole.PAPER_CARD: None,  # 논문 카드는 개별 제목 사용
+            SectionRole.COMPARISON: "비교 분석",
+            SectionRole.FINDINGS: "핵심 발견 및 기여",
+            SectionRole.CONCLUSION: "결론",
+        }
+
+        # ── 패널 HTML 생성 ────────────────────────────────────────────
         visual_agent = PosterVisualAgent()
-        paper_cards_html = ''
-        paper_sections = [s for s in composition.sections if s.role == SectionRole.PAPER_CARD]
-        if paper_sections:
-            cards = []
-            for sec in paper_sections:
-                color = sec.color_code or '#2563eb'
+        gap = 0.8  # 패널 간 갭 (%)
 
-                # figure 삽입 (외부 서비스 생성 figure)
-                fig_html = ''
-                for fp in sec.figures:
-                    fig_html += self._render_figure_html(fp, autofigure_svgs, figures)
+        # 논문 카드 그룹 처리: 여러 PAPER_CARD를 하나의 패널 안에 서브그리드로 배치
+        paper_card_indices = [
+            idx for idx, sec in enumerate(composition.sections)
+            if sec.role == SectionRole.PAPER_CARD
+        ]
+        # 첫 번째 PAPER_CARD의 레이아웃을 그룹 대표로 사용하되,
+        # 모든 PAPER_CARD 레이아웃 좌표를 병합하여 바운딩 박스를 구한다.
+        paper_group_bbox: Optional[Dict[str, float]] = None
+        if paper_card_indices:
+            coords = [layout_map[i] for i in paper_card_indices if i in layout_map]
+            if coords:
+                min_x = min(c["x"] for c in coords)
+                min_y = min(c["y"] for c in coords)
+                max_x = max(c["x"] + c["w"] for c in coords)
+                max_y = max(c["y"] + c["h"] for c in coords)
+                paper_group_bbox = {
+                    "x": min_x, "y": min_y,
+                    "w": max_x - min_x, "h": max_y - min_y,
+                }
 
-                # figure가 없으면 방법론 텍스트로부터 데이터 기반 SVG 생성
-                if not fig_html and sec.text_content:
-                    method_text = sec.text_content.split('**주요 기여**')[0] if '**주요 기여**' in sec.text_content else sec.text_content[:600]
-                    steps = visual_agent._parse_methodology_steps(method_text)
-                    if steps:
-                        svg = visual_agent.generate_pipeline_diagram(steps)
-                        fig_html = f'<div style="margin:12px 0;">{svg}</div>'
+        panels_html = ''
 
-                # 텍스트를 단락으로 변환
-                text_html = self._text_to_html(sec.text_content)
+        # 이미 그룹 렌더링 한 PAPER_CARD 인덱스 추적
+        paper_cards_rendered = False
 
-                cards.append(f'''<div class="paper-card" style="border-left-color:{color};">
-                    <h3 style="color:{color};">{esc(sec.title)}</h3>
-                    {text_html}
-                    {fig_html}
-                </div>''')
+        for idx, sec in enumerate(composition.sections):
+            if sec.role == SectionRole.HEADER:
+                continue  # 헤더는 별도 영역
 
-            paper_cards_html = f'''<section class="section-card span-full">
-                <h2 class="section-heading"><span class="section-num">2</span>논문별 분석</h2>
-                <div class="paper-grid">{''.join(cards)}</div>
-            </section>'''
+            if idx not in layout_map:
+                continue
 
-        # Overview 섹션
-        overview_sec = next((s for s in composition.sections if s.role == SectionRole.OVERVIEW), None)
-        overview_html = ''
-        if overview_sec:
-            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in overview_sec.figures)
+            # ── PAPER_CARD 그룹 렌더링 ────────────────────────────
+            if sec.role == SectionRole.PAPER_CARD:
+                if paper_cards_rendered:
+                    continue  # 이미 그룹으로 렌더링 완료
+                paper_cards_rendered = True
 
-            # figure가 없으면 전체 방법론에서 파이프라인 SVG 생성
-            if not fig_html:
+                if paper_group_bbox is None:
+                    continue
+
+                bx = paper_group_bbox["x"] + gap / 2
+                by = paper_group_bbox["y"] + gap / 2
+                bw = paper_group_bbox["w"] - gap
+                bh = paper_group_bbox["h"] - gap
+
+                # 개별 논문 카드 HTML 목록
+                paper_sections = [
+                    composition.sections[i] for i in paper_card_indices
+                ]
+                cards = []
+                for psec in paper_sections:
+                    color = psec.color_code or '#2563eb'
+
+                    fig_html = ''
+                    for fp in psec.figures:
+                        fig_html += self._render_figure_html(
+                            fp, autofigure_svgs, figures,
+                        )
+                    if not fig_html and psec.text_content:
+                        method_text = (
+                            psec.text_content.split('**주요 기여**')[0]
+                            if '**주요 기여**' in psec.text_content
+                            else psec.text_content[:600]
+                        )
+                        steps = visual_agent._parse_methodology_steps(method_text)
+                        if steps:
+                            svg = visual_agent.generate_pipeline_diagram(steps)
+                            fig_html = f'<div style="margin:12px 0;">{svg}</div>'
+
+                    text_html = self._text_to_html(psec.text_content)
+                    cards.append(
+                        f'<div class="paper-card" style="border-left-color:{color};">'
+                        f'<h3 style="color:{color};">{esc(psec.title)}</h3>'
+                        f'{text_html}'
+                        f'{fig_html}'
+                        f'</div>'
+                    )
+
+                sec_num = section_numbers.get(paper_card_indices[0], 2)
+                panels_html += (
+                    f'<div class="panel" style="'
+                    f'left:{bx:.2f}%;top:{by:.2f}%;'
+                    f'width:{bw:.2f}%;height:{bh:.2f}%;">'
+                    f'<div class="panel-inner section-card">'
+                    f'<h2 class="section-heading">'
+                    f'<span class="section-num">{sec_num}</span>'
+                    f'논문별 분석</h2>'
+                    f'<div class="paper-grid">{"".join(cards)}</div>'
+                    f'</div></div>'
+                )
+                continue
+
+            # ── 일반 섹션 (OVERVIEW, COMPARISON, FINDINGS, CONCLUSION) ──
+            coords = layout_map[idx]
+            px = coords["x"] + gap / 2
+            py = coords["y"] + gap / 2
+            pw = coords["w"] - gap
+            ph = coords["h"] - gap
+
+            sec_num = section_numbers.get(idx, 1)
+            heading_title = _role_titles.get(sec.role, sec.title) or sec.title
+
+            # figure HTML
+            fig_html = ''.join(
+                self._render_figure_html(fp, autofigure_svgs, figures)
+                for fp in sec.figures
+            )
+
+            # 섹션 역할별 특수 처리
+            if sec.role == SectionRole.OVERVIEW and not fig_html:
                 methodology = getattr(composition, '_methodology_text', '') or ''
-                # composition에 methodology가 없으면 overview 텍스트에서 추출
                 if not methodology:
-                    methodology = overview_sec.text_content
+                    methodology = sec.text_content
                 steps = visual_agent._parse_methodology_steps(methodology)
                 if steps:
                     svg = visual_agent.generate_pipeline_diagram(steps)
-                    fig_html = f'<div style="margin:12px 0;">{svg}<p style="font-size:0.8rem;color:#64748b;text-align:center;margin-top:6px;">연구 파이프라인 다이어그램</p></div>'
+                    fig_html = (
+                        f'<div style="margin:12px 0;">{svg}'
+                        f'<p style="font-size:0.8rem;color:#64748b;'
+                        f'text-align:center;margin-top:6px;">'
+                        f'연구 파이프라인 다이어그램</p></div>'
+                    )
 
-            overview_html = f'''<section class="section-card col-left">
-                <h2 class="section-heading"><span class="section-num">1</span>연구 개요</h2>
-                {self._text_to_html(overview_sec.text_content)}
-                {fig_html}
-            </section>'''
+            # 텍스트 콘텐츠 렌더링
+            if sec.role == SectionRole.COMPARISON:
+                content_html = self._markdown_table_to_html(sec.text_content)
+            else:
+                content_html = self._text_to_html(sec.text_content)
 
-        # Comparison 섹션
-        comp_sec = next((s for s in composition.sections if s.role == SectionRole.COMPARISON), None)
-        comparison_html = ''
-        if comp_sec and comp_sec.text_content.strip():
-            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in comp_sec.figures)
-            comparison_html = f'''<section class="section-card span-full">
-                <h2 class="section-heading"><span class="section-num">3</span>비교 분석</h2>
-                {self._markdown_table_to_html(comp_sec.text_content)}
-                {fig_html}
-            </section>'''
-
-        # Findings 섹션
-        find_sec = next((s for s in composition.sections if s.role == SectionRole.FINDINGS), None)
-        findings_html = ''
-        if find_sec:
-            findings_html = f'''<section class="section-card">
-                <h2 class="section-heading"><span class="section-num">4</span>핵심 발견 및 기여</h2>
-                {self._text_to_html(find_sec.text_content)}
-            </section>'''
-
-        # Conclusion 섹션
-        conc_sec = next((s for s in composition.sections if s.role == SectionRole.CONCLUSION), None)
-        conclusion_html = ''
-        if conc_sec and conc_sec.text_content.strip():
-            fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in conc_sec.figures)
-            conclusion_html = f'''<section class="section-card">
-                <h2 class="section-heading"><span class="section-num">5</span>결론</h2>
-                {self._text_to_html(conc_sec.text_content)}
-                {fig_html}
-            </section>'''
+            panels_html += (
+                f'<div class="panel" style="'
+                f'left:{px:.2f}%;top:{py:.2f}%;'
+                f'width:{pw:.2f}%;height:{ph:.2f}%;">'
+                f'<div class="panel-inner section-card">'
+                f'<h2 class="section-heading">'
+                f'<span class="section-num">{sec_num}</span>'
+                f'{esc(heading_title)}</h2>'
+                f'{content_html}'
+                f'{fig_html}'
+                f'</div></div>'
+            )
 
         return f'''<!DOCTYPE html>
 <html lang="ko">
@@ -1200,29 +1413,25 @@ body {{
 }}
 
 /* ================================================================
-   CONTENT AREA — 3-column CSS Grid
+   CONTENT AREA — Paper2Poster Binary-Tree Absolute Layout
    ================================================================ */
 .poster-content {{
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  grid-template-rows: 1fr auto auto;
-  gap: var(--gap);
-  padding: var(--gap) calc(var(--gap) * 1.25);
+  position: relative;
   background: var(--c-bg);
   overflow: hidden;
 }}
 
-/* ── Grid placement helpers ── */
-.col-left  {{ grid-column: 1; }}
-.col-right {{ grid-column: 2; }}
-.span-full {{ grid-column: 1 / -1; }}
-
-/* Section 2 (paper cards) fills right column, rows 1-2 */
-.section-papers {{ grid-column: 2; grid-row: 1 / 3; }}
-/* Section 4+5 (findings + conclusion) share a row on the left */
-.section-findings    {{ grid-column: 1; }}
-.section-conclusion  {{ grid-column: 1; }}
+/* ── Panel — absolutely positioned by binary-tree algorithm ── */
+.panel {{
+  position: absolute;
+  overflow: hidden;
+}}
+.panel-inner {{
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}}
 
 /* ================================================================
    SECTION CARD
@@ -1436,13 +1645,9 @@ body {{
     </div>
   </header>
 
-  <!-- ── CONTENT GRID ────────────────────────────────────────── -->
+  <!-- ── CONTENT — Binary-Tree Layout ──────────────────────────── -->
   <main class="poster-content">
-    {overview_html}
-    {paper_cards_html}
-    {comparison_html}
-    {findings_html}
-    {conclusion_html}
+    {panels_html}
   </main>
 
   <!-- ── FOOTER ──────────────────────────────────────────────── -->
