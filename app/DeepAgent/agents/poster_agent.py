@@ -387,9 +387,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # PaperBanana/AutoFigure figure가 있으면 composition 렌더링으로 즉시 생성 (빠름)
             # figure가 없고 Gemini가 있으면 Gemini로 SVG 포함 HTML 생성 시도
             if autofigure_svgs:
-                # figure가 이미 있으면 Gemini 불필요 — 즉시 렌더링
                 poster_html = self.composition_agent.render_html(
-                    composition, autofigure_svgs, figure_data,
+                    composition, autofigure_svgs, figure_data, content=content,
                 )
             elif self.llm:
                 layout = self.layout_agent.plan(content)
@@ -399,7 +398,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 )
             else:
                 poster_html = self.composition_agent.render_html(
-                    composition, autofigure_svgs, figure_data,
+                    composition, autofigure_svgs, figure_data, content=content,
                 )
 
             # Phase 4: Critic Loop (반복 비평 → 수정)
@@ -763,6 +762,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                          60, e)
             return self.composition_agent.render_html(
                 composition, autofigure_svgs or [], figures or [],
+                content=content,
             )
 
     def _generate_with_gemini(self, content, layout, report_content: str, num_papers: int,

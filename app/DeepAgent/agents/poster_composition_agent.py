@@ -961,22 +961,52 @@ table.comparison-table tr:nth-child(even) td {{
         if not sections:
             return []
 
-        # tp, gp 계산
-        total_text = sum(len(s.text_content) for _, s in sections) or 1
-        total_figs = sum(len(s.figures) for _, s in sections) or 1
+        # PAPER_CARD 그룹을 단일 가상 패널로 통합 (sp 폭주 방지)
+        paper_indices = [i for i, s in sections if s.role == SectionRole.PAPER_CARD]
+        non_paper = [(i, s) for i, s in sections if s.role != SectionRole.PAPER_CARD]
+        paper_sections_list = [(i, s) for i, s in sections if s.role == SectionRole.PAPER_CARD]
+
+        # tp, gp 계산 (PAPER_CARD는 합산하여 단일 패널로)
+        merged = non_paper[:]
+        if paper_sections_list:
+            # 가상 통합 섹션: 첫 번째 PAPER_CARD의 인덱스를 대표로 사용
+            merged.append((paper_indices[0], paper_sections_list[0][1]))
+
+        total_text = sum(len(s.text_content) for _, s in merged) or 1
+        total_figs = sum(len(s.figures) for _, s in merged) or 1
+
+        # PAPER_CARD 그룹의 텍스트를 합산하되, 다른 패널과 동일한 스케일로
+        paper_total_text = sum(len(s.text_content) for _, s in paper_sections_list)
+        paper_total_figs = sum(len(s.figures) for _, s in paper_sections_list)
+        total_text_with_papers = total_text - len(paper_sections_list[0][1].text_content) + paper_total_text if paper_sections_list else total_text
+        total_figs_with_papers = total_figs - len(paper_sections_list[0][1].figures) + paper_total_figs if paper_sections_list else total_figs
 
         panels: List[Dict[str, Any]] = []
-        for idx, sec in sections:
-            tp = len(sec.text_content) / total_text
-            gp = len(sec.figures) / total_figs
+        for idx, sec in non_paper:
+            tp = len(sec.text_content) / total_text_with_papers
+            gp = len(sec.figures) / total_figs_with_papers if total_figs_with_papers > 0 else 0
             sp = max(0.6 * tp + 0.3 * gp + 0.05, 0.08)
             rp = max(0.4 * tp + 0.5 * gp + 1.0, 0.5)
+            panels.append({"index": idx, "sp": sp, "rp": rp, "section": sec})
+
+        # PAPER_CARD 그룹을 단일 패널로 (첫 번째 인덱스를 대표)
+        if paper_sections_list:
+            tp = paper_total_text / total_text_with_papers
+            gp = paper_total_figs / total_figs_with_papers if total_figs_with_papers > 0 else 0
+            # 논문 카드 그룹은 넓고 낮은 비율 (rp > 1)
+            sp = max(0.6 * tp + 0.3 * gp + 0.05, 0.15)
+            rp = max(1.5, 0.4 * tp + 0.5 * gp + 1.5)
             panels.append({
-                "index": idx,
-                "sp": sp,
-                "rp": rp,
-                "section": sec,
+                "index": paper_indices[0],  # 대표 인덱스
+                "sp": sp, "rp": rp,
+                "section": paper_sections_list[0][1],
+                "_is_paper_group": True,
             })
+
+        # sp 정규화 (합=1)
+        total_sp = sum(p["sp"] for p in panels)
+        for p in panels:
+            p["sp"] = p["sp"] / total_sp
 
         # binary tree 분할 (콘텐츠 영역 전체 = 0,0,100,100)
         _, layout = self._binary_tree_split(panels, 0.0, 0.0, 100.0, 100.0)
@@ -1072,6 +1102,7 @@ table.comparison-table tr:nth-child(even) td {{
         composition: PosterComposition,
         autofigure_svgs: Optional[List[Dict[str, Any]]] = None,
         figures: Optional[List[Dict[str, Any]]] = None,
+        content: Optional[Any] = None,
     ) -> str:
         """Gemini 없이 PosterComposition을 완전한 HTML로 렌더링한다.
 
@@ -1096,11 +1127,20 @@ table.comparison-table tr:nth-child(even) td {{
             item["section_index"]: item for item in layout
         }
 
-        # 섹션 번호 부여 (HEADER 제외, 순서대로)
+        # 섹션 번호 부여 (PAPER_CARD 그룹은 1개 번호)
         section_numbers: Dict[int, int] = {}
         num = 1
+        paper_num_assigned = False
         for idx, sec in enumerate(composition.sections):
-            if sec.role != SectionRole.HEADER:
+            if sec.role == SectionRole.HEADER:
+                continue
+            if sec.role == SectionRole.PAPER_CARD:
+                if not paper_num_assigned:
+                    section_numbers[idx] = num
+                    num += 1
+                    paper_num_assigned = True
+                # 나머지 PAPER_CARD는 그룹 번호와 동일
+            else:
                 section_numbers[idx] = num
                 num += 1
 
@@ -1228,9 +1268,10 @@ table.comparison-table tr:nth-child(even) td {{
 
             # 섹션 역할별 특수 처리
             if sec.role == SectionRole.OVERVIEW and not fig_html:
-                methodology = getattr(composition, '_methodology_text', '') or ''
+                # 방법론 필드만 사용 (배경 텍스트 파싱 방지)
+                methodology = getattr(content, 'methodology', '') if content else ''
                 if not methodology:
-                    methodology = sec.text_content
+                    methodology = ''
                 steps = visual_agent._parse_methodology_steps(methodology)
                 if steps:
                     svg = visual_agent.generate_pipeline_diagram(steps)

@@ -458,11 +458,14 @@ class PosterVisualAgent:
         svg += '\n        </svg>'
         return svg
 
+    _svg_counter: int = 0
+
     def generate_pipeline_diagram(self, steps: List[Dict[str, str]]) -> str:
         """
         Pipeline/Flowchart Diagram (학회 포스터 수준) SVG 생성
 
         그라데이션, 그림자, 단계 번호 아이콘을 포함한 고품질 SVG.
+        SVG ID는 호출마다 고유 접미사를 부여하여 충돌을 방지한다.
 
         Args:
             steps: 파이프라인 단계 리스트 [{'title': '...', 'desc': '...'}, ...]
@@ -470,6 +473,8 @@ class PosterVisualAgent:
         Returns:
             SVG 문자열
         """
+        PosterVisualAgent._svg_counter += 1
+        uid = PosterVisualAgent._svg_counter
         if not steps:
             steps = [
                 {'title': 'Step 1', 'desc': 'Data Input'},
@@ -494,12 +499,15 @@ class PosterVisualAgent:
             ('#e11d48', '#ffe4e6'), ('#4f46e5', '#e0e7ff'),
         ]
 
+        arrow_id = f'pipeArrow_{uid}'
+        shadow_id = f'pipeShadow_{uid}'
+
         svg = f'''<svg viewBox="0 0 {total_width} {box_height + 80}" style="background:white; border-radius:12px; width:100%;">
             <defs>
-                <marker id="pipeArrow" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+                <marker id="{arrow_id}" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
                     <path d="M0,0 L12,4 L0,8 L3,4 Z" fill="#94a3b8"/>
                 </marker>
-                <filter id="pipeShadow" x="-5%" y="-5%" width="110%" height="120%">
+                <filter id="{shadow_id}" x="-5%" y="-5%" width="110%" height="120%">
                     <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
                 </filter>
             </defs>'''
@@ -512,7 +520,7 @@ class PosterVisualAgent:
 
             svg += f'''
             <rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="12"
-                  fill="{bg_color}" stroke="{color}" stroke-width="2" filter="url(#pipeShadow)"/>
+                  fill="{bg_color}" stroke="{color}" stroke-width="2" filter="url(#{shadow_id})"/>
             <circle cx="{x + 18}" cy="{y + 20}" r="12" fill="{color}"/>
             <text x="{x + 18}" y="{y + 24}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">{i + 1}</text>
             <text x="{x + 36}" y="{y + 24}" font-size="12" font-weight="bold" fill="{color}">{title}</text>'''
@@ -537,7 +545,7 @@ class PosterVisualAgent:
                 ay = y + box_height / 2
                 svg += f'''
             <line x1="{ax1}" y1="{ay}" x2="{ax2}" y2="{ay}"
-                  stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#pipeArrow)"/>'''
+                  stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#{arrow_id})"/>'''
 
         svg += '\n        </svg>'
         return svg
