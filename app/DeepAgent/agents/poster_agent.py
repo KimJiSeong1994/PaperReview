@@ -383,15 +383,21 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 composition.total_figures,
             )
 
-            # Phase 3: Gemini를 사용한 포스터 생성
-            layout = self.layout_agent.plan(content)
-            if self.llm:
+            # Phase 3: 포스터 HTML 생성
+            # PaperBanana/AutoFigure figure가 있으면 composition 렌더링으로 즉시 생성 (빠름)
+            # figure가 없고 Gemini가 있으면 Gemini로 SVG 포함 HTML 생성 시도
+            if autofigure_svgs:
+                # figure가 이미 있으면 Gemini 불필요 — 즉시 렌더링
+                poster_html = self.composition_agent.render_html(
+                    composition, autofigure_svgs, figure_data,
+                )
+            elif self.llm:
+                layout = self.layout_agent.plan(content)
                 poster_html = self._generate_with_composition(
                     composition, content, layout, report_content, num_papers,
                     autofigure_svgs=autofigure_svgs, figures=figure_data,
                 )
             else:
-                # Gemini 사용 불가 시 Composition 기반 자체 렌더링
                 poster_html = self.composition_agent.render_html(
                     composition, autofigure_svgs, figure_data,
                 )
@@ -582,10 +588,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if not tasks:
                     return []
 
-                # 90초 타임아웃 (단일 다이어그램 ~60초)
+                # 120초 타임아웃 (단일 다이어그램 ~60-90초, 병렬 실행)
                 raw_results = await asyncio.wait_for(
                     asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=90,
+                    timeout=120,
                 )
 
                 results: List[Dict[str, Any]] = []
