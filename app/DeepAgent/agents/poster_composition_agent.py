@@ -1198,10 +1198,7 @@ table.comparison-table tr:nth-child(even) td {{
                 if paper_group_bbox is None:
                     continue
 
-                bx = paper_group_bbox["x"] + gap / 2
-                by = paper_group_bbox["y"] + gap / 2
                 bw = paper_group_bbox["w"] - gap
-                bh = paper_group_bbox["h"] - gap
 
                 # 개별 논문 카드 HTML 목록
                 paper_sections = [
@@ -1237,10 +1234,9 @@ table.comparison-table tr:nth-child(even) td {{
                     )
 
                 sec_num = section_numbers.get(paper_card_indices[0], 2)
+                span = ' span-full' if bw > 55 else ''
                 panels_html += (
-                    f'<div class="panel" style="'
-                    f'left:{bx:.2f}%;top:{by:.2f}%;'
-                    f'width:{bw:.2f}%;height:{bh:.2f}%;">'
+                    f'<div class="panel{span}">'
                     f'<div class="panel-inner section-card">'
                     f'<h2 class="section-heading">'
                     f'<span class="section-num">{sec_num}</span>'
@@ -1252,10 +1248,7 @@ table.comparison-table tr:nth-child(even) td {{
 
             # ── 일반 섹션 (OVERVIEW, COMPARISON, FINDINGS, CONCLUSION) ──
             coords = layout_map[idx]
-            px = coords["x"] + gap / 2
-            py = coords["y"] + gap / 2
-            pw = coords["w"] - gap
-            ph = coords["h"] - gap
+            pw = coords["w"]
 
             sec_num = section_numbers.get(idx, 1)
             heading_title = _role_titles.get(sec.role, sec.title) or sec.title
@@ -1268,7 +1261,6 @@ table.comparison-table tr:nth-child(even) td {{
 
             # 섹션 역할별 특수 처리
             if sec.role == SectionRole.OVERVIEW and not fig_html:
-                # 방법론 필드만 사용 (배경 텍스트 파싱 방지)
                 methodology = getattr(content, 'methodology', '') if content else ''
                 if not methodology:
                     methodology = ''
@@ -1282,16 +1274,14 @@ table.comparison-table tr:nth-child(even) td {{
                         f'연구 파이프라인 다이어그램</p></div>'
                     )
 
-            # 텍스트 콘텐츠 렌더링
             if sec.role == SectionRole.COMPARISON:
                 content_html = self._markdown_table_to_html(sec.text_content)
             else:
                 content_html = self._text_to_html(sec.text_content)
 
+            span = ' span-full' if pw > 55 else ''
             panels_html += (
-                f'<div class="panel" style="'
-                f'left:{px:.2f}%;top:{py:.2f}%;'
-                f'width:{pw:.2f}%;height:{ph:.2f}%;">'
+                f'<div class="panel{span}">'
                 f'<div class="panel-inner section-card">'
                 f'<h2 class="section-heading">'
                 f'<span class="section-num">{sec_num}</span>'
@@ -1355,16 +1345,13 @@ body {{
   overflow-wrap: break-word;
 }}
 
-/* ── Poster shell — 4:3 landscape ── */
+/* ── Poster shell ── */
 .poster {{
   max-width: 1600px;
   margin: 0 auto;
   background: var(--c-bg);
   border-radius: var(--radius-modal);
   box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-  overflow: hidden;
-  /* simulate physical poster proportions in browser */
-  aspect-ratio: 4 / 3;
   display: flex;
   flex-direction: column;
 }}
@@ -1457,21 +1444,22 @@ body {{
    CONTENT AREA — Paper2Poster Binary-Tree Absolute Layout
    ================================================================ */
 .poster-content {{
-  flex: 1;
-  position: relative;
   background: var(--c-bg);
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  padding: var(--gap);
 }}
 
-/* ── Panel — absolutely positioned by binary-tree algorithm ── */
+/* ── Panel — flow-based grid item ── */
 .panel {{
-  position: absolute;
-  overflow: hidden;
+  min-width: 0;
 }}
 .panel-inner {{
   width: 100%;
-  height: 100%;
-  overflow: auto;
+}}
+.panel.span-full {{
+  grid-column: 1 / -1;
 }}
 
 /* ================================================================
@@ -1482,7 +1470,6 @@ body {{
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
   padding: var(--pad-card);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }}
@@ -1521,8 +1508,6 @@ body {{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1rem;
-  flex: 1;
-  overflow: auto;
 }}
 .paper-card {{
   background: var(--c-card);
