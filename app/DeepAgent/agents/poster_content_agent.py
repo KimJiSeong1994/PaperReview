@@ -36,6 +36,8 @@ class ExtractedContent:
     comparison_tables: Optional[List[str]] = None
     # 시각화용 구조화 데이터 (파이프라인 단계, 정량 데이터, 논문별 결과)
     visualization_data: Optional[Dict[str, Any]] = None
+    # 참고문헌 리스트 (축약 인용)
+    references: Optional[List[str]] = None
 
     def __post_init__(self):
         if self.figures is None:
@@ -46,6 +48,8 @@ class ExtractedContent:
             self.comparison_tables = []
         if self.visualization_data is None:
             self.visualization_data = {}
+        if self.references is None:
+            self.references = []
 
 
 class PosterContentAgent:
@@ -98,12 +102,22 @@ class PosterContentAgent:
         methodology = self._extract_section(lines, ['방법론', 'Methodology', 'Method', 'Analysis'], max_length=1500)
         paper_titles = self._extract_paper_titles(lines)
         key_findings = self._extract_list_items(lines, ['핵심 발견', '주요 발견', 'Key Finding', 'Finding'])
-        conclusion = self._extract_section(lines, ['결론', 'Conclusion'])
+        conclusion = self._extract_section(lines, ['결론', 'Conclusion', '종합', '시사점'])
         keywords = self._extract_keywords(report_content)
         statistics = self._extract_statistics(report_content, num_papers)
 
+        # 참고문헌 추출
+        references = self._extract_references(report_content)
+
         # 논문별 핵심 구조 추출
         paper_analyses = self._extract_paper_analyses(report_content)
+
+        # 결론이 폴백이고 key_findings가 있으면 자동 결론 생성
+        _fallback_conclusion = "본 분석을 통해 해당 분야의 연구 동향을 파악하고"
+        if (not conclusion or _fallback_conclusion in conclusion) and key_findings:
+            conclusion = "본 체계적 문헌 고찰의 주요 결론: " + "; ".join(
+                f.strip().rstrip('.') for f in key_findings[:5]
+            ) + "."
 
         # 방법론이 비어있고 paper_analyses가 있으면, 논문별 방법론을 종합
         if not methodology and paper_analyses:
@@ -158,6 +172,7 @@ class PosterContentAgent:
             paper_analyses=paper_analyses,
             comparison_tables=comparison_tables,
             visualization_data=visualization_data,
+            references=references,
         )
 
     def _extract_title(self, lines: List[str]) -> str:
@@ -172,23 +187,40 @@ class PosterContentAgent:
         return f"체계적 문헌 고찰 및 심층 분석 ({num_papers}편 논문)"
 
     def _extract_section(self, lines: List[str], keywords: List[str], max_length: int = 1000) -> str:
-        """특정 섹션 추출"""
+        """특정 섹션 추출.
+
+        ``## 결론`` 같은 헤더를 감지한 뒤, 다음 동일/상위 레벨 ``##`` 헤더나
+        ``---`` 구분선을 만날 때까지 수집한다. 하위 ``###`` 헤더의 콘텐츠도
+        포함하여 결론/배경 등 복합 섹션을 완전히 추출한다.
+        """
         content = ""
         in_section = False
+        section_level = 0  # 감지된 섹션의 # 개수
 
         for i, line in enumerate(lines):
             # 섹션 시작 감지
-            if any(kw in line for kw in keywords) and (line.startswith('#') or line.startswith('**')):
+            if not in_section and any(kw in line for kw in keywords) and (line.startswith('#') or line.startswith('**')):
                 in_section = True
+                section_level = len(line) - len(line.lstrip('#'))
                 continue
 
-            # 섹션 종료 감지
-            if in_section and (line.startswith('#') or line.startswith('---')):
+            if not in_section:
+                continue
+
+            # 섹션 종료: 동일/상위 레벨 헤더 또는 구분선
+            if line.startswith('---'):
                 break
+            if line.startswith('#'):
+                cur_level = len(line) - len(line.lstrip('#'))
+                if cur_level <= section_level:
+                    break
+                # 하위 헤더(###)는 수집 대상 — 건너뛰되 내용은 계속 수집
+                continue
 
             # 내용 수집
-            if in_section and line.strip() and not line.startswith('**'):
-                content += line.strip() + " "
+            stripped = line.strip()
+            if stripped:
+                content += stripped + " "
 
         # 기본값 제공
         if not content:
@@ -408,6 +440,30 @@ class PosterContentAgent:
             paper.get('contributions') or
             paper.get('results')
         )
+
+    def _extract_references(self, report_content: str) -> List[str]:
+        """리포트 하단의 참고문헌 목록을 추출한다."""
+        refs: List[str] = []
+        lines = report_content.split('\n')
+        in_refs = False
+
+        for line in lines:
+            if line.startswith('#') and ('참고문헌' in line or 'Reference' in line):
+                in_refs = True
+                continue
+            if in_refs and line.startswith('#'):
+                break
+            if in_refs and line.startswith('---'):
+                break
+            if in_refs:
+                stripped = line.strip()
+                if stripped and re.match(r'^\d+\.?\s', stripped):
+                    # "1. Author..." 형태
+                    ref = re.sub(r'^\d+\.?\s*', '', stripped).strip()
+                    if len(ref) > 10:
+                        refs.append(ref[:200])
+
+        return refs[:20]
 
     def _extract_comparison_tables(self, report_content: str) -> List[str]:
         """
