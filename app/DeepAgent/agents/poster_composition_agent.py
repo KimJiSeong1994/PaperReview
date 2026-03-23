@@ -471,7 +471,14 @@ table.comparison-table tr:nth-child(even) td {{
 - <!DOCTYPE html>로 시작하는 완전한 HTML만 출력 (설명 텍스트, 코드블록 마커 제외)
 - <!-- EMBED_SVG_N --> 와 <!-- EMBED_FIGURE_N --> 플레이스홀더는 반드시 원문 그대로 포함
 - figure 플레이스홀더는 반드시 해당 논문/섹션 카드 내부에 위치해야 함
-- 별도 "추가 시각화" 또는 "Additional Visualizations" 섹션 생성 금지"""
+- 별도 "추가 시각화" 또는 "Additional Visualizations" 섹션 생성 금지
+
+## 절대 금지 사항
+- <img src="https://..."> 등 외부 URL 이미지 절대 사용 금지
+- Wikipedia, Google, arXiv 등 외부 서비스의 로고/아이콘/워터마크 삽입 금지
+- 이미지는 반드시 data:image/... base64 또는 인라인 SVG만 허용
+- 폰트 CDN 외에는 어떤 외부 URL도 참조 금지
+- 장식용 아이콘, 이모지 이미지, 클립아트 삽입 금지"""
 
     def inject_figures_by_composition(
         self,

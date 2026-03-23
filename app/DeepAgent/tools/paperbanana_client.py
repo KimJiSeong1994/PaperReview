@@ -299,6 +299,11 @@ def build_diagram_prompt(
 
     result = "\n\n".join(sections)
 
+    # 로고/외부 브랜드 생성 방지 지시
+    result += ("\n\nIMPORTANT: Use ONLY abstract geometric shapes, arrows, and text labels. "
+               "Do NOT include any logos, brand marks, icons, or watermarks of external services "
+               "(Wikipedia, Google, arXiv, etc.). No clipart or decorative images.")
+
     if len(result) > MAX_LENGTH:
         result = result[:MAX_LENGTH - 3] + "..."
 

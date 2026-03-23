@@ -418,6 +418,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if validation_score < 0.75:
                     poster_html = self._refine_poster(poster_html, validation.suggestions)
 
+            # 외부 이미지 URL 자동 제거 (Gemini가 삽입할 수 있는 외부 로고 방어)
+            poster_html = self._sanitize_external_images(poster_html)
+
             # 결과 반환
             result = {
                 "success": True,
@@ -1185,6 +1188,12 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
 .paper-card {{ background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }}
 ```
 
+## 절대 금지 사항
+- <img src="https://..."> 등 외부 URL 이미지 절대 사용 금지
+- Wikipedia, Google, arXiv 등 외부 서비스의 로고/아이콘 삽입 금지
+- 이미지는 반드시 인라인 SVG만 허용 (외부 URL, 클립아트, 이모지 이미지 금지)
+- 폰트 CDN 외에는 어떤 외부 URL도 참조 금지
+
 ## 출력
 <!DOCTYPE html>로 시작하는 완전한 HTML. 설명/코드블록 없이 HTML만."""
 
@@ -1475,6 +1484,25 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
     </div>
 </body>
 </html>'''
+
+    @staticmethod
+    def _sanitize_external_images(html: str) -> str:
+        """외부 URL 이미지 태그를 제거한다 (Gemini가 삽입한 로고/아이콘 방어).
+
+        허용: data:image/ base64, 인라인 SVG, 폰트 CDN
+        제거: <img src="https://..."> 형태의 외부 이미지
+        """
+        # <img src="https://..." ...> 또는 <img src="http://..." ...> 제거
+        sanitized = re.sub(
+            r'<img\s+[^>]*src\s*=\s*["\']https?://[^"\']*["\'][^>]*/?>',
+            '',
+            html,
+            flags=re.IGNORECASE,
+        )
+        removed = len(html) - len(sanitized)
+        if removed > 0:
+            logger.info("외부 이미지 URL %d자 제거됨", removed)
+        return sanitized
 
     def _save_poster(self, poster_html: str, output_dir: Path) -> str:
         """포스터 HTML 파일 저장"""
