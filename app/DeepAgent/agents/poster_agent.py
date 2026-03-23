@@ -566,51 +566,51 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # 논문별 다이어그램 (Gemini 이미지 API 2RPM 제한 → 최대 2개)
             paper_inputs = build_paper_diagram_inputs(paper_analyses)[:2]
 
+            async def _safe_generate(method_text: str, cap: str) -> Any:
+                """개별 다이어그램에 150초 타임아웃 적용. 실패 시 None 반환."""
+                try:
+                    return await asyncio.wait_for(
+                        self._paperbanana_client.generate_diagram(method_text, cap),
+                        timeout=150,
+                    )
+                except (asyncio.TimeoutError, Exception) as exc:
+                    logger.warning("PaperBanana 개별 타임아웃/실패: %s", exc)
+                    return None
+
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []
                 task_labels: List[str] = []
 
                 # 전체 방법론 다이어그램
                 if source_context.strip():
-                    tasks.append(
-                        self._paperbanana_client.generate_diagram(source_context, caption)
-                    )
+                    tasks.append(_safe_generate(source_context, caption))
                     task_labels.append("Overall Methodology")
 
                 # 논문별 다이어그램
                 for inp in paper_inputs:
-                    tasks.append(
-                        self._paperbanana_client.generate_diagram(
-                            inp["source_context"], inp["caption"]
-                        )
-                    )
+                    tasks.append(_safe_generate(inp["source_context"], inp["caption"]))
                     task_labels.append(inp["paper_title"])
 
                 if not tasks:
                     return []
 
-                # 150초 타임아웃 (단일 다이어그램 EC2에서 ~120초)
-                raw_results = await asyncio.wait_for(
-                    asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=150,
-                )
+                # 병렬 실행, 개별 타임아웃으로 성공한 것만 수집
+                raw_results = await asyncio.gather(*tasks)
 
                 results: List[Dict[str, Any]] = []
                 for label, result in zip(task_labels, raw_results):
-                    if isinstance(result, Exception):
-                        logger.warning("PaperBanana 다이어그램 생성 실패 (%s): %s", label, result)
+                    if result is None or not result.success or not result.image_base64:
                         continue
-                    if result.success and result.image_base64:
-                        img_html = (
-                            f'<img src="data:image/png;base64,{result.image_base64}" '
-                            f'style="max-width:100%; height:auto; border-radius:8px;" '
-                            f'alt="{label}" />'
-                        )
-                        results.append({
-                            "paper_title": label,
-                            "svg_content": img_html,
-                            "figure_png_b64": result.image_base64,
-                        })
+                    img_html = (
+                        f'<img src="data:image/png;base64,{result.image_base64}" '
+                        f'style="max-width:100%; height:auto; border-radius:8px;" '
+                        f'alt="{label}" />'
+                    )
+                    results.append({
+                        "paper_title": label,
+                        "svg_content": img_html,
+                        "figure_png_b64": result.image_base64,
+                    })
 
                 return results
 
