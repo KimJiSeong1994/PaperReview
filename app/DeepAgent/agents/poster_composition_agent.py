@@ -988,8 +988,8 @@ table.comparison-table tr:nth-child(even) td {{
                     {fig_html}
                 </div>''')
 
-            paper_cards_html = f'''<section style="margin-bottom:24px;">
-                <h2 style="font-size:1.35rem;font-weight:800;color:#1e293b;margin-bottom:18px;">논문별 분석</h2>
+            paper_cards_html = f'''<section class="section-card span-full">
+                <h2 class="section-heading"><span class="section-num">2</span>논문별 분석</h2>
                 <div class="paper-grid">{''.join(cards)}</div>
             </section>'''
 
@@ -1010,8 +1010,8 @@ table.comparison-table tr:nth-child(even) td {{
                     svg = visual_agent.generate_pipeline_diagram(steps)
                     fig_html = f'<div style="margin:12px 0;">{svg}<p style="font-size:0.8rem;color:#64748b;text-align:center;margin-top:6px;">연구 파이프라인 다이어그램</p></div>'
 
-            overview_html = f'''<section class="section-card">
-                <h2>연구 개요</h2>
+            overview_html = f'''<section class="section-card col-left">
+                <h2 class="section-heading"><span class="section-num">1</span>연구 개요</h2>
                 {self._text_to_html(overview_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1021,8 +1021,8 @@ table.comparison-table tr:nth-child(even) td {{
         comparison_html = ''
         if comp_sec and comp_sec.text_content.strip():
             fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in comp_sec.figures)
-            comparison_html = f'''<section class="section-card">
-                <h2>비교 분석</h2>
+            comparison_html = f'''<section class="section-card span-full">
+                <h2 class="section-heading"><span class="section-num">3</span>비교 분석</h2>
                 {self._markdown_table_to_html(comp_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1032,7 +1032,7 @@ table.comparison-table tr:nth-child(even) td {{
         findings_html = ''
         if find_sec:
             findings_html = f'''<section class="section-card">
-                <h2>핵심 발견 및 기여</h2>
+                <h2 class="section-heading"><span class="section-num">4</span>핵심 발견 및 기여</h2>
                 {self._text_to_html(find_sec.text_content)}
             </section>'''
 
@@ -1042,7 +1042,7 @@ table.comparison-table tr:nth-child(even) td {{
         if conc_sec and conc_sec.text_content.strip():
             fig_html = ''.join(self._render_figure_html(fp, autofigure_svgs, figures) for fp in conc_sec.figures)
             conclusion_html = f'''<section class="section-card">
-                <h2>결론</h2>
+                <h2 class="section-heading"><span class="section-num">5</span>결론</h2>
                 {self._text_to_html(conc_sec.text_content)}
                 {fig_html}
             </section>'''
@@ -1053,168 +1053,406 @@ table.comparison-table tr:nth-child(even) td {{
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{esc(composition.title)} - Academic Poster</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 <style>
+/* ================================================================
+   NeurIPS / ICML / CVPR — Academic Poster Template
+   Aspect ratio: 4:3 landscape (48" × 36" equivalent)
+   ================================================================ */
 :root {{
   --font-main: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
                'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --c-primary: #2563eb;
-  --c-primary-light: #dbeafe;
-  --c-text: #1e293b;
-  --c-text-secondary: #475569;
-  --c-text-muted: #64748b;
-  --c-bg: #f8fafc;
-  --c-card: #ffffff;
-  --c-border: #e2e8f0;
-  --radius: 14px;
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+  /* brand colours */
+  --c-header-bg:   #1B2A4A;
+  --c-header-text: #FFFFFF;
+  --c-primary:     #2563EB;
+  --c-secondary:   #059669;
+  --c-accent-muted:#DBEAFE;
+  /* content */
+  --c-bg:          #FAFAFA;
+  --c-card:        #FFFFFF;
+  --c-border:      #E5E7EB;
+  --c-text:        #1A1A1A;
+  --c-text-sub:    #374151;
+  --c-text-muted:  #6B7280;
+  --c-caption:     #555555;
+  /* geometry */
+  --radius-card:   8px;
+  --radius-modal:  12px;
+  --gap:           1.5rem;
+  --pad-card:      1.5rem;
 }}
-*,*::before,*::after {{ box-sizing:border-box; }}
+
+*,*::before,*::after {{ box-sizing: border-box; }}
+
 body {{
   font-family: var(--font-main);
-  background: #e2e8f0;
-  margin: 0; padding: 24px;
+  background: #D1D5DB;
+  margin: 0;
+  padding: 2rem;
   color: var(--c-text);
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
   overflow-wrap: break-word;
 }}
+
+/* ── Poster shell — 4:3 landscape ── */
 .poster {{
-  max-width: 1800px; margin: 0 auto;
+  max-width: 1600px;
+  margin: 0 auto;
   background: var(--c-bg);
-  padding: 48px; border-radius: 20px;
-  box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+  border-radius: var(--radius-modal);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
+  /* simulate physical poster proportions in browser */
+  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
 }}
-/* ── 헤더 ── */
+
+/* ================================================================
+   HEADER — full-width dark bar
+   ================================================================ */
 .poster-header {{
-  border-bottom: 3px solid var(--c-primary);
-  padding-bottom: 24px; margin-bottom: 32px;
+  background: var(--c-header-bg);
+  color: var(--c-header-text);
+  padding: 2rem 3rem 1.75rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  flex-shrink: 0;
+}}
+.poster-header-left {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 80px;
+}}
+.conference-badge {{
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93C5FD;
+  white-space: nowrap;
+}}
+.poster-header-center {{
+  text-align: center;
 }}
 .poster-header h1 {{
-  font-size: 2rem; font-weight: 800;
-  color: var(--c-primary); margin: 0;
-  letter-spacing: -0.02em; line-height: 1.3;
+  font-size: clamp(1.6rem, 2.8vw, 3.5rem);
+  font-weight: 800;
+  color: var(--c-header-text);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }}
 .poster-header .subtitle {{
-  font-size: 1.1rem; font-weight: 400;
-  color: var(--c-text-secondary); margin: 8px 0 0;
+  font-size: clamp(0.85rem, 1.1vw, 1.2rem);
+  font-weight: 400;
+  color: rgba(255,255,255,0.82);
+  margin: 0;
+  line-height: 1.5;
 }}
-.keyword-bar {{ margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }}
+.poster-header-right {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 80px;
+}}
+.credit-badge {{
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+  white-space: nowrap;
+}}
+.keyword-bar {{
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}}
 .keyword {{
-  background: var(--c-primary-light); color: #1e40af;
-  padding: 4px 14px; border-radius: 20px;
-  font-size: 0.82rem; font-weight: 500;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #BFDBFE;
+  padding: 0.2rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }}
-/* ── 섹션 카드 ── */
+
+/* ================================================================
+   CONTENT AREA — 3-column CSS Grid
+   ================================================================ */
+.poster-content {{
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  grid-template-rows: 1fr auto auto;
+  gap: var(--gap);
+  padding: var(--gap) calc(var(--gap) * 1.25);
+  background: var(--c-bg);
+  overflow: hidden;
+}}
+
+/* ── Grid placement helpers ── */
+.col-left  {{ grid-column: 1; }}
+.col-right {{ grid-column: 2; }}
+.span-full {{ grid-column: 1 / -1; }}
+
+/* Section 2 (paper cards) fills right column, rows 1-2 */
+.section-papers {{ grid-column: 2; grid-row: 1 / 3; }}
+/* Section 4+5 (findings + conclusion) share a row on the left */
+.section-findings    {{ grid-column: 1; }}
+.section-conclusion  {{ grid-column: 1; }}
+
+/* ================================================================
+   SECTION CARD
+   ================================================================ */
 .section-card {{
   background: var(--c-card);
-  border-radius: var(--radius);
-  padding: 28px; margin-bottom: 24px;
-  box-shadow: var(--shadow-card);
   border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--pad-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }}
-.section-card h2 {{
-  font-size: 1.25rem; font-weight: 700;
-  color: var(--c-primary); margin: 0 0 16px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--c-primary-light);
+
+/* Section heading — numbered, with underline accent */
+.section-heading {{
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--c-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
 }}
-/* ── 논문 카드 ── */
+.section-num {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  background: var(--c-primary);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}}
+
+/* ================================================================
+   PAPER CARDS — 2-column sub-grid
+   ================================================================ */
 .paper-grid {{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  flex: 1;
+  overflow: auto;
 }}
 .paper-card {{
   background: var(--c-card);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-card);
   border: 1px solid var(--c-border);
   border-left-width: 4px;
-  transition: box-shadow 0.15s;
+  border-radius: var(--radius-card);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }}
-.paper-card:hover {{ box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
 .paper-card h3 {{
-  font-size: 1.05rem; font-weight: 700;
-  margin: 0 0 14px; line-height: 1.4;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
 }}
-/* ── 타이포그래피 ── */
-.section-card h4, .paper-card h4 {{
-  font-size: 0.92rem; font-weight: 700;
-  color: var(--c-text); margin: 16px 0 6px;
-  padding-left: 10px;
-  border-left: 3px solid var(--c-primary-light);
+
+/* ================================================================
+   TYPOGRAPHY — shared between section-card and paper-card
+   ================================================================ */
+.section-card h4,
+.paper-card h4 {{
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--c-text);
+  margin: 0.9rem 0 0.3rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--c-accent-muted);
 }}
-.section-card p, .paper-card p {{
-  font-size: 0.9rem; line-height: 1.75;
-  color: var(--c-text-secondary); margin: 6px 0;
+.section-card p,
+.paper-card p {{
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--c-text-sub);
+  margin: 0.25rem 0;
 }}
-.section-card strong, .paper-card strong {{
-  font-weight: 600; color: var(--c-text);
+.section-card strong,
+.paper-card strong {{
+  font-weight: 600;
+  color: var(--c-text);
 }}
-.section-card ul, .paper-card ul {{
-  list-style: none; padding-left: 0; margin: 10px 0;
+.section-card ul,
+.paper-card ul {{
+  list-style: none;
+  padding-left: 0;
+  margin: 0.4rem 0;
 }}
-.section-card li, .paper-card li {{
-  position: relative; padding: 5px 0 5px 18px;
-  font-size: 0.9rem; line-height: 1.65;
-  color: var(--c-text-secondary);
+.section-card li,
+.paper-card li {{
+  position: relative;
+  padding: 0.2rem 0 0.2rem 1.1rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--c-text-sub);
 }}
-.section-card li::before, .paper-card li::before {{
-  content: ''; position: absolute;
-  left: 0; top: 12px;
-  width: 6px; height: 6px;
-  background: var(--c-primary); border-radius: 50%;
+.section-card li::before,
+.paper-card li::before {{
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 5px;
+  height: 5px;
+  background: var(--c-primary);
+  border-radius: 50%;
 }}
-/* ── 테이블 ── */
+
+/* ================================================================
+   TABLE — comparison section
+   ================================================================ */
 .section-card table {{
-  width: 100%; border-collapse: collapse;
-  font-size: 0.85rem; margin: 14px 0;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 0.75rem 0;
 }}
 .section-card th {{
-  padding: 10px 14px; text-align: left;
-  font-weight: 600; color: var(--c-text);
-  border-bottom: 2px solid var(--c-primary-light);
-  background: #f1f5f9;
+  padding: 0.5rem 0.85rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--c-text);
+  border-bottom: 2px solid var(--c-primary);
+  background: #F3F4F6;
 }}
 .section-card td {{
-  padding: 9px 14px;
+  padding: 0.45rem 0.85rem;
   border-bottom: 1px solid var(--c-border);
-  color: var(--c-text-secondary);
+  color: var(--c-text-sub);
 }}
-.section-card tr:hover td {{ background: #f8fafc; }}
-/* ── Figure ── */
-.section-card figure, .paper-card figure {{
-  margin: 14px 0; text-align: center;
+.section-card tbody tr:nth-child(even) td {{ background: #F9FAFB; }}
+.section-card tbody tr:hover td {{ background: #EFF6FF; }}
+
+/* ================================================================
+   FIGURES
+   ================================================================ */
+.section-card figure,
+.paper-card figure {{
+  margin: 0.75rem 0;
+  text-align: center;
 }}
-.section-card figcaption, .paper-card figcaption {{
-  font-size: 0.78rem; color: var(--c-text-muted);
-  margin-top: 8px; font-style: italic;
+.section-card figcaption,
+.paper-card figcaption {{
+  font-size: 0.8rem;
+  color: var(--c-caption);
+  margin-top: 0.4rem;
+  font-style: italic;
 }}
-.section-card img, .paper-card img {{
-  max-width: 100%; height: auto;
-  border-radius: 10px;
+.section-card img,
+.paper-card img {{
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-card);
   border: 1px solid var(--c-border);
+}}
+
+/* ================================================================
+   FOOTER — full-width references bar
+   ================================================================ */
+.poster-footer {{
+  background: #F3F4F6;
+  border-top: 1px solid var(--c-border);
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 2rem;
+  flex-shrink: 0;
+}}
+.footer-refs {{
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--c-text-muted);
+  line-height: 1.55;
+}}
+.footer-refs strong {{
+  color: var(--c-text-sub);
+  font-weight: 600;
+}}
+.footer-credit {{
+  font-size: 0.7rem;
+  color: #9CA3AF;
+  white-space: nowrap;
 }}
 </style>
 </head>
 <body>
 <div class="poster">
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
   <header class="poster-header">
-    <h1>{esc(composition.title)}</h1>
-    <p class="subtitle">{esc(composition.subtitle)}</p>
-    <div class="keyword-bar">{keywords_html}</div>
+    <div class="poster-header-left">
+      <span class="conference-badge">Academic<br>Poster</span>
+    </div>
+    <div class="poster-header-center">
+      <h1>{esc(composition.title)}</h1>
+      <p class="subtitle">{esc(composition.subtitle)}</p>
+      <div class="keyword-bar">{keywords_html}</div>
+    </div>
+    <div class="poster-header-right">
+      <span class="credit-badge">PaperReview<br>Agent</span>
+    </div>
   </header>
-  {overview_html}
-  {paper_cards_html}
-  {comparison_html}
-  {findings_html}
-  {conclusion_html}
+
+  <!-- ── CONTENT GRID ────────────────────────────────────────── -->
+  <main class="poster-content">
+    {overview_html}
+    {paper_cards_html}
+    {comparison_html}
+    {findings_html}
+    {conclusion_html}
+  </main>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────── -->
+  <footer class="poster-footer">
+    <div class="footer-refs">
+      <strong>참고문헌</strong>&ensp;논문 검색 및 분석 결과는 arXiv, Google Scholar 등의 공개 데이터를 기반으로 합니다.
+    </div>
+    <span class="footer-credit">Generated by PaperReviewAgent</span>
+  </footer>
+
 </div>
 </body>
 </html>'''
