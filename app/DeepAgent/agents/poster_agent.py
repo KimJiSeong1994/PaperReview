@@ -555,7 +555,6 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             from app.DeepAgent.tools.paperbanana_client import (
                 build_diagram_caption,
                 build_diagram_prompt,
-                build_paper_diagram_inputs,
             )
 
             paper_analyses = getattr(content, 'paper_analyses', []) or []
@@ -563,7 +562,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # 프롬프트 구성
             source_context = build_diagram_prompt(content, paper_analyses)
             caption = build_diagram_caption(content)
-            paper_inputs = build_paper_diagram_inputs(paper_analyses)[:1]
+            paper_inputs = []  # 전체 방법론 다이어그램 1개만 (시간 제약)
 
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []
@@ -588,10 +587,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if not tasks:
                     return []
 
-                # 120초 타임아웃 (단일 다이어그램 ~60-90초, 병렬 실행)
+                # 150초 타임아웃 (단일 다이어그램 EC2에서 ~120초)
                 raw_results = await asyncio.wait_for(
                     asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=120,
+                    timeout=150,
                 )
 
                 results: List[Dict[str, Any]] = []
