@@ -210,12 +210,12 @@ const GRADIENTS = [
 function BlogSkeletonCard() {
   return (
     <div className="blog-skeleton-card">
-      <div className="blog-skeleton-thumb" />
+      <div className="blog-skeleton-separator" />
       <div className="blog-skeleton-body">
         <div className="blog-skeleton-line short" />
-        <div className="blog-skeleton-line medium" />
+        <div className="blog-skeleton-line title" />
         <div className="blog-skeleton-line full" />
-        <div className="blog-skeleton-line full" />
+        <div className="blog-skeleton-line excerpt" />
         <div className="blog-skeleton-line short" />
       </div>
     </div>
@@ -425,10 +425,9 @@ function BlogPage({ isAdmin }: BlogPageProps) {
 
   const renderList = () => (
     <>
-      <div className="blog-header">
+      <header className="blog-header">
         <div className="blog-title-row">
           <h1 className="blog-page-title">Blog</h1>
-          <p className="blog-page-subtitle">Research writeups, experiments, and product notes</p>
           {isAdmin && (
             <div className="blog-admin-bar">
               <button className="blog-new-post-btn" onClick={openNewEditor}>
@@ -441,6 +440,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
             </div>
           )}
         </div>
+        <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
 
         {allTags.length > 0 && (
           <div className="blog-tag-filters">
@@ -461,7 +461,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
             ))}
           </div>
         )}
-      </div>
+      </header>
 
       {error && <div className="blog-error">{error}</div>}
 
@@ -490,85 +490,104 @@ function BlogPage({ isAdmin }: BlogPageProps) {
       ) : (
         <div className="blog-grid">
           {posts.map((post, idx) => (
-            <div
+            <a
               key={post.id}
               className="blog-card"
-              onClick={() => openPost(post)}
+              onClick={(e) => { e.preventDefault(); openPost(post); }}
+              href={`/blog/${post.slug}`}
               role="article"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && openPost(post)}
               aria-label={post.title}
             >
-              <div
-                className="blog-card-thumb"
-                style={
-                  !post.thumbnail_url
-                    ? { background: GRADIENTS[idx % GRADIENTS.length] }
-                    : undefined
-                }
-              >
-                {post.thumbnail_url ? (
-                  <img src={post.thumbnail_url} alt={post.title} />
-                ) : (
-                  <span className="blog-card-thumb-placeholder" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ opacity: 0.4 }}>
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </span>
-                )}
-              </div>
+              {/* Separator — shown on all cards except the first */}
+              {idx > 0 && <div className="blog-card-separator" aria-hidden="true" />}
 
-              <div className="blog-card-body">
+              <div className="blog-card-inner">
+
+                {/* Row 1: Date · Reading time */}
                 <div className="blog-card-meta">
-                  <span>{formatDate(post.created_at)}</span>
+                  <time className="blog-card-date">{formatDate(post.created_at)}</time>
                   <span className="blog-card-dot" aria-hidden="true">·</span>
-                  <span>{post.reading_time_min} min read</span>
+                  <span className="blog-card-readtime">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    {post.reading_time_min} min read
+                  </span>
                 </div>
-                <h2 className="blog-card-title">{post.title}</h2>
+
+                {/* Row 2: Title + arrow icon */}
+                <div className="blog-card-title-row">
+                  <h2 className="blog-card-title">{post.title}</h2>
+                  <svg
+                    className="blog-card-arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="20"
+                    height="20"
+                    aria-hidden="true"
+                  >
+                    <line x1="7" y1="17" x2="17" y2="7" />
+                    <polyline points="7 7 17 7 17 17" />
+                  </svg>
+                </div>
+
+                {/* Row 3: Excerpt */}
                 <p className="blog-card-excerpt">{post.excerpt}</p>
-                <div className="blog-card-author">{post.author}</div>
-                {post.tags.length > 0 && (
-                  <div className="blog-card-tags">
-                    {post.tags.slice(0, 5).map((tag) => (
-                      <span key={tag} className="blog-tag">{tag}</span>
-                    ))}
+
+                {/* Row 4: Author · Tags */}
+                <div className="blog-card-footer">
+                  <span className="blog-card-author-label">
+                    <span className="blog-card-author-name">{post.author}</span>
+                  </span>
+                  {post.tags.length > 0 && (
+                    <>
+                      <span className="blog-card-dot" aria-hidden="true">·</span>
+                      {post.tags.slice(0, 5).map((tag) => (
+                        <span key={tag} className="blog-tag">{tag}</span>
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                {isAdmin && (
+                  <div
+                    className="blog-card-admin-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      className="blog-card-edit-btn"
+                      onClick={(e) => openEditEditor(post, e)}
+                      aria-label="Edit post"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      className="blog-card-delete-btn"
+                      onClick={(e) => handleDelete(post, e)}
+                      aria-label="Delete post"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
+                      Delete
+                    </button>
                   </div>
                 )}
-              </div>
 
-              {isAdmin && (
-                <div
-                  className="blog-card-admin-actions"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    className="blog-card-edit-btn"
-                    onClick={(e) => openEditEditor(post, e)}
-                    aria-label="Edit post"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    Edit
-                  </button>
-                  <button
-                    className="blog-card-delete-btn"
-                    onClick={(e) => handleDelete(post, e)}
-                    aria-label="Delete post"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                      <path d="M9 6V4h6v2" />
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
+              </div>
+            </a>
           ))}
         </div>
       )}
