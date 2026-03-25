@@ -21,7 +21,7 @@ interface BlogPost {
   author: string;
   tags: string[];
   thumbnail_url?: string;
-  reading_time_minutes: number;
+  reading_time_min: number;
   created_at: string;
   updated_at: string;
 }
@@ -281,7 +281,9 @@ function BlogPage({ isAdmin }: BlogPageProps) {
   const loadTags = useCallback(async () => {
     try {
       const response = await fetchBlogTags();
-      setAllTags((response.data?.tags ?? response.data ?? []) as string[]);
+      const raw = response.data?.tags ?? response.data ?? [];
+      // API returns [{tag, count}] objects — extract tag strings
+      setAllTags(raw.map((t: any) => (typeof t === 'string' ? t : t?.tag ?? '')) as string[]);
     } catch {
       // Tags are optional — ignore errors
     }
@@ -370,7 +372,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         .map((t) => t.trim())
         .filter(Boolean),
       thumbnail_url: form.thumbnail_url.trim() || undefined,
-      reading_time_minutes: estimateReadingTime(form.content),
+      reading_time_min: estimateReadingTime(form.content),
     };
 
     try {
@@ -531,7 +533,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
                   <span className="blog-card-dot" aria-hidden="true" />
                   <span>{formatDate(post.created_at)}</span>
                   <span className="blog-card-dot" aria-hidden="true" />
-                  <span>{post.reading_time_minutes} min read</span>
+                  <span>{post.reading_time_min} min read</span>
                 </div>
               </div>
 
@@ -603,7 +605,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
           <span className="blog-card-dot" aria-hidden="true" />
           <span>{formatDate(selectedPost.created_at)}</span>
           <span className="blog-card-dot" aria-hidden="true" />
-          <span>{selectedPost.reading_time_minutes} min read</span>
+          <span>{selectedPost.reading_time_min} min read</span>
         </div>
 
         <div
