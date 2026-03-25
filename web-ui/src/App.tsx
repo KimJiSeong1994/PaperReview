@@ -165,6 +165,7 @@ function App() {
           setGraphData(null);
           setSelectedPaper(null);
           setHighlightedPapers(new Set());
+          setSelectedPapersForReview(new Set());
           setQuery('');
           setLoading(false);
           return;
@@ -204,6 +205,7 @@ function App() {
         if (allPapers.length > 0) {
           setSelectedPaper(allPapers[0]);
           setHighlightedPapers(new Set());
+          setSelectedPapersForReview(new Set());
 
           const topPapers = allPapers.slice(0, 5).map(p => ({
             title: p.title,
@@ -273,6 +275,7 @@ function App() {
       setGraphData(null);
       setSelectedPaper(null);
       setHighlightedPapers(new Set());
+      setSelectedPapersForReview(new Set());
     } finally {
       setLoading(false);
     }
