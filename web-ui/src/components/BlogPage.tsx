@@ -427,7 +427,8 @@ function BlogPage({ isAdmin }: BlogPageProps) {
     <>
       <div className="blog-header">
         <div className="blog-title-row">
-          <h1 className="blog-page-title">집현전 Blog</h1>
+          <h1 className="blog-page-title">Blog</h1>
+          <p className="blog-page-subtitle">Research writeups, experiments, and product notes</p>
           {isAdmin && (
             <div className="blog-admin-bar">
               <button className="blog-new-post-btn" onClick={openNewEditor}>
@@ -519,22 +520,21 @@ function BlogPage({ isAdmin }: BlogPageProps) {
               </div>
 
               <div className="blog-card-body">
+                <div className="blog-card-meta">
+                  <span>{formatDate(post.created_at)}</span>
+                  <span className="blog-card-dot" aria-hidden="true">·</span>
+                  <span>{post.reading_time_min} min read</span>
+                </div>
+                <h2 className="blog-card-title">{post.title}</h2>
+                <p className="blog-card-excerpt">{post.excerpt}</p>
+                <div className="blog-card-author">{post.author}</div>
                 {post.tags.length > 0 && (
                   <div className="blog-card-tags">
-                    {post.tags.slice(0, 3).map((tag) => (
+                    {post.tags.slice(0, 5).map((tag) => (
                       <span key={tag} className="blog-tag">{tag}</span>
                     ))}
                   </div>
                 )}
-                <h2 className="blog-card-title">{post.title}</h2>
-                <p className="blog-card-excerpt">{post.excerpt}</p>
-                <div className="blog-card-meta">
-                  <span className="blog-card-author">{post.author}</span>
-                  <span className="blog-card-dot" aria-hidden="true" />
-                  <span>{formatDate(post.created_at)}</span>
-                  <span className="blog-card-dot" aria-hidden="true" />
-                  <span>{post.reading_time_min} min read</span>
-                </div>
               </div>
 
               {isAdmin && (
