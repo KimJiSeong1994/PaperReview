@@ -305,11 +305,22 @@ async def get_graph_data(request: Dict[str, Any]):
                     node_attrs[key] = value
             graph.add_node(doc_id, **node_attrs)
 
-        # Edges based on title similarity
+        # Edges based on title + keyword similarity
         token_cache = {
             p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(_title_tokens(p.get("title", "")))
             for p in papers_data
         }
+        # 키워드/카테고리 기반 보조 토큰 (최신 논문의 고립 방지)
+        keyword_cache: dict = {}
+        for p in papers_data:
+            did = p.get("doc_id") or str(abs(hash(p.get("title", ""))))
+            kw_tokens: set = set()
+            for cat in (p.get("categories") or "").split():
+                kw_tokens.add(cat.lower().strip())
+            for kw in (p.get("keywords") or []):
+                if isinstance(kw, str) and len(kw) > 2:
+                    kw_tokens.add(kw.lower().strip())
+            keyword_cache[did] = kw_tokens
 
         paper_list = list(papers_data)
         for idx, paper in enumerate(paper_list):
@@ -318,16 +329,26 @@ async def get_graph_data(request: Dict[str, Any]):
                 doc_id1 = paper.get("doc_id") or str(abs(hash(paper.get("title", ""))))
                 doc_id2 = other.get("doc_id") or str(abs(hash(other.get("title", ""))))
 
+                # 제목 유사도
                 base_tokens = token_cache.get(doc_id1, set())
                 other_tokens = token_cache.get(doc_id2, set())
-                if not base_tokens or not other_tokens:
-                    continue
+                title_score = 0.0
+                if base_tokens and other_tokens:
+                    union = len(base_tokens | other_tokens)
+                    title_score = len(base_tokens & other_tokens) / union if union else 0
 
-                overlap = len(base_tokens & other_tokens)
-                union = len(base_tokens | other_tokens)
-                score = overlap / union if union else 0
+                # 키워드/카테고리 유사도
+                kw1 = keyword_cache.get(doc_id1, set())
+                kw2 = keyword_cache.get(doc_id2, set())
+                kw_score = 0.0
+                if kw1 and kw2:
+                    kw_union = len(kw1 | kw2)
+                    kw_score = len(kw1 & kw2) / kw_union if kw_union else 0
 
-                if score >= 0.12:
+                # 종합 점수 (제목 70% + 키워드 30%)
+                score = 0.7 * title_score + 0.3 * kw_score
+
+                if score >= 0.06:
                     graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
 
         # Layout
@@ -340,12 +361,17 @@ async def get_graph_data(request: Dict[str, Any]):
             layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
 
         if len(layout) > 0:
+            # 중심 보정
             centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
             centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
-            centered_layout = {}
-            for node_id, (x, y) in layout.items():
-                centered_layout[node_id] = (x - centroid_x, y - centroid_y)
-            layout = centered_layout
+            centered = {nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()}
+
+            # [-1, 1] 범위로 정규화 (고립 노드가 뷰포트 밖에 배치되는 문제 해결)
+            max_abs = max(
+                max(abs(x) for x, _ in centered.values()),
+                max(abs(y) for _, y in centered.values()),
+            ) or 1.0
+            layout = {nid: (x / max_abs, y / max_abs) for nid, (x, y) in centered.items()}
 
         # Extract nodes and edges for frontend
         nodes = []
