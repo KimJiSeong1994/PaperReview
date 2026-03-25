@@ -525,6 +525,88 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
         raise HTTPException(status_code=500, detail=f"Smart search failed: {str(e)}")
 
 
+@router.post("/deep-search")
+async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
+    """ArxivQA 스타일 멀티턴 심층 검색.
+
+    ReAct 에이전트가 검색→분석→재쿼리를 반복하고,
+    RaR rubric으로 결과 세트를 평가한다.
+    """
+    try:
+        start_time = time.time()
+        logger.info("[API] Deep Search: %s", request.query)
+
+        # 1. Query analysis
+        analysis = {}
+        if query_analyzer:
+            try:
+                loop = asyncio.get_running_loop()
+                analysis = await asyncio.wait_for(
+                    loop.run_in_executor(None, partial(query_analyzer.analyze_query, request.query)),
+                    timeout=10,
+                )
+            except Exception as e:
+                logger.warning("[Deep Search] Query analysis failed: %s", e)
+
+        # 2. ReAct multi-turn search
+        from app.SearchAgent.react_search_agent import ReActSearchAgent
+
+        react_agent = ReActSearchAgent(
+            search_agent=search_agent,
+            openai_client=get_openai_client(),
+            max_turns=3,
+        )
+        result = await react_agent.search(
+            query=request.query,
+            analysis=analysis,
+            max_results=request.max_results or 20,
+        )
+
+        # 3. Rubric evaluation
+        from app.QueryAgent.rubric_evaluator import RubricEvaluator
+
+        evaluator = RubricEvaluator(openai_client=get_openai_client())
+        evaluation = await evaluator.evaluate(
+            query=request.query,
+            intent=analysis.get("intent", "paper_search"),
+            papers=result.get("papers", []),
+        )
+        result["evaluation"] = evaluation
+
+        search_time = time.time() - start_time
+        result.setdefault("metadata", {})["search_time"] = round(search_time, 2)
+        result["metadata"]["difficulty"] = query_analyzer.classify_difficulty(analysis) if query_analyzer else "medium"
+
+        logger.info(
+            "[API] Deep Search completed: %d papers, %.1fs, score=%.2f",
+            len(result.get("papers", [])),
+            search_time,
+            evaluation.get("overall_score", 0),
+        )
+
+        # 4. Save papers
+        if request.save_papers and result.get("papers"):
+            try:
+                results_by_source = {"arxiv": [], "openalex": [], "dblp": []}
+                for paper in result["papers"]:
+                    src = paper.pop("_source", "arxiv")
+                    if src in results_by_source:
+                        results_by_source[src].append(paper)
+                _stamp_searched_by(results_by_source, username)
+                search_agent.save_papers(results_by_source, request.query, generate_embeddings=False, update_graph=True)
+            except Exception as e:
+                logger.error("[Deep Search] Save papers error: %s", e)
+
+        return result
+
+    except asyncio.TimeoutError:
+        logger.error("[API] Deep Search timed out")
+        raise HTTPException(status_code=504, detail="Deep search timed out")
+    except Exception as e:
+        logger.error("[API] Deep Search failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Deep search failed: {str(e)}")
+
+
 @router.post("/search", response_model=SearchResponse)
 async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """Search papers across multiple sources with automatic query analysis."""

@@ -3,11 +3,14 @@
 사용자의 검색 쿼리를 분석하여 의도, 키워드, 개선 사항을 파악
 """
 import hashlib
+import logging
 import os
 import sys
 import json
 import threading
 import time as _time
+
+logger = logging.getLogger(__name__)
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 
@@ -535,6 +538,85 @@ Return only valid JSON."""
             "translated_query": query,
             "related_terms": []
         }
+
+    def classify_difficulty(self, analysis: Dict[str, Any]) -> str:
+        """쿼리 난이도를 분류한다 (LLM 호출 없음, 규칙 기반).
+
+        ArxivQA의 easy/medium/hard 전략 분기에 사용.
+
+        Returns:
+            ``"easy"`` | ``"medium"`` | ``"hard"``
+        """
+        confidence = analysis.get("confidence", 0.5)
+        intent = analysis.get("intent", "paper_search")
+        keywords = analysis.get("keywords", [])
+
+        if confidence >= 0.9 and intent in ("paper_search", "author_search") and len(keywords) <= 3:
+            return "easy"
+        if confidence < 0.7 or intent in ("topic_exploration", "survey", "comparison") or len(keywords) >= 7:
+            return "hard"
+        return "medium"
+
+    def diversify_queries(
+        self,
+        query: str,
+        analysis: Dict[str, Any],
+        num_variants: int = 3,
+    ) -> List[str]:
+        """의미적으로 다양한 쿼리 변형을 생성한다.
+
+        ArxivQA의 query diversity 개념 적용 — 원본 쿼리와 용어/관점이
+        다른 변형을 생성하여 recall을 높인다.
+
+        Args:
+            query: 원본 검색 쿼리.
+            analysis: ``analyze_query()`` 결과.
+            num_variants: 생성할 변형 수.
+
+        Returns:
+            원본 포함 총 ``num_variants + 1`` 개의 쿼리 리스트.
+        """
+        cache_key = f"diversify|{query}|{analysis.get('intent', '')}"
+        cached = self._get_from_cache(cache_key)
+        if cached:
+            return cached
+
+        intent = analysis.get("intent", "paper_search")
+        keywords = ", ".join(analysis.get("keywords", [])[:5])
+
+        prompt = f"""Generate {num_variants} diverse search query variants for academic paper search.
+
+Original query: "{query}"
+Intent: {intent}
+Keywords: {keywords}
+
+Rules:
+- Each variant must use DIFFERENT terminology/perspective than the original
+- Variants must still address the same core research topic
+- Use synonyms, sub-topics, related methods, or broader/narrower framings
+- Do NOT just rephrase — explore different ASPECTS of the topic
+
+Return JSON: {{"queries": ["variant1", "variant2", ...]}}"""
+
+        try:
+            if not self.client:
+                return [query]
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                max_tokens=300,
+                temperature=0.7,
+                timeout=8,
+            )
+            data = json.loads(response.choices[0].message.content or "{}")
+            variants = data.get("queries", [])[:num_variants]
+            result = [query] + [v for v in variants if v and v != query]
+            self._set_in_cache(cache_key, result)
+            return result
+        except Exception as e:
+            logger.warning("쿼리 다양화 실패: %s", e)
+            return [query]
 
     @log_data_processing("Source-Specific Query Generation")
     def generate_source_specific_queries(
