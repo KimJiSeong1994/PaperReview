@@ -23,7 +23,7 @@ from fastapi.responses import StreamingResponse
 from filelock import FileLock
 from pydantic import BaseModel, Field
 
-from .deps import get_current_user, get_openai_client
+from .deps import get_current_user, get_openai_client, get_optional_user
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +206,16 @@ class CurriculumShareResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 @router.get("/curricula")
-async def list_curricula(owner: Optional[str] = None):
-    """List all available curricula with preset/owner metadata."""
+async def list_curricula(
+    owner: Optional[str] = None,
+    current_user: Optional[str] = Depends(get_optional_user),
+):
+    """List available curricula — presets + current user's own.
+
+    인증된 유저: 프리셋 + 자신의 커리큘럼만 반환.
+    비인증: 프리셋만 반환.
+    owner 파라미터: 명시적 필터 (관리자용).
+    """
     index = _load_index()
     enriched = []
     for c in index.get("curricula", []):
@@ -218,8 +226,15 @@ async def list_curricula(owner: Optional[str] = None):
         entry["has_share"] = bool(entry.get("share"))
         entry.pop("share", None)  # Don't expose share token in list
         enriched.append(entry)
+
+    # 필터링: owner 파라미터 > 현재 유저 > 프리셋만
     if owner:
         enriched = [c for c in enriched if c.get("owner") == owner or c.get("is_preset")]
+    elif current_user:
+        enriched = [c for c in enriched if c.get("is_preset") or c.get("owner") == current_user]
+    else:
+        enriched = [c for c in enriched if c.get("is_preset")]
+
     return {"curricula": enriched}
 
 
