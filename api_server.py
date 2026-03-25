@@ -41,6 +41,7 @@ from routers import (
     curriculum_router,
     pdf_proxy_router,
     autofigure_router,
+    blog_router,
 )
 from routers.deps import api_key, limiter
 
@@ -148,6 +149,7 @@ app.include_router(share_router)
 app.include_router(curriculum_router)
 app.include_router(pdf_proxy_router)
 app.include_router(autofigure_router)
+app.include_router(blog_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

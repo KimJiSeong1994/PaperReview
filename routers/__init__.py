@@ -18,6 +18,7 @@ from .share import router as share_router
 from .curriculum import router as curriculum_router
 from .pdf_proxy import router as pdf_proxy_router
 from .autofigure import router as autofigure_router
+from .blog import router as blog_router
 
 __all__ = [
     "auth_router",
@@ -34,4 +35,5 @@ __all__ = [
     "curriculum_router",
     "pdf_proxy_router",
     "autofigure_router",
+    "blog_router",
 ]
