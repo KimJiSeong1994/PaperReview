@@ -374,7 +374,9 @@ _prefetch_thread.start()
 _ANALYZE_TIMEOUT = 30
 _LLM_SEARCH_TIMEOUT = 90
 _SMART_SEARCH_TIMEOUT = 90
-_SEARCH_TIMEOUT = 90
+_SEARCH_TIMEOUT = 120           # 전체 검색 파이프라인 (분석+검색+랭킹+필터)
+_SOURCE_SEARCH_TIMEOUT = 60     # 멀티소스 검색 단계만
+_RELEVANCE_FILTER_TIMEOUT = 45  # LLM 관련성 필터 단계만
 
 
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)
@@ -773,7 +775,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         context=request.search_context,
                     ),
                 ),
-                timeout=_SEARCH_TIMEOUT,
+                timeout=_SOURCE_SEARCH_TIMEOUT,
             )
             llm_metadata = results.pop("_metadata", None)
             if llm_metadata:
@@ -785,7 +787,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         else:
             results = await asyncio.wait_for(
                 search_agent.async_search_with_filters(search_query, filters),
-                timeout=_SEARCH_TIMEOUT,
+                timeout=_SOURCE_SEARCH_TIMEOUT,
             )
 
         search_time = time.time() - search_start
@@ -874,7 +876,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                         parallel=True,
                                     ),
                                 ),
-                                timeout=_SEARCH_TIMEOUT,
+                                timeout=_RELEVANCE_FILTER_TIMEOUT,
                             )
                             results = {}
                             for source in request.sources:
