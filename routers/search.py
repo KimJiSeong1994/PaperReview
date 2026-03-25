@@ -565,7 +565,7 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         # 3. Rubric evaluation
         from app.QueryAgent.rubric_evaluator import RubricEvaluator
 
-        evaluator = RubricEvaluator(openai_client=get_openai_client())
+        evaluator = RubricEvaluator()  # OPENAI_API_KEY 환경변수로 자체 AsyncOpenAI 생성
         evaluation = await evaluator.evaluate(
             query=request.query,
             intent=analysis.get("intent", "paper_search"),
