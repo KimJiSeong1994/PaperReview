@@ -441,26 +441,6 @@ function BlogPage({ isAdmin }: BlogPageProps) {
           )}
         </div>
         <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
-
-        {allTags.length > 0 && (
-          <div className="blog-tag-filters">
-            <button
-              className={`blog-tag-filter-pill${activeTag === null ? ' active' : ''}`}
-              onClick={() => setActiveTag(null)}
-            >
-              All
-            </button>
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                className={`blog-tag-filter-pill${activeTag === tag ? ' active' : ''}`}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        )}
       </header>
 
       {error && <div className="blog-error">{error}</div>}
