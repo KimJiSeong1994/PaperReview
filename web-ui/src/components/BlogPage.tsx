@@ -7,7 +7,6 @@ import {
   createBlogPost,
   updateBlogPost,
   deleteBlogPost,
-  fetchBlogTags,
 } from '../api/client';
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -250,8 +249,6 @@ function BlogPage({ isAdmin }: BlogPageProps) {
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
-  const [allTags, setAllTags] = useState<string[]>([]);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -278,24 +275,10 @@ function BlogPage({ isAdmin }: BlogPageProps) {
     }
   }, []);
 
-  const loadTags = useCallback(async () => {
-    try {
-      const response = await fetchBlogTags();
-      const raw = response.data?.tags ?? response.data ?? [];
-      // API returns [{tag, count}] objects — extract tag strings
-      setAllTags(raw.map((t: any) => (typeof t === 'string' ? t : t?.tag ?? '')) as string[]);
-    } catch {
-      // Tags are optional — ignore errors
-    }
-  }, []);
 
   useEffect(() => {
-    loadPosts(activeTag ?? undefined);
-  }, [activeTag, loadPosts]);
-
-  useEffect(() => {
-    loadTags();
-  }, [loadTags]);
+    loadPosts();
+  }, [loadPosts]);
 
   // ── Detail view ────────────────────────────────────────────────────
 
@@ -390,7 +373,6 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         setView('detail');
       }
       // Refresh tags in the background
-      loadTags();
     } catch (err: any) {
       setSaveError(err?.response?.data?.detail ?? '저장 중 오류가 발생했습니다.');
     } finally {
@@ -461,7 +443,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
             </svg>
           </div>
           <div className="blog-empty-title">
-            {activeTag ? `"${activeTag}" 태그의 게시물이 없습니다` : '게시물이 없습니다'}
+            게시물이 없습니다
           </div>
           <div className="blog-empty-subtitle">
             {isAdmin ? '첫 번째 블로그 포스트를 작성해보세요.' : '곧 새로운 글이 올라올 예정입니다.'}
