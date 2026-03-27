@@ -40,6 +40,7 @@ function renderMarkdown(markdown: string): string {
   let inOrderedList = false;
   let inCodeBlock = false;
   let inBlockquote = false;
+  let inHtmlBlock = 0; // nested HTML/SVG depth counter
 
   const closeOpenBlocks = () => {
     if (inList) {
@@ -146,10 +147,24 @@ function renderMarkdown(markdown: string): string {
       continue;
     }
 
-    // Raw HTML passthrough (SVG, div, figure, etc.)
-    if (/^\s*<\/?(?:div|svg|p |figure|figcaption|img |defs|rect|circle|line|polyline|polygon|path|text|marker|filter|linearGradient|stop|g |a |style|em>)/.test(line)) {
+    // HTML/SVG block passthrough — track open/close tags to pass entire blocks
+    if (inHtmlBlock > 0) {
+      html.push(line);
+      const opens = (line.match(/<(?:svg|div|figure)[\s>]/g) || []).length;
+      const closes = (line.match(/<\/(?:svg|div|figure)>/g) || []).length;
+      inHtmlBlock += opens - closes;
+      if (inHtmlBlock < 0) inHtmlBlock = 0;
+      continue;
+    }
+
+    // Detect start of HTML/SVG block
+    if (/^\s*<(?:svg|div|figure)[\s>]/.test(line)) {
       closeOpenBlocks();
       html.push(line);
+      const opens = (line.match(/<(?:svg|div|figure)[\s>]/g) || []).length;
+      const closes = (line.match(/<\/(?:svg|div|figure)>/g) || []).length;
+      inHtmlBlock = opens - closes;
+      if (inHtmlBlock < 0) inHtmlBlock = 0;
       continue;
     }
 
