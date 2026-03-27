@@ -146,6 +146,13 @@ function renderMarkdown(markdown: string): string {
       continue;
     }
 
+    // Raw HTML passthrough (SVG, div, figure, etc.)
+    if (/^\s*<\/?(?:div|svg|p |figure|figcaption|img |defs|rect|circle|line|polyline|polygon|path|text|marker|filter|linearGradient|stop|g |a |style|em>)/.test(line)) {
+      closeOpenBlocks();
+      html.push(line);
+      continue;
+    }
+
     // Empty line: close open blocks, add paragraph break
     if (line.trim() === '') {
       closeOpenBlocks();
