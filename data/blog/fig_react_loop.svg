@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 740" width="620" height="740" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+    </marker>
+    <linearGradient id="turn1-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f1b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e3a5f;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gap-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1c1008;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#451a03;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="turn2-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#13102b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2e1065;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="result-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#052e16;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14532d;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="620" height="740" fill="#0f0f0f" rx="16"/>
+
+  <!-- Title -->
+  <text x="310" y="36" text-anchor="middle" fill="#f3f4f6" font-size="15" font-weight="700">멀티턴 ReAct 검색 루프</text>
+  <text x="310" y="56" text-anchor="middle" fill="#6b7280" font-size="11">예산 기반 반복 검색 · LLM Gap 분석 · 누적 결과 관리</text>
+
+  <!-- ================================================================ -->
+  <!-- TURN 1 CARD -->
+  <!-- ================================================================ -->
+  <rect x="30" y="72" width="560" height="168" rx="14" fill="url(#turn1-bg)" stroke="#3b82f6" stroke-width="2"/>
+
+  <!-- Turn 1 header bar -->
+  <rect x="30" y="72" width="560" height="36" rx="14" fill="#1d4ed8" opacity="0.7"/>
+  <rect x="30" y="92" width="560" height="16" fill="#1d4ed8" opacity="0.7"/>
+  <text x="52" y="96" fill="#bfdbfe" font-size="13" font-weight="700">Turn 1</text>
+  <rect x="120" y="82" width="1" height="16" fill="#3b82f6" opacity="0.5"/>
+  <text x="134" y="96" fill="#93c5fd" font-size="11">예산: 40s</text>
+  <!-- clock icon simulation -->
+  <circle cx="540" cy="89" r="8" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+  <line x1="540" y1="84" x2="540" y2="89" stroke="#60a5fa" stroke-width="1.5"/>
+  <line x1="540" y1="89" x2="545" y2="89" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="526" y="89" text-anchor="end" fill="#60a5fa" font-size="10">40s</text>
+
+  <!-- Query line -->
+  <text x="52" y="125" fill="#9ca3af" font-size="11">Query:</text>
+  <text x="100" y="125" fill="#e2e8f0" font-size="11" font-weight="600">"transformer attention"</text>
+
+  <!-- Search results - tree structure -->
+  <!-- Branch line -->
+  <line x1="64" y1="140" x2="64" y2="200" stroke="#374151" stroke-width="1.5"/>
+
+  <!-- keyword_search branch -->
+  <line x1="64" y1="150" x2="82" y2="150" stroke="#374151" stroke-width="1.5"/>
+  <rect x="84" y="140" width="210" height="22" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+  <text x="94" y="154" fill="#93c5fd" font-size="10.5" font-weight="600">keyword_search</text>
+  <text x="208" y="154" fill="#6b7280" font-size="10">(arXiv)</text>
+  <rect x="315" y="141" width="60" height="20" rx="4" fill="#1e40af"/>
+  <text x="345" y="154" text-anchor="middle" fill="#bfdbfe" font-size="10.5" font-weight="700">8편 수집</text>
+
+  <!-- semantic_search branch -->
+  <line x1="64" y1="178" x2="82" y2="178" stroke="#374151" stroke-width="1.5"/>
+  <rect x="84" y="168" width="210" height="22" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+  <text x="94" y="182" fill="#93c5fd" font-size="10.5" font-weight="600">semantic_search</text>
+  <text x="208" y="182" fill="#6b7280" font-size="10">(OpenAlex)</text>
+  <rect x="315" y="169" width="60" height="20" rx="4" fill="#1e40af"/>
+  <text x="345" y="182" text-anchor="middle" fill="#bfdbfe" font-size="10.5" font-weight="700">7편 수집</text>
+
+  <!-- Accumulation line -->
+  <line x1="64" y1="200" x2="64" y2="215" stroke="#374151" stroke-width="1.5"/>
+  <line x1="64" y1="215" x2="82" y2="215" stroke="#374151" stroke-width="1.5"/>
+
+  <!-- Cumulative result -->
+  <rect x="84" y="205" width="280" height="24" rx="6" fill="#0f2845" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="96" y="220" fill="#7dd3fc" font-size="11" font-weight="600">누적:</text>
+  <text x="130" y="220" fill="#e2e8f0" font-size="11" font-weight="700">15편</text>
+  <text x="158" y="220" fill="#6b7280" font-size="11">(중복 제거 전)</text>
+
+  <!-- ================================================================ -->
+  <!-- ARROW 1 + TIME LABEL -->
+  <!-- ================================================================ -->
+  <line x1="310" y1="240" x2="310" y2="278" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="230" y="246" width="160" height="24" rx="6" fill="#1c1f26" stroke="#374151" stroke-width="1"/>
+  <text x="310" y="261" text-anchor="middle" fill="#9ca3af" font-size="10.5">40s 완료 → Gap Analysis 시작</text>
+
+  <!-- ================================================================ -->
+  <!-- GAP ANALYSIS CARD -->
+  <!-- ================================================================ -->
+  <rect x="30" y="280" width="560" height="118" rx="14" fill="url(#gap-bg)" stroke="#f59e0b" stroke-width="2"/>
+
+  <!-- Gap header bar -->
+  <rect x="30" y="280" width="560" height="36" rx="14" fill="#92400e" opacity="0.6"/>
+  <rect x="30" y="300" width="560" height="16" fill="#92400e" opacity="0.6"/>
+  <!-- LLM icon -->
+  <rect x="46" y="282" width="22" height="22" rx="5" fill="#fbbf24" opacity="0.2" stroke="#fbbf24" stroke-width="1"/>
+  <text x="57" y="297" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">LLM</text>
+  <text x="76" y="297" fill="#fde68a" font-size="13" font-weight="700">Gap Analysis</text>
+  <text x="200" y="297" fill="#d97706" font-size="11">· 20s budget</text>
+  <circle cx="540" cy="290" r="8" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+  <line x1="540" y1="285" x2="540" y2="290" stroke="#f59e0b" stroke-width="1.5"/>
+  <line x1="540" y1="290" x2="544" y2="290" stroke="#f59e0b" stroke-width="1.5"/>
+
+  <!-- Gap content -->
+  <text x="52" y="328" fill="#9ca3af" font-size="11">분석:</text>
+  <text x="90" y="328" fill="#fcd34d" font-size="11" font-weight="600">"linear attention 관련 방법론이 부족합니다"</text>
+
+  <text x="52" y="352" fill="#9ca3af" font-size="11">next_query:</text>
+  <rect x="120" y="340" width="305" height="22" rx="5" fill="#1c1008" stroke="#d97706" stroke-width="1"/>
+  <text x="130" y="354" fill="#fbbf24" font-size="11" font-weight="600">"linear attention FlashAttn efficient"</text>
+
+  <!-- continuation -->
+  <text x="52" y="381" fill="#6b7280" font-size="10.5">coverage_score: 0.43 &lt; 임계값(0.70) → 추가 턴 필요</text>
+
+  <!-- ================================================================ -->
+  <!-- ARROW 2 + TIME LABEL -->
+  <!-- ================================================================ -->
+  <line x1="310" y1="398" x2="310" y2="436" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="230" y="404" width="160" height="24" rx="6" fill="#1c1f26" stroke="#374151" stroke-width="1"/>
+  <text x="310" y="419" text-anchor="middle" fill="#9ca3af" font-size="10.5">20s 완료 → Turn 2 시작</text>
+
+  <!-- ================================================================ -->
+  <!-- TURN 2 CARD -->
+  <!-- ================================================================ -->
+  <rect x="30" y="438" width="560" height="176" rx="14" fill="url(#turn2-bg)" stroke="#8b5cf6" stroke-width="2"/>
+
+  <!-- Turn 2 header bar -->
+  <rect x="30" y="438" width="560" height="36" rx="14" fill="#5b21b6" opacity="0.7"/>
+  <rect x="30" y="458" width="560" height="16" fill="#5b21b6" opacity="0.7"/>
+  <text x="52" y="462" fill="#ddd6fe" font-size="13" font-weight="700">Turn 2</text>
+  <rect x="120" y="448" width="1" height="16" fill="#7c3aed" opacity="0.5"/>
+  <text x="134" y="462" fill="#c4b5fd" font-size="11">예산: 30s</text>
+  <circle cx="540" cy="455" r="8" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
+  <line x1="540" y1="450" x2="540" y2="455" stroke="#8b5cf6" stroke-width="1.5"/>
+  <line x1="540" y1="455" x2="544" y2="455" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="526" y="455" text-anchor="end" fill="#8b5cf6" font-size="10">30s</text>
+
+  <!-- Query line -->
+  <text x="52" y="491" fill="#9ca3af" font-size="11">Query:</text>
+  <text x="100" y="491" fill="#e2e8f0" font-size="11" font-weight="600">"linear attention FlashAttn efficient..."</text>
+
+  <!-- Branch line -->
+  <line x1="64" y1="505" x2="64" y2="560" stroke="#374151" stroke-width="1.5"/>
+
+  <!-- semantic_search branch -->
+  <line x1="64" y1="516" x2="82" y2="516" stroke="#374151" stroke-width="1.5"/>
+  <rect x="84" y="506" width="210" height="22" rx="5" fill="#2e1065" stroke="#7c3aed" stroke-width="1"/>
+  <text x="94" y="520" fill="#c4b5fd" font-size="10.5" font-weight="600">semantic_search</text>
+  <text x="208" y="520" fill="#6b7280" font-size="10">(OpenAlex)</text>
+  <rect x="315" y="507" width="60" height="20" rx="4" fill="#4c1d95"/>
+  <text x="345" y="520" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700">6편 수집</text>
+
+  <!-- dblp_search branch -->
+  <line x1="64" y1="545" x2="82" y2="545" stroke="#374151" stroke-width="1.5"/>
+  <rect x="84" y="535" width="210" height="22" rx="5" fill="#2e1065" stroke="#7c3aed" stroke-width="1"/>
+  <text x="94" y="549" fill="#c4b5fd" font-size="10.5" font-weight="600">dblp_search</text>
+  <text x="182" y="549" fill="#6b7280" font-size="10">(DBLP)</text>
+  <rect x="315" y="536" width="60" height="20" rx="4" fill="#4c1d95"/>
+  <text x="345" y="549" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700">4편 수집</text>
+
+  <!-- Dedup result -->
+  <line x1="64" y1="560" x2="64" y2="578" stroke="#374151" stroke-width="1.5"/>
+  <line x1="64" y1="578" x2="82" y2="578" stroke="#374151" stroke-width="1.5"/>
+  <rect x="84" y="568" width="380" height="34" rx="6" fill="#1a0a35" stroke="#6d28d9" stroke-width="1.5"/>
+  <text x="96" y="582" fill="#a78bfa" font-size="11" font-weight="600">누적: 25편</text>
+  <text x="164" y="582" fill="#6b7280" font-size="11">→ 중복 제거</text>
+  <text x="96" y="596" fill="#7c3aed" font-size="10.5">Jaccard(0.85) + 임베딩(0.90) 적용</text>
+  <text x="280" y="596" fill="#c4b5fd" font-size="11" font-weight="700">→ 최종 18편</text>
+
+  <!-- ================================================================ -->
+  <!-- ARROW 3 -->
+  <!-- ================================================================ -->
+  <line x1="310" y1="614" x2="310" y2="650" stroke="#10b981" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- FINAL RESULT CARD -->
+  <!-- ================================================================ -->
+  <rect x="30" y="652" width="560" height="68" rx="14" fill="url(#result-bg)" stroke="#10b981" stroke-width="2"/>
+  <rect x="30" y="652" width="560" height="34" rx="14" fill="#059669" opacity="0.4"/>
+  <rect x="30" y="672" width="560" height="14" fill="#059669" opacity="0.4"/>
+
+  <!-- checkmark icon -->
+  <circle cx="56" cy="665" r="10" fill="#059669" opacity="0.3" stroke="#10b981" stroke-width="1.5"/>
+  <polyline points="50,665 54,670 63,659" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="76" y="669" fill="#a7f3d0" font-size="13" font-weight="700">검색 완료</text>
+  <text x="170" y="669" fill="#6b7280" font-size="11">· coverage_score: 0.78 ≥ 임계값(0.70)</text>
+
+  <text x="52" y="695" fill="#34d399" font-size="12" font-weight="700">결과: 18편</text>
+  <text x="118" y="695" fill="#9ca3af" font-size="11">최종 논문</text>
+
+  <!-- time badges -->
+  <rect x="350" y="657" width="90" height="22" rx="6" fill="#052e16" stroke="#059669" stroke-width="1"/>
+  <text x="395" y="671" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">총 71.4초</text>
+  <rect x="452" y="657" width="120" height="22" rx="6" fill="#052e16" stroke="#059669" stroke-width="1"/>
+  <text x="512" y="671" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">2턴 완료</text>
+
+  <!-- Footer note -->
+  <text x="310" y="731" text-anchor="middle" fill="#4b5563" font-size="9.5">* Turn 3은 coverage_score가 여전히 낮을 경우 20s 추가 예산으로 실행됨</text>
+</svg>

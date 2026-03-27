@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" width="620" height="340" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <!-- Bar gradients: score-based color (low=orange, high=green) -->
+    <!-- Diversity 3/5 = 60% — amber/yellow -->
+    <linearGradient id="bar-diversity" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#d97706;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
+    </linearGradient>
+    <!-- Thoroughness 4/5 = 80% — teal/green -->
+    <linearGradient id="bar-thoroughness" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+    </linearGradient>
+    <!-- Thoughtfulness 4/5 = 80% — cyan -->
+    <linearGradient id="bar-thoughtfulness" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0891b2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:1" />
+    </linearGradient>
+    <!-- Relevance 5/5 = 100% — indigo/purple -->
+    <linearGradient id="bar-relevance" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#818cf8;stop-opacity:1" />
+    </linearGradient>
+    <!-- Overall score gradient -->
+    <linearGradient id="overall-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="72.8%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="72.8%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="620" height="340" fill="#0f0f0f" rx="16"/>
+
+  <!-- Title -->
+  <text x="310" y="36" text-anchor="middle" fill="#f3f4f6" font-size="15" font-weight="700">RaR Rubric 평가 — 4차원 품질 검증</text>
+  <text x="310" y="56" text-anchor="middle" fill="#6b7280" font-size="11">Reflection-after-Retrieval · 검색 결과 자가 평가</text>
+
+  <!-- ======================================================= -->
+  <!-- BAR CHART AREA -->
+  <!-- Left labels start at x=30, bars start at x=190, max width=340 -->
+  <!-- ======================================================= -->
+
+  <!-- Grid lines (subtle) -->
+  <line x1="190" y1="68" x2="190" y2="258" stroke="#1f2937" stroke-width="1"/>
+  <!-- 20% = 68px -->
+  <line x1="258" y1="68" x2="258" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- 40% = 136px -->
+  <line x1="326" y1="68" x2="326" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- 60% = 204px -->
+  <line x1="394" y1="68" x2="394" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- 80% = 272px -->
+  <line x1="462" y1="68" x2="462" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- 100% = 340px -->
+  <line x1="530" y1="68" x2="530" y2="258" stroke="#374151" stroke-width="1"/>
+
+  <!-- Grid labels -->
+  <text x="190" y="264" text-anchor="middle" fill="#4b5563" font-size="9">0</text>
+  <text x="258" y="264" text-anchor="middle" fill="#4b5563" font-size="9">1</text>
+  <text x="326" y="264" text-anchor="middle" fill="#4b5563" font-size="9">2</text>
+  <text x="394" y="264" text-anchor="middle" fill="#4b5563" font-size="9">3</text>
+  <text x="462" y="264" text-anchor="middle" fill="#4b5563" font-size="9">4</text>
+  <text x="530" y="264" text-anchor="middle" fill="#4b5563" font-size="9">5</text>
+  <text x="360" y="276" text-anchor="middle" fill="#374151" font-size="9">점수 (5점 만점)</text>
+
+  <!-- ======= ROW 1: Diversity 3/5 = 60% = 204px ======= -->
+  <text x="180" y="96" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Diversity</text>
+  <text x="180" y="111" text-anchor="end" fill="#6b7280" font-size="9.5">다양성</text>
+  <!-- Bar background -->
+  <rect x="190" y="82" width="340" height="32" rx="6" fill="#1f2937"/>
+  <!-- Bar fill: 3/5 = 204px -->
+  <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
+  <!-- Score pip markers -->
+  <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
+  <!-- Segment dividers (subtle) -->
+  <line x1="258" y1="84" x2="258" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="326" y1="84" x2="326" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="394" y1="84" x2="394" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <!-- Score label -->
+  <text x="402" y="102" fill="#fde68a" font-size="13" font-weight="700">3 / 5</text>
+  <!-- percentage -->
+  <text x="480" y="102" fill="#d97706" font-size="11">60%</text>
+  <!-- Description tag -->
+  <rect x="512" y="87" width="40" height="16" rx="4" fill="#78350f"/>
+  <text x="532" y="98" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">보통</text>
+
+  <!-- ======= ROW 2: Thoroughness 4/5 = 80% = 272px ======= -->
+  <text x="180" y="142" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoroughness</text>
+  <text x="180" y="157" text-anchor="end" fill="#6b7280" font-size="9.5">철저함</text>
+  <rect x="190" y="128" width="340" height="32" rx="6" fill="#1f2937"/>
+  <rect x="190" y="128" width="272" height="32" rx="6" fill="url(#bar-thoroughness)"/>
+  <line x1="258" y1="130" x2="258" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="326" y1="130" x2="326" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="394" y1="130" x2="394" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="462" y1="130" x2="462" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <text x="470" y="148" fill="#a7f3d0" font-size="13" font-weight="700">4 / 5</text>
+  <text x="547" y="148" fill="#059669" font-size="11">80%</text>
+  <rect x="560" y="133" width="40" height="16" rx="4" fill="#064e3b"/>
+  <text x="580" y="144" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">양호</text>
+
+  <!-- ======= ROW 3: Thoughtfulness 4/5 = 80% = 272px ======= -->
+  <text x="180" y="188" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoughtfulness</text>
+  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">통찰력</text>
+  <rect x="190" y="174" width="340" height="32" rx="6" fill="#1f2937"/>
+  <rect x="190" y="174" width="272" height="32" rx="6" fill="url(#bar-thoughtfulness)"/>
+  <line x1="258" y1="176" x2="258" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="326" y1="176" x2="326" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="394" y1="176" x2="394" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="462" y1="176" x2="462" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <text x="470" y="194" fill="#a5f3fc" font-size="13" font-weight="700">4 / 5</text>
+  <text x="547" y="194" fill="#0891b2" font-size="11">80%</text>
+  <rect x="560" y="179" width="40" height="16" rx="4" fill="#164e63"/>
+  <text x="580" y="190" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">양호</text>
+
+  <!-- ======= ROW 4: Relevance 5/5 = 100% = 340px ======= -->
+  <text x="180" y="234" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Relevance</text>
+  <text x="180" y="249" text-anchor="end" fill="#6b7280" font-size="9.5">관련성</text>
+  <rect x="190" y="220" width="340" height="32" rx="6" fill="#1f2937"/>
+  <rect x="190" y="220" width="340" height="32" rx="6" fill="url(#bar-relevance)"/>
+  <line x1="258" y1="222" x2="258" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="326" y1="222" x2="326" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="394" y1="222" x2="394" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <line x1="462" y1="222" x2="462" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <!-- Full bar, score at right edge -->
+  <text x="536" y="240" fill="#c7d2fe" font-size="13" font-weight="700">5 / 5</text>
+  <!-- percentage inside bar (bar is full, so just show in a lighter shade) -->
+  <text x="480" y="240" fill="#e0e7ff" font-size="11">100%</text>
+  <rect x="560" y="225" width="40" height="16" rx="4" fill="#312e81"/>
+  <text x="580" y="236" text-anchor="middle" fill="#a5b4fc" font-size="9" font-weight="600">최고</text>
+
+  <!-- ======================================================= -->
+  <!-- OVERALL SCORE SECTION -->
+  <!-- ======================================================= -->
+  <rect x="30" y="284" width="560" height="44" rx="10" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+
+  <!-- Overall bar (full width track) -->
+  <rect x="220" y="294" width="280" height="14" rx="4" fill="#1f2937"/>
+  <!-- 72.8% of 280 = ~204px -->
+  <rect x="220" y="294" width="204" height="14" rx="4" fill="url(#overall-grad)"/>
+  <!-- Threshold marker at 60% = 168px -->
+  <line x1="388" y1="290" x2="388" y2="312" stroke="#f59e0b" stroke-width="2"/>
+  <text x="388" y="287" text-anchor="middle" fill="#f59e0b" font-size="8.5">임계값 0.60</text>
+
+  <text x="44" y="306" fill="#9ca3af" font-size="11" font-weight="600">Overall Score:</text>
+  <text x="148" y="306" fill="#a5b4fc" font-size="14" font-weight="700">0.728</text>
+
+  <!-- Pass badge -->
+  <rect x="512" y="291" width="62" height="22" rx="6" fill="#059669" opacity="0.3" stroke="#10b981" stroke-width="1.5"/>
+  <text x="543" y="305" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">PASS ✓</text>
+
+  <!-- Score formula detail -->
+  <text x="44" y="322" fill="#4b5563" font-size="9.5">(3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.728</text>
+  <text x="350" y="322" fill="#374151" font-size="9">method_search 임계값: 0.60</text>
+</svg>
