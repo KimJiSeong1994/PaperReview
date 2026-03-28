@@ -26,77 +26,7 @@
 
 
 <div style="margin:24px 0;text-align:center;">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" style="width:100%;max-width:960px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-  <defs>
-    <marker id="arch_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
-    </marker>
-  </defs>
-
-  <rect width="960" height="280" fill="#0f0f0f" rx="12"/>
-
-  <text x="480" y="30" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="700" letter-spacing="0.3">검색 에이전트 파이프라인 아키텍처</text>
-
-  <!-- ===== ROW 1: User Query → QueryAnalyzer → 6소스 병렬 검색 → 중복 제거 ===== -->
-
-  <rect x="20" y="50" width="170" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="105" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">User Query</text>
-  <text x="105" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">자연어 입력</text>
-
-  <line x1="190" y1="81" x2="218" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="220" y="50" width="210" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="325" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">QueryAnalyzer</text>
-  <text x="325" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">Intent 분류 + 쿼리 개선</text>
-
-  <line x1="430" y1="81" x2="458" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="460" y="50" width="230" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="575" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">6소스 병렬 검색</text>
-  <text x="575" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">arXiv · Scholar · OpenAlex · DBLP</text>
-
-  <line x1="690" y1="81" x2="718" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="720" y="50" width="220" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="830" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">중복 제거</text>
-  <text x="830" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">DOI · 제목 · Jaccard · 임베딩</text>
-
-  <!-- Vertical arrow row1→row2 -->
-  <line x1="920" y1="112" x2="920" y2="148" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <!-- Divider -->
-  <line x1="20" y1="140" x2="940" y2="140" stroke="#1f2937" stroke-width="1"/>
-
-  <!-- ===== ROW 2: HybridRanker ← ReAct Agent ← Rubric 평가 ← Results ===== -->
-
-  <rect x="720" y="150" width="220" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="830" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">HybridRanker</text>
-  <text x="830" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">BM25 + Semantic + RRF</text>
-
-  <line x1="720" y1="181" x2="692" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="460" y="150" width="230" height="62" rx="8" fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
-  <text x="575" y="176" text-anchor="middle" fill="#a5b4fc" font-size="13" font-weight="700">ReAct Agent</text>
-  <text x="575" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">멀티턴 반복 검색 (예산 기반)</text>
-
-  <line x1="460" y1="181" x2="432" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="220" y="150" width="210" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="325" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">Rubric 평가</text>
-  <text x="325" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">Diversity · Thoroughness · 등</text>
-
-  <line x1="220" y1="181" x2="192" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
-
-  <rect x="20" y="150" width="170" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-  <text x="105" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">Results</text>
-  <text x="105" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">최종 순위 논문</text>
-
-  <!-- Row labels -->
-  <text x="480" y="44" text-anchor="middle" fill="#6b7280" font-size="9" letter-spacing="1">FORWARD PASS (좌 → 우)</text>
-  <text x="480" y="248" text-anchor="middle" fill="#6b7280" font-size="9" letter-spacing="1">EVALUATION (우 → 좌)</text>
-
-  <text x="480" y="268" text-anchor="middle" fill="#6b7280" font-size="9.5">ReAct Agent 강조 = 핵심 처리 단계 · 집현전 Search Agent v2.0</text>
-</svg>
+<img src="/api/blog/thumbnail/65bcbe5c30fd" alt="검색 에이전트 파이프라인 아키텍처" style="width:100%;max-width:960px;height:auto;border-radius:8px;" />
 <p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 1. 집현전 검색 에이전트 전체 아키텍처 — QueryAnalyzer부터 RubricEvaluator까지의 파이프라인 흐름</em></p>
 </div>
 출발 아이디어는 단순했다. "여러 소스를 동시에 검색하면 커버리지가 올라갈 것이다." arXiv, Google Scholar, OpenAlex, DBLP, Connected Papers, OpenAlex Korean -- 6개 데이터베이스를 동시에 호출하고, 결과를 모아 랭킹한다.
