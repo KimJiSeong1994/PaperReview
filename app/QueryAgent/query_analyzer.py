@@ -576,8 +576,8 @@ Return only valid JSON."""
         Returns:
             원본 포함 총 ``num_variants + 1`` 개의 쿼리 리스트.
         """
-        cache_key = f"diversify|{query}|{analysis.get('intent', '')}"
-        cached = self._get_from_cache(cache_key)
+        cache_key = _cache_key("diversify", f"{query}|{analysis.get('intent', '')}")
+        cached = _get_from_cache(cache_key)
         if cached:
             return cached
 
@@ -612,7 +612,7 @@ Return JSON: {{"queries": ["variant1", "variant2", ...]}}"""
             data = json.loads(response.choices[0].message.content or "{}")
             variants = data.get("queries", [])[:num_variants]
             result = [query] + [v for v in variants if v and v != query]
-            self._set_in_cache(cache_key, result)
+            _set_in_cache(cache_key, result)
             return result
         except Exception as e:
             logger.warning("쿼리 다양화 실패: %s", e)

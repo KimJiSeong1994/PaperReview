@@ -550,13 +550,17 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
             except Exception as e:
                 logger.warning("[Deep Search] Query analysis failed: %s", e)
 
-        # 2. ReAct multi-turn search
+        # 2. ReAct multi-turn search (난이도 기반 max_turns)
+        difficulty = query_analyzer.classify_difficulty(analysis) if query_analyzer and analysis else "medium"
+        _DIFFICULTY_TURNS = {"easy": 1, "medium": 2, "hard": 3}
+        max_turns = _DIFFICULTY_TURNS.get(difficulty, 2)
+
         from app.SearchAgent.react_search_agent import ReActSearchAgent
 
         react_agent = ReActSearchAgent(
             search_agent=search_agent,
             openai_client=get_openai_client(),
-            max_turns=3,
+            max_turns=max_turns,
         )
         result = await react_agent.search(
             query=request.query,
@@ -577,7 +581,8 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
 
         search_time = time.time() - start_time
         result.setdefault("metadata", {})["search_time"] = round(search_time, 2)
-        result["metadata"]["difficulty"] = query_analyzer.classify_difficulty(analysis) if query_analyzer else "medium"
+        result["metadata"]["difficulty"] = difficulty
+        result["metadata"]["max_turns"] = max_turns
 
         logger.info(
             "[API] Deep Search completed: %d papers, %.1fs, score=%.2f",

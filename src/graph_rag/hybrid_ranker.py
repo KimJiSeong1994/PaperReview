@@ -9,6 +9,7 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 - 기존 weighted-sum 방식은 fallback으로 유지
 """
 
+import atexit
 import logging
 import math
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +25,10 @@ except ImportError:
     BM25_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# ── 모듈 레벨 HyDE 전용 ThreadPoolExecutor (재사용) ────────────────
+_HYDE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hyde")
+atexit.register(_HYDE_EXECUTOR.shutdown, wait=False)
 
 # ── Intent별 가중치 프리셋 ─────────────────────────────────────────
 
@@ -356,12 +361,11 @@ class HybridRanker:
                 lines = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
                 return lines[:2]  # 최대 2개
 
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                abstract_future = executor.submit(_generate_hypothetical_abstract)
-                alt_future = executor.submit(_generate_alt_queries)
+            abstract_future = _HYDE_EXECUTOR.submit(_generate_hypothetical_abstract)
+            alt_future = _HYDE_EXECUTOR.submit(_generate_alt_queries)
 
-                hypothetical_abstract = abstract_future.result()
-                alt_queries = alt_future.result()
+            hypothetical_abstract = abstract_future.result(timeout=15)
+            alt_queries = alt_future.result(timeout=15)
 
             # 3. 배치 임베딩: [원본 쿼리, 가상 초록] + 대안들
             texts_to_embed = [query]

@@ -1,114 +1,105 @@
-# ArxivQA 기반 검색 에이전트 고도화 로드맵
+# 검색 엔진 최적화 및 고도화 로드맵
 
-## Stage 1: 즉시 구축 (GPU 불필요, 1-2주)
+## P0: 즉시 적용 (1-2일)
 
-### 1.1 ReAct 멀티턴 검색 에이전트
-- [ ] `app/SearchAgent/react_search_agent.py` 신규 생성
-- [ ] Tool 4종 구현 (keyword_search, semantic_search, read_abstract, finish)
-- [ ] 멀티턴 루프 (검색→분석→재쿼리, max 3턴)
-- [ ] 기존 SearchAgent의 arXiv/OpenAlex API 재사용
+### P0-1. 난이도 기반 검색 전략 분기
+- [x] `classify_difficulty()` 구현 (query_analyzer.py)
+- [ ] `/api/deep-search`에서 max_turns 동적 설정 (easy=1, medium=2, hard=3)
+- [ ] metadata에 difficulty + max_turns 기록
 
-### 1.2 Rubric 기반 결과 평가 (RaR-Implicit)
-- [ ] `app/QueryAgent/rubric_evaluator.py` 신규 생성
-- [ ] 4차원 rubric (다양성/포괄성/사려깊음/관련성)
-- [ ] LLM Judge 호출 (gpt-4o-mini)
-- [ ] 평가 미충족 시 재검색 트리거
+### P0-2. diversify_queries 캐시 버그 수정
+- [ ] `self._get_from_cache` → `_get_from_cache` (모듈 레벨 함수)
+- [ ] `self._set_in_cache` → `_set_in_cache`
+- [ ] 캐시 키: `_cache_key()` 함수 사용으로 변경
 
-### 1.3 쿼리 다양화
-- [ ] `query_analyzer.py`에 `diversify_queries()` 추가
-- [ ] Jaccard 기반 diversity 보장 (ArxivQA P_query_diversity 역활용)
-- [ ] Intent별 다양화 전략 (동의어/상위어/하위어)
-
-### 1.4 난이도 기반 검색 전략 분기
-- [ ] `query_analyzer.py`에 `classify_difficulty()` 추가
-- [ ] Easy: 단일 검색, fast_mode / Medium: 다양화 3쿼리 / Hard: 멀티턴 3턴
-- [ ] `routers/search.py`에 분기 로직 적용
-
-### 1.5 초록 기반 정밀 재랭킹
-- [ ] `hybrid_ranker.py`에 `rerank_with_abstracts()` 추가
-- [ ] Top-20 초록 LLM 재점수
-- [ ] 세트 다양성 보너스
-
-### 1.6 ArxivQA 게이트 검증
-- [ ] 4가지 게이트 (중복/제출/인용/제한) 구현
-- [ ] 결과 검증 후 게이트 미통과 시 재시도
-
-### 1.7 API + 프론트엔드 통합
-- [ ] `/api/deep-search` 엔드포인트 추가
-- [ ] 프론트엔드 "Deep Search" 모드 토글
+### P0-3. HybridRanker ThreadPoolExecutor 재사용
+- [ ] 모듈 레벨 `_HYDE_EXECUTOR = ThreadPoolExecutor(max_workers=4)`
+- [ ] `atexit.register` 등록
+- [ ] `_generate_hyde_embedding`에서 재사용
 
 ---
 
-## Stage 2: 데이터 구축 (GPU 불필요, 2-4주)
+## P1: 단기 (1-2주)
 
-### 2.1 arXiv 코퍼스 수집
-- [ ] CS/ML 카테고리 15만편 초록 수집
-- [ ] `data/arxiv_corpus.jsonl` 저장
+### P1-3. 캐시 키 정규화
+- [ ] 유니코드 NFKC 정규화
+- [ ] 영문 stopword 제거
+- [ ] 다중 공백 → 단일 공백
+- [ ] (토큰 정렬/복수형 제외 — 과도한 정규화 위험)
 
-### 2.2 QA 데이터셋 생성
-- [ ] PaperSearchQA 파이프라인 적용
-- [ ] GPT-4o로 초록→질문 변환 (~$200)
-- [ ] 6만 QA 쌍 생성
+### P1-4. Cross-encoder Reranker (RRF 5번째 신호)
+- [ ] `HybridRanker`에 `_compute_cross_encoder_scores()` 추가
+- [ ] `LocalRelevanceScorer` 싱글턴 재사용
+- [ ] `_cross_encoder_score` 첨부 → `RelevanceFilter` 중복 호출 방지
+- [ ] RRF에 `rrf_cross_encoder` 항 추가
 
-### 2.3 난이도 라벨링
-- [ ] Easy/Medium/Hard 자동 분류 + 수동 검증
-
-### 2.4 Ground Truth 구축
-- [ ] 200개 쿼리에 Deep Research Agent로 정답 수집
-- [ ] 수동 큐레이션 (200 × 10 paper IDs)
-
-### 2.5 평가 벤치마크
-- [ ] Recall@10 측정 파이프라인
-- [ ] 다중 LLM Judge 교차 검증
+### P1-5. 인기 쿼리 동적 관리
+- [ ] `collections.Counter` 기반 검색 빈도 카운터
+- [ ] `data/cache/query_freq.json` 주기적 영속화 (filelock)
+- [ ] `_get_popular_queries()` 동적 반환 (빈도순 + seed 보충)
+- [ ] `_prefetch_popular_queries`에서 동적 목록 사용
 
 ---
 
-## Stage 3: RL Fine-tuning (GPU 필요, 4-8주)
+## P2: 중기 (1-2달)
 
-### 3.1 학습 인프라
-- [ ] SkyRL-Agent 프레임워크 설정
-- [ ] Qwen3-8B 베이스 모델 준비
-- [ ] AWS p4d.24xlarge 인스턴스 설정
+### P2-1. 그래프 O(n²) → FAISS ANN
+- [ ] `papers.py` Jaccard 비교 → 임베딩 기반 ANN
+- [ ] FAISS IndexFlatIP 활용
 
-### 3.2 RaR-Implicit 학습
-- [ ] GRPO + RaR 리워드 구현
-- [ ] LLM Judge (GPT-4o-mini) 연동
-- [ ] 250 epochs, LR=1e-6, 8 rollouts/sample
+### P2-2. JSON → SQLite 마이그레이션
+- [ ] `data/papers.json` → SQLite DB
+- [ ] FTS5 전문 검색 인덱스
 
-### 3.3 평가 및 배포
-- [ ] Stage 2 벤치마크로 recall 측정
-- [ ] 프론트엔드 모델 스위칭 (기존 vs fine-tuned)
-- [ ] A/B 테스트
+### P2-3. 다국어 임베딩 모델
+- [ ] multilingual-e5-large 또는 text-embedding-3-large
+- [ ] 쿼리 언어 감지 → 모델 선택
+
+### P2-4. SSE 스트리밍 응답
+- [ ] `/api/deep-search` → Server-Sent Events
+- [ ] 턴별 중간 결과 스트리밍
+- [ ] 프론트엔드 실시간 프로그레스
+
+### P2-5. 사용자 피드백 수집
+- [ ] "유용함/관련없음" 피드백 UI
+- [ ] Rubric 가중치 자동 조정
+
+---
+
+## P3: 장기 (3-6달)
+
+### P3-1. Recall 벤치마크 구축
+- [ ] arXiv CS/ML 15만편 초록 수집
+- [ ] GPT-4o로 6만 QA 쌍 생성 (~$200)
+- [ ] 200 쿼리 수동 큐레이션 Ground Truth
+- [ ] Recall@10 자동 측정 파이프라인
+
+### P3-2. RL Fine-tuning
+- [ ] Qwen3-8B + SkyRL-Agent + GRPO + RaR
+- [ ] 250 epochs, LR=1e-6, 8 rollouts
+- [ ] AWS p4d.24xlarge (~$5000-10000)
+
+### P3-3. 멀티모달 논문 검색
+- [ ] PDF에서 figure/table 추출
+- [ ] CLIP 임베딩 기반 이미지 검색
 
 ---
 
-## 파일 변경 계획
+## 구현 순서 (의존성 기반)
 
-### 신규 파일
-| 파일 | Stage | 설명 |
-|------|-------|------|
-| `app/SearchAgent/react_search_agent.py` | 1.1 | ReAct 멀티턴 검색 에이전트 |
-| `app/QueryAgent/rubric_evaluator.py` | 1.2 | RaR-style 4차원 평가 |
-| `src/graph_rag/feedback_ranker.py` | 1.7 | 사용자 피드백 부스팅 (추후) |
-
-### 수정 파일
-| 파일 | Stage | 변경 |
-|------|-------|------|
-| `app/QueryAgent/query_analyzer.py` | 1.3, 1.4 | diversify_queries, classify_difficulty |
-| `src/graph_rag/hybrid_ranker.py` | 1.5 | rerank_with_abstracts |
-| `routers/search.py` | 1.7 | /api/deep-search + 난이도 분기 |
-| `routers/deps/agents.py` | 1.7 | 신규 에이전트 싱글턴 |
-| `web-ui/src/App.tsx` | 1.7 | Deep Search 모드 토글 |
-
----
+```
+P0-2 (버그 수정) → P0-3 (ThreadPool) → P0-1 (난이도 분기)
+                                           ↓
+P1-3 (캐시 정규화) → P1-5 (인기 쿼리, P1-3 의존)
+P0-3 → P1-4 (Cross-encoder, P0-3 권장)
+```
 
 ## 예상 성과
 
-| 지표 | 현재 | Stage 1 | Stage 3 |
-|------|------|---------|---------|
-| 단일턴 recall | ~0.3 | ~0.45 | ~0.58 |
-| 멀티턴 recall | N/A | ~0.50 | ~0.58+ |
-| 쿼리 다양성 | 1개 | 3-5개 | 학습 최적화 |
-| 결과 평가 | pass/fail | 4차원 rubric | 학습된 rubric |
-| 응답 (easy) | 30-90초 | 5-15초 | 3-10초 |
-| 응답 (hard) | 30-90초 | 60-120초 | 30-60초 |
+| 지표 | 현재 | P0 후 | P1 후 | P3 후 |
+|------|------|-------|-------|-------|
+| Easy 응답 시간 | 60-145초 | 15-30초 | 10-20초 | 3-10초 |
+| Hard 응답 시간 | 60-145초 | 60-145초 | 50-120초 | 30-60초 |
+| 캐시 히트율 | ~20% | ~20% | ~35% | ~50% |
+| Precision@10 | 추정 0.5 | 0.5 | +15-25% | +30% |
+| Recall@10 | 추정 0.3 | 0.35 | 0.45 | 0.58 |
