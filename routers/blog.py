@@ -174,6 +174,17 @@ async def get_thumbnail(post_id: str):
     return FileResponse(thumb_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+@router.get("/figures/{filename}")
+async def get_figure(filename: str):
+    """Serve blog figure images."""
+    from fastapi.responses import FileResponse
+
+    fig_path = BLOG_DIR / "figures" / filename
+    if not fig_path.exists():
+        raise HTTPException(status_code=404, detail="Figure not found")
+    return FileResponse(fig_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/posts", response_model=PostListResponse)
 async def list_posts(
     tag: Optional[str] = Query(None, max_length=100, description="Filter by tag"),
