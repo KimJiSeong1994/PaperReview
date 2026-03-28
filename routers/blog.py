@@ -121,14 +121,14 @@ class PostUpdateRequest(BaseModel):
 
 
 class PostSummary(BaseModel):
-    """Post summary returned in list responses (no full content)."""
+    """Post summary returned in list responses (no full content, no thumbnail)."""
     id: str
     title: str
     slug: str
     excerpt: str
     author: str
     tags: list[str]
-    thumbnail_url: Optional[str]
+    has_thumbnail: bool = False
     created_at: str
     updated_at: Optional[str]
     published: bool
@@ -136,8 +136,9 @@ class PostSummary(BaseModel):
 
 
 class PostDetail(PostSummary):
-    """Full post including markdown content."""
+    """Full post including markdown content and thumbnail."""
     content: str
+    thumbnail_url: Optional[str] = None
 
 
 class PostListResponse(BaseModel):
@@ -195,10 +196,11 @@ async def list_posts(
     end = start + limit
     page_posts = posts[start:end]
 
-    # Strip content from list responses
+    # Strip content and heavy thumbnail from list responses
     summaries = []
     for p in page_posts:
-        summary = {k: v for k, v in p.items() if k != "content"}
+        summary = {k: v for k, v in p.items() if k not in ("content", "thumbnail_url")}
+        summary["has_thumbnail"] = bool(p.get("thumbnail_url"))
         summaries.append(summary)
 
     return PostListResponse(
