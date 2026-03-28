@@ -57,8 +57,9 @@ def _graphrag_expand(
     initial_papers: List[Dict[str, Any]],
     max_expand: int = 15,
 ) -> List[Dict[str, Any]]:
-    """검색 결과의 논문들을 기반으로 GraphRAG 1-hop 확장.
+    """검색 결과의 논문들을 기반으로 GraphRAG hybrid_deep 확장.
 
+    1-hop: SIMILAR_TO + CITES 모두, 2-hop: CITES만 (인용 기반 안전 탐색).
     기존 검색 결과의 title을 시드로 사용하여,
     그래프에서 이웃 논문을 추가로 가져온다.
     실패 시 빈 리스트 반환 (graceful degradation).
@@ -99,14 +100,15 @@ def _graphrag_expand(
             return []
         neighbor_ids = fallback_ids[:max_expand]
     else:
-        # 1-hop 확장: citation + similarity
-        neighbor_ids_set: set = set()
-        for sid in seed_ids[:10]:  # 시드 상위 10개만 사용 (성능)
-            neighbor_ids_set.update(engine.get_neighbors(sid))
-            neighbor_ids_set.update(engine.get_similar_papers(sid, top_k=5))
+        # hybrid_deep 확장: 1-hop (SIMILAR_TO + CITES) + 2-hop (CITES만)
+        expanded_ids = engine.expand_graph(
+            seed_ids[:10],
+            expansion_strategy="hybrid_deep",
+            max_expanded=max_expand + len(seed_ids),
+        )
 
         # 기존 검색 결과와 겹치는 논문 제외
-        neighbor_ids_set -= existing_titles
+        neighbor_ids_set = set(expanded_ids) - existing_titles - set(seed_ids)
         neighbor_ids = list(neighbor_ids_set)[:max_expand]
 
     if not neighbor_ids:

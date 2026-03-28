@@ -146,43 +146,72 @@ class SearchEngine:
         self,
         initial_papers: List[str],
         expansion_strategy: str = "hybrid",
-        max_depth: int = 1
+        max_depth: int = 1,
+        max_expanded: int = 50,
     ) -> List[str]:
-        """그래프 확장 (기본 1-hop)"""
-        expanded_papers = set(initial_papers)
+        """그래프 확장 — 엣지 타입별 depth 제어.
+
+        Strategies:
+            citation   — CITES 엣지만 사용 (1-hop)
+            similarity — SIMILAR_TO 엣지만 사용 (1-hop)
+            hybrid     — 1-hop: SIMILAR_TO + CITES
+            hybrid_deep — 1-hop: SIMILAR_TO + CITES, 2-hop: CITES만 (안전 확장)
+        """
+        expanded = set(initial_papers)
 
         if expansion_strategy == "citation":
             for paper_id in initial_papers:
-                expanded_papers.update(self.get_cited_papers(paper_id))
-                expanded_papers.update(self.get_citing_papers(paper_id))
+                expanded.update(self.get_cited_papers(paper_id))
+                expanded.update(self.get_citing_papers(paper_id))
 
         elif expansion_strategy == "similarity":
             for paper_id in initial_papers:
-                expanded_papers.update(self.get_similar_papers(paper_id, top_k=5))
+                expanded.update(self.get_similar_papers(paper_id, top_k=5))
+
+        elif expansion_strategy == "hybrid_deep":
+            # 1-hop: SIMILAR_TO + CITES 모두
+            for pid in list(initial_papers):
+                expanded.update(self.get_cited_papers(pid))
+                expanded.update(self.get_citing_papers(pid))
+                expanded.update(self.get_similar_papers(pid, top_k=5))
+
+            # 2-hop: CITES만 (인용 기반 안전 탐색)
+            first_hop = expanded - set(initial_papers)
+            for pid in first_hop:
+                # outgoing CITES edges
+                for _src, dst, data in self.graph.edges(pid, data=True):
+                    if data.get('edge_type') == 'CITES':
+                        expanded.add(dst)
+                # incoming CITES edges
+                if hasattr(self.graph, 'in_edges'):
+                    for src, _dst, data in self.graph.in_edges(pid, data=True):
+                        if data.get('edge_type') == 'CITES':
+                            expanded.add(src)
+                if len(expanded) >= max_expanded:
+                    break
 
         elif expansion_strategy == "hybrid":
-            # 1-hop 확장
+            # 1-hop: SIMILAR_TO + CITES 모두
             for paper_id in list(initial_papers):
-                expanded_papers.update(self.get_cited_papers(paper_id))
-                expanded_papers.update(self.get_citing_papers(paper_id))
-                expanded_papers.update(self.get_similar_papers(paper_id, top_k=5))
+                expanded.update(self.get_cited_papers(paper_id))
+                expanded.update(self.get_citing_papers(paper_id))
+                expanded.update(self.get_similar_papers(paper_id, top_k=5))
 
-            # 2-hop 확장 (선택적, 상한 50개)
+            # 기존 hybrid 2-hop (선택적, max_depth >= 2)
             if max_depth >= 2:
-                second_hop = set()
-                for neighbor in list(expanded_papers):
+                second_hop: set = set()
+                for neighbor in list(expanded):
                     second_hop.update(self.get_similar_papers(neighbor, top_k=3))
-                    if len(second_hop) + len(expanded_papers) >= 50:
+                    if len(second_hop) + len(expanded) >= max_expanded:
                         break
-                expanded_papers.update(second_hop)
-                # 2-hop 포함 후에도 상한 적용
-                if len(expanded_papers) > 50:
-                    # initial_papers를 유지하면서 나머지 잘라내기
-                    extra = expanded_papers - set(initial_papers)
-                    keep_count = 50 - len(set(initial_papers) & expanded_papers)
-                    expanded_papers = set(initial_papers) | set(list(extra)[:keep_count])
+                expanded.update(second_hop)
 
-        return list(expanded_papers)
+        # 상한 적용 — initial_papers는 항상 유지
+        if len(expanded) > max_expanded:
+            extra = list(expanded - set(initial_papers))
+            expanded = set(initial_papers) | set(extra[:max_expanded - len(initial_papers)])
+
+        return list(expanded)
 
     def _keyword_fallback(self, query: str, top_k: int = 10) -> List[str]:
         """그래프에 없는 논문을 키워드 매칭으로 검색 (Cold Start fallback)"""

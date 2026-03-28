@@ -168,6 +168,70 @@ class ReferenceCollector:
         reference['parent_paper_source'] = parent_paper.get('source', '')
         return reference
 
+    @log_search_operation("Citation Collection")
+    def get_citations(self, paper: Dict[str, Any], max_citations: int = 20) -> List[Dict[str, Any]]:
+        """논문을 인용한 논문(citations) 수집 — Semantic Scholar /paper/{id}/citations 엔드포인트 사용.
+
+        Args:
+            paper: 대상 논문 dict (doi, arxiv_id, title 등 포함)
+            max_citations: 최대 인용 수
+
+        Returns:
+            인용 논문 리스트 (title, authors, year, citationCount, abstract, url, externalIds, isInfluential 포함)
+        """
+        paper_id = self._extract_paper_id(paper)
+        if not paper_id:
+            return []
+
+        citations = self._fetch_citations_from_semantic_scholar(paper_id, max_citations)
+        return [self._enrich_reference(cit, paper) for cit in citations]
+
+    def _fetch_citations_from_semantic_scholar(self, paper_id: str, max_citations: int) -> List[Dict[str, Any]]:
+        """Semantic Scholar API에서 인용(citation) 논문 가져오기."""
+        try:
+            api_url = f"{self.base_url}/paper/{paper_id}/citations"
+
+            limit = 1000 if max_citations == -1 else max_citations
+
+            params = {
+                'limit': limit,
+                'fields': 'title,authors,year,citationCount,abstract,url,externalIds,isInfluential'
+            }
+
+            response = self._request_with_retry(api_url, params=params)
+            if response is None:
+                return []
+
+            data = response.json()
+            citations: List[Dict[str, Any]] = []
+
+            for cit_data in data.get('data', []):
+                citing_paper = cit_data.get('citingPaper')
+                if not citing_paper:
+                    continue
+
+                external_ids = citing_paper.get('externalIds') or {}
+                citations.append({
+                    "title": citing_paper.get('title', ''),
+                    "authors": [author.get('name', '') for author in citing_paper.get('authors', [])],
+                    "year": str(citing_paper.get('year', '')),
+                    "citations": citing_paper.get('citationCount', 0),
+                    "abstract": citing_paper.get('abstract', ''),
+                    "url": citing_paper.get('url', ''),
+                    "externalIds": external_ids,
+                    "isInfluential": cit_data.get('isInfluential', False),
+                    "source": "Citation (via Semantic Scholar)",
+                    "paper_id": citing_paper.get('paperId', ''),
+                    "doi": external_ids.get('DOI', ''),
+                    "arxiv_id": external_ids.get('ArXiv', ''),
+                })
+
+            return citations
+
+        except Exception as e:
+            logger.warning("Semantic Scholar citation fetch failed for %s: %s", paper_id, e)
+            return []
+
     @log_search_operation("Batch Reference Collection")
     def collect_references_batch(self, papers: List[Dict[str, Any]], max_references_per_paper: int = 10, delay: float = 1.0) -> Dict[str, List[Dict[str, Any]]]:
         """

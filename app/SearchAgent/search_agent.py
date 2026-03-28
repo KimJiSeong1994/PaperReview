@@ -26,7 +26,7 @@ def _contains_korean(text: str) -> bool:
     """텍스트에 한글 음절(U+AC00-U+D7A3)이 포함되어 있는지 확인."""
     return any('\uAC00' <= c <= '\uD7A3' for c in text)
 from graph.embedding_generator import EmbeddingGenerator
-from graph.constants import JACCARD_EDGE_THRESHOLD
+from graph.constants import JACCARD_EDGE_THRESHOLD, CITATION_MAX_PER_PAPER, CITATION_COLLECTION_DELAY
 
 # HybridRanker import
 try:
@@ -949,6 +949,18 @@ class SearchAgent:
             return legacy_id
         return None
 
+    def _find_node_by_title(self, title: str, graph) -> Optional[str]:
+        """제목(정규화)으로 그래프 노드 ID 찾기."""
+        if not title:
+            return None
+        title_norm = title.strip().lower()
+        for node_id in graph.nodes():
+            node_data = graph.nodes[node_id]
+            node_title = node_data.get('title', '')
+            if node_title and node_title.strip().lower() == title_norm:
+                return node_id
+        return None
+
     def save_papers(self, results: Dict[str, List[Dict[str, Any]]], query: str = "",
                   generate_embeddings: bool = True, update_graph: bool = True) -> Dict[str, Any]:
         """
@@ -1203,7 +1215,39 @@ class SearchAgent:
 
         print(f"  {similarity_count}개 Similarity 엣지 추가")
 
-        # 7. 그래프 저장
+        # 7. Semantic Scholar 외부 인용 엣지 수집
+        ext_citation_count = 0
+        citation_batch_size = min(10, len(new_papers))
+        for paper in new_papers[:citation_batch_size]:
+            node_id = self._find_node_in_graph(paper, existing_graph)
+            if not node_id:
+                continue
+            try:
+                citations = self.reference_collector.get_citations(
+                    paper, max_citations=CITATION_MAX_PER_PAPER
+                )
+                for cit in citations:
+                    cit_title = cit.get('title', '')
+                    if not cit_title:
+                        continue
+                    cit_node_id = self._find_node_by_title(cit_title, existing_graph)
+                    if cit_node_id and cit_node_id != node_id and not existing_graph.has_edge(cit_node_id, node_id):
+                        existing_graph.add_edge(
+                            cit_node_id, node_id,
+                            edge_type="CITES",
+                            weight=1.0,
+                            is_influential=cit.get('isInfluential', False),
+                            source_api="semantic_scholar",
+                        )
+                        ext_citation_count += 1
+                time.sleep(CITATION_COLLECTION_DELAY)
+            except Exception:
+                continue
+
+        if ext_citation_count > 0:
+            print(f"  {ext_citation_count}개 외부 인용(Citation) 엣지 추가")
+
+        # 8. 그래프 저장
         try:
             with open(self.graph_path, 'wb') as f:
                 pickle.dump(existing_graph, f)
@@ -1222,6 +1266,7 @@ class SearchAgent:
                 "nodes_added": nodes_added,
                 "citation_edges_added": citation_count,
                 "similarity_edges_added": similarity_count,
+                "ext_citation_edges_added": ext_citation_count,
                 "total_nodes": existing_graph.number_of_nodes(),
                 "total_edges": existing_graph.number_of_edges()
             }

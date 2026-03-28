@@ -92,6 +92,72 @@ class EdgeCreator:
 
         return edges
 
+    @log_data_processing("Citation Edge Creation (by ID)")
+    def create_citation_edges_by_id(
+        self,
+        paper_id: str,
+        citations: List[Dict[str, Any]],
+        graph,
+    ) -> List[Dict[str, Any]]:
+        """Semantic Scholar paper ID 기반 인용 엣지 생성.
+
+        그래프에 이미 존재하는 노드에만 엣지를 생성한다.
+
+        Args:
+            paper_id: 인용 당하는 논문의 그래프 node_id
+            citations: get_citations()에서 반환된 인용 논문 리스트
+            graph: NetworkX 그래프 인스턴스
+
+        Returns:
+            생성된 엣지 리스트
+        """
+        edges: List[Dict[str, Any]] = []
+
+        if paper_id not in graph:
+            return edges
+
+        for cit in citations:
+            cit_title = cit.get('title', '')
+            if not cit_title:
+                continue
+
+            # 인용 논문이 그래프에 있는지 제목으로 검색
+            cit_node_id = None
+            cit_title_norm = _normalize_title(cit_title)
+            if not cit_title_norm:
+                continue
+
+            for node_id in graph.nodes():
+                node_data = graph.nodes[node_id]
+                node_title = node_data.get('title', '')
+                if _normalize_title(node_title) == cit_title_norm:
+                    cit_node_id = node_id
+                    break
+
+            if cit_node_id is None or cit_node_id == paper_id:
+                continue
+
+            # 이미 존재하는 엣지인지 확인
+            if graph.has_edge(cit_node_id, paper_id):
+                continue
+
+            is_influential = cit.get('isInfluential', False)
+            edge = {
+                "edge_id": f"{cit_node_id}->{paper_id}",
+                "source": cit_node_id,
+                "target": paper_id,
+                "edge_type": "CITES",
+                "weight": 1.0,
+                "metadata": {
+                    "reference_type": "citation",
+                    "is_influential": is_influential,
+                    "source_api": "semantic_scholar",
+                }
+            }
+            edges.append(edge)
+
+        return edges
+
     @log_data_processing("Similarity Edge Creation")
     def create_similarity_edges(
         self,
