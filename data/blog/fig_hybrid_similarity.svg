@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" style="width:100%;max-width:960px;height:auto" role="img" aria-label="하이브리드 유사도 계산">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="280" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text x="480" y="28" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6">하이브리드 유사도 계산</text>
+
+  <!-- ─── Paper A box ─── -->
+  <rect x="30" y="42" width="390" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="50" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#a5b4fc">Paper A</text>
+  <text x="50" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#f3f4f6">"Efficient Attention for Long Sequences"</text>
+  <text x="50" y="95" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">categories: cs.LG  cs.CL</text>
+
+  <!-- ─── Paper B box ─── -->
+  <rect x="540" y="42" width="390" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="560" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#6366f1">Paper B</text>
+  <text x="560" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#f3f4f6">"Flash Attention: Fast Transformer Training"</text>
+  <text x="560" y="95" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">categories: cs.LG</text>
+
+  <!-- ─── Title tokens section ─── -->
+  <!-- Row label -->
+  <text x="30" y="135" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">제목 토큰</text>
+
+  <!-- Paper A title tokens -->
+  <!-- efficient -->
+  <rect x="30" y="142" width="72" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="66" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">efficient</text>
+  <!-- attention A — shared -->
+  <rect x="108" y="142" width="66" height="22" rx="4" fill="#1f2937" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="141" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">attention</text>
+  <!-- long -->
+  <rect x="180" y="142" width="46" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="203" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">long</text>
+  <!-- sequences -->
+  <rect x="232" y="142" width="72" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="268" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">sequences</text>
+
+  <!-- intersection label -->
+  <text x="420" y="150" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">∩ {attention}</text>
+  <line x1="468" y1="153" x2="498" y2="153" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- title_sim result -->
+  <text x="560" y="145" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">title_sim =</text>
+  <text x="560" y="162" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#a5b4fc">1/8 = 0.125</text>
+
+  <!-- Paper B title tokens -->
+  <!-- flash -->
+  <rect x="700" y="142" width="42" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="721" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">flash</text>
+  <!-- attention B — shared -->
+  <rect x="748" y="142" width="66" height="22" rx="4" fill="#1f2937" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="781" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">attention</text>
+  <!-- fast -->
+  <rect x="820" y="142" width="36" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="838" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">fast</text>
+  <!-- transformer -->
+  <rect x="700" y="168" width="78" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="739" y="183" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">transformer</text>
+  <!-- training -->
+  <rect x="784" y="168" width="56" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="812" y="183" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">training</text>
+
+  <!-- ─── Divider ─── -->
+  <line x1="30" y1="205" x2="930" y2="205" stroke="#1f2937" stroke-width="1"/>
+
+  <!-- ─── Keyword tokens section ─── -->
+  <text x="30" y="222" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">키워드 토큰</text>
+
+  <!-- Paper A kw tokens -->
+  <!-- cs.lg A — shared -->
+  <rect x="30" y="229" width="52" height="22" rx="4" fill="#1f2937" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="56" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#22c55e">cs.LG</text>
+  <!-- cs.cl A — unique -->
+  <rect x="88" y="229" width="46" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="111" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">cs.CL</text>
+
+  <!-- intersection label kw -->
+  <text x="420" y="238" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">∩ {cs.LG}</text>
+  <line x1="468" y1="241" x2="498" y2="241" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- kw_sim result -->
+  <text x="560" y="233" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">kw_sim =</text>
+  <text x="560" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#22c55e">1/2 = 0.500</text>
+
+  <!-- Paper B kw token -->
+  <!-- cs.lg B — shared -->
+  <rect x="700" y="229" width="52" height="22" rx="4" fill="#1f2937" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="726" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#22c55e">cs.LG</text>
+
+  <!-- ─── Final formula ─── -->
+  <rect x="30" y="265" width="900" height="1" fill="#1f2937"/>
+  <text x="480" y="277" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#9ca3af">
+    종합 스코어:
+    <tspan font-weight="700" fill="#f3f4f6">0.7 × 0.125 + 0.3 × 0.500 = </tspan>
+    <tspan font-weight="700" fill="#22c55e">0.238</tspan>
+    <tspan fill="#9ca3af">  ≥  0.06  →  </tspan>
+    <tspan font-weight="700" fill="#22c55e">엣지 연결 ✓</tspan>
+  </text>
+</svg>

@@ -20,6 +20,93 @@
 
 ---
 
+
+
+<div style="margin:24px 0;text-align:center;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" style="width:100%;max-width:960px;height:auto" role="img" aria-label="네트워크 그래프 생성 파이프라인">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="220" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text x="480" y="30" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6">네트워크 그래프 생성 파이프라인</text>
+
+  <!-- Step 1: 논문 수집 -->
+  <rect x="30" y="55" width="155" height="130" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="107" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">논문 수집</text>
+  <line x1="47" y1="89" x2="170" y2="89" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="107" y="107" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">6개 소스</text>
+  <text x="107" y="122" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">arXiv · Scholar</text>
+  <text x="107" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">Connected Papers</text>
+  <text x="107" y="152" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">Semantic Scholar</text>
+  <text x="107" y="167" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">PubMed · DBLP</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="186" y1="120" x2="210" y2="120" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: 중복 제거 -->
+  <rect x="212" y="55" width="155" height="130" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="289" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">중복 제거</text>
+  <line x1="228" y1="89" x2="352" y2="89" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="289" y="107" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">4단계 파이프라인</text>
+  <text x="289" y="122" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">① DOI 일치</text>
+  <text x="289" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">② 제목 정규화</text>
+  <text x="289" y="152" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">③ Jaccard 유사도</text>
+  <text x="289" y="167" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">④ 임베딩 비교</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="368" y1="120" x2="392" y2="120" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: 유사도 계산 (핵심 — accent border) -->
+  <rect x="394" y="55" width="172" height="130" rx="8" fill="#181818" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="480" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">유사도 계산</text>
+  <line x1="410" y1="89" x2="550" y2="89" stroke="rgba(165,180,252,0.25)" stroke-width="1"/>
+  <text x="480" y="107" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">하이브리드 스코어</text>
+  <text x="480" y="122" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">제목 70% + 키워드 30%</text>
+  <text x="480" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">Jaccard 토큰 교집합</text>
+  <text x="480" y="152" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">임계값 score ≥ 0.06</text>
+  <text x="480" y="167" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">엣지 연결 여부 결정</text>
+
+  <!-- Arrow 3→4 -->
+  <line x1="567" y1="120" x2="591" y2="120" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: 레이아웃 -->
+  <rect x="593" y="55" width="155" height="130" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="670" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">레이아웃</text>
+  <line x1="609" y1="89" x2="733" y2="89" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="670" y="107" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">NetworkX</text>
+  <text x="670" y="122" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">spring_layout</text>
+  <text x="670" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">seed=42</text>
+  <text x="670" y="152" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">k=0.75</text>
+  <text x="670" y="167" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">좌표 정규화 적용</text>
+
+  <!-- Arrow 4→5 -->
+  <line x1="749" y1="120" x2="773" y2="120" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 5: 시각화 -->
+  <rect x="775" y="55" width="155" height="130" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="852" y="80" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">시각화</text>
+  <line x1="791" y1="89" x2="915" y2="89" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="852" y="107" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">Plotly.js</text>
+  <text x="852" y="122" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">노드 크기: 인용 수</text>
+  <text x="852" y="137" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">노드 색상: 출판 연도</text>
+  <text x="852" y="152" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">엣지 투명도: 유사도</text>
+  <text x="852" y="167" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">WebGL (100+ 노드)</text>
+
+  <!-- Step labels bottom -->
+  <text x="107" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">STEP 1</text>
+  <text x="289" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">STEP 2</text>
+  <text x="480" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">STEP 3</text>
+  <text x="670" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">STEP 4</text>
+  <text x="852" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">STEP 5</text>
+</svg>
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 1. 논문 네트워크 그래프 생성 파이프라인 — 수집부터 시각화까지</em></p>
+</div>
 ## 첫 번째 시도: 제목 유사도만으로
 
 처음 구현은 단순했다. 논문 제목을 토큰화하고, 두 논문 사이의 Jaccard similarity를 계산해서 임계값 이상이면 엣지를 추가한다. 토큰화 규칙도 간단하다. 정규표현식으로 영단어를 추출하고, 3글자 이하의 단어(관사, 전치사 등)를 제거하면 `["attention", "transformer", "models"]` 같은 토큰 집합이 남는다.
@@ -50,6 +137,114 @@ centroid 보정은 전체 그래프의 무게중심을 (0, 0)으로 옮기는 �
 
 두 가지 문제를 동시에 해결하는 방법을 고민했다. 어휘 유사도의 한계는 제목 이외의 신호를 추가해서 보완하기로 했다. 논문 메타데이터에는 제목 외에도 categories와 keywords 필드가 있다. arXiv 논문이라면 categories 필드에 cs.LG, cs.CL 같은 분류가 들어있다. 같은 카테고리에 속한 논문들은 제목이 전혀 달라도 같은 연구 영역에 있다.
 
+
+
+<div style="margin:24px 0;text-align:center;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" style="width:100%;max-width:960px;height:auto" role="img" aria-label="하이브리드 유사도 계산">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="280" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text x="480" y="28" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6">하이브리드 유사도 계산</text>
+
+  <!-- ─── Paper A box ─── -->
+  <rect x="30" y="42" width="390" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="50" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#a5b4fc">Paper A</text>
+  <text x="50" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#f3f4f6">"Efficient Attention for Long Sequences"</text>
+  <text x="50" y="95" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">categories: cs.LG  cs.CL</text>
+
+  <!-- ─── Paper B box ─── -->
+  <rect x="540" y="42" width="390" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="560" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#6366f1">Paper B</text>
+  <text x="560" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#f3f4f6">"Flash Attention: Fast Transformer Training"</text>
+  <text x="560" y="95" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">categories: cs.LG</text>
+
+  <!-- ─── Title tokens section ─── -->
+  <!-- Row label -->
+  <text x="30" y="135" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">제목 토큰</text>
+
+  <!-- Paper A title tokens -->
+  <!-- efficient -->
+  <rect x="30" y="142" width="72" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="66" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">efficient</text>
+  <!-- attention A — shared -->
+  <rect x="108" y="142" width="66" height="22" rx="4" fill="#1f2937" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="141" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">attention</text>
+  <!-- long -->
+  <rect x="180" y="142" width="46" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="203" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">long</text>
+  <!-- sequences -->
+  <rect x="232" y="142" width="72" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="268" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">sequences</text>
+
+  <!-- intersection label -->
+  <text x="420" y="150" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">∩ {attention}</text>
+  <line x1="468" y1="153" x2="498" y2="153" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- title_sim result -->
+  <text x="560" y="145" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">title_sim =</text>
+  <text x="560" y="162" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#a5b4fc">1/8 = 0.125</text>
+
+  <!-- Paper B title tokens -->
+  <!-- flash -->
+  <rect x="700" y="142" width="42" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="721" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">flash</text>
+  <!-- attention B — shared -->
+  <rect x="748" y="142" width="66" height="22" rx="4" fill="#1f2937" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="781" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#a5b4fc">attention</text>
+  <!-- fast -->
+  <rect x="820" y="142" width="36" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="838" y="157" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">fast</text>
+  <!-- transformer -->
+  <rect x="700" y="168" width="78" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="739" y="183" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">transformer</text>
+  <!-- training -->
+  <rect x="784" y="168" width="56" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="812" y="183" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">training</text>
+
+  <!-- ─── Divider ─── -->
+  <line x1="30" y1="205" x2="930" y2="205" stroke="#1f2937" stroke-width="1"/>
+
+  <!-- ─── Keyword tokens section ─── -->
+  <text x="30" y="222" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">키워드 토큰</text>
+
+  <!-- Paper A kw tokens -->
+  <!-- cs.lg A — shared -->
+  <rect x="30" y="229" width="52" height="22" rx="4" fill="#1f2937" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="56" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#22c55e">cs.LG</text>
+  <!-- cs.cl A — unique -->
+  <rect x="88" y="229" width="46" height="22" rx="4" fill="#1f2937" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="111" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#9ca3af">cs.CL</text>
+
+  <!-- intersection label kw -->
+  <text x="420" y="238" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">∩ {cs.LG}</text>
+  <line x1="468" y1="241" x2="498" y2="241" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- kw_sim result -->
+  <text x="560" y="233" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#9ca3af">kw_sim =</text>
+  <text x="560" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#22c55e">1/2 = 0.500</text>
+
+  <!-- Paper B kw token -->
+  <!-- cs.lg B — shared -->
+  <rect x="700" y="229" width="52" height="22" rx="4" fill="#1f2937" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="726" y="244" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#22c55e">cs.LG</text>
+
+  <!-- ─── Final formula ─── -->
+  <rect x="30" y="265" width="900" height="1" fill="#1f2937"/>
+  <text x="480" y="277" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#9ca3af">
+    종합 스코어:
+    <tspan font-weight="700" fill="#f3f4f6">0.7 × 0.125 + 0.3 × 0.500 = </tspan>
+    <tspan font-weight="700" fill="#22c55e">0.238</tspan>
+    <tspan fill="#9ca3af">  ≥  0.06  →  </tspan>
+    <tspan font-weight="700" fill="#22c55e">엣지 연결 ✓</tspan>
+  </text>
+</svg>
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 2. 하이브리드 유사도 계산 — 제목 토큰(70%) + 키워드(30%) 결합</em></p>
+</div>
 보조 유사도 계산은 간단하다. 각 논문에서 categories 문자열을 공백으로 나누고, keywords 리스트의 각 항목을 소문자로 변환하여 집합을 만든다. 두 집합 사이의 Jaccard similarity를 kw_score로 사용한다. 최종 점수는 제목 유사도에 70%, 키워드/카테고리 유사도에 30%를 곱해 더한다.
 
 ```python
@@ -66,6 +261,106 @@ if score >= 0.06:
 
 ---
 
+
+
+<div style="margin:24px 0;text-align:center;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" style="width:100%;max-width:960px;height:auto" role="img" aria-label="좌표 정규화 Before/After">
+  <defs>
+    <marker id="arrnorm" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a5b4fc"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="300" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text x="480" y="28" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#f3f4f6">좌표 정규화 Before / After</text>
+
+  <!-- ══════════════ BEFORE panel ══════════════ -->
+  <!-- Panel background -->
+  <rect x="30" y="42" width="390" height="220" rx="8" fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+
+  <!-- Label -->
+  <text x="225" y="65" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">Before</text>
+  <text x="225" y="82" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">centroid 보정만</text>
+
+  <!-- Viewport frame (clipping region) -->
+  <rect x="55" y="92" width="340" height="155" rx="4" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- Normal nodes inside viewport -->
+  <circle cx="110" cy="118" r="5" fill="#a5b4fc"/>
+  <circle cx="145" cy="112" r="5" fill="#a5b4fc"/>
+  <circle cx="175" cy="130" r="6" fill="#a5b4fc"/>
+  <circle cx="210" cy="125" r="4" fill="#a5b4fc"/>
+  <circle cx="155" cy="155" r="5" fill="#a5b4fc"/>
+  <circle cx="200" cy="165" r="6" fill="#a5b4fc"/>
+  <circle cx="130" cy="175" r="4" fill="#a5b4fc"/>
+  <circle cx="245" cy="145" r="5" fill="#a5b4fc"/>
+  <circle cx="280" cy="138" r="4" fill="#a5b4fc"/>
+  <circle cx="230" cy="195" r="5" fill="#a5b4fc"/>
+  <circle cx="170" cy="200" r="4" fill="#a5b4fc"/>
+  <circle cx="305" cy="160" r="5" fill="#a5b4fc"/>
+
+  <!-- Problem node — outside viewport (bottom-right overflow) -->
+  <circle cx="368" cy="232" r="6" fill="#ef4444"/>
+  <!-- dashed leader to show it is outside -->
+  <line x1="355" y1="224" x2="340" y2="210" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 2"/>
+  <!-- Label -->
+  <text x="375" y="248" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#ef4444">뷰포트 밖</text>
+
+  <!-- Second problem node — top-left overflow -->
+  <circle cx="44" cy="104" r="5" fill="#ef4444"/>
+  <line x1="53" y1="107" x2="64" y2="110" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 2"/>
+
+  <!-- Warning label -->
+  <text x="225" y="260" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#ef4444">고립 노드가 뷰포트 밖으로 벗어남</text>
+
+  <!-- ══════════════ Center arrow ══════════════ -->
+  <line x1="438" y1="152" x2="518" y2="152" stroke="#a5b4fc" stroke-width="2" marker-end="url(#arrnorm)"/>
+  <text x="478" y="143" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#a5b4fc">정규화</text>
+  <text x="478" y="170" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" fill="#6b7280">max-abs</text>
+  <text x="478" y="182" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" fill="#6b7280">[-1, 1]</text>
+
+  <!-- ══════════════ AFTER panel ══════════════ -->
+  <!-- Panel background -->
+  <rect x="540" y="42" width="390" height="220" rx="8" fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+
+  <!-- Label -->
+  <text x="735" y="65" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#f3f4f6">After</text>
+  <text x="735" y="82" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">+ max-abs 정규화</text>
+
+  <!-- Viewport frame -->
+  <rect x="565" y="92" width="340" height="155" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+
+  <!-- All nodes comfortably inside -->
+  <circle cx="615" cy="120" r="5" fill="#a5b4fc"/>
+  <circle cx="652" cy="115" r="5" fill="#a5b4fc"/>
+  <circle cx="688" cy="132" r="6" fill="#a5b4fc"/>
+  <circle cx="720" cy="126" r="4" fill="#a5b4fc"/>
+  <circle cx="660" cy="158" r="5" fill="#a5b4fc"/>
+  <circle cx="700" cy="168" r="6" fill="#a5b4fc"/>
+  <circle cx="635" cy="178" r="4" fill="#a5b4fc"/>
+  <circle cx="745" cy="148" r="5" fill="#a5b4fc"/>
+  <circle cx="778" cy="140" r="4" fill="#a5b4fc"/>
+  <circle cx="730" cy="196" r="5" fill="#a5b4fc"/>
+  <circle cx="672" cy="202" r="4" fill="#a5b4fc"/>
+  <circle cx="802" cy="162" r="5" fill="#a5b4fc"/>
+  <!-- Previously-problematic nodes now inside, shown in green -->
+  <circle cx="858" cy="218" r="6" fill="#22c55e"/>
+  <circle cx="578" cy="103" r="5" fill="#22c55e"/>
+
+  <!-- Green check mark -->
+  <text x="870" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" fill="#22c55e">✓</text>
+
+  <!-- Success label -->
+  <text x="735" y="260" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#22c55e">모든 노드 [-1, 1] 범위 내 배치</text>
+
+  <!-- ══════════════ Bottom caption ══════════════ -->
+  <text x="480" y="285" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" fill="#6b7280">pos[node] = (pos[node] - centroid) / max(abs(pos[node]))</text>
+</svg>
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 3. 좌표 정규화 Before/After — 고립 노드의 뷰포트 복귀</em></p>
+</div>
 ## 레이아웃: Force-Directed + 정규화
 
 유사도 기반 그래프가 완성되면 각 노드에 2D 좌표를 부여해야 한다. 우리는 NetworkX의 `spring_layout`을 사용한다. 내부적으로는 Fruchterman-Reingold 알고리즘이 작동한다. 연결된 노드는 인력으로 당기고, 모든 노드 쌍은 척력으로 밀어내는 물리 시뮬레이션을 수렴할 때까지 반복한다.
