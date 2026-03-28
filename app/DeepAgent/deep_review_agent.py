@@ -51,14 +51,14 @@ def load_papers_tool(paper_ids: str) -> str:
             # Parse as comma-separated string
             ids = [pid.strip() for pid in paper_ids.split(',')]
     except Exception as e:
-        print(f"[WARNING] Error parsing paper_ids: {e}")
+        logger.warning("Error parsing paper_ids: %s", e)
         # Fallback: treat as single ID
         ids = [paper_ids.strip()]
 
     # Ensure all IDs are strings
     ids = [str(pid) for pid in ids if pid]
 
-    print(f"[INFO] Loading {len(ids)} papers: {ids}")
+    logger.info("Loading %s papers: %s", len(ids), ids)
 
     # Load papers
     papers = load_papers_from_ids(ids)
@@ -340,7 +340,7 @@ def analyze_paper_deep(paper_json: str) -> str:
 Be specific, evidence-based, and cite paper content where relevant."""
 
     try:
-        print(f"[Step] Deep analyzing: {title[:50]}...")
+        logger.info("Deep analyzing: %s...", title[:50])
         response = llm.invoke(analysis_prompt)
         analysis_text = response.content
 
@@ -358,7 +358,7 @@ Be specific, evidence-based, and cite paper content where relevant."""
         }, ensure_ascii=False)
 
     except Exception as e:
-        print(f"[ERROR] Error in deep analysis: {e}")
+        logger.error("Error in deep analysis: %s", e)
         return json.dumps({
             "error": str(e),
             "title": title
@@ -406,7 +406,7 @@ For each contribution, provide:
 Format your response as a numbered list with detailed explanations."""
 
     try:
-        print(f"[INFO] Extracting contributions: {title[:50]}...")
+        logger.info("Extracting contributions: %s...", title[:50])
         response = llm.invoke(prompt)
 
         return json.dumps({
@@ -482,7 +482,7 @@ def analyze_methodology(paper_json: str) -> str:
 - What are the potential weaknesses?"""
 
     try:
-        print(f"[INFO] Analyzing methodology: {title[:50]}...")
+        logger.info("Analyzing methodology: %s...", title[:50])
         response = llm.invoke(prompt)
 
         # Detect method categories
@@ -570,7 +570,7 @@ def critical_analysis(paper_json: str) -> str:
 Be constructive but rigorous in your critique."""
 
     try:
-        print(f"[INFO] Critical analysis: {title[:50]}...")
+        logger.info("Critical analysis: %s...", title[:50])
         response = llm.invoke(prompt)
 
         return json.dumps({
@@ -717,7 +717,7 @@ def validate_and_improve_analysis(analysis_json: str) -> str:
 5. Areas that need more depth"""
 
     try:
-        print(f"[OK] Validating analysis for: {title[:50]}...")
+        logger.info("Validating analysis for: %s...", title[:50])
         response = llm.invoke(prompt)
 
         return json.dumps({
@@ -822,7 +822,7 @@ def synthesize_cross_paper_findings(analyses_json: str) -> str:
 Provide specific examples and evidence from the analyzed papers."""
 
     try:
-        print(f"[INFO] Synthesizing {len(analyses)} paper analyses...")
+        logger.info("Synthesizing %s paper analyses...", len(analyses))
         response = llm.invoke(prompt)
 
         # Also extract method statistics
@@ -850,7 +850,7 @@ Provide specific examples and evidence from the analyzed papers."""
         }, ensure_ascii=False)
 
     except Exception as e:
-        print(f"[ERROR] Synthesis error: {e}")
+        logger.error("Synthesis error: %s", e)
         return json.dumps({"error": str(e)})
 
 
@@ -953,7 +953,7 @@ For each paper, provide:
 Make the report scholarly, well-organized, and insightful. Use specific evidence from the analyses."""
 
     try:
-        print("[INFO] Generating comprehensive synthesis report...")
+        logger.info("Generating comprehensive synthesis report...")
         response = llm.invoke(prompt)
 
         return json.dumps({
@@ -964,7 +964,7 @@ Make the report scholarly, well-organized, and insightful. Use specific evidence
         }, ensure_ascii=False)
 
     except Exception as e:
-        print(f"[ERROR] Report generation error: {e}")
+        logger.error("Report generation error: %s", e)
         return json.dumps({"error": str(e)})
 
 
@@ -1083,10 +1083,10 @@ class DeepReviewAgent:
         # Create master agent
         self.agent = self._create_master_agent()
 
-        print("[INFO] Deep Review Agent initialized")
-        print(f"   Model: {self.model}")
-        print(f"   Researchers: {self.num_researchers}")
-        print(f"   Session: {self.workspace.session_id}")
+        logger.info("Deep Review Agent initialized")
+        logger.info("   Model: %s", self.model)
+        logger.info("   Researchers: %s", self.num_researchers)
+        logger.info("   Session: %s", self.workspace.session_id)
 
     def _set_workspace_for_tools(self):
         """Set workspace for all tools"""
@@ -1103,12 +1103,12 @@ class DeepReviewAgent:
         for i in range(1, self.num_researchers + 1):
             researcher = create_researcher_subagent_for_deepagent(i)
             subagents.append(researcher)
-            print(f"  [v] Created Researcher {i}")
+            logger.info("  Created Researcher %s", i)
 
         # Create 1 advisor
         advisor = create_advisor_subagent_for_deepagent()
         subagents.append(advisor)
-        print("  [v] Created Advisor")
+        logger.info("  Created Advisor")
 
         return subagents
 
@@ -1128,7 +1128,7 @@ class DeepReviewAgent:
             # file system tools도 자동으로 포함됨
         )
 
-        print("  [v] Created Master Agent")
+        logger.info("  Created Master Agent")
 
         return agent
 
@@ -1148,12 +1148,11 @@ class DeepReviewAgent:
             Review result with report path
         """
         if verbose:
-            print("\n" + "="*80)
-            print("[INFO] Starting Deep Paper Review with deepagents")
-            print("="*80)
-            print(f"Papers to review: {len(paper_ids)}")
-            print(f"Researchers: {self.num_researchers}")
-            print()
+            logger.info("=" * 80)
+            logger.info("Starting Deep Paper Review with deepagents")
+            logger.info("=" * 80)
+            logger.info("Papers to review: %s", len(paper_ids))
+            logger.info("Researchers: %s", self.num_researchers)
 
         # Save paper IDs to workspace
         paper_ids_str = ','.join(paper_ids)
@@ -1183,14 +1182,12 @@ Begin the review process now.
         try:
             # Invoke master agent
             if verbose:
-                print("[INFO] Invoking Master Agent...")
-                print()
+                logger.info("Invoking Master Agent...")
 
             result = self.agent.invoke({"messages": [{"role": "user", "content": prompt}]})
 
             if verbose:
-                print("\n[OK] Review process completed!")
-                print()
+                logger.info("Review process completed!")
 
             # Get results from workspace
             summary = self.workspace.get_session_summary()
@@ -1205,7 +1202,7 @@ Begin the review process now.
             }
 
         except Exception as e:
-            print(f"\n[ERROR] Error during review: {e}")
+            logger.error("Error during review: %s", e)
             import traceback
             traceback.print_exc()
 

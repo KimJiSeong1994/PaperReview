@@ -270,7 +270,7 @@ function App() {
         errorMessage = error.message;
       }
 
-      alert(`검색 중 오류가 발생했습니다: ${errorMessage}`);
+      setGuidanceMessage(`검색 중 오류가 발생했습니다: ${errorMessage}`);
 
       setPapers([]);
       setGraphData(null);
@@ -334,7 +334,7 @@ function App() {
         return;
       }
       console.error('Bookmark save error:', error);
-      alert(`북마크 저장 실패: ${error.message || error}`);
+      setGuidanceMessage(`북마크 저장 실패: ${error.message || error}`);
     }
   };
 
@@ -413,11 +413,11 @@ function App() {
         if (result.poster_html) {
           setPosterHtml(result.poster_html);
         } else {
-          alert(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
+          setGuidanceMessage(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
         }
       } catch (err: any) {
         console.error('Direct poster generation failed:', err);
-        alert(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
+        setGuidanceMessage(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
       } finally {
         setPosterLoading(false);
       }
@@ -426,13 +426,13 @@ function App() {
 
     // Deep Research 미완료 시 — 논문 선택 후 Deep Research 먼저 실행 안내
     if (selectedPapersForReview.size === 0) {
-      alert('포스터를 생성하려면 논문을 선택한 후 Deep Research를 먼저 실행해주세요.');
+      setGuidanceMessage('포스터를 생성하려면 논문을 선택한 후 Deep Research를 먼저 실행해주세요.');
       return;
     }
 
     // 논문이 선택되어 있지만 Deep Research가 아직 완료되지 않은 경우
     if (reviewStatus === 'processing') {
-      alert('Deep Research가 진행 중입니다. 완료 후 다시 시도해주세요.');
+      setGuidanceMessage('Deep Research가 진행 중입니다. 완료 후 다시 시도해주세요.');
       return;
     }
 
@@ -447,7 +447,7 @@ function App() {
 
   const handleDownloadPDFs = async () => {
     if (selectedPapersForReview.size === 0) {
-      alert('다운로드할 논문을 선택해주세요.');
+      setGuidanceMessage('다운로드할 논문을 선택해주세요.');
       return;
     }
 
@@ -461,7 +461,7 @@ function App() {
     const papersWithPDF = selectedPapersData.filter(paper => paper.pdf_url);
 
     if (papersWithPDF.length === 0) {
-      alert('선택된 논문 중 다운로드 가능한 PDF가 없습니다.');
+      setGuidanceMessage('선택된 논문 중 다운로드 가능한 PDF가 없습니다.');
       return;
     }
 
@@ -489,7 +489,7 @@ function App() {
       }
     }
 
-    alert(`${downloadedCount}개의 PDF 다운로드를 시작했습니다.`);
+    setGuidanceMessage(`${downloadedCount}개의 PDF 다운로드를 시작했습니다.`);
   };
 
   const handleStartDeepReview = async () => {
@@ -518,7 +518,7 @@ function App() {
 
     } catch (error: any) {
       console.error('Deep review error:', error);
-      alert(`Failed to start deep research: ${error.message || error}`);
+      setGuidanceMessage(`Failed to start deep research: ${error.message || error}`);
       setShowReport(false);
     }
   };

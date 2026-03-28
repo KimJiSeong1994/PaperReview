@@ -10,7 +10,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-plotly': ['plotly.js-dist-min', 'react-plotly.js'],
+          'vendor-plotly': ['plotly.js-basic-dist-min', 'react-plotly.js'],
           'vendor-markdown': ['react-markdown', 'remark-gfm'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
         },

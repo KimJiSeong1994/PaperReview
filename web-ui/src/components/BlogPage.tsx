@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './BlogPage.css';
 import {
   fetchBlogPosts,
@@ -31,162 +33,7 @@ interface BlogPageProps {
 
 type BlogView = 'list' | 'detail' | 'editor';
 
-// ── Simple Markdown Renderer ─────────────────────────────────────────
-
-function renderMarkdown(markdown: string): string {
-  const lines = markdown.split('\n');
-  const html: string[] = [];
-  let inList = false;
-  let inOrderedList = false;
-  let inCodeBlock = false;
-  let inBlockquote = false;
-  let inHtmlBlock = 0; // nested HTML/SVG depth counter
-
-  const closeOpenBlocks = () => {
-    if (inList) {
-      html.push('</ul>');
-      inList = false;
-    }
-    if (inOrderedList) {
-      html.push('</ol>');
-      inOrderedList = false;
-    }
-    if (inBlockquote) {
-      html.push('</blockquote>');
-      inBlockquote = false;
-    }
-  };
-
-  const processInline = (text: string): string => {
-    return text
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Fenced code block toggle
-    if (line.startsWith('```')) {
-      if (inCodeBlock) {
-        html.push('</code></pre>');
-        inCodeBlock = false;
-      } else {
-        closeOpenBlocks();
-        const lang = line.slice(3).trim();
-        html.push(`<pre><code${lang ? ` class="language-${lang}"` : ''}>`);
-        inCodeBlock = true;
-      }
-      continue;
-    }
-
-    if (inCodeBlock) {
-      html.push(
-        line
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;'),
-      );
-      continue;
-    }
-
-    // Headings
-    if (/^#{1}\s/.test(line)) {
-      closeOpenBlocks();
-      html.push(`<h2>${processInline(line.replace(/^#\s+/, ''))}</h2>`);
-      continue;
-    }
-    if (/^#{2}\s/.test(line)) {
-      closeOpenBlocks();
-      html.push(`<h2>${processInline(line.replace(/^##\s+/, ''))}</h2>`);
-      continue;
-    }
-    if (/^#{3}\s/.test(line)) {
-      closeOpenBlocks();
-      html.push(`<h3>${processInline(line.replace(/^###\s+/, ''))}</h3>`);
-      continue;
-    }
-
-    // Blockquote
-    if (line.startsWith('> ')) {
-      if (!inBlockquote) {
-        closeOpenBlocks();
-        html.push('<blockquote>');
-        inBlockquote = true;
-      }
-      html.push(`<p>${processInline(line.replace(/^>\s*/, ''))}</p>`);
-      continue;
-    } else if (inBlockquote && line.trim() === '') {
-      html.push('</blockquote>');
-      inBlockquote = false;
-      continue;
-    }
-
-    // Unordered list
-    if (/^[-*]\s/.test(line)) {
-      if (inOrderedList) { html.push('</ol>'); inOrderedList = false; }
-      if (!inList) { closeOpenBlocks(); html.push('<ul>'); inList = true; }
-      html.push(`<li>${processInline(line.replace(/^[-*]\s+/, ''))}</li>`);
-      continue;
-    }
-
-    // Ordered list
-    if (/^\d+\.\s/.test(line)) {
-      if (inList) { html.push('</ul>'); inList = false; }
-      if (!inOrderedList) { closeOpenBlocks(); html.push('<ol>'); inOrderedList = true; }
-      html.push(`<li>${processInline(line.replace(/^\d+\.\s+/, ''))}</li>`);
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^---+$/.test(line.trim())) {
-      closeOpenBlocks();
-      html.push('<hr />');
-      continue;
-    }
-
-    // HTML/SVG block passthrough — track open/close tags to pass entire blocks
-    if (inHtmlBlock > 0) {
-      html.push(line);
-      const opens = (line.match(/<(?:svg|div|figure)[\s>]/g) || []).length;
-      const closes = (line.match(/<\/(?:svg|div|figure)>/g) || []).length;
-      inHtmlBlock += opens - closes;
-      if (inHtmlBlock < 0) inHtmlBlock = 0;
-      continue;
-    }
-
-    // Detect start of HTML/SVG block
-    if (/^\s*<(?:svg|div|figure)[\s>]/.test(line)) {
-      closeOpenBlocks();
-      html.push(line);
-      const opens = (line.match(/<(?:svg|div|figure)[\s>]/g) || []).length;
-      const closes = (line.match(/<\/(?:svg|div|figure)>/g) || []).length;
-      inHtmlBlock = opens - closes;
-      if (inHtmlBlock < 0) inHtmlBlock = 0;
-      continue;
-    }
-
-    // Empty line: close open blocks, add paragraph break
-    if (line.trim() === '') {
-      closeOpenBlocks();
-      html.push('');
-      continue;
-    }
-
-    // Normal paragraph line
-    closeOpenBlocks();
-    html.push(`<p>${processInline(line)}</p>`);
-  }
-
-  closeOpenBlocks();
-  if (inCodeBlock) {
-    html.push('</code></pre>');
-  }
-
-  return html.join('\n');
-}
+// renderMarkdown replaced by ReactMarkdown component (XSS-safe)
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -601,10 +448,11 @@ function BlogPage({ isAdmin }: BlogPageProps) {
           <span>{selectedPost.reading_time_min} min read</span>
         </div>
 
-        <div
-          className="blog-detail-content"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedPost.content) }}
-        />
+        <div className="blog-detail-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {selectedPost.content}
+          </ReactMarkdown>
+        </div>
 
         {isAdmin && (
           <div className="blog-detail-admin-bar">

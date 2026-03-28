@@ -51,6 +51,41 @@ router = APIRouter(prefix="/api", tags=["search"])
 
 _GRAPH_PATH = Path("data/graph/paper_graph.pkl")
 
+# ── Graph 메모리 캐시 (매 요청 pickle.load 방지) ──────────────────
+_cached_graph = None
+_cached_graph_mtime: float = 0.0
+_graph_cache_lock = threading.Lock()
+
+
+def _load_graph_cached():
+    """Graph를 메모리에 캐시하고 파일 변경 시에만 재로드."""
+    global _cached_graph, _cached_graph_mtime
+    import pickle
+
+    if not _GRAPH_PATH.exists():
+        return None
+
+    try:
+        current_mtime = _GRAPH_PATH.stat().st_mtime
+    except OSError:
+        return _cached_graph
+
+    if _cached_graph is not None and current_mtime == _cached_graph_mtime:
+        return _cached_graph
+
+    with _graph_cache_lock:
+        # Double-check after lock
+        if _cached_graph is not None and current_mtime == _cached_graph_mtime:
+            return _cached_graph
+        try:
+            with open(_GRAPH_PATH, "rb") as f:
+                _cached_graph = pickle.load(f)
+            _cached_graph_mtime = current_mtime
+            logger.info("[GraphRAG] Graph loaded/refreshed: %d nodes", _cached_graph.number_of_nodes())
+        except Exception as exc:
+            logger.warning("[GraphRAG] Graph load failed: %s", exc)
+    return _cached_graph
+
 
 def _graphrag_expand(
     query: str,
@@ -64,17 +99,9 @@ def _graphrag_expand(
     그래프에서 이웃 논문을 추가로 가져온다.
     실패 시 빈 리스트 반환 (graceful degradation).
     """
-    import pickle
-
-    if not _GRAPH_PATH.exists():
+    graph = _load_graph_cached()
+    if graph is None:
         logger.debug("[GraphRAG] Graph file not found: %s", _GRAPH_PATH)
-        return []
-
-    try:
-        with open(_GRAPH_PATH, "rb") as f:
-            graph = pickle.load(f)
-    except Exception as exc:
-        logger.warning("[GraphRAG] Graph load failed: %s", exc)
         return []
 
     from src.graph_rag.search_engine import SearchEngine

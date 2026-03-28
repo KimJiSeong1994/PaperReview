@@ -9,12 +9,22 @@ from slowapi import Limiter
 from starlette.requests import Request
 
 
+_TRUSTED_PROXIES = set(
+    p.strip() for p in os.getenv("TRUSTED_PROXIES", "127.0.0.1").split(",") if p.strip()
+)
+
+
 def _get_real_ip(request: Request) -> str:
-    """Extract real client IP from X-Forwarded-For header (reverse proxy aware)."""
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "127.0.0.1"
+    """Extract real client IP from X-Forwarded-For header.
+
+    Only trusts X-Forwarded-For when the direct client is a known reverse proxy.
+    """
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    if client_ip in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return client_ip
 
 
 # ── Rate limiting ────────────────────────────────────────────────────

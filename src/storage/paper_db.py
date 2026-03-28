@@ -207,37 +207,28 @@ class PaperDB:
         with self._lock:
             conn = self._connect()
             try:
-                for row in rows:
-                    try:
-                        conn.execute(
-                            """
-                            INSERT INTO papers (doc_id, title, abstract, authors, year,
-                                                citations, doi, url, pdf_url, source,
-                                                metadata, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(doc_id) DO UPDATE SET
-                                title      = COALESCE(excluded.title, papers.title),
-                                abstract   = COALESCE(excluded.abstract, papers.abstract),
-                                authors    = COALESCE(excluded.authors, papers.authors),
-                                year       = COALESCE(excluded.year, papers.year),
-                                citations  = MAX(COALESCE(excluded.citations, 0),
-                                                 COALESCE(papers.citations, 0)),
-                                doi        = COALESCE(excluded.doi, papers.doi),
-                                url        = COALESCE(excluded.url, papers.url),
-                                pdf_url    = COALESCE(excluded.pdf_url, papers.pdf_url),
-                                source     = COALESCE(excluded.source, papers.source),
-                                metadata   = COALESCE(excluded.metadata, papers.metadata)
-                            """,
-                            row,
-                        )
-                        if conn.execute("SELECT changes()").fetchone()[0] == 1:
-                            # Check if this was an INSERT (not UPDATE)
-                            # changes() returns 1 for both insert and update in ON CONFLICT
-                            pass
-                        inserted += 1
-                    except sqlite3.IntegrityError:
-                        pass
-
+                conn.executemany(
+                    """
+                    INSERT INTO papers (doc_id, title, abstract, authors, year,
+                                        citations, doi, url, pdf_url, source,
+                                        metadata, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(doc_id) DO UPDATE SET
+                        title      = COALESCE(excluded.title, papers.title),
+                        abstract   = COALESCE(excluded.abstract, papers.abstract),
+                        authors    = COALESCE(excluded.authors, papers.authors),
+                        year       = COALESCE(excluded.year, papers.year),
+                        citations  = MAX(COALESCE(excluded.citations, 0),
+                                         COALESCE(papers.citations, 0)),
+                        doi        = COALESCE(excluded.doi, papers.doi),
+                        url        = COALESCE(excluded.url, papers.url),
+                        pdf_url    = COALESCE(excluded.pdf_url, papers.pdf_url),
+                        source     = COALESCE(excluded.source, papers.source),
+                        metadata   = COALESCE(excluded.metadata, papers.metadata)
+                    """,
+                    rows,
+                )
+                inserted = conn.execute("SELECT changes()").fetchone()[0]
                 conn.commit()
             finally:
                 conn.close()

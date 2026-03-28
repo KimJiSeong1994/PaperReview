@@ -1,6 +1,8 @@
 from typing import Dict, List, Any, Optional, Set
 import asyncio
+import atexit
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 import logging
@@ -50,6 +52,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+_SEARCH_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="search")
+atexit.register(_SEARCH_EXECUTOR.shutdown, wait=False)
+
 
 class SearchAgent:
     def __init__(self, data_dir: str = None, openai_api_key: str = None):
@@ -73,9 +78,9 @@ class SearchAgent:
         if QUERY_ANALYZER_AVAILABLE and (openai_api_key or os.getenv('OPENAI_API_KEY')):
             try:
                 self.query_analyzer = QueryAnalyzer(api_key=openai_api_key)
-                print("[SearchAgent] LLM Query Analyzer initialized")
+                logger.info("[SearchAgent] LLM Query Analyzer initialized")
             except Exception as e:
-                print(f"[SearchAgent] Query Analyzer initialization failed: {e}")
+                logger.warning("[SearchAgent] Query Analyzer initialization failed: %s", e)
 
         # 중복 제거기
         self.deduplicator = PaperDeduplicator()
@@ -85,9 +90,9 @@ class SearchAgent:
         if HYBRID_RANKER_AVAILABLE:
             try:
                 self.hybrid_ranker = HybridRanker(similarity_calculator=self.similarity_calculator)
-                print("[SearchAgent] HybridRanker initialized")
+                logger.info("[SearchAgent] HybridRanker initialized")
             except Exception as e:
-                print(f"[SearchAgent] HybridRanker init failed: {e}")
+                logger.warning("[SearchAgent] HybridRanker init failed: %s", e)
 
         self.search_history = []
 
@@ -137,55 +142,55 @@ class SearchAgent:
         self._add_to_history(query, "multi_source")
 
         # 각 소스별 직접 검색 (병렬 처리)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            # 각 검색 작업을 병렬로 실행
-            arxiv_future = executor.submit(self.arxiv_searcher.search, query, max_results_per_source)
-            connected_papers_future = executor.submit(self.connected_papers_searcher.search, query, max_results_per_source)
-            google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
-            openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
-            dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
-            openalex_korean_future = (
-                executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
-                if _contains_korean(query) else None
-            )
+        executor = _SEARCH_EXECUTOR
+        # 각 검색 작업을 병렬로 실행
+        arxiv_future = executor.submit(self.arxiv_searcher.search, query, max_results_per_source)
+        connected_papers_future = executor.submit(self.connected_papers_searcher.search, query, max_results_per_source)
+        google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
+        openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
+        dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
+        openalex_korean_future = (
+            executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
+            if _contains_korean(query) else None
+        )
 
-            # 결과 수집
+        # 결과 수집
+        try:
+            results["arxiv"] = arxiv_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] arXiv search timed out or failed: %s", e)
+            results["arxiv"] = []
+
+        try:
+            results["connected_papers"] = connected_papers_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] Connected Papers search timed out or failed: %s", e)
+            results["connected_papers"] = []
+
+        try:
+            results["google_scholar"] = google_scholar_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] Google Scholar search timed out or failed: %s", e)
+            results["google_scholar"] = []
+
+        try:
+            results["openalex"] = openalex_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] OpenAlex search timed out or failed: %s", e)
+            results["openalex"] = []
+
+        try:
+            results["dblp"] = dblp_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] DBLP search timed out or failed: %s", e)
+            results["dblp"] = []
+
+        if openalex_korean_future is not None:
             try:
-                results["arxiv"] = arxiv_future.result(timeout=30)
+                results["openalex_korean"] = openalex_korean_future.result(timeout=30)
             except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] arXiv search timed out or failed: {e}")
-                results["arxiv"] = []
-
-            try:
-                results["connected_papers"] = connected_papers_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] Connected Papers search timed out or failed: {e}")
-                results["connected_papers"] = []
-
-            try:
-                results["google_scholar"] = google_scholar_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] Google Scholar search timed out or failed: {e}")
-                results["google_scholar"] = []
-
-            try:
-                results["openalex"] = openalex_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] OpenAlex search timed out or failed: {e}")
-                results["openalex"] = []
-
-            try:
-                results["dblp"] = dblp_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] DBLP search timed out or failed: {e}")
-                results["dblp"] = []
-
-            if openalex_korean_future is not None:
-                try:
-                    results["openalex_korean"] = openalex_korean_future.result(timeout=30)
-                except (concurrent.futures.TimeoutError, Exception) as e:
-                    print(f"[WARNING] OpenAlex Korean search timed out or failed: {e}")
-                    results["openalex_korean"] = []
+                logger.warning("[WARNING] OpenAlex Korean search timed out or failed: %s", e)
+                results["openalex_korean"] = []
 
         return results
 
@@ -211,38 +216,38 @@ class SearchAgent:
         seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set(), "openalex_korean": set()}
 
         # 병렬 검색 작업 정의
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-            futures = {
-                # 기본 검색
-                executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
-                executor.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
-                executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
-                executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
-                executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
-                # Enhanced 검색 (arXiv 제외 — rate limit 방지)
-                executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
-                executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
-            }
-            # 한국어 쿼리일 때만 OpenAlex Korean 검색 추가
-            if _contains_korean(query):
-                futures[executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)] = ("openalex_korean", "basic")
+        executor = _SEARCH_EXECUTOR
+        futures = {
+            # 기본 검색
+            executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
+            executor.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
+            executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
+            executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
+            executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
+            # Enhanced 검색 (arXiv 제외 — rate limit 방지)
+            executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
+            executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
+        }
+        # 한국어 쿼리일 때만 OpenAlex Korean 검색 추가
+        if _contains_korean(query):
+            futures[executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)] = ("openalex_korean", "basic")
 
-            try:
-                for future in concurrent.futures.as_completed(futures, timeout=60):
-                    source, search_type = futures[future]
-                    try:
-                        papers = future.result(timeout=5)
-                        for paper in papers:
-                            title_lower = paper.get('title', '').lower()
-                            if title_lower and title_lower not in seen_titles[source]:
-                                seen_titles[source].add(title_lower)
-                                results[source].append(paper)
-                    except concurrent.futures.TimeoutError:
-                        print(f"[WARNING] {source} {search_type} search timed out")
-                    except Exception as e:
-                        print(f"[SearchAgent] {source} {search_type} search failed: {e}")
-            except concurrent.futures.TimeoutError:
-                print("[WARNING] Enhanced search overall timeout (60s) — returning partial results")
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=60):
+                source, search_type = futures[future]
+                try:
+                    papers = future.result(timeout=5)
+                    for paper in papers:
+                        title_lower = paper.get('title', '').lower()
+                        if title_lower and title_lower not in seen_titles[source]:
+                            seen_titles[source].add(title_lower)
+                            results[source].append(paper)
+                except concurrent.futures.TimeoutError:
+                    logger.warning("[WARNING] %s %s search timed out", source, search_type)
+                except Exception as e:
+                    logger.warning("[SearchAgent] %s %s search failed: %s", source, search_type, e)
+        except concurrent.futures.TimeoutError:
+            logger.warning("[WARNING] Enhanced search overall timeout (60s) — returning partial results")
 
         # 결과 수 제한
         for source in results:
@@ -267,25 +272,25 @@ class SearchAgent:
 
         self._add_to_history(f"title:{title}", "title_search")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {
-                executor.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
-                executor.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
-                executor.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
-                executor.submit(self.openalex_searcher.search_by_title, title, max_results): "openalex",
-                executor.submit(self.dblp_searcher.search_by_title, title, max_results): "dblp",
-            }
+        executor = _SEARCH_EXECUTOR
+        futures = {
+            executor.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
+            executor.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
+            executor.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
+            executor.submit(self.openalex_searcher.search_by_title, title, max_results): "openalex",
+            executor.submit(self.dblp_searcher.search_by_title, title, max_results): "dblp",
+        }
 
-            for future in concurrent.futures.as_completed(futures):
-                source = futures[future]
-                try:
-                    results[source] = future.result(timeout=30)
-                except concurrent.futures.TimeoutError:
-                    print(f"[WARNING] {source} title search timed out")
-                    results[source] = []
-                except Exception as e:
-                    print(f"[SearchAgent] {source} title search failed: {e}")
-                    results[source] = []
+        for future in concurrent.futures.as_completed(futures):
+            source = futures[future]
+            try:
+                results[source] = future.result(timeout=30)
+            except concurrent.futures.TimeoutError:
+                logger.warning("[WARNING] %s title search timed out", source)
+                results[source] = []
+            except Exception as e:
+                logger.warning("[SearchAgent] %s title search failed: %s", source, e)
+                results[source] = []
 
         return results
 
@@ -304,55 +309,55 @@ class SearchAgent:
 
         self._add_to_history(f"similar:{paper_title[:50]}", "similar_search")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            # arXiv와 Google Scholar에서 유사 논문 검색
-            arxiv_future = executor.submit(
-                self.arxiv_searcher.search_similar_papers,
-                paper_title, paper_abstract, max_results
-            )
+        executor = _SEARCH_EXECUTOR
+        # arXiv와 Google Scholar에서 유사 논문 검색
+        arxiv_future = executor.submit(
+            self.arxiv_searcher.search_similar_papers,
+            paper_title, paper_abstract, max_results
+        )
 
-            # 키워드 기반 검색으로 대체
-            keywords = self._extract_search_keywords(paper_title, paper_abstract)
-            scholar_future = executor.submit(
-                self.google_scholar_searcher.search,
-                keywords, max_results
-            )
+        # 키워드 기반 검색으로 대체
+        keywords = self._extract_search_keywords(paper_title, paper_abstract)
+        scholar_future = executor.submit(
+            self.google_scholar_searcher.search,
+            keywords, max_results
+        )
 
-            # OpenAlex 키워드 검색
-            openalex_future = executor.submit(
-                self.openalex_searcher.search,
-                keywords, max_results
-            )
+        # OpenAlex 키워드 검색
+        openalex_future = executor.submit(
+            self.openalex_searcher.search,
+            keywords, max_results
+        )
 
-            # DBLP 키워드 검색
-            dblp_future = executor.submit(
-                self.dblp_searcher.search,
-                keywords, max_results
-            )
+        # DBLP 키워드 검색
+        dblp_future = executor.submit(
+            self.dblp_searcher.search,
+            keywords, max_results
+        )
 
-            try:
-                results["arxiv"] = arxiv_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] arXiv similar search timed out or failed: {e}")
-                results["arxiv"] = []
+        try:
+            results["arxiv"] = arxiv_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] arXiv similar search timed out or failed: %s", e)
+            results["arxiv"] = []
 
-            try:
-                results["google_scholar"] = scholar_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] Google Scholar search timed out or failed: {e}")
-                results["google_scholar"] = []
+        try:
+            results["google_scholar"] = scholar_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] Google Scholar search timed out or failed: %s", e)
+            results["google_scholar"] = []
 
-            try:
-                results["openalex"] = openalex_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] OpenAlex search timed out or failed: {e}")
-                results["openalex"] = []
+        try:
+            results["openalex"] = openalex_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] OpenAlex search timed out or failed: %s", e)
+            results["openalex"] = []
 
-            try:
-                results["dblp"] = dblp_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                print(f"[WARNING] DBLP search timed out or failed: {e}")
-                results["dblp"] = []
+        try:
+            results["dblp"] = dblp_future.result(timeout=30)
+        except (concurrent.futures.TimeoutError, Exception) as e:
+            logger.warning("[WARNING] DBLP search timed out or failed: %s", e)
+            results["dblp"] = []
 
         return results
 
@@ -405,12 +410,12 @@ class SearchAgent:
 
         # LLM 쿼리 분석기가 없으면 기본 검색으로 대체
         if not self.query_analyzer:
-            print("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
+            logger.info("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
             return self.enhanced_search_all_sources(query, max_results_per_source)
 
         try:
             # 1. LLM으로 최적화된 검색 쿼리 생성
-            print(f"[SearchAgent] Generating LLM search queries for: {query[:50]}...")
+            logger.info("[SearchAgent] Generating LLM search queries for: %s...", query[:50])
 
             if context:
                 search_queries = self.query_analyzer.search_with_context(query, context)
@@ -421,8 +426,8 @@ class SearchAgent:
             scholar_queries = search_queries.get("scholar_queries", [query])
             keywords = search_queries.get("keywords", [])
 
-            print(f"[SearchAgent] Generated {len(arxiv_queries)} arXiv queries, {len(scholar_queries)} Scholar queries")
-            print(f"[SearchAgent] Keywords: {keywords[:5]}")
+            logger.info("[SearchAgent] Generated %d arXiv queries, %d Scholar queries", len(arxiv_queries), len(scholar_queries))
+            logger.info("[SearchAgent] Keywords: %s", keywords[:5])
 
             # 2. 병렬 검색 수행
             seen_titles: Dict[str, Set[str]] = {
@@ -434,73 +439,73 @@ class SearchAgent:
                 "openalex_korean": set()
             }
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
-                futures = []
+            executor = _SEARCH_EXECUTOR
+            futures = []
 
-                # arXiv 검색 (rate limit 방지: 쿼리 1개만)
-                for arxiv_query in arxiv_queries[:1]:
-                    futures.append(
-                        (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
-                         "arxiv", arxiv_query)
-                    )
-
-                # Google Scholar 검색 (여러 쿼리)
-                for scholar_query in scholar_queries[:3]:
-                    futures.append(
-                        (executor.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
-                         "google_scholar", scholar_query)
-                    )
-
-                # Connected Papers 검색 (키워드 기반)
-                keyword_query = " ".join(keywords[:4]) if keywords else query
+            # arXiv 검색 (rate limit 방지: 쿼리 1개만)
+            for arxiv_query in arxiv_queries[:1]:
                 futures.append(
-                    (executor.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
-                     "connected_papers", keyword_query)
+                    (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
+                     "arxiv", arxiv_query)
                 )
 
-                # OpenAlex 검색
+            # Google Scholar 검색 (여러 쿼리)
+            for scholar_query in scholar_queries[:3]:
                 futures.append(
-                    (executor.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
-                     "openalex", keyword_query)
+                    (executor.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
+                     "google_scholar", scholar_query)
                 )
 
-                # DBLP 검색
-                futures.append(
-                    (executor.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
-                     "dblp", keyword_query)
-                )
+            # Connected Papers 검색 (키워드 기반)
+            keyword_query = " ".join(keywords[:4]) if keywords else query
+            futures.append(
+                (executor.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
+                 "connected_papers", keyword_query)
+            )
 
-                # OpenAlex Korean 검색
-                futures.append(
-                    (executor.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
-                     "openalex_korean", keyword_query)
-                )
+            # OpenAlex 검색
+            futures.append(
+                (executor.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
+                 "openalex", keyword_query)
+            )
 
-                # 결과 수집 (전체 60초 타임아웃)
-                _deadline = time.monotonic() + 60
-                for future_tuple in futures:
-                    future, source, q = future_tuple
-                    remaining = max(0.1, _deadline - time.monotonic())
-                    try:
-                        papers = future.result(timeout=remaining)
-                        for paper in papers:
-                            title_lower = paper.get('title', '').lower().strip()
-                            if title_lower and title_lower not in seen_titles[source]:
-                                seen_titles[source].add(title_lower)
-                                # 검색 쿼리 정보 추가
-                                paper['_search_query'] = q
-                                results[source].append(paper)
-                    except concurrent.futures.TimeoutError:
-                        print(f"[SearchAgent] Timeout for {source}: {q[:30]}...")
-                    except Exception as e:
-                        print(f"[SearchAgent] Error in {source} search: {e}")
+            # DBLP 검색
+            futures.append(
+                (executor.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
+                 "dblp", keyword_query)
+            )
+
+            # OpenAlex Korean 검색
+            futures.append(
+                (executor.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
+                 "openalex_korean", keyword_query)
+            )
+
+            # 결과 수집 (전체 60초 타임아웃)
+            _deadline = time.monotonic() + 60
+            for future_tuple in futures:
+                future, source, q = future_tuple
+                remaining = max(0.1, _deadline - time.monotonic())
+                try:
+                    papers = future.result(timeout=remaining)
+                    for paper in papers:
+                        title_lower = paper.get('title', '').lower().strip()
+                        if title_lower and title_lower not in seen_titles[source]:
+                            seen_titles[source].add(title_lower)
+                            # 검색 쿼리 정보 추가
+                            paper['_search_query'] = q
+                            results[source].append(paper)
+                except concurrent.futures.TimeoutError:
+                    logger.warning("[SearchAgent] Timeout for %s: %s...", source, q[:30])
+                except Exception as e:
+                    logger.warning("[SearchAgent] Error in %s search: %s", source, e)
 
             # 결과 수 제한
             for source in results:
                 results[source] = results[source][:max_results_per_source]
 
             total = sum(len(papers) for papers in results.values())
-            print(f"[SearchAgent] LLM Context Search completed: {total} papers found")
+            logger.info("[SearchAgent] LLM Context Search completed: %d papers found", total)
 
             # 검색 메타데이터 추가
             results['_metadata'] = {
@@ -515,9 +520,7 @@ class SearchAgent:
             return results
 
         except Exception as e:
-            print(f"[SearchAgent] LLM Context Search failed: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("[SearchAgent] LLM Context Search failed: %s", e, exc_info=True)
             # 실패 시 기본 검색으로 대체
             return self.enhanced_search_all_sources(query, max_results_per_source)
 
@@ -548,9 +551,9 @@ class SearchAgent:
             if self.query_analyzer:
                 try:
                     analysis = self.query_analyzer.analyze_query(query)
-                    print(f"[SmartSearch] Intent: {analysis.get('intent')}, Confidence: {analysis.get('confidence')}")
+                    logger.info("[SmartSearch] Intent: %s, Confidence: %s", analysis.get('intent'), analysis.get('confidence'))
                 except Exception as e:
-                    print(f"[SmartSearch] Query analysis failed: {e}")
+                    logger.warning("[SmartSearch] Query analysis failed: %s", e)
 
             # 2. 검색 전략 결정
             if analysis and analysis.get('confidence', 0) >= 0.7:
@@ -607,7 +610,7 @@ class SearchAgent:
             return result
 
         except Exception as e:
-            print(f"[SmartSearch] Error: {e}")
+            logger.error("[SmartSearch] Error: %s", e)
             # 실패 시 기본 검색
             basic_results = self.search_all_sources(query, max_results // 3)
             for source, papers in basic_results.items():
@@ -676,7 +679,7 @@ class SearchAgent:
                 return None
 
         except Exception as e:
-            print(f"[SearchAgent] 논문 상세 정보 가져오기 오류: {e}")
+            logger.error("[SearchAgent] 논문 상세 정보 가져오기 오류: %s", e)
             return None
 
     def get_related_papers(self, paper_url: str, source: str, max_results: int = 10) -> List[Dict[str, Any]]:
@@ -692,7 +695,7 @@ class SearchAgent:
                 return []
 
         except Exception as e:
-            print(f"[SearchAgent] 관련 논문 가져오기 오류: {e}")
+            logger.error("[SearchAgent] 관련 논문 가져오기 오류: %s", e)
             return []
 
     def get_author_profile(self, author_name: str) -> Optional[Dict[str, Any]]:
@@ -803,29 +806,29 @@ class SearchAgent:
         results: Dict[str, List[Dict[str, Any]]] = {}
         futures: Dict[concurrent.futures.Future, str] = {}
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
-            for source in sources:
-                fut = executor.submit(
-                    self._search_single_source,
-                    source, query, filters, source_queries, max_results,
-                )
-                futures[fut] = source
+        executor = _SEARCH_EXECUTOR
+        for source in sources:
+            fut = executor.submit(
+                self._search_single_source,
+                source, query, filters, source_queries, max_results,
+            )
+            futures[fut] = source
 
-            try:
-                for future in concurrent.futures.as_completed(futures, timeout=60):
-                    source = futures[future]
-                    try:
-                        results[source] = future.result(timeout=5)
-                    except Exception as e:
-                        logger.warning("[SearchAgent] %s search failed: %s", source, e)
-                        results[source] = []
-            except concurrent.futures.TimeoutError:
-                logger.warning(
-                    "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
-                )
-                for future, source in futures.items():
-                    if source not in results:
-                        results[source] = []
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=60):
+                source = futures[future]
+                try:
+                    results[source] = future.result(timeout=5)
+                except Exception as e:
+                    logger.warning("[SearchAgent] %s search failed: %s", source, e)
+                    results[source] = []
+        except concurrent.futures.TimeoutError:
+            logger.warning(
+                "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
+            )
+            for future, source in futures.items():
+                if source not in results:
+                    results[source] = []
 
         return results
 
@@ -1027,7 +1030,7 @@ class SearchAgent:
             # Embedding 생성
             if generate_embeddings and new_papers_list and self.openai_api_key:
                 try:
-                    print(f"\n[Embedding] {len(new_papers_list)}개 새 논문에 대한 embedding 생성 중...")
+                    logger.info("[Embedding] %d개 새 논문에 대한 embedding 생성 중...", len(new_papers_list))
                     embedding_generator = EmbeddingGenerator(api_key=self.openai_api_key)
                     new_embeddings = embedding_generator.generate_batch_embeddings(new_papers_list)
 
@@ -1039,21 +1042,21 @@ class SearchAgent:
                         # 저장
                         embedding_generator.save_embeddings(existing_embeddings, self.embeddings_dir)
                         result['embeddings_generated'] = len(new_embeddings)
-                        print(f"[v] {len(new_embeddings)}개 embedding 생성 및 저장 완료")
+                        logger.info("[Embedding] %d개 embedding 생성 및 저장 완료", len(new_embeddings))
                 except Exception as e:
-                    print(f"[WARNING] Embedding 생성 중 오류: {e}")
+                    logger.warning("[WARNING] Embedding 생성 중 오류: %s", e)
                     result['embedding_error'] = str(e)
 
             # 그래프 업데이트
             if update_graph and new_papers_list:
                 try:
-                    print(f"\n[Graph] {len(new_papers_list)}개 새 논문을 그래프에 추가 중...")
+                    logger.info("[Graph] %d개 새 논문을 그래프에 추가 중...", len(new_papers_list))
                     graph_info = self._update_graph(new_papers_list)
                     result['graph_updated'] = True
                     result['graph_info'] = graph_info
-                    print("[v] 그래프 업데이트 완료")
+                    logger.info("[Graph] 그래프 업데이트 완료")
                 except Exception as e:
-                    print(f"[WARNING] 그래프 업데이트 중 오류: {e}")
+                    logger.warning("[WARNING] 그래프 업데이트 중 오류: %s", e)
                     result['graph_error'] = str(e)
 
             return result
@@ -1094,7 +1097,7 @@ class SearchAgent:
                 # embeddings.json은 {paper_id: [embedding_array]} 형식
                 return data if isinstance(data, dict) else {}
         except Exception as e:
-            print(f"[WARNING] Embedding 로드 중 오류: {e}")
+            logger.warning("[WARNING] Embedding 로드 중 오류: %s", e)
             return {}
 
     def _update_graph(self, new_papers: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1116,9 +1119,9 @@ class SearchAgent:
             try:
                 with open(self.graph_path, 'rb') as f:
                     existing_graph = pickle.load(f)
-                print(f"  기존 그래프 로드: {existing_graph.number_of_nodes()}개 노드, {existing_graph.number_of_edges()}개 엣지")
+                logger.info("기존 그래프 로드: %d개 노드, %d개 엣지", existing_graph.number_of_nodes(), existing_graph.number_of_edges())
             except Exception as e:
-                print(f"  [WARNING] 기존 그래프 로드 실패: {e}, 새 그래프 생성")
+                logger.warning("[WARNING] 기존 그래프 로드 실패: %s, 새 그래프 생성", e)
 
         if existing_graph is None:
             existing_graph = nx.MultiDiGraph()
@@ -1154,7 +1157,7 @@ class SearchAgent:
                 existing_graph.add_node(node_id, **node_attrs)
                 nodes_added += 1
 
-        print(f"  {nodes_added}개 새 노드 추가")
+        logger.info("%d개 새 노드 추가", nodes_added)
 
         # 5. 새 논문과 기존 논문 간 엣지 생성
         edge_creator = EdgeCreator()
@@ -1176,7 +1179,7 @@ class SearchAgent:
                     )
                     citation_count += 1
 
-        print(f"  {citation_count}개 Citation 엣지 추가")
+        logger.info("%d개 Citation 엣지 추가", citation_count)
 
         # 6. Similarity 엣지 생성 (제목 유사도 기반)
         # 새 논문과 기존 논문 간 유사도 계산
@@ -1213,7 +1216,7 @@ class SearchAgent:
                     )
                     similarity_count += 1
 
-        print(f"  {similarity_count}개 Similarity 엣지 추가")
+        logger.info("%d개 Similarity 엣지 추가", similarity_count)
 
         # 7. Semantic Scholar 외부 인용 엣지 수집
         ext_citation_count = 0
@@ -1245,7 +1248,7 @@ class SearchAgent:
                 continue
 
         if ext_citation_count > 0:
-            print(f"  {ext_citation_count}개 외부 인용(Citation) 엣지 추가")
+            logger.info("%d개 외부 인용(Citation) 엣지 추가", ext_citation_count)
 
         # 8. 그래프 저장
         try:
@@ -1271,7 +1274,7 @@ class SearchAgent:
                 "total_edges": existing_graph.number_of_edges()
             }
         except Exception as e:
-            print(f"  [WARNING] 그래프 저장 실패: {e}")
+            logger.warning("[WARNING] 그래프 저장 실패: %s", e)
             raise
 
     def _calculate_title_similarity(self, title1: str, title2: str) -> float:
@@ -1302,7 +1305,7 @@ class SearchAgent:
         if max_papers:
             papers_list = papers_list[:max_papers]
 
-        print(f'\n[INFO] {len(papers_list)}개 논문의 참고문헌 수집 시작...')
+        logger.info("[INFO] %d개 논문의 참고문헌 수집 시작...", len(papers_list))
 
         # 참고문헌 수집 및 각 논문에 추가
         total_references_found = 0
@@ -1315,7 +1318,7 @@ class SearchAgent:
             if paper.get('references'):
                 continue
 
-            print(f"  [{i+1}/{min(max_papers or len(existing_papers), len(existing_papers))}] {paper.get('title', 'Unknown')[:50]}... 참고문헌 수집 중")
+            logger.info("[%d/%d] %s... 참고문헌 수집 중", i + 1, min(max_papers or len(existing_papers), len(existing_papers)), paper.get('title', 'Unknown')[:50])
 
             references = self.reference_collector.get_references(paper, max_references_per_paper)
 
@@ -1323,21 +1326,21 @@ class SearchAgent:
                 # 유사도 계산 (가능한 경우)
                 if self.similarity_calculator:
                     try:
-                        print("    → 유사도 계산 중...")
+                        logger.info("유사도 계산 중...")
                         references = self.similarity_calculator.add_similarity_scores(paper, references)
                         # 유사도 순으로 정렬
                         references.sort(key=lambda x: x.get('similarity_score', 0), reverse=True)
-                        print(f"    → 유사도 계산 완료 (최고: {references[0].get('similarity_score', 0):.3f})")
+                        logger.info("유사도 계산 완료 (최고: %.3f)", references[0].get('similarity_score', 0))
                     except Exception as e:
-                        print(f"    → 유사도 계산 실패: {e}")
+                        logger.warning("유사도 계산 실패: %s", e)
 
                 # 논문에 references 필드 추가
                 existing_papers[paper_id]['references'] = references
                 total_references_found += len(references)
-                print(f"    → {len(references)}개 참고문헌 발견")
+                logger.info("%d개 참고문헌 발견", len(references))
             else:
                 existing_papers[paper_id]['references'] = []
-                print("    → 참고문헌 없음")
+                logger.info("참고문헌 없음")
 
         # 업데이트된 데이터 저장
         save_data = {
@@ -1383,7 +1386,7 @@ class SearchAgent:
         if max_papers:
             papers_list = papers_list[:max_papers]
 
-        print(f'\n[INFO] {len(papers_list)}개 논문의 본문 추출 시작...')
+        logger.info("[INFO] %d개 논문의 본문 추출 시작...", len(papers_list))
 
         # 본문 추출
         extract_results = self.text_extractor.extract_batch(papers_list, max_papers)

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, cloneElement, isValidElement, l
 import ReactMarkdown from 'react-markdown';
 import type { PaperReview, HighlightItem } from '../../api/client';
 import './PaperReviewPanel.css';
-const Plot = lazy(() => import('react-plotly.js'));
+const Plot = lazy(() => import('../../PlotlyChart'));
 
 interface PaperReviewPanelProps {
   review: PaperReview | null;

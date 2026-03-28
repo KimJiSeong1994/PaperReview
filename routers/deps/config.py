@@ -35,3 +35,9 @@ api_key: Optional[str] = (
 )
 if not api_key:
     logger.warning("No OpenAI API key found in environment")
+
+# ── LLM Model Constants ─────────────────────────────────────────────
+# 환경변수로 오버라이드 가능, 모델 변경 시 여기만 수정
+DEFAULT_RESEARCH_MODEL = os.getenv("RESEARCH_MODEL", "gpt-4.1")
+DEFAULT_TOOL_MODEL = os.getenv("TOOL_MODEL", "gpt-4o-mini")
+DEFAULT_EVAL_MODEL = os.getenv("EVAL_MODEL", "gpt-4o")

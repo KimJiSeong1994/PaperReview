@@ -27,6 +27,8 @@ class SearchEngine:
         self.index = None
         self.id_mapping = []
 
+        self._id_to_idx: Dict[str, int] = {}  # O(1) 역인덱스
+
         if embeddings_index_path and id_mapping_path and FAISS_AVAILABLE:
             self.load_embeddings(embeddings_index_path, id_mapping_path)
         elif not FAISS_AVAILABLE:
@@ -42,6 +44,7 @@ class SearchEngine:
             self.index = faiss.read_index(index_path)
             with open(mapping_path, 'r', encoding='utf-8') as f:
                 self.id_mapping = json.load(f)
+            self._id_to_idx = {pid: i for i, pid in enumerate(self.id_mapping)}
             print(f"✓ 임베딩 인덱스 로드 완료: {len(self.id_mapping)}개")
 
         except Exception as e:
@@ -261,8 +264,8 @@ class SearchEngine:
             # 벡터 유사도로 재랭킹
             expanded_results = []
             for paper_id in expanded_papers:
-                if paper_id in self.id_mapping:
-                    idx = self.id_mapping.index(paper_id)
+                if paper_id in self._id_to_idx:
+                    idx = self._id_to_idx[paper_id]
                     embedding = self.index.reconstruct(idx)
                     similarity = float(np.dot(query_embedding[0], embedding))
                     expanded_results.append((paper_id, similarity))

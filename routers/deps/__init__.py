@@ -9,7 +9,14 @@ of the form ``from .deps import X`` continue to work unchanged.
 """
 
 # ── Config (base — no deps imports) ──────────────────────────────────
-from .config import PROJECT_ROOT, api_key, env_path
+from .config import (
+    PROJECT_ROOT,
+    api_key,
+    env_path,
+    DEFAULT_RESEARCH_MODEL,
+    DEFAULT_TOOL_MODEL,
+    DEFAULT_EVAL_MODEL,
+)
 
 # ── Storage (depends on config) ──────────────────────────────────────
 from .storage import (

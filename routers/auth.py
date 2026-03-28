@@ -5,6 +5,7 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import bcrypt
 import jwt
@@ -66,8 +67,16 @@ def _load_users() -> dict:
     default_pass = os.getenv("APP_PASSWORD")
     if not default_pass:
         default_pass = secrets.token_urlsafe(16)
-        logger.warning("No APP_PASSWORD set. Generated admin password: %s", default_pass)
-        logger.warning("Set APP_PASSWORD env var to use a fixed password.")
+        # 비밀번호를 파일에 안전하게 저장 (로그에 평문 노출 방지)
+        password_file = Path("data/.admin_password")
+        password_file.parent.mkdir(parents=True, exist_ok=True)
+        password_file.write_text(default_pass, encoding="utf-8")
+        password_file.chmod(0o600)
+        logger.warning(
+            "No APP_PASSWORD set. Generated admin password saved to %s. "
+            "Set APP_PASSWORD env var to use a fixed password.",
+            password_file,
+        )
     users = {
         default_user: {
             "password_hash": _hash_password(default_pass),

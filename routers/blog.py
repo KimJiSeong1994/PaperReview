@@ -168,7 +168,13 @@ async def get_thumbnail(post_id: str):
     """Serve thumbnail image for a blog post."""
     from fastapi.responses import FileResponse
 
-    thumb_path = BLOG_DIR / "thumbnails" / f"{post_id}.png"
+    # Path traversal 방지: post_id에서 경로 구분자 차단
+    if "/" in post_id or "\\" in post_id or ".." in post_id:
+        raise HTTPException(status_code=400, detail="Invalid post_id")
+    thumb_path = (BLOG_DIR / "thumbnails" / f"{post_id}.png").resolve()
+    allowed_dir = (BLOG_DIR / "thumbnails").resolve()
+    if not str(thumb_path).startswith(str(allowed_dir)):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not thumb_path.exists():
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     return FileResponse(thumb_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
@@ -179,7 +185,13 @@ async def get_figure(filename: str):
     """Serve blog figure images."""
     from fastapi.responses import FileResponse
 
-    fig_path = BLOG_DIR / "figures" / filename
+    # Path traversal 방지: filename에서 경로 구분자 차단
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    fig_path = (BLOG_DIR / "figures" / filename).resolve()
+    allowed_dir = (BLOG_DIR / "figures").resolve()
+    if not str(fig_path).startswith(str(allowed_dir)):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not fig_path.exists():
         raise HTTPException(status_code=404, detail="Figure not found")
     return FileResponse(fig_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})

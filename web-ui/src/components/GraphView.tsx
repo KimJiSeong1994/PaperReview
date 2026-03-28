@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import Plot from 'react-plotly.js';
-import type { Data, Layout } from 'plotly.js';
+import Plot from '../PlotlyChart';
+import type { Data, Layout } from '../PlotlyChart';
 import './GraphView.css';
 import type { GraphData, Paper } from '../types';
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 
-const Plot = lazy(() => import('react-plotly.js'));
+const Plot = lazy(() => import('../PlotlyChart'));
 import {
   getAdminDashboard,
   getAdminUsers,

@@ -131,9 +131,10 @@ class SimilarityCalculator:
         self._l1_cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._cache_lock = threading.Lock()
 
-        # L2 캐시: SQLite
+        # L2 캐시: SQLite (영속 연결로 매 요청 connect/close 오버헤드 제거)
         self._cache_db_path = Path(cache_db_path or _DEFAULT_CACHE_DB)
         self._db_lock = threading.Lock()
+        self._db_conn: Optional[sqlite3.Connection] = None
         self._init_sqlite_cache()
 
         # 하위 호환: 기존 코드가 .embedding_cache에 직접 접근하는 경우를 위한 프록시
@@ -142,12 +143,21 @@ class SimilarityCalculator:
 
     # ── SQLite 초기화 ────────────────────────────────────────────────
 
+    def _get_db_conn(self) -> sqlite3.Connection:
+        """영속 SQLite 연결 반환 (lazy init). 호출자가 _db_lock을 잡아야 함."""
+        if self._db_conn is None:
+            self._db_conn = sqlite3.connect(
+                str(self._cache_db_path), check_same_thread=False
+            )
+            self._db_conn.execute("PRAGMA journal_mode=WAL")
+        return self._db_conn
+
     def _init_sqlite_cache(self) -> None:
         """SQLite DB 파일 및 테이블 초기화."""
         try:
             self._cache_db_path.parent.mkdir(parents=True, exist_ok=True)
             with self._db_lock:
-                conn = sqlite3.connect(str(self._cache_db_path), check_same_thread=False)
+                conn = self._get_db_conn()
                 conn.execute(
                     """
                     CREATE TABLE IF NOT EXISTS embeddings (
@@ -159,7 +169,6 @@ class SimilarityCalculator:
                     """
                 )
                 conn.commit()
-                conn.close()
             logger.info(
                 "[SimilarityCalculator] SQLite embedding cache initialised: %s",
                 self._cache_db_path,
@@ -196,15 +205,14 @@ class SimilarityCalculator:
                 self._l1_cache[text_hash] = embedding
 
     def _l2_get(self, text_hash: str) -> Optional[np.ndarray]:
-        """L2(SQLite) 캐시에서 조회."""
+        """L2(SQLite) 캐시에서 조회. 영속 연결 사용."""
         try:
             with self._db_lock:
-                conn = sqlite3.connect(str(self._cache_db_path), check_same_thread=False)
+                conn = self._get_db_conn()
                 row = conn.execute(
                     "SELECT embedding FROM embeddings WHERE text_hash = ? AND model = ?",
                     (text_hash, self.model),
                 ).fetchone()
-                conn.close()
             if row:
                 return _decode_embedding(row[0])
         except Exception as e:
@@ -212,7 +220,7 @@ class SimilarityCalculator:
         return None
 
     def _l2_set_batch(self, items: List[tuple]) -> None:
-        """L2(SQLite) 캐시에 배치 저장.
+        """L2(SQLite) 캐시에 배치 저장. 영속 연결 사용.
 
         Args:
             items: [(text_hash, embedding), ...] 리스트
@@ -226,14 +234,13 @@ class SimilarityCalculator:
                 for text_hash, emb in items
             ]
             with self._db_lock:
-                conn = sqlite3.connect(str(self._cache_db_path), check_same_thread=False)
+                conn = self._get_db_conn()
                 conn.executemany(
                     "INSERT OR REPLACE INTO embeddings (text_hash, model, embedding, created_at) "
                     "VALUES (?, ?, ?, ?)",
                     rows,
                 )
                 conn.commit()
-                conn.close()
         except Exception as e:
             logger.warning("[SimilarityCalculator] L2 batch write error: %s", e)
 
