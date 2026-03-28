@@ -194,7 +194,19 @@ async def get_figure(filename: str):
         raise HTTPException(status_code=403, detail="Access denied")
     if not fig_path.exists():
         raise HTTPException(status_code=404, detail="Figure not found")
-    return FileResponse(fig_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    import mimetypes
+    media_type = mimetypes.guess_type(str(fig_path))[0] or "application/octet-stream"
+    # .png 확장자지만 실제 JPEG인 경우 처리
+    try:
+        with open(fig_path, "rb") as f:
+            header = f.read(3)
+        if header[:2] == b'\xff\xd8':
+            media_type = "image/jpeg"
+        elif header[:3] == b'\x89PN':
+            media_type = "image/png"
+    except Exception:
+        pass
+    return FileResponse(fig_path, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/posts", response_model=PostListResponse)
