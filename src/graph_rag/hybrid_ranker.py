@@ -208,6 +208,16 @@ class HybridRanker:
         citation_ranks = _ranks_from_scores(citation_scores)
         recency_ranks = _ranks_from_scores(recency_scores)
 
+        # Cross-encoder (5번째 신호) — 미설치 시 빈 리스트 → RRF에서 제외
+        cross_encoder_scores = self._compute_cross_encoder_scores(query, papers)
+        cross_encoder_available = len(cross_encoder_scores) == n
+        if cross_encoder_available:
+            cross_encoder_ranks = _ranks_from_scores(cross_encoder_scores)
+            logger.info("[HybridRanker] RRF: Cross-encoder signal active (%d papers)", n)
+        else:
+            cross_encoder_ranks = [0] * n
+            logger.info("[HybridRanker] RRF: Cross-encoder unavailable, excluding from fusion")
+
         # semantic 전부 0이면 해당 신호 제외 (rank 기여 없음 처리)
         semantic_zero = all(s == 0.0 for s in semantic_scores)
         if semantic_zero:
@@ -218,18 +228,23 @@ class HybridRanker:
             rrf_semantic = 0.0 if semantic_zero else 1.0 / (RRF_K + semantic_ranks[i])
             rrf_citations = 1.0 / (RRF_K + citation_ranks[i])
             rrf_recency = 1.0 / (RRF_K + recency_ranks[i])
+            rrf_cross_encoder = (
+                1.0 / (RRF_K + cross_encoder_ranks[i]) if cross_encoder_available else 0.0
+            )
 
-            rrf_score = rrf_bm25 + rrf_semantic + rrf_citations + rrf_recency
+            rrf_score = rrf_bm25 + rrf_semantic + rrf_citations + rrf_recency + rrf_cross_encoder
 
             breakdown = {
                 "bm25": round(bm25_scores[i], 4),
                 "semantic": round(semantic_scores[i], 4),
                 "citations": round(citation_scores[i], 4),
                 "recency": round(recency_scores[i], 4),
+                "cross_encoder": round(cross_encoder_scores[i], 4) if cross_encoder_available else 0.0,
                 "rrf_bm25": round(rrf_bm25, 6),
                 "rrf_semantic": round(rrf_semantic, 6),
                 "rrf_citations": round(rrf_citations, 6),
                 "rrf_recency": round(rrf_recency, 6),
+                "rrf_cross_encoder": round(rrf_cross_encoder, 6),
                 "rrf_mode": True,
             }
 
@@ -249,6 +264,33 @@ class HybridRanker:
             papers = papers[:top_k]
 
         return papers
+
+    # ── Cross-encoder ──────────────────────────────────────────────
+
+    def _compute_cross_encoder_scores(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
+        """Cross-encoder 기반 relevance score. LocalRelevanceScorer 싱글턴 재사용."""
+        try:
+            from app.QueryAgent.relevance_filter import LocalRelevanceScorer
+
+            # 이미 paper dict에 스코어가 있으면 재사용 (중복 호출 방지)
+            existing = [p.get("_cross_encoder_score") for p in papers]
+            if all(s is not None for s in existing):
+                logger.debug("[HybridRanker] Reusing existing cross-encoder scores")
+                return [float(s) for s in existing]
+
+            # score_papers 클래스 메서드 사용 (모델 로딩 + sigmoid 정규화 포함)
+            scores = LocalRelevanceScorer.score_papers(query, papers)
+            if not scores:
+                return []
+
+            # 결과를 paper dict에 캐싱
+            for i, s in enumerate(scores):
+                papers[i]["_cross_encoder_score"] = s
+
+            return scores
+        except Exception as e:
+            logger.warning("[HybridRanker] Cross-encoder failed: %s", e)
+            return []
 
     # ── BM25 (sparse) ────────────────────────────────────────────────
 

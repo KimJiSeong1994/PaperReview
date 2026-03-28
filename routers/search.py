@@ -8,13 +8,16 @@ Search-related endpoints:
 """
 
 import asyncio
+import collections
 import copy
 import hashlib
 import json
 import logging
+import re
 import threading
 import time
 import traceback
+import unicodedata
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -170,10 +173,24 @@ CACHE_TTL_SECONDS = 3600  # 1시간
 CACHE_MAX_SIZE = 200  # 최대 캐시 엔트리 수
 
 
+_CACHE_STOPWORDS = frozenset({
+    "a", "an", "the", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+    "is", "are", "and", "or", "but", "not", "this", "that", "these", "those",
+})
+
+
+def _normalize_query_for_cache(query: str) -> str:
+    """캐시 키용 쿼리 정규화 (유니코드 + stopword + 공백)."""
+    q = unicodedata.normalize("NFKC", query).strip().lower()
+    q = re.sub(r"\s+", " ", q)
+    tokens = [t for t in q.split() if t not in _CACHE_STOPWORDS]
+    return " ".join(tokens)
+
+
 def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
     """검색 요청에 대한 캐시 키 생성 (fast_mode 포함)"""
     key_data = {
-        "query": query.strip().lower(),
+        "query": _normalize_query_for_cache(query),
         "sources": sorted(sources),
         "year_start": filters.get("year_start"),
         "year_end": filters.get("year_end"),
@@ -279,11 +296,12 @@ _cleanup_expired_cache()
 
 
 def _periodic_cache_maintenance():
-    """30분 주기 백그라운드 캐시 정리"""
+    """30분 주기 백그라운드 캐시 정리 + 빈도 데이터 저장"""
     while True:
         time.sleep(1800)
         try:
             _cleanup_expired_cache()
+            _save_query_freq()
         except Exception as e:
             logger.warning("[Cache] Periodic cleanup error: %s", e)
 
@@ -315,6 +333,62 @@ _POPULAR_QUERIES = [
     "prompt engineering",
 ]
 
+# ── 검색 빈도 카운터 ──────────────────────────────────────────────
+_query_freq: collections.Counter = collections.Counter()
+_query_freq_lock = threading.Lock()
+_FREQ_FILE = Path("data/cache/query_freq.json")
+
+_SEED_QUERIES = [
+    "transformer", "large language model", "reinforcement learning",
+    "diffusion model", "graph neural network", "retrieval augmented generation",
+]
+
+
+def _record_query(query: str) -> None:
+    """검색 쿼리를 빈도 카운터에 기록."""
+    normalized = _normalize_query_for_cache(query)
+    with _query_freq_lock:
+        _query_freq[normalized] += 1
+
+
+def _get_popular_queries(top_k: int = 15) -> List[str]:
+    """빈도 기반 인기 쿼리 목록 반환 (시드 쿼리로 보충)."""
+    with _query_freq_lock:
+        popular = [q for q, _ in _query_freq.most_common(top_k)]
+    for seed in _SEED_QUERIES:
+        if len(popular) >= top_k:
+            break
+        if seed not in popular:
+            popular.append(seed)
+    return popular[:top_k]
+
+
+def _save_query_freq() -> None:
+    """빈도 데이터를 JSON 파일로 저장."""
+    try:
+        with _query_freq_lock:
+            data = dict(_query_freq.most_common(500))
+        _FREQ_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_FREQ_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("[QueryFreq] Save failed: %s", e)
+
+
+def _load_query_freq() -> None:
+    """파일에서 빈도 데이터 로드."""
+    try:
+        if _FREQ_FILE.exists():
+            with open(_FREQ_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            with _query_freq_lock:
+                _query_freq.update(data)
+    except Exception:
+        pass
+
+
+_load_query_freq()
+
 
 def _prefetch_popular_queries():
     """Background thread: pre-fetches popular query results into cache."""
@@ -323,13 +397,14 @@ def _prefetch_popular_queries():
     # Wait for server startup to complete
     _time.sleep(30)
 
-    logger.info("[Prefetch] Starting popular query prefetch (%d queries)...", len(_POPULAR_QUERIES))
+    popular = _get_popular_queries()
+    logger.info("[Prefetch] Starting popular query prefetch (%d queries)...", len(popular))
 
     default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
     default_filters = {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": False}
 
     fetched = 0
-    for query in _POPULAR_QUERIES:
+    for query in popular:
         try:
             cache_key = _compute_cache_key(query, default_sources, default_filters)
             if _get_cached_result(cache_key) is not None:
@@ -356,7 +431,7 @@ def _prefetch_popular_queries():
             logger.warning("[Prefetch] Failed for '%s': %s", query, e)
             _time.sleep(5)
 
-    logger.info("[Prefetch] Complete: %d/%d queries prefetched", fetched, len(_POPULAR_QUERIES))
+    logger.info("[Prefetch] Complete: %d/%d queries prefetched", fetched, len(popular))
 
 
 # Start prefetch in background thread on module load
@@ -534,6 +609,7 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
     ReAct 에이전트가 검색→분석→재쿼리를 반복하고,
     RaR rubric으로 결과 세트를 평가한다.
     """
+    _record_query(request.query)
     try:
         start_time = time.time()
         logger.info("[API] Deep Search: %s", request.query)
@@ -617,6 +693,7 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
 @router.post("/search", response_model=SearchResponse)
 async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """Search papers across multiple sources with automatic query analysis."""
+    _record_query(request.query)
     try:
         start_time = time.time()
         loop = asyncio.get_running_loop()
@@ -975,4 +1052,4 @@ async def trigger_prefetch():
         name="query-prefetch-manual",
     )
     t.start()
-    return {"message": "Prefetch started", "queries": len(_POPULAR_QUERIES)}
+    return {"message": "Prefetch started", "queries": len(_get_popular_queries())}
