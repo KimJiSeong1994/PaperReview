@@ -216,16 +216,6 @@ function estimateReadingTime(content: string): number {
   return Math.max(1, Math.round(words / 200));
 }
 
-// ── Gradient selection by index ───────────────────────────────────────
-
-const GRADIENTS = [
-  'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a5f 100%)',
-  'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
-  'linear-gradient(135deg, #200122 0%, #6f0000 100%)',
-  'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #16213e 100%)',
-  'linear-gradient(135deg, #0a3d2e 0%, #006400 100%)',
-];
-
 // ── Loading Skeleton ──────────────────────────────────────────────────
 
 function BlogSkeletonCard() {
