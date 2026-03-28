@@ -388,11 +388,23 @@ if len(layout) > 0:
 
 ### 노드 디자인
 
+<div style="margin:24px 0;text-align:center;">
+<img src="/api/blog/figures/fig_node_encoding.png" alt="노드 시각 인코딩" style="width:100%;max-width:960px;height:auto;border-radius:8px;" />
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 4. 노드 시각 인코딩 — 인용수 log 스케일 크기 + 연도 기반 색상 그라디언트</em></p>
+</div>
+
+
 노드의 크기는 인용수를 반영한다. 인용이 0인 논문도 최소 크기가 있어야 하므로 log 스케일을 적용한다. 기본 크기 12에 `6 * log10(citations + 1)`을 더한다. 인용이 1000회인 논문의 크기는 약 30, 인용이 100회인 논문은 약 24가 된다. 선형 스케일이었다면 인용이 적은 대부분의 논문이 너무 작아 클릭조차 어려웠을 것이다.
 
 색상은 출판 연도 기반 그라디언트를 사용한다. 수집된 논문들의 연도 범위를 구하고, 상대적 위치를 [0, 1]로 정규화한다. 이 값으로 초록 채널을 150에서 220까지 선형 변환한다. 빨간 채널은 60, 파란 채널은 150으로 고정이다. 결과적으로 오래된 논문은 어두운 청록색 계열, 최근 논문은 밝은 초록색 계열이 된다. 논문을 클릭하면 해당 노드가 보라색(`rgba(168, 85, 247, 0.95)`)으로 강조된다.
 
 ### 엣지 최적화
+
+<div style="margin:24px 0;text-align:center;">
+<img src="/api/blog/figures/fig_trace_grouping.png" alt="Trace Grouping 최적화" style="width:100%;max-width:960px;height:auto;border-radius:8px;" />
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 5. Edge Trace Grouping — 수백 엣지를 ~10개 Plotly trace로 압축하여 200ms 이하 렌더링</em></p>
+</div>
+
 
 논문 50편만 있어도 엣지가 수백 개가 될 수 있다. 각 엣지를 별도의 Plotly trace로 만들면 브라우저가 수백 개의 SVG 요소를 개별적으로 렌더링해야 한다. 실제로 초기 구현에서는 그래프 렌더링 시 1-2초의 지연이 발생했다.
 
