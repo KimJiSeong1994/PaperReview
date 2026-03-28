@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import './BlogPage.css';
 import {
   fetchBlogPosts,
@@ -449,7 +450,7 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         </div>
 
         <div className="blog-detail-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
             {selectedPost.content}
           </ReactMarkdown>
         </div>
