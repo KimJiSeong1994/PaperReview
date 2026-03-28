@@ -138,6 +138,15 @@ class EmbeddingGenerator:
         """논문 고유 ID 생성 (DOI 우선, 없으면 정규화 제목)"""
         return _generate_paper_id_util(paper)
 
+    @staticmethod
+    def _normalize_embedding(vec) -> np.ndarray:
+        """list 또는 ndarray를 float32 1-D 벡터로 정규화"""
+        if isinstance(vec, list):
+            vec = np.array(vec, dtype='float32')
+        elif not isinstance(vec, np.ndarray):
+            vec = np.asarray(vec, dtype='float32')
+        return vec.astype('float32').ravel()
+
     def save_embeddings(self, embeddings: Dict[str, np.ndarray], output_dir: str = "data/embeddings"):
         """임베딩을 파일로 저장"""
         os.makedirs(output_dir, exist_ok=True)
@@ -150,10 +159,11 @@ class EmbeddingGenerator:
                 print("저장할 임베딩이 없습니다.")
                 return
 
-            embedding_list = list(embeddings.values())
+            # list/ndarray 정규화
+            embedding_list = [self._normalize_embedding(v) for v in embeddings.values()]
             paper_ids = list(embeddings.keys())
 
-            embeddings_array = np.array(embedding_list).astype('float32')
+            embeddings_array = np.vstack(embedding_list).astype('float32')
             dimension = embeddings_array.shape[1]
 
             # Cosine similarity를 위한 정규화
@@ -182,4 +192,61 @@ class EmbeddingGenerator:
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(embeddings_dict, f, ensure_ascii=False, indent=2)
             print(f"✓ 임베딩 저장: {json_path}")
+
+    @classmethod
+    def rebuild_faiss_from_json(
+        cls,
+        json_path: str = "data/embeddings/embeddings.json",
+        output_dir: str = "data/embeddings",
+    ) -> bool:
+        """JSON 임베딩 파일에서 FAISS 인덱스를 재생성한다.
+
+        Args:
+            json_path: embeddings.json 경로
+            output_dir: FAISS index 및 id_mapping 저장 경로
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            import faiss
+        except ImportError:
+            print("FAISS not installed. Cannot rebuild index.")
+            return False
+
+        if not os.path.exists(json_path):
+            print(f"임베딩 JSON 파일을 찾을 수 없습니다: {json_path}")
+            return False
+
+        with open(json_path, 'r', encoding='utf-8') as f:
+            embeddings_dict: Dict[str, list] = json.load(f)
+
+        if not embeddings_dict:
+            print("JSON에 임베딩이 없습니다.")
+            return False
+
+        paper_ids = list(embeddings_dict.keys())
+        vectors = [
+            np.array(v, dtype='float32').ravel()
+            for v in embeddings_dict.values()
+        ]
+        matrix = np.vstack(vectors).astype('float32')
+        faiss.normalize_L2(matrix)
+
+        dimension = matrix.shape[1]
+        index = faiss.IndexFlatIP(dimension)
+        index.add(matrix)
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        index_path = os.path.join(output_dir, 'paper_embeddings.index')
+        faiss.write_index(index, index_path)
+        print(f"✓ FAISS 인덱스 재생성: {index_path} ({len(paper_ids)}개)")
+
+        mapping_path = os.path.join(output_dir, 'paper_id_mapping.json')
+        with open(mapping_path, 'w', encoding='utf-8') as f:
+            json.dump(paper_ids, f, ensure_ascii=False, indent=2)
+        print(f"✓ ID 매핑 저장: {mapping_path}")
+
+        return True
 

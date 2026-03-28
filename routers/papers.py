@@ -26,6 +26,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from .deps import get_optional_user, get_admin_user, search_agent
 
+from src.graph.constants import (
+    COSINE_EDGE_THRESHOLD_RELAXED,
+    FAISS_SWITCH_THRESHOLD,
+    FAISS_TOP_K,
+    JACCARD_EDGE_THRESHOLD,
+)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["papers"])
@@ -45,9 +52,9 @@ if os.path.exists(_JSON_PATH):
 
 # ── FAISS ANN helper (P2-1) ──────────────────────────────────────────
 
-_FAISS_THRESHOLD = 100  # Switch to FAISS when paper count >= this
-_FAISS_K = 10           # Number of nearest neighbours per paper
-_FAISS_MIN_SIM = 0.3    # Minimum cosine similarity for edge creation
+_FAISS_THRESHOLD = FAISS_SWITCH_THRESHOLD
+_FAISS_K = FAISS_TOP_K
+_FAISS_MIN_SIM = COSINE_EDGE_THRESHOLD_RELAXED
 
 
 def _build_edges_faiss(
@@ -172,7 +179,7 @@ def _build_edges_jaccard(
 
             score = 0.7 * title_score + 0.3 * kw_score
 
-            if score >= 0.06:
+            if score >= JACCARD_EDGE_THRESHOLD:
                 graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
 
 

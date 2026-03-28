@@ -146,9 +146,9 @@ class SearchEngine:
         self,
         initial_papers: List[str],
         expansion_strategy: str = "hybrid",
-        max_depth: int = 2
+        max_depth: int = 1
     ) -> List[str]:
-        """그래프 확장"""
+        """그래프 확장 (기본 1-hop)"""
         expanded_papers = set(initial_papers)
 
         if expansion_strategy == "citation":
@@ -167,14 +167,48 @@ class SearchEngine:
                 expanded_papers.update(self.get_citing_papers(paper_id))
                 expanded_papers.update(self.get_similar_papers(paper_id, top_k=5))
 
-            # 2-hop 확장 (선택적)
+            # 2-hop 확장 (선택적, 상한 50개)
             if max_depth >= 2:
                 second_hop = set()
                 for neighbor in list(expanded_papers):
                     second_hop.update(self.get_similar_papers(neighbor, top_k=3))
+                    if len(second_hop) + len(expanded_papers) >= 50:
+                        break
                 expanded_papers.update(second_hop)
+                # 2-hop 포함 후에도 상한 적용
+                if len(expanded_papers) > 50:
+                    # initial_papers를 유지하면서 나머지 잘라내기
+                    extra = expanded_papers - set(initial_papers)
+                    keep_count = 50 - len(set(initial_papers) & expanded_papers)
+                    expanded_papers = set(initial_papers) | set(list(extra)[:keep_count])
 
         return list(expanded_papers)
+
+    def _keyword_fallback(self, query: str, top_k: int = 10) -> List[str]:
+        """그래프에 없는 논문을 키워드 매칭으로 검색 (Cold Start fallback)"""
+        import re
+
+        query_tokens = set(re.findall(r'\b\w+\b', query.lower()))
+        query_tokens = {t for t in query_tokens if len(t) > 2}
+
+        if not query_tokens:
+            return []
+
+        scored: List[tuple] = []
+        for node_id in self.graph.nodes():
+            node_data = self.graph.nodes[node_id]
+            title = node_data.get('title', '')
+            abstract = node_data.get('abstract', '')
+            text = f"{title} {abstract}".lower()
+            text_tokens = set(re.findall(r'\b\w+\b', text))
+
+            overlap = query_tokens & text_tokens
+            if overlap:
+                score = len(overlap) / len(query_tokens)
+                scored.append((node_id, score))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [pid for pid, _ in scored[:top_k]]
 
     def search(
         self,
@@ -207,5 +241,19 @@ class SearchEngine:
             expanded_results.sort(key=lambda x: x[1], reverse=True)
             expanded_papers = [pid for pid, _ in expanded_results[:max_expanded]]
 
-        return expanded_papers
+        # 4. Cold Start fallback: 그래프에 있는 논문과 없는 논문 분리
+        in_graph = [pid for pid in expanded_papers if pid in self.graph]
+        not_in_graph = [pid for pid in expanded_papers if pid not in self.graph]
+
+        # 벡터 검색 결과가 부족하면 키워드 fallback 추가
+        if len(in_graph) < top_k:
+            keyword_results = self._keyword_fallback(query, top_k=top_k - len(in_graph))
+            # 중복 제거
+            existing_ids = set(in_graph) | set(not_in_graph)
+            for pid in keyword_results:
+                if pid not in existing_ids:
+                    in_graph.append(pid)
+                    existing_ids.add(pid)
+
+        return in_graph + not_in_graph
 

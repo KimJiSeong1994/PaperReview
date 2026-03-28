@@ -15,11 +15,27 @@ class PaperRanker:
 
     def __init__(self, graph):
         self.graph = graph
+        self._pagerank_cache: Dict[str, float] = {}
+        self._cache_graph_hash: tuple = (0, 0)
+
+    # ── PageRank 캐싱 ─────────────────────────────────────────────────
+
+    def _get_graph_hash(self) -> tuple:
+        """그래프 구조 해시 (node_count, edge_count) 튜플"""
+        return (self.graph.number_of_nodes(), self.graph.number_of_edges())
+
+    def _ensure_pagerank_cache(self) -> Dict[str, float]:
+        """해시 비교 후 필요 시만 PageRank 재계산"""
+        current_hash = self._get_graph_hash()
+        if current_hash != self._cache_graph_hash or not self._pagerank_cache:
+            self._pagerank_cache = nx.pagerank(self.graph)
+            self._cache_graph_hash = current_hash
+        return self._pagerank_cache
 
     def get_pagerank(self, paper_id: str, pagerank_scores: Dict[str, float] = None) -> float:
         """PageRank 점수 가져오기"""
         if pagerank_scores is None:
-            pagerank_scores = nx.pagerank(self.graph)
+            pagerank_scores = self._ensure_pagerank_cache()
         return pagerank_scores.get(paper_id, 0.0)
 
     def normalize_citations(self, citations: int, max_citations: int = 1000) -> float:
@@ -57,8 +73,6 @@ class PaperRanker:
         weights: Dict[str, float] = None
     ) -> List[Dict[str, Any]]:
         """논문 랭킹"""
-        import networkx as nx
-
         weights = weights or {
             'query_similarity': 0.5,
             'pagerank': 0.2,
@@ -66,8 +80,8 @@ class PaperRanker:
             'recency': 0.1
         }
 
-        # PageRank 계산
-        pagerank_scores = nx.pagerank(self.graph)
+        # PageRank 계산 (캐시 사용)
+        pagerank_scores = self._ensure_pagerank_cache()
 
         # 최대 인용 수 계산
         max_citations = max(
@@ -79,6 +93,18 @@ class PaperRanker:
 
         for paper_id in paper_ids:
             if paper_id not in self.graph:
+                # Cold Start: 그래프에 없는 논문에 기본 점수 부여
+                scored_papers.append({
+                    'paper_id': paper_id,
+                    'score': 0.1,
+                    'paper': {},
+                    'breakdown': {
+                        'query_similarity': 0.0,
+                        'pagerank': 0.0,
+                        'citations': 0.0,
+                        'recency': 0.0,
+                    }
+                })
                 continue
 
             paper = self.graph.nodes[paper_id]

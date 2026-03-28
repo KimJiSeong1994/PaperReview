@@ -26,6 +26,7 @@ def _contains_korean(text: str) -> bool:
     """텍스트에 한글 음절(U+AC00-U+D7A3)이 포함되어 있는지 확인."""
     return any('\uAC00' <= c <= '\uD7A3' for c in text)
 from graph.embedding_generator import EmbeddingGenerator
+from graph.constants import JACCARD_EDGE_THRESHOLD
 
 # HybridRanker import
 try:
@@ -1186,7 +1187,7 @@ class SearchAgent:
                     existing_paper.get('title', '')
                 )
 
-                if similarity >= 0.12:  # 임계값
+                if similarity >= JACCARD_EDGE_THRESHOLD:
                     similarities.append((existing_paper_id, similarity))
 
             # 상위 유사도 엣지 추가
