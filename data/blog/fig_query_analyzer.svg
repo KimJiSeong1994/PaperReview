@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" style="width:100%;max-width:960px;height:auto" role="img" aria-label="QueryAnalyzer 쿼리 분석">
+  <defs>
+    <marker id="analyzer_arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+    </marker>
+    <marker id="analyzer_arr_down" markerWidth="8" markerHeight="6" refX="3" refY="7" orient="auto">
+      <polygon points="0 0, 6 0, 3 8" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect id="analyzer_bg" width="960" height="260" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text id="analyzer_title" x="480" y="26" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">QueryAnalyzer — 쿼리 분석 흐름</text>
+
+  <!-- ─── Input Query box  x=30..219, y=42..112 ─── -->
+  <rect id="analyzer_input" x="30" y="42" width="190" height="70" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="125" y="63" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#f3f4f6">입력 쿼리</text>
+  <text x="125" y="81" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">"transformer attention</text>
+  <text x="125" y="95" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">mechanism survey"</text>
+
+  <!-- Arrow: Input → Analyzer -->
+  <line id="analyzer_arr_in" x1="220" y1="77" x2="285" y2="77"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+
+  <!-- ─── QueryAnalyzer box  x=287..672, y=28..148 ─── -->
+  <rect id="analyzer_main" x="287" y="28" width="386" height="120" rx="10"
+    fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="480" y="50" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#a5b4fc">QueryAnalyzer</text>
+
+  <!-- Three internal field rows -->
+  <!-- Intent row -->
+  <rect id="analyzer_intent_bg" x="305" y="58" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">intent</text>
+  <text x="380" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#f3f4f6">"find_survey"</text>
+  <text x="540" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">( find_survey | find_paper | compare | explain )</text>
+
+  <!-- Keywords row -->
+  <rect id="analyzer_kw_bg" x="305" y="87" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="103"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">keywords</text>
+  <text x="390" y="103"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#f3f4f6">["transformer", "attention", "survey"]</text>
+
+  <!-- Confidence row -->
+  <rect id="analyzer_conf_bg" x="305" y="116" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">confidence</text>
+  <text x="399" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#22c55e">0.92</text>
+  <text x="432" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">&#x2265; 0.8 threshold</text>
+
+  <!-- ─── Arrow: Analyzer bottom → decision diamond ─── -->
+  <!-- Analyzer bottom center: x=480, y=148 -->
+  <line id="analyzer_arr_down" x1="480" y1="148" x2="480" y2="172"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- ─── Decision diamond  center: 480,183 ─── -->
+  <polygon id="analyzer_diamond" points="480,165 520,183 480,201 440,183"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="480" y="187" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" font-weight="700" fill="#9ca3af">conf &#x2265; 0.8?</text>
+
+  <!-- ─── Branch left: improved_query  x=30..249 ─── -->
+  <!-- Arrow: diamond left → improved box -->
+  <line id="analyzer_arr_yes" x1="440" y1="183" x2="252" y2="183"
+    stroke="#22c55e" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+  <text x="380" y="177"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#22c55e">YES</text>
+
+  <rect id="analyzer_improved" x="30" y="158" width="220" height="50" rx="8"
+    fill="#181818" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="140" y="178" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#22c55e">improved_query</text>
+  <text x="140" y="196" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">LLM 개선 쿼리 사용</text>
+
+  <!-- ─── Branch right: 원본 유지  x=710..929 ─── -->
+  <!-- Arrow: diamond right → original box -->
+  <line id="analyzer_arr_no" x1="520" y1="183" x2="708" y2="183"
+    stroke="#9ca3af" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+  <text x="578" y="177"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">NO</text>
+
+  <rect id="analyzer_original" x="710" y="158" width="218" height="50" rx="8"
+    fill="#181818" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="819" y="178" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#9ca3af">원본 유지</text>
+  <text x="819" y="196" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">입력 쿼리 그대로 전달</text>
+
+  <!-- ─── Both branches merge → Search Engine ─── -->
+  <!-- Left branch down arrow -->
+  <line x1="140" y1="208" x2="140" y2="230" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+  <!-- Right branch down arrow -->
+  <line x1="819" y1="208" x2="819" y2="230" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- Merge line -->
+  <line x1="140" y1="238" x2="819" y2="238" stroke="#6b7280" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="480" y1="238" x2="480" y2="251" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- Final output label -->
+  <rect id="analyzer_search" x="355" y="246" width="250" height="0" rx="6" fill="none"/>
+  <text x="480" y="258" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">&#x2192; 6소스 병렬 검색으로 전달</text>
+
+  <!-- ─── Bottom caption ─── -->
+  <line x1="30" y1="250" x2="928" y2="250" stroke="#1f2937" stroke-width="1"/>
+  <text x="480" y="257" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" fill="#6b7280">Figure B — QueryAnalyzer: Intent · Keywords · Confidence 분석 후 confidence &#x2265; 0.8 기준으로 쿼리 개선 여부 결정</text>
+</svg>

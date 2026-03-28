@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" style="width:100%;max-width:960px;height:auto" role="img" aria-label="HybridRanker 4신호 결합">
+  <defs>
+    <marker id="ranker_arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect id="ranker_bg" width="960" height="320" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text id="ranker_title" x="480" y="28" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">HybridRanker — 4신호 결합</text>
+
+  <!-- ─── Signal 1: BM25  y=44..100 ─── -->
+  <rect id="ranker_sig_bm25" x="30" y="44" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="65"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">BM25</text>
+  <text x="50" y="82"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">키워드 기반 희소 검색</text>
+  <text x="50" y="96"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">term freq · IDF · field norm</text>
+
+  <!-- ─── Signal 2: Semantic / HyDE  y=111..167 ─── -->
+  <rect id="ranker_sig_semantic" x="30" y="111" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Semantic / HyDE</text>
+  <text x="50" y="149"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">밀집 벡터 코사인 유사도</text>
+  <text x="50" y="163"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">가상 문서 생성 후 임베딩</text>
+
+  <!-- ─── Signal 3: Citations  y=178..234 ─── -->
+  <rect id="ranker_sig_citations" x="30" y="178" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="199"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Citations</text>
+  <text x="50" y="216"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">인용 수 기반 중요도</text>
+  <text x="50" y="230"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">log(1 + citations) 정규화</text>
+
+  <!-- ─── Signal 4: Recency  y=245..301 ─── -->
+  <rect id="ranker_sig_recency" x="30" y="245" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="266"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Recency</text>
+  <text x="50" y="283"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">출판 연도 최신성 가중치</text>
+  <text x="50" y="297"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">exp(−λ · age_years)</text>
+
+  <!-- ─── Converging arrows: signal centers → RRF left ─── -->
+  <!-- BM25 center-y = 44+28 = 72 -->
+  <line id="ranker_arr_bm25"      x1="260" y1="72"  x2="353" y2="152" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Semantic center-y = 111+28 = 139 -->
+  <line id="ranker_arr_semantic"  x1="260" y1="139" x2="353" y2="163" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Citations center-y = 178+28 = 206 -->
+  <line id="ranker_arr_citations" x1="260" y1="206" x2="353" y2="178" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Recency center-y = 245+28 = 273 -->
+  <line id="ranker_arr_recency"   x1="260" y1="273" x2="353" y2="187" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+
+  <!-- ─── RRF box  x=355..604, y=118..234 ─── -->
+  <rect id="ranker_rrf" x="355" y="118" width="250" height="116" rx="10"
+    fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="480" y="142" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#a5b4fc">RRF</text>
+  <text x="480" y="159" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#9ca3af">Reciprocal Rank Fusion</text>
+  <text x="480" y="185" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">score(d) = &#x2211;&#x1D456; 1/(k+rank&#x1D456;)</text>
+  <text x="480" y="203" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">k = 60  (기본값)</text>
+  <text x="480" y="222" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">순위만 사용 → 점수 스케일 무관</text>
+
+  <!-- ─── Arrow RRF → Final Rank ─── -->
+  <line id="ranker_arr_out" x1="605" y1="176" x2="670" y2="176"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+
+  <!-- ─── Final Rank box  x=672..927, y=118..234 ─── -->
+  <rect id="ranker_output" x="672" y="118" width="256" height="116" rx="10"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="800" y="142" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">최종 순위</text>
+  <text x="800" y="159" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#9ca3af">상위 N개 논문 반환</text>
+  <!-- Rank list items -->
+  <text x="692" y="182"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" font-weight="700" fill="#22c55e">#1</text>
+  <text x="716" y="182"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#f3f4f6">Attention Is All You Need</text>
+  <text x="692" y="200"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" font-weight="700" fill="#a5b4fc">#2</text>
+  <text x="716" y="200"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#f3f4f6">FlashAttention-2</text>
+  <text x="692" y="218"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#6b7280">#3</text>
+  <text x="716" y="218"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#6b7280">Efficient Transformers</text>
+
+  <!-- ─── Bottom caption ─── -->
+  <line x1="30" y1="311" x2="928" y2="311" stroke="#1f2937" stroke-width="1"/>
+  <text x="480" y="317" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" fill="#6b7280">Figure A — BM25 · Semantic/HyDE · Citations · Recency 4신호를 Reciprocal Rank Fusion으로 결합</text>
+</svg>

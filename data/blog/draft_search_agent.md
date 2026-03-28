@@ -103,6 +103,158 @@
 
 ### QueryAnalyzer: 쿼리를 이해하는 첫 번째 레이어
 
+<div style="margin:24px 0;text-align:center;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" style="width:100%;max-width:960px;height:auto" role="img" aria-label="QueryAnalyzer 쿼리 분석">
+  <defs>
+    <marker id="analyzer_arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+    </marker>
+    <marker id="analyzer_arr_down" markerWidth="8" markerHeight="6" refX="3" refY="7" orient="auto">
+      <polygon points="0 0, 6 0, 3 8" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect id="analyzer_bg" width="960" height="260" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text id="analyzer_title" x="480" y="26" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">QueryAnalyzer — 쿼리 분석 흐름</text>
+
+  <!-- ─── Input Query box  x=30..219, y=42..112 ─── -->
+  <rect id="analyzer_input" x="30" y="42" width="190" height="70" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="125" y="63" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#f3f4f6">입력 쿼리</text>
+  <text x="125" y="81" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">"transformer attention</text>
+  <text x="125" y="95" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">mechanism survey"</text>
+
+  <!-- Arrow: Input → Analyzer -->
+  <line id="analyzer_arr_in" x1="220" y1="77" x2="285" y2="77"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+
+  <!-- ─── QueryAnalyzer box  x=287..672, y=28..148 ─── -->
+  <rect id="analyzer_main" x="287" y="28" width="386" height="120" rx="10"
+    fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="480" y="50" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#a5b4fc">QueryAnalyzer</text>
+
+  <!-- Three internal field rows -->
+  <!-- Intent row -->
+  <rect id="analyzer_intent_bg" x="305" y="58" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">intent</text>
+  <text x="380" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#f3f4f6">"find_survey"</text>
+  <text x="540" y="74"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">( find_survey | find_paper | compare | explain )</text>
+
+  <!-- Keywords row -->
+  <rect id="analyzer_kw_bg" x="305" y="87" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="103"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">keywords</text>
+  <text x="390" y="103"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#f3f4f6">["transformer", "attention", "survey"]</text>
+
+  <!-- Confidence row -->
+  <rect id="analyzer_conf_bg" x="305" y="116" width="350" height="24" rx="5"
+    fill="#1f2937" stroke="none"/>
+  <text x="321" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">confidence</text>
+  <text x="399" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#22c55e">0.92</text>
+  <text x="432" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">&#x2265; 0.8 threshold</text>
+
+  <!-- ─── Arrow: Analyzer bottom → decision diamond ─── -->
+  <!-- Analyzer bottom center: x=480, y=148 -->
+  <line id="analyzer_arr_down" x1="480" y1="148" x2="480" y2="172"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- ─── Decision diamond  center: 480,183 ─── -->
+  <polygon id="analyzer_diamond" points="480,165 520,183 480,201 440,183"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="480" y="187" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" font-weight="700" fill="#9ca3af">conf &#x2265; 0.8?</text>
+
+  <!-- ─── Branch left: improved_query  x=30..249 ─── -->
+  <!-- Arrow: diamond left → improved box -->
+  <line id="analyzer_arr_yes" x1="440" y1="183" x2="252" y2="183"
+    stroke="#22c55e" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+  <text x="380" y="177"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#22c55e">YES</text>
+
+  <rect id="analyzer_improved" x="30" y="158" width="220" height="50" rx="8"
+    fill="#181818" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="140" y="178" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#22c55e">improved_query</text>
+  <text x="140" y="196" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">LLM 개선 쿼리 사용</text>
+
+  <!-- ─── Branch right: 원본 유지  x=710..929 ─── -->
+  <!-- Arrow: diamond right → original box -->
+  <line id="analyzer_arr_no" x1="520" y1="183" x2="708" y2="183"
+    stroke="#9ca3af" stroke-width="1.5" marker-end="url(#analyzer_arr)"/>
+  <text x="578" y="177"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" font-weight="700" fill="#9ca3af">NO</text>
+
+  <rect id="analyzer_original" x="710" y="158" width="218" height="50" rx="8"
+    fill="#181818" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="819" y="178" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="12" font-weight="700" fill="#9ca3af">원본 유지</text>
+  <text x="819" y="196" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">입력 쿼리 그대로 전달</text>
+
+  <!-- ─── Both branches merge → Search Engine ─── -->
+  <!-- Left branch down arrow -->
+  <line x1="140" y1="208" x2="140" y2="230" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+  <!-- Right branch down arrow -->
+  <line x1="819" y1="208" x2="819" y2="230" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- Merge line -->
+  <line x1="140" y1="238" x2="819" y2="238" stroke="#6b7280" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="480" y1="238" x2="480" y2="251" stroke="#6b7280" stroke-width="1.5" marker-end="url(#analyzer_arr_down)"/>
+
+  <!-- Final output label -->
+  <rect id="analyzer_search" x="355" y="246" width="250" height="0" rx="6" fill="none"/>
+  <text x="480" y="258" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">&#x2192; 6소스 병렬 검색으로 전달</text>
+
+  <!-- ─── Bottom caption ─── -->
+  <line x1="30" y1="250" x2="928" y2="250" stroke="#1f2937" stroke-width="1"/>
+  <text x="480" y="257" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" fill="#6b7280">Figure B — QueryAnalyzer: Intent · Keywords · Confidence 분석 후 confidence &#x2265; 0.8 기준으로 쿼리 개선 여부 결정</text>
+</svg>
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 5. QueryAnalyzer — 쿼리 분석 및 confidence 기반 개선 과정</em></p>
+</div>
+
+
 검색에 앞서 `QueryAnalyzer`가 사용자의 의도를 파악한다. `paper_search`, `topic_exploration`, `method_search`, `survey` 등 8가지 intent로 분류하며, 분류는 `gpt-4o-mini`에 위임하고 결과를 캐싱해 반복 호출 비용을 줄인다. LLM을 쓸 수 없을 때는 키워드 규칙 기반 fallback이 동작한다.
 
 분석 결과에는 `improved_query`도 포함되는데, 여기서 원칙은 보수적이다. 오타 수정, 약어 확장 정도만 허용한다. LLM이 원래 의도에 없던 컨텍스트를 추가해 검색 품질이 오히려 떨어지는 상황을 여러 번 경험했기 때문이다.
@@ -110,6 +262,146 @@
 그래서 이중 guardrail을 유지한다. 프롬프트 수준에서 쿼리 길이를 원본의 1.5배 이내로 제한하고, 코드 수준에서는 confidence가 낮거나 원본과 어간 겹침이 50% 미만이면 개선 쿼리를 폐기한다.
 
 ### 하이브리드 랭킹: BM25 + Semantic + Citations + Recency
+
+<div style="margin:24px 0;text-align:center;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" style="width:100%;max-width:960px;height:auto" role="img" aria-label="HybridRanker 4신호 결합">
+  <defs>
+    <marker id="ranker_arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect id="ranker_bg" width="960" height="320" fill="#0f0f0f"/>
+
+  <!-- Title -->
+  <text id="ranker_title" x="480" y="28" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">HybridRanker — 4신호 결합</text>
+
+  <!-- ─── Signal 1: BM25  y=44..100 ─── -->
+  <rect id="ranker_sig_bm25" x="30" y="44" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="65"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">BM25</text>
+  <text x="50" y="82"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">키워드 기반 희소 검색</text>
+  <text x="50" y="96"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">term freq · IDF · field norm</text>
+
+  <!-- ─── Signal 2: Semantic / HyDE  y=111..167 ─── -->
+  <rect id="ranker_sig_semantic" x="30" y="111" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="132"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Semantic / HyDE</text>
+  <text x="50" y="149"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">밀집 벡터 코사인 유사도</text>
+  <text x="50" y="163"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">가상 문서 생성 후 임베딩</text>
+
+  <!-- ─── Signal 3: Citations  y=178..234 ─── -->
+  <rect id="ranker_sig_citations" x="30" y="178" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="199"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Citations</text>
+  <text x="50" y="216"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">인용 수 기반 중요도</text>
+  <text x="50" y="230"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">log(1 + citations) 정규화</text>
+
+  <!-- ─── Signal 4: Recency  y=245..301 ─── -->
+  <rect id="ranker_sig_recency" x="30" y="245" width="230" height="56" rx="8"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="50" y="266"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">Recency</text>
+  <text x="50" y="283"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#9ca3af">출판 연도 최신성 가중치</text>
+  <text x="50" y="297"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">exp(−λ · age_years)</text>
+
+  <!-- ─── Converging arrows: signal centers → RRF left ─── -->
+  <!-- BM25 center-y = 44+28 = 72 -->
+  <line id="ranker_arr_bm25"      x1="260" y1="72"  x2="353" y2="152" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Semantic center-y = 111+28 = 139 -->
+  <line id="ranker_arr_semantic"  x1="260" y1="139" x2="353" y2="163" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Citations center-y = 178+28 = 206 -->
+  <line id="ranker_arr_citations" x1="260" y1="206" x2="353" y2="178" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+  <!-- Recency center-y = 245+28 = 273 -->
+  <line id="ranker_arr_recency"   x1="260" y1="273" x2="353" y2="187" stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+
+  <!-- ─── RRF box  x=355..604, y=118..234 ─── -->
+  <rect id="ranker_rrf" x="355" y="118" width="250" height="116" rx="10"
+    fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="480" y="142" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#a5b4fc">RRF</text>
+  <text x="480" y="159" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#9ca3af">Reciprocal Rank Fusion</text>
+  <text x="480" y="185" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="13" font-weight="700" fill="#f3f4f6">score(d) = &#x2211;&#x1D456; 1/(k+rank&#x1D456;)</text>
+  <text x="480" y="203" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">k = 60  (기본값)</text>
+  <text x="480" y="222" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="10" fill="#6b7280">순위만 사용 → 점수 스케일 무관</text>
+
+  <!-- ─── Arrow RRF → Final Rank ─── -->
+  <line id="ranker_arr_out" x1="605" y1="176" x2="670" y2="176"
+    stroke="#6b7280" stroke-width="1.5" marker-end="url(#ranker_arr)"/>
+
+  <!-- ─── Final Rank box  x=672..927, y=118..234 ─── -->
+  <rect id="ranker_output" x="672" y="118" width="256" height="116" rx="10"
+    fill="#181818" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="800" y="142" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="14" font-weight="700" fill="#f3f4f6">최종 순위</text>
+  <text x="800" y="159" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#9ca3af">상위 N개 논문 반환</text>
+  <!-- Rank list items -->
+  <text x="692" y="182"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" font-weight="700" fill="#22c55e">#1</text>
+  <text x="716" y="182"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#f3f4f6">Attention Is All You Need</text>
+  <text x="692" y="200"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" font-weight="700" fill="#a5b4fc">#2</text>
+  <text x="716" y="200"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#f3f4f6">FlashAttention-2</text>
+  <text x="692" y="218"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#6b7280">#3</text>
+  <text x="716" y="218"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="11" fill="#6b7280">Efficient Transformers</text>
+
+  <!-- ─── Bottom caption ─── -->
+  <line x1="30" y1="311" x2="928" y2="311" stroke="#1f2937" stroke-width="1"/>
+  <text x="480" y="317" text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="9" fill="#6b7280">Figure A — BM25 · Semantic/HyDE · Citations · Recency 4신호를 Reciprocal Rank Fusion으로 결합</text>
+</svg>
+<p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 4. HybridRanker — 4가지 신호를 RRF로 결합하여 최종 순위 산출</em></p>
+</div>
+
 
 6개 소스에서 수집된 논문은 중복 제거를 거쳐 `HybridRanker`로 넘어간다. 랭킹은 4가지 신호를 조합한다.
 
