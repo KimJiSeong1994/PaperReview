@@ -144,19 +144,19 @@
   <text x="100" y="213" text-anchor="middle" fill="#93c5fd" font-size="10.5">최종 순위 논문</text>
 
   <!-- ===== DETAIL CALLOUTS — Row 3 ===== -->
-  <!-- Search sources detail -->
-  <rect x="450" y="262" width="240" height="52" rx="8" fill="#1a1a2e" stroke="#4c1d95" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="570" y="280" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">병렬 검색 세부</text>
-  <text x="570" y="296" text-anchor="middle" fill="#8b5cf6" font-size="9.5">arXiv API · Google Scholar · OpenAlex</text>
-  <text x="570" y="311" text-anchor="middle" fill="#8b5cf6" font-size="9.5">DBLP · Connected Papers · Korean DB</text>
-  <line x1="570" y1="230" x2="570" y2="262" stroke="#4c1d95" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- ReAct loop callout (ReAct Agent 노드 아래) -->
+  <rect x="450" y="262" width="240" height="52" rx="8" fill="#1a1a2e" stroke="#0e7490" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="570" y="280" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="600">ReAct 루프 예산</text>
+  <text x="570" y="296" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 1: 40s · Gap Analysis: 20s</text>
+  <text x="570" y="311" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 2: 30s · Turn 3: 20s (선택적)</text>
+  <line x1="570" y1="220" x2="570" y2="262" stroke="#0e7490" stroke-width="1" stroke-dasharray="3,3"/>
 
-  <!-- ReAct loop callout -->
-  <rect x="730" y="262" width="280" height="52" rx="8" fill="#1a1a2e" stroke="#0e7490" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="870" y="280" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="600">ReAct 루프 예산</text>
-  <text x="870" y="296" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 1: 40s · Gap Analysis: 20s</text>
-  <text x="870" y="311" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 2: 30s · Turn 3: 20s (선택적)</text>
-  <line x1="870" y1="230" x2="870" y2="262" stroke="#0e7490" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- Search sources detail (6소스 검색 노드 아래) -->
+  <rect x="730" y="262" width="280" height="52" rx="8" fill="#1a1a2e" stroke="#4c1d95" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="870" y="280" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">병렬 검색 세부</text>
+  <text x="870" y="296" text-anchor="middle" fill="#8b5cf6" font-size="9.5">arXiv API · Google Scholar · OpenAlex</text>
+  <text x="870" y="311" text-anchor="middle" fill="#8b5cf6" font-size="9.5">DBLP · Connected Papers · Korean DB</text>
+  <line x1="870" y1="220" x2="870" y2="262" stroke="#4c1d95" stroke-width="1" stroke-dasharray="3,3"/>
 
   <!-- RRF callout -->
   <rect x="210" y="262" width="200" height="52" rx="8" fill="#1a1a2e" stroke="#92400e" stroke-width="1" stroke-dasharray="4,3"/>
@@ -600,8 +600,6 @@ Turn 1이 끝나면, 수집된 논문 목록(제목 + 연도)을 gpt-4o-mini에 
   <rect x="190" y="82" width="340" height="32" rx="6" fill="#1f2937"/>
   <!-- Bar fill: 3/5 = 204px -->
   <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
-  <!-- Score pip markers -->
-  <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
   <!-- Segment dividers (subtle) -->
   <line x1="258" y1="84" x2="258" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
   <line x1="326" y1="84" x2="326" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
@@ -630,7 +628,7 @@ Turn 1이 끝나면, 수집된 논문 목록(제목 + 연도)을 gpt-4o-mini에 
 
   <!-- ======= ROW 3: Thoughtfulness 4/5 = 80% = 272px ======= -->
   <text x="180" y="188" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoughtfulness</text>
-  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">통찰력</text>
+  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">사려깊음</text>
   <rect x="190" y="174" width="340" height="32" rx="6" fill="#1f2937"/>
   <rect x="190" y="174" width="272" height="32" rx="6" fill="url(#bar-thoughtfulness)"/>
   <line x1="258" y1="176" x2="258" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
@@ -679,8 +677,8 @@ Turn 1이 끝나면, 수집된 논문 목록(제목 + 연도)을 gpt-4o-mini에 
   <text x="543" y="305" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">PASS ✓</text>
 
   <!-- Score formula detail -->
-  <text x="44" y="322" fill="#4b5563" font-size="9.5">(3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.728</text>
-  <text x="350" y="322" fill="#374151" font-size="9">method_search 임계값: 0.60</text>
+  <text x="44" y="322" fill="#4b5563" font-size="9.5">dim = (3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.81 → 0.6×holistic + 0.4×0.81 = 0.728</text>
+  <text x="560" y="322" fill="#374151" font-size="9">임계값: 0.60</text>
 </svg>
 <p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 3. RaR-Implicit Rubric 4차원 평가 결과 — method_search intent 기준</em></p>
 </div>
@@ -716,7 +714,7 @@ QueryAnalyzer (10s) -> ReActSearchAgent (120s) -> RubricEvaluator (15s)
                          ├─ Turn 1: arXiv+OpenAlex (40s)
                          ├─ Gap Analysis (20s)
                          ├─ Turn 2: OpenAlex+DBLP (30s)
-                         └─ Turn 3 (필요 시, 30s)
+                         └─ Turn 3 (필요 시, 20s)
 ```
 
 기본 검색(`/api/search`)도 검색 단계(60초)와 관련성 필터 단계(45초)를 독립 버짓으로 운영한다. 필터가 타임아웃되면 필터링 없는 원본 결과를 반환한다 -- 에러 페이지보다 품질이 약간 낮은 결과가 낫다는 판단이다.

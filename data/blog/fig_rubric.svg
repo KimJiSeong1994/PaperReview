@@ -71,8 +71,6 @@
   <rect x="190" y="82" width="340" height="32" rx="6" fill="#1f2937"/>
   <!-- Bar fill: 3/5 = 204px -->
   <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
-  <!-- Score pip markers -->
-  <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
   <!-- Segment dividers (subtle) -->
   <line x1="258" y1="84" x2="258" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
   <line x1="326" y1="84" x2="326" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
@@ -101,7 +99,7 @@
 
   <!-- ======= ROW 3: Thoughtfulness 4/5 = 80% = 272px ======= -->
   <text x="180" y="188" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoughtfulness</text>
-  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">통찰력</text>
+  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">사려깊음</text>
   <rect x="190" y="174" width="340" height="32" rx="6" fill="#1f2937"/>
   <rect x="190" y="174" width="272" height="32" rx="6" fill="url(#bar-thoughtfulness)"/>
   <line x1="258" y1="176" x2="258" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
@@ -150,6 +148,6 @@
   <text x="543" y="305" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">PASS ✓</text>
 
   <!-- Score formula detail -->
-  <text x="44" y="322" fill="#4b5563" font-size="9.5">(3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.728</text>
-  <text x="350" y="322" fill="#374151" font-size="9">method_search 임계값: 0.60</text>
+  <text x="44" y="322" fill="#4b5563" font-size="9.5">dim = (3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.81 → 0.6×holistic + 0.4×0.81 = 0.728</text>
+  <text x="560" y="322" fill="#374151" font-size="9">임계값: 0.60</text>
 </svg>
