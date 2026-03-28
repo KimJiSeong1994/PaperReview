@@ -140,7 +140,9 @@ def _build_edges_jaccard(
     for p in papers_data:
         did = p.get("doc_id") or str(abs(hash(p.get("title", ""))))
         kw_tokens: set = set()
-        for cat in (p.get("categories") or "").split():
+        cats = p.get("categories") or ""
+        cat_list = cats.split() if isinstance(cats, str) else (cats if isinstance(cats, list) else [])
+        for cat in cat_list:
             kw_tokens.add(cat.lower().strip())
         for kw in (p.get("keywords") or []):
             if isinstance(kw, str) and len(kw) > 2:
