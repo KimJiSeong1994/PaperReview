@@ -84,7 +84,7 @@
 /* ===== Blog Content Area — single column, centered (alphaXiv 740px) ===== */
 .blog-content {
   flex: 1;
-  max-width: 740px;
+  max-width: 960px;
   width: 100%;
   margin: 0 auto;
   padding: 40px 20px 80px;
@@ -488,7 +488,7 @@
 
 /* ===== Blog Post Detail View ===== */
 .blog-detail {
-  max-width: 760px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
@@ -651,7 +651,7 @@
 
 /* ===== Admin Editor ===== */
 .blog-editor {
-  max-width: 760px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
