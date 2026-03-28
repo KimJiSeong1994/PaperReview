@@ -416,32 +416,23 @@ async def get_graph_data(request: Dict[str, Any]):
     """
     try:
         papers_json = request.get("papers_json")
-        if papers_json:
-            papers_data = json.loads(papers_json)
-            for paper in papers_data:
-                if "doc_id" not in paper:
-                    title = paper.get("title", "")
-                    doc_id = (
-                        str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
-                        if title
-                        else ""
-                    )
-                    paper["doc_id"] = doc_id
-        else:
-            # P2-2: Try SQLite first, fallback to JSON
-            papers_data = []
-            try:
-                papers_data = _paper_db.get_all_papers()
-            except Exception as db_err:
-                logger.warning("[P2-2] SQLite read failed for graph-data: %s", db_err)
+        if not papers_json:
+            # papers_json이 없으면 빈 그래프 반환 (전체 DB 로드 방지)
+            return {"nodes": [], "edges": []}
 
-            if not papers_data:
-                papers_file = search_agent.papers_file
-                if not os.path.exists(papers_file):
-                    return {"nodes": [], "edges": []}
-                with open(papers_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    papers_data = data.get("papers", [])
+        papers_data = json.loads(papers_json)
+        if not papers_data:
+            return {"nodes": [], "edges": []}
+
+        for paper in papers_data:
+            if "doc_id" not in paper:
+                title = paper.get("title", "")
+                doc_id = (
+                    str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
+                    if title
+                    else ""
+                )
+                paper["doc_id"] = doc_id
 
         from src.utils.paper_utils import generate_doc_id
 
@@ -473,15 +464,21 @@ async def get_graph_data(request: Dict[str, Any]):
                     node_attrs[key] = value
             graph.add_node(doc_id, **node_attrs)
 
-        # ── P2-1: Edge building strategy ──────────────────────────────
+        # ── Edge building strategy ──────────────────────────────────
         n_papers = len(papers_data)
+        _MAX_JACCARD_PAPERS = 500  # Jaccard O(n²) 상한
+
         if n_papers >= _FAISS_THRESHOLD:
             try:
-                logger.info("[P2-1] Using FAISS ANN for %d papers (threshold=%d)", n_papers, _FAISS_THRESHOLD)
+                logger.info("[Graph] Using FAISS ANN for %d papers", n_papers)
                 _build_edges_faiss(papers_data, graph)
             except Exception as faiss_err:
-                logger.warning("[P2-1] FAISS failed, falling back to Jaccard: %s", faiss_err)
-                _build_edges_jaccard(papers_data, graph)
+                logger.warning("[Graph] FAISS failed: %s", faiss_err)
+                if n_papers <= _MAX_JACCARD_PAPERS:
+                    logger.info("[Graph] Jaccard fallback for %d papers", n_papers)
+                    _build_edges_jaccard(papers_data, graph)
+                else:
+                    logger.warning("[Graph] %d papers too large for Jaccard fallback, skipping edges", n_papers)
         else:
             _build_edges_jaccard(papers_data, graph)
 
