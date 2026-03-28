@@ -47,6 +47,99 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["search"])
 
 
+# ── GraphRAG auxiliary recall ─────────────────────────────────────────
+
+_GRAPH_PATH = Path("data/graph/paper_graph.pkl")
+
+
+def _graphrag_expand(
+    query: str,
+    initial_papers: List[Dict[str, Any]],
+    max_expand: int = 15,
+) -> List[Dict[str, Any]]:
+    """검색 결과의 논문들을 기반으로 GraphRAG 1-hop 확장.
+
+    기존 검색 결과의 title을 시드로 사용하여,
+    그래프에서 이웃 논문을 추가로 가져온다.
+    실패 시 빈 리스트 반환 (graceful degradation).
+    """
+    import pickle
+
+    if not _GRAPH_PATH.exists():
+        logger.debug("[GraphRAG] Graph file not found: %s", _GRAPH_PATH)
+        return []
+
+    try:
+        with open(_GRAPH_PATH, "rb") as f:
+            graph = pickle.load(f)
+    except Exception as exc:
+        logger.warning("[GraphRAG] Graph load failed: %s", exc)
+        return []
+
+    from src.graph_rag.search_engine import SearchEngine
+
+    engine = SearchEngine(graph)
+
+    # 기존 검색 결과의 title → graph node_id 매핑 (lowercase)
+    seed_ids: List[str] = []
+    existing_titles: set = set()
+    for paper in initial_papers:
+        title = paper.get("title", "")
+        if title:
+            node_id = title.strip().lower()
+            existing_titles.add(node_id)
+            if node_id in graph:
+                seed_ids.append(node_id)
+
+    if not seed_ids:
+        # 시드가 없으면 키워드 fallback 시도
+        fallback_ids = engine._keyword_fallback(query, top_k=max_expand)
+        fallback_ids = [pid for pid in fallback_ids if pid not in existing_titles]
+        if not fallback_ids:
+            return []
+        neighbor_ids = fallback_ids[:max_expand]
+    else:
+        # 1-hop 확장: citation + similarity
+        neighbor_ids_set: set = set()
+        for sid in seed_ids[:10]:  # 시드 상위 10개만 사용 (성능)
+            neighbor_ids_set.update(engine.get_neighbors(sid))
+            neighbor_ids_set.update(engine.get_similar_papers(sid, top_k=5))
+
+        # 기존 검색 결과와 겹치는 논문 제외
+        neighbor_ids_set -= existing_titles
+        neighbor_ids = list(neighbor_ids_set)[:max_expand]
+
+    if not neighbor_ids:
+        return []
+
+    # 그래프 노드 데이터를 검색 결과 형식으로 변환
+    expanded: List[Dict[str, Any]] = []
+    for nid in neighbor_ids:
+        if nid not in graph:
+            continue
+        node_data = graph.nodes[nid]
+        title = node_data.get("title", "")
+        if not title:
+            continue
+        paper: Dict[str, Any] = {
+            "title": title,
+            "abstract": node_data.get("abstract", ""),
+            "authors": node_data.get("authors", []),
+            "url": node_data.get("url", ""),
+            "pdf_url": node_data.get("pdf_url", ""),
+            "source": "graphrag",
+            "arxiv_id": node_data.get("arxiv_id", ""),
+            "doi": node_data.get("doi", ""),
+            "published_date": node_data.get("published_date", ""),
+            "categories": node_data.get("categories", []),
+            "citations": node_data.get("citations", 0),
+            "year": node_data.get("year", ""),
+        }
+        expanded.append(paper)
+
+    return expanded
+
+
 # ── Pydantic models ───────────────────────────────────────────────────
 
 class SearchRequest(BaseModel):
@@ -645,6 +738,28 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
             max_results=request.max_results or 20,
         )
 
+        # 2.5. GraphRAG auxiliary expansion
+        try:
+            react_papers = result.get("papers", [])
+            if react_papers:
+                loop = asyncio.get_running_loop()
+                graphrag_papers = await loop.run_in_executor(
+                    None, partial(_graphrag_expand, request.query, react_papers, 15)
+                )
+                if graphrag_papers:
+                    # 중복 제거: 기존 결과의 제목 집합
+                    existing_titles = {p.get("title", "").strip().lower() for p in react_papers}
+                    new_papers = [
+                        p for p in graphrag_papers
+                        if p.get("title", "").strip().lower() not in existing_titles
+                    ]
+                    for p in new_papers:
+                        p["_source"] = "graphrag"
+                    result["papers"].extend(new_papers)
+                    logger.info("[Deep Search][GraphRAG] Added %d papers from graph expansion", len(new_papers))
+        except Exception as e:
+            logger.warning("[Deep Search][GraphRAG] Expansion failed (continuing): %s", e)
+
         # 3. Rubric evaluation
         from app.QueryAgent.rubric_evaluator import RubricEvaluator
 
@@ -671,7 +786,7 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         # 4. Save papers
         if request.save_papers and result.get("papers"):
             try:
-                results_by_source = {"arxiv": [], "openalex": [], "dblp": []}
+                results_by_source = {"arxiv": [], "openalex": [], "dblp": [], "graphrag": []}
                 for paper in result["papers"]:
                     src = paper.pop("_source", "arxiv")
                     if src in results_by_source:
@@ -880,9 +995,25 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             search_time,
         )
 
+        # Step 1.5: GraphRAG auxiliary expansion (skip in fast_mode)
+        if not request.fast_mode and results:
+            try:
+                all_papers_flat = [p for papers in results.values() for p in papers]
+                graphrag_papers = await loop.run_in_executor(
+                    None, partial(_graphrag_expand, request.query, all_papers_flat, 15)
+                )
+                if graphrag_papers:
+                    results.setdefault("graphrag", []).extend(graphrag_papers)
+                    logger.info("[GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
+            except Exception as e:
+                logger.warning("[GraphRAG] Expansion failed (continuing): %s", e)
+
         # Cross-source deduplication + Hybrid ranking (always) + Relevance filtering (non-fast only)
         if results:
             intent = query_analysis.get("intent", "paper_search") if query_analysis else "paper_search"
+
+            # Collect all active source keys (user-specified + graphrag if present)
+            _all_source_keys = list(request.sources) + [s for s in results if s not in request.sources]
 
             # Step 1: Cross-source deduplication
             try:
@@ -898,8 +1029,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     removed = before_count - len(deduped)
                     if removed > 0:
                         logger.info("[API] Cross-source dedup: removed %d duplicates (%d → %d)", removed, before_count, len(deduped))
-                    # 소스별로 다시 분리
-                    results = {s: [] for s in request.sources}
+                    # 소스별로 다시 분리 (graphrag 포함)
+                    results = {s: [] for s in _all_source_keys}
                     for paper in deduped:
                         src = paper.pop("_source_tag", paper.get("_source", "arxiv"))
                         paper.pop("_source", None)
@@ -925,8 +1056,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             openai_client=get_openai_client(),
                             use_rrf=True,
                         )
-                        # 소스별로 다시 분리
-                        results = {s: [] for s in request.sources}
+                        # 소스별로 다시 분리 (graphrag 포함)
+                        results = {s: [] for s in _all_source_keys}
                         for paper in ranked:
                             src = paper.pop("_source_tag", "arxiv")
                             if src in results:
@@ -962,7 +1093,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 timeout=_RELEVANCE_FILTER_TIMEOUT,
                             )
                             results = {}
-                            for source in request.sources:
+                            for source in _all_source_keys:
                                 results[source] = [p for p in filtered_papers if p.get("source") == source]
                             logger.info("[API] Filtered results: %s papers (threshold: 0.65)", len(filtered_papers))
                         else:
