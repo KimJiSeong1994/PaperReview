@@ -67,22 +67,8 @@ app.add_middleware(
 )
 
 
-# Security headers middleware
-from starlette.middleware.base import BaseHTTPMiddleware
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        return response
-
-
-app.add_middleware(SecurityHeadersMiddleware)
 
 # ── Global exception handler ──────────────────────────────────────────
 
@@ -106,11 +92,22 @@ async def global_exception_handler(request: Request, exc: Exception):
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "120"))
 
 
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
-    """Log request duration and warn on slow requests."""
+    """Log request duration, warn on slow requests, and inject security headers."""
     start = time.perf_counter()
     response = await call_next(request)
+    for hdr, val in _SECURITY_HEADERS.items():
+        response.headers[hdr] = val
     duration_ms = (time.perf_counter() - start) * 1000
     duration_s = duration_ms / 1000
     if duration_s > REQUEST_TIMEOUT:
