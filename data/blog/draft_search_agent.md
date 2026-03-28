@@ -26,175 +26,93 @@
 
 
 <div style="margin:24px 0;text-align:center;">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 460" style="width:100%;max-width:1040px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" style="width:100%;max-width:960px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
   <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+    <marker id="arch_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
     </marker>
-    <!-- Row 1 gradients -->
-    <linearGradient id="grad-query" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-analyzer" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-search" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3365;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-dedup" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#064e3b;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-ranker" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#78350f;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-react" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#164e63;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-rubric" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4c1d95;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-result" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
-    </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect style="width:100%;max-width:1040px;height:auto" fill="#0f0f0f" rx="16"/>
+  <rect width="960" height="280" fill="#0f0f0f" rx="12"/>
 
   <!-- Title -->
-  <text x="520" y="34" text-anchor="middle" fill="#f3f4f6" font-size="15" font-weight="700" letter-spacing="0.5">검색 에이전트 파이프라인 아키텍처</text>
+  <text x="480" y="30" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="700" letter-spacing="0.3">검색 에이전트 파이프라인 아키텍처</text>
 
-  <!-- ===== ROW 1: User Query → QueryAnalyzer → 6소스 병렬 검색 ===== -->
+  <!-- ===== ROW 1 (y=50): User Query, QueryAnalyzer, 6소스 병렬 검색, 4단계 중복 제거 ===== -->
 
   <!-- Node 1: User Query -->
-  <rect x="30" y="58" width="140" height="56" rx="12" fill="url(#grad-query)" stroke="#3b82f6" stroke-width="1.5"/>
-  <text x="100" y="81" text-anchor="middle" fill="#93c5fd" font-size="13" font-weight="700">User Query</text>
-  <text x="100" y="100" text-anchor="middle" fill="#bfdbfe" font-size="11">자연어 입력</text>
+  <rect x="24" y="50" width="148" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="98" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">User Query</text>
+  <text x="98" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">자연어 입력</text>
 
   <!-- Arrow 1→2 -->
-  <line x1="170" y1="86" x2="208" y2="86" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="172" y1="81" x2="196" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
   <!-- Node 2: QueryAnalyzer -->
-  <rect x="210" y="58" width="200" height="56" rx="12" fill="url(#grad-analyzer)" stroke="#60a5fa" stroke-width="1.5"/>
-  <text x="310" y="78" text-anchor="middle" fill="#bfdbfe" font-size="13" font-weight="700">QueryAnalyzer</text>
-  <text x="310" y="96" text-anchor="middle" fill="#93c5fd" font-size="10.5">Intent 분류 (8종) + improved_query</text>
+  <rect x="198" y="50" width="180" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="288" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">QueryAnalyzer</text>
+  <text x="288" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">Intent 분류 + 쿼리 개선</text>
 
   <!-- Arrow 2→3 -->
-  <line x1="410" y1="86" x2="448" y2="86" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="378" y1="81" x2="402" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
   <!-- Node 3: 6소스 병렬 검색 -->
-  <rect x="450" y="58" width="240" height="56" rx="12" fill="url(#grad-search)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="570" y="78" text-anchor="middle" fill="#ddd6fe" font-size="13" font-weight="700">6소스 병렬 검색</text>
-  <text x="570" y="96" text-anchor="middle" fill="#c4b5fd" font-size="10.5">arXiv · Scholar · OpenAlex · DBLP · Connected · Korean</text>
+  <rect x="404" y="50" width="196" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="502" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">6소스 병렬 검색</text>
+  <text x="502" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">arXiv · Scholar · OpenAlex · DBLP</text>
 
   <!-- Arrow 3→4 -->
-  <line x1="690" y1="86" x2="728" y2="86" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="600" y1="81" x2="624" y2="81" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
-  <!-- Node 4: 4단계 중복 제거 -->
-  <rect x="730" y="58" width="280" height="56" rx="12" fill="url(#grad-dedup)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="870" y="78" text-anchor="middle" fill="#a7f3d0" font-size="13" font-weight="700">4단계 중복 제거</text>
-  <text x="870" y="96" text-anchor="middle" fill="#6ee7b7" font-size="10.5">DOI → 제목 → Jaccard(0.85) → 임베딩(0.90)</text>
+  <!-- Node 4: 중복 제거 -->
+  <rect x="626" y="50" width="180" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="716" y="76" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">중복 제거</text>
+  <text x="716" y="95" text-anchor="middle" fill="#9ca3af" font-size="11">DOI · 제목 · Jaccard · 임베딩</text>
 
-  <!-- ===== Vertical arrow from row 1 to row 2 ===== -->
-  <!-- Down arrow from right end of row 1 to row 2 right end -->
-  <!-- We'll use a bent path: right side of Node4 → bend down → Node5 right end -->
-  <path d="M 870 114 L 870 150" stroke="#6b7280" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+  <!-- Vertical arrow row1→row2 (right side down) -->
+  <line x1="820" y1="112" x2="820" y2="148" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
-  <!-- ===== ROW 2: HybridRanker → ReAct Agent → RubricEvaluator → Results ===== -->
+  <!-- ===== ROW 2 (y=150): HybridRanker, ReAct Agent (highlighted), Rubric 평가, Results ===== -->
 
-  <!-- Node 5: HybridRanker -->
-  <rect x="730" y="152" width="280" height="68" rx="12" fill="url(#grad-ranker)" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="870" y="173" text-anchor="middle" fill="#fde68a" font-size="13" font-weight="700">HybridRanker</text>
-  <text x="870" y="191" text-anchor="middle" fill="#fcd34d" font-size="10.5">BM25 + Semantic (HyDE) + Citations + Recency</text>
-  <text x="870" y="208" text-anchor="middle" fill="#fbbf24" font-size="10.5" font-weight="600">→ Reciprocal Rank Fusion (RRF)</text>
+  <!-- Node 5: HybridRanker (right side, row 2 starts right→left) -->
+  <rect x="626" y="150" width="180" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="716" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">HybridRanker</text>
+  <text x="716" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">BM25 + Semantic + RRF</text>
 
-  <!-- Arrow 5→6 (right to left) -->
-  <line x1="730" y1="186" x2="692" y2="186" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <!-- Arrow 5→6 -->
+  <line x1="626" y1="181" x2="602" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
-  <!-- Node 6: ReAct Agent -->
-  <rect x="450" y="152" width="240" height="68" rx="12" fill="url(#grad-react)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="570" y="173" text-anchor="middle" fill="#a5f3fc" font-size="13" font-weight="700">ReAct Agent</text>
-  <text x="570" y="191" text-anchor="middle" fill="#67e8f9" font-size="10.5">Turn 1 → Gap Analysis → Turn 2 → Turn 3</text>
-  <text x="570" y="208" text-anchor="middle" fill="#22d3ee" font-size="10.5">멀티턴 반복 검색 (예산 기반)</text>
+  <!-- Node 6: ReAct Agent (highlighted with indigo border) -->
+  <rect x="404" y="150" width="196" height="62" rx="8" fill="#181818" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="502" y="176" text-anchor="middle" fill="#a5b4fc" font-size="13" font-weight="700">ReAct Agent</text>
+  <text x="502" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">멀티턴 반복 검색 (예산 기반)</text>
 
   <!-- Arrow 6→7 -->
-  <line x1="450" y1="186" x2="412" y2="186" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="404" y1="181" x2="380" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
-  <!-- Node 7: RubricEvaluator -->
-  <rect x="210" y="152" width="200" height="68" rx="12" fill="url(#grad-rubric)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="310" y="173" text-anchor="middle" fill="#ddd6fe" font-size="13" font-weight="700">RubricEvaluator</text>
-  <text x="310" y="191" text-anchor="middle" fill="#c4b5fd" font-size="10.5">Diversity · Thoroughness</text>
-  <text x="310" y="208" text-anchor="middle" fill="#c4b5fd" font-size="10.5">Thoughtfulness · Relevance</text>
+  <!-- Node 7: Rubric 평가 -->
+  <rect x="198" y="150" width="180" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="288" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">Rubric 평가</text>
+  <text x="288" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">Diversity · Thoroughness · 등</text>
 
   <!-- Arrow 7→8 -->
-  <line x1="210" y1="186" x2="172" y2="186" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <line x1="198" y1="181" x2="174" y2="181" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arch_arrow)"/>
 
-  <!-- Node 8: Ranked Results -->
-  <rect x="30" y="152" width="140" height="68" rx="12" fill="url(#grad-result)" stroke="#60a5fa" stroke-width="1.5"/>
-  <text x="100" y="178" text-anchor="middle" fill="#bfdbfe" font-size="13" font-weight="700">Ranked</text>
-  <text x="100" y="196" text-anchor="middle" fill="#bfdbfe" font-size="13" font-weight="700">Results</text>
-  <text x="100" y="213" text-anchor="middle" fill="#93c5fd" font-size="10.5">최종 순위 논문</text>
+  <!-- Node 8: Results -->
+  <rect x="24" y="150" width="148" height="62" rx="8" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  <text x="98" y="176" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">Results</text>
+  <text x="98" y="195" text-anchor="middle" fill="#9ca3af" font-size="11">최종 순위 논문</text>
 
-  <!-- ===== DETAIL CALLOUTS — Row 3 ===== -->
-  <!-- ReAct loop callout (ReAct Agent 노드 아래) -->
-  <rect x="450" y="262" width="240" height="52" rx="8" fill="#1a1a2e" stroke="#0e7490" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="570" y="280" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="600">ReAct 루프 예산</text>
-  <text x="570" y="296" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 1: 40s · Gap Analysis: 20s</text>
-  <text x="570" y="311" text-anchor="middle" fill="#67e8f9" font-size="9.5">Turn 2: 30s · Turn 3: 20s (선택적)</text>
-  <line x1="570" y1="220" x2="570" y2="262" stroke="#0e7490" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- ===== Row direction labels ===== -->
+  <text x="395" y="44" text-anchor="middle" fill="#6b7280" font-size="9" letter-spacing="1">FORWARD PASS (좌 → 우)</text>
+  <text x="395" y="248" text-anchor="middle" fill="#6b7280" font-size="9" letter-spacing="1">EVALUATION (우 → 좌)</text>
 
-  <!-- Search sources detail (6소스 검색 노드 아래) -->
-  <rect x="730" y="262" width="280" height="52" rx="8" fill="#1a1a2e" stroke="#4c1d95" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="870" y="280" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">병렬 검색 세부</text>
-  <text x="870" y="296" text-anchor="middle" fill="#8b5cf6" font-size="9.5">arXiv API · Google Scholar · OpenAlex</text>
-  <text x="870" y="311" text-anchor="middle" fill="#8b5cf6" font-size="9.5">DBLP · Connected Papers · Korean DB</text>
-  <line x1="870" y1="220" x2="870" y2="262" stroke="#4c1d95" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- Divider line -->
+  <line x1="24" y1="140" x2="820" y2="140" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- RRF callout -->
-  <rect x="210" y="262" width="200" height="52" rx="8" fill="#1a1a2e" stroke="#92400e" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="310" y="280" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">RRF 가중치</text>
-  <text x="310" y="296" text-anchor="middle" fill="#fcd34d" font-size="9.5">BM25: 0.3 · Semantic: 0.4</text>
-  <text x="310" y="311" text-anchor="middle" fill="#fcd34d" font-size="9.5">Citations: 0.2 · Recency: 0.1</text>
-  <line x1="310" y1="230" x2="310" y2="262" stroke="#92400e" stroke-width="1" stroke-dasharray="3,3"/>
-
-  <!-- ===== Flow direction labels ===== -->
-  <!-- Row 1 direction label -->
-  <text x="520" y="46" text-anchor="middle" fill="#4b5563" font-size="10" letter-spacing="2">— — — — — — — — — — FORWARD PASS — — — — — — — — — —</text>
-
-  <!-- Row 2 direction label -->
-  <rect x="450" y="345" width="540" height="1" fill="#1f2937"/>
-  <text x="170" y="370" text-anchor="middle" fill="#4b5563" font-size="10">EVALUATION</text>
-  <text x="570" y="370" text-anchor="middle" fill="#4b5563" font-size="10">SEARCH</text>
-  <text x="870" y="370" text-anchor="middle" fill="#4b5563" font-size="10">RANKING</text>
-
-  <!-- Legend -->
-  <rect x="30" y="390" width="980" height="54" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1"/>
-  <text x="60" y="410" fill="#9ca3af" font-size="10" font-weight="600">범례</text>
-  <rect x="100" y="400" width="12" height="12" rx="3" fill="#1d4ed8"/>
-  <text x="116" y="410" fill="#9ca3af" font-size="9.5">쿼리/결과</text>
-  <rect x="185" y="400" width="12" height="12" rx="3" fill="#2563eb"/>
-  <text x="201" y="410" fill="#9ca3af" font-size="9.5">분석</text>
-  <rect x="240" y="400" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="256" y="410" fill="#9ca3af" font-size="9.5">검색</text>
-  <rect x="295" y="400" width="12" height="12" rx="3" fill="#059669"/>
-  <text x="311" y="410" fill="#9ca3af" font-size="9.5">중복제거</text>
-  <rect x="370" y="400" width="12" height="12" rx="3" fill="#d97706"/>
-  <text x="386" y="410" fill="#9ca3af" font-size="9.5">랭킹</text>
-  <rect x="425" y="400" width="12" height="12" rx="3" fill="#0891b2"/>
-  <text x="441" y="410" fill="#9ca3af" font-size="9.5">ReAct</text>
-  <rect x="490" y="400" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="506" y="410" fill="#9ca3af" font-size="9.5">평가</text>
-
-  <text x="60" y="434" fill="#6b7280" font-size="9">* 화살표 방향: Row 1은 좌→우, Row 2는 우→좌 (U자형 파이프라인)</text>
-  <text x="600" y="434" fill="#a5b4fc" font-size="9" font-weight="600">집현전 (Jiphyeonjeon) Search Agent v2.0</text>
+  <!-- Footer note -->
+  <text x="480" y="265" text-anchor="middle" fill="#6b7280" font-size="9.5">ReAct Agent 강조 = 현재 핵심 처리 단계 · 집현전 (Jiphyeonjeon) Search Agent v2.0</text>
 </svg>
 <p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 1. 집현전 검색 에이전트 전체 아키텍처 — QueryAnalyzer부터 RubricEvaluator까지의 파이프라인 흐름</em></p>
 </div>
@@ -274,210 +192,116 @@ Intent별로 가중치를 달리하는 weighted-sum 방식도 지원한다. 예�
 
 
 <div style="margin:24px 0;text-align:center;">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 740" style="width:100%;max-width:900px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 520" style="width:100%;max-width:600px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" />
+    <marker id="react_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6b7280"/>
     </marker>
-    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
-    </marker>
-    <linearGradient id="turn1-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f1b35;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1e3a5f;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="gap-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1c1008;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#451a03;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="turn2-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#13102b;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2e1065;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="result-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#052e16;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#14532d;stop-opacity:1" />
-    </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect style="width:100%;max-width:900px;height:auto" fill="#0f0f0f" rx="16"/>
+  <rect width="600" height="520" fill="#0f0f0f" rx="12"/>
 
   <!-- Title -->
-  <text x="310" y="36" text-anchor="middle" fill="#f3f4f6" font-size="15" font-weight="700">멀티턴 ReAct 검색 루프</text>
-  <text x="310" y="56" text-anchor="middle" fill="#6b7280" font-size="11">예산 기반 반복 검색 · LLM Gap 분석 · 누적 결과 관리</text>
+  <text x="300" y="30" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="700">멀티턴 ReAct 검색 루프</text>
+  <text x="300" y="50" text-anchor="middle" fill="#9ca3af" font-size="11">예산 기반 반복 검색 · LLM Gap 분석 · 누적 결과 관리</text>
 
-  <!-- ================================================================ -->
-  <!-- TURN 1 CARD -->
-  <!-- ================================================================ -->
-  <rect x="30" y="72" width="560" height="168" rx="14" fill="url(#turn1-bg)" stroke="#3b82f6" stroke-width="2"/>
+  <!-- ===== CARD 1: Turn 1 ===== -->
+  <rect x="24" y="64" width="552" height="118" rx="10" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
 
-  <!-- Turn 1 header bar -->
-  <rect x="30" y="72" width="560" height="36" rx="14" fill="#1d4ed8" opacity="0.7"/>
-  <rect x="30" y="92" width="560" height="16" fill="#1d4ed8" opacity="0.7"/>
-  <text x="52" y="96" fill="#bfdbfe" font-size="13" font-weight="700">Turn 1</text>
-  <rect x="120" y="82" width="1" height="16" fill="#3b82f6" opacity="0.5"/>
-  <text x="134" y="96" fill="#93c5fd" font-size="11">예산: 40s</text>
-  <!-- clock icon simulation -->
-  <circle cx="540" cy="89" r="8" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
-  <line x1="540" y1="84" x2="540" y2="89" stroke="#60a5fa" stroke-width="1.5"/>
-  <line x1="540" y1="89" x2="545" y2="89" stroke="#60a5fa" stroke-width="1.5"/>
-  <text x="526" y="89" text-anchor="end" fill="#60a5fa" font-size="10">40s</text>
+  <!-- Turn label + time badge -->
+  <text x="44" y="90" fill="#a5b4fc" font-size="13" font-weight="700">Turn 1</text>
+  <rect x="108" y="76" width="58" height="22" rx="6" fill="#181818" stroke="#6b7280" stroke-width="1"/>
+  <text x="137" y="91" text-anchor="middle" fill="#6b7280" font-size="11">40s</text>
+  <!-- time badge right side -->
+  <rect x="490" y="76" width="66" height="22" rx="6" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="523" y="91" text-anchor="middle" fill="#6b7280" font-size="10">예산 40s</text>
 
-  <!-- Query line -->
-  <text x="52" y="125" fill="#9ca3af" font-size="11">Query:</text>
-  <text x="100" y="125" fill="#e2e8f0" font-size="11" font-weight="600">"transformer attention"</text>
+  <!-- Search results -->
+  <text x="44" y="116" fill="#9ca3af" font-size="11">arXiv:</text>
+  <text x="90" y="116" fill="#f3f4f6" font-size="11" font-weight="600">8편</text>
+  <text x="130" y="116" fill="#6b7280" font-size="11">+</text>
+  <text x="146" y="116" fill="#9ca3af" font-size="11">OpenAlex:</text>
+  <text x="216" y="116" fill="#f3f4f6" font-size="11" font-weight="600">7편</text>
+  <text x="254" y="116" fill="#6b7280" font-size="11">=</text>
 
-  <!-- Search results - tree structure -->
-  <!-- Branch line -->
-  <line x1="64" y1="140" x2="64" y2="200" stroke="#374151" stroke-width="1.5"/>
+  <!-- Result badge -->
+  <rect x="270" y="104" width="68" height="22" rx="6" fill="#181818" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="304" y="119" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700">15편 수집</text>
 
-  <!-- keyword_search branch -->
-  <line x1="64" y1="150" x2="82" y2="150" stroke="#374151" stroke-width="1.5"/>
-  <rect x="84" y="140" width="210" height="22" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
-  <text x="94" y="154" fill="#93c5fd" font-size="10.5" font-weight="600">keyword_search</text>
-  <text x="208" y="154" fill="#6b7280" font-size="10">(arXiv)</text>
-  <rect x="315" y="141" width="60" height="20" rx="4" fill="#1e40af"/>
-  <text x="345" y="154" text-anchor="middle" fill="#bfdbfe" font-size="10.5" font-weight="700">8편 수집</text>
+  <!-- Sub-description -->
+  <text x="44" y="154" fill="#6b7280" font-size="10.5">keyword_search (arXiv) · semantic_search (OpenAlex) 병렬 실행</text>
 
-  <!-- semantic_search branch -->
-  <line x1="64" y1="178" x2="82" y2="178" stroke="#374151" stroke-width="1.5"/>
-  <rect x="84" y="168" width="210" height="22" rx="5" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
-  <text x="94" y="182" fill="#93c5fd" font-size="10.5" font-weight="600">semantic_search</text>
-  <text x="208" y="182" fill="#6b7280" font-size="10">(OpenAlex)</text>
-  <rect x="315" y="169" width="60" height="20" rx="4" fill="#1e40af"/>
-  <text x="345" y="182" text-anchor="middle" fill="#bfdbfe" font-size="10.5" font-weight="700">7편 수집</text>
+  <!-- ===== Arrow 1 ===== -->
+  <line x1="300" y1="182" x2="300" y2="208" stroke="#6b7280" stroke-width="1.5" marker-end="url(#react_arrow)"/>
 
-  <!-- Accumulation line -->
-  <line x1="64" y1="200" x2="64" y2="215" stroke="#374151" stroke-width="1.5"/>
-  <line x1="64" y1="215" x2="82" y2="215" stroke="#374151" stroke-width="1.5"/>
+  <!-- ===== CARD 2: Gap Analysis ===== -->
+  <rect x="24" y="212" width="552" height="100" rx="10" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
 
-  <!-- Cumulative result -->
-  <rect x="84" y="205" width="280" height="24" rx="6" fill="#0f2845" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="96" y="220" fill="#7dd3fc" font-size="11" font-weight="600">누적:</text>
-  <text x="130" y="220" fill="#e2e8f0" font-size="11" font-weight="700">15편</text>
-  <text x="158" y="220" fill="#6b7280" font-size="11">(중복 제거 전)</text>
-
-  <!-- ================================================================ -->
-  <!-- ARROW 1 + TIME LABEL -->
-  <!-- ================================================================ -->
-  <line x1="310" y1="240" x2="310" y2="278" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="230" y="246" width="160" height="24" rx="6" fill="#1c1f26" stroke="#374151" stroke-width="1"/>
-  <text x="310" y="261" text-anchor="middle" fill="#9ca3af" font-size="10.5">40s 완료 → Gap Analysis 시작</text>
-
-  <!-- ================================================================ -->
-  <!-- GAP ANALYSIS CARD -->
-  <!-- ================================================================ -->
-  <rect x="30" y="280" width="560" height="118" rx="14" fill="url(#gap-bg)" stroke="#f59e0b" stroke-width="2"/>
-
-  <!-- Gap header bar -->
-  <rect x="30" y="280" width="560" height="36" rx="14" fill="#92400e" opacity="0.6"/>
-  <rect x="30" y="300" width="560" height="16" fill="#92400e" opacity="0.6"/>
-  <!-- LLM icon -->
-  <rect x="46" y="282" width="22" height="22" rx="5" fill="#fbbf24" opacity="0.2" stroke="#fbbf24" stroke-width="1"/>
-  <text x="57" y="297" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">LLM</text>
-  <text x="76" y="297" fill="#fde68a" font-size="13" font-weight="700">Gap Analysis</text>
-  <text x="200" y="297" fill="#d97706" font-size="11">· 20s budget</text>
-  <circle cx="540" cy="290" r="8" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
-  <line x1="540" y1="285" x2="540" y2="290" stroke="#f59e0b" stroke-width="1.5"/>
-  <line x1="540" y1="290" x2="544" y2="290" stroke="#f59e0b" stroke-width="1.5"/>
+  <!-- Gap label + time badge -->
+  <text x="44" y="238" fill="#f3f4f6" font-size="13" font-weight="700">Gap Analysis</text>
+  <rect x="158" y="224" width="58" height="22" rx="6" fill="#181818" stroke="#6b7280" stroke-width="1"/>
+  <text x="187" y="239" text-anchor="middle" fill="#6b7280" font-size="11">20s</text>
+  <!-- LLM tag -->
+  <rect x="490" y="224" width="42" height="22" rx="6" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="511" y="239" text-anchor="middle" fill="#9ca3af" font-size="10">LLM</text>
 
   <!-- Gap content -->
-  <text x="52" y="328" fill="#9ca3af" font-size="11">분석:</text>
-  <text x="90" y="328" fill="#fcd34d" font-size="11" font-weight="600">"linear attention 관련 방법론이 부족합니다"</text>
+  <text x="44" y="264" fill="#9ca3af" font-size="11">발견:</text>
+  <text x="82" y="264" fill="#f3f4f6" font-size="11">"linear attention 관련 방법론이 부족합니다"</text>
 
-  <text x="52" y="352" fill="#9ca3af" font-size="11">next_query:</text>
-  <rect x="120" y="340" width="305" height="22" rx="5" fill="#1c1008" stroke="#d97706" stroke-width="1"/>
-  <text x="130" y="354" fill="#fbbf24" font-size="11" font-weight="600">"linear attention FlashAttn efficient"</text>
+  <!-- next_query -->
+  <text x="44" y="286" fill="#9ca3af" font-size="11">next_query:</text>
+  <rect x="120" y="274" width="300" height="22" rx="5" fill="#181818" stroke="#a5b4fc" stroke-width="1"/>
+  <text x="130" y="289" fill="#a5b4fc" font-size="11">"linear attention FlashAttn efficient"</text>
 
-  <!-- continuation -->
-  <text x="52" y="381" fill="#6b7280" font-size="10.5">coverage_score: 0.43 &lt; 임계값(0.70) → 추가 턴 필요</text>
+  <!-- ===== Arrow 2 ===== -->
+  <line x1="300" y1="312" x2="300" y2="338" stroke="#6b7280" stroke-width="1.5" marker-end="url(#react_arrow)"/>
 
-  <!-- ================================================================ -->
-  <!-- ARROW 2 + TIME LABEL -->
-  <!-- ================================================================ -->
-  <line x1="310" y1="398" x2="310" y2="436" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="230" y="404" width="160" height="24" rx="6" fill="#1c1f26" stroke="#374151" stroke-width="1"/>
-  <text x="310" y="419" text-anchor="middle" fill="#9ca3af" font-size="10.5">20s 완료 → Turn 2 시작</text>
+  <!-- ===== CARD 3: Turn 2 ===== -->
+  <rect x="24" y="342" width="552" height="128" rx="10" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
 
-  <!-- ================================================================ -->
-  <!-- TURN 2 CARD -->
-  <!-- ================================================================ -->
-  <rect x="30" y="438" width="560" height="176" rx="14" fill="url(#turn2-bg)" stroke="#8b5cf6" stroke-width="2"/>
+  <!-- Turn label + time badge -->
+  <text x="44" y="368" fill="#a5b4fc" font-size="13" font-weight="700">Turn 2</text>
+  <rect x="108" y="354" width="58" height="22" rx="6" fill="#181818" stroke="#6b7280" stroke-width="1"/>
+  <text x="137" y="369" text-anchor="middle" fill="#6b7280" font-size="11">30s</text>
+  <!-- time badge right side -->
+  <rect x="490" y="354" width="66" height="22" rx="6" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="523" y="369" text-anchor="middle" fill="#6b7280" font-size="10">예산 30s</text>
 
-  <!-- Turn 2 header bar -->
-  <rect x="30" y="438" width="560" height="36" rx="14" fill="#5b21b6" opacity="0.7"/>
-  <rect x="30" y="458" width="560" height="16" fill="#5b21b6" opacity="0.7"/>
-  <text x="52" y="462" fill="#ddd6fe" font-size="13" font-weight="700">Turn 2</text>
-  <rect x="120" y="448" width="1" height="16" fill="#7c3aed" opacity="0.5"/>
-  <text x="134" y="462" fill="#c4b5fd" font-size="11">예산: 30s</text>
-  <circle cx="540" cy="455" r="8" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
-  <line x1="540" y1="450" x2="540" y2="455" stroke="#8b5cf6" stroke-width="1.5"/>
-  <line x1="540" y1="455" x2="544" y2="455" stroke="#8b5cf6" stroke-width="1.5"/>
-  <text x="526" y="455" text-anchor="end" fill="#8b5cf6" font-size="10">30s</text>
+  <!-- Search results -->
+  <text x="44" y="394" fill="#9ca3af" font-size="11">OpenAlex:</text>
+  <text x="114" y="394" fill="#f3f4f6" font-size="11" font-weight="600">6편</text>
+  <text x="148" y="394" fill="#6b7280" font-size="11">+</text>
+  <text x="164" y="394" fill="#9ca3af" font-size="11">DBLP:</text>
+  <text x="204" y="394" fill="#f3f4f6" font-size="11" font-weight="600">4편</text>
 
-  <!-- Query line -->
-  <text x="52" y="491" fill="#9ca3af" font-size="11">Query:</text>
-  <text x="100" y="491" fill="#e2e8f0" font-size="11" font-weight="600">"linear attention FlashAttn efficient..."</text>
+  <!-- Dedup arrow -->
+  <text x="244" y="394" fill="#6b7280" font-size="11">→ 중복 제거 →</text>
 
-  <!-- Branch line -->
-  <line x1="64" y1="505" x2="64" y2="560" stroke="#374151" stroke-width="1.5"/>
+  <!-- Result badge -->
+  <rect x="344" y="382" width="68" height="22" rx="6" fill="#181818" stroke="#a5b4fc" stroke-width="1.5"/>
+  <text x="378" y="397" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700">18편 확정</text>
 
-  <!-- semantic_search branch -->
-  <line x1="64" y1="516" x2="82" y2="516" stroke="#374151" stroke-width="1.5"/>
-  <rect x="84" y="506" width="210" height="22" rx="5" fill="#2e1065" stroke="#7c3aed" stroke-width="1"/>
-  <text x="94" y="520" fill="#c4b5fd" font-size="10.5" font-weight="600">semantic_search</text>
-  <text x="208" y="520" fill="#6b7280" font-size="10">(OpenAlex)</text>
-  <rect x="315" y="507" width="60" height="20" rx="4" fill="#4c1d95"/>
-  <text x="345" y="520" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700">6편 수집</text>
+  <!-- Accumulation line -->
+  <line x1="44" y1="410" x2="556" y2="410" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- dblp_search branch -->
-  <line x1="64" y1="545" x2="82" y2="545" stroke="#374151" stroke-width="1.5"/>
-  <rect x="84" y="535" width="210" height="22" rx="5" fill="#2e1065" stroke="#7c3aed" stroke-width="1"/>
-  <text x="94" y="549" fill="#c4b5fd" font-size="10.5" font-weight="600">dblp_search</text>
-  <text x="182" y="549" fill="#6b7280" font-size="10">(DBLP)</text>
-  <rect x="315" y="536" width="60" height="20" rx="4" fill="#4c1d95"/>
-  <text x="345" y="549" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700">4편 수집</text>
+  <!-- Final result row -->
+  <text x="44" y="432" fill="#9ca3af" font-size="11">누적 총계:</text>
+  <text x="114" y="432" fill="#f3f4f6" font-size="11" font-weight="700">18편</text>
+  <text x="156" y="432" fill="#6b7280" font-size="11">(Turn 1: 15편 → 중복 포함 25편 → Jaccard + 임베딩 제거)</text>
 
-  <!-- Dedup result -->
-  <line x1="64" y1="560" x2="64" y2="578" stroke="#374151" stroke-width="1.5"/>
-  <line x1="64" y1="578" x2="82" y2="578" stroke="#374151" stroke-width="1.5"/>
-  <rect x="84" y="568" width="380" height="34" rx="6" fill="#1a0a35" stroke="#6d28d9" stroke-width="1.5"/>
-  <text x="96" y="582" fill="#a78bfa" font-size="11" font-weight="600">누적: 25편</text>
-  <text x="164" y="582" fill="#6b7280" font-size="11">→ 중복 제거</text>
-  <text x="96" y="596" fill="#7c3aed" font-size="10.5">Jaccard(0.85) + 임베딩(0.90) 적용</text>
-  <text x="280" y="596" fill="#c4b5fd" font-size="11" font-weight="700">→ 최종 18편</text>
-
-  <!-- ================================================================ -->
-  <!-- ARROW 3 -->
-  <!-- ================================================================ -->
-  <line x1="310" y1="614" x2="310" y2="650" stroke="#10b981" stroke-width="2" marker-end="url(#arrow)"/>
-
-  <!-- ================================================================ -->
-  <!-- FINAL RESULT CARD -->
-  <!-- ================================================================ -->
-  <rect x="30" y="652" width="560" height="68" rx="14" fill="url(#result-bg)" stroke="#10b981" stroke-width="2"/>
-  <rect x="30" y="652" width="560" height="34" rx="14" fill="#059669" opacity="0.4"/>
-  <rect x="30" y="672" width="560" height="14" fill="#059669" opacity="0.4"/>
-
-  <!-- checkmark icon -->
-  <circle cx="56" cy="665" r="10" fill="#059669" opacity="0.3" stroke="#10b981" stroke-width="1.5"/>
-  <polyline points="50,665 54,670 63,659" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <text x="76" y="669" fill="#a7f3d0" font-size="13" font-weight="700">검색 완료</text>
-  <text x="170" y="669" fill="#6b7280" font-size="11">· coverage_score: 0.78 ≥ 임계값(0.70)</text>
-
-  <text x="52" y="695" fill="#34d399" font-size="12" font-weight="700">결과: 18편</text>
-  <text x="118" y="695" fill="#9ca3af" font-size="11">최종 논문</text>
-
-  <!-- time badges -->
-  <rect x="350" y="657" width="90" height="22" rx="6" fill="#052e16" stroke="#059669" stroke-width="1"/>
-  <text x="395" y="671" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">총 71.4초</text>
-  <rect x="452" y="657" width="120" height="22" rx="6" fill="#052e16" stroke="#059669" stroke-width="1"/>
-  <text x="512" y="671" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">2턴 완료</text>
+  <!-- Time badges row -->
+  <rect x="44" y="444" width="80" height="20" rx="5" fill="#181818" stroke="#1f2937" stroke-width="1"/>
+  <text x="84" y="458" text-anchor="middle" fill="#9ca3af" font-size="10">총 71초</text>
+  <rect x="134" y="444" width="80" height="20" rx="5" fill="#181818" stroke="#1f2937" stroke-width="1"/>
+  <text x="174" y="458" text-anchor="middle" fill="#9ca3af" font-size="10">2턴 완료</text>
+  <!-- Pass badge -->
+  <rect x="460" y="444" width="96" height="20" rx="5" fill="#181818" stroke="#22c55e" stroke-width="1"/>
+  <text x="508" y="458" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">PASS (0.78 &gt;= 0.70)</text>
 
   <!-- Footer note -->
-  <text x="310" y="731" text-anchor="middle" fill="#4b5563" font-size="9.5">* Turn 3은 coverage_score가 여전히 낮을 경우 20s 추가 예산으로 실행됨</text>
+  <text x="300" y="508" text-anchor="middle" fill="#6b7280" font-size="9.5">* coverage_score &lt; 0.70 이면 Turn 3 (20s) 추가 실행</text>
 </svg>
 <p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 2. ReAct 멀티턴 검색 루프 — Turn 1 초기 탐색 → Gap Analysis → Turn 2 보완 검색</em></p>
 </div>
@@ -527,158 +351,67 @@ Turn 1이 끝나면, 수집된 논문 목록(제목 + 연도)을 gpt-4o-mini에 
 
 
 <div style="margin:24px 0;text-align:center;">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" style="width:100%;max-width:900px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
-  <defs>
-    <!-- Bar gradients: score-based color (low=orange, high=green) -->
-    <!-- Diversity 3/5 = 60% — amber/yellow -->
-    <linearGradient id="bar-diversity" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#d97706;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
-    </linearGradient>
-    <!-- Thoroughness 4/5 = 80% — teal/green -->
-    <linearGradient id="bar-thoroughness" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
-    </linearGradient>
-    <!-- Thoughtfulness 4/5 = 80% — cyan -->
-    <linearGradient id="bar-thoughtfulness" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#0891b2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:1" />
-    </linearGradient>
-    <!-- Relevance 5/5 = 100% — indigo/purple -->
-    <linearGradient id="bar-relevance" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#818cf8;stop-opacity:1" />
-    </linearGradient>
-    <!-- Overall score gradient -->
-    <linearGradient id="overall-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
-      <stop offset="72.8%" style="stop-color:#34d399;stop-opacity:1" />
-      <stop offset="72.8%" style="stop-color:#374151;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#374151;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" style="width:100%;max-width:600px;height:auto" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
 
   <!-- Background -->
-  <rect style="width:100%;max-width:900px;height:auto" fill="#0f0f0f" rx="16"/>
+  <rect width="600" height="260" fill="#0f0f0f" rx="12"/>
 
   <!-- Title -->
-  <text x="310" y="36" text-anchor="middle" fill="#f3f4f6" font-size="15" font-weight="700">RaR Rubric 평가 — 4차원 품질 검증</text>
-  <text x="310" y="56" text-anchor="middle" fill="#6b7280" font-size="11">Reflection-after-Retrieval · 검색 결과 자가 평가</text>
+  <text x="300" y="28" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="700">RaR Rubric 평가 — 4차원 품질 검증</text>
+  <text x="300" y="46" text-anchor="middle" fill="#9ca3af" font-size="11">Reflection-after-Retrieval · 검색 결과 자가 평가</text>
 
-  <!-- ======================================================= -->
-  <!-- BAR CHART AREA -->
-  <!-- Left labels start at x=30, bars start at x=190, max width=340 -->
-  <!-- ======================================================= -->
+  <!-- ===== Bar chart area ===== -->
+  <!-- Labels: x=24~174, bars: x=178, bar max-width=330, score: x after bar, total row: y step 38 -->
 
-  <!-- Grid lines (subtle) -->
-  <line x1="190" y1="68" x2="190" y2="258" stroke="#1f2937" stroke-width="1"/>
-  <!-- 20% = 68px -->
-  <line x1="258" y1="68" x2="258" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
-  <!-- 40% = 136px -->
-  <line x1="326" y1="68" x2="326" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
-  <!-- 60% = 204px -->
-  <line x1="394" y1="68" x2="394" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
-  <!-- 80% = 272px -->
-  <line x1="462" y1="68" x2="462" y2="258" stroke="#1f2937" stroke-width="1" stroke-dasharray="3,3"/>
-  <!-- 100% = 340px -->
-  <line x1="530" y1="68" x2="530" y2="258" stroke="#374151" stroke-width="1"/>
+  <!-- Row 1: Diversity 3/5 = 60% = 198px -->
+  <text x="170" y="78" text-anchor="end" fill="#f3f4f6" font-size="12.5" font-weight="600">Diversity</text>
+  <text x="170" y="93" text-anchor="end" fill="#9ca3af" font-size="10">다양성</text>
+  <!-- bar track -->
+  <rect x="178" y="66" width="330" height="26" rx="5" fill="#1f2937"/>
+  <!-- bar fill: 3/5 = 60% = 198px -->
+  <rect x="178" y="66" width="198" height="26" rx="5" fill="#a5b4fc"/>
+  <!-- score label -->
+  <text x="384" y="84" fill="#f3f4f6" font-size="12" font-weight="700">3 / 5</text>
 
-  <!-- Grid labels -->
-  <text x="190" y="264" text-anchor="middle" fill="#4b5563" font-size="9">0</text>
-  <text x="258" y="264" text-anchor="middle" fill="#4b5563" font-size="9">1</text>
-  <text x="326" y="264" text-anchor="middle" fill="#4b5563" font-size="9">2</text>
-  <text x="394" y="264" text-anchor="middle" fill="#4b5563" font-size="9">3</text>
-  <text x="462" y="264" text-anchor="middle" fill="#4b5563" font-size="9">4</text>
-  <text x="530" y="264" text-anchor="middle" fill="#4b5563" font-size="9">5</text>
-  <text x="360" y="276" text-anchor="middle" fill="#374151" font-size="9">점수 (5점 만점)</text>
+  <!-- Row 2: Thoroughness 4/5 = 80% = 264px -->
+  <text x="170" y="120" text-anchor="end" fill="#f3f4f6" font-size="12.5" font-weight="600">Thoroughness</text>
+  <text x="170" y="135" text-anchor="end" fill="#9ca3af" font-size="10">철저함</text>
+  <rect x="178" y="108" width="330" height="26" rx="5" fill="#1f2937"/>
+  <rect x="178" y="108" width="264" height="26" rx="5" fill="#a5b4fc"/>
+  <text x="450" y="126" fill="#f3f4f6" font-size="12" font-weight="700">4 / 5</text>
 
-  <!-- ======= ROW 1: Diversity 3/5 = 60% = 204px ======= -->
-  <text x="180" y="96" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Diversity</text>
-  <text x="180" y="111" text-anchor="end" fill="#6b7280" font-size="9.5">다양성</text>
-  <!-- Bar background -->
-  <rect x="190" y="82" width="340" height="32" rx="6" fill="#1f2937"/>
-  <!-- Bar fill: 3/5 = 204px -->
-  <rect x="190" y="82" width="204" height="32" rx="6" fill="url(#bar-diversity)"/>
-  <!-- Segment dividers (subtle) -->
-  <line x1="258" y1="84" x2="258" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="326" y1="84" x2="326" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="394" y1="84" x2="394" y2="112" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
+  <!-- Row 3: Thoughtfulness 4/5 = 80% = 264px -->
+  <text x="170" y="162" text-anchor="end" fill="#f3f4f6" font-size="12.5" font-weight="600">Thoughtfulness</text>
+  <text x="170" y="177" text-anchor="end" fill="#9ca3af" font-size="10">사려깊음</text>
+  <rect x="178" y="150" width="330" height="26" rx="5" fill="#1f2937"/>
+  <rect x="178" y="150" width="264" height="26" rx="5" fill="#a5b4fc"/>
+  <text x="450" y="168" fill="#f3f4f6" font-size="12" font-weight="700">4 / 5</text>
+
+  <!-- Row 4: Relevance 5/5 = 100% = 330px -->
+  <text x="170" y="204" text-anchor="end" fill="#f3f4f6" font-size="12.5" font-weight="600">Relevance</text>
+  <text x="170" y="219" text-anchor="end" fill="#9ca3af" font-size="10">관련성</text>
+  <rect x="178" y="192" width="330" height="26" rx="5" fill="#1f2937"/>
+  <rect x="178" y="192" width="330" height="26" rx="5" fill="#a5b4fc"/>
+  <text x="516" y="210" fill="#f3f4f6" font-size="12" font-weight="700">5 / 5</text>
+
+  <!-- ===== Overall score section ===== -->
+  <rect x="24" y="230" width="552" height="20" rx="5" fill="#181818" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+  <!-- Overall score track -->
+  <rect x="178" y="234" width="330" height="12" rx="4" fill="#1f2937"/>
+  <!-- 72.8% of 330 = 240px -->
+  <rect x="178" y="234" width="240" height="12" rx="4" fill="#6366f1"/>
+  <!-- Threshold marker: 60% of 330 = 198px, x = 178+198 = 376 -->
+  <line x1="376" y1="230" x2="376" y2="250" stroke="#9ca3af" stroke-width="1.5"/>
+  <text x="376" y="228" text-anchor="middle" fill="#9ca3af" font-size="8">0.60</text>
+
   <!-- Score label -->
-  <text x="402" y="102" fill="#fde68a" font-size="13" font-weight="700">3 / 5</text>
-  <!-- percentage -->
-  <text x="480" y="102" fill="#d97706" font-size="11">60%</text>
-  <!-- Description tag -->
-  <rect x="512" y="87" width="40" height="16" rx="4" fill="#78350f"/>
-  <text x="532" y="98" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">보통</text>
-
-  <!-- ======= ROW 2: Thoroughness 4/5 = 80% = 272px ======= -->
-  <text x="180" y="142" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoroughness</text>
-  <text x="180" y="157" text-anchor="end" fill="#6b7280" font-size="9.5">철저함</text>
-  <rect x="190" y="128" width="340" height="32" rx="6" fill="#1f2937"/>
-  <rect x="190" y="128" width="272" height="32" rx="6" fill="url(#bar-thoroughness)"/>
-  <line x1="258" y1="130" x2="258" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="326" y1="130" x2="326" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="394" y1="130" x2="394" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="462" y1="130" x2="462" y2="158" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <text x="470" y="148" fill="#a7f3d0" font-size="13" font-weight="700">4 / 5</text>
-  <text x="547" y="148" fill="#059669" font-size="11">80%</text>
-  <rect x="560" y="133" width="40" height="16" rx="4" fill="#064e3b"/>
-  <text x="580" y="144" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">양호</text>
-
-  <!-- ======= ROW 3: Thoughtfulness 4/5 = 80% = 272px ======= -->
-  <text x="180" y="188" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Thoughtfulness</text>
-  <text x="180" y="203" text-anchor="end" fill="#6b7280" font-size="9.5">사려깊음</text>
-  <rect x="190" y="174" width="340" height="32" rx="6" fill="#1f2937"/>
-  <rect x="190" y="174" width="272" height="32" rx="6" fill="url(#bar-thoughtfulness)"/>
-  <line x1="258" y1="176" x2="258" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="326" y1="176" x2="326" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="394" y1="176" x2="394" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="462" y1="176" x2="462" y2="204" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <text x="470" y="194" fill="#a5f3fc" font-size="13" font-weight="700">4 / 5</text>
-  <text x="547" y="194" fill="#0891b2" font-size="11">80%</text>
-  <rect x="560" y="179" width="40" height="16" rx="4" fill="#164e63"/>
-  <text x="580" y="190" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">양호</text>
-
-  <!-- ======= ROW 4: Relevance 5/5 = 100% = 340px ======= -->
-  <text x="180" y="234" text-anchor="end" fill="#e5e7eb" font-size="12.5" font-weight="600">Relevance</text>
-  <text x="180" y="249" text-anchor="end" fill="#6b7280" font-size="9.5">관련성</text>
-  <rect x="190" y="220" width="340" height="32" rx="6" fill="#1f2937"/>
-  <rect x="190" y="220" width="340" height="32" rx="6" fill="url(#bar-relevance)"/>
-  <line x1="258" y1="222" x2="258" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="326" y1="222" x2="326" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="394" y1="222" x2="394" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <line x1="462" y1="222" x2="462" y2="250" stroke="#0f0f0f" stroke-width="1" opacity="0.4"/>
-  <!-- Full bar, score at right edge -->
-  <text x="536" y="240" fill="#c7d2fe" font-size="13" font-weight="700">5 / 5</text>
-  <!-- percentage inside bar (bar is full, so just show in a lighter shade) -->
-  <text x="480" y="240" fill="#e0e7ff" font-size="11">100%</text>
-  <rect x="560" y="225" width="40" height="16" rx="4" fill="#312e81"/>
-  <text x="580" y="236" text-anchor="middle" fill="#a5b4fc" font-size="9" font-weight="600">최고</text>
-
-  <!-- ======================================================= -->
-  <!-- OVERALL SCORE SECTION -->
-  <!-- ======================================================= -->
-  <rect x="30" y="284" width="560" height="44" rx="10" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
-
-  <!-- Overall bar (full width track) -->
-  <rect x="220" y="294" width="280" height="14" rx="4" fill="#1f2937"/>
-  <!-- 72.8% of 280 = ~204px -->
-  <rect x="220" y="294" width="204" height="14" rx="4" fill="url(#overall-grad)"/>
-  <!-- Threshold marker at 60% = 168px -->
-  <line x1="388" y1="290" x2="388" y2="312" stroke="#f59e0b" stroke-width="2"/>
-  <text x="388" y="287" text-anchor="middle" fill="#f59e0b" font-size="8.5">임계값 0.60</text>
-
-  <text x="44" y="306" fill="#9ca3af" font-size="11" font-weight="600">Overall Score:</text>
-  <text x="148" y="306" fill="#a5b4fc" font-size="14" font-weight="700">0.728</text>
+  <text x="44" y="244" fill="#9ca3af" font-size="11">Overall:</text>
+  <text x="94" y="244" fill="#a5b4fc" font-size="13" font-weight="700">0.728</text>
 
   <!-- Pass badge -->
-  <rect x="512" y="291" width="62" height="22" rx="6" fill="#059669" opacity="0.3" stroke="#10b981" stroke-width="1.5"/>
-  <text x="543" y="305" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">PASS ✓</text>
-
-  <!-- Score formula detail -->
-  <text x="44" y="322" fill="#4b5563" font-size="9.5">dim = (3×0.2 + 4×0.3 + 4×0.25 + 5×0.25) / 5 = 0.81 → 0.6×holistic + 0.4×0.81 = 0.728</text>
-  <text x="560" y="322" fill="#374151" font-size="9">임계값: 0.60</text>
+  <rect x="516" y="232" width="48" height="16" rx="4" fill="#181818" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="540" y="244" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="700">PASS</text>
 </svg>
 <p style="font-size:13px;color:#6b7280;margin-top:8px;"><em>Figure 3. RaR-Implicit Rubric 4차원 평가 결과 — method_search intent 기준</em></p>
 </div>
