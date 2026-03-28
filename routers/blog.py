@@ -163,6 +163,17 @@ class TagListResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
+@router.get("/thumbnail/{post_id}")
+async def get_thumbnail(post_id: str):
+    """Serve thumbnail image for a blog post."""
+    from fastapi.responses import FileResponse
+
+    thumb_path = BLOG_DIR / "thumbnails" / f"{post_id}.png"
+    if not thumb_path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return FileResponse(thumb_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/posts", response_model=PostListResponse)
 async def list_posts(
     tag: Optional[str] = Query(None, max_length=100, description="Filter by tag"),
