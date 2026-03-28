@@ -466,6 +466,8 @@ QueryAnalyzer (10s) -> ReActSearchAgent (120s) -> RubricEvaluator (15s)
 
 **Turn 2** (22초): OpenAlex 6편 + DBLP 4편 추가 수집. 중복 제거 후 최종 **18편**, 총 71초 소요.
 
+여기서 두 가지 점수가 등장한다. ReAct 루프 내부에서는 **coverage_score**(0.78)로 "다음 턴이 필요한가"를 판단하고, 전체 검색이 끝난 뒤에는 **Rubric 품질 점수**(0.728)로 결과 세트의 학술적 완성도를 평가한다. 전자는 양적 커버리지, 후자는 질적 평가다.
+
 Rubric 평가에서 Relevance 5/5, Thoroughness 4/5, Thoughtfulness 4/5, Diversity 3/5를 받았다. 최종 점수 0.728로 `method_search` 충분성 임계값(0.60)을 초과해 검색을 종료했다. 가장 약한 차원은 Diversity -- 필요하다면 "alternative methods" 방향으로 보완 검색할 수 있다.
 
 단일 검색이었다면 Turn 1의 15편에서 멈췄을 것이다. 멀티턴 덕분에 linear attention과 FlashAttention 계열 논문을 추가로 발굴했다.
@@ -513,6 +515,5 @@ Rubric 평가에서 Relevance 5/5, Thoroughness 4/5, Thoughtfulness 4/5, Diversi
 - Yao, S. et al. (2023). *ReAct: Synergizing Reasoning and Acting in Language Models*. ICLR 2023.
 - Jin, Z. et al. (2025). *Search-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning*. arxiv.org/abs/2503.09516.
 - Peng, B. et al. (2023). *ArxivQA: Long-form Question Answering on arXiv Papers*. arxiv.org/abs/2309.01536.
-- Ma, X. et al. (2023). *Fine-Tuning LLaMA for Multi-Stage Text Retrieval*. arxiv.org/abs/2310.08319.
 - Gao, L. et al. (2023). *Precise Zero-Shot Dense Retrieval without Relevance Labels (HyDE)*. ACL 2023.
 - Cormack, G.V. et al. (2009). *Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods*. SIGIR 2009.
