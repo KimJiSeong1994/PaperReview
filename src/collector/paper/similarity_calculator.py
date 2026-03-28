@@ -34,6 +34,57 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CACHE_DB = Path("data/cache/embeddings.db")
 _L1_CACHE_MAX_SIZE = 512  # 인메모리 LRU 최대 항목 수
 
+# ── P2-3: 다국어 임베딩 모델 선택 ─────────────────────────────────
+_MODEL_KOREAN = "text-embedding-3-large"   # 다국어 성능 우수
+_MODEL_ENGLISH = "text-embedding-3-small"  # 영어 기본 모델
+
+# 한국어 유니코드 범위: 가-힣 (Hangul Syllables), ㄱ-ㅎ, ㅏ-ㅣ (Jamo)
+_HANGUL_RANGES = (
+    (0xAC00, 0xD7AF),  # Hangul Syllables
+    (0x3130, 0x318F),  # Hangul Compatibility Jamo
+    (0x1100, 0x11FF),  # Hangul Jamo
+)
+
+
+def detect_language(text: str) -> str:
+    """Detect language of text using simple Unicode range check.
+
+    Returns:
+        ``"ko"`` if Korean characters are found, ``"en"`` otherwise.
+    """
+    if not text:
+        return "en"
+    korean_count = 0
+    total_alpha = 0
+    for char in text:
+        cp = ord(char)
+        if char.isalpha():
+            total_alpha += 1
+            for start, end in _HANGUL_RANGES:
+                if start <= cp <= end:
+                    korean_count += 1
+                    break
+    # Consider text Korean if >= 20% of alpha chars are Hangul
+    if total_alpha > 0 and korean_count / total_alpha >= 0.2:
+        return "ko"
+    return "en"
+
+
+def _select_embedding_model(text: str, default_model: str) -> str:
+    """Select the appropriate embedding model based on text language.
+
+    Args:
+        text: Input text to detect language from.
+        default_model: Fallback model name.
+
+    Returns:
+        Model name string.
+    """
+    lang = detect_language(text)
+    if lang == "ko":
+        return _MODEL_KOREAN
+    return default_model
+
 
 def _encode_embedding(arr: np.ndarray) -> bytes:
     """numpy float32 배열을 bytes로 직렬화 (BLOB 저장용)."""
@@ -214,30 +265,85 @@ class SimilarityCalculator:
     # ── 단일 임베딩 ──────────────────────────────────────────────────
 
     def _get_embedding(self, text: str) -> Optional[np.ndarray]:
-        """텍스트를 embedding으로 변환 (L1 → L2 캐시, 스레드 안전)."""
+        """텍스트를 embedding으로 변환 (L1 → L2 캐시, 스레드 안전).
+
+        P2-3: 한국어 텍스트에는 text-embedding-3-large 모델을 자동 선택.
+        """
         if not text or not text.strip():
             return None
 
+        # P2-3: 언어 감지 후 모델 선택
+        selected_model = _select_embedding_model(text, self.model)
+
         text_hash = self._hash_text(text)
 
-        cached = self._get_from_cache(text_hash)
+        # 캐시 조회 (모델별 분리 저장이므로 _l2_get_with_model 사용)
+        cached = self._get_from_cache_with_model(text_hash, selected_model)
         if cached is not None:
             return cached
 
         try:
             response = self.client.embeddings.create(
-                model=self.model,
+                model=selected_model,
                 input=text[:8000],
             )
             embedding = np.array(response.data[0].embedding)
 
             self._l1_set(text_hash, embedding)
-            self._l2_set_batch([(text_hash, embedding)])
+            self._l2_set_batch_with_model([(text_hash, embedding)], selected_model)
             return embedding
 
         except Exception as e:
-            logger.warning("[SimilarityCalculator] Error generating embedding: %s", e)
+            logger.warning("[SimilarityCalculator] Error generating embedding (model=%s): %s", selected_model, e)
             return None
+
+    def _get_from_cache_with_model(self, text_hash: str, model: str) -> Optional[np.ndarray]:
+        """L1 -> L2 캐시 조회 (모델 지정). L2 히트 시 L1에 올림."""
+        emb = self._l1_get(text_hash)
+        if emb is not None:
+            return emb
+        emb = self._l2_get_with_model(text_hash, model)
+        if emb is not None:
+            self._l1_set(text_hash, emb)
+        return emb
+
+    def _l2_get_with_model(self, text_hash: str, model: str) -> Optional[np.ndarray]:
+        """L2(SQLite) 캐시에서 특정 모델의 임베딩 조회."""
+        try:
+            with self._db_lock:
+                conn = sqlite3.connect(str(self._cache_db_path), check_same_thread=False)
+                row = conn.execute(
+                    "SELECT embedding FROM embeddings WHERE text_hash = ? AND model = ?",
+                    (text_hash, model),
+                ).fetchone()
+                conn.close()
+            if row:
+                return _decode_embedding(row[0])
+        except Exception as e:
+            logger.debug("[SimilarityCalculator] L2 cache read error (model=%s): %s", model, e)
+        return None
+
+    def _l2_set_batch_with_model(self, items: List[tuple], model: str) -> None:
+        """L2(SQLite) 캐시에 특정 모델로 배치 저장."""
+        if not items:
+            return
+        try:
+            now = time.time()
+            rows = [
+                (text_hash, model, _encode_embedding(emb), now)
+                for text_hash, emb in items
+            ]
+            with self._db_lock:
+                conn = sqlite3.connect(str(self._cache_db_path), check_same_thread=False)
+                conn.executemany(
+                    "INSERT OR REPLACE INTO embeddings (text_hash, model, embedding, created_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    rows,
+                )
+                conn.commit()
+                conn.close()
+        except Exception as e:
+            logger.warning("[SimilarityCalculator] L2 batch write error (model=%s): %s", model, e)
 
     # ── 코사인 유사도 ────────────────────────────────────────────────
 
@@ -320,8 +426,8 @@ class SimilarityCalculator:
         """
         텍스트 리스트를 배치로 임베딩 변환 (L1 → L2 캐시 활용).
 
-        미캐시 텍스트를 최대 batch_size=100씩 묶어 단일 API 호출.
-        오류 발생 시 해당 배치는 None으로 채워 부분 결과 반환.
+        P2-3: 언어별 모델 분리 — 한국어/영어 텍스트를 각각의 모델로
+        배치 처리하고, 캐시에도 모델별로 분리 저장.
 
         Args:
             texts: 임베딩할 텍스트 리스트
@@ -331,73 +437,80 @@ class SimilarityCalculator:
             임베딩 배열 리스트 (캐시 미스 + API 오류 시 해당 위치 None)
         """
         results: List[Optional[np.ndarray]] = [None] * len(texts)
-        uncached_indices: List[int] = []
-        uncached_texts: List[str] = []
-        uncached_hashes: List[str] = []
 
-        # L1 → L2 캐시 확인
+        # P2-3: 언어별로 uncached 텍스트를 분류
+        # model -> [(original_index, truncated_text, text_hash), ...]
+        uncached_by_model: Dict[str, List[tuple]] = {}
+
         for i, text in enumerate(texts):
             if not text or not text.strip():
                 continue
+
+            selected_model = _select_embedding_model(text, self.model)
             text_hash = self._hash_text(text)
-            cached = self._get_from_cache(text_hash)
+
+            cached = self._get_from_cache_with_model(text_hash, selected_model)
             if cached is not None:
                 results[i] = cached
             else:
-                uncached_indices.append(i)
-                uncached_texts.append(text[:8000])
-                uncached_hashes.append(text_hash)
+                if selected_model not in uncached_by_model:
+                    uncached_by_model[selected_model] = []
+                uncached_by_model[selected_model].append((i, text[:8000], text_hash))
 
-        if not uncached_texts:
+        total_uncached = sum(len(v) for v in uncached_by_model.values())
+        if total_uncached == 0:
             logger.debug(
                 "[SimilarityCalculator] Batch: all %d texts served from cache", len(texts)
             )
             return results
 
         logger.debug(
-            "[SimilarityCalculator] Batch: %d cache hits, %d API calls needed (batch_size=%d)",
-            len(texts) - len(uncached_texts),
-            len(uncached_texts),
-            batch_size,
+            "[SimilarityCalculator] Batch: %d cache hits, %d API calls needed (%d models)",
+            len(texts) - total_uncached,
+            total_uncached,
+            len(uncached_by_model),
         )
 
-        # 배치 API 호출: uncached_texts를 batch_size 단위로 나눠 처리
-        for start in range(0, len(uncached_texts), batch_size):
-            batch_texts = uncached_texts[start : start + batch_size]
-            batch_indices = uncached_indices[start : start + batch_size]
-            batch_hashes = uncached_hashes[start : start + batch_size]
+        # 모델별 배치 API 호출
+        for model_name, uncached_items in uncached_by_model.items():
+            for start in range(0, len(uncached_items), batch_size):
+                batch = uncached_items[start : start + batch_size]
+                batch_indices = [item[0] for item in batch]
+                batch_texts = [item[1] for item in batch]
+                batch_hashes = [item[2] for item in batch]
 
-            try:
-                response = self.client.embeddings.create(
-                    model=self.model,
-                    input=batch_texts,
-                )
-                new_cache_items: List[tuple] = []
-                for j, emb_data in enumerate(response.data):
-                    idx = batch_indices[j]
-                    text_hash = batch_hashes[j]
-                    embedding = np.array(emb_data.embedding)
+                try:
+                    response = self.client.embeddings.create(
+                        model=model_name,
+                        input=batch_texts,
+                    )
+                    new_cache_items: List[tuple] = []
+                    for j, emb_data in enumerate(response.data):
+                        idx = batch_indices[j]
+                        text_hash = batch_hashes[j]
+                        embedding = np.array(emb_data.embedding)
 
-                    results[idx] = embedding
-                    self._l1_set(text_hash, embedding)
-                    new_cache_items.append((text_hash, embedding))
+                        results[idx] = embedding
+                        self._l1_set(text_hash, embedding)
+                        new_cache_items.append((text_hash, embedding))
 
-                # L2 SQLite에 배치 저장
-                self._l2_set_batch(new_cache_items)
+                    # L2 SQLite에 모델별 배치 저장
+                    self._l2_set_batch_with_model(new_cache_items, model_name)
 
-                logger.debug(
-                    "[SimilarityCalculator] Batch chunk [%d:%d] embedded and cached",
-                    start,
-                    start + len(batch_texts),
-                )
+                    logger.debug(
+                        "[SimilarityCalculator] Batch chunk [%d:%d] embedded (model=%s)",
+                        start,
+                        start + len(batch_texts),
+                        model_name,
+                    )
 
-            except Exception as e:
-                logger.warning(
-                    "[SimilarityCalculator] Batch embedding error for chunk [%d:%d]: %s",
-                    start,
-                    start + len(batch_texts),
-                    e,
-                )
-                # 오류 발생 시 해당 배치는 None 유지 (부분 결과 반환)
+                except Exception as e:
+                    logger.warning(
+                        "[SimilarityCalculator] Batch embedding error (model=%s) [%d:%d]: %s",
+                        model_name,
+                        start,
+                        start + len(batch_texts),
+                        e,
+                    )
 
         return results

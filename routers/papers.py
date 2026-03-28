@@ -21,6 +21,7 @@ import traceback
 from typing import Any, Dict, List
 
 import networkx as nx
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
 from .deps import get_optional_user, get_admin_user, search_agent
@@ -28,6 +29,149 @@ from .deps import get_optional_user, get_admin_user, search_agent
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["papers"])
+
+# ── PaperDB singleton (P2-2: SQLite migration) ───────────────────────
+from src.storage.paper_db import PaperDB
+
+_paper_db = PaperDB()
+
+# Auto-migrate from papers.json on first import
+_JSON_PATH = "data/papers.json"
+if os.path.exists(_JSON_PATH):
+    _migrated = _paper_db.migrate_from_json(_JSON_PATH)
+    if _migrated > 0:
+        logger.info("[P2-2] Auto-migrated %d papers from JSON to SQLite", _migrated)
+
+
+# ── FAISS ANN helper (P2-1) ──────────────────────────────────────────
+
+_FAISS_THRESHOLD = 100  # Switch to FAISS when paper count >= this
+_FAISS_K = 10           # Number of nearest neighbours per paper
+_FAISS_MIN_SIM = 0.3    # Minimum cosine similarity for edge creation
+
+
+def _build_edges_faiss(
+    papers_data: List[Dict[str, Any]],
+    graph: nx.Graph,
+) -> None:
+    """Build graph edges using FAISS approximate nearest neighbours.
+
+    Uses SimilarityCalculator.get_embeddings_batch() to embed all titles
+    in one batch, then builds a FAISS IndexFlatIP for fast inner-product
+    (cosine similarity on L2-normalised vectors) search.
+    """
+    import faiss
+
+    titles = [p.get("title", "") for p in papers_data]
+    doc_ids = [
+        p.get("doc_id") or str(abs(hash(p.get("title", ""))))
+        for p in papers_data
+    ]
+
+    # Batch-embed all titles via the search_agent's calculator
+    sim_calc = search_agent.similarity_calculator
+    embeddings = sim_calc.get_embeddings_batch(titles)
+
+    # Filter out papers with failed embeddings
+    valid_indices: List[int] = []
+    valid_vectors: List[np.ndarray] = []
+    for i, emb in enumerate(embeddings):
+        if emb is not None:
+            valid_indices.append(i)
+            valid_vectors.append(emb.astype(np.float32))
+
+    if len(valid_vectors) < 2:
+        logger.warning("[P2-1] Too few valid embeddings (%d), skipping FAISS edges", len(valid_vectors))
+        return
+
+    # Stack into matrix and L2-normalise for cosine similarity via inner product
+    matrix = np.vstack(valid_vectors)
+    faiss.normalize_L2(matrix)
+
+    dim = matrix.shape[1]
+    index = faiss.IndexFlatIP(dim)
+    index.add(matrix)
+
+    # Search K+1 neighbours (first result is self)
+    k = min(_FAISS_K + 1, len(valid_vectors))
+    scores, neighbours = index.search(matrix, k)
+
+    # Build edges from search results
+    seen_edges: set = set()
+    for local_i in range(len(valid_vectors)):
+        src_idx = valid_indices[local_i]
+        src_id = doc_ids[src_idx]
+        for j in range(1, k):  # skip self at position 0
+            local_j = neighbours[local_i][j]
+            if local_j < 0:
+                continue
+            sim = float(scores[local_i][j])
+            if sim < _FAISS_MIN_SIM:
+                continue
+            dst_idx = valid_indices[local_j]
+            dst_id = doc_ids[dst_idx]
+            edge_key = tuple(sorted((src_id, dst_id)))
+            if edge_key not in seen_edges:
+                seen_edges.add(edge_key)
+                graph.add_edge(src_id, dst_id, weight=round(sim, 3))
+
+    logger.info(
+        "[P2-1] FAISS ANN: %d papers, %d valid embeddings, %d edges created",
+        len(papers_data), len(valid_vectors), len(seen_edges),
+    )
+
+
+def _build_edges_jaccard(
+    papers_data: List[Dict[str, Any]],
+    graph: nx.Graph,
+) -> None:
+    """Original O(n^2) Jaccard + keyword edge builder (fallback for <100 papers)."""
+
+    def _title_tokens(text: str) -> List[str]:
+        words = re.findall(r"\b\w+\b", text.lower())
+        return [w for w in words if len(w) > 3]
+
+    token_cache = {
+        p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(_title_tokens(p.get("title", "")))
+        for p in papers_data
+    }
+
+    keyword_cache: dict = {}
+    for p in papers_data:
+        did = p.get("doc_id") or str(abs(hash(p.get("title", ""))))
+        kw_tokens: set = set()
+        for cat in (p.get("categories") or "").split():
+            kw_tokens.add(cat.lower().strip())
+        for kw in (p.get("keywords") or []):
+            if isinstance(kw, str) and len(kw) > 2:
+                kw_tokens.add(kw.lower().strip())
+        keyword_cache[did] = kw_tokens
+
+    paper_list = list(papers_data)
+    for idx, paper in enumerate(paper_list):
+        for jdx in range(idx + 1, len(paper_list)):
+            other = paper_list[jdx]
+            doc_id1 = paper.get("doc_id") or str(abs(hash(paper.get("title", ""))))
+            doc_id2 = other.get("doc_id") or str(abs(hash(other.get("title", ""))))
+
+            base_tokens = token_cache.get(doc_id1, set())
+            other_tokens = token_cache.get(doc_id2, set())
+            title_score = 0.0
+            if base_tokens and other_tokens:
+                union = len(base_tokens | other_tokens)
+                title_score = len(base_tokens & other_tokens) / union if union else 0
+
+            kw1 = keyword_cache.get(doc_id1, set())
+            kw2 = keyword_cache.get(doc_id2, set())
+            kw_score = 0.0
+            if kw1 and kw2:
+                kw_union = len(kw1 | kw2)
+                kw_score = len(kw1 & kw2) / kw_union if kw_union else 0
+
+            score = 0.7 * title_score + 0.3 * kw_score
+
+            if score >= 0.06:
+                graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -79,8 +223,17 @@ async def get_papers_count():
 
 @router.get("/papers")
 async def get_saved_papers():
-    """Get all saved papers."""
+    """Get all saved papers (SQLite-backed with JSON fallback)."""
     try:
+        # P2-2: Try SQLite first
+        try:
+            papers = _paper_db.get_all_papers()
+            if papers:
+                return {"papers": papers}
+        except Exception as db_err:
+            logger.warning("[P2-2] SQLite read failed, falling back to JSON: %s", db_err)
+
+        # Fallback to JSON file
         papers_file = search_agent.papers_file
         if not os.path.exists(papers_file):
             return {"papers": []}
@@ -96,6 +249,11 @@ async def get_saved_papers():
 async def clear_papers(username: str = Depends(get_admin_user)):
     """Clear all saved papers (admin only)."""
     success = search_agent.clear_saved_papers()
+    # Also clear SQLite
+    try:
+        _paper_db.clear()
+    except Exception as e:
+        logger.warning("[P2-2] SQLite clear failed: %s", e)
     return {"success": success}
 
 
@@ -249,7 +407,11 @@ async def enrich_papers(
 
 @router.post("/graph-data")
 async def get_graph_data(request: Dict[str, Any]):
-    """Generate graph data for visualisation. Accepts papers JSON string or uses saved papers."""
+    """Generate graph data for visualisation.
+
+    P2-1: Uses FAISS ANN for >= 100 papers, Jaccard fallback for < 100.
+    P2-2: Reads from SQLite when no papers_json is provided.
+    """
     try:
         papers_json = request.get("papers_json")
         if papers_json:
@@ -264,22 +426,26 @@ async def get_graph_data(request: Dict[str, Any]):
                     )
                     paper["doc_id"] = doc_id
         else:
-            papers_file = search_agent.papers_file
-            if not os.path.exists(papers_file):
-                return {"nodes": [], "edges": []}
-            with open(papers_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                papers_data = data.get("papers", [])
+            # P2-2: Try SQLite first, fallback to JSON
+            papers_data = []
+            try:
+                papers_data = _paper_db.get_all_papers()
+            except Exception as db_err:
+                logger.warning("[P2-2] SQLite read failed for graph-data: %s", db_err)
 
-        # ── Build similarity graph ─────────────────────────────────────
-        def _title_tokens(text: str) -> List[str]:
-            words = re.findall(r"\b\w+\b", text.lower())
-            return [w for w in words if len(w) > 3]
+            if not papers_data:
+                papers_file = search_agent.papers_file
+                if not os.path.exists(papers_file):
+                    return {"nodes": [], "edges": []}
+                with open(papers_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    papers_data = data.get("papers", [])
 
         from src.utils.paper_utils import generate_doc_id
 
         graph = nx.Graph()
 
+        # Ensure all papers have doc_id
         for paper in papers_data:
             if "doc_id" not in paper:
                 paper["doc_id"] = generate_doc_id(paper.get("title", ""))
@@ -305,51 +471,17 @@ async def get_graph_data(request: Dict[str, Any]):
                     node_attrs[key] = value
             graph.add_node(doc_id, **node_attrs)
 
-        # Edges based on title + keyword similarity
-        token_cache = {
-            p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(_title_tokens(p.get("title", "")))
-            for p in papers_data
-        }
-        # 키워드/카테고리 기반 보조 토큰 (최신 논문의 고립 방지)
-        keyword_cache: dict = {}
-        for p in papers_data:
-            did = p.get("doc_id") or str(abs(hash(p.get("title", ""))))
-            kw_tokens: set = set()
-            for cat in (p.get("categories") or "").split():
-                kw_tokens.add(cat.lower().strip())
-            for kw in (p.get("keywords") or []):
-                if isinstance(kw, str) and len(kw) > 2:
-                    kw_tokens.add(kw.lower().strip())
-            keyword_cache[did] = kw_tokens
-
-        paper_list = list(papers_data)
-        for idx, paper in enumerate(paper_list):
-            for jdx in range(idx + 1, len(paper_list)):
-                other = paper_list[jdx]
-                doc_id1 = paper.get("doc_id") or str(abs(hash(paper.get("title", ""))))
-                doc_id2 = other.get("doc_id") or str(abs(hash(other.get("title", ""))))
-
-                # 제목 유사도
-                base_tokens = token_cache.get(doc_id1, set())
-                other_tokens = token_cache.get(doc_id2, set())
-                title_score = 0.0
-                if base_tokens and other_tokens:
-                    union = len(base_tokens | other_tokens)
-                    title_score = len(base_tokens & other_tokens) / union if union else 0
-
-                # 키워드/카테고리 유사도
-                kw1 = keyword_cache.get(doc_id1, set())
-                kw2 = keyword_cache.get(doc_id2, set())
-                kw_score = 0.0
-                if kw1 and kw2:
-                    kw_union = len(kw1 | kw2)
-                    kw_score = len(kw1 & kw2) / kw_union if kw_union else 0
-
-                # 종합 점수 (제목 70% + 키워드 30%)
-                score = 0.7 * title_score + 0.3 * kw_score
-
-                if score >= 0.06:
-                    graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
+        # ── P2-1: Edge building strategy ──────────────────────────────
+        n_papers = len(papers_data)
+        if n_papers >= _FAISS_THRESHOLD:
+            try:
+                logger.info("[P2-1] Using FAISS ANN for %d papers (threshold=%d)", n_papers, _FAISS_THRESHOLD)
+                _build_edges_faiss(papers_data, graph)
+            except Exception as faiss_err:
+                logger.warning("[P2-1] FAISS failed, falling back to Jaccard: %s", faiss_err)
+                _build_edges_jaccard(papers_data, graph)
+        else:
+            _build_edges_jaccard(papers_data, graph)
 
         # Layout
         try:
@@ -361,12 +493,10 @@ async def get_graph_data(request: Dict[str, Any]):
             layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
 
         if len(layout) > 0:
-            # 중심 보정
             centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
             centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
             centered = {nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()}
 
-            # [-1, 1] 범위로 정규화 (고립 노드가 뷰포트 밖에 배치되는 문제 해결)
             max_abs = max(
                 max(abs(x) for x, _ in centered.values()),
                 max(abs(y) for _, y in centered.values()),

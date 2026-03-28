@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from .deps import (
@@ -1039,6 +1040,167 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         error_trace = traceback.format_exc()
         logger.error("[API] Error in search: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+# ── P2-4: SSE Streaming Deep Search ──────────────────────────────────
+
+class DeepSearchStreamRequest(BaseModel):
+    query: str
+    max_results: int = 20
+    context: str = ""
+    save_papers: bool = True
+
+
+@router.post("/deep-search-stream")
+async def deep_search_stream(request: DeepSearchStreamRequest, username: Optional[str] = Depends(get_optional_user)):
+    """SSE streaming endpoint for deep search.
+
+    Emits real-time progress events as the multi-turn ReAct agent works:
+    - ``turn_start``: A new search turn has begun
+    - ``query_analysis``: Query analysis complete
+    - ``papers_found``: Papers discovered in this turn
+    - ``gap_analysis``: Gap analysis identifying missing coverage
+    - ``evaluation``: Rubric evaluation scores
+    - ``complete``: Final results with all papers
+    - ``error``: An error occurred
+    """
+    _record_query(request.query)
+
+    async def event_generator():
+        """Generate SSE events during deep search execution."""
+        try:
+            start_time = time.time()
+
+            # ── Turn 0: Query analysis ────────────────────────────
+            yield _sse_event("turn_start", {"turn": 0, "phase": "query_analysis"})
+
+            analysis = {}
+            if query_analyzer:
+                try:
+                    loop = asyncio.get_running_loop()
+                    analysis = await asyncio.wait_for(
+                        loop.run_in_executor(None, partial(query_analyzer.analyze_query, request.query)),
+                        timeout=10,
+                    )
+                    yield _sse_event("query_analysis", {
+                        "intent": analysis.get("intent", "paper_search"),
+                        "keywords": analysis.get("keywords", []),
+                        "confidence": analysis.get("confidence", 0),
+                    })
+                except Exception as e:
+                    logger.warning("[Deep Search Stream] Query analysis failed: %s", e)
+                    yield _sse_event("query_analysis", {"intent": "paper_search", "keywords": [], "error": str(e)})
+
+            # ── Multi-turn ReAct search ───────────────────────────
+            difficulty = query_analyzer.classify_difficulty(analysis) if query_analyzer and analysis else "medium"
+            _DIFFICULTY_TURNS = {"easy": 1, "medium": 2, "hard": 3}
+            max_turns = _DIFFICULTY_TURNS.get(difficulty, 2)
+
+            yield _sse_event("turn_start", {"turn": 1, "phase": "search", "max_turns": max_turns, "difficulty": difficulty})
+
+            from app.SearchAgent.react_search_agent import ReActSearchAgent
+
+            loop = asyncio.get_running_loop()
+            react_agent = ReActSearchAgent(
+                search_agent=search_agent,
+                openai_client=get_openai_client(),
+                max_turns=max_turns,
+            )
+
+            result = await react_agent.search(
+                query=request.query,
+                analysis=analysis,
+                max_results=request.max_results or 20,
+            )
+
+            papers = result.get("papers", [])
+            yield _sse_event("papers_found", {
+                "count": len(papers),
+                "turns_used": result.get("metadata", {}).get("turns_used", 1),
+            })
+
+            # ── Gap analysis ──────────────────────────────────────
+            turns_history = result.get("metadata", {}).get("turns_history", [])
+            missing_aspects = []
+            for turn_info in turns_history:
+                gaps = turn_info.get("gaps", [])
+                if gaps:
+                    missing_aspects.extend(gaps)
+            if missing_aspects:
+                yield _sse_event("gap_analysis", {"missing": missing_aspects[:10]})
+
+            # ── Rubric evaluation ─────────────────────────────────
+            yield _sse_event("turn_start", {"turn": max_turns + 1, "phase": "evaluation"})
+
+            from app.QueryAgent.rubric_evaluator import RubricEvaluator
+
+            evaluator = RubricEvaluator()
+            evaluation = await evaluator.evaluate(
+                query=request.query,
+                intent=analysis.get("intent", "paper_search"),
+                papers=papers,
+            )
+            result["evaluation"] = evaluation
+
+            yield _sse_event("evaluation", {
+                "overall_score": evaluation.get("overall_score", 0),
+                "dimensions": {
+                    k: v for k, v in evaluation.items()
+                    if k != "overall_score" and isinstance(v, (int, float))
+                },
+            })
+
+            # ── Save papers ───────────────────────────────────────
+            search_time = time.time() - start_time
+            result.setdefault("metadata", {})["search_time"] = round(search_time, 2)
+            result["metadata"]["difficulty"] = difficulty
+            result["metadata"]["max_turns"] = max_turns
+
+            if request.save_papers and papers:
+                try:
+                    results_by_source = {"arxiv": [], "openalex": [], "dblp": []}
+                    for paper in papers:
+                        src = paper.pop("_source", "arxiv")
+                        if src in results_by_source:
+                            results_by_source[src].append(paper)
+                    _stamp_searched_by(results_by_source, username)
+                    search_agent.save_papers(results_by_source, request.query, generate_embeddings=False, update_graph=True)
+                except Exception as e:
+                    logger.error("[Deep Search Stream] Save papers error: %s", e)
+
+            # ── Complete ──────────────────────────────────────────
+            yield _sse_event("complete", {
+                "papers": papers,
+                "total": len(papers),
+                "search_time": round(search_time, 2),
+                "evaluation": evaluation,
+                "metadata": result.get("metadata", {}),
+            })
+
+            logger.info(
+                "[API] Deep Search Stream completed: %d papers, %.1fs, score=%.2f",
+                len(papers), search_time, evaluation.get("overall_score", 0),
+            )
+
+        except Exception as e:
+            logger.error("[API] Deep Search Stream failed: %s", e, exc_info=True)
+            yield _sse_event("error", {"message": str(e)})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _sse_event(event: str, data: Any) -> str:
+    """Format a Server-Sent Event string."""
+    payload = json.dumps(data, ensure_ascii=False, default=str)
+    return f"event: {event}\ndata: {payload}\n\n"
 
 
 # ── Admin: manual prefetch trigger ───────────────────────────────────
