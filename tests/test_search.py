@@ -49,7 +49,14 @@ def _make_query_analyzer_mock() -> MagicMock:
     mock = MagicMock()
     mock.analyze_query.return_value = _ANALYZE_QUERY_RESULT.copy()
     mock.classify_topic.return_value = _CLASSIFY_TOPIC_RESULT.copy()
+    mock.classify_difficulty.return_value = "medium"
     mock.generate_source_specific_queries.return_value = {}
+    # Unified 3-in-1 method (Sprint 5a)
+    mock.analyze_and_prepare.return_value = {
+        **_ANALYZE_QUERY_RESULT.copy(),
+        "is_academic": True,
+        "source_queries": {"arxiv": "machine learning", "dblp": "machine learning", "google_scholar": "machine learning", "default": "machine learning"},
+    }
     return mock
 
 
@@ -174,9 +181,18 @@ class TestSearch:
     ):
         """Non-academic topic classification causes the endpoint to return empty results."""
         qa_mock = _patch_search_singletons["query_analyzer"]
-        # Override classify_topic to report non-academic so the endpoint
-        # short-circuits and returns empty results (no 400 in the current impl).
-        qa_mock.classify_topic.return_value = {"is_academic": False, "confidence": 0.99}
+        # Override unified analysis to report non-academic so the endpoint
+        # short-circuits and returns empty results.
+        qa_mock.analyze_and_prepare.return_value = {
+            "is_academic": False,
+            "intent": "unknown",
+            "keywords": [],
+            "improved_query": "",
+            "search_filters": {},
+            "confidence": 0.0,
+            "original_query": "",
+            "source_queries": {"arxiv": "", "dblp": "", "google_scholar": "", "default": ""},
+        }
 
         resp = await client.post(
             "/api/search",

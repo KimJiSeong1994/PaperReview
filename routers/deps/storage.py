@@ -7,6 +7,7 @@ plus in-memory session storage for reviews.
 
 import json
 import logging
+import os
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -14,7 +15,7 @@ from typing import Any, Dict
 
 from filelock import FileLock
 
-from .config import PROJECT_ROOT
+DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ review_sessions: Dict[str, Dict[str, Any]] = {}
 review_sessions_lock = threading.Lock()
 
 # ── Workspace 기반 세션 복원 (서버 재시작 시 인메모리 세션 유실 방지) ──
-WORKSPACE_DIR = Path("data/workspace")
+WORKSPACE_DIR = DATA_DIR / "workspace"
 
 
 def _restore_sessions_from_workspace() -> int:
@@ -90,7 +91,7 @@ def _restore_sessions_from_workspace() -> int:
 _restore_sessions_from_workspace()
 
 # ── Bookmarks file & helpers ──────────────────────────────────────────
-BOOKMARKS_FILE = Path("data/bookmarks.json")
+BOOKMARKS_FILE = DATA_DIR / "bookmarks.json"
 _bookmarks_lock = FileLock(str(BOOKMARKS_FILE) + ".lock")
 
 
@@ -148,7 +149,7 @@ def modify_bookmarks():
 
 
 # ── Users file & helpers (shared by auth + admin) ────────────────────
-USERS_FILE = PROJECT_ROOT / "data" / "users.json"
+USERS_FILE = DATA_DIR / "users.json"
 _users_lock = FileLock(str(USERS_FILE) + ".lock")
 
 
@@ -199,5 +200,5 @@ def modify_users():
 
 
 # ── Papers file helpers ──────────────────────────────────────────────
-PAPERS_FILE = Path("data/raw/papers.json")
+PAPERS_FILE = DATA_DIR / "raw" / "papers.json"
 _papers_lock = FileLock(str(PAPERS_FILE) + ".lock")

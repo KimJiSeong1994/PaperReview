@@ -854,59 +854,44 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         if query_analyzer:
             analysis_start = time.time()
 
-            # Build tasks to run concurrently
-            classify_coro = asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    partial(query_analyzer.classify_topic, request.query),
-                ),
-                timeout=5,
-            )
-
             if not request.use_llm_search:
-                # Run classify_topic and analyze_query in parallel
-                logger.info("[API] Analyzing query: %s", request.query)
-                analyze_coro = asyncio.wait_for(
-                    loop.run_in_executor(
-                        None,
-                        partial(query_analyzer.analyze_query, request.query),
-                    ),
-                    timeout=_ANALYZE_TIMEOUT,
-                )
-                results = await asyncio.gather(
-                    classify_coro, analyze_coro, return_exceptions=True
-                )
-                classify_result, analyze_result = results
-
-                # Process classify_topic result
-                if isinstance(classify_result, Exception):
-                    pass  # error → assume academic
-                else:
-                    is_academic = classify_result.get("is_academic", True)
-
-                # Process analyze_query result
-                if isinstance(analyze_result, asyncio.TimeoutError):
-                    logger.warning("[API] Query analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
-                elif isinstance(analyze_result, Exception):
-                    logger.warning("[API] Query analysis failed (continuing with original query): %s", analyze_result)
-                else:
-                    query_analysis = analyze_result
+                # Unified 3-in-1 call: classify + analyze + source_queries
+                logger.info("[API] Unified query analysis: %s", request.query)
+                try:
+                    unified = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            None,
+                            partial(query_analyzer.analyze_and_prepare, request.query),
+                        ),
+                        timeout=_ANALYZE_TIMEOUT,
+                    )
+                    is_academic = unified.get("is_academic", True)
+                    query_analysis = unified
                     logger.info(
-                        "[API] Query analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
-                        query_analysis.get("intent"),
-                        query_analysis.get("keywords"),
-                        query_analysis.get("confidence"),
+                        "[API] Unified analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
+                        unified.get("intent"),
+                        unified.get("keywords"),
+                        unified.get("confidence"),
                         time.time() - analysis_start,
                     )
+                except asyncio.TimeoutError:
+                    logger.warning("[API] Unified analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
+                except Exception as e:
+                    logger.warning("[API] Unified analysis failed (continuing with original query): %s", e)
             else:
                 # LLM search mode: only classify, skip analyze
                 logger.info("[API] Query analysis skipped (LLM search handles query optimization)")
-                results = await asyncio.gather(
-                    classify_coro, return_exceptions=True
-                )
-                classify_result = results[0]
-                if not isinstance(classify_result, Exception):
+                try:
+                    classify_result = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            None,
+                            partial(query_analyzer.classify_topic, request.query),
+                        ),
+                        timeout=5,
+                    )
                     is_academic = classify_result.get("is_academic", True)
+                except Exception:
+                    pass  # error → assume academic
         else:
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
 
@@ -954,24 +939,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 else:
                     logger.info("[API] Skipping improved query (overlap=%.2f, ratio=%.1f): %s", overlap, length_ratio, improved_query)
 
-            # Generate source-specific optimized queries
-            if query_analyzer:
-                try:
-                    source_queries = await asyncio.wait_for(
-                        loop.run_in_executor(
-                            None,
-                            partial(
-                                query_analyzer.generate_source_specific_queries,
-                                search_query,
-                                keywords=query_analysis.get("keywords"),
-                            ),
-                        ),
-                        timeout=_ANALYZE_TIMEOUT,
-                    )
-                    logger.info("[API] Source-specific queries generated: %s", {k: v[:50] for k, v in source_queries.items()})
-                    filters["source_queries"] = source_queries
-                except Exception as e:
-                    logger.warning("[API] Source-specific query generation failed: %s", e)
+            # Use source-specific queries from unified analysis (already included)
+            unified_source_queries = query_analysis.get("source_queries")
+            if unified_source_queries:
+                source_queries = unified_source_queries
+                logger.info("[API] Source-specific queries (from unified): %s", {k: v[:50] for k, v in source_queries.items()})
+                filters["source_queries"] = source_queries
 
         # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
         user_filters = {
@@ -1082,11 +1055,17 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             all_papers_for_ranking.append(paper)
 
                     if all_papers_for_ranking:
+                        # Skip HyDE for easy/high-confidence queries to save 2 LLM + 1 embedding call
+                        difficulty = query_analyzer.classify_difficulty(query_analysis) if query_analyzer and query_analysis else "medium"
+                        hyde_client = None if difficulty == "easy" else get_openai_client()
+                        if difficulty == "easy":
+                            logger.info("[API] HyDE skipped (easy query, difficulty=%s)", difficulty)
+
                         ranked = _hybrid_ranker.rank_papers(
                             query=request.query,
                             papers=all_papers_for_ranking,
                             intent=intent,
-                            openai_client=get_openai_client(),
+                            openai_client=hyde_client,
                             use_rrf=True,
                         )
                         # 소스별로 다시 분리 (graphrag 포함)

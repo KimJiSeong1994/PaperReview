@@ -703,6 +703,132 @@ CRITICAL RULES:
             "default": query,
         }
 
+    @log_data_processing("Unified Query Analysis")
+    def analyze_and_prepare(self, query: str) -> Dict[str, Any]:
+        """classify_topic + analyze_query + generate_source_specific_queries를 1회 LLM 호출로 통합.
+
+        Returns:
+            {
+                "is_academic": bool,
+                "intent": str,
+                "keywords": list,
+                "improved_query": str,
+                "search_filters": dict,
+                "confidence": float,
+                "original_query": str,
+                "source_queries": {"arxiv": str, "dblp": str, "google_scholar": str, "default": str},
+                ... (기존 analyze_query 필드 전부 포함)
+            }
+        """
+        if not query or not query.strip():
+            return {
+                "is_academic": True,
+                "intent": "unknown",
+                "keywords": [],
+                "improved_query": "",
+                "search_filters": {},
+                "confidence": 0.0,
+                "original_query": query,
+                "source_queries": {"arxiv": query, "dblp": query, "google_scholar": query, "default": query},
+            }
+
+        key = _cache_key("unified_analyze", query)
+        cached = _get_from_cache(key)
+        if cached is not None:
+            return cached
+
+        if not self.client:
+            fallback = self._fallback_analysis(query)
+            fallback["is_academic"] = True
+            fallback["source_queries"] = self._fallback_source_queries(query, fallback.get("keywords"))
+            return fallback
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an expert academic research query analyzer. "
+                            "Given a search query, perform THREE tasks in a single response:\n"
+                            "1. Classify if the query is academic/research-related\n"
+                            "2. Analyze intent, extract keywords, improve the query\n"
+                            "3. Generate source-specific optimized queries\n\n"
+                            "Return JSON with this exact structure."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""Query: "{query}"
+
+Return JSON:
+{{
+    "is_academic": true/false,
+    "intent": "paper_search|topic_exploration|author_search|method_search|comparison|survey|latest_research|problem_solving",
+    "keywords": ["keyword1", "keyword2", ...],
+    "core_concepts": ["concept1", "concept2"],
+    "research_area": "field name",
+    "improved_query": "improved search query",
+    "search_strategy": "brief strategy",
+    "search_filters": {{"year_start": null, "year_end": null, "category": null}},
+    "confidence": 0.0-1.0,
+    "source_queries": {{
+        "arxiv": "arXiv query using (ti:X OR ti:Y) OR (abs:X AND abs:Y)",
+        "dblp": "2-4 core keywords",
+        "google_scholar": "natural language with quoted phrases"
+    }}
+}}
+
+RULES:
+- is_academic: false ONLY for clearly non-academic queries (weather, food, shopping, etc.)
+- source_queries.arxiv: Use (ti:keyword1 OR ti:keyword2) OR (abs:keyword1 AND abs:keyword2)
+- source_queries.dblp: 2-4 core technical keywords only
+- source_queries.google_scholar: Natural language with "quoted key phrases"
+- Translate non-English queries to English for source_queries
+- Stay close to the original query intent""",
+                    },
+                ],
+                temperature=0.3,
+                response_format={"type": "json_object"},
+            )
+
+            raw = json.loads(response.choices[0].message.content)
+
+            source_queries = raw.get("source_queries", {})
+            result = {
+                "is_academic": bool(raw.get("is_academic", True)),
+                "intent": raw.get("intent", "paper_search"),
+                "keywords": raw.get("keywords", []),
+                "core_concepts": raw.get("core_concepts", []),
+                "research_area": raw.get("research_area", ""),
+                "improved_query": raw.get("improved_query", query),
+                "search_strategy": raw.get("search_strategy", ""),
+                "search_filters": raw.get("search_filters", {}),
+                "confidence": float(raw.get("confidence", 0.8)),
+                "original_query": query,
+                "source_queries": {
+                    "arxiv": source_queries.get("arxiv", query),
+                    "dblp": source_queries.get("dblp", query),
+                    "google_scholar": source_queries.get("google_scholar", query),
+                    "default": query,
+                },
+            }
+            _set_in_cache(key, result)
+            return result
+
+        except Exception as e:
+            logger.warning("Unified analysis failed, falling back to individual calls: %s", e)
+            # Fallback: 개별 메서드 호출
+            analysis = self.analyze_query(query)
+            topic = self.classify_topic(query)
+            source_queries = self.generate_source_specific_queries(
+                query, keywords=analysis.get("keywords")
+            )
+            analysis["is_academic"] = topic.get("is_academic", True)
+            analysis["source_queries"] = source_queries
+            return analysis
+
     @log_data_processing("LLM Context Search")
     def search_with_context(self, query: str, context: str = "") -> Dict[str, Any]:
         """
