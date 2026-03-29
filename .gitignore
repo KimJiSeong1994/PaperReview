@@ -225,3 +225,6 @@ __marimo__/
 .npm-cache/
 .npm-cache/*.pem
 *.pem
+
+
+.omc
