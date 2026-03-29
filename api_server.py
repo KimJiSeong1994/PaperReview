@@ -46,10 +46,52 @@ from routers import (
 from routers.deps import api_key, limiter
 
 # ── App setup ──────────────────────────────────────────────────────────
+
+logger = logging.getLogger(__name__)
+
+
+def _ensure_faiss_index():
+    """Rebuild FAISS index from JSON if the index file is missing."""
+    index_path = Path("data/embeddings/paper_embeddings.index")
+    json_path = Path("data/embeddings/embeddings.json")
+
+    if index_path.exists():
+        logger.info("FAISS index already exists: %s", index_path)
+        return
+
+    if not json_path.exists():
+        logger.warning("No embeddings JSON found at %s — skipping FAISS rebuild", json_path)
+        return
+
+    try:
+        from src.graph.embedding_generator import EmbeddingGenerator
+        ok = EmbeddingGenerator.rebuild_faiss_from_json(
+            json_path=str(json_path),
+            output_dir=str(json_path.parent),
+        )
+        if ok:
+            logger.info("FAISS index rebuilt successfully from %s", json_path)
+        else:
+            logger.warning("FAISS index rebuild returned False")
+    except Exception as exc:
+        logger.warning("Failed to rebuild FAISS index: %s", exc)
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup / shutdown lifecycle."""
+    _ensure_faiss_index()
+    yield
+
+
 app = FastAPI(
     title="Paper Review Agent API",
     description="AI-based academic paper search, review, and analysis system",
     version="1.1.0",
+    lifespan=lifespan,
 )
 
 # Rate limiting
@@ -72,8 +114,6 @@ app.add_middleware(
 
 
 # ── Global exception handler ──────────────────────────────────────────
-
-logger = logging.getLogger(__name__)
 
 
 @app.exception_handler(Exception)
@@ -145,8 +185,11 @@ async def health_check():
         "api": "ok",
         "openai_key": "configured" if api_key else "missing",
         "data_dir": "ok" if Path("data").exists() else "missing",
+        "jwt_secret": "configured" if os.getenv("JWT_SECRET") else "random-fallback",
     }
-    status = "healthy" if all(v in ("ok", "configured") for v in checks.values()) else "degraded"
+    # "random-fallback" is acceptable in dev but should trigger warnings in prod monitoring
+    _acceptable = ("ok", "configured", "random-fallback")
+    status = "healthy" if all(v in _acceptable for v in checks.values()) else "degraded"
     return {"status": status, "checks": checks}
 
 

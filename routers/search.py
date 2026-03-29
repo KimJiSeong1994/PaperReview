@@ -106,7 +106,11 @@ def _graphrag_expand(
 
     from src.graph_rag.search_engine import SearchEngine
 
-    engine = SearchEngine(graph)
+    engine = SearchEngine(
+        graph,
+        embeddings_index_path="data/embeddings/paper_embeddings.index",
+        id_mapping_path="data/embeddings/paper_id_mapping.json",
+    )
 
     # 기존 검색 결과의 title → graph node_id 매핑 (lowercase)
     seed_ids: List[str] = []

@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from .deps import limiter, load_users, save_users, modify_users, _JWT_SECRET
+from .deps.auth import _decode_jwt
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,15 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 JWT_SECRET = _JWT_SECRET
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
+
+# Legacy password salt — decoupled from JWT_SECRET for safe key rotation.
+# Set LEGACY_PASSWORD_SALT to JWT_SECRET[:16] used when legacy hashes were created.
+_LEGACY_PASSWORD_SALT = os.getenv("LEGACY_PASSWORD_SALT", "")
+if not _LEGACY_PASSWORD_SALT:
+    logger.warning(
+        "LEGACY_PASSWORD_SALT not set. Legacy SHA-256 password verification disabled. "
+        "Users with legacy hashes must reset their passwords."
+    )
 
 
 # ── Password helpers (bcrypt with legacy SHA-256 migration) ──────────
@@ -36,9 +46,10 @@ def _verify_password(password: str, stored_hash: str) -> bool:
     """Verify password. Supports bcrypt and legacy SHA-256 hashes."""
     if stored_hash.startswith(("$2b$", "$2a$")):
         return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
-    # Legacy SHA-256: fixed salt from JWT_SECRET[:16]
-    salt = JWT_SECRET[:16]
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() == stored_hash
+    # Legacy SHA-256: requires dedicated salt (decoupled from JWT_SECRET)
+    if not _LEGACY_PASSWORD_SALT:
+        return False
+    return hashlib.sha256(f"{_LEGACY_PASSWORD_SALT}{password}".encode()).hexdigest() == stored_hash
 
 
 def _is_legacy_hash(stored_hash: str) -> bool:
@@ -131,12 +142,14 @@ def _create_token(username: str, role: str = "user") -> str:
 
 
 def _decode_token(token: str) -> dict:
-    try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    """Decode a raw JWT string. Delegates to shared _decode_jwt logic."""
+    # Build a minimal request-like object for the shared decoder
+    from starlette.datastructures import Headers
+    from starlette.requests import Request as _Req
+
+    scope = {"type": "http", "headers": [(b"authorization", f"Bearer {token}".encode())]}
+    req = _Req(scope)
+    return _decode_jwt(req)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────

@@ -33,6 +33,8 @@ def get_light_rag_agent():
         _light_rag_agent = GraphRAGAgent(
             papers_json_path="data/raw/papers.json",
             graph_path="data/graph/paper_graph.pkl",
+            embeddings_index_path="data/embeddings/paper_embeddings.index",
+            id_mapping_path="data/embeddings/paper_id_mapping.json",
             light_rag_dir="data/light_rag",
         )
     return _light_rag_agent

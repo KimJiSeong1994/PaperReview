@@ -29,6 +29,9 @@ sys.path.append(str(PROJECT_ROOT / "app" / "QueryAgent"))
 env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
 
+# ── Environment ────────────────────────────────────────────────────────
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 # ── OpenAI API Key ─────────────────────────────────────────────────────
 api_key: Optional[str] = (
     os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API")

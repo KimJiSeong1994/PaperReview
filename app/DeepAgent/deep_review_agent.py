@@ -7,6 +7,7 @@ import sys
 import json
 import logging
 import threading
+import contextvars
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -25,6 +26,11 @@ from app.DeepAgent.system_prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe workspace context for concurrent deep reviews
+_current_workspace: contextvars.ContextVar[Optional[WorkspaceManager]] = contextvars.ContextVar(
+    '_current_workspace', default=None
+)
 
 
 # ==================== Custom Tools ====================
@@ -84,7 +90,7 @@ def save_analysis_result(researcher_id: str, paper_id: str, analysis: str) -> st
         Confirmation message
     """
     # Get workspace from context (will be set by DeepReviewAgent)
-    workspace = getattr(save_analysis_result, '_workspace', None)
+    workspace = _current_workspace.get(None)
     if not workspace:
         return "Error: Workspace not available"
 
@@ -110,7 +116,7 @@ def get_all_analyses() -> str:
     Returns:
         JSON string with all analyses
     """
-    workspace = getattr(get_all_analyses, '_workspace', None)
+    workspace = _current_workspace.get(None)
     if not workspace:
         return json.dumps({"error": "Workspace not available"})
 
@@ -133,7 +139,7 @@ def save_validation_result(validation: str) -> str:
     Returns:
         Confirmation message
     """
-    workspace = getattr(save_validation_result, '_workspace', None)
+    workspace = _current_workspace.get(None)
     if not workspace:
         return "Error: Workspace not available"
 
@@ -158,7 +164,7 @@ def generate_final_report(title: str) -> str:
     Returns:
         Report file path
     """
-    workspace = getattr(generate_final_report, '_workspace', None)
+    workspace = _current_workspace.get(None)
     if not workspace:
         return "Error: Workspace not available"
 
@@ -1089,11 +1095,8 @@ class DeepReviewAgent:
         logger.info("   Session: %s", self.workspace.session_id)
 
     def _set_workspace_for_tools(self):
-        """Set workspace for all tools"""
-        save_analysis_result._workspace = self.workspace
-        get_all_analyses._workspace = self.workspace
-        save_validation_result._workspace = self.workspace
-        generate_final_report._workspace = self.workspace
+        """Set workspace for all tools via contextvars (thread-safe)"""
+        _current_workspace.set(self.workspace)
 
     def _create_subagents(self) -> List[SubAgent]:
         """Create researcher and advisor subagents"""
@@ -1180,11 +1183,16 @@ Begin the review process now.
         """.strip()
 
         try:
-            # Invoke master agent
+            # Invoke master agent in isolated context to prevent workspace leaks
             if verbose:
                 logger.info("Invoking Master Agent...")
 
-            result = self.agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+            ctx = contextvars.copy_context()
+            ctx.run(_current_workspace.set, self.workspace)
+            result = ctx.run(
+                self.agent.invoke,
+                {"messages": [{"role": "user", "content": prompt}]},
+            )
 
             if verbose:
                 logger.info("Review process completed!")

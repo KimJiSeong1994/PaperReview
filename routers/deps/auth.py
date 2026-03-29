@@ -11,14 +11,20 @@ import jwt as _pyjwt
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from .config import ENVIRONMENT
+
 logger = logging.getLogger(__name__)
 
 # ── JWT configuration ─────────────────────────────────────────────────
 _JWT_SECRET = os.getenv("JWT_SECRET")
 if not _JWT_SECRET:
+    if ENVIRONMENT == "production":
+        raise RuntimeError(
+            "FATAL: JWT_SECRET environment variable is required in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
     _JWT_SECRET = secrets.token_hex(32)
-    logger.warning("JWT_SECRET not set! Using random secret — tokens will NOT persist across restarts.")
-    logger.warning("Set JWT_SECRET env var for production.")
+    logger.warning("JWT_SECRET not set — using random secret (development mode).")
 _JWT_ALGORITHM = "HS256"
 
 
