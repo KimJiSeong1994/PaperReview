@@ -30,7 +30,7 @@ jobs:
           OPENAI_API_KEY: sk-test-dummy-key-for-ci
           JWT_SECRET: ci-test-secret-key-do-not-use-in-production
           APP_PASSWORD: ci-test-password
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --cov=routers --cov=app --cov=src --cov-report=term-missing --cov-fail-under=15
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -48,6 +48,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
 
       - name: Type check
         run: npx tsc --noEmit

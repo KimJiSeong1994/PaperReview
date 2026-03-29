@@ -11,11 +11,10 @@ def mock_bookmarks_file(tmp_path):
     """Use a temp file for bookmarks during tests."""
     bf = tmp_path / "bookmarks.json"
     bf.write_text(json.dumps({"bookmarks": []}))
-    with patch("routers.deps.BOOKMARKS_FILE", bf):
-        # Also patch the lock to use the temp path
-        from filelock import FileLock
-        with patch("routers.deps._bookmarks_lock", FileLock(str(bf) + ".lock")):
-            yield bf
+    from filelock import FileLock
+    with patch("routers.deps.storage.BOOKMARKS_FILE", bf), \
+         patch("routers.deps.storage._bookmarks_lock", FileLock(str(bf) + ".lock")):
+        yield bf
 
 
 @pytest.mark.asyncio
