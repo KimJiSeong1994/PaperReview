@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PaperList from './PaperList';

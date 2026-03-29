@@ -25,14 +25,14 @@ from .poster_validator_agent import PosterValidatorAgent
 from .poster_critic_agent import PosterCriticAgent, CritiqueResult
 
 # 스타일 매니저 (동적 임포트)
-import sys
 
 try:
     from app.DeepAgent.config.style_manager import StyleManager  # type: ignore
 except ImportError:
-    # Fallback: 직접 임포트 시도
+    # Fallback: 직�� 임���트 시도
     import importlib.util
-    spec = importlib.util.spec_from_file_location("style_manager", config_path / "style_manager.py")
+    _config_dir = Path(__file__).parent.parent / "config"
+    spec = importlib.util.spec_from_file_location("style_manager", _config_dir / "style_manager.py")
     if spec and spec.loader:
         style_manager_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(style_manager_module)

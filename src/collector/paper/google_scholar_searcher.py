@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__name__)
-
 """
 Google Scholar 검색 클라이언트 (Enhanced)
 웹 스크래핑을 통한 Google Scholar 검색
@@ -18,7 +15,6 @@ from typing import List, Dict, Any, Optional, Set
 import time
 import re
 import urllib.parse
-import sys
 import os
 import random
 import pickle

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-import sys
 from dotenv import load_dotenv
 
 # .env 파일에서 환경 변수 로드

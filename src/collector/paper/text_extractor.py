@@ -1,8 +1,6 @@
 import io
 import logging
 import re
-import sys
-import os
 import PyPDF2
 import pdfplumber
 

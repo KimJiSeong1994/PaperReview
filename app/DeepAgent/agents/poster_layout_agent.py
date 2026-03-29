@@ -8,8 +8,6 @@ Paper2Poster의 Layout Planning 단계 구현
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
-import sys
-import os
 
 # Add parent directory to path for imports
 

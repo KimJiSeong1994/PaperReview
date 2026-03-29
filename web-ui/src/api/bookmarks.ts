@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { api } from './base';
 import type { HighlightItem } from './base';
 

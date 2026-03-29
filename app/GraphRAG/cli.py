@@ -2,8 +2,6 @@
 Graph RAG CLI 인터페이스
 """
 import argparse
-import sys
-import os
 
 
 from app.GraphRAG.rag_agent import GraphRAGAgent

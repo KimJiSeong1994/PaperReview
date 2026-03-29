@@ -5,11 +5,9 @@ logger = logging.getLogger(__name__)
 Review Orchestrator
 N명의 연구원이 병렬로 논문을 분석하고, 지도교수가 검증하는 오케스트레이션
 """
-import sys
 import os
 import threading
 from typing import List, Dict, Any, Optional
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 

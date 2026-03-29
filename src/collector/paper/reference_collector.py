@@ -2,8 +2,6 @@ import logging
 import requests
 from typing import List, Dict, Any, Optional
 import time
-import sys
-import os
 from src.utils.logger import log_search_operation
 
 logger = logging.getLogger(__name__)

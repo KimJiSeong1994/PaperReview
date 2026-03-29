@@ -144,7 +144,6 @@ def _create_token(username: str, role: str = "user") -> str:
 def _decode_token(token: str) -> dict:
     """Decode a raw JWT string. Delegates to shared _decode_jwt logic."""
     # Build a minimal request-like object for the shared decoder
-    from starlette.datastructures import Headers
     from starlette.requests import Request as _Req
 
     scope = {"type": "http", "headers": [(b"authorization", f"Bearer {token}".encode())]}

@@ -4,7 +4,6 @@
 import logging
 import os
 import json
-import sys
 import networkx as nx
 from typing import Dict, List, Any
 from datetime import datetime

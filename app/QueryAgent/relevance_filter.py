@@ -3,7 +3,6 @@ LLM 기반 검색 결과 관련성 필터 에이전트
 사용자 질의와 검색된 논문의 관련성을 평가하여 필터링
 """
 import os
-import sys
 import json
 import logging
 import concurrent.futures

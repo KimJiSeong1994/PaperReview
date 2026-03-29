@@ -2,9 +2,7 @@
 Advisor SubAgent
 지도교수 에이전트 - 검증 및 맥락 유지
 """
-import sys
 from typing import Dict, Any, List
-from pathlib import Path
 
 # 경로 추가
 

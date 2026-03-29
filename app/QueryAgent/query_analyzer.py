@@ -5,7 +5,6 @@
 import hashlib
 import logging
 import os
-import sys
 import json
 import threading
 import time as _time

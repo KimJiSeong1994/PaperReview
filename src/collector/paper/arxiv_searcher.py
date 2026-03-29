@@ -16,8 +16,6 @@ import time
 import arxiv
 from typing import List, Dict, Any, Set
 from datetime import datetime
-import sys
-import os
 import re
 from src.utils.logger import log_arxiv_search
 

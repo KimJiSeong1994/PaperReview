@@ -1,8 +1,6 @@
 """
 논문 랭킹 모듈
 """
-import os
-import sys
 import numpy as np
 import networkx as nx
 from typing import Dict, List, Any
