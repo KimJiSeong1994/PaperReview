@@ -231,4 +231,5 @@ __marimo__/
 *.pem
 
 
-.omcdata/blog/figures/run_*/
+.omc
+data/blog/figures/run_*/
