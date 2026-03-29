@@ -10,11 +10,14 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 """
 
 import atexit
+import hashlib
 import logging
 import math
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -29,6 +32,34 @@ logger = logging.getLogger(__name__)
 # ── 모듈 레벨 HyDE 전용 ThreadPoolExecutor (재사용) ────────────────
 _HYDE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hyde")
 atexit.register(_HYDE_EXECUTOR.shutdown, wait=False)
+
+# ── HyDE 임베딩 캐시 (TTL 24h, 최대 256 항목) ─────────────────────
+_HYDE_CACHE: Dict[str, Tuple[np.ndarray, float]] = {}
+_HYDE_CACHE_LOCK = threading.Lock()
+_HYDE_CACHE_TTL = 86400  # 24 hours
+_HYDE_CACHE_MAX = 256
+
+
+def _hyde_cache_get(query: str) -> Optional[np.ndarray]:
+    """TTL 기반 HyDE 임베딩 캐시 조회."""
+    key = hashlib.sha256(query.encode("utf-8")).hexdigest()
+    with _HYDE_CACHE_LOCK:
+        entry = _HYDE_CACHE.get(key)
+        if entry and (time.time() - entry[1]) < _HYDE_CACHE_TTL:
+            return entry[0]
+        if entry:
+            del _HYDE_CACHE[key]
+    return None
+
+
+def _hyde_cache_set(query: str, embedding: np.ndarray) -> None:
+    """HyDE 임베딩을 캐시에 저장. 최대 크기 초과 시 가장 오래된 항목 제거."""
+    key = hashlib.sha256(query.encode("utf-8")).hexdigest()
+    with _HYDE_CACHE_LOCK:
+        if len(_HYDE_CACHE) >= _HYDE_CACHE_MAX:
+            oldest_key = min(_HYDE_CACHE, key=lambda k: _HYDE_CACHE[k][1])
+            del _HYDE_CACHE[oldest_key]
+        _HYDE_CACHE[key] = (embedding, time.time())
 
 # ── Intent별 가중치 프리셋 ─────────────────────────────────────────
 
@@ -354,6 +385,12 @@ class HybridRanker:
         Returns:
             L2-정규화된 평균 임베딩 벡터, 실패 시 None
         """
+        # 캐시 조회
+        cached = _hyde_cache_get(query)
+        if cached is not None:
+            logger.debug("[HybridRanker] HyDE cache hit for query: %s", query[:50])
+            return cached
+
         try:
             # 1 & 2. 가상 초록 + 대안 쿼리 생성을 병렬 실행 (독립적인 LLM 호출)
             def _generate_hypothetical_abstract() -> str:
@@ -443,6 +480,8 @@ class HybridRanker:
                 len(texts_to_embed),
                 len(alt_queries),
             )
+            # 캐시에 저장
+            _hyde_cache_set(query, result)
             return result
 
         except Exception as e:
