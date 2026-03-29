@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Figure Extractor
 
@@ -68,7 +71,7 @@ class FigureExtractor:
                 genai.configure(api_key=self.api_key)
                 self._llm = genai.GenerativeModel("gemini-2.0-flash")
             except Exception as e:
-                print(f"[FigureExtractor] Gemini 초기화 실패: {e}")
+                logger.error(f"[FigureExtractor] Gemini 초기화 실패: {e}")
         return self._llm
 
     def extract_figures_from_papers(
@@ -95,29 +98,29 @@ class FigureExtractor:
         ][:max_papers]
 
         if not papers_with_pdf:
-            print("[FigureExtractor] PDF URL이 있는 논문이 없습니다")
+            logger.info("[FigureExtractor] PDF URL이 있는 논문이 없습니다")
             return []
 
-        print(f"[FigureExtractor] {len(papers_with_pdf)}편 논문에서 삽도 추출 시작")
+        logger.info(f"[FigureExtractor] {len(papers_with_pdf)}편 논문에서 삽도 추출 시작")
 
         for paper in papers_with_pdf:
             try:
                 figures = self._extract_from_single_paper(paper)
                 all_figures.extend(figures)
-                print(f"[FigureExtractor] '{paper.get('title', 'Unknown')[:40]}...' → {len(figures)}개 삽도 추출")
+                logger.info(f"[FigureExtractor] '{paper.get('title', 'Unknown')[:40]}...' → {len(figures)}개 삽도 추출")
             except Exception as e:
-                print(f"[FigureExtractor] 삽도 추출 실패: {e}")
+                logger.error(f"[FigureExtractor] 삽도 추출 실패: {e}")
                 continue
 
         if not all_figures:
-            print("[FigureExtractor] 추출된 삽도가 없습니다")
+            logger.info("[FigureExtractor] 추출된 삽도가 없습니다")
             return []
 
         # relevance_score 기준 정렬 후 상위 N개 선택
         all_figures.sort(key=lambda f: f.relevance_score, reverse=True)
         selected = all_figures[:self.MAX_FIGURES_FOR_POSTER]
 
-        print(f"[FigureExtractor] 총 {len(all_figures)}개 중 {len(selected)}개 핵심 삽도 선택")
+        logger.info(f"[FigureExtractor] 총 {len(all_figures)}개 중 {len(selected)}개 핵심 삽도 선택")
         return selected
 
     def _extract_from_single_paper(self, paper: Dict[str, Any]) -> List[ExtractedFigure]:
@@ -153,15 +156,15 @@ class FigureExtractor:
             return None
 
         try:
-            print(f"[FigureExtractor] PDF 다운로드: {pdf_url[:80]}...")
+            logger.info(f"[FigureExtractor] PDF 다운로드: {pdf_url[:80]}...")
             response = self.session.get(pdf_url, timeout=30)
             if response.status_code == 200 and len(response.content) > 1000:
                 if len(response.content) > self.MAX_PDF_SIZE:
-                    print(f"[WARNING] PDF too large ({len(response.content) / 1024 / 1024:.1f}MB), skipping")
+                    logger.warning(f"[WARNING] PDF too large ({len(response.content) / 1024 / 1024:.1f}MB), skipping")
                     return None
                 return response.content
         except Exception as e:
-            print(f"[FigureExtractor] PDF 다운로드 실패: {e}")
+            logger.error(f"[FigureExtractor] PDF 다운로드 실패: {e}")
 
         return None
 
@@ -170,7 +173,7 @@ class FigureExtractor:
         try:
             import fitz  # PyMuPDF
         except ImportError:
-            print("[FigureExtractor] PyMuPDF가 설치되지 않았습니다: pip install PyMuPDF")
+            logger.info("[FigureExtractor] PyMuPDF가 설치되지 않았습니다: pip install PyMuPDF")
             return []
 
         images = []
@@ -179,7 +182,7 @@ class FigureExtractor:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
             if len(doc) > self.MAX_PDF_PAGES:
-                print(f"[WARNING] PDF has too many pages ({len(doc)}), limiting to {self.MAX_PDF_PAGES}")
+                logger.warning(f"[WARNING] PDF has too many pages ({len(doc)}), limiting to {self.MAX_PDF_PAGES}")
 
             for page_num in range(min(len(doc), self.MAX_PDF_PAGES)):
                 page = doc[page_num]
@@ -234,7 +237,7 @@ class FigureExtractor:
             doc.close()
 
         except Exception as e:
-            print(f"[FigureExtractor] PDF 이미지 추출 오류: {e}")
+            logger.error(f"[FigureExtractor] PDF 이미지 추출 오류: {e}")
             return []
 
         # 면적 기준 내림차순 정렬 (큰 이미지 = 중요 Figure 가능성 높음)
@@ -319,7 +322,7 @@ RELEVANCE: [0.0~1.0 사이 점수 - 논문 핵심 내용 전달에 얼마나 중
             return self._parse_vision_response(response.text, paper_title)
 
         except Exception as e:
-            print(f"[FigureExtractor] Vision 분석 실패: {e}")
+            logger.error(f"[FigureExtractor] Vision 분석 실패: {e}")
             return self._fallback_analysis(paper_title)
 
     def _parse_vision_response(self, text: str, paper_title: str) -> tuple:

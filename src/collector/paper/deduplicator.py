@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 논문 중복 제거 모듈
 3단계 중복 제거: DOI → 정규화 제목 → 임베딩 유사도
@@ -272,7 +275,7 @@ class PaperDeduplicator:
                     if sim >= self.EMBEDDING_SIMILARITY_THRESHOLD:
                         union(idx_i, idx_j)
         except Exception as e:
-            print(f"[Dedup] Embedding dedup error: {e}")
+            logger.error(f"[Dedup] Embedding dedup error: {e}")
             return merged_into
 
         # 그룹별 병합

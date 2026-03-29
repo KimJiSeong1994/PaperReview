@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Graph RAG 검색 엔진
 """
@@ -31,12 +34,12 @@ class SearchEngine:
         if embeddings_index_path and id_mapping_path and FAISS_AVAILABLE:
             self.load_embeddings(embeddings_index_path, id_mapping_path)
         elif not FAISS_AVAILABLE:
-            print("Warning: FAISS is not available. Vector search features are disabled.")
+            logger.warning("Warning: FAISS is not available. Vector search features are disabled.")
 
     def load_embeddings(self, index_path: str, mapping_path: str):
         """저장된 임베딩 인덱스 로드"""
         if not FAISS_AVAILABLE:
-            print("FAISS is not available. Skipping embedding index load.")
+            logger.warning("FAISS is not available. Skipping embedding index load.")
             return
 
         try:
@@ -44,10 +47,10 @@ class SearchEngine:
             with open(mapping_path, 'r', encoding='utf-8') as f:
                 self.id_mapping = json.load(f)
             self._id_to_idx = {pid: i for i, pid in enumerate(self.id_mapping)}
-            print(f"✓ 임베딩 인덱스 로드 완료: {len(self.id_mapping)}개")
+            logger.info(f"✓ 임베딩 인덱스 로드 완료: {len(self.id_mapping)}개")
 
         except Exception as e:
-            print(f"임베딩 로드 실패: {e}")
+            logger.error(f"임베딩 로드 실패: {e}")
 
     def generate_query_embedding(self, query: str, openai_client) -> Optional[np.ndarray]:
         """쿼리 임베딩 생성"""
@@ -71,7 +74,7 @@ class SearchEngine:
             faiss.normalize_L2(embedding.reshape(1, -1))
             return embedding.reshape(1, -1)
         except Exception as e:
-            print(f"쿼리 임베딩 생성 실패: {e}")
+            logger.error(f"쿼리 임베딩 생성 실패: {e}")
             return None
 
     @log_data_processing("Vector Search")

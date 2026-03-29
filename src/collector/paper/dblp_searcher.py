@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 DBLP 검색 클라이언트
 DBLP REST API를 통한 컴퓨터 과학 논문 검색 (무료, API 키 불필요)
@@ -150,7 +153,7 @@ class DBLPSearcher:
             return papers[:max_results]
 
         except Exception as e:
-            print(f"[DBLP] Search error: {e}")
+            logger.error(f"[DBLP] Search error: {e}")
             return []
 
     @log_search_operation("DBLP Title")
@@ -213,5 +216,5 @@ class DBLPSearcher:
             return []
 
         except Exception as e:
-            print(f"[DBLP] Author search error: {e}")
+            logger.error(f"[DBLP] Author search error: {e}")
             return self.search(author, max_results)

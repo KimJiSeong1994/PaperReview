@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Knowledge Graph Builder - 지식 그래프 구축 및 관리
 
@@ -51,38 +54,38 @@ class KnowledgeGraphBuilder:
         max_concurrent: int = 4,
     ) -> nx.Graph:
         """전체 논문 세트에서 지식 그래프 구축"""
-        print("=" * 60)
-        print("LightRAG Knowledge Graph Build")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("LightRAG Knowledge Graph Build")
+        logger.info("=" * 60)
 
         extractor = extractor or EntityExtractor()
 
         # 1. 엔티티/관계 추출
-        print(f"\n[1/4] Extracting entities from {len(papers)} papers...")
+        logger.info(f"\n[1/4] Extracting entities from {len(papers)} papers...")
         extraction_results = extractor.extract_batch_sync(papers, max_concurrent)
 
         total_entities = sum(len(r["entities"]) for r in extraction_results)
         total_relations = sum(len(r["relationships"]) for r in extraction_results)
-        print(f"  Extracted: {total_entities} entities, {total_relations} relationships")
+        logger.info(f"  Extracted: {total_entities} entities, {total_relations} relationships")
 
         # 2. 지식 그래프 구축
-        print("\n[2/4] Building knowledge graph...")
+        logger.info("\n[2/4] Building knowledge graph...")
         self._populate_graph(extraction_results)
-        print(f"  Graph: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
+        logger.info(f"  Graph: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
 
         # 3. 청크 생성 및 저장
-        print("\n[3/4] Creating paper chunks...")
+        logger.info("\n[3/4] Creating paper chunks...")
         self._create_chunks(papers)
-        print(f"  Chunks: {len(self.storage.chunk_kv)}")
+        logger.info(f"  Chunks: {len(self.storage.chunk_kv)}")
 
         # 4. 임베딩 생성 및 인덱스 구축
-        print("\n[4/4] Generating embeddings and building indices...")
+        logger.info("\n[4/4] Generating embeddings and building indices...")
         self._build_embeddings()
 
         # 저장
         self.save()
-        print("\nKnowledge graph build complete.")
-        print(f"  Stats: {json.dumps(self.storage.get_stats(), indent=2)}")
+        logger.info("\nKnowledge graph build complete.")
+        logger.info(f"  Stats: {json.dumps(self.storage.get_stats(), indent=2)}")
 
         return self.kg
 
@@ -93,7 +96,7 @@ class KnowledgeGraphBuilder:
         max_concurrent: int = 4,
     ) -> nx.Graph:
         """새 논문 증분 추가 (기존 그래프 유지)"""
-        print(f"\nIncremental update: {len(new_papers)} new papers")
+        logger.info(f"\nIncremental update: {len(new_papers)} new papers")
 
         extractor = extractor or EntityExtractor()
 
@@ -224,7 +227,7 @@ class KnowledgeGraphBuilder:
     def _build_embeddings(self):
         """엔티티, 관계, 청크 임베딩 생성 및 인덱스 구축"""
         if not self._openai_client:
-            print("  Warning: OpenAI client unavailable, skipping embedding generation")
+            logger.warning("  Warning: OpenAI client unavailable, skipping embedding generation")
             return
 
         # 엔티티 임베딩
@@ -236,7 +239,7 @@ class KnowledgeGraphBuilder:
         if entity_texts:
             entity_embeddings = self._batch_embed(entity_texts)
             self.storage.build_entity_index(entity_embeddings)
-            print(f"  Entity index: {len(entity_embeddings)} vectors")
+            logger.info(f"  Entity index: {len(entity_embeddings)} vectors")
 
         # 관계 임베딩
         relation_texts = {}
@@ -247,7 +250,7 @@ class KnowledgeGraphBuilder:
         if relation_texts:
             relation_embeddings = self._batch_embed(relation_texts)
             self.storage.build_relation_index(relation_embeddings)
-            print(f"  Relation index: {len(relation_embeddings)} vectors")
+            logger.info(f"  Relation index: {len(relation_embeddings)} vectors")
 
         # 청크 임베딩
         chunk_texts = {}
@@ -257,7 +260,7 @@ class KnowledgeGraphBuilder:
         if chunk_texts:
             chunk_embeddings = self._batch_embed(chunk_texts)
             self.storage.build_chunk_index(chunk_embeddings)
-            print(f"  Chunk index: {len(chunk_embeddings)} vectors")
+            logger.info(f"  Chunk index: {len(chunk_embeddings)} vectors")
 
     def _batch_embed(
         self, texts: Dict[str, str], batch_size: int = 100
@@ -279,7 +282,7 @@ class KnowledgeGraphBuilder:
                 for j, emb_data in enumerate(response.data):
                     embeddings[batch_keys[j]] = np.array(emb_data.embedding, dtype="float32")
             except Exception as e:
-                print(f"  Embedding batch error: {e}")
+                logger.error(f"  Embedding batch error: {e}")
                 # 실패 시 0 벡터로 대체
                 for k in batch_keys:
                     embeddings[k] = np.zeros(1536, dtype="float32")
@@ -309,7 +312,7 @@ class KnowledgeGraphBuilder:
             pickle.dump(self.kg, f)
 
         self.storage.save()
-        print(f"  Knowledge graph saved: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
+        logger.info(f"  Knowledge graph saved: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
 
     def load(self, path: Optional[str] = None) -> nx.Graph:
         """지식 그래프 + 저장소 로드"""
@@ -318,9 +321,9 @@ class KnowledgeGraphBuilder:
         if os.path.exists(kg_path):
             with open(kg_path, "rb") as f:
                 self.kg = pickle.load(f)
-            print(f"  Knowledge graph loaded: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
+            logger.info(f"  Knowledge graph loaded: {self.kg.number_of_nodes()} nodes, {self.kg.number_of_edges()} edges")
         else:
-            print("  No existing knowledge graph found, starting fresh")
+            logger.info("  No existing knowledge graph found, starting fresh")
             self.kg = nx.Graph()
 
         self.storage.load()

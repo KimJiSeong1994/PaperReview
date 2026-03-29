@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 KG Storage - 지식 그래프 KV + Vector 통합 저장소
 
@@ -254,7 +257,7 @@ class KGStorage:
             if self.chunk_index is not None and isinstance(self.chunk_index, np.ndarray):
                 np.save(os.path.join(self.storage_dir, "chunk_embeddings.npy"), self.chunk_index)
 
-        print(f"  KGStorage saved: {len(self.entity_kv)} entities, "
+        logger.info(f"  KGStorage saved: {len(self.entity_kv)} entities, "
               f"{len(self.relation_kv)} relations, {len(self.chunk_kv)} chunks")
 
     def load(self):
@@ -279,7 +282,7 @@ class KGStorage:
             self.relation_index = self._load_numpy("relation_embeddings.npy")
             self.chunk_index = self._load_numpy("chunk_embeddings.npy")
 
-        print(f"  KGStorage loaded: {len(self.entity_kv)} entities, "
+        logger.info(f"  KGStorage loaded: {len(self.entity_kv)} entities, "
               f"{len(self.relation_kv)} relations, {len(self.chunk_kv)} chunks")
 
     def _save_json(self, data, filename: str):

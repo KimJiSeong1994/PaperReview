@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 논문 임베딩 생성 모듈
 """
@@ -47,7 +50,7 @@ class EmbeddingGenerator:
             self.client = None
             self.model = model
             if use_openai and not OPENAI_AVAILABLE:
-                print("Warning: OpenAI package not available. Using deterministic fallback embeddings.")
+                logger.warning("Warning: OpenAI package not available. Using deterministic fallback embeddings.")
 
     def _get_paper_text(self, paper: Dict[str, Any]) -> str:
         """논문에서 임베딩 생성용 텍스트 추출"""
@@ -108,7 +111,7 @@ class EmbeddingGenerator:
             self.embedding_cache[text_hash] = embedding
             return embedding
         except Exception as e:
-            print(f"Error generating embedding: {e}")
+            logger.error(f"Error generating embedding: {e}")
             return None
 
     @log_data_processing("Embedding Generation")
@@ -123,7 +126,7 @@ class EmbeddingGenerator:
 
         for i, paper in enumerate(papers):
             if i % 10 == 0:
-                print(f"  [{i+1}/{len(papers)}] 임베딩 생성 중...")
+                logger.info(f"  [{i+1}/{len(papers)}] 임베딩 생성 중...")
 
             paper_id = self._generate_paper_id(paper)
             embedding = self.generate_embedding(paper)
@@ -155,7 +158,7 @@ class EmbeddingGenerator:
             import faiss
 
             if not embeddings:
-                print("저장할 임베딩이 없습니다.")
+                logger.info("저장할 임베딩이 없습니다.")
                 return
 
             # list/ndarray 정규화
@@ -175,22 +178,22 @@ class EmbeddingGenerator:
             # 저장
             index_path = os.path.join(output_dir, 'paper_embeddings.index')
             faiss.write_index(index, index_path)
-            print(f"✓ FAISS 인덱스 저장: {index_path}")
+            logger.info(f"✓ FAISS 인덱스 저장: {index_path}")
 
             # ID 매핑 저장
             mapping_path = os.path.join(output_dir, 'paper_id_mapping.json')
             with open(mapping_path, 'w', encoding='utf-8') as f:
                 json.dump(paper_ids, f, ensure_ascii=False, indent=2)
-            print(f"✓ ID 매핑 저장: {mapping_path}")
+            logger.info(f"✓ ID 매핑 저장: {mapping_path}")
 
         except ImportError:
-            print("Warning: FAISS not installed. Saving as JSON instead.")
+            logger.warning("Warning: FAISS not installed. Saving as JSON instead.")
             # JSON으로 저장 (대안)
             json_path = os.path.join(output_dir, 'embeddings.json')
             embeddings_dict = {k: v.tolist() for k, v in embeddings.items()}
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(embeddings_dict, f, ensure_ascii=False, indent=2)
-            print(f"✓ 임베딩 저장: {json_path}")
+            logger.info(f"✓ 임베딩 저장: {json_path}")
 
     @classmethod
     def rebuild_faiss_from_json(
@@ -210,18 +213,18 @@ class EmbeddingGenerator:
         try:
             import faiss
         except ImportError:
-            print("FAISS not installed. Cannot rebuild index.")
+            logger.warning("FAISS not installed. Cannot rebuild index.")
             return False
 
         if not os.path.exists(json_path):
-            print(f"임베딩 JSON 파일을 찾을 수 없습니다: {json_path}")
+            logger.info(f"임베딩 JSON 파일을 찾을 수 없습니다: {json_path}")
             return False
 
         with open(json_path, 'r', encoding='utf-8') as f:
             embeddings_dict: Dict[str, list] = json.load(f)
 
         if not embeddings_dict:
-            print("JSON에 임베딩이 없습니다.")
+            logger.info("JSON에 임베딩이 없습니다.")
             return False
 
         paper_ids = list(embeddings_dict.keys())
@@ -240,12 +243,12 @@ class EmbeddingGenerator:
 
         index_path = os.path.join(output_dir, 'paper_embeddings.index')
         faiss.write_index(index, index_path)
-        print(f"✓ FAISS 인덱스 재생성: {index_path} ({len(paper_ids)}개)")
+        logger.info(f"✓ FAISS 인덱스 재생성: {index_path} ({len(paper_ids)}개)")
 
         mapping_path = os.path.join(output_dir, 'paper_id_mapping.json')
         with open(mapping_path, 'w', encoding='utf-8') as f:
             json.dump(paper_ids, f, ensure_ascii=False, indent=2)
-        print(f"✓ ID 매핑 저장: {mapping_path}")
+        logger.info(f"✓ ID 매핑 저장: {mapping_path}")
 
         return True
 

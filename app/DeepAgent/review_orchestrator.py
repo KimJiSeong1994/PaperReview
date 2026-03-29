@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Review Orchestrator
 N명의 연구원이 병렬로 논문을 분석하고, 지도교수가 검증하는 오케스트레이션
@@ -48,9 +51,9 @@ class ReviewOrchestrator:
         self.workspace = workspace or WorkspaceManager()
         self.max_workers = max_workers
 
-        print("[INFO] Review Orchestrator initialized")
-        print(f"   Session: {self.workspace.session_id}")
-        print(f"   Workspace: {self.workspace.session_path}")
+        logger.info("[INFO] Review Orchestrator initialized")
+        logger.info(f"   Session: {self.workspace.session_id}")
+        logger.info(f"   Workspace: {self.workspace.session_path}")
 
     def review_papers(
         self,
@@ -68,9 +71,9 @@ class ReviewOrchestrator:
             리뷰 결과
         """
         if verbose:
-            print("\n" + "="*80)
-            print("[INFO] Starting Deep Paper Review Process")
-            print("="*80 + "\n")
+            logger.info("\n" + "="*80)
+            logger.info("[INFO] Starting Deep Paper Review Process")
+            logger.info("="*80 + "\n")
 
         # Step 1: 논문 로드
         papers = self._load_papers(paper_ids, verbose)
@@ -94,9 +97,9 @@ class ReviewOrchestrator:
         self._save_results(papers, analyses, validation, report, verbose, verification)
 
         if verbose:
-            print("\n" + "="*80)
-            print("[OK] Deep Paper Review Completed!")
-            print("="*80 + "\n")
+            logger.info("\n" + "="*80)
+            logger.info("[OK] Deep Paper Review Completed!")
+            logger.info("="*80 + "\n")
 
         return {
             "status": "completed",
@@ -112,8 +115,8 @@ class ReviewOrchestrator:
     def _load_papers(self, paper_ids: List[str], verbose: bool) -> List[Dict[str, Any]]:
         """논문 로드"""
         if verbose:
-            print("[Step 1] Loading Papers...")
-            print("-" * 80)
+            logger.info("[Step 1] Loading Papers...")
+            logger.info("-" * 80)
 
         papers = load_and_prepare_papers(paper_ids)
 
@@ -122,7 +125,7 @@ class ReviewOrchestrator:
         self.workspace.log(f"Loaded {len(papers)} papers")
 
         if verbose:
-            print(f"[OK] Loaded {len(papers)} papers\n")
+            logger.info(f"[OK] Loaded {len(papers)} papers\n")
 
         return papers
 
@@ -136,9 +139,9 @@ class ReviewOrchestrator:
         N명의 연구원이 동시에 각자의 논문을 분석
         """
         if verbose:
-            print("[Step 2] Parallel Analysis by Researchers...")
-            print("-" * 80)
-            print(f"Spawning {len(papers)} researcher agents (parallel execution)")
+            logger.info("[Step 2] Parallel Analysis by Researchers...")
+            logger.info("-" * 80)
+            logger.info(f"Spawning {len(papers)} researcher agents (parallel execution)")
 
         start_time = datetime.now()
 
@@ -162,10 +165,10 @@ class ReviewOrchestrator:
                     analyses.append(analysis)
 
                     if verbose:
-                        print(f"  [v] Researcher {researcher_id} completed analysis")
+                        logger.info(f"  [v] Researcher {researcher_id} completed analysis")
 
                 except Exception as e:
-                    print(f"  [x] Researcher {researcher_id} failed: {e}")
+                    logger.error(f"  [x] Researcher {researcher_id} failed: {e}")
                     self.workspace.log(f"Analysis failed for paper {researcher_id}: {e}", "ERROR")
 
         # 논문 순서대로 정렬 (완료 순서와 무관하게)
@@ -176,8 +179,8 @@ class ReviewOrchestrator:
         elapsed = (datetime.now() - start_time).total_seconds()
 
         if verbose:
-            print(f"\n[OK] Parallel analysis completed in {elapsed:.1f}s")
-            print(f"   Average time per paper: {elapsed/len(papers):.1f}s\n")
+            logger.info(f"\n[OK] Parallel analysis completed in {elapsed:.1f}s")
+            logger.info(f"   Average time per paper: {elapsed/len(papers):.1f}s\n")
 
         return analyses
 
@@ -213,8 +216,8 @@ class ReviewOrchestrator:
     ) -> Dict[str, Any]:
         """지도교수에 의한 검증 및 종합"""
         if verbose:
-            print("[Step 3] Validation & Synthesis by Advisor...")
-            print("-" * 80)
+            logger.info("[Step 3] Validation & Synthesis by Advisor...")
+            logger.info("-" * 80)
 
         start_time = datetime.now()
 
@@ -229,10 +232,10 @@ class ReviewOrchestrator:
 
         if verbose:
             summary = validation.get("summary", {})
-            print(f"  [v] Validated {summary.get('total_papers', 0)} analyses")
-            print(f"  [v] Approved: {summary.get('approved', 0)}")
-            print(f"  [v] Needs Revision: {summary.get('needs_revision', 0)}")
-            print(f"\n[OK] Validation completed in {elapsed:.1f}s\n")
+            logger.info(f"  [v] Validated {summary.get('total_papers', 0)} analyses")
+            logger.info(f"  [v] Approved: {summary.get('approved', 0)}")
+            logger.info(f"  [v] Needs Revision: {summary.get('needs_revision', 0)}")
+            logger.info(f"\n[OK] Validation completed in {elapsed:.1f}s\n")
 
         return validation
 
@@ -251,8 +254,8 @@ class ReviewOrchestrator:
         3. 논문 간 교차 검증 및 합의도 분석
         """
         if verbose:
-            print("[Step 3.5] Fact Verification...")
-            print("-" * 80)
+            logger.info("[Step 3.5] Fact Verification...")
+            logger.info("-" * 80)
 
         start_time = datetime.now()
 
@@ -266,7 +269,7 @@ class ReviewOrchestrator:
             claims = extractor.extract_claims_sync(draft_report, papers, analyses)
 
             if verbose:
-                print(f"  [v] Extracted {len(claims)} claims from report")
+                logger.info(f"  [v] Extracted {len(claims)} claims from report")
 
             # 2. Evidence 연결
             linker = EvidenceLinker()
@@ -279,7 +282,7 @@ class ReviewOrchestrator:
             stats = verification_result.statistics
 
             if verbose:
-                print(f"  [v] Evidence linked: {stats['verified']} verified, "
+                logger.info(f"  [v] Evidence linked: {stats['verified']} verified, "
                       f"{stats['unverified']} unverified out of {stats['verifiable_claims']}")
 
             # 3. 교차 검증 (2개 이상 논문일 때만)
@@ -292,7 +295,7 @@ class ReviewOrchestrator:
 
                 if verbose:
                     conflicts = sum(1 for r in cross_refs if r.relation.value == "contradicts")
-                    print(f"  [v] Cross-validation: {len(cross_refs)} comparisons, {conflicts} conflicts")
+                    logger.info(f"  [v] Cross-validation: {len(cross_refs)} comparisons, {conflicts} conflicts")
 
             # Workspace에 저장
             self.workspace.save_verification_claims(
@@ -310,8 +313,8 @@ class ReviewOrchestrator:
 
             if verbose:
                 rate = stats['verification_rate'] * 100
-                print(f"\n[OK] Fact verification completed in {elapsed:.1f}s")
-                print(f"   Verification rate: {rate:.1f}%\n")
+                logger.info(f"\n[OK] Fact verification completed in {elapsed:.1f}s")
+                logger.info(f"   Verification rate: {rate:.1f}%\n")
 
             return {
                 "claims": [c.to_dict() for c in claims],
@@ -323,7 +326,7 @@ class ReviewOrchestrator:
 
         except Exception as e:
             if verbose:
-                print(f"  [!] Fact verification failed: {e}")
+                logger.error(f"  [!] Fact verification failed: {e}")
             self.workspace.log(f"Fact verification failed: {e}", "WARNING")
             return {"claims": [], "claim_evidences": [], "cross_references": [],
                     "consensus": [], "statistics": {}}
@@ -338,8 +341,8 @@ class ReviewOrchestrator:
     ) -> Dict[str, str]:
         """최종 리포트 생성"""
         if verbose:
-            print("[Step 4] Generating Final Report...")
-            print("-" * 80)
+            logger.info("[Step 4] Generating Final Report...")
+            logger.info("-" * 80)
 
         # Synthesis 데이터 추출
         synthesis = validation.get("cross_paper_synthesis", {})
@@ -355,9 +358,9 @@ class ReviewOrchestrator:
         )
 
         if verbose:
-            print(f"  [v] Markdown report generated ({len(markdown_report)} chars)")
-            print(f"  [v] HTML report generated ({len(html_report)} chars)")
-            print("\n[OK] Report generation completed\n")
+            logger.info(f"  [v] Markdown report generated ({len(markdown_report)} chars)")
+            logger.info(f"  [v] HTML report generated ({len(html_report)} chars)")
+            logger.info("\n[OK] Report generation completed\n")
 
         return {
             "markdown": markdown_report,
@@ -375,8 +378,8 @@ class ReviewOrchestrator:
     ):
         """결과 저장"""
         if verbose:
-            print("[Step 5] Saving Results...")
-            print("-" * 80)
+            logger.info("[Step 5] Saving Results...")
+            logger.info("-" * 80)
 
         # Markdown 리포트 저장
         md_path = self.workspace.save_final_report(
@@ -408,10 +411,10 @@ class ReviewOrchestrator:
         self.workspace.update_status("completed")
 
         if verbose:
-            print(f"  [v] Markdown report: {md_path}")
-            print(f"  [v] HTML report: {html_path}")
-            print(f"  [v] JSON results: {json_path}")
-            print("\n[OK] All results saved\n")
+            logger.info(f"  [v] Markdown report: {md_path}")
+            logger.info(f"  [v] HTML report: {html_path}")
+            logger.info(f"  [v] JSON results: {json_path}")
+            logger.info("\n[OK] All results saved\n")
 
 
 # ==================== Standalone Functions ====================

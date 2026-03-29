@@ -219,7 +219,7 @@ class ArxivSearcher:
             return results[:max_results]
 
         except Exception as e:
-            print(f"[arXiv] Error searching: {type(e).__name__}: {e}")
+            logger.error(f"[arXiv] Error searching: {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -260,7 +260,7 @@ class ArxivSearcher:
                                 all_results.append(self._extract_paper_info(result))
 
                     except Exception as e:
-                        print(f"[arXiv] Strategy '{strategy}' failed for query '{q[:30]}...': {e}")
+                        logger.error(f"[arXiv] Strategy '{strategy}' failed for query '{q[:30]}...': {e}")
                         continue
 
                 if len(all_results) >= max_results:
@@ -269,7 +269,7 @@ class ArxivSearcher:
             return all_results[:max_results]
 
         except Exception as e:
-            print(f"[arXiv] Enhanced search error: {e}")
+            logger.error(f"[arXiv] Enhanced search error: {e}")
             return []
 
     @log_arxiv_search
@@ -303,7 +303,7 @@ class ArxivSearcher:
             return results[:max_results]
 
         except Exception as e:
-            print(f"[arXiv] Title search error: {e}")
+            logger.error(f"[arXiv] Title search error: {e}")
             return []
 
     @log_arxiv_search
@@ -340,7 +340,7 @@ class ArxivSearcher:
             return results[:max_results]
 
         except Exception as e:
-            print(f"[arXiv] Similar paper search error: {e}")
+            logger.error(f"[arXiv] Similar paper search error: {e}")
             return []
 
     @log_arxiv_search

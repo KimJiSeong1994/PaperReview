@@ -247,16 +247,16 @@ class ReferenceCollector:
         all_references = {}
 
         for i, paper in enumerate(papers):
-            print(f"  [{i+1}/{len(papers)}] {paper.get('title', 'Unknown')[:50]}... 참고문헌 수집 중")
+            logger.info(f"  [{i+1}/{len(papers)}] {paper.get('title', 'Unknown')[:50]}... 참고문헌 수집 중")
 
             references = self.get_references(paper, max_references_per_paper)
 
             if references:
                 paper_key = paper.get('title', f'paper_{i}')
                 all_references[paper_key] = references
-                print(f"    → {len(references)}개 참고문헌 발견")
+                logger.info(f"    → {len(references)}개 참고문헌 발견")
             else:
-                print("    → 참고문헌 없음")
+                logger.info("    → 참고문헌 없음")
 
             # API 제한 방지를 위한 대기
             if i < len(papers) - 1:

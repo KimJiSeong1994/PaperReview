@@ -194,7 +194,7 @@ class RelevanceFilter:
                     "[RelevanceFilter] Local scoring failed, falling back to LLM: %s", e
                 )
 
-        print(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel})")
+        logger.info(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel})")
 
         # 배치로 처리 (한 번에 10개씩)
         batch_size = 10
@@ -222,9 +222,9 @@ class RelevanceFilter:
                     if score >= threshold:
                         paper['relevance_score'] = score
                         filtered_papers.append(paper)
-                        print(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        logger.info(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
                     else:
-                        print(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        logger.info(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
         else:
             # 순차 처리
             filtered_papers = []
@@ -234,9 +234,9 @@ class RelevanceFilter:
                     if score >= threshold:
                         paper['relevance_score'] = score
                         filtered_papers.append(paper)
-                        print(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        logger.info(f"  [v] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
                     else:
-                        print(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
+                        logger.info(f"  [x] [{score:.2f}] {paper.get('title', 'Untitled')[:60]}")
 
         # 관련성 점수 순으로 정렬
         filtered_papers.sort(key=lambda p: p['relevance_score'], reverse=True)
@@ -245,7 +245,7 @@ class RelevanceFilter:
         if max_papers:
             filtered_papers = filtered_papers[:max_papers]
 
-        print(f"[관련성 필터] {len(filtered_papers)}/{len(papers)}개 논문 선택 (임계값: {threshold})")
+        logger.info(f"[관련성 필터] {len(filtered_papers)}/{len(papers)}개 논문 선택 (임계값: {threshold})")
         return filtered_papers
 
     def _evaluate_batch(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
@@ -288,13 +288,13 @@ Consider:
             # 점수 추출 및 검증
             scores = evaluation.get("scores", [])
             if len(scores) != len(papers):
-                print(f"[WARNING] 평가 결과 개수 불일치: {len(scores)} vs {len(papers)}")
+                logger.warning(f"[WARNING] 평가 결과 개수 불일치: {len(scores)} vs {len(papers)}")
                 return [0.5] * len(papers)  # 기본값 반환
 
             return [float(s) for s in scores]
 
         except Exception as e:
-            print(f"[WARNING] 관련성 평가 중 오류: {e}")
+            logger.error(f"[WARNING] 관련성 평가 중 오류: {e}")
             # 폴백: 간단한 키워드 매칭으로 점수 계산
             return [self._fallback_score(query, paper) for paper in papers]
 
@@ -377,7 +377,7 @@ Return only valid JSON, no additional text."""
         if not papers:
             return []
 
-        print(f"[관련성 순위] {len(papers)}개 논문 평가 시작...")
+        logger.info(f"[관련성 순위] {len(papers)}개 논문 평가 시작...")
 
         # 배치로 처리
         batch_size = 10
@@ -394,6 +394,6 @@ Return only valid JSON, no additional text."""
         # 관련성 점수 순으로 정렬
         scored_papers.sort(key=lambda p: p['relevance_score'], reverse=True)
 
-        print(f"[관련성 순위] 평가 완료 (평균: {sum(p['relevance_score'] for p in scored_papers)/len(scored_papers):.2f})")
+        logger.info(f"[관련성 순위] 평가 완료 (평균: {sum(p['relevance_score'] for p in scored_papers)/len(scored_papers):.2f})")
         return scored_papers
 

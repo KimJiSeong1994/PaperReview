@@ -188,10 +188,10 @@ Be particularly careful with:
             return result
 
         except json.JSONDecodeError as e:
-            print(f"[WARNING] JSON 파싱 오류: {e}")
+            logger.error(f"[WARNING] JSON 파싱 오류: {e}")
             return self._fallback_analysis(query)
         except Exception as e:
-            print(f"[WARNING] 질의 분석 중 오류: {e}")
+            logger.error(f"[WARNING] 질의 분석 중 오류: {e}")
             return self._fallback_analysis(query)
 
     def _create_analysis_prompt(self, query: str) -> str:
@@ -452,7 +452,7 @@ For non-English queries, translate to English and use technical terms."""
             }
 
         except Exception as e:
-            print(f"[WARNING] Search query generation failed: {e}")
+            logger.error(f"[WARNING] Search query generation failed: {e}")
             return self._fallback_search_queries(query)
 
     def _create_search_query_prompt(self, query: str) -> str:
@@ -686,7 +686,7 @@ CRITICAL RULES:
             return source_result
 
         except Exception as e:
-            print(f"[WARNING] Source-specific query generation failed: {e}")
+            logger.error(f"[WARNING] Source-specific query generation failed: {e}")
             return self._fallback_source_queries(query, keywords)
 
     def _fallback_source_queries(
@@ -762,6 +762,6 @@ Return only valid JSON."""
             return result
 
         except Exception as e:
-            print(f"[WARNING] Context search failed: {e}")
+            logger.error(f"[WARNING] Context search failed: {e}")
             return self._fallback_search_queries(query)
 

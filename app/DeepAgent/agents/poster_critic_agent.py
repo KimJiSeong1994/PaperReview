@@ -235,7 +235,7 @@ Respond ONLY with valid JSON (no markdown, no extra text):
             try:
                 data = json.loads(text)
             except (json.JSONDecodeError, ValueError) as e:
-                print(f"[WARNING] Gemini returned malformed JSON, falling back to rule-based: {e}")
+                logger.warning(f"[WARNING] Gemini returned malformed JSON, falling back to rule-based: {e}")
                 logger.warning("[PosterCritic] Failed to parse Gemini response as JSON: %s", e)
                 return self._rule_based_critique(html)
 

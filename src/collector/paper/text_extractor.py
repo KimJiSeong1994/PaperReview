@@ -152,11 +152,11 @@ class TextExtractor:
         results = {'total': 0, 'success': 0, 'failed': 0, 'already_exists': 0}
 
         for i, paper in enumerate(papers_to_process):
-            print(f"  [{i+1}/{len(papers_to_process)}] {paper.get('title', 'Unknown')[:50]}...")
+            logger.info(f"  [{i+1}/{len(papers_to_process)}] {paper.get('title', 'Unknown')[:50]}...")
 
             if paper.get('full_text'):
                 results['already_exists'] += 1
-                print("    ✓ 본문 이미 존재")
+                logger.info("    ✓ 본문 이미 존재")
                 continue
 
             results['total'] += 1
@@ -167,16 +167,16 @@ class TextExtractor:
                 paper['full_text_length'] = len(full_text)
                 results['success'] += 1
                 source_info = (" (arXiv PDF)" if 'arXiv' in paper.get('source', '') else " (Sci-Hub)" if self.use_scihub and (paper.get('doi') or paper.get('url')) else "")
-                print(f"    ✓ 본문 추출 완료 ({len(full_text):,}자){source_info}")
+                logger.info(f"    ✓ 본문 추출 완료 ({len(full_text):,}자){source_info}")
 
             else:
                 results['failed'] += 1
                 if paper.get('abstract'):
                     paper['full_text'] = paper['abstract']
                     paper['full_text_length'] = len(paper['abstract'])
-                    print(f"    ○ PDF 없음 - Abstract 사용 ({len(paper['abstract'])}자)")
+                    logger.info(f"    ○ PDF 없음 - Abstract 사용 ({len(paper['abstract'])}자)")
 
                 else:
-                    print("    ✗ 본문 추출 실패")
+                    logger.error("    ✗ 본문 추출 실패")
 
         return results

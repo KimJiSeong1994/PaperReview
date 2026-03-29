@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Entity Extractor - LLM 기반 논문 엔티티/관계 추출
 
@@ -124,7 +127,7 @@ class EntityExtractor:
             }
 
         except Exception as e:
-            print(f"  Entity extraction failed for '{paper.get('title', '')[:50]}': {e}")
+            logger.error(f"  Entity extraction failed for '{paper.get('title', '')[:50]}': {e}")
             return {
                 "paper_id": paper_id,
                 "paper_title": paper.get("title", ""),
@@ -142,7 +145,7 @@ class EntityExtractor:
         async def _extract_with_semaphore(paper, idx):
             async with semaphore:
                 title = paper.get("title", "")[:50]
-                print(f"  [{idx+1}/{len(papers)}] Extracting: {title}...")
+                logger.info(f"  [{idx+1}/{len(papers)}] Extracting: {title}...")
                 return await self.extract_from_paper(paper)
 
         tasks = [

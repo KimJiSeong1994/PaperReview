@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Keyword Extractor - 쿼리에서 이중 레벨 키워드 추출
 
@@ -73,7 +76,7 @@ class KeywordExtractor:
             return {"low_level": low, "high_level": high}
 
         except Exception as e:
-            print(f"  Keyword extraction failed: {e}")
+            logger.error(f"  Keyword extraction failed: {e}")
             # fallback: 쿼리 단어를 그대로 사용
             words = [w.strip().lower() for w in query.split() if len(w) > 2]
             return {"low_level": words, "high_level": words[:3]}

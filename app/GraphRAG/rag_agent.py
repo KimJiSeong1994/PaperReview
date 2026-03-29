@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Graph RAG 통합 에이전트
 기존 GraphRAG + LightRAG 이중 레벨 검색 통합
@@ -52,29 +55,29 @@ class GraphRAGAgent:
         batch_size: int = 100
     ) -> nx.MultiDiGraph:
         """논문 데이터로부터 그래프 구축"""
-        print("="*70)
-        print("[INFO] Graph RAG 그래프 구축 시작")
-        print("="*70)
+        logger.info("="*70)
+        logger.info("[INFO] Graph RAG 그래프 구축 시작")
+        logger.info("="*70)
 
         # 1. 논문 데이터 로드
-        print("\n[1/4] 논문 데이터 로드 중...")
+        logger.info("\n[1/4] 논문 데이터 로드 중...")
         with open(self.papers_json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         papers = data.get('papers', [])
-        print(f"  [v] {len(papers)}개 논문 로드 완료")
+        logger.info(f"  [v] {len(papers)}개 논문 로드 완료")
 
         # 2. 임베딩 생성
-        print("\n[2/4] 임베딩 생성 중...")
+        logger.info("\n[2/4] 임베딩 생성 중...")
         embedding_generator = EmbeddingGenerator()
         embeddings = embedding_generator.generate_batch_embeddings(papers, batch_size=batch_size)
-        print(f"  [v] {len(embeddings)}개 임베딩 생성 완료")
+        logger.info(f"  [v] {len(embeddings)}개 임베딩 생성 완료")
 
         # 3. 임베딩 저장
-        print("\n[3/4] 임베딩 저장 중...")
+        logger.info("\n[3/4] 임베딩 저장 중...")
         embedding_generator.save_embeddings(embeddings)
 
         # 4. 그래프 구축
-        print("\n[4/4] 그래프 구축 중...")
+        logger.info("\n[4/4] 그래프 구축 중...")
         graph_builder = GraphBuilder()
         graph = graph_builder.build_graph(
             papers,
@@ -140,15 +143,15 @@ class GraphRAGAgent:
         extraction_model: str = "gpt-4o-mini",
     ) -> nx.Graph:
         """LightRAG 지식 그래프 구축"""
-        print("=" * 70)
-        print("LightRAG Knowledge Graph Build")
-        print("=" * 70)
+        logger.info("=" * 70)
+        logger.info("LightRAG Knowledge Graph Build")
+        logger.info("=" * 70)
 
         # 논문 데이터 로드
         with open(self.papers_json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         papers = data.get("papers", [])
-        print(f"Loaded {len(papers)} papers")
+        logger.info(f"Loaded {len(papers)} papers")
 
         # KG 구축
         storage = KGStorage(self.light_rag_dir)

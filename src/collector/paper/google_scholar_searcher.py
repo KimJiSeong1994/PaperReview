@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Google Scholar 검색 클라이언트 (Enhanced)
 웹 스크래핑을 통한 Google Scholar 검색
@@ -277,11 +280,11 @@ class GoogleScholarSearcher:
             logger.info("=" * 60)
             logger.info("CAPTCHA DETECTED - Opening browser for manual verification")
             logger.info("=" * 60)
-            print("\n" + "=" * 60)
-            print("🔒 Google Scholar CAPTCHA 감지!")
-            print("브라우저가 자동으로 열립니다. CAPTCHA를 해결해주세요.")
-            print("해결 후 브라우저를 닫으면 자동으로 검색이 계속됩니다.")
-            print("=" * 60 + "\n")
+            logger.info("\n" + "=" * 60)
+            logger.info("🔒 Google Scholar CAPTCHA 감지!")
+            logger.info("브라우저가 자동으로 열립니다. CAPTCHA를 해결해주세요.")
+            logger.info("해결 후 브라우저를 닫으면 자동으로 검색이 계속됩니다.")
+            logger.info("=" * 60 + "\n")
 
             # Chrome 옵션 설정
             chrome_options = Options()
@@ -300,7 +303,7 @@ class GoogleScholarSearcher:
                 driver.get(url)
 
                 logger.info("Waiting for CAPTCHA to be solved...")
-                print("⏳ CAPTCHA 해결을 기다리는 중... (최대 5분)")
+                logger.info("⏳ CAPTCHA 해결을 기다리는 중... (최대 5분)")
 
                 # CAPTCHA가 해결되고 정상 페이지로 이동할 때까지 대기 (최대 5분)
                 # 또는 사용자가 수동으로 scholar 페이지로 이동할 때까지
@@ -313,8 +316,8 @@ class GoogleScholarSearcher:
                 time.sleep(3)
 
                 logger.info("✅ CAPTCHA solved successfully!")
-                print("✅ CAPTCHA 해결 완료!")
-                print("🔄 쿠키를 저장하고 세션을 업데이트하는 중...")
+                logger.info("✅ CAPTCHA 해결 완료!")
+                logger.info("🔄 쿠키를 저장하고 세션을 업데이트하는 중...")
 
                 # 추가로 Google Scholar 메인 페이지 방문 (쿠키 확인)
                 try:

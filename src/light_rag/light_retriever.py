@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Light Retriever - LightRAG 이중 레벨 검색 엔진
 
@@ -317,5 +320,5 @@ class LightRetriever:
             )
             return np.array(response.data[0].embedding, dtype="float32")
         except Exception as e:
-            print(f"  Embedding error: {e}")
+            logger.error(f"  Embedding error: {e}")
             return None

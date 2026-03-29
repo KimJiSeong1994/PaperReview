@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Light Response Generator - LightRAG 전체 파이프라인 오케스트레이터
 
@@ -81,26 +84,26 @@ Answer:"""
         """전체 LightRAG 파이프라인 실행"""
 
         # 1. 쿼리 키워드 추출
-        print("  [1/4] Extracting keywords...")
+        logger.info("  [1/4] Extracting keywords...")
         keywords = self.keyword_extractor.extract_keywords(query)
-        print(f"    Low-level: {keywords['low_level']}")
-        print(f"    High-level: {keywords['high_level']}")
+        logger.info(f"    Low-level: {keywords['low_level']}")
+        logger.info(f"    High-level: {keywords['high_level']}")
 
         # 2. 이중 레벨 검색
-        print(f"  [2/4] Retrieving (mode={mode})...")
+        logger.info(f"  [2/4] Retrieving (mode={mode})...")
         retrieval_result = self.retriever.retrieve(query, keywords, mode=mode, top_k=top_k)
-        print(f"    Found: {len(retrieval_result.get('entities', []))} entities, "
+        logger.info(f"    Found: {len(retrieval_result.get('entities', []))} entities, "
               f"{len(retrieval_result.get('relationships', []))} relations, "
               f"{len(retrieval_result.get('paper_ids', []))} papers")
 
         # 3. 컨텍스트 조립
-        print("  [3/4] Building context...")
+        logger.info("  [3/4] Building context...")
         context = self.context_builder.build_context(
             retrieval_result, query, self.paper_graph
         )
 
         # 4. LLM 응답 생성
-        print("  [4/4] Generating response...")
+        logger.info("  [4/4] Generating response...")
         answer = self._generate_llm_response(context, query, temperature)
 
         # 결과 조립

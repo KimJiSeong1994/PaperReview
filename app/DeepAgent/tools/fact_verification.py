@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Fact Verification - 리뷰 리포트 주장 검증 시스템
 
@@ -494,7 +497,7 @@ class ClaimExtractor:
         matches = list(paper_pattern.finditer(report_markdown))
 
         if not matches:
-            print("[WARNING] _parse_report_sections: No '### Paper N: Title' sections found in report")
+            logger.warning("[WARNING] _parse_report_sections: No '### Paper N: Title' sections found in report")
 
         for i, match in enumerate(matches):
             paper_num = int(match.group(1))
@@ -582,7 +585,7 @@ class ClaimExtractor:
             return claims
 
         except Exception as e:
-            print(f"  Claim extraction failed for '{paper_title[:50]}': {e}")
+            logger.error(f"  Claim extraction failed for '{paper_title[:50]}': {e}")
             return self._extract_claims_heuristic(
                 section_text, paper_id, section_name
             )
@@ -843,7 +846,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
                     else:
                         evidences = []
                 except Exception as e:
-                    print(f"  Evidence search failed for claim '{claim.text[:60]}...': {e}")
+                    logger.error(f"  Evidence search failed for claim '{claim.text[:60]}...': {e}")
                     evidences = []
                 return ClaimEvidence(claim=claim, evidences=evidences)
 
@@ -1089,7 +1092,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             return evidence
 
         except Exception as e:
-            print(f"  LLM verification failed: {e}")
+            logger.error(f"  LLM verification failed: {e}")
             return self._heuristic_verify(claim, evidence)
 
     def _heuristic_verify(self, claim: Claim, evidence: Evidence) -> Evidence:
@@ -1221,7 +1224,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             )
             return response.data[0].embedding
         except Exception as e:
-            print(f"  Embedding error: {e}")
+            logger.error(f"  Embedding error: {e}")
             return None
 
     async def _get_embeddings_batch(
@@ -1241,7 +1244,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
                 for item in response.data:
                     results[start + item.index] = item.embedding
             except Exception as e:
-                print(f"  Batch embedding error: {e}")
+                logger.error(f"  Batch embedding error: {e}")
         return results
 
     def _parse_json_response(self, content: str) -> Dict[str, Any]:
@@ -1566,7 +1569,7 @@ Determine the relationship between these two claims. Respond in JSON only.
             )
 
         except Exception as e:
-            print(f"  Cross-reference comparison failed: {e}")
+            logger.error(f"  Cross-reference comparison failed: {e}")
             return self._compare_claims_heuristic(claim_a, claim_b, topic)
 
     def _compare_claims_heuristic(

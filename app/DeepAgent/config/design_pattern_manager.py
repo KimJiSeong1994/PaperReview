@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Design Pattern Manager for Academic Poster Generation
 
@@ -107,12 +110,12 @@ class DesignPatternManager:
             self.guidelines = data.get('design_guidelines', {})
 
         except FileNotFoundError:
-            print(f"Warning: Design patterns YAML not found at {self.yaml_path}")
+            logger.warning(f"Warning: Design patterns YAML not found at {self.yaml_path}")
             self.patterns = {}
             self.svg_templates = {}
             self.guidelines = {}
         except Exception as e:
-            print(f"Error loading design patterns: {e}")
+            logger.error(f"Error loading design patterns: {e}")
             self.patterns = {}
             self.svg_templates = {}
             self.guidelines = {}
