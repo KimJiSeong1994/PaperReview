@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import './DetailPanel.css';
 import type { Paper } from '../types';
+import { generateApaCitation } from '../utils/citation';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface DetailPanelProps {
   paper: Paper;
@@ -28,145 +30,8 @@ function DetailPanel({ paper, onViewPaper }: DetailPanelProps) {
     return sourceMap[paper.source || ''] || paper.source || 'Unknown';
   };
 
-  // APA 형식으로 인용 생성
-  const generateApaCitation = (): string => {
-    const formatAuthorsApa = (authors: string[]) => {
-      if (!authors || authors.length === 0) return 'Unknown Author';
-
-      const formatted = authors.slice(0, 20).map((author) => {
-        const parts = author.trim().split(' ');
-        if (parts.length === 1) return parts[0];
-        const lastName = parts[parts.length - 1];
-        const initials = parts.slice(0, -1).map(p => p[0]?.toUpperCase() + '.').join(' ');
-        return `${lastName}, ${initials}`;
-      });
-
-      if (authors.length > 20) {
-        return formatted.slice(0, 19).join(', ') + ', ... ' + formatted[formatted.length - 1];
-      } else if (formatted.length === 1) {
-        return formatted[0];
-      } else if (formatted.length === 2) {
-        return formatted.join(', & ');
-      } else {
-        return formatted.slice(0, -1).join(', ') + ', & ' + formatted[formatted.length - 1];
-      }
-    };
-
-    // 연도 추출 (year 또는 published_date에서)
-    const getYear = () => {
-      if (paper.year) return String(paper.year);
-      if (paper.published_date) {
-        const match = String(paper.published_date).match(/(\d{4})/);
-        return match ? match[1] : 'n.d.';
-      }
-      return 'n.d.';
-    };
-
-    // 월 추출 (published_date에서)
-    const getMonth = () => {
-      if (paper.month) return paper.month;
-      if (paper.published_date) {
-        const date = new Date(paper.published_date);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleString('en-US', { month: 'long' });
-        }
-      }
-      return '';
-    };
-
-    // 학회/저널 정보 추출
-    const getVenueInfo = () => {
-      // journal_ref가 있으면 사용
-      if (paper.journal_ref) return paper.journal_ref;
-      // journal이 있으면 사용
-      if (paper.journal) return paper.journal;
-      // comment에서 학회 정보 추출 (예: "Accepted at ECIR 2021")
-      if (paper.comment) {
-        const match = paper.comment.match(/(?:accepted at|published in|presented at)\s+(.+?)(?:;|$)/i);
-        if (match) return match[1].trim();
-        // 학회명이 포함된 경우
-        if (/conference|proceedings|workshop|symposium|journal/i.test(paper.comment)) {
-          return paper.comment;
-        }
-      }
-      return '';
-    };
-
-    const authors = formatAuthorsApa(paper.authors || []);
-    const year = getYear();
-    const month = getMonth();
-    const title = paper.title || 'Untitled';
-    const venue = getVenueInfo();
-    const pages = paper.pages || '';
-    const volume = paper.volume || '';
-    const issue = paper.issue || '';
-
-    // 학회 논문인지 확인
-    const isConferencePaper = venue && /proceedings|conference|workshop|symposium/i.test(venue);
-    // arXiv 프리프린트인지 확인
-    const isArxiv = paper.source === 'arXiv' || paper.arxiv_id;
-
-    let citation = '';
-
-    if (isConferencePaper) {
-      // 학회 논문 형식: 저자 (년도, 월). 제목. In 학회명 (pp. 페이지).
-      const yearPart = month ? `${year}, ${month}` : year;
-      const pagesPart = pages ? ` (pp. ${pages})` : '';
-      citation = `${authors} (${yearPart}). ${title}. In ${venue}${pagesPart}.`;
-    } else if (isArxiv) {
-      // arXiv 형식: 저자 (년도). 제목. arXiv preprint arXiv:ID.
-      const arxivId = paper.arxiv_id || paper.url?.match(/abs\/(.+)/)?.[1] || '';
-      citation = `${authors} (${year}). ${title}. arXiv preprint arXiv:${arxivId}.`;
-    } else if (venue) {
-      // 저널 논문 형식: 저자 (년도). 제목. 저널명, 권(호), 페이지.
-      let venuePart = venue;
-      if (volume) {
-        venuePart += `, ${volume}`;
-        if (issue) venuePart += `(${issue})`;
-      }
-      if (pages) venuePart += `, ${pages}`;
-      citation = `${authors} (${year}). ${title}. ${venuePart}.`;
-    } else {
-      // 기본 형식
-      citation = `${authors} (${year}). ${title}.`;
-    }
-
-    // DOI 또는 URL 추가
-    if (paper.doi) {
-      citation += ` https://doi.org/${paper.doi}`;
-    } else if (paper.url && !isArxiv) {
-      citation += ` ${paper.url}`;
-    } else if (isArxiv && paper.url) {
-      citation += ` ${paper.url}`;
-    }
-
-    return citation;
-  };
-
   const handleCopyCitation = () => {
-    const citation = generateApaCitation();
-
-    // Clipboard API fallback for HTTP environments
-    const copyToClipboard = (text: string) => {
-      if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for HTTP
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        return new Promise<void>((resolve, reject) => {
-          document.execCommand('copy') ? resolve() : reject();
-          textArea.remove();
-        });
-      }
-    };
-
+    const citation = generateApaCitation(paper);
     copyToClipboard(citation).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
