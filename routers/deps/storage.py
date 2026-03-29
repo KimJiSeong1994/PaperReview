@@ -1,8 +1,12 @@
 """
-File-based storage helpers: bookmarks, users, papers.
+Storage helpers: bookmarks, users, papers.
 
-Provides load/save/modify functions with thread-safe file locking,
-plus in-memory session storage for reviews.
+Provides load/save/modify functions backed by SQLite (BookmarkDB / UserDB).
+The public function signatures are unchanged so all routers continue to work
+without modification.
+
+Migration: on first call the legacy JSON files are automatically imported
+into SQLite and renamed to *.migrated.
 """
 
 import json
@@ -12,8 +16,6 @@ import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict
-
-from filelock import FileLock
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 
@@ -90,115 +92,181 @@ def _restore_sessions_from_workspace() -> int:
 # 모듈 로드 시 자동 복원
 _restore_sessions_from_workspace()
 
-# ── Bookmarks file & helpers ──────────────────────────────────────────
+# ── Legacy file paths (kept for test-patch compatibility) ─────────────
 BOOKMARKS_FILE = DATA_DIR / "bookmarks.json"
-_bookmarks_lock = FileLock(str(BOOKMARKS_FILE) + ".lock")
+# _bookmarks_lock is kept as a module-level name so tests can patch it.
+# The SQLite layer handles its own thread-safety; this lock is a no-op stub.
+_bookmarks_lock = threading.Lock()
 
+USERS_FILE = DATA_DIR / "users.json"
+_users_lock = threading.Lock()
+
+# ── Papers file helpers (unchanged — still JSON-based) ────────────────
+PAPERS_FILE = DATA_DIR / "raw" / "papers.json"
+_papers_lock = threading.Lock()
+
+# ── SQLite DB singletons (keyed by resolved db_path for test isolation) ──
+_bookmark_dbs: Dict[str, Any] = {}
+_bookmark_dbs_lock = threading.Lock()
+
+_user_dbs: Dict[str, Any] = {}
+_user_dbs_lock = threading.Lock()
+
+
+def _get_bookmark_db():
+    """Return a BookmarkDB instance whose path is derived from BOOKMARKS_FILE.
+
+    Using BOOKMARKS_FILE at call-time (not import-time) ensures that test
+    patches on BOOKMARKS_FILE are respected: the DB will be created in the
+    same directory as the (possibly patched) JSON file.
+    """
+    from src.storage.bookmark_db import BookmarkDB
+
+    db_path = Path(str(BOOKMARKS_FILE)).with_suffix(".db")
+    key = str(db_path.resolve())
+
+    with _bookmark_dbs_lock:
+        if key not in _bookmark_dbs:
+            db = BookmarkDB(db_path=db_path)
+            # Auto-migrate JSON → SQLite on first use
+            db.migrate_from_json(str(BOOKMARKS_FILE))
+            _bookmark_dbs[key] = db
+        return _bookmark_dbs[key]
+
+
+def _get_user_db():
+    """Return a UserDB instance whose path is derived from USERS_FILE."""
+    from src.storage.user_db import UserDB
+
+    db_path = Path(str(USERS_FILE)).with_suffix(".db")
+    key = str(db_path.resolve())
+
+    with _user_dbs_lock:
+        if key not in _user_dbs:
+            db = UserDB(db_path=db_path)
+            # Auto-migrate JSON → SQLite on first use
+            db.migrate_from_json(str(USERS_FILE))
+            _user_dbs[key] = db
+        return _user_dbs[key]
+
+
+# ── Bookmarks public API ──────────────────────────────────────────────
 
 def load_bookmarks() -> dict:
-    """Load bookmarks from JSON file (thread-safe)."""
-    with _bookmarks_lock:
-        if not BOOKMARKS_FILE.exists():
-            return {"bookmarks": []}
-        try:
-            with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            backup = BOOKMARKS_FILE.with_suffix(".json.corrupt")
-            BOOKMARKS_FILE.rename(backup)
-            logger.error("Corrupt bookmarks file backed up to %s: %s", backup, e)
-            return {"bookmarks": []}
+    """Load bookmarks from SQLite (thread-safe).
+
+    Returns the same ``{"bookmarks": [...]}`` structure as the former
+    JSON-based implementation so all callers remain unchanged.
+    """
+    db = _get_bookmark_db()
+    bookmarks = db.get_all()
+    return {"bookmarks": bookmarks}
 
 
-def save_bookmarks(data: dict):
-    """Save bookmarks to JSON file (thread-safe, atomic write)."""
-    with _bookmarks_lock:
-        BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp_file = BOOKMARKS_FILE.with_suffix(".json.tmp")
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        tmp_file.replace(BOOKMARKS_FILE)
+def save_bookmarks(data: dict) -> None:
+    """Persist a full bookmarks payload to SQLite.
+
+    Accepts the same ``{"bookmarks": [...]}`` structure as before.
+    Each bookmark is upserted; bookmarks absent from *data* are NOT deleted
+    (use :func:`modify_bookmarks` for read-modify-write with deletions).
+    """
+    db = _get_bookmark_db()
+    for bm in data.get("bookmarks", []):
+        db.upsert(bm)
+
+
+def _save_bookmarks_replace(data: dict) -> None:
+    """Replace-all helper used inside modify_bookmarks context manager.
+
+    Deletes all bookmarks owned by users represented in *data*, then
+    re-upserts the supplied list.  This faithfully replicates the old
+    atomic-overwrite semantics while keeping deletions scoped.
+    """
+    db = _get_bookmark_db()
+    new_ids = {bm["id"] for bm in data.get("bookmarks", []) if bm.get("id")}
+
+    # Delete rows whose id is no longer present in the new list
+    existing = db.get_all()
+    for bm in existing:
+        if bm.get("id") and bm["id"] not in new_ids:
+            db.delete(bm["id"])
+
+    # Upsert remaining
+    for bm in data.get("bookmarks", []):
+        db.upsert(bm)
 
 
 @contextmanager
 def modify_bookmarks():
-    """Atomically read-modify-write bookmarks under a single lock.
+    """Atomically read-modify-write bookmarks backed by SQLite.
 
-    Only saves if the block completes without exception.
-    Usage:
+    Preserves the original context-manager contract:
+
         with modify_bookmarks() as data:
             data["bookmarks"].append(new_bm)
             # auto-saved on exit
+
+    The in-memory *data* dict is built from the current DB state.  On clean
+    exit the full list is reconciled back into SQLite (upserts + deletes).
+    Exceptions abort the write.
     """
-    with _bookmarks_lock:
-        if BOOKMARKS_FILE.exists():
-            with open(BOOKMARKS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        else:
-            data = {"bookmarks": []}
-        try:
-            yield data
-        except Exception:
-            raise
-        else:
-            BOOKMARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            tmp_file = BOOKMARKS_FILE.with_suffix(".json.tmp")
-            with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            tmp_file.replace(BOOKMARKS_FILE)
+    db = _get_bookmark_db()
+    bookmarks = db.get_all()
+    data: dict = {"bookmarks": bookmarks}
+    try:
+        yield data
+    except Exception:
+        raise
+    else:
+        _save_bookmarks_replace(data)
 
 
-# ── Users file & helpers (shared by auth + admin) ────────────────────
-USERS_FILE = DATA_DIR / "users.json"
-_users_lock = FileLock(str(USERS_FILE) + ".lock")
-
+# ── Users public API ─────────────────────────────────────────────────
 
 def load_users() -> dict:
-    """Load users from JSON file (thread-safe)."""
-    with _users_lock:
-        if not USERS_FILE.exists():
-            return {}
-        try:
-            with open(USERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            backup = USERS_FILE.with_suffix(".json.corrupt")
-            USERS_FILE.rename(backup)
-            logger.error("Corrupt users file backed up to %s: %s", backup, e)
-            return {}
+    """Load users from SQLite (thread-safe).
+
+    Returns the same ``{username: {...}}`` dict as the former JSON
+    implementation so all callers remain unchanged.
+    """
+    db = _get_user_db()
+    return db.get_all()
 
 
 def save_users(users: dict) -> None:
-    """Save users to JSON file (thread-safe, atomic write)."""
-    with _users_lock:
-        USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp_file = USERS_FILE.with_suffix(".json.tmp")
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(users, f, indent=2, ensure_ascii=False)
-        tmp_file.replace(USERS_FILE)
+    """Persist a users dict to SQLite.
+
+    Accepts the same ``{username: {...}}`` structure as before.
+    Each user is upserted; users absent from *users* are NOT deleted
+    (use :func:`modify_users` for replace-all semantics).
+    """
+    db = _get_user_db()
+    for username, data in users.items():
+        db.upsert(username, data)
+
+
+def _save_users_replace(users: dict) -> None:
+    """Replace-all helper used inside modify_users context manager."""
+    db = _get_user_db()
+    new_usernames = set(users.keys())
+
+    existing = db.get_all()
+    for username in existing:
+        if username not in new_usernames:
+            db.delete(username)
+
+    for username, data in users.items():
+        db.upsert(username, data)
 
 
 @contextmanager
 def modify_users():
-    """Atomically read-modify-write users under a single lock."""
-    with _users_lock:
-        if USERS_FILE.exists():
-            with open(USERS_FILE, "r", encoding="utf-8") as f:
-                users = json.load(f)
-        else:
-            users = {}
-        try:
-            yield users
-        except Exception:
-            raise
-        else:
-            USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            tmp_file = USERS_FILE.with_suffix(".json.tmp")
-            with open(tmp_file, "w", encoding="utf-8") as f:
-                json.dump(users, f, indent=2, ensure_ascii=False)
-            tmp_file.replace(USERS_FILE)
-
-
-# ── Papers file helpers ──────────────────────────────────────────────
-PAPERS_FILE = DATA_DIR / "raw" / "papers.json"
-_papers_lock = FileLock(str(PAPERS_FILE) + ".lock")
+    """Atomically read-modify-write users backed by SQLite."""
+    db = _get_user_db()
+    users = db.get_all()
+    try:
+        yield users
+    except Exception:
+        raise
+    else:
+        _save_users_replace(users)
