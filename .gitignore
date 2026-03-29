@@ -4,6 +4,10 @@ __pycache__/
 *$py.class
 
 data/*
+!data/blog/
+data/blog/*
+!data/blog/figures/
+!data/blog/posts.json
 !data/curricula/
 data/curricula/user_index.json
 data/curricula/custom_*.json
@@ -227,4 +231,4 @@ __marimo__/
 *.pem
 
 
-.omc
+.omcdata/blog/figures/run_*/
