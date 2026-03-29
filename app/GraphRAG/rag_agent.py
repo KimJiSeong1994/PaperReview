@@ -8,14 +8,13 @@ import json
 import networkx as nx
 from typing import Dict, List, Any
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
-from graph.embedding_generator import EmbeddingGenerator
-from graph.graph_builder import GraphBuilder
-from graph_rag.response_generator import ResponseGenerator
-from light_rag.kg_storage import KGStorage
-from light_rag.kg_builder import KnowledgeGraphBuilder
-from light_rag.entity_extractor import EntityExtractor
-from light_rag.light_response_generator import LightResponseGenerator
+from src.graph.embedding_generator import EmbeddingGenerator
+from src.graph.graph_builder import GraphBuilder
+from src.graph_rag.response_generator import ResponseGenerator
+from src.light_rag.kg_storage import KGStorage
+from src.light_rag.kg_builder import KnowledgeGraphBuilder
+from src.light_rag.entity_extractor import EntityExtractor
+from src.light_rag.light_response_generator import LightResponseGenerator
 
 class GraphRAGAgent:
     """Graph RAG 통합 에이전트 (기존 GraphRAG + LightRAG)"""

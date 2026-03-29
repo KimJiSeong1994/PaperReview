@@ -1,14 +1,11 @@
 import os
-import sys
 import argparse
 from dotenv import load_dotenv
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
-sys.path.append('src')
-sys.path.append('app/SearchAgent')
-from search_agent import SearchAgent
+from app.SearchAgent.search_agent import SearchAgent
 from app.LangGraphUI import run_langgraph_cli
 
 def main(queries=None, max_results=5, openai_api_key=None):

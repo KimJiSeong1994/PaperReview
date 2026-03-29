@@ -16,8 +16,7 @@ else:
     faiss = None  # type: ignore
     FAISS_AVAILABLE = False
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 class SearchEngine:
     """Graph RAG 검색 엔진"""

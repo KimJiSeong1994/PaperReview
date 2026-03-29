@@ -21,8 +21,7 @@ import random
 import pickle
 import threading
 from pathlib import Path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_search_operation, logger
+from src.utils.logger import log_search_operation, logger
 
 def _get_free_proxy(timeout: int = 5) -> Optional[str]:
     """free-proxy 라이브러리로 무료 프록시 획득 (시간 제한 포함)"""

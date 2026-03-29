@@ -5,12 +5,11 @@ import os
 import sys
 from typing import Dict, Any
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from .search_engine import SearchEngine
 from .ranker import PaperRanker
 from .context_builder import ContextBuilder
 from .llm_client import LLMClient
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 class ResponseGenerator:
     """Graph RAG 응답 생성 클래스"""

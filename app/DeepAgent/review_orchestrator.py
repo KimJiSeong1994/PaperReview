@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 # 경로 추가
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from app.DeepAgent.workspace_manager import WorkspaceManager
 from app.DeepAgent.tools.paper_loader import load_and_prepare_papers

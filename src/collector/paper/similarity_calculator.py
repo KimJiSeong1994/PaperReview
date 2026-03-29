@@ -16,8 +16,7 @@ from dotenv import load_dotenv
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 try:
     from openai import OpenAI

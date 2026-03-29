@@ -6,45 +6,41 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 import logging
-import sys
 import os
 import time
 
-# 상위 디렉토리에서 src 모듈 import
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
-from collector.paper.arxiv_searcher import ArxivSearcher
-from collector.paper.connected_papers_searcher import ConnectedPapersSearcher
-from collector.paper.google_scholar_searcher import GoogleScholarSearcher
-from collector.paper.openalex_searcher import OpenAlexSearcher
-from collector.paper.dblp_searcher import DBLPSearcher
-from collector.paper.reference_collector import ReferenceCollector
-from collector.paper.text_extractor import TextExtractor
-from collector.paper.similarity_calculator import SimilarityCalculator
-from collector.paper.deduplicator import PaperDeduplicator
-from collector.paper.github_client import GitHubClient
+from src.collector.paper.arxiv_searcher import ArxivSearcher
+from src.collector.paper.connected_papers_searcher import ConnectedPapersSearcher
+from src.collector.paper.google_scholar_searcher import GoogleScholarSearcher
+from src.collector.paper.openalex_searcher import OpenAlexSearcher
+from src.collector.paper.dblp_searcher import DBLPSearcher
+from src.collector.paper.reference_collector import ReferenceCollector
+from src.collector.paper.text_extractor import TextExtractor
+from src.collector.paper.similarity_calculator import SimilarityCalculator
+from src.collector.paper.deduplicator import PaperDeduplicator
+from src.collector.paper.github_client import GitHubClient
 
 
 def _contains_korean(text: str) -> bool:
     """텍스트에 한글 음절(U+AC00-U+D7A3)이 포함되어 있는지 확인."""
     return any('\uAC00' <= c <= '\uD7A3' for c in text)
-from graph.embedding_generator import EmbeddingGenerator
-from graph.constants import JACCARD_EDGE_THRESHOLD, CITATION_MAX_PER_PAPER, CITATION_COLLECTION_DELAY
+from src.graph.embedding_generator import EmbeddingGenerator
+from src.graph.constants import JACCARD_EDGE_THRESHOLD, CITATION_MAX_PER_PAPER, CITATION_COLLECTION_DELAY
 
 # HybridRanker import
 try:
-    from graph_rag.hybrid_ranker import HybridRanker
+    from src.graph_rag.hybrid_ranker import HybridRanker
     HYBRID_RANKER_AVAILABLE = True
 except ImportError:
     HYBRID_RANKER_AVAILABLE = False
     HybridRanker = None
-from graph.node_creator import NodeCreator
-from graph.edge_creator import EdgeCreator
-from utils.logger import log_search_operation
+from src.graph.node_creator import NodeCreator
+from src.graph.edge_creator import EdgeCreator
+from src.utils.logger import log_search_operation
 
 # QueryAnalyzer import
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 try:
-    from QueryAgent.query_analyzer import QueryAnalyzer
+    from app.QueryAgent.query_analyzer import QueryAnalyzer
     QUERY_ANALYZER_AVAILABLE = True
 except ImportError:
     QUERY_ANALYZER_AVAILABLE = False

@@ -1,0 +1,8 @@
+[project]
+name = "paper-review-agent"
+version = "1.0.0"
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "app*", "routers*"]

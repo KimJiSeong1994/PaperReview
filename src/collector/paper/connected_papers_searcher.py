@@ -8,8 +8,7 @@ import requests
 from typing import List, Dict, Any, Optional
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_search_operation
+from src.utils.logger import log_search_operation
 
 logger = logging.getLogger(__name__)
 

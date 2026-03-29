@@ -10,8 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from typing import Dict, Any, Optional
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,6 @@ from typing import Dict, Any, List
 from pathlib import Path
 
 # 경로 추가
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from deepagents import SubAgent
 from langchain_core.tools import tool

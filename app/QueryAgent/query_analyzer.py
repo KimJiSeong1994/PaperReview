@@ -48,13 +48,12 @@ def _set_in_cache(key: str, data: Any) -> None:
 
 load_dotenv()
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../src'))
 
 # 로거는 lazy import로 처리 (권한 오류 방지)
 def log_data_processing(operation: str = None):
     """로거 데코레이터 (lazy import)"""
     try:
-        from utils.logger import log_data_processing as _log_data_processing
+        from src.utils.logger import log_data_processing as _log_data_processing
         return _log_data_processing(operation)
     except (ImportError, OSError, PermissionError):
         # 로거 사용 불가 시 no-op 데코레이터 반환

@@ -5,7 +5,6 @@ import os
 import sys
 from typing import Dict, List
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 class ContextBuilder:
     """컨텍스트 생성 클래스"""

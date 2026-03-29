@@ -26,12 +26,9 @@ from .poster_critic_agent import PosterCriticAgent, CritiqueResult
 
 # 스타일 매니저 (동적 임포트)
 import sys
-config_path = Path(__file__).parent.parent / "config"
-if str(config_path) not in sys.path:
-    sys.path.insert(0, str(config_path))
 
 try:
-    from style_manager import StyleManager  # type: ignore
+    from app.DeepAgent.config.style_manager import StyleManager  # type: ignore
 except ImportError:
     # Fallback: 직접 임포트 시도
     import importlib.util

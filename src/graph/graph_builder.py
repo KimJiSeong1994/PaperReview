@@ -9,10 +9,9 @@ import networkx as nx
 from typing import Dict, List, Any
 from datetime import datetime
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 from .node_creator import NodeCreator
 from .edge_creator import EdgeCreator
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 logger = logging.getLogger(__name__)
 

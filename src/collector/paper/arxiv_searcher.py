@@ -19,8 +19,7 @@ from datetime import datetime
 import sys
 import os
 import re
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_arxiv_search
+from src.utils.logger import log_arxiv_search
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,6 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from app.DeepAgent.config.design_pattern_manager import DesignPatternManager, get_design_pattern_manager

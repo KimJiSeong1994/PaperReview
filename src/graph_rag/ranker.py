@@ -8,7 +8,6 @@ import networkx as nx
 from typing import Dict, List, Any
 from datetime import datetime
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
 
 class PaperRanker:
     """논문 랭킹 클래스"""

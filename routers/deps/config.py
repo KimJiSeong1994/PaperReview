@@ -6,7 +6,6 @@ This is the base module — it must not import from any other deps submodule.
 
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -21,9 +20,6 @@ os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
 
 # ── Project paths ──────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(PROJECT_ROOT / "src"))
-sys.path.append(str(PROJECT_ROOT / "app" / "SearchAgent"))
-sys.path.append(str(PROJECT_ROOT / "app" / "QueryAgent"))
 
 # .env
 env_path = PROJECT_ROOT / ".env"

@@ -10,9 +10,9 @@ from .config import api_key
 logger = logging.getLogger(__name__)
 
 # ── Agent instances ────────────────────────────────────────────────────
-from search_agent import SearchAgent
-from query_analyzer import QueryAnalyzer
-from relevance_filter import RelevanceFilter
+from app.SearchAgent.search_agent import SearchAgent
+from app.QueryAgent.query_analyzer import QueryAnalyzer
+from app.QueryAgent.relevance_filter import RelevanceFilter
 
 search_agent = SearchAgent(openai_api_key=api_key)
 

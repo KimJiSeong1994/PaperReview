@@ -10,11 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-from utils.logger import log_data_processing
+from src.utils.logger import log_data_processing
 
 import hashlib as _hashlib
-from utils.paper_utils import generate_paper_id as _generate_paper_id_util
+from src.utils.paper_utils import generate_paper_id as _generate_paper_id_util
 
 try:
     from openai import OpenAI
