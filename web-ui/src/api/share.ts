@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { api, API_BASE_URL } from './base';
 import type { HighlightItem } from './base';

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { SearchRequest, SearchResponse, GraphData } from '../types';
 import { api, API_BASE_URL } from './base';
 
