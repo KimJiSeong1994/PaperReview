@@ -1125,10 +1125,17 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 ),
                                 timeout=_RELEVANCE_FILTER_TIMEOUT,
                             )
-                            results = {}
-                            for source in _all_source_keys:
-                                results[source] = [p for p in filtered_papers if p.get("source") == source]
-                            logger.info("[API] Filtered results: %s papers (threshold: 0.65)", len(filtered_papers))
+                            # Fallback: if filtering eliminated ALL papers, keep originals
+                            if filtered_papers:
+                                results = {}
+                                for source in _all_source_keys:
+                                    results[source] = [p for p in filtered_papers if p.get("source") == source]
+                                logger.info("[API] Filtered results: %s papers (threshold: 0.65)", len(filtered_papers))
+                            else:
+                                logger.warning(
+                                    "[API] Relevance filter eliminated all %d papers — keeping unfiltered results",
+                                    len(all_papers),
+                                )
                         else:
                             logger.info("[API] No papers to filter")
                     except Exception as e:
