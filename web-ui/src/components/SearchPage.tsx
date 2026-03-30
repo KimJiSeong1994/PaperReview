@@ -634,6 +634,10 @@ function SearchPage() {
                   <DetailPanel
                     paper={selectedPaper}
                     onViewPaper={(paper) => {
+                      if (!isAuthenticated) {
+                        setShowLoginModal(true);
+                        return;
+                      }
                       navigate('/mypage', { state: { viewPaper: paper } });
                     }}
                   />

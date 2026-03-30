@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const role = localStorage.getItem('user_role') || 'user';
     setUserRole(role);
     setShowLoginModal(false);
-    navigate('/mypage');
+    // navigate는 호출자가 필요 시 직접 수행 (컨텍스트에 따라 다를 수 있으므로)
   };
 
   const logout = () => {
