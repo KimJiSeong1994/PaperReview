@@ -1,11 +1,12 @@
 import { api } from './base';
 import type { HighlightItem } from './base';
+import type { Paper } from '../types';
 
 export const saveBookmark = async (request: {
   session_id: string;
   title: string;
   query: string;
-  papers: any[];
+  papers: Paper[];
   report_markdown: string;
   tags?: string[];
   topic?: string;
