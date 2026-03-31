@@ -103,6 +103,7 @@ function MyPage({ onBack }: MyPageProps) {
       setShareInfo(null);
       bm.setBookmarkDetail((prev: BookmarkDetail | null) => {
         if (!prev) return prev;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { share: _, ...rest } = prev;
         return rest;
       });
