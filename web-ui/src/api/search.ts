@@ -6,7 +6,7 @@ export const searchPapers = async (request: SearchRequest, signal?: AbortSignal)
   return response.data;
 };
 
-export const savePapers = async (results: Record<string, Record<string, unknown>[]>, query: string) => {
+export const savePapers = async (results: Record<string, any[]>, query: string) => {
   const response = await api.post('/api/save', { results, query });
   return response.data;
 };
@@ -95,7 +95,7 @@ export interface DeepSearchStreamCallbacks {
   onPapersFound?: (data: { count: number; turns_used: number }) => void;
   onGapAnalysis?: (data: { missing: string[] }) => void;
   onEvaluation?: (data: { overall_score: number; dimensions: Record<string, number> }) => void;
-  onComplete?: (data: { papers: Record<string, unknown>[]; total: number; search_time: number; evaluation: Record<string, unknown>; metadata: Record<string, unknown> }) => void;
+  onComplete?: (data: { papers: any[]; total: number; search_time: number; evaluation: any; metadata: any }) => void;
   onError?: (error: string) => void;
 }
 

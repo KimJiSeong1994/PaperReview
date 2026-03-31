@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
-import type { BookmarkDetail } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
@@ -31,10 +30,10 @@ function MyPage({ onBack }: MyPageProps) {
   const [activeTab, setActiveTab] = useState<MyPageTab>('bookmarks');
 
   // Direct paper view from search results (via router state)
-  const [directPaper, setDirectPaper] = useState<Record<string, unknown> | null>(null);
+  const [directPaper, setDirectPaper] = useState<any>(null);
 
   useEffect(() => {
-    const state = location.state as { viewPaper?: Record<string, unknown> } | null;
+    const state = location.state as { viewPaper?: any } | null;
     if (state?.viewPaper) {
       setDirectPaper(state.viewPaper);
       setActiveTab('papers');
@@ -84,7 +83,7 @@ function MyPage({ onBack }: MyPageProps) {
     try {
       const info = await createShareLink(bm.selectedBookmark.id);
       setShareInfo(info);
-      bm.setBookmarkDetail((prev: BookmarkDetail | null) => prev ? { ...prev, share: info } : prev);
+      bm.setBookmarkDetail((prev: any) => prev ? { ...prev, share: info } : prev);
       bm.setBookmarks((prev: Bookmark[]) => prev.map(b =>
         b.id === bm.selectedBookmark!.id ? { ...b, has_share: true } : b
       ));
@@ -101,9 +100,8 @@ function MyPage({ onBack }: MyPageProps) {
     try {
       await revokeShareLink(bm.selectedBookmark.id);
       setShareInfo(null);
-      bm.setBookmarkDetail((prev: BookmarkDetail | null) => {
+      bm.setBookmarkDetail((prev: any) => {
         if (!prev) return prev;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { share: _, ...rest } = prev;
         return rest;
       });

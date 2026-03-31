@@ -3,7 +3,7 @@ import { api } from './base';
 // Deep Review API
 export interface DeepReviewRequest {
   paper_ids: string[];
-  papers?: Record<string, unknown>[];  // 선택한 논문의 전체 데이터 (ID 매칭 문제 해결)
+  papers?: any[];  // 선택한 논문의 전체 데이터 (ID 매칭 문제 해결)
   num_researchers?: number;
   model?: string;
 }
@@ -38,7 +38,7 @@ export interface ReviewStatusResponse {
 export interface ReviewReportResponse {
   session_id: string;
   report_markdown: string;
-  report_json?: Record<string, unknown>;
+  report_json?: any;
   num_papers: number;
   created_at: string;
   verification_stats?: VerificationStats;

@@ -5,7 +5,7 @@ export const saveBookmark = async (request: {
   session_id: string;
   title: string;
   query: string;
-  papers: Record<string, unknown>[];
+  papers: any[];
   report_markdown: string;
   tags?: string[];
   topic?: string;

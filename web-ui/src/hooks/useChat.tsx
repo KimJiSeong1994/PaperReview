@@ -7,7 +7,7 @@ import { CHAT_STORAGE_KEY } from '../components/mypage/types';
 export function useChat(
   bookmarks: Bookmark[],
   chatBookmarkIds: string[],
-  handleSelectBookmark: (bm: Bookmark) => Promise<unknown>,
+  handleSelectBookmark: (bm: Bookmark) => Promise<any>,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -210,10 +210,10 @@ export function useChat(
 
   const highlightChildren = useCallback((children: React.ReactNode): React.ReactNode => {
     if (!highlightTerms.length) return children;
-    const processNode = (node: React.ReactNode, idx: number): React.ReactNode => {
+    const processNode = (node: any, idx: number): any => {
       if (typeof node === 'string') return highlightText(node);
       if (isValidElement(node)) {
-        const processed = highlightChildren((node.props as Record<string, unknown>).children as React.ReactNode);
+        const processed = highlightChildren((node.props as any).children);
         return cloneElement(node, { key: node.key || `hc-${idx}` }, processed);
       }
       return node;
@@ -260,12 +260,12 @@ export function useChat(
   }, [handleCitationClick]);
 
   const processCitationChildren = useCallback((children: React.ReactNode, sources?: ChatSource[], msgContent?: string): React.ReactNode => {
-    const processNode = (node: React.ReactNode, idx: number): React.ReactNode => {
+    const processNode = (node: any, idx: number): any => {
       if (typeof node === 'string') {
         return renderCitationText(node, sources, msgContent);
       }
-      if (isValidElement(node) && (node.props as Record<string, unknown>).children) {
-        const processed = processCitationChildren((node.props as Record<string, unknown>).children as React.ReactNode, sources, msgContent);
+      if (isValidElement(node) && (node.props as any).children) {
+        const processed = processCitationChildren((node.props as any).children, sources, msgContent);
         return cloneElement(node, { key: node.key || `cn-${idx}` }, processed);
       }
       return node;

@@ -7,7 +7,7 @@ import type { Bookmark } from '../components/mypage/types';
 
 export function useHighlights(
   selectedBookmark: Bookmark | null,
-  bookmarkDetail: Record<string, unknown> | null,
+  bookmarkDetail: any,
   setBookmarks: React.Dispatch<React.SetStateAction<Bookmark[]>>,
   reportScrollRef: React.RefObject<HTMLDivElement | null>,
 ) {
@@ -246,7 +246,7 @@ export function useHighlights(
     if (!selectedBookmark || autoHighlighting) return;
     setAutoHighlighting(true);
     try {
-      const result = await autoHighlightBookmark(selectedBookmark.id) as { added_count?: number; enriched_count?: number; highlights: HighlightItem[] };
+      const result = await autoHighlightBookmark(selectedBookmark.id) as any;
       const addedCount = result.added_count ?? 0;
       const enrichedCount = result.enriched_count ?? 0;
       setUserHighlights(result.highlights);
@@ -321,8 +321,8 @@ export function useHighlights(
         }
         return result.length === 1 ? result[0] : <>{result}</>;
       }
-      if (isValidElement(node) && (node.props as Record<string, unknown>).children) {
-        return cloneElement(node, { key } as React.Attributes, applyUserHighlights((node.props as Record<string, unknown>).children as React.ReactNode));
+      if (isValidElement(node) && (node.props as any).children) {
+        return cloneElement(node, { key } as any, applyUserHighlights((node.props as any).children));
       }
       return node;
     };

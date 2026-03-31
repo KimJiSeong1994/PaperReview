@@ -57,7 +57,7 @@ function DraggableBookmarkItem({
         type="checkbox"
         className="mypage-bookmark-checkbox"
         checked={isChecked}
-        onClick={(e) => onToggleSelection(bm.id, e as React.MouseEvent)}
+        onClick={(e) => onToggleSelection(bm.id, e as any)}
         onChange={() => {}}
       />
       <svg className="mypage-tree-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="13" height="13">

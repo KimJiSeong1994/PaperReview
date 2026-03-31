@@ -10,7 +10,6 @@ export interface Paper {
   doi?: string;
   citations?: number;
   source?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -52,7 +51,7 @@ export interface QueryAnalysis {
   intent: string;
   keywords: string[];
   improved_query: string;
-  search_filters: Record<string, unknown>;
+  search_filters: Record<string, any>;
   confidence: number;
   original_query: string;
   analysis_details?: string;
