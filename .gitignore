@@ -7,6 +7,7 @@ data/*
 !data/blog/
 data/blog/*
 !data/blog/figures/
+!data/blog/thumbnails/
 !data/blog/posts.json
 !data/curricula/
 data/curricula/user_index.json
