@@ -13,7 +13,7 @@ export interface SharedBookmarkData {
   id: string;
   title: string;
   query: string;
-  papers: any[];
+  papers: Record<string, unknown>[];
   num_papers: number;
   report_markdown: string;
   created_at: string;
