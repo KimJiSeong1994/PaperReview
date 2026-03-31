@@ -7,7 +7,7 @@ import type { CitationTreeData } from './types';
 import ConsensusMeter from './ConsensusMeter';
 
 export interface ReportViewerProps {
-  bookmarkDetail: any;
+  bookmarkDetail: Record<string, unknown> | null;
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   reportScrollRef: React.RefObject<HTMLDivElement | null>;
@@ -324,7 +324,7 @@ export default function ReportViewer({
               </div>
               {!papersCollapsed && (
                 <div className="mypage-detail-papers">
-                  {bookmarkDetail.papers.map((p: any, i: number) => (
+                  {(bookmarkDetail.papers as Record<string, unknown>[]).map((p: Record<string, unknown>, i: number) => (
                     <div key={i} className="mypage-detail-paper">
                       <span className="mypage-detail-paper-title">{p.title}</span>
                       <span className="mypage-detail-paper-meta">

@@ -10,8 +10,20 @@ import {
 import type { HighlightItem } from '../api/client';
 import type { Bookmark } from '../components/mypage/types';
 
+export interface BookmarkDetail {
+  id?: string;
+  title?: string;
+  notes?: string;
+  highlights?: HighlightItem[];
+  papers?: Record<string, unknown>[];
+  report_markdown?: string;
+  citation_tree?: Record<string, unknown>;
+  share?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface BookmarkSelectResult {
-  detail: any;
+  detail: BookmarkDetail;
   notes: string;
   highlights: HighlightItem[];
 }
@@ -19,7 +31,7 @@ export interface BookmarkSelectResult {
 export function useBookmarks() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [selectedBookmark, setSelectedBookmark] = useState<Bookmark | null>(null);
-  const [bookmarkDetail, setBookmarkDetail] = useState<any>(null);
+  const [bookmarkDetail, setBookmarkDetail] = useState<BookmarkDetail | null>(null);
   const [loadingBookmarks, setLoadingBookmarks] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -135,7 +147,7 @@ export function useBookmarks() {
       setLoadingBookmarks(true);
       const data = await getBookmarks();
       setBookmarks(data.bookmarks || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load bookmarks:', error);
     } finally {
       setLoadingBookmarks(false);
@@ -153,7 +165,7 @@ export function useBookmarks() {
         notes: detail.notes || '',
         highlights: detail.highlights || [],
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load bookmark detail:', error);
       return null;
     } finally {
@@ -172,7 +184,7 @@ export function useBookmarks() {
         setBookmarkDetail(null);
       }
       setSelectedIds(prev => { const next = new Set(prev); next.delete(bookmarkId); return next; });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete bookmark:', error);
     }
   }, [bookmarks, selectedBookmark]);
@@ -188,7 +200,7 @@ export function useBookmarks() {
         next.delete(newTopic);
         return next;
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to move bookmark:', error);
     }
   }, []);
@@ -202,10 +214,10 @@ export function useBookmarks() {
       bm.id === bookmarkId ? { ...bm, title: trimmed } : bm
     ));
     setSelectedBookmark(prev => prev?.id === bookmarkId ? { ...prev, title: trimmed } : prev);
-    setBookmarkDetail((prev: any) => prev?.id === bookmarkId ? { ...prev, title: trimmed } : prev);
+    setBookmarkDetail((prev: BookmarkDetail | null) => prev?.id === bookmarkId ? { ...prev, title: trimmed } : prev);
     try {
       await updateBookmarkTitle(bookmarkId, trimmed);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to rename bookmark:', error);
       // Rollback on failure
       setBookmarks(rollback.bookmarks);
@@ -213,7 +225,7 @@ export function useBookmarks() {
         const original = rollback.bookmarks.find(bm => bm.id === prev?.id);
         return original ? { ...prev!, title: original.title } : prev;
       });
-      setBookmarkDetail((prev: any) => {
+      setBookmarkDetail((prev: BookmarkDetail | null) => {
         const original = rollback.bookmarks.find(bm => bm.id === prev?.id);
         return original ? { ...prev, title: original.title } : prev;
       });
@@ -263,7 +275,7 @@ export function useBookmarks() {
         setBookmarkDetail(null);
       }
       setSelectedIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to bulk delete:', error);
     }
   }, [selectedIds, selectedBookmark]);
@@ -275,7 +287,7 @@ export function useBookmarks() {
         selectedIds.has(bm.id) ? { ...bm, topic } : bm
       ));
       setSelectedIds(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to bulk move:', error);
     }
   }, [selectedIds]);
@@ -287,7 +299,7 @@ export function useBookmarks() {
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const overId = event.over?.id as string | undefined;
-    let topicId: string | null = overId?.startsWith('topic:') ? overId : null;
+    const topicId: string | null = overId?.startsWith('topic:') ? overId : null;
 
     setOverTopicId(topicId);
 
@@ -319,7 +331,7 @@ export function useBookmarks() {
     if (!over) return;
 
     const draggedId = active.id as string;
-    const sourceTopic = (active.data.current as any)?.topic as string | undefined;
+    const sourceTopic = (active.data.current as Record<string, unknown>)?.topic as string | undefined;
     if (!sourceTopic) return;
 
     const overId = over.id as string;
@@ -350,8 +362,8 @@ export function useBookmarks() {
         } catch { /* still building */ }
       }, 10000);
       setTimeout(() => { clearInterval(pollId); setKgBuilding(false); }, 600000);
-    } catch (error: any) {
-      alert(`KG build failed: ${error.message || error}`);
+    } catch (error: unknown) {
+      alert(`KG build failed: ${error instanceof Error ? error.message : String(error)}`);
       setKgBuilding(false);
     }
   }, [kgBuilding]);
@@ -359,10 +371,10 @@ export function useBookmarks() {
   // Export
   const handleExportBibTeX = useCallback(() => {
     if (!bookmarkDetail?.papers) return;
-    const bibtex = bookmarkDetail.papers.map((p: any, i: number) => {
-      const key = (p.title || 'paper').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) + (p.year || i);
-      const authors = (p.authors || []).join(' and ');
-      return `@article{${key},\n  title={${p.title || 'Untitled'}},\n  author={${authors || 'Unknown'}},\n  year={${p.year || 'n.d.'}}\n}`;
+    const bibtex = bookmarkDetail.papers.map((p: Record<string, unknown>, i: number) => {
+      const key = ((p.title as string) || 'paper').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) + (p.year || i);
+      const authors = ((p.authors as string[]) || []).join(' and ');
+      return `@article{${key},\n  title={${(p.title as string) || 'Untitled'}},\n  author={${authors || 'Unknown'}},\n  year={${p.year || 'n.d.'}}\n}`;
     }).join('\n\n');
     const blob = new Blob([bibtex], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);

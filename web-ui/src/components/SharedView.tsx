@@ -200,7 +200,7 @@ export default function SharedView() {
                 Papers ({data.papers.length})
               </h3>
               <div className="shared-view-papers-list">
-                {data.papers.map((p: any, i: number) => (
+                {data.papers.map((p: Record<string, unknown>, i: number) => (
                   <div key={i} className="shared-view-paper-item">
                     <span className="shared-view-paper-num">{i + 1}</span>
                     <div className="shared-view-paper-info">

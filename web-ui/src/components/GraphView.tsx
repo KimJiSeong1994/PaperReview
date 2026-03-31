@@ -57,7 +57,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     // 노드 조회 최적화: Map 사용
     const nodeMap = new Map<string, typeof nodes[0]>();
     nodes.forEach(node => {
-      const nodeId = String((node as any).doc_id || node.id);
+      const nodeId = String((node as Record<string, unknown>).doc_id || node.id);
       nodeMap.set(nodeId, node);
       nodeMap.set(String(node.id), node); // id로도 조회 가능하도록
     });
@@ -165,7 +165,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const selectedNodes: typeof nodes = [];
     
     nodes.forEach(n => {
-      const nodeId = String((n as any).doc_id || n.id);
+      const nodeId = String((n as Record<string, unknown>).doc_id || n.id);
       if (selectedPaperId === nodeId) {
         selectedNodes.push(n);
       } else if (highlightedPapers.has(nodeId)) {
@@ -264,7 +264,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         hoverinfo: 'text',
         showlegend: false,
         customdata: nodeList.map(n => {
-          const nodeDocId = (n as any).doc_id || n.id;
+          const nodeDocId = (n as Record<string, unknown>).doc_id || n.id;
           return nodeDocId;
         }),
       };
@@ -380,7 +380,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     return map;
   }, [papers]);
 
-  const handlePlotClick = (data: any) => {
+  const handlePlotClick = (data: { points?: { customdata?: unknown }[] }) => {
     if (!data.points || data.points.length === 0) return;
     
     const point = data.points[0];
@@ -397,7 +397,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     
     // Fallback: graph node에서 찾기
     const node = graphData.nodes.find(n => {
-      const nId = String((n as any).doc_id || n.id);
+      const nId = String((n as Record<string, unknown>).doc_id || n.id);
       return nId === nodeDocId;
     });
     

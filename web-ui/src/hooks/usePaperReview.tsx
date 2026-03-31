@@ -43,8 +43,8 @@ export function usePaperReview(): UsePaperReviewReturn {
       setReview(result.review);
       setReviewHighlights(result.highlights);
       return { review: result.review, highlights: result.highlights };
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Review failed';
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail || (err instanceof Error ? err.message : String(err)) || 'Review failed';
       setReviewError(msg);
       return null;
     } finally {
@@ -58,7 +58,7 @@ export function usePaperReview(): UsePaperReviewReturn {
       setReview(null);
       setReviewHighlights([]);
       setReviewPanelOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to delete review:', err);
     }
   }, []);
@@ -68,7 +68,7 @@ export function usePaperReview(): UsePaperReviewReturn {
     try {
       const result = await autoHighlightPaperReview(bookmarkId, paperIndex);
       setReviewHighlights(result.highlights);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Auto-highlight failed:', err);
     } finally {
       setAutoHighlighting(false);

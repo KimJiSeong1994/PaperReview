@@ -126,8 +126,9 @@ function BlogPage({ isAdmin }: BlogPageProps) {
     try {
       const response = await fetchBlogPosts(tag ?? undefined);
       setPosts((response.data?.posts ?? response.data) as BlogPost[]);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail ?? err?.message ?? 'Failed to load posts.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(e?.response?.data?.detail ?? e?.message ?? 'Failed to load posts.');
       // Fall back to empty list so UI is usable
       setPosts([]);
     } finally {
@@ -192,8 +193,9 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         setSelectedPost(null);
         setView('list');
       }
-    } catch (err: any) {
-      alert(err?.response?.data?.detail ?? '삭제 중 오류가 발생했습니다.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail ?? '삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -233,8 +235,9 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         setView('detail');
       }
       // Refresh tags in the background
-    } catch (err: any) {
-      setSaveError(err?.response?.data?.detail ?? '저장 중 오류가 발생했습니다.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setSaveError(e?.response?.data?.detail ?? '저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
     }

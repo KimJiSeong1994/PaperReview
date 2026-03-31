@@ -23,11 +23,11 @@ interface CourseSidebarProps {
   generateProgress: CurriculumGenerateProgress | null;
   onSelectCourse: (id: string) => void;
   onSelectModule: (id: string) => void;
-  onGenerate: (topic: string, difficulty: string, numModules: number, options?: { learning_goals?: string; paper_preference?: string }) => Promise<any>;
-  onFork: (courseId: string) => Promise<any>;
-  onDelete: (courseId: string) => Promise<any>;
-  onShare?: (courseId: string) => Promise<any>;
-  onRevokeShare?: (courseId: string) => Promise<any>;
+  onGenerate: (topic: string, difficulty: string, numModules: number, options?: { learning_goals?: string; paper_preference?: string }) => Promise<unknown>;
+  onFork: (courseId: string) => Promise<unknown>;
+  onDelete: (courseId: string) => Promise<unknown>;
+  onShare?: (courseId: string) => Promise<unknown>;
+  onRevokeShare?: (courseId: string) => Promise<unknown>;
   shareMessage?: string | null;
   getModuleProgress: (moduleId: string) => { read: number; total: number };
 }
@@ -403,7 +403,7 @@ export default function CourseSidebar({
                     {generateProgress.detail?.reference_courses && (
                       <div className="curriculum-generate-progress-refs">
                         <div className="curriculum-generate-progress-refs-label">Referenced courses:</div>
-                        {generateProgress.detail.reference_courses.map((c: any, i: number) => (
+                        {generateProgress.detail.reference_courses.map((c: { university: string; course_code: string; course_name: string }, i: number) => (
                           <div key={i} className="curriculum-generate-progress-ref">
                             {c.university} {c.course_code}: {c.course_name}
                           </div>

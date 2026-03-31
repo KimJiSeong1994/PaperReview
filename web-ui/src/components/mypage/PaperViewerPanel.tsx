@@ -20,8 +20,8 @@ interface BookmarkPaper {
   arxiv_id?: string | null;
   url?: string | null;
   source?: string | null;
-  review?: any;
-  review_highlights?: any[];
+  review?: Record<string, unknown>;
+  review_highlights?: Record<string, unknown>[];
 }
 
 interface ResolvedUrl {
@@ -30,7 +30,7 @@ interface ResolvedUrl {
 }
 
 export interface PaperViewerPanelProps {
-  bookmarkDetail: any;
+  bookmarkDetail: Record<string, unknown> | null;
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   autoSelectFirst?: boolean;
@@ -238,7 +238,7 @@ export default function PaperViewerPanel({
 
   const pdfAreaRef = useRef<HTMLDivElement>(null);
   const docScrollRef = useRef<HTMLDivElement>(null);
-  const pdfDocRef = useRef<any>(null);
+  const pdfDocRef = useRef<{ numPages: number; getPage: (i: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string; transform: number[] }[] }> }> } | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const pageHeights = useRef<Map<number, number>>(new Map());
   const isScrollingToPage = useRef(false);
@@ -460,13 +460,13 @@ export default function PaperViewerPanel({
   }, [autoSelectFirst, papers.length, resolveAndSelect]);
 
   // PDF text extraction helper — uses position info to restore line breaks and spacing (up to 40 pages)
-  const extractPdfText = useCallback(async (pdfDoc: any): Promise<string> => {
+  const extractPdfText = useCallback(async (pdfDoc: { numPages: number; getPage: (i: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string; transform: number[] }[] }> }> }): Promise<string> => {
     const pages: string[] = [];
     const maxPages = Math.min(pdfDoc.numPages, 40);
     for (let i = 1; i <= maxPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      const items = content.items as any[];
+      const items = content.items;
 
       // Use position info to reconstruct line breaks and word spacing
       let pageText = '';
@@ -762,7 +762,7 @@ export default function PaperViewerPanel({
     return () => scrollEl.removeEventListener('click', handleClick);
   }, [pdfHighlights, selectedPaper]);
 
-  const handleDocumentLoadSuccess = useCallback((pdf: any) => {
+  const handleDocumentLoadSuccess = useCallback((pdf: { numPages: number }) => {
     setNumPages(pdf.numPages);
     setPdfLoading(false);
     setPdfError(null);

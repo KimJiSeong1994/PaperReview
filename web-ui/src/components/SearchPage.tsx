@@ -98,7 +98,7 @@ function SearchPage() {
       }, abortController.signal);
 
       // Check if query was classified as non-academic
-      const qa = (results as any).query_analysis;
+      const qa = (results as Record<string, unknown>).query_analysis as { is_academic?: boolean } | undefined;
       if (qa && qa.is_academic === false) {
         clearTimeout(loadingTimer);
         setGuidanceMessage(
@@ -122,7 +122,7 @@ function SearchPage() {
       const allPapers: Paper[] = [];
 
       Object.entries(results.results).forEach(([source, sourcePapers]) => {
-        sourcePapers.forEach((paper: any) => {
+        sourcePapers.forEach((paper: Record<string, unknown>) => {
           const title = paper.title || 'Untitled';
           const doc_id = hashString(title);
 
@@ -194,21 +194,23 @@ function SearchPage() {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(loadingTimer);
 
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+      const err = error as { name?: string; code?: string; message?: string; response?: { data?: { detail?: string } } };
+
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return;
 
       console.error('Search error:', error);
 
       let errorMessage = '알 수 없는 오류가 발생했습니다.';
 
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error') || err.message?.includes('Failed to fetch')) {
         errorMessage = '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.';
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
 
       setGuidanceMessage(`검색 중 오류가 발생했습니다: ${errorMessage}`);
@@ -267,13 +269,14 @@ function SearchPage() {
       });
       setBookmarkSaved(true);
       setTimeout(() => setBookmarkSaved(false), 3000);
-    } catch (error: any) {
-      if (error.response?.status === 401) {
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number }; message?: string };
+      if (err.response?.status === 401) {
         setShowLoginModal(true);
         return;
       }
       console.error('Bookmark save error:', error);
-      setGuidanceMessage(`북마크 저장 실패: ${error.message || error}`);
+      setGuidanceMessage(`북마크 저장 실패: ${err.message || String(error)}`);
     }
   };
 
@@ -324,8 +327,8 @@ function SearchPage() {
           setPosterHtml(result.poster_html);
           return;
         }
-      } catch (err: any) {
-        console.warn('Session-based poster failed, trying direct:', err?.response?.status);
+      } catch (err: unknown) {
+        console.warn('Session-based poster failed, trying direct:', (err as { response?: { status?: number } })?.response?.status);
       }
 
       try {
@@ -333,11 +336,12 @@ function SearchPage() {
         if (result.poster_html) {
           setPosterHtml(result.poster_html);
         } else {
-          setGuidanceMessage(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
+          setGuidanceMessage(`포스터 생성 실패: ${(result as Record<string, unknown>).error || '알 수 없는 오류'}`);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { detail?: string } }; message?: string };
         console.error('Direct poster generation failed:', err);
-        setGuidanceMessage(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
+        setGuidanceMessage(`포스터 생성 중 오류: ${e?.response?.data?.detail || e?.message || '알 수 없는 오류'}`);
       } finally {
         setPosterLoading(false);
       }
@@ -423,9 +427,9 @@ function SearchPage() {
       });
 
       startReviewHook(response.session_id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Deep review error:', error);
-      setGuidanceMessage(`Failed to start deep research: ${error.message || error}`);
+      setGuidanceMessage(`Failed to start deep research: ${error instanceof Error ? error.message : String(error)}`);
       setShowReport(false);
     }
   };

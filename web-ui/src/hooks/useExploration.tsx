@@ -9,7 +9,7 @@ import type { Bookmark, CitationTreeData } from '../components/mypage/types';
 export function useExploration(
   selectedBookmark: Bookmark | null,
   setBookmarks: React.Dispatch<React.SetStateAction<Bookmark[]>>,
-  bookmarkDetail: any,
+  bookmarkDetail: Record<string, unknown> | null,
 ) {
   const [citationTreeData, setCitationTreeData] = useState<CitationTreeData | null>(null);
   const [citationTreeLoading, setCitationTreeLoading] = useState(false);
@@ -71,8 +71,8 @@ export function useExploration(
       setBookmarks(prev => prev.map(bm =>
         bm.id === bookmarkId ? { ...bm, has_citation_tree: true } : bm
       ));
-    } catch (error: any) {
-      const msg = error?.response?.data?.detail || 'Failed to generate citation tree';
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to generate citation tree';
       setCitationTreeError(msg);
     } finally {
       setCitationTreeLoading(false);
@@ -97,8 +97,8 @@ export function useExploration(
           setCitationTreeWarning(`${skipped.length} paper(s) could not be found and were excluded.`);
         }
       }
-    } catch (error: any) {
-      const msg = error?.response?.data?.detail || 'Failed to load citation tree';
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load citation tree';
       setCitationTreeError(msg);
     } finally {
       setCitationTreeLoading(false);

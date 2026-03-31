@@ -173,8 +173,8 @@ export default function PaperReviewPanel({
         }
         return result.length === 1 ? result[0] : <>{result}</>;
       }
-      if (isValidElement(node) && (node.props as any).children) {
-        return cloneElement(node, { key } as any, applyHighlightsToText((node.props as any).children));
+      if (isValidElement(node) && (node.props as Record<string, unknown>).children) {
+        return cloneElement(node, { key } as React.Attributes, applyHighlightsToText((node.props as Record<string, unknown>).children as React.ReactNode));
       }
       return node;
     };
