@@ -1,10 +1,9 @@
 import { api } from './base';
-import type { Paper } from '../types';
 
 // Deep Review API
 export interface DeepReviewRequest {
   paper_ids: string[];
-  papers?: Paper[];  // 선택한 논문의 전체 데이터 (ID 매칭 문제 해결)
+  papers?: Record<string, unknown>[];  // 선택한 논문의 전체 데이터 (ID 매칭 문제 해결)
   num_researchers?: number;
   model?: string;
 }
