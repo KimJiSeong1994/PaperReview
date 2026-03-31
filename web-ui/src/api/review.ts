@@ -38,7 +38,7 @@ export interface ReviewStatusResponse {
 export interface ReviewReportResponse {
   session_id: string;
   report_markdown: string;
-  report_json?: any;
+  report_json?: Record<string, unknown>;
   num_papers: number;
   created_at: string;
   verification_stats?: VerificationStats;
