@@ -38,7 +38,7 @@
   transition: all 0.2s;
   display: inline-block;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Pretendard', sans-serif;
 }
 
 .detail-button:hover {
@@ -89,7 +89,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #9ca3af;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Pretendard', sans-serif;
 }
 
 .metric-value {
@@ -110,7 +110,7 @@
   letter-spacing: 0.5px;
   color: #9ca3af;
   margin-bottom: 12px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Pretendard', sans-serif;
 }
 
 .detail-abstract p {
@@ -131,7 +131,7 @@
   letter-spacing: 0.5px;
   color: #9ca3af;
   margin-bottom: 12px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Pretendard', sans-serif;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -248,7 +248,7 @@
   letter-spacing: 0.5px;
   color: #9ca3af;
   margin-bottom: 12px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Pretendard', sans-serif;
   display: flex;
   align-items: center;
   gap: 6px;
