@@ -22,3 +22,9 @@ CITATION_COLLECTION_DELAY = 0.5
 # ── FAISS ANN parameters ────────────────────────────────────────────
 FAISS_SWITCH_THRESHOLD = 100
 FAISS_TOP_K = 10
+
+# ── HNSW parameters (Phase 1 graph scalability) ────────────────────
+HNSW_M = 32
+HNSW_EF_CONSTRUCTION = 64
+HNSW_EF_SEARCH = 32
+HNSW_SWITCH_THRESHOLD = 2000

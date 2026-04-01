@@ -1,13 +1,19 @@
 """
 그래프 엣지 생성 모듈
 """
+import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import difflib
+import logging
+
+import numpy as np
 
 from src.utils.logger import log_data_processing
 
 from src.utils.paper_utils import normalize_title as _normalize_title, generate_paper_id as _generate_paper_id_util
+
+logger = logging.getLogger(__name__)
 
 class EdgeCreator:
     """그래프 엣지 생성 클래스"""
@@ -162,72 +168,160 @@ class EdgeCreator:
         similarity_threshold: float = 0.7,
         top_k: int = 10
     ) -> List[Dict[str, Any]]:
-        """Similarity 엣지 생성"""
-        edges = []
+        """Similarity 엣지 생성 (FAISS-backed with numpy fallback).
 
-        # 각 논문에 대해 유사도 상위 K개만 선택
-        for i, paper1 in enumerate(papers):
-            paper1_id = paper1.get('node_id') or self._generate_paper_id(paper1)
-            embedding1 = paper1.get('embedding')
-            if isinstance(embedding1, list):
-                embedding1 = embedding1
+        Uses FAISS index for efficient neighbour search when available.
+        Falls back to vectorized numpy brute-force when FAISS is unavailable
+        or when GRAPH_FORCE_BRUTEFORCE=1 is set.
+        """
+        # Collect valid papers with embeddings
+        valid_papers: List[Dict[str, Any]] = []
+        valid_ids: List[str] = []
+        valid_vectors: List[np.ndarray] = []
 
-            if not embedding1:
+        for paper in papers:
+            paper_id = paper.get('node_id') or self._generate_paper_id(paper)
+            embedding = paper.get('embedding')
+            if embedding is None:
                 continue
+            vec = np.array(embedding, dtype=np.float32)
+            if vec.size == 0:
+                continue
+            valid_papers.append(paper)
+            valid_ids.append(paper_id)
+            valid_vectors.append(vec)
 
-            # 다른 논문들과의 유사도 계산
-            similarities = []
-            for paper2 in papers:
-                paper2_id = paper2.get('node_id') or self._generate_paper_id(paper2)
-                if paper1_id == paper2_id:
+        if len(valid_vectors) < 2:
+            return []
+
+        matrix = np.vstack(valid_vectors).astype(np.float32)
+
+        force_bruteforce = os.environ.get("GRAPH_FORCE_BRUTEFORCE", "0") == "1"
+
+        if force_bruteforce:
+            logger.info(
+                "[EdgeCreator] GRAPH_FORCE_BRUTEFORCE=1, using numpy brute-force for %d papers",
+                len(valid_ids),
+            )
+            return self._create_similarity_edges_bruteforce(
+                matrix, valid_ids, similarity_threshold, top_k
+            )
+
+        try:
+            from src.graph.faiss_index_manager import (
+                build_similarity_index,
+                search_neighbors,
+            )
+            import faiss
+
+            # L2-normalise for cosine similarity via inner product
+            faiss.normalize_L2(matrix)
+
+            index = build_similarity_index(matrix)
+            scores, indices = search_neighbors(
+                index, matrix, top_k=top_k, min_similarity=similarity_threshold
+            )
+
+            edges: List[Dict[str, Any]] = []
+            seen_pairs: set = set()
+
+            for i in range(len(valid_ids)):
+                src_id = valid_ids[i]
+                for j_pos in range(scores.shape[1]):
+                    nbr_idx = int(indices[i][j_pos])
+                    sim = float(scores[i][j_pos])
+                    if nbr_idx < 0 or sim <= 0.0:
+                        continue
+                    dst_id = valid_ids[nbr_idx]
+                    pair_key = tuple(sorted((src_id, dst_id)))
+                    if pair_key in seen_pairs:
+                        continue
+                    seen_pairs.add(pair_key)
+                    edges.append({
+                        "edge_id": f"{src_id}<->{dst_id}",
+                        "source": src_id,
+                        "target": dst_id,
+                        "edge_type": "SIMILAR_TO",
+                        "weight": round(sim, 4),
+                        "metadata": {
+                            "similarity_type": "semantic",
+                            "computed_at": str(datetime.now()),
+                        },
+                    })
+
+            logger.info(
+                "[EdgeCreator] FAISS: %d papers, %d edges created", len(valid_ids), len(edges)
+            )
+            return edges
+
+        except (ImportError, RuntimeError) as exc:
+            logger.warning(
+                "[EdgeCreator] FAISS unavailable (%s), falling back to numpy brute-force", exc
+            )
+            return self._create_similarity_edges_bruteforce(
+                matrix, valid_ids, similarity_threshold, top_k
+            )
+
+    def _create_similarity_edges_bruteforce(
+        self,
+        matrix: np.ndarray,
+        valid_ids: List[str],
+        similarity_threshold: float,
+        top_k: int,
+    ) -> List[Dict[str, Any]]:
+        """Vectorized numpy brute-force cosine similarity fallback.
+
+        Computes full similarity matrix via matrix multiplication on
+        L2-normalised vectors, then extracts top-k per row.
+        """
+        # L2-normalise rows
+        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        normed = matrix / norms
+
+        # Full cosine similarity matrix
+        sim_matrix = normed @ normed.T
+
+        edges: List[Dict[str, Any]] = []
+        seen_pairs: set = set()
+        n = len(valid_ids)
+
+        for i in range(n):
+            row = sim_matrix[i].copy()
+            row[i] = -1.0  # exclude self
+            # Get top-k indices
+            if top_k < n - 1:
+                top_indices = np.argpartition(row, -top_k)[-top_k:]
+            else:
+                top_indices = np.arange(n)
+                top_indices = top_indices[top_indices != i]
+
+            for j in top_indices:
+                if j == i:
                     continue
-
-                embedding2 = paper2.get('embedding')
-                if isinstance(embedding2, list):
-                    embedding2 = embedding2
-
-                if not embedding2:
+                sim = float(row[j])
+                if sim < similarity_threshold:
                     continue
-
-                # Cosine similarity 계산
-                similarity = self._cosine_similarity(embedding1, embedding2)
-
-                if similarity >= similarity_threshold:
-                    similarities.append((paper2_id, similarity))
-
-            # 상위 K개 선택
-            similarities.sort(key=lambda x: x[1], reverse=True)
-            top_similarities = similarities[:top_k]
-
-            for target_id, similarity in top_similarities:
-                edge = {
-                    "edge_id": f"{paper1_id}<->{target_id}",
-                    "source": paper1_id,
-                    "target": target_id,
+                src_id = valid_ids[i]
+                dst_id = valid_ids[j]
+                pair_key = tuple(sorted((src_id, dst_id)))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+                edges.append({
+                    "edge_id": f"{src_id}<->{dst_id}",
+                    "source": src_id,
+                    "target": dst_id,
                     "edge_type": "SIMILAR_TO",
-                    "weight": similarity,
+                    "weight": round(sim, 4),
                     "metadata": {
                         "similarity_type": "semantic",
-                        "computed_at": str(datetime.now())
-                    }
-                }
-                edges.append(edge)
+                        "computed_at": str(datetime.now()),
+                    },
+                })
 
+        logger.info(
+            "[EdgeCreator] Brute-force: %d papers, %d edges created", n, len(edges)
+        )
         return edges
-
-    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
-        """Cosine similarity 계산"""
-        import numpy as np
-
-        v1 = np.array(vec1)
-        v2 = np.array(vec2)
-
-        dot_product = np.dot(v1, v2)
-        norm1 = np.linalg.norm(v1)
-        norm2 = np.linalg.norm(v2)
-
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-
-        return float(dot_product / (norm1 * norm2))
 

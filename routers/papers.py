@@ -12,6 +12,7 @@ Paper management endpoints:
   POST /api/graph-data
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -64,10 +65,11 @@ def _build_edges_faiss(
     """Build graph edges using FAISS approximate nearest neighbours.
 
     Uses SimilarityCalculator.get_embeddings_batch() to embed all titles
-    in one batch, then builds a FAISS IndexFlatIP for fast inner-product
-    (cosine similarity on L2-normalised vectors) search.
+    in one batch, then builds a FAISS index via faiss_index_manager for
+    fast inner-product (cosine similarity on L2-normalised vectors) search.
     """
     import faiss
+    from src.graph.faiss_index_manager import build_similarity_index, search_neighbors
 
     titles = [p.get("title", "") for p in papers_data]
     doc_ids = [
@@ -95,25 +97,22 @@ def _build_edges_faiss(
     matrix = np.vstack(valid_vectors)
     faiss.normalize_L2(matrix)
 
-    dim = matrix.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    index.add(matrix)
-
-    # Search K+1 neighbours (first result is self)
-    k = min(_FAISS_K + 1, len(valid_vectors))
-    scores, neighbours = index.search(matrix, k)
+    index = build_similarity_index(matrix)
+    scores, indices = search_neighbors(
+        index, matrix, top_k=_FAISS_K, min_similarity=_FAISS_MIN_SIM
+    )
 
     # Build edges from search results
     seen_edges: set = set()
     for local_i in range(len(valid_vectors)):
         src_idx = valid_indices[local_i]
         src_id = doc_ids[src_idx]
-        for j in range(1, k):  # skip self at position 0
-            local_j = neighbours[local_i][j]
+        for j_pos in range(scores.shape[1]):
+            local_j = int(indices[local_i][j_pos])
             if local_j < 0:
                 continue
-            sim = float(scores[local_i][j])
-            if sim < _FAISS_MIN_SIM:
+            sim = float(scores[local_i][j_pos])
+            if sim <= 0.0:
                 continue
             dst_idx = valid_indices[local_j]
             dst_id = doc_ids[dst_idx]
@@ -414,12 +413,134 @@ async def enrich_papers(
         raise HTTPException(status_code=500, detail=f"Paper enrichment failed: {str(e)}")
 
 
+def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Synchronous graph building — runs in a thread to avoid blocking the event loop."""
+    from src.utils.paper_utils import generate_doc_id
+
+    for paper in papers_data:
+        if "doc_id" not in paper:
+            title = paper.get("title", "")
+            doc_id = (
+                str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
+                if title
+                else ""
+            )
+            paper["doc_id"] = doc_id
+
+    graph = nx.Graph()
+
+    # Ensure all papers have doc_id
+    for paper in papers_data:
+        if "doc_id" not in paper:
+            paper["doc_id"] = generate_doc_id(paper.get("title", ""))
+
+    for paper in papers_data:
+        doc_id = paper.get("doc_id")
+        if not doc_id:
+            title = paper.get("title", "")
+            doc_id = (
+                str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
+                if title
+                else ""
+            )
+            paper["doc_id"] = doc_id
+
+        node_attrs = {
+            "weight": max(paper.get("citations", 1), 1),
+            "year": paper.get("year"),
+            "title": paper.get("title", ""),
+        }
+        for key, value in paper.items():
+            if key not in node_attrs and key != "doc_id":
+                node_attrs[key] = value
+        graph.add_node(doc_id, **node_attrs)
+
+    # ── Edge building strategy ──────────────────────────────────
+    n_papers = len(papers_data)
+    _MAX_JACCARD_PAPERS = 500  # Jaccard O(n^2) 상한
+
+    if n_papers >= _FAISS_THRESHOLD:
+        try:
+            logger.info("[Graph] Using FAISS ANN for %d papers", n_papers)
+            _build_edges_faiss(papers_data, graph)
+        except Exception as faiss_err:
+            logger.warning("[Graph] FAISS failed: %s", faiss_err)
+            if n_papers <= _MAX_JACCARD_PAPERS:
+                logger.info("[Graph] Jaccard fallback for %d papers", n_papers)
+                _build_edges_jaccard(papers_data, graph)
+            else:
+                logger.warning("[Graph] %d papers too large for Jaccard fallback, skipping edges", n_papers)
+    else:
+        _build_edges_jaccard(papers_data, graph)
+
+    # Layout
+    try:
+        layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
+    except ImportError:
+        logger.warning("scipy not available, using random layout fallback")
+        import random as _rand
+        _rand.seed(42)
+        layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
+
+    if len(layout) > 0:
+        centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
+        centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
+        centered = {nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()}
+
+        max_abs = max(
+            max(abs(x) for x, _ in centered.values()),
+            max(abs(y) for _, y in centered.values()),
+        ) or 1.0
+        layout = {nid: (x / max_abs, y / max_abs) for nid, (x, y) in centered.items()}
+
+    # Extract nodes and edges for frontend
+    nodes = []
+    if len(graph.nodes()) > 0:
+        for node_id in graph.nodes():
+            node_data = graph.nodes[node_id]
+            x, y = layout.get(node_id, (0, 0))
+            nodes.append(
+                {
+                    "id": str(node_id),
+                    "x": float(x),
+                    "y": float(y),
+                    "title": node_data.get("title", ""),
+                    "year": node_data.get("year"),
+                    "citations": node_data.get("citations", 0),
+                    "authors": node_data.get("authors", []),
+                    "abstract": node_data.get("abstract", ""),
+                    "url": node_data.get("url", ""),
+                    "pdf_url": node_data.get("pdf_url", ""),
+                    "doi": node_data.get("doi", ""),
+                    "source": node_data.get("source", ""),
+                    "journal": node_data.get("journal", ""),
+                    "doc_id": str(node_id),
+                    "weight": node_data.get("weight", 1),
+                }
+            )
+
+        edges = []
+        for start, end in graph.edges():
+            edges.append(
+                {
+                    "source": str(start),
+                    "target": str(end),
+                    "weight": graph.edges[start, end].get("weight", 0.1),
+                }
+            )
+    else:
+        edges = []
+
+    return {"nodes": nodes, "edges": edges}
+
+
 @router.post("/graph-data")
 async def get_graph_data(request: Dict[str, Any]):
     """Generate graph data for visualisation.
 
     P2-1: Uses FAISS ANN for >= 100 papers, Jaccard fallback for < 100.
     P2-2: Reads from SQLite when no papers_json is provided.
+    CPU-bound graph operations run in a thread to avoid blocking the event loop.
     """
     try:
         papers_json = request.get("papers_json")
@@ -431,122 +552,8 @@ async def get_graph_data(request: Dict[str, Any]):
         if not papers_data:
             return {"nodes": [], "edges": []}
 
-        for paper in papers_data:
-            if "doc_id" not in paper:
-                title = paper.get("title", "")
-                doc_id = (
-                    str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
-                    if title
-                    else ""
-                )
-                paper["doc_id"] = doc_id
-
-        from src.utils.paper_utils import generate_doc_id
-
-        graph = nx.Graph()
-
-        # Ensure all papers have doc_id
-        for paper in papers_data:
-            if "doc_id" not in paper:
-                paper["doc_id"] = generate_doc_id(paper.get("title", ""))
-
-        for paper in papers_data:
-            doc_id = paper.get("doc_id")
-            if not doc_id:
-                title = paper.get("title", "")
-                doc_id = (
-                    str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
-                    if title
-                    else ""
-                )
-                paper["doc_id"] = doc_id
-
-            node_attrs = {
-                "weight": max(paper.get("citations", 1), 1),
-                "year": paper.get("year"),
-                "title": paper.get("title", ""),
-            }
-            for key, value in paper.items():
-                if key not in node_attrs and key != "doc_id":
-                    node_attrs[key] = value
-            graph.add_node(doc_id, **node_attrs)
-
-        # ── Edge building strategy ──────────────────────────────────
-        n_papers = len(papers_data)
-        _MAX_JACCARD_PAPERS = 500  # Jaccard O(n²) 상한
-
-        if n_papers >= _FAISS_THRESHOLD:
-            try:
-                logger.info("[Graph] Using FAISS ANN for %d papers", n_papers)
-                _build_edges_faiss(papers_data, graph)
-            except Exception as faiss_err:
-                logger.warning("[Graph] FAISS failed: %s", faiss_err)
-                if n_papers <= _MAX_JACCARD_PAPERS:
-                    logger.info("[Graph] Jaccard fallback for %d papers", n_papers)
-                    _build_edges_jaccard(papers_data, graph)
-                else:
-                    logger.warning("[Graph] %d papers too large for Jaccard fallback, skipping edges", n_papers)
-        else:
-            _build_edges_jaccard(papers_data, graph)
-
-        # Layout
-        try:
-            layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
-        except ImportError:
-            logger.warning("scipy not available, using random layout fallback")
-            import random as _rand
-            _rand.seed(42)
-            layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
-
-        if len(layout) > 0:
-            centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
-            centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
-            centered = {nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()}
-
-            max_abs = max(
-                max(abs(x) for x, _ in centered.values()),
-                max(abs(y) for _, y in centered.values()),
-            ) or 1.0
-            layout = {nid: (x / max_abs, y / max_abs) for nid, (x, y) in centered.items()}
-
-        # Extract nodes and edges for frontend
-        nodes = []
-        if len(graph.nodes()) > 0:
-            for node_id in graph.nodes():
-                node_data = graph.nodes[node_id]
-                x, y = layout.get(node_id, (0, 0))
-                nodes.append(
-                    {
-                        "id": str(node_id),
-                        "x": float(x),
-                        "y": float(y),
-                        "title": node_data.get("title", ""),
-                        "year": node_data.get("year"),
-                        "citations": node_data.get("citations", 0),
-                        "authors": node_data.get("authors", []),
-                        "abstract": node_data.get("abstract", ""),
-                        "url": node_data.get("url", ""),
-                        "pdf_url": node_data.get("pdf_url", ""),
-                        "doi": node_data.get("doi", ""),
-                        "source": node_data.get("source", ""),
-                        "journal": node_data.get("journal", ""),
-                        "doc_id": str(node_id),
-                        "weight": node_data.get("weight", 1),
-                    }
-                )
-
-            edges = []
-            for start, end in graph.edges():
-                edges.append(
-                    {
-                        "source": str(start),
-                        "target": str(end),
-                        "weight": graph.edges[start, end].get("weight", 0.1),
-                    }
-                )
-        else:
-            edges = []
-
-        return {"nodes": nodes, "edges": edges}
+        # Offload CPU-bound graph building to a thread
+        result = await asyncio.to_thread(_build_graph_sync, papers_data)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
