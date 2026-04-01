@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.graph.topology_analyzer import compute_centrality, detect_communities, detect_hubs
 from src.graph.temporal_tracker import build_temporal_snapshots, detect_lifecycle_events
