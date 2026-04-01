@@ -16,6 +16,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@react-sigma/core": "^4.0.3",
+    "@testing-library/dom": "^10.4.1",
     "@types/react-plotly.js": "^2.6.3",
     "axios": "^1.13.2",
     "graphology": "^0.25.4",
