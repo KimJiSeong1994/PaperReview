@@ -544,17 +544,21 @@
 
 /* ===== Markdown Rendered Content ===== */
 .blog-detail-content {
-  font-size: 15px;
-  line-height: 1.75;
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.85;
   color: #d1d5db;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .blog-detail-content h2 {
   font-size: 22px;
   font-weight: 700;
   color: #f3f4f6;
-  margin: 36px 0 16px;
-  padding-bottom: 8px;
+  margin: 48px 0 20px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -562,11 +566,17 @@
   font-size: 18px;
   font-weight: 600;
   color: #e5e7eb;
-  margin: 28px 0 12px;
+  margin: 36px 0 14px;
 }
 
 .blog-detail-content p {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
+}
+
+.blog-detail-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 40px 0;
 }
 
 .blog-detail-content strong {
@@ -576,12 +586,12 @@
 
 .blog-detail-content ul,
 .blog-detail-content ol {
-  margin: 0 0 16px;
-  padding-left: 24px;
+  margin: 0 0 20px;
+  padding-left: 28px;
 }
 
 .blog-detail-content li {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .blog-detail-content code {
@@ -612,8 +622,10 @@
 
 .blog-detail-content blockquote {
   border-left: 3px solid rgba(165, 180, 252, 0.5);
-  padding-left: 16px;
-  margin: 0 0 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+  margin: 0 0 24px;
   color: #9ca3af;
   font-style: italic;
 }
