@@ -618,6 +618,38 @@
   font-style: italic;
 }
 
+.blog-detail-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 20px;
+  font-size: 14px;
+}
+
+.blog-detail-content th {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.blog-detail-content td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
+}
+
+.blog-detail-content tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.blog-detail-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
 .blog-detail-admin-bar {
   display: flex;
   gap: 8px;
