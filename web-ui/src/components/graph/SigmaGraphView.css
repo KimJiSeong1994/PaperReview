@@ -1,0 +1,21 @@
+/* Sigma container — matches dark theme of GraphView */
+.sigma-graph-container {
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+  background: #181818;
+  position: relative;
+}
+
+.sigma-graph-container .react-sigma {
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+}
+
+.sigma-graph-container .sigma-container {
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+  background: #181818;
+}

@@ -1,8 +1,14 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import Plot from '../PlotlyChart';
 import type { Data, Layout } from '../PlotlyChart';
 import './GraphView.css';
 import type { GraphData, Paper } from '../types';
+import type { GraphStats } from './graph/types';
+import { useGraphData } from './graph/useGraphData';
+
+const SigmaGraphView = lazy(() => import('./graph/SigmaGraphView'));
+
+const useSigma = import.meta.env.VITE_USE_SIGMA === 'true';
 
 interface GraphViewProps {
   graphData: GraphData;
@@ -17,6 +23,13 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const [edgeOpacity, setEdgeOpacity] = useState(0.7);
   const [minCitations, setMinCitations] = useState(0);
   const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
+
+  // Sigma mode: use shared stats from useGraphData hook
+  const { stats: sigmaStats } = useGraphData(
+    useSigma ? graphData : null,
+    minCitations,
+    yearFilter,
+  );
 
   const { plotData, layout, stats } = useMemo(() => {
     if (!graphData || graphData.nodes.length === 0) {
@@ -417,8 +430,12 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     );
   }
 
-  return (
-    <div className="graph-view">
+  // Use sigma stats when in Sigma mode, Plotly stats otherwise
+  const activeStats: GraphStats = useSigma ? sigmaStats : stats;
+
+  // Shared controls UI used by both renderers
+  const controlsUI = (
+    <>
       {/* Control Panel */}
       <div className="graph-controls">
         <div className="control-section">
@@ -433,7 +450,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
               <span>노드 레이블</span>
             </label>
           </div>
-          
+
           <div className="control-group">
             <label className="control-label-text">엣지 투명도</label>
             <input
@@ -447,7 +464,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
             />
             <span className="control-value">{(edgeOpacity * 100).toFixed(0)}%</span>
           </div>
-          
+
           <div className="control-group">
             <label className="control-label-text">최소 인용수</label>
             <input
@@ -459,19 +476,19 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
               className="control-input"
             />
           </div>
-          
+
           <div className="control-group">
             <label className="control-label-text">연도 필터</label>
             <div className="control-row">
               <input
                 type="number"
-                min={stats.yearRange[0]}
-                max={stats.yearRange[1]}
-                value={yearFilter?.[0] ?? stats.yearRange[0]}
+                min={activeStats.yearRange[0]}
+                max={activeStats.yearRange[1]}
+                value={yearFilter?.[0] ?? activeStats.yearRange[0]}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
                   if (!isNaN(val)) {
-                    setYearFilter([val, yearFilter?.[1] ?? stats.yearRange[1]]);
+                    setYearFilter([val, yearFilter?.[1] ?? activeStats.yearRange[1]]);
                   }
                 }}
                 className="control-input-small"
@@ -479,13 +496,13 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
               <span>~</span>
               <input
                 type="number"
-                min={stats.yearRange[0]}
-                max={stats.yearRange[1]}
-                value={yearFilter?.[1] ?? stats.yearRange[1]}
+                min={activeStats.yearRange[0]}
+                max={activeStats.yearRange[1]}
+                value={yearFilter?.[1] ?? activeStats.yearRange[1]}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
                   if (!isNaN(val)) {
-                    setYearFilter([yearFilter?.[0] ?? stats.yearRange[0], val]);
+                    setYearFilter([yearFilter?.[0] ?? activeStats.yearRange[0], val]);
                   }
                 }}
                 className="control-input-small"
@@ -506,15 +523,15 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         <div className="stats-section">
           <div className="stat-item">
             <span className="stat-label">노드:</span>
-            <span className="stat-value">{stats.nodes}</span>
+            <span className="stat-value">{activeStats.nodes}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">엣지:</span>
-            <span className="stat-value">{stats.edges}</span>
+            <span className="stat-value">{activeStats.edges}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">평균 인용:</span>
-            <span className="stat-value">{stats.avgCitations}</span>
+            <span className="stat-value">{activeStats.avgCitations}</span>
           </div>
         </div>
       </div>
@@ -540,15 +557,43 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
       {/* Keyboard shortcuts hint */}
       <div className="graph-hints">
-        <div className="hint-item">🖱️ 드래그: 이동</div>
-        <div className="hint-item">🔍 스크롤: 줌</div>
+        <div className="hint-item">드래그: 이동</div>
+        <div className="hint-item">스크롤: 줌</div>
         <div className="hint-item">더블클릭: 리셋</div>
       </div>
+    </>
+  );
 
+  // Sigma WebGL renderer
+  if (useSigma) {
+    return (
+      <div className="graph-view">
+        {controlsUI}
+        <Suspense fallback={<div className="graph-empty"><p>Loading Sigma...</p></div>}>
+          <SigmaGraphView
+            graphData={graphData}
+            selectedPaper={selectedPaper}
+            highlightedPapers={highlightedPapers}
+            papers={papers}
+            onNodeClick={onNodeClick}
+            showLabels={showLabels}
+            edgeOpacity={edgeOpacity}
+            minCitations={minCitations}
+            yearFilter={yearFilter}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // Plotly SVG renderer (default)
+  return (
+    <div className="graph-view">
+      {controlsUI}
       <Plot
         data={plotData}
         layout={layout}
-        config={{ 
+        config={{
           displayModeBar: true,
           modeBarButtonsToRemove: ['select2d', 'lasso2d'],
           displaylogo: false,
