@@ -60,7 +60,7 @@ export function useGraphData(
     const nodeIdSet = new Set<string>();
 
     nodes.forEach(n => {
-      const nodeId = String((n as unknown as Record<string, unknown>).doc_id || n.id);
+      const nodeId = String((n as Record<string, unknown>).doc_id || n.id);
       if (nodeIdSet.has(nodeId)) return; // skip duplicate
       nodeIdSet.add(nodeId);
 

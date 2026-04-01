@@ -33,7 +33,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
   const { plotData, layout, stats } = useMemo(() => {
     if (!graphData || graphData.nodes.length === 0) {
-      return { plotData: [], layout: {}, stats: { nodes: 0, edges: 0, avgCitations: 0, yearRange: [0, 0] as [number, number] } };
+      return { plotData: [], layout: {}, stats: { nodes: 0, edges: 0, avgCitations: 0, yearRange: [0, 0] } };
     }
 
     let nodes = graphData.nodes;
