@@ -127,3 +127,28 @@ export interface KnowledgeGraphStats {
   error?: string;
 }
 
+// ── Topology Analysis types (Phase 3) ─────────────────────────────────
+
+export interface TopologyAnalysis {
+  centrality: Record<string, { betweenness: number; pagerank: number }>;
+  hubs: Array<{ node_id: string; betweenness: number; pagerank: number }>;
+  communities: Array<{ community_id: number; nodes: string[]; size: number }>;
+}
+
+export interface TemporalSnapshot {
+  year: number;
+  communities: Array<{ community_id: number; nodes: string[]; size: number }>;
+}
+
+export interface LifecycleEvent {
+  year: number;
+  event: 'creation' | 'growth' | 'shrink' | 'dissolution';
+  community_id: number;
+  details: Record<string, unknown>;
+}
+
+export interface TemporalAnalysis {
+  snapshots: TemporalSnapshot[];
+  events: LifecycleEvent[];
+}
+
