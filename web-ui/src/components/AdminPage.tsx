@@ -419,7 +419,7 @@ export default function AdminPage() {
                         values: stats.papers_by_source.map(s => s.count),
                         marker: { colors: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'] },
                         textinfo: 'label+percent',
-                        textfont: { color: '#d1d5db', size: 12, family: 'inherit' },
+                        textfont: { color: '#d1d5db', size: 12, family: 'Pretendard, sans-serif' },
                         hoverinfo: 'label+value+percent',
                       }]}
                       layout={{
@@ -428,7 +428,7 @@ export default function AdminPage() {
                         margin: { t: 10, b: 10, l: 10, r: 10 },
                         showlegend: false,
                         height: 260,
-                        font: { color: '#9ca3af' },
+                        font: { color: '#9ca3af', family: 'Pretendard, sans-serif' },
                       }}
                       config={{ displayModeBar: false, responsive: true }}
                       style={{ width: '100%' }}
@@ -460,7 +460,7 @@ export default function AdminPage() {
                         plot_bgcolor: 'transparent',
                         margin: { t: 10, b: 40, l: 40, r: 10 },
                         height: 260,
-                        font: { color: '#9ca3af', size: 11 },
+                        font: { color: '#9ca3af', size: 11, family: 'Pretendard, sans-serif' },
                         xaxis: {
                           gridcolor: 'rgba(255,255,255,0.04)',
                           tickangle: -45,
