@@ -74,6 +74,50 @@ class PaperDeleteRequest(BaseModel):
     indices: List[int]  # paper indices to delete
 
 
+# ── Data Diagnostics ─────────────────────────────────────────────────
+
+@router.get("/diagnostics")
+async def admin_diagnostics(admin: str = Depends(get_admin_user)):
+    """Return data file states for debugging production issues."""
+    import os
+    import sqlite3
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+
+    def _file_info(p: Path) -> dict:
+        if p.exists():
+            return {"exists": True, "size": p.stat().st_size}
+        return {"exists": False, "size": 0}
+
+    def _db_count(p: Path, table: str) -> int:
+        if not p.exists():
+            return -1
+        try:
+            conn = sqlite3.connect(str(p))
+            count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
+            conn.close()
+            return count
+        except Exception:
+            return -2
+
+    return {
+        "files": {
+            "bookmarks.db": _file_info(data_dir / "bookmarks.db"),
+            "bookmarks.json": _file_info(data_dir / "bookmarks.json"),
+            "bookmarks.json.migrated": _file_info(data_dir / "bookmarks.json.migrated"),
+            "users.db": _file_info(data_dir / "users.db"),
+            "users.json": _file_info(data_dir / "users.json"),
+            "users.json.migrated": _file_info(data_dir / "users.json.migrated"),
+            "papers.db": _file_info(data_dir / "papers.db"),
+            "raw/papers.json": _file_info(data_dir / "raw" / "papers.json"),
+        },
+        "counts": {
+            "bookmarks": _db_count(data_dir / "bookmarks.db", "bookmarks"),
+            "users": _db_count(data_dir / "users.db", "users"),
+            "papers": _db_count(data_dir / "papers.db", "papers"),
+        },
+    }
+
+
 # ── Dashboard ────────────────────────────────────────────────────────
 
 @router.get("/dashboard")
