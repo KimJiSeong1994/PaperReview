@@ -121,12 +121,19 @@ export default function AdminPage() {
 
   // ── Data loaders ─────────────────────────────────────────────────
 
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+
   const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
     try {
       const data = await getAdminDashboard();
       setStats(data);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      setDashboardError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setDashboardLoading(false);
     }
   }, []);
 
@@ -374,6 +381,14 @@ export default function AdminPage() {
         </div>
 
         {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && dashboardLoading && (
+          <div className="admin-loading">Loading dashboard...</div>
+        )}
+        {activeTab === 'dashboard' && dashboardError && (
+          <div className="admin-loading" style={{ color: '#ef4444' }}>
+            Error: {dashboardError}
+          </div>
+        )}
         {activeTab === 'dashboard' && stats && (
           <div className="admin-dashboard">
             {/* Row 1: 6 stat cards */}
