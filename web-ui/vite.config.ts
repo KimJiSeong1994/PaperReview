@@ -5,6 +5,11 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      'plotly.js/dist/plotly': 'plotly.js-basic-dist-min',
+    },
+  },
   server: {
     proxy: {
       '/api': {
