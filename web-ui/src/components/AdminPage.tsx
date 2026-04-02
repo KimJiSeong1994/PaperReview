@@ -1,8 +1,33 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { Component, useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 
 const Plot = lazy(() => import('../PlotlyChart'));
+
+/* ── Error Boundary for charts ─────────────────────────────────────── */
+class ChartErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { hasError: boolean; error: string }
+> {
+  state = { hasError: false, error: '' };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ChartErrorBoundary]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="admin-loading" style={{ color: '#ef4444' }}>
+          Chart error: {this.state.error}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   getAdminDashboard,
   getAdminUsers,
@@ -411,11 +436,11 @@ export default function AdminPage() {
               </div>
               <div className="admin-stat-card">
                 <p className="admin-stat-label">KG Nodes</p>
-                <p className="admin-stat-value">{stats.kg_nodes.toLocaleString()}</p>
+                <p className="admin-stat-value">{(stats.kg_nodes ?? 0).toLocaleString()}</p>
               </div>
               <div className="admin-stat-card">
                 <p className="admin-stat-label">KG Edges</p>
-                <p className="admin-stat-value">{stats.kg_edges.toLocaleString()}</p>
+                <p className="admin-stat-value">{(stats.kg_edges ?? 0).toLocaleString()}</p>
               </div>
             </div>
 
@@ -424,40 +449,43 @@ export default function AdminPage() {
               {/* Donut: Papers by Source */}
               <div className="admin-chart-card">
                 <h4 className="admin-chart-title">Papers by Source</h4>
-                {stats.papers_by_source.length > 0 && (
-                  <Suspense fallback={<div className="admin-loading">Loading chart...</div>}>
-                    <Plot
-                      data={[{
-                        type: 'pie',
-                        hole: 0.55,
-                        labels: stats.papers_by_source.map(s => s.source),
-                        values: stats.papers_by_source.map(s => s.count),
-                        marker: { colors: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'] },
-                        textinfo: 'label+percent',
-                        textfont: { color: '#d1d5db', size: 12, family: 'Pretendard, sans-serif' },
-                        hoverinfo: 'label+value+percent',
-                      }]}
-                      layout={{
-                        paper_bgcolor: 'transparent',
-                        plot_bgcolor: 'transparent',
-                        margin: { t: 10, b: 10, l: 10, r: 10 },
-                        showlegend: false,
-                        height: 260,
-                        font: { color: '#9ca3af', family: 'Pretendard, sans-serif' },
-                      }}
-                      config={{ displayModeBar: false, responsive: true }}
-                      style={{ width: '100%' }}
-                    />
-                  </Suspense>
+                {(stats.papers_by_source?.length ?? 0) > 0 && (
+                  <ChartErrorBoundary>
+                    <Suspense fallback={<div className="admin-loading">Loading chart...</div>}>
+                      <Plot
+                        data={[{
+                          type: 'pie',
+                          hole: 0.55,
+                          labels: stats.papers_by_source.map(s => s.source),
+                          values: stats.papers_by_source.map(s => s.count),
+                          marker: { colors: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'] },
+                          textinfo: 'label+percent',
+                          textfont: { color: '#d1d5db', size: 12, family: 'Pretendard, sans-serif' },
+                          hoverinfo: 'label+value+percent',
+                        }]}
+                        layout={{
+                          paper_bgcolor: 'transparent',
+                          plot_bgcolor: 'transparent',
+                          margin: { t: 10, b: 10, l: 10, r: 10 },
+                          showlegend: false,
+                          height: 260,
+                          font: { color: '#9ca3af', family: 'Pretendard, sans-serif' },
+                        }}
+                        config={{ displayModeBar: false, responsive: true }}
+                        style={{ width: '100%' }}
+                      />
+                    </Suspense>
+                  </ChartErrorBoundary>
                 )}
               </div>
 
               {/* Bar: Papers by Year */}
               <div className="admin-chart-card">
                 <h4 className="admin-chart-title">Papers by Year</h4>
-                {stats.papers_by_year.length > 0 && (
-                  <Suspense fallback={<div className="admin-loading">Loading chart...</div>}>
-                    <Plot
+                {(stats.papers_by_year?.length ?? 0) > 0 && (
+                  <ChartErrorBoundary>
+                    <Suspense fallback={<div className="admin-loading">Loading chart...</div>}>
+                      <Plot
                       data={[{
                         type: 'bar',
                         x: stats.papers_by_year.map(y => y.year),
@@ -490,7 +518,8 @@ export default function AdminPage() {
                       config={{ displayModeBar: false, responsive: true }}
                       style={{ width: '100%' }}
                     />
-                  </Suspense>
+                    </Suspense>
+                  </ChartErrorBoundary>
                 )}
               </div>
             </div>
