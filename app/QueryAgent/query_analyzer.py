@@ -776,7 +776,7 @@ Return JSON:
     "source_queries": {{
         "arxiv": "arXiv query using (ti:X OR ti:Y) OR (abs:X AND abs:Y)",
         "dblp": "2-4 core keywords",
-        "google_scholar": "natural language with quoted phrases"
+        "google_scholar": ["specific query with quoted phrases", "broader rephrased query", "alternative angle query"]
     }}
 }}
 
@@ -784,7 +784,7 @@ RULES:
 - is_academic: false ONLY for clearly non-academic queries (weather, food, shopping, etc.)
 - source_queries.arxiv: Use (ti:keyword1 OR ti:keyword2) OR (abs:keyword1 AND abs:keyword2)
 - source_queries.dblp: 2-4 core technical keywords only
-- source_queries.google_scholar: Natural language with "quoted key phrases"
+- source_queries.google_scholar: Array of 2-3 queries (specific to broad). Natural language with "quoted key phrases"
 - Translate non-English queries to English for source_queries
 - Stay close to the original query intent""",
                     },
@@ -796,6 +796,14 @@ RULES:
             raw = json.loads(response.choices[0].message.content)
 
             source_queries = raw.get("source_queries", {})
+
+            # Normalize google_scholar: LLM may return list or string
+            scholar_raw = source_queries.get("google_scholar", query)
+            if isinstance(scholar_raw, str):
+                scholar_queries = [scholar_raw]
+            else:
+                scholar_queries = list(scholar_raw)[:3]
+
             result = {
                 "is_academic": bool(raw.get("is_academic", True)),
                 "intent": raw.get("intent", "paper_search"),
@@ -810,7 +818,8 @@ RULES:
                 "source_queries": {
                     "arxiv": source_queries.get("arxiv", query),
                     "dblp": source_queries.get("dblp", query),
-                    "google_scholar": source_queries.get("google_scholar", query),
+                    "google_scholar": scholar_queries[0] if scholar_queries else query,
+                    "scholar_queries": scholar_queries,
                     "default": query,
                 },
             }

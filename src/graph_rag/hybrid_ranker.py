@@ -112,6 +112,7 @@ class HybridRanker:
         top_k: Optional[int] = None,
         openai_client=None,
         use_rrf: bool = True,
+        research_area: str = "",
     ) -> List[Dict[str, Any]]:
         """
         논문 리스트를 하이브리드 점수로 랭킹.
@@ -138,13 +139,14 @@ class HybridRanker:
                 intent=intent,
                 top_k=top_k,
                 openai_client=openai_client,
+                research_area=research_area,
             )
 
         # ── Weighted-sum fallback (기존 동작 유지) ──────────────────
         w = dict(weights or INTENT_WEIGHT_PRESETS.get(intent, DEFAULT_WEIGHTS))
 
         bm25_scores = self._compute_bm25_scores(query, papers)
-        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client)
+        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area)
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
 
@@ -197,6 +199,7 @@ class HybridRanker:
         intent: str = "paper_search",
         top_k: Optional[int] = None,
         openai_client=None,
+        research_area: str = "",
     ) -> List[Dict[str, Any]]:
         """
         RRF (Reciprocal Rank Fusion) 방식으로 논문 랭킹.
@@ -221,7 +224,7 @@ class HybridRanker:
         n = len(papers)
 
         bm25_scores = self._compute_bm25_scores(query, papers)
-        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client)
+        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area)
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
 
@@ -369,6 +372,7 @@ class HybridRanker:
         self,
         query: str,
         openai_client,
+        research_area: str = "",
     ) -> Optional[np.ndarray]:
         """
         HyDE (Hypothetical Document Embedding) + Multi-Query 평균 임베딩 생성.
@@ -394,20 +398,32 @@ class HybridRanker:
         try:
             # 1 & 2. 가상 초록 + 대안 쿼리 생성을 병렬 실행 (독립적인 LLM 호출)
             def _generate_hypothetical_abstract() -> str:
+                domain_spec = (
+                    f"specializing in {research_area} research"
+                    if research_area
+                    else "across academic research domains"
+                )
                 hyde_response = openai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {
                             "role": "system",
                             "content": (
-                                "You are a scientific paper abstract generator. "
-                                "Write a concise hypothetical abstract for a paper that would best answer the given research query. "
-                                "Output only the abstract text, no title or labels."
+                                f"You are an expert scientific paper abstract generator {domain_spec}. "
+                                "Given a research query, write a hypothetical abstract for a paper that would be the ideal search result. "
+                                "Include: (1) the problem addressed, (2) the proposed method/approach name, "
+                                "(3) key technical terms and acronyms used in the field, "
+                                "(4) quantitative claims (e.g., 'achieves state-of-the-art on X benchmark'). "
+                                "Use formal academic language. Output only the abstract text, no title or labels."
                             ),
                         },
                         {
                             "role": "user",
-                            "content": f"Research query: {query}",
+                            "content": (
+                                f"Research query: {query}\n\n"
+                                "Write a hypothetical abstract (~150 words) that a highly relevant paper would have. "
+                                "Focus on technical depth and domain-specific terminology."
+                            ),
                         },
                     ],
                     max_tokens=200,
@@ -493,6 +509,7 @@ class HybridRanker:
         query: str,
         papers: List[Dict[str, Any]],
         openai_client=None,
+        research_area: str = "",
     ) -> List[float]:
         """
         Field-Weighted Semantic 점수 (title 0.6 + abstract 0.4 코사인 유사도).
@@ -518,7 +535,7 @@ class HybridRanker:
             # HyDE 임베딩 시도 (openai_client 있을 때)
             hyde_query_emb: Optional[np.ndarray] = None
             if openai_client is not None:
-                hyde_query_emb = self._generate_hyde_embedding(query, openai_client)
+                hyde_query_emb = self._generate_hyde_embedding(query, openai_client, research_area=research_area)
                 if hyde_query_emb is not None:
                     logger.info("[HybridRanker] HyDE embedding active for semantic scoring")
 

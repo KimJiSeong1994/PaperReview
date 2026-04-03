@@ -113,6 +113,11 @@ class LocalRelevanceScorer:
             return []
 
 
+# Pre-load cross-encoder model at import time if env var set
+if os.getenv("PRELOAD_CROSS_ENCODER", "").lower() in ("1", "true", "yes"):
+    LocalRelevanceScorer.get_model()
+
+
 class RelevanceFilter:
     """LLM 기반 검색 결과 관련성 필터"""
 

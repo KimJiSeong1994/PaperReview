@@ -746,10 +746,46 @@ class SearchAgent:
                 year_end = filters.get("year_end")
                 author = filters.get("author")
                 sort_by = filters.get("sort_by", "relevance")
-                scholar_q = source_queries.get("google_scholar", query)
-                return self.search_google_scholar(
-                    scholar_q, max_results, sort_by, year_start, year_end, author
+
+                # Multi-query: use scholar_queries list if available
+                scholar_queries = source_queries.get("scholar_queries", [])
+                if not scholar_queries:
+                    scholar_queries = [source_queries.get("google_scholar", query)]
+
+                # First query: run normally (existing behavior)
+                first_results = self.search_google_scholar(
+                    scholar_queries[0], max_results, sort_by, year_start, year_end, author
                 )
+
+                # Additional queries (2nd, 3rd): submit as parallel futures
+                extra_queries = scholar_queries[1:3]
+                if not extra_queries:
+                    return first_results[:max_results]
+
+                extra_futures = []
+                for sq in extra_queries:
+                    fut = _SEARCH_EXECUTOR.submit(
+                        self.search_google_scholar,
+                        sq, max_results, sort_by, year_start, year_end, author,
+                    )
+                    extra_futures.append(fut)
+
+                # Merge and deduplicate by title
+                all_results = list(first_results)
+                seen_titles = {p.get("title", "").lower().strip() for p in all_results}
+
+                for fut in extra_futures:
+                    try:
+                        extra_papers = fut.result(timeout=30)
+                        for p in extra_papers:
+                            t = p.get("title", "").lower().strip()
+                            if t and t not in seen_titles:
+                                seen_titles.add(t)
+                                all_results.append(p)
+                    except Exception as e:
+                        logger.warning("[SearchAgent] Extra scholar query failed: %s", e)
+
+                return all_results[:max_results]
 
             elif source_name == "openalex":
                 openalex_q = source_queries.get("openalex", query)

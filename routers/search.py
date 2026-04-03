@@ -468,6 +468,8 @@ _FREQ_FILE = Path("data/cache/query_freq.json")
 _SEED_QUERIES = [
     "transformer", "large language model", "reinforcement learning",
     "diffusion model", "graph neural network", "retrieval augmented generation",
+    "vision language model", "mixture of experts", "test-time compute",
+    "agent", "reasoning", "alignment",
 ]
 
 
@@ -517,48 +519,67 @@ def _load_query_freq() -> None:
 _load_query_freq()
 
 
+_prefetch_running = False
+
+
 def _prefetch_popular_queries():
-    """Background thread: pre-fetches popular query results into cache."""
+    """Background thread: periodically pre-fetches popular query results into cache."""
+    global _prefetch_running
     import time as _time
 
-    # Wait for server startup to complete
-    _time.sleep(30)
+    # Prevent overlapping cycles
+    if _prefetch_running:
+        logger.info("[Prefetch] Already running, skipping")
+        return
+    _prefetch_running = True
 
-    popular = _get_popular_queries()
-    logger.info("[Prefetch] Starting popular query prefetch (%d queries)...", len(popular))
+    try:
+        # Wait for server startup to complete
+        _time.sleep(30)
 
-    default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
-    default_filters = {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": False}
+        while True:
+            cycle_start = _time.time()
+            popular = _get_popular_queries()
+            logger.info("[Prefetch] Starting prefetch cycle (%d queries)...", len(popular))
 
-    fetched = 0
-    for query in popular:
-        try:
-            cache_key = _compute_cache_key(query, default_sources, default_filters)
-            if _get_cached_result(cache_key) is not None:
-                logger.debug("[Prefetch] Cache hit for '%s', skipping", query)
-                continue
+            default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
 
-            filters = {
-                "sources": default_sources,
-                "max_results": 20,
-                "sort_by": "relevance",
-            }
-            results = search_agent.search_with_filters(query, filters)
+            fetched = 0
+            for query in popular:
+                try:
+                    cache_key = _compute_cache_key(query, default_sources, {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": False})
+                    if _get_cached_result(cache_key) is not None:
+                        logger.debug("[Prefetch] Cache hit for '%s', skipping", query)
+                        continue
 
-            if results:
-                total = sum(len(papers) for papers in results.values())
-                _set_cache(cache_key, results, ttl_seconds=7200)  # 2 hour TTL for prefetch
-                logger.info("[Prefetch] Cached '%s': %d papers", query, total)
-                fetched += 1
+                    filters = {
+                        "sources": default_sources,
+                        "max_results": 20,
+                        "sort_by": "relevance",
+                    }
+                    results = search_agent.search_with_filters(query, filters)
 
-            # Respect rate limits between queries
-            _time.sleep(10)
+                    if results:
+                        total = sum(len(papers) for papers in results.values())
+                        _set_cache(cache_key, results, ttl_seconds=3600)  # 1 hour TTL (matches default)
+                        logger.info("[Prefetch] Cached '%s': %d papers", query, total)
+                        fetched += 1
 
-        except Exception as e:
-            logger.warning("[Prefetch] Failed for '%s': %s", query, e)
-            _time.sleep(5)
+                    # Respect rate limits between queries
+                    _time.sleep(5)
 
-    logger.info("[Prefetch] Complete: %d/%d queries prefetched", fetched, len(popular))
+                except Exception as e:
+                    logger.warning("[Prefetch] Failed for '%s': %s", query, e)
+                    _time.sleep(5)
+
+            cycle_duration = _time.time() - cycle_start
+            logger.info("[Prefetch] Cycle complete: %d/%d queries prefetched (%.0fs)", fetched, len(popular), cycle_duration)
+
+            # Sleep until next cycle (45 minutes), accounting for actual cycle time
+            next_sleep = max(0, 2700 - cycle_duration)
+            _time.sleep(next_sleep)
+    finally:
+        _prefetch_running = False
 
 
 # Start prefetch in background thread on module load
