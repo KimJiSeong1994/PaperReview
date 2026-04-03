@@ -542,7 +542,8 @@ def _prefetch_popular_queries():
             popular = _get_popular_queries()
             logger.info("[Prefetch] Starting prefetch cycle (%d queries)...", len(popular))
 
-            default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
+            # arXiv/google_scholar excluded: global semaphore + rate limits block user searches
+            default_sources = ["connected_papers", "openalex", "dblp", "openalex_korean"]
 
             fetched = 0
             for query in popular:
