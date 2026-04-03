@@ -179,6 +179,23 @@ async def root():
     return {"message": "Paper Review Agent API", "version": "1.1.0"}
 
 
+@app.get("/api/debug/test-bookmarks/{username}")
+async def debug_test_bookmarks(username: str):
+    """Simulate GET /api/bookmarks for a given username."""
+    from routers.deps import load_bookmarks
+    data = load_bookmarks()
+    filtered = [
+        bm for bm in data.get("bookmarks", [])
+        if bm.get("username") == username
+    ]
+    return {
+        "username": username,
+        "total_bookmarks": len(data.get("bookmarks", [])),
+        "filtered_count": len(filtered),
+        "filtered_ids": [bm.get("id", "?")[:20] for bm in filtered],
+    }
+
+
 @app.get("/api/debug/db-status")
 async def debug_db_status():
     """Temporary: check DB file states without auth. Remove after debugging."""
@@ -245,6 +262,10 @@ async def debug_db_status():
         "load_bookmarks_total": len(bm_data.get("bookmarks", [])),
         "load_bookmarks_sample": bm_sample,
         "raw_metadata": raw_meta,
+        "filtered_by_user": {
+            u: len([b for b in bm_data.get("bookmarks", []) if b.get("username") == u])
+            for u in set(b.get("username") for b in bm_data.get("bookmarks", []))
+        },
         "files_exist": {
             "bookmarks.db": (data_dir / "bookmarks.db").exists(),
             "users.db": (data_dir / "users.db").exists(),
