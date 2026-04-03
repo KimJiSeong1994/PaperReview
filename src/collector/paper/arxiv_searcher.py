@@ -83,8 +83,8 @@ class ArxivSearcher:
             ArxivSearcher._global_semaphore.release()
 
     def _safe_results(self, search: arxiv.Search) -> list:
-        """arXiv 검색 실행 — rate limiting + HTTP 429 exponential backoff"""
-        max_retries = 3
+        """arXiv 검색 실행 — rate limiting + HTTP 429 fast-fail"""
+        max_retries = 2
         for attempt in range(max_retries):
             try:
                 self._rate_limit()
@@ -92,13 +92,17 @@ class ArxivSearcher:
             except Exception as e:
                 error_str = str(e)
                 if '429' in error_str:
-                    wait = (2 ** attempt) * 5 + random.uniform(0, 2)
-                    logger.warning(
-                        "arXiv rate limited (attempt %d/%d), waiting %.1fs",
-                        attempt + 1, max_retries, wait,
-                    )
-                    time.sleep(wait)
-                    continue
+                    if attempt == 0:
+                        wait = 5 + random.uniform(0, 2)
+                        logger.warning(
+                            "arXiv rate limited (attempt %d/%d), waiting %.1fs",
+                            attempt + 1, max_retries, wait,
+                        )
+                        time.sleep(wait)
+                        continue
+                    # 2nd attempt failed — give up fast, don't block other sources
+                    logger.warning("arXiv rate limit persists, returning empty")
+                    return []
                 raise
         logger.error("arXiv rate limit retries exhausted")
         return []
