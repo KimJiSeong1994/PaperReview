@@ -94,7 +94,7 @@ function SearchPage() {
         max_results: 50,
         sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
         sort_by: 'relevance',
-        use_llm_search: true,
+        use_llm_search: false,
       }, abortController.signal);
 
       // Check if query was classified as non-academic
