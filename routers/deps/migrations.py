@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import sqlite3
-from pathlib import Path
 
 from .storage import (
     BOOKMARKS_FILE,
