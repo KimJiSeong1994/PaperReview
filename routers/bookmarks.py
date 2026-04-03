@@ -191,19 +191,19 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
     return {
         "bookmarks": [
             {
-                "id": bm["id"],
-                "title": bm["title"],
-                "session_id": bm["session_id"],
+                "id": bm.get("id", ""),
+                "title": bm.get("title", ""),
+                "session_id": bm.get("session_id", ""),
                 "query": bm.get("query", ""),
                 "num_papers": bm.get("num_papers", 0),
-                "created_at": bm["created_at"],
+                "created_at": bm.get("created_at", ""),
                 "tags": bm.get("tags", []),
                 "topic": bm.get("topic", "General"),
-                "has_notes": bool(bm.get("notes", "").strip()) or bool(bm.get("highlights", [])),
+                "has_notes": bool((bm.get("notes") or "").strip()) or bool(bm.get("highlights", [])),
                 "has_citation_tree": bool(bm.get("citation_tree")),
                 "has_share": bool(bm.get("share")),
             }
-            for bm in data["bookmarks"]
+            for bm in data.get("bookmarks", [])
             if bm.get("username") == username
         ]
     }
