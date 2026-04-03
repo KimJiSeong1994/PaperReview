@@ -179,6 +179,52 @@ async def root():
     return {"message": "Paper Review Agent API", "version": "1.1.0"}
 
 
+@app.get("/debug/db-status")
+async def debug_db_status():
+    """Temporary: check DB file states without auth. Remove after debugging."""
+    import sqlite3 as _sql
+    data_dir = Path("data")
+
+    def _count(db: str, table: str) -> int:
+        p = data_dir / db
+        if not p.exists():
+            return -1
+        try:
+            c = _sql.connect(str(p))
+            n = c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
+            c.close()
+            return n
+        except Exception:
+            return -2
+
+    def _distinct(db: str, table: str, col: str) -> list:
+        p = data_dir / db
+        if not p.exists():
+            return []
+        try:
+            c = _sql.connect(str(p))
+            rows = c.execute(f"SELECT DISTINCT {col} FROM {table}").fetchall()  # noqa: S608
+            c.close()
+            return [r[0] for r in rows]
+        except Exception:
+            return []
+
+    return {
+        "bookmarks_count": _count("bookmarks.db", "bookmarks"),
+        "users_count": _count("users.db", "users"),
+        "papers_count": _count("papers.db", "papers"),
+        "bookmark_usernames": _distinct("bookmarks.db", "bookmarks", "username"),
+        "registered_usernames": _distinct("users.db", "users", "username"),
+        "files_exist": {
+            "bookmarks.db": (data_dir / "bookmarks.db").exists(),
+            "users.db": (data_dir / "users.db").exists(),
+            "bookmarks.json": (data_dir / "bookmarks.json").exists(),
+            "bookmarks.json.migrated": (data_dir / "bookmarks.json.migrated").exists(),
+            "users.json": (data_dir / "users.json").exists(),
+        },
+    }
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
