@@ -209,12 +209,26 @@ async def debug_db_status():
         except Exception:
             return []
 
+    # Test what load_bookmarks actually returns
+    from routers.deps import load_bookmarks
+    bm_data = load_bookmarks()
+    bm_sample = []
+    for bm in bm_data.get("bookmarks", [])[:3]:
+        bm_sample.append({
+            "id": bm.get("id", "?")[:12],
+            "username": bm.get("username", "MISSING"),
+            "title": (bm.get("title") or "")[:40],
+            "keys": list(bm.keys())[:10],
+        })
+
     return {
         "bookmarks_count": _count("bookmarks.db", "bookmarks"),
         "users_count": _count("users.db", "users"),
         "papers_count": _count("papers.db", "papers"),
         "bookmark_usernames": _distinct("bookmarks.db", "bookmarks", "username"),
         "registered_usernames": _distinct("users.db", "users", "username"),
+        "load_bookmarks_total": len(bm_data.get("bookmarks", [])),
+        "load_bookmarks_sample": bm_sample,
         "files_exist": {
             "bookmarks.db": (data_dir / "bookmarks.db").exists(),
             "users.db": (data_dir / "users.db").exists(),
