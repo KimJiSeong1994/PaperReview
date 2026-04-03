@@ -98,6 +98,19 @@ async def admin_diagnostics(admin: str = Depends(get_admin_user)):
         except Exception:
             return -2
 
+    def _distinct_values(p: Path, table: str, column: str) -> list:
+        if not p.exists():
+            return []
+        try:
+            conn = sqlite3.connect(str(p))
+            rows = conn.execute(
+                f"SELECT DISTINCT {column}, COUNT(*) FROM {table} GROUP BY {column}"  # noqa: S608
+            ).fetchall()
+            conn.close()
+            return [{"value": r[0], "count": r[1]} for r in rows]
+        except Exception as e:
+            return [{"error": str(e)}]
+
     return {
         "files": {
             "bookmarks.db": _file_info(data_dir / "bookmarks.db"),
@@ -114,6 +127,9 @@ async def admin_diagnostics(admin: str = Depends(get_admin_user)):
             "users": _db_count(data_dir / "users.db", "users"),
             "papers": _db_count(data_dir / "papers.db", "papers"),
         },
+        "bookmark_usernames": _distinct_values(data_dir / "bookmarks.db", "bookmarks", "username"),
+        "registered_users": _distinct_values(data_dir / "users.db", "users", "username"),
+        "current_admin": admin,
     }
 
 
