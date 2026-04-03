@@ -64,7 +64,7 @@ def _hyde_cache_set(query: str, embedding: np.ndarray) -> None:
 # ── Intent별 가중치 프리셋 ─────────────────────────────────────────
 
 INTENT_WEIGHT_PRESETS: Dict[str, Dict[str, float]] = {
-    "paper_search":      {"bm25": 0.35, "semantic": 0.35, "citations": 0.15, "recency": 0.15},
+    "paper_search":      {"bm25": 0.35, "semantic": 0.25, "citations": 0.25, "recency": 0.15},
     "latest_research":   {"bm25": 0.20, "semantic": 0.20, "citations": 0.10, "recency": 0.50},
     "survey":            {"bm25": 0.15, "semantic": 0.15, "citations": 0.40, "recency": 0.30},
     "method_search":     {"bm25": 0.30, "semantic": 0.50, "citations": 0.10, "recency": 0.10},
