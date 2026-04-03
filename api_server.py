@@ -218,8 +218,23 @@ async def debug_db_status():
             "id": bm.get("id", "?")[:12],
             "username": bm.get("username", "MISSING"),
             "title": (bm.get("title") or "")[:40],
-            "keys": list(bm.keys())[:10],
+            "session_id": bm.get("session_id", "MISSING"),
+            "query": bm.get("query", "MISSING"),
+            "tags": bm.get("tags", "MISSING"),
+            "num_papers": bm.get("num_papers", "MISSING"),
+            "all_keys": sorted(bm.keys()),
         })
+
+    # Also check raw metadata column
+    raw_meta = []
+    try:
+        conn = _sql.connect(str(data_dir / "bookmarks.db"))
+        rows = conn.execute("SELECT id, metadata FROM bookmarks LIMIT 3").fetchall()
+        conn.close()
+        for r in rows:
+            raw_meta.append({"id": r[0][:12], "metadata": r[1][:200] if r[1] else None})
+    except Exception as e:
+        raw_meta = [{"error": str(e)}]
 
     return {
         "bookmarks_count": _count("bookmarks.db", "bookmarks"),
@@ -229,6 +244,7 @@ async def debug_db_status():
         "registered_usernames": _distinct("users.db", "users", "username"),
         "load_bookmarks_total": len(bm_data.get("bookmarks", [])),
         "load_bookmarks_sample": bm_sample,
+        "raw_metadata": raw_meta,
         "files_exist": {
             "bookmarks.db": (data_dir / "bookmarks.db").exists(),
             "users.db": (data_dir / "users.db").exists(),
