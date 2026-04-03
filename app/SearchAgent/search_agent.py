@@ -890,14 +890,29 @@ class SearchAgent:
 
         loop = asyncio.get_running_loop()
 
+        # Per-source timeout: arXiv/Scholar get shorter budget due to rate limits
+        _SOURCE_TIMEOUTS = {
+            "arxiv": 15,
+            "google_scholar": 20,
+        }
+        _DEFAULT_SOURCE_TIMEOUT = 30
+
         async def _run_source(source_name: str) -> tuple:
-            """Run a single source search in the thread-pool executor."""
-            papers = await loop.run_in_executor(
-                None,
-                self._search_single_source,
-                source_name, query, filters, source_queries, max_results,
-            )
-            return source_name, papers
+            """Run a single source search in the thread-pool executor with per-source timeout."""
+            timeout = _SOURCE_TIMEOUTS.get(source_name, _DEFAULT_SOURCE_TIMEOUT)
+            try:
+                papers = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        self._search_single_source,
+                        source_name, query, filters, source_queries, max_results,
+                    ),
+                    timeout=timeout,
+                )
+                return source_name, papers
+            except asyncio.TimeoutError:
+                logger.warning("[SearchAgent] source %s timed out after %ds", source_name, timeout)
+                return source_name, []
 
         tasks = [_run_source(s) for s in sources]
         completed = await asyncio.gather(*tasks, return_exceptions=True)
