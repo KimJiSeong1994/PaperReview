@@ -56,7 +56,8 @@ from .agents import query_analyzer, relevance_filter, search_agent
 from .openai_client import get_light_rag_agent, get_openai_client
 
 # ── Run migrations on import (same behaviour as original deps.py) ────
-from .migrations import _migrate_bookmarks_add_username, _migrate_papers_add_searched_by
+from .migrations import _migrate_bookmarks_add_username, _migrate_papers_add_searched_by, _fix_username_typo
 
 _migrate_bookmarks_add_username()
 _migrate_papers_add_searched_by()
+_fix_username_typo()
