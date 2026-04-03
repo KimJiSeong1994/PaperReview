@@ -576,11 +576,11 @@ _prefetch_thread.start()
 _ANALYZE_TIMEOUT = 15
 _LLM_SEARCH_TIMEOUT = 60
 _SMART_SEARCH_TIMEOUT = 60
-_SEARCH_TIMEOUT = 90            # 전체 검색 파이프라인 (분석+검색+랭킹+필터)
+_SEARCH_TIMEOUT = 100           # 전체 검색 파이프라인 (분석+검색+랭킹+필터)
 _SOURCE_SEARCH_TIMEOUT = 40     # 멀티소스 검색 단계만
-_RELEVANCE_FILTER_TIMEOUT = 20  # LLM 관련성 필터 단계만
+_RELEVANCE_FILTER_TIMEOUT = 30  # LLM 관련성 필터 단계만
 _GRAPHRAG_TIMEOUT = 5           # GraphRAG 확장
-_RANKING_TIMEOUT = 15           # HyDE + hybrid ranking
+_RANKING_TIMEOUT = 25           # HyDE + hybrid ranking
 
 
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)
