@@ -184,7 +184,7 @@ class SearchRequest(BaseModel):
     year_end: Optional[int] = None
     author: Optional[str] = None
     category: Optional[str] = None
-    fast_mode: bool = True
+    fast_mode: bool = False
     save_papers: bool = True
     collect_references: bool = False
     extract_texts: bool = False
@@ -528,7 +528,7 @@ def _prefetch_popular_queries():
     logger.info("[Prefetch] Starting popular query prefetch (%d queries)...", len(popular))
 
     default_sources = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
-    default_filters = {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": True}
+    default_filters = {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": False}
 
     fetched = 0
     for query in popular:
