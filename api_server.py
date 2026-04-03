@@ -179,7 +179,7 @@ async def root():
     return {"message": "Paper Review Agent API", "version": "1.1.0"}
 
 
-@app.get("/debug/db-status")
+@app.get("/api/debug/db-status")
 async def debug_db_status():
     """Temporary: check DB file states without auth. Remove after debugging."""
     import sqlite3 as _sql
