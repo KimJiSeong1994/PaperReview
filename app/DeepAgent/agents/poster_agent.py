@@ -555,6 +555,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 build_diagram_caption,
                 build_diagram_prompt,
                 build_paper_diagram_inputs,
+                build_plot_inputs,
             )
 
             paper_analyses = getattr(content, 'paper_analyses', []) or []
@@ -576,19 +577,40 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                     logger.warning("PaperBanana 개별 타임아웃/실패: %s", exc)
                     return None
 
+            async def _safe_plot(data_json: str, intent: str) -> Any:
+                """플롯 생성에 150초 타임아웃 적용."""
+                try:
+                    return await asyncio.wait_for(
+                        self._paperbanana_client.generate_plot(data_json, intent),
+                        timeout=150,
+                    )
+                except (asyncio.TimeoutError, Exception) as exc:
+                    logger.warning("PaperBanana 플롯 타임아웃/실패: %s", exc)
+                    return None
+
             async def _run() -> List[Dict[str, Any]]:
                 tasks = []
                 task_labels: List[str] = []
+                task_types: List[str] = []
 
-                # 전체 방법론 다이어그램
+                # 전체 아키텍처 다이어그램
                 if source_context.strip():
                     tasks.append(_safe_generate(source_context, caption))
-                    task_labels.append("Overall Methodology")
+                    task_labels.append("Overall Architecture")
+                    task_types.append("diagram")
 
-                # 논문별 다이어그램
+                # 논문별 아키텍처 다이어그램
                 for inp in paper_inputs:
                     tasks.append(_safe_generate(inp["source_context"], inp["caption"]))
                     task_labels.append(inp["paper_title"])
+                    task_types.append("diagram")
+
+                # 비교/결과 플롯 (Gemini 이미지 API 2RPM 제한 고려, 최대 1개)
+                plot_inputs = build_plot_inputs(paper_analyses)
+                for plot_inp in plot_inputs[:1]:
+                    tasks.append(_safe_plot(plot_inp["data_json"], plot_inp["intent"]))
+                    task_labels.append(plot_inp["label"])
+                    task_types.append("plot")
 
                 if not tasks:
                     return []
@@ -597,7 +619,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 raw_results = await asyncio.gather(*tasks)
 
                 results: List[Dict[str, Any]] = []
-                for label, result in zip(task_labels, raw_results):
+                for label, result, ttype in zip(task_labels, raw_results, task_types):
                     if result is None or not result.success or not result.image_base64:
                         continue
                     img_html = (

@@ -254,14 +254,12 @@ def build_diagram_prompt(
 ) -> str:
     """``ExtractedContent``와 논문 분석 결과로부터 PaperBanana용 source_context를 생성한다.
 
-    PaperBanana는 구조화된 방법론 설명을 선호하므로,
-    연구 개요 + 아키텍처 구성요소 + 파이프라인 흐름 순으로 구성한다.
-    총 길이를 2500자 이내로 제한한다.
+    아키텍처 블록 다이어그램 / 데이터 플로우 다이어그램 생성에 최적화된
+    구조화 프롬프트를 구성한다. 총 길이를 2500자 이내로 제한한다.
 
     Args:
         content: ``ExtractedContent``-like 객체. ``methodology`` 속성이 있어야 한다.
         paper_analyses: 논문별 분석 딕셔너리 리스트.
-            각 딕셔너리는 ``title``, ``methodology``, ``contributions`` 키를 가질 수 있다.
 
     Returns:
         PaperBanana source_context로 사용할 문자열.
@@ -269,40 +267,60 @@ def build_diagram_prompt(
     MAX_LENGTH = 2500
     sections: List[str] = []
 
-    # --- Research Method Overview ---
+    # --- Diagram instruction ---
+    sections.append(
+        "Create a clear block diagram / data-flow diagram for an academic poster. "
+        "Use labeled rectangles for components and directional arrows for data flow."
+    )
+
+    # --- System Architecture Overview ---
     methodology = getattr(content, "methodology", "") or ""
     if methodology:
-        overview = methodology.strip()[:800]
-        sections.append(f"## Research Method Overview\n{overview}")
+        overview = methodology.strip()[:600]
+        sections.append(f"## System Architecture Overview\n{overview}")
 
-    # --- Architecture Components ---
+    # --- Core Components (역할 기반 구조화) ---
     components: List[str] = []
     for paper in paper_analyses:
         method_text = (paper.get("methodology") or "").strip()
         if not method_text:
             continue
-        title = (paper.get("title") or "Unknown").strip()[:60]
-        first_sentence = method_text.split(".")[0].strip()
-        desc = first_sentence[:200] if first_sentence else method_text[:200]
-        components.append(f"- {title}: {desc}")
+        title = (paper.get("title") or "Unknown").strip()[:50]
+        # 방법론에서 핵심 구조 추출: 첫 2문장
+        sentences = [s.strip() for s in method_text.split(".") if s.strip()]
+        desc = ". ".join(sentences[:2])[:250]
+        contribs = (paper.get("contributions") or "").strip()
+        innovation = ""
+        if contribs:
+            first_contrib = contribs.split("\n")[0].strip().lstrip("-").strip()[:120]
+            innovation = f" | Innovation: {first_contrib}"
+        components.append(f"- [{title}]: {desc}{innovation}")
 
     if components:
-        components_text = "\n".join(components[:6])
-        sections.append(f"## Architecture Components\n{components_text}")
+        components_text = "\n".join(components[:4])
+        sections.append(f"## Core Components\n{components_text}")
 
-    # --- Pipeline Flow ---
+    # --- Data Flow (단계별 입출력) ---
     contributions = getattr(content, "contributions", []) or []
     if contributions:
-        flow_items = [c.strip().lstrip("-").strip() for c in contributions[:5]]
-        flow_str = " -> ".join(flow_items)
-        sections.append(f"## Pipeline Flow\n{flow_str}")
+        flow_items = [c.strip().lstrip("-").strip()[:80] for c in contributions[:6]]
+        flow_lines = []
+        for i, item in enumerate(flow_items):
+            prefix = "Input" if i == 0 else f"Stage {i}"
+            flow_lines.append(f"  {prefix}: {item}")
+        flow_str = "\n→ ".join(flow_lines)
+        sections.append(f"## Data Flow\n{flow_str}")
 
     result = "\n\n".join(sections)
 
-    # 로고/외부 브랜드 생성 방지 지시
-    result += ("\n\nIMPORTANT: Use ONLY abstract geometric shapes, arrows, and text labels. "
-               "Do NOT include any logos, brand marks, icons, or watermarks of external services "
-               "(Wikipedia, Google, arXiv, etc.). No clipart or decorative images.")
+    # 스타일 지시
+    result += (
+        "\n\nSTYLE: Academic publication quality. Clean block diagram with labeled arrows. "
+        "Use geometric shapes (rectangles, rounded boxes) and directional arrows. "
+        "White background, sans-serif font. "
+        "Do NOT include any logos, brand marks, icons, or watermarks. "
+        "No clipart or decorative images."
+    )
 
     if len(result) > MAX_LENGTH:
         result = result[:MAX_LENGTH - 3] + "..."
@@ -313,21 +331,24 @@ def build_diagram_prompt(
 def build_diagram_caption(content: Any) -> str:
     """``ExtractedContent``에서 다이어그램 캡션을 생성한다.
 
-    제목과 방법론 첫 문장을 조합하여 간결한 캡션을 만든다.
+    논문 수, 핵심 방법론 키워드를 포함한 서술적 캡션을 만든다.
 
     Args:
-        content: ``ExtractedContent``-like 객체. ``title``, ``methodology`` 속성 참조.
+        content: ``ExtractedContent``-like 객체.
 
     Returns:
         다이어그램 캡션 문자열.
     """
     title = getattr(content, "title", "") or ""
     methodology = getattr(content, "methodology", "") or ""
+    paper_titles = getattr(content, "paper_titles", []) or []
 
     parts: List[str] = []
 
     if title:
-        parts.append(f"Overview of {title}")
+        parts.append(f"System architecture of {title}")
+    elif paper_titles:
+        parts.append(f"Comparative architecture overview of {len(paper_titles)} papers")
 
     if methodology:
         first_sentence = methodology.strip().split(".")[0].strip()
@@ -335,7 +356,7 @@ def build_diagram_caption(content: Any) -> str:
             parts.append(first_sentence[:150])
 
     if not parts:
-        return "Methodology diagram"
+        return "System architecture and data flow diagram"
 
     return ": ".join(parts)
 
@@ -343,10 +364,10 @@ def build_diagram_caption(content: Any) -> str:
 def build_paper_diagram_inputs(
     paper_analyses: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
-    """논문별 다이어그램 생성 입력 목록을 반환한다.
+    """논문별 아키텍처 다이어그램 생성 입력 목록을 반환한다.
 
-    ``methodology`` 필드가 존재하는 논문만 포함하며,
-    각 항목은 PaperBanana ``GenerationInput``에 매핑할 수 있는 구조이다.
+    각 논문의 핵심 아키텍처를 블록 다이어그램으로 시각화하기 위한
+    구조화된 프롬프트를 생성한다.
 
     Args:
         paper_analyses: 논문별 분석 딕셔너리 리스트.
@@ -366,17 +387,29 @@ def build_paper_diagram_inputs(
         contributions = (paper.get("contributions") or "").strip()
 
         parts: List[str] = []
-        parts.append(f"Paper: {title}")
-        parts.append(f"\nMethod:\n{methodology[:1000]}")
+        parts.append(
+            f"Draw a block diagram showing the core architecture of: {title}\n"
+            "Use labeled rectangles for components and arrows for data flow."
+        )
+        parts.append(f"\n## Method\n{methodology[:800]}")
 
         if contributions:
-            parts.append(f"\nKey Contributions:\n{contributions[:500]}")
+            contrib_lines = contributions.split("\n")
+            key_items = [c.strip().lstrip("-").strip() for c in contrib_lines if c.strip()][:4]
+            if key_items:
+                items_str = "\n".join(f"- {item[:100]}" for item in key_items)
+                parts.append(f"\n## Key Innovations\n{items_str}")
+
+        parts.append(
+            "\nSTYLE: Academic block diagram. White background, clean layout. "
+            "No logos or decorative elements."
+        )
 
         source_context = "\n".join(parts)
         if len(source_context) > 2000:
             source_context = source_context[:1997] + "..."
 
-        caption = f"Methodology overview: {title}"
+        caption = f"Architecture diagram: {title}"
 
         inputs.append({
             "paper_title": title,
@@ -385,6 +418,68 @@ def build_paper_diagram_inputs(
         })
 
     return inputs
+
+
+def build_plot_inputs(
+    paper_analyses: List[Dict[str, Any]],
+) -> List[Dict[str, str]]:
+    """논문별 정량적 결과를 플롯으로 시각화하기 위한 입력을 생성한다.
+
+    ``paper_analyses``에서 성능 지표, 비교 데이터를 추출하여
+    ``PaperBananaClient.generate_plot()`` 에 전달할 수 있는
+    JSON 데이터와 intent를 구성한다.
+
+    Args:
+        paper_analyses: 논문별 분석 딕셔너리 리스트.
+
+    Returns:
+        ``{"label": str, "data_json": str, "intent": str}`` 형태의 리스트.
+    """
+    import json as _json
+
+    plots: List[Dict[str, str]] = []
+
+    # --- 논문 간 비교 플롯 ---
+    comparison_rows: List[Dict[str, str]] = []
+    for paper in paper_analyses:
+        title = (paper.get("title") or "").strip()[:40]
+        contributions = (paper.get("contributions") or "").strip()
+        key_findings = (paper.get("key_findings") or "").strip()
+        if not title:
+            continue
+
+        # 핵심 기여 1줄 요약
+        first_contrib = ""
+        if contributions:
+            first_contrib = contributions.split("\n")[0].strip().lstrip("-").strip()[:80]
+
+        # 핵심 발견 1줄 요약
+        first_finding = ""
+        if key_findings:
+            first_finding = key_findings.split("\n")[0].strip().lstrip("-").strip()[:80]
+
+        if first_contrib or first_finding:
+            comparison_rows.append({
+                "paper": title,
+                "contribution": first_contrib,
+                "finding": first_finding,
+            })
+
+    if len(comparison_rows) >= 2:
+        plots.append({
+            "label": "Paper Comparison",
+            "data_json": _json.dumps(
+                {"type": "comparison_table", "papers": comparison_rows},
+                ensure_ascii=False,
+            ),
+            "intent": (
+                f"Create a comparison chart showing key contributions and findings "
+                f"of {len(comparison_rows)} papers side by side. "
+                "Use a grouped bar chart or structured table visualization."
+            ),
+        })
+
+    return plots
 
 
 # ---------------------------------------------------------------------------
