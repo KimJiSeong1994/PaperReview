@@ -13,6 +13,7 @@ Admin-only endpoints:
 
 import json
 import logging
+import sqlite3
 from collections import Counter
 from pathlib import Path
 from typing import List, Optional
@@ -79,8 +80,6 @@ class PaperDeleteRequest(BaseModel):
 @router.get("/diagnostics")
 async def admin_diagnostics(admin: str = Depends(get_admin_user)):
     """Return data file states for debugging production issues."""
-    import os
-    import sqlite3
     data_dir = Path(__file__).resolve().parent.parent / "data"
 
     def _file_info(p: Path) -> dict:
