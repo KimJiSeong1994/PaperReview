@@ -579,6 +579,8 @@ _SMART_SEARCH_TIMEOUT = 90
 _SEARCH_TIMEOUT = 120           # 전체 검색 파이프라인 (분석+검색+랭킹+필터)
 _SOURCE_SEARCH_TIMEOUT = 60     # 멀티소스 검색 단계만
 _RELEVANCE_FILTER_TIMEOUT = 45  # LLM 관련성 필터 단계만
+_GRAPHRAG_TIMEOUT = 10          # seconds for GraphRAG expansion
+_RANKING_TIMEOUT = 30           # seconds for HyDE + hybrid ranking
 
 
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)
@@ -843,7 +845,10 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
 async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
     """Search papers across multiple sources with automatic query analysis."""
     _record_query(request.query)
-    try:
+    # Mutable container for partial results accessible from timeout handler
+    _partial: dict = {"results": {s: [] for s in request.sources}, "query_analysis": None}
+
+    async def _run_search_pipeline() -> SearchResponse:
         start_time = time.time()
         loop = asyncio.get_running_loop()
 
@@ -894,6 +899,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     pass  # error → assume academic
         else:
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
+
+        _partial["query_analysis"] = query_analysis
 
         if not is_academic:
             logger.info("[API] Non-academic query blocked: %s", request.query)
@@ -1001,16 +1008,24 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             search_time,
         )
 
+        # Update partial results after raw search completes
+        _partial["results"] = results
+
         # Step 1.5: GraphRAG auxiliary expansion (skip in fast_mode)
         if not request.fast_mode and results:
             try:
                 all_papers_flat = [p for papers in results.values() for p in papers]
-                graphrag_papers = await loop.run_in_executor(
-                    None, partial(_graphrag_expand, request.query, all_papers_flat, 15)
+                graphrag_papers = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None, partial(_graphrag_expand, request.query, all_papers_flat, 15)
+                    ),
+                    timeout=_GRAPHRAG_TIMEOUT,
                 )
                 if graphrag_papers:
                     results.setdefault("graphrag", []).extend(graphrag_papers)
                     logger.info("[GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
+            except asyncio.TimeoutError:
+                logger.warning("[GraphRAG] Expansion timed out after %ds (continuing without graph expansion)", _GRAPHRAG_TIMEOUT)
             except Exception as e:
                 logger.warning("[GraphRAG] Expansion failed (continuing): %s", e)
 
@@ -1061,12 +1076,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         if difficulty == "easy":
                             logger.info("[API] HyDE skipped (easy query, difficulty=%s)", difficulty)
 
-                        ranked = _hybrid_ranker.rank_papers(
-                            query=request.query,
-                            papers=all_papers_for_ranking,
-                            intent=intent,
-                            openai_client=hyde_client,
-                            use_rrf=True,
+                        ranked = await asyncio.wait_for(
+                            loop.run_in_executor(
+                                None,
+                                partial(
+                                    _hybrid_ranker.rank_papers,
+                                    query=request.query,
+                                    papers=all_papers_for_ranking,
+                                    intent=intent,
+                                    openai_client=hyde_client,
+                                    use_rrf=True,
+                                ),
+                            ),
+                            timeout=_RANKING_TIMEOUT,
                         )
                         # 소스별로 다시 분리 (graphrag 포함)
                         results = {s: [] for s in _all_source_keys}
@@ -1075,8 +1097,13 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             if src in results:
                                 results[src].append(paper)
                         logger.info("[API] Hybrid ranking applied (intent=%s, mode=rrf+hyde)", intent)
+                except asyncio.TimeoutError:
+                    logger.warning("[API] Hybrid ranking timed out after %ds (returning results in original order)", _RANKING_TIMEOUT)
                 except Exception as e:
                     logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
+
+            # Update partial results after ranking
+            _partial["results"] = results
 
             # Step 3: LLM Relevance filtering (only when not fast_mode)
             if not request.fast_mode:
@@ -1183,8 +1210,23 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             logger.warning("[API] Cache save warning: %s", cache_error)
 
         return SearchResponse(results=results, total=total, query_analysis=query_analysis)
+
+    try:
+        return await asyncio.wait_for(_run_search_pipeline(), timeout=_SEARCH_TIMEOUT)
     except asyncio.TimeoutError:
-        logger.error("[API] Search timed out after %ds for query: %s", _SEARCH_TIMEOUT, request.query)
+        # Return partial results collected so far instead of failing completely
+        partial_results = _partial["results"]
+        total = sum(len(papers) for papers in partial_results.values() if isinstance(papers, list))
+        logger.error(
+            "[API] Search pipeline timed out after %ds for query: %s (returning %d partial results)",
+            _SEARCH_TIMEOUT, request.query, total,
+        )
+        if total > 0:
+            return SearchResponse(
+                results=partial_results,
+                total=total,
+                query_analysis=_partial["query_analysis"],
+            )
         raise HTTPException(status_code=504, detail=f"Search timed out after {_SEARCH_TIMEOUT}s")
     except Exception as e:
         error_trace = traceback.format_exc()
