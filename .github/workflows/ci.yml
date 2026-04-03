@@ -121,6 +121,23 @@ jobs:
           echo "Frontend upload done: $(ls ~/PaperReviewAgent/web-ui/dist/index.html)"
           SCRIPT
 
+      # Step 2.5: Nginx 타임아웃 설정 (검색 파이프라인 120초+ 대응)
+      - name: Configure nginx timeouts
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          # Add proxy timeout config if not already present
+          NGINX_CONF="/etc/nginx/conf.d/proxy_timeouts.conf"
+          if ! grep -q 'proxy_read_timeout' "$NGINX_CONF" 2>/dev/null; then
+            echo 'proxy_read_timeout 180;' | sudo tee "$NGINX_CONF" > /dev/null
+            echo 'proxy_send_timeout 180;' | sudo tee -a "$NGINX_CONF" > /dev/null
+            echo 'proxy_connect_timeout 10;' | sudo tee -a "$NGINX_CONF" > /dev/null
+            sudo nginx -t && sudo systemctl reload nginx
+            echo "Nginx timeouts configured (180s)"
+          else
+            echo "Nginx timeouts already configured"
+          fi
+          SCRIPT
+
       # Step 3: 서버 재시작 + 헬스체크
       - name: Restart server
         run: |
