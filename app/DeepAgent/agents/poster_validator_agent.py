@@ -7,8 +7,11 @@ Paper2Poster의 Visual-in-the-loop 검증 구현
 
 import os
 import base64
+import logging
 from typing import Dict, Optional, List
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -152,7 +155,10 @@ Provide your evaluation in JSON format:
             )
 
             import json
-            result_text = response.choices[0].message.content
+            result_text = response.choices[0].message.content or ""
+            if not result_text.strip():
+                logger.warning("poster_validator LLM returned empty content; falling back to rule-based.")
+                return self._rule_based_validation(None)
 
             # JSON 추출
             if "```json" in result_text:

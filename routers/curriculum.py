@@ -386,7 +386,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
             max_completion_tokens=4096,
             response_format={"type": "json_object"},
         )
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content or "{}"
         curriculum = json.loads(content)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="LLM returned invalid JSON")

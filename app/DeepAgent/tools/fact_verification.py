@@ -557,7 +557,7 @@ class ClaimExtractor:
                 max_tokens=2000,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = (response.choices[0].message.content or "").strip()
             result = self._parse_json_response(content)
 
             claims = []
@@ -1072,7 +1072,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
                 max_tokens=300,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = (response.choices[0].message.content or "").strip()
             result = self._parse_json_response(content)
 
             try:
@@ -1550,7 +1550,7 @@ Determine the relationship between these two claims. Respond in JSON only.
                 max_tokens=300,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = (response.choices[0].message.content or "").strip()
             result = self._parse_json_response(content)
 
             try:

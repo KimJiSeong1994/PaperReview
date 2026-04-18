@@ -167,7 +167,7 @@ Be particularly careful with:
                 response_format={"type": "json_object"}  # JSON 형식으로 응답
             )
 
-            result_text = response.choices[0].message.content
+            result_text = response.choices[0].message.content or "{}"
             analysis_result = json.loads(result_text)
 
             # 결과 검증 및 기본값 설정
@@ -380,7 +380,7 @@ Return only valid JSON, no additional text."""
                 max_tokens=20,
                 response_format={"type": "json_object"},
             )
-            result = {"is_academic": bool(json.loads(response.choices[0].message.content).get("is_academic", True))}
+            result = {"is_academic": bool(json.loads(response.choices[0].message.content or "{}").get("is_academic", True))}
             _set_in_cache(key, result)
             return result
         except Exception:
@@ -438,7 +438,7 @@ For non-English queries, translate to English and use technical terms."""
                 response_format={"type": "json_object"}
             )
 
-            result = json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content or "{}")
 
             return {
                 "arxiv_queries": result.get("arxiv_queries", [query])[:5],
@@ -674,7 +674,7 @@ CRITICAL RULES:
                 response_format={"type": "json_object"},
             )
 
-            result = json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content or "{}")
             source_result = {
                 "arxiv": result.get("arxiv", query),
                 "dblp": result.get("dblp", query),
@@ -793,7 +793,7 @@ RULES:
                 response_format={"type": "json_object"},
             )
 
-            raw = json.loads(response.choices[0].message.content)
+            raw = json.loads(response.choices[0].message.content or "{}")
 
             source_queries = raw.get("source_queries", {})
 
@@ -890,7 +890,7 @@ Return only valid JSON."""
                 response_format={"type": "json_object"}
             )
 
-            result = json.loads(response.choices[0].message.content)
+            result = json.loads(response.choices[0].message.content or "{}")
             result["original_query"] = query
             result["context_used"] = context
             return result

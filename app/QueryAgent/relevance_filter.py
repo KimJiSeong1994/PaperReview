@@ -286,7 +286,7 @@ Consider:
                 response_format={"type": "json_object"}
             )
 
-            result_text = response.choices[0].message.content
+            result_text = response.choices[0].message.content or "{}"
             evaluation = json.loads(result_text)
 
             # 점수 추출 및 검증

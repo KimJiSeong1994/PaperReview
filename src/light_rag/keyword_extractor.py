@@ -67,7 +67,7 @@ class KeywordExtractor:
                 max_tokens=500,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = (response.choices[0].message.content or "").strip()
             result = self._parse_json(content)
 
             low = [k.strip().lower() for k in result.get("low_level", []) if k.strip()]

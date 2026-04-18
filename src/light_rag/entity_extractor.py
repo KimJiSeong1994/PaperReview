@@ -110,7 +110,7 @@ class EntityExtractor:
                 max_tokens=2000,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = (response.choices[0].message.content or "").strip()
             result = self._parse_json_response(content)
 
             # 출처 논문 ID 태깅
