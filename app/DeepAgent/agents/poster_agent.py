@@ -635,7 +635,21 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
                 return results
 
-            return asyncio.run(_run())
+            async def _run_with_overall_timeout() -> List[Dict[str, Any]]:
+                try:
+                    return await asyncio.wait_for(_run(), timeout=160)
+                except asyncio.TimeoutError:
+                    logger.warning("PaperBanana 전체 파이프라인 160초 초과 — 부분 결과 없이 반환")
+                    return []
+
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    fut = pool.submit(asyncio.run, _run_with_overall_timeout())
+                    return fut.result(timeout=170)
+            except RuntimeError:
+                return asyncio.run(_run_with_overall_timeout())
 
         except Exception as e:
             logger.warning("PaperBanana 다이어그램 생성 실패: %s", e)
