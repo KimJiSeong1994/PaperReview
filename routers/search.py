@@ -641,16 +641,16 @@ def _interleave_source_candidates(
     limit: int,
 ) -> List[Dict[str, Any]]:
     """Preserve source diversity when capping ranking candidates."""
-    queues = {source: list(results.get(source, [])) for source in source_keys}
+    queues = {source: collections.deque(results.get(source, [])) for source in source_keys}
     merged: List[Dict[str, Any]] = []
 
     while len(merged) < limit:
         progressed = False
         for source in source_keys:
-            queue = queues.get(source, [])
+            queue = queues.get(source)
             if not queue:
                 continue
-            merged.append(queue.pop(0))
+            merged.append(queue.popleft())
             progressed = True
             if len(merged) >= limit:
                 break
@@ -1236,20 +1236,18 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 _MIN_BUDGET_FOR_RANKING,
                             )
                         else:
-                            # Skip HyDE unless the query is hard and enough budget remains.
+                            # HyDE: easy query는 무조건 skip, 그 외엔 충분한 예산이 있을 때 enable.
                             difficulty = query_analyzer.classify_difficulty(query_analysis) if query_analyzer and query_analysis else "medium"
-                            hyde_enabled = difficulty == "hard" and remaining_before_ranking >= _MIN_BUDGET_FOR_HYDE_HARD
+                            hyde_enabled = difficulty != "easy" and remaining_before_ranking >= _MIN_BUDGET_FOR_HYDE_HARD
                             hyde_client = get_openai_client() if hyde_enabled else None
                             stage_modes["ranking_mode"] = "hybrid_rrf"
                             stage_modes["query_difficulty"] = difficulty
                             if difficulty == "easy":
                                 stage_modes["hyde_mode"] = "disabled_easy_query"
-                            elif difficulty != "hard":
-                                stage_modes["hyde_mode"] = "disabled_non_hard_query"
                             elif not hyde_enabled:
                                 stage_modes["hyde_mode"] = "disabled_low_budget"
                             else:
-                                stage_modes["hyde_mode"] = "enabled_hard_query"
+                                stage_modes["hyde_mode"] = f"enabled_{difficulty}_query"
 
                             if not hyde_enabled:
                                 logger.info(
@@ -1282,6 +1280,11 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 stage_modes.get("hyde_mode", "unknown"),
                             )
                             stage_timings["ranking"] = round(time.time() - ranking_start, 3)
+                    else:
+                        # 모든 소스에서 결과가 비어 있는 경우 — ranking 단계 자체를 skip
+                        stage_modes["ranking_mode"] = "skipped_no_papers"
+                        stage_timings["ranking"] = 0.0
+                        ranked_candidates = []
                 except asyncio.TimeoutError:
                     logger.warning("[API] Hybrid ranking timed out after %ds (returning results in original order)", _RANKING_TIMEOUT)
                     stage_timings["ranking"] = round(time.time() - ranking_start, 3)
