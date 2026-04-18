@@ -130,7 +130,7 @@ def test_backfill_is_idempotent(tmp_path: Path) -> None:
         },
     ])
 
-    counts1 = run_backfill(bm_db, ev_db, dry_run=False)
+    run_backfill(bm_db, ev_db, dry_run=False)
     after_first = _count_events(ev_db)
 
     counts2 = run_backfill(bm_db, ev_db, dry_run=False)

@@ -37,8 +37,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.events.event_types import EventType, UserEvent
-from src.events.migrations import ensure_events_db
+from src.events.event_types import EventType, UserEvent  # noqa: E402
+from src.events.migrations import ensure_events_db  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
