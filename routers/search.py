@@ -603,6 +603,79 @@ _SOURCE_SEARCH_TIMEOUT = 40     # 멀티소스 검색 단계만
 _RELEVANCE_FILTER_TIMEOUT = 30  # LLM 관련성 필터 단계만
 _GRAPHRAG_TIMEOUT = 5           # GraphRAG 확장
 _RANKING_TIMEOUT = 25           # HyDE + hybrid ranking
+_MIN_BUDGET_FOR_GRAPHRAG = 18
+_MIN_BUDGET_FOR_RANKING = 12
+_MIN_BUDGET_FOR_HYDE_HARD = 28
+_RELEVANCE_FILTER_TOP_N = 30
+_MIN_BUDGET_FOR_RELEVANCE = 10
+_MAX_RANKING_CANDIDATES = 80
+
+
+def _remaining_budget(start_time: float, total_budget: int = _SEARCH_TIMEOUT) -> float:
+    """Return remaining wall-clock budget for the current search request."""
+    return max(0.0, total_budget - (time.time() - start_time))
+
+
+def _ranking_candidate_cap(max_results: int) -> int:
+    """Bound ranking input size while keeping enough recall for later stages."""
+    return min(max(max_results * 2, 40), _MAX_RANKING_CANDIDATES)
+
+
+def _paper_identity(paper: Dict[str, Any]) -> str:
+    """Stable paper identity for dedup/filter recomposition."""
+    doi = (paper.get("doi") or "").strip().lower()
+    if doi:
+        return f"doi:{doi}"
+    arxiv_id = (paper.get("arxiv_id") or "").strip().lower()
+    if arxiv_id:
+        return f"arxiv:{arxiv_id}"
+    title = (paper.get("title") or "").strip().lower()
+    if title:
+        return f"title:{title}"
+    return f"fallback:{hashlib.sha256(json.dumps(paper, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]}"
+
+
+def _interleave_source_candidates(
+    results: Dict[str, List[Dict[str, Any]]],
+    source_keys: List[str],
+    limit: int,
+) -> List[Dict[str, Any]]:
+    """Preserve source diversity when capping ranking candidates."""
+    queues = {source: list(results.get(source, [])) for source in source_keys}
+    merged: List[Dict[str, Any]] = []
+
+    while len(merged) < limit:
+        progressed = False
+        for source in source_keys:
+            queue = queues.get(source, [])
+            if not queue:
+                continue
+            merged.append(queue.pop(0))
+            progressed = True
+            if len(merged) >= limit:
+                break
+        if not progressed:
+            break
+
+    return merged
+
+
+def _rebuild_results_from_ranked(
+    ranked_papers: List[Dict[str, Any]],
+    source_keys: List[str],
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Rebuild source buckets from a globally ranked paper list."""
+    rebuilt = {source: [] for source in source_keys}
+    for paper in ranked_papers:
+        source = (
+            paper.get("_result_source")
+            or paper.get("source")
+            or paper.get("_source_tag")
+            or "arxiv"
+        )
+        if source in rebuilt:
+            rebuilt[source].append(paper)
+    return rebuilt
 
 
 @router.post("/analyze-query", response_model=QueryAnalysisResponse)
@@ -1064,34 +1137,45 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
         # Step 1.5: GraphRAG auxiliary expansion (skip in fast_mode)
         if not request.fast_mode and results:
-            graphrag_start = time.time()
-            try:
-                all_papers_flat = [p for papers in results.values() for p in papers]
-                graphrag_papers = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None, partial(_graphrag_expand, request.query, all_papers_flat, 15)
-                    ),
-                    timeout=_GRAPHRAG_TIMEOUT,
+            remaining_before_graphrag = _remaining_budget(start_time)
+            if remaining_before_graphrag < _MIN_BUDGET_FOR_GRAPHRAG:
+                stage_modes["graphrag_mode"] = "skipped_low_budget"
+                stage_timings["graphrag"] = 0.0
+                logger.info(
+                    "[GraphRAG] Skipped due to low remaining budget: %.2fs < %ds",
+                    remaining_before_graphrag,
+                    _MIN_BUDGET_FOR_GRAPHRAG,
                 )
-                if graphrag_papers:
-                    results.setdefault("graphrag", []).extend(graphrag_papers)
-                    logger.info("[GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
-                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
-                stage_modes["graphrag_mode"] = "enabled"
-            except asyncio.TimeoutError:
-                logger.warning("[GraphRAG] Expansion timed out after %ds (continuing without graph expansion)", _GRAPHRAG_TIMEOUT)
-                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
-                stage_modes["graphrag_mode"] = "timeout"
-            except Exception as e:
-                logger.warning("[GraphRAG] Expansion failed (continuing): %s", e)
-                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
-                stage_modes["graphrag_mode"] = "error"
+            else:
+                graphrag_start = time.time()
+                try:
+                    all_papers_flat = [p for papers in results.values() for p in papers]
+                    graphrag_papers = await asyncio.wait_for(
+                        loop.run_in_executor(
+                            None, partial(_graphrag_expand, request.query, all_papers_flat, 15)
+                        ),
+                        timeout=min(_GRAPHRAG_TIMEOUT, max(1.0, remaining_before_graphrag - 8)),
+                    )
+                    if graphrag_papers:
+                        results.setdefault("graphrag", []).extend(graphrag_papers)
+                        logger.info("[GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
+                    stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                    stage_modes["graphrag_mode"] = "enabled"
+                except asyncio.TimeoutError:
+                    logger.warning("[GraphRAG] Expansion timed out after %ds (continuing without graph expansion)", _GRAPHRAG_TIMEOUT)
+                    stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                    stage_modes["graphrag_mode"] = "timeout"
+                except Exception as e:
+                    logger.warning("[GraphRAG] Expansion failed (continuing): %s", e)
+                    stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                    stage_modes["graphrag_mode"] = "error"
         else:
             stage_modes["graphrag_mode"] = "skipped"
 
         # Cross-source deduplication + Hybrid ranking (always) + Relevance filtering (non-fast only)
         if results:
             intent = query_analysis.get("intent", "paper_search") if query_analysis else "paper_search"
+            ranked_candidates: List[Dict[str, Any]] = []
 
             # Collect all active source keys (user-specified + graphrag if present)
             _all_source_keys = list(request.sources) + [s for s in results if s not in request.sources]
@@ -1120,58 +1204,97 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             except Exception as e:
                 logger.warning("[API] Cross-source dedup failed (continuing): %s", e)
 
+            for source, papers in results.items():
+                for paper in papers:
+                    paper["_result_source"] = source
+
             # Step 2: Hybrid ranking (always applied)
             if _hybrid_ranker:
                 ranking_start = time.time()
                 try:
-                    all_papers_for_ranking = []
                     for source, papers in results.items():
                         for paper in papers:
                             paper["_source_tag"] = source
-                            all_papers_for_ranking.append(paper)
+                            paper["_result_source"] = source
+
+                    ranking_cap = _ranking_candidate_cap(request.max_results)
+                    all_papers_for_ranking = _interleave_source_candidates(
+                        results,
+                        _all_source_keys,
+                        ranking_cap,
+                    )
 
                     if all_papers_for_ranking:
-                        # Skip HyDE for easy/high-confidence queries to save 2 LLM + 1 embedding call
-                        difficulty = query_analyzer.classify_difficulty(query_analysis) if query_analyzer and query_analysis else "medium"
-                        hyde_client = None if difficulty == "easy" else get_openai_client()
-                        stage_modes["ranking_mode"] = "hybrid_rrf"
-                        stage_modes["query_difficulty"] = difficulty
-                        stage_modes["hyde_mode"] = "disabled_easy_query" if difficulty == "easy" else "enabled"
-                        if difficulty == "easy":
-                            logger.info("[API] HyDE skipped (easy query, difficulty=%s)", difficulty)
+                        remaining_before_ranking = _remaining_budget(start_time)
+                        if remaining_before_ranking < _MIN_BUDGET_FOR_RANKING:
+                            stage_modes["ranking_mode"] = "skipped_low_budget"
+                            stage_timings["ranking"] = 0.0
+                            ranked_candidates = list(all_papers_for_ranking)
+                            logger.info(
+                                "[API] Ranking skipped due to low remaining budget: %.2fs < %ds",
+                                remaining_before_ranking,
+                                _MIN_BUDGET_FOR_RANKING,
+                            )
+                        else:
+                            # Skip HyDE unless the query is hard and enough budget remains.
+                            difficulty = query_analyzer.classify_difficulty(query_analysis) if query_analyzer and query_analysis else "medium"
+                            hyde_enabled = difficulty == "hard" and remaining_before_ranking >= _MIN_BUDGET_FOR_HYDE_HARD
+                            hyde_client = get_openai_client() if hyde_enabled else None
+                            stage_modes["ranking_mode"] = "hybrid_rrf"
+                            stage_modes["query_difficulty"] = difficulty
+                            if difficulty == "easy":
+                                stage_modes["hyde_mode"] = "disabled_easy_query"
+                            elif difficulty != "hard":
+                                stage_modes["hyde_mode"] = "disabled_non_hard_query"
+                            elif not hyde_enabled:
+                                stage_modes["hyde_mode"] = "disabled_low_budget"
+                            else:
+                                stage_modes["hyde_mode"] = "enabled_hard_query"
 
-                        ranked = await asyncio.wait_for(
-                            loop.run_in_executor(
-                                None,
-                                partial(
-                                    _hybrid_ranker.rank_papers,
-                                    query=request.query,
-                                    papers=all_papers_for_ranking,
-                                    intent=intent,
-                                    openai_client=hyde_client,
-                                    use_rrf=True,
+                            if not hyde_enabled:
+                                logger.info(
+                                    "[API] HyDE skipped (difficulty=%s, remaining_budget=%.2fs)",
+                                    difficulty,
+                                    remaining_before_ranking,
+                                )
+
+                            ranked = await asyncio.wait_for(
+                                loop.run_in_executor(
+                                    None,
+                                    partial(
+                                        _hybrid_ranker.rank_papers,
+                                        query=request.query,
+                                        papers=all_papers_for_ranking,
+                                        intent=intent,
+                                        openai_client=hyde_client,
+                                        use_rrf=True,
+                                    ),
                                 ),
-                            ),
-                            timeout=_RANKING_TIMEOUT,
-                        )
-                        # 소스별로 다시 분리 (graphrag 포함)
-                        results = {s: [] for s in _all_source_keys}
-                        for paper in ranked:
-                            src = paper.pop("_source_tag", "arxiv")
-                            if src in results:
-                                results[src].append(paper)
-                        logger.info("[API] Hybrid ranking applied (intent=%s, mode=rrf+hyde)", intent)
-                    stage_timings["ranking"] = round(time.time() - ranking_start, 3)
+                                timeout=min(_RANKING_TIMEOUT, max(3.0, remaining_before_ranking - 5)),
+                            )
+                            ranked_candidates = list(ranked)
+                            # 소스별로 다시 분리 (graphrag 포함)
+                            results = _rebuild_results_from_ranked(ranked, _all_source_keys)
+                            logger.info(
+                                "[API] Hybrid ranking applied (intent=%s, candidates=%d, mode=%s)",
+                                intent,
+                                len(all_papers_for_ranking),
+                                stage_modes.get("hyde_mode", "unknown"),
+                            )
+                            stage_timings["ranking"] = round(time.time() - ranking_start, 3)
                 except asyncio.TimeoutError:
                     logger.warning("[API] Hybrid ranking timed out after %ds (returning results in original order)", _RANKING_TIMEOUT)
                     stage_timings["ranking"] = round(time.time() - ranking_start, 3)
                     stage_modes["ranking_mode"] = "timeout_fallback_original_order"
+                    ranked_candidates = [paper for papers in results.values() for paper in papers]
                 except Exception as e:
                     logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
                     stage_timings["ranking"] = round(time.time() - ranking_start, 3)
                     stage_modes["ranking_mode"] = "error_fallback_original_order"
+                    ranked_candidates = [paper for papers in results.values() for paper in papers]
             else:
                 stage_modes["ranking_mode"] = "disabled"
+                ranked_candidates = [paper for papers in results.values() for paper in papers]
 
             # Update partial results after ranking
             _partial["results"] = results
@@ -1181,43 +1304,66 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 if relevance_filter:
                     filter_start = time.time()
                     try:
-                        logger.info("[API] Applying relevance filtering (parallel mode)...")
-                        all_papers = []
-                        for source, papers in results.items():
-                            for paper in papers:
-                                paper["source"] = source
-                                all_papers.append(paper)
-
-                        if all_papers:
-                            filtered_papers = await asyncio.wait_for(
-                                loop.run_in_executor(
-                                    None,
-                                    partial(
-                                        relevance_filter.filter_papers,
-                                        request.query,
-                                        all_papers,
-                                        threshold=0.65,
-                                        max_papers=request.max_results,
-                                        parallel=True,
-                                    ),
-                                ),
-                                timeout=_RELEVANCE_FILTER_TIMEOUT,
-                            )
-                            # Fallback: if filtering eliminated ALL papers, keep originals
-                            if filtered_papers:
-                                results = {}
-                                for source in _all_source_keys:
-                                    results[source] = [p for p in filtered_papers if p.get("source") == source]
-                                logger.info("[API] Filtered results: %s papers (threshold: 0.65)", len(filtered_papers))
-                            else:
-                                logger.warning(
-                                    "[API] Relevance filter eliminated all %d papers — keeping unfiltered results",
-                                    len(all_papers),
-                                )
+                        if stage_modes.get("ranking_mode") == "skipped_low_budget":
+                            stage_modes["relevance_filter_mode"] = "skipped_after_low_budget_ranking"
+                            stage_timings["relevance_filter"] = 0.0
+                            logger.info("[API] Relevance filtering skipped because ranking was already skipped for low budget")
                         else:
-                            logger.info("[API] No papers to filter")
-                        stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
-                        stage_modes["relevance_filter_mode"] = "enabled"
+                            remaining_before_filter = _remaining_budget(start_time)
+                            if remaining_before_filter < _MIN_BUDGET_FOR_RELEVANCE:
+                                stage_modes["relevance_filter_mode"] = "skipped_low_budget"
+                                stage_timings["relevance_filter"] = 0.0
+                                logger.info(
+                                    "[API] Relevance filtering skipped due to low remaining budget: %.2fs < %ds",
+                                    remaining_before_filter,
+                                    _MIN_BUDGET_FOR_RELEVANCE,
+                                )
+                            else:
+                                logger.info("[API] Applying relevance filtering (parallel mode)...")
+                                all_papers = list(ranked_candidates) if ranked_candidates else []
+                                for paper in all_papers:
+                                    paper["source"] = paper.get("_result_source", paper.get("source", "arxiv"))
+
+                                filter_candidates = all_papers[:_RELEVANCE_FILTER_TOP_N]
+                                if filter_candidates:
+                                    filtered_papers = await asyncio.wait_for(
+                                        loop.run_in_executor(
+                                            None,
+                                            partial(
+                                                relevance_filter.filter_papers,
+                                                request.query,
+                                                filter_candidates,
+                                                threshold=0.65,
+                                                max_papers=min(request.max_results, _RELEVANCE_FILTER_TOP_N),
+                                                parallel=True,
+                                            ),
+                                        ),
+                                        timeout=min(_RELEVANCE_FILTER_TIMEOUT, max(2.0, remaining_before_filter - 3)),
+                                    )
+                                    # Fallback: if filtering eliminated ALL papers, keep originals
+                                    if filtered_papers:
+                                        selected_keys = {_paper_identity(p) for p in filtered_papers}
+                                        filtered_tail = [
+                                            paper for paper in all_papers
+                                            if _paper_identity(paper) not in selected_keys
+                                        ]
+                                        combined_ranked = (filtered_papers + filtered_tail)[:request.max_results]
+                                        results = _rebuild_results_from_ranked(combined_ranked, _all_source_keys)
+                                        ranked_candidates = combined_ranked
+                                        logger.info(
+                                            "[API] Filtered top-%d candidates and preserved %d fallback papers",
+                                            len(filter_candidates),
+                                            max(0, len(combined_ranked) - len(filtered_papers)),
+                                        )
+                                    else:
+                                        logger.warning(
+                                            "[API] Relevance filter eliminated all %d top candidates — keeping ranked results",
+                                            len(filter_candidates),
+                                        )
+                                else:
+                                    logger.info("[API] No papers to filter")
+                                stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
+                                stage_modes["relevance_filter_mode"] = "enabled_top_n"
                     except Exception as e:
                         logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
                         stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
@@ -1237,6 +1383,11 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         for source in request.sources:
             if source not in results:
                 results[source] = []
+
+        for papers in results.values():
+            for paper in papers:
+                paper.pop("_source_tag", None)
+                paper.pop("_result_source", None)
 
         total = sum(len(papers) for papers in results.values())
 
