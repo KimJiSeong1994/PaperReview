@@ -150,8 +150,21 @@ jobs:
             setsid venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 --workers 2 > uvicorn.log 2>&1 &
             disown
           }
-          sleep 4
-          curl -sf http://localhost:8000/health > /dev/null && echo "Deploy successful!" || echo "Deploy failed!"
+          HEALTHY=0
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              HEALTHY=1
+              echo "Health check passed on attempt $i (after $((i*2))s)"
+              break
+            fi
+            sleep 2
+          done
+          if [ $HEALTHY -eq 1 ]; then
+            echo "Deploy successful!"
+          else
+            echo "Deploy failed: health check timed out after 60s"
+            exit 1
+          fi
           SCRIPT
 
       - name: Rollback on health check failure
