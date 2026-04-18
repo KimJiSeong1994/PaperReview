@@ -860,6 +860,8 @@ class SearchAgent:
             )
             for future, source in futures.items():
                 if source not in results:
+                    if not future.done():
+                        future.cancel()  # best-effort; ThreadPool 작업 중단은 보장 안 됨
                     results[source] = []
 
         return results
@@ -900,17 +902,17 @@ class SearchAgent:
         async def _run_source(source_name: str) -> tuple:
             """Run a single source search in the thread-pool executor with per-source timeout."""
             timeout = _SOURCE_TIMEOUTS.get(source_name, _DEFAULT_SOURCE_TIMEOUT)
+            fut = loop.run_in_executor(
+                None,
+                self._search_single_source,
+                source_name, query, filters, source_queries, max_results,
+            )
             try:
-                papers = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None,
-                        self._search_single_source,
-                        source_name, query, filters, source_queries, max_results,
-                    ),
-                    timeout=timeout,
-                )
+                papers = await asyncio.wait_for(asyncio.shield(fut), timeout=timeout)
                 return source_name, papers
             except asyncio.TimeoutError:
+                if not fut.done():
+                    fut.cancel()  # best-effort; ThreadPool 스레드는 중단 불가이나 Future 상태 정리
                 logger.warning("[SearchAgent] source %s timed out after %ds", source_name, timeout)
                 return source_name, []
 

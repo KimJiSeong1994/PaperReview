@@ -33,7 +33,7 @@ class ArxivSearcher:
         self.client = arxiv.Client(
             page_size=50,
             delay_seconds=3.5,
-            num_retries=5,
+            num_retries=1,
         )
 
         # 검색어 확장을 위한 동의어 사전
