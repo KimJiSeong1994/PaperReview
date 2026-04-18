@@ -13,6 +13,8 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.events.contracts import assert_valid_username
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB_PATH = Path("data/bookmarks.db")
@@ -192,6 +194,39 @@ class BookmarkDB:
             finally:
                 conn.close()
 
+    def get_by_username(self, username: str) -> List[Dict[str, Any]]:
+        """Return all bookmarks for *username*, newest first.
+
+        Parameters
+        ----------
+        username:
+            Owner of the bookmarks. Validated via
+            :func:`~src.events.contracts.assert_valid_username` before any
+            SQL is executed.
+
+        Returns
+        -------
+        list[dict]
+            Zero or more bookmark dicts, ordered by ``created_at DESC``.
+
+        Raises
+        ------
+        ValueError
+            If *username* does not match the safe pattern
+            ``^[A-Za-z0-9_\\-]{1,64}$``.
+        """
+        assert_valid_username(username)
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM bookmarks WHERE username = ? ORDER BY created_at DESC",
+                    (username,),
+                ).fetchall()
+                return [self._row_to_dict(r) for r in rows]
+            finally:
+                conn.close()
+
     def get_all(self) -> List[Dict[str, Any]]:
         """Return all bookmarks across all users, newest first."""
         with self._lock:
@@ -269,6 +304,40 @@ class BookmarkDB:
                 deleted = conn.execute("SELECT changes()").fetchone()[0]
                 conn.commit()
                 return deleted > 0
+            finally:
+                conn.close()
+
+    def delete_by_username(self, username: str) -> int:
+        """Delete all bookmarks owned by *username*.
+
+        Parameters
+        ----------
+        username:
+            Owner of the bookmarks. Validated via
+            :func:`~src.events.contracts.assert_valid_username` before any
+            SQL is executed.
+
+        Returns
+        -------
+        int
+            Number of rows deleted. ``0`` when the user has no bookmarks.
+
+        Raises
+        ------
+        ValueError
+            If *username* does not match the safe pattern
+            ``^[A-Za-z0-9_\\-]{1,64}$``.
+        """
+        assert_valid_username(username)
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.execute(
+                    "DELETE FROM bookmarks WHERE username = ?", (username,)
+                )
+                deleted = conn.execute("SELECT changes()").fetchone()[0]
+                conn.commit()
+                return int(deleted)
             finally:
                 conn.close()
 

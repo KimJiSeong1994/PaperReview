@@ -306,7 +306,7 @@ class KGStorage:
     def _load_numpy(self, filename: str):
         path = os.path.join(self.storage_dir, filename)
         if os.path.exists(path):
-            return np.load(path)
+            return np.load(path, allow_pickle=False)
         return None
 
     @staticmethod
