@@ -6,6 +6,7 @@ import os
 import json
 import logging
 import concurrent.futures
+import time
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 
@@ -162,6 +163,8 @@ class RelevanceFilter:
         Returns:
             관련성 점수가 높은 논문 리스트 (관련성 점수 포함)
         """
+        started = time.perf_counter()
+
         if not papers:
             return []
 
@@ -169,6 +172,11 @@ class RelevanceFilter:
         if not self.client:
             for paper in papers:
                 paper['relevance_score'] = 0.8  # 기본 점수
+            logger.info(
+                "[RelevanceFilter] client unavailable; returning defaults for %d papers in %.2fs",
+                len(papers),
+                time.perf_counter() - started,
+            )
             return papers[:max_papers] if max_papers else papers
 
         # Try local cross-encoder scoring first (fast, no API cost)
@@ -189,8 +197,9 @@ class RelevanceFilter:
                     ][:max_papers]
 
                     logger.info(
-                        "[RelevanceFilter] Local cross-encoder: %d/%d papers passed (threshold=%.2f)",
+                        "[RelevanceFilter] Local cross-encoder: %d/%d papers passed (threshold=%.2f, took %.2fs)",
                         len(filtered), len(papers), threshold,
+                        time.perf_counter() - started,
                     )
                     return filtered
             except Exception as e:
@@ -198,7 +207,7 @@ class RelevanceFilter:
                     "[RelevanceFilter] Local scoring failed, falling back to LLM: %s", e
                 )
 
-        logger.info(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel})")
+        logger.info(f"[관련성 필터] {len(papers)}개 논문 평가 시작... (병렬: {parallel}, mode=llm_batch)")
 
         # 배치로 처리 (한 번에 10개씩)
         batch_size = 10
@@ -249,7 +258,9 @@ class RelevanceFilter:
         if max_papers:
             filtered_papers = filtered_papers[:max_papers]
 
-        logger.info(f"[관련성 필터] {len(filtered_papers)}/{len(papers)}개 논문 선택 (임계값: {threshold})")
+        logger.info(
+            f"[관련성 필터] {len(filtered_papers)}/{len(papers)}개 논문 선택 (임계값: {threshold}, took {time.perf_counter() - started:.2f}s)"
+        )
         return filtered_papers
 
     def _evaluate_batch(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
@@ -400,4 +411,3 @@ Return only valid JSON, no additional text."""
 
         logger.info(f"[관련성 순위] 평가 완료 (평균: {sum(p['relevance_score'] for p in scored_papers)/len(scored_papers):.2f})")
         return scored_papers
-

@@ -868,11 +868,24 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
     """Search papers across multiple sources with automatic query analysis."""
     _record_query(request.query)
     # Mutable container for partial results accessible from timeout handler
-    _partial: dict = {"results": {s: [] for s in request.sources}, "query_analysis": None}
+    _partial: dict = {
+        "results": {s: [] for s in request.sources},
+        "query_analysis": None,
+        "stage_timings": {},
+        "stage_modes": {},
+    }
 
     async def _run_search_pipeline() -> SearchResponse:
         start_time = time.time()
         loop = asyncio.get_running_loop()
+        stage_timings: Dict[str, float] = {}
+        stage_modes: Dict[str, Any] = {
+            "use_llm_search": request.use_llm_search,
+            "fast_mode": request.fast_mode,
+            "query_analyzer_enabled": bool(query_analyzer),
+            "relevance_filter_enabled": bool(relevance_filter),
+            "hybrid_ranker_enabled": bool(_hybrid_ranker),
+        }
 
         # ── Parallel topic classification + query analysis ──
         is_academic = True
@@ -901,10 +914,16 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         unified.get("confidence"),
                         time.time() - analysis_start,
                     )
+                    stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
+                    stage_modes["query_analysis_mode"] = "unified_llm"
                 except asyncio.TimeoutError:
                     logger.warning("[API] Unified analysis timed out after %ds (continuing with original query)", _ANALYZE_TIMEOUT)
+                    stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
+                    stage_modes["query_analysis_mode"] = "unified_timeout_fallback"
                 except Exception as e:
                     logger.warning("[API] Unified analysis failed (continuing with original query): %s", e)
+                    stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
+                    stage_modes["query_analysis_mode"] = "unified_error_fallback"
             else:
                 # LLM search mode: only classify, skip analyze
                 logger.info("[API] Query analysis skipped (LLM search handles query optimization)")
@@ -917,12 +936,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         timeout=5,
                     )
                     is_academic = classify_result.get("is_academic", True)
+                    stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
+                    stage_modes["query_analysis_mode"] = "classify_only"
                 except Exception:
+                    stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
+                    stage_modes["query_analysis_mode"] = "classify_only_fallback"
                     pass  # error → assume academic
         else:
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
+            stage_modes["query_analysis_mode"] = "disabled_no_api_key"
 
         _partial["query_analysis"] = query_analysis
+        _partial["stage_timings"] = stage_timings
+        _partial["stage_modes"] = stage_modes
 
         if not is_academic:
             logger.info("[API] Non-academic query blocked: %s", request.query)
@@ -998,6 +1024,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         # LLM context search or standard search (with timeout)
         if request.use_llm_search and query_analyzer:
             logger.info("[API] Using LLM Context Search...")
+            stage_modes["source_search_mode"] = "llm_context_search"
             results = await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
@@ -1018,12 +1045,14 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     len(llm_metadata.get("scholar_queries", [])),
                 )
         else:
+            stage_modes["source_search_mode"] = "standard_async_multi_source"
             results = await asyncio.wait_for(
                 search_agent.async_search_with_filters(search_query, filters),
                 timeout=_SOURCE_SEARCH_TIMEOUT,
             )
 
         search_time = time.time() - search_start
+        stage_timings["source_search"] = round(search_time, 3)
         logger.info(
             "[API] Raw search results: %s papers found (took %.2fs)",
             sum(len(papers) for papers in results.values()),
@@ -1035,6 +1064,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
         # Step 1.5: GraphRAG auxiliary expansion (skip in fast_mode)
         if not request.fast_mode and results:
+            graphrag_start = time.time()
             try:
                 all_papers_flat = [p for papers in results.values() for p in papers]
                 graphrag_papers = await asyncio.wait_for(
@@ -1046,10 +1076,18 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 if graphrag_papers:
                     results.setdefault("graphrag", []).extend(graphrag_papers)
                     logger.info("[GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
+                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                stage_modes["graphrag_mode"] = "enabled"
             except asyncio.TimeoutError:
                 logger.warning("[GraphRAG] Expansion timed out after %ds (continuing without graph expansion)", _GRAPHRAG_TIMEOUT)
+                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                stage_modes["graphrag_mode"] = "timeout"
             except Exception as e:
                 logger.warning("[GraphRAG] Expansion failed (continuing): %s", e)
+                stage_timings["graphrag"] = round(time.time() - graphrag_start, 3)
+                stage_modes["graphrag_mode"] = "error"
+        else:
+            stage_modes["graphrag_mode"] = "skipped"
 
         # Cross-source deduplication + Hybrid ranking (always) + Relevance filtering (non-fast only)
         if results:
@@ -1084,6 +1122,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
             # Step 2: Hybrid ranking (always applied)
             if _hybrid_ranker:
+                ranking_start = time.time()
                 try:
                     all_papers_for_ranking = []
                     for source, papers in results.items():
@@ -1095,6 +1134,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         # Skip HyDE for easy/high-confidence queries to save 2 LLM + 1 embedding call
                         difficulty = query_analyzer.classify_difficulty(query_analysis) if query_analyzer and query_analysis else "medium"
                         hyde_client = None if difficulty == "easy" else get_openai_client()
+                        stage_modes["ranking_mode"] = "hybrid_rrf"
+                        stage_modes["query_difficulty"] = difficulty
+                        stage_modes["hyde_mode"] = "disabled_easy_query" if difficulty == "easy" else "enabled"
                         if difficulty == "easy":
                             logger.info("[API] HyDE skipped (easy query, difficulty=%s)", difficulty)
 
@@ -1119,10 +1161,17 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             if src in results:
                                 results[src].append(paper)
                         logger.info("[API] Hybrid ranking applied (intent=%s, mode=rrf+hyde)", intent)
+                    stage_timings["ranking"] = round(time.time() - ranking_start, 3)
                 except asyncio.TimeoutError:
                     logger.warning("[API] Hybrid ranking timed out after %ds (returning results in original order)", _RANKING_TIMEOUT)
+                    stage_timings["ranking"] = round(time.time() - ranking_start, 3)
+                    stage_modes["ranking_mode"] = "timeout_fallback_original_order"
                 except Exception as e:
                     logger.warning("[API] Hybrid ranking failed (continuing): %s", e)
+                    stage_timings["ranking"] = round(time.time() - ranking_start, 3)
+                    stage_modes["ranking_mode"] = "error_fallback_original_order"
+            else:
+                stage_modes["ranking_mode"] = "disabled"
 
             # Update partial results after ranking
             _partial["results"] = results
@@ -1130,6 +1179,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             # Step 3: LLM Relevance filtering (only when not fast_mode)
             if not request.fast_mode:
                 if relevance_filter:
+                    filter_start = time.time()
                     try:
                         logger.info("[API] Applying relevance filtering (parallel mode)...")
                         all_papers = []
@@ -1166,14 +1216,22 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                                 )
                         else:
                             logger.info("[API] No papers to filter")
+                        stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
+                        stage_modes["relevance_filter_mode"] = "enabled"
                     except Exception as e:
                         logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
+                        stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
+                        stage_modes["relevance_filter_mode"] = "error_fallback_unfiltered"
                 else:
                     logger.info("[API] Relevance filtering skipped (OpenAI API key not configured)")
+                    stage_modes["relevance_filter_mode"] = "disabled_no_api_key"
             else:
                 logger.info("[API] LLM relevance filtering skipped (fast mode)")
+                stage_modes["relevance_filter_mode"] = "skipped_fast_mode"
         else:
             logger.info("[API] No results to rank/filter")
+            stage_modes["ranking_mode"] = "skipped_no_results"
+            stage_modes["relevance_filter_mode"] = "skipped_no_results"
 
         # Ensure all sources present
         for source in request.sources:
@@ -1203,7 +1261,11 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             logger.info("[API] Background enrichment started (thread)")
 
         total_time = time.time() - start_time
+        stage_timings["total"] = round(total_time, 3)
+        _partial["stage_timings"] = stage_timings
+        _partial["stage_modes"] = stage_modes
         logger.info("[API] Search completed in %.2fs", total_time)
+        logger.info("[API] Search stage timings=%s modes=%s", stage_timings, stage_modes)
 
         # Store in query cache
         _set_cache(cache_key, results)
@@ -1242,6 +1304,11 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         logger.error(
             "[API] Search pipeline timed out after %ds for query: %s (returning %d partial results)",
             _SEARCH_TIMEOUT, request.query, total,
+        )
+        logger.error(
+            "[API] Partial search timings=%s modes=%s",
+            _partial.get("stage_timings", {}),
+            _partial.get("stage_modes", {}),
         )
         if total > 0:
             return SearchResponse(

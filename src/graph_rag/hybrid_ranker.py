@@ -395,9 +395,11 @@ class HybridRanker:
             logger.debug("[HybridRanker] HyDE cache hit for query: %s", query[:50])
             return cached
 
+        started = time.perf_counter()
         try:
             # 1 & 2. 가상 초록 + 대안 쿼리 생성을 병렬 실행 (독립적인 LLM 호출)
             def _generate_hypothetical_abstract() -> str:
+                local_started = time.perf_counter()
                 domain_spec = (
                     f"specializing in {research_area} research"
                     if research_area
@@ -430,9 +432,14 @@ class HybridRanker:
                     temperature=0.1,
                 )
                 content = hyde_response.choices[0].message.content or ""
+                logger.info(
+                    "[HybridRanker] HyDE hypothetical abstract generated in %.2fs",
+                    time.perf_counter() - local_started,
+                )
                 return content.strip()
 
             def _generate_alt_queries() -> List[str]:
+                local_started = time.perf_counter()
                 alt_response = openai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -454,6 +461,10 @@ class HybridRanker:
                 )
                 alt_content = alt_response.choices[0].message.content or ""
                 lines = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
+                logger.info(
+                    "[HybridRanker] HyDE alternative queries generated in %.2fs",
+                    time.perf_counter() - local_started,
+                )
                 return lines[:2]  # 최대 2개
 
             abstract_future = _HYDE_EXECUTOR.submit(_generate_hypothetical_abstract)
@@ -468,9 +479,15 @@ class HybridRanker:
                 texts_to_embed.append(hypothetical_abstract)
             texts_to_embed.extend(alt_queries)
 
+            embed_started = time.perf_counter()
             embed_response = openai_client.embeddings.create(
                 model="text-embedding-3-small",
                 input=[t[:8000] for t in texts_to_embed],
+            )
+            logger.info(
+                "[HybridRanker] HyDE embedding batch created in %.2fs from %d texts",
+                time.perf_counter() - embed_started,
+                len(texts_to_embed),
             )
             vectors = [np.array(d.embedding) for d in embed_response.data]
 
@@ -496,12 +513,20 @@ class HybridRanker:
                 len(texts_to_embed),
                 len(alt_queries),
             )
+            logger.info(
+                "[HybridRanker] HyDE embedding ready in %.2fs",
+                time.perf_counter() - started,
+            )
             # 캐시에 저장
             _hyde_cache_set(query, result)
             return result
 
         except Exception as e:
-            logger.warning("[HybridRanker] HyDE embedding failed, will fall back to raw query: %s", e)
+            logger.warning(
+                "[HybridRanker] HyDE embedding failed after %.2fs, will fall back to raw query: %s",
+                time.perf_counter() - started,
+                e,
+            )
             return None
 
     def _compute_semantic_scores(

@@ -409,6 +409,7 @@ Return only valid JSON, no additional text."""
                 "search_context": ""
             }
 
+        started = _time.perf_counter()
         try:
             prompt = self._create_search_query_prompt(query)
 
@@ -440,7 +441,7 @@ For non-English queries, translate to English and use technical terms."""
 
             result = json.loads(response.choices[0].message.content or "{}")
 
-            return {
+            result = {
                 "arxiv_queries": result.get("arxiv_queries", [query])[:5],
                 "scholar_queries": result.get("scholar_queries", [query])[:5],
                 "keywords": result.get("keywords", []),
@@ -449,8 +450,21 @@ For non-English queries, translate to English and use technical terms."""
                 "translated_query": result.get("translated_query", query),
                 "related_terms": result.get("related_terms", [])
             }
+            logger.info(
+                "[QueryAnalyzer] generate_search_queries completed in %.2fs (query_len=%d, arxiv_queries=%d, scholar_queries=%d)",
+                _time.perf_counter() - started,
+                len(query),
+                len(result["arxiv_queries"]),
+                len(result["scholar_queries"]),
+            )
+            return result
 
         except Exception as e:
+            logger.warning(
+                "[QueryAnalyzer] generate_search_queries failed after %.2fs: %s",
+                _time.perf_counter() - started,
+                e,
+            )
             logger.error(f"[WARNING] Search query generation failed: {e}")
             return self._fallback_search_queries(query)
 
@@ -743,6 +757,7 @@ CRITICAL RULES:
             fallback["source_queries"] = self._fallback_source_queries(query, fallback.get("keywords"))
             return fallback
 
+        started = _time.perf_counter()
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -824,9 +839,21 @@ RULES:
                 },
             }
             _set_in_cache(key, result)
+            logger.info(
+                "[QueryAnalyzer] analyze_and_prepare completed in %.2fs (academic=%s, intent=%s, confidence=%.2f)",
+                _time.perf_counter() - started,
+                result["is_academic"],
+                result["intent"],
+                result["confidence"],
+            )
             return result
 
         except Exception as e:
+            logger.warning(
+                "[QueryAnalyzer] analyze_and_prepare failed after %.2fs, falling back: %s",
+                _time.perf_counter() - started,
+                e,
+            )
             logger.warning("Unified analysis failed, falling back to individual calls: %s", e)
             # Fallback: 개별 메서드 호출
             analysis = self.analyze_query(query)
@@ -853,6 +880,7 @@ RULES:
         if not query or not query.strip():
             return self._fallback_search_queries(query)
 
+        started = _time.perf_counter()
         try:
             prompt = f"""Based on the user's search query and context, generate optimized academic search queries.
 
@@ -893,9 +921,19 @@ Return only valid JSON."""
             result = json.loads(response.choices[0].message.content or "{}")
             result["original_query"] = query
             result["context_used"] = context
+            logger.info(
+                "[QueryAnalyzer] search_with_context completed in %.2fs (query_len=%d, context_len=%d)",
+                _time.perf_counter() - started,
+                len(query),
+                len(context),
+            )
             return result
 
         except Exception as e:
+            logger.warning(
+                "[QueryAnalyzer] search_with_context failed after %.2fs: %s",
+                _time.perf_counter() - started,
+                e,
+            )
             logger.error(f"[WARNING] Context search failed: {e}")
             return self._fallback_search_queries(query)
-
