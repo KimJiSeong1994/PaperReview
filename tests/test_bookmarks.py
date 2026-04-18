@@ -99,3 +99,63 @@ async def test_bookmark_not_found(client, auth_headers):
 
     resp2 = await client.delete("/api/bookmarks/nonexistent", headers=auth_headers)
     assert resp2.status_code == 404
+
+
+# ── RT2: POST /api/bookmarks must be rate-limited ─────────────────────
+
+@pytest.mark.asyncio
+async def test_bookmarks_post_rate_limited(client, auth_headers):
+    """POST /api/bookmarks must honour the 30/minute cap (B10)."""
+    from routers.deps import limiter as real_limiter
+
+    # Reset counters from prior tests.
+    real_limiter._storage.reset()
+
+    payload = {
+        "session_id": "s-rl",
+        "title": "rl",
+        "papers": [],
+        "report_markdown": "x",
+        "topic": "T",
+    }
+
+    last_status = None
+    for i in range(31):
+        resp = await client.post("/api/bookmarks", json=payload, headers=auth_headers)
+        last_status = resp.status_code
+        if resp.status_code == 429:
+            break
+
+    assert last_status == 429, (
+        f"Expected 429 within 31 requests to /api/bookmarks, last status was {last_status}"
+    )
+
+
+# ── RT4: body-size cap rejects oversized report_markdown ───────────────
+
+@pytest.mark.asyncio
+async def test_body_size_cap_rejects_large_report(client, auth_headers):
+    """POST /api/bookmarks with a 1 MB report must be rejected by Pydantic.
+
+    Cap is 512 KB — 1 MB is definitively over.
+    """
+    from routers.deps import limiter as real_limiter
+
+    real_limiter._storage.reset()
+
+    big_report = "x" * (1024 * 1024)  # 1 MB — exceeds 512 KB cap
+    payload = {
+        "session_id": "s-big",
+        "title": "big",
+        "papers": [],
+        "report_markdown": big_report,
+        "topic": "T",
+    }
+
+    resp = await client.post("/api/bookmarks", json=payload, headers=auth_headers)
+
+    # FastAPI / Pydantic → 422 for validation failure (413 also acceptable
+    # if a reverse proxy enforces the cap).
+    assert resp.status_code in (413, 422), (
+        f"Expected 413 or 422 for 1MB body, got {resp.status_code}: {resp.text[:200]}"
+    )
