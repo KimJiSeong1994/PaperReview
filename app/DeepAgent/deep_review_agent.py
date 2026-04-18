@@ -209,7 +209,7 @@ def get_llm():
             _llm_instance = ChatOpenAI(
                 model="gpt-4o-mini",
                 temperature=0.3,
-                request_timeout=30,
+                timeout=30,
             )
         return _llm_instance
 
@@ -1077,7 +1077,7 @@ class DeepReviewAgent:
             model=self.model,
             api_key=self.api_key,
             temperature=0.3,
-            request_timeout=30,
+            timeout=30,
         )
 
         # Create subagents
