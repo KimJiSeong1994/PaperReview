@@ -234,3 +234,6 @@ __marimo__/
 
 .omc
 data/blog/figures/run_*/
+.omx/
+AGENTS.md
+
