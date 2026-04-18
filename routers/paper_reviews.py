@@ -27,6 +27,8 @@ from .highlight_service import (
     _find_verbatim_or_fuzzy,
 )
 from .paper_review_service import generate_paper_review
+from src.events.emit import emit_or_warn
+from src.events.event_types import EventType, UserEvent
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +176,17 @@ def create_paper_review(
                     papers[paper_index]["review"] = review
                     papers[paper_index]["review_highlights"] = highlights
                 break
+
+    emit_or_warn(UserEvent(
+        user_id=username,
+        event_type=EventType.REVIEW_CREATE,
+        paper_id=bookmark_id,
+        payload={
+            "bookmark_id": bookmark_id,
+            "paper_index": paper_index,
+            "title": paper_input.get("title", "")[:200],
+        },
+    ))
 
     return {
         "success": True,

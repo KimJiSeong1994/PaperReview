@@ -20,6 +20,7 @@ from .pdf_proxy import router as pdf_proxy_router
 from .autofigure import router as autofigure_router
 from .blog import router as blog_router
 from .topology import router as topology_router
+from .me import router as me_router
 
 __all__ = [
     "auth_router",
@@ -38,4 +39,5 @@ __all__ = [
     "autofigure_router",
     "blog_router",
     "topology_router",
+    "me_router",
 ]

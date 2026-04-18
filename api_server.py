@@ -43,6 +43,7 @@ from routers import (
     autofigure_router,
     blog_router,
     topology_router,
+    me_router,
 )
 from routers.deps import api_key, limiter
 
@@ -79,12 +80,28 @@ def _ensure_faiss_index():
 
 
 from contextlib import asynccontextmanager
+import asyncio
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     _ensure_faiss_index()
+
+    # Register the running event loop with the event bus so sync
+    # endpoints running in the threadpool can emit events via
+    # ``run_coroutine_threadsafe`` (see ``src/events/emit.py`` path (b)).
+    try:
+        from src.events.event_bus import get_event_bus
+        get_event_bus().register_main_loop(asyncio.get_running_loop())
+    except RuntimeError:
+        logger.warning(
+            "event bus not initialized at lifespan startup; "
+            "sync-path event emits will fall back to persist_only",
+        )
+    except Exception:
+        logger.exception("failed to register main loop with event bus")
+
     yield
 
 
@@ -211,6 +228,7 @@ app.include_router(pdf_proxy_router)
 app.include_router(autofigure_router)
 app.include_router(blog_router)
 app.include_router(topology_router)
+app.include_router(me_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

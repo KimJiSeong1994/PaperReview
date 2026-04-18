@@ -17,34 +17,55 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
-from .deps import load_bookmarks, modify_bookmarks, review_sessions, review_sessions_lock, get_current_user, get_openai_client
+from .deps import (
+    load_bookmarks,
+    modify_bookmarks,
+    review_sessions,
+    review_sessions_lock,
+    get_current_user,
+    get_openai_client,
+    limiter,
+)
 from .highlight_service import CATEGORY_CONFIG, generate_highlights, _find_verbatim_or_fuzzy
+from src.events.emit import emit_or_warn
+from src.events.event_types import EventType, UserEvent
 
 router = APIRouter(prefix="/api", tags=["bookmarks"])
 
 
 # ── Pydantic models ───────────────────────────────────────────────────
+#
+# Body-size caps (RT4): every string is bounded and every list is capped.
+# The limits are intentionally generous for legitimate payloads (512 KB
+# markdown report, 500 papers, 50 tags) but firmly reject the kind of
+# 10 MB blob that a live penetration test accepted.
+
+# Reasonable upper bound on a review report — 512 KB of markdown.
+# Typical reports are a few KB; this cap is ~1000x bigger than average.
+_MAX_REPORT_BYTES = 524288
+
 
 class BookmarkCreateRequest(BaseModel):
-    session_id: str
-    title: str
-    query: str = ""
-    papers: List[dict] = []
-    report_markdown: str
-    tags: List[str] = []
-    topic: str = "General"
+    session_id: str = Field(..., max_length=200)
+    title: str = Field(..., max_length=500)
+    query: str = Field("", max_length=2000)
+    papers: List[dict] = Field(default_factory=list, max_length=500)
+    report_markdown: str = Field(..., max_length=_MAX_REPORT_BYTES)
+    tags: List[str] = Field(default_factory=list, max_length=50)
+    topic: str = Field("General", max_length=100)
 
 
 class BookmarkTitleUpdateRequest(BaseModel):
-    title: str
+    title: str = Field(..., max_length=500)
 
 
 class BookmarkTopicUpdateRequest(BaseModel):
-    topic: str
+    topic: str = Field(..., max_length=100)
 
 
 class BookmarkResponse(BaseModel):
@@ -59,71 +80,86 @@ class BookmarkResponse(BaseModel):
 
 
 class BookmarkFromPaperRequest(BaseModel):
-    title: str
-    authors: List[str] = []
+    title: str = Field(..., max_length=500)
+    authors: List[str] = Field(default_factory=list, max_length=200)
     year: Optional[int] = None
-    venue: Optional[str] = None
-    doi: Optional[str] = None
-    arxiv_id: Optional[str] = None
-    context: Optional[str] = None
-    source_curriculum: Optional[str] = None
-    topic: str = "Curriculum Papers"
-    tags: List[str] = []
+    venue: Optional[str] = Field(None, max_length=500)
+    doi: Optional[str] = Field(None, max_length=200)
+    arxiv_id: Optional[str] = Field(None, max_length=100)
+    context: Optional[str] = Field(None, max_length=_MAX_REPORT_BYTES)
+    source_curriculum: Optional[str] = Field(None, max_length=500)
+    topic: str = Field("Curriculum Papers", max_length=100)
+    tags: List[str] = Field(default_factory=list, max_length=50)
 
 
 class BulkDeleteBookmarksRequest(BaseModel):
-    bookmark_ids: List[str]
+    bookmark_ids: List[str] = Field(..., max_length=500)
 
 
 class BulkMoveBookmarksRequest(BaseModel):
-    bookmark_ids: List[str]
-    topic: str
+    bookmark_ids: List[str] = Field(..., max_length=500)
+    topic: str = Field(..., max_length=100)
 
 
 class BookmarkNotesUpdateRequest(BaseModel):
-    notes: Optional[str] = None
-    highlights: Optional[List[dict]] = None
+    notes: Optional[str] = Field(None, max_length=_MAX_REPORT_BYTES)
+    highlights: Optional[List[dict]] = Field(None, max_length=500)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/bookmarks")
-async def create_bookmark(request: BookmarkCreateRequest, username: str = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def create_bookmark(
+    request: Request,
+    payload: BookmarkCreateRequest,
+    username: str = Depends(get_current_user),
+):
     """Save a deep research result as a bookmark."""
     bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
     workspace_path = ""
     with review_sessions_lock:
-        if request.session_id in review_sessions:
-            workspace_path = review_sessions[request.session_id].get("workspace_path", "")
+        if payload.session_id in review_sessions:
+            workspace_path = review_sessions[payload.session_id].get("workspace_path", "")
 
     bookmark = {
         "id": bookmark_id,
         "username": username,
-        "title": request.title,
-        "session_id": request.session_id,
+        "title": payload.title,
+        "session_id": payload.session_id,
         "workspace_path": workspace_path,
-        "query": request.query,
-        "papers": request.papers,
-        "num_papers": len(request.papers),
-        "report_markdown": request.report_markdown,
+        "query": payload.query,
+        "papers": payload.papers,
+        "num_papers": len(payload.papers),
+        "report_markdown": payload.report_markdown,
         "created_at": datetime.now().isoformat(),
-        "tags": request.tags,
-        "topic": request.topic,
+        "tags": payload.tags,
+        "topic": payload.topic,
     }
 
     with modify_bookmarks() as data:
         data["bookmarks"].append(bookmark)
 
+    emit_or_warn(UserEvent(
+        user_id=username,
+        event_type=EventType.BOOKMARK_ADD,
+        paper_id=bookmark_id,
+        payload={
+            "topic": payload.topic[:200],
+            "title": payload.title[:200],
+        },
+    ))
+
     return BookmarkResponse(
         id=bookmark_id,
-        title=request.title,
-        session_id=request.session_id,
-        query=request.query,
-        num_papers=len(request.papers),
+        title=payload.title,
+        session_id=payload.session_id,
+        query=payload.query,
+        num_papers=len(payload.papers),
         created_at=bookmark["created_at"],
-        tags=request.tags,
-        topic=request.topic,
+        tags=payload.tags,
+        topic=payload.topic,
     )
 
 
@@ -171,6 +207,16 @@ async def create_bookmark_from_paper(
 
     with modify_bookmarks() as data:
         data["bookmarks"].append(bookmark)
+
+    emit_or_warn(UserEvent(
+        user_id=username,
+        event_type=EventType.BOOKMARK_ADD,
+        paper_id=bookmark_id,
+        payload={
+            "topic": request.topic[:200],
+            "title": request.title[:200],
+        },
+    ))
 
     return BookmarkResponse(
         id=bookmark_id,
@@ -222,7 +268,12 @@ async def get_bookmark(bookmark_id: str, username: str = Depends(get_current_use
 
 
 @router.delete("/bookmarks/{bookmark_id}")
-async def delete_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def delete_bookmark(
+    request: Request,
+    bookmark_id: str,
+    username: str = Depends(get_current_user),
+):
     """Delete a bookmark owned by the current user."""
     with modify_bookmarks() as data:
         original_len = len(data["bookmarks"])
@@ -232,12 +283,22 @@ async def delete_bookmark(bookmark_id: str, username: str = Depends(get_current_
         ]
         if len(data["bookmarks"]) == original_len:
             raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    emit_or_warn(UserEvent(
+        user_id=username,
+        event_type=EventType.BOOKMARK_REMOVE,
+        paper_id=bookmark_id,
+        payload={"bookmark_id": bookmark_id},
+    ))
     return {"success": True, "message": "Bookmark deleted"}
 
 
 @router.patch("/bookmarks/{bookmark_id}/topic")
+@limiter.limit("30/minute")
 async def update_bookmark_topic(
-    bookmark_id: str, request: BookmarkTopicUpdateRequest,
+    request: Request,
+    bookmark_id: str,
+    payload: BookmarkTopicUpdateRequest,
     username: str = Depends(get_current_user),
 ):
     """Update a bookmark's topic."""
@@ -246,8 +307,8 @@ async def update_bookmark_topic(
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
                     raise HTTPException(status_code=403, detail="Access denied")
-                bm["topic"] = request.topic
-                return {"success": True, "topic": request.topic}
+                bm["topic"] = payload.topic
+                return {"success": True, "topic": payload.topic}
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
 
@@ -271,30 +332,65 @@ async def update_bookmark_title(
 
 
 @router.patch("/bookmarks/{bookmark_id}/notes")
+@limiter.limit("60/minute")
 async def update_bookmark_notes(
-    bookmark_id: str, request: BookmarkNotesUpdateRequest,
+    request: Request,
+    bookmark_id: str,
+    payload: BookmarkNotesUpdateRequest,
     username: str = Depends(get_current_user),
 ):
     """Update a bookmark's personal notes and/or highlights."""
+    result: dict | None = None
+    highlight_event_type: EventType | None = None
+    prev_highlight_count: int = 0
+
     with modify_bookmarks() as data:
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
                     raise HTTPException(status_code=403, detail="Access denied")
-                if request.notes is not None:
-                    bm["notes"] = request.notes
-                if request.highlights is not None:
-                    bm["highlights"] = request.highlights
-                return {
+                if payload.notes is not None:
+                    bm["notes"] = payload.notes
+                if payload.highlights is not None:
+                    prev_highlight_count = len(bm.get("highlights") or [])
+                    bm["highlights"] = payload.highlights
+                    new_count = len(payload.highlights)
+                    if new_count == 0:
+                        highlight_event_type = EventType.HIGHLIGHT_DELETE
+                    elif prev_highlight_count == 0:
+                        highlight_event_type = EventType.HIGHLIGHT_CREATE
+                    else:
+                        highlight_event_type = EventType.HIGHLIGHT_UPDATE
+                result = {
                     "success": True,
                     "notes": bm.get("notes", ""),
                     "highlights": bm.get("highlights", []),
                 }
-        raise HTTPException(status_code=404, detail="Bookmark not found")
+                break
+        if result is None:
+            raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    if highlight_event_type is not None:
+        emit_or_warn(UserEvent(
+            user_id=username,
+            event_type=highlight_event_type,
+            paper_id=bookmark_id,
+            payload={
+                "bookmark_id": bookmark_id,
+                "highlight_count": len(payload.highlights),
+            },
+        ))
+
+    return result
 
 
 @router.post("/bookmarks/{bookmark_id}/auto-highlight")
-def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+@limiter.limit("5/minute")
+def auto_highlight_bookmark(
+    request: Request,
+    bookmark_id: str,
+    username: str = Depends(get_current_user),
+):
     """Use LLM to automatically extract key highlights from the bookmark report."""
     from openai import APITimeoutError, RateLimitError, APIError
 
@@ -442,10 +538,15 @@ def auto_highlight_bookmark(bookmark_id: str, username: str = Depends(get_curren
 
 
 @router.post("/bookmarks/bulk-delete")
-async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest, username: str = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def bulk_delete_bookmarks(
+    request: Request,
+    payload: BulkDeleteBookmarksRequest,
+    username: str = Depends(get_current_user),
+):
     """Delete multiple bookmarks owned by the current user."""
     with modify_bookmarks() as data:
-        ids_set = set(request.bookmark_ids)
+        ids_set = set(payload.bookmark_ids)
         original = len(data["bookmarks"])
         data["bookmarks"] = [
             bm for bm in data["bookmarks"]
@@ -454,19 +555,30 @@ async def bulk_delete_bookmarks(request: BulkDeleteBookmarksRequest, username: s
         deleted = original - len(data["bookmarks"])
         if deleted == 0:
             raise HTTPException(status_code=404, detail="No bookmarks found to delete")
+
+    for bm_id in payload.bookmark_ids:
+        emit_or_warn(UserEvent(
+            user_id=username,
+            event_type=EventType.BOOKMARK_REMOVE,
+            paper_id=bm_id,
+            payload={"bookmark_id": bm_id, "bulk": True},
+        ))
     return {"success": True, "deleted_count": deleted}
 
 
 @router.post("/bookmarks/bulk-move")
-async def bulk_move_bookmarks(request: BulkMoveBookmarksRequest, username: str = Depends(get_current_user)):
+async def bulk_move_bookmarks(
+    payload: BulkMoveBookmarksRequest,
+    username: str = Depends(get_current_user),
+):
     """Move multiple bookmarks to a new topic (current user only)."""
     with modify_bookmarks() as data:
-        ids_set = set(request.bookmark_ids)
+        ids_set = set(payload.bookmark_ids)
         updated = 0
         for bm in data["bookmarks"]:
             if bm["id"] in ids_set and bm.get("username") == username:
-                bm["topic"] = request.topic
+                bm["topic"] = payload.topic
                 updated += 1
         if updated == 0:
             raise HTTPException(status_code=404, detail="No bookmarks found to update")
-    return {"success": True, "updated_count": updated, "topic": request.topic}
+    return {"success": True, "updated_count": updated, "topic": payload.topic}
