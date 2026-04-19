@@ -24,6 +24,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["reviews"])
 
+# ── Cache-stable system prompts ────────────────────────────────────────
+# Kept as module-level immutable strings so OpenAI automatic prompt caching
+# (and the local split-key cache) can reuse them across calls. Do not
+# interpolate runtime values (paper count, dates, titles) into these
+# constants — those belong in the user message.
+
+FAST_REVIEW_SYSTEM_PROMPT = (
+    "당신은 Nature, Science 등 최상위 저널의 리뷰어이자, "
+    "해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다. "
+    "단순한 논문 요약이 아닌, 비판적 사고와 학제간 통찰을 바탕으로 "
+    "논문의 본질적 기여와 한계를 꿰뚫는 심층 분석을 수행합니다. "
+    "모든 주장에는 구체적 근거를 제시하고, 숨겨진 가정과 잠재적 한계까지 도출합니다. "
+    "체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."
+)
+
+DEEP_REVIEW_SYSTEM_PROMPT = (
+    "당신은 해당 분야의 선임 연구 교수입니다. "
+    "체계적이고 심층적인 한글 문헌 리뷰 보고서를 작성합니다."
+)
+
 _SESSION_TTL_SECONDS = 86400  # 24 hours
 _last_cleanup = 0.0
 
@@ -442,17 +462,7 @@ def run_fast_review(
         logger.info("[Fast Review] API timeout: %ds for %d papers", api_timeout, len(papers))
 
         messages = [
-            {
-                "role": "system",
-                "content": (
-                    "당신은 Nature, Science 등 최상위 저널의 리뷰어이자, "
-                    "해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다. "
-                    "단순한 논문 요약이 아닌, 비판적 사고와 학제간 통찰을 바탕으로 "
-                    "논문의 본질적 기여와 한계를 꿰뚫는 심층 분석을 수행합니다. "
-                    "모든 주장에는 구체적 근거를 제시하고, 숨겨진 가정과 잠재적 한계까지 도출합니다. "
-                    "체계적이고 상세한 한글 문헌 리뷰 보고서를 작성합니다."
-                ),
-            },
+            {"role": "system", "content": FAST_REVIEW_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
 
@@ -717,10 +727,7 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
         response = client.chat.completions.create(
             model=deep_research_model,
             messages=[
-                {
-                    "role": "system",
-                    "content": "당신은 해당 분야의 선임 연구 교수입니다. 체계적이고 심층적인 한글 문헌 리뷰 보고서를 작성합니다.",
-                },
+                {"role": "system", "content": DEEP_REVIEW_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
