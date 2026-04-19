@@ -967,7 +967,7 @@ async def get_review_status(session_id: str, username: str | None = Depends(get_
         # Allow access if no auth required or if user owns the session
         session_owner = session.get("username")
         if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=404, detail="Session not found")
 
         v_raw = session.get("verification_stats")
         v_stats = VerificationStats(**v_raw) if v_raw else None
@@ -994,7 +994,7 @@ async def get_review_report(session_id: str, username: str | None = Depends(get_
         # Allow access if no auth required or if user owns the session
         session_owner = session.get("username")
         if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=404, detail="Session not found")
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -1046,7 +1046,7 @@ async def get_verification_detail(session_id: str, username: str | None = Depend
         # Allow access if no auth required or if user owns the session
         session_owner = session.get("username")
         if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=404, detail="Session not found")
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -1130,7 +1130,7 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
             # Allow access if no auth required or if user owns the session
             session_owner = session.get("username")
             if session_owner and username and session_owner != username:
-                raise HTTPException(status_code=403, detail="Access denied")
+                raise HTTPException(status_code=404, detail="Session not found")
 
             logger.info("[Poster API] Session found: status=%s", session.get("status"))
 

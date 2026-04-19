@@ -55,7 +55,7 @@ async def create_share_link(
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
-                    raise HTTPException(status_code=403, detail="Access denied")
+                    raise HTTPException(status_code=404, detail="Bookmark not found")
                 bm["share"] = {
                     "token": token,
                     "created_at": now.isoformat(),
@@ -80,7 +80,7 @@ async def revoke_share_link(
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
-                    raise HTTPException(status_code=403, detail="Access denied")
+                    raise HTTPException(status_code=404, detail="Bookmark not found")
                 if "share" not in bm:
                     raise HTTPException(status_code=404, detail="No share link exists")
                 del bm["share"]

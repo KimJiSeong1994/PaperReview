@@ -18,6 +18,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
@@ -304,7 +305,7 @@ async def update_bookmark_topic(
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
-                    raise HTTPException(status_code=403, detail="Access denied")
+                    raise HTTPException(status_code=404, detail="Bookmark not found")
                 bm["topic"] = payload.topic
                 return {"success": True, "topic": payload.topic}
         raise HTTPException(status_code=404, detail="Bookmark not found")
@@ -323,7 +324,7 @@ async def update_bookmark_title(
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
-                    raise HTTPException(status_code=403, detail="Access denied")
+                    raise HTTPException(status_code=404, detail="Bookmark not found")
                 bm["title"] = title
                 return {"success": True, "title": title}
         raise HTTPException(status_code=404, detail="Bookmark not found")
@@ -346,7 +347,7 @@ async def update_bookmark_notes(
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
-                    raise HTTPException(status_code=403, detail="Access denied")
+                    raise HTTPException(status_code=404, detail="Bookmark not found")
                 if payload.notes is not None:
                     bm["notes"] = payload.notes
                 if payload.highlights is not None:
@@ -384,12 +385,18 @@ async def update_bookmark_notes(
 
 @router.post("/bookmarks/{bookmark_id}/auto-highlight")
 @limiter.limit("5/minute")
-def auto_highlight_bookmark(
+async def auto_highlight_bookmark(
     request: Request,
     bookmark_id: str,
     username: str = Depends(get_current_user),
 ):
-    """Use LLM to automatically extract key highlights from the bookmark report."""
+    """Use LLM to automatically extract key highlights from the bookmark report.
+
+    Async so the long-running LLM call is offloaded via
+    ``run_in_threadpool`` rather than holding a FastAPI threadpool worker
+    for the entire request lifetime. Prevents starvation of other sync
+    endpoints during bursts of auto-highlight traffic.
+    """
     from openai import APITimeoutError, RateLimitError, APIError
 
     # Phase 1: Read bookmark and report (before LLM call)
@@ -406,10 +413,13 @@ def auto_highlight_bookmark(
     query = bookmark.get("query", "")
     title = bookmark.get("title", "")
 
-    # Phase 2: LLM call (potentially long-running, no lock held)
+    # Phase 2: LLM call (potentially long-running, no lock held) — offloaded
+    # to threadpool so the event loop stays free for other requests.
     client = get_openai_client()
     try:
-        llm_highlights = generate_highlights(report, query, title, client)
+        llm_highlights = await run_in_threadpool(
+            generate_highlights, report, query, title, client
+        )
     except APITimeoutError:
         raise HTTPException(status_code=504, detail="LLM analysis timed out. Please retry.")
     except RateLimitError:
