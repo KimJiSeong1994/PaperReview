@@ -246,12 +246,19 @@ function BlogPage({ isAdmin }: BlogPageProps) {
     <div className="blog-app-header">
       <div className="blog-header-nav">
         <div className="blog-logo" onClick={() => navigate('/')}>
-          <img
-            src="/Jiphyeonjeon_llama.png"
-            alt="Jiphyeonjeon"
-            className="blog-logo-icon"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
+          <picture>
+            <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+            <img
+              src="/Jiphyeonjeon_llama.png"
+              alt="Jiphyeonjeon"
+              className="blog-logo-icon"
+              width={128}
+              height={128}
+              loading="eager"
+              fetchPriority="high"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          </picture>
           <span className="blog-brand-name">Jiphyeonjeon</span>
         </div>
         <div className="blog-header-actions">

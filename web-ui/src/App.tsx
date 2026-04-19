@@ -90,14 +90,21 @@ function App() {
               <div className="app-header">
                 <div className="header-nav">
                   <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-                    <img
-                      src="/Jiphyeonjeon_llama.png"
-                      alt="Jiphyeonjeon"
-                      className="logo-icon"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
+                    <picture>
+                      <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+                      <img
+                        src="/Jiphyeonjeon_llama.png"
+                        alt="Jiphyeonjeon"
+                        className="logo-icon"
+                        width={128}
+                        height={128}
+                        loading="eager"
+                        fetchPriority="high"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </picture>
                     <span className="brand-name">Jiphyeonjeon</span>
                   </div>
                   <div className="header-actions">

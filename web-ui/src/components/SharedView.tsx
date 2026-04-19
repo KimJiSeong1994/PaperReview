@@ -141,14 +141,19 @@ export default function SharedView() {
       <header className="shared-view-header">
         <div className="shared-view-header-inner">
           <div className="shared-view-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            <img
-              src="/Jiphyeonjeon_llama.png"
-              alt="Jiphyeonjeon"
-              className="shared-view-logo"
-              width={28}
-              height={28}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+            <picture>
+              <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+              <img
+                src="/Jiphyeonjeon_llama.png"
+                alt="Jiphyeonjeon"
+                className="shared-view-logo"
+                width={128}
+                height={128}
+                loading="eager"
+                fetchPriority="high"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </picture>
             <span className="shared-view-brand-name">Jiphyeonjeon</span>
           </div>
           <span className="shared-view-badge">Shared Report</span>

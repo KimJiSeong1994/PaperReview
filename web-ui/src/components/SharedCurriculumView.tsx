@@ -111,14 +111,19 @@ export default function SharedCurriculumView() {
       <header className="shared-cur-header">
         <div className="shared-cur-header-inner">
           <div className="shared-cur-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            <img
-              src="/Jiphyeonjeon_llama.png"
-              alt="Jiphyeonjeon"
-              className="shared-cur-logo"
-              width={28}
-              height={28}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+            <picture>
+              <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+              <img
+                src="/Jiphyeonjeon_llama.png"
+                alt="Jiphyeonjeon"
+                className="shared-cur-logo"
+                width={128}
+                height={128}
+                loading="eager"
+                fetchPriority="high"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </picture>
             <span className="shared-cur-brand-name">Jiphyeonjeon</span>
           </div>
           <span className="shared-cur-badge">Shared Curriculum</span>

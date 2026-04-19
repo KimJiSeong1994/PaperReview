@@ -376,7 +376,10 @@ export default function AdminPage() {
       <header className="admin-app-header">
         <nav className="admin-header-nav">
           <div className="admin-logo">
-            <img src="/Jiphyeonjeon_llama.png" alt="Jiphyeonjeon" className="admin-logo-icon" />
+            <picture>
+              <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+              <img src="/Jiphyeonjeon_llama.png" alt="Jiphyeonjeon" className="admin-logo-icon" width={128} height={128} loading="eager" fetchPriority="high" />
+            </picture>
             <span className="admin-brand-name">Admin</span>
           </div>
           <div className="admin-header-actions">
