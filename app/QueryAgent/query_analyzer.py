@@ -812,12 +812,33 @@ RULES:
 
             source_queries = raw.get("source_queries", {})
 
-            # Normalize google_scholar: LLM may return list or string
+            # Normalize google_scholar / scholar_queries: LLM may return list or string
             scholar_raw = source_queries.get("google_scholar", query)
-            if isinstance(scholar_raw, str):
-                scholar_queries = [scholar_raw]
+            sq = source_queries.get("scholar_queries", scholar_raw)
+            if isinstance(sq, str):
+                # LLM non-compliance: fabricate variants to preserve Scholar recall
+                base = sq.strip()
+                improved = raw.get("improved_query") or query
+                keywords: List[str] = raw.get("keywords") or []
+                variants: List[str] = [base]
+                if improved and improved != base:
+                    variants.append(improved)
+                if keywords:
+                    variants.append(" ".join(keywords[:5]))
+                scholar_queries = [v for v in variants if v][:3]
+                logger.warning(
+                    "[QueryAnalyzer] scholar_queries was a string (LLM non-compliance);"
+                    " fabricated %d variants from base=%r query=%r",
+                    len(scholar_queries),
+                    base,
+                    query,
+                )
+            elif isinstance(sq, list):
+                scholar_queries = [str(v).strip() for v in sq if v][:3]
             else:
-                scholar_queries = list(scholar_raw)[:3]
+                # None or unexpected type — fall back to google_scholar single string
+                gs = scholar_raw if isinstance(scholar_raw, str) else query
+                scholar_queries = [gs]
 
             result = {
                 "is_academic": bool(raw.get("is_academic", True)),
@@ -850,11 +871,11 @@ RULES:
 
         except Exception as e:
             logger.warning(
-                "[QueryAnalyzer] analyze_and_prepare failed after %.2fs, falling back: %s",
+                "[QueryAnalyzer] analyze_and_prepare failed after %.2fs, falling back to individual calls: %s",
                 _time.perf_counter() - started,
                 e,
+                exc_info=True,
             )
-            logger.warning("Unified analysis failed, falling back to individual calls: %s", e)
             # Fallback: 개별 메서드 호출
             analysis = self.analyze_query(query)
             topic = self.classify_topic(query)

@@ -413,14 +413,42 @@ class SearchAgent:
             # 1. LLM으로 최적화된 검색 쿼리 생성
             logger.info("[SearchAgent] Generating LLM search queries for: %s...", query[:50])
 
+            # context가 있으면 컨텍스트 기반 경로(search_with_context)를 유지하고,
+            # context가 없으면 통합 경로(analyze_and_prepare)를 사용해 LLM 호출을 1회로 통합한다.
+            # 통합 호출 실패 시 기존 개별 호출(generate_search_queries) 경로로 graceful fallback.
+            search_context: str = ""
+            translated_query: str = query
             if context:
                 search_queries = self.query_analyzer.search_with_context(query, context)
+                arxiv_queries = search_queries.get("arxiv_queries", [query])
+                scholar_queries = search_queries.get("scholar_queries", [query])
+                keywords = search_queries.get("keywords", [])
+                search_context = search_queries.get("search_context", "")
+                translated_query = search_queries.get("translated_query", query)
             else:
-                search_queries = self.query_analyzer.generate_search_queries(query)
-
-            arxiv_queries = search_queries.get("arxiv_queries", [query])
-            scholar_queries = search_queries.get("scholar_queries", [query])
-            keywords = search_queries.get("keywords", [])
+                try:
+                    unified = self.query_analyzer.analyze_and_prepare(query)
+                    source_queries = unified.get("source_queries", {}) or {}
+                    # analyze_and_prepare는 arxiv/dblp/google_scholar를 단일 문자열로 반환하고
+                    # scholar_queries(list[str])에 Google Scholar 멀티 쿼리를 담는다.
+                    arxiv_queries = [source_queries.get("arxiv", query)]
+                    scholar_queries = source_queries.get("scholar_queries") or [
+                        source_queries.get("google_scholar", query)
+                    ]
+                    keywords = unified.get("keywords", [])
+                    translated_query = unified.get("improved_query", query)
+                    search_context = unified.get("search_strategy", "")
+                except Exception:
+                    logger.warning(
+                        "[SearchAgent] analyze_and_prepare failed; falling back to individual calls",
+                        exc_info=True,
+                    )
+                    search_queries = self.query_analyzer.generate_search_queries(query)
+                    arxiv_queries = search_queries.get("arxiv_queries", [query])
+                    scholar_queries = search_queries.get("scholar_queries", [query])
+                    keywords = search_queries.get("keywords", [])
+                    search_context = search_queries.get("search_context", "")
+                    translated_query = search_queries.get("translated_query", query)
 
             logger.info("[SearchAgent] Generated %d arXiv queries, %d Scholar queries", len(arxiv_queries), len(scholar_queries))
             logger.info("[SearchAgent] Keywords: %s", keywords[:5])
@@ -509,8 +537,8 @@ class SearchAgent:
                 'arxiv_queries': arxiv_queries,
                 'scholar_queries': scholar_queries,
                 'keywords': keywords,
-                'search_context': search_queries.get('search_context', ''),
-                'translated_query': search_queries.get('translated_query', query)
+                'search_context': search_context,
+                'translated_query': translated_query,
             }
 
             return results
@@ -542,14 +570,31 @@ class SearchAgent:
         }
 
         try:
-            # 1. LLM 쿼리 분석
+            # 1. LLM 쿼리 분석 — 통합 호출(analyze_and_prepare) 1회로 intent/keywords/source_queries까지 획득.
+            #    실패 시 기존 analyze_query로 graceful fallback해 검색 자체가 무너지지 않도록 한다.
             analysis = None
             if self.query_analyzer:
                 try:
-                    analysis = self.query_analyzer.analyze_query(query)
-                    logger.info("[SmartSearch] Intent: %s, Confidence: %s", analysis.get('intent'), analysis.get('confidence'))
+                    analysis = self.query_analyzer.analyze_and_prepare(query)
+                    logger.info(
+                        "[SmartSearch] Intent: %s, Confidence: %s",
+                        analysis.get('intent'),
+                        analysis.get('confidence'),
+                    )
                 except Exception as e:
-                    logger.warning("[SmartSearch] Query analysis failed: %s", e)
+                    logger.warning(
+                        "[SmartSearch] analyze_and_prepare failed, falling back to analyze_query: %s",
+                        e,
+                    )
+                    try:
+                        analysis = self.query_analyzer.analyze_query(query)
+                        logger.info(
+                            "[SmartSearch] (fallback) Intent: %s, Confidence: %s",
+                            analysis.get('intent'),
+                            analysis.get('confidence'),
+                        )
+                    except Exception as e2:
+                        logger.warning("[SmartSearch] Query analysis failed: %s", e2)
 
             # 2. 검색 전략 결정
             if analysis and analysis.get('confidence', 0) >= 0.7:
