@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
@@ -15,8 +15,10 @@ import ChatPanel from './mypage/ChatPanel';
 import CourseSidebar from './curriculum/CourseSidebar';
 import ModuleView from './curriculum/ModuleView';
 import CurriculumDetailPanel from './curriculum/CurriculumDetailPanel';
-import PaperViewerPanel from './mypage/PaperViewerPanel';
+import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import './CurriculumPage.css';
+
+const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
 interface MyPageProps {
   onBack: () => void;
@@ -145,8 +147,12 @@ function MyPage({ onBack }: MyPageProps) {
       <div className="mypage-app-header">
         <div className="mypage-header-nav">
           <div className="mypage-logo" onClick={onBack} style={{ cursor: 'pointer' }}>
-            <img src="/Jiphyeonjeon_llama.png" alt="Jiphyeonjeon" className="mypage-logo-icon"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <picture>
+              <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+              <img src="/Jiphyeonjeon_llama.png" alt="Jiphyeonjeon" className="mypage-logo-icon"
+                width={128} height={128} loading="eager" fetchPriority="high"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            </picture>
             <span className="mypage-brand-name">Jiphyeonjeon</span>
           </div>
           <div className="mypage-header-actions">
@@ -210,20 +216,24 @@ function MyPage({ onBack }: MyPageProps) {
                   </div>
                 </div>
               </div>
-              <PaperViewerPanel
-                bookmarkDetail={{ papers: [{
-                  title: directPaper.title,
-                  authors: directPaper.authors || [],
-                  year: directPaper.year,
-                  pdf_url: directPaper.pdf_url || undefined,
-                  doi: directPaper.doi || undefined,
-                  url: directPaper.url || undefined,
-                  source: directPaper.source || undefined,
-                }]}}
-                loadingDetail={false}
-                hasSelectedBookmark={true}
-                autoSelectFirst={true}
-              />
+              <LazyLoadErrorBoundary>
+                <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
+                  <PaperViewerPanel
+                    bookmarkDetail={{ papers: [{
+                      title: directPaper.title,
+                      authors: directPaper.authors || [],
+                      year: directPaper.year,
+                      pdf_url: directPaper.pdf_url || undefined,
+                      doi: directPaper.doi || undefined,
+                      url: directPaper.url || undefined,
+                      source: directPaper.source || undefined,
+                    }]}}
+                    loadingDetail={false}
+                    hasSelectedBookmark={true}
+                    autoSelectFirst={true}
+                  />
+                </Suspense>
+              </LazyLoadErrorBoundary>
             </>
           ) : (
             <>
@@ -260,11 +270,15 @@ function MyPage({ onBack }: MyPageProps) {
                 onBulkMove={bm.handleBulkMove}
                 onAddTopic={bm.handleAddTopic}
               />
-              <PaperViewerPanel
-                bookmarkDetail={bm.bookmarkDetail}
-                loadingDetail={bm.loadingDetail}
-                hasSelectedBookmark={!!bm.selectedBookmark}
-              />
+              <LazyLoadErrorBoundary>
+                <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
+                  <PaperViewerPanel
+                    bookmarkDetail={bm.bookmarkDetail}
+                    loadingDetail={bm.loadingDetail}
+                    hasSelectedBookmark={!!bm.selectedBookmark}
+                  />
+                </Suspense>
+              </LazyLoadErrorBoundary>
             </>
           )}
         </div>

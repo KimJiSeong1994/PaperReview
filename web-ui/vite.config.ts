@@ -23,6 +23,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-pdf': ['react-pdf', 'pdfjs-dist'],
+          'vendor-sigma': ['sigma', '@react-sigma/core', 'graphology'],
           'vendor-plotly': ['plotly.js-basic-dist-min', 'react-plotly.js'],
           'vendor-markdown': ['react-markdown', 'remark-gfm'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],

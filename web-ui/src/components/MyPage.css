@@ -3372,3 +3372,14 @@
   color: #9ca3af;
   line-height: 1.4;
 }
+/* Suspense fallback for lazy-loaded PaperViewerPanel */
+.paper-viewer-lazy-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 32px;
+  min-height: 120px;
+}
