@@ -30,6 +30,16 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
+# Lazily build the claim-extraction strict schema so import of this module
+# does not pull in the routers package at unrelated call sites.
+try:
+    from routers.schemas import ClaimExtractionSchema, build_openai_strict_schema
+    _CLAIM_EXTRACT_JSON_SCHEMA: Optional[Dict[str, Any]] = build_openai_strict_schema(
+        ClaimExtractionSchema
+    )
+except Exception:  # noqa: BLE001 — schema module is optional for legacy callers
+    _CLAIM_EXTRACT_JSON_SCHEMA = None
+
 
 def _run_async(coro):
     """Run an async coroutine from sync code, handling existing event loops."""
@@ -525,6 +535,58 @@ class ClaimExtractor:
 
     # ─── LLM-based Claim Extraction ───
 
+    async def _create_with_schema_or_fallback(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float,
+        max_tokens: int,
+    ):
+        """Call chat.completions.create with strict json_schema, fall back to json_object.
+
+        Falls back to the historical ``json_object`` path when strict mode is
+        unavailable (old model, proxy shim, etc.). Any further failure is
+        re-raised so the caller's outer ``except Exception`` in
+        ``_extract_claims_from_section`` can degrade to the heuristic
+        extractor — we no longer attempt a speculative third-tier "no
+        ``response_format``" call, which was untested and would only succeed
+        on shims that already accept ``json_object``.
+        """
+        if _CLAIM_EXTRACT_JSON_SCHEMA is not None:
+            try:
+                return await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "claim_extraction",
+                            "schema": _CLAIM_EXTRACT_JSON_SCHEMA,
+                            "strict": True,
+                        },
+                    },
+                )
+            except Exception as e:  # noqa: BLE001
+                name = type(e).__name__
+                if name in {"APITimeoutError", "RateLimitError"}:
+                    raise
+                logger.warning(
+                    "claim_extract json_schema call failed (%s); falling back to json_object",
+                    name,
+                )
+
+        # Fallback: json_object (still better than unstructured text). If this
+        # call also fails, the outer ``except Exception`` in
+        # ``_extract_claims_from_section`` falls back to the heuristic path.
+        return await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+
     async def _extract_claims_from_section(
         self,
         section_text: str,
@@ -539,22 +601,20 @@ class ClaimExtractor:
             )
 
         prompt = self._build_extraction_prompt(section_text, paper_title)
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You extract verifiable claims from academic review reports. "
+                    "Always respond with valid JSON only."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
 
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You extract verifiable claims from academic review reports. "
-                            "Always respond with valid JSON only."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=2000,
+            response = await self._create_with_schema_or_fallback(
+                messages=messages, temperature=0.1, max_tokens=2000
             )
 
             content = (response.choices[0].message.content or "").strip()

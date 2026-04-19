@@ -14,10 +14,11 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
-from .deps import modify_bookmarks, get_current_user, get_openai_client
+from .deps import modify_bookmarks, get_current_user, get_openai_client, limiter
 from .deps.storage import _get_bookmark_db
 from .llm_cache import get_cached, set_cache
 from .highlight_service import (
@@ -28,8 +29,11 @@ from .highlight_service import (
     _find_verbatim_or_fuzzy,
 )
 from .paper_review_service import generate_paper_review
+from .schemas import MathExplainSchema, build_openai_strict_schema
 from src.events.emit import emit_or_warn
 from src.events.event_types import EventType, UserEvent
+
+_MATH_EXPLAIN_JSON_SCHEMA: dict = build_openai_strict_schema(MathExplainSchema)
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +74,22 @@ def _get_bookmark_paper(bookmark_id: str, paper_index: int, username: str):
 
 
 @router.post("/bookmarks/{bookmark_id}/papers/{paper_index}/review")
-def create_paper_review(
+@limiter.limit("10/minute")
+async def create_paper_review(
+    request: Request,
     bookmark_id: str,
     paper_index: int,
-    request: PaperReviewRequest,
+    body: PaperReviewRequest,
     username: str = Depends(get_current_user),
 ):
-    """Generate a structured review for a single paper within a bookmark."""
+    """Generate a structured review for a single paper within a bookmark.
+
+    Async to avoid threadpool starvation: the LLM call (typically 10-30 s)
+    is explicitly offloaded via ``run_in_threadpool`` so the endpoint itself
+    occupies an asyncio slot rather than a scarce threadpool worker. Under
+    a burst of concurrent review requests, non-LLM sync endpoints (e.g.
+    ``pdf-proxy``, admin routes) remain responsive.
+    """
     from openai import APITimeoutError, RateLimitError, APIError
 
     # Phase 1: Read and validate
@@ -88,20 +101,22 @@ def create_paper_review(
         "authors": paper.get("authors", []),
         "year": paper.get("year", ""),
     }
-    if request.full_text:
-        paper_input["full_text"] = request.full_text
-    elif request.abstract:
-        paper_input["abstract"] = request.abstract
+    if body.full_text:
+        paper_input["full_text"] = body.full_text
+    elif body.abstract:
+        paper_input["abstract"] = body.abstract
     elif paper.get("abstract"):
         paper_input["abstract"] = paper["abstract"]
 
     if not paper_input.get("full_text") and not paper_input.get("abstract") and not paper_input.get("title"):
         raise HTTPException(status_code=400, detail="No reviewable content: provide full_text, abstract, or at least a title")
 
-    # Phase 2: LLM call (no lock held)
+    # Phase 2: LLM call (no lock held) — offloaded to threadpool so the
+    # async endpoint doesn't block the event loop while the OpenAI SDK's
+    # sync client waits on the network.
     client = get_openai_client()
     try:
-        review = generate_paper_review(paper_input, client)
+        review = await run_in_threadpool(generate_paper_review, paper_input, client)
     except APITimeoutError:
         raise HTTPException(status_code=504, detail="Review generation timed out. Please retry.")
     except RateLimitError:
@@ -116,7 +131,8 @@ def create_paper_review(
     review_md = review.get("detailed_review_markdown", "")
     if review_md and len(review_md) > 50:
         try:
-            llm_highlights = generate_highlights(
+            llm_highlights = await run_in_threadpool(
+                generate_highlights,
                 review_md,
                 paper_input.get("title", ""),
                 paper_input.get("title", ""),
@@ -243,12 +259,20 @@ async def delete_paper_review(
 
 
 @router.post("/bookmarks/{bookmark_id}/papers/{paper_index}/auto-highlight")
-def auto_highlight_paper_review(
+@limiter.limit("5/minute")
+async def auto_highlight_paper_review(
+    request: Request,
     bookmark_id: str,
     paper_index: int,
     username: str = Depends(get_current_user),
 ):
-    """Re-run auto-highlight on an existing per-paper review."""
+    """Re-run auto-highlight on an existing per-paper review.
+
+    Async to avoid threadpool starvation: the LLM call is explicitly offloaded
+    via ``run_in_threadpool`` so concurrent highlight requests do not occupy
+    scarce threadpool workers for the full request duration. Matches the async
+    pattern of ``create_paper_review`` and ``auto_highlight_bookmark``.
+    """
     from openai import APITimeoutError, RateLimitError, APIError
 
     # Phase 1: Read and validate
@@ -263,10 +287,11 @@ def auto_highlight_paper_review(
 
     title = paper.get("title", "")
 
-    # Phase 2: LLM call
+    # Phase 2: LLM call — offloaded to threadpool so the async endpoint does
+    # not block the event loop while the OpenAI SDK's sync client waits on I/O.
     client = get_openai_client()
     try:
-        llm_highlights = generate_highlights(review_md, title, title, client)
+        llm_highlights = await run_in_threadpool(generate_highlights, review_md, title, title, client)
     except APITimeoutError:
         raise HTTPException(status_code=504, detail="LLM analysis timed out. Please retry.")
     except RateLimitError:
@@ -573,17 +598,42 @@ def explain_math_formula(
             pass  # stale/corrupt cache entry — regenerate
 
     client = get_openai_client()
+    messages = [
+        {"role": "system", "content": _MATH_EXPLAIN_SYSTEM},
+        {"role": "user", "content": user_prompt},
+    ]
+    # Prefer strict json_schema; fall back to json_object if the server rejects
+    # the structured-output request (e.g. older models, proxy shims).
     try:
-        response = client.chat.completions.create(
-            model=_MATH_MODEL,
-            messages=[
-                {"role": "system", "content": _MATH_EXPLAIN_SYSTEM},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=_MATH_TEMPERATURE,
-            timeout=30,
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = client.chat.completions.create(
+                model=_MATH_MODEL,
+                messages=messages,
+                temperature=_MATH_TEMPERATURE,
+                timeout=30,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "math_explain",
+                        "schema": _MATH_EXPLAIN_JSON_SCHEMA,
+                        "strict": True,
+                    },
+                },
+            )
+        except (APITimeoutError, RateLimitError, APIError):
+            raise
+        except Exception as e:  # noqa: BLE001 — any other shape-level failure triggers fallback
+            logger.warning(
+                "math-explain json_schema call failed (%s); falling back to json_object",
+                type(e).__name__,
+            )
+            response = client.chat.completions.create(
+                model=_MATH_MODEL,
+                messages=messages,
+                temperature=_MATH_TEMPERATURE,
+                timeout=30,
+                response_format={"type": "json_object"},
+            )
     except APITimeoutError:
         raise HTTPException(status_code=504, detail="Formula explanation timed out. Please retry.")
     except RateLimitError:
@@ -595,25 +645,41 @@ def explain_math_formula(
     if not content:
         raise HTTPException(status_code=502, detail="LLM returned an empty response")
 
+    # Prefer schema-validated parse — Pydantic enforces the FE contract
+    # (``explanation``, ``variables[*].{symbol,meaning}``, ``formula_type``).
+    # Fall back to best-effort ``json.loads`` only when validation fails so a
+    # partially-conforming json_object payload still yields a usable result.
+    from pydantic import ValidationError
+
     try:
-        result = json.loads(content)
+        normalised: dict = MathExplainSchema.model_validate_json(content).model_dump()
+    except ValidationError as ve:
+        logger.warning(
+            "Math explain: schema validation failed (%s); using best-effort parse",
+            ve.errors()[:2] if ve.errors() else ve,
+        )
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            logger.warning("Math explain: failed to parse LLM JSON: %s", content[:200])
+            raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
+
+        # Normalise shape — ensure expected keys exist
+        explanation = result.get("explanation", "")
+        variables: list[dict[str, str]] = []
+        for v in result.get("variables", []):
+            if isinstance(v, dict) and v.get("symbol"):
+                variables.append({"symbol": v["symbol"], "meaning": v.get("meaning", "")})
+        formula_type = result.get("formula_type", "other")
+
+        normalised = {
+            "explanation": explanation,
+            "variables": variables,
+            "formula_type": formula_type,
+        }
     except json.JSONDecodeError:
         logger.warning("Math explain: failed to parse LLM JSON: %s", content[:200])
         raise HTTPException(status_code=502, detail="LLM returned invalid JSON")
-
-    # Normalise shape — ensure expected keys exist
-    explanation = result.get("explanation", "")
-    variables: list[dict[str, str]] = []
-    for v in result.get("variables", []):
-        if isinstance(v, dict) and v.get("symbol"):
-            variables.append({"symbol": v["symbol"], "meaning": v.get("meaning", "")})
-    formula_type = result.get("formula_type", "other")
-
-    normalised: dict = {
-        "explanation": explanation,
-        "variables": variables,
-        "formula_type": formula_type,
-    }
 
     # Persist to cache
     set_cache(_MATH_EXPLAIN_SYSTEM, user_prompt, _MATH_MODEL, _MATH_TEMPERATURE, json.dumps(normalised, ensure_ascii=False))

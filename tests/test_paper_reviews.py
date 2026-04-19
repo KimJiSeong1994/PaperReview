@@ -29,8 +29,20 @@ _PAPER = {
 
 _REVIEW_MOCK = {
     "summary": "Test summary",
-    "strengths": ["Good methodology"],
-    "weaknesses": ["Limited scope"],
+    "strengths": [
+        {
+            "point": "Good methodology",
+            "evidence": "Section 3 details the experimental setup.",
+            "significance": "high",
+        }
+    ],
+    "weaknesses": [
+        {
+            "point": "Limited scope",
+            "evidence": "Only one benchmark is evaluated.",
+            "severity": "minor",
+        }
+    ],
     "methodology_assessment": {
         "rigor": 4,
         "novelty": 3,

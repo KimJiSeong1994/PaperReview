@@ -16,9 +16,16 @@ import json
 import logging
 from datetime import datetime
 
+from pydantic import ValidationError
+
 from .llm_cache import get_cached, set_cache
+from .schemas import PaperReviewSchema, build_openai_strict_schema
 
 logger = logging.getLogger(__name__)
+
+# Pre-computed OpenAI strict-mode JSON schema for the paper review output.
+# Built once at import time so the LLM call site can reuse the same dict.
+_PAPER_REVIEW_JSON_SCHEMA: dict = build_openai_strict_schema(PaperReviewSchema)
 
 # ── Stable system prompt (≥1024 tokens, immutable) ─────────────────────
 #
@@ -197,6 +204,70 @@ def _build_variable_user_body(paper: dict) -> tuple[str, str]:
     return "\n".join(parts), input_type
 
 
+def _call_with_json_schema_or_fallback(
+    *,
+    client,
+    model: str,
+    messages: list[dict],
+    temperature: float,
+    timeout: int,
+) -> str:
+    """Call the chat-completions API with json_schema; fall back to json_object.
+
+    Strict json_schema mode eliminates parse failures on supported models, but
+    it may be rejected (``BadRequestError``) on older deployments, on models
+    without structured-output support, or when the runtime OpenAI client lacks
+    the feature. In those cases we log a warning and retry the call with the
+    pre-existing ``{"type": "json_object"}`` format so the review pipeline
+    degrades gracefully instead of surfacing a 5xx to the user.
+
+    Returns the raw JSON string from the LLM (``message.content``).
+    """
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            timeout=timeout,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "paper_review",
+                    "schema": _PAPER_REVIEW_JSON_SCHEMA,
+                    "strict": True,
+                },
+            },
+            messages=messages,
+        )
+        logger.info("Paper review token usage (json_schema): %s", response.usage)
+        return response.choices[0].message.content or "{}"
+    except Exception as e:  # noqa: BLE001 — downgrade to json_object on ANY schema path failure
+        # Re-raise timeout/rate-limit/API-error events so the caller's retry/backoff
+        # logic still engages; only the *schema-specific* shape mismatches get
+        # the fallback. ``openai.APITimeoutError`` / ``RateLimitError`` /
+        # ``APIError`` carry distinctive class names we can filter on without
+        # importing ``openai`` here (the module is optional in test environments).
+        # ``APIError`` is included for parity with math-explain
+        # (``paper_reviews.py:607-608``) — generic upstream errors should
+        # surface as 5xx instead of being silently retried with a weaker format.
+        name = type(e).__name__
+        if name in {"APITimeoutError", "RateLimitError", "APIError"}:
+            raise
+        logger.warning(
+            "json_schema call failed (%s: %s); falling back to json_object",
+            name,
+            str(e)[:200],
+        )
+        response = client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            timeout=timeout,
+            response_format={"type": "json_object"},
+            messages=messages,
+        )
+        logger.info("Paper review token usage (json_object fallback): %s", response.usage)
+        return response.choices[0].message.content or "{}"
+
+
 def generate_paper_review(
     paper: dict,
     client,
@@ -238,18 +309,17 @@ def generate_paper_review(
     else:
         # Scale timeout by input length
         timeout = 120 if input_type == "full_text" else 90
-        response = client.chat.completions.create(
+        messages = [
+            {"role": "system", "content": PAPER_REVIEW_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+        raw = _call_with_json_schema_or_fallback(
+            client=client,
             model=model,
+            messages=messages,
             temperature=temperature,
             timeout=timeout,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": PAPER_REVIEW_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
         )
-        logger.info("Paper review token usage: %s", response.usage)
-        raw = response.choices[0].message.content or "{}"
         set_cache(
             PAPER_REVIEW_SYSTEM_PROMPT,
             user_prompt,
@@ -259,8 +329,20 @@ def generate_paper_review(
             fixed_prefix=PAPER_REVIEW_USER_PREFIX,
         )
 
+    # Prefer schema-validated parse; fall back to raw JSON if the LLM produced
+    # a partially-conforming payload (we still want to return something usable
+    # for historical shape compatibility — extra metadata is added below).
     try:
-        review = json.loads(raw)
+        review = PaperReviewSchema.model_validate_json(raw).model_dump()
+    except ValidationError as e:
+        logger.warning(
+            "Paper review failed strict schema validation (%s); using best-effort JSON",
+            e.errors()[:2] if e.errors() else e,
+        )
+        try:
+            review = json.loads(raw)
+        except json.JSONDecodeError:
+            raise ValueError("LLM returned invalid JSON for paper review")
     except json.JSONDecodeError:
         raise ValueError("LLM returned invalid JSON for paper review")
 
