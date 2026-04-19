@@ -11,6 +11,7 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 
 import atexit
 import hashlib
+import json
 import logging
 import math
 import threading
@@ -60,6 +61,51 @@ def _hyde_cache_set(query: str, embedding: np.ndarray) -> None:
             oldest_key = min(_HYDE_CACHE, key=lambda k: _HYDE_CACHE[k][1])
             del _HYDE_CACHE[oldest_key]
         _HYDE_CACHE[key] = (embedding, time.time())
+
+
+# ── Cross-encoder LRU+TTL 캐시 (TTL 1h, 최대 10k 항목) ─────────────
+_CE_CACHE: Dict[Tuple[str, str], Tuple[float, float]] = {}
+_CE_CACHE_LOCK = threading.Lock()
+_CE_CACHE_TTL = 3600  # 1 hour
+_CE_CACHE_MAX = 10_000
+
+
+def _ce_query_hash(query: str) -> str:
+    """쿼리 문자열을 안정적인 16자 해시로 변환."""
+    return hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+
+
+def _ce_cache_get(query_hash: str, paper_id: str) -> Optional[float]:
+    """Cross-encoder 점수 캐시 조회 (TTL 만료 시 None)."""
+    key = (query_hash, paper_id)
+    with _CE_CACHE_LOCK:
+        entry = _CE_CACHE.get(key)
+        if entry is None:
+            return None
+        score, ts = entry
+        if time.time() - ts > _CE_CACHE_TTL:
+            _CE_CACHE.pop(key, None)
+            return None
+        return score
+
+
+def _ce_cache_set(query_hash: str, paper_id: str, score: float) -> None:
+    """Cross-encoder 점수 캐시 저장. 상한 초과 시 오래된 10%를 일괄 제거."""
+    key = (query_hash, paper_id)
+    with _CE_CACHE_LOCK:
+        if len(_CE_CACHE) >= _CE_CACHE_MAX:
+            # Evict oldest 10% to amortize
+            sorted_items = sorted(_CE_CACHE.items(), key=lambda kv: kv[1][1])
+            evict_count = max(1, _CE_CACHE_MAX // 10)
+            for k, _ in sorted_items[:evict_count]:
+                _CE_CACHE.pop(k, None)
+        _CE_CACHE[key] = (score, time.time())
+
+
+def _ce_cache_clear() -> None:
+    """테스트용: 전체 캐시 초기화."""
+    with _CE_CACHE_LOCK:
+        _CE_CACHE.clear()
 
 # ── Intent별 가중치 프리셋 ─────────────────────────────────────────
 
@@ -302,26 +348,86 @@ class HybridRanker:
     # ── Cross-encoder ──────────────────────────────────────────────
 
     def _compute_cross_encoder_scores(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
-        """Cross-encoder 기반 relevance score. LocalRelevanceScorer 싱글턴 재사용."""
+        """Cross-encoder 기반 relevance score. LocalRelevanceScorer 싱글턴 재사용.
+
+        (query_hash, paper_id) 단위 TTL 1h LRU 캐시로 반복 호출 시 재계산을 회피.
+        paper_id 부재 시 title 해시로 대체하여 캐시 키의 일관성을 확보한다.
+        """
         try:
             from app.QueryAgent.relevance_filter import LocalRelevanceScorer
 
-            # 이미 paper dict에 스코어가 있으면 재사용 (중복 호출 방지)
+            # 이미 paper dict에 스코어가 있으면 재사용 (동일 호출 내 중복 방지)
             existing = [p.get("_cross_encoder_score") for p in papers]
             if all(s is not None for s in existing):
                 logger.debug("[HybridRanker] Reusing existing cross-encoder scores")
                 return [float(s) for s in existing]
 
-            # score_papers 클래스 메서드 사용 (모델 로딩 + sigmoid 정규화 포함)
-            scores = LocalRelevanceScorer.score_papers(query, papers)
-            if not scores:
+            n = len(papers)
+            if n == 0:
                 return []
 
-            # 결과를 paper dict에 캐싱
-            for i, s in enumerate(scores):
-                papers[i]["_cross_encoder_score"] = s
+            # Stable query hash (16 chars) for cache key
+            query_hash = _ce_query_hash(query)
 
-            return scores
+            # Paper identifier fallback: paper_id → id → arxiv_id → doi → hash(title)
+            def _paper_key(p: Dict[str, Any]) -> str:
+                pid = (
+                    p.get("paper_id")
+                    or p.get("id")
+                    or p.get("arxiv_id")
+                    or p.get("doi")
+                )
+                if pid:
+                    return str(pid)
+                title = str(p.get("title", "") or "")
+                return "t:" + hashlib.sha256(title.encode("utf-8")).hexdigest()[:16]
+
+            paper_keys = [_paper_key(p) for p in papers]
+
+            # 1) Cache lookup
+            scores: List[Optional[float]] = [None] * n
+            miss_indices: List[int] = []
+            for i, pk in enumerate(paper_keys):
+                cached = _ce_cache_get(query_hash, pk)
+                if cached is not None:
+                    scores[i] = cached
+                else:
+                    miss_indices.append(i)
+
+            hit_count = n - len(miss_indices)
+            if hit_count:
+                logger.info(
+                    "[HybridRanker] Cross-encoder cache: %d/%d hits",
+                    hit_count,
+                    n,
+                )
+
+            # 2) Compute only misses through score_papers (batch_size=32 inside)
+            if miss_indices:
+                miss_papers = [papers[i] for i in miss_indices]
+                fresh_scores = LocalRelevanceScorer.score_papers(query, miss_papers)
+                if fresh_scores and len(fresh_scores) == len(miss_papers):
+                    for local_idx, orig_idx in enumerate(miss_indices):
+                        s = float(fresh_scores[local_idx])
+                        scores[orig_idx] = s
+                        _ce_cache_set(query_hash, paper_keys[orig_idx], s)
+                else:
+                    # 신규 점수 계산 실패 → 캐시 히트만으로는 부분 결과라 전체 스킵
+                    logger.warning(
+                        "[HybridRanker] Cross-encoder produced no scores for %d misses",
+                        len(miss_indices),
+                    )
+                    return []
+
+            # 3) Attach to paper dicts for downstream reuse (same call)
+            final_scores: List[float] = []
+            for i, s in enumerate(scores):
+                if s is None:
+                    return []
+                papers[i]["_cross_encoder_score"] = s
+                final_scores.append(s)
+
+            return final_scores
         except Exception as e:
             logger.warning("[HybridRanker] Cross-encoder failed: %s", e)
             return []
@@ -368,6 +474,186 @@ class HybridRanker:
 
     # ── Semantic (dense) ─────────────────────────────────────────────
 
+    def _generate_hypothetical_abstract(
+        self,
+        query: str,
+        openai_client,
+        research_area: str = "",
+    ) -> str:
+        """HyDE fallback: 가상 초록만 단독 생성 (개별 LLM 호출)."""
+        local_started = time.perf_counter()
+        domain_spec = (
+            f"specializing in {research_area} research"
+            if research_area
+            else "across academic research domains"
+        )
+        hyde_response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        f"You are an expert scientific paper abstract generator {domain_spec}. "
+                        "Given a research query, write a hypothetical abstract for a paper that would be the ideal search result. "
+                        "Include: (1) the problem addressed, (2) the proposed method/approach name, "
+                        "(3) key technical terms and acronyms used in the field, "
+                        "(4) quantitative claims (e.g., 'achieves state-of-the-art on X benchmark'). "
+                        "Use formal academic language. Output only the abstract text, no title or labels."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Research query: {query}\n\n"
+                        "Write a hypothetical abstract (~150 words) that a highly relevant paper would have. "
+                        "Focus on technical depth and domain-specific terminology."
+                    ),
+                },
+            ],
+            max_tokens=200,
+            temperature=0.1,
+        )
+        content = hyde_response.choices[0].message.content or ""
+        logger.info(
+            "[HybridRanker] HyDE hypothetical abstract generated in %.2fs",
+            time.perf_counter() - local_started,
+        )
+        return content.strip()
+
+    def _generate_alt_queries(
+        self,
+        query: str,
+        openai_client,
+    ) -> List[str]:
+        """HyDE fallback: 대안 검색 쿼리 2개만 단독 생성 (개별 LLM 호출)."""
+        local_started = time.perf_counter()
+        alt_response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Generate 2 alternative search queries for academic paper search. "
+                        "Each query should rephrase the original from a different angle. "
+                        "Output exactly 2 lines, one query per line, no numbering or labels."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Original query: {query}",
+                },
+            ],
+            max_tokens=100,
+            temperature=0.3,
+        )
+        alt_content = alt_response.choices[0].message.content or ""
+        lines = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
+        logger.info(
+            "[HybridRanker] HyDE alternative queries generated in %.2fs",
+            time.perf_counter() - local_started,
+        )
+        return lines[:2]  # 최대 2개
+
+    def _generate_hyde_unified(
+        self,
+        query: str,
+        openai_client,
+        research_area: str = "",
+    ) -> Tuple[str, List[str]]:
+        """통합 HyDE 호출: 1회의 gpt-4o-mini JSON 응답으로 (abstract, alt_queries[2]) 획득.
+
+        2 LLM calls → 1 LLM call 로 축소하여 HyDE 경로 지연을 절반으로 단축.
+        JSON 파싱/응답 불완전 시 기존 개별 메서드로 graceful fallback.
+
+        Args:
+            query: 원본 사용자 쿼리
+            openai_client: OpenAI 클라이언트
+            research_area: 선택적 연구 분야 힌트
+
+        Returns:
+            (hypothetical_abstract, [alt_query_1, alt_query_2])
+        """
+        local_started = time.perf_counter()
+        domain_spec = (
+            f"specializing in {research_area} research"
+            if research_area
+            else "across academic research domains"
+        )
+        system_prompt = (
+            f"You are an expert scientific paper abstract generator {domain_spec}. "
+            "Given a research query, produce BOTH: "
+            "(a) a hypothetical abstract (~150 words, formal academic language, "
+            "covering the problem, proposed method/approach name, key technical terms, "
+            "and quantitative claims), and "
+            "(b) exactly 2 alternative search queries that rephrase the original from "
+            "different angles. "
+            "Respond with a single JSON object with keys "
+            '"abstract" (string) and "alt_queries" (array of exactly 2 strings). '
+            "Do not add any commentary."
+        )
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Research query: {query}"},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,
+                max_tokens=600,
+                timeout=12.0,
+            )
+            content = response.choices[0].message.content or ""
+            if not content.strip():
+                raise ValueError("Empty HyDE unified response")
+
+            data = json.loads(content)
+            abstract = str(data.get("abstract", "") or "").strip()
+            raw_alts = data.get("alt_queries") or []
+            if not isinstance(raw_alts, list):
+                raise ValueError("alt_queries must be a list")
+            alt_queries = [str(q).strip() for q in raw_alts if str(q).strip()][:2]
+
+            if not abstract or len(alt_queries) < 2:
+                raise ValueError(
+                    f"Incomplete HyDE response (abstract={bool(abstract)}, alts={len(alt_queries)})"
+                )
+
+            logger.info(
+                "[HybridRanker] HyDE unified call generated abstract+%d alts in %.2fs",
+                len(alt_queries),
+                time.perf_counter() - local_started,
+            )
+            return abstract, alt_queries
+
+        except Exception as e:
+            logger.warning(
+                "hyde_unified_fallback_triggered: unified HyDE call failed (%s); falling back to individual calls",
+                e,
+            )
+            # Fallback: 기존 2회 LLM 호출 (병렬)
+            try:
+                abstract_future = _HYDE_EXECUTOR.submit(
+                    self._generate_hypothetical_abstract,
+                    query,
+                    openai_client,
+                    research_area,
+                )
+                alt_future = _HYDE_EXECUTOR.submit(
+                    self._generate_alt_queries,
+                    query,
+                    openai_client,
+                )
+                fallback_abstract = abstract_future.result(timeout=15)
+                fallback_alts = alt_future.result(timeout=15)
+                return fallback_abstract, fallback_alts
+            except Exception as inner:
+                logger.warning(
+                    "[HybridRanker] HyDE fallback individual calls also failed: %s",
+                    inner,
+                )
+                return "", []
+
     def _generate_hyde_embedding(
         self,
         query: str,
@@ -397,81 +683,12 @@ class HybridRanker:
 
         started = time.perf_counter()
         try:
-            # 1 & 2. 가상 초록 + 대안 쿼리 생성을 병렬 실행 (독립적인 LLM 호출)
-            def _generate_hypothetical_abstract() -> str:
-                local_started = time.perf_counter()
-                domain_spec = (
-                    f"specializing in {research_area} research"
-                    if research_area
-                    else "across academic research domains"
-                )
-                hyde_response = openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                f"You are an expert scientific paper abstract generator {domain_spec}. "
-                                "Given a research query, write a hypothetical abstract for a paper that would be the ideal search result. "
-                                "Include: (1) the problem addressed, (2) the proposed method/approach name, "
-                                "(3) key technical terms and acronyms used in the field, "
-                                "(4) quantitative claims (e.g., 'achieves state-of-the-art on X benchmark'). "
-                                "Use formal academic language. Output only the abstract text, no title or labels."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Research query: {query}\n\n"
-                                "Write a hypothetical abstract (~150 words) that a highly relevant paper would have. "
-                                "Focus on technical depth and domain-specific terminology."
-                            ),
-                        },
-                    ],
-                    max_tokens=200,
-                    temperature=0.1,
-                )
-                content = hyde_response.choices[0].message.content or ""
-                logger.info(
-                    "[HybridRanker] HyDE hypothetical abstract generated in %.2fs",
-                    time.perf_counter() - local_started,
-                )
-                return content.strip()
-
-            def _generate_alt_queries() -> List[str]:
-                local_started = time.perf_counter()
-                alt_response = openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "Generate 2 alternative search queries for academic paper search. "
-                                "Each query should rephrase the original from a different angle. "
-                                "Output exactly 2 lines, one query per line, no numbering or labels."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Original query: {query}",
-                        },
-                    ],
-                    max_tokens=100,
-                    temperature=0.3,
-                )
-                alt_content = alt_response.choices[0].message.content or ""
-                lines = [line.strip() for line in alt_content.strip().splitlines() if line.strip()]
-                logger.info(
-                    "[HybridRanker] HyDE alternative queries generated in %.2fs",
-                    time.perf_counter() - local_started,
-                )
-                return lines[:2]  # 최대 2개
-
-            abstract_future = _HYDE_EXECUTOR.submit(_generate_hypothetical_abstract)
-            alt_future = _HYDE_EXECUTOR.submit(_generate_alt_queries)
-
-            hypothetical_abstract = abstract_future.result(timeout=15)
-            alt_queries = alt_future.result(timeout=15)
+            # 1 & 2. 통합 HyDE 호출 (1 LLM call) — 실패 시 개별 호출로 fallback
+            hypothetical_abstract, alt_queries = self._generate_hyde_unified(
+                query=query,
+                openai_client=openai_client,
+                research_area=research_area,
+            )
 
             # 3. 배치 임베딩: [원본 쿼리, 가상 초록] + 대안들
             texts_to_embed = [query]
