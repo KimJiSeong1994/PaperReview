@@ -9,6 +9,7 @@ Curriculum endpoints:
   DELETE /api/curricula/{id}             — Delete user's own curriculum
 """
 
+import asyncio
 import copy
 import json
 import logging
@@ -489,79 +490,183 @@ async def generate_curriculum_stream(
     request: CurriculumGenerateStreamRequest,
     username: str = Depends(get_current_user),
 ):
-    """Generate curriculum with 3-step pipeline and SSE progress streaming."""
+    """Generate curriculum with 3-step pipeline and SSE progress streaming.
+
+    Guarantees a terminal SSE event (`done` or `error`) under every exit path
+    — including LLM hangs behind nginx's 180s ``proxy_read_timeout`` and
+    unexpected exceptions inside the pipeline. Also emits periodic keepalive
+    comments so an idle LLM call cannot be silently torn down by the proxy.
+    """
     from .curriculum_pipeline import CurriculumPipeline
 
+    # Keepalive interval: well under nginx's 180s proxy_read_timeout so the
+    # connection stays alive during long LLM calls. SSE comment lines
+    # (starting with ":") are ignored by EventSource/SSE consumers but
+    # refresh the proxy idle timer.
+    KEEPALIVE_INTERVAL_SEC = 15.0
+
     async def event_stream():
+        terminal_sent = False
+
+        def envelope(payload: dict) -> str:
+            return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
         try:
             client = get_openai_client()
         except Exception as e:
-            logger.error("Failed to initialize OpenAI client: %s", e)
-            yield f"data: {json.dumps({'error': 'OpenAI client initialization failed'})}\n\n"
+            logger.exception("Failed to initialize OpenAI client")
+            yield envelope({"error": f"OpenAI client initialization failed: {e}"})
             return
 
         pipeline = CurriculumPipeline(client)
-        curriculum = None
+
+        # Producer/consumer pattern: the pipeline runs as a background task
+        # and pushes events into an asyncio.Queue. The outer loop reads from
+        # the queue with a timeout so it can emit keepalive comments when
+        # the pipeline is busy inside a long LLM call.
+        queue: asyncio.Queue = asyncio.Queue()
+        _SENTINEL = object()
+
+        async def _producer():
+            try:
+                async for event in pipeline.generate(
+                    topic=request.topic,
+                    difficulty=request.difficulty,
+                    num_modules=request.num_modules,
+                    learning_goals=request.learning_goals,
+                    paper_preference=request.paper_preference,
+                ):
+                    await queue.put(("event", event))
+            except asyncio.CancelledError:
+                # Client disconnected — stop producing; don't enqueue
+                # terminal error (consumer is also cancelled).
+                raise
+            except Exception as e:
+                logger.exception("Pipeline producer crashed")
+                await queue.put(("error", str(e)))
+            finally:
+                await queue.put(("done", _SENTINEL))
+
+        producer_task = asyncio.create_task(_producer())
+
         try:
-            async for event in pipeline.generate(
-                topic=request.topic,
-                difficulty=request.difficulty,
-                num_modules=request.num_modules,
-                learning_goals=request.learning_goals,
-                paper_preference=request.paper_preference,
-            ):
+            while True:
+                try:
+                    kind, payload = await asyncio.wait_for(
+                        queue.get(), timeout=KEEPALIVE_INTERVAL_SEC,
+                    )
+                except asyncio.TimeoutError:
+                    # Keepalive: SSE comment line, ignored by clients but
+                    # refreshes nginx proxy_read_timeout.
+                    yield ": keepalive\n\n"
+                    continue
+
+                if kind == "done":
+                    break
+
+                if kind == "error":
+                    yield envelope({"error": f"Pipeline error: {payload}"})
+                    terminal_sent = True
+                    break
+
+                event = payload
                 if event.get("done") and event.get("curriculum"):
                     curriculum = event["curriculum"]
 
                     # Validate basic structure
-                    if "modules" not in curriculum or not isinstance(curriculum["modules"], list):
-                        yield f"data: {json.dumps({'error': 'LLM returned invalid curriculum structure'})}\n\n"
-                        return
+                    if (
+                        "modules" not in curriculum
+                        or not isinstance(curriculum["modules"], list)
+                    ):
+                        yield envelope({"error": "LLM returned invalid curriculum structure"})
+                        terminal_sent = True
+                        break
 
-                    # Generate unique ID (UUID)
-                    course_id = f"custom_{uuid.uuid4().hex[:12]}"
-                    curriculum["id"] = course_id
+                    # Persist curriculum + index — wrapped to ensure terminal
+                    # event even if disk/index operations fail.
+                    try:
+                        course_id = f"custom_{uuid.uuid4().hex[:12]}"
+                        curriculum["id"] = course_id
 
-                    # Assign unique paper IDs
-                    paper_counter = 1
-                    for module in curriculum.get("modules", []):
-                        for topic in module.get("topics", []):
-                            for paper in topic.get("papers", []):
-                                paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
-                                paper_counter += 1
+                        paper_counter = 1
+                        for module in curriculum.get("modules", []):
+                            for topic in module.get("topics", []):
+                                for paper in topic.get("papers", []):
+                                    paper["id"] = f"paper-{course_id}-{paper_counter:03d}"
+                                    paper_counter += 1
 
-                    # Save course file (atomic)
-                    _save_course(course_id, curriculum)
+                        _save_course(course_id, curriculum)
 
-                    # Register in user index (locked, survives deploys)
-                    with _index_lock:
-                        user_entries = _load_user_index()
-                        total_papers = _count_papers(curriculum)
-                        total_modules = len(curriculum.get("modules", []))
+                        with _index_lock:
+                            user_entries = _load_user_index()
+                            total_papers = _count_papers(curriculum)
+                            total_modules = len(curriculum.get("modules", []))
 
-                        user_entries = [c for c in user_entries if c["id"] != course_id]
-                        user_entries.append({
-                            "id": course_id,
-                            "name": curriculum.get("name", f"Custom: {request.topic}"),
-                            "university": curriculum.get("university", "Multi-University Reference"),
-                            "instructor": curriculum.get("instructor", "AI Curated"),
-                            "difficulty": request.difficulty,
-                            "prerequisites": curriculum.get("prerequisites", []),
-                            "description": curriculum.get("description", ""),
-                            "url": "",
-                            "total_papers": total_papers,
-                            "total_modules": total_modules,
-                            "is_preset": False,
-                            "owner": username,
-                        })
-                        _save_user_index(user_entries)
+                            user_entries = [c for c in user_entries if c["id"] != course_id]
+                            user_entries.append({
+                                "id": course_id,
+                                "name": curriculum.get("name", f"Custom: {request.topic}"),
+                                "university": curriculum.get("university", "Multi-University Reference"),
+                                "instructor": curriculum.get("instructor", "AI Curated"),
+                                "difficulty": request.difficulty,
+                                "prerequisites": curriculum.get("prerequisites", []),
+                                "description": curriculum.get("description", ""),
+                                "url": "",
+                                "total_papers": total_papers,
+                                "total_modules": total_modules,
+                                "is_preset": False,
+                                "owner": username,
+                            })
+                            _save_user_index(user_entries)
+                    except Exception as e:
+                        logger.exception("Failed to persist generated curriculum")
+                        yield envelope({"error": f"Failed to save curriculum: {e}"})
+                        terminal_sent = True
+                        break
 
-                    yield f"data: {json.dumps({'done': True, 'course_id': course_id}, ensure_ascii=False)}\n\n"
+                    yield envelope({"done": True, "course_id": course_id})
+                    terminal_sent = True
+                    # Continue draining so producer finishes cleanly
+                elif event.get("done"):
+                    # Pipeline signalled done but with empty/falsy curriculum.
+                    # This is a bug upstream; surface it as an error so FE
+                    # doesn't hang on a silent close.
+                    yield envelope({"error": "Pipeline completed without a curriculum"})
+                    terminal_sent = True
+                    break
                 else:
-                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    yield envelope(event)
+                    # An inner-step error from pipeline also terminates the
+                    # stream (e.g. Step 1/2/3 yield {"error": ..., "step": N}
+                    # then return). Treat as terminal so FE's onError fires.
+                    if event.get("error"):
+                        terminal_sent = True
+        except asyncio.CancelledError:
+            logger.info("Curriculum stream cancelled (client disconnected)")
+            raise
         except Exception as e:
-            logger.error("Pipeline stream error: %s", e, exc_info=True)
-            yield f"data: {json.dumps({'error': f'Pipeline error: {str(e)}'}, ensure_ascii=False)}\n\n"
+            logger.exception("Curriculum stream handler crashed")
+            if not terminal_sent:
+                try:
+                    yield envelope({"error": f"Stream handler error: {e}"})
+                    terminal_sent = True
+                except Exception:
+                    pass
+        finally:
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+            # Last-ditch guarantee: if the loop exited without a terminal
+            # event (e.g. producer finished with no yields), emit one so the
+            # FE never sees reader.read() → TypeError with completed=False.
+            if not terminal_sent:
+                try:
+                    yield envelope({"error": "Stream ended without a terminal event"})
+                except Exception:
+                    pass
 
     return StreamingResponse(
         event_stream(),
