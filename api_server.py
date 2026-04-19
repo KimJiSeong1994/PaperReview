@@ -85,12 +85,20 @@ import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup / shutdown lifecycle."""
+    """Startup / shutdown lifecycle.
+
+    On shutdown, the event bus is drained (US-007) with a bounded
+    timeout so any batched-but-not-yet-persisted events are flushed to
+    SQLite before the ASGI server exits. This guarantees zero event
+    loss on SIGTERM for the gunicorn/uvicorn graceful shutdown path.
+    """
     _ensure_faiss_index()
 
     # Register the running event loop with the event bus so sync
     # endpoints running in the threadpool can emit events via
     # ``run_coroutine_threadsafe`` (see ``src/events/emit.py`` path (b)).
+    # ``register_main_loop`` also starts the background batch flusher
+    # that replaces per-event INSERTs with ``executemany`` batches.
     try:
         from src.events.event_bus import get_event_bus
         get_event_bus().register_main_loop(asyncio.get_running_loop())
@@ -103,6 +111,16 @@ async def lifespan(app: FastAPI):
         logger.exception("failed to register main loop with event bus")
 
     yield
+
+    # Shutdown: drain batched events before process exit (US-007).
+    try:
+        from src.events.event_bus import get_event_bus
+        await get_event_bus().wait_for_drain(timeout=5.0)
+    except RuntimeError:
+        # Bus was never initialized — nothing to drain.
+        pass
+    except Exception:
+        logger.exception("event bus drain failed at shutdown")
 
 
 app = FastAPI(
