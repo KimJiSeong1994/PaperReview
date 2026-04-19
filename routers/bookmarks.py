@@ -23,7 +23,7 @@ from starlette.requests import Request
 logger = logging.getLogger(__name__)
 
 from .deps import (
-    load_bookmarks,
+    load_bookmarks_for_user,
     modify_bookmarks,
     review_sessions,
     review_sessions_lock,
@@ -233,7 +233,7 @@ async def create_bookmark_from_paper(
 @router.get("/bookmarks")
 async def list_bookmarks(username: str = Depends(get_current_user)):
     """List bookmarks for the current user (summary only)."""
-    data = load_bookmarks()
+    user_bookmarks = load_bookmarks_for_user(username)
     return {
         "bookmarks": [
             {
@@ -249,8 +249,7 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
                 "has_citation_tree": bool(bm.get("citation_tree")),
                 "has_share": bool(bm.get("share")),
             }
-            for bm in data.get("bookmarks", [])
-            if bm.get("username") == username
+            for bm in user_bookmarks
         ]
     }
 
@@ -258,13 +257,12 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
 @router.get("/bookmarks/{bookmark_id}")
 async def get_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
     """Get full bookmark detail including report."""
-    data = load_bookmarks()
-    for bm in data["bookmarks"]:
-        if bm["id"] == bookmark_id:
-            if bm.get("username") != username:
-                raise HTTPException(status_code=403, detail="Access denied")
-            return bm
-    raise HTTPException(status_code=404, detail="Bookmark not found")
+    from .deps.storage import _get_bookmark_db
+    bm = _get_bookmark_db().get_by_id(bookmark_id)
+    # Return 404 for both missing and cross-user bookmarks to prevent ID enumeration.
+    if bm is None or bm.get("username") != username:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return bm
 
 
 @router.delete("/bookmarks/{bookmark_id}")
@@ -395,15 +393,10 @@ def auto_highlight_bookmark(
     from openai import APITimeoutError, RateLimitError, APIError
 
     # Phase 1: Read bookmark and report (before LLM call)
-    data = load_bookmarks()
-    bookmark = None
-    for bm in data["bookmarks"]:
-        if bm["id"] == bookmark_id:
-            if bm.get("username") != username:
-                raise HTTPException(status_code=403, detail="Access denied")
-            bookmark = bm
-            break
-    if not bookmark:
+    from .deps.storage import _get_bookmark_db
+    bookmark = _get_bookmark_db().get_by_id(bookmark_id)
+    # Return 404 for both missing and cross-user bookmarks to prevent ID enumeration.
+    if bookmark is None or bookmark.get("username") != username:
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
     report = bookmark.get("report_markdown", "")

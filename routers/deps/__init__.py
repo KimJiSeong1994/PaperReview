@@ -33,6 +33,7 @@ from .storage import (
     _papers_lock,
     _users_lock,
     load_bookmarks,
+    load_bookmarks_for_user,
     load_users,
     modify_bookmarks,
     modify_users,

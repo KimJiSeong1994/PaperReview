@@ -163,6 +163,46 @@ def load_bookmarks() -> dict:
     return {"bookmarks": bookmarks}
 
 
+def load_bookmarks_for_user(username: str) -> list:
+    """Return all bookmarks for *username* using the indexed SQLite query.
+
+    Replaces the O(N) ``load_bookmarks()`` full-scan + Python-filter
+    pattern used in list and detail endpoints.  The return value is a
+    plain ``list[dict]`` — identical in shape to the entries inside
+    ``load_bookmarks()["bookmarks"]`` — so callers can iterate directly.
+
+    Parameters
+    ----------
+    username:
+        Authenticated user whose bookmarks are requested.  Validated by
+        ``BookmarkDB.get_by_username`` via
+        :func:`~src.events.contracts.assert_valid_username`.
+
+    Returns
+    -------
+    list[dict]
+        Zero or more bookmark dicts ordered by ``created_at DESC``.
+        Returns an empty list if *username* fails format validation
+        (legacy / external-IdP / forged JWT subs) — preserves the old
+        comparison-filter behaviour of returning 0 results rather than
+        raising a 500.
+    """
+    import hashlib
+
+    from src.events.contracts import assert_valid_username
+
+    try:
+        assert_valid_username(username)
+    except ValueError:
+        user_hash_prefix = hashlib.sha256(username.encode("utf-8")).hexdigest()[:12]
+        logger.warning(
+            "load_bookmarks_for_user: invalid username (hash_prefix=%s) — returning empty list",
+            user_hash_prefix,
+        )
+        return []
+    return _get_bookmark_db().get_by_username(username)
+
+
 def save_bookmarks(data: dict) -> None:
     """Persist a full bookmarks payload to SQLite.
 

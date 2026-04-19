@@ -17,7 +17,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from .deps import load_bookmarks, modify_bookmarks, get_current_user, get_openai_client
+from .deps import modify_bookmarks, get_current_user, get_openai_client
+from .deps.storage import _get_bookmark_db
 from .llm_cache import get_cached, set_cache
 from .highlight_service import (
     CATEGORY_CONFIG,
@@ -49,17 +50,23 @@ class PdfHighlightRequest(BaseModel):
 
 
 def _get_bookmark_paper(bookmark_id: str, paper_index: int, username: str):
-    """Load bookmark and validate paper index. Returns (bookmark, paper) or raises HTTPException."""
-    data = load_bookmarks()
-    for bm in data["bookmarks"]:
-        if bm["id"] == bookmark_id:
-            if bm.get("username") != username:
-                raise HTTPException(status_code=403, detail="Access denied")
-            papers = bm.get("papers", [])
-            if paper_index < 0 or paper_index >= len(papers):
-                raise HTTPException(status_code=400, detail=f"Paper index {paper_index} out of range (0-{len(papers)-1})")
-            return bm, papers[paper_index]
-    raise HTTPException(status_code=404, detail="Bookmark not found")
+    """Load bookmark and validate paper index. Returns (bookmark, paper) or raises HTTPException.
+
+    Uses ``BookmarkDB.get_by_id`` for an O(1) primary-key lookup instead of
+    the former O(N) full-scan.  Returns 404 for both missing and cross-user
+    bookmarks to prevent bookmark-ID enumeration.
+    """
+    bm = _get_bookmark_db().get_by_id(bookmark_id)
+    # Return 404 for both missing and cross-user bookmarks to prevent ID enumeration.
+    if bm is None or bm.get("username") != username:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    papers = bm.get("papers", [])
+    if paper_index < 0 or paper_index >= len(papers):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Paper index {paper_index} out of range (0-{len(papers)-1})",
+        )
+    return bm, papers[paper_index]
 
 
 @router.post("/bookmarks/{bookmark_id}/papers/{paper_index}/review")
