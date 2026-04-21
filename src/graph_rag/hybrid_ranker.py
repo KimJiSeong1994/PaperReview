@@ -123,8 +123,12 @@ INTENT_WEIGHT_PRESETS: Dict[str, Dict[str, float]] = {
 DEFAULT_WEIGHTS = INTENT_WEIGHT_PRESETS["paper_search"]
 
 # ── 소스별 부스트 (arXiv 우선) ──────────────────────────────────────
+# SOURCE_BOOST는 RRF 점수 범위(0.01~0.08)에 맞게 보정됨.
+# 0.001 boost ≈ 최종 정렬에서 ~1 랭크 포지션 이동에 해당.
+# US-013 이전 값(arxiv: 0.15)은 신호 합계를 압도해 arXiv 논문이
+# 신호 품질과 무관하게 항상 top-K를 차지하는 문제를 유발했음.
 SOURCE_BOOST: Dict[str, float] = {
-    "arxiv": 0.15,
+    "arxiv": 0.003,  # was 0.15 — calibrated for RRF score range ~0.01-0.08
 }
 
 # ── RRF 상수 ──────────────────────────────────────────────────────
@@ -697,18 +701,61 @@ class HybridRanker:
             texts_to_embed.extend(alt_queries)
 
             embed_started = time.perf_counter()
-            embed_response = openai_client.embeddings.create(
-                model="text-embedding-3-small",
-                input=[t[:8000] for t in texts_to_embed],
-            )
-            logger.info(
-                "[HybridRanker] HyDE embedding batch created in %.2fs from %d texts",
-                time.perf_counter() - embed_started,
-                len(texts_to_embed),
-            )
-            vectors = [np.array(d.embedding) for d in embed_response.data]
+            # US-011 fix: SimilarityCalculator가 있으면 동일 파이프라인으로 임베딩
+            # 생성해 논문 임베딩과 차원(dim)을 반드시 일치시킨다.
+            # (과거 text-embedding-3-small 하드코딩 시 ko→large(3072)로 생성된
+            #  논문 임베딩과 shape mismatch가 발생해 semantic 신호가 침묵 제외됨)
+            vectors: List[np.ndarray]
+            if self.similarity_calculator is not None and hasattr(
+                self.similarity_calculator, "get_embeddings_batch"
+            ):
+                truncated = [t[:8000] for t in texts_to_embed]
+                emb_batch = self.similarity_calculator.get_embeddings_batch(truncated)
+                vectors = [np.asarray(v) for v in emb_batch if v is not None]
+                logger.info(
+                    "[HybridRanker] HyDE embedding batch created via SimilarityCalculator "
+                    "in %.2fs from %d texts (%d vectors)",
+                    time.perf_counter() - embed_started,
+                    len(texts_to_embed),
+                    len(vectors),
+                )
+            else:
+                # Fallback: SimilarityCalculator 없으면 기존 경로 유지
+                logger.warning(
+                    "[HybridRanker] HyDE falling back to hardcoded text-embedding-3-small "
+                    "(no SimilarityCalculator injected) — dim parity with paper embeddings NOT guaranteed"
+                )
+                embed_response = openai_client.embeddings.create(
+                    model="text-embedding-3-small",
+                    input=[t[:8000] for t in texts_to_embed],
+                )
+                logger.info(
+                    "[HybridRanker] HyDE embedding batch created via openai_client "
+                    "in %.2fs from %d texts (no SimilarityCalculator)",
+                    time.perf_counter() - embed_started,
+                    len(texts_to_embed),
+                )
+                vectors = [np.array(d.embedding) for d in embed_response.data]
 
             if not vectors:
+                return None
+
+            # Fix H-1: filter to query-dim group before stacking to avoid
+            # mixed-dim crash when SimilarityCalculator dispatches different
+            # models for Korean vs English texts in the same batch.
+            query_dim = vectors[0].shape
+            uniform = [v for v in vectors if v.shape == query_dim]
+            if len(uniform) < len(vectors):
+                logger.warning(
+                    "[HybridRanker] HyDE batch produced mixed dims (%d texts → %d kept with query-dim %s); "
+                    "likely mixed-language alts — keeping query-dim group only",
+                    len(vectors),
+                    len(uniform),
+                    query_dim,
+                )
+            vectors = uniform
+            if not vectors:
+                logger.warning("[HybridRanker] HyDE: no vectors survived dim filter — aborting HyDE")
                 return None
 
             # 4. L2-정규화 후 평균
@@ -806,24 +853,43 @@ class HybridRanker:
             else:
                 return [0.0] * len(papers)
 
+            # US-011: query_emb 차원과 논문 임베딩 차원이 다르면 silent shape mismatch가
+            # _cosine_similarity 내부 np.dot에서 ValueError를 일으킨다. 기존에는 이
+            # ValueError가 외부 except로 흡수되어 전체 semantic 점수가 [0.0] * N으로
+            # 되돌아가면서 RRF fusion에서 semantic 신호가 조용히 제외되었다.
+            # → 이제는 논문 임베딩과 dim이 다를 경우 로그를 띄우고 해당 필드만 0.0으로
+            #   처리해 다른 논문에는 신호가 유지되도록 한다.
+            query_shape = getattr(query_emb, "shape", None)
+            mismatch_logged = False
+
+            def _safe_cosine(
+                query_vec: np.ndarray,
+                target_vec: Optional[np.ndarray],
+            ) -> float:
+                nonlocal mismatch_logged
+                if target_vec is None:
+                    return 0.0
+                target_shape = getattr(target_vec, "shape", None)
+                if query_shape is not None and target_shape != query_shape:
+                    if not mismatch_logged:
+                        logger.error(
+                            "HyDE dim mismatch: hyde=%s paper=%s — semantic signal EXCLUDED for this query "
+                            "(subsequent mismatches in same query suppressed)",
+                            query_shape,
+                            target_shape,
+                        )
+                        mismatch_logged = True
+                    return 0.0
+                sim = self.similarity_calculator._cosine_similarity(query_vec, target_vec)
+                return max(0.0, sim)
+
             scores: List[float] = []
             for i in range(len(papers)):
                 title_emb = embeddings[1 + i * 2]
                 abstract_emb = embeddings[2 + i * 2]
 
-                # title 유사도
-                if title_emb is not None:
-                    title_sim = self.similarity_calculator._cosine_similarity(query_emb, title_emb)
-                    title_sim = max(0.0, title_sim)
-                else:
-                    title_sim = 0.0
-
-                # abstract 유사도
-                if abstract_emb is not None:
-                    abstract_sim = self.similarity_calculator._cosine_similarity(query_emb, abstract_emb)
-                    abstract_sim = max(0.0, abstract_sim)
-                else:
-                    abstract_sim = 0.0
+                title_sim = _safe_cosine(query_emb, title_emb)
+                abstract_sim = _safe_cosine(query_emb, abstract_emb)
 
                 # Field-weighted combination
                 weighted_sim = 0.6 * title_sim + 0.4 * abstract_sim
@@ -832,7 +898,7 @@ class HybridRanker:
             return scores
 
         except Exception as e:
-            logger.warning("[HybridRanker] Semantic scoring error: %s", e)
+            logger.warning("[HybridRanker] Semantic scoring error: %s", e, exc_info=True)
             return [0.0] * len(papers)
 
     # ── Citations ────────────────────────────────────────────────────
