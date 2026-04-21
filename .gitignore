@@ -237,3 +237,9 @@ data/blog/figures/run_*/
 .omx/
 AGENTS.md
 
+# Internal sprint / QA reports — not for public consumption
+_workspace/
+
+# Frontend development cache (LLM responses, search cache from dev sessions)
+web-ui/data/cache/
+

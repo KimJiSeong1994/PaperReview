@@ -1641,7 +1641,7 @@ BERT & Masked LM & - & 2018 \\\\
 
 ```bash
 # 백엔드 테스트
-cd /Users/gimjiseong/git/PaperReviewAgent
+cd <project-root>
 pytest tests/test_comparative_extraction.py -v --tb=short
 
 # 프론트엔드 테스트

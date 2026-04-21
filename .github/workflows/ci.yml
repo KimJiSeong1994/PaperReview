@@ -26,10 +26,12 @@ jobs:
         run: ruff check .
 
       - name: Run tests
+        # Placeholders deliberately do NOT match real key formats to avoid
+        # triggering GitHub/GitGuardian/TruffleHog secret scanners.
         env:
-          OPENAI_API_KEY: sk-test-dummy-key-for-ci
-          JWT_SECRET: ci-test-secret-key-do-not-use-in-production
-          APP_PASSWORD: ci-test-password
+          OPENAI_API_KEY: ${{ secrets.CI_OPENAI_KEY || 'ci-placeholder-not-a-real-key' }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
+          APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
         run: pytest tests/ -v --tb=short --cov=routers --cov=app --cov=src --cov-report=term-missing --cov-fail-under=15
 
   frontend-build:

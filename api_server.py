@@ -169,8 +169,12 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS middleware - configurable via environment
-_DEFAULT_ORIGINS = "https://jiphyeonjeon.kr,https://www.jiphyeonjeon.kr,http://localhost:5173,http://localhost:5174"
+# CORS middleware - configurable via environment.
+# Production default only allows the public domain; local dev servers must
+# be explicitly opted in via CORS_ORIGINS (e.g. in .env:
+#   CORS_ORIGINS=https://jiphyeonjeon.kr,http://localhost:5173
+# ).
+_DEFAULT_ORIGINS = "https://jiphyeonjeon.kr,https://www.jiphyeonjeon.kr"
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",")
 app.add_middleware(
     CORSMiddleware,
