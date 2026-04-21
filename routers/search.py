@@ -27,13 +27,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from starlette.requests import Request
+
 from .deps import (
     get_openai_client,
     get_optional_user,
+    limiter,
     query_analyzer,
     relevance_filter,
     search_agent,
 )
+from src.events.emit import emit_or_warn
+from src.events.event_types import EventType, UserEvent
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +300,10 @@ def _enrich_papers_background(
 SEARCH_CACHE_DIR = Path("data/cache/search_cache")
 SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+# BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
+# Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
+_CACHE_SCHEMA_VERSION = "v2-hybrid-rrf-semantic"
+
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
 CACHE_TTL_SECONDS = 3600  # 1시간
@@ -316,8 +325,13 @@ def _normalize_query_for_cache(query: str) -> str:
 
 
 def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
-    """검색 요청에 대한 캐시 키 생성 (fast_mode 포함)"""
+    """검색 요청에 대한 캐시 키 생성 (schema version + fast_mode 포함).
+
+    ``_CACHE_SCHEMA_VERSION`` 을 key_data에 포함시켜, 랭킹 알고리즘/결과
+    스키마가 변경될 때 상수를 bump하면 기존 캐시 항목이 자동으로 무효화된다.
+    """
     key_data = {
+        "schema_version": _CACHE_SCHEMA_VERSION,
         "query": _normalize_query_for_cache(query),
         "sources": sorted(sources),
         "year_start": filters.get("year_start"),
@@ -419,8 +433,25 @@ def _cleanup_expired_cache():
         logger.info("[Cache] Cleanup: removed %d expired cache files", removed)
 
 
+def _log_cache_file_count() -> None:
+    """서버 시작 시 캐시 디렉터리의 전체 파일 수를 기록한다.
+
+    파일은 삭제하지 않는다. 운영자가 직접 정리할 수 있도록 카운트만 남긴다.
+    """
+    try:
+        all_files = list(SEARCH_CACHE_DIR.glob("*.json"))
+        logger.info(
+            "[Cache] schema=%s, total cache files=%d (orphaned files from old schemas remain on disk)",
+            _CACHE_SCHEMA_VERSION,
+            len(all_files),
+        )
+    except Exception as e:
+        logger.warning("[Cache] Schema mismatch count error: %s", e)
+
+
 # 서버 시작 시 만료 캐시 정리
 _cleanup_expired_cache()
+_log_cache_file_count()
 
 
 def _periodic_cache_maintenance():
@@ -1089,6 +1120,22 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         if cached is not None:
             total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
             logger.info("[API] Returning cached results: %s papers", total)
+            if username:
+                try:
+                    emit_or_warn(UserEvent(
+                        user_id=username,
+                        event_type=EventType.QUERY_SUBMIT,
+                        payload={
+                            "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                            "results_count": total,
+                            "ranking_applied": False,
+                            "source_counts": {},
+                            "elapsed_ms": int((time.time() - start_time) * 1000),
+                            "cache_hit": True,
+                        },
+                    ))
+                except Exception:
+                    logger.debug("failed to emit QUERY_SUBMIT event (cache hit)", exc_info=True)
             return SearchResponse(results=cached, total=total, query_analysis=query_analysis)
 
         search_start = time.time()
@@ -1448,6 +1495,28 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         except Exception as cache_error:
             logger.warning("[API] Cache save warning: %s", cache_error)
 
+        if username:
+            try:
+                source_counts = {
+                    src: len(papers)
+                    for src, papers in results.items()
+                    if isinstance(papers, list)
+                }
+                emit_or_warn(UserEvent(
+                    user_id=username,
+                    event_type=EventType.QUERY_SUBMIT,
+                    payload={
+                        "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                        "results_count": total,
+                        "ranking_applied": _hybrid_ranker is not None,
+                        "source_counts": source_counts,
+                        "elapsed_ms": int(stage_timings.get("total", 0) * 1000),
+                        "cache_hit": False,
+                    },
+                ))
+            except Exception:
+                logger.debug("failed to emit QUERY_SUBMIT event", exc_info=True)
+
         return SearchResponse(results=results, total=total, query_analysis=query_analysis)
 
     try:
@@ -1476,6 +1545,42 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         error_trace = traceback.format_exc()
         logger.error("[API] Error in search: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+# ── Search-click tracking ─────────────────────────────────────────────
+
+
+class SearchClickRequest(BaseModel):
+    """Body for POST /api/search/click."""
+
+    query_hash: str
+    paper_id: str
+
+
+@router.post("/search/click")
+@limiter.limit("60/minute")
+async def track_search_click(
+    request: Request,
+    body: SearchClickRequest,
+    username: Optional[str] = Depends(get_optional_user),
+) -> dict:
+    """Record which paper the user clicked from a search result set.
+
+    Fire-and-forget — failures are logged but never surface to the caller.
+    """
+    if not (body.query_hash and body.paper_id):
+        return {"tracked": False}
+    if username:
+        try:
+            emit_or_warn(UserEvent(
+                user_id=username,
+                event_type=EventType.SEARCH_CLICK,
+                payload={"query_hash": body.query_hash, "paper_id": body.paper_id},
+                paper_id=body.paper_id,
+            ))
+        except Exception:
+            logger.debug("failed to emit SEARCH_CLICK event", exc_info=True)
+    return {"tracked": username is not None}
 
 
 # ── P2-4: SSE Streaming Deep Search ──────────────────────────────────
