@@ -35,14 +35,15 @@ from .deps import (
     search_agent,
 )
 
+logger = logging.getLogger(__name__)
+
 # HybridRanker (optional) - search_agent의 similarity_calculator 재사용
 try:
-    from graph_rag.hybrid_ranker import HybridRanker
+    from src.graph_rag.hybrid_ranker import HybridRanker
     _hybrid_ranker = HybridRanker(similarity_calculator=search_agent.similarity_calculator)
-except Exception:
+except Exception as _hr_exc:
+    logger.warning("[Search] HybridRanker unavailable, ranking disabled: %s", _hr_exc)
     _hybrid_ranker = None
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["search"])
 

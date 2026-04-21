@@ -79,6 +79,35 @@ def _ensure_faiss_index():
         logger.warning("Failed to rebuild FAISS index: %s", exc)
 
 
+def _warm_cross_encoder() -> None:
+    """Pre-load cross-encoder model to avoid HF download on first /api/search.
+
+    Without this, the first search call takes ~49s (30s cross-encoder download
+    inside relevance_filter's 30s budget → TimeoutError → fallback to unfiltered).
+    After warmup, first search is ~15-20s (dominated by external API latency).
+
+    LocalRelevanceScorer stores the model as a class-level singleton via
+    ``get_model()``; calling it here populates ``LocalRelevanceScorer._model``
+    so subsequent calls in the request handler find the model already loaded.
+    """
+    try:
+        from app.QueryAgent.relevance_filter import LocalRelevanceScorer
+        # get_model() triggers lazy singleton init (downloads model on first call)
+        model = LocalRelevanceScorer.get_model()
+        if model is not None:
+            logger.info("Cross-encoder model warmed up successfully")
+        else:
+            logger.warning(
+                "Cross-encoder warmup: get_model() returned None "
+                "(sentence-transformers may not be installed)"
+            )
+    except Exception as exc:
+        logger.warning(
+            "Failed to warm cross-encoder: %s — first search may be slow (~30s)",
+            exc,
+        )
+
+
 from contextlib import asynccontextmanager
 import asyncio
 
@@ -93,6 +122,11 @@ async def lifespan(app: FastAPI):
     loss on SIGTERM for the gunicorn/uvicorn graceful shutdown path.
     """
     _ensure_faiss_index()
+
+    # Pre-warm cross-encoder model to avoid HF download on first /api/search.
+    # Run in executor so a slow first-time download doesn't block the event loop.
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _warm_cross_encoder)
 
     # Register the running event loop with the event bus so sync
     # endpoints running in the threadpool can emit events via
