@@ -265,6 +265,23 @@ async def clear_papers(username: str = Depends(get_admin_user)):
     return {"success": success}
 
 
+@router.get("/papers/{paper_id}")
+async def get_paper_by_id(paper_id: str):
+    """Retrieve a single paper by its doc_id (arxiv_id, DOI, or internal id).
+
+    Used by the MCP server to resolve paper metadata without listing all papers.
+    Returns 404 if the paper is not present in the local SQLite index.
+    """
+    try:
+        paper = _paper_db.get_paper(paper_id)
+    except Exception as e:
+        logger.error("[papers] get_paper_by_id failed for %s: %s", paper_id, e)
+        raise HTTPException(status_code=500, detail="paper lookup failed")
+    if paper is None:
+        raise HTTPException(status_code=404, detail=f"paper not found: {paper_id}")
+    return paper
+
+
 @router.post("/collect-references")
 async def collect_references(max_references_per_paper: int = 10, max_papers: int = None):
     """Collect references for saved papers."""

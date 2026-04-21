@@ -212,6 +212,43 @@ async def root():
     return {"message": "Paper Review Agent API", "version": "1.1.0"}
 
 
+# ── MCP capability negotiation ────────────────────────────────────────
+from pydantic import BaseModel
+
+
+class VersionResponse(BaseModel):
+    """Server version + capability map consumed by the Jiphyeonjeon MCP server.
+
+    The MCP server calls GET /api/version at startup and registers only the
+    tools whose capability appears in ``capabilities``. Older 집현전 servers
+    that pre-date this endpoint return 404 and the MCP server falls back to
+    its baseline tool set.
+    """
+
+    version: str
+    capabilities: list[str]
+    mcp_min_client: str = "0.1.0"
+
+
+_API_VERSION = "1.1.0"
+_API_CAPABILITIES: list[str] = [
+    "search",
+    "papers",
+    "deep_review",
+    "bookmarks",
+    "curriculum",
+    "explore",
+    "autofigure",
+    "blog",
+]
+
+
+@app.get("/api/version", response_model=VersionResponse)
+async def get_api_version() -> VersionResponse:
+    """Return server version + capability flags for MCP/agent clients."""
+    return VersionResponse(version=_API_VERSION, capabilities=_API_CAPABILITIES)
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
