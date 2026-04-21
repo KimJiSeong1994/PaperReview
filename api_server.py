@@ -8,12 +8,13 @@ This file handles app creation, middleware, and router registration.
 
 import logging
 import os
-import time
 import traceback
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+from middleware import TimingSecurityHeadersMiddleware
 
 # ── Logging setup ─────────────────────────────────────────────────────
 logging.basicConfig(
@@ -197,48 +198,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
-# ── Request logging middleware ────────────────────────────────────────
-
-# Per-request timeout (seconds) — configurable via REQUEST_TIMEOUT env var
-REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "120"))
-
-
-_SECURITY_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-    "X-XSS-Protection": "1; mode=block",
-    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-}
-
-
-@app.middleware("http")
-async def request_logging_middleware(request: Request, call_next):
-    """Log request duration, warn on slow requests, and inject security headers."""
-    start = time.perf_counter()
-    response = await call_next(request)
-    for hdr, val in _SECURITY_HEADERS.items():
-        response.headers[hdr] = val
-    duration_ms = (time.perf_counter() - start) * 1000
-    duration_s = duration_ms / 1000
-    if duration_s > REQUEST_TIMEOUT:
-        logger.warning(
-            "Slow request (%ds limit exceeded): %s %s → %s (%.1fms)",
-            REQUEST_TIMEOUT,
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
-        )
-    else:
-        logger.debug(
-            "%s %s → %s (%.1fms)",
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
-        )
-    return response
+# ── Request logging / security headers middleware ────────────────────
+# Implemented in middleware.py as pure ASGI (NOT BaseHTTPMiddleware) so SSE
+# streams are not buffered through anyio memory streams. Added AFTER CORS so
+# CORSMiddleware remains the outermost wrapper (Starlette middleware is LIFO).
+app.add_middleware(TimingSecurityHeadersMiddleware)
 
 
 # ── Root & health endpoints ──────────────────────────────────────────
