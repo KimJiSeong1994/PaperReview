@@ -150,7 +150,16 @@ def _drain_event_bus(timeout: float = 5.0) -> None:
     from src.events.event_bus import get_event_bus
 
     bus = get_event_bus()
-    asyncio.run(bus.wait_for_drain(timeout=timeout))
+
+    async def _run() -> None:
+        # Re-bind loop-owned primitives (``_flush_in_progress`` lock,
+        # ``_shutdown_event``, batch flusher task) to the current loop so
+        # ``wait_for_drain`` doesn't trip on a Lock bound to the already-
+        # closed TestClient loop.
+        bus.register_main_loop(asyncio.get_running_loop())
+        await bus.wait_for_drain(timeout=timeout)
+
+    asyncio.run(_run())
 
 
 def _count_events(
