@@ -16,6 +16,7 @@ import CourseSidebar from './curriculum/CourseSidebar';
 import ModuleView from './curriculum/ModuleView';
 import CurriculumDetailPanel from './curriculum/CurriculumDetailPanel';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
+import AgentKeyButton from './AgentKeyButton';
 import './CurriculumPage.css';
 
 const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
@@ -156,6 +157,7 @@ function MyPage({ onBack }: MyPageProps) {
             <span className="mypage-brand-name">Jiphyeonjeon</span>
           </div>
           <div className="mypage-header-actions">
+            <AgentKeyButton />
             <button
               className={`mypage-nav-btn ${activeTab === 'papers' ? 'mypage-nav-btn-active' : ''}`}
               onClick={() => setActiveTab('papers')}
