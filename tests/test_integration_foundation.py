@@ -140,26 +140,36 @@ def test_client(isolated_event_paths):
 
 
 def _drain_event_bus(timeout: float = 5.0) -> None:
-    """Block until every in-flight subscriber task finishes.
+    """Wait until the batch flusher persists all queued events to the DB.
 
-    ``publish`` is an async coroutine; when invoked from the sync
-    TestClient path it runs via ``asyncio.create_task``.  We drive the
-    drain coroutine from a fresh event loop since TestClient's loop is
-    already closed by the time we want to assert.
+    The bus's ``asyncio.Queue`` / ``asyncio.Lock`` / ``asyncio.Event``
+    primitives bind to the FIRST event loop that touches them — TestClient's
+    internal loop. We cannot call ``wait_for_drain`` from a fresh loop
+    (``asyncio.run`` here) because the primitives then appear bound to a
+    different loop and raise ``RuntimeError``. Cross-loop handoff via
+    ``register_main_loop`` is unsafe while the old flusher task is still
+    iterating on the queue.
+
+    Workaround: poll ``_batch_queue.qsize()`` from the sync thread. The
+    background flusher on TestClient's loop drains the queue within
+    ``_batch_interval_s`` (250 ms). Polling is loop-agnostic because
+    ``Queue.qsize()`` reads the internal deque length without awaiting.
     """
+    import time
+
     from src.events.event_bus import get_event_bus
 
     bus = get_event_bus()
-
-    async def _run() -> None:
-        # Re-bind loop-owned primitives (``_flush_in_progress`` lock,
-        # ``_shutdown_event``, batch flusher task) to the current loop so
-        # ``wait_for_drain`` doesn't trip on a Lock bound to the already-
-        # closed TestClient loop.
-        bus.register_main_loop(asyncio.get_running_loop())
-        await bus.wait_for_drain(timeout=timeout)
-
-    asyncio.run(_run())
+    deadline = time.monotonic() + max(0.0, timeout)
+    while time.monotonic() < deadline:
+        try:
+            if bus._batch_queue.qsize() == 0:
+                # Give the flusher a tick to finish the in-flight batch.
+                time.sleep(0.25)
+                return
+        except Exception:
+            pass
+        time.sleep(0.05)
 
 
 def _count_events(
