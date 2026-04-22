@@ -142,6 +142,19 @@ export default function AdminPage() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Transient notice (success/error feedback for admin actions).
+  const [notice, setNotice] = useState<{
+    kind: 'success' | 'warn' | 'error';
+    text: string;
+  } | null>(null);
+
+  // Auto-dismiss the notice after 5s so it never lingers indefinitely.
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
   const currentUsername = localStorage.getItem('username') || '';
 
   // ── Data loaders ─────────────────────────────────────────────────
@@ -285,16 +298,43 @@ export default function AdminPage() {
   const handleDeleteUser = (username: string) => {
     setConfirm({
       title: 'Delete User',
-      message: `Are you sure you want to delete "${username}"? All their bookmarks will also be deleted.`,
+      message:
+        `"${username}" 계정을 완전히 삭제합니다. 북마크, 리뷰 이벤트, ` +
+        `임베딩, 프로필, 큐레이션 소유권까지 모두 제거되며 되돌릴 수 없습니다.`,
       onConfirm: async () => {
         setConfirm(null);
         try {
-          await deleteUser(username);
-          setUsers((prev) => prev.filter((u) => u.username !== username));
+          const result = await deleteUser(username);
+          // Refresh from backend rather than optimistically splicing so
+          // partial failures don't produce a stale-but-"gone" row.
+          await loadUsers();
           if (expandedUser === username) setExpandedUser(null);
           loadDashboard();
-        } catch {
-          /* ignore */
+
+          const partials: string[] = Array.isArray(result?.partial_failures)
+            ? result.partial_failures
+            : [];
+          if (result?.success && partials.length === 0) {
+            setNotice({ kind: 'success', text: `"${username}" 삭제 완료.` });
+          } else {
+            setNotice({
+              kind: 'warn',
+              text:
+                `"${username}" 일부 단계 실패: ${partials.join(', ') || '알 수 없음'}. ` +
+                `계정 자체는 제거됐지만 로그를 확인하세요.`,
+            });
+          }
+        } catch (err: unknown) {
+          // Surface backend HTTPException detail (403 last-admin,
+          // 400 self-delete, 429 rate-limit, etc.) instead of silently
+          // swallowing — that was the original "삭제해도 반영이 안 된다"
+          // symptom: admin clicked delete, backend refused, UI showed
+          // nothing.
+          const detail =
+            (err as { response?: { data?: { detail?: string } } })?.response
+              ?.data?.detail ??
+            (err instanceof Error ? err.message : '삭제에 실패했습니다');
+          setNotice({ kind: 'error', text: `삭제 실패: ${detail}` });
         }
       },
     });
@@ -1054,6 +1094,27 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Transient notice (success / warn / error) */}
+      {notice && (
+        <div
+          className={`admin-notice admin-notice--${notice.kind}`}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+          onClick={() => setNotice(null)}
+        >
+          {notice.text}
+          <button
+            className="admin-notice-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNotice(null);
+            }}
+            aria-label="Close notice"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Confirm Dialog */}
       {confirm && (
