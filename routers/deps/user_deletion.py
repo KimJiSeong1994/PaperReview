@@ -315,12 +315,20 @@ def _anonymize_json_file(
     if not json_path.exists():
         return
 
-    with open(json_path, "r", encoding="utf-8") as fh:
-        try:
+    try:
+        with open(json_path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        except json.JSONDecodeError:
-            logger.warning("Skipping unreadable JSON: %s", json_path.name)
-            return
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        # macOS AppleDouble sidecars (``._*.json``) surface as binary
+        # files with ``.json`` suffix and blow up the open() with a
+        # UnicodeDecodeError; an upstream corrupted JSON file triggers
+        # JSONDecodeError.  Either way the file has nothing we can
+        # meaningfully rewrite — skip and let the rest of the stage
+        # continue.  Without this catch the exception bubbles out of
+        # the per-file loop (which only handles OSError) and aborts
+        # the whole ``curriculum_anonymize`` stage.
+        logger.warning("Skipping unreadable JSON: %s", json_path.name)
+        return
 
     changed = [False]
 
@@ -359,6 +367,10 @@ def _stage_curriculum_anonymize(
     if not curricula_dir.exists():
         return
     for json_path in sorted(curricula_dir.glob("*.json")):
+        # Hidden files (``._*`` AppleDouble sidecars, ``.DS_Store``-adjacent
+        # noise) are never real curricula — skip without even opening them.
+        if json_path.name.startswith("."):
+            continue
         try:
             _anonymize_json_file(json_path, username, sentinel)
         except OSError as exc:

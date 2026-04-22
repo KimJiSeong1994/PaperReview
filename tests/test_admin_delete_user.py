@@ -166,6 +166,59 @@ def test_admin_cannot_delete_self_via_admin_endpoint(client: TestClient) -> None
     assert "own account" in resp.json()["detail"].lower()
 
 
+def test_curriculum_stage_survives_appledouble_and_bad_encoding(
+    client: TestClient, tmp_env: dict
+) -> None:
+    """AppleDouble sidecars / non-UTF-8 JSONs must not abort stage 7.
+
+    Before the fix: a single ``._foo.json`` (AppleDouble binary sidecar
+    that ``glob('*.json')`` happily yields) triggered UnicodeDecodeError
+    inside ``_anonymize_json_file``.  The per-file ``except OSError`` in
+    ``_stage_curriculum_anonymize`` didn't catch it, so the whole stage
+    failed and the user saw ``partial_failures: ["curriculum_anonymize"]``
+    even on clean admin-initiated deletes.  This pins the contract that
+    unreadable JSONs are skipped per-file, not elevated to stage failure.
+    """
+    from routers.deps import user_deletion as _ud
+    from routers.deps.storage import _get_user_db
+
+    _seed_user("curri_victim")
+
+    # Point stage 7 at an isolated tmp dir so we don't mutate real data.
+    curri_dir = tmp_env["tmp_path"] / "curricula_with_sidecars"
+    curri_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1) A valid JSON owned by the victim — must be anonymized.
+    good = curri_dir / "good.json"
+    good.write_text(
+        '{"curricula": [{"owner": "curri_victim", "title": "X"}]}',
+        encoding="utf-8",
+    )
+    # 2) AppleDouble sidecar — binary, starts with Mac ``\x00\x05\x16\x07`` magic.
+    sidecar = curri_dir / "._good.json"
+    sidecar.write_bytes(b"\x00\x05\x16\x07" + b"\x00" * 33 + b"\xcf\xff\xfe")
+    # 3) Legit .json with cp949-encoded Korean (common on Windows exports).
+    bad_enc = curri_dir / "bad_encoding.json"
+    bad_enc.write_bytes('{"owner": "curri_victim", "note": "한글"}'.encode("cp949"))
+
+    with patch("routers.deps.user_deletion.CURRICULA_DIR", curri_dir):
+        resp = client.delete(
+            "/api/admin/users/curri_victim",
+            headers=_bearer("test-admin", "admin"),
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert "curriculum_anonymize" not in body["partial_failures"], body
+    assert body["success"] is True, body
+    # Victim is gone from the DB; good.json is anonymized.
+    assert _get_user_db().get("curri_victim") is None
+    assert "curri_victim" not in good.read_text(encoding="utf-8")
+    # The sentinel lives in good.json.
+    prefix = _ud.ANONYMIZED_SENTINEL_PREFIX
+    assert prefix in good.read_text(encoding="utf-8")
+
+
 def test_last_admin_guard_triggers_409(tmp_env: dict) -> None:
     """The defensive last-admin check returns 409 when fired.
 
