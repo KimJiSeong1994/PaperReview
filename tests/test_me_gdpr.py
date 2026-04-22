@@ -56,6 +56,20 @@ def _auth(username: str = USERNAME) -> dict[str, str]:
     return {"Authorization": f"Bearer {_make_token(username)}"}
 
 
+def _reseed_user(username: str) -> None:
+    """Re-insert ``username`` into the user DB.
+
+    GDPR delete_all removes the row, so tests that call the endpoint
+    multiple times (rate-limit tests) must re-seed between requests or
+    ``get_current_user`` will 401 after the first successful delete.
+    """
+    from routers.deps.storage import _get_user_db
+
+    _get_user_db().upsert(
+        username, {"password_hash": "x", "role": "user", "created_at": ""}
+    )
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────
 
 @pytest.fixture()
@@ -107,6 +121,16 @@ def tmp_dbs(tmp_path: Path):
     # picks up the patched path.
     _storage._bookmark_dbs.clear()
 
+    # Seed the user into the real user DB — ``get_current_user`` rejects
+    # JWTs for accounts that no longer exist.  We register every test
+    # user used by this module (USERNAME, "alice", "bob") so the auth
+    # check passes before the endpoint body runs.
+    from routers.deps.storage import _get_user_db
+    _udb = _get_user_db()
+    for _u in (USERNAME, "alice", "bob", "dave_rt1"):
+        if _udb.get(_u) is None:
+            _udb.upsert(_u, {"password_hash": "x", "role": "user", "created_at": ""})
+
     # Seed one bookmark through the real schema so verification SELECTs work.
     _seed_db = BookmarkDB(db_path=bookmarks_db)
     _seed_db.upsert(
@@ -121,11 +145,11 @@ def tmp_dbs(tmp_path: Path):
     audit_log = tmp_path / ".gdpr_audit.jsonl"
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", events_db),
-        patch("routers.me.PROFILE_DB_PATH", profile_db),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", events_db),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", profile_db),
         patch("routers.deps.storage.BOOKMARKS_FILE", bookmarks_json),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_path / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", audit_log),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_path / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", audit_log),
     ):
         yield {
             "events_db": events_db,
@@ -203,21 +227,24 @@ def test_delete_all_success_returns_audit_hash(
 def test_delete_all_partial_failure_reports_stages(
     tmp_dbs: dict,
 ):
-    """When events_db stage raises, deleted=False and 'events_db' in partial_failures."""
+    """When events_db stage raises, deleted=False and 'events_db' in partial_failures.
+
+    Patches only the ``_stage_events_db`` helper so other stages can
+    still use the real ``sqlite3.connect`` (and so does the user-DB
+    existence check in ``get_current_user``).
+    """
     from api_server import app
 
-    def _bad_connect(path, **kwargs):
-        if "events" in str(path):
-            raise RuntimeError("simulated events_db failure")
-        return sqlite3.connect(path, **kwargs)
+    def _bad_events_stage(username, db_path):
+        raise RuntimeError("simulated events_db failure")
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
-        patch("routers.me.sqlite3.connect", side_effect=_bad_connect),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
+        patch("routers.deps.user_deletion._stage_events_db", side_effect=_bad_events_stage),
         TestClient(app) as c,
     ):
         resp = c.delete("/api/me/all", headers=_auth())
@@ -243,21 +270,23 @@ def test_delete_all_rate_limited(tmp_dbs: dict):
     real_limiter._storage.reset()
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
     ):
         with TestClient(app, raise_server_exceptions=False) as c:
             # Requests 1–3 must not be rate-limited
             for i in range(3):
+                _reseed_user(USERNAME)  # delete_all removes the row each time
                 resp = c.delete("/api/me/all", headers=_auth())
                 assert resp.status_code != 429, (
                     f"Request {i+1} should not be rate-limited yet, got {resp.status_code}"
                 )
 
             # Request 4 must be 429
+            _reseed_user(USERNAME)
             resp = c.delete("/api/me/all", headers=_auth())
             assert resp.status_code == 429, (
                 f"Expected 429 on 4th request, got {resp.status_code}: {resp.text}"
@@ -276,15 +305,16 @@ def test_rate_limit_keyed_by_user_not_ip(tmp_dbs: dict):
     real_limiter._storage.reset()
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
     ):
         with TestClient(app, raise_server_exceptions=False) as c:
             # Requests 1–3 from "IP 1.2.3.4"
             for i in range(3):
+                _reseed_user(USERNAME)
                 resp = c.delete(
                     "/api/me/all",
                     headers={**_auth(), "X-Forwarded-For": "1.2.3.4"},
@@ -294,6 +324,7 @@ def test_rate_limit_keyed_by_user_not_ip(tmp_dbs: dict):
                 )
 
             # Request 4 from a *different* IP but same JWT sub — still 429.
+            _reseed_user(USERNAME)
             resp = c.delete(
                 "/api/me/all",
                 headers={**_auth(), "X-Forwarded-For": "9.9.9.9"},
@@ -311,22 +342,25 @@ def test_rate_limit_separates_users(tmp_dbs: dict):
     real_limiter._storage.reset()
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
     ):
         with TestClient(app, raise_server_exceptions=False) as c:
             # Exhaust alice's quota
             for i in range(3):
+                _reseed_user("alice")
                 resp = c.delete("/api/me/all", headers=_auth("alice"))
                 assert resp.status_code != 429, f"alice request {i+1} should not be limited"
 
             # alice's 4th must be 429
+            _reseed_user("alice")
             assert c.delete("/api/me/all", headers=_auth("alice")).status_code == 429
 
             # bob still has a fresh quota — his 1st request must succeed
+            _reseed_user("bob")
             resp = c.delete("/api/me/all", headers=_auth("bob"))
             assert resp.status_code != 429, (
                 f"bob's first request should not be rate-limited; got {resp.status_code}"
@@ -334,31 +368,30 @@ def test_rate_limit_separates_users(tmp_dbs: dict):
 
 
 def test_invalid_username_does_not_leak_pii_to_log(tmp_dbs: dict, caplog):
-    """Raw username must never appear in log output when assert_valid_username raises."""
-    from api_server import app
+    """Raw username must never appear in log output when validation fails.
+
+    With the DB-existence gate in ``get_current_user`` a JWT with an
+    unknown username is rejected at the auth layer (401), so we can no
+    longer exercise this path via HTTP.  Instead we call the cascade
+    directly — the PII-safety contract applies to the cascade, not to
+    the outer endpoint.
+    """
+    from routers.deps.user_deletion import delete_user_cascade
 
     bad_username = "evil<script>xss</script>user"
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
-        # Force assert_valid_username to raise so we exercise the log path
-        patch(
-            "routers.me.assert_valid_username",
-            side_effect=ValueError("invalid username"),
-        ),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
     ):
-        with caplog.at_level(logging.DEBUG, logger="routers.me"):
-            with TestClient(app, raise_server_exceptions=True) as c:
-                resp = c.delete("/api/me/all", headers=_auth(bad_username))
+        with caplog.at_level(logging.DEBUG, logger="routers.deps.user_deletion"):
+            result = delete_user_cascade(bad_username)
 
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["deleted"] is False
-    assert "username_invalid" in data["partial_failures"]
+    assert result.deleted is False
+    assert "username_invalid" in result.partial_failures
 
     # Raw username must not appear anywhere in the captured log records
     all_log_text = " ".join(r.getMessage() for r in caplog.records)
@@ -372,14 +405,14 @@ def test_audit_log_write_failure_flags_partial(tmp_dbs: dict):
     from api_server import app
 
     with (
-        patch("routers.me.EVENTS_DB_PATH", tmp_dbs["events_db"]),
-        patch("routers.me.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", tmp_dbs["events_db"]),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", tmp_dbs["profile_db"]),
         patch("routers.deps.storage.BOOKMARKS_FILE", tmp_dbs["bookmarks_db"].with_suffix(".json")),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_dbs["tmp_path"] / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_dbs["audit_log"]),
         # Make _append_audit_log raise to simulate a disk/permission error
         patch(
-            "routers.me._append_audit_log",
+            "routers.deps.user_deletion.append_audit_log",
             side_effect=OSError("disk full"),
         ),
     ):
@@ -429,11 +462,16 @@ def test_gdpr_actually_deletes_bookmarks(tmp_path: Path, monkeypatch):
     from api_server import app
     username = "dave_rt1"
 
+    # Seed the user so get_current_user's DB-existence check succeeds.
+    _udb = _storage._get_user_db()
+    if _udb.get(username) is None:
+        _udb.upsert(username, {"password_hash": "x", "role": "user", "created_at": ""})
+
     with (
-        patch("routers.me.EVENTS_DB_PATH", events_db),
-        patch("routers.me.PROFILE_DB_PATH", profile_db),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_path / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_path / ".gdpr_audit.jsonl"),
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", events_db),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", profile_db),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", tmp_path / "embeddings" / "users"),
+        patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", tmp_path / ".gdpr_audit.jsonl"),
     ):
         with TestClient(app, raise_server_exceptions=True) as c:
             headers = {"Authorization": f"Bearer {_make_token(username)}"}

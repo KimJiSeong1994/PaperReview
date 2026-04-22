@@ -20,12 +20,16 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from starlette.requests import Request
+
+from src.events.contracts import assert_valid_username
 
 logger = logging.getLogger(__name__)
 
 from .deps import (
-    get_admin_user, load_bookmarks, save_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE,
+    get_admin_user, load_bookmarks, save_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE, limiter,
 )
+from .deps.user_deletion import delete_user_cascade
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -252,24 +256,68 @@ async def update_user_role(username: str, request: RoleUpdateRequest, admin: str
 
 
 @router.delete("/users/{username}")
-async def delete_user(username: str, admin: str = Depends(get_admin_user)):
-    """Delete a user and all their bookmarks."""
-    if username == admin:
-        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+@limiter.limit("10/hour")
+async def delete_user(
+    request: Request,  # required positional for slowapi limiter
+    username: str,
+    admin: str = Depends(get_admin_user),
+):
+    """Admin: completely remove a user and all associated data.
 
+    Runs the shared
+    :func:`routers.deps.user_deletion.delete_user_cascade` so that the
+    admin-initiated path and the self-delete (``DELETE /api/me/all``)
+    path share one implementation.
+
+    Safety checks (in order):
+      1. Username format — rejects values that would never have passed
+         the registration regex.
+      2. Self-deletion guard — admins cannot delete their own account
+         through this endpoint (use ``DELETE /api/me/all`` instead).
+      3. Existence check — 404 for unknown username.
+      4. Last-admin guard — refusing to delete the final admin avoids
+         locking the whole workspace out of the admin panel.
+    """
+    # 1. Format validation (defence-in-depth; path parameter is untrusted).
+    try:
+        assert_valid_username(username)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid username format")
+
+    # 2. Self-deletion guard.
+    if username == admin:
+        raise HTTPException(
+            status_code=400, detail="Cannot delete your own account"
+        )
+
+    # 3. Existence + 4. last-admin guard.
     users = _load_users()
     if username not in users:
         raise HTTPException(status_code=404, detail="User not found")
 
-    del users[username]
-    _save_users(users)
+    if users[username].get("role") == "admin":
+        admin_count = sum(
+            1 for u in users.values() if u.get("role") == "admin"
+        )
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot delete the last admin account",
+            )
 
-    # Also delete their bookmarks
-    data = load_bookmarks()
-    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm.get("username") != username]
-    save_bookmarks(data)
+    # 5. Run the cascade; admin is recorded as the actor in the audit log.
+    result = delete_user_cascade(username, actor=admin)
 
-    return {"success": True, "message": f"User '{username}' and their bookmarks deleted"}
+    return {
+        "success": result.deleted,
+        "message": (
+            f"User '{username}' deleted"
+            if result.deleted
+            else "Partial deletion — see partial_failures"
+        ),
+        "partial_failures": result.partial_failures,
+        "audit_hash": result.audit_hash,
+    }
 
 
 # ── Papers ───────────────────────────────────────────────────────────

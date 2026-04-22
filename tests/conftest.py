@@ -35,7 +35,28 @@ def _make_test_token(username: str = "test-admin", role: str = "admin") -> str:
 
 @pytest.fixture
 def auth_headers() -> dict:
-    """Return Authorization headers with a valid admin JWT."""
+    """Return Authorization headers with a valid admin JWT.
+
+    ``get_current_user`` and ``get_admin_user`` now verify that the JWT
+    subject still exists in the user DB (so a deleted account cannot
+    keep using its old token).  We register the test-admin user here
+    so every test receiving ``auth_headers`` passes that check.
+    """
+    from routers.deps.storage import _get_user_db
+
+    db = _get_user_db()
+    if db.get("test-admin") is None:
+        db.upsert(
+            "test-admin",
+            {"password_hash": "test-hash", "role": "admin", "created_at": ""},
+        )
+    else:
+        # Ensure role is admin even if a prior test downgraded the record.
+        record = db.get("test-admin") or {}
+        if record.get("role") != "admin":
+            record["role"] = "admin"
+            db.upsert("test-admin", record)
+
     token = _make_test_token()
     return {"Authorization": f"Bearer {token}"}
 

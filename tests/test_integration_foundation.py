@@ -108,16 +108,33 @@ def isolated_event_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     from filelock import FileLock
 
+    # ``get_current_user`` now verifies the JWT subject still exists in
+    # the user DB.  Seed the integration user before any request runs so
+    # the auth check passes.
+    from routers.deps.storage import _get_user_db
+    _get_user_db().upsert(
+        _USERNAME, {"password_hash": "x", "role": "user", "created_at": ""}
+    )
+
     with (
         patch("routers.deps.storage.BOOKMARKS_FILE", bookmarks_file),
         patch(
             "routers.deps.storage._bookmarks_lock",
             FileLock(str(bookmarks_file) + ".lock"),
         ),
-        patch("routers.me.EVENTS_DB_PATH", events_db),
-        patch("routers.me.PROFILE_DB_PATH", profile_db),
-        patch("routers.me._EMBEDDINGS_USERS_DIR", tmp_path / "embeddings" / "users"),
-        patch("routers.me._GDPR_AUDIT_LOG", tmp_path / ".gdpr_audit.jsonl"),
+        # The GDPR cascade lives in ``routers.deps.user_deletion`` — patch
+        # the real module-level path constants it consults, not the now
+        # read-only re-exports on ``routers.me``.
+        patch("routers.deps.user_deletion.EVENTS_DB_PATH", events_db),
+        patch("routers.deps.user_deletion.PROFILE_DB_PATH", profile_db),
+        patch(
+            "routers.deps.user_deletion.EMBEDDINGS_USERS_DIR",
+            tmp_path / "embeddings" / "users",
+        ),
+        patch(
+            "routers.deps.user_deletion.GDPR_AUDIT_LOG",
+            tmp_path / ".gdpr_audit.jsonl",
+        ),
     ):
         yield {
             "events_db": events_db,

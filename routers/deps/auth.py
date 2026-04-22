@@ -1,5 +1,11 @@
 """
 JWT authentication helpers: decode, get_current_user, get_admin_user, get_optional_user.
+
+All three dependency functions verify that the authenticated principal
+still exists in the user DB.  A valid JWT alone is not sufficient — if
+the account has been deleted (self-delete or admin-initiated cascade)
+the token becomes unusable immediately, preventing zombie access until
+the JWT's natural expiry.
 """
 
 import logging
@@ -48,23 +54,56 @@ def _decode_jwt(request: Request) -> dict:
 
 
 async def get_current_user(request: Request) -> str:
-    """Extract and validate JWT from Authorization header. Returns username."""
+    """Extract and validate JWT, then confirm the account still exists.
+
+    A deleted or disabled account returns HTTP 401 with detail
+    ``"Account deleted or disabled"`` so the client can force re-login.
+    """
     payload = _decode_jwt(request)
-    return payload["sub"]
+    username = payload["sub"]
+    # Deferred import to avoid a circular dependency at module-load time.
+    from .storage import _get_user_db
+    if _get_user_db().get(username) is None:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+    return username
 
 
 async def get_admin_user(request: Request) -> str:
-    """Like get_current_user but requires admin role. Returns username."""
+    """Like :func:`get_current_user` but requires the *current* admin role.
+
+    The role is re-checked against the DB so that a role demotion takes
+    effect immediately — the JWT's ``role`` claim is only a hint, never
+    authoritative.
+    """
     payload = _decode_jwt(request)
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    return payload["sub"]
+    username = payload["sub"]
+    from .storage import _get_user_db
+    user = _get_user_db().get(username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+    # Re-verify role from DB to honour demotions between token issue and now.
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return username
 
 
 async def get_optional_user(request: Request) -> Optional[str]:
-    """Extract username from JWT if present, return None otherwise (no auth required)."""
+    """Extract username from JWT if present and the account still exists.
+
+    Returns ``None`` for:
+    - Missing / malformed / expired tokens (no auth).
+    - Tokens for deleted accounts (treated as anonymous).
+    """
     try:
         payload = _decode_jwt(request)
-        return payload.get("sub")
     except HTTPException:
         return None
+    username = payload.get("sub")
+    if not username:
+        return None
+    from .storage import _get_user_db
+    if _get_user_db().get(username) is None:
+        return None
+    return username

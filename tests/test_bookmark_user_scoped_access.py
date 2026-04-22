@@ -28,6 +28,13 @@ def _make_token(username: str) -> str:
 
 
 def _auth(username: str) -> dict:
+    # ``get_current_user`` now requires the user to exist in the user DB
+    # so the cross-user bookmark tests must seed the principal on demand.
+    from routers.deps.storage import _get_user_db
+
+    db = _get_user_db()
+    if db.get(username) is None:
+        db.upsert(username, {"password_hash": "x", "role": "user", "created_at": ""})
     return {"Authorization": f"Bearer {_make_token(username)}"}
 
 

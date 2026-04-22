@@ -233,12 +233,28 @@ class TestRoleBasedAccess:
         return resp.json()["access_token"]
 
     async def test_admin_access(self, client):
-        """An admin token can access /api/admin/dashboard."""
-        # conftest._make_test_token creates an admin token signed with
-        # the same JWT_SECRET the test app uses.
-        from tests.conftest import _make_test_token
+        """An admin token can access /api/admin/dashboard.
 
-        admin_token = _make_test_token(username="admin_tester", role="admin")
+        With the DB-backed existence check in ``get_admin_user``, a JWT is
+        not enough — the admin user must actually exist.  We register a
+        regular user first, then promote them in the user DB, then mint
+        an admin-role token for that same username.
+        """
+        from tests.conftest import _make_test_token
+        from routers.deps.storage import _get_user_db
+
+        admin_name = "admin_tester"
+        await client.post(
+            "/api/auth/register",
+            json={"username": admin_name, "password": "adminpass1"},
+        )
+        # Promote to admin directly in the DB (register creates role=user).
+        db = _get_user_db()
+        data = db.get(admin_name) or {}
+        data["role"] = "admin"
+        db.upsert(admin_name, data)
+
+        admin_token = _make_test_token(username=admin_name, role="admin")
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         resp = await client.get("/api/admin/dashboard", headers=headers)
