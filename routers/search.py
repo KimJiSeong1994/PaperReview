@@ -235,11 +235,31 @@ class LLMSearchResponse(BaseModel):
 # ── Helper ─────────────────────────────────────────────────────────────
 
 def _stamp_searched_by(results: Dict[str, List[Dict[str, Any]]], username: Optional[str]):
-    """Add searched_by field to all papers in results."""
+    """Add/overwrite searched_by field on all papers.
+
+    This is idempotent per caller: the value is overwritten, not appended.
+    That invariant is relied on by the cache path — a cache body written by
+    user A can be safely re-stamped for user B on read (see F-03 fix).
+    """
     stamp = username or "(unknown)"
     for papers in results.values():
         for paper in papers:
             paper["searched_by"] = stamp
+
+
+def _strip_searched_by(results: Dict[str, List[Dict[str, Any]]]) -> None:
+    """Remove searched_by from every paper entry in-place.
+
+    Used defensively on cache READ to scrub any stamp that a previous
+    (pre-F-03) write may have persisted on disk, AND used on cache WRITE
+    input so we never persist a per-user stamp in the shared cache body.
+    """
+    for papers in results.values():
+        if not isinstance(papers, list):
+            continue
+        for paper in papers:
+            if isinstance(paper, dict):
+                paper.pop("searched_by", None)
 
 
 def _enrich_papers_background(
@@ -346,7 +366,13 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
 
 
 def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
-    """인메모리 → 파일 순서로 캐시 조회"""
+    """인메모리 → 파일 순서로 캐시 조회.
+
+    F-03 defensive behaviour: any ``searched_by`` stamp found in the cached
+    payload (e.g. legacy on-disk entries written before the F-03 fix) is
+    stripped before returning. The caller is responsible for re-stamping
+    with the current request's username via ``_stamp_searched_by``.
+    """
     now = datetime.now()
 
     # 1. 인메모리 캐시
@@ -355,7 +381,9 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
             entry = _search_cache[cache_key]
             if datetime.fromisoformat(entry["expires_at"]) > now:
                 logger.debug("[Cache] HIT (memory): %s", cache_key)
-                return entry["results"]
+                results = entry["results"]
+                _strip_searched_by(results)
+                return results
             else:
                 del _search_cache[cache_key]
 
@@ -366,6 +394,8 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
             with open(cache_file, "r", encoding="utf-8") as f:
                 entry = json.load(f)
             if datetime.fromisoformat(entry["expires_at"]) > now:
+                # Strip before memoizing so future memory hits are also clean.
+                _strip_searched_by(entry["results"])
                 with _cache_lock:
                     _search_cache[cache_key] = entry
                 logger.debug("[Cache] HIT (file): %s", cache_key)
@@ -380,10 +410,28 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
 
 
 def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE_TTL_SECONDS):
-    """인메모리 + 파일 캐시 저장 (크기 제한 + TTL 만료 정리)"""
+    """인메모리 + 파일 캐시 저장 (크기 제한 + TTL 만료 정리).
+
+    F-03: The cache body must be user-agnostic. The in-flight ``results``
+    object has already been stamped with ``searched_by=<caller>`` for the
+    response, so we build a shallow-copied, stripped version to persist.
+    This avoids mutating the response the caller is about to return, and
+    avoids a full ``deepcopy``. Paper dicts are shallow-copied only to
+    detach the ``searched_by`` removal from the live response.
+    """
     now = datetime.now()
     expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
-    entry = {"results": results, "expires_at": expires_at, "cached_at": now.isoformat()}
+    sanitized: Dict[str, Any] = {}
+    for source, papers in results.items():
+        if isinstance(papers, list):
+            sanitized[source] = [
+                {k: v for k, v in p.items() if k != "searched_by"}
+                if isinstance(p, dict) else p
+                for p in papers
+            ]
+        else:
+            sanitized[source] = papers
+    entry = {"results": sanitized, "expires_at": expires_at, "cached_at": now.isoformat()}
 
     with _cache_lock:
         # 캐시 크기 초과 시 만료 엔트리 정리 + 가장 오래된 엔트리 제거
@@ -1119,6 +1167,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         cached = _get_cached_result(cache_key)
         if cached is not None:
             total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
+            # F-03: cache body is user-agnostic; stamp the current caller now.
+            _stamp_searched_by(cached, username)
             logger.info("[API] Returning cached results: %s papers", total)
             if username:
                 try:
