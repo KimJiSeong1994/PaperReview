@@ -18,7 +18,28 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, review_sessions, review_sessions_lock, get_optional_user, get_openai_client
+from .deps import (
+    limiter,
+    review_sessions,
+    review_sessions_lock,
+    get_current_user,
+    get_optional_user,
+    get_openai_client,
+)
+
+
+def _require_session_owner(session: Dict[str, Any], username: str) -> None:
+    """Enforce session ownership. Raise 404 if caller is not the owner.
+
+    Security note: any mismatch (including ``session_owner is None`` — a
+    legacy or anonymously-created session) returns ``404 "Session not
+    found"``. We return 404 rather than 403 so callers cannot distinguish
+    between "session exists but you can't see it" and "session ID is
+    unknown", preventing enumeration of session IDs.
+    """
+    session_owner = session.get("username")
+    if session_owner != username:
+        raise HTTPException(status_code=404, detail="Session not found")
 
 logger = logging.getLogger(__name__)
 
@@ -860,12 +881,15 @@ def run_deep_review_background(
                     if papers_data:
                         review_sessions[session_id]["papers_data"] = papers_data
 
-                    # metadata.json 갱신 (서버 재시작 시 세션 복원용)
+                    # metadata.json 갱신 (서버 재시작 시 세션 복원용).
+                    # F-02: username을 반드시 기록해 재시작 후에도 소유자 정보가
+                    # 유실되지 않도록 한다 (없으면 sentinel 로 강제 차단됨).
                     try:
                         meta_path = Path(workspace_path) / "metadata.json"
                         meta = {"session_id": session_id, "status": "completed",
                                 "num_papers": review_sessions[session_id]["num_papers"],
-                                "paper_ids": paper_ids}
+                                "paper_ids": paper_ids,
+                                "username": review_sessions[session_id].get("username")}
                         if papers_data:
                             meta["papers_data"] = papers_data
                         with open(meta_path, "w", encoding="utf-8") as mf:
@@ -956,18 +980,14 @@ async def start_deep_review(
 
 
 @router.get("/deep-review/status/{session_id}")
-async def get_review_status(session_id: str, username: str | None = Depends(get_optional_user)) -> ReviewStatusResponse:
+async def get_review_status(session_id: str, username: str = Depends(get_current_user)) -> ReviewStatusResponse:
     """Get status of a deep review session."""
     with review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-
-        # Allow access if no auth required or if user owns the session
-        session_owner = session.get("username")
-        if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=404, detail="Session not found")
+        _require_session_owner(session, username)
 
         v_raw = session.get("verification_stats")
         v_stats = VerificationStats(**v_raw) if v_raw else None
@@ -983,18 +1003,14 @@ async def get_review_status(session_id: str, username: str | None = Depends(get_
 
 
 @router.get("/deep-review/report/{session_id}")
-async def get_review_report(session_id: str, username: str | None = Depends(get_optional_user)):
+async def get_review_report(session_id: str, username: str = Depends(get_current_user)):
     """Get the generated review report."""
     with review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-
-        # Allow access if no auth required or if user owns the session
-        session_owner = session.get("username")
-        if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=404, detail="Session not found")
+        _require_session_owner(session, username)
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -1035,18 +1051,14 @@ async def get_review_report(session_id: str, username: str | None = Depends(get_
 
 
 @router.get("/deep-review/verification/{session_id}")
-async def get_verification_detail(session_id: str, username: str | None = Depends(get_optional_user)):
+async def get_verification_detail(session_id: str, username: str = Depends(get_current_user)):
     """Get detailed verification results (claims, evidence, cross-references)."""
     with review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-
-        # Allow access if no auth required or if user owns the session
-        session_owner = session.get("username")
-        if session_owner and username and session_owner != username:
-            raise HTTPException(status_code=404, detail="Session not found")
+        _require_session_owner(session, username)
 
         if session["status"] != "completed":
             raise HTTPException(
@@ -1107,7 +1119,7 @@ async def get_verification_detail(session_id: str, username: str | None = Depend
 
 
 @router.post("/deep-review/visualize/{session_id}")
-async def generate_poster_visualization(session_id: str, username: str | None = Depends(get_optional_user)):
+async def generate_poster_visualization(session_id: str, username: str = Depends(get_current_user)):
     """Generate a conference poster from the deep research report."""
     try:
         logger.info("[Poster API] Starting poster generation for session: %s", session_id)
@@ -1126,11 +1138,7 @@ async def generate_poster_visualization(session_id: str, username: str | None = 
                 raise HTTPException(status_code=404, detail="Session not found")
 
             session = review_sessions[session_id]
-
-            # Allow access if no auth required or if user owns the session
-            session_owner = session.get("username")
-            if session_owner and username and session_owner != username:
-                raise HTTPException(status_code=404, detail="Session not found")
+            _require_session_owner(session, username)
 
             logger.info("[Poster API] Session found: status=%s", session.get("status"))
 
@@ -1257,12 +1265,16 @@ class DirectPosterRequest(BaseModel):
 @router.post("/deep-review/visualize-direct")
 async def generate_poster_direct(
     request: DirectPosterRequest,
-    username: str | None = Depends(get_optional_user),
+    username: str = Depends(get_current_user),
 ):
     """세션 없이 리포트 마크다운으로 직접 포스터를 생성한다.
 
     세션이 유실된 경우 프론트엔드가 reviewReport를 직접 전달하여 포스터를 생성할 수 있다.
+    인증이 필요하다 — 익명 호출자가 LLM 자원을 소비하지 못하도록 차단 (F-01).
     """
+    # Suppress unused-variable lint: we require auth but don't use username
+    # directly here; auth acts as a rate-limit / resource-protection gate.
+    del username
     try:
         logger.info("[Poster Direct] Starting: %d chars, %d papers", len(request.report_content), request.num_papers)
 

@@ -28,6 +28,11 @@ review_sessions_lock = threading.Lock()
 # ── Workspace 기반 세션 복원 (서버 재시작 시 인메모리 세션 유실 방지) ──
 WORKSPACE_DIR = DATA_DIR / "workspace"
 
+# F-02: metadata.json 에 username 이 없는 legacy 세션은 이 sentinel 로
+# 복원되어 어떤 실제 사용자도 일치시키지 못하게 한다 (= 자동 봉인).
+# 재실행/삭제되기 전까지 모든 호출에서 404 를 반환한다.
+_LEGACY_SESSION_OWNER_SENTINEL = "__legacy_unknown__"
+
 
 def _restore_sessions_from_workspace() -> int:
     """서버 시작 시 workspace 디렉토리에서 완료된 세션을 복원한다.
@@ -70,7 +75,8 @@ def _restore_sessions_from_workspace() -> int:
         if not has_report:
             continue  # 리포트 없는 세션은 복원하지 않음
 
-        # 세션 복원
+        # 세션 복원.  username 이 없거나 None 이면 legacy sentinel 로 봉인 — F-02.
+        restored_username = metadata.get("username") or _LEGACY_SESSION_OWNER_SENTINEL
         review_sessions[session_id] = {
             "status": "completed",
             "workspace_path": str(session_dir),
@@ -79,7 +85,7 @@ def _restore_sessions_from_workspace() -> int:
             "paper_ids": metadata.get("paper_ids", []),
             "papers_data": metadata.get("papers_data"),
             "progress": "Restored from workspace",
-            "username": metadata.get("username"),
+            "username": restored_username,
         }
         restored += 1
 
