@@ -416,8 +416,10 @@ async def auto_highlight_paper_review(
 
 
 @router.post("/pdf-highlights")
+@limiter.limit("10/minute")
 def pdf_highlights_endpoint(
-    request: PdfHighlightRequest,
+    request: Request,
+    body: PdfHighlightRequest,
     username: str = Depends(get_current_user),
 ):
     """Extract highlights from raw PDF text for overlay display.
@@ -428,17 +430,21 @@ def pdf_highlights_endpoint(
 
     Uses the PDF-specific prompt and preprocessing pipeline for better
     accuracy on academic paper text.
+
+    F-34: IP rate-limited to 10/min because each call invokes an LLM on
+    up to several KB of PDF text.  The decorator-provided 429 is the
+    outer budget; the inner try/except still surfaces upstream 429/504.
     """
     from openai import APIError, APITimeoutError, RateLimitError
 
-    text = request.text.strip()
+    text = body.text.strip()
     if not text or len(text) < 50:
         raise HTTPException(
             status_code=400,
             detail="PDF text is too short to generate meaningful highlights.",
         )
 
-    title = request.title.strip()
+    title = body.title.strip()
 
     client = get_openai_client()
     try:
@@ -561,8 +567,10 @@ _MATH_TEMPERATURE = 0.2
 
 
 @router.post("/math-explain")
+@limiter.limit("10/minute")
 def explain_math_formula(
-    request: MathExplainRequest,
+    request: Request,
+    body: MathExplainRequest,
     username: str = Depends(get_current_user),
 ) -> dict:
     """Explain a math formula extracted from a PDF paper.
@@ -570,15 +578,19 @@ def explain_math_formula(
     Sends the formula text and surrounding context to an LLM and returns
     a structured explanation with variable definitions and formula type.
     Uses file-based LLM cache to avoid repeated calls for the same formula.
+
+    F-34: IP rate-limited to 10/min — the LLM call can be skipped by the
+    cache layer, but a fresh formula every request would burn credits
+    unbounded without this cap.
     """
     from openai import APIError, APITimeoutError, RateLimitError
 
-    formula_text = request.formula_text.strip()
+    formula_text = body.formula_text.strip()
     if not formula_text:
         raise HTTPException(status_code=400, detail="formula_text is required")
 
-    context = request.context.strip()
-    paper_title = request.paper_title.strip()
+    context = body.context.strip()
+    paper_title = body.paper_title.strip()
 
     # Build user prompt
     parts: list[str] = []

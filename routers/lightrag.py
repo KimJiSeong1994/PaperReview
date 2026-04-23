@@ -9,8 +9,9 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+from starlette.requests import Request
 
-from .deps import get_light_rag_agent, get_current_user
+from .deps import get_light_rag_agent, get_current_user, limiter
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +46,26 @@ class LightRAGQueryRequest(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/light-rag/build")
-async def light_rag_build(request: LightRAGBuildRequest, background_tasks: BackgroundTasks, username: str = Depends(get_current_user)):
-    """Build LightRAG knowledge graph (background task)."""
+@limiter.limit("10/minute")
+async def light_rag_build(
+    request: Request,
+    payload: LightRAGBuildRequest,
+    background_tasks: BackgroundTasks,
+    username: str = Depends(get_current_user),
+):
+    """Build LightRAG knowledge graph (background task).
+
+    F-34: IP rate-limited to 10/min — builds queue LLM extraction for the
+    whole paper corpus; without a cap an authenticated user can tie up
+    the worker and burn unbounded extraction_model credits.
+    """
 
     def _build():
         try:
             agent = get_light_rag_agent()
             agent.build_knowledge_graph(
-                max_concurrent=request.max_concurrent,
-                extraction_model=request.extraction_model,
+                max_concurrent=payload.max_concurrent,
+                extraction_model=payload.extraction_model,
             )
             logger.info("Knowledge graph build complete")
         except Exception as e:
@@ -64,22 +76,31 @@ async def light_rag_build(request: LightRAGBuildRequest, background_tasks: Backg
         "status": "building",
         "message": "Knowledge graph build started in background",
         "config": {
-            "max_concurrent": request.max_concurrent,
-            "extraction_model": request.extraction_model,
+            "max_concurrent": payload.max_concurrent,
+            "extraction_model": payload.extraction_model,
         },
     }
 
 
 @router.post("/light-rag/query")
-async def light_rag_query(request: LightRAGQueryRequest, username: str = Depends(get_current_user)):
-    """Execute a LightRAG query."""
+@limiter.limit("10/minute")
+async def light_rag_query(
+    request: Request,
+    payload: LightRAGQueryRequest,
+    username: str = Depends(get_current_user),
+):
+    """Execute a LightRAG query.
+
+    F-34: IP rate-limited to 10/min — each call runs an LLM query over
+    the knowledge graph.
+    """
     try:
         agent = get_light_rag_agent()
         result = agent.light_query(
-            query=request.query,
-            mode=request.mode.value,
-            top_k=request.top_k,
-            temperature=request.temperature,
+            query=payload.query,
+            mode=payload.mode.value,
+            top_k=payload.top_k,
+            temperature=payload.temperature,
         )
         return result
     except FileNotFoundError:
@@ -92,8 +113,15 @@ async def light_rag_query(request: LightRAGQueryRequest, username: str = Depends
 
 
 @router.get("/light-rag/status")
-async def light_rag_status(username: str = Depends(get_current_user)):
-    """Check LightRAG knowledge graph status."""
+@limiter.limit("30/minute")
+async def light_rag_status(
+    request: Request,
+    username: str = Depends(get_current_user),
+):
+    """Check LightRAG knowledge graph status.
+
+    F-34: IP rate-limited to 30/min (read-only status probe).
+    """
     try:
         agent = get_light_rag_agent()
         stats = agent.get_kg_stats()

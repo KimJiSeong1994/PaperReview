@@ -165,36 +165,42 @@ async def create_bookmark(
 
 
 @router.post("/bookmarks/from-paper")
+@limiter.limit("30/minute")
 async def create_bookmark_from_paper(
-    request: BookmarkFromPaperRequest,
+    request: Request,
+    payload: BookmarkFromPaperRequest,
     username: str = Depends(get_current_user),
 ):
-    """Create a lightweight bookmark from a paper's metadata (e.g., from curriculum)."""
+    """Create a lightweight bookmark from a paper's metadata (e.g., from curriculum).
+
+    F-34: IP rate-limited to 30/min — matches the primary create_bookmark
+    endpoint and caps write-amplification from the curriculum/explore UI.
+    """
     bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
-    report_lines = [f"# {request.title}\n"]
-    if request.authors:
-        report_lines.append(f"**Authors**: {', '.join(request.authors)}\n")
-    if request.year:
-        report_lines.append(f"**Year**: {request.year}\n")
-    if request.venue:
-        report_lines.append(f"**Venue**: {request.venue}\n")
-    if request.context:
-        report_lines.append(f"\n## Context\n{request.context}\n")
+    report_lines = [f"# {payload.title}\n"]
+    if payload.authors:
+        report_lines.append(f"**Authors**: {', '.join(payload.authors)}\n")
+    if payload.year:
+        report_lines.append(f"**Year**: {payload.year}\n")
+    if payload.venue:
+        report_lines.append(f"**Venue**: {payload.venue}\n")
+    if payload.context:
+        report_lines.append(f"\n## Context\n{payload.context}\n")
 
     paper_entry = {
-        "title": request.title,
-        "authors": request.authors,
-        "year": str(request.year) if request.year else "",
-        "venue": request.venue or "",
-        "doi": request.doi or "",
-        "arxiv_id": request.arxiv_id or "",
+        "title": payload.title,
+        "authors": payload.authors,
+        "year": str(payload.year) if payload.year else "",
+        "venue": payload.venue or "",
+        "doi": payload.doi or "",
+        "arxiv_id": payload.arxiv_id or "",
     }
 
     bookmark = {
         "id": bookmark_id,
         "username": username,
-        "title": request.title,
+        "title": payload.title,
         "session_id": "",
         "workspace_path": "",
         "query": "",
@@ -202,8 +208,8 @@ async def create_bookmark_from_paper(
         "num_papers": 1,
         "report_markdown": "\n".join(report_lines),
         "created_at": datetime.now().isoformat(),
-        "tags": request.tags or (["curriculum"] if request.source_curriculum else []),
-        "topic": request.topic,
+        "tags": payload.tags or (["curriculum"] if payload.source_curriculum else []),
+        "topic": payload.topic,
     }
 
     with modify_bookmarks() as data:
@@ -214,20 +220,20 @@ async def create_bookmark_from_paper(
         event_type=EventType.BOOKMARK_ADD,
         paper_id=bookmark_id,
         payload={
-            "topic": request.topic[:200],
-            "title": request.title[:200],
+            "topic": payload.topic[:200],
+            "title": payload.title[:200],
         },
     ))
 
     return BookmarkResponse(
         id=bookmark_id,
-        title=request.title,
+        title=payload.title,
         session_id="",
         query="",
         num_papers=1,
         created_at=bookmark["created_at"],
         tags=bookmark["tags"],
-        topic=request.topic,
+        topic=payload.topic,
     )
 
 
@@ -312,12 +318,18 @@ async def update_bookmark_topic(
 
 
 @router.patch("/bookmarks/{bookmark_id}/title")
+@limiter.limit("30/minute")
 async def update_bookmark_title(
-    bookmark_id: str, request: BookmarkTitleUpdateRequest,
+    request: Request,
+    bookmark_id: str,
+    payload: BookmarkTitleUpdateRequest,
     username: str = Depends(get_current_user),
 ):
-    """Update a bookmark's title."""
-    title = request.title.strip()
+    """Update a bookmark's title.
+
+    F-34: IP rate-limited to 30/min to bound write volume on this PATCH.
+    """
+    title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Title cannot be empty")
     with modify_bookmarks() as data:
@@ -570,11 +582,17 @@ async def bulk_delete_bookmarks(
 
 
 @router.post("/bookmarks/bulk-move")
+@limiter.limit("10/minute")
 async def bulk_move_bookmarks(
+    request: Request,
     payload: BulkMoveBookmarksRequest,
     username: str = Depends(get_current_user),
 ):
-    """Move multiple bookmarks to a new topic (current user only)."""
+    """Move multiple bookmarks to a new topic (current user only).
+
+    F-34: IP rate-limited to 10/min — this endpoint updates up to 500
+    bookmarks in one shot, so looser caps would invite burst abuse.
+    """
     with modify_bookmarks() as data:
         ids_set = set(payload.bookmark_ids)
         updated = 0

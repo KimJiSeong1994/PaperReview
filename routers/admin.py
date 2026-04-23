@@ -27,8 +27,9 @@ from src.events.contracts import assert_valid_username
 logger = logging.getLogger(__name__)
 
 from .deps import (
-    get_admin_user, load_bookmarks, save_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE, limiter,
+    get_admin_user, load_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE, limiter,
 )
+from .deps.storage import _get_bookmark_db
 from .deps.user_deletion import delete_user_cascade
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -449,15 +450,19 @@ async def list_all_bookmarks(
 
 @router.delete("/bookmarks/{bookmark_id}")
 async def admin_delete_bookmark(bookmark_id: str, admin: str = Depends(get_admin_user)):
-    """Admin: delete any bookmark regardless of owner."""
-    data = load_bookmarks()
-    original = len(data["bookmarks"])
-    data["bookmarks"] = [bm for bm in data["bookmarks"] if bm["id"] != bookmark_id]
+    """Admin: delete any bookmark regardless of owner.
 
-    if len(data["bookmarks"]) == original:
+    F-32: previously used ``save_bookmarks`` which only upserts — filtered-out
+    rows were never removed from the SQLite layer, so the admin UI reported
+    "deleted" while the row persisted. We now issue a direct ``DELETE`` via
+    :meth:`BookmarkDB.delete`, which returns True iff a row was actually
+    removed (so we preserve the 404-on-missing contract without a prior
+    read).
+    """
+    db = _get_bookmark_db()
+    deleted = db.delete(bookmark_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Bookmark not found")
-
-    save_bookmarks(data)
     return {"success": True, "message": "Bookmark deleted"}
 
 

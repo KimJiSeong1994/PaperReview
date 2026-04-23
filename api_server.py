@@ -157,6 +157,16 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("event bus drain failed at shutdown")
 
+    # Shutdown: close the module-level httpx.AsyncClient singleton so the
+    # TCP connection pool and keepalive sockets are released before the
+    # ASGI server exits (F-35).  Without this, SIGTERM on a rolling deploy
+    # leaks file descriptors until the interpreter is reaped.
+    try:
+        from routers.pdf_proxy import close_http_client
+        await close_http_client()
+    except Exception:
+        logger.exception("http client close failed at shutdown")
+
 
 app = FastAPI(
     title="Paper Review Agent API",

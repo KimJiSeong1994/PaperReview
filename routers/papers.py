@@ -24,8 +24,9 @@ from typing import Any, Dict, List
 import networkx as nx
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.requests import Request
 
-from .deps import get_optional_user, get_admin_user, search_agent
+from .deps import get_current_user, get_optional_user, get_admin_user, limiter, search_agent
 
 from src.graph.constants import (
     COSINE_EDGE_THRESHOLD_RELAXED,
@@ -283,8 +284,20 @@ async def get_paper_by_id(paper_id: str):
 
 
 @router.post("/collect-references")
-async def collect_references(max_references_per_paper: int = 10, max_papers: int = None):
-    """Collect references for saved papers."""
+@limiter.limit("10/minute")
+async def collect_references(
+    request: Request,
+    max_references_per_paper: int = 10,
+    max_papers: int = None,
+    username: str = Depends(get_current_user),
+):
+    """Collect references for saved papers.
+
+    F-33: requires authentication and is IP-rate-limited.  Each call fans
+    out to Semantic Scholar / arXiv / OpenAlex over up to ``max_papers``
+    saved papers; an unauthenticated visitor could exhaust shared API
+    quotas with a single POST.
+    """
     try:
         logger.info(
             "Collecting references: max_references_per_paper=%s, max_papers=%s",
@@ -303,15 +316,25 @@ async def collect_references(max_references_per_paper: int = 10, max_papers: int
 
 
 @router.post("/paper-references")
-async def get_paper_references(request: Dict[str, Any]):
-    """Get references for a single paper (on-demand)."""
+@limiter.limit("20/minute")
+async def get_paper_references(
+    request: Request,
+    body: Dict[str, Any],
+    username: str = Depends(get_current_user),
+):
+    """Get references for a single paper (on-demand).
+
+    F-33: authenticated + rate-limited.  One request triggers an external
+    lookup against Semantic Scholar (and fallbacks), so we cap to 20/min
+    per IP and require a valid session.
+    """
     try:
         paper = {
-            "title": request.get("title", ""),
-            "doi": request.get("doi"),
-            "arxiv_id": request.get("arxiv_id"),
+            "title": body.get("title", ""),
+            "doi": body.get("doi"),
+            "arxiv_id": body.get("arxiv_id"),
         }
-        max_refs = min(request.get("max_references", 10), 20)
+        max_refs = min(body.get("max_references", 10), 20)
         logger.info("Fetching references for: %s (max=%s)", paper["title"][:60], max_refs)
         refs = search_agent.reference_collector.get_references(paper, max_refs)
         logger.info("Found %s references for: %s", len(refs), paper["title"][:60])
@@ -323,15 +346,24 @@ async def get_paper_references(request: Dict[str, Any]):
 
 
 @router.post("/paper-code-repos")
-async def get_paper_code_repos(request: Dict[str, Any]):
-    """Search GitHub repositories for a paper's code implementation."""
+@limiter.limit("20/minute")
+async def get_paper_code_repos(
+    request: Request,
+    body: Dict[str, Any],
+    username: str = Depends(get_current_user),
+):
+    """Search GitHub repositories for a paper's code implementation.
+
+    F-33: authenticated + rate-limited.  Hits the GitHub search API,
+    which is sharply rate-limited for our PAT.
+    """
     try:
-        title = request.get("title", "")
+        title = body.get("title", "")
         if not title:
             return {"repos": []}
-        arxiv_id = request.get("arxiv_id") or None
-        doi = request.get("doi") or None
-        authors = request.get("authors") or None
+        arxiv_id = body.get("arxiv_id") or None
+        doi = body.get("doi") or None
+        authors = body.get("authors") or None
         logger.info("Searching code repos for: %s (arxiv=%s, doi=%s)", title[:60], arxiv_id, doi)
         repos = search_agent.github_client.search_repos(
             title=title, arxiv_id=arxiv_id, doi=doi, authors=authors,
@@ -345,12 +377,22 @@ async def get_paper_code_repos(request: Dict[str, Any]):
 
 
 @router.post("/batch-references")
-async def get_batch_references(request: Dict[str, Any]):
-    """Fetch references for multiple papers at once (max 5 papers)."""
+@limiter.limit("10/minute")
+async def get_batch_references(
+    request: Request,
+    body: Dict[str, Any],
+    username: str = Depends(get_current_user),
+):
+    """Fetch references for multiple papers at once (max 5 papers).
+
+    F-33: authenticated + rate-limited.  Each call fans out to up to 5
+    external reference lookups in a loop; stricter cap (10/min) than the
+    single-paper endpoint.
+    """
     import time as _time
     try:
-        papers_list = request.get("papers", [])[:5]
-        max_refs = min(request.get("max_references", 5), 10)
+        papers_list = body.get("papers", [])[:5]
+        max_refs = min(body.get("max_references", 5), 10)
         logger.info("Batch references: %s papers, max_refs=%s", len(papers_list), max_refs)
 
         all_refs: List[Dict[str, Any]] = []
@@ -382,8 +424,17 @@ async def get_batch_references(request: Dict[str, Any]):
 
 
 @router.post("/extract-texts")
-async def extract_texts(max_papers: int = None):
-    """Extract full texts from saved papers."""
+@limiter.limit("10/minute")
+async def extract_texts(
+    request: Request,
+    max_papers: int = None,
+    username: str = Depends(get_current_user),
+):
+    """Extract full texts from saved papers.
+
+    F-33: authenticated + rate-limited.  Downloads PDFs from publisher
+    sites in bulk; visitor-initiated traffic could get our IP blocked.
+    """
     try:
         logger.info("Extracting full texts: max_papers=%s", max_papers)
         result = search_agent.extract_full_texts(max_papers)
@@ -399,13 +450,21 @@ async def extract_texts(max_papers: int = None):
 
 
 @router.post("/enrich-papers")
+@limiter.limit("5/minute")
 async def enrich_papers(
+    request: Request,
     collect_references: bool = True,
     extract_texts: bool = True,
     max_references_per_paper: int = 10,
     max_papers: int = None,
+    username: str = Depends(get_current_user),
 ):
-    """Enrich saved papers (references + full-text + graph update)."""
+    """Enrich saved papers (references + full-text + graph update).
+
+    F-33: authenticated + rate-limited (5/min — strictest cap since this
+    endpoint runs BOTH reference collection AND text extraction for every
+    saved paper).
+    """
     try:
         results = {"references": None, "texts": None, "success": True}
 

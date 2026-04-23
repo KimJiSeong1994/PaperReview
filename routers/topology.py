@@ -11,9 +11,12 @@ from typing import Any, Dict, List, Optional
 import networkx as nx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from starlette.requests import Request
 
 from src.graph.topology_analyzer import compute_centrality, detect_communities, detect_hubs
 from src.graph.temporal_tracker import build_temporal_snapshots, detect_lifecycle_events
+
+from .deps import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +126,14 @@ def _compute_temporal(graph: nx.Graph) -> Dict[str, Any]:
 # ── Endpoints ────────────────────────────────────────────────────────
 
 @router.post("/analyze", response_model=TopologyResponse)
-async def analyze_topology(request: TopologyRequest):
-    """네트워크 토폴로지 분석 — centrality, hubs, communities 반환."""
-    graph = _reconstruct_graph(request.graph_data)
+@limiter.limit("5/minute")
+async def analyze_topology(request: Request, payload: TopologyRequest):
+    """네트워크 토폴로지 분석 — centrality, hubs, communities 반환.
+
+    F-34: CPU-heavy graph analysis → IP rate-limited to 5/min so the
+    thread-pool cannot be starved by a burst of large-graph requests.
+    """
+    graph = _reconstruct_graph(payload.graph_data)
 
     if graph.number_of_nodes() == 0:
         raise HTTPException(status_code=400, detail="Graph has no nodes")
@@ -135,9 +143,13 @@ async def analyze_topology(request: TopologyRequest):
 
 
 @router.post("/temporal", response_model=TemporalResponse)
-async def analyze_temporal(request: TopologyRequest):
-    """시간적 커뮤니티 추적 — snapshots, lifecycle events 반환."""
-    graph = _reconstruct_graph(request.graph_data)
+@limiter.limit("5/minute")
+async def analyze_temporal(request: Request, payload: TopologyRequest):
+    """시간적 커뮤니티 추적 — snapshots, lifecycle events 반환.
+
+    F-34: CPU-heavy analysis → IP rate-limited to 5/min.
+    """
+    graph = _reconstruct_graph(payload.graph_data)
 
     if graph.number_of_nodes() == 0:
         raise HTTPException(status_code=400, detail="Graph has no nodes")

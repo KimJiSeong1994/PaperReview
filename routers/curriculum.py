@@ -23,8 +23,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from filelock import FileLock
 from pydantic import BaseModel, Field
+from starlette.requests import Request
 
-from .deps import get_current_user, get_openai_client, get_optional_user
+from .deps import get_current_user, get_openai_client, get_optional_user, limiter
 
 logger = logging.getLogger(__name__)
 
@@ -320,21 +321,27 @@ async def update_progress(
 
 
 @router.post("/curricula/generate")
+@limiter.limit("10/minute")
 async def generate_curriculum(
-    request: CurriculumGenerateRequest,
+    request: Request,
+    payload: CurriculumGenerateRequest,
     username: str = Depends(get_current_user),
 ):
-    """Generate a custom curriculum using LLM."""
+    """Generate a custom curriculum using LLM.
+
+    F-34: IP rate-limited to 10/min — the LLM prompt is multi-KB and a
+    single authenticated user could otherwise burn unbounded credits.
+    """
     client = get_openai_client()
 
     # Sanitize topic for prompt
-    safe_topic = request.topic.strip()[:200]
+    safe_topic = payload.topic.strip()[:200]
 
     prompt = f"""You are an expert academic curriculum designer. Create a structured learning curriculum for the topic: "{safe_topic}"
 
 Requirements:
-- Difficulty level: {request.difficulty}
-- Number of modules: {request.num_modules}
+- Difficulty level: {payload.difficulty}
+- Number of modules: {payload.num_modules}
 - Each module should have 1-3 topics
 - Each topic should reference 2-4 real, existing academic papers
 - Include paper titles, authors, year, venue, and arxiv_id if available
@@ -346,7 +353,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
   "name": "Custom: {safe_topic}",
   "university": "Custom Curriculum",
   "instructor": "AI Generated",
-  "difficulty": "{request.difficulty}",
+  "difficulty": "{payload.difficulty}",
   "prerequisites": ["list of prerequisites"],
   "description": "Course description",
   "url": "",
@@ -464,10 +471,10 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
         user_entries = [c for c in user_entries if c["id"] != course_id]
         user_entries.append({
             "id": course_id,
-            "name": curriculum.get("name", f"Custom: {request.topic}"),
+            "name": curriculum.get("name", f"Custom: {payload.topic}"),
             "university": "Custom Curriculum",
             "instructor": "AI Generated",
-            "difficulty": request.difficulty,
+            "difficulty": payload.difficulty,
             "prerequisites": curriculum.get("prerequisites", []),
             "description": curriculum.get("description", ""),
             "url": "",
@@ -486,8 +493,10 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 
 
 @router.post("/curricula/generate-stream")
+@limiter.limit("10/minute")
 async def generate_curriculum_stream(
-    request: CurriculumGenerateStreamRequest,
+    request: Request,
+    payload: CurriculumGenerateStreamRequest,
     username: str = Depends(get_current_user),
 ):
     """Generate curriculum with 3-step pipeline and SSE progress streaming.
@@ -496,6 +505,10 @@ async def generate_curriculum_stream(
     — including LLM hangs behind nginx's 180s ``proxy_read_timeout`` and
     unexpected exceptions inside the pipeline. Also emits periodic keepalive
     comments so an idle LLM call cannot be silently torn down by the proxy.
+
+    F-34: IP rate-limited to 10/min.  Each call holds an SSE stream open
+    through a 3-step LLM pipeline; without this cap a burst of tabs can
+    exhaust OpenAI quota AND saturate the worker pool at the same time.
     """
     from .curriculum_pipeline import CurriculumPipeline
 
@@ -508,8 +521,8 @@ async def generate_curriculum_stream(
     async def event_stream():
         terminal_sent = False
 
-        def envelope(payload: dict) -> str:
-            return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        def envelope(event_payload: dict) -> str:
+            return f"data: {json.dumps(event_payload, ensure_ascii=False)}\n\n"
 
         try:
             client = get_openai_client()
@@ -530,11 +543,11 @@ async def generate_curriculum_stream(
         async def _producer():
             try:
                 async for event in pipeline.generate(
-                    topic=request.topic,
-                    difficulty=request.difficulty,
-                    num_modules=request.num_modules,
-                    learning_goals=request.learning_goals,
-                    paper_preference=request.paper_preference,
+                    topic=payload.topic,
+                    difficulty=payload.difficulty,
+                    num_modules=payload.num_modules,
+                    learning_goals=payload.learning_goals,
+                    paper_preference=payload.paper_preference,
                 ):
                     await queue.put(("event", event))
             except asyncio.CancelledError:
@@ -552,7 +565,7 @@ async def generate_curriculum_stream(
         try:
             while True:
                 try:
-                    kind, payload = await asyncio.wait_for(
+                    kind, item = await asyncio.wait_for(
                         queue.get(), timeout=KEEPALIVE_INTERVAL_SEC,
                     )
                 except asyncio.TimeoutError:
@@ -565,11 +578,11 @@ async def generate_curriculum_stream(
                     break
 
                 if kind == "error":
-                    yield envelope({"error": f"Pipeline error: {payload}"})
+                    yield envelope({"error": f"Pipeline error: {item}"})
                     terminal_sent = True
                     break
 
-                event = payload
+                event = item
                 if event.get("done") and event.get("curriculum"):
                     curriculum = event["curriculum"]
 
@@ -605,10 +618,10 @@ async def generate_curriculum_stream(
                             user_entries = [c for c in user_entries if c["id"] != course_id]
                             user_entries.append({
                                 "id": course_id,
-                                "name": curriculum.get("name", f"Custom: {request.topic}"),
+                                "name": curriculum.get("name", f"Custom: {payload.topic}"),
                                 "university": curriculum.get("university", "Multi-University Reference"),
                                 "instructor": curriculum.get("instructor", "AI Curated"),
-                                "difficulty": request.difficulty,
+                                "difficulty": payload.difficulty,
                                 "prerequisites": curriculum.get("prerequisites", []),
                                 "description": curriculum.get("description", ""),
                                 "url": "",
@@ -680,11 +693,18 @@ async def generate_curriculum_stream(
 
 
 @router.post("/curricula/{course_id}/fork")
+@limiter.limit("10/minute")
 async def fork_curriculum(
+    request: Request,
     course_id: str,
     username: str = Depends(get_current_user),
 ):
-    """Fork a curriculum into the user's own collection."""
+    """Fork a curriculum into the user's own collection.
+
+    F-34: IP rate-limited to 10/min — deep-copying a curriculum and
+    persisting a new user index entry is cheap per call, but loop-abuse
+    would pile up user-indexed JSON rows.
+    """
     _validate_course_id(course_id)
     source = _load_course(course_id)
     if not source:
@@ -742,11 +762,17 @@ async def fork_curriculum(
 
 
 @router.delete("/curricula/{course_id}")
+@limiter.limit("10/minute")
 async def delete_curriculum(
+    request: Request,
     course_id: str,
     username: str = Depends(get_current_user),
 ):
-    """Delete a user's own curriculum (cannot delete presets)."""
+    """Delete a user's own curriculum (cannot delete presets).
+
+    F-34: IP rate-limited to 10/min — each call rewrites the user index
+    and deletes a JSON file; visitor-level cap avoids disk-churn abuse.
+    """
     _validate_course_id(course_id)
 
     if course_id in PRESET_COURSE_IDS:
@@ -790,12 +816,17 @@ async def delete_curriculum(
 
 
 @router.post("/curricula/{course_id}/share")
+@limiter.limit("10/minute")
 async def create_curriculum_share(
+    request: Request,
     course_id: str,
-    request: CurriculumShareRequest = CurriculumShareRequest(),
+    payload: CurriculumShareRequest = CurriculumShareRequest(),
     username: str = Depends(get_current_user),
 ):
-    """Generate a public share token for a curriculum."""
+    """Generate a public share token for a curriculum.
+
+    F-34: IP rate-limited to 10/min.
+    """
     import secrets
     from datetime import timedelta
 
@@ -803,7 +834,7 @@ async def create_curriculum_share(
 
     token = f"sc_{secrets.token_urlsafe(16)}"
     now = datetime.now()
-    expires_days = request.expires_in_days or 30
+    expires_days = payload.expires_in_days or 30
     expires_at = now + timedelta(days=expires_days)
 
     try:
