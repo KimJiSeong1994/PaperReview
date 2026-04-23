@@ -1,17 +1,30 @@
 """
 LLM 클라이언트 모듈
 """
+import logging
 import os
 from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
+
+
+class EmptyLLMResponseError(ValueError):
+    """Raised when the LLM returns an empty or whitespace-only content body.
+
+    This is NOT a valid answer and must never be treated as one. Callers
+    should either retry or surface a failure to the user — they must not
+    render the empty string as a response.
+    """
+
 
 class LLMClient:
     """LLM 클라이언트 클래스"""
@@ -45,20 +58,31 @@ Answer:
 """
 
     def generate_response(self, context: str, query: str, temperature: float = 0.7) -> str:
-        """LLM 응답 생성"""
+        """LLM 응답 생성.
+
+        F-04 fix: Never return an error string as if it were an answer. Never
+        return ``None``. On empty content → raise ``EmptyLLMResponseError``.
+        Any underlying exception (rate limit, network, etc.) is re-raised so
+        the caller can distinguish "we asked and got nothing usable" from a
+        successful answer.
+        """
         prompt = self.PROMPT_TEMPLATE.format(context=context, query=query)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a research assistant expert in academic papers."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=temperature
-            )
+        # Note: exceptions from the OpenAI client propagate intentionally.
+        # Callers must handle them — do NOT swallow into a return string.
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are a research assistant expert in academic papers."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature
+        )
 
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"Error generating response: {str(e)}"
+        content = response.choices[0].message.content or ""
+        if not content.strip():
+            logger.warning("[LLMClient] Empty LLM content for query length=%d", len(query))
+            raise EmptyLLMResponseError("LLM returned empty content")
+
+        return content
 

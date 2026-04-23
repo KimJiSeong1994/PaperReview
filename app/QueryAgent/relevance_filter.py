@@ -2,6 +2,7 @@
 LLM 기반 검색 결과 관련성 필터 에이전트
 사용자 질의와 검색된 논문의 관련성을 평가하여 필터링
 """
+import hashlib
 import os
 import json
 import logging
@@ -33,6 +34,17 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     OpenAI = None
+
+
+class RelevanceEvaluationFailed(RuntimeError):
+    """Raised when the relevance LLM cannot produce a trustworthy batch score.
+
+    F-09 fix: previously ``_evaluate_batch`` silently padded with ``[0.5]*n``
+    on a count mismatch between the LLM's score array and the batch size.
+    ``0.5`` sits below the default ``0.65`` threshold, so entire batches were
+    silently filtered out — the user saw "no relevant papers" with no
+    signal that the scorer had failed. Raise this instead.
+    """
 
 
 class LocalRelevanceScorer:
@@ -214,12 +226,25 @@ class RelevanceFilter:
         batch_size = 10
         batches = [papers[i:i+batch_size] for i in range(0, len(papers), batch_size)]
 
+        def _safe_batch(batch: List[Dict[str, Any]]) -> List[float]:
+            """Call _evaluate_batch but fall back to keyword scoring on
+            persistent LLM mismatch (F-09). Never fabricate 0.5."""
+            try:
+                return self._evaluate_batch(query, batch)
+            except RelevanceEvaluationFailed:
+                logger.warning(
+                    "[RelevanceFilter] falling back to keyword scoring for a "
+                    "batch of %d papers (LLM mismatch persisted)",
+                    len(batch),
+                )
+                return [self._fallback_score(query, paper) for paper in batch]
+
         if parallel and len(batches) > 1:
             # 병렬 처리 (배치 순서 보존)
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(batches))) as executor:
                 future_to_idx = {}
                 for i, batch in enumerate(batches):
-                    future = executor.submit(self._evaluate_batch, query, batch)
+                    future = executor.submit(_safe_batch, batch)
                     future_to_idx[future] = i
 
                 all_results = [None] * len(batches)
@@ -243,7 +268,7 @@ class RelevanceFilter:
             # 순차 처리
             filtered_papers = []
             for batch in batches:
-                batch_results = self._evaluate_batch(query, batch)
+                batch_results = _safe_batch(batch)
                 for paper, score in zip(batch, batch_results):
                     if score >= threshold:
                         paper['relevance_score'] = score
@@ -264,18 +289,7 @@ class RelevanceFilter:
         )
         return filtered_papers
 
-    def _evaluate_batch(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
-        """배치 논문들의 관련성 평가"""
-        try:
-            # 평가 프롬프트 생성
-            evaluation_prompt = self._create_evaluation_prompt(query, papers)
-
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are an expert academic research evaluator.
+    _SYSTEM_PROMPT = """You are an expert academic research evaluator.
 Your task is to evaluate the relevance between a user's research query and academic papers.
 Rate each paper's relevance on a scale of 0.0 to 1.0, where:
 - 1.0 = Highly relevant, directly addresses the query
@@ -289,29 +303,89 @@ Consider:
 - Problem match: Does it address similar problems or challenges?
 - Method match: Does it use similar methods or approaches?
 - Goal match: Does it have similar research goals?"""
-                    },
-                    {
-                        "role": "user",
-                        "content": evaluation_prompt
-                    }
-                ],
-                response_format={"type": "json_object"}
+
+    def _call_llm_for_batch(self, query: str, papers: List[Dict[str, Any]], strict: bool) -> List[float]:
+        """Single LLM call that returns a list of floats the same length as ``papers``.
+
+        Raises ``RelevanceEvaluationFailed`` when the LLM returns a wrong
+        number of scores — never fabricates. ``strict=True`` appends an
+        extra instruction demanding exactly N scores in order, used on
+        the retry pass.
+        """
+        evaluation_prompt = self._create_evaluation_prompt(query, papers)
+        if strict:
+            evaluation_prompt += (
+                f"\n\nIMPORTANT: Return exactly {len(papers)} scores, one per paper, "
+                f"in the same order as the papers above. The JSON field 'scores' "
+                f"MUST be a list of length {len(papers)}."
             )
 
-            result_text = response.choices[0].message.content or "{}"
-            evaluation = json.loads(result_text)
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self._SYSTEM_PROMPT},
+                {"role": "user", "content": evaluation_prompt},
+            ],
+            response_format={"type": "json_object"},
+        )
 
-            # 점수 추출 및 검증
-            scores = evaluation.get("scores", [])
-            if len(scores) != len(papers):
-                logger.warning(f"[WARNING] 평가 결과 개수 불일치: {len(scores)} vs {len(papers)}")
-                return [0.5] * len(papers)  # 기본값 반환
+        result_text = response.choices[0].message.content or ""
+        if not result_text.strip():
+            raise RelevanceEvaluationFailed("LLM returned empty content")
 
-            return [float(s) for s in scores]
+        evaluation = json.loads(result_text)
+        scores = evaluation.get("scores", [])
+        if len(scores) != len(papers):
+            raise RelevanceEvaluationFailed(
+                f"score count mismatch: got {len(scores)}, expected {len(papers)}"
+            )
 
+        return [float(s) for s in scores]
+
+    def _evaluate_batch(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
+        """배치 논문들의 관련성 평가.
+
+        F-09 fix: on count mismatch we retry once with a stricter prompt.
+        If the mismatch persists, raise ``RelevanceEvaluationFailed``
+        instead of silently returning ``[0.5]*n`` (which gets filtered
+        out by the default 0.65 threshold and looks like "no relevant
+        papers" to the user). Other LLM errors still fall back to the
+        keyword matcher — that fallback at least produces per-paper
+        signal, unlike the uniform 0.5.
+        """
+        # Hash-prefix PII safety: never log the raw query.
+        query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()[:12]
+
+        try:
+            return self._call_llm_for_batch(query, papers, strict=False)
+        except RelevanceEvaluationFailed as mismatch_exc:
+            logger.warning(
+                "[RelevanceFilter] batch score mismatch (query_hash=%s, n=%d): %s — retrying strict",
+                query_hash,
+                len(papers),
+                mismatch_exc,
+            )
+            try:
+                return self._call_llm_for_batch(query, papers, strict=True)
+            except RelevanceEvaluationFailed as retry_exc:
+                logger.error(
+                    "[RelevanceFilter] batch score mismatch persisted after retry "
+                    "(query_hash=%s, n=%d): %s",
+                    query_hash,
+                    len(papers),
+                    retry_exc,
+                )
+                # Do NOT fabricate [0.5]*n. The caller decides whether to
+                # fall back to keyword matching or surface the failure.
+                raise
         except Exception as e:
-            logger.error(f"[WARNING] 관련성 평가 중 오류: {e}")
-            # 폴백: 간단한 키워드 매칭으로 점수 계산
+            logger.error(
+                "[RelevanceFilter] LLM call failed (query_hash=%s, n=%d): %s",
+                query_hash,
+                len(papers),
+                e,
+            )
+            # 폴백: 간단한 키워드 매칭으로 점수 계산 — at least per-paper signal.
             return [self._fallback_score(query, paper) for paper in papers]
 
     def _create_evaluation_prompt(self, query: str, papers: List[Dict[str, Any]]) -> str:
@@ -376,7 +450,13 @@ Return only valid JSON, no additional text."""
         Returns:
             관련성 점수 (0.0 ~ 1.0)
         """
-        scores = self._evaluate_batch(query, [paper])
+        try:
+            scores = self._evaluate_batch(query, [paper])
+        except RelevanceEvaluationFailed:
+            logger.warning(
+                "[RelevanceFilter] evaluate_single falling back to keyword score"
+            )
+            return self._fallback_score(query, paper)
         return scores[0] if scores else 0.5
 
     def rank_papers(self, query: str, papers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -401,7 +481,15 @@ Return only valid JSON, no additional text."""
 
         for i in range(0, len(papers), batch_size):
             batch = papers[i:i+batch_size]
-            batch_scores = self._evaluate_batch(query, batch)
+            try:
+                batch_scores = self._evaluate_batch(query, batch)
+            except RelevanceEvaluationFailed:
+                logger.warning(
+                    "[RelevanceFilter] rank_papers falling back to keyword "
+                    "scoring for batch of %d",
+                    len(batch),
+                )
+                batch_scores = [self._fallback_score(query, p) for p in batch]
 
             for paper, score in zip(batch, batch_scores):
                 paper['relevance_score'] = score

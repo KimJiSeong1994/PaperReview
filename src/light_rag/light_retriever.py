@@ -28,6 +28,16 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 
+class EmbeddingUnavailable(RuntimeError):
+    """Raised when the embedding service cannot produce a vector.
+
+    F-08 fix: previously ``_get_embedding`` returned ``None`` on failure and
+    callers silently returned empty results — indistinguishable from "no
+    matching papers." Raise this instead so the FastAPI layer can surface a
+    502/503 to the user. Do NOT catch-and-swallow this as empty.
+    """
+
+
 class LightRetriever:
     """LightRAG 이중 레벨 검색"""
 
@@ -177,10 +187,14 @@ class LightRetriever:
     def _naive_search(
         self, query: str, top_k: int = 10
     ) -> Dict[str, Any]:
-        """Naive 검색: 청크 벡터 유사도 기반"""
+        """Naive 검색: 청크 벡터 유사도 기반.
+
+        F-08: ``_get_embedding`` now raises ``EmbeddingUnavailable`` on
+        provider failure. We intentionally let it propagate to the top-level
+        caller so the API surface can translate it into a 502/503 rather
+        than silently returning an empty result set.
+        """
         query_embedding = self._get_embedding(query)
-        if query_embedding is None:
-            return {"entities": [], "relationships": [], "paper_ids": [], "chunks": [], "mode": "naive"}
 
         chunk_matches = self.storage.search_chunks(query_embedding, top_k)
 
@@ -225,12 +239,13 @@ class LightRetriever:
         # 2. 벡터 검색
         if keywords:
             combined_query = " ".join(keywords)
+            # F-08: propagate EmbeddingUnavailable so callers get a real
+            # signal rather than a silently-trimmed result set.
             query_embedding = self._get_embedding(combined_query)
-            if query_embedding is not None:
-                vector_matches = self.storage.search_entities(query_embedding, top_k * 2)
-                for entity_key, score in vector_matches:
-                    if entity_key not in results or score > results[entity_key]:
-                        results[entity_key] = score
+            vector_matches = self.storage.search_entities(query_embedding, top_k * 2)
+            for entity_key, score in vector_matches:
+                if entity_key not in results or score > results[entity_key]:
+                    results[entity_key] = score
 
         # 점수순 정렬
         sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
@@ -257,12 +272,12 @@ class LightRetriever:
         # 2. 벡터 검색
         if keywords:
             combined_query = " ".join(keywords)
+            # F-08: propagate EmbeddingUnavailable (see entity search).
             query_embedding = self._get_embedding(combined_query)
-            if query_embedding is not None:
-                vector_matches = self.storage.search_relations(query_embedding, top_k * 2)
-                for rel_key, score in vector_matches:
-                    if rel_key not in results or score > results[rel_key]:
-                        results[rel_key] = score
+            vector_matches = self.storage.search_relations(query_embedding, top_k * 2)
+            for rel_key, score in vector_matches:
+                if rel_key not in results or score > results[rel_key]:
+                    results[rel_key] = score
 
         sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
         return sorted_results[:top_k]
@@ -309,16 +324,29 @@ class LightRetriever:
             "mode": "merged",
         }
 
-    def _get_embedding(self, text: str) -> Optional[np.ndarray]:
-        """텍스트 임베딩 생성"""
+    def _get_embedding(self, text: str) -> np.ndarray:
+        """텍스트 임베딩 생성.
+
+        F-08 fix: raises ``EmbeddingUnavailable`` instead of returning ``None``.
+        Returning ``None`` previously caused every retrieval path to degrade
+        to an empty result that looked identical to "nothing relevant found"
+        — callers (and users) had no way to tell the difference between
+        "OpenAI is down" and "no matches."
+        """
         if not self._openai_client:
-            return None
+            raise EmbeddingUnavailable(
+                "OpenAI client unavailable (missing openai package or OPENAI_API_KEY)"
+            )
         try:
             response = self._openai_client.embeddings.create(
                 model=self.embedding_model,
                 input=text[:8000],
             )
-            return np.array(response.data[0].embedding, dtype="float32")
-        except Exception as e:
-            logger.error(f"  Embedding error: {e}")
-            return None
+        except Exception as exc:
+            # Keep the original exception chained so the 5xx layer can log
+            # the underlying cause, but surface our typed error to callers.
+            logger.error("[LightRetriever] Embedding API failure: %s", exc)
+            raise EmbeddingUnavailable(
+                f"Embedding API failure: {type(exc).__name__}"
+            ) from exc
+        return np.array(response.data[0].embedding, dtype="float32")

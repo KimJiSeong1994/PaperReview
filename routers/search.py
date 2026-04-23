@@ -42,13 +42,47 @@ from src.events.event_types import EventType, UserEvent
 
 logger = logging.getLogger(__name__)
 
-# HybridRanker (optional) - search_agent의 similarity_calculator 재사용
+# HybridRanker (optional) - search_agent의 similarity_calculator 재사용.
+#
+# F-07 fix: the import MUST crash loudly — a missing `HybridRanker` symbol
+# is a dev-time configuration error (wrong module path, missing dependency),
+# not a runtime condition to hide. A prior hotfix (12b424f era) was
+# reintroduced where both ImportError and constructor failure were caught
+# by a broad ``except Exception`` — every search silently lost ranking.
+from src.graph_rag.hybrid_ranker import HybridRanker  # noqa: E402
+
+# Track ranker-degradation reasons so operators + API consumers see the
+# degradation instead of it being silent-ranking-skipped. Exposed on
+# ``SearchResponse.degraded``.
+_RANKER_DEGRADATION_REASONS: List[str] = []
+
 try:
-    from src.graph_rag.hybrid_ranker import HybridRanker
-    _hybrid_ranker = HybridRanker(similarity_calculator=search_agent.similarity_calculator)
+    _hybrid_ranker: Optional[HybridRanker] = HybridRanker(
+        similarity_calculator=search_agent.similarity_calculator
+    )
 except Exception as _hr_exc:
-    logger.warning("[Search] HybridRanker unavailable, ranking disabled: %s", _hr_exc)
+    # Constructor-time failure: keep the process alive (ranking is optional
+    # for search to return *something*), but shout about it at startup AND
+    # surface the degradation on every search response so it is not silent.
+    logger.warning(
+        "[Search] HybridRanker constructor failed, ranking disabled: %s: %s",
+        type(_hr_exc).__name__,
+        _hr_exc,
+    )
     _hybrid_ranker = None
+    _RANKER_DEGRADATION_REASONS.append("ranker_unavailable")
+
+
+def _current_degradation_markers() -> Optional[List[str]]:
+    """Return the list of active degradation markers, or ``None`` if healthy.
+
+    Kept as a function so tests can monkeypatch the underlying list and
+    observe the marker propagating into ``SearchResponse.degraded``.
+    """
+    if not _RANKER_DEGRADATION_REASONS:
+        return None
+    # Return a copy so callers cannot mutate our module state.
+    return list(_RANKER_DEGRADATION_REASONS)
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -203,6 +237,10 @@ class SearchResponse(BaseModel):
     results: Dict[str, List[Dict[str, Any]]]
     total: int
     query_analysis: Optional[Dict[str, Any]] = None
+    # F-07: non-None when some search subsystem is degraded (e.g. ranker
+    # unavailable). Contains short machine-readable markers such as
+    # ``"ranker_unavailable"`` — the frontend and operators key off these.
+    degraded: Optional[List[str]] = None
 
 
 class QueryAnalysisRequest(BaseModel):
@@ -1109,6 +1147,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 results={s: [] for s in request.sources},
                 total=0,
                 query_analysis={"is_academic": False, "original_query": request.query},
+                degraded=_current_degradation_markers(),
             )
 
         # Use only user-specified filters (LLM auto-filters removed — they
@@ -1186,7 +1225,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     ))
                 except Exception:
                     logger.debug("failed to emit QUERY_SUBMIT event (cache hit)", exc_info=True)
-            return SearchResponse(results=cached, total=total, query_analysis=query_analysis)
+            return SearchResponse(
+                results=cached,
+                total=total,
+                query_analysis=query_analysis,
+                degraded=_current_degradation_markers(),
+            )
 
         search_start = time.time()
         logger.info("[API] Searching for: %s", search_query)
@@ -1567,7 +1611,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             except Exception:
                 logger.debug("failed to emit QUERY_SUBMIT event", exc_info=True)
 
-        return SearchResponse(results=results, total=total, query_analysis=query_analysis)
+        return SearchResponse(
+            results=results,
+            total=total,
+            query_analysis=query_analysis,
+            degraded=_current_degradation_markers(),
+        )
 
     try:
         return await asyncio.wait_for(_run_search_pipeline(), timeout=_SEARCH_TIMEOUT)
@@ -1589,6 +1638,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 results=partial_results,
                 total=total,
                 query_analysis=_partial["query_analysis"],
+                degraded=_current_degradation_markers(),
             )
         raise HTTPException(status_code=504, detail=f"Search timed out after {_SEARCH_TIMEOUT}s")
     except Exception as e:
