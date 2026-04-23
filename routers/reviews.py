@@ -7,6 +7,7 @@ Deep review endpoints:
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -91,6 +92,57 @@ def _cleanup_expired_sessions():
             del review_sessions[sid]
     if expired:
         logger.info("Cleaned up %d expired review sessions", len(expired))
+
+
+# ── LLM safety helpers ────────────────────────────────────────────────
+#
+# Per `.claude/rules/python-style.md` ("LLM 호출 시 반드시 에러 핸들링 및 빈
+# 응답 체크"), every OpenAI completion response must be validated before
+# dereferencing `.choices[0].message.content`. The OpenAI SDK can return
+# `content=None` on policy filter, truncation, or empty model output;
+# downstream `len(content)` / JSON parsing would then raise a cryptic
+# `TypeError` that the outer `except` flattens into a useless error string.
+#
+# The retry predicate and PII-safe username hashing below are referenced
+# by both F-05 (`run_fast_review`) and F-06 (`_generate_review_report_content`).
+
+# Transient errors that should be retried in the fast-review retry loop.
+# Lowercased substrings matched against ``str(exception).lower()``.
+_RETRYABLE_ERROR_TOKENS = ("timeout", "rate_limit", "empty llm content")
+
+
+def _safe_llm_content(response: Any) -> str:
+    """Extract chat-completion text, raising ``ValueError`` on empty content.
+
+    Raises
+    ------
+    ValueError
+        If the response has no choices, no message, ``content is None``,
+        or only whitespace. The error message is exactly
+        ``"empty LLM content"`` so the retry predicate can match on it.
+    """
+    try:
+        content = response.choices[0].message.content
+    except (AttributeError, IndexError, TypeError) as exc:
+        raise ValueError("empty LLM content") from exc
+
+    if content is None or not str(content).strip():
+        raise ValueError("empty LLM content")
+
+    return str(content).strip()
+
+
+def _user_hash(username: Optional[str]) -> str:
+    """PII-safe 12-char sha256 prefix of ``username`` for log correlation.
+
+    Mirrors the pattern in ``routers/deps/user_deletion._hash_prefix`` so
+    failure logs remain greppable across modules without leaking raw
+    account identifiers. ``None`` / empty username maps to the stable
+    sentinel ``"anon"``.
+    """
+    if not username:
+        return "anon"
+    return hashlib.sha256(username.encode("utf-8")).hexdigest()[:12]
 
 
 # ── Pydantic models ───────────────────────────────────────────────────
@@ -487,8 +539,14 @@ def run_fast_review(
             {"role": "user", "content": prompt},
         ]
 
-        max_retries = 2
+        # F-05: retry on transient errors — timeout, rate_limit, AND empty
+        # content (which previously slipped through and raised a cryptic
+        # TypeError inside the success branch). Linear backoff (2s, 4s)
+        # keeps the blast radius small without importing a retry library.
+        max_retries = 3
         response = None
+        report_content: Optional[str] = None
+        last_err: Optional[Exception] = None
         for attempt in range(1, max_retries + 1):
             try:
                 response = client.chat.completions.create(
@@ -498,17 +556,36 @@ def run_fast_review(
                     max_tokens=32000,
                     timeout=api_timeout,
                 )
+                report_content = _safe_llm_content(response)
                 break
             except Exception as retry_err:
-                if "timeout" in str(retry_err).lower() and attempt < max_retries:
-                    logger.warning("[Fast Review] Attempt %d timed out, retrying...", attempt)
+                last_err = retry_err
+                err_str = str(retry_err).lower()
+                is_retryable = any(tok in err_str for tok in _RETRYABLE_ERROR_TOKENS)
+                if is_retryable and attempt < max_retries:
+                    backoff = 2 * attempt  # 2s, 4s
+                    logger.warning(
+                        "[Fast Review] Attempt %d failed (%s); retrying in %ds",
+                        attempt, retry_err.__class__.__name__, backoff,
+                    )
                     with review_sessions_lock:
                         if session_id in review_sessions:
-                            review_sessions[session_id]["progress"] = f"Retrying analysis (attempt {attempt + 1})..."
+                            review_sessions[session_id]["progress"] = (
+                                f"Retrying analysis (attempt {attempt + 1})..."
+                            )
+                    time.sleep(backoff)
                 else:
                     raise
 
-        report_content = response.choices[0].message.content
+        if report_content is None:
+            # Defensive: loop exhausted without raising. Should not happen
+            # because the else-branch above re-raises, but keeps mypy /
+            # static analysers happy and guarantees we never fall through
+            # into `len(None)`.
+            raise ValueError(
+                f"empty LLM content after {max_retries} attempts: {last_err}"
+            )
+
         logger.info("[Fast Review] Usage: %s", response.usage)
 
         logger.info("[Fast Review] Analysis done! (%s chars)", len(report_content))
@@ -551,7 +628,19 @@ def run_fast_review(
         }
 
     except Exception as e:
-        logger.exception("Fast Review error: %s", e)
+        # F-05: PII-safe username hash on failure logs so an operator can
+        # correlate with metadata.json / status endpoint without leaking
+        # raw account identifiers.
+        with review_sessions_lock:
+            uname = (
+                review_sessions[session_id].get("username")
+                if session_id in review_sessions
+                else None
+            )
+        logger.exception(
+            "Fast Review error (session=%s, user=%s): %s",
+            session_id, _user_hash(uname), e,
+        )
         return {"status": "failed", "error": str(e)}
 
 
@@ -740,29 +829,31 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
 - 각 논문의 고유한 특성과 기여를 명확히 구분해서 작성해주세요.
 - 학술 논문 수준의 깊이와 전문성을 유지해주세요."""
 
-    try:
-        deep_research_model = "gpt-4.1"
-        logger.info("[Deep Review] Generating report with LLM... (model: %s)", deep_research_model)
+    # F-06: DO NOT silently swallow LLM failures into a fallback template.
+    # Previously, any LLM exception fell through to _generate_fallback_report
+    # while the caller still marked the session "completed" with
+    # report_available=True — the client saw a success with a generic
+    # hard-coded template body and no degradation signal. Now we re-raise;
+    # the background caller catches, marks the session failed with an
+    # informative error, and leaves any partial output untouched.
+    deep_research_model = "gpt-4.1"
+    logger.info("[Deep Review] Generating report with LLM... (model: %s)", deep_research_model)
 
-        client = get_openai_client()
-        response = client.chat.completions.create(
-            model=deep_research_model,
-            messages=[
-                {"role": "system", "content": DEEP_REVIEW_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.3,
-            max_tokens=16000,
-            timeout=120,
-        )
-        report_content = response.choices[0].message.content
-        logger.info("[Deep Review] Usage: %s", response.usage)
-        logger.info("[Deep Review] Report generated! (%s chars)", len(report_content))
-        return report_content
-
-    except Exception as e:
-        logger.error("[Deep Review] LLM report generation failed: %s, using fallback template", e)
-        return _generate_fallback_report(workspace, result, paper_ids, analyses, num_papers, current_date)
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model=deep_research_model,
+        messages=[
+            {"role": "system", "content": DEEP_REVIEW_SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
+        max_tokens=16000,
+        timeout=120,
+    )
+    report_content = _safe_llm_content(response)
+    logger.info("[Deep Review] Usage: %s", response.usage)
+    logger.info("[Deep Review] Report generated! (%s chars)", len(report_content))
+    return report_content
 
 
 def _generate_fallback_report(
@@ -856,6 +947,7 @@ def run_deep_review_background(
 
         workspace_path = result.get("workspace_path", str(workspace.session_path))
 
+        report_generation_error: Optional[Exception] = None
         if not fast_mode:
             try:
                 reports_dir = Path(workspace_path) / "reports"
@@ -868,11 +960,38 @@ def run_deep_review_background(
                 report_path.write_text(report_content, encoding="utf-8")
                 logger.info("[Review] Report saved to: %s", report_path)
             except Exception as report_error:
-                logger.warning("[Deep Review] Report generation warning: %s", report_error)
+                # F-06: report-generation LLM failure is now LOUD.
+                # Previously the except above only WARNED and the block
+                # below still marked the session "completed" — client saw
+                # success with a silent fallback-template body. We capture
+                # the error here and fail the session in the status block,
+                # leaving any existing partial output (researcher analyses
+                # written elsewhere on disk) untouched.
+                report_generation_error = report_error
+                with review_sessions_lock:
+                    uname = (
+                        review_sessions[session_id].get("username")
+                        if session_id in review_sessions
+                        else None
+                    )
+                logger.exception(
+                    "[Deep Review] Report generation failed for session %s (user=%s): %s",
+                    session_id, _user_hash(uname), report_error,
+                )
 
         with review_sessions_lock:
             if session_id in review_sessions:
-                if result["status"] == "completed":
+                # F-06: if report generation raised, fail loudly rather
+                # than falsely reporting "completed" to the client. The
+                # research phase's own artefacts on disk are preserved;
+                # only the status / report_available flags are cleared.
+                if report_generation_error is not None:
+                    review_sessions[session_id]["status"] = "failed"
+                    review_sessions[session_id]["report_available"] = False
+                    review_sessions[session_id]["error"] = (
+                        f"Report generation failed: {report_generation_error}"
+                    )
+                elif result["status"] == "completed":
                     review_sessions[session_id]["status"] = "completed"
                     review_sessions[session_id]["progress"] = "Review completed"
                     review_sessions[session_id]["report_available"] = True
