@@ -7,6 +7,8 @@ import {
 } from '../api/recommendations';
 import './RecommendationBell.css';
 
+const RECOMMENDATION_TOP_LIMIT = 5;
+
 function formatDate(value?: string | null): string {
   if (!value) return '최근 추천';
   const date = new Date(value);
@@ -101,6 +103,9 @@ export default function RecommendationBell() {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const totalUniqueCount = unreadCount || items.length;
+  const displayedCount = items.length;
+  const hiddenCount = Math.max(totalUniqueCount - displayedCount, 0);
 
   useEffect(() => {
     if (!open) return;
@@ -129,7 +134,7 @@ export default function RecommendationBell() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchRecommendationNotifications(12)
+    fetchRecommendationNotifications(RECOMMENDATION_TOP_LIMIT)
       .then((data) => {
         if (cancelled) return;
         setItems(data.grouped_items?.length ? data.grouped_items : legacyToGrouped(data.items));
@@ -190,14 +195,16 @@ export default function RecommendationBell() {
           <div className="recommendation-panel-header">
             <div>
               <p className="recommendation-eyebrow">오늘의 추천</p>
-              <h2>추천 논문 {unreadCount > 0 ? `${unreadCount}편` : ''}</h2>
+              <h2>추천 논문 Top {RECOMMENDATION_TOP_LIMIT}</h2>
             </div>
             <span>{formatDate(latestRunAt)}</span>
           </div>
 
           <div className="recommendation-summary" aria-label="추천 요약">
+            {displayedCount > 0 && <span>상위 {displayedCount}편 표시</span>}
             <span>{scoringModeLabel(scoringMode)}</span>
             {rawCount > unreadCount && <span>중복 {rawCount - unreadCount}개 병합</span>}
+            {hiddenCount > 0 && <span>전체 {totalUniqueCount}편 중 선별</span>}
           </div>
 
           {loading && <div className="recommendation-empty" role="status">추천 논문을 정리하는 중...</div>}

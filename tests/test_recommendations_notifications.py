@@ -149,3 +149,39 @@ def test_load_notifications_groups_duplicate_papers_across_variants(tmp_path: Pa
     assert grouped["display_score"] == "5.0"
     assert grouped["top_reason"] == "키워드 기준 추천"
     assert [v["variant"] for v in grouped["variants"]] == ["keywords", "soul"]
+
+
+def test_load_notifications_limits_grouped_items_by_highest_score(tmp_path: Path) -> None:
+    day = tmp_path / "2026-04-25"
+    day.mkdir()
+    papers = [
+        {
+            "paper_id": f"paper-{idx}",
+            "title": f"Paper {idx}",
+            "score": float(idx),
+            "reason": f"{idx}점 추천",
+        }
+        for idx in range(1, 8)
+    ]
+    (day / "raw.json").write_text(
+        json.dumps(
+            {
+                "run_at": "2026-04-25T09:00:00",
+                "user_id": "alice",
+                "variants": {"keywords": papers},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    response = load_recommendation_artifact(tmp_path, "alice", limit=5)
+
+    assert response["unread_count"] == 7
+    assert [item["title"] for item in response["grouped_items"]] == [
+        "Paper 7",
+        "Paper 6",
+        "Paper 5",
+        "Paper 4",
+        "Paper 3",
+    ]
