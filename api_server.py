@@ -45,6 +45,7 @@ from routers import (
     blog_router,
     topology_router,
     me_router,
+    recommendations_router,
 )
 from routers.deps import api_key, limiter
 
@@ -254,6 +255,7 @@ _API_CAPABILITIES: list[str] = [
     "explore",
     "autofigure",
     "blog",
+    "recommendations",
 ]
 
 
@@ -296,6 +298,7 @@ app.include_router(autofigure_router)
 app.include_router(blog_router)
 app.include_router(topology_router)
 app.include_router(me_router)
+app.include_router(recommendations_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

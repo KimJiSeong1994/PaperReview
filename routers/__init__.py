@@ -21,6 +21,7 @@ from .autofigure import router as autofigure_router
 from .blog import router as blog_router
 from .topology import router as topology_router
 from .me import router as me_router
+from .recommendations import router as recommendations_router
 
 __all__ = [
     "auth_router",
@@ -40,4 +41,5 @@ __all__ = [
     "blog_router",
     "topology_router",
     "me_router",
+    "recommendations_router",
 ]
