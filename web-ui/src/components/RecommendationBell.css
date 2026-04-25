@@ -101,7 +101,7 @@
 }
 
 .recommendation-summary span,
-.recommendation-actions span,
+.recommendation-signals span,
 .recommendation-variant-chip {
   display: inline-flex;
   align-items: center;
@@ -132,8 +132,7 @@
 }
 
 .recommendation-item:hover,
-.recommendation-item:focus-visible {
-  outline: none;
+.recommendation-item:focus-within {
   border-color: rgba(165, 180, 252, 0.34);
   background: rgba(99, 102, 241, 0.08);
   transform: translateY(-1px);
@@ -193,21 +192,56 @@
   -webkit-box-orient: vertical;
 }
 
-.recommendation-actions {
+.recommendation-signals {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
 }
 
-.recommendation-actions span {
+.recommendation-signals span {
   background: rgba(255, 255, 255, 0.055);
   color: #aeb7ca;
 }
 
-.recommendation-actions .recommendation-open-label {
-  background: rgba(129, 140, 248, 0.16);
-  color: #dbe2ff;
+.recommendation-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.recommendation-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.recommendation-actions button:hover,
+.recommendation-actions button:focus-visible {
+  outline: none;
+  border-color: rgba(165, 180, 252, 0.38);
+  background: rgba(129, 140, 248, 0.14);
+  color: #eef2ff;
+  transform: translateY(-1px);
+}
+
+.recommendation-actions .recommendation-action-primary {
+  border-color: rgba(129, 140, 248, 0.25);
+  background: rgba(129, 140, 248, 0.18);
+  color: #e0e7ff;
 }
 
 .recommendation-empty {
@@ -235,5 +269,9 @@
   .recommendation-bell-btn {
     width: 44px;
     height: 44px;
+  }
+
+  .recommendation-actions {
+    grid-template-columns: 1fr;
   }
 }

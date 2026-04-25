@@ -229,6 +229,7 @@ function MyPage({ onBack }: MyPageProps) {
                       year: directPaper.year,
                       pdf_url: directPaper.pdf_url || undefined,
                       doi: directPaper.doi || undefined,
+                      arxiv_id: directPaper.arxiv_id || undefined,
                       url: directPaper.url || undefined,
                       source: directPaper.source || undefined,
                     }]}}

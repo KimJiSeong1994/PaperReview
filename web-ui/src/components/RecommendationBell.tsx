@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   fetchRecommendationNotifications,
   type RecommendationNotification,
@@ -33,6 +34,19 @@ function scoringModeLabel(value?: string | null): string {
 
 function paperHref(item: RecommendationPaperNotification): string | undefined {
   return item.url || item.pdf_url || (item.doi ? `https://doi.org/${item.doi}` : undefined);
+}
+
+function toViewerPaper(item: RecommendationPaperNotification) {
+  return {
+    title: item.title,
+    authors: item.authors || [],
+    year: item.year ?? undefined,
+    pdf_url: item.pdf_url || undefined,
+    doi: item.doi || undefined,
+    arxiv_id: item.arxiv_id || undefined,
+    url: item.url || undefined,
+    source: item.source || undefined,
+  };
 }
 
 function legacyToGrouped(items: RecommendationNotification[]): RecommendationPaperNotification[] {
@@ -74,6 +88,7 @@ function metaLine(item: RecommendationPaperNotification): string {
 }
 
 export default function RecommendationBell() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<RecommendationPaperNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -135,6 +150,23 @@ export default function RecommendationBell() {
     };
   }, [open]);
 
+  const handleViewPdf = (item: RecommendationPaperNotification) => {
+    setOpen(false);
+    navigate('/mypage', { state: { viewPaper: toViewerPaper(item) } });
+  };
+
+  const handleSearchPaper = (item: RecommendationPaperNotification) => {
+    setOpen(false);
+    navigate(`/?q=${encodeURIComponent(item.title)}`);
+  };
+
+  const handleOpenSource = (item: RecommendationPaperNotification) => {
+    const href = paperHref(item);
+    if (!href) return;
+    setOpen(false);
+    window.open(href, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="recommendation-bell" ref={rootRef}>
       <button
@@ -179,8 +211,8 @@ export default function RecommendationBell() {
               {items.map((item) => {
                 const href = paperHref(item);
                 const itemMeta = metaLine(item);
-                const content = (
-                  <>
+                return (
+                  <article className="recommendation-item" key={item.id}>
                     <div className="recommendation-item-topline">
                       <div className="recommendation-variant-stack">
                         {item.variants.map((variant) => (
@@ -195,20 +227,38 @@ export default function RecommendationBell() {
                     <h3>{item.title}</h3>
                     {itemMeta && <p className="recommendation-meta">{itemMeta}</p>}
                     {item.top_reason && <p className="recommendation-reason">{item.top_reason}</p>}
-                    <div className="recommendation-actions" aria-label="논문 링크">
+                    <div className="recommendation-signals" aria-label="논문 식별 정보">
                       {item.source && <span>{item.source}</span>}
                       {item.arxiv_id && <span>arXiv</span>}
                       {item.doi && <span>DOI</span>}
-                      {href && <span className="recommendation-open-label">열기 ↗</span>}
                     </div>
-                  </>
-                );
-                return href ? (
-                  <a className="recommendation-item" href={href} target="_blank" rel="noreferrer" key={item.id}>
-                    {content}
-                  </a>
-                ) : (
-                  <article className="recommendation-item" key={item.id}>{content}</article>
+                    <div className="recommendation-actions" aria-label={`${item.title} 작업`}>
+                      <button
+                        type="button"
+                        className="recommendation-action-primary"
+                        onClick={() => handleViewPdf(item)}
+                        title="집현전 PDF 뷰어에서 보기"
+                      >
+                        PDF 보기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSearchPaper(item)}
+                        title="이 논문 제목으로 관련 논문 검색"
+                      >
+                        관련 검색
+                      </button>
+                      {href && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSource(item)}
+                          title="외부 원문 페이지 열기"
+                        >
+                          원문 열기 ↗
+                        </button>
+                      )}
+                    </div>
+                  </article>
                 );
               })}
             </div>
