@@ -17,3 +17,4 @@ export * from './admin';
 export * from './blog';
 export * from './pdf';
 export * from './topology';
+export * from './recommendations';

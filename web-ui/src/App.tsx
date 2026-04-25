@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
+import RecommendationBell from './components/RecommendationBell';
 import { useAuth } from './contexts/AuthContext';
 
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -108,6 +109,7 @@ function App() {
                     <span className="brand-name">Jiphyeonjeon</span>
                   </div>
                   <div className="header-actions">
+                    {isAuthenticated && <RecommendationBell />}
                     {isAuthenticated && userRole === 'admin' && (
                       <button className="nav-btn" onClick={() => navigate('/admin')}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>

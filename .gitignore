@@ -230,6 +230,8 @@ __marimo__/
 .npm-cache/
 .npm-cache/*.pem
 *.pem
+.pycache_tmp/
+outputs/
 
 
 .omc
@@ -242,4 +244,3 @@ _workspace/
 
 # Frontend development cache (LLM responses, search cache from dev sessions)
 web-ui/data/cache/
-

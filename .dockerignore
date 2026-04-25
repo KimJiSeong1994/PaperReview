@@ -15,3 +15,10 @@ web-ui/dist
 .pytest_cache
 .mypy_cache
 .ruff_cache
+.npm-cache
+.omc
+.omx
+AGENTS.md
+_workspace
+outputs
+.pycache_tmp
