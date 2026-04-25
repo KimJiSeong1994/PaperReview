@@ -8,6 +8,17 @@ from pathlib import Path
 from typing import Any
 
 
+EMPTY_RECOMMENDATIONS: dict[str, Any] = {
+    "items": [],
+    "grouped_items": [],
+    "unread_count": 0,
+    "raw_count": 0,
+    "latest_run_at": None,
+    "scoring_mode": None,
+    "score_stats": {},
+}
+
+
 def safe_str(value: Any) -> str:
     return str(value).strip() if value is not None else ""
 
@@ -27,6 +38,38 @@ def coerce_authors(value: Any) -> list[str]:
     if isinstance(value, str) and value.strip():
         return [part.strip() for part in value.split(",") if part.strip()][:6]
     return []
+
+
+def coerce_score(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def coerce_rank(value: Any) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def display_score(score: float | None) -> str | None:
+    if score is None:
+        return None
+    return f"{score:.1f}"
+
+
+def confidence_label(score: float | None, rank: int | None) -> str:
+    if rank == 1:
+        return "상위 추천"
+    if score is None:
+        return "추천"
+    if score >= 4.5:
+        return "강한 추천"
+    if score >= 3.5:
+        return "관련도 높음"
+    return "검토 추천"
 
 
 def parse_run_at(raw: dict[str, Any], fallback_path: Path) -> str:
@@ -66,27 +109,119 @@ def latest_raw_file(root: Path, username: str) -> Path | None:
     return None
 
 
+def _sort_key(item: dict[str, Any]) -> tuple[float, int]:
+    score = item.get("score")
+    rank = item.get("rank")
+    return (
+        score if isinstance(score, (int, float)) else -1,
+        -(rank if isinstance(rank, int) else 9999),
+    )
+
+
+def _paper_row(run_at: str, variant: str, item: dict[str, Any]) -> dict[str, Any]:
+    title = safe_str(item.get("title")) or "Untitled paper"
+    item_id = paper_id(item)
+    score = coerce_score(item.get("score"))
+    rank = coerce_rank(item.get("rank"))
+    label = confidence_label(score, rank)
+    return {
+        "id": f"{run_at}:{variant}:{item_id}",
+        "paper_id": item_id,
+        "title": title,
+        "reason": safe_str(item.get("reason")),
+        "variant": str(variant),
+        "run_at": run_at,
+        "score": score,
+        "display_score": display_score(score),
+        "confidence_label": label,
+        "rank": rank,
+        "year": item.get("year"),
+        "authors": coerce_authors(item.get("authors")),
+        "venue": safe_str(item.get("venue")) or None,
+        "source": safe_str(item.get("source")) or None,
+        "url": safe_str(item.get("url")) or None,
+        "pdf_url": safe_str(item.get("pdf_url")) or None,
+        "doi": safe_str(item.get("doi")) or None,
+        "arxiv_id": safe_str(item.get("arxiv_id")) or None,
+    }
+
+
+def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in items:
+        group = grouped.setdefault(
+            row["paper_id"],
+            {
+                "id": f"{run_at}:{row['paper_id']}",
+                "paper_id": row["paper_id"],
+                "title": row["title"],
+                "top_reason": "",
+                "run_at": row["run_at"],
+                "score": row["score"],
+                "display_score": row["display_score"],
+                "confidence_label": row["confidence_label"],
+                "rank": row["rank"],
+                "year": row["year"],
+                "authors": row["authors"],
+                "venue": row["venue"],
+                "source": row["source"],
+                "url": row["url"],
+                "pdf_url": row["pdf_url"],
+                "doi": row["doi"],
+                "arxiv_id": row["arxiv_id"],
+                "variants": [],
+            },
+        )
+        if _sort_key(row) > _sort_key(group):
+            for key in (
+                "title",
+                "score",
+                "display_score",
+                "confidence_label",
+                "rank",
+                "year",
+                "authors",
+                "venue",
+                "source",
+                "url",
+                "pdf_url",
+                "doi",
+                "arxiv_id",
+            ):
+                group[key] = row[key]
+        if row["reason"] and not group["top_reason"]:
+            group["top_reason"] = row["reason"]
+        group["variants"].append(
+            {
+                "variant": row["variant"],
+                "reason": row["reason"],
+                "score": row["score"],
+                "display_score": row["display_score"],
+                "confidence_label": row["confidence_label"],
+                "rank": row["rank"],
+            }
+        )
+
+    groups = list(grouped.values())
+    for group in groups:
+        group["variants"].sort(key=_sort_key, reverse=True)
+    groups.sort(key=_sort_key, reverse=True)
+    return groups
+
+
+def empty_response() -> dict[str, Any]:
+    return dict(EMPTY_RECOMMENDATIONS)
+
+
 def load_recommendation_artifact(root: Path, username: str, limit: int) -> dict[str, Any]:
     raw_path = latest_raw_file(root, username)
     if raw_path is None:
-        return {
-            "items": [],
-            "unread_count": 0,
-            "latest_run_at": None,
-            "scoring_mode": None,
-            "score_stats": {},
-        }
+        return empty_response()
 
     try:
         raw = json.loads(raw_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {
-            "items": [],
-            "unread_count": 0,
-            "latest_run_at": None,
-            "scoring_mode": None,
-            "score_stats": {},
-        }
+        return empty_response()
 
     run_at = parse_run_at(raw, raw_path)
     items: list[dict[str, Any]] = []
@@ -95,50 +230,16 @@ def load_recommendation_artifact(root: Path, username: str, limit: int) -> dict[
         if not isinstance(papers, list):
             continue
         for item in papers:
-            if not isinstance(item, dict):
-                continue
-            title = safe_str(item.get("title")) or "Untitled paper"
-            item_id = paper_id(item)
-            score = item.get("score")
-            rank = item.get("rank")
-            try:
-                score = float(score) if score is not None else None
-            except (TypeError, ValueError):
-                score = None
-            try:
-                rank = int(rank) if rank is not None else None
-            except (TypeError, ValueError):
-                rank = None
-            items.append(
-                {
-                    "id": f"{run_at}:{variant}:{item_id}",
-                    "title": title,
-                    "reason": safe_str(item.get("reason")),
-                    "variant": str(variant),
-                    "run_at": run_at,
-                    "score": score,
-                    "rank": rank,
-                    "year": item.get("year"),
-                    "authors": coerce_authors(item.get("authors")),
-                    "venue": safe_str(item.get("venue")) or None,
-                    "source": safe_str(item.get("source")) or None,
-                    "url": safe_str(item.get("url")) or None,
-                    "pdf_url": safe_str(item.get("pdf_url")) or None,
-                    "doi": safe_str(item.get("doi")) or None,
-                    "arxiv_id": safe_str(item.get("arxiv_id")) or None,
-                }
-            )
+            if isinstance(item, dict):
+                items.append(_paper_row(run_at, str(variant), item))
 
-    items.sort(
-        key=lambda x: (
-            x["score"] if x["score"] is not None else -1,
-            -(x["rank"] or 9999),
-        ),
-        reverse=True,
-    )
+    items.sort(key=_sort_key, reverse=True)
+    grouped_items = _group_items(items, run_at)
     return {
         "items": items[:limit],
-        "unread_count": len(items),
+        "grouped_items": grouped_items[:limit],
+        "unread_count": len(grouped_items),
+        "raw_count": len(items),
         "latest_run_at": run_at or None,
         "scoring_mode": safe_str(raw.get("scoring_mode")) or None,
         "score_stats": raw.get("score_stats") if isinstance(raw.get("score_stats"), dict) else {},

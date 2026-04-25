@@ -9,10 +9,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: #9ca3af;
   cursor: pointer;
@@ -20,7 +20,9 @@
 }
 
 .recommendation-bell-btn:hover,
+.recommendation-bell-btn:focus-visible,
 .recommendation-bell-btn-active {
+  outline: none;
   background: rgba(255, 255, 255, 0.05);
   color: #ececec;
 }
@@ -32,8 +34,8 @@
 
 .recommendation-bell-dot {
   position: absolute;
-  top: 7px;
-  right: 7px;
+  top: 8px;
+  right: 8px;
   width: 7px;
   height: 7px;
   border-radius: 999px;
@@ -46,15 +48,19 @@
   top: calc(100% + 10px);
   right: 0;
   z-index: 300;
-  width: min(380px, calc(100vw - 32px));
-  max-height: min(620px, calc(100vh - 96px));
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 96px));
   overflow: auto;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(24, 24, 24, 0.98);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(16px);
+}
+
+.recommendation-panel:focus {
+  outline: none;
 }
 
 .recommendation-panel-header {
@@ -69,7 +75,7 @@
   margin: 0;
   color: #fff;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: -0.2px;
 }
 
@@ -80,34 +86,44 @@
 }
 
 .recommendation-eyebrow {
-  margin: 0 0 2px;
+  margin: 0 0 3px;
   color: #818cf8;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.recommendation-mode {
+.recommendation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 2px 12px;
+}
+
+.recommendation-summary span,
+.recommendation-actions span,
+.recommendation-variant-chip {
   display: inline-flex;
-  margin: 0 2px 10px;
+  align-items: center;
+  min-height: 22px;
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(99, 102, 241, 0.12);
   color: #c7d2fe;
   font-size: 11px;
+  line-height: 1.2;
 }
 
 .recommendation-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
 .recommendation-item {
   display: block;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 13px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.035);
   color: inherit;
@@ -115,35 +131,47 @@
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-.recommendation-item:hover {
-  border-color: rgba(165, 180, 252, 0.32);
+.recommendation-item:hover,
+.recommendation-item:focus-visible {
+  outline: none;
+  border-color: rgba(165, 180, 252, 0.34);
   background: rgba(99, 102, 241, 0.08);
   transform: translateY(-1px);
 }
 
 .recommendation-item-topline {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   color: #a5b4fc;
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .recommendation-item-topline strong {
+  flex: 0 0 auto;
   color: #e0e7ff;
-  font-weight: 600;
+  font-weight: 650;
+}
+
+.recommendation-variant-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.recommendation-variant-chip {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7ddff;
 }
 
 .recommendation-item h3 {
   margin: 0;
   color: #f3f4f6;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.38;
   letter-spacing: -0.1px;
 }
 
@@ -155,19 +183,57 @@
 }
 
 .recommendation-reason {
+  display: -webkit-box;
   margin: 8px 0 0;
+  overflow: hidden;
   color: #d1d5db;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.48;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.recommendation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.recommendation-actions span {
+  background: rgba(255, 255, 255, 0.055);
+  color: #aeb7ca;
+}
+
+.recommendation-actions .recommendation-open-label {
+  background: rgba(129, 140, 248, 0.16);
+  color: #dbe2ff;
 }
 
 .recommendation-empty {
-  padding: 28px 10px;
+  padding: 30px 12px;
   color: #9ca3af;
   font-size: 13px;
+  line-height: 1.5;
   text-align: center;
 }
 
 .recommendation-error {
   color: #fca5a5;
+}
+
+@media (max-width: 560px) {
+  .recommendation-panel {
+    position: fixed;
+    right: 12px;
+    left: 12px;
+    top: 72px;
+    width: auto;
+    max-height: calc(100vh - 96px);
+  }
+
+  .recommendation-bell-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
