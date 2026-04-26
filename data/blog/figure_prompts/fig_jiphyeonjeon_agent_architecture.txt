@@ -1,0 +1,60 @@
+Create a 16:9 academic engineering blog architecture diagram that visually matches the existing Jiphyeonjeon blog figures.
+
+STRICT STYLE MATCH TO EXISTING BLOG FIGURES:
+- Warm off-white / cream paper background (#f7f1e8 style), not dark mode.
+- Pastel rounded rectangles only: light blue, pale yellow, soft orange, light green, lavender, light gray.
+- Medium-gray outlines around blocks; thick black directional arrows with simple triangular arrowheads.
+- Bold black sans-serif section titles and clear readable Korean/English technical labels.
+- Information-rich but calm, like a Korean engineering blog explainer figure, not a conference title slide.
+- No giant title banner. Keep all content inside canvas margins. Avoid cropped text at edges.
+- Use compact labels and chips; no paragraphs inside blocks.
+
+FIGURE TITLE, SMALL TOP-LEFT ONLY:
+Jiphyeonjeon Agent Architecture
+
+COMMUNICATION GOAL:
+Show the current architecture: a researcher uses Jiphyeonjeon Web UI, explicitly copies the current Agent Key/login token, pastes it into an external MCP Host, and the MCP Agent uses JIPHYEONJEON_TOKEN for authenticated calls to the Jiphyeonjeon API Server.
+
+BALANCED LAYOUT:
+Use a two-row, balanced architecture layout with generous margins.
+Top row: human/web context.
+Bottom row: agent/API context.
+
+Top row blocks:
+1. Light-gray rounded block: "Researcher"
+   chips: reads papers, saves bookmarks, asks follow-up
+2. Light-blue rounded block: "Jiphyeonjeon Web UI"
+   chips: Search, PDF View, Bookmarks, Deep Review, Recommendations, My Page
+3. Pale-yellow small block attached to Web UI: "Agent Key"
+   text: copy current login token
+
+Bottom row blocks:
+4. Pale-yellow rounded block: "MCP Host"
+   chips: Claude Desktop, Claude Code, local runtime
+5. Soft-orange rounded block: "Jiphyeonjeon MCP Agent"
+   chips: reads JIPHYEONJEON_TOKEN, maps API to tools, keeps authenticated context
+6. Light-green rounded block: "Jiphyeonjeon API Server"
+   chips only: search, papers, bookmarks, recommendations
+   small note: more capabilities via /api/version
+
+Arrows:
+- Researcher -> Jiphyeonjeon Web UI labeled "daily research workflow"
+- Researcher -> MCP Host labeled "asks external agent"
+- Agent Key -> MCP Host: dashed thick black arrow labeled "explicit copy/paste"
+- MCP Host -> MCP Agent labeled "tool calls"
+- MCP Agent -> API Server labeled "authenticated API calls"
+- API Server -> MCP Agent: thin return arrow labeled "JSON results"
+
+Bottom callout strip, light gray, short and readable:
+"Current scope: login-token bridge, not a dedicated scoped API-key product"
+
+ACCURACY CONSTRAINTS:
+- Do not imply browser localStorage auto-read by the agent.
+- Do not imply a permanent dedicated API key already exists.
+- Do not imply scopes, revoke UI, or audit logs already exist.
+- Do not duplicate capability chips.
+- Do not show dark/cyber style or glowing arrows.
+- Keep all labels within block boundaries and avoid edge cropping.
+
+NEGATIVE STYLE CONSTRAINTS:
+Avoid dark background, charcoal/navy canvas, grid texture, cyan glowing arrows, neon accents, futuristic dashboard, glassmorphism, slide deck cover style, huge title banner, tiny dense text, photorealism, 3D, logos, mascots, duplicate chips, random extra modules.

@@ -1,0 +1,57 @@
+Create a 16:9 academic engineering blog security-flow diagram that visually matches the existing Jiphyeonjeon blog figures.
+
+STRICT STYLE MATCH TO EXISTING BLOG FIGURES:
+- warm off-white / cream paper background, not dark mode
+- pastel rounded rectangles and callout boxes
+- thick black arrows with simple arrowheads
+- bold black sans-serif labels, readable body text
+- muted amber warning callouts, not cyber/neon styling
+- simple black line icons only if helpful: user, key, clipboard, terminal, lock
+- information-rich but clean, like existing Jiphyeonjeon pipeline diagrams
+- no charcoal background, no cyan neon, no glossy cards, no dramatic security imagery
+
+FIGURE TITLE:
+Agent Key Authentication Flow
+
+COMMUNICATION GOAL:
+Explain the current minimal authentication bridge: the user copies the current login access_token from My Page and pastes it into the MCP host as JIPHYEONJEON_TOKEN, allowing authenticated API calls. Also show that scoped agent tokens are future work.
+
+MAIN FLOW:
+Use a single left-to-right row of seven rounded pastel boxes connected by thick black arrows:
+1. Gray box: "Login"
+   small text: "user session"
+2. Light-blue box: "My Page"
+   small text: "Agent Key button"
+3. Pale-yellow box: "Click Agent Key"
+4. Soft-orange box: "Copy access_token"
+   small warning chip: "no token logging"
+5. Lavender box: "MCP Host env"
+   small text: "paste manually"
+6. Light-green box: "JIPHYEONJEON_TOKEN"
+7. Gray output box: "Authenticated API calls"
+
+Middle caution strip, muted amber:
+"Current implementation: login JWT transfer"
+"Not a dedicated scoped API key yet"
+
+Bottom comparison table with two columns:
+Left column title: "Current Agent Key"
+- current login token
+- lifetime follows session/token policy
+- explicit copy/paste
+
+Right column title: "Future Agent Token"
+- separate issuance
+- scopes
+- revoke
+- audit log
+
+ACCURACY CONSTRAINTS:
+- Do not present current Agent Key as a permanent API key.
+- Do not claim scopes, revoke UI, or audit logs exist today.
+- Do not break or misspell JIPHYEONJEON_TOKEN.
+- Avoid rendering long paragraphs or prompt instructions in the image.
+
+
+NEGATIVE STYLE CONSTRAINTS:
+Avoid dark background, charcoal/navy canvas, grid texture, cyan glowing arrows, neon accents, futuristic dashboard, slide deck style, tiny dense text, oversized title banner, photorealism, 3D, logos, mascots.

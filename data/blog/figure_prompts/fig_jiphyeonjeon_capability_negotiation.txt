@@ -1,0 +1,58 @@
+Create a 16:9 academic engineering blog flow diagram that visually matches the existing Jiphyeonjeon blog figures.
+
+STRICT STYLE MATCH TO EXISTING BLOG FIGURES:
+- Warm off-white / cream paper background, not dark mode.
+- Pastel rounded rectangles: light blue, pale yellow, soft orange, light green, lavender, light gray.
+- Medium-gray outlines; thick black arrows for main flow; dashed black arrows only for fallback.
+- Bold black sans-serif headings; readable short labels; compact chips.
+- Calm technical explainer style with medium information density, similar to Korean blog pipeline diagrams.
+- No lane columns that leave empty space. No giant title banner. Keep everything inside canvas margins.
+
+FIGURE TITLE, SMALL TOP-LEFT ONLY:
+Capability Negotiation Flow
+
+COMMUNICATION GOAL:
+Show that the MCP Agent first asks the server what it supports, filters those capabilities against the client tool set, registers only available tools, and falls back to a conservative baseline if /api/version is unavailable.
+
+LAYOUT:
+Use a centered 6-step flow with numbered pastel boxes arranged in two rows.
+Top row: steps 1 to 3.
+Bottom row: steps 4 to 6.
+Use curved or elbow arrows so the flow is clear and not cramped.
+
+Step boxes:
+1. Light-gray box: "1. Host starts agent"
+   small text: MCP Host
+2. Light-blue box: "2. GET /api/version"
+   small text: MCP Agent asks API Server
+3. Pale-yellow response card: "3. Server response"
+   fields: version, mcp_min_client, capabilities[]
+   chips: search, papers, bookmarks, recommendations
+4. Soft-orange decision/filter box: "4. Filter supported capabilities"
+   small text: server list × client tool set
+5. Light-green result box: "5. Register tools"
+   chips only: search, papers, bookmarks, recommendations
+   small text: available tools only
+6. Lavender fallback box: "Fallback baseline"
+   small text: if /api/version unavailable
+
+Arrows:
+- 1 -> 2 labeled "start"
+- 2 -> 3 labeled "request"
+- 3 -> 4 labeled "capabilities[]"
+- 4 -> 5 labeled "register available tools only"
+- 4 -> 6 dashed arrow labeled "safe fallback"
+
+Bottom note strip, light gray:
+"Why this matters: agents should not expose tools the server cannot run."
+
+ACCURACY CONSTRAINTS:
+- Registered Tools must show only actually registered/available example tools: search, papers, bookmarks, recommendations.
+- Do not show unsupported tools as registered.
+- Clearly distinguish server-advertised capabilities from registered tools.
+- Fallback must look safe and conservative, not like an error state.
+- Spell API path exactly: /api/version.
+- Keep labels short; avoid paragraphs and random extra text.
+
+NEGATIVE STYLE CONSTRAINTS:
+Avoid dark background, charcoal/navy canvas, grid texture, cyan glowing arrows, neon accents, futuristic dashboard, glassmorphism, slide deck cover style, giant title banner, empty vertical lanes, tiny dense text, photorealism, 3D, logos, mascots, random unsupported tools.
