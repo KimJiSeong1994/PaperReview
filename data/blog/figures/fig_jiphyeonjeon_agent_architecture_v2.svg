@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111827"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .h { font: 700 25px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .b { font: 500 19px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .s { font: 500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #4b5563; }
+      .tiny { font: 500 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #4b5563; }
+      .mono { font: 600 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #111827; }
+      .chip { font: 600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#f7f1e8"/>
+
+<text x="60" y="58" class="title">Jiphyeonjeon Agent: three boundaries</text>
+<rect x="80" y="140" width="300" height="160" rx="24" fill="#f3f4f6" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="104" y="182" class="h">Researcher</text>
+<text x="104" y="214" class="s">reads, saves, asks</text>
+<rect x="104" y="246" width="72" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="140.0" y="266" class="chip" text-anchor="middle">Search</text>
+<rect x="186" y="246" width="70" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="221.0" y="266" class="chip" text-anchor="middle">PDF</text>
+<rect x="266" y="246" width="72" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="302.0" y="266" class="chip" text-anchor="middle">Review</text>
+<rect x="500" y="120" width="430" height="200" rx="24" fill="#dbeafe" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="524" y="162" class="h">Jiphyeonjeon Web UI</text>
+<text x="524" y="194" class="s">human-facing research workspace</text>
+<rect x="524" y="226" width="72" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="560.0" y="246" class="chip" text-anchor="middle">Search</text>
+<rect x="606" y="226" width="88" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="650.0" y="246" class="chip" text-anchor="middle">PDF View</text>
+<rect x="704" y="226" width="96" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="752.0" y="246" class="chip" text-anchor="middle">Bookmarks</text>
+<rect x="810" y="226" width="80" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="850.0" y="246" class="chip" text-anchor="middle">My Page</text>
+<rect x="1010" y="130" width="360" height="170" rx="24" fill="#fef3c7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="1034" y="172" class="h">Agent Key</text>
+<text x="1034" y="204" class="s">copy current login JWT</text>
+<text x="1034" y="228" class="s">explicit user action</text>
+<rect x="1034" y="260" width="136" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="1102.0" y="280" class="chip" text-anchor="middle">not scoped key</text>
+<rect x="110" y="520" width="360" height="180" rx="24" fill="#ede9fe" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="134" y="562" class="h">MCP Host</text>
+<text x="134" y="594" class="s">Claude Desktop / Claude Code</text>
+<rect x="134" y="626" width="120" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="194.0" y="646" class="chip" text-anchor="middle">starts agent</text>
+<rect x="264" y="626" width="152" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="340.0" y="646" class="chip" text-anchor="middle">sends tool calls</text>
+<rect x="600" y="500" width="390" height="220" rx="24" fill="#fed7aa" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="624" y="542" class="h">Jiphyeonjeon MCP Agent</text>
+<text x="624" y="574" class="s">external adapter / future component</text>
+<rect x="624" y="606" width="112" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="680.0" y="626" class="chip" text-anchor="middle">reads token</text>
+<rect x="746" y="606" width="176" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="834.0" y="626" class="chip" text-anchor="middle">checks /api/version</text>
+<rect x="624" y="646" width="104" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="676.0" y="666" class="chip" text-anchor="middle">maps tools</text>
+<rect x="1110" y="500" width="380" height="220" rx="24" fill="#dcfce7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="1134" y="542" class="h">Jiphyeonjeon API Server</text>
+<text x="1134" y="574" class="s">implemented API surface</text>
+<rect x="1134" y="606" width="80" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="1174.0" y="626" class="chip" text-anchor="middle">version</text>
+<rect x="1224" y="606" width="72" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="1260.0" y="626" class="chip" text-anchor="middle">papers</text>
+<rect x="1306" y="606" width="96" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="1354.0" y="626" class="chip" text-anchor="middle">bookmarks</text>
+<rect x="1134" y="646" width="144" height="30" rx="15" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+<text x="1206.0" y="666" class="chip" text-anchor="middle">recommendations</text>
+<path d="M 380 220 L 500 220" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="345.0" y="196.0" width="190" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="440.0" y="218.0" class="tiny" text-anchor="middle">daily workflow</text>
+<path d="M 230 300 L 230 430 L 290 520" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="115" y="406" width="230" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="230" y="428" class="tiny" text-anchor="middle">asks agent</text>
+<path d="M 1190 300 L 1190 390 L 290 390 L 290 520" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="10 8"/>
+<rect x="175" y="366" width="230" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="290" y="388" class="tiny" text-anchor="middle">manual copy/paste</text>
+<path d="M 470 610 L 600 610" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="440.0" y="586.0" width="190" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="535.0" y="608.0" class="tiny" text-anchor="middle">tool calls</text>
+<path d="M 990 610 L 1110 610" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="955.0" y="586.0" width="190" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="1050.0" y="608.0" class="tiny" text-anchor="middle">API calls</text>
+<path d="M 1110 675 L 990 675" fill="none" stroke="#6b7280" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow-gray)"/>
+<rect x="955.0" y="651.0" width="190" height="34" rx="17" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+<text x="1050.0" y="673.0" class="tiny" text-anchor="middle">JSON results</text>
+<rect x="120" y="790" width="1360" height="58" rx="20" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+<text x="144" y="826" class="b">Current scope: Agent Key UX + MCP-friendly API surface; full MCP Agent/tool schemas are separate work.</text>
+</svg>
