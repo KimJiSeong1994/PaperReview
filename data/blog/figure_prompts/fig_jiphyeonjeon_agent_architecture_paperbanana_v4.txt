@@ -1,0 +1,30 @@
+Create a 16:9 Korean engineering blog architecture diagram in the existing Jiphyeonjeon / Paper Banana visual style: warm off-white paper background, pastel rounded rectangles, medium-gray outlines, thick black arrows, readable Korean+English labels, calm academic explainer style, no dark/neon/glassmorphism.
+
+Topic: Jiphyeonjeon Agent architecture and design boundaries.
+
+Must show these components as separate boxes:
+1. Researcher / 연구자: reads papers, saves bookmarks, asks agent follow-up.
+2. Web UI / 웹 연구 화면: Search, PDF View, Bookmarks, My Page. This is the human-facing app.
+3. Agent Key / 인증 경계: explicit copy of current login access_token. Label clearly: "not scoped API key" / "전용 API Key 아님".
+4. MCP Host / 외부 실행 환경: Claude Desktop, Claude Code, local runtime.
+5. Jiphyeonjeon MCP Agent: adapter / future component that reads token, checks /api/version, maps API functions to MCP tools.
+6. Jiphyeonjeon API Server: split into two visual groups:
+   - Implemented in this step: GET /api/version, GET /api/papers/{paper_id}
+   - Existing/future MCP tool surfaces: bookmarks, recommendations, deep_review, curriculum, blog, autofigure
+
+Arrows:
+- Researcher -> Web UI: daily workflow
+- Web UI -> API Server: normal app API calls
+- Agent Key -> MCP Host: manual copy/paste, dashed arrow
+- MCP Host -> MCP Agent: tool calls
+- MCP Agent -> API Server: API calls
+- API Server -> MCP Agent: JSON results
+
+Include a bottom mini-lane titled "Small-tool design / 단일 논문 조회 경계":
+IDs from tools (paper_id, arXiv, DOI, doc_id, title/year) -> agent-side resolver -> GET /api/papers/{paper_id}. Add note: current lookup is doc_id exact lookup; 404/500 separated. This mini-lane is essential.
+
+Accuracy constraints:
+- Do not imply browser localStorage is auto-read by the agent.
+- Do not imply a dedicated scoped API key exists today.
+- Do not imply the full MCP Agent/tool schemas are already implemented.
+- Keep text short and readable.

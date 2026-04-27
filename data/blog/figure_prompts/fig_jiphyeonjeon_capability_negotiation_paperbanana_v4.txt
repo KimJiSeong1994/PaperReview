@@ -1,0 +1,21 @@
+Create a 16:9 Korean engineering blog flow diagram in the existing Jiphyeonjeon / Paper Banana style: warm off-white background, pastel rounded rectangles, gray outlines, black arrows, readable Korean+English labels, calm technical explainer.
+
+Topic: Capability negotiation for Jiphyeonjeon MCP Agent.
+
+Show a clear flow:
+1. Host starts Agent / MCP host launches adapter.
+2. MCP Agent calls GET /api/version.
+3. Server response contains version, mcp_min_client, capabilities[]. Show chips as an example subset: search, papers, bookmarks, recommendations, + deep_review / curriculum / blog / autofigure / ... . Label: "example subset".
+4. Filter capabilities: server list × client tool set. Label: "coarse availability only" and "not schema/auth contract".
+5. Register tools: available tools only. Example registered tools: search, papers, bookmarks, recommendations.
+6. Fallback branch: if /api/version is unavailable (404 / timeout / old server), go to fallback baseline. This must be a dashed branch from the /api/version failure path, not after successful registration. Fallback label: public/read-only minimum, e.g. search/papers only unless auth+schema known.
+
+Bottom guardrail strip:
+"Agents should not expose tools the server cannot run. / 서버가 실행할 수 없는 도구는 모델에게 보이지 않게 한다."
+Add small note: "Not included yet: tool schema delivery, auth scope negotiation, hard version enforcement."
+
+Accuracy constraints:
+- Do not show unsupported tools as registered.
+- Clearly distinguish server-advertised capabilities from registered tools.
+- Spell /api/version exactly.
+- Avoid dark/neon style, tiny dense text, huge title banner.

@@ -1,0 +1,39 @@
+Create a 16:9 Korean engineering blog security-flow diagram in the existing Jiphyeonjeon / Paper Banana visual style: warm cream background, pastel rounded boxes, black arrows, muted amber/rose warning callouts, readable Korean+English labels, no cyber/neon/glossy style.
+
+Topic: Agent Key authentication boundary for Jiphyeonjeon Agent.
+
+Main left-to-right flow:
+1. Login / user session
+2. My Page / Agent Key button
+3. Click Agent Key / copy action
+4. access_token / login JWT / no token logging
+5. MCP host env / manual paste as JIPHYEONJEON_TOKEN
+6. API calls / Bearer token
+
+Central warning strip:
+"Current implementation: login JWT transfer — not a dedicated scoped API key yet. Treat it as a bearer credential."
+Include Korean wording: "현재 구현: 로그인 JWT 전달, 전용 범위 제한 API Key 아님".
+
+Add a separate exposure warning lane titled "Exposure surfaces to avoid / 노출 주의 지점":
+- config file / MCP host settings
+- terminal logs / shell history/output
+- model prompt / prompt or tool context
+- tool output / debug traces
+Add note: "Use only in trusted local environments until scoped tokens, revoke UI, and audit logs exist."
+
+Bottom comparison table:
+Current Agent Key:
+- current login token
+- lifetime follows session/token policy
+- explicit copy/paste
+- no scope / revoke / audit yet
+Future Agent Token:
+- separate issuance
+- per-client scopes
+- revoke UI
+- audit log and rate limits
+
+Accuracy constraints:
+- Do not present current Agent Key as a permanent API key.
+- Do not claim scopes, revoke UI, or audit logs exist today.
+- Keep JIPHYEONJEON_TOKEN spelling exact.
