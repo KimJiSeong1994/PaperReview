@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#111827"/></marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/></marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.12"/></filter>
+    <style>
+      .title { font: 800 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .h { font: 800 23px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .h2 { font: 800 19px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .b { font: 600 17px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+      .s { font: 500 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #4b5563; }
+      .tiny { font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #4b5563; }
+      .mono { font: 700 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #111827; }
+      .chip { font: 700 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; fill: #111827; }
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#f7f1e8"/>
+  <text x="60" y="58" class="title">Agent Key authentication: explicit bearer-token handoff</text>
+<rect x="60" y="150" width="180" height="95" rx="18" fill="#f3f4f6" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="183" class="h2">Login</text>
+<text x="78" y="208" class="s">user session</text>
+<rect x="270" y="150" width="180" height="95" rx="18" fill="#dbeafe" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="288" y="183" class="h2">My Page</text>
+<text x="288" y="208" class="s">Agent Key button</text>
+<rect x="480" y="150" width="180" height="95" rx="18" fill="#fef3c7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="498" y="183" class="h2">Click</text>
+<text x="498" y="208" class="s">copy action</text>
+<rect x="690" y="150" width="205" height="95" rx="18" fill="#fed7aa" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="708" y="183" class="h2">access_token</text>
+<text x="708" y="208" class="s">login JWT · no logging</text>
+<rect x="930" y="150" width="180" height="95" rx="18" fill="#ede9fe" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="948" y="183" class="h2">MCP host env</text>
+<text x="948" y="208" class="s">manual paste</text>
+<rect x="1180" y="150" width="180" height="95" rx="18" fill="#dcfce7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="1198" y="183" class="h2">API calls</text>
+<text x="1198" y="208" class="s">Bearer token</text>
+<path d="M 240 198 L 270 198" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 450 198 L 480 198" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 660 198 L 690 198" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 895 198 L 930 198" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 1110 198 L 1180 198" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="120" y="325" width="1360" height="95" rx="22" fill="#fde68a" stroke="#d97706" stroke-width="2"/>
+<text x="150" y="365" class="h2">Current implementation / 현재 구현</text>
+<text x="150" y="395" class="b">Login JWT transfer — not a dedicated scoped API key yet. Treat it as a bearer credential.</text>
+<rect x="120" y="475" width="1360" height="125" rx="22" fill="#ffe4e6" stroke="#fb7185" stroke-width="2"/>
+<text x="150" y="515" class="h2">Exposure surfaces to avoid / 노출 주의 지점</text>
+<rect x="170" y="535" width="250" height="46" rx="18" fill="#ffffff" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="188" y="568" class="b">config file</text>
+<text x="188" y="568" class="tiny">MCP host settings</text>
+<rect x="490" y="535" width="250" height="46" rx="18" fill="#ffffff" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="508" y="568" class="b">terminal logs</text>
+<text x="508" y="568" class="tiny">shell history/output</text>
+<rect x="810" y="535" width="250" height="46" rx="18" fill="#ffffff" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="828" y="568" class="b">model prompt</text>
+<text x="828" y="568" class="tiny">prompt/tool context</text>
+<rect x="1130" y="535" width="250" height="46" rx="18" fill="#ffffff" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="1148" y="568" class="b">tool output</text>
+<text x="1148" y="568" class="tiny">debug traces</text>
+<text x="150" y="632" class="s">Use only in trusted local environments until scoped tokens, revoke UI, and audit logs exist.</text>
+<rect x="180" y="685" width="520" height="135" rx="18" fill="#fef3c7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="198" y="718" class="h2">Current Agent Key</text>
+<text x="198" y="743" class="s">current login token · explicit copy/paste</text>
+<text x="210" y="760" class="s">• lifetime follows session/token policy   • no scope / revoke / audit yet</text>
+<rect x="900" y="685" width="520" height="135" rx="18" fill="#dcfce7" stroke="#6b7280" stroke-width="2" filter="url(#shadow)"/>
+<text x="918" y="718" class="h2">Future Agent Token</text>
+<text x="918" y="743" class="s">separate issuance · per-client scope</text>
+<text x="930" y="760" class="s">• revoke UI   • audit log   • rate limits   • least-privilege tools</text>
+</svg>
