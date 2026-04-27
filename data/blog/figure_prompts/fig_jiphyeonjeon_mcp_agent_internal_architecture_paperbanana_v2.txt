@@ -1,0 +1,49 @@
+Create a 16:9 Korean engineering blog architecture diagram in the existing Jiphyeonjeon / Paper Banana visual style: warm off-white paper background, pastel rounded rectangles, medium-gray outlines, thick black arrows, readable Korean+English labels, calm academic explainer style, no dark/neon/glassmorphism.
+
+Topic: TARGET internal structure of the future Jiphyeonjeon MCP Agent. The diagram must clearly say this is a planned/future MCP Agent architecture, while the currently implemented foundation is only the Agent Key UX, /api/version, and /api/papers/{paper_id}. The purpose is to explain agent design boundaries without overclaiming implementation status.
+
+Main title:
+Jiphyeonjeon MCP Agent Target Architecture / 후속 에이전트 목표 구조
+
+Layout: left-to-right flow with a central large rounded container titled "Future Jiphyeonjeon MCP Agent / 후속 외부 어댑터". On the far left show "MCP Host" with Claude Desktop, Claude Code, Local Runtime. On the far right show "Jiphyeonjeon API Server" with GET /api/version, GET /api/papers/{paper_id}, and existing API surfaces.
+
+Inside the central MCP Agent container show layered modules, using labels that avoid claiming current completion:
+1. Startup & Config / 시작 설정
+   - reads JIPHYEONJEON_TOKEN
+   - base URL
+2. Capability Negotiator / 기능 협상기
+   - calls GET /api/version
+   - reads lightweight capability signal
+3. Planned Tool Registry / 후속 도구 등록부
+   - registers only supported tools
+   - tool schema is Agent-side responsibility
+4. Auth Context / 인증 컨텍스트
+   - attaches Bearer token only when required
+   - current token is login JWT, not scoped API key
+5. Planned MCP Tool Layer / 후속 MCP 도구 계층
+   - small composable tools, not one giant automation
+   - examples: papers, recommendations, bookmarks, deep_review
+6. ID Resolver / 식별자 해석기
+   - paper_id, arXiv, DOI, doc_id, title/year -> canonical lookup
+   - current server lookup: doc_id exact
+7. API Adapter & Error Mapper / API 어댑터와 오류 매핑
+   - REST calls to Jiphyeonjeon API
+   - separates 404 / 500 / capability missing
+
+Arrows:
+- MCP Host sends tool call to Planned Tool Registry / Tool Router.
+- Startup calls Capability Negotiator.
+- Capability Negotiator calls API Server /api/version and receives capabilities[].
+- Planned MCP Tool Layer uses Auth Context and ID Resolver.
+- API Adapter calls API Server endpoints and returns JSON results to MCP Host.
+
+Important side callout, large and readable:
+"Implemented now / 현재 기반: Agent Key UX + /api/version + /api/papers/{paper_id}"
+"Future / 후속: full MCP Agent, tool schemas, resolver fallback, audit/revoke"
+
+Accuracy constraints:
+- Do not claim full MCP Agent implementation exists today.
+- Do not present Agent Key as a dedicated scoped API key.
+- Do not imply all capabilities are always registered; tool registry must depend on capability negotiation.
+- Emphasize structure: config, capability negotiation, auth context, planned tool registry, resolver, API adapter, error mapping.
+- Keep text concise and readable; avoid tiny dense labels.
