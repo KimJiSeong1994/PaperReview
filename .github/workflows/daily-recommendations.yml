@@ -10,13 +10,94 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     environment: production
+    env:
+      OPENCLAW_HOST: ${{ secrets.OPENCLAW_HOST || '52.79.96.56' }}
+      OPENCLAW_USER: ${{ secrets.OPENCLAW_USER || 'ubuntu' }}
+      OPENCLAW_PROJECT_DIR: ${{ secrets.OPENCLAW_PROJECT_DIR || '/home/ubuntu/.openclaw/workspace/projects/paper-recommender' }}
+      PAPERREVIEW_OPENCLAW_RAW: /tmp/paperreview-openclaw-raw.json
     steps:
-      - name: Prepare SSH key
+      - name: Prepare SSH keys
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          OPENCLAW_SSH_KEY: ${{ secrets.OPENCLAW_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if [ -n "$OPENCLAW_SSH_KEY" ]; then
+            printf '%s\n' "$OPENCLAW_SSH_KEY" > ~/.ssh/openclaw_key
+          else
+            cp ~/.ssh/deploy_key ~/.ssh/openclaw_key
+          fi
+          chmod 600 ~/.ssh/openclaw_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$OPENCLAW_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Fetch OpenClaw recommendation artifact
+        run: |
+          set +e
+          rm -f openclaw-raw.json openclaw-remote-path.txt
+          ssh -i ~/.ssh/openclaw_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            "$OPENCLAW_USER@$OPENCLAW_HOST" \
+            "OPENCLAW_PROJECT_DIR='$OPENCLAW_PROJECT_DIR' bash -s" > openclaw-remote-path.txt <<'SCRIPT'
+          set -euo pipefail
+          cd "$OPENCLAW_PROJECT_DIR"
+          if [ -x scripts/run_daily.sh ]; then
+            PROJECT_DIR="$OPENCLAW_PROJECT_DIR" bash scripts/run_daily.sh >/tmp/paperreview-openclaw-run.log 2>&1
+          else
+            if [ -f "$HOME/.openclaw_gateway_token" ]; then
+              export OPENCLAW_GATEWAY_TOKEN="$(tr -d '\n' < "$HOME/.openclaw_gateway_token")"
+            fi
+            if [ -f .env ]; then
+              set -a
+              . ./.env
+              set +a
+            fi
+            .venv/bin/paper-recommender --config config.yaml run >/tmp/paperreview-openclaw-run.log 2>&1
+          fi
+          latest="$(python3 -c 'from pathlib import Path; paths = sorted(Path("artifacts").glob("*/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True); print(paths[0] if paths else "")')"
+          if [ -z "$latest" ]; then
+            echo "OpenClaw produced no raw.json artifact" >&2
+            exit 3
+          fi
+          printf '%s\n' "$latest"
+          SCRIPT
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "OpenClaw recommendation run unavailable; continuing with local fallback."
+            exit 0
+          fi
+          remote_path="$(tail -n 1 openclaw-remote-path.txt)"
+          if [ -z "$remote_path" ]; then
+            echo "OpenClaw returned no artifact path; continuing with local fallback."
+            exit 0
+          fi
+          scp -i ~/.ssh/openclaw_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            "$OPENCLAW_USER@$OPENCLAW_HOST:$remote_path" \
+            openclaw-raw.json
+          if [ ! -s openclaw-raw.json ]; then
+            echo "OpenClaw raw.json was empty; continuing with local fallback."
+            rm -f openclaw-raw.json
+          fi
+
+      - name: Clear previous OpenClaw temp artifact
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "rm -f $PAPERREVIEW_OPENCLAW_RAW"
+
+      - name: Upload OpenClaw artifact to PaperReview host
+        if: hashFiles('openclaw-raw.json') != ''
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            openclaw-raw.json \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:$PAPERREVIEW_OPENCLAW_RAW
 
       - name: Generate per-user recommendation artifacts
         run: |
@@ -27,14 +108,33 @@ jobs:
           git checkout -f main
           git reset --hard origin/main
           source venv/bin/activate
+          artifacts_dir="${RECOMMENDATIONS_ARTIFACTS_DIR:-data/recommendations}"
+          run_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          run_date="${run_at%%T*}"
+          openclaw_raw="/tmp/paperreview-openclaw-raw.json"
+          if [ -s "$openclaw_raw" ]; then
+            if python scripts/import_openclaw_recommendation_artifact.py \
+              "$openclaw_raw" \
+              --artifacts-dir "$artifacts_dir" \
+              --date "$run_date"; then
+              echo "OpenClaw recommendation artifact imported."
+            else
+              echo "OpenClaw artifact import failed validation; continuing with local fallback."
+            fi
+          else
+            echo "No OpenClaw recommendation artifact available; using local fallback."
+          fi
           python scripts/generate_daily_recommendations.py \
             --users-db data/users.db \
             --bookmarks-db data/bookmarks.db \
             --papers-json data/raw/papers.json \
-            --artifacts-dir "${RECOMMENDATIONS_ARTIFACTS_DIR:-data/recommendations}" \
-            --limit 12
+            --artifacts-dir "$artifacts_dir" \
+            --limit 12 \
+            --run-at "$run_at" \
+            --skip-existing
+          rm -f "$openclaw_raw"
           SCRIPT
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/openclaw_key openclaw-raw.json openclaw-remote-path.txt

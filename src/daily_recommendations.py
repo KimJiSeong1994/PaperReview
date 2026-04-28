@@ -383,6 +383,7 @@ def generate_daily_recommendations(
     min_score: float = DEFAULT_MIN_SCORE,
     usernames: Iterable[str] | None = None,
     run_at: str | None = None,
+    skip_existing: bool = False,
 ) -> dict[str, Any]:
     users = load_users(users_db)
     requested = {safe_str(username) for username in usernames or [] if safe_str(username)}
@@ -396,7 +397,11 @@ def generate_daily_recommendations(
 
     written: list[str] = []
     skipped: list[str] = []
+    skipped_existing: list[str] = []
     for user in users:
+        if skip_existing and _artifact_path(artifacts_dir, user.username, run_at or "").exists():
+            skipped_existing.append(user.username)
+            continue
         artifact = recommend_for_user(
             user.username,
             bookmarks_by_user.get(user.username, []),
@@ -417,6 +422,7 @@ def generate_daily_recommendations(
         "papers_seen": len(papers),
         "artifacts_written": written,
         "skipped_usernames": skipped,
+        "skipped_existing_usernames": skipped_existing,
     }
 
 
@@ -430,6 +436,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE)
     parser.add_argument("--user", action="append", dest="users", help="Restrict generation to a username.")
     parser.add_argument("--run-at", help="Override run_at ISO timestamp, mainly for tests/backfills.")
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Do not overwrite users that already have a raw.json for the target run date.",
+    )
     return parser
 
 
@@ -444,6 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         min_score=args.min_score,
         usernames=args.users,
         run_at=args.run_at,
+        skip_existing=args.skip_existing,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

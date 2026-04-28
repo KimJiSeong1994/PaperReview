@@ -185,3 +185,42 @@ def test_daily_generation_can_target_single_user(tmp_path: Path) -> None:
     assert summary["skipped_usernames"] == ["missing"]
     assert not (artifacts_dir / "alice").exists()
     assert load_recommendation_artifact(artifacts_dir, "bob", limit=5)["grouped_items"]
+
+
+def test_daily_generation_skip_existing_preserves_imported_artifact(tmp_path: Path) -> None:
+    users_db = tmp_path / "users.db"
+    bookmarks_db = tmp_path / "bookmarks.db"
+    papers_json = tmp_path / "raw" / "papers.json"
+    artifacts_dir = tmp_path / "recommendations"
+    _init_users(users_db, ["alice", "bob"])
+    _init_bookmarks(bookmarks_db)
+    _write_papers(papers_json)
+
+    existing_path = artifacts_dir / "alice" / "2026-04-28" / "raw.json"
+    existing_path.parent.mkdir(parents=True)
+    existing_path.write_text(
+        json.dumps(
+            {
+                "run_at": "2026-04-28T00:00:00Z",
+                "user_id": "alice",
+                "scoring_mode": "openclaw",
+                "variants": {"keywords": [{"title": "OpenClaw Preserved", "score": 5, "rank": 1}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = generate_daily_recommendations(
+        users_db=users_db,
+        bookmarks_db=bookmarks_db,
+        papers_json=papers_json,
+        artifacts_dir=artifacts_dir,
+        run_at="2026-04-28T03:10:00+09:00",
+        min_score=0.1,
+        skip_existing=True,
+    )
+
+    assert summary["skipped_existing_usernames"] == ["alice"]
+    assert len(summary["artifacts_written"]) == 1
+    assert load_recommendation_artifact(artifacts_dir, "alice", limit=5)["grouped_items"][0]["title"] == "OpenClaw Preserved"
+    assert load_recommendation_artifact(artifacts_dir, "bob", limit=5)["grouped_items"]
