@@ -76,7 +76,7 @@ jobs:
           cd "$OPENCLAW_PROJECT_DIR"
           today="$(date -u +%F)"
           if [ -s "artifacts/${today}/raw.json" ]; then
-            printf '%s\n' "artifacts/${today}/raw.json"
+            TODAY="$today" python3 -c 'import os; from pathlib import Path; print((Path("artifacts") / os.environ["TODAY"] / "raw.json").resolve())'
             exit 0
           fi
           if [ -f "$HOME/.openclaw_gateway_token" ]; then
@@ -96,7 +96,7 @@ jobs:
             tail -n 40 "$log_file" >&2 || true
             exit 4
           fi
-          latest="$(python3 -c 'from pathlib import Path; paths = sorted(Path("artifacts").glob("*/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True); print(paths[0] if paths else "")')"
+          latest="$(python3 -c 'from pathlib import Path; paths = sorted(Path("artifacts").glob("*/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True); print(paths[0].resolve() if paths else "")')"
           if [ -z "$latest" ]; then
             echo "OpenClaw produced no raw.json artifact" >&2
             exit 3
@@ -113,13 +113,17 @@ jobs:
             echo "OpenClaw returned no artifact path; continuing with local fallback."
             exit 0
           fi
-          scp -i ~/.ssh/openclaw_key \
+          if ! scp -i ~/.ssh/openclaw_key \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=12 \
             "$OPENCLAW_USER@$OPENCLAW_HOST:$remote_path" \
-            openclaw-raw.json
+            openclaw-raw.json; then
+            echo "Could not copy OpenClaw raw.json; continuing with local fallback."
+            rm -f openclaw-raw.json
+            exit 0
+          fi
           if [ ! -s openclaw-raw.json ]; then
             echo "OpenClaw raw.json was empty; continuing with local fallback."
             rm -f openclaw-raw.json
