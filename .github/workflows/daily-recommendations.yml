@@ -61,11 +61,15 @@ jobs:
           printf '%s' "$jiphyeonjeon_token" | ssh -i ~/.ssh/openclaw_key \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=12 \
             "$OPENCLAW_USER@$OPENCLAW_HOST" \
             'umask 077; cat > /tmp/paperreview-jiphyeonjeon-token'
           ssh -i ~/.ssh/openclaw_key \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=12 \
             "$OPENCLAW_USER@$OPENCLAW_HOST" \
             "OPENCLAW_PROJECT_DIR='$OPENCLAW_PROJECT_DIR' bash -s" > openclaw-remote-path.txt <<'SCRIPT'
           set -euo pipefail
@@ -107,6 +111,8 @@ jobs:
           scp -i ~/.ssh/openclaw_key \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=12 \
             "$OPENCLAW_USER@$OPENCLAW_HOST:$remote_path" \
             openclaw-raw.json
           if [ ! -s openclaw-raw.json ]; then
