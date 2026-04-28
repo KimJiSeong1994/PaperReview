@@ -1,0 +1,40 @@
+name: Daily Recommendations
+
+on:
+  schedule:
+    # 03:10 KST every day (18:10 UTC).
+    - cron: "10 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Generate per-user recommendation artifacts
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          set -euo pipefail
+          cd ~/PaperReviewAgent
+          git fetch origin main
+          git checkout -f main
+          git reset --hard origin/main
+          source venv/bin/activate
+          python scripts/generate_daily_recommendations.py \
+            --users-db data/users.db \
+            --bookmarks-db data/bookmarks.db \
+            --papers-json data/raw/papers.json \
+            --artifacts-dir "${RECOMMENDATIONS_ARTIFACTS_DIR:-data/recommendations}" \
+            --limit 12
+          SCRIPT
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
