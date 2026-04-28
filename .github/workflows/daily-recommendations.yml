@@ -74,6 +74,11 @@ jobs:
             "OPENCLAW_PROJECT_DIR='$OPENCLAW_PROJECT_DIR' bash -s" > openclaw-remote-path.txt <<'SCRIPT'
           set -euo pipefail
           cd "$OPENCLAW_PROJECT_DIR"
+          today="$(date -u +%F)"
+          if [ -s "artifacts/${today}/raw.json" ]; then
+            printf '%s\n' "artifacts/${today}/raw.json"
+            exit 0
+          fi
           if [ -f "$HOME/.openclaw_gateway_token" ]; then
             export OPENCLAW_GATEWAY_TOKEN="$(tr -d '\n' < "$HOME/.openclaw_gateway_token")"
           fi
