@@ -15,6 +15,7 @@ jobs:
       OPENCLAW_USER: ${{ secrets.OPENCLAW_USER || 'ubuntu' }}
       OPENCLAW_PROJECT_DIR: ${{ secrets.OPENCLAW_PROJECT_DIR || '/home/ubuntu/.openclaw/workspace/projects/paper-recommender' }}
       PAPERREVIEW_OPENCLAW_RAW: /tmp/paperreview-openclaw-raw.json
+      OPENCLAW_JIPHYEONJEON_USER: ${{ secrets.OPENCLAW_JIPHYEONJEON_USER || 'Jipyheonjeon' }}
     steps:
       - name: Prepare SSH keys
         env:
@@ -37,6 +38,31 @@ jobs:
         run: |
           set +e
           rm -f openclaw-raw.json openclaw-remote-path.txt
+          jiphyeonjeon_token="$(
+            ssh -i ~/.ssh/deploy_key \
+              -o BatchMode=yes \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              "OPENCLAW_JIPHYEONJEON_USER='$OPENCLAW_JIPHYEONJEON_USER' bash -s" <<'SCRIPT'
+          set -euo pipefail
+          cd ~/PaperReviewAgent
+          source venv/bin/activate
+          python - <<'PY'
+          import os
+          from routers.auth import _create_token
+
+          print(_create_token(os.environ["OPENCLAW_JIPHYEONJEON_USER"], role="user"))
+          PY
+          SCRIPT
+          )"
+          if [ -z "$jiphyeonjeon_token" ]; then
+            echo "Could not mint PaperReview JWT for OpenClaw; continuing with local fallback."
+            exit 0
+          fi
+          printf '%s' "$jiphyeonjeon_token" | ssh -i ~/.ssh/openclaw_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            "$OPENCLAW_USER@$OPENCLAW_HOST" \
+            'umask 077; cat > /tmp/paperreview-jiphyeonjeon-token'
           ssh -i ~/.ssh/openclaw_key \
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
@@ -44,18 +70,22 @@ jobs:
             "OPENCLAW_PROJECT_DIR='$OPENCLAW_PROJECT_DIR' bash -s" > openclaw-remote-path.txt <<'SCRIPT'
           set -euo pipefail
           cd "$OPENCLAW_PROJECT_DIR"
-          if [ -x scripts/run_daily.sh ]; then
-            PROJECT_DIR="$OPENCLAW_PROJECT_DIR" bash scripts/run_daily.sh >/tmp/paperreview-openclaw-run.log 2>&1
-          else
-            if [ -f "$HOME/.openclaw_gateway_token" ]; then
-              export OPENCLAW_GATEWAY_TOKEN="$(tr -d '\n' < "$HOME/.openclaw_gateway_token")"
-            fi
-            if [ -f .env ]; then
-              set -a
-              . ./.env
-              set +a
-            fi
-            .venv/bin/paper-recommender --config config.yaml run >/tmp/paperreview-openclaw-run.log 2>&1
+          if [ -f "$HOME/.openclaw_gateway_token" ]; then
+            export OPENCLAW_GATEWAY_TOKEN="$(tr -d '\n' < "$HOME/.openclaw_gateway_token")"
+          fi
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+          export JIPHYEONJEON_TOKEN="$(cat /tmp/paperreview-jiphyeonjeon-token)"
+          rm -f /tmp/paperreview-jiphyeonjeon-token
+          mkdir -p logs
+          ts="$(date +%Y%m%d_%H%M%S)"
+          log_file="logs/run_${ts}.log"
+          if ! .venv/bin/paper-recommender --config config.yaml run >"$log_file" 2>&1; then
+            tail -n 40 "$log_file" >&2 || true
+            exit 4
           fi
           latest="$(python3 -c 'from pathlib import Path; paths = sorted(Path("artifacts").glob("*/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True); print(paths[0] if paths else "")')"
           if [ -z "$latest" ]; then
