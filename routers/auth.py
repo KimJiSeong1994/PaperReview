@@ -193,7 +193,7 @@ async def login(request: Request, login_request: LoginRequest):
 
 @router.get("/verify", response_model=VerifyResponse)
 @limiter.limit("30/minute")
-async def verify_token(request: Request, token: str):
-    """Verify that a JWT token is still valid."""
-    payload = _decode_token(token)
+async def verify_token(request: Request):
+    """Verify that a JWT token from the Authorization header is still valid."""
+    payload = _decode_jwt(request)
     return VerifyResponse(valid=True, username=payload["sub"], role=payload.get("role", "user"))

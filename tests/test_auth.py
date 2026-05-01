@@ -165,7 +165,7 @@ class TestLogin:
 # ---------------------------------------------------------------------------
 
 class TestVerifyToken:
-    """GET /api/auth/verify?token=xxx"""
+    """GET /api/auth/verify with Authorization: Bearer token."""
 
     async def test_verify_valid_token(self, client):
         """A freshly obtained token is valid."""
@@ -181,7 +181,9 @@ class TestVerifyToken:
         )
         token = login_resp.json()["access_token"]
 
-        resp = await client.get("/api/auth/verify", params={"token": token})
+        resp = await client.get(
+            "/api/auth/verify", headers={"Authorization": f"Bearer {token}"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["valid"] is True
@@ -200,17 +202,37 @@ class TestVerifyToken:
         }
         expired_token = jwt.encode(payload, secret, algorithm="HS256")
 
-        resp = await client.get("/api/auth/verify", params={"token": expired_token})
+        resp = await client.get(
+            "/api/auth/verify", headers={"Authorization": f"Bearer {expired_token}"}
+        )
         assert resp.status_code == 401
         assert "expired" in resp.json()["detail"].lower()
 
     async def test_verify_invalid_token(self, client):
         """A garbage string as token returns 401."""
         resp = await client.get(
-            "/api/auth/verify", params={"token": "this.is.not.a.jwt"}
+            "/api/auth/verify", headers={"Authorization": "Bearer this.is.not.a.jwt"}
         )
         assert resp.status_code == 401
         assert "invalid" in resp.json()["detail"].lower()
+
+    async def test_verify_rejects_query_string_token(self, client):
+        """Tokens in query strings are ignored to avoid URL/log leakage."""
+        username = _unique_username()
+        password = "verifyme"
+        await client.post(
+            "/api/auth/register",
+            json={"username": username, "password": password},
+        )
+        login_resp = await client.post(
+            "/api/auth/login",
+            json={"username": username, "password": password},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.get("/api/auth/verify", params={"token": token})
+        assert resp.status_code == 401
+        assert "authorization" in resp.json()["detail"].lower()
 
 
 # ---------------------------------------------------------------------------

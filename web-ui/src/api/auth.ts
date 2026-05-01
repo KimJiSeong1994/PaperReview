@@ -16,10 +16,10 @@ export const register = async (username: string, password: string) => {
   return response.data;
 };
 
-export const verifyToken = async (token: string) => {
+export const verifyToken = async (token?: string) => {
   const response = await api.get<{ valid: boolean; username: string; role: string }>(
     '/api/auth/verify',
-    { params: { token } },
+    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
   );
   return response.data;
 };
