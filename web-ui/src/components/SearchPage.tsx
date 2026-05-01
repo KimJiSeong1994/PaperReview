@@ -5,6 +5,8 @@ import DetailPanel from './DetailPanel';
 import SearchBar from './SearchBar';
 import {
   searchPapers,
+  searchStream,
+  type SearchProgressEvent,
   getGraphData,
   startDeepReview,
   saveBookmark,
@@ -12,13 +14,52 @@ import {
   generatePoster,
   generatePosterDirect,
 } from '../api/client';
-import type { Paper, GraphData } from '../types';
+import type { Paper, GraphData, SearchResponse } from '../types';
 import { useDeepReview } from '../hooks/useDeepReview';
 import { useAuth } from '../contexts/AuthContext';
 import { generateApaCitation } from '../utils/citation';
 import { copyToClipboard } from '../utils/clipboard';
 
 const GraphViewComponent = lazy(() => import('./GraphView'));
+
+const SEARCH_STAGE_ORDER = ['query_analysis', 'source_search', 'graphrag', 'ranking', 'relevance_filter', 'prepare_results'] as const;
+type SearchStageKey = (typeof SEARCH_STAGE_ORDER)[number];
+
+const SEARCH_STAGE_LABELS: Record<SearchStageKey, string> = {
+  query_analysis: '쿼리 분석',
+  source_search: '관련 논문 수집',
+  graphrag: '그래프 구성',
+  ranking: '랭킹 계산',
+  relevance_filter: '관련성 필터링',
+  prepare_results: '결과 준비',
+};
+
+const SEARCH_STAGE_MESSAGES: Record<SearchStageKey, string> = {
+  query_analysis: '질문 의도와 검색 키워드를 분석 중입니다.',
+  source_search: '관련 논문을 여러 데이터베이스에서 수집 중입니다.',
+  graphrag: '인용/유사 논문 그래프를 구성 중입니다.',
+  ranking: '검색 결과를 관련도 기준으로 정렬 중입니다.',
+  relevance_filter: '관련성이 낮은 결과를 정리 중입니다.',
+  prepare_results: '결과 화면을 준비 중입니다.',
+};
+
+const SEARCH_STAGE_PROGRESS: Record<SearchStageKey, number> = {
+  query_analysis: 12,
+  source_search: 36,
+  graphrag: 56,
+  ranking: 74,
+  relevance_filter: 88,
+  prepare_results: 96,
+};
+
+const toSearchStageKey = (stage?: string): SearchStageKey | null => {
+  if (!stage) return null;
+  if ((SEARCH_STAGE_ORDER as readonly string[]).includes(stage)) {
+    return stage as SearchStageKey;
+  }
+  if (stage === 'complete') return 'prepare_results';
+  return null;
+};
 
 function SearchPage() {
   const navigate = useNavigate();
@@ -31,6 +72,9 @@ function SearchPage() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchStage, setSearchStage] = useState<SearchStageKey>('query_analysis');
+  const [searchStageMessage, setSearchStageMessage] = useState(SEARCH_STAGE_MESSAGES.query_analysis);
+  const [searchStageProgress, setSearchStageProgress] = useState(0);
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -53,6 +97,7 @@ function SearchPage() {
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
+  const searchLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-dismiss guidance message after 3 seconds
   useEffect(() => {
@@ -71,36 +116,79 @@ function SearchPage() {
     return Math.abs(hash).toString();
   };
 
+  const clearSearchLoadingTimer = () => {
+    if (searchLoadingTimerRef.current) {
+      clearTimeout(searchLoadingTimerRef.current);
+      searchLoadingTimerRef.current = null;
+    }
+  };
+
+  const applySearchStage = (stage: SearchStageKey, message?: string) => {
+    setSearchStage(stage);
+    setSearchStageMessage(message || SEARCH_STAGE_MESSAGES[stage]);
+    setSearchStageProgress(SEARCH_STAGE_PROGRESS[stage]);
+    setLoading(true);
+  };
+
+  const resetSearchProgress = () => {
+    setSearchStage('query_analysis');
+    setSearchStageMessage(SEARCH_STAGE_MESSAGES.query_analysis);
+    setSearchStageProgress(0);
+  };
+
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
 
     if (searchAbortRef.current) {
       searchAbortRef.current.abort();
     }
+    clearSearchLoadingTimer();
     const abortController = new AbortController();
     searchAbortRef.current = abortController;
 
     setGuidanceMessage(null);
+    resetSearchProgress();
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
-    const loadingTimer = setTimeout(() => {
+    searchLoadingTimerRef.current = setTimeout(() => {
       setLoading(true);
       setQuery(searchQuery);
+      applySearchStage('query_analysis');
     }, 500);
 
     try {
-      const results = await searchPapers({
-        query: searchQuery,
-        max_results: 50,
-        sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
-        sort_by: 'relevance',
-        use_llm_search: false,
-      }, abortController.signal);
-
+      const results = await new Promise<SearchResponse>((resolve, reject) => {
+        searchStream({
+          query: searchQuery,
+          max_results: 50,
+          sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
+          sort_by: 'relevance',
+          use_llm_search: false,
+        }, {
+          onProgress: (progress: SearchProgressEvent) => {
+            const stage = toSearchStageKey(progress.stage);
+            if (stage) {
+              applySearchStage(stage, progress.message || SEARCH_STAGE_MESSAGES[stage]);
+            }
+          },
+          onComplete: (data) => resolve(data),
+          onError: (error) => reject(new Error(error)),
+        }, abortController.signal).catch((error) => reject(error));
+      }).catch(async (streamError) => {
+        if (abortController.signal.aborted) throw streamError;
+        console.warn('Search stream failed, falling back to standard search:', streamError);
+        return searchPapers({
+          query: searchQuery,
+          max_results: 50,
+          sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
+          sort_by: 'relevance',
+          use_llm_search: false,
+        }, abortController.signal);
+      });
       // Check if query was classified as non-academic
-      const qa = (results as any).query_analysis;
+      const qa = results.query_analysis;
       if (qa && qa.is_academic === false) {
-        clearTimeout(loadingTimer);
+        clearSearchLoadingTimer();
         setGuidanceMessage(
           '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
         );
@@ -110,14 +198,16 @@ function SearchPage() {
         setHighlightedPapers(new Set());
         setSelectedPapersForReview(new Set());
         setQuery('');
+        resetSearchProgress();
         setLoading(false);
         return;
       }
 
       // Academic query confirmed — ensure loading is shown
-      clearTimeout(loadingTimer);
+      clearSearchLoadingTimer();
       setLoading(true);
       setQuery(searchQuery);
+      applySearchStage('prepare_results');
 
       const allPapers: Paper[] = [];
 
@@ -195,7 +285,7 @@ function SearchPage() {
         }
       }
     } catch (error: any) {
-      clearTimeout(loadingTimer);
+      clearSearchLoadingTimer();
 
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
 
@@ -219,6 +309,7 @@ function SearchPage() {
       setHighlightedPapers(new Set());
       setSelectedPapersForReview(new Set());
     } finally {
+      clearSearchLoadingTimer();
       setLoading(false);
     }
   };
@@ -229,6 +320,7 @@ function SearchPage() {
     const params = new URLSearchParams(location.search);
     const q = params.get('q');
     if (q && q.trim() && q !== query) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional URL-triggered search bootstrap
       handleSearch(q.trim());
       navigate('/', { replace: true });
     }
@@ -463,11 +555,32 @@ function SearchPage() {
       )}
 
       {loading && (
-        <div className="loading-screen">
+        <div className="loading-screen" aria-live="polite" aria-busy="true">
           <div className="loading-message-bubble">
-            <div className="loading-text">
-              결과를 분석하고 있습니다...
+            <div className="loading-stage-meta">
+              <span className="loading-stage-label">{SEARCH_STAGE_LABELS[searchStage]}</span>
+              <span className="loading-stage-progress">{searchStageProgress}%</span>
             </div>
+            <div className="loading-text">
+              {searchStageMessage}
+            </div>
+            <div className="loading-progress-bar" aria-hidden="true">
+              <div className="loading-progress-fill" style={{ width: `${searchStageProgress}%` }} />
+            </div>
+            <div className="loading-stage-list" aria-label="Search progress stages">
+              {SEARCH_STAGE_ORDER.map((stage) => {
+                const stageIndex = SEARCH_STAGE_ORDER.indexOf(stage);
+                const activeIndex = SEARCH_STAGE_ORDER.indexOf(searchStage);
+                const state = stageIndex < activeIndex ? 'done' : stageIndex === activeIndex ? 'active' : 'pending';
+                return (
+                  <div key={stage} className={`loading-stage-item loading-stage-item--${state}`}>
+                    <span className="loading-stage-item__bullet" />
+                    <span className="loading-stage-item__label">{SEARCH_STAGE_LABELS[stage]}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="loading-spinner" />
           </div>
         </div>
       )}

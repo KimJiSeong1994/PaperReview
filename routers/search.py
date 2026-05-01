@@ -21,7 +21,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -734,6 +734,22 @@ def _remaining_budget(start_time: float, total_budget: int = _SEARCH_TIMEOUT) ->
     return max(0.0, total_budget - (time.time() - start_time))
 
 
+async def _emit_search_progress(
+    progress: Optional[Callable[[str, str, str, Optional[Dict[str, Any]]], Awaitable[None]]],
+    stage: str,
+    message: str,
+    status: str = "running",
+    detail: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Emit a best-effort progress update for streaming search clients."""
+    if progress is None:
+        return
+    try:
+        await progress(stage, message, status, detail)
+    except Exception:
+        logger.debug("failed to emit search progress update", exc_info=True)
+
+
 def _ranking_candidate_cap(max_results: int) -> int:
     """Bound ranking input size while keeping enough recall for later stages."""
     return min(max(max_results * 2, 40), _MAX_RANKING_CANDIDATES)
@@ -1054,9 +1070,12 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         raise HTTPException(status_code=500, detail=f"Deep search failed: {str(e)}")
 
 
-@router.post("/search", response_model=SearchResponse)
-async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
-    """Search papers across multiple sources with automatic query analysis."""
+async def _execute_search_pipeline(
+    request: SearchRequest,
+    username: Optional[str],
+    progress: Optional[Callable[[str, str, str, Optional[Dict[str, Any]]], Awaitable[None]]] = None,
+) -> SearchResponse:
+    """Search papers across multiple sources with optional progress callbacks."""
     _record_query(request.query)
     # Mutable container for partial results accessible from timeout handler
     _partial: dict = {
@@ -1077,6 +1096,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "relevance_filter_enabled": bool(relevance_filter),
             "hybrid_ranker_enabled": bool(_hybrid_ranker),
         }
+
+        await _emit_search_progress(progress, "query_analysis", "쿼리를 분석하고 있습니다")
 
         # ── Parallel topic classification + query analysis ──
         is_academic = True
@@ -1142,6 +1163,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         _partial["stage_modes"] = stage_modes
 
         if not is_academic:
+            await _emit_search_progress(progress, "query_analysis", "논문 검색에 적합한 쿼리가 아닙니다", "complete", {"is_academic": False})
             logger.info("[API] Non-academic query blocked: %s", request.query)
             return SearchResponse(
                 results={s: [] for s in request.sources},
@@ -1193,6 +1215,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 logger.info("[API] Source-specific queries (from unified): %s", {k: v[:50] for k, v in source_queries.items()})
                 filters["source_queries"] = source_queries
 
+        await _emit_search_progress(progress, "source_search", "관련 논문을 수집하고 있습니다")
+
         # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
         user_filters = {
             "sort_by": request.sort_by,
@@ -1208,6 +1232,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
             # F-03: cache body is user-agnostic; stamp the current caller now.
             _stamp_searched_by(cached, username)
+            await _emit_search_progress(progress, "prepare_results", "캐시된 검색 결과를 준비하고 있습니다", "running", {"cache_hit": True, "total": total})
             logger.info("[API] Returning cached results: %s papers", total)
             if username:
                 try:
@@ -1277,6 +1302,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         # Update partial results after raw search completes
         _partial["results"] = results
 
+        await _emit_search_progress(progress, "source_search", "관련 논문 수집을 완료했습니다", "complete", {"raw_total": sum(len(papers) for papers in results.values())})
+        await _emit_search_progress(progress, "graphrag", "논문 그래프를 구성하고 있습니다")
+
         # Step 1.5: GraphRAG auxiliary expansion (skip in fast_mode)
         if not request.fast_mode and results:
             remaining_before_graphrag = _remaining_budget(start_time)
@@ -1313,6 +1341,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     stage_modes["graphrag_mode"] = "error"
         else:
             stage_modes["graphrag_mode"] = "skipped"
+
+        await _emit_search_progress(progress, "graphrag", "논문 그래프 구성을 완료했습니다", "complete", {"mode": stage_modes.get("graphrag_mode")})
+        await _emit_search_progress(progress, "ranking", "검색 결과의 순위를 계산하고 있습니다")
 
         # Cross-source deduplication + Hybrid ranking (always) + Relevance filtering (non-fast only)
         if results:
@@ -1443,6 +1474,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
             # Update partial results after ranking
             _partial["results"] = results
+            await _emit_search_progress(progress, "ranking", "검색 결과 순위 계산을 완료했습니다", "complete", {"mode": stage_modes.get("ranking_mode")})
+            await _emit_search_progress(progress, "relevance_filter", "관련성이 높은 논문을 선별하고 있습니다")
 
             # Step 3: LLM Relevance filtering (only when not fast_mode)
             if not request.fast_mode:
@@ -1523,6 +1556,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             logger.info("[API] No results to rank/filter")
             stage_modes["ranking_mode"] = "skipped_no_results"
             stage_modes["relevance_filter_mode"] = "skipped_no_results"
+
+        await _emit_search_progress(progress, "relevance_filter", "관련성 필터링을 완료했습니다", "complete", {"mode": stage_modes.get("relevance_filter_mode")})
+        await _emit_search_progress(progress, "prepare_results", "검색 결과를 준비하고 있습니다")
 
         # Ensure all sources present
         for source in request.sources:
@@ -1611,12 +1647,14 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             except Exception:
                 logger.debug("failed to emit QUERY_SUBMIT event", exc_info=True)
 
-        return SearchResponse(
+        response = SearchResponse(
             results=results,
             total=total,
             query_analysis=query_analysis,
             degraded=_current_degradation_markers(),
         )
+        await _emit_search_progress(progress, "complete", "검색 결과 준비가 완료되었습니다", "complete", {"total": total})
+        return response
 
     try:
         return await asyncio.wait_for(_run_search_pipeline(), timeout=_SEARCH_TIMEOUT)
@@ -1645,6 +1683,63 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         error_trace = traceback.format_exc()
         logger.error("[API] Error in search: %s", error_trace)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.post("/search", response_model=SearchResponse)
+async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
+    """Search papers across multiple sources with automatic query analysis."""
+    return await _execute_search_pipeline(request, username)
+
+
+@router.post("/search-stream")
+async def search_papers_stream(request: SearchRequest, username: Optional[str] = Depends(get_optional_user)):
+    """Stream search progress as SSE events, then emit the final search response."""
+
+    async def event_generator():
+        queue: asyncio.Queue[str] = asyncio.Queue()
+
+        async def progress(stage: str, message: str, status: str, detail: Optional[Dict[str, Any]]) -> None:
+            await queue.put(_sse_event("progress", {
+                "stage": stage,
+                "message": message,
+                "status": status,
+                "detail": detail or {},
+            }))
+
+        task = asyncio.create_task(_execute_search_pipeline(request, username, progress=progress))
+
+        try:
+            while True:
+                if task.done() and queue.empty():
+                    break
+                try:
+                    yield await asyncio.wait_for(queue.get(), timeout=0.25)
+                except asyncio.TimeoutError:
+                    continue
+
+            response = await task
+            response_data = (
+                response.model_dump() if hasattr(response, "model_dump") else response.dict()
+            )
+            yield _sse_event("complete", response_data)
+        except asyncio.CancelledError:
+            task.cancel()
+            raise
+        except HTTPException as exc:
+            yield _sse_event("error", {"status_code": exc.status_code, "message": exc.detail})
+        except Exception as exc:
+            logger.error("[API] Search Stream failed: %s", exc, exc_info=True)
+            yield _sse_event("error", {"message": str(exc)})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ── Search-click tracking ─────────────────────────────────────────────

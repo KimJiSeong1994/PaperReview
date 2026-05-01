@@ -176,6 +176,28 @@ class TestSearch:
         assert "A Survey on Machine Learning" in titles
 
     @pytest.mark.asyncio
+    async def test_search_stream_emits_progress_and_final_results(
+        self, client, _patch_search_singletons
+    ):
+        """SSE endpoint streams stage progress before the final search payload."""
+        async with client.stream(
+            "POST",
+            "/api/search-stream",
+            json={"query": "machine learning", "fast_mode": True, "save_papers": False},
+        ) as resp:
+            assert resp.status_code == 200
+            assert resp.headers["content-type"].startswith("text/event-stream")
+            body = (await resp.aread()).decode()
+
+        assert "event: progress" in body
+        assert "event: complete" in body
+        assert '"stage": "query_analysis"' in body
+        assert '"stage": "source_search"' in body
+        assert '"stage": "ranking"' in body
+        assert '"stage": "relevance_filter"' in body
+        assert '"total": 1' in body
+
+    @pytest.mark.asyncio
     async def test_search_empty_query_returns_empty_results(
         self, client, _patch_search_singletons
     ):

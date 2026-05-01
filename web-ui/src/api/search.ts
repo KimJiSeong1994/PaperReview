@@ -99,6 +99,19 @@ export interface DeepSearchStreamCallbacks {
   onError?: (error: string) => void;
 }
 
+export interface SearchProgressEvent {
+  stage: 'query_analysis' | 'source_search' | 'graphrag' | 'ranking' | 'relevance_filter' | 'prepare_results' | 'complete' | string;
+  status: 'running' | 'complete' | 'error' | string;
+  message: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface SearchStreamCallbacks {
+  onProgress?: (progress: SearchProgressEvent) => void;
+  onComplete?: (data: SearchResponse) => void;
+  onError?: (error: string) => void;
+}
+
 export const deepSearchStream = async (
   request: { query: string; max_results?: number; context?: string; save_papers?: boolean },
   callbacks: DeepSearchStreamCallbacks,
@@ -182,6 +195,95 @@ export const deepSearchStream = async (
               case 'error':
                 callbacks.onError?.(data.message || 'Unknown error');
                 return;
+            }
+          } catch {
+            // skip malformed JSON
+          }
+          currentEvent = '';
+        } else if (line.trim() === '') {
+          currentEvent = '';
+        }
+      }
+    }
+  } catch (err) {
+    if (signal?.aborted) return;
+    callbacks.onError?.(err instanceof TypeError
+      ? 'Stream interrupted. Please try again.'
+      : `Stream error: ${err}`);
+  } finally {
+    reader.releaseLock();
+  }
+};
+
+export const searchStream = async (
+  request: SearchRequest,
+  callbacks: SearchStreamCallbacks,
+  signal?: AbortSignal,
+): Promise<void> => {
+  const token = localStorage.getItem('access_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/search-stream`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+      signal,
+    });
+  } catch (err) {
+    if (signal?.aborted) return;
+    callbacks.onError?.(err instanceof TypeError ? `Server connection failed: ${(err as TypeError).message}` : String(err));
+    return;
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('user_role');
+      window.dispatchEvent(new Event('auth:logout'));
+    }
+    callbacks.onError?.(`HTTP ${response.status}: ${response.statusText}`);
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    callbacks.onError?.('No response body');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let currentEvent = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && currentEvent) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (currentEvent === 'progress') {
+              callbacks.onProgress?.(data);
+            } else if (currentEvent === 'complete') {
+              callbacks.onComplete?.(data);
+              return;
+            } else if (currentEvent === 'error') {
+              callbacks.onError?.(data.message || 'Unknown error');
+              return;
             }
           } catch {
             // skip malformed JSON
