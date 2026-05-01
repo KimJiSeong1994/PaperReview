@@ -15,8 +15,6 @@
 
 <div align="center">
   <img src="docs/images/jiphyeonjeon-home.gif" alt="Jiphyeonjeon home search screen" width="900" />
-
-  <p><em>집현전 홈 — AI Search Engine You Control</em></p>
 </div>
 
 ---
