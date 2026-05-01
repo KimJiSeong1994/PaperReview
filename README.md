@@ -14,9 +14,9 @@
 ---
 
 <div align="center">
-  <img src="docs/images/jiphyeonjeon-workflow.gif" alt="Jiphyeonjeon research workflow walkthrough" width="900" />
+  <img src="docs/images/jiphyeonjeon-home.gif" alt="Jiphyeonjeon home search screen" width="900" />
 
-  <p><em>Search papers → explore related work → run Deep Research → generate a poster</em></p>
+  <p><em>집현전 홈 — AI Search Engine You Control</em></p>
 </div>
 
 ---
