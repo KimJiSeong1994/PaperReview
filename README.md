@@ -14,7 +14,9 @@
 ---
 
 <div align="center">
-  <img src="web-ui/public/demo.gif" alt="Jiphyeonjeon Demo" width="900" />
+  <img src="docs/images/jiphyeonjeon-home.png" alt="Jiphyeonjeon home search screen" width="900" />
+
+  <p><em>집현전 홈 — AI Search Engine You Control</em></p>
 </div>
 
 ---
