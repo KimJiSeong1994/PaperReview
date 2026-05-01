@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 README = PROJECT_ROOT / "README.md"
-GIF_PATH = PROJECT_ROOT / "docs" / "images" / "jiphyeonjeon-home.gif"
+GIF_PATH = PROJECT_ROOT / "docs" / "images" / "jiphyeonjeon-workflow.gif"
 
 
 def test_readme_embeds_service_gif_with_resolving_relative_path() -> None:
@@ -17,14 +17,14 @@ def test_readme_embeds_service_gif_with_resolving_relative_path() -> None:
     readme_text = README.read_text(encoding="utf-8")
 
     image_match = re.search(
-        r'<img\s+src="(?P<src>docs/images/jiphyeonjeon-home\.gif)"\s+'
+        r'<img\s+src="(?P<src>docs/images/jiphyeonjeon-workflow\.gif)"\s+'
         r'alt="(?P<alt>[^"]+)"',
         readme_text,
     )
 
     assert image_match is not None
     assert (PROJECT_ROOT / image_match.group("src")).is_file()
-    assert "Jiphyeonjeon" in image_match.group("alt")
+    assert "workflow" in image_match.group("alt")
 
 
 def test_service_gif_is_real_widescreen_asset() -> None:
@@ -35,4 +35,4 @@ def test_service_gif_is_real_widescreen_asset() -> None:
     width, height = struct.unpack("<HH", gif_bytes[6:10])
     assert (width, height) == (1280, 720)
     assert GIF_PATH.stat().st_size > 500_000
-    assert gif_bytes.count(b"\x2c") >= 3  # multiple image frames, not a static placeholder
+    assert gif_bytes.count(b"\x2c") >= 9  # multiple walkthrough frames, not a static placeholder
