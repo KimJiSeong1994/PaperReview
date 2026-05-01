@@ -54,7 +54,6 @@ export interface QueryAnalysis {
   search_filters: Record<string, any>;
   confidence: number;
   original_query: string;
-  is_academic?: boolean;
   analysis_details?: string;
 }
 
