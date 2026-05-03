@@ -1,204 +1,198 @@
-# 개인화 논문 추천 고도화 제안서
+# 개인화 논문 추천 고도화 검토 및 로드맵
 
-작성일: 2026-05-03
-범위: 현재 PaperReviewAgent 추천/알림 파이프라인을 코드 근거로 검토하고, 구현 없이 개인화 품질 개선안과 우선순위 로드맵을 제시한다.
+## 목적과 범위
 
-## 1. 결론 요약
+이 문서는 현재 PaperReviewAgent의 논문 추천 파이프라인을 코드 근거 기반으로 검토하고, 사용자별 개인화 추천 품질을 높이기 위한 데이터 신호, 랭킹/모델링 개선안, 평가 및 배포 전략을 제안한다. 이번 산출물은 **제안서와 우선순위 로드맵**이며 추천 알고리즘 구현 변경은 포함하지 않는다.
 
-현재 PaperReviewAgent의 일일 추천은 **사용자별 아티팩트 스코프는 분리되어 있지만, 개인화 모델은 북마크 텍스트 기반 토큰 오버랩에 가깝다**. `src/daily_recommendations.py`는 사용자 목록, 북마크, 전역 논문 JSON을 읽고(`load_users`, `load_bookmarks`, `load_papers`), 북마크의 `topic/title/notes/report/papers`에서 만든 토큰 카운터와 후보 논문 텍스트의 겹침으로 점수를 계산한다. 북마크가 없으면 `fallback_recent=True`로 최근성 및 PDF/DOI/arXiv 보너스 중심 추천이 된다.
+## 현재 파이프라인 요약
 
-따라서 개인화 품질을 높이는 최우선 과제는 새 모델 도입보다 먼저 **사용자 행동 신호 수집 → 프로필/피드백 저장 → 오프라인 평가 → 제한적 롤아웃**의 닫힌 루프를 만드는 것이다. 기존 이벤트 인프라(`src/events/*`)와 추천 아티팩트 계약(`data/recommendations/{user_id}/{YYYY-MM-DD}/raw.json`)을 보존하면서, 병렬 variant로 고도화 랭커를 추가하는 방식이 가장 안전하다.
+### 1. 일일 추천 아티팩트 생성
 
-## 2. 현재 파이프라인 코드 근거
+- `src/daily_recommendations.py::generate_daily_recommendations`는 `users.db`, `bookmarks.db`, `data/raw/papers.json`을 읽어 사용자별 `raw.json` 추천 아티팩트를 쓴다.
+- `src/daily_recommendations.py::recommend_for_user`는 사용자 북마크에서 프로필을 만들고 후보 논문을 점수화한다.
+- `scripts/generate_daily_recommendations.py`는 위 모듈의 CLI 래퍼이며, `.github/workflows/daily-recommendations.yml`에서 매일 실행된다.
+- `docs/daily-recommendations.md`에 따르면 워크플로는 OpenClaw 아티팩트 import를 먼저 시도하고 실패하거나 누락된 사용자는 로컬 생성기로 fallback한다.
 
-### 2.1 생성 경로: 로컬 일일 추천
+### 2. 현재 로컬 개인화 신호
 
-- `src/daily_recommendations.py:120-165` — `users.db`와 `bookmarks.db`를 읽어 사용자와 북마크 레코드를 구성한다.
-- `src/daily_recommendations.py:190-202` — 사용자 프로필은 북마크 `topic`, `title`, `notes`, `report`, 북마크된 논문 제목/저자 토큰으로만 구성된다.
-- `src/daily_recommendations.py:205-216` — 후보 논문 텍스트는 `title`, `abstract`, `search_query`, 저자, 카테고리만 사용한다.
-- `src/daily_recommendations.py:235-262` — 점수는 토큰 오버랩, 최근성, PDF/DOI/arXiv 보너스의 합이다.
-- `src/daily_recommendations.py:300-359` — 이미 북마크된 논문은 식별자 교집합으로 제외하고, 결과를 `variants: {"daily": [...]}` 아티팩트로 반환한다.
-- `src/daily_recommendations.py:362-372` — 출력은 사용자/일자별 `raw.json` 파일로 원자적 기록된다.
+`src/daily_recommendations.py::_user_profile` 기준 현재 프로필은 다음 신호로 구성된다.
 
-### 2.2 읽기/API/UI 경로
+| 신호 | 현재 가중 | 의미 |
+| --- | ---: | --- |
+| 북마크 topic | 5 | 사용자가 저장한 주제 |
+| 북마크 title | 4 | 저장 묶음 제목 |
+| notes | 2 | 사용자 메모 |
+| report 일부 | 1 | 리뷰 보고서 텍스트 |
+| 북마크된 paper title | 7 | 가장 강한 관심 논문 신호 |
+| authors | 1 | 저자 관심의 약한 proxy |
 
-- `src/recommendations_artifacts.py:97-109` — 알림 API는 최신 `raw.json`을 전체 스캔한 뒤 `user_id` 또는 경로 파트로 사용자 소유 여부를 판단한다.
-- `src/recommendations_artifacts.py:121-146` — 개별 추천 row는 `score`, `rank`, `reason`, `paper_id`, URL/DOI/arXiv 등을 정규화한다.
-- `src/recommendations_artifacts.py:149-209` — 동일 `paper_id`의 여러 variant를 묶고 `_sort_key(score, rank)`로 정렬한다.
-- `routers/recommendations.py:85-95` — `GET /api/recommendations/notifications`는 로그인 사용자 기준으로 아티팩트를 읽어 반환만 한다.
-- `web-ui/src/components/RecommendationBell.tsx` 및 `web-ui/src/api/recommendations.ts` — 추천은 표시 전용이며, 추천 클릭/노출/숨김/피드백을 서버로 보내는 API가 없다.
+후보 점수는 `src/daily_recommendations.py::_score_paper`에서 토큰 겹침, 최신성, PDF/DOI/arXiv 보너스를 더해 산출한다. 프로필이 비어 있으면 `fallback_recent=True`로 최근성 중심 추천을 수행한다.
 
-### 2.3 OpenClaw 연동 및 배포
+### 3. 추천 조회 API와 아티팩트 계약
 
-- `.github/workflows/daily-recommendations.yml:37-130` — OpenClaw 원격 추천 아티팩트를 먼저 가져오고 실패 시 로컬 fallback으로 진행한다.
-- `.github/workflows/daily-recommendations.yml:147-180` — 가져온 아티팩트를 import한 뒤 `scripts/generate_daily_recommendations.py --skip-existing`로 나머지 사용자 추천을 생성한다.
-- `docs/daily-recommendations.md:16-25` — OpenClaw 아티팩트 필수 shape은 최소 검증 중심이다.
+- `routers/recommendations.py::list_recommendation_notifications`는 인증된 사용자에 대해 `src.recommendations_artifacts.load_recommendation_artifact` 결과를 그대로 응답 모델에 매핑한다.
+- `src/recommendations_artifacts.py::latest_raw_file`은 사용자에게 속한 최신 `raw.json`을 찾고, `::_group_items`는 variant 중복 논문을 `paper_id` 기준으로 묶는다.
+- 현재 읽기 경로는 파일 기반이며 `root.glob("**/raw.json")`과 mtime에 의존한다. 사용자 수와 아티팩트 수가 늘면 색인 또는 DB-backed serving 계층이 필요하다.
 
-### 2.4 이미 존재하지만 추천에 미연결된 행동 신호
+### 4. 이미 존재하지만 추천에 충분히 연결되지 않은 신호
 
-- `src/events/event_types.py:25-38` — `BOOKMARK_ADD/REMOVE`, `HIGHLIGHT_*`, `REVIEW_*`, `SCORE_OVERRIDE`, `SEARCH_CLICK`, `PAPER_OPEN`, `QUERY_SUBMIT` 이벤트 타입이 있다.
-- `src/events/migrations.py:32-55` — `user_events` 테이블과 사용자/시간, 이벤트 타입, 논문 인덱스가 있다.
-- `routers/search.py`는 검색 쿼리와 클릭 이벤트를 발행하고, `routers/bookmarks.py`와 `routers/paper_reviews.py`는 북마크/하이라이트/리뷰 이벤트를 발행한다.
-- 그러나 `src/daily_recommendations.py`와 `src/openclaw_recommendations.py`는 `events.db`나 사용자 프로필 DB를 읽지 않는다.
+- `src/events/event_types.py::EventType`에는 `BOOKMARK_ADD`, `BOOKMARK_REMOVE`, `HIGHLIGHT_*`, `REVIEW_*`, `SEARCH_CLICK`, `PAPER_OPEN`, `QUERY_SUBMIT` 등이 정의되어 있다.
+- `routers/search.py`는 `QUERY_SUBMIT` 및 `SEARCH_CLICK` 이벤트를 방출한다.
+- `routers/bookmarks.py`는 북마크 추가/삭제 및 하이라이트 이벤트를 방출한다.
+- `routers/paper_reviews.py`는 리뷰 생성 이벤트를 방출한다.
+- `src/graph_rag/hybrid_ranker.py::HybridRanker`는 BM25, semantic, citations, recency, cross-encoder, HyDE/RRF 검색 랭킹 기능을 갖지만 일일 추천 생성기의 사용자 프로필 기반 랭킹에는 아직 직접 재사용되지 않는다.
+- `src/graph_rag/ranker.py::PaperRanker`는 PageRank, citation, recency 기반 점수를 제공하므로 장기적으로 graph-aware 추천 신호 후보가 될 수 있다.
 
-## 3. 핵심 한계와 리스크
+## 핵심 품질 격차
 
-1. **개인화 신호가 북마크 텍스트에 편중**
-   명시적 선호, 비선호, 추천 노출, 추천 클릭, 숨김, dwell time, 재방문, 검색 후 저장 전환이 랭킹에 반영되지 않는다.
+1. **개인화가 북마크 텍스트 겹침에 편중됨**  
+   클릭, 열람, 검색 질의, 리뷰, 하이라이트, 삭제/무시 같은 행동 신호가 추천 프로필에 반영되지 않는다.
 
-2. **콜드스타트가 최근성 fallback에 의존**
-   북마크가 없는 사용자는 개인화 대신 최근성/소스 보너스 추천을 받는다. 온보딩 선호 수집이나 세션 검색 이력 기반 단기 프로필이 없다.
+2. **랭킹이 학습/캘리브레이션 없는 휴리스틱임**  
+   `_score_paper`의 점수는 사용자별 선호 확률이나 calibrated relevance로 해석하기 어렵고, 사용자별 score distribution 보정도 없다.
 
-3. **검색/추천 랭킹의 사용자 인식이 분리됨**
-   검색 랭킹은 글로벌 관련도 중심이며 사용자 프로필을 입력으로 받지 않는다. 개인화 검색을 추가할 경우 기존 공유 캐시와 사용자별 결과가 섞이지 않도록 캐시 키 또는 후처리 경계를 명확히 해야 한다.
+3. **한국어/다국어 토큰화가 약함**  
+   `_TOKEN_RE`와 stopword 기반 토큰화는 형태소, 복합명사, 한영 synonym, 분야 약어를 충분히 다루지 못한다.
 
-4. **아티팩트 계약은 유연하지만 품질 검증이 약함**
-   `score`, `rank`, `year`, `authors`, `score_stats`의 강한 schema 검증이 없다. `paper_id()` fallback은 `title::year`라 충돌 가능성이 있다.
+4. **후보 품질 관리가 제한적임**  
+   `load_papers`는 title만 있으면 후보로 허용한다. 초록, 식별자, 수집 query, 분야 taxonomy가 부족한 후보는 개인화 점수 품질을 낮춘다.
 
-5. **관측성과 평가 루프 부족**
-   워크플로우는 성공/실패 로그 중심이고 CTR, 저장 전환율, fallback 비율, 점수 분포 drift, 추천 다양성, 중복률, 사용자별 coverage 같은 지표를 축적하지 않는다.
+5. **중복/기열람 논문 제외가 불안정할 수 있음**  
+   `_paper_identity_values`와 `paper_id`는 여러 식별자를 사용하지만, 번역 제목·동명이 논문·불완전 DOI/arXiv 메타데이터에 취약하다.
 
-6. **성능 확장성 리스크**
-   요청 시 `**/raw.json` 전체 스캔을 수행하고, 생성 시 전역 후보 corpus를 사용자별로 반복 scoring한다. 고도화 모델을 단순 추가하면 사용자 수 × 후보 수 비용이 빠르게 증가한다.
+6. **추천 serving 관측성이 부족함**  
+   OpenClaw import 실패 시 fallback은 안전하지만, 품질 저하·staleness·사용자별 빈 추천 사유가 API/운영 지표로 충분히 노출되지 않는다.
 
-## 4. 개선 원칙
+## 개선 제안
 
-- 기존 알림 API와 `raw.json` 계약은 유지한다.
-- 새 랭커는 먼저 `variants.personalized_v2` 같은 병렬 variant로 추가한다.
-- 개인정보/민감 신호는 원문 장기 저장보다 파생 feature와 집계 지표 중심으로 설계한다.
-- 추천 품질 개선은 모델 복잡도보다 데이터 신호와 평가 가능성을 우선한다.
-- OpenClaw와 로컬 fallback 모두 동일한 평가/계약 검증 게이트를 통과하도록 한다.
+### A. 데이터 신호 계층 확장
 
-## 5. 데이터 신호 확장안
-
-### P0 — 즉시 설계해야 할 최소 신호
-
-| 신호 | 수집 위치 | 용도 | 주의점 |
+| 우선순위 | 신호 | 소스 | 활용 방식 |
 | --- | --- | --- | --- |
-| 추천 노출(impression) | `RecommendationBell` 열림/표시 | CTR denominator, 반복 노출 억제 | 노출 batch 이벤트로 과다 쓰기 방지 |
-| 추천 클릭 | 추천 카드 클릭 | 긍정 implicit feedback | 외부 링크 이동 전 fire-and-forget 필요 |
-| 북마크 전환 | 추천에서 북마크 생성 | 강한 긍정 라벨 | 추천 `paper_id`, `run_at`, `variant` 연결 |
-| 숨김/관심 없음 | 추천 카드 액션 | 강한 부정 라벨, suppression | 실수 취소 UX 필요 |
-| 검색 쿼리 최근 이력 | 기존 `QUERY_SUBMIT` | 단기 관심사 | 원문 대신 hash+토큰/주제 요약 권장 |
+| P0 | 북마크 add/remove | `routers/bookmarks.py`, `EventType` | positive/negative preference, seen set |
+| P0 | 검색 질의와 클릭 | `routers/search.py`, `QUERY_SUBMIT`, `SEARCH_CLICK` | short-term intent, click-through preference |
+| P1 | paper open / dwell proxy | `EventType.PAPER_OPEN` | 약한 positive, freshness-sensitive 관심 |
+| P1 | 리뷰 생성/수정 | `routers/paper_reviews.py`, `REVIEW_CREATE` | 깊은 관심 주제 및 방법론 profile |
+| P1 | 하이라이트/메모 | `HIGHLIGHT_*`, bookmark notes | passage-level 관심 키워드 |
+| P2 | 추천 노출/클릭/삭제 | 신규 이벤트 필요 | 추천 품질 학습, fatigue 방지 |
+| P2 | GraphRAG/PageRank | `src/graph_rag/*` | citation/community relevance |
 
-### P1 — 프로필 품질 향상 신호
+권장 설계는 `events -> user_signal_snapshot -> daily_recommendations`의 어댑터 계층이다. 원본 이벤트는 불변 로그로 유지하고, 추천 생성 시점에는 최근 7일/30일/180일의 감쇠 가중 profile snapshot을 읽도록 분리한다.
 
-- 북마크 폴더/토픽 이동, 노트 길이, 하이라이트 생성 여부.
-- 리뷰 생성 및 `overall_score`/강점/약점 요약.
-- 논문 열람 및 재방문 이벤트(`PAPER_OPEN`)의 추천 출처 attribution.
-- 선호 도메인, 방법론, 데이터셋, venue, 최신성 선호 같은 온보딩/설정형 선호.
+### B. 후보 생성 개선
 
-### 저장 모델 제안
+1. **다중 후보 소스**
+   - 기존 `data/raw/papers.json` 유지.
+   - OpenClaw variant별 후보 유지.
+   - 검색/북마크 query에서 파생된 related-paper 수집 결과를 후보 pool로 합류.
+   - GraphRAG 인접 논문, citation neighbor, 같은 저자/venue/분야 후보를 별도 variant로 생성.
 
-1. `user_events`는 원천 이벤트 ledger로 유지한다.
-2. 별도 `user_profile_features` 또는 `profile.db` 확장 테이블에 주기적으로 집계한 feature를 저장한다.
-3. 추천 아티팩트에는 `scoring_mode`, `profile_version`, `feature_snapshot_id`, `experiment_id`를 선택 필드로 추가한다.
-4. 사용자 삭제 흐름(`routers/deps/user_deletion.py`)에 profile feature, recommendation feedback, embeddings 삭제 단계를 포함한다.
+2. **후보 품질 필터**
+   - title-only 후보는 fallback 후보로 격하한다.
+   - abstract, stable identifier, source, collected_at, search_query가 있는 후보를 personalized rerank 대상 우선순위로 둔다.
+   - 같은 DOI/arXiv/openalex_id/title-normalized cluster는 하나의 canonical paper로 묶는다.
 
-## 6. 랭킹/모델링 개선안
+3. **탐색 다양성**
+   - 상위 N개 안에 동일 topic/author/source가 과밀하지 않도록 MMR 또는 topic quota를 둔다.
+   - cold-start 사용자는 global trending + role/최근 query + curriculum 관심 분야 기반으로 시작한다.
 
-### 6.1 단기: 현행 scorer의 안전한 개선
+### C. 랭킹/모델링 개선
 
-- 토큰 카운터를 TF-IDF/BM25 스타일로 정규화해 흔한 단어 과대 반영을 줄인다.
-- 북마크 제목/논문 제목뿐 아니라 abstract, category, venue, citation, 검색 쿼리 이벤트를 feature로 반영한다.
-- 후보 중복 제거를 `paper_id/title::year`에서 DOI/arXiv/URL/title-normalized fingerprint 다중 키로 강화한다.
-- `fallback_recent` 사용자에게 온보딩 주제 또는 최근 검색 쿼리 기반 단기 프로필을 적용한다.
-- 결과 diversity 제약을 추가한다. 예: 동일 source/저자/토픽 상위 집중을 제한하고 MMR로 novelty를 보장한다.
+#### 단계 1: 휴리스틱 v2
 
-### 6.2 중기: Two-stage 추천 구조
+- `_user_profile`에 이벤트 기반 time-decay 신호를 추가한다.
+- `_score_paper`를 다음 breakdown으로 분리한다.
+  - content_match: 북마크/메모/검색 질의와 후보 title/abstract/category 유사도
+  - behavior_match: 클릭·열람·리뷰와 후보 유사도
+  - novelty: 이미 본 논문/저자/주제 감점
+  - authority: citation/PageRank/source reliability
+  - freshness: 사용자별 최신성 선호 캘리브레이션
+  - accessibility: PDF/DOI/arXiv/URL 보너스
+- reason 문구는 breakdown의 top contributing factors에서 생성한다.
 
-1. **Candidate generation**
-   - 최근 수집 논문, 사용자의 검색 결과 클릭 주변 논문, 북마크와 유사한 embedding 후보, citation/reference 인접 후보를 합친다.
-2. **Feature enrichment**
-   - 콘텐츠 유사도, 프로필 토픽 유사도, 저자/venue 선호, 신선도, 이미 노출/무시 여부, source 신뢰도, diversity feature를 계산한다.
-3. **Ranker**
-   - 초기에는 규칙 기반 weighted scorer + calibration.
-   - 라벨이 쌓이면 pairwise/listwise learning-to-rank로 전환한다.
-4. **Post-rank guardrail**
-   - 이미 본 논문 억제, 중복/near-duplicate 제거, diversity, 품질 하한, 설명 가능한 reason 생성.
+#### 단계 2: 임베딩 기반 개인화 reranker
 
-### 6.3 장기: 개인화 학습 루프
+- 사용자 profile embedding을 북마크, notes, query, highlights, review text의 time-decayed centroid로 만든다.
+- 후보 embedding은 title+abstract+category로 만들고, semantic similarity를 content score로 사용한다.
+- `src/graph_rag/hybrid_ranker.py::HybridRanker`의 RRF/cross-encoder 구조를 추천 후보 rerank에도 재사용하되, 검색 query 대신 사용자 profile text/embedding을 입력으로 넣는 adapter를 둔다.
+- 스코어는 raw similarity가 아니라 사용자별 percentile 또는 z-score로 보정한다.
 
-- `recommendation_feedback` 라벨을 이용한 사용자별/세그먼트별 가중치 학습.
-- 개인별 장기 프로필(관심 분야)과 세션 단기 프로필(최근 검색/클릭)을 결합.
-- OpenClaw 추천과 로컬 추천을 같은 후보 pool/평가 로그로 비교하는 ensemble 또는 interleaving 실험.
-- 이유 설명(`reason`)도 matched token 나열에서 “사용자 신호 → 추천 근거” 구조로 개선한다.
+#### 단계 3: 학습 기반 랭킹
 
-## 7. 평가 전략
+- 추천 노출, 클릭, 저장, 리뷰 작성, 삭제/무시를 label로 수집한다.
+- 초기에는 logistic regression / LambdaMART / lightweight gradient boosting 같은 해석 가능한 모델을 검토한다.
+- feature 예시는 user-paper semantic similarity, query overlap, bookmark overlap, author affinity, source affinity, recency preference, citation percentile, novelty, diversity penalty이다.
+- LLM reranking은 비용과 지연 시간이 크므로 top-50 후보의 offline 또는 batch rerank에 제한하고, reason generation은 deterministic evidence를 우선한다.
 
-### 7.1 오프라인 평가
+### D. 평가 전략
 
-- 과거 이벤트를 시간순 split하여 “이 시점 이전 신호로 이후 북마크/클릭/리뷰 생성을 맞히는가”를 평가한다.
-- 지표: Recall@K, NDCG@K, MAP@K, MRR, coverage, novelty, diversity, 중복률, cold-start segment 성능.
-- 부정 라벨은 hide/not-interested, 반복 노출 후 무클릭, 삭제된 북마크를 낮은 confidence로 사용한다.
-- 기존 `tests/test_daily_recommendations.py` fixture를 확장해 rank stability, dedupe, fallback, schema compatibility 회귀 테스트를 추가한다.
+#### Offline 지표
 
-### 7.2 온라인 평가
+- Recall@K: 과거 사용자가 북마크/클릭/리뷰한 논문을 시간 기준 holdout으로 복원할 수 있는가.
+- NDCG@K/MRR: 강한 행동 신호(리뷰, 북마크)를 높은 순위에 배치하는가.
+- Coverage: 추천 가능한 사용자 비율과 후보 pool coverage.
+- Novelty/Diversity: 중복 주제·저자·source 과밀을 줄이는가.
+- Freshness: 최신 논문과 foundational 논문의 균형.
+- Calibration: 점수 구간별 실제 클릭/저장률 일치도.
 
-- 노출 이벤트 기준 CTR, bookmark conversion, hide rate, downstream review 생성률을 variant별로 집계한다.
-- 사용자별 randomization 단위는 user_id hash로 고정한다.
-- `daily_content_v1`, `personalized_v2`, `openclaw` variant를 같은 UI 계약으로 노출하되, 기본 노출은 canary 사용자부터 시작한다.
-- guardrail: hide rate 급증, empty recommendation 비율, fallback 비율, workflow 실패율, latency/IO 증가를 자동 롤백 조건으로 둔다.
+#### Regression 테스트 우선순위
 
-## 8. 배포/운영 전략
+1. 한국어 topic/notes가 후보 abstract/title과 매칭되는지.
+2. 행동 신호가 북마크 텍스트보다 최근 관심을 높일 수 있는지.
+3. 이미 북마크한 논문과 같은 DOI/arXiv/title cluster가 제외되는지.
+4. profile이 빈 사용자는 cold-start reason과 최근성 추천을 받는지.
+5. OpenClaw artifact가 있으면 `--skip-existing`으로 로컬 fallback이 덮어쓰지 않는지.
+6. malformed/stale artifact는 다른 사용자에게 노출되지 않는지.
+7. 추천 API `limit` clamp, auth, grouped variants serialization이 깨지지 않는지.
 
-1. **계약 고정**: `raw.json` optional metadata를 추가하되 기존 필드는 유지한다.
-2. **Feature flag**: 이미 존재하는 `PROFILE_RANKER_ENABLED`를 사용자/전역 단계별 rollout gate로 사용한다.
-3. **Shadow mode**: 새 랭커는 처음에는 아티팩트에만 기록하고 UI 기본 노출에는 쓰지 않는다.
-4. **Canary**: 내부 사용자 또는 5% 사용자에게 variant 노출.
-5. **A/B**: 최소 2주 단위로 CTR/bookmark conversion/hide rate 평가.
-6. **Rollback**: flag off 시 즉시 `daily_content_v1` 또는 OpenClaw 기존 아티팩트로 복귀.
-7. **Observability**: 생성 요약(`users_seen`, `papers_seen`, `fallback_count`, `empty_count`, `score_stats`, schema validation errors)을 파일/로그/관리자 대시보드에 저장한다.
+#### Online 지표
 
-## 9. 우선순위 로드맵
+- CTR, save/bookmark rate, review-start rate, hide/dismiss rate.
+- 추천 알림 open 후 실제 paper open까지 전환율.
+- 사용자별 빈 추천 비율 및 stale artifact 비율.
+- OpenClaw fallback rate와 import validation failure rate.
+- 지연 시간, batch runtime, 아티팩트 생성 실패율.
 
-### Phase 0 — 계약/측정 기반 다지기 (1주)
+## 배포 전략
 
-- 추천 아티팩트 schema 문서화 및 strict validator 추가.
-- 추천 노출/클릭/숨김/북마크 전환 이벤트 타입 설계.
-- `scoring_mode`, `profile_version`, `experiment_id`, `variant` attribution 표준화.
-- 기존 테스트에 schema compatibility 및 malformed artifact negative case 추가.
+1. **관측성 먼저**
+   - 아티팩트에 `scoring_mode`, `score_stats`, `signal_coverage`, `generated_from`, `fallback_reason`을 기록한다.
+   - OpenClaw import 실패와 local fallback 발생을 운영 로그/알림으로 분리한다.
 
-### Phase 1 — 행동 신호 수집과 집계 (1-2주)
+2. **Shadow mode**
+   - 기존 `daily_content_v1`을 유지하고 새 랭커는 `daily_personalized_v2_shadow` variant로 아티팩트에 함께 기록한다.
+   - API 기본 응답은 기존 variant를 유지하되 offline 비교 리포트만 생성한다.
 
-- `RecommendationBell`에서 impression/click/hide feedback API 추가.
-- `events.db`에서 사용자별 feature snapshot을 만드는 batch job 추가.
-- 추천 생성 요약 지표와 fallback 비율을 저장.
-- 사용자 삭제 cascade에 신규 profile/feedback 데이터 포함.
+3. **Canary**
+   - 내부 사용자 또는 opt-in 사용자에게만 v2 grouped ranking을 노출한다.
+   - 사용자별 fallback/staleness/empty recommendation을 대시보드로 확인한다.
 
-### Phase 2 — personalized_v2 shadow ranker (2주)
+4. **A/B 테스트**
+   - v1 vs v2를 사용자 단위로 고정 할당한다.
+   - CTR만 보지 말고 bookmark/review-start 같은 깊은 engagement를 primary metric으로 둔다.
 
-- 기존 `daily_content_v1`은 유지하고 `personalized_v2` variant를 병렬 생성.
-- profile feature + 현행 콘텐츠 scorer + diversity guardrail 적용.
-- 오프라인 Recall/NDCG와 artifact 품질 리포트 생성.
-- 운영 workflow에는 shadow 결과 수/score 분포만 기록하고 UI 노출은 비활성.
+5. **롤백**
+   - 아티팩트 contract는 `src.recommendations_artifacts.load_recommendation_artifact`와 호환되게 유지한다.
+   - 문제가 생기면 `.github/workflows/daily-recommendations.yml`에서 새 variant 생성만 끄고 기존 로컬/OpenClaw 경로로 되돌린다.
 
-### Phase 3 — Canary/A-B rollout (2-4주)
+## 우선순위 로드맵
 
-- `PROFILE_RANKER_ENABLED` per-user flag로 제한 노출.
-- CTR, bookmark conversion, hide rate, fallback 비율, latency를 비교.
-- 부정 지표 악화 시 자동 fallback.
-- OpenClaw artifact와 로컬 v2의 interleaving 또는 ensemble 후보 비교.
+| 단계 | 기간 | 목표 | 주요 산출물 | 리스크 |
+| --- | --- | --- | --- | --- |
+| P0 | 1주 | 현재 품질을 측정 가능하게 만들기 | 추천 아티팩트 signal/fallback 메타데이터, regression 테스트, OpenClaw 실패 관측성 | 측정 없이 모델 변경부터 진행하는 리스크 차단 |
+| P1 | 1~2주 | 행동 신호 snapshot 도입 | 이벤트 로그에서 user profile snapshot 생성, time decay, seen/negative 신호 | 개인정보/민감 로그 최소화 필요 |
+| P2 | 2~3주 | 휴리스틱 v2 shadow 랭커 | score breakdown, diversity, stable ID dedup, Korean regression | 기존 추천 대비 품질 저하 가능성 |
+| P3 | 3~5주 | 임베딩/RRF 개인화 reranker | profile embedding, candidate embedding, `HybridRanker` adapter, offline NDCG 리포트 | 비용, embedding dimension, cold-start |
+| P4 | 5주+ | 학습 기반 랭킹과 online 실험 | label store, model training/eval pipeline, A/B framework | 데이터 희소성, feedback loop, explainability |
 
-### Phase 4 — 학습형 ranker 전환 (4주+)
+## 즉시 실행 가능한 다음 작업
 
-- 충분한 feedback 라벨 확보 후 pairwise/listwise ranker 도입 검토.
-- 사용자 세그먼트별 calibration과 cold-start onboarding 연결.
-- 장기/단기 관심사 profile decay, novelty budget, 설명 품질 개선.
+1. `tests/test_daily_recommendations.py`에 한국어 topic/notes 매칭, cold-start, min_score/tie-break regression을 추가한다.
+2. `tests/test_recommendations_notifications.py`에 stale/malformed artifact와 route-level limit/auth serialization 테스트를 보강한다.
+3. 추천 생성 결과에 `signal_coverage`와 `fallback_reason`을 추가하는 contract 변경안을 별도 PRD로 작성한다.
+4. 이벤트 기반 profile snapshot의 읽기 전용 prototype을 만들고 기존 `_user_profile` 출력과 비교하는 offline report를 생성한다.
+5. shadow variant 방식으로 `daily_personalized_v2_shadow`를 추가하되 API 기본 노출은 유지한다.
 
-## 10. 즉시 실행 가능한 next actions
+## 결론
 
-1. `recommendation_impression`, `recommendation_click`, `recommendation_hide`, `recommendation_bookmark` 이벤트 타입과 payload 계약을 확정한다.
-2. `src/recommendations_artifacts.py`의 아티팩트 validator를 별도 함수로 분리하고 OpenClaw/로컬 생성 모두에서 재사용한다.
-3. `src/daily_recommendations.py`의 결과에 `fallback_recent` 집계와 `profile_version`을 추가한다.
-4. `tests/test_daily_recommendations.py`에 “동일 제목/연도 충돌”, “빈 북마크 cold-start”, “부정 feedback suppression” 회귀 fixture를 추가한다.
-5. `PROFILE_RANKER_ENABLED` flag를 추천 생성 단계에서 shadow/canary 제어점으로 연결한다.
-
-## 부록: subagent 검토 통합
-
-- Subagents spawned: 3 (`Ptolemy` pipeline map, `Avicenna` data-signal map, `Bacon` evaluation/deployment review).
-- Integrated findings:
-  - 추천 생성은 북마크 텍스트 기반이며 이벤트/피드백은 랭킹에 미연결.
-  - API/UI는 추천 표시 전용이고 feedback write path가 없다.
-  - OpenClaw와 로컬 fallback 모두 같은 artifact reader contract를 공유하므로 backward-compatible 확장이 필요하다.
-  - 평가/관측성/스키마 검증과 rollout guardrail이 현재 가장 큰 품질 리스크다.
+현재 PaperReviewAgent의 로컬 추천은 구조가 단순하고 안전하지만, 개인화는 북마크 기반 키워드 겹침에 머물러 있다. 가장 높은 ROI는 새 모델을 바로 도입하는 것이 아니라, 기존 이벤트 신호를 추천 profile snapshot으로 연결하고, stable ID/dedup/한국어 매칭/평가 지표를 먼저 고정한 뒤, shadow reranker와 A/B 테스트로 단계적으로 확장하는 것이다.
