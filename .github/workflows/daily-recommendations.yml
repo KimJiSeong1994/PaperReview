@@ -2,12 +2,26 @@ name: Daily Recommendations
 
 on:
   schedule:
-    # 03:10 KST every day (18:10 UTC).
-    - cron: "10 18 * * *"
+    # 09:00 KST every day (00:00 UTC).
+    # Runs related-paper collection -> review -> LLM wiki build -> recommendations.
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
+  python-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r requirements.txt
+
   refresh:
+    needs: python-audit
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -156,6 +170,15 @@ jobs:
           artifacts_dir="${RECOMMENDATIONS_ARTIFACTS_DIR:-data/recommendations}"
           run_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           run_date="${run_at%%T*}"
+          python scripts/collect_related_papers_for_wiki.py \
+            --bookmarks-db data/bookmarks.db \
+            --papers-json data/raw/papers.json \
+            --wiki-dir data/llm-wiki \
+            --report-dir data/related-papers \
+            --max-queries 10 \
+            --per-query 8 \
+            --top 24 \
+            --run-at "$run_at"
           openclaw_raw="/tmp/paperreview-openclaw-raw.json"
           if [ -s "$openclaw_raw" ]; then
             if python scripts/import_openclaw_recommendation_artifact.py \
@@ -174,6 +197,8 @@ jobs:
             --bookmarks-db data/bookmarks.db \
             --papers-json data/raw/papers.json \
             --artifacts-dir "$artifacts_dir" \
+            --events-db data/events.db \
+            --related-papers-json "data/related-papers/${run_date}.json" \
             --limit 12 \
             --run-at "$run_at" \
             --skip-existing

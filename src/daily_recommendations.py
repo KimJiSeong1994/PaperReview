@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sqlite3
 from collections import Counter
@@ -18,12 +19,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from src.events.feature_flags import PROFILE_RANKER_ENABLED, _db_path, is_enabled
+from src.recommendation_profiles import (
+    build_recommendation_profile,
+    load_user_event_signals,
+)
+from src.recommendation_ranker import mmr_rerank, rank_paper_v2, reason_v2
 from src.recommendations_artifacts import paper_id, safe_str
 
 
 DEFAULT_LIMIT = 12
 DEFAULT_MIN_SCORE = 0.6
 SCORING_MODE = "daily_content_v1"
+SCORING_MODE_V2 = "daily_profile_ranker_v2"
+PROFILE_RANKER_GLOBAL_ENABLED = "PROFILE_RANKER_GLOBAL_ENABLED"
+PROFILE_RANKER_ALLOWED_USERS = "PROFILE_RANKER_ALLOWED_USERS"
 _TOKEN_RE = re.compile(r"[A-Za-z0-9가-힣]{2,}")
 _SAFE_USERNAME_RE = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 _STOPWORDS = {
@@ -78,6 +88,70 @@ class BookmarkRecord:
     report: str = ""
     notes: str = ""
 
+
+
+
+def _run_datetime(run_at: str | None) -> datetime:
+    if not run_at:
+        return datetime.now(timezone.utc)
+    raw = run_at[:-1] + "+00:00" if run_at.endswith("Z") else run_at
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return datetime.now(timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _allowed_profile_ranker_users() -> set[str]:
+    raw = os.getenv(PROFILE_RANKER_ALLOWED_USERS, "")
+    return {part.strip() for part in raw.split(",") if part.strip()}
+
+
+
+
+def _profile_ranker_per_user_override(username: str) -> bool | None:
+    try:
+        conn = sqlite3.connect(str(_db_path()))
+    except sqlite3.Error:
+        return None
+    try:
+        row = conn.execute(
+            "SELECT enabled FROM feature_flags WHERE flag = ? AND username = ?",
+            (PROFILE_RANKER_ENABLED, username),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+    return bool(row[0]) if row is not None else None
+
+def _profile_ranker_enabled(username: str) -> bool:
+    # Safety guard: v2 rollout requires either explicit per-user enablement or
+    # a second global rollout gate. A global DB/env flag alone is insufficient.
+    global_gate = os.getenv(PROFILE_RANKER_GLOBAL_ENABLED, "").strip().lower() in {"true", "1", "yes"}
+    allowed_users = _allowed_profile_ranker_users()
+    per_user_override = _profile_ranker_per_user_override(username)
+    if per_user_override is not None:
+        return bool(per_user_override)
+    if username in allowed_users:
+        return is_enabled(PROFILE_RANKER_ENABLED, username=username)
+    return global_gate and is_enabled(PROFILE_RANKER_ENABLED, username=username)
+
+
+def _score_stats(scores: list[float], *, fallback_recent: bool) -> dict[str, dict[str, float]]:
+    mean = sum(scores) / len(scores) if scores else 0.0
+    return {
+        "daily": {
+            "n": len(scores),
+            "mean": round(mean, 3),
+            "min": min(scores) if scores else 0.0,
+            "max": max(scores) if scores else 0.0,
+            "spread": round((max(scores) - min(scores)), 3) if scores else 0.0,
+            "fallback_recent_rate": 1.0 if fallback_recent else 0.0,
+        }
+    }
 
 def _connect_readonly(path: Path) -> sqlite3.Connection:
     uri = f"file:{path.resolve()}?mode=ro"
@@ -164,6 +238,48 @@ def load_bookmarks(bookmarks_db: Path) -> list[BookmarkRecord]:
         )
     return bookmarks
 
+
+
+
+def load_related_paper_signals(report_json: Path | None) -> dict[str, dict[str, Any]]:
+    if report_json is None or not report_json.exists():
+        return {}
+    try:
+        raw = json.loads(report_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    papers = raw.get("top_papers") if isinstance(raw, dict) else None
+    if not isinstance(papers, list):
+        return {}
+    signals: dict[str, dict[str, Any]] = {}
+    for item in papers:
+        if not isinstance(item, dict):
+            continue
+        identity = safe_str(item.get("paper_id")).lower()
+        if not identity:
+            identity = safe_str(item.get("title")).lower()
+        if not identity:
+            continue
+        signals[identity] = {
+            "related_review_score": item.get("score"),
+            "related_query": safe_str(item.get("query")),
+            "related_reasons": item.get("reasons") if isinstance(item.get("reasons"), list) else [],
+        }
+    return signals
+
+
+def _with_related_signal(paper: dict[str, Any], related_signals: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    if not related_signals:
+        return paper
+    for identity in _paper_identity_values(paper):
+        signal = related_signals.get(identity.lower())
+        if signal:
+            enriched = dict(paper)
+            enriched.update(signal)
+            if not safe_str(enriched.get("source")):
+                enriched["source"] = "related-papers"
+            return enriched
+    return paper
 
 def load_papers(papers_json: Path) -> list[dict[str, Any]]:
     if not papers_json.exists():
@@ -297,17 +413,17 @@ def _notification_row(
     }
 
 
-def recommend_for_user(
+def _recommend_for_user_v1(
     username: str,
     user_bookmarks: list[BookmarkRecord],
     papers: list[dict[str, Any]],
     *,
-    limit: int = DEFAULT_LIMIT,
-    min_score: float = DEFAULT_MIN_SCORE,
-    run_at: str | None = None,
+    limit: int,
+    min_score: float,
+    run_at: str,
+    now: datetime,
+    fallback_reason: str | None = None,
 ) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    run_at = run_at or now.isoformat()
     current_year = now.year
     profile, seen_papers = _user_profile(user_bookmarks)
     fallback_recent = not profile
@@ -336,27 +452,141 @@ def recommend_for_user(
         for idx, (score, matched, paper) in enumerate(scored[:limit], start=1)
     ]
     scores = [item["score"] for item in recommendations]
-    mean = sum(scores) / len(scores) if scores else 0.0
-    return {
+    personalization_state = "fallback" if fallback_recent else "ready"
+    artifact = {
         "run_at": run_at,
         "user_id": username,
         "scoring_mode": SCORING_MODE,
+        "personalization_state": personalization_state,
+        "fallback_reason": fallback_reason or ("no_bookmarks" if fallback_recent else None),
+        "next_best_action": "관심 논문을 북마크하면 추천 정확도가 올라갑니다." if fallback_recent else None,
         "profile": {
             "bookmark_count": len(user_bookmarks),
             "top_terms": [term for term, _ in profile.most_common(12)],
             "fallback_recent": fallback_recent,
         },
-        "score_stats": {
-            "daily": {
-                "n": len(scores),
-                "mean": round(mean, 3),
-                "min": min(scores) if scores else 0.0,
-                "max": max(scores) if scores else 0.0,
-                "spread": round((max(scores) - min(scores)), 3) if scores else 0.0,
-            }
-        },
+        "score_stats": _score_stats(scores, fallback_recent=fallback_recent),
         "variants": {"daily": recommendations},
     }
+    return artifact
+
+
+def _notification_row_v2(
+    ranked: Any,
+    *,
+    rank: int,
+    fallback_recent: bool,
+) -> dict[str, Any]:
+    row = _notification_row(
+        ranked.paper,
+        score=ranked.score,
+        rank=rank,
+        reason=reason_v2(ranked, fallback_recent=fallback_recent),
+    )
+    row.update(
+        {
+            "raw_score": ranked.raw_score,
+            "normalized_score": ranked.normalized_score,
+            "score_breakdown": ranked.score_breakdown,
+            "matched_terms": ranked.matched_terms[:5],
+            "reason_summary": row["reason"],
+            "reason_factors": ranked.reason_factors,
+            "evidence_count": len(ranked.reason_factors) + len(ranked.matched_terms),
+            "explanation_confidence": ranked.explanation_confidence,
+            "slot_type": ranked.slot_type,
+            "diversity_adjusted": ranked.diversity_adjusted,
+            "similarity_penalty": ranked.similarity_penalty,
+        }
+    )
+    return row
+
+
+def _recommend_for_user_v2(
+    username: str,
+    user_bookmarks: list[BookmarkRecord],
+    papers: list[dict[str, Any]],
+    *,
+    event_signals: list[Any],
+    related_signals: dict[str, dict[str, Any]] | None = None,
+    limit: int,
+    min_score: float,
+    run_at: str,
+    now: datetime,
+) -> dict[str, Any]:
+    current_year = now.year
+    bookmark_profile, seen_papers = _user_profile(user_bookmarks)
+    profile = build_recommendation_profile(bookmark_profile, event_signals, now=now)
+    fallback_recent = not profile.positive_terms and not profile.query_terms
+    seen_papers.update(profile.positive_paper_ids)
+
+    ranked_items = []
+    for paper in papers:
+        if _paper_identity_values(paper) & seen_papers:
+            continue
+        enriched_paper = _with_related_signal(paper, related_signals or {})
+        ranked = rank_paper_v2(enriched_paper, profile, current_year=current_year)
+        if ranked.score >= min_score or fallback_recent:
+            ranked_items.append(ranked)
+
+    ranked_items.sort(
+        key=lambda item: (item.score, _year_value(item.paper) or 0, safe_str(item.paper.get("title"))),
+        reverse=True,
+    )
+    selected_items = mmr_rerank(ranked_items, limit=limit)
+    recommendations = [
+        _notification_row_v2(ranked, rank=idx, fallback_recent=fallback_recent)
+        for idx, ranked in enumerate(selected_items, start=1)
+    ]
+    scores = [item["score"] for item in recommendations]
+    personalization_state = "fallback" if fallback_recent else ("sparse" if len(event_signals) < 2 else "ready")
+    return {
+        "run_at": run_at,
+        "user_id": username,
+        "scoring_mode": SCORING_MODE_V2,
+        "personalization_state": personalization_state,
+        "fallback_reason": "no_personalization_signals" if fallback_recent else None,
+        "next_best_action": "관심 논문을 북마크하거나 검색 결과를 열어 추천 근거를 늘릴 수 있습니다." if fallback_recent else None,
+        "profile": profile.public_summary(bookmark_count=len(user_bookmarks), fallback_recent=fallback_recent),
+        "score_stats": _score_stats(scores, fallback_recent=fallback_recent),
+        "variants": {"daily": recommendations},
+    }
+
+
+def recommend_for_user(
+    username: str,
+    user_bookmarks: list[BookmarkRecord],
+    papers: list[dict[str, Any]],
+    *,
+    limit: int = DEFAULT_LIMIT,
+    min_score: float = DEFAULT_MIN_SCORE,
+    run_at: str | None = None,
+    event_signals: list[Any] | None = None,
+    related_signals: dict[str, dict[str, Any]] | None = None,
+    use_profile_ranker: bool = False,
+) -> dict[str, Any]:
+    now = _run_datetime(run_at)
+    resolved_run_at = run_at or now.isoformat()
+    if not use_profile_ranker:
+        return _recommend_for_user_v1(
+            username,
+            user_bookmarks,
+            papers,
+            limit=limit,
+            min_score=min_score,
+            run_at=resolved_run_at,
+            now=now,
+        )
+    return _recommend_for_user_v2(
+        username,
+        user_bookmarks,
+        papers,
+        event_signals=event_signals or [],
+        related_signals=related_signals,
+        limit=limit,
+        min_score=min_score,
+        run_at=resolved_run_at,
+        now=now,
+    )
 
 
 def _artifact_path(root: Path, username: str, run_at: str) -> Path:
@@ -384,6 +614,8 @@ def generate_daily_recommendations(
     usernames: Iterable[str] | None = None,
     run_at: str | None = None,
     skip_existing: bool = False,
+    events_db: Path | None = None,
+    related_papers_json: Path | None = None,
 ) -> dict[str, Any]:
     users = load_users(users_db)
     requested = {safe_str(username) for username in usernames or [] if safe_str(username)}
@@ -394,22 +626,59 @@ def generate_daily_recommendations(
     for bookmark in bookmarks:
         bookmarks_by_user.setdefault(bookmark.username, []).append(bookmark)
     papers = load_papers(papers_json)
+    related_signals = load_related_paper_signals(related_papers_json)
 
     written: list[str] = []
     skipped: list[str] = []
     skipped_existing: list[str] = []
+    v2_success = 0
+    v2_failed = 0
+    v1_fallback = 0
+    now = _run_datetime(run_at)
     for user in users:
         if skip_existing and _artifact_path(artifacts_dir, user.username, run_at or "").exists():
             skipped_existing.append(user.username)
             continue
-        artifact = recommend_for_user(
-            user.username,
-            bookmarks_by_user.get(user.username, []),
-            papers,
-            limit=limit,
-            min_score=min_score,
-            run_at=run_at,
-        )
+        use_v2 = _profile_ranker_enabled(user.username)
+        if use_v2:
+            try:
+                event_signals = load_user_event_signals(events_db, user.username, now=now)
+                artifact = recommend_for_user(
+                    user.username,
+                    bookmarks_by_user.get(user.username, []),
+                    papers,
+                    limit=limit,
+                    min_score=min_score,
+                    run_at=run_at,
+                    event_signals=event_signals,
+                    related_signals=related_signals,
+                    use_profile_ranker=True,
+                )
+                v2_success += 1
+            except (OSError, sqlite3.Error, ValueError, TypeError, KeyError):
+                # Per-user safety fallback: malformed v2 signals must not stop
+                # the whole daily batch or leave the user without recommendations.
+                v2_failed += 1
+                v1_fallback += 1
+                artifact = _recommend_for_user_v1(
+                    user.username,
+                    bookmarks_by_user.get(user.username, []),
+                    papers,
+                    limit=limit,
+                    min_score=min_score,
+                    run_at=run_at or now.isoformat(),
+                    now=now,
+                    fallback_reason="v2_error",
+                )
+        else:
+            artifact = recommend_for_user(
+                user.username,
+                bookmarks_by_user.get(user.username, []),
+                papers,
+                limit=limit,
+                min_score=min_score,
+                run_at=run_at,
+            )
         path = write_artifact(artifacts_dir, user.username, artifact)
         written.append(str(path))
 
@@ -423,6 +692,10 @@ def generate_daily_recommendations(
         "artifacts_written": written,
         "skipped_usernames": skipped,
         "skipped_existing_usernames": skipped_existing,
+        "v2_success": v2_success,
+        "v2_failed": v2_failed,
+        "v1_fallback": v1_fallback,
+        "related_signals_seen": len(related_signals),
     }
 
 
@@ -432,6 +705,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--bookmarks-db", type=Path, default=Path("data/bookmarks.db"))
     parser.add_argument("--papers-json", type=Path, default=Path("data/raw/papers.json"))
     parser.add_argument("--artifacts-dir", type=Path, default=Path("data/recommendations"))
+    parser.add_argument("--events-db", type=Path, default=Path("data/events.db"))
+    parser.add_argument("--related-papers-json", type=Path)
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
     parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE)
     parser.add_argument("--user", action="append", dest="users", help="Restrict generation to a username.")
@@ -456,6 +731,8 @@ def main(argv: list[str] | None = None) -> int:
         usernames=args.users,
         run_at=args.run_at,
         skip_existing=args.skip_existing,
+        events_db=args.events_db,
+        related_papers_json=args.related_papers_json,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
