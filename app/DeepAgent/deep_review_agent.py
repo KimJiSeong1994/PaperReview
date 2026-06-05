@@ -1197,11 +1197,26 @@ Begin the review process now.
             # Get results from workspace
             summary = self.workspace.get_session_summary()
 
+            # Surface the persisted researcher analyses through the return value
+            # so the report generator consumes a structured, explicit payload
+            # instead of silently re-reading workspace disk state via a method
+            # name it may get wrong — the root cause of the deep-mode
+            # "No analysis data" bug. The report generator falls back to
+            # workspace.load_all_analyses() if this key is absent.
+            try:
+                analyses = self.workspace.load_all_analyses()
+            except Exception:
+                logger.exception(
+                    "[Deep Review] load_all_analyses() failed during result assembly"
+                )
+                analyses = []
+
             return {
                 "status": "completed",
                 "session_id": self.workspace.session_id,
                 "workspace_path": str(self.workspace.session_path),
                 "papers_reviewed": len(paper_ids),
+                "analyses": analyses,
                 "summary": summary,
                 "agent_result": result
             }
