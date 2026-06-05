@@ -52,7 +52,10 @@ def _make_workspace(tmp_path: Path) -> Any:
         session_path=ws_path,
     )
     workspace.save_researcher_analysis = lambda **kw: None
-    workspace.get_all_analyses = lambda: []
+    # Mirror the REAL WorkspaceManager surface: the method is load_all_analyses,
+    # NOT get_all_analyses. The old stub exposed get_all_analyses and thereby
+    # masked the deep-mode "No analysis data" root cause from the test suite.
+    workspace.load_all_analyses = lambda: []
     return workspace
 
 
@@ -270,6 +273,194 @@ def test_generate_review_report_content_llm_failure_fails_loud(tmp_path, monkeyp
                 assert "Systematic Literature Review: In-Depth Analysis" not in body, (
                     f"hard-coded English template leaked into {p}"
                 )
+    finally:
+        _cleanup_session(session_id)
+
+
+# ── Deep-review "No analysis data" root-cause regression ─────────────
+
+
+def test_deep_review_empty_analyses_fails_loud(tmp_path, monkeypatch):
+    """Deep mode with no persisted analyses must FAIL, not ship a hollow report.
+
+    Root cause: ``_generate_review_report_content`` called the non-existent
+    ``workspace.get_all_analyses()`` (the real method is ``load_all_analyses``),
+    masked by a ``hasattr`` guard, yielding ``analyses=[]`` →
+    ``combined_analyses="No analysis data"`` and a "completed" session with a
+    content-free report. The fix reads via ``load_all_analyses`` and fails
+    loud when the analysis set is empty — before any LLM call.
+    """
+    import routers.reviews as reviews_mod
+
+    session_id = "review_20260423_120004_emptyanalyses"
+    _seed_session(session_id, username="carol_empty")
+    try:
+        workspace = _make_workspace(tmp_path)  # load_all_analyses -> []
+
+        # StubAgent returns a completed result WITHOUT an "analyses" payload, so
+        # the generator falls back to workspace.load_all_analyses() (empty) and
+        # must then fail loud.
+        class _StubAgent:
+            def __init__(self, **kw):
+                pass
+
+            def review_papers(self, **kw):
+                return {
+                    "status": "completed",
+                    "papers_reviewed": 1,
+                    "workspace_path": str(workspace.session_path),
+                    "verification": {},
+                }
+
+        stub_mod = types.SimpleNamespace(DeepReviewAgent=_StubAgent)
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "app.DeepAgent.deep_review_agent",
+            stub_mod,
+        )
+
+        # The OpenAI client must NEVER be reached — fail-loud happens before any
+        # LLM call. Wire a client that explodes if touched.
+        def _no_llm():
+            raise AssertionError("LLM must not be called when analyses are empty")
+
+        monkeypatch.setattr(reviews_mod, "get_openai_client", _no_llm)
+
+        reviews_mod.run_deep_review_background(
+            session_id=session_id,
+            paper_ids=["dummy-1"],
+            papers_data=None,
+            num_researchers=1,
+            model="gpt-4.1",
+            workspace=workspace,
+            fast_mode=False,
+        )
+
+        with reviews_mod.review_sessions_lock:
+            final = dict(reviews_mod.review_sessions[session_id])
+
+        assert final["status"] == "failed", (
+            f"empty-analyses deep review must fail loud, got: {final}"
+        )
+        assert final.get("report_available") is False, (
+            "report_available must stay False when analyses are empty"
+        )
+        # Crucially, the failure must come from the empty-analyses fail-loud
+        # ValueError — NOT from the LLM being reached. On the OLD (buggy) code,
+        # empty analyses produced a "No analysis data" prompt and the LLM WAS
+        # called, so the session would fail for the wrong reason. Asserting the
+        # unique fail-loud message makes this a true regression guard.
+        err = final.get("error") or ""
+        assert "연구원 분석 데이터가 비어" in err, (
+            f"failure must be the empty-analyses fail-loud, got error: {err!r}"
+        )
+        assert "LLM must not be called" not in err, (
+            "LLM must not be reached when analyses are empty"
+        )
+        # No "No analysis data" report should have been persisted.
+        reports_dir = Path(workspace.session_path) / "reports"
+        if reports_dir.exists():
+            for p in reports_dir.glob("*.md"):
+                assert "No analysis data" not in p.read_text(encoding="utf-8"), (
+                    f"placeholder report leaked into {p}"
+                )
+    finally:
+        _cleanup_session(session_id)
+
+
+def test_deep_review_with_analyses_produces_real_report(tmp_path, monkeypatch):
+    """When researcher analyses exist, the deep report is built from them.
+
+    The LLM prompt must carry the real analysis text (unwrapped from the
+    persisted envelope), never the "No analysis data" placeholder, and the
+    session must complete with a persisted report file.
+    """
+    import routers.reviews as reviews_mod
+
+    session_id = "review_20260423_120005_withanalyses"
+    _seed_session(session_id, username="dave_withanalyses")
+    try:
+        workspace = _make_workspace(tmp_path)
+
+        # Envelope shape EXACTLY as WorkspaceManager.save_researcher_analysis writes it.
+        envelope = {
+            "researcher_id": "1",
+            "paper_id": "p-42",
+            "analysis": {
+                "title": "Frobnication under Adversarial Load",
+                "analysis": "The paper introduces a novel widget frobnicator achieving SOTA.",
+                "metadata": {"authors": ["Jane Doe"], "year": 2025},
+            },
+            "analyzed_at": "2026-04-23T12:00:00",
+        }
+        workspace.load_all_analyses = lambda: [envelope]
+
+        class _StubAgent:
+            def __init__(self, **kw):
+                pass
+
+            def review_papers(self, **kw):
+                # Mirror the real agent: surface analyses in the result payload.
+                return {
+                    "status": "completed",
+                    "papers_reviewed": 1,
+                    "workspace_path": str(workspace.session_path),
+                    "analyses": [envelope],
+                    "verification": {},
+                }
+
+        stub_mod = types.SimpleNamespace(DeepReviewAgent=_StubAgent)
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "app.DeepAgent.deep_review_agent",
+            stub_mod,
+        )
+
+        captured = {}
+
+        def _fake_create(**kwargs):
+            captured["messages"] = kwargs.get("messages")
+            return _make_choice("# 생성된 리뷰\n\n실제 분석 기반 보고서 본문.")
+
+        fake_client = MagicMock()
+        fake_client.chat.completions.create.side_effect = _fake_create
+        monkeypatch.setattr(reviews_mod, "get_openai_client", lambda: fake_client)
+
+        reviews_mod.run_deep_review_background(
+            session_id=session_id,
+            paper_ids=["p-42"],
+            papers_data=None,
+            num_researchers=1,
+            model="gpt-4.1",
+            workspace=workspace,
+            fast_mode=False,
+        )
+
+        with reviews_mod.review_sessions_lock:
+            final = dict(reviews_mod.review_sessions[session_id])
+
+        assert final["status"] == "completed", f"got: {final}"
+        assert final.get("report_available") is True
+
+        # The prompt fed to the LLM must contain the real analysis, not the placeholder.
+        user_msg = next(
+            m["content"] for m in captured["messages"] if m["role"] == "user"
+        )
+        assert "No analysis data" not in user_msg, (
+            "placeholder must not appear when analyses exist"
+        )
+        assert "widget frobnicator" in user_msg, "real analysis text must reach the prompt"
+        assert "Frobnication under Adversarial Load" in user_msg, (
+            "title must be unwrapped from envelope"
+        )
+
+        # A real report file was persisted with the LLM body.
+        reports = list(
+            (Path(workspace.session_path) / "reports").glob("final_review_*.md")
+        )
+        assert reports, "completed deep review must persist a report file"
+        body = reports[0].read_text(encoding="utf-8")
+        assert "생성된 리뷰" in body
     finally:
         _cleanup_session(session_id)
 

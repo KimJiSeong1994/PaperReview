@@ -649,45 +649,89 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     Generate a Korean academic research-style deep report using LLM.
     """
 
-    analyses = []
-    try:
-        analyses = workspace.get_all_analyses() if hasattr(workspace, "get_all_analyses") else []
-    except Exception:
-        pass
+    # Tier 3: prefer the analyses carried in the agent ``result``; fall back to
+    # reading the workspace directly. Both ultimately resolve to
+    # ``WorkspaceManager.load_all_analyses()``, but threading the data through
+    # the return value makes the flow explicit/testable and decouples this
+    # helper from the workspace object's exact method surface.
+    analyses: list = []
+    if isinstance(result, dict) and result.get("analyses"):
+        analyses = result["analyses"]
+    else:
+        try:
+            # Tier 1 (root-cause fix): the real ``WorkspaceManager`` exposes
+            # ``load_all_analyses`` — NOT ``get_all_analyses`` (which only
+            # exists as a LangChain @tool name in deep_review_agent.py). The
+            # previous ``hasattr(... "get_all_analyses")`` guard silently masked
+            # the missing method as ``[]``, producing the "No analysis data"
+            # report whenever fast_mode is False.
+            analyses = workspace.load_all_analyses()
+        except Exception:
+            logger.exception("[Deep Review] load_all_analyses() failed")
+            analyses = []
+
+    # Tier 1 (fail-loud): an empty analysis set must NOT degrade into a hollow
+    # "No analysis data" report that the caller still marks "completed". Raise
+    # so run_deep_review_background's F-06 block fails the session instead.
+    if not analyses:
+        raise ValueError(
+            "연구원 분석 데이터가 비어 있습니다 — deep review가 분석을 생성/저장하지 "
+            f"못했습니다 (paper_ids={paper_ids})."
+        )
 
     num_papers = len(paper_ids)
     current_date = datetime.now().strftime("%Y년 %m월 %d일")
 
     analyses_summary = []
-    for i, analysis in enumerate(analyses, 1):
-        if isinstance(analysis, dict):
-            title = analysis.get("title", f"Paper {i}")
-            content = analysis.get("analysis", "")
-            metadata = analysis.get("metadata", {})
+    for i, entry in enumerate(analyses, 1):
+        if not isinstance(entry, dict):
+            continue
 
-            summary = f"### Paper {i}: {title}\n"
-            if metadata:
-                authors = metadata.get("authors", [])
-                year = metadata.get("year", "Unknown")
-                if authors:
-                    if isinstance(authors[0], dict):
-                        author_names = [a.get("name", str(a)) for a in authors[:3]]
-                    else:
-                        author_names = authors[:3]
-                    author_str = ", ".join(author_names)
-                    if len(authors) > 3:
-                        author_str += " et al."
-                    summary += f"- Authors: {author_str}\n"
-                summary += f"- Year: {year}\n"
+        # Tier 2 (format fix): unwrap the persisted envelope written by
+        # ``WorkspaceManager.save_researcher_analysis`` —
+        #   {researcher_id, paper_id, analysis, analyzed_at}
+        # The flat title/analysis/metadata the old code read live (if at all)
+        # inside the inner ``analysis`` payload, mirroring deep_review_agent.py
+        # which consumes analyses via ``a.get('analysis', {})``. We also tolerate
+        # an already-flat record (analysis is a string) for forward safety.
+        maybe_inner = entry.get("analysis")
+        inner = maybe_inner if isinstance(maybe_inner, dict) else entry
 
-            if isinstance(content, str) and content:
-                summary += f"- Analysis: {content[:3000]}\n"
-            elif isinstance(content, dict):
-                summary += f"- Analysis: {json.dumps(content, ensure_ascii=False)[:3000]}\n"
+        title = inner.get("title") or entry.get("paper_id") or f"Paper {i}"
+        content = inner.get("analysis") or inner.get("summary") or inner
+        metadata = inner.get("metadata") or entry.get("metadata") or {}
 
-            analyses_summary.append(summary)
+        summary = f"### Paper {i}: {title}\n"
+        if isinstance(metadata, dict) and metadata:
+            authors = metadata.get("authors", [])
+            year = metadata.get("year", "Unknown")
+            if authors:
+                if isinstance(authors[0], dict):
+                    author_names = [a.get("name", str(a)) for a in authors[:3]]
+                else:
+                    author_names = authors[:3]
+                author_str = ", ".join(author_names)
+                if len(authors) > 3:
+                    author_str += " et al."
+                summary += f"- Authors: {author_str}\n"
+            summary += f"- Year: {year}\n"
 
-    combined_analyses = "\n\n".join(analyses_summary) if analyses_summary else "No analysis data"
+        if isinstance(content, str) and content:
+            summary += f"- Analysis: {content[:3000]}\n"
+        elif isinstance(content, (dict, list)):
+            summary += f"- Analysis: {json.dumps(content, ensure_ascii=False)[:3000]}\n"
+
+        analyses_summary.append(summary)
+
+    # Tier 1 (fail-loud): if every entry was unusable, fail rather than emit the
+    # "No analysis data" placeholder into the prompt.
+    if not analyses_summary:
+        raise ValueError(
+            "분석 데이터를 리포트용으로 변환하지 못했습니다 — 모든 분석 항목이 "
+            f"예상 형식과 다릅니다 (entries={len(analyses)})."
+        )
+
+    combined_analyses = "\n\n".join(analyses_summary)
 
     prompt = f"""당신은 해당 분야의 선임 연구 교수입니다. 다음 {num_papers}편의 논문 분석 데이터를 바탕으로
 한글로 체계적이고 심층적인 문헌 리뷰 보고서를 작성해주세요.
