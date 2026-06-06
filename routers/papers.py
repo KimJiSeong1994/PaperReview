@@ -41,6 +41,7 @@ router = APIRouter(prefix="/api", tags=["papers"])
 
 # ── PaperDB singleton (P2-2: SQLite migration) ───────────────────────
 from src.storage.paper_db import PaperDB
+from src.utils.paper_utils import generate_doc_id  # P2-3: doc_id for /save SQLite sync
 
 _paper_db = PaperDB()
 
@@ -209,6 +210,21 @@ async def save_papers(
         save_info = search_agent.save_papers(
             results, query, generate_embeddings=generate_embeddings, update_graph=update_graph
         )
+
+        # P2-3: also upsert into SQLite (_paper_db) so get_paper / DB-backed search can
+        # find /save-ingested papers (search_agent.save_papers only writes papers.json).
+        try:
+            flat = []
+            for paper_list in results.values():
+                for p in paper_list:
+                    if not p.get("doc_id"):
+                        p["doc_id"] = generate_doc_id(p.get("title", ""))
+                    flat.append(p)
+            if flat:
+                synced = _paper_db.save_papers(flat)
+                logger.info("[P2-3] /save synced %d papers to SQLite (%d upserted)", len(flat), synced)
+        except Exception as db_err:
+            logger.warning("[P2-3] SQLite sync on /save failed: %s", db_err)
 
         logger.info(
             "Save completed: %s new papers, %s embeddings generated, graph updated: %s",
