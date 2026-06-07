@@ -80,6 +80,24 @@ class PaperDeleteRequest(BaseModel):
     indices: List[int]  # paper indices to delete
 
 
+class PaperDeleteByArxivRequest(BaseModel):
+    arxiv_ids: List[str]  # arXiv ids to delete (version suffix ignored)
+
+
+def _norm_arxiv_id(value: str) -> str:
+    """Normalize an arXiv id for identity matching.
+
+    Lowercases, strips an ``arxiv:`` prefix and a trailing version suffix
+    (e.g. ``2305.17493v3`` -> ``2305.17493``) so callers need not know the
+    exact stored form.
+    """
+    value = (value or "").strip().lower().replace("arxiv:", "")
+    base, sep, ver = value.rpartition("v")
+    if sep and base and ver.isdigit():
+        value = base
+    return value
+
+
 # ── Data Diagnostics ─────────────────────────────────────────────────
 
 @router.get("/diagnostics")
@@ -414,6 +432,50 @@ async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_ad
     _save_papers(papers_data)
 
     return {"success": True, "deleted_count": deleted}
+
+
+@router.delete("/papers/by-arxiv")
+async def delete_papers_by_arxiv(
+    request: PaperDeleteByArxivRequest,
+    admin: str = Depends(get_admin_user),
+):
+    """Delete papers by arXiv id (identity-based, not positional).
+
+    Safer than index-based deletion on the shared corpus: each record is matched
+    by its own ``arxiv_id`` (version suffix ignored), so concurrent writes that
+    shift list positions cannot cause the wrong paper to be removed.
+    """
+    wanted = {_norm_arxiv_id(a) for a in request.arxiv_ids if a}
+    if not wanted:
+        raise HTTPException(status_code=400, detail="No arxiv_ids provided")
+
+    papers_data = _load_papers()
+    papers = papers_data.get("papers", [])
+
+    kept = []
+    deleted_titles = []
+    for p in papers:
+        if _norm_arxiv_id(p.get("arxiv_id") or "") in wanted:
+            deleted_titles.append(p.get("title", "Untitled"))
+        else:
+            kept.append(p)
+
+    deleted = len(papers) - len(kept)
+    if deleted == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No papers found for arxiv_ids: {sorted(wanted)}",
+        )
+
+    papers_data["papers"] = kept
+    papers_data.setdefault("metadata", {})["total_papers"] = len(kept)
+    _save_papers(papers_data)
+
+    return {
+        "success": True,
+        "deleted_count": deleted,
+        "deleted_titles": deleted_titles,
+    }
 
 
 # ── Bookmarks ────────────────────────────────────────────────────────
