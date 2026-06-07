@@ -1154,71 +1154,116 @@ class DeepReviewAgent:
             logger.info("Papers to review: %s", len(paper_ids))
             logger.info("Researchers: %s", self.num_researchers)
 
-        # Save paper IDs to workspace
-        paper_ids_str = ','.join(paper_ids)
-
-        # Prepare prompt for master agent
-        prompt = f"""
-I need you to conduct a comprehensive review of {len(paper_ids)} academic papers.
-
-**Paper IDs**: {paper_ids_str}
-
-**Your Task**:
-1. Create a detailed plan using write_todos tool
-2. Load the papers using load_papers_tool
-3. Assign each paper to a researcher agent (use task tool)
-4. After all analyses are complete, send results to advisor agent for validation
-5. Generate the final report using generate_final_report tool
-
-**Important**:
-- Use researcher agents (researcher_1, researcher_2, etc.) for paper analysis
-- Use advisor agent for validation and synthesis
-- Ensure all analyses are saved before validation
-- Be thorough and maintain academic rigor
-
-Begin the review process now.
-        """.strip()
+        # ── Deterministic per-paper analysis ──────────────────────────────
+        # Replaces the previous deepagents master-agent orchestration. That
+        # path asked an LLM master agent to drive a multi-step tool workflow
+        # (load_papers -> task() researcher subagents -> save_analysis_result
+        # -> advisor -> generate_final_report); in practice it frequently
+        # finished WITHOUT persisting any researcher analysis, so
+        # workspace.load_all_analyses() came back empty and the report stage
+        # failed loudly with "연구원 분석 데이터가 비어 있습니다". Here we load the
+        # papers ourselves and call the LLM analysis tool once per paper,
+        # guaranteeing every successful analysis is saved before we return.
+        from app.DeepAgent.tools.paper_loader import load_papers_from_ids
 
         try:
-            # Invoke master agent in isolated context to prevent workspace leaks
-            if verbose:
-                logger.info("Invoking Master Agent...")
+            ids = [str(pid) for pid in paper_ids if pid]
+            papers = load_papers_from_ids(ids)
 
-            ctx = contextvars.copy_context()
-            ctx.run(_current_workspace.set, self.workspace)
-            result = ctx.run(
-                self.agent.invoke,
-                {"messages": [{"role": "user", "content": prompt}]},
-            )
+            if not papers:
+                return {
+                    "status": "failed",
+                    "error": f"No papers could be loaded for the given IDs ({ids}).",
+                    "session_id": self.workspace.session_id,
+                }
 
-            if verbose:
-                logger.info("Review process completed!")
+            # Persist the working set for downstream tools / inspection.
+            try:
+                self.workspace.save_selected_papers(papers)
+            except Exception:
+                logger.exception("[Deep Review] save_selected_papers failed (non-fatal)")
 
-            # Get results from workspace
-            summary = self.workspace.get_session_summary()
+            saved = 0
+            for idx, paper in enumerate(papers, 1):
+                paper_id = str(
+                    paper.get("id") or paper.get("arxiv_id") or f"paper_{idx}"
+                )
+                # Round-robin researcher label (provenance only — analysis is
+                # produced deterministically by the LLM tool, not a subagent).
+                researcher_id = (
+                    f"researcher_{((idx - 1) % max(self.num_researchers, 1)) + 1}"
+                )
+                try:
+                    raw = analyze_paper_deep.invoke(
+                        {"paper_json": json.dumps(paper, ensure_ascii=False)}
+                    )
+                    analysis_obj = json.loads(raw) if isinstance(raw, str) else raw
+                except Exception:
+                    logger.exception(
+                        "[Deep Review] LLM analysis failed for paper %s", paper_id
+                    )
+                    analysis_obj = None
 
-            # Surface the persisted researcher analyses through the return value
-            # so the report generator consumes a structured, explicit payload
-            # instead of silently re-reading workspace disk state via a method
-            # name it may get wrong — the root cause of the deep-mode
-            # "No analysis data" bug. The report generator falls back to
-            # workspace.load_all_analyses() if this key is absent.
+                # Only persist usable analyses (must carry an 'analysis' body).
+                if isinstance(analysis_obj, dict) and analysis_obj.get("analysis"):
+                    try:
+                        self.workspace.save_researcher_analysis(
+                            researcher_id=researcher_id,
+                            paper_id=paper_id,
+                            analysis=analysis_obj,
+                        )
+                        saved += 1
+                        if verbose:
+                            logger.info(
+                                "  [v] Analyzed & saved %s/%s (%s)",
+                                idx, len(papers), paper_id,
+                            )
+                    except Exception:
+                        logger.exception(
+                            "[Deep Review] save_researcher_analysis failed for %s",
+                            paper_id,
+                        )
+                else:
+                    logger.warning(
+                        "[Deep Review] No usable analysis for paper %s — skipped",
+                        paper_id,
+                    )
+
+            if saved == 0:
+                # Fail loud: nothing usable produced (e.g. LLM/key outage).
+                return {
+                    "status": "failed",
+                    "error": (
+                        "All paper analyses failed — no usable LLM output to save "
+                        f"(papers={len(papers)})."
+                    ),
+                    "session_id": self.workspace.session_id,
+                }
+
             try:
                 analyses = self.workspace.load_all_analyses()
             except Exception:
-                logger.exception(
-                    "[Deep Review] load_all_analyses() failed during result assembly"
-                )
+                logger.exception("[Deep Review] load_all_analyses() failed")
                 analyses = []
+
+            try:
+                summary = self.workspace.get_session_summary()
+            except Exception:
+                summary = {}
+
+            if verbose:
+                logger.info(
+                    "Deterministic deep review complete: %s/%s papers analyzed",
+                    saved, len(papers),
+                )
 
             return {
                 "status": "completed",
                 "session_id": self.workspace.session_id,
                 "workspace_path": str(self.workspace.session_path),
-                "papers_reviewed": len(paper_ids),
+                "papers_reviewed": saved,
                 "analyses": analyses,
                 "summary": summary,
-                "agent_result": result
             }
 
         except Exception as e:
@@ -1229,7 +1274,7 @@ Begin the review process now.
             return {
                 "status": "failed",
                 "error": str(e),
-                "session_id": self.workspace.session_id
+                "session_id": self.workspace.session_id,
             }
 
 
