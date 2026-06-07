@@ -1463,12 +1463,16 @@ class SearchAgent:
             'total_papers': self.get_saved_papers_count()
         }
 
-    def extract_full_texts(self, max_papers: int = None) -> Dict[str, Any]:
+    def extract_full_texts(
+        self, max_papers: int = None, arxiv_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """
         저장된 논문들의 본문 추출
 
         Args:
             max_papers: 최대 처리할 논문 수
+            arxiv_ids: 지정 시 해당 arXiv id의 논문만 추출(버전 접미사 무시).
+                코퍼스를 앞에서부터 스캔하지 않고 특정 논문만 타깃할 때 사용.
 
         Returns:
             추출 결과 통계
@@ -1476,6 +1480,24 @@ class SearchAgent:
         # 저장된 논문 로드
         existing_papers = self._load_existing_papers()
         papers_list = list(existing_papers.values())
+
+        if arxiv_ids:
+            def _norm_arxiv(value):
+                value = (value or "").strip().lower().replace("arxiv:", "")
+                base, sep, ver = value.rpartition("v")
+                if sep and base and ver.isdigit():
+                    value = base
+                return value
+
+            wanted = {_norm_arxiv(a) for a in arxiv_ids if a}
+            papers_list = [
+                paper for paper in papers_list
+                if _norm_arxiv(paper.get("arxiv_id") or paper.get("id") or "") in wanted
+            ]
+            logger.info(
+                "[INFO] arxiv_ids 타깃 필터: %d개 매칭 (요청 %d)",
+                len(papers_list), len(wanted),
+            )
 
         if max_papers:
             papers_list = papers_list[:max_papers]

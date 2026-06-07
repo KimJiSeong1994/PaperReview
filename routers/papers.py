@@ -19,11 +19,11 @@ import logging
 import os
 import re
 import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import networkx as nx
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from starlette.requests import Request
 
 from .deps import get_current_user, get_optional_user, get_admin_user, limiter, search_agent
@@ -444,16 +444,25 @@ async def get_batch_references(
 async def extract_texts(
     request: Request,
     max_papers: int = None,
+    arxiv_ids: Optional[List[str]] = Body(default=None, embed=True),
     username: str = Depends(get_current_user),
 ):
     """Extract full texts from saved papers.
 
     F-33: authenticated + rate-limited.  Downloads PDFs from publisher
     sites in bulk; visitor-initiated traffic could get our IP blocked.
+
+    When ``arxiv_ids`` is supplied (JSON body ``{"arxiv_ids": [...]}``), only
+    matching papers are processed (arXiv version suffixes ignored). This lets
+    callers target a few freshly-saved papers instead of scanning the whole
+    corpus from the start (the default ``max_papers`` slice begins at index 0).
     """
     try:
-        logger.info("Extracting full texts: max_papers=%s", max_papers)
-        result = search_agent.extract_full_texts(max_papers)
+        logger.info(
+            "Extracting full texts: max_papers=%s arxiv_ids=%s",
+            max_papers, len(arxiv_ids) if arxiv_ids else 0,
+        )
+        result = search_agent.extract_full_texts(max_papers, arxiv_ids=arxiv_ids)
         logger.info(
             "Texts extracted: %s/%s papers",
             result.get('texts_extracted', 0), result.get('papers_processed', 0),
