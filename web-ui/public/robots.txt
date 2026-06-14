@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /blog/
+Disallow: /admin
+Disallow: /mypage
+Disallow: /share/
+Disallow: /share/curriculum/
+Disallow: /api/shared/
+Disallow: /api/shared/curriculum/
+
+# ChatGPT Search crawler: allow public pages, keep private/token/API paths blocked.
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /blog
+Allow: /blog/
+Disallow: /admin
+Disallow: /mypage
+Disallow: /share/
+Disallow: /share/curriculum/
+Disallow: /api/shared/
+Disallow: /api/shared/curriculum/
+
+# Training crawler requires explicit product approval before access.
+User-agent: GPTBot
+Disallow: /
+
+Sitemap: https://jiphyeonjeon.kr/sitemap.xml

@@ -5,8 +5,15 @@ import remarkGfm from 'remark-gfm';
 import { getSharedBookmark } from '../api/client';
 import type { SharedBookmarkData, HighlightItem } from '../api/client';
 import './MyPage.css';
+import SEOHead from './SEOHead';
 
 type SharedError = 'not_found' | 'expired' | 'unknown' | null;
+const SITE_URL = 'https://jiphyeonjeon.kr';
+interface SharedPaperSummary {
+  title?: string;
+  authors?: string[];
+  year?: number;
+}
 
 export default function SharedView() {
   const { token } = useParams<{ token: string }>();
@@ -17,17 +24,29 @@ export default function SharedView() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
-    setError(null);
-    getSharedBookmark(token)
-      .then(setData)
-      .catch((err) => {
-        const status = err?.response?.status;
-        if (status === 410) setError('expired');
-        else if (status === 404) setError('not_found');
-        else setError('unknown');
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      getSharedBookmark(token)
+        .then((result) => {
+          if (!cancelled) setData(result);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          const status = err?.response?.status;
+          if (status === 410) setError('expired');
+          else if (status === 404) setError('not_found');
+          else setError('unknown');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const highlights = useMemo(() => data?.highlights ?? [], [data]);
@@ -72,9 +91,19 @@ export default function SharedView() {
     [highlights],
   );
 
+  const seo = (
+    <SEOHead
+      title={data?.title ? `${data.title} | Shared Report` : 'Shared Report | Jiphyeonjeon'}
+      description="Private shared paper review report."
+      canonical={token ? `${SITE_URL}/share/${token}` : undefined}
+      robots="noindex,nofollow"
+    />
+  );
+
   if (loading) {
     return (
       <div className="shared-view">
+        {seo}
         <div className="shared-view-loading">
           <div className="shared-view-spinner" />
           Loading shared report...
@@ -86,6 +115,7 @@ export default function SharedView() {
   if (error) {
     return (
       <div className="shared-view">
+        {seo}
         <div className="shared-view-error">
           <div className="shared-view-error-icon">
             {error === 'expired' ? (
@@ -127,7 +157,7 @@ export default function SharedView() {
     );
   }
 
-  if (!data) return null;
+  if (!data) return <div className="shared-view">{seo}</div>;
 
   const markdownComponents = highlights.length > 0 ? {
     p: ({ children }: { children?: React.ReactNode }) => <p>{applyHighlights(children)}</p>,
@@ -137,6 +167,7 @@ export default function SharedView() {
 
   return (
     <div className="shared-view">
+      {seo}
       {/* ── Header ── */}
       <header className="shared-view-header">
         <div className="shared-view-header-inner">
@@ -205,17 +236,20 @@ export default function SharedView() {
                 Papers ({data.papers.length})
               </h3>
               <div className="shared-view-papers-list">
-                {data.papers.map((p: any, i: number) => (
-                  <div key={i} className="shared-view-paper-item">
-                    <span className="shared-view-paper-num">{i + 1}</span>
-                    <div className="shared-view-paper-info">
-                      <span className="shared-view-paper-title">{p.title}</span>
-                      <span className="shared-view-paper-authors">
-                        {p.authors?.slice(0, 3).join(', ')}{p.authors?.length > 3 ? ' et al.' : ''} {p.year && `(${p.year})`}
-                      </span>
+                {data.papers.map((p: SharedPaperSummary, i: number) => {
+                  const authors = p.authors ?? [];
+                  return (
+                    <div key={i} className="shared-view-paper-item">
+                      <span className="shared-view-paper-num">{i + 1}</span>
+                      <div className="shared-view-paper-info">
+                        <span className="shared-view-paper-title">{p.title}</span>
+                        <span className="shared-view-paper-authors">
+                          {authors.slice(0, 3).join(', ')}{authors.length > 3 ? ' et al.' : ''} {p.year && `(${p.year})`}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
