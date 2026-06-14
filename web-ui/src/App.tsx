@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
 import RecommendationBell from './components/RecommendationBell';
+import SEOHead from './components/SEOHead';
 import { useAuth } from './contexts/AuthContext';
 
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -11,6 +12,15 @@ const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
+
+const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
+const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
+const SITE_URL = 'https://jiphyeonjeon.kr';
+
+function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
+  const { slug } = useParams<{ slug: string }>();
+  return <BlogPage isAdmin={isAdmin} slug={slug} />;
+}
 
 function App() {
   const navigate = useNavigate();
@@ -84,9 +94,22 @@ function App() {
           }
         />
         <Route
+          path="/blog/:slug"
+          element={
+            <Suspense fallback={<div className="app-loading">Loading...</div>}>
+              <BlogPostRoute isAdmin={userRole === 'admin'} />
+            </Suspense>
+          }
+        />
+        <Route
           path="*"
           element={
             <>
+              <SEOHead
+                title={HOME_TITLE}
+                description={HOME_DESCRIPTION}
+                canonical={`${SITE_URL}/`}
+              />
               {/* Minimal header */}
               <div className="app-header">
                 <div className="header-nav">

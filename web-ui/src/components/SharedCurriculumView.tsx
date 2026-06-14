@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getSharedCurriculum } from '../api/client';
 import type { SharedCurriculumData } from '../api/client';
 import './CurriculumPage.css';
+import SEOHead from './SEOHead';
 
 type SharedError = 'not_found' | 'expired' | 'unknown' | null;
+const SITE_URL = 'https://jiphyeonjeon.kr';
 
 export default function SharedCurriculumView() {
   const { token } = useParams<{ token: string }>();
@@ -16,22 +18,33 @@ export default function SharedCurriculumView() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
-    setError(null);
-    getSharedCurriculum(token)
-      .then((result) => {
-        setData(result);
-        if (result.course?.modules?.length > 0) {
-          setExpandedModuleId(result.course.modules[0].id);
-        }
-      })
-      .catch((err) => {
-        const status = err?.response?.status;
-        if (status === 410) setError('expired');
-        else if (status === 404) setError('not_found');
-        else setError('unknown');
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      getSharedCurriculum(token)
+        .then((result) => {
+          if (cancelled) return;
+          setData(result);
+          if (result.course?.modules?.length > 0) {
+            setExpandedModuleId(result.course.modules[0].id);
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          const status = err?.response?.status;
+          if (status === 410) setError('expired');
+          else if (status === 404) setError('not_found');
+          else setError('unknown');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const totalPapers = useMemo(() => {
@@ -45,9 +58,19 @@ export default function SharedCurriculumView() {
     return count;
   }, [data]);
 
+  const seo = (
+    <SEOHead
+      title={data?.summary?.name ? `${data.summary.name} | Shared Curriculum` : 'Shared Curriculum | Jiphyeonjeon'}
+      description="Private shared paper curriculum."
+      canonical={token ? `${SITE_URL}/share/curriculum/${token}` : undefined}
+      robots="noindex,nofollow"
+    />
+  );
+
   if (loading) {
     return (
       <div className="shared-cur">
+        {seo}
         <div className="shared-cur-loading">
           <div className="shared-cur-loading-spinner" />
           Loading curriculum...
@@ -59,6 +82,7 @@ export default function SharedCurriculumView() {
   if (error) {
     return (
       <div className="shared-cur">
+        {seo}
         <div className="shared-cur-error-page">
           <div className="shared-cur-error-icon">
             {error === 'expired' ? (
@@ -100,13 +124,14 @@ export default function SharedCurriculumView() {
     );
   }
 
-  if (!data) return null;
+  if (!data) return <div className="shared-cur">{seo}</div>;
 
   const { summary, course } = data;
   const isAuthenticated = !!localStorage.getItem('access_token');
 
   return (
     <div className="shared-cur">
+      {seo}
       {/* ── Header ── */}
       <header className="shared-cur-header">
         <div className="shared-cur-header-inner">

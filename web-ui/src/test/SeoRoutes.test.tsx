@@ -1,0 +1,268 @@
+import { Suspense } from 'react';
+import type { ReactElement } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import App from '../App';
+import BlogPage from '../components/BlogPage';
+import SharedView from '../components/SharedView';
+import SharedCurriculumView from '../components/SharedCurriculumView';
+import { AuthProvider } from '../contexts/AuthContext';
+import { fetchBlogPost, fetchBlogPosts, getSharedBookmark, getSharedCurriculum } from '../api/client';
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
+  return {
+    ...actual,
+    fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }),
+    fetchBlogPost: vi.fn(),
+    getSharedBookmark: vi.fn(),
+    getSharedCurriculum: vi.fn(),
+    verifyToken: vi.fn().mockResolvedValue({ role: 'user' }),
+  };
+});
+
+const blogPost = {
+  id: 'post-1',
+  slug: 'direct-slug',
+  title: 'Direct Slug Post',
+  excerpt: 'Direct slug excerpt',
+  content: 'Loaded from the direct slug route.',
+  author: 'Jiphyeonjeon Team',
+  tags: ['SEO'],
+  reading_time_min: 3,
+  created_at: '2026-06-14T00:00:00.000Z',
+  updated_at: '2026-06-14T00:00:00.000Z',
+};
+
+const blogPostResponse = { data: blogPost } as unknown as Awaited<ReturnType<typeof fetchBlogPost>>;
+
+function installStorageShim(): void {
+  const store: Record<string, string> = {};
+  const shim: Storage = {
+    getItem: (key) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null),
+    setItem: (key, value) => { store[key] = String(value); },
+    removeItem: (key) => { delete store[key]; },
+    clear: () => { for (const key of Object.keys(store)) delete store[key]; },
+    key: (index) => Object.keys(store)[index] ?? null,
+    get length() { return Object.keys(store).length; },
+  };
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, writable: true, value: shim });
+  Object.defineProperty(window, 'localStorage', { configurable: true, writable: true, value: shim });
+}
+
+function renderWithAuth(path: string, ui: ReactElement) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <AuthProvider>{ui}</AuthProvider>
+    </MemoryRouter>,
+  );
+}
+
+describe('SEO-sensitive routes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.scrollTo = vi.fn();
+    installStorageShim();
+    localStorage.clear();
+    document.head.innerHTML = '';
+    document.title = '';
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('routes /blog/:slug directly to BlogPage and fetches the slug detail', async () => {
+    vi.mocked(fetchBlogPost).mockResolvedValue(blogPostResponse);
+
+    renderWithAuth('/blog/direct-slug', <App />);
+
+    await waitFor(() => {
+      expect(fetchBlogPost).toHaveBeenCalledWith('direct-slug');
+    });
+    expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
+    expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
+  });
+
+  it('supports BlogPage slug mode without first loading the list', async () => {
+    vi.mocked(fetchBlogPost).mockResolvedValue(blogPostResponse);
+
+    renderWithAuth(
+      '/blog/direct-slug',
+      <Routes>
+        <Route path="/blog/:slug" element={<BlogPage isAdmin={false} slug="direct-slug" />} />
+      </Routes>,
+    );
+
+    await waitFor(() => expect(fetchBlogPost).toHaveBeenCalledWith('direct-slug'));
+    expect(fetchBlogPosts).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
+  });
+
+  it('marks failed blog slug loads noindex,nofollow instead of indexing a soft 404', async () => {
+    vi.mocked(fetchBlogPost).mockRejectedValue(new Error('missing'));
+
+    renderWithAuth(
+      '/blog/missing-slug',
+      <Routes>
+        <Route path="/blog/:slug" element={<BlogPage isAdmin={false} slug="missing-slug" />} />
+      </Routes>,
+    );
+
+    expect(await screen.findByText('missing')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        'noindex,nofollow',
+      );
+    });
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://jiphyeonjeon.kr/blog',
+    );
+  });
+
+  it('marks shared report token routes noindex,nofollow', async () => {
+    vi.mocked(getSharedBookmark).mockResolvedValue({
+      id: 'shared-1',
+      title: 'Private Shared Report',
+      query: 'private query',
+      papers: [],
+      num_papers: 1,
+      report_markdown: 'Private report body',
+      created_at: '2026-06-14T00:00:00.000Z',
+      tags: [],
+      topic: 'private topic',
+      highlights: [],
+    });
+
+    renderWithAuth(
+      '/share/token-123',
+      <Routes>
+        <Route
+          path="/share/:token"
+          element={
+            <Suspense fallback={<div>Loading...</div>}>
+              <SharedView />
+            </Suspense>
+          }
+        />
+      </Routes>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Private Shared Report' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        'noindex,nofollow',
+      );
+    });
+  });
+
+  it('marks shared curriculum token routes noindex,nofollow', async () => {
+    vi.mocked(getSharedCurriculum).mockResolvedValue({
+      summary: {
+        id: 'curriculum-1',
+        name: 'Private Curriculum',
+        description: 'Private curriculum body',
+        difficulty: 'beginner',
+        university: 'Jiphyeonjeon',
+        instructor: 'Instructor',
+        prerequisites: [],
+        total_papers: 0,
+        total_modules: 1,
+      },
+      course: {
+        modules: [
+          {
+            id: 'module-1',
+            title: 'Module 1',
+            week: 1,
+            description: 'Module description',
+            topics: [],
+          },
+        ],
+      },
+    });
+
+    renderWithAuth(
+      '/share/curriculum/token-123',
+      <Routes>
+        <Route
+          path="/share/curriculum/:token"
+          element={
+            <Suspense fallback={<div>Loading...</div>}>
+              <SharedCurriculumView />
+            </Suspense>
+          }
+        />
+      </Routes>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Private Curriculum' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        'noindex,nofollow',
+      );
+    });
+  });
+
+  it('resets private route robots metadata when returning to the public home route', async () => {
+    vi.mocked(getSharedBookmark).mockResolvedValue({
+      id: 'shared-1',
+      title: 'Private Shared Report',
+      query: 'private query',
+      papers: [],
+      num_papers: 1,
+      report_markdown: 'Private report body',
+      created_at: '2026-06-14T00:00:00.000Z',
+      tags: [],
+      topic: 'private topic',
+      highlights: [],
+    });
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/share/token-123']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/share/:token"
+              element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <SharedView />
+                </Suspense>
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        'noindex,nofollow',
+      );
+    });
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+      expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+        'href',
+        'https://jiphyeonjeon.kr/',
+      );
+    });
+  });
+});

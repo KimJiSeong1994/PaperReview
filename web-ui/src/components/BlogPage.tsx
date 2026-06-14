@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import './BlogPage.css';
+import SEOHead from './SEOHead';
 import {
   fetchBlogPosts,
   fetchBlogPost,
@@ -30,6 +31,7 @@ interface BlogPost {
 
 interface BlogPageProps {
   isAdmin: boolean;
+  slug?: string;
 }
 
 type BlogView = 'list' | 'detail' | 'editor';
@@ -37,6 +39,10 @@ type BlogView = 'list' | 'detail' | 'editor';
 // renderMarkdown replaced by ReactMarkdown component (XSS-safe)
 
 // ── Helpers ───────────────────────────────────────────────────────────
+
+const SITE_URL = 'https://jiphyeonjeon.kr';
+const BLOG_TITLE = 'Jiphyeonjeon Blog - Paper Research Notes';
+const BLOG_DESCRIPTION = 'Research writeups, experiments, and product notes from Jiphyeonjeon.';
 
 function formatDate(isoString: string): string {
   try {
@@ -62,6 +68,29 @@ function buildSlug(title: string): string {
 function estimateReadingTime(content: string): number {
   const words = content.trim().split(/\s+/).length;
   return Math.max(1, Math.round(words / 200));
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  const maybe = err as { response?: { data?: { detail?: string } }; message?: string };
+  return maybe.response?.data?.detail ?? maybe.message ?? fallback;
+}
+
+function blogCanonical(slug?: string): string {
+  return slug ? `${SITE_URL}/blog/${slug}` : `${SITE_URL}/blog`;
+}
+
+function blogJsonLd(post: BlogPost): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    author: { '@type': 'Person', name: post.author },
+    datePublished: post.created_at,
+    dateModified: post.updated_at,
+    keywords: post.tags,
+    url: blogCanonical(post.slug),
+  };
 }
 
 // ── Loading Skeleton ──────────────────────────────────────────────────
@@ -103,7 +132,7 @@ const EMPTY_FORM: EditorForm = {
 
 // ── Main Component ────────────────────────────────────────────────────
 
-function BlogPage({ isAdmin }: BlogPageProps) {
+function BlogPage({ isAdmin, slug }: BlogPageProps) {
   const navigate = useNavigate();
 
   const [view, setView] = useState<BlogView>('list');
@@ -126,8 +155,8 @@ function BlogPage({ isAdmin }: BlogPageProps) {
     try {
       const response = await fetchBlogPosts(tag ?? undefined);
       setPosts((response.data?.posts ?? response.data) as BlogPost[]);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail ?? err?.message ?? 'Failed to load posts.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load posts.'));
       // Fall back to empty list so UI is usable
       setPosts([]);
     } finally {
@@ -137,8 +166,41 @@ function BlogPage({ isAdmin }: BlogPageProps) {
 
 
   useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+    if (slug) return;
+    queueMicrotask(() => {
+      void loadPosts();
+    });
+  }, [loadPosts, slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      setSelectedPost(null);
+      setView('detail');
+
+      fetchBlogPost(slug)
+        .then((response) => {
+          if (cancelled) return;
+          setSelectedPost(response.data as BlogPost);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setError(getErrorMessage(err, 'Failed to load post.'));
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   // ── Detail view ────────────────────────────────────────────────────
 
@@ -153,7 +215,18 @@ function BlogPage({ isAdmin }: BlogPageProps) {
       setSelectedPost(post);
     }
     setView('detail');
+    if (!slug) {
+      navigate(`/blog/${post.slug}`);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeDetail = () => {
+    setView('list');
+    setSelectedPost(null);
+    if (slug) {
+      navigate('/blog');
+    }
   };
 
   // ── Admin actions ──────────────────────────────────────────────────
@@ -192,8 +265,8 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         setSelectedPost(null);
         setView('list');
       }
-    } catch (err: any) {
-      alert(err?.response?.data?.detail ?? '삭제 중 오류가 발생했습니다.');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, '삭제 중 오류가 발생했습니다.'));
     }
   };
 
@@ -233,8 +306,8 @@ function BlogPage({ isAdmin }: BlogPageProps) {
         setView('detail');
       }
       // Refresh tags in the background
-    } catch (err: any) {
-      setSaveError(err?.response?.data?.detail ?? '저장 중 오류가 발생했습니다.');
+    } catch (err: unknown) {
+      setSaveError(getErrorMessage(err, '저장 중 오류가 발생했습니다.'));
     } finally {
       setSaving(false);
     }
@@ -426,11 +499,24 @@ function BlogPage({ isAdmin }: BlogPageProps) {
   // ── Detail view ────────────────────────────────────────────────────
 
   const renderDetail = () => {
-    if (!selectedPost) return null;
+    if (!selectedPost) {
+      return (
+        <div className="blog-detail">
+          <button className="blog-detail-back" onClick={closeDetail}>
+            Back to Blog
+          </button>
+          {loading ? (
+            <div className="blog-empty-title">Loading post...</div>
+          ) : (
+            <div className="blog-error">{error ?? 'Post not found.'}</div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div className="blog-detail">
-        <button className="blog-detail-back" onClick={() => { setView('list'); setSelectedPost(null); }}>
+        <button className="blog-detail-back" onClick={closeDetail}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
@@ -621,8 +707,23 @@ function BlogPage({ isAdmin }: BlogPageProps) {
 
   // ── Render ─────────────────────────────────────────────────────────
 
+  const seoPost = view === 'detail' ? selectedPost : null;
+  const seoTitle = seoPost ? `${seoPost.title} | Jiphyeonjeon Blog` : BLOG_TITLE;
+  const seoDescription = seoPost?.excerpt || BLOG_DESCRIPTION;
+  const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost);
+  const seoCanonical = seoPost ? blogCanonical(seoPost.slug) : blogCanonical(hasSlugError ? undefined : slug);
+
   return (
     <div className="blog-container">
+      <SEOHead
+        title={seoTitle}
+        description={seoDescription}
+        canonical={seoCanonical}
+        robots={hasSlugError ? 'noindex,nofollow' : undefined}
+        type={seoPost ? 'article' : 'website'}
+        image={seoPost?.thumbnail_url}
+        jsonLd={seoPost ? blogJsonLd(seoPost) : undefined}
+      />
       {renderHeader()}
       <div className="blog-content">
         {view === 'list' && renderList()}
