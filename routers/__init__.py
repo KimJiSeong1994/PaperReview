@@ -5,6 +5,7 @@ Each module groups related endpoints into an APIRouter.
 """
 
 from .auth import router as auth_router
+from .analytics import router as analytics_router
 from .search import router as search_router
 from .papers import router as papers_router
 from .reviews import router as reviews_router
@@ -25,6 +26,7 @@ from .recommendations import router as recommendations_router
 
 __all__ = [
     "auth_router",
+    "analytics_router",
     "search_router",
     "papers_router",
     "reviews_router",

@@ -1,4 +1,6 @@
-import { sanitizeRouteForAnalytics } from './routeSanitizer';
+import { extractBlogUtmPayload, sanitizeRouteForAnalytics } from './routeSanitizer';
+import { sendFirstPartyAnalyticsEvent } from './serverEvents';
+import type { FirstPartyPageViewPayload } from './routeSanitizer';
 
 export const ANALYTICS_CONSENT_STORAGE_KEY = 'analytics_consent';
 export const ANALYTICS_CONSENT_CHANGED_EVENT = 'analytics-consent-changed';
@@ -31,6 +33,7 @@ declare global {
 export type PageViewPayload = {
   page_path: string;
   page_location: string;
+  first_party_payload?: FirstPartyPageViewPayload;
 };
 
 export interface AnalyticsEventParams {
@@ -256,6 +259,11 @@ export function trackPageView(pageViewOrPath: PageViewPayload | string, optionsO
       ...(isEnabled(env.VITE_GA_DEBUG) ? { debug_mode: true } : {}),
     });
     lastPagePath = sanitized.pagePath;
+    sendFirstPartyAnalyticsEvent(
+      'page_view',
+      sanitized.firstPartyPayload ?? extractBlogUtmPayload({ pathname: pageViewOrPath }, sanitized.pagePath) ?? {},
+      sanitized.pagePath,
+    );
     return true;
   }
 
@@ -265,6 +273,7 @@ export function trackPageView(pageViewOrPath: PageViewPayload | string, optionsO
     page_path: pageViewOrPath.page_path,
     page_location: pageViewOrPath.page_location,
   });
+  sendFirstPartyAnalyticsEvent('page_view', pageViewOrPath.first_party_payload ?? {}, pageViewOrPath.page_path);
   return true;
 }
 
@@ -277,6 +286,7 @@ function trackGA4Event(
 
   const { win } = getRuntime(options);
   win?.gtag?.('event', eventName, params);
+  sendFirstPartyAnalyticsEvent(eventName as AnalyticsEventName, params as AnalyticsEventParams);
   return true;
 }
 

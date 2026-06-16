@@ -82,6 +82,54 @@ _ANALYTICS_DDL: tuple[str, ...] = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS app_analytics_events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT,
+        client_id   TEXT NOT NULL,
+        session_id  TEXT NOT NULL,
+        event_name  TEXT NOT NULL,
+        page_path   TEXT NOT NULL,
+        payload     TEXT NOT NULL DEFAULT '{}',
+        source      TEXT NOT NULL DEFAULT 'first_party',
+        created_at  TEXT NOT NULL,
+        received_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE VIEW IF NOT EXISTS app_daily_user_event_metrics AS
+    SELECT
+        substr(created_at, 1, 10) AS event_date,
+        COALESCE(user_id, '(anonymous)') AS user_id,
+        event_name,
+        COUNT(*) AS event_count,
+        MAX(created_at) AS last_event_at
+    FROM app_analytics_events
+    GROUP BY event_date, user_id, event_name
+    """,
+    """
+    CREATE VIEW IF NOT EXISTS app_daily_blog_utm_metrics AS
+    SELECT
+        substr(created_at, 1, 10) AS event_date,
+        page_path,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_source'), ''), '(none)') AS utm_source,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_medium'), ''), '(none)') AS utm_medium,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_campaign'), ''), '(none)') AS utm_campaign,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_id'), ''), '(none)') AS utm_id,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_term'), ''), '(none)') AS utm_term,
+        COALESCE(NULLIF(json_extract(payload, '$.utm_content'), ''), '(none)') AS utm_content,
+        COUNT(*) AS page_views,
+        COUNT(DISTINCT session_id) AS sessions,
+        COUNT(DISTINCT client_id) AS client_visitors,
+        COUNT(DISTINCT CASE WHEN user_id IS NOT NULL THEN user_id END) AS signed_in_users,
+        MAX(created_at) AS last_event_at
+    FROM app_analytics_events
+    WHERE event_name = 'page_view'
+      AND page_path LIKE '/blog/%'
+    GROUP BY
+        event_date, page_path, utm_source, utm_medium, utm_campaign,
+        utm_id, utm_term, utm_content
+    """,
+    """
     CREATE INDEX IF NOT EXISTS idx_ga_daily_metrics_date
         ON ga_daily_metrics(event_date)
     """,
@@ -96,6 +144,26 @@ _ANALYTICS_DDL: tuple[str, ...] = (
     """
     CREATE INDEX IF NOT EXISTS idx_ga_page_metrics_date_views
         ON ga_daily_page_metrics(event_date, page_views DESC)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_app_analytics_user_time
+        ON app_analytics_events(user_id, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_app_analytics_event_time
+        ON app_analytics_events(event_name, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_app_analytics_client_time
+        ON app_analytics_events(client_id, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_app_analytics_session_time
+        ON app_analytics_events(session_id, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_app_analytics_page_event_time
+        ON app_analytics_events(page_path, event_name, created_at)
     """,
 )
 

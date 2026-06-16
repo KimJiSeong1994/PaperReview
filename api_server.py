@@ -29,6 +29,7 @@ from slowapi.errors import RateLimitExceeded
 # Importing routers triggers deps.py which sets up SSL, env, agents, etc.
 from routers import (
     auth_router,
+    analytics_router,
     search_router,
     papers_router,
     reviews_router,
@@ -282,6 +283,7 @@ async def health_check():
 
 # ── Register routers ──────────────────────────────────────────────────
 app.include_router(auth_router)
+app.include_router(analytics_router)
 app.include_router(search_router)
 app.include_router(papers_router)
 app.include_router(reviews_router)

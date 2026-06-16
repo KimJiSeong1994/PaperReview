@@ -66,6 +66,10 @@ describe('AnalyticsRouteTracker', () => {
     expect(trackPageView).toHaveBeenLastCalledWith({
       page_path: '/blog/public-slug',
       page_location: 'https://jiphyeonjeon.kr/blog/public-slug',
+      first_party_payload: {
+        utm_source: 'x',
+        page_type: 'blog_post',
+      },
     });
 
     await user.click(screen.getByRole('link', { name: 'Private share' }));

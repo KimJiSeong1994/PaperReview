@@ -14,15 +14,47 @@ describe('sanitizeRouteForPageView', () => {
     });
   });
 
-  it('allows public blog slug paths without query data', () => {
+  it('allows public blog slug paths and extracts sanitized UTM attribution', () => {
     expect(
       sanitizeRouteForPageView(
-        { pathname: '/blog/public-slug?utm_source=x#top' },
+        { pathname: '/blog/public-slug?utm_source=google&utm_campaign=Paper Review&utm_medium=social#top' },
         'https://jiphyeonjeon.kr/',
       ),
     ).toEqual({
       page_path: '/blog/public-slug',
       page_location: 'https://jiphyeonjeon.kr/blog/public-slug',
+      first_party_payload: {
+        utm_source: 'google',
+        utm_medium: 'social',
+        utm_campaign: 'Paper_Review',
+        page_type: 'blog_post',
+      },
+    });
+  });
+
+  it('drops non-blog and email-like UTM values from first-party attribution', () => {
+    expect(
+      sanitizeRouteForPageView(
+        { pathname: '/blog/public-slug', search: '?utm_source=alice@example.com&utm_medium=email' },
+        'https://jiphyeonjeon.kr',
+      ),
+    ).toEqual({
+      page_path: '/blog/public-slug',
+      page_location: 'https://jiphyeonjeon.kr/blog/public-slug',
+      first_party_payload: {
+        utm_medium: 'email',
+        page_type: 'blog_post',
+      },
+    });
+
+    expect(
+      sanitizeRouteForPageView(
+        { pathname: '/', search: '?utm_source=google' },
+        'https://jiphyeonjeon.kr',
+      ),
+    ).toEqual({
+      page_path: '/',
+      page_location: 'https://jiphyeonjeon.kr/',
     });
   });
 
