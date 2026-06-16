@@ -5,6 +5,8 @@ import logging
 import os
 from typing import Optional
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
 
 load_dotenv()
 
@@ -29,7 +31,7 @@ class EmptyLLMResponseError(ValueError):
 class LLMClient:
     """LLM 클라이언트 클래스"""
 
-    def __init__(self, model: str = "gpt-4", api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_RESEARCH_MODEL, api_key: Optional[str] = None):
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI package is required.")
 
@@ -70,7 +72,7 @@ Answer:
 
         # Note: exceptions from the OpenAI client propagate intentionally.
         # Callers must handle them — do NOT swallow into a return string.
-        response = self.client.chat.completions.create(
+        response = create_chat_completion(self.client,
             model=self.model,
             messages=[
                 {"role": "system", "content": "You are a research assistant expert in academic papers."},

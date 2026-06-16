@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 from dotenv import load_dotenv
+from src.utils.model_defaults import (
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_KOREAN_EMBEDDING_MODEL,
+)
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -33,8 +37,8 @@ _DEFAULT_CACHE_DB = Path("data/cache/embeddings.db")
 _L1_CACHE_MAX_SIZE = 512  # 인메모리 LRU 최대 항목 수
 
 # ── P2-3: 다국어 임베딩 모델 선택 ─────────────────────────────────
-_MODEL_KOREAN = "text-embedding-3-large"   # 다국어 성능 우수
-_MODEL_ENGLISH = "text-embedding-3-small"  # 영어 기본 모델
+_MODEL_KOREAN = DEFAULT_KOREAN_EMBEDDING_MODEL   # 다국어 성능 우수
+_MODEL_ENGLISH = DEFAULT_EMBEDDING_MODEL  # 영어 기본 모델
 
 # 한국어 유니코드 범위: 가-힣 (Hangul Syllables), ㄱ-ㅎ, ㅏ-ㅣ (Jamo)
 _HANGUL_RANGES = (
@@ -107,7 +111,7 @@ class SimilarityCalculator:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "text-embedding-3-small",
+        model: str = DEFAULT_EMBEDDING_MODEL,
         cache_db_path: Optional[Path] = None,
     ):
         if not OPENAI_AVAILABLE:

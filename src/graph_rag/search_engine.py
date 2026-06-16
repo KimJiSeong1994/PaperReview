@@ -18,6 +18,7 @@ else:
     FAISS_AVAILABLE = False
 
 from src.utils.logger import log_data_processing
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL
 
 class SearchEngine:
     """Graph RAG 검색 엔진"""
@@ -55,7 +56,7 @@ class SearchEngine:
         if not FAISS_AVAILABLE:
             # 기본 L2 정규화만 수행하여 numpy 배열 반환
             embedding = np.array(openai_client.embeddings.create(
-                model="text-embedding-3-small",
+                model=DEFAULT_EMBEDDING_MODEL,
                 input=query
             ).data[0].embedding).astype('float32')
             norm = np.linalg.norm(embedding)
@@ -65,7 +66,7 @@ class SearchEngine:
 
         try:
             response = openai_client.embeddings.create(
-                model="text-embedding-3-small",
+                model=DEFAULT_EMBEDDING_MODEL,
                 input=query
             )
             embedding = np.array(response.data[0].embedding).astype('float32')

@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import get_light_rag_agent, get_current_user, limiter
+from .deps import DEFAULT_TOOL_MODEL, get_light_rag_agent, get_current_user, limiter
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api", tags=["lightrag"])
 
 class LightRAGBuildRequest(BaseModel):
     max_concurrent: int = 4
-    extraction_model: str = "gpt-4o-mini"
+    extraction_model: str = DEFAULT_TOOL_MODEL
 
 
 from enum import Enum as _Enum

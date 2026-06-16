@@ -5,6 +5,7 @@ import argparse
 
 
 from app.GraphRAG.rag_agent import GraphRAGAgent
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL, DEFAULT_TOOL_MODEL
 
 def build_graph(args):
     """그래프 구축"""
@@ -150,7 +151,7 @@ def main():
     query_parser.add_argument('--graph-path', default='data/graph/paper_graph.pkl', help='그래프 파일 경로')
     query_parser.add_argument('--embeddings-index', default='data/embeddings/paper_embeddings.index', help='임베딩 인덱스 경로')
     query_parser.add_argument('--id-mapping', default='data/embeddings/paper_id_mapping.json', help='ID 매핑 파일 경로')
-    query_parser.add_argument('--model', default='gpt-4.1', help='LLM 모델')
+    query_parser.add_argument('--model', default=DEFAULT_RESEARCH_MODEL, help='LLM 모델')
     query_parser.add_argument('--top-k', type=int, default=10, help='초기 검색 상위 K개')
     query_parser.add_argument('--max-papers', type=int, default=10, help='최대 논문 수')
     query_parser.add_argument('--expansion-strategy', default='hybrid', choices=['citation', 'similarity', 'hybrid'], help='확장 전략')
@@ -162,14 +163,14 @@ def main():
     lb_parser.add_argument('--graph-path', default='data/graph/paper_graph.pkl', help='논문 그래프 경로')
     lb_parser.add_argument('--light-rag-dir', default='data/light_rag', help='LightRAG 데이터 디렉토리')
     lb_parser.add_argument('--max-concurrent', type=int, default=4, help='동시 LLM 호출 수')
-    lb_parser.add_argument('--extraction-model', default='gpt-4o-mini', help='엔티티 추출용 LLM 모델')
+    lb_parser.add_argument('--extraction-model', default=DEFAULT_TOOL_MODEL, help='엔티티 추출용 LLM 모델')
 
     # light-query 명령어 (LightRAG)
     lq_parser = subparsers.add_parser('light-query', help='LightRAG 쿼리 실행')
     lq_parser.add_argument('query', help='검색 쿼리')
     lq_parser.add_argument('--graph-path', default='data/graph/paper_graph.pkl', help='논문 그래프 경로')
     lq_parser.add_argument('--light-rag-dir', default='data/light_rag', help='LightRAG 데이터 디렉토리')
-    lq_parser.add_argument('--model', default='gpt-4.1', help='응답 생성 LLM 모델')
+    lq_parser.add_argument('--model', default=DEFAULT_RESEARCH_MODEL, help='응답 생성 LLM 모델')
     lq_parser.add_argument('--mode', default='hybrid', choices=['naive', 'local', 'global', 'hybrid', 'mix'], help='검색 모드')
     lq_parser.add_argument('--top-k', type=int, default=10, help='검색 상위 K개')
     lq_parser.add_argument('--temperature', type=float, default=0.7, help='LLM temperature')

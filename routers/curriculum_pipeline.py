@@ -17,6 +17,8 @@ import os
 import time
 from typing import AsyncGenerator, Optional
 
+from src.utils.openai_responses_compat import create_chat_completion
+
 logger = logging.getLogger(__name__)
 
 
@@ -384,7 +386,8 @@ Return ONLY valid JSON matching this schema:
         structure_tokens = max(4000, num_modules * 500 + 1500)
 
         response = await asyncio.to_thread(
-            self.client.chat.completions.create,
+            create_chat_completion,
+            self.client,
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
@@ -685,7 +688,8 @@ Return ONLY valid JSON with this schema:
         assembly_tokens = max(8000, len(modules) * 3000)
 
         response = await asyncio.to_thread(
-            self.client.chat.completions.create,
+            create_chat_completion,
+            self.client,
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
@@ -762,7 +766,8 @@ IMPORTANT: Output ALL {num_modules} modules. Do not skip any."""
         refine_tokens = max(4000, num_modules * 1500)
 
         response = await asyncio.to_thread(
-            self.client.chat.completions.create,
+            create_chat_completion,
+            self.client,
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,

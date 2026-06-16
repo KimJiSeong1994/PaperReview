@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .entity_extractor import EntityExtractor
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL
 from .kg_storage import KGStorage
 
 try:
@@ -34,7 +35,7 @@ class KnowledgeGraphBuilder:
         self,
         storage: Optional[KGStorage] = None,
         storage_dir: str = "data/light_rag",
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
     ):
         self.storage = storage or KGStorage(storage_dir)
         self.storage_dir = storage_dir

@@ -19,7 +19,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
+from src.utils.openai_responses_compat import create_chat_completion
+
 from .deps import (
+    DEFAULT_RESEARCH_MODEL,
+    DEFAULT_TOOL_MODEL,
     limiter,
     review_sessions,
     review_sessions_lock,
@@ -151,7 +155,7 @@ class DeepReviewRequest(BaseModel):
     paper_ids: List[str]
     papers: Optional[List[Dict[str, Any]]] = None
     num_researchers: Optional[int] = 3
-    model: Optional[str] = "gpt-4.1"
+    model: Optional[str] = None
     fast_mode: Optional[bool] = True
 
 
@@ -250,7 +254,7 @@ def run_fast_review(
     if not papers:
         return {"status": "failed", "error": "Cannot load papers"}
 
-    deep_research_model = "gpt-4.1"
+    deep_research_model = model or DEFAULT_RESEARCH_MODEL
     logger.info("[Fast Review] Deep Research model: %s", deep_research_model)
     client = get_openai_client()
 
@@ -549,7 +553,7 @@ def run_fast_review(
         last_err: Optional[Exception] = None
         for attempt in range(1, max_retries + 1):
             try:
-                response = client.chat.completions.create(
+                response = create_chat_completion(client,
                     model=deep_research_model,
                     messages=messages,
                     temperature=0.4,
@@ -880,11 +884,11 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     # hard-coded template body and no degradation signal. Now we re-raise;
     # the background caller catches, marks the session failed with an
     # informative error, and leaves any partial output untouched.
-    deep_research_model = "gpt-4.1"
+    deep_research_model = DEFAULT_RESEARCH_MODEL
     logger.info("[Deep Review] Generating report with LLM... (model: %s)", deep_research_model)
 
     client = get_openai_client()
-    response = client.chat.completions.create(
+    response = create_chat_completion(client,
         model=deep_research_model,
         messages=[
             {"role": "system", "content": DEEP_REVIEW_SYSTEM_PROMPT},
@@ -986,7 +990,7 @@ def run_deep_review_background(
         else:
             from app.DeepAgent.deep_review_agent import DeepReviewAgent
 
-            agent = DeepReviewAgent(model=model, num_researchers=num_researchers, workspace=workspace)
+            agent = DeepReviewAgent(model=model or DEFAULT_TOOL_MODEL, num_researchers=num_researchers, workspace=workspace)
             result = agent.review_papers(paper_ids=paper_ids, verbose=True)
 
         workspace_path = result.get("workspace_path", str(workspace.session_path))

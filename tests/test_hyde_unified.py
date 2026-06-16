@@ -1,7 +1,7 @@
 """US-009 Phase B: HyDE 2→1 unified call tests.
 
 Verifies:
-- Single gpt-4o-mini JSON call returns (abstract, alt_queries[2]).
+- Single DEFAULT_TOOL_MODEL JSON call returns (abstract, alt_queries[2]).
 - Mocked openai_client.chat.completions.create is invoked exactly once for the
   unified path (no second LLM call).
 - On invalid JSON / incomplete response, fallback to individual per-piece
@@ -19,6 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.graph_rag.hybrid_ranker import HybridRanker
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
 
 
 def _make_response(content: Optional[str]) -> MagicMock:
@@ -60,7 +61,7 @@ def test_hyde_unified_single_call_returns_abstract_and_two_alts() -> None:
     # Assert response_format=json_object and JSON contract requested
     call_kwargs = client.chat.completions.create.call_args.kwargs
     assert call_kwargs.get("response_format") == {"type": "json_object"}
-    assert call_kwargs.get("model") == "gpt-4o-mini"
+    assert call_kwargs.get("model") == DEFAULT_TOOL_MODEL
 
 
 def test_hyde_unified_fallback_on_invalid_json() -> None:

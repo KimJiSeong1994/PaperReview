@@ -16,6 +16,8 @@ import os
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import async_create_chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +98,7 @@ class RubricEvaluator:
     def __init__(
         self,
         openai_client: Optional[Any] = None,
-        model: str = "gpt-4o-mini",
+        model: str = DEFAULT_TOOL_MODEL,
         timeout: float = 15.0,
     ) -> None:
         """RubricEvaluator 초기화.
@@ -105,7 +107,7 @@ class RubricEvaluator:
             openai_client: 외부에서 주입하는 AsyncOpenAI 클라이언트.
                 None이면 환경변수 OPENAI_API_KEY로 자체 생성을 시도한다.
                 생성에 실패하거나 openai 패키지가 없으면 평가를 건너뛴다.
-            model: LLM 모델 식별자. gpt-4o-mini 권장 (속도/비용 균형).
+            model: LLM 모델 식별자. DEFAULT_TOOL_MODEL 권장 (속도/비용 균형).
             timeout: LLM 호출 타임아웃(초). 기본 15.0.
         """
         self.model = model
@@ -293,7 +295,7 @@ class RubricEvaluator:
         """
         prompt = self._build_prompt(query, intent, papers)
 
-        response = await self.client.chat.completions.create(
+        response = await async_create_chat_completion(self.client,
             model=self.model,
             messages=[
                 {

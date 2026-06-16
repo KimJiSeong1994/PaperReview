@@ -31,7 +31,7 @@ pdfplumber>=0.10.0
 PyMuPDF>=1.24.0
 
 # LLM and Embeddings
-openai>=1.0.0
+openai>=2.0.0
 google-generativeai>=0.8.0
 google-cloud-bigquery>=3.25.0
 sentence-transformers>=2.2.0
@@ -54,7 +54,7 @@ paperbanana>=0.1.0
 
 # LangChain & Deep Agents
 langchain>=0.3.0
-langchain-openai>=0.2.0
+langchain-openai>=1.0.0
 langchain-core>=0.3.0
 langgraph>=0.2.0
 langsmith>=0.1.0

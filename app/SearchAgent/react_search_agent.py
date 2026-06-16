@@ -14,6 +14,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
+
 logger = logging.getLogger(__name__)
 
 # ── 전역 타임아웃 ───────────────────────────────────────────────────────────
@@ -46,9 +49,9 @@ class ReActSearchAgent:
 
     Args:
         search_agent: 기존 SearchAgent 인스턴스.
-        openai_client: OpenAI 클라이언트 (gpt-4o-mini 추론용). None 이면 생략 모드.
+        openai_client: OpenAI 클라이언트 (DEFAULT_TOOL_MODEL 추론용). None 이면 생략 모드.
         max_turns: 최대 검색 턴 수. 기본 3.
-        model: 사용할 OpenAI 모델 명. 기본 "gpt-4o-mini".
+        model: 사용할 OpenAI 모델 명. 기본 DEFAULT_TOOL_MODEL.
     """
 
     def __init__(
@@ -56,7 +59,7 @@ class ReActSearchAgent:
         search_agent,
         openai_client=None,
         max_turns: int = 3,
-        model: str = "gpt-4o-mini",
+        model: str = DEFAULT_TOOL_MODEL,
     ) -> None:
         self._search_agent = search_agent
         self._client = openai_client
@@ -485,7 +488,7 @@ Respond in JSON:
             loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self._client.chat.completions.create(
+                lambda: create_chat_completion(self._client,
                     model=self._model,
                     messages=[
                         {"role": "system", "content": system_prompt},

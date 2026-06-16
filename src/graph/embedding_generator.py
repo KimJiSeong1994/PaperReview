@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.utils.logger import log_data_processing
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL
 
 import hashlib as _hashlib
 from src.utils.paper_utils import generate_paper_id as _generate_paper_id_util
@@ -29,7 +30,7 @@ class EmbeddingGenerator:
 
     def __init__(
         self,
-        model: str = "text-embedding-3-small",
+        model: str = DEFAULT_EMBEDDING_MODEL,
         api_key: Optional[str] = None,
         use_openai: bool = True,
         fallback_dim: int = 384

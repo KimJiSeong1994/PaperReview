@@ -17,6 +17,7 @@ from src.light_rag.kg_storage import KGStorage
 from src.light_rag.kg_builder import KnowledgeGraphBuilder
 from src.light_rag.entity_extractor import EntityExtractor
 from src.light_rag.light_response_generator import LightResponseGenerator
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL, DEFAULT_TOOL_MODEL
 
 class GraphRAGAgent:
     """Graph RAG 통합 에이전트 (기존 GraphRAG + LightRAG)"""
@@ -28,7 +29,7 @@ class GraphRAGAgent:
         embeddings_index_path: str = "data/embeddings/paper_embeddings.index",
         id_mapping_path: str = "data/embeddings/paper_id_mapping.json",
         light_rag_dir: str = "data/light_rag",
-        llm_model: str = "gpt-4.1"
+        llm_model: str = DEFAULT_RESEARCH_MODEL
     ):
         self.papers_json_path = papers_json_path
         self.graph_path = graph_path
@@ -139,7 +140,7 @@ class GraphRAGAgent:
     def build_knowledge_graph(
         self,
         max_concurrent: int = 4,
-        extraction_model: str = "gpt-4o-mini",
+        extraction_model: str = DEFAULT_TOOL_MODEL,
     ) -> nx.Graph:
         """LightRAG 지식 그래프 구축"""
         logger.info("=" * 70)

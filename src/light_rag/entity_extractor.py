@@ -13,6 +13,8 @@ import asyncio
 import re
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import async_create_chat_completion
 
 load_dotenv()
 
@@ -57,7 +59,7 @@ class EntityExtractor:
   ]
 }}"""
 
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_TOOL_MODEL, api_key: Optional[str] = None):
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package is required for EntityExtractor")
 
@@ -100,7 +102,7 @@ class EntityExtractor:
         prompt = self.EXTRACTION_PROMPT.format(text=text)
 
         try:
-            response = await self.client.chat.completions.create(
+            response = await async_create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": "You extract structured knowledge from academic papers. Always respond with valid JSON only."},
