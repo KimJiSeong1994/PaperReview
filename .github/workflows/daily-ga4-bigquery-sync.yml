@@ -1,0 +1,98 @@
+name: Daily GA4 BigQuery Sync
+
+on:
+  schedule:
+    # 04:20 KST every day (19:20 UTC), after GA4 daily export usually lands.
+    - cron: "20 19 * * *"
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "Optional inclusive YYYY-MM-DD start date"
+        required: false
+        type: string
+      end_date:
+        description: "Optional inclusive YYYY-MM-DD end date"
+        required: false
+        type: string
+      days_back:
+        description: "Days ending yesterday to re-sync when dates are omitted"
+        required: false
+        default: "4"
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      GA4_BQ_PROJECT_ID: ${{ secrets.GA4_BQ_PROJECT_ID }}
+      GA4_BQ_DATASET: ${{ secrets.GA4_BQ_DATASET }}
+      GA4_BQ_LOCATION: ${{ vars.GA4_BQ_LOCATION || secrets.GA4_BQ_LOCATION || '' }}
+      GA4_PROPERTY_ID: ${{ vars.GA4_PROPERTY_ID || secrets.GA4_PROPERTY_ID || 'G-DSJQK7QE91' }}
+      DAYS_BACK: ${{ inputs.days_back || '4' }}
+      START_DATE: ${{ inputs.start_date || '' }}
+      END_DATE: ${{ inputs.end_date || '' }}
+    steps:
+      - name: Validate required configuration
+        env:
+          GA4_BIGQUERY_SERVICE_ACCOUNT_JSON: ${{ secrets.GA4_BIGQUERY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$GA4_BQ_PROJECT_ID" || { echo "Missing secret GA4_BQ_PROJECT_ID"; exit 1; }
+          test -n "$GA4_BQ_DATASET" || { echo "Missing secret GA4_BQ_DATASET"; exit 1; }
+          test -n "$GA4_BIGQUERY_SERVICE_ACCOUNT_JSON" || { echo "Missing secret GA4_BIGQUERY_SERVICE_ACCOUNT_JSON"; exit 1; }
+
+      - name: Prepare SSH and BigQuery credentials
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          GA4_BIGQUERY_SERVICE_ACCOUNT_JSON: ${{ secrets.GA4_BIGQUERY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$GA4_BIGQUERY_SERVICE_ACCOUNT_JSON" > ga4-bigquery-service-account.json
+          chmod 600 ga4-bigquery-service-account.json
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload BigQuery credential to EC2
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            ga4-bigquery-service-account.json \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/ga4-bigquery-service-account.json
+
+      - name: Sync GA4 BigQuery daily aggregates into analytics.db
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "GA4_BQ_PROJECT_ID='$GA4_BQ_PROJECT_ID' GA4_BQ_DATASET='$GA4_BQ_DATASET' GA4_BQ_LOCATION='$GA4_BQ_LOCATION' GA4_PROPERTY_ID='$GA4_PROPERTY_ID' DAYS_BACK='$DAYS_BACK' START_DATE='$START_DATE' END_DATE='$END_DATE' bash -s" <<'SCRIPT'
+          set -euo pipefail
+          cd ~/PaperReviewAgent
+          git fetch origin main
+          git checkout -f main
+          git reset --hard origin/main
+          source venv/bin/activate
+          pip install -r requirements.txt --quiet
+          chmod 600 /tmp/ga4-bigquery-service-account.json
+
+          args=(--analytics-db data/analytics.db --days-back "$DAYS_BACK")
+          if [ -n "$START_DATE" ] || [ -n "$END_DATE" ]; then
+            if [ -z "$START_DATE" ] || [ -z "$END_DATE" ]; then
+              echo "START_DATE and END_DATE must be provided together" >&2
+              exit 2
+            fi
+            args=(--analytics-db data/analytics.db --start-date "$START_DATE" --end-date "$END_DATE")
+          fi
+          if [ -n "$GA4_BQ_LOCATION" ]; then
+            args+=(--location "$GA4_BQ_LOCATION")
+          fi
+
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/ga4-bigquery-service-account.json \
+          GA4_BQ_PROJECT_ID="$GA4_BQ_PROJECT_ID" \
+          GA4_BQ_DATASET="$GA4_BQ_DATASET" \
+          GA4_PROPERTY_ID="$GA4_PROPERTY_ID" \
+          python scripts/sync_ga4_bigquery_daily.py "${args[@]}"
+          SCRIPT
+
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'rm -f /tmp/ga4-bigquery-service-account.json' || true
+          rm -f ~/.ssh/deploy_key ga4-bigquery-service-account.json
