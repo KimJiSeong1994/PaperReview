@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED || secrets.VITE_ANALYTICS_ENABLED || 'true' }}
-      VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID || vars.VITE_GA_MEASUREMENT_ID || '' }}
+      VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID || vars.VITE_GA_MEASUREMENT_ID || 'G-DSJQK7QE91' }}
       VITE_GA_DEBUG: ${{ vars.VITE_GA_DEBUG || 'false' }}
     defaults:
       run:
