@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import axios from 'axios';
 import { login, register } from '../api/client';
+import { trackLoginEvent, trackSignUpEvent } from '../analytics/events';
 import './LoginPage.css';
 
 interface LoginModalProps {
@@ -63,6 +64,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('username', response.username);
       localStorage.setItem('user_role', response.role || 'user');
+      trackLoginEvent();
       onLoginSuccess();
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
@@ -99,6 +101,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
 
     try {
       await register(username, password);
+      trackSignUpEvent();
       setSuccess('Account created! You can now sign in.');
       setPassword('');
       setConfirmPassword('');

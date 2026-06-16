@@ -17,6 +17,15 @@ import { useDeepReview } from '../hooks/useDeepReview';
 import { useAuth } from '../contexts/AuthContext';
 import { generateApaCitation } from '../utils/citation';
 import { copyToClipboard } from '../utils/clipboard';
+import {
+  trackBookmarkSave,
+  trackDeepReviewComplete,
+  trackDeepReviewStart,
+  trackPosterGenerateComplete,
+  trackPosterGenerateStart,
+  trackReportDownload,
+  trackSearchEvent,
+} from '../analytics/events';
 
 const GraphViewComponent = lazy(() => import('./GraphView'));
 
@@ -53,6 +62,7 @@ function SearchPage() {
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
+  const trackedCompletedReviewRef = useRef(false);
 
   // Auto-dismiss guidance message after 3 seconds
   useEffect(() => {
@@ -71,7 +81,7 @@ function SearchPage() {
     return Math.abs(hash).toString();
   };
 
-  const handleSearch = async (searchQuery: string) => {
+  const handleSearch = async (searchQuery: string, source: 'home' | 'fixed_bar' | 'url_prefill' = papers.length > 0 || query ? 'fixed_bar' : 'home') => {
     if (!searchQuery.trim()) return;
 
     if (searchAbortRef.current) {
@@ -111,6 +121,7 @@ function SearchPage() {
         setSelectedPapersForReview(new Set());
         setQuery('');
         setLoading(false);
+        trackSearchEvent(searchQuery, 'non_academic', 0, source);
         return;
       }
 
@@ -144,6 +155,7 @@ function SearchPage() {
       });
 
       setPapers(allPapers);
+      trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source);
 
       if (allPapers.length > 0) {
         setSelectedPaper(allPapers[0]);
@@ -218,6 +230,7 @@ function SearchPage() {
       setSelectedPaper(null);
       setHighlightedPapers(new Set());
       setSelectedPapersForReview(new Set());
+      trackSearchEvent(searchQuery, 'error', 0, source);
     } finally {
       setLoading(false);
     }
@@ -229,9 +242,11 @@ function SearchPage() {
     const params = new URLSearchParams(location.search);
     const q = params.get('q');
     if (q && q.trim() && q !== query) {
-      handleSearch(q.trim());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleSearch(q.trim(), 'url_prefill');
       navigate('/', { replace: true });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, location.pathname]);
 
   const handleSaveBookmark = async () => {
@@ -265,6 +280,7 @@ function SearchPage() {
         })),
         report_markdown: reviewReport,
       });
+      trackBookmarkSave();
       setBookmarkSaved(true);
       setTimeout(() => setBookmarkSaved(false), 3000);
     } catch (error: any) {
@@ -319,8 +335,10 @@ function SearchPage() {
     if (reviewSessionId && reviewStatus === 'completed' && reviewReport) {
       setPosterLoading(true);
       try {
+        trackPosterGenerateStart();
         const result = await generatePoster(reviewSessionId);
         if (result.poster_html) {
+          trackPosterGenerateComplete();
           setPosterHtml(result.poster_html);
           return;
         }
@@ -331,6 +349,7 @@ function SearchPage() {
       try {
         const result = await generatePosterDirect(reviewReport, selectedPapersForReview.size);
         if (result.poster_html) {
+          trackPosterGenerateComplete();
           setPosterHtml(result.poster_html);
         } else {
           setGuidanceMessage(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
@@ -408,6 +427,7 @@ function SearchPage() {
 
     try {
       setShowReport(true);
+      trackDeepReviewStart(selectedPapersForReview.size);
 
       const selectedPaperIds = Array.from(selectedPapersForReview);
       const selectedPapersData = papers.filter(paper =>
@@ -429,6 +449,17 @@ function SearchPage() {
       setShowReport(false);
     }
   };
+
+  useEffect(() => {
+    if (reviewStatus !== 'completed') {
+      trackedCompletedReviewRef.current = false;
+      return;
+    }
+    if (!trackedCompletedReviewRef.current) {
+      trackDeepReviewComplete(selectedPapersForReview.size);
+      trackedCompletedReviewRef.current = true;
+    }
+  }, [reviewStatus, selectedPapersForReview.size]);
 
   // Close tools menu when clicking outside
   useEffect(() => {
@@ -703,6 +734,7 @@ function SearchPage() {
                             a.click();
                             document.body.removeChild(a);
                             URL.revokeObjectURL(url);
+                            trackReportDownload();
                           }}
                           title="Download as Markdown"
                         >

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
+import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import { useAuth } from './contexts/AuthContext';
@@ -36,6 +37,7 @@ function App() {
 
   return (
     <div className="app">
+      <AnalyticsConsentBanner />
       {/* Global login modal overlay */}
       {showLoginModal && !isAuthenticated && (
         <LoginModal
