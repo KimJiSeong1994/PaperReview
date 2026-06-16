@@ -25,11 +25,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path, override=False)
 
-from src.utils.model_defaults import (  # noqa: E402
-    DEFAULT_EVAL_MODEL,
-    DEFAULT_RESEARCH_MODEL,
-    DEFAULT_TOOL_MODEL,
-)
+from src.utils import model_defaults as _model_defaults  # noqa: E402
+
+DEFAULT_EVAL_MODEL = _model_defaults.DEFAULT_EVAL_MODEL
+DEFAULT_RESEARCH_MODEL = _model_defaults.DEFAULT_RESEARCH_MODEL
+DEFAULT_TOOL_MODEL = _model_defaults.DEFAULT_TOOL_MODEL
 
 # ── Environment ────────────────────────────────────────────────────────
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
