@@ -439,7 +439,6 @@ function SearchPage() {
         paper_ids: selectedPaperIds,
         papers: selectedPapersData,
         num_researchers: Math.min(selectedPapersForReview.size, 5),
-        model: 'gpt-4.1',
       });
 
       startReviewHook(response.session_id);

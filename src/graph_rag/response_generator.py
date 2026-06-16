@@ -8,11 +8,12 @@ from .ranker import PaperRanker
 from .context_builder import ContextBuilder
 from .llm_client import LLMClient
 from src.utils.logger import log_data_processing
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
 
 class ResponseGenerator:
     """Graph RAG 응답 생성 클래스"""
 
-    def __init__(self, graph, embeddings_index_path: str = None, id_mapping_path: str = None, llm_model: str = "gpt-4"):
+    def __init__(self, graph, embeddings_index_path: str = None, id_mapping_path: str = None, llm_model: str = DEFAULT_RESEARCH_MODEL):
         self.search_engine = SearchEngine(graph, embeddings_index_path, id_mapping_path)
         self.ranker = PaperRanker(graph)
         self.context_builder = ContextBuilder(graph)

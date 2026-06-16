@@ -27,6 +27,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from routers import llm_cache
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
 from routers.paper_review_service import (
     _PAPER_REVIEW_JSON_SCHEMA,
     generate_paper_review,
@@ -262,7 +263,7 @@ def test_generate_paper_review_sends_json_schema(
     # Review is fully populated from the schema-validated payload.
     assert review["summary"].startswith("Concise overview")
     assert review["methodology_assessment"]["rigor"] == 4
-    assert review["model"] == "gpt-4.1"
+    assert review["model"] == DEFAULT_RESEARCH_MODEL
 
 
 def test_generate_paper_review_falls_back_to_json_object(

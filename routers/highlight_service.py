@@ -18,6 +18,8 @@ import logging
 import re
 from collections import Counter
 
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
 from .llm_cache import get_cached, set_cache
 
 logger = logging.getLogger(__name__)
@@ -305,7 +307,7 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
     )
     variable_body = f"{topic_suffix}---\n{formatted_report}\n---"
 
-    model = "gpt-4.1"
+    model = DEFAULT_RESEARCH_MODEL
     temperature = 0.2
     user_prompt = f"{AUTO_HIGHLIGHT_USER_PREFIX}{variable_body}"
 
@@ -321,7 +323,7 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
         logger.info("Using cached LLM response for auto-highlight")
         raw = cached
     else:
-        response = client.chat.completions.create(
+        response = create_chat_completion(client,
             model=model,
             temperature=temperature,
             timeout=120,
@@ -940,7 +942,7 @@ def generate_pdf_highlights(
         f"Extract **{highlight_range} highlights** from the paper below.\n\n"
         f"---\n{truncated}\n---"
     )
-    model = "gpt-4.1"
+    model = DEFAULT_RESEARCH_MODEL
     temperature = 0.2
     user_prompt = f"{PDF_HIGHLIGHT_USER_PREFIX}{variable_body}"
 
@@ -956,7 +958,7 @@ def generate_pdf_highlights(
         logger.info("Using cached LLM response for PDF highlight")
         raw = cached
     else:
-        response = client.chat.completions.create(
+        response = create_chat_completion(client,
             model=model,
             temperature=temperature,
             timeout=110,

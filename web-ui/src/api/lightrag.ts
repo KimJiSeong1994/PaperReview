@@ -6,11 +6,14 @@ export const queryLightRAG = async (request: LightRAGQueryRequest): Promise<Ligh
   return response.data;
 };
 
-export const buildLightRAG = async (maxConcurrent: number = 4, extractionModel: string = 'gpt-4o-mini') => {
-  const response = await api.post('/api/light-rag/build', {
+export const buildLightRAG = async (maxConcurrent: number = 4, extractionModel?: string) => {
+  const payload: { max_concurrent: number; extraction_model?: string } = {
     max_concurrent: maxConcurrent,
-    extraction_model: extractionModel,
-  });
+  };
+  if (extractionModel) {
+    payload.extraction_model = extractionModel;
+  }
+  const response = await api.post('/api/light-rag/build', payload);
   return response.data;
 };
 

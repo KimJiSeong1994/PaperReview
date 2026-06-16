@@ -12,6 +12,8 @@ import time as _time
 logger = logging.getLogger(__name__)
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
 
 # Module-level query analysis cache (TTL-based, thread-safe)
 _analysis_cache: Dict[str, Dict[str, Any]] = {}
@@ -71,13 +73,13 @@ except ImportError:
 class QueryAnalyzer:
     """유저 질의 분석 클래스"""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_TOOL_MODEL):
         """
         QueryAnalyzer 초기화
 
         Args:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
-            model: 사용할 LLM 모델 (기본값: gpt-4o-mini)
+            model: 사용할 LLM 모델 (기본값: DEFAULT_TOOL_MODEL)
         """
         # SSL 검증은 api_server.py에서 전역으로 처리됨
 
@@ -135,7 +137,7 @@ class QueryAnalyzer:
             # LLM을 사용하여 질의 분석
             analysis_prompt = self._create_analysis_prompt(query)
 
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -340,7 +342,7 @@ Return only valid JSON, no additional text."""
         """
         쿼리가 학술/논문 검색 주제인지 경량 분류.
 
-        gpt-4o-mini + max_tokens=20으로 빠르게 판정한다.
+        DEFAULT_TOOL_MODEL + max_tokens=20으로 빠르게 판정한다.
         실패 시 항상 is_academic=True를 반환하여 정상 검색이 차단되지 않도록 한다.
 
         Args:
@@ -358,7 +360,7 @@ Return only valid JSON, no additional text."""
             return cached
 
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -413,7 +415,7 @@ Return only valid JSON, no additional text."""
         try:
             prompt = self._create_search_query_prompt(query)
 
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -613,8 +615,8 @@ Return JSON: {{"queries": ["variant1", "variant2", ...]}}"""
         try:
             if not self.client:
                 return [query]
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+            response = create_chat_completion(self.client,
+                model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 max_tokens=300,
@@ -675,7 +677,7 @@ CRITICAL RULES:
 - Do NOT add tangential topics (e.g., if the query is about "word embeddings", do NOT add "semantic similarity" or "contextual representation" as separate search terms).
 - Return ONLY valid JSON."""
 
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -759,7 +761,7 @@ CRITICAL RULES:
 
         started = _time.perf_counter()
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -926,7 +928,7 @@ Consider the context to:
 
 Return only valid JSON."""
 
-            response = self.client.chat.completions.create(
+            response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {

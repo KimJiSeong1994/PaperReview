@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from .deps import modify_bookmarks, get_current_user, get_openai_client, limiter
+from .deps import DEFAULT_RESEARCH_MODEL, modify_bookmarks, get_current_user, get_openai_client, limiter
 from .deps.storage import _get_bookmark_db
 from .llm_cache import get_cached, set_cache
 from .highlight_service import (
@@ -32,6 +32,7 @@ from .paper_review_service import generate_paper_review
 from .schemas import MathExplainSchema, build_openai_strict_schema
 from src.events.emit import emit_or_warn
 from src.events.event_types import EventType, UserEvent
+from src.utils.openai_responses_compat import create_chat_completion
 
 _MATH_EXPLAIN_JSON_SCHEMA: dict = build_openai_strict_schema(MathExplainSchema)
 
@@ -562,7 +563,7 @@ Respond in JSON format:
 
 Keep explanations concise. Match the language of the paper context."""
 
-_MATH_MODEL = "gpt-4.1"
+_MATH_MODEL = DEFAULT_RESEARCH_MODEL
 _MATH_TEMPERATURE = 0.2
 
 
@@ -618,7 +619,7 @@ def explain_math_formula(
     # the structured-output request (e.g. older models, proxy shims).
     try:
         try:
-            response = client.chat.completions.create(
+            response = create_chat_completion(client,
                 model=_MATH_MODEL,
                 messages=messages,
                 temperature=_MATH_TEMPERATURE,
@@ -639,7 +640,7 @@ def explain_math_formula(
                 "math-explain json_schema call failed (%s); falling back to json_object",
                 type(e).__name__,
             )
-            response = client.chat.completions.create(
+            response = create_chat_completion(client,
                 model=_MATH_MODEL,
                 messages=messages,
                 temperature=_MATH_TEMPERATURE,

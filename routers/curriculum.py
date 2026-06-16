@@ -25,6 +25,8 @@ from filelock import FileLock
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 
+from src.utils.openai_responses_compat import create_chat_completion
+
 from .deps import get_current_user, get_openai_client, get_optional_user, limiter
 
 logger = logging.getLogger(__name__)
@@ -387,7 +389,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 }}"""
 
     try:
-        response = client.chat.completions.create(
+        response = create_chat_completion(client,
             model="gpt-5.4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,

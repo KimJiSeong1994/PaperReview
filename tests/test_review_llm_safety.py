@@ -179,6 +179,7 @@ def test_run_fast_review_retries_on_empty_then_succeeds(tmp_path, monkeypatch):
 
         assert result["status"] == "completed", result
         assert fake_client.chat.completions.create.call_count == 2
+        assert fake_client.chat.completions.create.call_args.kwargs["model"] == "gpt-4.1"
         # Report file must exist with the retried body.
         reports = list((Path(workspace.session_path) / "reports").glob("final_review_*.md"))
         assert reports, "retry-success run must persist a report file"

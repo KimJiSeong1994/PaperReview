@@ -23,7 +23,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # .env
 env_path = PROJECT_ROOT / ".env"
-load_dotenv(dotenv_path=env_path, override=True)
+load_dotenv(dotenv_path=env_path, override=False)
+
+from src.utils.model_defaults import (  # noqa: E402
+    DEFAULT_EVAL_MODEL,
+    DEFAULT_RESEARCH_MODEL,
+    DEFAULT_TOOL_MODEL,
+)
 
 # ── Environment ────────────────────────────────────────────────────────
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -36,7 +42,4 @@ if not api_key:
     logger.warning("No OpenAI API key found in environment")
 
 # ── LLM Model Constants ─────────────────────────────────────────────
-# 환경변수로 오버라이드 가능, 모델 변경 시 여기만 수정
-DEFAULT_RESEARCH_MODEL = os.getenv("RESEARCH_MODEL", "gpt-4.1")
-DEFAULT_TOOL_MODEL = os.getenv("TOOL_MODEL", "gpt-4o-mini")
-DEFAULT_EVAL_MODEL = os.getenv("EVAL_MODEL", "gpt-4o")
+# Central defaults live in src.utils.model_defaults and remain environment-overridable.

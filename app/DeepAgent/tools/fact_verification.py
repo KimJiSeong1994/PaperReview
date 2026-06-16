@@ -21,6 +21,8 @@ from itertools import combinations
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_EVAL_MODEL
+from src.utils.openai_responses_compat import async_create_chat_completion
 
 load_dotenv()
 
@@ -421,7 +423,7 @@ class ClaimExtractor:
   ]
 }}"""
 
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_EVAL_MODEL, api_key: Optional[str] = None):
         self.model = model
 
         if OPENAI_AVAILABLE:
@@ -553,7 +555,7 @@ class ClaimExtractor:
         """
         if _CLAIM_EXTRACT_JSON_SCHEMA is not None:
             try:
-                return await self.client.chat.completions.create(
+                return await async_create_chat_completion(self.client,
                     model=self.model,
                     messages=messages,
                     temperature=temperature,
@@ -579,7 +581,7 @@ class ClaimExtractor:
         # Fallback: json_object (still better than unstructured text). If this
         # call also fails, the outer ``except Exception`` in
         # ``_extract_claims_from_section`` falls back to the heuristic path.
-        return await self.client.chat.completions.create(
+        return await async_create_chat_completion(self.client,
             model=self.model,
             messages=messages,
             temperature=temperature,
@@ -751,7 +753,7 @@ class EvidenceLinker:
     3단계 cascade 검색:
     1. Exact Match — 수치, 고유명사 정규식 매칭
     2. Semantic Search — FAISS 청크 벡터 유사도 (또는 자체 임베딩)
-    3. LLM Verification — gpt-4o-mini로 Claim↔Evidence 판정
+    3. LLM Verification — DEFAULT_EVAL_MODEL로 Claim↔Evidence 판정
 
     두 가지 모드 지원:
     - Standalone: 논문 full_text를 직접 청크로 분할하여 검색
@@ -788,7 +790,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
 - **contradicted**: The evidence directly contradicts the claim
 - **unverified**: Cannot determine from this evidence alone"""
 
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_EVAL_MODEL, api_key: Optional[str] = None):
         self.model = model
         self._chunk_embedding_cache: Dict[str, List] = {}  # paper_id -> embeddings
         self._CHUNK_CACHE_MAX = 50  # Max papers cached
@@ -1116,7 +1118,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
         )
 
         try:
-            response = await self.client.chat.completions.create(
+            response = await async_create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
@@ -1279,7 +1281,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             return None
         try:
             response = await self.client.embeddings.create(
-                model="text-embedding-3-small",
+                model=DEFAULT_EMBEDDING_MODEL,
                 input=text[:8000],
             )
             return response.data[0].embedding
@@ -1298,7 +1300,7 @@ Evaluate the relationship between the claim and the evidence. Respond in JSON on
             batch = texts[start : start + batch_size]
             try:
                 response = await self.client.embeddings.create(
-                    model="text-embedding-3-small",
+                    model=DEFAULT_EMBEDDING_MODEL,
                     input=[t[:8000] for t in batch],
                 )
                 for item in response.data:
@@ -1350,7 +1352,7 @@ Determine the relationship between these two claims. Respond in JSON only.
 - **extends**: Claim B builds upon or generalizes Claim A
 - **independent**: The claims address unrelated aspects"""
 
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_EVAL_MODEL, api_key: Optional[str] = None):
         self.model = model
 
         if OPENAI_AVAILABLE:
@@ -1594,7 +1596,7 @@ Determine the relationship between these two claims. Respond in JSON only.
         )
 
         try:
-            response = await self.client.chat.completions.create(
+            response = await async_create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {

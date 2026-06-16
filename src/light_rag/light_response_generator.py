@@ -11,6 +11,7 @@ import os
 import networkx as nx
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
 
 load_dotenv()
 
@@ -18,6 +19,7 @@ from .kg_storage import KGStorage
 from .keyword_extractor import KeywordExtractor
 from .light_retriever import LightRetriever
 from .light_context_builder import LightContextBuilder
+from src.utils.openai_responses_compat import create_chat_completion
 
 try:
     from openai import OpenAI
@@ -56,7 +58,7 @@ Answer:"""
         kg: nx.Graph,
         paper_graph: Optional[nx.MultiDiGraph] = None,
         storage: Optional[KGStorage] = None,
-        llm_model: str = "gpt-4",
+        llm_model: str = DEFAULT_RESEARCH_MODEL,
         storage_dir: str = "data/light_rag",
     ):
         self.kg = kg
@@ -139,7 +141,7 @@ Answer:"""
         prompt = self.RESPONSE_PROMPT.format(context=context, query=query)
 
         try:
-            response = self.llm_client.chat.completions.create(
+            response = create_chat_completion(self.llm_client,
                 model=self.llm_model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},

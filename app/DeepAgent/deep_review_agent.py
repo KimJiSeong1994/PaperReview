@@ -16,6 +16,8 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 
 from app.DeepAgent.workspace_manager import WorkspaceManager
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+
 from app.DeepAgent.system_prompts import (
     MASTER_AGENT_PROMPT,
     RESEARCHER_AGENT_PROMPT,
@@ -207,7 +209,7 @@ def get_llm():
     with _llm_lock:
         if _llm_instance is None:
             _llm_instance = ChatOpenAI(
-                model="gpt-4o-mini",
+                model=DEFAULT_TOOL_MODEL,
                 temperature=0.3,
                 timeout=30,
             )
@@ -1049,7 +1051,7 @@ class DeepReviewAgent:
 
     def __init__(
         self,
-        model: str = "gpt-4o-mini",
+        model: str = DEFAULT_TOOL_MODEL,
         api_key: Optional[str] = None,
         num_researchers: int = 3,
         workspace: Optional[WorkspaceManager] = None
@@ -1283,7 +1285,7 @@ class DeepReviewAgent:
 def review_papers_with_deepagents(
     paper_ids: List[str],
     num_researchers: int = 3,
-    model: str = "gpt-4o-mini",
+    model: str = DEFAULT_TOOL_MODEL,
     api_key: Optional[str] = None,
     verbose: bool = True
 ) -> Dict[str, Any]:

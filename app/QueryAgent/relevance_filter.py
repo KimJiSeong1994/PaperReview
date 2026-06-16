@@ -10,6 +10,8 @@ import concurrent.futures
 import time
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
+from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -135,13 +137,13 @@ if os.getenv("PRELOAD_CROSS_ENCODER", "").lower() in ("1", "true", "yes"):
 class RelevanceFilter:
     """LLM 기반 검색 결과 관련성 필터"""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_TOOL_MODEL):
         """
         RelevanceFilter 초기화
 
         Args:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
-            model: 사용할 LLM 모델 (기본값: gpt-4o-mini)
+            model: 사용할 LLM 모델 (기본값: DEFAULT_TOOL_MODEL)
         """
         # SSL 검증은 api_server.py에서 전역으로 처리됨
 
@@ -320,7 +322,7 @@ Consider:
                 f"MUST be a list of length {len(papers)}."
             )
 
-        response = self.client.chat.completions.create(
+        response = create_chat_completion(self.client,
             model=self.model,
             messages=[
                 {"role": "system", "content": self._SYSTEM_PROMPT},

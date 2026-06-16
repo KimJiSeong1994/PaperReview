@@ -18,6 +18,8 @@ from datetime import datetime
 
 from pydantic import ValidationError
 
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
 from .llm_cache import get_cached, set_cache
 from .schemas import PaperReviewSchema, build_openai_strict_schema
 
@@ -224,7 +226,7 @@ def _call_with_json_schema_or_fallback(
     Returns the raw JSON string from the LLM (``message.content``).
     """
     try:
-        response = client.chat.completions.create(
+        response = create_chat_completion(client,
             model=model,
             temperature=temperature,
             timeout=timeout,
@@ -257,7 +259,7 @@ def _call_with_json_schema_or_fallback(
             name,
             str(e)[:200],
         )
-        response = client.chat.completions.create(
+        response = create_chat_completion(client,
             model=model,
             temperature=temperature,
             timeout=timeout,
@@ -271,7 +273,7 @@ def _call_with_json_schema_or_fallback(
 def generate_paper_review(
     paper: dict,
     client,
-    model: str = "gpt-4.1",
+    model: str = DEFAULT_RESEARCH_MODEL,
 ) -> dict:
     """Generate a structured per-paper review using a single LLM call.
 

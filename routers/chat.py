@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import limiter, load_bookmarks, get_light_rag_agent, get_current_user, get_openai_client
+from .deps import DEFAULT_RESEARCH_MODEL, limiter, load_bookmarks, get_light_rag_agent, get_current_user, get_openai_client
+from src.utils.openai_responses_compat import create_chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -167,8 +168,8 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
 
     def generate():
         try:
-            stream = client.chat.completions.create(
-                model="gpt-5.2",
+            stream = create_chat_completion(client,
+                model=DEFAULT_RESEARCH_MODEL,
                 messages=openai_messages,
                 temperature=0.7,
                 stream=True,

@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .kg_storage import KGStorage
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL
 
 try:
     from openai import OpenAI
@@ -48,7 +49,7 @@ class LightRetriever:
         kg: nx.Graph,
         paper_graph: Optional[nx.MultiDiGraph],
         storage: KGStorage,
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
     ):
         self.kg = kg
         self.paper_graph = paper_graph

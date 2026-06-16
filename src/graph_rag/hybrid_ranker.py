@@ -22,6 +22,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOOL_MODEL
+from src.utils.openai_responses_compat import create_chat_completion
+
 try:
     from rank_bm25 import BM25Okapi
     BM25_AVAILABLE = True
@@ -491,8 +494,8 @@ class HybridRanker:
             if research_area
             else "across academic research domains"
         )
-        hyde_response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+        hyde_response = create_chat_completion(openai_client,
+            model=DEFAULT_TOOL_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -531,8 +534,8 @@ class HybridRanker:
     ) -> List[str]:
         """HyDE fallback: 대안 검색 쿼리 2개만 단독 생성 (개별 LLM 호출)."""
         local_started = time.perf_counter()
-        alt_response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+        alt_response = create_chat_completion(openai_client,
+            model=DEFAULT_TOOL_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -564,7 +567,7 @@ class HybridRanker:
         openai_client,
         research_area: str = "",
     ) -> Tuple[str, List[str]]:
-        """통합 HyDE 호출: 1회의 gpt-4o-mini JSON 응답으로 (abstract, alt_queries[2]) 획득.
+        """통합 HyDE 호출: 1회의 DEFAULT_TOOL_MODEL JSON 응답으로 (abstract, alt_queries[2]) 획득.
 
         2 LLM calls → 1 LLM call 로 축소하여 HyDE 경로 지연을 절반으로 단축.
         JSON 파싱/응답 불완전 시 기존 개별 메서드로 graceful fallback.
@@ -596,8 +599,8 @@ class HybridRanker:
             "Do not add any commentary."
         )
         try:
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
+            response = create_chat_completion(openai_client,
+                model=DEFAULT_TOOL_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Research query: {query}"},
@@ -635,21 +638,20 @@ class HybridRanker:
                 "hyde_unified_fallback_triggered: unified HyDE call failed (%s); falling back to individual calls",
                 e,
             )
-            # Fallback: 기존 2회 LLM 호출 (병렬)
+            # Fallback: 기존 2회 LLM 호출. Keep it serial so mocked and
+            # retry-sensitive clients observe a deterministic call order. This
+            # branch only runs after malformed unified JSON, so normal HyDE
+            # latency still uses the single-call fast path.
             try:
-                abstract_future = _HYDE_EXECUTOR.submit(
-                    self._generate_hypothetical_abstract,
+                fallback_abstract = self._generate_hypothetical_abstract(
                     query,
                     openai_client,
                     research_area,
                 )
-                alt_future = _HYDE_EXECUTOR.submit(
-                    self._generate_alt_queries,
+                fallback_alts = self._generate_alt_queries(
                     query,
                     openai_client,
                 )
-                fallback_abstract = abstract_future.result(timeout=15)
-                fallback_alts = alt_future.result(timeout=15)
                 return fallback_abstract, fallback_alts
             except Exception as inner:
                 logger.warning(
@@ -667,8 +669,8 @@ class HybridRanker:
         """
         HyDE (Hypothetical Document Embedding) + Multi-Query 평균 임베딩 생성.
 
-        1. gpt-4o-mini로 가상 초록(hypothetical abstract) 생성
-        2. gpt-4o-mini로 대안 검색 쿼리 2개 생성
+        1. DEFAULT_TOOL_MODEL로 가상 초록(hypothetical abstract) 생성
+        2. DEFAULT_TOOL_MODEL로 대안 검색 쿼리 2개 생성
         3. [원본 쿼리, 가상 초록, 대안1, 대안2] 배치 임베딩
         4. L2-정규화 후 평균 반환
 
@@ -722,11 +724,11 @@ class HybridRanker:
             else:
                 # Fallback: SimilarityCalculator 없으면 기존 경로 유지
                 logger.warning(
-                    "[HybridRanker] HyDE falling back to hardcoded text-embedding-3-small "
+                    "[HybridRanker] HyDE falling back to DEFAULT_EMBEDDING_MODEL "
                     "(no SimilarityCalculator injected) — dim parity with paper embeddings NOT guaranteed"
                 )
                 embed_response = openai_client.embeddings.create(
-                    model="text-embedding-3-small",
+                    model=DEFAULT_EMBEDDING_MODEL,
                     input=[t[:8000] for t in texts_to_embed],
                 )
                 logger.info(

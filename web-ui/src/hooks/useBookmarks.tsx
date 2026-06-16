@@ -338,7 +338,7 @@ export function useBookmarks() {
     if (kgBuilding) return;
     setKgBuilding(true);
     try {
-      await buildLightRAG(4, 'gpt-4o-mini');
+      await buildLightRAG(4);
       alert('Knowledge Graph build started in background.');
       const pollId = setInterval(async () => {
         try {
