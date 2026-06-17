@@ -849,7 +849,13 @@ class SearchAgent:
                 return self.dblp_searcher.search(dblp_q, max_results)
 
             elif source_name == "openalex_korean":
-                return self.openalex_searcher.search_korean(query, max_results)
+                original_query = filters.get("original_query")
+                korean_q = source_queries.get("openalex_korean")
+                if original_query and _contains_korean(original_query):
+                    korean_q = original_query
+                elif not korean_q:
+                    korean_q = query
+                return self.openalex_searcher.search_korean(korean_q, max_results)
 
             else:
                 logger.warning("Unknown search source: %s", source_name)
@@ -934,6 +940,11 @@ class SearchAgent:
         )
         max_results = filters.get("max_results", 5)
         source_queries: Dict[str, str] = filters.get("source_queries", {})
+        original_query = filters.get("original_query", query)
+        metadata: Dict[str, Any] = filters.setdefault("_metadata", {})
+        source_timings: Dict[str, float] = metadata.setdefault("timings", {})
+        source_timeouts: Dict[str, bool] = metadata.setdefault("timeouts", {})
+        source_modes: Dict[str, str] = metadata.setdefault("modes", {})
 
         loop = asyncio.get_running_loop()
 
@@ -947,6 +958,20 @@ class SearchAgent:
         async def _run_source(source_name: str) -> tuple:
             """Run a single source search in the thread-pool executor with per-source timeout."""
             timeout = _SOURCE_TIMEOUTS.get(source_name, _DEFAULT_SOURCE_TIMEOUT)
+            started_at = time.time()
+            source_timeouts[source_name] = False
+            source_query = source_queries.get(source_name, query)
+            if (
+                source_name == "openalex_korean"
+                and not _contains_korean(query)
+                and not _contains_korean(original_query)
+                and not _contains_korean(source_query)
+            ):
+                source_timings[source_name] = 0.0
+                source_modes[source_name] = "skipped_non_korean_query"
+                return source_name, []
+
+            source_modes[source_name] = "searched"
             fut = loop.run_in_executor(
                 None,
                 self._search_single_source,
@@ -954,8 +979,12 @@ class SearchAgent:
             )
             try:
                 papers = await asyncio.wait_for(asyncio.shield(fut), timeout=timeout)
+                source_timings[source_name] = round(time.time() - started_at, 3)
                 return source_name, papers
             except asyncio.TimeoutError:
+                source_timings[source_name] = round(time.time() - started_at, 3)
+                source_timeouts[source_name] = True
+                source_modes[source_name] = "timeout"
                 if not fut.done():
                     fut.cancel()  # best-effort; ThreadPool 스레드는 중단 불가이나 Future 상태 정리
                 logger.warning("[SearchAgent] source %s timed out after %ds", source_name, timeout)
@@ -970,6 +999,9 @@ class SearchAgent:
                 logger.warning(
                     "[SearchAgent] async source %s failed: %s", source, outcome,
                 )
+                source_timings.setdefault(source, 0.0)
+                source_timeouts.setdefault(source, False)
+                source_modes[source] = "error"
                 results[source] = []
             else:
                 _source_name, papers = outcome

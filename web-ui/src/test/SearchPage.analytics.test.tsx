@@ -56,6 +56,17 @@ function renderSearchPage() {
   );
 }
 
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 async function submitSearch(query: string) {
   const user = userEvent.setup();
 
@@ -92,6 +103,39 @@ describe('SearchPage analytics instrumentation', () => {
     await waitFor(() => {
       expect(trackSearchEvent).toHaveBeenCalledWith('private raw paper title', 'non_academic', 0, 'home');
     });
+  });
+
+
+  it('renders primary search results before graph and reference enrichment finish', async () => {
+    const graphDeferred = createDeferred<{ nodes: []; edges: [] }>();
+    const refsDeferred = createDeferred<{ references: [] }>();
+
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: {
+        arxiv: [{
+          doc_id: 'paper-1',
+          title: 'Fast Primary Result',
+          authors: ['A. Researcher'],
+          year: 2026,
+          abstract: 'abstract',
+        }],
+      },
+      total: 1,
+    });
+    vi.mocked(getGraphData).mockReturnValue(graphDeferred.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(refsDeferred.promise);
+
+    renderSearchPage();
+    await submitSearch('fast result rendering');
+
+    expect(vi.mocked(searchPapers).mock.calls[0][0]).not.toHaveProperty('fast_mode');
+    expect(await screen.findAllByText('Fast Primary Result')).toHaveLength(2);
+    expect(screen.getByPlaceholderText('Search papers...')).not.toBeDisabled();
+    expect(getGraphData).toHaveBeenCalledTimes(1);
+    expect(fetchBatchReferences).toHaveBeenCalledTimes(1);
+
+    graphDeferred.resolve({ nodes: [], edges: [] });
+    refsDeferred.resolve({ references: [] });
   });
 
   it('tracks poster completion when session poster generation falls back to direct generation', async () => {

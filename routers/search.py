@@ -237,6 +237,16 @@ class SearchResponse(BaseModel):
     results: Dict[str, List[Dict[str, Any]]]
     total: int
     query_analysis: Optional[Dict[str, Any]] = None
+    # P0/P1 latency observability metadata. Optional fields preserve response
+    # compatibility for existing clients while making fast-path/source timing
+    # behavior explicit for newer callers and operators.
+    stage_timings: Optional[Dict[str, float]] = None
+    stage_modes: Optional[Dict[str, Any]] = None
+    source_timings: Optional[Dict[str, float]] = None
+    source_timeouts: Optional[Dict[str, bool]] = None
+    cache_hit: bool = False
+    quality_mode: str = "standard"
+    metadata: Optional[Dict[str, Any]] = None
     # F-07: non-None when some search subsystem is degraded (e.g. ranker
     # unavailable). Contains short machine-readable markers such as
     # ``"ranker_unavailable"`` — the frontend and operators key off these.
@@ -403,13 +413,24 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
     return hashlib.sha256(key_str.encode()).hexdigest()[:16]
 
 
-def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
+def _cache_entry_passes_guard(entry: Dict[str, Any], *, require_academic_guard: bool) -> bool:
+    if not require_academic_guard:
+        return True
+    metadata = entry.get("metadata") if isinstance(entry, dict) else None
+    return bool(isinstance(metadata, dict) and metadata.get("academic_guard_passed") is True)
+
+
+def _get_cached_result(cache_key: str, *, require_academic_guard: bool = False) -> Optional[Dict[str, Any]]:
     """인메모리 → 파일 순서로 캐시 조회.
 
     F-03 defensive behaviour: any ``searched_by`` stamp found in the cached
     payload (e.g. legacy on-disk entries written before the F-03 fix) is
     stripped before returning. The caller is responsible for re-stamping
     with the current request's username via ``_stamp_searched_by``.
+
+    ``require_academic_guard=True`` is used only by the pre-analysis fast
+    path. It prevents legacy/prefetch entries from bypassing the current
+    non-academic guard; those entries can still be reused after classification.
     """
     now = datetime.now()
 
@@ -418,6 +439,9 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
         if cache_key in _search_cache:
             entry = _search_cache[cache_key]
             if datetime.fromisoformat(entry["expires_at"]) > now:
+                if not _cache_entry_passes_guard(entry, require_academic_guard=require_academic_guard):
+                    logger.debug("[Cache] HIT blocked by academic guard: %s", cache_key)
+                    return None
                 logger.debug("[Cache] HIT (memory): %s", cache_key)
                 results = entry["results"]
                 _strip_searched_by(results)
@@ -432,6 +456,9 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
             with open(cache_file, "r", encoding="utf-8") as f:
                 entry = json.load(f)
             if datetime.fromisoformat(entry["expires_at"]) > now:
+                if not _cache_entry_passes_guard(entry, require_academic_guard=require_academic_guard):
+                    logger.debug("[Cache] FILE HIT blocked by academic guard: %s", cache_key)
+                    return None
                 # Strip before memoizing so future memory hits are also clean.
                 _strip_searched_by(entry["results"])
                 with _cache_lock:
@@ -447,7 +474,13 @@ def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE_TTL_SECONDS):
+def _set_cache(
+    cache_key: str,
+    results: Dict[str, Any],
+    ttl_seconds: int = CACHE_TTL_SECONDS,
+    *,
+    academic_guard_passed: bool = False,
+):
     """인메모리 + 파일 캐시 저장 (크기 제한 + TTL 만료 정리).
 
     F-03: The cache body must be user-agnostic. The in-flight ``results``
@@ -469,7 +502,15 @@ def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE
             ]
         else:
             sanitized[source] = papers
-    entry = {"results": sanitized, "expires_at": expires_at, "cached_at": now.isoformat()}
+    entry = {
+        "results": sanitized,
+        "expires_at": expires_at,
+        "cached_at": now.isoformat(),
+        "metadata": {
+            "cache_schema_version": _CACHE_SCHEMA_VERSION,
+            "academic_guard_passed": academic_guard_passed,
+        },
+    }
 
     with _cache_lock:
         # 캐시 크기 초과 시 만료 엔트리 정리 + 가장 오래된 엔트리 제거
@@ -1064,7 +1105,29 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         "query_analysis": None,
         "stage_timings": {},
         "stage_modes": {},
+        "source_timings": {},
+        "source_timeouts": {},
     }
+
+    def _response_metadata(
+        *,
+        stage_timings: Dict[str, float],
+        stage_modes: Dict[str, Any],
+        source_timings: Dict[str, float],
+        source_timeouts: Dict[str, bool],
+        cache_hit: bool,
+        quality_mode: str,
+    ) -> Dict[str, Any]:
+        """Build one stable metadata envelope while preserving top-level fields."""
+        return {
+            "stage_timings": stage_timings,
+            "stage_modes": stage_modes,
+            "source_timings": source_timings,
+            "source_timeouts": source_timeouts,
+            "cache_hit": cache_hit,
+            "quality_mode": quality_mode,
+            "degraded": _current_degradation_markers(),
+        }
 
     async def _run_search_pipeline() -> SearchResponse:
         start_time = time.time()
@@ -1078,8 +1141,77 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "hybrid_ranker_enabled": bool(_hybrid_ranker),
         }
 
+        # Cache lookup is safe before LLM query analysis: the key uses only
+        # caller-controlled request fields, and cached bodies were produced by
+        # the same post-ranking pipeline. This lets warm requests bypass the
+        # slow LLM analysis/source path entirely.
+        user_filters = {
+            "sort_by": request.sort_by,
+            "year_start": request.year_start,
+            "year_end": request.year_end,
+            "author": request.author,
+            "category": request.category,
+            "fast_mode": request.fast_mode,
+        }
+        cache_lookup_start = time.time()
+        cache_key = _compute_cache_key(request.query, request.sources, user_filters)
+        cached = _get_cached_result(cache_key, require_academic_guard=True)
+        stage_timings["cache_lookup"] = round(time.time() - cache_lookup_start, 3)
+        if cached is not None:
+            total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
+            _stamp_searched_by(cached, username)
+            stage_modes["query_analysis_mode"] = "skipped_cache_hit"
+            stage_modes["source_search_mode"] = "skipped_cache_hit"
+            stage_modes["ranking_mode"] = "skipped_cache_hit"
+            stage_modes["relevance_filter_mode"] = "skipped_cache_hit"
+            stage_modes["cache_fast_path"] = True
+            stage_timings["total"] = round(time.time() - start_time, 3)
+            logger.info("[API] Returning cached results before query analysis: %s papers", total)
+            if username:
+                try:
+                    emit_or_warn(UserEvent(
+                        user_id=username,
+                        event_type=EventType.QUERY_SUBMIT,
+                        payload={
+                            "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                            "results_count": total,
+                            "ranking_applied": False,
+                            "source_counts": {
+                                src: len(papers)
+                                for src, papers in cached.items()
+                                if isinstance(papers, list)
+                            },
+                            "elapsed_ms": int(stage_timings["total"] * 1000),
+                            "cache_hit": True,
+                        },
+                    ))
+                except Exception:
+                    logger.debug("failed to emit QUERY_SUBMIT event (cache hit)", exc_info=True)
+            return SearchResponse(
+                results=cached,
+                total=total,
+                query_analysis=None,
+                stage_timings=stage_timings,
+                stage_modes=stage_modes,
+                source_timings={},
+                source_timeouts={},
+                cache_hit=True,
+                quality_mode="cache_fast_path",
+                metadata=_response_metadata(
+                    stage_timings=stage_timings,
+                    stage_modes=stage_modes,
+                    source_timings={},
+                    source_timeouts={},
+                    cache_hit=True,
+                    quality_mode="cache_fast_path",
+                ),
+                degraded=_current_degradation_markers(),
+            )
+        stage_modes["cache_fast_path"] = False
+
         # ── Parallel topic classification + query analysis ──
         is_academic = True
+        academic_guard_passed = False
         query_analysis = None
 
         if query_analyzer:
@@ -1096,7 +1228,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         ),
                         timeout=_ANALYZE_TIMEOUT,
                     )
-                    is_academic = unified.get("is_academic", True)
+                    explicit_academic = unified.get("is_academic")
+                    is_academic = explicit_academic if isinstance(explicit_academic, bool) else True
+                    academic_guard_passed = explicit_academic is True
                     query_analysis = unified
                     logger.info(
                         "[API] Unified analysis: intent=%s, keywords=%s, confidence=%s (took %.2fs)",
@@ -1126,7 +1260,9 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         ),
                         timeout=5,
                     )
-                    is_academic = classify_result.get("is_academic", True)
+                    explicit_academic = classify_result.get("is_academic")
+                    is_academic = explicit_academic if isinstance(explicit_academic, bool) else True
+                    academic_guard_passed = explicit_academic is True
                     stage_timings["query_analysis"] = round(time.time() - analysis_start, 3)
                     stage_modes["query_analysis_mode"] = "classify_only"
                 except Exception:
@@ -1137,6 +1273,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             logger.info("[API] Query analysis skipped (OpenAI API key not configured)")
             stage_modes["query_analysis_mode"] = "disabled_no_api_key"
 
+        stage_modes["academic_guard_passed"] = academic_guard_passed
         _partial["query_analysis"] = query_analysis
         _partial["stage_timings"] = stage_timings
         _partial["stage_modes"] = stage_modes
@@ -1147,6 +1284,20 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 results={s: [] for s in request.sources},
                 total=0,
                 query_analysis={"is_academic": False, "original_query": request.query},
+                stage_timings=stage_timings,
+                stage_modes=stage_modes,
+                source_timings={},
+                source_timeouts={},
+                cache_hit=False,
+                quality_mode="fast" if request.fast_mode else "standard",
+                metadata=_response_metadata(
+                    stage_timings=stage_timings,
+                    stage_modes=stage_modes,
+                    source_timings={},
+                    source_timeouts={},
+                    cache_hit=False,
+                    quality_mode="fast" if request.fast_mode else "standard",
+                ),
                 degraded=_current_degradation_markers(),
             )
 
@@ -1160,6 +1311,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "year_end": request.year_end,
             "author": request.author,
             "category": request.category,
+            "original_query": request.query,
         }
 
         # Use improved query only with very high confidence
@@ -1193,22 +1345,18 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 logger.info("[API] Source-specific queries (from unified): %s", {k: v[:50] for k, v in source_queries.items()})
                 filters["source_queries"] = source_queries
 
-        # Cache check (사용자 원본 입력 기준 - LLM 분석 결과 변동 무관)
-        user_filters = {
-            "sort_by": request.sort_by,
-            "year_start": request.year_start,
-            "year_end": request.year_end,
-            "author": request.author,
-            "category": request.category,
-            "fast_mode": request.fast_mode,
-        }
-        cache_key = _compute_cache_key(request.query, request.sources, user_filters)
-        cached = _get_cached_result(cache_key)
-        if cached is not None:
-            total = sum(len(papers) for papers in cached.values() if isinstance(papers, list))
-            # F-03: cache body is user-agnostic; stamp the current caller now.
-            _stamp_searched_by(cached, username)
-            logger.info("[API] Returning cached results: %s papers", total)
+        cache_after_guard_start = time.time()
+        cached_after_guard = _get_cached_result(cache_key)
+        stage_timings["cache_lookup_after_guard"] = round(time.time() - cache_after_guard_start, 3)
+        if cached_after_guard is not None:
+            total = sum(len(papers) for papers in cached_after_guard.values() if isinstance(papers, list))
+            _stamp_searched_by(cached_after_guard, username)
+            stage_modes["cache_after_guard"] = True
+            stage_modes["source_search_mode"] = "skipped_cache_hit_after_guard"
+            stage_modes["ranking_mode"] = "skipped_cache_hit_after_guard"
+            stage_modes["relevance_filter_mode"] = "skipped_cache_hit_after_guard"
+            stage_timings["total"] = round(time.time() - start_time, 3)
+            logger.info("[API] Returning cached results after academic guard: %s papers", total)
             if username:
                 try:
                     emit_or_warn(UserEvent(
@@ -1218,21 +1366,44 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
                             "results_count": total,
                             "ranking_applied": False,
-                            "source_counts": {},
-                            "elapsed_ms": int((time.time() - start_time) * 1000),
+                            "source_counts": {
+                                src: len(papers)
+                                for src, papers in cached_after_guard.items()
+                                if isinstance(papers, list)
+                            },
+                            "elapsed_ms": int(stage_timings["total"] * 1000),
                             "cache_hit": True,
+                            "cache_after_guard": True,
                         },
                     ))
                 except Exception:
-                    logger.debug("failed to emit QUERY_SUBMIT event (cache hit)", exc_info=True)
+                    logger.debug("failed to emit QUERY_SUBMIT event (post-guard cache hit)", exc_info=True)
+
+            quality_mode = "fast" if request.fast_mode else "standard"
             return SearchResponse(
-                results=cached,
+                results=cached_after_guard,
                 total=total,
                 query_analysis=query_analysis,
+                stage_timings=stage_timings,
+                stage_modes=stage_modes,
+                source_timings={},
+                source_timeouts={},
+                cache_hit=True,
+                quality_mode=quality_mode,
+                metadata=_response_metadata(
+                    stage_timings=stage_timings,
+                    stage_modes=stage_modes,
+                    source_timings={},
+                    source_timeouts={},
+                    cache_hit=True,
+                    quality_mode=quality_mode,
+                ),
                 degraded=_current_degradation_markers(),
             )
+        stage_modes["cache_after_guard"] = False
 
         search_start = time.time()
+        source_metadata: Dict[str, Any] = {"timings": {}, "timeouts": {}, "modes": {}}
         logger.info("[API] Searching for: %s", search_query)
         logger.info("[API] Filters: %s", filters)
 
@@ -1261,13 +1432,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 )
         else:
             stage_modes["source_search_mode"] = "standard_async_multi_source"
+            filters["_metadata"] = source_metadata
             results = await asyncio.wait_for(
                 search_agent.async_search_with_filters(search_query, filters),
                 timeout=_SOURCE_SEARCH_TIMEOUT,
             )
 
+        stage_modes["source_modes"] = source_metadata.get("modes", {})
         search_time = time.time() - search_start
         stage_timings["source_search"] = round(search_time, 3)
+        source_timings = source_metadata.get("timings", {})
+        source_timeouts = source_metadata.get("timeouts", {})
+        _partial["source_timings"] = source_timings
+        _partial["source_timeouts"] = source_timeouts
         logger.info(
             "[API] Raw search results: %s papers found (took %.2fs)",
             sum(len(papers) for papers in results.values()),
@@ -1564,7 +1741,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         logger.info("[API] Search stage timings=%s modes=%s", stage_timings, stage_modes)
 
         # Store in query cache
-        _set_cache(cache_key, results)
+        _set_cache(cache_key, results, academic_guard_passed=academic_guard_passed)
 
         # Cache results for Deep Research
         try:
@@ -1615,6 +1792,20 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             results=results,
             total=total,
             query_analysis=query_analysis,
+            stage_timings=stage_timings,
+            stage_modes=stage_modes,
+            source_timings=source_timings,
+            source_timeouts=source_timeouts,
+            cache_hit=False,
+            quality_mode="fast" if request.fast_mode else "standard",
+            metadata=_response_metadata(
+                stage_timings=stage_timings,
+                stage_modes=stage_modes,
+                source_timings=source_timings,
+                source_timeouts=source_timeouts,
+                cache_hit=False,
+                quality_mode="fast" if request.fast_mode else "standard",
+            ),
             degraded=_current_degradation_markers(),
         )
 
@@ -1638,6 +1829,20 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 results=partial_results,
                 total=total,
                 query_analysis=_partial["query_analysis"],
+                stage_timings=_partial.get("stage_timings", {}),
+                stage_modes=_partial.get("stage_modes", {}),
+                source_timings=_partial.get("source_timings", {}),
+                source_timeouts=_partial.get("source_timeouts", {}),
+                cache_hit=False,
+                quality_mode="fast" if request.fast_mode else "standard",
+                metadata=_response_metadata(
+                    stage_timings=_partial.get("stage_timings", {}),
+                    stage_modes=_partial.get("stage_modes", {}),
+                    source_timings=_partial.get("source_timings", {}),
+                    source_timeouts=_partial.get("source_timeouts", {}),
+                    cache_hit=False,
+                    quality_mode="fast" if request.fast_mode else "standard",
+                ),
                 degraded=_current_degradation_markers(),
             )
         raise HTTPException(status_code=504, detail=f"Search timed out after {_SEARCH_TIMEOUT}s")

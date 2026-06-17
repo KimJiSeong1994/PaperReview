@@ -45,6 +45,7 @@ export interface SearchRequest {
   author?: string;
   category?: string;
   use_llm_search?: boolean;
+  fast_mode?: boolean;
 }
 
 export interface QueryAnalysis {
@@ -55,12 +56,21 @@ export interface QueryAnalysis {
   confidence: number;
   original_query: string;
   analysis_details?: string;
+  is_academic?: boolean;
 }
 
 export interface SearchResponse {
   results: Record<string, Paper[]>;
   total: number;
   query_analysis?: QueryAnalysis;
+  stage_timings?: Record<string, number>;
+  stage_modes?: Record<string, unknown>;
+  source_timings?: Record<string, number>;
+  source_timeouts?: Record<string, boolean>;
+  cache_hit?: boolean;
+  quality_mode?: 'standard' | 'fast' | 'cache_fast_path' | string;
+  degraded?: string[] | null;
+  metadata?: Record<string, unknown>;
 }
 
 // LightRAG types
@@ -151,4 +161,3 @@ export interface TemporalAnalysis {
   snapshots: TemporalSnapshot[];
   events: LifecycleEvent[];
 }
-
