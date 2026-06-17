@@ -39,6 +39,7 @@ function SearchPage() {
   const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [enrichmentLoading, setEnrichmentLoading] = useState(false);
   const [query, setQuery] = useState('');
 
   // Deep Review states
@@ -62,6 +63,7 @@ function SearchPage() {
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestIdRef = useRef(0);
   const trackedCompletedReviewRef = useRef(false);
 
   // Auto-dismiss guidance message after 3 seconds
@@ -81,8 +83,94 @@ function SearchPage() {
     return Math.abs(hash).toString();
   };
 
+  const isStaleSearch = (requestId: number, abortController: AbortController) => (
+    searchRequestIdRef.current !== requestId ||
+    searchAbortRef.current !== abortController ||
+    abortController.signal.aborted
+  );
+
+  const enrichSearchResults = async (
+    requestId: number,
+    abortController: AbortController,
+    basePapers: Paper[],
+  ) => {
+    if (isStaleSearch(requestId, abortController)) return;
+    setEnrichmentLoading(true);
+
+    let latestGraphRequest = 0;
+    const applyGraphData = async (papersToGraph: Paper[]) => {
+      const graphRequest = ++latestGraphRequest;
+      try {
+        const graph = await getGraphData(JSON.stringify(papersToGraph));
+        if (!isStaleSearch(requestId, abortController) && graphRequest === latestGraphRequest) {
+          setGraphData(graph);
+        }
+      } catch (error) {
+        if (!isStaleSearch(requestId, abortController)) {
+          console.warn('Graph enrichment failed:', error);
+        }
+      }
+    };
+
+    const enrichReferences = async () => {
+      const topPapers = basePapers.slice(0, 5).map(p => ({
+        title: p.title,
+        doi: p.doi,
+        arxiv_id: p.arxiv_id,
+      }));
+
+      try {
+        const { references } = await fetchBatchReferences(topPapers);
+        if (isStaleSearch(requestId, abortController) || references.length === 0) return;
+
+        const existingTitles = new Set(basePapers.map(p => p.title.trim().toLowerCase()));
+        const refPapers: Paper[] = [];
+        for (const ref of references) {
+          const normTitle = (ref.title || '').trim().toLowerCase();
+          if (!normTitle || existingTitles.has(normTitle)) continue;
+          existingTitles.add(normTitle);
+          refPapers.push({
+            doc_id: hashString(ref.title),
+            title: ref.title,
+            authors: ref.authors || [],
+            year: ref.year,
+            abstract: ref.abstract || '',
+            url: ref.url || '',
+            citations: ref.citations || 0,
+            source: 'reference',
+            parent_paper_title: ref.parent_paper_title,
+          });
+        }
+
+        if (refPapers.length === 0 || isStaleSearch(requestId, abortController)) return;
+
+        const merged = [...basePapers, ...refPapers];
+        setPapers(merged);
+        await applyGraphData(merged);
+      } catch (error) {
+        if (!isStaleSearch(requestId, abortController)) {
+          console.warn('Reference enrichment failed:', error);
+        }
+      }
+    };
+
+    try {
+      await Promise.allSettled([
+        applyGraphData(basePapers),
+        enrichReferences(),
+      ]);
+    } finally {
+      if (!isStaleSearch(requestId, abortController)) {
+        setEnrichmentLoading(false);
+      }
+    }
+  };
+
   const handleSearch = async (searchQuery: string, source: 'home' | 'fixed_bar' | 'url_prefill' = papers.length > 0 || query ? 'fixed_bar' : 'home') => {
     if (!searchQuery.trim()) return;
+
+    searchRequestIdRef.current += 1;
+    const requestId = searchRequestIdRef.current;
 
     if (searchAbortRef.current) {
       searchAbortRef.current.abort();
@@ -91,11 +179,14 @@ function SearchPage() {
     searchAbortRef.current = abortController;
 
     setGuidanceMessage(null);
+    setEnrichmentLoading(false);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
     const loadingTimer = setTimeout(() => {
-      setLoading(true);
-      setQuery(searchQuery);
+      if (!isStaleSearch(requestId, abortController)) {
+        setLoading(true);
+        setQuery(searchQuery);
+      }
     }, 500);
 
     try {
@@ -107,8 +198,10 @@ function SearchPage() {
         use_llm_search: false,
       }, abortController.signal);
 
+      if (isStaleSearch(requestId, abortController)) return;
+
       // Check if query was classified as non-academic
-      const qa = (results as any).query_analysis;
+      const qa = results.query_analysis;
       if (qa && qa.is_academic === false) {
         clearTimeout(loadingTimer);
         setGuidanceMessage(
@@ -125,7 +218,7 @@ function SearchPage() {
         return;
       }
 
-      // Academic query confirmed — ensure loading is shown
+      // Academic query confirmed — ensure loading is shown until primary search results render
       clearTimeout(loadingTimer);
       setLoading(true);
       setQuery(searchQuery);
@@ -155,61 +248,24 @@ function SearchPage() {
       });
 
       setPapers(allPapers);
+      setGraphData(null);
       trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source);
 
       if (allPapers.length > 0) {
         setSelectedPaper(allPapers[0]);
         setHighlightedPapers(new Set());
         setSelectedPapersForReview(new Set());
-
-        const topPapers = allPapers.slice(0, 5).map(p => ({
-          title: p.title,
-          doi: p.doi,
-          arxiv_id: p.arxiv_id,
-        }));
-
-        const [graphResult, refsResult] = await Promise.allSettled([
-          getGraphData(JSON.stringify(allPapers)),
-          fetchBatchReferences(topPapers),
-        ]);
-
-        if (graphResult.status === 'fulfilled') {
-          setGraphData(graphResult.value);
-        }
-
-        if (refsResult.status === 'fulfilled') {
-          const { references } = refsResult.value;
-          if (references.length > 0) {
-            const existingTitles = new Set(allPapers.map(p => p.title.trim().toLowerCase()));
-            const refPapers: Paper[] = [];
-            for (const ref of references) {
-              const normTitle = (ref.title || '').trim().toLowerCase();
-              if (!normTitle || existingTitles.has(normTitle)) continue;
-              existingTitles.add(normTitle);
-              refPapers.push({
-                doc_id: hashString(ref.title),
-                title: ref.title,
-                authors: ref.authors || [],
-                year: ref.year,
-                abstract: ref.abstract || '',
-                url: ref.url || '',
-                citations: ref.citations || 0,
-                source: 'reference',
-                parent_paper_title: ref.parent_paper_title,
-              });
-            }
-            if (refPapers.length > 0) {
-              const merged = [...allPapers, ...refPapers];
-              setPapers(merged);
-              getGraphData(JSON.stringify(merged)).then(g => setGraphData(g)).catch(() => {});
-            }
-          }
-        }
+        void enrichSearchResults(requestId, abortController, allPapers);
+      } else {
+        setSelectedPaper(null);
+        setHighlightedPapers(new Set());
+        setSelectedPapersForReview(new Set());
       }
     } catch (error: any) {
       clearTimeout(loadingTimer);
 
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+      if (isStaleSearch(requestId, abortController)) return;
 
       console.error('Search error:', error);
 
@@ -232,7 +288,10 @@ function SearchPage() {
       setSelectedPapersForReview(new Set());
       trackSearchEvent(searchQuery, 'error', 0, source);
     } finally {
-      setLoading(false);
+      clearTimeout(loadingTimer);
+      if (!isStaleSearch(requestId, abortController)) {
+        setLoading(false);
+      }
     }
   };
 
@@ -644,7 +703,7 @@ function SearchPage() {
 
             <div className="center-panel">
               <div className="pane-title">Graph View</div>
-              {graphData && (
+              {graphData ? (
                 <Suspense fallback={<div className="app-loading">Loading graph...</div>}>
                   <GraphViewComponent
                     graphData={graphData}
@@ -654,7 +713,9 @@ function SearchPage() {
                     onNodeClick={handleNodeClickWithHighlight}
                   />
                 </Suspense>
-              )}
+              ) : enrichmentLoading ? (
+                <div className="app-loading">Loading graph...</div>
+              ) : null}
             </div>
 
             {!showReport && (
