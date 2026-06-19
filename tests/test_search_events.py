@@ -108,7 +108,7 @@ class TestQuerySubmitEvent:
         with patch("routers.search.emit_or_warn", side_effect=_capture):
             resp = await client.post(
                 "/api/search",
-                json={"query": "transformer", "fast_mode": True, "save_papers": False},
+                json={"query": "transformer survey models", "fast_mode": True, "save_papers": False},
                 headers=auth_headers,
             )
 
@@ -126,11 +126,23 @@ class TestQuerySubmitEvent:
         evt = query_submit_events[0]
         payload = evt.payload
 
-        # Privacy: raw query must not be stored
-        assert "transformer" not in str(payload), "raw query must not appear in payload"
+        # Privacy: the full raw query must never be stored verbatim, and no
+        # verbatim raw-query field may exist. Bounded, sanitized recommendation
+        # terms (normalized_terms, <= 8) are permitted as a personalization signal.
+        assert "transformer survey models" not in str(payload), (
+            "full raw query must not appear verbatim in payload"
+        )
+        for forbidden_key in ("query", "raw_query", "original_query", "q"):
+            assert forbidden_key not in payload, (
+                f"raw query field {forbidden_key!r} must not be stored"
+            )
+        terms = payload.get("normalized_terms")
+        assert terms is None or (isinstance(terms, list) and len(terms) <= 8), (
+            "normalized_terms must be a bounded (<= 8) list when present"
+        )
 
-        # query_hash must match sha256 prefix
-        assert payload["query_hash"] == _expected_hash("transformer")
+        # query_hash must match sha256 prefix of the raw query
+        assert payload["query_hash"] == _expected_hash("transformer survey models")
 
         # Structural fields
         assert "results_count" in payload
