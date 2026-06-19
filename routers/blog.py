@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api/blog", tags=["blog"])
 
 BLOG_DIR = Path("data/blog")
 POSTS_FILE = BLOG_DIR / "posts.json"
+DELETED_FILE = BLOG_DIR / "deleted.json"
 _posts_lock = FileLock(str(POSTS_FILE) + ".lock")
 
 
@@ -61,6 +62,36 @@ def _save_posts(posts: list[dict]) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"posts": posts}, f, ensure_ascii=False, indent=2)
     tmp.replace(POSTS_FILE)
+
+
+def _load_deleted() -> set[str]:
+    """Load the set of deleted (tombstoned) slugs. Caller must hold _posts_lock.
+
+    Returns an empty set when the tombstone file is missing or corrupt.
+    """
+    if not DELETED_FILE.exists():
+        return set()
+    try:
+        with open(DELETED_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return set(data.get("slugs", []))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.error("Corrupted deleted.json, returning empty set")
+        return set()
+
+
+def _record_deleted(slug: str) -> None:
+    """Add a slug to the deleted tombstone (atomic write).
+
+    Caller must hold _posts_lock. Deduplicates and persists the slug set.
+    """
+    _ensure_blog_dir()
+    slugs = _load_deleted()
+    slugs.add(slug)
+    tmp = DELETED_FILE.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"slugs": sorted(slugs)}, f, ensure_ascii=False, indent=2)
+    tmp.replace(DELETED_FILE)
 
 
 def _generate_slug(title: str, post_id: str) -> str:
@@ -358,16 +389,23 @@ async def delete_post(
     post_id: str,
     admin: str = Depends(get_admin_user),
 ) -> dict:
-    """Delete a blog post. Admin only."""
+    """Delete a blog post. Admin only.
+
+    Records the deleted slug in the tombstone so the SSR layer can serve a
+    410 Gone for its URL afterwards.
+    """
     with _posts_lock:
         posts = _load_posts()
-        original_len = len(posts)
-        posts = [p for p in posts if p.get("id") != post_id]
-
-        if len(posts) == original_len:
+        target = next((p for p in posts if p.get("id") == post_id), None)
+        if target is None:
             raise HTTPException(status_code=404, detail="Post not found")
 
+        target_slug = target.get("slug")
+        posts = [p for p in posts if p.get("id") != post_id]
         _save_posts(posts)
+
+        if target_slug:
+            _record_deleted(target_slug)
 
     logger.info("Blog post deleted: id=%s by=%s", post_id, admin)
     return {"success": True, "deleted": post_id}

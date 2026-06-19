@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -16,6 +17,19 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 logger = logging.getLogger("PaperReview")
 
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "120"))
+
+# Known AI crawler user-agents and AI-engine referer hosts (case-insensitive).
+_AI_BOT_RE = re.compile(
+    r"GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|"
+    r"anthropic-ai|PerplexityBot|Perplexity-User|Googlebot|Google-Extended|"
+    r"Bingbot|Applebot|Bytespider|CCBot|Amazonbot|Yeti",
+    re.IGNORECASE,
+)
+_AI_REFERRER_RE = re.compile(
+    r"chatgpt\.com|perplexity\.ai|claude\.ai|anthropic\.com|gemini\.google|"
+    r"copilot\.microsoft|you\.com|deepseek\.com",
+    re.IGNORECASE,
+)
 
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -74,3 +88,29 @@ class TimingSecurityHeadersMiddleware:
                     status_holder["code"] or 0,
                     duration_ms,
                 )
+
+            self._log_ai_traffic(scope, status_holder["code"] or 0)
+
+    @staticmethod
+    def _log_ai_traffic(scope: Scope, status: int) -> None:
+        """Log requests from known AI crawlers or carrying an AI-engine referer."""
+        user_agent = ""
+        referer = ""
+        for key, value in scope.get("headers") or []:
+            name = key.decode("latin-1").lower()
+            if name == "user-agent":
+                user_agent = value.decode("latin-1")
+            elif name == "referer":
+                referer = value.decode("latin-1")
+
+        path = scope.get("path", "?")
+        bot_match = _AI_BOT_RE.search(user_agent) if user_agent else None
+        if bot_match:
+            logger.info(
+                "AI bot: bot=%s path=%s status=%s",
+                bot_match.group(0),
+                path,
+                status,
+            )
+        if referer and _AI_REFERRER_RE.search(referer):
+            logger.info("AI referral: referer=%s path=%s", referer, path)

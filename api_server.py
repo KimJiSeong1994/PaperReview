@@ -47,6 +47,7 @@ from routers import (
     topology_router,
     me_router,
     recommendations_router,
+    seo_router,
 )
 from routers.deps import api_key, limiter
 
@@ -301,6 +302,7 @@ app.include_router(blog_router)
 app.include_router(topology_router)
 app.include_router(me_router)
 app.include_router(recommendations_router)
+app.include_router(seo_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

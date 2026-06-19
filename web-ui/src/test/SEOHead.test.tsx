@@ -77,6 +77,51 @@ describe('SEOHead', () => {
     );
   });
 
+  it('defaults og:image/twitter:image to og-default.jpg and sets og dimensions + locale', async () => {
+    render(
+      <SEOHead
+        title="Paper Review Blog"
+        description="Research writeups and product notes."
+        canonical="https://jiphyeonjeon.kr/blog"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.title).toBe('Paper Review Blog');
+    });
+
+    expect(meta('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      'https://jiphyeonjeon.kr/og-default.jpg',
+    );
+    expect(meta('meta[name="twitter:image"]')).toHaveAttribute(
+      'content',
+      'https://jiphyeonjeon.kr/og-default.jpg',
+    );
+    expect(meta('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+    expect(meta('meta[property="og:image:height"]')).toHaveAttribute('content', '630');
+    expect(meta('meta[property="og:locale"]')).toHaveAttribute('content', 'en_US');
+    expect(meta('meta[property="og:site_name"]')).toHaveAttribute('content', 'Jiphyeonjeon');
+  });
+
+  it('renders og:locale from the locale prop and sets the alternate to the opposite', async () => {
+    render(
+      <SEOHead
+        title="논문 리뷰"
+        description="한국어 블로그 글입니다."
+        canonical="https://jiphyeonjeon.kr/blog/korean-post"
+        locale="ko_KR"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.title).toBe('논문 리뷰');
+    });
+
+    expect(meta('meta[property="og:locale"]')).toHaveAttribute('content', 'ko_KR');
+    expect(meta('meta[property="og:locale:alternate"]')).toHaveAttribute('content', 'en_US');
+  });
+
   it('sets robots noindex,nofollow for private tokenized pages', async () => {
     render(
       <SEOHead

@@ -6,6 +6,14 @@ import rehypeRaw from 'rehype-raw';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
 import {
+  blogCanonical,
+  blogPostingGraph,
+  blogIndexGraph,
+  detectLang,
+  localeFor,
+  OG_DEFAULT_IMAGE,
+} from '../seo/structuredData';
+import {
   fetchBlogPosts,
   fetchBlogPost,
   createBlogPost,
@@ -40,7 +48,6 @@ type BlogView = 'list' | 'detail' | 'editor';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-const SITE_URL = 'https://jiphyeonjeon.kr';
 const BLOG_TITLE = 'Jiphyeonjeon Blog - Paper Research Notes';
 const BLOG_DESCRIPTION = 'Research writeups, experiments, and product notes from Jiphyeonjeon.';
 
@@ -73,24 +80,6 @@ function estimateReadingTime(content: string): number {
 function getErrorMessage(err: unknown, fallback: string): string {
   const maybe = err as { response?: { data?: { detail?: string } }; message?: string };
   return maybe.response?.data?.detail ?? maybe.message ?? fallback;
-}
-
-function blogCanonical(slug?: string): string {
-  return slug ? `${SITE_URL}/blog/${slug}` : `${SITE_URL}/blog`;
-}
-
-function blogJsonLd(post: BlogPost): Record<string, unknown> {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: post.title,
-    description: post.excerpt,
-    author: { '@type': 'Person', name: post.author },
-    datePublished: post.created_at,
-    dateModified: post.updated_at,
-    keywords: post.tags,
-    url: blogCanonical(post.slug),
-  };
 }
 
 // ── Loading Skeleton ──────────────────────────────────────────────────
@@ -712,6 +701,9 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
   const seoDescription = seoPost?.excerpt || BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost);
   const seoCanonical = seoPost ? blogCanonical(seoPost.slug) : blogCanonical(hasSlugError ? undefined : slug);
+  const seoLocale = seoPost
+    ? localeFor(detectLang(`${seoPost.title} ${seoPost.content || seoPost.excerpt || ''}`))
+    : undefined;
 
   return (
     <div className="blog-container">
@@ -721,8 +713,11 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
         canonical={seoCanonical}
         robots={hasSlugError ? 'noindex,nofollow' : undefined}
         type={seoPost ? 'article' : 'website'}
-        image={seoPost?.thumbnail_url}
-        jsonLd={seoPost ? blogJsonLd(seoPost) : undefined}
+        image={seoPost ? seoPost.thumbnail_url || OG_DEFAULT_IMAGE : undefined}
+        publishedTime={seoPost ? seoPost.created_at : undefined}
+        modifiedTime={seoPost ? seoPost.updated_at || seoPost.created_at : undefined}
+        locale={seoLocale}
+        jsonLd={seoPost ? blogPostingGraph(seoPost) : blogIndexGraph(posts)}
       />
       {renderHeader()}
       <div className="blog-content">
