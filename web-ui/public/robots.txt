@@ -1,3 +1,10 @@
+# Policy: allow search/answer crawlers to read public pages so Jiphyeonjeon can
+# be discovered and cited; block training-only scrapers entirely. Private,
+# tokenized, and per-user paths stay disallowed for everyone.
+# Note: /api/ is NOT blanket-blocked — blog images served from
+# /api/blog/thumbnail/ and /api/blog/figures/ must remain crawlable.
+
+# Default policy for all crawlers: public pages allowed, private paths blocked.
 User-agent: *
 Allow: /
 Allow: /blog
@@ -9,8 +16,15 @@ Disallow: /share/curriculum/
 Disallow: /api/shared/
 Disallow: /api/shared/curriculum/
 
-# ChatGPT Search crawler: allow public pages, keep private/token/API paths blocked.
+# Search / answer-engine crawlers: allowed on public pages to maximize
+# discoverability and citation in AI search results. Private paths stay blocked.
 User-agent: OAI-SearchBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Applebot
 Allow: /
 Allow: /blog
 Allow: /blog/
@@ -21,8 +35,23 @@ Disallow: /share/curriculum/
 Disallow: /api/shared/
 Disallow: /api/shared/curriculum/
 
-# Training crawler requires explicit product approval before access.
+# Google-Extended controls Gemini/Vertex grounding. Allow fully to maximize
+# the chance of being cited in Gemini answers.
+User-agent: Google-Extended
+Allow: /
+
+# Training-only scrapers: these collect data for model training rather than
+# surfacing/citing live results, so block them entirely.
 User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: Claude-Web
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: Amazonbot
+User-agent: Meta-ExternalAgent
+User-agent: meta-externalfetcher
+User-agent: Applebot-Extended
 Disallow: /
 
 Sitemap: https://jiphyeonjeon.kr/sitemap.xml

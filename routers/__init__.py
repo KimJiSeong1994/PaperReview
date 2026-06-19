@@ -23,6 +23,7 @@ from .blog import router as blog_router
 from .topology import router as topology_router
 from .me import router as me_router
 from .recommendations import router as recommendations_router
+from .seo import router as seo_router
 
 __all__ = [
     "auth_router",
@@ -44,4 +45,5 @@ __all__ = [
     "topology_router",
     "me_router",
     "recommendations_router",
+    "seo_router",
 ]

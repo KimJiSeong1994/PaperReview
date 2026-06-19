@@ -5,6 +5,7 @@ import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
+import { homeGraph } from './seo/structuredData';
 import { useAuth } from './contexts/AuthContext';
 
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -111,6 +112,7 @@ function App() {
                 title={HOME_TITLE}
                 description={HOME_DESCRIPTION}
                 canonical={`${SITE_URL}/`}
+                jsonLd={homeGraph()}
               />
               {/* Minimal header */}
               <div className="app-header">

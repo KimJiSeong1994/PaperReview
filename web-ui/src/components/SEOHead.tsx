@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { OG_DEFAULT_IMAGE } from '../seo/structuredData';
 
 const MANAGED_ATTR = 'data-seo-managed';
 
@@ -10,6 +11,9 @@ export interface SEOHeadProps {
   type?: string;
   image?: string;
   jsonLd?: Record<string, unknown>;
+  publishedTime?: string;
+  modifiedTime?: string;
+  locale?: string;
 }
 
 function upsertMeta(selector: string, attrs: Record<string, string>) {
@@ -64,16 +68,27 @@ export default function SEOHead({
   type = 'website',
   image,
   jsonLd,
+  publishedTime,
+  modifiedTime,
+  locale = 'en_US',
 }: SEOHeadProps) {
   useEffect(() => {
     removeManagedTags();
     document.title = title;
 
+    const ogImage = image || OG_DEFAULT_IMAGE;
+
     upsertMeta('meta[name="description"]', { name: 'description', content: description });
     upsertMeta('meta[property="og:title"]', { property: 'og:title', content: title });
     upsertMeta('meta[property="og:description"]', { property: 'og:description', content: description });
     upsertMeta('meta[property="og:type"]', { property: 'og:type', content: type });
-    upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: image ? 'summary_large_image' : 'summary_large_image' });
+    upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'Jiphyeonjeon' });
+    upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: locale });
+    upsertMeta('meta[property="og:locale:alternate"]', {
+      property: 'og:locale:alternate',
+      content: locale === 'ko_KR' ? 'en_US' : 'ko_KR',
+    });
+    upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
     upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: title });
     upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: description });
 
@@ -88,12 +103,26 @@ export default function SEOHead({
       document.head.querySelector('meta[name="robots"]')?.remove();
     }
 
-    if (image) {
-      upsertMeta('meta[property="og:image"]', { property: 'og:image', content: image });
-      upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: image });
-    } else {
-      document.head.querySelector('meta[property="og:image"]')?.remove();
-      document.head.querySelector('meta[name="twitter:image"]')?.remove();
+    upsertMeta('meta[property="og:image"]', { property: 'og:image', content: ogImage });
+    upsertMeta('meta[property="og:image:width"]', { property: 'og:image:width', content: '1200' });
+    upsertMeta('meta[property="og:image:height"]', { property: 'og:image:height', content: '630' });
+    upsertMeta('meta[property="og:image:alt"]', { property: 'og:image:alt', content: title });
+    upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: ogImage });
+    upsertMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: title });
+
+    if (type === 'article') {
+      if (publishedTime) {
+        upsertMeta('meta[property="article:published_time"]', {
+          property: 'article:published_time',
+          content: publishedTime,
+        });
+      }
+      if (modifiedTime) {
+        upsertMeta('meta[property="article:modified_time"]', {
+          property: 'article:modified_time',
+          content: modifiedTime,
+        });
+      }
     }
 
     if (jsonLd) {
@@ -105,7 +134,7 @@ export default function SEOHead({
     return () => {
       removeManagedTags();
     };
-  }, [canonical, description, image, jsonLd, robots, title, type]);
+  }, [canonical, description, image, jsonLd, locale, modifiedTime, publishedTime, robots, title, type]);
 
   return null;
 }
