@@ -392,6 +392,26 @@ def _normalize_query_for_cache(query: str) -> str:
     return " ".join(tokens)
 
 
+
+
+def _recommendation_normalized_terms(query: str, *, max_terms: int = 8) -> list[str]:
+    """Return bounded privacy-safe query terms for recommendation signals.
+
+    This deliberately stores only normalized tokens, not the raw query text.
+    """
+    normalized = unicodedata.normalize("NFKC", query).lower()
+    terms: list[str] = []
+    for token in re.findall(r"[A-Za-z0-9가-힣][A-Za-z0-9가-힣_\-]{1,48}", normalized):
+        clean = token.strip("_-")
+        if len(clean) < 2 or clean.isdigit() or clean in _CACHE_STOPWORDS:
+            continue
+        if clean not in terms:
+            terms.append(clean)
+        if len(terms) >= max_terms:
+            break
+    return terms
+
+
 def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
     """검색 요청에 대한 캐시 키 생성 (schema version + fast_mode 포함).
 
@@ -1364,6 +1384,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         event_type=EventType.QUERY_SUBMIT,
                         payload={
                             "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                            "normalized_terms": _recommendation_normalized_terms(request.query),
                             "results_count": total,
                             "ranking_applied": False,
                             "source_counts": {
@@ -1778,6 +1799,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     event_type=EventType.QUERY_SUBMIT,
                     payload={
                         "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                        "normalized_terms": _recommendation_normalized_terms(request.query),
                         "results_count": total,
                         "ranking_applied": _hybrid_ranker is not None,
                         "source_counts": source_counts,

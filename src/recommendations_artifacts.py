@@ -124,7 +124,7 @@ def _paper_row(run_at: str, variant: str, item: dict[str, Any]) -> dict[str, Any
     score = coerce_score(item.get("score"))
     rank = coerce_rank(item.get("rank"))
     label = confidence_label(score, rank)
-    return {
+    row = {
         "id": f"{run_at}:{variant}:{item_id}",
         "paper_id": item_id,
         "title": title,
@@ -144,6 +144,22 @@ def _paper_row(run_at: str, variant: str, item: dict[str, Any]) -> dict[str, Any
         "doi": safe_str(item.get("doi")) or None,
         "arxiv_id": safe_str(item.get("arxiv_id")) or None,
     }
+    for key in (
+        "raw_score",
+        "normalized_score",
+        "score_breakdown",
+        "matched_terms",
+        "reason_summary",
+        "reason_factors",
+        "evidence_count",
+        "explanation_confidence",
+        "slot_type",
+        "diversity_adjusted",
+        "similarity_penalty",
+    ):
+        if key in item:
+            row[key] = item[key]
+    return row
 
 
 def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any]]:
@@ -170,6 +186,14 @@ def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any
                 "doi": row["doi"],
                 "arxiv_id": row["arxiv_id"],
                 "variants": [],
+                "matched_terms": row.get("matched_terms", []),
+                "reason_factors": row.get("reason_factors", []),
+                "score_breakdown": row.get("score_breakdown", {}),
+                "evidence_count": row.get("evidence_count"),
+                "explanation_confidence": row.get("explanation_confidence"),
+                "slot_type": row.get("slot_type"),
+                "diversity_adjusted": row.get("diversity_adjusted", False),
+                "similarity_penalty": row.get("similarity_penalty", 0.0),
             },
         )
         if _sort_key(row) > _sort_key(group):
@@ -189,6 +213,8 @@ def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any
                 "arxiv_id",
             ):
                 group[key] = row[key]
+            for key in ("matched_terms", "reason_factors", "score_breakdown", "evidence_count", "explanation_confidence", "slot_type", "diversity_adjusted", "similarity_penalty"):
+                group[key] = row.get(key, [] if key in {"matched_terms", "reason_factors"} else {} if key == "score_breakdown" else None)
         if row["reason"] and not group["top_reason"]:
             group["top_reason"] = row["reason"]
         group["variants"].append(
@@ -199,6 +225,14 @@ def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any
                 "display_score": row["display_score"],
                 "confidence_label": row["confidence_label"],
                 "rank": row["rank"],
+                "matched_terms": row.get("matched_terms", []),
+                "reason_factors": row.get("reason_factors", []),
+                "score_breakdown": row.get("score_breakdown", {}),
+                "evidence_count": row.get("evidence_count"),
+                "explanation_confidence": row.get("explanation_confidence"),
+                "slot_type": row.get("slot_type"),
+                "diversity_adjusted": row.get("diversity_adjusted", False),
+                "similarity_penalty": row.get("similarity_penalty", 0.0),
             }
         )
 
