@@ -32,6 +32,7 @@ def test_gpt5_family_routes_real_like_client_to_responses_api():
     assert client.responses.kwargs["input"] == [{"role": "user", "content": "Return JSON"}]
     assert client.responses.kwargs["text"] == {"format": {"type": "json_object"}}
     assert client.responses.kwargs["max_output_tokens"] == 20
+    assert "temperature" not in client.responses.kwargs
     assert client.responses.kwargs["reasoning"] == {"effort": "low"}
     assert response.choices[0].message.content == '{"ok": true}'
     assert not client.chat.completions.create.called

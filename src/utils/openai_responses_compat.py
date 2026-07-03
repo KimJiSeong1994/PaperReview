@@ -70,7 +70,11 @@ def _build_responses_kwargs(kwargs: Mapping[str, Any]) -> Dict[str, Any]:
     if max_output_tokens is not None:
         responses_kwargs["max_output_tokens"] = max_output_tokens
 
-    for key in ("temperature", "top_p", "stream", "timeout", "metadata"):
+    # GPT-5-family calls are routed here because they use the Responses API.
+    # Sampling controls accepted by Chat Completions, such as temperature/top_p,
+    # can be rejected by reasoning models (400 unsupported_parameter), so do not
+    # forward them on this compatibility path.
+    for key in ("stream", "timeout", "metadata"):
         if key in kwargs and kwargs[key] is not None:
             responses_kwargs[key] = kwargs[key]
 
