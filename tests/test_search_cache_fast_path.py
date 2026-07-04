@@ -239,3 +239,79 @@ async def test_search_response_includes_source_timing_metadata(client):
     assert body["metadata"]["source_timeouts"] == {"arxiv": False}
     assert body["stage_modes"]["academic_guard_passed"] is True
     assert set_cache.call_args.kwargs["academic_guard_passed"] is True
+
+
+def _runtime_policy_text() -> str:
+    from pathlib import Path
+
+    return Path("docs/skillopt_search/baseline_skill.md").read_text(encoding="utf-8")
+
+
+def test_search_cache_key_separates_skillopt_policy_namespace():
+    """Full search-result cache keys must differ for baseline vs SkillOpt policy hash."""
+    from routers import search as rs
+
+    base_filters = {
+        "sort_by": "relevance",
+        "year_start": None,
+        "year_end": None,
+        "author": None,
+        "category": None,
+        "fast_mode": False,
+    }
+    baseline_key = rs._compute_cache_key(
+        "graph rag", ["arxiv"], {**base_filters, "skillopt_policy": "baseline"}
+    )
+    policy_key = rs._compute_cache_key(
+        "graph rag", ["arxiv"], {**base_filters, "skillopt_policy": "sha256:" + "a" * 64}
+    )
+
+    assert baseline_key != policy_key
+
+
+def test_skillopt_result_cache_namespace_uses_validated_hash(monkeypatch, tmp_path):
+    """Router-level cache namespace is the validated policy hash only on explicit opt-in."""
+    import hashlib
+    from routers import search as rs
+    from app.QueryAgent.skillopt_policy import (
+        SKILLOPT_POLICY_ENABLED_ENV,
+        SKILLOPT_POLICY_HASH_ENV,
+        SKILLOPT_POLICY_PATH_ENV,
+    )
+
+    content = _runtime_policy_text()
+    path = tmp_path / "policy.md"
+    path.write_text(content, encoding="utf-8")
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    monkeypatch.setenv(SKILLOPT_POLICY_ENABLED_ENV, "true")
+    monkeypatch.setenv(SKILLOPT_POLICY_PATH_ENV, str(path))
+    monkeypatch.setenv(SKILLOPT_POLICY_HASH_ENV, f"sha256:{digest}")
+
+    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=True) == f"sha256:{digest}"
+    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=False) == "baseline"
+
+
+def test_invalid_skillopt_result_cache_namespace_fails_closed(monkeypatch, tmp_path, caplog):
+    """Invalid runtime policy config must use the baseline cache namespace, not a stale candidate key."""
+    import logging
+    from routers import search as rs
+    from app.QueryAgent.skillopt_policy import (
+        SKILLOPT_POLICY_ENABLED_ENV,
+        SKILLOPT_POLICY_HASH_ENV,
+        SKILLOPT_POLICY_PATH_ENV,
+    )
+
+    content = _runtime_policy_text()
+    path = tmp_path / "policy.md"
+    path.write_text(content, encoding="utf-8")
+
+    monkeypatch.setenv(SKILLOPT_POLICY_ENABLED_ENV, "true")
+    monkeypatch.setenv(SKILLOPT_POLICY_PATH_ENV, str(path))
+    monkeypatch.setenv(SKILLOPT_POLICY_HASH_ENV, "sha256:" + "0" * 64)
+
+    with caplog.at_level(logging.WARNING, logger="routers.search"):
+        namespace = rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)
+
+    assert namespace == "baseline"
+    assert any("SkillOpt search policy excluded" in rec.message for rec in caplog.records)

@@ -22,3 +22,6 @@ AGENTS.md
 _workspace
 outputs
 .pycache_tmp
+
+# Dev-only SkillOpt search-eval scaffolding must not ship in production images
+src/search_eval/

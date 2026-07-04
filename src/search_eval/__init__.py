@@ -1,0 +1,82 @@
+"""Offline search-evaluation contracts for SkillOpt experiments."""
+
+from .query_analyzer_pilot import load_baseline_skill, run_offline_query_analyzer_pilot
+from .shadow_eval import SHADOW_EVAL_FEATURE_FLAG, run_shadow_evaluation, validate_shadow_evaluation_record
+from .continuous_optimizer import (
+    append_reward_memory_entry,
+    build_continuous_iteration_summary,
+    build_live_canary_handoff,
+    build_next_iteration_seed,
+    build_optimizer_decision_record,
+    load_approved_policy_artifact_from_path,
+    run_continuous_optimization_iteration,
+    validate_evaluator_contract_v1,
+    validate_continuous_iteration_manifest,
+    validate_continuous_iteration_summary,
+    validate_live_canary_handoff,
+    validate_next_iteration_seed,
+    validate_optimizer_decision_record,
+    validate_reward_memory_entry,
+)
+from .skillopt_candidate_generation import (
+    record_candidate_generation_manifest,
+    validate_candidate_generation_manifest,
+)
+from .skillopt_adapter import (
+    SkillOptBenchmarkCase,
+    build_skillopt_benchmark_cases,
+    canonical_file_hash,
+    create_skillopt_rollout_skeleton,
+    validate_skillopt_rollout_skeleton,
+)
+from .skillopt_contract import (
+    REQUIRED_ARTIFACT_FIELDS,
+    REQUIRED_CONTROL_FIELDS,
+    REQUIRED_DATASET_FIELDS,
+    REQUIRED_ROLLBACK_FIELDS,
+    ValidationError,
+    load_json,
+    validate_candidate_artifact,
+    validate_dataset_contract,
+    validate_execution_control,
+    validate_rollback_record,
+)
+
+__all__ = [
+    "SHADOW_EVAL_FEATURE_FLAG",
+    "SkillOptBenchmarkCase",
+    "REQUIRED_ARTIFACT_FIELDS",
+    "REQUIRED_CONTROL_FIELDS",
+    "REQUIRED_DATASET_FIELDS",
+    "REQUIRED_ROLLBACK_FIELDS",
+    "ValidationError",
+    "append_reward_memory_entry",
+    "build_continuous_iteration_summary",
+    "build_live_canary_handoff",
+    "build_next_iteration_seed",
+    "build_optimizer_decision_record",
+    "load_approved_policy_artifact_from_path",
+    "run_continuous_optimization_iteration",
+    "build_skillopt_benchmark_cases",
+    "canonical_file_hash",
+    "create_skillopt_rollout_skeleton",
+    "load_baseline_skill",
+    "load_json",
+    "validate_candidate_artifact",
+    "validate_dataset_contract",
+    "validate_execution_control",
+    "validate_continuous_iteration_manifest",
+    "validate_continuous_iteration_summary",
+    "validate_evaluator_contract_v1",
+    "validate_live_canary_handoff",
+    "validate_next_iteration_seed",
+    "validate_optimizer_decision_record",
+    "validate_reward_memory_entry",
+    "run_offline_query_analyzer_pilot",
+    "record_candidate_generation_manifest",
+    "run_shadow_evaluation",
+    "validate_candidate_generation_manifest",
+    "validate_rollback_record",
+    "validate_shadow_evaluation_record",
+    "validate_skillopt_rollout_skeleton",
+]

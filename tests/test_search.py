@@ -174,6 +174,25 @@ class TestSearch:
         all_papers = [p for papers in body["results"].values() for p in papers]
         titles = [p["title"] for p in all_papers]
         assert "A Survey on Machine Learning" in titles
+        _patch_search_singletons["query_analyzer"].analyze_and_prepare.assert_called_once_with(
+            "machine learning", apply_skillopt_policy=False
+        )
+
+
+    @pytest.mark.asyncio
+    async def test_search_standard_mode_requests_skillopt_policy(
+        self, client, _patch_search_singletons
+    ):
+        """fast_mode=false standard search is the only route-level SkillOpt application path."""
+        resp = await client.post(
+            "/api/search",
+            json={"query": "machine learning", "fast_mode": False, "save_papers": False},
+        )
+
+        assert resp.status_code == 200
+        _patch_search_singletons["query_analyzer"].analyze_and_prepare.assert_called_once_with(
+            "machine learning", apply_skillopt_policy=True
+        )
 
     @pytest.mark.asyncio
     async def test_search_empty_query_returns_empty_results(

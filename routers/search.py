@@ -39,6 +39,10 @@ from .deps import (
 )
 from src.events.emit import emit_or_warn
 from src.events.event_types import EventType, UserEvent
+from app.QueryAgent.skillopt_policy import (
+    SkillOptPolicyError,
+    load_skillopt_policy_from_env,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -412,6 +416,23 @@ def _recommendation_normalized_terms(query: str, *, max_terms: int = 8) -> list[
     return terms
 
 
+def _skillopt_result_cache_namespace(*, apply_skillopt_policy: bool) -> str:
+    """Return the validated SkillOpt namespace for full search-result caching."""
+    if not apply_skillopt_policy:
+        return "baseline"
+    try:
+        policy = load_skillopt_policy_from_env()
+    except SkillOptPolicyError as e:
+        logger.warning(
+            "[API] SkillOpt search policy excluded from result cache namespace by invalid configuration: %s",
+            e,
+        )
+        return "baseline"
+    if not policy.enabled:
+        return "baseline"
+    return policy.content_hash
+
+
 def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
     """검색 요청에 대한 캐시 키 생성 (schema version + fast_mode 포함).
 
@@ -428,6 +449,7 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
         "category": filters.get("category"),
         "sort_by": filters.get("sort_by", "relevance"),
         "fast_mode": filters.get("fast_mode", False),
+        "skillopt_policy": filters.get("skillopt_policy", "baseline"),
     }
     key_str = json.dumps(key_data, sort_keys=True)
     return hashlib.sha256(key_str.encode()).hexdigest()[:16]
@@ -1165,6 +1187,12 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         # caller-controlled request fields, and cached bodies were produced by
         # the same post-ranking pipeline. This lets warm requests bypass the
         # slow LLM analysis/source path entirely.
+        apply_skillopt_policy = (
+            not request.use_llm_search and not request.fast_mode
+        )
+        skillopt_cache_namespace = _skillopt_result_cache_namespace(
+            apply_skillopt_policy=apply_skillopt_policy
+        )
         user_filters = {
             "sort_by": request.sort_by,
             "year_start": request.year_start,
@@ -1172,7 +1200,10 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "author": request.author,
             "category": request.category,
             "fast_mode": request.fast_mode,
+            "skillopt_policy": skillopt_cache_namespace,
         }
+        stage_modes["skillopt_policy_cache_namespace"] = skillopt_cache_namespace
+        stage_modes["skillopt_policy_requested"] = apply_skillopt_policy
         cache_lookup_start = time.time()
         cache_key = _compute_cache_key(request.query, request.sources, user_filters)
         cached = _get_cached_result(cache_key, require_academic_guard=True)
@@ -1244,7 +1275,11 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     unified = await asyncio.wait_for(
                         loop.run_in_executor(
                             None,
-                            partial(query_analyzer.analyze_and_prepare, request.query),
+                            partial(
+                                query_analyzer.analyze_and_prepare,
+                                request.query,
+                                apply_skillopt_policy=apply_skillopt_policy,
+                            ),
                         ),
                         timeout=_ANALYZE_TIMEOUT,
                     )

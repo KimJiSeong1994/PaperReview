@@ -1,0 +1,44 @@
+{
+  "version": "candidate-example-v0",
+  "skill_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "baseline_hash": "sha256:52b6fdc2c98a31343518fc0879839373cb3a89ac1284758651a62031acff01bb",
+  "dataset_hash": "dataset_v1_synthetic_public_20260704_selection_coverage",
+  "execution_control_hash": "control_v0_query_analyzer_standard_20260704",
+  "created_at": "2026-07-04T00:00:00Z",
+  "scope": "query_analyzer_standard_search",
+  "rollout_metadata": {
+    "skill_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "dataset_hash": "dataset_v1_synthetic_public_20260704_selection_coverage",
+    "execution_control_hash": "control_v0_query_analyzer_standard_20260704",
+    "stage_modes": [
+      "offline_contract"
+    ],
+    "stage_timings": {
+      "offline_contract_ms": 0
+    },
+    "query_analysis_confidence": 1.0,
+    "improved_query_gate_decision": "baseline_fixture",
+    "cache_status": "disabled_or_cold_per_rollout",
+    "hyde_enabled": false,
+    "relevance_scorer_path": "production_equivalent",
+    "budget_branch": "generous_fixed_offline_budget"
+  },
+  "metric_snapshot": {
+    "primary_metric": "nDCG@10",
+    "baseline": 0.42,
+    "candidate": 0.42,
+    "guardrails": {
+      "MRR@10": 0.36,
+      "Recall@5": 0.6,
+      "Recall@10": 0.7,
+      "wrong_paper_handoff_rate": 0.0,
+      "p95_latency_ms": 0.0,
+      "token_estimate": 0.0,
+      "cost_estimate": 0.0
+    }
+  },
+  "rollback_to": {
+    "version": "baseline-v0",
+    "skill_hash": "sha256:52b6fdc2c98a31343518fc0879839373cb3a89ac1284758651a62031acff01bb"
+  }
+}

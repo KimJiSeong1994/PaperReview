@@ -1,0 +1,146 @@
+{
+  "version": "skillopt-paper-search-v0",
+  "dataset_hash": "dataset_v1_synthetic_public_20260704_selection_coverage",
+  "provenance": {
+    "type": "synthetic_and_public_seed",
+    "raw_user_logs_included": false,
+    "privacy_review": "synthetic public seeds only; sensitive source material excluded"
+  },
+  "splits": {
+    "train": 0.6,
+    "selection": 0.2,
+    "test": 0.2
+  },
+  "primary_metric": "nDCG@10",
+  "guardrail_metrics": [
+    "MRR@10",
+    "Recall@5",
+    "Recall@10",
+    "wrong_paper_handoff_rate",
+    "p95_latency_ms",
+    "token_estimate",
+    "cost_estimate"
+  ],
+  "queries": [
+    {
+      "query_id": "q-train-en-transformer-attention",
+      "query_text": "transformer attention mechanism",
+      "group_id": "transformer-attention",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": ["Attention Is All You Need"],
+        "acceptable": ["self-attention", "multi-head attention"],
+        "must_exclude": ["computer vision attention map only"]
+      }
+    },
+    {
+      "query_id": "q-train-ko-llm-finetuning",
+      "query_text": "대규모 언어 모델 fine tuning 최신 연구",
+      "group_id": "llm-finetuning-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "latest_research",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": ["large language model fine-tuning"],
+        "acceptable": ["instruction tuning", "parameter-efficient fine-tuning"],
+        "must_exclude": ["classical language model smoothing"]
+      }
+    },
+    {
+      "query_id": "q-train-mixed-graph-rag",
+      "query_text": "GraphRAG 관련 논문 survey",
+      "group_id": "graphrag-survey",
+      "split": "train",
+      "locale": "mixed",
+      "intent": "survey",
+      "difficulty": "medium",
+      "downstream": "search_only",
+      "labels": {
+        "must_include": ["GraphRAG"],
+        "acceptable": ["graph retrieval augmented generation", "knowledge graph RAG"],
+        "must_exclude": ["graph neural network only"]
+      }
+    },
+    {
+      "query_id": "q-train-author-hinton-capsules",
+      "query_text": "Geoffrey Hinton capsule networks papers",
+      "group_id": "author-hinton-capsules",
+      "split": "train",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": ["Dynamic Routing Between Capsules"],
+        "acceptable": ["capsule networks", "Geoffrey Hinton"],
+        "must_exclude": ["pharmaceutical capsule"]
+      }
+    },
+    {
+      "query_id": "q-selection-author-bengio",
+      "query_text": "Yoshua Bengio representation learning papers",
+      "group_id": "author-bengio-representation",
+      "split": "selection",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": ["Representation Learning: A Review and New Perspectives"],
+        "acceptable": ["deep learning", "Bengio representation learning"],
+        "must_exclude": ["unrelated author with same surname"]
+      }
+    },
+    {
+      "query_id": "q-selection-method-resnet",
+      "query_text": "residual networks skip connections paper",
+      "group_id": "method-resnet-skip-connections",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": ["Deep Residual Learning for Image Recognition"],
+        "acceptable": ["ResNet", "skip connections"],
+        "must_exclude": ["residual statistics only"]
+      }
+    },
+    {
+      "query_id": "q-test-ambiguous-agent",
+      "query_text": "agent memory benchmark",
+      "group_id": "agent-memory-benchmark",
+      "split": "test",
+      "locale": "en",
+      "intent": "ambiguous",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": ["agent memory", "benchmark"],
+        "acceptable": ["long-term memory for language agents", "LLM agent benchmark"],
+        "must_exclude": ["real estate agent memory", "software agent unrelated to LLM"]
+      }
+    },
+    {
+      "query_id": "q-test-method-bert",
+      "query_text": "BERT contextual embeddings paper",
+      "group_id": "method-bert-contextual-embeddings",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": ["BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"],
+        "acceptable": ["contextual embeddings", "bidirectional transformers"],
+        "must_exclude": ["Sesame Street character"]
+      }
+    }
+  ]
+}

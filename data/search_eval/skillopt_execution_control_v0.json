@@ -1,0 +1,50 @@
+{
+  "version": "execution-control-v0",
+  "control_hash": "control_v0_query_analyzer_standard_20260704",
+  "scope": "query_analyzer_standard_search",
+  "fast_mode": false,
+  "use_llm_search": false,
+  "cache_policy": "disabled_or_cold_per_rollout",
+  "query_analyzer_confidence_gate": {
+    "mode": "production_equivalent",
+    "minimum_confidence": 0.8
+  },
+  "improved_query_overlap_gate": {
+    "mode": "production_equivalent",
+    "minimum_overlap": 0.5,
+    "max_length_ratio": 2.0
+  },
+  "hyde_policy": {
+    "enabled": false,
+    "promotion_in_scope": false,
+    "reason": "v1 isolates QueryAnalyzer standard search policy"
+  },
+  "relevance_filter_policy": {
+    "local_cross_encoder": "production_equivalent",
+    "llm_fallback": "production_equivalent_logged",
+    "promotion_in_scope": false,
+    "reason": "v1 excludes RelevanceFilter prompt optimization"
+  },
+  "budget_policy": {
+    "mode": "generous_fixed_offline_budget",
+    "low_budget_slice": "separate_guardrail_eval"
+  },
+  "controlled_rollout_gate": {
+    "state": "shadow_only",
+    "max_rollout_fraction": 0.0,
+    "requires_manual_approval": true
+  },
+  "required_rollout_metadata": [
+    "skill_hash",
+    "dataset_hash",
+    "execution_control_hash",
+    "stage_modes",
+    "stage_timings",
+    "query_analysis_confidence",
+    "improved_query_gate_decision",
+    "cache_status",
+    "hyde_enabled",
+    "relevance_scorer_path",
+    "budget_branch"
+  ]
+}

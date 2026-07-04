@@ -1,0 +1,10 @@
+{
+  "rollback_id": "rollback-example-v0",
+  "from_candidate_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "rollback_to_skill_hash": "sha256:52b6fdc2c98a31343518fc0879839373cb3a89ac1284758651a62031acff01bb",
+  "reason": "guardrail_regression",
+  "triggered_by": "offline_eval_gate",
+  "feature_flag_after": false,
+  "quarantined_candidate": true,
+  "api_contract_unchanged": true
+}

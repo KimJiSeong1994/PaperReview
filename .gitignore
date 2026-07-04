@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 data/*
+!data/search_eval/
+!data/search_eval/*.json
 !data/blog/
 data/blog/*
 !data/blog/figures/

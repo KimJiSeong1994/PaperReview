@@ -14,6 +14,12 @@ from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 from src.utils.model_defaults import DEFAULT_TOOL_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from app.QueryAgent.skillopt_policy import (
+    SkillOptPolicy,
+    SkillOptPolicyError,
+    build_skillopt_policy_prompt_block,
+    load_skillopt_policy_from_env,
+)
 
 # Module-level query analysis cache (TTL-based, thread-safe)
 _analysis_cache: Dict[str, Dict[str, Any]] = {}
@@ -97,6 +103,10 @@ class QueryAnalyzer:
 
         self.client = OpenAI(api_key=self.api_key)
         self.model = model
+
+    def _load_skillopt_policy(self) -> SkillOptPolicy:
+        """Load the explicit runtime SkillOpt policy gate for unified search."""
+        return load_skillopt_policy_from_env()
 
     @log_data_processing("Query Analysis")
     def analyze_query(self, query: str) -> Dict[str, Any]:
@@ -720,8 +730,14 @@ CRITICAL RULES:
         }
 
     @log_data_processing("Unified Query Analysis")
-    def analyze_and_prepare(self, query: str) -> Dict[str, Any]:
+    def analyze_and_prepare(
+        self, query: str, *, apply_skillopt_policy: bool = False
+    ) -> Dict[str, Any]:
         """classify_topic + analyze_query + generate_source_specific_queries를 1회 LLM 호출로 통합.
+
+        ``apply_skillopt_policy`` is intentionally keyword-only and defaults to
+        ``False`` so generic SearchAgent/smart-search callers cannot
+        accidentally receive the standard-router SkillOpt policy.
 
         Returns:
             {
@@ -748,7 +764,24 @@ CRITICAL RULES:
                 "source_queries": {"arxiv": query, "dblp": query, "google_scholar": query, "default": query},
             }
 
-        key = _cache_key("unified_analyze", query)
+        skillopt_policy = SkillOptPolicy(enabled=False)
+        if apply_skillopt_policy:
+            try:
+                skillopt_policy = self._load_skillopt_policy()
+            except SkillOptPolicyError as e:
+                logger.warning(
+                    "[QueryAnalyzer] SkillOpt search policy disabled by invalid configuration: %s",
+                    e,
+                )
+                skillopt_policy = SkillOptPolicy(
+                    enabled=False, reason="invalid_configuration"
+                )
+
+        cache_prefix = "unified_analyze"
+        if skillopt_policy.enabled:
+            cache_prefix = f"{cache_prefix}:{skillopt_policy.content_hash}"
+
+        key = _cache_key(cache_prefix, query)
         cached = _get_from_cache(key)
         if cached is not None:
             return cached
@@ -760,20 +793,25 @@ CRITICAL RULES:
             return fallback
 
         started = _time.perf_counter()
+        skillopt_policy_block = build_skillopt_policy_prompt_block(skillopt_policy)
+        system_prompt = (
+            "You are an expert academic research query analyzer. "
+            "Given a search query, perform THREE tasks in a single response:\n"
+            "1. Classify if the query is academic/research-related\n"
+            "2. Analyze intent, extract keywords, improve the query\n"
+            "3. Generate source-specific optimized queries\n\n"
+            "Return JSON with this exact structure."
+        )
+        if skillopt_policy_block:
+            system_prompt = f"{system_prompt}{skillopt_policy_block}"
+
         try:
             response = create_chat_completion(self.client,
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are an expert academic research query analyzer. "
-                            "Given a search query, perform THREE tasks in a single response:\n"
-                            "1. Classify if the query is academic/research-related\n"
-                            "2. Analyze intent, extract keywords, improve the query\n"
-                            "3. Generate source-specific optimized queries\n\n"
-                            "Return JSON with this exact structure."
-                        ),
+                        "content": system_prompt,
                     },
                     {
                         "role": "user",
