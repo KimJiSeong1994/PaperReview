@@ -16,7 +16,13 @@ import unicodedata
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
+
+# Post categories. "engineering" is the default so legacy posts and
+# admin-authored product/dev writeups fall here; paper reviews are opt-in.
+BlogCategory = Literal["paper-review", "engineering"]
+DEFAULT_CATEGORY: str = "engineering"
+VALID_CATEGORIES: frozenset[str] = frozenset({"paper-review", "engineering"})
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from filelock import FileLock
@@ -139,6 +145,11 @@ class PostCreateRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
     published: bool = True
+    category: BlogCategory = Field(
+        DEFAULT_CATEGORY,
+        description="Content type: 'paper-review' (deep review of a paper) "
+        "or 'engineering' (product / dev writeup).",
+    )
 
 
 class PostUpdateRequest(BaseModel):
@@ -149,6 +160,7 @@ class PostUpdateRequest(BaseModel):
     tags: Optional[list[str]] = None
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
     published: Optional[bool] = None
+    category: Optional[BlogCategory] = None
 
 
 class PostSummary(BaseModel):
@@ -159,6 +171,7 @@ class PostSummary(BaseModel):
     excerpt: str
     author: str
     tags: list[str]
+    category: str = DEFAULT_CATEGORY
     has_thumbnail: bool = False
     created_at: str
     updated_at: Optional[str]
@@ -243,6 +256,9 @@ async def get_figure(filename: str):
 @router.get("/posts", response_model=PostListResponse)
 async def list_posts(
     tag: Optional[str] = Query(None, max_length=100, description="Filter by tag"),
+    category: Optional[str] = Query(
+        None, max_length=32, description="Filter by category: 'paper-review' or 'engineering'"
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Posts per page"),
     current_user: Optional[str] = Depends(get_optional_user),
@@ -262,6 +278,10 @@ async def list_posts(
     if tag:
         tag_lower = tag.lower()
         posts = [p for p in posts if tag_lower in [t.lower() for t in p.get("tags", [])]]
+
+    # Filter by category (posts missing the field fall back to the default)
+    if category:
+        posts = [p for p in posts if p.get("category", DEFAULT_CATEGORY) == category]
 
     # Sort by created_at descending
     posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
@@ -329,6 +349,7 @@ async def create_post(
         "content": request.content,
         "author": admin,
         "tags": tags,
+        "category": request.category,
         "thumbnail_url": request.thumbnail_url,
         "created_at": now,
         "updated_at": None,

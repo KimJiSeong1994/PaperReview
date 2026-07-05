@@ -1,7 +1,13 @@
 import { api } from './base';
 
-export const fetchBlogPosts = (tag?: string, page?: number) =>
-  api.get('/api/blog/posts', { params: { tag, page } });
+export type BlogCategory = 'paper-review' | 'engineering';
+
+export const fetchBlogPosts = (
+  tag?: string,
+  category?: BlogCategory,
+  page?: number,
+  limit?: number,
+) => api.get('/api/blog/posts', { params: { tag, category, page, limit } });
 
 export const fetchBlogPost = (slug: string) =>
   api.get(`/api/blog/posts/${slug}`);

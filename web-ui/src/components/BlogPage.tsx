@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -31,6 +31,7 @@ interface BlogPost {
   content: string;
   author: string;
   tags: string[];
+  category?: string;
   thumbnail_url?: string;
   reading_time_min: number;
   created_at: string;
@@ -43,6 +44,81 @@ interface BlogPageProps {
 }
 
 type BlogView = 'list' | 'detail' | 'editor';
+
+// ── Categories ────────────────────────────────────────────────────────
+
+type CategoryKey = 'paper-review' | 'engineering';
+type CategoryFilter = 'all' | CategoryKey;
+
+const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
+  'paper-review': { label: 'Paper Reviews', badge: 'Paper Review' },
+  engineering: { label: 'Engineering', badge: 'Engineering' },
+};
+
+const SEGMENTS: { key: CategoryFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'paper-review', label: 'Paper Reviews' },
+  { key: 'engineering', label: 'Engineering' },
+];
+
+/** Coerce any stored/legacy value to a known category (defaults to engineering). */
+function normalizeCategory(category?: string): CategoryKey {
+  return category === 'paper-review' ? 'paper-review' : 'engineering';
+}
+
+function CategoryBadge({ category }: { category?: string }) {
+  const key = normalizeCategory(category);
+  return (
+    <span className={`blog-cat-badge blog-cat-${key}`}>
+      {key === 'paper-review' ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11" aria-hidden="true">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+      )}
+      {CATEGORY_META[key].badge}
+    </span>
+  );
+}
+
+/** Leading icon for a sidebar category item (color set via CSS per data-cat). */
+function sidebarIcon(key: CategoryFilter) {
+  if (key === 'paper-review') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    );
+  }
+  if (key === 'engineering') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
 
 // renderMarkdown replaced by ReactMarkdown component (XSS-safe)
 
@@ -107,6 +183,7 @@ interface EditorForm {
   content: string;
   author: string;
   tags: string;
+  category: CategoryKey;
   thumbnail_url: string;
 }
 
@@ -116,6 +193,7 @@ const EMPTY_FORM: EditorForm = {
   content: '',
   author: '',
   tags: '',
+  category: 'engineering',
   thumbnail_url: '',
 };
 
@@ -126,6 +204,7 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,11 +217,13 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
 
   // ── Data fetching ──────────────────────────────────────────────────
 
-  const loadPosts = useCallback(async (tag?: string) => {
+  const loadPosts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchBlogPosts(tag ?? undefined);
+      // Fetch the full set (both categories) so the segmented control can
+      // show accurate counts and switch tabs client-side without refetching.
+      const response = await fetchBlogPosts(undefined, undefined, 1, 100);
       setPosts((response.data?.posts ?? response.data) as BlogPost[]);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to load posts.'));
@@ -152,6 +233,26 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
       setLoading(false);
     }
   }, []);
+
+  // ── Category filtering (client-side) ───────────────────────────────
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<CategoryFilter, number> = {
+      all: posts.length,
+      'paper-review': 0,
+      engineering: 0,
+    };
+    for (const p of posts) counts[normalizeCategory(p.category)] += 1;
+    return counts;
+  }, [posts]);
+
+  const visiblePosts = useMemo(
+    () =>
+      activeCategory === 'all'
+        ? posts
+        : posts.filter((p) => normalizeCategory(p.category) === activeCategory),
+    [posts, activeCategory],
+  );
 
 
   useEffect(() => {
@@ -237,6 +338,7 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
       content: post.content,
       author: post.author,
       tags: post.tags.join(', '),
+      category: normalizeCategory(post.category),
       thumbnail_url: post.thumbnail_url ?? '',
     });
     setSaveError(null);
@@ -276,6 +378,7 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
+      category: form.category,
       thumbnail_url: form.thumbnail_url.trim() || undefined,
       reading_time_min: estimateReadingTime(form.content),
     };
@@ -332,6 +435,36 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
     </div>
   );
 
+  // ── Category sidebar (list view) ────────────────────────────────────
+
+  const renderSidebar = () => (
+    <aside className="blog-sidebar">
+      <nav
+        className="blog-side-nav"
+        role="tablist"
+        aria-orientation="vertical"
+        aria-label="Filter posts by category"
+      >
+        <div className="blog-side-label">Categories</div>
+        {SEGMENTS.map((seg) => (
+          <button
+            key={seg.key}
+            type="button"
+            role="tab"
+            data-cat={seg.key}
+            aria-selected={activeCategory === seg.key}
+            className={`blog-side-item ${activeCategory === seg.key ? 'active' : ''}`}
+            onClick={() => setActiveCategory(seg.key)}
+          >
+            <span className="blog-side-icon">{sidebarIcon(seg.key)}</span>
+            <span className="blog-side-text">{seg.label}</span>
+            <span className="blog-side-count">{categoryCounts[seg.key]}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+
   // ── List view ──────────────────────────────────────────────────────
 
   const renderList = () => (
@@ -379,8 +512,29 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
           </div>
         </div>
       ) : (
-        <div className="blog-grid">
-          {posts.map((post, idx) => (
+        <div className="blog-layout">
+          {renderSidebar()}
+          <div className="blog-main">
+            {visiblePosts.length === 0 ? (
+              <div className="blog-empty">
+                <div className="blog-empty-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48" style={{ opacity: 0.3 }}>
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <div className="blog-empty-title">
+                  {activeCategory === 'paper-review' ? '논문 리뷰 글이 아직 없습니다' : '개발 노트가 아직 없습니다'}
+                </div>
+                <div className="blog-empty-subtitle">
+                  {activeCategory === 'paper-review'
+                    ? '딥리뷰를 블로그 초안으로 정리하면 이곳에 모입니다.'
+                    : '집현전 개발·제품 이야기가 곧 올라올 예정입니다.'}
+                </div>
+              </div>
+            ) : (
+              <div className="blog-grid">
+                {visiblePosts.map((post, idx) => (
             <a
               key={post.id}
               className="blog-card"
@@ -396,8 +550,9 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
 
               <div className="blog-card-inner">
 
-                {/* Row 1: Date · Reading time */}
+                {/* Row 1: Category · Date · Reading time */}
                 <div className="blog-card-meta">
+                  <CategoryBadge category={post.category} />
                   <time className="blog-card-date">{formatDate(post.created_at)}</time>
                   <span className="blog-card-dot" aria-hidden="true">·</span>
                   <span className="blog-card-readtime">
@@ -479,7 +634,10 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
 
               </div>
             </a>
-          ))}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -512,6 +670,10 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
           </svg>
           Back to Blog
         </button>
+
+        <div className="blog-detail-category">
+          <CategoryBadge category={selectedPost.category} />
+        </div>
 
         {selectedPost.tags.length > 0 && (
           <div className="blog-detail-tags">
@@ -627,6 +789,28 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           />
+        </div>
+
+        <div className="blog-editor-field">
+          <label className="blog-editor-label">Category</label>
+          <div className="blog-editor-segments" role="radiogroup" aria-label="Post category">
+            {(Object.keys(CATEGORY_META) as CategoryKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                data-cat={key}
+                aria-checked={form.category === key}
+                className={`blog-editor-segment ${form.category === key ? 'active' : ''}`}
+                onClick={() => setForm((f) => ({ ...f, category: key }))}
+              >
+                {CATEGORY_META[key].badge}
+              </button>
+            ))}
+          </div>
+          <span className="blog-editor-hint">
+            'Paper Review'는 논문 리뷰 섹션, 'Engineering'은 개발·제품 노트 섹션으로 묶입니다.
+          </span>
         </div>
 
         <div className="blog-editor-field">

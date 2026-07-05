@@ -18,7 +18,8 @@
       "created_at": "2026-04-28T16:17:25.455537+00:00",
       "updated_at": "2026-04-30T02:02:37.836598+00:00",
       "published": true,
-      "reading_time_min": 11
+      "reading_time_min": 11,
+      "category": "engineering"
     },
     {
       "id": "a7c9e3d4b821",
@@ -39,7 +40,8 @@
       "created_at": "2026-04-26T19:08:24.075768+09:00",
       "updated_at": "2026-04-27T21:06:04.230455+09:00",
       "published": true,
-      "reading_time_min": 14
+      "reading_time_min": 14,
+      "category": "engineering"
     },
     {
       "id": "9fdf6c688749",
@@ -59,7 +61,8 @@
       "published": true,
       "author": "집현전 팀",
       "reading_time_min": 8,
-      "thumbnail_url": "/api/blog/thumbnail/9fdf6c688749"
+      "thumbnail_url": "/api/blog/thumbnail/9fdf6c688749",
+      "category": "engineering"
     },
     {
       "id": "f6a5ccb4ce6b",
@@ -79,7 +82,8 @@
       "published": true,
       "author": "jiphyeonjeon",
       "reading_time_min": 13,
-      "thumbnail_url": null
+      "thumbnail_url": null,
+      "category": "engineering"
     },
     {
       "id": "f954b2866fb4",
@@ -98,7 +102,8 @@
       "created_at": "2026-03-28T03:08:15.290879+00:00",
       "updated_at": "2026-03-28T03:08:15.290879+00:00",
       "published": true,
-      "reading_time_min": 9
+      "reading_time_min": 9,
+      "category": "engineering"
     },
     {
       "id": "65bcbe5c30fd",
@@ -118,7 +123,8 @@
       "created_at": "2026-03-25T16:00:38.759092+00:00",
       "updated_at": "2026-03-25T16:00:38.759092+00:00",
       "published": true,
-      "reading_time_min": 14
+      "reading_time_min": 14,
+      "category": "engineering"
     }
   ]
 }

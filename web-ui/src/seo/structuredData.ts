@@ -28,9 +28,15 @@ export interface BlogPostLike {
   content: string;
   author: string;
   tags: string[];
+  category?: string;
   thumbnail_url?: string;
   created_at: string;
   updated_at?: string;
+}
+
+/** Human-readable section name for a post category (used in JSON-LD articleSection). */
+export function categorySection(category?: string): string {
+  return category === 'paper-review' ? 'Paper Reviews' : 'Engineering';
 }
 
 export function organizationNode(): Record<string, unknown> {
@@ -112,6 +118,7 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     datePublished: post.created_at,
     dateModified: post.updated_at || post.created_at,
     keywords: post.tags,
+    articleSection: categorySection(post.category),
     url: blogCanonical(post.slug),
     mainEntityOfPage: {
       '@type': 'WebPage',
