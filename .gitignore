@@ -6,6 +6,8 @@ __pycache__/
 data/*
 !data/search_eval/
 !data/search_eval/*.json
+!data/deep_review_eval/
+!data/deep_review_eval/*.json
 !data/blog/
 data/blog/*
 !data/blog/figures/

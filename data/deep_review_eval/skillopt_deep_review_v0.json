@@ -1,0 +1,59 @@
+{
+  "version": "skillopt-deep-review-dataset-v0",
+  "dataset_hash": "sha256:bda63725d3ae0b43c7b97126b274066fc77bd6ce67d9d689b1b54df88aa9261f",
+  "scope": "deep_review_analysis_prompt",
+  "description": "Minimal deterministic benchmark contract for DeepReview prompt policy optimization.",
+  "splits": {
+    "dev": [
+      "deep-review-methodology-coverage"
+    ],
+    "test": [
+      "deep-review-evidence-grounding"
+    ]
+  },
+  "items": [
+    {
+      "query_id": "deep-review-methodology-coverage",
+      "split": "dev",
+      "paper": {
+        "id": "fixture-methodology",
+        "title": "Graph Retrieval-Augmented Generation for Scholarly Review",
+        "abstract": "We propose a graph retrieval-augmented generation method with ablation studies on citation graphs and retrieval precision.",
+        "year": 2025
+      },
+      "rubric": {
+        "must_cover": [
+          "research_problem",
+          "methodology",
+          "baselines",
+          "limitations"
+        ],
+        "must_not_include": [
+          "fabricated quantitative result",
+          "unsupported code availability claim"
+        ]
+      }
+    },
+    {
+      "query_id": "deep-review-evidence-grounding",
+      "split": "test",
+      "paper": {
+        "id": "fixture-evidence",
+        "title": "Contrastive Objectives for Multimodal Scientific Figures",
+        "abstract": "The paper evaluates contrastive objectives using Table 2, Figure 3, and two public datasets, but reports no source code release.",
+        "year": 2026
+      },
+      "rubric": {
+        "must_cover": [
+          "specific evidence",
+          "reproducibility",
+          "questions_for_authors"
+        ],
+        "must_not_include": [
+          "code is available",
+          "state-of-the-art without comparison"
+        ]
+      }
+    }
+  ]
+}

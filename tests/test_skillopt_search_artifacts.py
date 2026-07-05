@@ -487,14 +487,14 @@ def test_rollback_record_rejects_candidate_hash_drift():
 
 
 def test_search_eval_is_not_imported_by_production_modules():
-    excluded_parts = {".venv", "tests", "docs", "search_eval", "__pycache__"}
+    excluded_parts = {".venv", "tests", "docs", "search_eval", "deep_review_eval", "__pycache__"}
     hits = []
     for path in ROOT.rglob("*.py"):
         relative = path.relative_to(ROOT)
         if any(part in excluded_parts for part in relative.parts):
             continue
         text = path.read_text(encoding="utf-8")
-        if "search_eval" in text:
+        if "search_eval" in text or "deep_review_eval" in text:
             hits.append(str(relative))
 
     assert hits == []
@@ -513,7 +513,7 @@ def test_search_eval_fixtures_are_not_gitignored():
 def test_search_eval_package_is_excluded_from_distribution():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert 'exclude = ["src.search_eval*"]' in pyproject
+    assert 'exclude = ["src.search_eval*", "src.deep_review_eval*"]' in pyproject
 
 
 def test_candidate_artifact_standalone_requires_full_v1_guardrails():

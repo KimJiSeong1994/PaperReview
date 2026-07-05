@@ -1,0 +1,10 @@
+{
+  "version": "skillopt-deep-review-rollback-record-v0",
+  "rollback_hash": "sha256:a9accd32fc9ac4b67a452a11a8cdb134eed0a58b91553372b451a5dd9551e606",
+  "scope": "deep_review_analysis_prompt",
+  "from_candidate_hash": "sha256:aa2feb32f6b0c366e5f2155c599c2e5a9cc11e946efb270f1a971d399563e8ee",
+  "to_baseline_hash": "sha256:57f22f1b1805928c8cc40215f098516984ff37debaed4dacbf0ef392958817cf",
+  "feature_flag_after": false,
+  "triggered_by": "manual",
+  "reason": "Example rollback record keeps DeepReview SkillOpt runtime disabled after operator rollback."
+}

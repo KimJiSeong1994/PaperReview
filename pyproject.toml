@@ -6,4 +6,4 @@ requires-python = ">=3.12"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*", "app*", "routers*"]
-exclude = ["src.search_eval*"]
+exclude = ["src.search_eval*", "src.deep_review_eval*"]
