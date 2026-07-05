@@ -180,6 +180,7 @@ def _blog_posting_graph(post: dict) -> dict:
     tags = post.get("tags", [])
     content = post.get("content", "")
     url = f"https://jiphyeonjeon.kr/blog/{slug}"
+    section = "Paper Reviews" if post.get("category") == "paper-review" else "Engineering"
 
     posting = {
         "@type": "BlogPosting",
@@ -189,6 +190,7 @@ def _blog_posting_graph(post: dict) -> dict:
         "datePublished": created_at,
         "dateModified": updated_at,
         "keywords": tags,
+        "articleSection": section,
         "url": url,
         "mainEntityOfPage": {"@type": "WebPage", "@id": url},
         "publisher": {"@id": ORG_ID},
