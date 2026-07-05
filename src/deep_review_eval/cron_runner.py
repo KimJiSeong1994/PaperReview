@@ -10,9 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from app.DeepAgent.skillopt_policy import (
     SkillOptDeepReviewPolicyError,
@@ -63,6 +65,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="DeepReview SkillOpt rollback record path.",
     )
     parser.add_argument(
+        "--status-path",
+        default=os.getenv("SKILLOPT_DEEP_REVIEW_STATUS_PATH"),
+        help="Optional path for the latest DeepReview SkillOpt status JSON snapshot.",
+    )
+    parser.add_argument(
+        "--reward-memory",
+        default=os.getenv("SKILLOPT_DEEP_REVIEW_REWARD_MEMORY"),
+        help="Optional JSONL path for append-only DeepReview SkillOpt reward memory.",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         default=os.getenv("SKILLOPT_DEEP_REVIEW_OPTIMIZER_STRICT", "").lower() in _TRUE_VALUES,
@@ -79,6 +91,11 @@ def main(argv: list[str] | None = None) -> int:
             control_path=args.control,
             candidate_artifact_path=args.candidate_artifact,
             rollback_record_path=args.rollback_record,
+        )
+        persist_guard_outputs(
+            summary,
+            status_path=args.status_path,
+            reward_memory_path=args.reward_memory,
         )
     except (
         OSError,
@@ -140,7 +157,75 @@ def run_guard_iteration(
         "rollback_hash": rollback.get("rollback_hash"),
         "runtime_policy_enabled": runtime_policy_enabled,
         "runtime_policy_hash": runtime_policy_hash,
+        "selection_primary_metric": candidate.get("selection_gate", {}).get("primary_metric", {}),
+        "holdout_primary_metric": candidate.get("holdout_gate", {}).get("primary_metric", {}),
     }
+
+
+def persist_guard_outputs(
+    summary: Mapping[str, Any],
+    *,
+    status_path: str | Path | None,
+    reward_memory_path: str | Path | None,
+) -> None:
+    """Persist latest status and append-only reward memory when configured."""
+    if status_path:
+        _write_json_atomic(Path(status_path), dict(summary))
+    if reward_memory_path:
+        _append_jsonl(Path(reward_memory_path), build_reward_memory_entry(summary))
+
+
+def build_reward_memory_entry(summary: Mapping[str, Any]) -> dict[str, Any]:
+    """Create a compact RL-ready memory entry from the approved candidate gates."""
+    metric = summary.get("holdout_primary_metric")
+    if not isinstance(metric, Mapping):
+        raise DeepReviewSkillOptCronError("holdout_primary_metric is required for reward memory")
+    baseline = _finite_float(metric.get("baseline"), "holdout_primary_metric.baseline")
+    candidate = _finite_float(metric.get("candidate"), "holdout_primary_metric.candidate")
+    return {
+        "version": "skillopt-deep-review-reward-memory-entry-v0",
+        "entry_id": f"deep-review-{uuid4()}",
+        "created_at": _utc_stamp(),
+        "status": summary.get("status"),
+        "scope": summary.get("scope"),
+        "reward": round(candidate - baseline, 6),
+        "reward_metric": metric.get("name"),
+        "candidate_hash": summary.get("candidate_hash"),
+        "runtime_policy_hash": summary.get("runtime_policy_hash"),
+        "dataset_hash": summary.get("dataset_hash"),
+        "control_hash": summary.get("control_hash"),
+        "runtime_policy_enabled": summary.get("runtime_policy_enabled"),
+        "safety": {
+            "hash_pinned": bool(summary.get("runtime_policy_hash")),
+            "rollback_record_present": bool(summary.get("rollback_hash")),
+            "artifact_validation_passed": summary.get("status") == "complete",
+        },
+    }
+
+
+def _write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    tmp_path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    tmp_path.replace(path)
+
+
+def _append_jsonl(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def _finite_float(value: Any, field: str) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise DeepReviewSkillOptCronError(f"{field} must be a finite number")
+    result = float(value)
+    if result != result or result in {float("inf"), float("-inf")}:
+        raise DeepReviewSkillOptCronError(f"{field} must be finite")
+    return result
 
 
 def _utc_stamp() -> str:

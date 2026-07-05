@@ -84,8 +84,14 @@ SKILLOPT_DEEP_REVIEW_CONTROL=/absolute/path/to/skillopt_execution_control_v0.jso
 SKILLOPT_DEEP_REVIEW_CANDIDATE_ARTIFACT=/absolute/path/to/skillopt_candidate_artifact.json
 SKILLOPT_DEEP_REVIEW_ROLLBACK_RECORD=/absolute/path/to/skillopt_rollback_record.json
 SKILLOPT_DEEP_REVIEW_OPTIMIZER_STRICT=true
+SKILLOPT_DEEP_REVIEW_STATUS_PATH=/home/ubuntu/PaperReviewAgent/logs/skillopt_deep_review_status.json
+SKILLOPT_DEEP_REVIEW_REWARD_MEMORY=/home/ubuntu/PaperReviewAgent/logs/skillopt_deep_review_reward_memory.jsonl
 ```
 
 A successful run emits one JSON line with `status=complete`, artifact hashes,
-and the active runtime policy hash. In strict mode validation failures return a
-non-zero exit code so cron/system monitoring can alert on drift.
+and the active runtime policy hash. When status/reward paths are configured, it
+also writes a latest-status snapshot and appends a compact reward-memory entry
+containing the holdout reward delta. That memory is the handoff point for future
+RL/SkillOpt candidate generators; the cron still does not mutate live prompts by
+itself. In strict mode validation failures return a non-zero exit code so
+cron/system monitoring can alert on drift.
