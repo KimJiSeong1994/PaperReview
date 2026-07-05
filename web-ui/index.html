@@ -35,6 +35,60 @@
     />
     <meta name="twitter:image" content="https://jiphyeonjeon.kr/og-default.jpg" />
     <title>Jiphyeonjeon - Paper Graph Explorer</title>
+    <!--
+      Static entity graph for the root URL (/) — crawlers & AI answer engines
+      that fetch "/" get no JSON-LD otherwise, since only /blog is server-rendered.
+      Keep in sync with web-ui/src/seo/structuredData.ts homeGraph().
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://jiphyeonjeon.kr/#organization",
+            "name": "Jiphyeonjeon",
+            "alternateName": "집현전",
+            "url": "https://jiphyeonjeon.kr",
+            "description": "AI-powered academic paper search and multi-agent deep-review web app for researchers, covering arXiv, Google Scholar and OpenAlex.",
+            "disambiguatingDescription": "A modern AI research tool; not the 15th-century Joseon-dynasty royal research institute of the same name (the Hall of Worthies).",
+            "sameAs": ["https://github.com/KimJiSeong1994/PaperReview"],
+            "logo": { "@type": "ImageObject", "url": "https://jiphyeonjeon.kr/Jiphyeonjeon_llama.png" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://jiphyeonjeon.kr/#website",
+            "url": "https://jiphyeonjeon.kr",
+            "name": "Jiphyeonjeon",
+            "alternateName": "Jiphyeonjeon - Paper Graph Explorer",
+            "inLanguage": ["en", "ko"],
+            "publisher": { "@id": "https://jiphyeonjeon.kr/#organization" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": { "@type": "EntryPoint", "urlTemplate": "https://jiphyeonjeon.kr/?q={search_term_string}" },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://jiphyeonjeon.kr/#app",
+            "name": "Jiphyeonjeon",
+            "url": "https://jiphyeonjeon.kr",
+            "applicationCategory": "EducationApplication",
+            "operatingSystem": "Web",
+            "inLanguage": ["en", "ko"],
+            "featureList": [
+              "Academic paper search across arXiv, Google Scholar, and OpenAlex",
+              "Multi-agent deep paper review",
+              "Study curriculum builder",
+              "Citation graph explorer"
+            ],
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "publisher": { "@id": "https://jiphyeonjeon.kr/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root">
