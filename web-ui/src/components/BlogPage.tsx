@@ -904,7 +904,7 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
         jsonLd={seoPost ? blogPostingGraph(seoPost) : blogIndexGraph(posts)}
       />
       {renderHeader()}
-      <div className="blog-content">
+      <div className={`blog-content${view === 'list' ? ' blog-content--list' : ''}`}>
         {view === 'list' && renderList()}
         {view === 'detail' && renderDetail()}
         {view === 'editor' && isAdmin && renderEditor()}
