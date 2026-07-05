@@ -170,6 +170,61 @@ def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
     assert "disambiguatingDescription" in html
 
 
+def test_ssr_post_has_single_h1(client: TestClient) -> None:
+    """The duplicate leading content H1 is stripped so only the title H1 remains."""
+    html = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    # Exactly one <h1 — the title. The content's leading "# Heading" is dropped.
+    assert html.count("<h1") == 1
+    assert 'class="blog-detail-title"' in html
+    assert ">Heading</h1>" not in html
+
+
+def test_ssr_post_has_related_and_prevnext_links(client: TestClient) -> None:
+    """A post links to related posts and to its chronological neighbour."""
+    html = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert "blog-related" in html
+    assert "blog-prevnext" in html
+    # The other published post is reachable from this one (not star-shaped).
+    assert f"/blog/{KOREAN_SLUG}" in html
+
+
+def test_blog_index_grouped_by_category(client: TestClient) -> None:
+    """The SSR index groups posts under a category heading linking to the hub."""
+    html = client.get("/blog").text
+    assert "/blog/category/engineering" in html
+    assert ">Engineering</a>" in html
+
+
+def test_category_hub_renders_and_self_canonicalizes(client: TestClient) -> None:
+    resp = client.get("/blog/category/engineering")
+    assert resp.status_code == 200
+    html = resp.text
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/category/engineering">' in html
+    assert "CollectionPage" in html
+    assert f"/blog/{PUBLISHED_SLUG}" in html  # engineering posts listed
+    assert "noindex" not in html
+
+
+def test_empty_category_hub_is_noindex(client: TestClient) -> None:
+    """paper-review has no posts in the fixtures, so its hub is served noindex."""
+    resp = client.get("/blog/category/paper-review")
+    assert resp.status_code == 200
+    assert "noindex" in resp.text
+
+
+def test_unknown_category_returns_404(client: TestClient) -> None:
+    resp = client.get("/blog/category/totally-unknown")
+    assert resp.status_code == 404
+    assert "noindex" in resp.text
+
+
+def test_sitemap_lists_nonempty_category_hub_only(client: TestClient) -> None:
+    body = client.get("/sitemap.xml").text
+    assert f"{'https://jiphyeonjeon.kr'}/blog/category/engineering" in body
+    # No published paper-review posts in the fixtures -> hub omitted from sitemap.
+    assert "/blog/category/paper-review" not in body
+
+
 def test_deleted_slug_returns_410_noindex(client: TestClient, monkeypatch) -> None:
     deleted_slug = "deleted-post-zzzz9999"
     monkeypatch.setattr("routers.seo._load_deleted", lambda: {deleted_slug})

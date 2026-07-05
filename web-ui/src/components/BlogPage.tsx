@@ -6,6 +6,7 @@ import rehypeRaw from 'rehype-raw';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
 import {
+  SITE_URL,
   blogCanonical,
   blogPostingGraph,
   blogIndexGraph,
@@ -41,6 +42,8 @@ interface BlogPost {
 interface BlogPageProps {
   isAdmin: boolean;
   slug?: string;
+  /** Set by the /blog/category/:category route to open the list pre-filtered. */
+  initialCategory?: 'paper-review' | 'engineering';
 }
 
 type BlogView = 'list' | 'detail' | 'editor';
@@ -64,6 +67,17 @@ const SEGMENTS: { key: CategoryFilter; label: string }[] = [
 /** Coerce any stored/legacy value to a known category (defaults to engineering). */
 function normalizeCategory(category?: string): CategoryKey {
   return category === 'paper-review' ? 'paper-review' : 'engineering';
+}
+
+// Drop a leading top-level "# " heading so the rendered body doesn't duplicate
+// the post title <h1>. Mirrors routers/seo.py::_strip_leading_h1.
+const LEADING_H1_RE = /^\s*#[ \t]+[^\n]*\n+/;
+function stripLeadingH1(content: string): string {
+  return content.replace(LEADING_H1_RE, '');
+}
+
+function categoryHref(key: CategoryFilter): string {
+  return key === 'all' ? '/blog' : `/blog/category/${key}`;
 }
 
 function CategoryBadge({ category }: { category?: string }) {
@@ -199,12 +213,12 @@ const EMPTY_FORM: EditorForm = {
 
 // ── Main Component ────────────────────────────────────────────────────
 
-function BlogPage({ isAdmin, slug }: BlogPageProps) {
+function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const navigate = useNavigate();
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory ?? 'all');
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -254,6 +268,14 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
     [posts, activeCategory],
   );
 
+  // Keep the active filter in sync with the /blog/category/:category route.
+  // Adjust-during-render (React's recommended pattern) rather than an effect,
+  // so navigating between category hubs without a remount still re-filters.
+  const [lastInitialCategory, setLastInitialCategory] = useState(initialCategory);
+  if (initialCategory !== lastInitialCategory) {
+    setLastInitialCategory(initialCategory);
+    setActiveCategory(initialCategory ?? 'all');
+  }
 
   useEffect(() => {
     if (slug) return;
@@ -447,19 +469,23 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
       >
         <div className="blog-side-label">Categories</div>
         {SEGMENTS.map((seg) => (
-          <button
+          <a
             key={seg.key}
-            type="button"
+            href={categoryHref(seg.key)}
             role="tab"
             data-cat={seg.key}
             aria-selected={activeCategory === seg.key}
             className={`blog-side-item ${activeCategory === seg.key ? 'active' : ''}`}
-            onClick={() => setActiveCategory(seg.key)}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveCategory(seg.key);
+              navigate(categoryHref(seg.key));
+            }}
           >
             <span className="blog-side-icon">{sidebarIcon(seg.key)}</span>
             <span className="blog-side-text">{seg.label}</span>
             <span className="blog-side-count">{categoryCounts[seg.key]}</span>
-          </button>
+          </a>
         ))}
       </nav>
     </aside>
@@ -695,7 +721,7 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
 
         <div className="blog-detail-content">
           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-            {selectedPost.content}
+            {stripLeadingH1(selectedPost.content)}
           </ReactMarkdown>
         </div>
 
@@ -881,10 +907,20 @@ function BlogPage({ isAdmin, slug }: BlogPageProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   const seoPost = view === 'detail' ? selectedPost : null;
-  const seoTitle = seoPost ? `${seoPost.title} | Jiphyeonjeon Blog` : BLOG_TITLE;
+  const categoryView = view === 'list' && activeCategory !== 'all';
+  const categoryLabel = categoryView ? CATEGORY_META[activeCategory as CategoryKey].label : '';
+  const seoTitle = seoPost
+    ? `${seoPost.title} | Jiphyeonjeon Blog`
+    : categoryView
+      ? `${categoryLabel} | Jiphyeonjeon Blog`
+      : BLOG_TITLE;
   const seoDescription = seoPost?.excerpt || BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost);
-  const seoCanonical = seoPost ? blogCanonical(seoPost.slug) : blogCanonical(hasSlugError ? undefined : slug);
+  const seoCanonical = seoPost
+    ? blogCanonical(seoPost.slug)
+    : categoryView
+      ? `${SITE_URL}/blog/category/${activeCategory}`
+      : blogCanonical(hasSlugError ? undefined : slug);
   const seoLocale = seoPost
     ? localeFor(detectLang(`${seoPost.title} ${seoPost.content || seoPost.excerpt || ''}`))
     : undefined;

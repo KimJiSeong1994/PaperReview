@@ -61,7 +61,62 @@ DIST_INDEX = Path("web-ui/dist/index.html")
 
 ORG_ID = "https://jiphyeonjeon.kr/#organization"
 
+# Indexable blog category hubs: value -> (display label, hub description).
+BLOG_CATEGORIES: dict[str, tuple[str, str]] = {
+    "paper-review": (
+        "Paper Reviews",
+        "Deep multi-agent reviews of individual academic papers from Jiphyeonjeon.",
+    ),
+    "engineering": (
+        "Engineering",
+        "Product and engineering notes from building Jiphyeonjeon.",
+    ),
+}
+
 _md = MarkdownIt("default", {"html": True, "linkify": True})
+
+# Matches a single leading top-level ATX heading ("# ...") plus trailing blank
+# lines, used to drop the duplicate H1 many posts repeat as their first line.
+_LEADING_H1_RE = re.compile(r"\A\s*#[ \t]+[^\n]*\n+")
+
+
+def _strip_leading_h1(content: str) -> str:
+    """Remove a leading ``# `` heading so the page keeps a single (title) H1.
+
+    The template already renders the post title as the ``<h1>``; posts that
+    repeat it as the first markdown heading produce a duplicate — and sometimes
+    conflicting — H1. Only a leading level-1 ATX heading is stripped; deeper
+    headings and mid-body H1s are left untouched.
+    """
+    return _LEADING_H1_RE.sub("", content, count=1)
+
+
+def _category_of(post: dict) -> str:
+    """Return a known category for a post, defaulting to 'engineering'."""
+    cat = post.get("category", "engineering")
+    return cat if cat in BLOG_CATEGORIES else "engineering"
+
+
+def _related_posts(post: dict, published: list[dict], limit: int = 4) -> list[dict]:
+    """Return up to ``limit`` other published posts related to ``post``.
+
+    Ranked by: same category, then number of shared tags, then recency.
+    Excludes the post itself. ``published`` may be in any order.
+    """
+    slug = post.get("slug")
+    cat = _category_of(post)
+    tags = set(post.get("tags", []))
+    others = [p for p in published if p.get("slug") != slug]
+
+    def _score(p: dict) -> tuple:
+        return (
+            1 if _category_of(p) == cat else 0,
+            len(tags & set(p.get("tags", []))),
+            p.get("created_at", ""),
+        )
+
+    others.sort(key=_score, reverse=True)
+    return others[:limit]
 
 # ── Asset extraction (cached by dist/index.html mtime) ────────────────
 
@@ -241,6 +296,44 @@ def _blog_index_graph(posts: list[dict]) -> dict:
     }
 
 
+def _category_graph(category: str, label: str, description: str, posts: list[dict]) -> dict:
+    """Return the @graph for a category hub page (CollectionPage)."""
+    url = f"https://jiphyeonjeon.kr/blog/category/{category}"
+    blog_posts = [
+        {
+            "@type": "BlogPosting",
+            "headline": p.get("title", ""),
+            "url": f"https://jiphyeonjeon.kr/blog/{p.get('slug', '')}",
+        }
+        for p in posts[:20]
+    ]
+    breadcrumb = {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://jiphyeonjeon.kr/"},
+            {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://jiphyeonjeon.kr/blog"},
+            {"@type": "ListItem", "position": 3, "name": label, "item": url},
+        ],
+    }
+    return {
+        "@context": "https://schema.org",
+        "@graph": [
+            _organization_node(),
+            {
+                "@type": "CollectionPage",
+                "@id": f"{url}#collection",
+                "url": url,
+                "name": f"{label} — Jiphyeonjeon Blog",
+                "description": description,
+                "isPartOf": {"@id": "https://jiphyeonjeon.kr/blog#blog"},
+                "publisher": {"@id": ORG_ID},
+                "hasPart": blog_posts,
+            },
+            breadcrumb,
+        ],
+    }
+
+
 # ── HTML document builder ─────────────────────────────────────────────
 
 
@@ -318,8 +411,17 @@ def _build_document(
     )
 
 
-def _render_article(post: dict) -> str:
-    """Render the visible <article> body for a single blog post."""
+def _render_article(
+    post: dict,
+    related: list[dict] | None = None,
+    prev_post: dict | None = None,
+    next_post: dict | None = None,
+) -> str:
+    """Render the visible <article> body for a single blog post.
+
+    ``related`` and ``prev_post``/``next_post`` add crawlable internal links so
+    the post graph is not star-shaped (every post reachable only from the index).
+    """
     title = html.escape(post.get("title", ""), quote=True)
     author = html.escape(post.get("author", ""), quote=True)
     created = html.escape(_format_date(post), quote=True)
@@ -328,7 +430,38 @@ def _render_article(post: dict) -> str:
         f'<span class="blog-tag">{html.escape(str(t), quote=True)}</span>'
         for t in post.get("tags", [])
     )
-    rendered_html = _md.render(post.get("content", ""))
+    # Drop the duplicate leading H1 so the title <h1> is the page's only H1.
+    rendered_html = _md.render(_strip_leading_h1(post.get("content", "")))
+
+    def _link(p: dict) -> str:
+        return (
+            f'/blog/{html.escape(p.get("slug", ""), quote=True)}',
+            html.escape(p.get("title", ""), quote=True),
+        )
+
+    related_html = ""
+    if related:
+        rel_items = "".join(
+            f'<li><a href="{href}">{name}</a></li>'
+            for href, name in (_link(p) for p in related)
+        )
+        related_html = (
+            '<nav class="blog-related" aria-label="Related posts">'
+            f"<h2>Related posts</h2><ul>{rel_items}</ul></nav>"
+        )
+
+    nav_parts = []
+    if prev_post:
+        href, name = _link(prev_post)
+        nav_parts.append(f'<a class="blog-prev" rel="prev" href="{href}">← {name}</a>')
+    if next_post:
+        href, name = _link(next_post)
+        nav_parts.append(f'<a class="blog-next" rel="next" href="{href}">{name} →</a>')
+    prevnext_html = (
+        f'<nav class="blog-prevnext" aria-label="More posts">{"".join(nav_parts)}</nav>'
+        if nav_parts
+        else ""
+    )
 
     return (
         '<div class="blog-container"><div class="blog-content">'
@@ -341,6 +474,8 @@ def _render_article(post: dict) -> str:
         "</div>"
         f'<div class="blog-detail-tags">{tags_html}</div>'
         f'<div class="blog-detail-content">{rendered_html}</div>'
+        f"{related_html}"
+        f"{prevnext_html}"
         "</div></div></div>"
     )
 
@@ -394,6 +529,13 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         )
         return HTMLResponse(content=document, status_code=404)
 
+    published = [p for p in posts if p.get("published")]
+    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    related = _related_posts(post, published)
+    idx = next((i for i, p in enumerate(published) if p.get("slug") == slug), None)
+    older = published[idx + 1] if idx is not None and idx + 1 < len(published) else None
+    newer = published[idx - 1] if idx is not None and idx - 1 >= 0 else None
+
     lang = _detect_lang(post["title"] + " " + post.get("content", ""))
     locale = _locale(lang)
     document = _build_document(
@@ -403,7 +545,7 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         og_type="article",
         image=post.get("thumbnail_url") or OG_DEFAULT_IMAGE,
         json_ld=_blog_posting_graph(post),
-        article_html=_render_article(post),
+        article_html=_render_article(post, related=related, prev_post=older, next_post=newer),
         lang=lang,
         locale=locale,
     )
@@ -419,15 +561,27 @@ async def blog_index_ssr() -> HTMLResponse:
     published = [p for p in posts if p.get("published")]
     published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
 
-    items = "".join(
-        f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
-        f'{html.escape(p.get("title", ""), quote=True)}</a> — '
-        f'{html.escape(p.get("excerpt", ""), quote=True)}</li>'
-        for p in published
-    )
+    def _index_section(cat: str) -> str:
+        label, _desc = BLOG_CATEGORIES[cat]
+        cat_posts = [p for p in published if _category_of(p) == cat]
+        if not cat_posts:
+            return ""
+        items = "".join(
+            f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
+            f'{html.escape(p.get("title", ""), quote=True)}</a> — '
+            f'{html.escape(p.get("excerpt", ""), quote=True)}</li>'
+            for p in cat_posts
+        )
+        return (
+            f'<section><h2><a href="/blog/category/{cat}">'
+            f"{html.escape(label, quote=True)}</a></h2>"
+            f"<ul>{items}</ul></section>"
+        )
+
+    sections = "".join(_index_section(cat) for cat in BLOG_CATEGORIES)
     body = (
         '<div class="blog-container"><div class="blog-content">'
-        f"<h1>Blog</h1><ul>{items}</ul>"
+        f"<h1>Blog</h1>{sections}"
         "</div></div>"
     )
 
@@ -439,6 +593,62 @@ async def blog_index_ssr() -> HTMLResponse:
         image=OG_DEFAULT_IMAGE,
         json_ld=_blog_index_graph(published),
         article_html=body,
+    )
+    return HTMLResponse(content=document, status_code=200)
+
+
+@router.get("/blog/category/{category}", response_class=HTMLResponse)
+async def blog_category_ssr(category: str) -> HTMLResponse:
+    """Server-render an indexable category hub (paper-review / engineering).
+
+    Unknown categories 404. An empty (but valid) category is served ``noindex``
+    so a thin hub is not indexed until it has posts.
+    """
+    meta = BLOG_CATEGORIES.get(category)
+    if meta is None:
+        body = '<div class="blog-container"><p>Category not found.</p></div>'
+        document = _build_document(
+            title="Category not found | Jiphyeonjeon Blog",
+            description="Category not found.",
+            canonical=f"{SITE_URL}/blog",
+            og_type="website",
+            image=OG_DEFAULT_IMAGE,
+            json_ld=None,
+            article_html=body,
+            noindex=True,
+        )
+        return HTMLResponse(content=document, status_code=404)
+
+    label, description = meta
+    with _posts_lock:
+        posts = _load_posts()
+
+    published = [p for p in posts if p.get("published") and _category_of(p) == category]
+    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+
+    items = "".join(
+        f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
+        f'{html.escape(p.get("title", ""), quote=True)}</a> — '
+        f'{html.escape(p.get("excerpt", ""), quote=True)}</li>'
+        for p in published
+    )
+    body = (
+        '<div class="blog-container"><div class="blog-content">'
+        '<nav aria-label="breadcrumb"><a href="/blog">Blog</a></nav>'
+        f"<h1>{html.escape(label, quote=True)}</h1>"
+        f"<p>{html.escape(description, quote=True)}</p>"
+        f"<ul>{items}</ul>"
+        "</div></div>"
+    )
+    document = _build_document(
+        title=f"{label} | Jiphyeonjeon Blog",
+        description=description,
+        canonical=f"{SITE_URL}/blog/category/{category}",
+        og_type="website",
+        image=OG_DEFAULT_IMAGE,
+        json_ld=_category_graph(category, label, description, published),
+        article_html=body,
+        noindex=not published,
     )
     return HTMLResponse(content=document, status_code=200)
 
@@ -455,6 +665,14 @@ async def sitemap() -> Response:
         f"  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc><priority>0.8</priority></url>",
     ]
+    # Category hubs — only list a hub that has at least one published post.
+    cats_present = {_category_of(p) for p in published}
+    for cat in BLOG_CATEGORIES:
+        if cat in cats_present:
+            rows.append(
+                f"  <url><loc>{SITE_URL}/blog/category/{cat}</loc>"
+                f"<priority>0.7</priority></url>"
+            )
     for post in published:
         try:
             slug = post.get("slug")
@@ -533,17 +751,34 @@ async def llms_txt() -> Response:
     published = [p for p in posts if p.get("published")]
     published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
 
-    blog_lines = []
-    for post in published:
-        slug = post.get("slug", "")
-        if not slug:
-            continue
+    def _blog_line(post: dict) -> str:
         title = post.get("title", "")
         excerpt = post.get("excerpt", "")
+        slug = post.get("slug", "")
         date = _format_date(post)
-        blog_lines.append(f"- [{title}]({SITE_URL}/blog/{slug}) ({date}): {excerpt}")
+        return f"- [{title}]({SITE_URL}/blog/{slug}) ({date}): {excerpt}"
 
-    blog_section = "\n".join(blog_lines)
+    # Group the blog list and the category-hub links by category (non-empty only).
+    cat_sections: list[str] = []
+    key_page_cats: list[str] = []
+    for cat, (label, _desc) in BLOG_CATEGORIES.items():
+        cat_posts = [p for p in published if _category_of(p) == cat and p.get("slug")]
+        if not cat_posts:
+            continue
+        key_page_cats.append(
+            f"- [{label}]({SITE_URL}/blog/category/{cat}): {label.lower()} posts"
+        )
+        lines = "\n".join(_blog_line(p) for p in cat_posts)
+        cat_sections.append(f"### {label}\n{lines}")
+
+    blog_section = "\n\n".join(cat_sections)
+    key_pages = "\n".join(
+        [
+            f"- [Home / Search]({SITE_URL}/): paper search interface",
+            f"- [Blog]({SITE_URL}/blog): research notes and write-ups",
+            *key_page_cats,
+        ]
+    )
 
     body = (
         "# 집현전 (Jiphyeonjeon)\n"
@@ -564,8 +799,7 @@ async def llms_txt() -> Response:
         "- Citation graph explorer\n"
         "\n"
         "## Key pages\n"
-        f"- [Home / Search]({SITE_URL}/): paper search interface\n"
-        f"- [Blog]({SITE_URL}/blog): research notes and write-ups\n"
+        f"{key_pages}\n"
         "\n"
         "## Blog\n"
         f"{blog_section}\n"
