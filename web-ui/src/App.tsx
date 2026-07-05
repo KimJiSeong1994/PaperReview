@@ -24,6 +24,14 @@ function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
   return <BlogPage isAdmin={isAdmin} slug={slug} />;
 }
 
+function BlogCategoryRoute({ isAdmin }: { isAdmin: boolean }) {
+  const { category } = useParams<{ category: string }>();
+  if (category !== 'paper-review' && category !== 'engineering') {
+    return <Navigate to="/blog" replace />;
+  }
+  return <BlogPage isAdmin={isAdmin} initialCategory={category} />;
+}
+
 function App() {
   const navigate = useNavigate();
   const { isAuthenticated, userRole, showLoginModal, setShowLoginModal, login, logout } = useAuth();
@@ -93,6 +101,14 @@ function App() {
           element={
             <Suspense fallback={<div className="app-loading">Loading...</div>}>
               <BlogPage isAdmin={userRole === 'admin'} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/blog/category/:category"
+          element={
+            <Suspense fallback={<div className="app-loading">Loading...</div>}>
+              <BlogCategoryRoute isAdmin={userRole === 'admin'} />
             </Suspense>
           }
         />
