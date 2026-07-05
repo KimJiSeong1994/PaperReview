@@ -151,6 +151,25 @@ def test_llms_txt_lists_published_posts(client: TestClient) -> None:
     assert UNPUBLISHED_SLUG not in body
 
 
+def test_llms_txt_has_geo_sections(client: TestClient) -> None:
+    """llms.txt exposes entity/capabilities/optional sections and dated posts."""
+    body = client.get("/llms.txt").text
+    for section in ("## About", "## Capabilities", "## Key pages", "## Blog", "## Optional"):
+        assert section in body, f"missing {section}"
+    # Entity grounding + machine-readable resources for AI engines.
+    assert "github.com/KimJiSeong1994/PaperReview" in body
+    assert "/feed.xml" in body and "/sitemap.xml" in body
+    # Published posts carry an ISO date (from created_at 2026-01-15).
+    assert "(2026-01-15)" in body
+
+
+def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
+    """The Organization JSON-LD on an SSR blog page carries sameAs + disambiguation."""
+    html = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert "github.com/KimJiSeong1994/PaperReview" in html
+    assert "disambiguatingDescription" in html
+
+
 def test_deleted_slug_returns_410_noindex(client: TestClient, monkeypatch) -> None:
     deleted_slug = "deleted-post-zzzz9999"
     monkeypatch.setattr("routers.seo._load_deleted", lambda: {deleted_slug})

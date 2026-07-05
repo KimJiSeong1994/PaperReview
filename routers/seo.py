@@ -134,6 +134,15 @@ def _organization_node() -> dict:
         "name": "Jiphyeonjeon",
         "alternateName": "집현전",
         "url": "https://jiphyeonjeon.kr",
+        "description": (
+            "AI-powered academic paper search and multi-agent deep-review web app "
+            "for researchers, covering arXiv, Google Scholar and OpenAlex."
+        ),
+        "disambiguatingDescription": (
+            "A modern AI research tool; not the 15th-century Joseon-dynasty royal "
+            "research institute of the same name (the Hall of Worthies)."
+        ),
+        "sameAs": ["https://github.com/KimJiSeong1994/PaperReview"],
         "logo": {
             "@type": "ImageObject",
             "url": "https://jiphyeonjeon.kr/Jiphyeonjeon_llama.png",
@@ -531,7 +540,8 @@ async def llms_txt() -> Response:
             continue
         title = post.get("title", "")
         excerpt = post.get("excerpt", "")
-        blog_lines.append(f"- [{title}]({SITE_URL}/blog/{slug}): {excerpt}")
+        date = _format_date(post)
+        blog_lines.append(f"- [{title}]({SITE_URL}/blog/{slug}) ({date}): {excerpt}")
 
     blog_section = "\n".join(blog_lines)
 
@@ -540,12 +550,29 @@ async def llms_txt() -> Response:
         "\n"
         f"> {LLMS_DESCRIPTION}\n"
         "\n"
-        "## Blog\n"
-        f"{blog_section}\n"
+        "## About\n"
+        "Jiphyeonjeon (집현전) is an AI-powered academic paper search and "
+        "multi-agent deep-review web app for researchers. It is a modern software "
+        "tool and is unrelated to the 15th-century Joseon-dynasty royal institute "
+        "(Hall of Worthies) of the same name.\n"
+        "Source: https://github.com/KimJiSeong1994/PaperReview\n"
+        "\n"
+        "## Capabilities\n"
+        "- Academic paper search across arXiv, Google Scholar, and OpenAlex\n"
+        "- Multi-agent deep paper review\n"
+        "- Study curriculum builder\n"
+        "- Citation graph explorer\n"
         "\n"
         "## Key pages\n"
         f"- [Home / Search]({SITE_URL}/): paper search interface\n"
         f"- [Blog]({SITE_URL}/blog): research notes and write-ups\n"
+        "\n"
+        "## Blog\n"
+        f"{blog_section}\n"
+        "\n"
+        "## Optional\n"
+        f"- [RSS feed]({SITE_URL}/feed.xml)\n"
+        f"- [Sitemap]({SITE_URL}/sitemap.xml)\n"
     )
     return Response(
         content=body,

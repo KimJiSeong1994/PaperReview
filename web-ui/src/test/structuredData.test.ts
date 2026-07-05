@@ -4,6 +4,8 @@ import {
   OG_DEFAULT_IMAGE,
   organizationNode,
   websiteNode,
+  softwareApplicationNode,
+  homeGraph,
   blogCanonical,
   blogPostingGraph,
   blogIndexGraph,
@@ -43,16 +45,54 @@ describe('organizationNode', () => {
       url: 'https://jiphyeonjeon.kr/Jiphyeonjeon_llama.png',
     });
   });
+
+  it('grounds the entity with sameAs and a disambiguating description', () => {
+    const node = organizationNode();
+    expect(node.sameAs).toEqual(['https://github.com/KimJiSeong1994/PaperReview']);
+    expect(typeof node.description).toBe('string');
+    // Must disambiguate from the historical Joseon-dynasty institute for AI engines.
+    expect(String(node.disambiguatingDescription)).toMatch(/not the .*institute/i);
+  });
 });
 
 describe('websiteNode', () => {
-  it('emits a WebSite node with the canonical @id and url and no SearchAction', () => {
+  it('emits a WebSite node with the canonical @id and url', () => {
     const node = websiteNode();
     expect(node['@type']).toBe('WebSite');
     expect(node['@id']).toBe('https://jiphyeonjeon.kr/#website');
     expect(node.url).toBe(SITE_URL);
     expect(node.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
-    expect(node).not.toHaveProperty('potentialAction');
+  });
+
+  it('exposes a SearchAction sitelinks-searchbox pointing at the ?q= target', () => {
+    const node = websiteNode();
+    const action = node.potentialAction as Record<string, unknown>;
+    expect(action['@type']).toBe('SearchAction');
+    expect((action.target as Record<string, unknown>).urlTemplate).toBe(
+      'https://jiphyeonjeon.kr/?q={search_term_string}',
+    );
+    expect(action['query-input']).toBe('required name=search_term_string');
+  });
+});
+
+describe('softwareApplicationNode', () => {
+  it('describes the product as a free web application with a feature list', () => {
+    const node = softwareApplicationNode();
+    expect(node['@type']).toBe('WebApplication');
+    expect(node['@id']).toBe('https://jiphyeonjeon.kr/#app');
+    expect(node.operatingSystem).toBe('Web');
+    expect(Array.isArray(node.featureList)).toBe(true);
+    expect((node.featureList as string[]).length).toBeGreaterThan(0);
+    expect(node.offers).toEqual({ '@type': 'Offer', price: '0', priceCurrency: 'USD' });
+    expect(node.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
+  });
+});
+
+describe('homeGraph', () => {
+  it('bundles the Organization, WebSite, and WebApplication nodes', () => {
+    const graph = homeGraph()['@graph'] as Record<string, unknown>[];
+    const types = graph.map((n) => n['@type']);
+    expect(types).toEqual(['Organization', 'WebSite', 'WebApplication']);
   });
 });
 

@@ -46,6 +46,13 @@ export function organizationNode(): Record<string, unknown> {
     name: 'Jiphyeonjeon',
     alternateName: '집현전',
     url: SITE_URL,
+    description:
+      'AI-powered academic paper search and multi-agent deep-review web app for '
+      + 'researchers, covering arXiv, Google Scholar and OpenAlex.',
+    disambiguatingDescription:
+      'A modern AI research tool; not the 15th-century Joseon-dynasty royal '
+      + 'research institute of the same name (the Hall of Worthies).',
+    sameAs: ['https://github.com/KimJiSeong1994/PaperReview'],
     logo: {
       '@type': 'ImageObject',
       url: `${SITE_URL}/Jiphyeonjeon_llama.png`,
@@ -62,13 +69,43 @@ export function websiteNode(): Record<string, unknown> {
     alternateName: 'Jiphyeonjeon - Paper Graph Explorer',
     inLanguage: ['en', 'ko'],
     publisher: { '@id': ORG_ID },
+    // Sitelinks searchbox — the ?q= target is read by SearchPage.
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
+/** WebApplication node describing what the product actually does (GEO). */
+export function softwareApplicationNode(): Record<string, unknown> {
+  return {
+    '@type': 'WebApplication',
+    '@id': `${SITE_URL}/#app`,
+    name: 'Jiphyeonjeon',
+    url: SITE_URL,
+    applicationCategory: 'EducationApplication',
+    operatingSystem: 'Web',
+    inLanguage: ['en', 'ko'],
+    featureList: [
+      'Academic paper search across arXiv, Google Scholar, and OpenAlex',
+      'Multi-agent deep paper review',
+      'Study curriculum builder',
+      'Citation graph explorer',
+    ],
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: { '@id': ORG_ID },
   };
 }
 
 export function homeGraph(): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
-    '@graph': [organizationNode(), websiteNode()],
+    '@graph': [organizationNode(), websiteNode(), softwareApplicationNode()],
   };
 }
 
