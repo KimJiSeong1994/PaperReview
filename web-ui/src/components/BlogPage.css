@@ -200,10 +200,18 @@
 }
 
 /* ===== List Layout — left category sidebar + main column ===== */
+
+/* The list view uses a wider container than the reading views (detail/editor
+   stay at 960px). This pulls the sidebar further left and gives the post
+   column more room. Defined after the base .blog-content so it wins. */
+.blog-content--list {
+  max-width: 1280px;
+}
+
 .blog-layout {
   display: grid;
   grid-template-columns: 208px minmax(0, 1fr);
-  gap: 44px;
+  gap: 52px;
   align-items: start;
 }
 
