@@ -20,6 +20,11 @@ from pydantic import BaseModel
 from starlette.requests import Request
 
 from src.utils.openai_responses_compat import create_chat_completion
+from app.DeepAgent.skillopt_policy import (
+    SkillOptDeepReviewPolicyError,
+    build_skillopt_deep_review_policy_prompt_block,
+    load_skillopt_deep_review_policy_from_env,
+)
 
 from .deps import (
     DEFAULT_RESEARCH_MODEL,
@@ -229,6 +234,20 @@ def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dic
     return enriched
 
 
+def _load_skillopt_deep_review_prompt_block() -> str:
+    """Load optional DeepReview SkillOpt prompt guidance for live review paths.
+
+    The gate is runtime-safe: absent env returns an empty block, and invalid
+    enabled config logs a warning while preserving baseline behavior.
+    """
+    try:
+        policy = load_skillopt_deep_review_policy_from_env()
+        return build_skillopt_deep_review_policy_prompt_block(policy)
+    except SkillOptDeepReviewPolicyError as exc:
+        logger.warning("SkillOpt DeepReview policy disabled: %s", exc)
+        return ""
+
+
 def run_fast_review(
     session_id: str,
     paper_ids: List[str],
@@ -316,8 +335,9 @@ def run_fast_review(
         papers_text.append(paper_entry)
 
     combined_papers = "\n".join(papers_text)
+    skillopt_policy_block = _load_skillopt_deep_review_prompt_block()
 
-    prompt = f"""당신은 Nature, Science 등 최상위 저널의 리뷰어이자, 해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다.
+    prompt = f"""당신은 Nature, Science 등 최상위 저널의 리뷰어이자, 해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다.{skillopt_policy_block}
 다음 {len(papers)}편의 논문을 단순히 요약하는 것이 아니라, **비판적으로 분석하고 학술적 통찰을 도출**하여
 박사과정 학생 및 연구자들이 연구 방향 설정에 직접 활용할 수 있는 수준의 심층 문헌 고찰 보고서를 작성해주세요.
 

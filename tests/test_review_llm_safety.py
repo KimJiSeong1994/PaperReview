@@ -18,6 +18,7 @@ OpenAI client at ``routers.deps.get_openai_client`` so no real API calls
 are made.
 """
 
+import hashlib
 import types
 from datetime import datetime, timezone
 from pathlib import Path
@@ -90,6 +91,25 @@ _DUMMY_PAPERS = [
         "year": 2025,
     }
 ]
+
+_DEEP_REVIEW_SKILLOPT_ENV = (
+    "SKILLOPT_DEEP_REVIEW_POLICY_ENABLED",
+    "SKILLOPT_DEEP_REVIEW_POLICY_PATH",
+    "SKILLOPT_DEEP_REVIEW_POLICY_HASH",
+    "SKILLOPT_DEEP_REVIEW_POLICY_SCOPE",
+)
+
+
+def _clear_deep_review_skillopt_env(monkeypatch) -> None:
+    for name in _DEEP_REVIEW_SKILLOPT_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
+def _write_deep_review_policy(tmp_path: Path, text: str | None = None) -> tuple[Path, str]:
+    content = text if text is not None else Path("docs/skillopt_deep_review/baseline_skill.md").read_text(encoding="utf-8")
+    path = tmp_path / "deep_review_policy.md"
+    path.write_text(content, encoding="utf-8")
+    return path, hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 # ── F-05: empty content → retry → fail loud ──────────────────────────
@@ -486,3 +506,97 @@ def test_safe_llm_content_strips_and_returns():
 
     assert _safe_llm_content(_make_choice("  hello  ")) == "hello"
     assert _safe_llm_content(_make_choice("body\n")) == "body"
+
+
+# ── DeepReview SkillOpt in live fast-mode service path ──────────────────
+
+def test_run_fast_review_does_not_inject_skillopt_when_env_absent(tmp_path, monkeypatch):
+    import routers.reviews as reviews_mod
+
+    _clear_deep_review_skillopt_env(monkeypatch)
+    session_id = "review_20260705_skillopt_fast_off"
+    _seed_session(session_id)
+    try:
+        workspace = _make_workspace(tmp_path)
+        fake_client = MagicMock()
+        fake_client.chat.completions.create.return_value = _make_choice("# Baseline Fast Review\n\nBody")
+        monkeypatch.setattr(reviews_mod, "get_openai_client", lambda: fake_client)
+
+        result = reviews_mod.run_fast_review(
+            session_id=session_id,
+            paper_ids=["dummy-1"],
+            model="gpt-4.1",
+            workspace=workspace,
+            papers_data=_DUMMY_PAPERS,
+        )
+
+        assert result["status"] == "completed"
+        messages = fake_client.chat.completions.create.call_args.kwargs["messages"]
+        assert "SkillOpt optimized policy" not in messages[1]["content"]
+    finally:
+        _cleanup_session(session_id)
+
+
+def test_run_fast_review_injects_skillopt_with_valid_env(tmp_path, monkeypatch):
+    import routers.reviews as reviews_mod
+
+    path, digest = _write_deep_review_policy(tmp_path)
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_ENABLED", "true")
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_PATH", str(path))
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_HASH", f"sha256:{digest}")
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_SCOPE", "deep_review_analysis_prompt")
+    session_id = "review_20260705_skillopt_fast_on"
+    _seed_session(session_id)
+    try:
+        workspace = _make_workspace(tmp_path)
+        fake_client = MagicMock()
+        fake_client.chat.completions.create.return_value = _make_choice("# SkillOpt Fast Review\n\nBody")
+        monkeypatch.setattr(reviews_mod, "get_openai_client", lambda: fake_client)
+
+        result = reviews_mod.run_fast_review(
+            session_id=session_id,
+            paper_ids=["dummy-1"],
+            model="gpt-4.1",
+            workspace=workspace,
+            papers_data=_DUMMY_PAPERS,
+        )
+
+        assert result["status"] == "completed"
+        messages = fake_client.chat.completions.create.call_args.kwargs["messages"]
+        assert "SkillOpt optimized policy" in messages[1]["content"]
+        assert f"sha256:{digest}" in messages[1]["content"]
+        assert "Do not bypass fact verification" in messages[1]["content"]
+    finally:
+        _cleanup_session(session_id)
+
+
+def test_run_fast_review_invalid_skillopt_env_fails_closed(tmp_path, monkeypatch, caplog):
+    import routers.reviews as reviews_mod
+
+    path, _digest = _write_deep_review_policy(tmp_path)
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_ENABLED", "true")
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_PATH", str(path))
+    monkeypatch.setenv("SKILLOPT_DEEP_REVIEW_POLICY_HASH", "sha256:" + "0" * 64)
+    session_id = "review_20260705_skillopt_fast_invalid"
+    _seed_session(session_id)
+    try:
+        workspace = _make_workspace(tmp_path)
+        fake_client = MagicMock()
+        fake_client.chat.completions.create.return_value = _make_choice("# Baseline After Invalid Policy\n\nBody")
+        monkeypatch.setattr(reviews_mod, "get_openai_client", lambda: fake_client)
+
+        with caplog.at_level("WARNING", logger="routers.reviews"):
+            result = reviews_mod.run_fast_review(
+                session_id=session_id,
+                paper_ids=["dummy-1"],
+                model="gpt-4.1",
+                workspace=workspace,
+                papers_data=_DUMMY_PAPERS,
+            )
+
+        assert result["status"] == "completed"
+        messages = fake_client.chat.completions.create.call_args.kwargs["messages"]
+        assert "SkillOpt optimized policy" not in messages[1]["content"]
+        assert any("SkillOpt DeepReview policy disabled" in rec.message for rec in caplog.records)
+    finally:
+        _cleanup_session(session_id)

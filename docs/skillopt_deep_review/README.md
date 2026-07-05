@@ -53,3 +53,39 @@ V0 approval should compare baseline vs candidate on review-quality criteria such
 as methodology coverage, evidence grounding, limitation specificity,
 reproducibility assessment, and hallucination/fabrication bans. Do not reuse
 search metrics like nDCG@10 as the primary DeepReview reward.
+
+## Continuous optimization scheduler
+
+The live service should enable only an approved, hash-pinned policy and run a
+separate scheduler that keeps the DeepReview SkillOpt artifact set healthy. The
+scheduler is a guard/bookkeeping loop: it validates the dataset, execution
+control, approved candidate, rollback record, and the currently enabled runtime
+policy hash. It does **not** mutate production prompts or auto-promote new
+policies.
+
+Manual smoke run:
+
+```sh
+python -m src.deep_review_eval.cron_runner
+```
+
+Recommended production cron entry:
+
+```cron
+# SkillOpt DeepReview optimizer gate: daily 03:35 KST / 18:35 UTC.
+35 18 * * * cd /home/ubuntu/PaperReviewAgent && set -a; [ -f .env ] && . ./.env; set +a; . venv/bin/activate && python -m src.deep_review_eval.cron_runner >> logs/skillopt_deep_review_optimizer.log 2>&1
+```
+
+Optional env overrides:
+
+```sh
+SKILLOPT_DEEP_REVIEW_DATASET=/absolute/path/to/skillopt_deep_review_v0.json
+SKILLOPT_DEEP_REVIEW_CONTROL=/absolute/path/to/skillopt_execution_control_v0.json
+SKILLOPT_DEEP_REVIEW_CANDIDATE_ARTIFACT=/absolute/path/to/skillopt_candidate_artifact.json
+SKILLOPT_DEEP_REVIEW_ROLLBACK_RECORD=/absolute/path/to/skillopt_rollback_record.json
+SKILLOPT_DEEP_REVIEW_OPTIMIZER_STRICT=true
+```
+
+A successful run emits one JSON line with `status=complete`, artifact hashes,
+and the active runtime policy hash. In strict mode validation failures return a
+non-zero exit code so cron/system monitoring can alert on drift.
