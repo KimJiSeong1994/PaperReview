@@ -2,13 +2,93 @@
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  /* Deep pages that aren't tokenized yet paint their own dark background, so
+     the document stays dark-schemed; tokenized surfaces override color-scheme. */
   color-scheme: dark;
-  color: #ffffff;
-  background-color: #0d0d0d;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ===== Global theme tokens — dark default; light via html[data-theme=light].
+     Reused across pages as they are migrated to light mode. Translucent accent
+     tints and pure-white logo backgrounds stay literal (read on both grounds). */
+  --bg: #0f0f0f;
+  --bg-elev: #1a1a1a;
+  --bg-elev2: #262626;
+  --bg-input: #181818;
+  --scrim: rgba(0, 0, 0, 0.75);
+  --text: #ececec;
+  --text-strong: #f3f4f6;
+  --text-hi: #ffffff;
+  --text-soft: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-faint: #6b7280;
+  --text-dim: #4b5563;
+  --text-slate: #94a3b8;
+  --indigo: #a5b4fc;
+  --indigo-strong: #c7d2fe;
+  --indigo-mid: #818cf8;
+  --violet: #c4b5fd;
+  --purple: #a855f7;
+  --danger: #f87171;
+  --danger-strong: #ef4444;
+  --amber: #fbbf24;
+  --green: #4ade80;
+  --green-strong: #22c55e;
+  --teal: #5eead4;
+  --wov-02: rgba(255, 255, 255, 0.02);
+  --wov-03: rgba(255, 255, 255, 0.03);
+  --wov-04: rgba(255, 255, 255, 0.04);
+  --wov-05: rgba(255, 255, 255, 0.05);
+  --wov-06: rgba(255, 255, 255, 0.06);
+  --wov-08: rgba(255, 255, 255, 0.08);
+  --wov-10: rgba(255, 255, 255, 0.1);
+  --wov-12: rgba(255, 255, 255, 0.12);
+  --wov-15: rgba(255, 255, 255, 0.15);
+  --wov-20: rgba(255, 255, 255, 0.2);
+  --indigo-bd-20: rgba(165, 180, 252, 0.2);
+
+  color: var(--text-hi);
+  background-color: var(--bg);
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-elev2: #eef0f3;
+  --bg-input: #ffffff;
+  --scrim: rgba(17, 24, 39, 0.5);
+  --text: #1f2937;
+  --text-strong: #111827;
+  --text-hi: #0f172a;
+  --text-soft: #374151;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+  --text-dim: #9ca3af;
+  --text-slate: #64748b;
+  --indigo: #4f46e5;
+  --indigo-strong: #4338ca;
+  --indigo-mid: #4f46e5;
+  --violet: #7c3aed;
+  --purple: #9333ea;
+  --danger: #dc2626;
+  --danger-strong: #dc2626;
+  --amber: #d97706;
+  --green: #16a34a;
+  --green-strong: #16a34a;
+  --teal: #0d9488;
+  --wov-02: rgba(17, 24, 39, 0.02);
+  --wov-03: rgba(17, 24, 39, 0.035);
+  --wov-04: rgba(17, 24, 39, 0.05);
+  --wov-05: rgba(17, 24, 39, 0.06);
+  --wov-06: rgba(17, 24, 39, 0.09);
+  --wov-08: rgba(17, 24, 39, 0.11);
+  --wov-10: rgba(17, 24, 39, 0.13);
+  --wov-12: rgba(17, 24, 39, 0.1);
+  --wov-15: rgba(17, 24, 39, 0.16);
+  --wov-20: rgba(17, 24, 39, 0.3);
+  --indigo-bd-20: rgba(79, 70, 229, 0.28);
 }
 
 body {

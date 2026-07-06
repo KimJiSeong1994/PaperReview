@@ -7,7 +7,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,8 +27,8 @@
   max-width: 380px;
   margin: 0 16px;
   padding: 36px 32px;
-  background: #181818;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-elev);
+  border: 1px solid var(--wov-08);
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   animation: login-slideUp 0.2s ease;
@@ -51,15 +51,15 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: #6b7280;
+  color: var(--text-faint);
   cursor: pointer;
   border-radius: 6px;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .login-close-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #9ca3af;
+  background: var(--wov-06);
+  color: var(--text-muted);
 }
 
 /* ── Brand header ── */
@@ -74,7 +74,7 @@
   height: 48px;
   object-fit: cover;
   border-radius: 50%;
-  background: #ffffff;
+  background: #fff;
   padding: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
@@ -89,7 +89,7 @@
 .login-brand-name {
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-hi);
   margin: 0;
   letter-spacing: -0.5px;
   line-height: 1.2;
@@ -98,7 +98,7 @@
 .login-brand-tagline {
   font-size: 11px;
   font-weight: 400;
-  color: #6b7280;
+  color: var(--text-faint);
   margin: 0;
   letter-spacing: 0.2px;
 }
@@ -108,7 +108,7 @@
   display: flex;
   gap: 0;
   margin: 20px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--wov-06);
 }
 
 .login-tab {
@@ -117,7 +117,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
@@ -126,12 +126,12 @@
 }
 
 .login-tab:hover {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .login-tab--active {
-  color: #a5b4fc;
-  border-bottom-color: #6366f1;
+  color: var(--indigo);
+  border-bottom-color: var(--indigo-mid);
 }
 
 /* ── Login form ── */
@@ -150,17 +150,17 @@
 .login-label {
   font-size: 11px;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .login-input {
   padding: 11px 14px;
-  background: #1f1f1f;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-input);
+  border: 1px solid var(--wov-08);
   border-radius: 8px;
-  color: #ececec;
+  color: var(--text);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -168,11 +168,11 @@
 }
 
 .login-input::placeholder {
-  color: #4b5563;
+  color: var(--text-dim);
 }
 
 .login-input:focus {
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: var(--wov-15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -183,7 +183,7 @@
 /* ── Error ── */
 .login-error {
   font-size: 12px;
-  color: #ef4444;
+  color: var(--danger-strong);
   margin: 0;
   padding: 8px 12px;
   background: rgba(239, 68, 68, 0.06);
@@ -194,7 +194,7 @@
 /* ── Success message ── */
 .login-success {
   font-size: 12px;
-  color: #22c55e;
+  color: var(--green-strong);
   margin: 0;
   padding: 8px 12px;
   background: rgba(34, 197, 94, 0.06);
@@ -206,7 +206,7 @@
 .login-submit-btn {
   padding: 11px 24px;
   background: rgba(99, 102, 241, 0.12);
-  color: #a5b4fc;
+  color: var(--indigo);
   border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: 8px;
   font-size: 14px;
@@ -244,8 +244,8 @@
 .login-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(165, 180, 252, 0.2);
-  border-top-color: #a5b4fc;
+  border: 2px solid var(--indigo-bd-20);
+  border-top-color: var(--indigo);
   border-radius: 50%;
   animation: login-spin 1s linear infinite;
 }
@@ -280,4 +280,9 @@
   .login-brand-name {
     font-size: 16px;
   }
+}
+
+/* Light theme: light-scheme form controls inside the login modal */
+:root[data-theme='light'] .login-card {
+  color-scheme: light;
 }
