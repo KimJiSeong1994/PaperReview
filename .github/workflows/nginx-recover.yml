@@ -30,8 +30,11 @@ jobs:
           ls -la /etc/nginx/sites-available/ /etc/nginx/sites-enabled/ 2>/dev/null || true
           echo "--- effective 443 listeners BEFORE (expect 0 during outage) ---"
           sudo nginx -T 2>/dev/null | grep -c 'listen 443' || true
-          TARGET="$(grep -rl 'location = /blog {' /etc/nginx 2>/dev/null | head -1 || true)"
-          echo "TARGET config: $TARGET"
+          # Resolve the ACTIVE config via the enabled symlink (backup files in
+          # sites-available also contain 'location = /blog {' and must be ignored).
+          TARGET="$(readlink -f /etc/nginx/sites-enabled/paperreview 2>/dev/null || true)"
+          [ -z "$TARGET" ] && TARGET="$(grep -rl 'location = /blog {' /etc/nginx/sites-enabled/ 2>/dev/null | head -1 || true)"
+          echo "TARGET config (active): $TARGET"
           [ -n "$TARGET" ] && sudo grep -nE 'listen|server_name|ssl_certificate' "$TARGET" || true
 
           echo "===================== BACKUP current config ====================="
