@@ -212,10 +212,15 @@ function SigmaGraphView({
     <div className="sigma-graph-container">
       <SigmaContainer
         graph={graph}
-        style={{ width: '100%', height: '620px', background: '#181818' }}
+        style={{ width: '100%', height: '620px', background: 'var(--bg-elev)' }}
         settings={{
           renderLabels: showLabels,
-          labelColor: { color: 'rgba(255, 255, 255, 0.9)' },
+          labelColor: {
+            color:
+              document.documentElement.getAttribute('data-theme') === 'light'
+                ? 'rgba(17, 24, 39, 0.9)'
+                : 'rgba(255, 255, 255, 0.9)',
+          },
           labelSize: 9,
           labelFont: 'Roboto, sans-serif',
           labelRenderedSizeThreshold: 6,

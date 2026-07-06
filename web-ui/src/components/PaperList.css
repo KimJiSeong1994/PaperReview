@@ -31,7 +31,7 @@
   height: 18px;
   margin-top: 2px;
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: var(--blue);
 }
 
 .paper-content {
@@ -45,33 +45,33 @@
 }
 
 .paper-card:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--wov-03);
 }
 
 .paper-card.selected {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--wov-06);
+  border-color: var(--wov-10);
 }
 
 .paper-card.selected .paper-title {
-  color: #ececec;
+  color: var(--text);
 }
 
 .paper-card.origin {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: var(--wov-02);
+  border-color: var(--wov-08);
   border-width: 1px;
 }
 
 .paper-card.origin.selected {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--wov-08);
 }
 
 .origin-badge {
   display: inline-block;
   padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ececec;
+  background: var(--wov-10);
+  color: var(--text);
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
@@ -85,7 +85,7 @@
   display: inline-block;
   padding: 3px 8px;
   background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
+  color: var(--indigo);
   font-size: 9px;
   font-weight: 500;
   text-transform: uppercase;
@@ -98,7 +98,7 @@
 .paper-title {
   font-size: 13px;
   font-weight: 400;
-  color: #d1d5db;
+  color: var(--text-soft);
   margin-bottom: 6px;
   line-height: 1.5;
   display: -webkit-box;
@@ -109,7 +109,7 @@
 
 .paper-meta {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
   line-height: 1.4;
 }
 

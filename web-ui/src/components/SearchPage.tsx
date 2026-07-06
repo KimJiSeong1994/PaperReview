@@ -687,7 +687,7 @@ function SearchPage() {
               <div className="pane-title">
                 Prior & Related Works
                 {selectedPapersForReview.size > 0 && (
-                  <span style={{ marginLeft: '8px', fontSize: '0.9em', color: '#666' }}>
+                  <span style={{ marginLeft: '8px', fontSize: '0.9em', color: 'var(--text-faint)' }}>
                     ({selectedPapersForReview.size} 선택됨)
                   </span>
                 )}
@@ -909,7 +909,7 @@ function SearchPage() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                       }}>
-                        <span style={{ color: '#a5b4fc', fontSize: '13px' }}>
+                        <span style={{ color: 'var(--indigo)', fontSize: '13px' }}>
                           Deep Research 완료 — 결과를 학회 포스터로 변환할 수 있습니다
                         </span>
                         <button

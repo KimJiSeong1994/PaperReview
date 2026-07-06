@@ -7,7 +7,7 @@
 .detail-title {
   font-size: 20px;
   font-weight: 400;
-  color: #ececec;
+  color: var(--text);
   margin-bottom: 12px;
   line-height: 1.4;
   letter-spacing: -0.2px;
@@ -15,7 +15,7 @@
 
 .detail-meta {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -29,22 +29,22 @@
 
 .detail-button {
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #d1d5db;
+  background: var(--wov-05);
+  color: var(--text-soft);
   text-decoration: none;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 400;
   transition: all 0.2s;
   display: inline-block;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--wov-08);
   font-family: 'Pretendard', sans-serif;
 }
 
 .detail-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ececec;
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--wov-08);
+  color: var(--text);
+  border-color: var(--wov-12);
 }
 
 .cite-button {
@@ -53,26 +53,26 @@
 
 .view-paper-button {
   cursor: pointer;
-  background: rgba(165, 180, 252, 0.1) !important;
-  color: #a5b4fc !important;
-  border-color: rgba(165, 180, 252, 0.2) !important;
+  background: var(--ibd-10) !important;
+  color: var(--indigo) !important;
+  border-color: var(--ibd-20) !important;
 }
 
 .view-paper-button:hover {
-  background: rgba(165, 180, 252, 0.18) !important;
-  border-color: rgba(165, 180, 252, 0.35) !important;
-  color: #c7d2fe !important;
+  background: var(--ibd-18) !important;
+  border-color: var(--ibd-35) !important;
+  color: var(--indigo-strong) !important;
 }
 
 .cite-button.copied {
   background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  color: var(--green-strong);
   border-color: rgba(34, 197, 94, 0.3);
 }
 
 .detail-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--wov-08);
   margin: 20px 0;
 }
 
@@ -88,14 +88,14 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-family: 'Pretendard', sans-serif;
 }
 
 .metric-value {
   font-size: 32px;
   font-weight: 400;
-  color: #ececec;
+  color: var(--text);
   letter-spacing: -0.5px;
 }
 
@@ -108,7 +108,7 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 12px;
   font-family: 'Pretendard', sans-serif;
 }
@@ -116,7 +116,7 @@
 .detail-abstract p {
   font-size: 14px;
   line-height: 1.7;
-  color: #d1d5db;
+  color: var(--text-soft);
 }
 
 /* References section */
@@ -129,7 +129,7 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 12px;
   font-family: 'Pretendard', sans-serif;
   display: flex;
@@ -145,7 +145,7 @@
   height: 18px;
   padding: 0 5px;
   background: rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
+  color: var(--indigo);
   font-size: 10px;
   font-weight: 600;
   border-radius: 9px;
@@ -158,15 +158,15 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   padding: 8px 0;
 }
 
 .refs-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #9ca3af;
+  border: 2px solid var(--wov-10);
+  border-top-color: var(--text-muted);
   border-radius: 50%;
   animation: refs-spin 0.6s linear infinite;
 }
@@ -186,25 +186,25 @@
 
 .reference-item {
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--wov-03);
+  border: 1px solid var(--wov-06);
   border-radius: 8px;
   transition: background 0.15s;
 }
 
 .reference-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--wov-06);
 }
 
 .ref-title {
   font-size: 13px;
-  color: #d1d5db;
+  color: var(--text-soft);
   line-height: 1.4;
   margin-bottom: 4px;
 }
 
 .ref-title a {
-  color: #93c5fd;
+  color: var(--blue);
   text-decoration: none;
 }
 
@@ -214,20 +214,20 @@
 
 .ref-meta {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-faint);
   line-height: 1.4;
 }
 
 .refs-empty {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-faint);
   padding: 8px 0;
 }
 
 /* GitHub button */
 .github-button {
   background: rgba(110, 84, 148, 0.15) !important;
-  color: #c4b5fd !important;
+  color: var(--violet) !important;
   border-color: rgba(139, 92, 246, 0.25) !important;
 }
 
@@ -246,7 +246,7 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 12px;
   font-family: 'Pretendard', sans-serif;
   display: flex;
@@ -262,7 +262,7 @@
   height: 18px;
   padding: 0 5px;
   background: rgba(139, 92, 246, 0.2);
-  color: #c4b5fd;
+  color: var(--violet);
   font-size: 10px;
   font-weight: 600;
   border-radius: 9px;
@@ -275,7 +275,7 @@
   margin-left: 6px;
   padding: 1px 6px;
   background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+  color: var(--green);
   font-size: 10px;
   font-weight: 600;
   border-radius: 4px;
@@ -287,7 +287,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 14px;
   padding: 48px;
 }

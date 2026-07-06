@@ -11,8 +11,8 @@
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  background: #1f1f1f;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-elev);
+  border: 1px solid var(--wov-08);
   border-radius: 16px;
   padding: 0 16px 0 20px;
   transition: all 0.2s ease;
@@ -22,8 +22,8 @@
 }
 
 .search-input-wrapper:focus-within {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: #242424;
+  border-color: var(--wov-15);
+  background: var(--bg-elev2);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
@@ -31,7 +31,7 @@
 .search-mode-toggle {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wov-04);
   border-radius: 10px;
   padding: 2px;
   flex-shrink: 0;
@@ -40,7 +40,7 @@
 .mode-btn {
   background: transparent;
   border: none;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 12px;
   font-weight: 500;
   padding: 6px 10px;
@@ -52,17 +52,17 @@
 }
 
 .mode-btn:hover {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .mode-btn.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e5e7eb;
+  background: var(--wov-10);
+  color: var(--text-soft);
 }
 
 .mode-btn-light.active {
   background: rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
+  color: var(--indigo);
 }
 
 .mode-btn.disabled-hint:not(.active) {
@@ -72,7 +72,7 @@
 .search-divider {
   width: 1px;
   height: 24px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--wov-08);
   flex-shrink: 0;
   margin: 0 4px;
 }
@@ -81,7 +81,7 @@
 .lightrag-mode-select {
   background: rgba(99, 102, 241, 0.1);
   border: 1px solid rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
+  color: var(--indigo);
   font-size: 11px;
   font-weight: 500;
   padding: 4px 8px;
@@ -103,8 +103,8 @@
 }
 
 .lightrag-mode-select option {
-  background: #1f1f1f;
-  color: #e5e7eb;
+  background: var(--bg-elev);
+  color: var(--text-soft);
 }
 
 .search-input {
@@ -115,7 +115,7 @@
   font-size: 16px;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   background: transparent;
-  color: #ffffff;
+  color: var(--text-hi);
   outline: none;
   font-weight: 400;
   letter-spacing: -0.2px;
@@ -123,19 +123,19 @@
 }
 
 .search-input::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
   font-weight: 400;
 }
 
 .search-input:disabled {
   cursor: not-allowed;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 
 .search-submit-button {
   background: transparent;
   border: none;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 20px;
   cursor: pointer;
   padding: 8px;
@@ -151,12 +151,12 @@
 }
 
 .search-submit-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: #d1d5db;
+  background: var(--wov-05);
+  color: var(--text-soft);
 }
 
 .search-submit-button:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--wov-08);
 }
 
 .search-submit-button:disabled {
@@ -178,7 +178,7 @@
   margin-top: 8px;
   padding: 8px 14px;
   font-size: 13px;
-  color: #a5b4fc;
+  color: var(--indigo);
   background: rgba(99, 102, 241, 0.06);
   border: 1px solid rgba(99, 102, 241, 0.12);
   border-radius: 10px;
