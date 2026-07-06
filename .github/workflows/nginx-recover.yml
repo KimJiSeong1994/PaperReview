@@ -1,0 +1,68 @@
+name: nginx-recover-https
+
+# One-time, manually-triggered recovery for the HTTPS outage caused by an
+# earlier deploy that overwrote the production TLS config with the HTTP-only
+# reference config. Re-installs the EXISTING certbot cert into nginx (no
+# reissue) and reloads ONLY if `nginx -t` passes. Safe to re-run; delete after.
+on:
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Diagnose and restore HTTPS
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          set -e
+          echo "===================== DIAGNOSTICS ====================="
+          echo "--- certbot certificates ---"
+          sudo certbot certificates 2>/dev/null || echo "(certbot unavailable / no certs)"
+          echo "--- sites-available / sites-enabled ---"
+          ls -la /etc/nginx/sites-available/ /etc/nginx/sites-enabled/ 2>/dev/null || true
+          echo "--- effective 443 listeners BEFORE (expect 0 during outage) ---"
+          sudo nginx -T 2>/dev/null | grep -c 'listen 443' || true
+          TARGET="$(grep -rl 'location = /blog {' /etc/nginx 2>/dev/null | head -1 || true)"
+          echo "TARGET config: $TARGET"
+          [ -n "$TARGET" ] && sudo grep -nE 'listen|server_name|ssl_certificate' "$TARGET" || true
+
+          echo "===================== BACKUP current config ====================="
+          if [ -n "$TARGET" ]; then
+            BK="${TARGET}.pre-recover.$(date +%s)"
+            sudo cp "$TARGET" "$BK" && echo "Backed up current config -> $BK"
+          fi
+
+          echo "===================== RESTORE TLS (certbot install, no reissue) ====================="
+          CERT="$(sudo certbot certificates 2>/dev/null | grep -oE 'Certificate Name: .*' | awk '{print $3}' | head -1 || true)"
+          echo "Detected certificate name: '$CERT'"
+          if [ -z "$CERT" ]; then
+            echo "ERROR: no certbot certificate found; cannot auto-restore. No changes made." >&2
+            exit 1
+          fi
+          sudo certbot install --nginx --cert-name "$CERT" --non-interactive || {
+            echo "ERROR: certbot install failed; NOT reloading." >&2
+            exit 1
+          }
+
+          echo "===================== VALIDATE + RELOAD (guarded) ====================="
+          if sudo nginx -t; then
+            sudo systemctl reload nginx
+            echo "nginx reloaded successfully."
+          else
+            echo "ERROR: nginx -t failed after certbot; NOT reloading (site unchanged)." >&2
+            exit 1
+          fi
+
+          echo "===================== VERIFY from host ====================="
+          echo "443 listeners AFTER: $(sudo nginx -T 2>/dev/null | grep -c 'listen 443')"
+          curl -skI https://jiphyeonjeon.kr/ | head -1 || true
+          echo "category SSR: $(curl -sk https://jiphyeonjeon.kr/blog/category/engineering | grep -c CollectionPage) CollectionPage"
+          SCRIPT
