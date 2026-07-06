@@ -401,13 +401,13 @@ def _build_document(
         f'{css}'
     )
 
-    # Set data-theme before first paint (mirrors web-ui/index.html) so SSR blog
-    # pages honour the saved / OS theme instead of flashing dark until hydration.
+    # Set data-theme before first paint (mirrors web-ui/index.html): the saved
+    # choice, else light by default (dark is opt-in via the header toggle).
     theme_script = (
         "<script>(function(){try{var t=localStorage.getItem('theme');"
-        "if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)')"
-        ".matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}"
-        "catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>"
+        "if(t!=='light'&&t!=='dark'){t='light';}"
+        "document.documentElement.setAttribute('data-theme',t);}"
+        "catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>"
     )
 
     return (
