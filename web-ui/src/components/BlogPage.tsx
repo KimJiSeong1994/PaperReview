@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
+import ThemeToggle from './ThemeToggle';
 import {
   SITE_URL,
   blogCanonical,
@@ -452,6 +453,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           <button className="blog-nav-btn blog-nav-btn-active">Blog</button>
           <button className="blog-nav-btn" onClick={() => navigate('/')}>Search</button>
           <button className="blog-nav-btn" onClick={() => navigate('/mypage')}>My Page</button>
+          <ThemeToggle />
         </div>
       </div>
     </div>
