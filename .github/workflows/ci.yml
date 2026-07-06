@@ -144,6 +144,50 @@ jobs:
           fi
           SCRIPT
 
+      # Step 2.6: 레포의 nginx 사이트 설정(jiphyeonjeon.conf)을 라이브로 동기화.
+      # git reset 로 서버 디스크의 레포 파일은 갱신되지만, /etc/nginx 반영과
+      # reload 는 이 스텝에서 수행한다. 설정이 바뀐 배포에서만 reload 한다.
+      - name: Sync nginx site config
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          set -e
+          REPO_CONF="$HOME/PaperReviewAgent/deploy/nginx/jiphyeonjeon.conf"
+          if [ ! -f "$REPO_CONF" ]; then
+            echo "Repo nginx conf not found ($REPO_CONF); skipping."
+            exit 0
+          fi
+          # Locate the live site config (the file that defines the /blog SSR block).
+          TARGET="$(grep -rl 'location = /blog {' /etc/nginx 2>/dev/null | head -1 || true)"
+          if [ -z "$TARGET" ]; then
+            echo "Could not locate the live nginx site config under /etc/nginx; skipping (apply manually)." >&2
+            exit 0
+          fi
+          echo "Live nginx site config: $TARGET"
+          # Copy only when the target is a standalone file that differs. A symlink
+          # to the repo file is already updated by the earlier 'git reset --hard'.
+          if [ ! -L "$TARGET" ] && ! sudo cmp -s "$REPO_CONF" "$TARGET"; then
+            sudo cp "$REPO_CONF" "$TARGET"
+            echo "Copied repo config into $TARGET."
+          fi
+          # Reload only when the repo config changed since the last deploy, so an
+          # unchanged deploy never touches nginx (and cannot fail on it).
+          HASH_FILE="/tmp/jiphyeonjeon_nginx.sha"
+          NEW_HASH="$(sha256sum "$REPO_CONF" | awk '{print $1}')"
+          OLD_HASH="$(cat "$HASH_FILE" 2>/dev/null || echo none)"
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            if sudo nginx -t; then
+              sudo systemctl reload nginx
+              echo "$NEW_HASH" > "$HASH_FILE"
+              echo "nginx reloaded (site config changed)."
+            else
+              echo "nginx -t failed; NOT reloading." >&2
+              exit 1
+            fi
+          else
+            echo "nginx site config unchanged since last deploy; skip reload."
+          fi
+          SCRIPT
+
       # Step 3: 서버 재시작 + 헬스체크
       - name: Restart server
         run: |
