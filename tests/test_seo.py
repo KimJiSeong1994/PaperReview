@@ -170,6 +170,14 @@ def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
     assert "disambiguatingDescription" in html
 
 
+def test_ssr_sets_theme_before_paint(client: TestClient) -> None:
+    """SSR blog pages set data-theme early so light/OS theme isn't lost pre-hydration."""
+    for path in ("/blog", f"/blog/{PUBLISHED_SLUG}", "/blog/category/engineering"):
+        html = client.get(path).text
+        assert "data-theme" in html, f"missing theme script on {path}"
+        assert "prefers-color-scheme" in html, f"missing OS fallback on {path}"
+
+
 def test_ssr_post_has_single_h1(client: TestClient) -> None:
     """The duplicate leading content H1 is stripped so only the title H1 remains."""
     html = client.get(f"/blog/{PUBLISHED_SLUG}").text
