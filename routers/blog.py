@@ -29,6 +29,7 @@ from filelock import FileLock
 from pydantic import BaseModel, Field
 
 from .deps import get_admin_user, get_optional_user
+from .indexnow import post_url as _indexnow_post_url, submit_async as _indexnow_submit_async
 
 logger = logging.getLogger(__name__)
 
@@ -363,6 +364,8 @@ async def create_post(
         _save_posts(posts)
 
     logger.info("Blog post created: id=%s slug=%s author=%s", post_id, slug, admin)
+    if post["published"]:
+        _indexnow_submit_async([_indexnow_post_url(slug)])
     return PostDetail(**post)
 
 
@@ -402,6 +405,8 @@ async def update_post(
         _save_posts(posts)
 
     logger.info("Blog post updated: id=%s by=%s", post_id, admin)
+    if post.get("published"):
+        _indexnow_submit_async([_indexnow_post_url(post["slug"])])
     return PostDetail(**post)
 
 
