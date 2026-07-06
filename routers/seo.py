@@ -375,7 +375,10 @@ def _build_document(
     alternate_locale = "en_US" if locale == "ko_KR" else "ko_KR"
 
     robots_meta = (
-        '<meta name="robots" content="noindex,nofollow">\n    ' if noindex else ""
+        '<meta name="robots" content="noindex,nofollow">\n    '
+        if noindex
+        else '<meta name="robots" content="index, follow, max-image-preview:large, '
+        'max-snippet:-1, max-video-preview:-1">\n    '
     )
     ld_block = f"{_json_ld_script(json_ld)}\n    " if json_ld else ""
 
