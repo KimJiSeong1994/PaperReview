@@ -50,6 +50,12 @@ from routers import (
     seo_router,
 )
 from routers.deps import api_key, limiter
+from routers.indexnow import (
+    INDEXNOW_ENABLED,
+    published_urls as indexnow_published_urls,
+    router as indexnow_router,
+    submit_async as indexnow_submit_async,
+)
 
 # ── App setup ──────────────────────────────────────────────────────────
 
@@ -147,6 +153,11 @@ async def lifespan(app: FastAPI):
         )
     except Exception:
         logger.exception("failed to register main loop with event bus")
+
+    # Notify IndexNow (Bing/Yandex/…) of public URLs on startup/deploy so
+    # git-based blog edits get picked up without an API call.
+    if INDEXNOW_ENABLED:
+        indexnow_submit_async(indexnow_published_urls())
 
     yield
 
@@ -299,6 +310,7 @@ app.include_router(curriculum_router)
 app.include_router(pdf_proxy_router)
 app.include_router(autofigure_router)
 app.include_router(blog_router)
+app.include_router(indexnow_router)
 app.include_router(topology_router)
 app.include_router(me_router)
 app.include_router(recommendations_router)
