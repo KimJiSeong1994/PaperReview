@@ -3,8 +3,8 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #0f0f0f;
-  color: #ececec;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .curriculum-header {
@@ -12,8 +12,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0f0f0f;
+  border-bottom: 1px solid var(--wov-08);
+  background: var(--bg);
 }
 
 .curriculum-header-left {
@@ -24,8 +24,8 @@
 
 .curriculum-back-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #d1d5db;
+  border: 1px solid var(--wov-12);
+  color: var(--text-soft);
   padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -34,14 +34,14 @@
 }
 
 .curriculum-back-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ececec;
+  background: var(--wov-06);
+  color: var(--text);
 }
 
 .curriculum-header-title {
   font-size: 18px;
   font-weight: 600;
-  color: #ececec;
+  color: var(--text);
 }
 
 .curriculum-content {
@@ -58,9 +58,9 @@
   min-width: 320px;
   display: flex;
   flex-direction: column;
-  background: #181818;
+  background: var(--bg-input);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--wov-08);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 6px 0;
@@ -80,18 +80,18 @@
   user-select: none;
   font-size: 13px;
   font-weight: 600;
-  color: #d1d5db;
+  color: var(--text-soft);
   transition: background 0.15s;
 }
 
 .cur-tree-folder-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wov-04);
 }
 
 .cur-tree-chevron {
   flex-shrink: 0;
   transition: transform 0.2s;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 
 .cur-tree-folder-row.open .cur-tree-chevron {
@@ -111,8 +111,8 @@
 
 .cur-tree-folder-badge {
   margin-left: auto;
-  background: rgba(165, 180, 252, 0.12);
-  color: #a5b4fc;
+  background: var(--ibd-12);
+  color: var(--indigo);
   font-size: 10px;
   padding: 1px 7px;
   border-radius: 10px;
@@ -122,14 +122,14 @@
 /* ── Tree: Children container ── */
 .cur-tree-children {
   padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid var(--wov-06);
   margin-left: 16px;
 }
 
 .cur-tree-empty {
   padding: 10px 12px;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-faint);
   line-height: 1.5;
 }
 
@@ -146,11 +146,11 @@
 }
 
 .cur-tree-file:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wov-04);
 }
 
 .cur-tree-file.active {
-  background: rgba(165, 180, 252, 0.08);
+  background: var(--ibd-08);
 }
 
 .cur-tree-guide-line {
@@ -159,12 +159,12 @@
   top: 50%;
   width: 6px;
   height: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--wov-06);
 }
 
 .cur-tree-file-icon {
   flex-shrink: 0;
-  color: #818cf8;
+  color: var(--indigo-mid);
   opacity: 0.7;
 }
 
@@ -181,7 +181,7 @@
 .cur-tree-file-name {
   font-size: 12px;
   font-weight: 500;
-  color: #d1d5db;
+  color: var(--text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -189,7 +189,7 @@
 }
 
 .cur-tree-file.active .cur-tree-file-name {
-  color: #a5b4fc;
+  color: var(--indigo);
   font-weight: 600;
 }
 
@@ -198,7 +198,7 @@
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-faint);
   margin-top: 1px;
 }
 
@@ -229,11 +229,11 @@
 }
 
 .cur-fork-btn {
-  color: #a5b4fc;
+  color: var(--indigo);
 }
 
 .cur-fork-btn:hover {
-  background: rgba(165, 180, 252, 0.15);
+  background: var(--ibd-15);
 }
 
 .cur-fork-btn:disabled {
@@ -242,11 +242,11 @@
 }
 
 .cur-delete-btn {
-  color: #6b7280;
+  color: var(--text-faint);
 }
 
 .cur-delete-btn:hover {
-  color: #f87171;
+  color: var(--danger);
   background: rgba(248, 113, 113, 0.1);
 }
 
@@ -257,12 +257,12 @@
 }
 
 .cur-module-item .cur-tree-file-icon {
-  color: #9ca3af;
+  color: var(--text-muted);
   opacity: 0.5;
 }
 
 .cur-module-item.active .cur-tree-file-icon {
-  color: #818cf8;
+  color: var(--indigo-mid);
   opacity: 0.8;
 }
 
@@ -270,7 +270,7 @@
   display: inline-block;
   font-size: 10px;
   font-weight: 700;
-  color: #818cf8;
+  color: var(--indigo-mid);
   background: rgba(129, 140, 248, 0.1);
   padding: 0 5px;
   border-radius: 3px;
@@ -280,7 +280,7 @@
 
 .cur-module-progress-badge {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-faint);
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -294,14 +294,14 @@
 
 .cur-tree-progress-text {
   font-size: 10px;
-  color: #6b7280;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
 .curriculum-progress-bar {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--wov-06);
   border-radius: 2px;
   overflow: hidden;
   margin-top: 6px;
@@ -309,14 +309,14 @@
 
 .curriculum-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #818cf8, #a5b4fc);
+  background: linear-gradient(90deg, var(--indigo-mid), var(--indigo));
   border-radius: 2px;
   transition: width 0.3s ease;
 }
 
 .curriculum-progress-text {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
@@ -333,17 +333,17 @@
 
 .curriculum-badge.advanced {
   background: rgba(167, 139, 250, 0.12);
-  color: #a78bfa;
+  color: var(--violet);
 }
 
 .curriculum-badge.intermediate {
   background: rgba(129, 140, 248, 0.12);
-  color: #93a0f8;
+  color: var(--indigo-mid);
 }
 
 .curriculum-badge.beginner {
   background: rgba(94, 234, 212, 0.10);
-  color: #5eead4;
+  color: var(--teal);
 }
 
 /* (Module tree styles moved to cur-tree-* above) */
@@ -351,15 +351,15 @@
 /* Generate button */
 .curriculum-generate-section {
   padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--wov-06);
 }
 
 .curriculum-generate-btn {
   width: 100%;
   padding: 10px 16px;
-  background: rgba(165, 180, 252, 0.1);
-  border: 1px solid rgba(165, 180, 252, 0.2);
-  color: #a5b4fc;
+  background: var(--ibd-10);
+  border: 1px solid var(--ibd-20);
+  color: var(--indigo);
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
@@ -368,7 +368,7 @@
 }
 
 .curriculum-generate-btn:hover {
-  background: rgba(165, 180, 252, 0.15);
+  background: var(--ibd-15);
 }
 
 .curriculum-generate-btn:disabled {
@@ -391,8 +391,8 @@
 }
 
 .curriculum-generate-modal {
-  background: #1e1e1e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-elev);
+  border: 1px solid var(--wov-10);
   border-radius: 12px;
   padding: 24px;
   width: 420px;
@@ -402,14 +402,14 @@
 .curriculum-generate-modal h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #ececec;
+  color: var(--text);
   margin: 0 0 16px;
 }
 
 .curriculum-generate-modal label {
   display: block;
   font-size: 13px;
-  color: #d1d5db;
+  color: var(--text-soft);
   margin-bottom: 4px;
 }
 
@@ -417,10 +417,10 @@
 .curriculum-generate-modal select {
   width: 100%;
   padding: 8px 12px;
-  background: #0f0f0f;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg);
+  border: 1px solid var(--wov-10);
   border-radius: 8px;
-  color: #ececec;
+  color: var(--text);
   font-size: 13px;
   margin-bottom: 12px;
   box-sizing: border-box;
@@ -442,13 +442,13 @@
 }
 
 .curriculum-generate-cancel-btn {
-  background: rgba(255, 255, 255, 0.06);
-  color: #d1d5db;
+  background: var(--wov-06);
+  color: var(--text-soft);
 }
 
 .curriculum-generate-submit-btn {
-  background: rgba(165, 180, 252, 0.15);
-  color: #a5b4fc;
+  background: var(--ibd-15);
+  color: var(--indigo);
   font-weight: 600;
 }
 
@@ -462,27 +462,27 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #181818;
+  background: var(--bg-input);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--wov-08);
   overflow: hidden;
 }
 
 .curriculum-module-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--wov-06);
 }
 
 .curriculum-module-header-title {
   font-size: 18px;
   font-weight: 600;
-  color: #ececec;
+  color: var(--text);
   margin-bottom: 6px;
 }
 
 .curriculum-module-header-desc {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 10px;
 }
 
@@ -510,7 +510,7 @@
 .curriculum-topic-title {
   font-size: 14px;
   font-weight: 600;
-  color: #d1d5db;
+  color: var(--text-soft);
   margin-bottom: 12px;
   padding-left: 4px;
 }
@@ -522,20 +522,20 @@
   gap: 12px;
   padding: 12px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--wov-06);
   margin-bottom: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .curriculum-paper-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--wov-03);
+  border-color: var(--wov-10);
 }
 
 .curriculum-paper-card.selected {
-  background: rgba(165, 180, 252, 0.06);
-  border-color: rgba(165, 180, 252, 0.2);
+  background: var(--ibd-06);
+  border-color: var(--ibd-20);
 }
 
 .curriculum-paper-card.read {
@@ -551,7 +551,7 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--wov-20);
   background: transparent;
   cursor: pointer;
   display: flex;
@@ -562,8 +562,8 @@
 }
 
 .curriculum-paper-checkbox.checked {
-  background: #818cf8;
-  border-color: #818cf8;
+  background: var(--indigo-mid);
+  border-color: var(--indigo-mid);
 }
 
 .curriculum-paper-checkbox svg {
@@ -582,20 +582,20 @@
 .curriculum-paper-title {
   font-size: 13px;
   font-weight: 500;
-  color: #ececec;
+  color: var(--text);
   margin-bottom: 4px;
   line-height: 1.4;
 }
 
 .curriculum-paper-meta {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .curriculum-paper-context {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-faint);
   font-style: italic;
   line-height: 1.4;
 }
@@ -615,26 +615,26 @@
 
 .curriculum-category-badge.required {
   background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
+  color: var(--indigo);
 }
 
 .curriculum-category-badge.optional {
   background: rgba(148, 163, 184, 0.12);
-  color: #94a3b8;
+  color: var(--text-slate);
 }
 
 .curriculum-category-badge.supplementary {
-  background: rgba(255, 255, 255, 0.08);
-  color: #9ca3af;
+  background: var(--wov-08);
+  color: var(--text-muted);
 }
 
 /* ── Detail Panel (right) ──────────────────────────────────────────── */
 .curriculum-detail {
   width: 360px;
   min-width: 300px;
-  background: #181818;
+  background: var(--bg-input);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--wov-08);
   overflow-y: auto;
   padding: 20px;
 }
@@ -644,7 +644,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 14px;
   text-align: center;
   padding: 40px;
@@ -654,26 +654,26 @@
 .curriculum-detail-title {
   font-size: 16px;
   font-weight: 600;
-  color: #ececec;
+  color: var(--text);
   margin-bottom: 12px;
   line-height: 1.4;
 }
 
 .curriculum-detail-authors {
   font-size: 13px;
-  color: #d1d5db;
+  color: var(--text-soft);
   margin-bottom: 8px;
 }
 
 .curriculum-detail-venue {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 16px;
 }
 
 .curriculum-detail-context-box {
-  background: rgba(165, 180, 252, 0.06);
-  border: 1px solid rgba(165, 180, 252, 0.15);
+  background: var(--ibd-06);
+  border: 1px solid var(--ibd-15);
   border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 20px;
@@ -682,7 +682,7 @@
 .curriculum-detail-context-label {
   font-size: 11px;
   font-weight: 600;
-  color: #a5b4fc;
+  color: var(--indigo);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
@@ -690,7 +690,7 @@
 
 .curriculum-detail-context-text {
   font-size: 13px;
-  color: #d1d5db;
+  color: var(--text-soft);
   line-height: 1.5;
 }
 
@@ -703,9 +703,9 @@
 .curriculum-detail-action-btn {
   padding: 10px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #d1d5db;
+  border: 1px solid var(--wov-10);
+  background: var(--wov-04);
+  color: var(--text-soft);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
@@ -723,8 +723,8 @@
 }
 
 .curriculum-detail-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ececec;
+  background: var(--wov-08);
+  color: var(--text);
 }
 
 .curriculum-detail-action-btn:hover svg {
@@ -732,27 +732,27 @@
 }
 
 .curriculum-detail-action-btn.primary {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #d1d5db;
+  background: var(--wov-04);
+  border-color: var(--wov-10);
+  color: var(--text-soft);
 }
 
 .curriculum-detail-action-btn.primary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ececec;
+  background: var(--wov-08);
+  color: var(--text);
 }
 
 /* Course overview in detail panel */
 .curriculum-detail-overview h3 {
   font-size: 15px;
   font-weight: 600;
-  color: #ececec;
+  color: var(--text);
   margin: 0 0 8px;
 }
 
 .curriculum-detail-overview p {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   line-height: 1.6;
   margin: 0 0 16px;
 }
@@ -764,7 +764,7 @@
 .curriculum-detail-prereqs h4 {
   font-size: 12px;
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 8px;
@@ -778,13 +778,13 @@
 
 .curriculum-detail-prereqs li {
   font-size: 13px;
-  color: #d1d5db;
+  color: var(--text-soft);
   padding: 4px 0;
 }
 
 .curriculum-detail-prereqs li::before {
   content: '•';
-  color: #6b7280;
+  color: var(--text-faint);
   margin-right: 8px;
 }
 
@@ -796,20 +796,20 @@
 .curriculum-generate-step-label {
   font-size: 13px;
   font-weight: 600;
-  color: #a5b4fc;
+  color: var(--indigo);
   margin-bottom: 4px;
 }
 
 .curriculum-generate-progress-msg {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-top: 8px;
   line-height: 1.4;
 }
 
 .curriculum-generate-error-msg {
   font-size: 13px;
-  color: #f87171;
+  color: var(--danger);
   background: rgba(248, 113, 113, 0.08);
   border: 1px solid rgba(248, 113, 113, 0.2);
   border-radius: 8px;
@@ -821,14 +821,14 @@
 .curriculum-generate-progress-detail {
   margin-top: 12px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--wov-03);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--wov-06);
 }
 
 .curriculum-generate-progress-module {
   font-size: 12px;
-  color: #d1d5db;
+  color: var(--text-soft);
   padding: 3px 0;
 }
 
@@ -837,7 +837,7 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  background: #a5b4fc;
+  background: var(--indigo);
   border-radius: 50%;
   margin-right: 8px;
   vertical-align: middle;
@@ -846,15 +846,15 @@
 .curriculum-generate-progress-refs {
   margin-top: 12px;
   padding: 10px 12px;
-  background: rgba(165, 180, 252, 0.04);
+  background: var(--ibd-04);
   border-radius: 8px;
-  border: 1px solid rgba(165, 180, 252, 0.1);
+  border: 1px solid var(--ibd-10);
 }
 
 .curriculum-generate-progress-refs-label {
   font-size: 11px;
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
@@ -862,7 +862,7 @@
 
 .curriculum-generate-progress-ref {
   font-size: 11px;
-  color: #d1d5db;
+  color: var(--text-soft);
   padding: 2px 0;
 }
 
@@ -872,14 +872,14 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 8px 0 4px;
   transition: color 0.2s;
 }
 
 .curriculum-generate-advanced-toggle:hover {
-  color: #d1d5db;
+  color: var(--text-soft);
 }
 
 .curriculum-generate-advanced-body {
@@ -889,10 +889,10 @@
 .curriculum-generate-modal textarea {
   width: 100%;
   padding: 8px 12px;
-  background: #0f0f0f;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg);
+  border: 1px solid var(--wov-10);
   border-radius: 8px;
-  color: #ececec;
+  color: var(--text);
   font-size: 13px;
   margin-bottom: 12px;
   box-sizing: border-box;
@@ -913,7 +913,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 14px;
 }
 
@@ -922,7 +922,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -948,7 +948,7 @@
 .curriculum-module-tree::-webkit-scrollbar-thumb,
 .curriculum-papers-scroll::-webkit-scrollbar-thumb,
 .curriculum-detail::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--wov-10);
   border-radius: 3px;
 }
 
@@ -1020,17 +1020,17 @@
 
 /* ── Share button in sidebar ──────────────────────────────────────── */
 .cur-tree-action-btn.cur-share-btn {
-  color: #94a3b8;
+  color: var(--text-slate);
 }
 .cur-tree-action-btn.cur-share-btn:hover {
-  color: #818cf8;
+  color: var(--indigo-mid);
   background: rgba(99, 102, 241, 0.12);
 }
 .cur-tree-action-btn.cur-share-btn.active {
-  color: #818cf8;
+  color: var(--indigo-mid);
 }
 .cur-tree-action-btn.cur-share-btn.active:hover {
-  color: #ef4444;
+  color: var(--danger-strong);
   background: rgba(239, 68, 68, 0.12);
 }
 
@@ -1038,7 +1038,7 @@
   padding: 8px 12px;
   margin: 8px 12px;
   background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
+  color: var(--indigo);
   border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: 6px;
   font-size: 0.78rem;
@@ -1054,8 +1054,8 @@
 /* ── Shared Curriculum View ───────────────────────────────────────── */
 .shared-cur {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #ececec;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
 }
@@ -1068,14 +1068,14 @@
   justify-content: center;
   min-height: 80vh;
   gap: 16px;
-  color: #6b7280;
+  color: var(--text-faint);
   font-size: 0.88rem;
 }
 .shared-cur-loading-spinner {
   width: 28px;
   height: 28px;
-  border: 2.5px solid #1e1e1e;
-  border-top-color: #818cf8;
+  border: 2.5px solid var(--bg-elev);
+  border-top-color: var(--indigo-mid);
   border-radius: 50%;
   animation: shared-cur-spin 0.8s linear infinite;
 }
@@ -1094,40 +1094,40 @@
   padding: 24px;
 }
 .shared-cur-error-icon {
-  color: #4b5563;
+  color: var(--text-dim);
   margin-bottom: 20px;
 }
 .shared-cur-error-page h2 {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-soft);
   margin: 0 0 8px;
 }
 .shared-cur-error-page p {
   font-size: 0.88rem;
-  color: #6b7280;
+  color: var(--text-faint);
   margin: 0 0 24px;
 }
 .shared-cur-home-btn {
   padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #9ca3af;
-  border: 1px solid #262626;
+  background: var(--wov-06);
+  color: var(--text-muted);
+  border: 1px solid var(--bg-elev2);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.82rem;
   transition: background 0.15s;
 }
 .shared-cur-home-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
+  background: var(--wov-10);
+  color: var(--text-soft);
 }
 
 /* Header */
 .shared-cur-header {
   padding: 12px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(10, 10, 10, 0.95);
+  border-bottom: 1px solid var(--wov-05);
+  background: var(--panel-10-95);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -1162,7 +1162,7 @@
 }
 .shared-cur-badge {
   background: rgba(99, 102, 241, 0.12);
-  color: #a5b4fc;
+  color: var(--indigo);
   font-size: 0.68rem;
   font-weight: 500;
   padding: 3px 10px;
@@ -1173,7 +1173,7 @@
 /* Hero */
 .shared-cur-hero {
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.06) 0%, transparent 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--wov-04);
   padding: 40px 24px 36px;
 }
 .shared-cur-hero-inner {
@@ -1188,19 +1188,19 @@
 }
 .shared-cur-hero-uni {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--text-faint);
 }
 .shared-cur-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #f5f5f5;
+  color: var(--text-strong);
   margin: 0 0 10px;
   line-height: 1.3;
   letter-spacing: -0.3px;
 }
 .shared-cur-desc {
   font-size: 0.88rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   line-height: 1.55;
   margin: 0 0 16px;
   max-width: 640px;
@@ -1216,21 +1216,21 @@
   align-items: center;
   gap: 6px;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--text-faint);
 }
-.shared-cur-stat svg { color: #4b5563; }
+.shared-cur-stat svg { color: var(--text-dim); }
 
 /* Prerequisites */
 .shared-cur-prereqs {
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--wov-04);
 }
 .shared-cur-prereqs-label {
   display: block;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -1242,9 +1242,9 @@
 }
 .shared-cur-prereq-chip {
   font-size: 0.75rem;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid #1e1e1e;
+  color: var(--text-muted);
+  background: var(--wov-04);
+  border: 1px solid var(--bg-elev);
   padding: 3px 10px;
   border-radius: 12px;
 }
@@ -1257,7 +1257,7 @@
   margin-top: 20px;
   padding: 9px 22px;
   background: rgba(99, 102, 241, 0.12);
-  color: #a5b4fc;
+  color: var(--indigo);
   border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: 8px;
   cursor: pointer;
@@ -1285,10 +1285,10 @@
   gap: 8px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #d0d0d0;
+  color: var(--text-soft);
   margin: 0 0 16px;
 }
-.shared-cur-section-title svg { color: #4b5563; }
+.shared-cur-section-title svg { color: var(--text-dim); }
 
 /* Module list */
 .shared-cur-modules {
@@ -1297,25 +1297,25 @@
   gap: 6px;
 }
 .shared-cur-module {
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--bg-elev);
   border-radius: 10px;
   overflow: hidden;
   transition: border-color 0.15s;
 }
 .shared-cur-module.expanded {
-  border-color: #262626;
+  border-color: var(--bg-elev2);
 }
 .shared-cur-module-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: #111;
+  background: var(--bg);
   cursor: pointer;
   transition: background 0.15s;
 }
 .shared-cur-module-header:hover {
-  background: #141414;
+  background: var(--bg);
 }
 .shared-cur-module-left {
   display: flex;
@@ -1331,7 +1331,7 @@
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #818cf8;
+  color: var(--indigo-mid);
   background: rgba(99, 102, 241, 0.08);
   border: 1px solid rgba(99, 102, 241, 0.15);
   border-radius: 8px;
@@ -1343,18 +1343,18 @@
 .shared-cur-module-name {
   font-size: 0.88rem;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--text-soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .shared-cur-module-sub {
   font-size: 0.72rem;
-  color: #4b5563;
+  color: var(--text-dim);
   margin-top: 2px;
 }
 .shared-cur-module-chevron {
-  color: #4b5563;
+  color: var(--text-dim);
   flex-shrink: 0;
   transition: transform 0.2s;
 }
@@ -1365,12 +1365,12 @@
 /* Module body */
 .shared-cur-module-body {
   padding: 16px 16px 20px;
-  background: #0d0d0d;
-  border-top: 1px solid #1a1a1a;
+  background: var(--bg);
+  border-top: 1px solid var(--bg-elev);
 }
 .shared-cur-module-desc {
   font-size: 0.82rem;
-  color: #6b7280;
+  color: var(--text-faint);
   line-height: 1.45;
   margin: 0 0 16px;
   padding-left: 2px;
@@ -1391,20 +1391,20 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #818cf8;
+  background: var(--indigo-mid);
   flex-shrink: 0;
 }
 .shared-cur-topic-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #c4b5fd;
+  color: var(--violet);
   margin: 0;
   flex: 1;
 }
 .shared-cur-topic-count {
   font-size: 0.68rem;
-  color: #4b5563;
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+  background: var(--wov-03);
   padding: 2px 7px;
   border-radius: 8px;
 }
@@ -1415,7 +1415,7 @@
   flex-direction: column;
   gap: 4px;
   padding-left: 14px;
-  border-left: 1px solid #1a1a1a;
+  border-left: 1px solid var(--bg-elev);
 }
 .shared-cur-paper {
   padding: 10px 12px;
@@ -1423,7 +1423,7 @@
   transition: background 0.12s;
 }
 .shared-cur-paper:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--wov-02);
 }
 .shared-cur-paper-row {
   display: flex;
@@ -1437,18 +1437,18 @@
   margin-top: 5px;
   flex-shrink: 0;
 }
-.shared-cur-cat-dot.cat-required { background: #a5b4fc; }
-.shared-cur-cat-dot.cat-optional { background: #94a3b8; }
-.shared-cur-cat-dot.cat-supplementary { background: #4b5563; }
+.shared-cur-cat-dot.cat-required { background: var(--indigo); }
+.shared-cur-cat-dot.cat-optional { background: var(--text-slate); }
+.shared-cur-cat-dot.cat-supplementary { background: var(--text-dim); }
 .shared-cur-paper-title {
   font-size: 0.84rem;
   font-weight: 500;
-  color: #d4d4d4;
+  color: var(--text-soft);
   line-height: 1.35;
 }
 .shared-cur-paper-meta {
   font-size: 0.75rem;
-  color: #4b5563;
+  color: var(--text-dim);
   margin-top: 4px;
   padding-left: 15px;
 }
@@ -1456,13 +1456,13 @@
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--wov-03);
   border-radius: 3px;
   font-size: 0.72rem;
 }
 .shared-cur-paper-context {
   font-size: 0.76rem;
-  color: #6b7280;
+  color: var(--text-faint);
   margin-top: 5px;
   padding-left: 15px;
   line-height: 1.4;
@@ -1482,12 +1482,12 @@
   gap: 8px;
   font-size: 0.8rem;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid #1a1a1a;
+  background: var(--wov-02);
+  border: 1px solid var(--bg-elev);
   border-radius: 6px;
 }
 .shared-cur-ref-uni {
-  color: #818cf8;
+  color: var(--indigo-mid);
   font-weight: 600;
   font-size: 0.72rem;
   background: rgba(99, 102, 241, 0.08);
@@ -1496,23 +1496,23 @@
   flex-shrink: 0;
 }
 .shared-cur-ref-name {
-  color: #9ca3af;
+  color: var(--text-muted);
   flex: 1;
 }
 .shared-cur-ref-link {
-  color: #4b5563;
+  color: var(--text-dim);
   transition: color 0.15s;
   flex-shrink: 0;
 }
-.shared-cur-ref-link:hover { color: #818cf8; }
+.shared-cur-ref-link:hover { color: var(--indigo-mid); }
 
 /* Footer */
 .shared-cur-footer {
   text-align: center;
   padding: 20px;
   font-size: 0.72rem;
-  color: #2a2a2a;
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--bg-elev2);
+  border-top: 1px solid var(--wov-03);
 }
 
 /* Mobile responsive */
@@ -1528,15 +1528,15 @@
 
 /* ── Deep Review ───────────────────────────────────────────────────── */
 .curriculum-detail-action-btn.deep-review {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #d1d5db;
+  background: var(--wov-04);
+  border-color: var(--wov-10);
+  color: var(--text-soft);
   font-weight: 500;
 }
 
 .curriculum-detail-action-btn.deep-review:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ececec;
+  background: var(--wov-08);
+  color: var(--text);
 }
 
 .curriculum-detail-action-btn.deep-review:disabled {
@@ -1547,14 +1547,14 @@
 .curriculum-detail-action-btn.deep-review.success {
   background: rgba(52, 211, 153, 0.06);
   border-color: rgba(52, 211, 153, 0.2);
-  color: #6ee7b7;
+  color: var(--green);
 }
 
 .curriculum-btn-spinner {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(209, 213, 219, 0.25);
-  border-top-color: #d1d5db;
+  border-top-color: var(--text-soft);
   border-radius: 50%;
   animation: curriculum-spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -1566,18 +1566,18 @@
   gap: 8px;
   margin-top: 12px;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--wov-03);
+  border: 1px solid var(--wov-08);
   border-radius: 8px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .curriculum-review-progress-spinner {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(209, 213, 219, 0.2);
-  border-top-color: #9ca3af;
+  border-top-color: var(--text-muted);
   border-radius: 50%;
   animation: curriculum-spin 0.8s linear infinite;
   flex-shrink: 0;

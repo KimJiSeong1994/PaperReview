@@ -343,23 +343,24 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       ...(selectedTextTrace ? [selectedTextTrace] : []),
     ].filter(Boolean) as Data[];
 
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const plotLayout: Partial<Layout> = {
       showlegend: false,
       hovermode: 'closest',
       margin: { l: 0, r: 0, t: 10, b: 10 },
-      xaxis: { 
-        visible: false, 
+      xaxis: {
+        visible: false,
         range: [-1.2, 1.2],
         fixedrange: false, // Allow zoom/pan
       },
-      yaxis: { 
-        visible: false, 
+      yaxis: {
+        visible: false,
         range: [-1.2, 1.2],
         fixedrange: false, // Allow zoom/pan
       },
-      plot_bgcolor: '#181818',
-      paper_bgcolor: '#181818',
-      font: { color: '#ececec', family: 'Roboto, sans-serif' },
+      plot_bgcolor: isLight ? '#ffffff' : '#181818',
+      paper_bgcolor: isLight ? '#ffffff' : '#181818',
+      font: { color: isLight ? '#1f2937' : '#ececec', family: 'Roboto, sans-serif' },
       height: 620,
       dragmode: 'pan', // Enable pan mode for dragging
     };
