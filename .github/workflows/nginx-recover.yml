@@ -52,6 +52,30 @@ jobs:
             exit 1
           }
 
+          echo "===================== DIAGNOSE homepage 500 ====================="
+          echo "--- recent nginx error log ---"
+          sudo tail -n 15 /var/log/nginx/error.log 2>/dev/null || true
+          echo "--- root directive in target ---"
+          sudo grep -nE '^[[:space:]]*root[[:space:]]' "$TARGET" || true
+
+          echo "===================== FIX SPA root path if wrong ====================="
+          # Reference config ships root=/home/ec2-user/... which may not match the
+          # real deploy path; then try_files can't find index.html -> 500 at '/'.
+          REAL_DIST="$(ls -d /home/*/PaperReviewAgent/web-ui/dist 2>/dev/null | head -1 || true)"
+          CONF_ROOT="$(sudo grep -oE '^[[:space:]]*root[[:space:]]+[^;]+' "$TARGET" | head -1 | awk '{print $2}')"
+          echo "conf root='$CONF_ROOT' | real dist='$REAL_DIST'"
+          if [ -n "$CONF_ROOT" ] && [ -f "$CONF_ROOT/index.html" ]; then
+            echo "index.html present at conf root."
+          else
+            echo "index.html MISSING at conf root -> this is the 500 cause."
+          fi
+          if [ -n "$REAL_DIST" ] && [ -f "$REAL_DIST/index.html" ] && [ "$CONF_ROOT" != "$REAL_DIST" ]; then
+            sudo sed -i "s#root ${CONF_ROOT};#root ${REAL_DIST};#" "$TARGET"
+            echo "Patched SPA root: $CONF_ROOT -> $REAL_DIST"
+          else
+            echo "SPA root not patched (already correct or real dist not found)."
+          fi
+
           echo "===================== VALIDATE + RELOAD (guarded) ====================="
           if sudo nginx -t; then
             sudo systemctl reload nginx
