@@ -573,6 +573,7 @@ async def blog_index_ssr() -> HTMLResponse:
 
     published = [p for p in posts if p.get("published")]
     published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    default_category = "engineering"
 
     def _index_section(cat: str) -> str:
         label, _desc = BLOG_CATEGORIES[cat]
@@ -591,7 +592,9 @@ async def blog_index_ssr() -> HTMLResponse:
             f"<ul>{items}</ul></section>"
         )
 
-    sections = "".join(_index_section(cat) for cat in BLOG_CATEGORIES)
+    # /blog defaults to the Engineering category; other categories remain
+    # available through their explicit /blog/category/<category> hubs.
+    sections = _index_section(default_category)
     body = (
         '<div class="blog-container"><div class="blog-content">'
         f"<h1>Blog</h1>{sections}"

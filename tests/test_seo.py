@@ -212,6 +212,13 @@ def test_blog_index_grouped_by_category(client: TestClient) -> None:
     assert ">Engineering</a>" in html
 
 
+def test_blog_index_defaults_to_engineering_category(client: TestClient) -> None:
+    """The /blog index defaults to the Engineering category hub content."""
+    html = client.get("/blog").text
+    assert ">Engineering</a>" in html
+    assert "/blog/category/engineering" in html
+
+
 def test_category_hub_renders_and_self_canonicalizes(client: TestClient) -> None:
     resp = client.get("/blog/category/engineering")
     assert resp.status_code == 200
