@@ -1,6 +1,153 @@
 {
   "posts": [
     {
+      "id": "matchsum2026",
+      "title": "Extractive Summarization as Text Matching",
+      "slug": "extractive-summarization-as-text-matching-matchsum2026",
+      "excerpt": "MatchSum이 추출 요약을 문장 단위 분류가 아니라 원문과 후보 요약 사이의 의미적 매칭 문제로 재정의하는 과정을 정리한다.",
+      "content": "# Extractive Summarization as Text Matching\n\n> 프로젝트를 위해 공부 했던 ‘MatchSum’ 에 대해 정리하고자 한다. 이번 포스팅에서는 ‘MatchSum’를 처음 소개했던 'Extractive Summarization as Text Matching' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리하고자 한다.\n\n## 1. Introduction\n\n- 이전의 neural network base extractive summarization model은 각 문장 간의 관계를 modeling하여 문장을 추출하는 방식\n\n- ‘MatchSum’ (Summary-level framework)를 제안함\n\nExtractive summarization을 sementic text matching problem으로 approch\n\nMatchSum 의 핵심은 ‘A good summary should be more semantically si-milar as a whole to the source document than the unqualified summ-arise’\n\n- source document와 candidate summary 간의 similarity 계산을 위해 ‘Siamese-BERT’ 구조를 제안\n\n## 2. Related work\n\n- Extractive Summarization\n\n## 4. Summarization as Matching\n\n- Siamese-BERT\n\n- loss function\n\n- Candidate Pruning\n\n## 5. Conclusion\n\n- 기존문서 요약 모델 구조에서 벗어난 새로운 구조 제안\n\n- Semantic Text matching을 도입하여 source와 summary 사이의 의미적 유사도 학습\n\n- Candidate summary를 기존의 SOTA모델을 활용하여 Pruning함으로 좋은 후보군 선정\n\n- Siamese-BERT를 제안하여 Similarity를 학습할 수 있도록 model 구성\n\n- 데이터셋의 특성을 구분할 수 있는 지표를 제안하고 기존 문제점을 보완\n\n---\n\n## References\n\nZhong, M., Liu, P., Chen, Y., Wang, D., Qiu, X., & Huang, X. (2020). *Extractive summarization as text matching*. In *Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics* (pp. 6197–6208). Association for Computational Linguistics. https://doi.org/10.18653/v1/2020.acl-main.552\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "MatchSum",
+        "ExtractiveSummarization",
+        "TextMatching",
+        "BERT",
+        "PaperReview"
+      ],
+      "thumbnail_url": "",
+      "created_at": "2026-07-07T23:10:00+09:00",
+      "updated_at": "2026-07-07T23:10:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "elmo2026",
+      "title": "Deep Contextualized Word Representations",
+      "slug": "deep-contextualized-word-representations-elmo2026",
+      "excerpt": "ELMo가 고정된 단어 임베딩의 한계를 넘어 biLM 기반 문맥 표현으로 단어 의미를 동적으로 구성하는 방식을 정리한다.",
+      "content": "# Deep Contextualized Word Representations\n\n> 프로젝트를 위해 공부했던 ELMo 에 대해 정리하고자 한다. 이번 포스팅에서는 ELMo를 처음 소개했던 'Deep contextualized word representations' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리하고자 한다.\n\n## 1. ELMo (Embedding from Language Model)\n\n기존 Embedding approach(word2vec, GloVe, etc)와 달리 단어를 문맥에 따라 Embedding하는 동적 방식\n\n- ELMo 특징\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/117918200-93d05d00-b325-11eb-8cd5-ffa167ff1cb7.png)\n\n> 기존 Embedding approach는 (1) 데이터 중심 접근 방식을 사용하여 similar words를 먼저 감지한 후 단일 토큰으로 처리 하거나 (2) 단어 하나씩 뿐만 아니라 단어 sense 마다 벡터표현을 학습하는데 중점을 둠으로 정적인 mapping에 기반함.\n\n## 2. How ELMo works ?\n\n- LM (Language Model) train을 위해 biLM 사용\n\n- 가중 layer로 구정된 Language Model 사용\n\n> down-stream task에서는 기존의 embedding (e.g. Glove, Word2Vec, ...)과 ELMo representation을 연결하여(concatenate)하여 input으로 사용할 수 있음. 이 때에는, ELMo 표현을 만드는데 사용되는 사전 훈련된 언어 모델의 가중치는 고정하는 대신 , , 와 는 훈련 과정에서 학습 시킴\n\n---\n\n## References\n\nPeters, M. E., Neumann, M., Iyyer, M., Gardner, M., Clark, C., Lee, K., & Zettlemoyer, L. (2018). *Deep contextualized word representations*. In *Proceedings of the 2018 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long Papers)* (pp. 2227–2237). Association for Computational Linguistics. https://doi.org/10.18653/v1/N18-1202\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "ELMo",
+        "ContextualEmbedding",
+        "LanguageModel",
+        "NLP",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://user-images.githubusercontent.com/29038531/117918200-93d05d00-b325-11eb-8cd5-ffa167ff1cb7.png",
+      "created_at": "2026-07-07T23:15:00+09:00",
+      "updated_at": "2026-07-07T23:15:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "bert2026",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "slug": "bert-pre-training-of-deep-bidirectional-transformers-for-language-understanding-bert2026",
+      "excerpt": "BERT가 Masked Language Model과 Next Sentence Prediction으로 양방향 Transformer 표현을 사전학습하는 방식을 정리한다.",
+      "content": "# BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding\n\n> 프로젝트를 위해 공부 했던 BERT 에 대해 정리하고자 한다. 이번 포스팅에서는 BERT를 처음 소개했던 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리하고자 한다.\n\n## 1. Bidirectional Encoder Representations from Transformers\n\n- Transformer Encoding architecture를 사용하여 레이블이 없는 텍스트 데이터로 pre-train 시킨 Language Mode\n\n- Self-attention(Transformer Encoder)을 여러개 쌓은 형태\n\n- 문맥을 반영한 임베딩(Contextual Embedding) 사용\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/118515994-df916500-b770-11eb-8a4d-b2d4f988bf11.png)\n\n- Input representation ( + diff. Transformer vs. BERT )\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/118581605-dc2bc700-b7cc-11eb-8e17-85a934b2f622.png)\n\n## 2. Pre-training BERT\n\n- 정방향 LSTM과 역방향 LSTM을 각각 훈련시키는 방식인 ELMo, 디코더를 이전 단어들로부터 다음 단어를 예측하는 방식으로 단방향 언어 모델 GPT-1 과는 달리 BERT는 Masked Language Model을 통해 양방향을 뜀\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/118522019-8cbaac00-b776-11eb-8b92-466196c57fbf.png)\n\n- BERT의 pre-train 방식은 크게 MLM(Masked Language Model), NSP(Next Sentence Prediction)으로 구성\n\n- MLM ( Masked Language Model )\n\n- NSP ( Next Sentence Prediction )\n\nMLM(Masked Language Model)과 NSP(Next Sentence Prediction)은 따로 학습하는 것이 아닌 loss를 합하여 동시에 학습\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/118584664-69254f00-b7d2-11eb-9574-de20eaeb5a67.png)\n\n## 3. Fine-tuning BERT\n\n- Single Text Classification\n\n- Tagging\n\n- Text Pair Classification or Regression\n\n- Question Answering (QA)\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/118589014-7e05e080-b7da-11eb-9a8c-5a3c44356525.png)\n\n---\n\n## References\n\nDevlin, J., Chang, M.-W., Lee, K., & Toutanova, K. (2019). *BERT: Pre-training of deep bidirectional transformers for language understanding*. In *Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers)* (pp. 4171–4186). Association for Computational Linguistics. https://doi.org/10.18653/v1/N19-1423\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "BERT",
+        "Transformer",
+        "Pretraining",
+        "LanguageModel",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://user-images.githubusercontent.com/29038531/118515994-df916500-b770-11eb-8a4d-b2d4f988bf11.png",
+      "created_at": "2026-07-07T23:20:00+09:00",
+      "updated_at": "2026-07-07T23:20:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "transformer2026",
+      "title": "Attention Is All You Need",
+      "slug": "attention-is-all-you-need-transformer2026",
+      "excerpt": "Transformer가 RNN 없이 self-attention과 encoder-decoder 구조만으로 sequence-to-sequence 학습을 수행하는 방식을 정리한다.",
+      "content": "# Attention Is All You Need\n\n> 챗봇 개발 및 대화 분석 프로젝트를 위해 공부했던 Attention based Sequence to Sequence model 에 대해 정리하고자 한다. 이번 포스팅은 Transformer으로 불리는 'Attention is All You Need' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리한 내용이다.\n\n## 1. Transformer\n\nAttention 자체로 Encoder-Decoder를 구성하는 seq2seq(sequence to sequence) architecture\n\n- Transformer 이전의 seq2seq architecture의 Encoder-Decoder에선 RNN 계열의 모델을 사용\n\n- RNN 계열의 모델에서는 encoder에서 입력 sequence를 하나의 벡터형태로 압축하여 상용하는데 이 과정에서 일부 정보 손실 발생하며, long-range dependency를 가진 정보를 참조하는 경우 이 정보가 긴 path를 거쳐 전달된다 한계\n\n- RNN-seq2seq 구조에서 encoder-decoder는 각각 하나의 RNN에서 t개 시점(time step)을 가짐\n\n- Attention-seq2seq 구조에서는 encoder-decoder가 개로 구성되는 구조 (논문에서는 6개 사용)\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/117389326-24263080-af27-11eb-82fc-d7e05fc945b2.png)\n\n## 2. Transformer model architecture\n\n- (1) Transformer inputs\n\n- (2) Attention : Transformer에서는 3가지 Attention 구조가 등장함\n\n- (3) Encoder\n\n- (4) Decoder\n\n- (5) Transformer model architecture\n\n## 3. learning rate\n\nlearning rate을 고정된 값을 유지하는 것이 아니라, 학습 경과에 따라 변하도록 설계\n\n---\n\n## References\n\nVaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). *Attention is all you need*. In *Advances in Neural Information Processing Systems 30* (pp. 5998–6008).\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "Transformer",
+        "Attention",
+        "Seq2Seq",
+        "NLP",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://user-images.githubusercontent.com/29038531/117389326-24263080-af27-11eb-82fc-d7e05fc945b2.png",
+      "created_at": "2026-07-07T23:25:00+09:00",
+      "updated_at": "2026-07-07T23:25:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "gpt12026",
+      "title": "Improving Language Understanding by Generative Pre-Training",
+      "slug": "improving-language-understanding-by-generative-pre-training-gpt12026",
+      "excerpt": "GPT-1이 대규모 unlabeled text로 generative pre-training을 수행한 뒤 supervised fine-tuning으로 다양한 NLP task에 적응하는 과정을 정리한다.",
+      "content": "# Improving Language Understanding by Generative Pre-Training\n\n> 챗봇 개발 및 대화 분석 프로젝트를 위해 공부했던 GPT(Generative Pre-Training)에 대해 정리하고자 한다. 이번 포스팅에서는 GPT-1으로 불리는 Improving Language Understanding by Generative Pre-Training 논문의 내용을 다룬다.\n\n## Abstract\n\nUnlabeled text data는 충분하지만, 특정 task를 학습하기 위한 Labeled text data부족, 따라서 Task에 fit 하게 동작하게 만드는 것이 어려움. Unlabeled text에 대해 pre-training 진행한 후, 특정 tast에 맞게 fin-tuning하는 것이 효과가 있음\n\n## Introduction\n\nNLP task의 성능을 위해 word embedding을 쓰는 것처럼 unsupervised 환경에서 좋은 representation을 학습한다면 굉장히 많은 Task에서 좋은 성능을 낼 수 있음. 하지만, word-level보다 더 높은 수준의 정보를 unlabeled data에서 얻어내는 것은 어려움\n\n- Text representation을 효과적으로 학습을 위해 어떤 Optimization objective가 효과적인지 불분명\n\n- learned representation을 target task에 어떠한 방식으로 transfer할지 명확한 방식이 불명확함\n\n해당 논문에서는 unsupervised pre-training과 supervised fine-tuning을 결합하여 language understanding task에 대한 semi-supervied approach 제안. 다양한 task에 적용 가능한 universal representation을 학습하는 것이 목표\n\n## Related Work\n\n- Semi-supervised learning for NLP : 초기 접근방식은 단어 레벨이나 phrase 레벨의 통계를 계산하기 위해 unlabled data를 활용하고, 이 값을 supervised model의 feature로 사용. 하지만 이러한 접근방식은 word-level의 정보 전달하기 때문에 higher-level 의미 전달하기 힘듦. 최근 방식은 phrase-level이나 sentence-level embedding을 적용하는 방식이 연구됨\n\n- Unsupervised pre-training : GPT와 가장 유사한 방식으로는 laguage modeling objective로 pre-training을 진행하고 target task로 fine-tuning 하는 방식. 해당 방식은 LSTM을 사용하는데, 이러한 구조가 short range의 예측 성능을 제한. 반면 논문에서는 transformer를 사용함으로서 더 긴 의존성을 학습\n\n- Auxiliary training objectives : 보조적인 unsupervised training object를 추가 하는 것 또한 semi-supervied learning의 선택 가능한 형태 중 하나. 과거 POS tagging, chunking, NER, LM 등을 이용해서 semantic role labeling의 성능을 향상 시킨 사례가 있음. 논문에서도 보조적인 objective 사용\n\n## Framework\n\n두 단계 학습 과정을 거침, 첫번째 단계에서 high-capacity language model을 학습하고, 이어서 특정 task에 대하여 라벨링된 데이터로 fine-tunning 진행\n\n- Unsupervised pre-training\n\nLanguage Modeling로 transformer에서 변형된 multi-layer Transformer decoder를 사용함. 해당 모델은 multi-headed self-attention 연산을 모든 입력 토큰에 대해서 수행하고, 해당 결과를 position-wise feed-forward layer의 입력으로 제공\n\nh_0=UW_e+W_p\n\nh_l=transformerblock(h_{l-1})∀i∈[1,n]\n\nP(u)=softmax(h_nW_e^T)\n\n주어진 unsupervised corpus of tokens (U)에서 likelihood를 최대화하는 standard language modeling objective 방식을 사용하며, 식을 통해 i번째 단어의 likelihood를 구함\n\nL_1(U)=∑logP(u_i|u_{i−k},...,u_{i−1};θ)\n\nU는 Input context token이며, n은 layer의 수, W_e는 token embedding matrix, W_p는 positional embedding matrix 나타냄\n\n- Supervised fine-tuning\n\nLanguage modeling objective에 대하여 모델을 pre-training 후, target task fine-tuning ( labeled dataset C). Inputs은 pre-trained model의 input으로 제공되고 마지막 transformer block의 출력값출력된 값은 W_y를 parameter로 하는 linear output layer의 입력으로 제공되어 y를 예측\n\nP(y|x^1,...,x^m)=softmax(h^m_lW_y)\n\n즉 다음의 objective가 최대가 되도록 학습\n\nL_2(C)=∑_{(x,y)}logP(y|x^1,...,x^m)\n\n추가적으로 fine-tuning에 보조적인 objective로 language model에 포함하는 것이 supervised model의 generalization을 향상 시키고, 모델이 빠르게 수렴 할 수 있도록 함. 따라서 다음의 objective 최적화 필요\n\nL_3(C)=L_2(C)+λ ∗ L_1(C)\n\n- Task-specific input trasnformations\n\n![논문 리뷰 이미지](https://blog.kakaocdn.net/dn/zoWab/btqKwSkodqc/qaTdTQGw99kKlLITg931ZK/img.png)\n\n특정 task의 경우, 구조화된 입력을 제공해야 하는 경우가 있음. task의 입력 구조가 pre-training을 진행했을 때의 입력 구조와 다르기 때문에 task-specific customization이 필요 구조화된 입력을 ordered sequence로 변환해서 pre-trained 된 모델이 처리할 수 있도록 함.\n\n- Textual entailment : premise(p)와 hypotheis(h)를 delimiter token($)으로 구분\n\n- Similarity : 두 입력 문장의 순서에 의미가 업기 때문에 모든 경우의 수를 고려해야 함. 즉,각 입력으로 생성된 두 결과를 elemebt-wise addition을 통해 최종 representation 생성\n\n- Question-answering, Commonsense reasoning : context document(z), question(q), possible answers { }를 입력으로 제공. 를 본문, 질문과 함께 하나씩 연결해서 의 representation 생성. 생성된 각 representation은 독립적으로 model input으로 사용며 softmax 함수를 통해 결과 예측\n\n---\n\n## References\n\nRadford, A., Narasimhan, K., Salimans, T., & Sutskever, I. (2018). *Improving language understanding by generative pre-training*. OpenAI.\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "GPT",
+        "GenerativePretraining",
+        "Transformer",
+        "LanguageModel",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://blog.kakaocdn.net/dn/zoWab/btqKwSkodqc/qaTdTQGw99kKlLITg931ZK/img.png",
+      "created_at": "2026-07-07T23:30:00+09:00",
+      "updated_at": "2026-07-07T23:30:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "seq2seq2026",
+      "title": "Sequence to Sequence Learning with Neural Networks",
+      "slug": "sequence-to-sequence-learning-with-neural-networks-seq2seq2026",
+      "excerpt": "Seq2Seq가 고정 길이 입력 제약을 넘어 LSTM encoder-decoder 구조로 가변 길이 sequence 변환을 학습하는 방식을 정리한다.",
+      "content": "# Sequence to Sequence Learning with Neural Networks\n\n> 챗봇 개발 및 대화 분석 프로젝트를 위해 공부했던 Sequence to Sequence model 에 대해 정리하고자 한다. 이번 포스팅에서는 Seq2Seq를 처음 소개했던 'Sequence to Sequence Learning with Neural Networks' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리하고자 한다.\n\n## 1. Sequence to Sequence\n\n입력된 sequence로 부터 다른 도메인의 sequence 로 변환하는 모델 즉, 한 문장(sequence)를 다른 sequence 로 변환하는 모델\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/117816258-4c07f200-b2a1-11eb-973f-7c3cded29499.png)\n\n논문은 multi-layered Long Short-Term Memory (LSTM) 기반의 Seq2Seq model architecture 제안, source sentences 단어의 순서를 바꾸는 것을 통해 성능을 향성 시켰음\n\n> Why use End-to-End architecture ? DNNs model은 input size가 fixed되는 한계로 sequence를 sequence에 mapping하기에 부적합함. 논문에서는 sequence learning을 위해 general end-to-end 방식을 제안\n\n## 2. Sequence to Sequence architecture\n\n- Encoder\n\n- Decoder\n\n---\n\n## References\n\nSutskever, I., Vinyals, O., & Le, Q. V. (2014). *Sequence to sequence learning with neural networks*. In *Advances in Neural Information Processing Systems 27* (pp. 3104–3112).\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "Seq2Seq",
+        "LSTM",
+        "EncoderDecoder",
+        "NLP",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://user-images.githubusercontent.com/29038531/117816258-4c07f200-b2a1-11eb-973f-7c3cded29499.png",
+      "created_at": "2026-07-07T23:35:00+09:00",
+      "updated_at": "2026-07-07T23:35:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
+      "id": "bahdanau-attention2026",
+      "title": "Neural Machine Translation by Jointly Learning to Align and Translate",
+      "slug": "neural-machine-translation-by-jointly-learning-to-align-and-translate-bahdanau-attention2026",
+      "excerpt": "Bahdanau Attention이 encoder hidden state 전체를 참조해 번역 시점마다 alignment와 context vector를 학습하는 방식을 정리한다.",
+      "content": "# Neural Machine Translation by Jointly Learning to Align and Translate\n\n> 챗봇 개발 및 대화 분석 프로젝트를 위해 공부했던 Attention based Sequence to Sequence model 에 대해 정리하고자 한다. 이번 포스팅에서는 Attention을 소개했던 'Neural Machine Translation By jointly Learning to Align and Translate' 논문의 내용을 바탕으로 참고 자료와 함께 다시 정리하고자 한다.\n\n## 1. Attention\n\n해당 시점에서 예측해야될 단어와 연관이 있는 입력 단어 부분을 좀 더 집중하게 하는 Mechanism\n\n기존 RNN based Sequence to Sequence의 input sequence가 길어지면 output sequence의 정확도가 떨어지는 것(long term dependencies problem)을 보정하기 위해 등장\n\n- RNN model의 Vanishing gradient problem\n\n- 하나의 고정된 크기의 벡터에 모든 정보를 압축 하려다 보니 발생하는 정보손실 문제 (seq2seq 구조적 문제)\n\n![논문 리뷰 이미지](https://user-images.githubusercontent.com/29038531/117629253-f1916780-b1b4-11eb-9069-b63c85ba9c9d.png)\n\n즉, 출력 단어를 예측하기 위해 Encoder의 모든 입력 단어들의 정보를 다시 참고하여 학습\n\n단, 전체 입력 문장을 전부 다 동일한 비율로 참고하는 것이 아니라, 해당 시점에서 예측해야할 단어와 연관 있는 입력 단어 부분을 좀 더 집중\n\n## 2. Attention Mechanism\n\n- (1) Attention score\n\n- (2) Attention Distribution\n\n- (3) Attention Value\n\n- (4) Concatenate\n\n- (5) Output\n\n## 3. Summary\n\n- 현 시점의 decoder 단어를 예측하기위해 encoder의 모든 hidden-state와 예측하고하는 시점의 hidden-state와 유사한지 비교\n\n- 계산된 유사도(Attention score)를 softmax function을 이용해 정규화(normalization)하고 각 encoder hidden-state와 가중합(attention value)\n\n- 계산된 결과를 현시점의 hidden-state와 결합하여 하나의 벡터로 output-layer의 입력 사용\n\n---\n\n## References\n\nBahdanau, D., Cho, K., & Bengio, Y. (2015). *Neural machine translation by jointly learning to align and translate*. In *3rd International Conference on Learning Representations*. https://arxiv.org/abs/1409.0473\n",
+      "author": "Jiphyeonjeon Team",
+      "tags": [
+        "Attention",
+        "NeuralMachineTranslation",
+        "Seq2Seq",
+        "NLP",
+        "PaperReview"
+      ],
+      "thumbnail_url": "https://user-images.githubusercontent.com/29038531/117629253-f1916780-b1b4-11eb-9069-b63c85ba9c9d.png",
+      "created_at": "2026-07-07T23:40:00+09:00",
+      "updated_at": "2026-07-07T23:40:00+09:00",
+      "published": true,
+      "reading_time_min": 2,
+      "category": "paper-review"
+    },
+    {
       "id": "deepwalk2026",
       "title": "DeepWalk: Online Learning of Social Representations",
       "slug": "deepwalk-online-learning-social-representations-deepwalk2026",
