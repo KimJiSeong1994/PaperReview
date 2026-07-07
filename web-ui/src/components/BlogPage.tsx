@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
 import ThemeToggle from './ThemeToggle';
@@ -722,7 +724,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         </div>
 
         <div className="blog-detail-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeRaw, rehypeKatex]}
+          >
             {stripLeadingH1(selectedPost.content)}
           </ReactMarkdown>
         </div>
