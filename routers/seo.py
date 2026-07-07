@@ -405,12 +405,12 @@ def _build_document(
     )
 
     # Set data-theme before first paint (mirrors web-ui/index.html): the saved
-    # choice, else light by default (dark is opt-in via the header toggle).
+    # choice, else dark by default; light is opt-in via the header toggle.
     theme_script = (
         "<script>(function(){try{var t=localStorage.getItem('theme');"
-        "if(t!=='light'&&t!=='dark'){t='light';}"
+        "if(t!=='light'&&t!=='dark'){t='dark';}"
         "document.documentElement.setAttribute('data-theme',t);}"
-        "catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>"
+        "catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>"
     )
 
     return (
