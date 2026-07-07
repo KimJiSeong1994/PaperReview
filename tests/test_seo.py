@@ -5,6 +5,7 @@ network access and no real data files are read or written.
 """
 
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -170,12 +171,20 @@ def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
     assert "disambiguatingDescription" in html
 
 
+def test_spa_shell_defaults_to_dark_before_paint() -> None:
+    """The Vite SPA shell mirrors SSR: no saved preference falls back to dark."""
+    html = Path("web-ui/index.html").read_text(encoding="utf-8")
+    assert "localStorage.getItem('theme')" in html
+    assert "t = 'dark'" in html
+    assert "setAttribute('data-theme', 'dark')" in html
+
+
 def test_ssr_sets_theme_before_paint(client: TestClient) -> None:
-    """SSR blog pages set data-theme early (default light) so it isn't lost pre-hydration."""
+    """SSR blog pages set data-theme early (default dark) so it isn't lost pre-hydration."""
     for path in ("/blog", f"/blog/{PUBLISHED_SLUG}", "/blog/category/engineering"):
         html = client.get(path).text
         assert "data-theme" in html, f"missing theme script on {path}"
-        assert "'light'" in html, f"missing default-light theme on {path}"
+        assert "'dark'" in html, f"missing default-dark theme on {path}"
 
 
 def test_ssr_post_has_single_h1(client: TestClient) -> None:
