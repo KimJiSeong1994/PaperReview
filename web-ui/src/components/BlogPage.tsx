@@ -54,7 +54,8 @@ type BlogView = 'list' | 'detail' | 'editor';
 // ── Categories ────────────────────────────────────────────────────────
 
 type CategoryKey = 'paper-review' | 'engineering';
-type CategoryFilter = 'all' | CategoryKey;
+type CategoryFilter = CategoryKey;
+const DEFAULT_CATEGORY: CategoryKey = 'engineering';
 
 const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
   'paper-review': { label: 'Paper Reviews', badge: 'Paper Review' },
@@ -62,9 +63,8 @@ const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
 };
 
 const SEGMENTS: { key: CategoryFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'paper-review', label: 'Paper Reviews' },
   { key: 'engineering', label: 'Engineering' },
+  { key: 'paper-review', label: 'Paper Reviews' },
 ];
 
 /** Coerce any stored/legacy value to a known category (defaults to engineering). */
@@ -80,7 +80,7 @@ function stripLeadingH1(content: string): string {
 }
 
 function categoryHref(key: CategoryFilter): string {
-  return key === 'all' ? '/blog' : `/blog/category/${key}`;
+  return key === DEFAULT_CATEGORY ? '/blog' : `/blog/category/${key}`;
 }
 
 function CategoryBadge({ category }: { category?: string }) {
@@ -221,7 +221,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory ?? 'all');
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory ?? DEFAULT_CATEGORY);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -255,7 +255,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const categoryCounts = useMemo(() => {
     const counts: Record<CategoryFilter, number> = {
-      all: posts.length,
       'paper-review': 0,
       engineering: 0,
     };
@@ -264,10 +263,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   }, [posts]);
 
   const visiblePosts = useMemo(
-    () =>
-      activeCategory === 'all'
-        ? posts
-        : posts.filter((p) => normalizeCategory(p.category) === activeCategory),
+    () => posts.filter((p) => normalizeCategory(p.category) === activeCategory),
     [posts, activeCategory],
   );
 
@@ -277,7 +273,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [lastInitialCategory, setLastInitialCategory] = useState(initialCategory);
   if (initialCategory !== lastInitialCategory) {
     setLastInitialCategory(initialCategory);
-    setActiveCategory(initialCategory ?? 'all');
+    setActiveCategory(initialCategory ?? DEFAULT_CATEGORY);
   }
 
   useEffect(() => {
@@ -914,8 +910,8 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   const seoPost = view === 'detail' ? selectedPost : null;
-  const categoryView = view === 'list' && activeCategory !== 'all';
-  const categoryLabel = categoryView ? CATEGORY_META[activeCategory as CategoryKey].label : '';
+  const categoryView = view === 'list';
+  const categoryLabel = categoryView ? CATEGORY_META[activeCategory].label : '';
   const seoTitle = seoPost
     ? `${seoPost.title} | Jiphyeonjeon Blog`
     : categoryView
@@ -925,7 +921,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost);
   const seoCanonical = seoPost
     ? blogCanonical(seoPost.slug)
-    : categoryView
+    : initialCategory
       ? `${SITE_URL}/blog/category/${activeCategory}`
       : blogCanonical(hasSlugError ? undefined : slug);
   const seoLocale = seoPost
