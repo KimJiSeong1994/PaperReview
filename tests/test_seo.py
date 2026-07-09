@@ -228,12 +228,15 @@ def test_latex_note_delimiters_are_normalized_before_markdown() -> None:
 
 
 def test_ssr_post_keeps_latex_backslashes_after_normalization(client: TestClient) -> None:
-    r"""SSR should not turn \(\tilde A\) into the visibly broken (\tilde A)."""
+    r"""SSR should render math fallback instead of exposing raw or escaped delimiters."""
     html = client.get(f"/blog/{PUBLISHED_SLUG}").text
 
-    assert "$\\tilde A$" in html
+    assert "blog-math-inline" in html
+    assert "blog-math-display" in html
+    assert "\\tilde A" in html
+    assert "$\\tilde A$" not in html
     assert "(\\tilde A)" not in html
-    assert "$$\\mathcal{L}=x$$" in html
+    assert "$$\\mathcal{L}=x$$" not in html
 
 
 def test_ssr_post_has_related_and_prevnext_links(client: TestClient) -> None:

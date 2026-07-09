@@ -105,9 +105,96 @@ def _normalize_latex_delimiters(content: str) -> str:
     return re.sub(r"\\\(([^\n]*?)\\\)", lambda m: f"${m.group(1).strip()}$", content)
 
 
-def _normalize_blog_markdown(content: str) -> str:
+def _render_ssr_math_fallback(content: str) -> str:
+    r"""Render dollar-delimited math as crawlable fallback HTML.
+
+    The browser bundle hydrates the same markdown with remark-math/KaTeX, but
+    the server-side markdown-it renderer intentionally has no JS KaTeX pass.
+    Without this fallback, SSR HTML exposes raw ``$\tilde A$`` delimiters in
+    table cells and paragraphs.  Keep the fallback conservative and readable:
+    fenced code blocks are left untouched, display equations become scrollable
+    code blocks, and inline equations become compact code-like spans.
+    """
+
+    def _inline(line: str) -> str:
+        out: list[str] = []
+        i = 0
+        while i < len(line):
+            if line[i] != "$" or (i > 0 and line[i - 1] == "\\"):
+                out.append(line[i])
+                i += 1
+                continue
+            # Display math is handled at line level; leave paired $$ here.
+            if i + 1 < len(line) and line[i + 1] == "$":
+                out.append("$$")
+                i += 2
+                continue
+            j = i + 1
+            while True:
+                j = line.find("$", j)
+                if j == -1:
+                    out.append(line[i])
+                    i += 1
+                    break
+                if j > 0 and line[j - 1] == "\\":
+                    j += 1
+                    continue
+                expr = line[i + 1 : j].strip()
+                if not expr:
+                    out.append(line[i : j + 1])
+                else:
+                    safe = html.escape(expr, quote=False)
+                    out.append(f'<span class="blog-math-inline"><code>{safe}</code></span>')
+                i = j + 1
+                break
+        return "".join(out)
+
+    rendered: list[str] = []
+    display: list[str] | None = None
+    in_fence = False
+
+    for line in content.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            rendered.append(line)
+            continue
+        if in_fence:
+            rendered.append(line)
+            continue
+
+        stripped = line.strip()
+        if display is not None:
+            if stripped == "$$":
+                safe = html.escape("\n".join(display).strip(), quote=False)
+                rendered.append(f'<div class="blog-math-display"><code>{safe}</code></div>')
+                display = None
+            else:
+                display.append(line)
+            continue
+
+        if stripped == "$$":
+            display = []
+            continue
+        if stripped.startswith("$$") and stripped.endswith("$$") and len(stripped) > 4:
+            safe = html.escape(stripped[2:-2].strip(), quote=False)
+            rendered.append(f'<div class="blog-math-display"><code>{safe}</code></div>')
+            continue
+
+        rendered.append(_inline(line))
+
+    if display is not None:
+        rendered.append("$$")
+        rendered.extend(display)
+
+    return "\n".join(rendered)
+
+
+def _normalize_blog_markdown(content: str, *, ssr_math_fallback: bool = False) -> str:
     """Apply SSR-safe blog markdown normalizations before rendering."""
-    return _normalize_latex_delimiters(_strip_leading_h1(content))
+    normalized = _normalize_latex_delimiters(_strip_leading_h1(content))
+    if ssr_math_fallback:
+        return _render_ssr_math_fallback(normalized)
+    return normalized
 
 
 def _category_of(post: dict) -> str:
@@ -463,7 +550,7 @@ def _render_article(
         for t in post.get("tags", [])
     )
     # Drop the duplicate leading H1 so the title <h1> is the page's only H1.
-    rendered_html = _md.render(_normalize_blog_markdown(post.get("content", "")))
+    rendered_html = _md.render(_normalize_blog_markdown(post.get("content", ""), ssr_math_fallback=True))
 
     def _link(p: dict) -> str:
         return (
