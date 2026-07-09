@@ -43,8 +43,30 @@ function MyPage({ onBack }: MyPageProps) {
       setActiveTab('papers');
       // Clear router state so refresh doesn't re-trigger
       window.history.replaceState({}, '');
+      return;
     }
-  }, [location.state]);
+
+    if (location.pathname === '/paper-viewer') {
+      const params = new URLSearchParams(location.search);
+      const title = params.get('title')?.trim();
+      if (!title) return;
+      const authors = params.get('authors')
+        ?.split(';')
+        .map((author) => author.trim())
+        .filter(Boolean) ?? [];
+      const yearParam = params.get('year');
+      const year = yearParam ? Number(yearParam) : undefined;
+      setDirectPaper({
+        title,
+        authors,
+        year: Number.isFinite(year) ? year : undefined,
+        pdf_url: params.get('pdf_url') || undefined,
+        doi: params.get('doi') || undefined,
+        arxiv_id: params.get('arxiv_id') || undefined,
+      });
+      setActiveTab('papers');
+    }
+  }, [location.pathname, location.search, location.state]);
 
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
