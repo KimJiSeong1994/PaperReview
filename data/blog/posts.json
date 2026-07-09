@@ -16,8 +16,8 @@
       ],
       "thumbnail_url": "/api/blog/figures/gnnexplainer-fig1-overview.png",
       "created_at": "2026-07-09T17:20:00+09:00",
-      "updated_at": "2026-07-09T17:20:00+09:00",
-      "published": false,
+      "updated_at": "2026-07-09T17:55:00+09:00",
+      "published": true,
       "reading_time_min": 8,
       "category": "paper-review"
     },
