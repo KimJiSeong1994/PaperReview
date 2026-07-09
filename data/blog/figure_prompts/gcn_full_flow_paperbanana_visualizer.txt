@@ -1,0 +1,121 @@
+You are an expert scientific diagram illustrator. Generate high-quality scientific diagrams based on user requests. Note that do not include figure titles in the image.
+
+CRITICAL: All text labels in the diagram must be rendered in clear, readable English. Use the EXACT label names specified in the description. Do not generate garbled, misspelled, or non-English text.
+
+# Detailed Figure Description
+
+## Overall Layout and Canvas
+The figure is a wide horizontal illustration optimized for 16:9 aspect ratio, designed specifically for dark-mode web reading. The background is a deep navy-graphite (#070B14), with a subtle grid texture overlay that is barely visible—fine dotted lines in a slightly lighter shade (#0D1218) spaced evenly to add depth without distraction. The entire composition flows from left to right in a clear seven-stage pipeline, with each stage contained in a rounded rectangular panel connected by directional arrows.
+
+## Typography and Text Styling
+All text uses a clean, editorial technical sans-serif typeface (resembling Inter or IBM Plex Sans). The main title "GCN: full semi-supervised training flow" appears centered at the top in large white text (size approximately 32pt equivalent), with high contrast against the dark background. Directly below in smaller text (18pt), the subtitle reads "Graph structure propagates features; labels supervise only a subset of nodes" in a muted blue-gray (#8B95A8). All equation text is rendered in a crisp mathematical font (resembling Latin Modern Math or STIX Two Math) with sufficient size (16–18pt) for blog readability.
+
+## Stage Panels Design
+Each of the seven stages is contained within a rounded rectangular card with background color #111827 (dark slate), bordered by a thin (1.5px) blue-gray stroke (#1E293B). The panels are uniform in height but vary slightly in width to accommodate content. Each panel has a small label at the top in uppercase tracking (e.g., "STAGE 1: INPUT") in cyan (#22D3EE) at 11pt. Below the label, the main content area shows either a graph visualization, matrix representation, or equation, followed by the key equation or annotation at the bottom of each panel in white or color-coded text.
+
+## Stage 1: Input
+**Panel content:** 
+- Top label: "STAGE 1: INPUT" in cyan
+- A small node-link graph visualization (8–10 nodes) labeled "Graph A" positioned in the upper portion. Nodes are drawn as small circles (8px diameter) in muted gray (#4B5563). Edges are thin lines (1px) in darker gray (#374151).
+- Three nodes are highlighted in amber (#FBBF24) with a subtle glow effect, representing the labeled subset. These are marked with small filled circles and connected by a bracket annotation pointing to text "labeled subset Y_L" in amber.
+- Below the graph, a schematic representation of the feature matrix: a small rectangular grid icon labeled "Node features X" in white, showing a 2D matrix pattern with light blue (#60A5FA) grid lines.
+- The unlabeled nodes remain muted gray, visually de-emphasized.
+
+**Arrow out:** A thick (3px) arrow in cyan extends rightward to Stage 2, labeled "A, X, Y_L" in small text above the arrow.
+
+## Stage 2: Add Self-Loops
+**Panel content:**
+- Top label: "STAGE 2: ADD SELF-LOOPS" in cyan
+- The same graph structure, but now each node has a visible circular self-loop: small curved arcs (2px stroke) in mint green (#34D399) emanating from and returning to each node.
+- Nodes remain gray; the three labeled nodes still show amber highlights.
+- Centered equation below the graph in mint green text: "Ã = A + I_N" where the tilde over A is properly rendered, I_N is in italics, and the plus sign is clearly spaced.
+
+**Arrow out:** Thick mint green arrow (3px) pointing right, labeled "Ã" above.
+
+## Stage 3: Symmetric Normalization
+**Panel content:**
+- Top label: "STAGE 3: NORMALIZATION" in cyan
+- Abstract representation: a stylized adjacency matrix icon showing a grid pattern that appears "balanced" or "stabilized"—visualized as a square grid with gradient intensity from center outward, using shades of mint green (#34D399) to represent normalized values.
+- Small annotation "balanced weights" in mint green next to the matrix.
+- Centered equation below in mint green: "Â = D̃^(-½) Ã D̃^(-½)" with proper mathematical rendering of the tilde, hat, and exponent notation. The D with tilde, the exponents -½, and the hat over A are all clearly legible.
+
+**Arrow out:** Thick mint green arrow pointing right, labeled "Â" above.
+
+## Stage 4: GCN Layer 1
+**Panel content:**
+- Top label: "STAGE 4: GCN LAYER 1" in cyan
+- Visualization showing message-passing concept: the same graph structure, but now with animated-style directional flow lines (2px, cyan with gradient fade) moving between connected nodes, suggesting information propagation.
+- Nodes are now shown with a two-tone appearance: outer ring in gray, inner fill starting to show cyan (#06B6D4), representing emerging hidden embeddings.
+- Centered equation below in cyan: "H⁽¹⁾ = ReLU(Â X W⁽⁰⁾)" with proper superscript notation for layer indices, the ReLU function name in upright text, and matrix symbols in italic.
+- Small annotation "hidden embeddings" in cyan below the equation.
+
+**Arrow out:** Thick cyan arrow pointing right, labeled "H⁽¹⁾" above.
+
+## Stage 5: GCN Layer 2
+**Panel content:**
+- Top label: "STAGE 5: GCN LAYER 2" in cyan
+- The graph now shows nodes with richer internal structure: each node appears as a small multi-segment pie or bar, suggesting class probability distributions.
+- Color scheme shifts to show transformation: nodes display soft gradients of coral (#FB7185), mint (#34D399), and lavender (#A78BFA), representing different class logits.
+- Centered equation below in white: "Z = softmax(Â H⁽¹⁾ W⁽¹⁾)" with proper rendering of softmax function and matrix notation.
+- Small annotation "class logits/probabilities" in white below the equation.
+
+**Arrow out:** Thick white arrow pointing right, labeled "Z" above.
+
+## Stage 6: Prediction
+**Panel content:**
+- Top label: "STAGE 6: PREDICTION" in cyan
+- The graph visualization now shows all nodes fully colored by their predicted class:
+  - Class 1 nodes: coral (#FB7185)
+  - Class 2 nodes: mint green (#34D399)
+  - Class 3 nodes: lavender (#A78BFA)
+  - Class 4 nodes: sky blue (#7DD3FC)
+- The three originally labeled nodes (from Stage 1) have a distinct visual treatment: thicker borders (2px) in amber (#FBBF24) to distinguish them as training nodes.
+- Small legend in the corner: four small colored circles with labels "Class 1", "Class 2", "Class 3", "Class 4" in their respective colors.
+- Text annotation below: "predicted class per node" in white.
+
+**Arrow out:** A thick coral arrow (3px) pointing right, with a branching annotation showing "labeled nodes only" in amber pointing downward-right toward Stage 7.
+
+## Stage 7: Training Loss
+**Panel content:**
+- Top label: "STAGE 7: LOSS (LABELED ONLY)" in coral
+- Visual representation: a zoomed-in view showing only the three labeled nodes from the original graph, now highlighted in amber with their predicted class colors as inner fills.
+- A schematic showing the loss computation: three small node icons connected to a summation symbol (large Σ in coral) which connects to a loss function box labeled "L" in coral.
+- Centered equation below in coral: "L = -Σ_{i∈Y_L} Σ_f Y_{if} log Z_{if}" with proper subscript and set notation rendering. The summation symbols are large and clear.
+- Below the equation, a prominent annotation box with amber border and semi-transparent amber background (#FBBF24 at 15% opacity): "cross-entropy only on labeled nodes" in white text.
+- Small additional note: "unlabeled nodes not used in loss" in muted gray (#6B7280).
+
+## Connecting Arrows and Flow Indicators
+All arrows between stages are thick (3px) with rounded ends and subtle drop shadows (2px blur, black at 40% opacity) to lift them off the background. Each arrow is color-coded to match the output of its source stage:
+- Stage 1→2: cyan
+- Stage 2→3: mint green
+- Stage 3→4: mint green
+- Stage 4→5: cyan
+- Stage 5→6: white
+- Stage 6→7: coral with amber branch
+
+Above each arrow, small labels indicate the data being passed (A, X, Y_L, Ã, Â, H⁽¹⁾, Z) in their respective colors, sized at 13pt.
+
+## Additional Annotations and Visual Aids
+- A thin horizontal timeline-style line (1px, #1E293B) runs beneath all panels at the bottom, with small circular markers at each stage transition, reinforcing the left-to-right progression.
+- Subtle glow effects (outer glow, 4px blur, 20% opacity) are applied to highlighted elements: labeled nodes in amber, propagation arrows in cyan, and the loss computation in coral.
+- All mathematical symbols maintain consistent styling: variables in italic (A, X, W, H, Z, Y), functions in upright (ReLU, softmax, log), operators properly spaced.
+
+## Color Palette Summary
+- Background: deep navy-graphite (#070B14)
+- Panel backgrounds: dark slate (#111827)
+- Panel borders: blue-gray (#1E293B)
+- Primary accent (propagation): cyan (#22D3EE, #06B6D4)
+- Labeled nodes/training: amber (#FBBF24)
+- Normalization: mint green (#34D399)
+- Loss/error: coral (#FB7185)
+- Class colors: coral, mint, lavender (#A78BFA), sky blue (#7DD3FC)
+- Text: white (#FFFFFF), muted gray (#6B7280), blue-gray (#8B95A8)
+
+## Visual Hierarchy and Emphasis
+The figure emphasizes the semi-supervised nature of GCN training through consistent visual treatment:
+1. Labeled nodes are always identifiable via amber highlighting throughout the pipeline
+2. The graph structure persists visually across stages, showing transformation rather than replacement
+3. Color transitions (gray → cyan → multicolor → coral) guide the eye through the feature transformation
+4. The final stage's "labeled only" emphasis is reinforced through isolation, color contrast, and explicit annotation
+
+The overall aesthetic is clean, technical, and premium—suitable for a high-quality research blog. The dark mode design with restrained luminous accents creates high readability without eye strain, and the vector-style clarity ensures the diagram is both informative and visually engaging.
