@@ -1,0 +1,29 @@
+Create an original dark-mode editorial figure for a Korean research blog explaining the full training/data flow of Graph Convolutional Networks from “Semi-Supervised Classification with Graph Convolutional Networks” by Kipf & Welling.
+
+Style: Paperbanana-style research explainer, premium technical blog illustration, clean vector diagram, dark navy/graphite background, high contrast, sharp typography, subtle grid texture, luminous but restrained accents. Do not imitate or reproduce any original paper figure. This must look like a newly designed explanatory architecture diagram.
+
+Canvas: wide horizontal blog figure, 16:9 aspect ratio, optimized for dark-mode web reading.
+
+Visual concept:
+Show a left-to-right pipeline with seven clearly separated stages. Use connected cards or panels with arrows, plus a small graph visualization that evolves through the flow.
+
+Stages and labels:
+1. Input: small node-link graph labeled “Graph A”; feature matrix labeled “Node features X”; only a few labeled nodes highlighted as “labeled subset Y_L”; other nodes muted/unlabeled.
+2. Add self-loops: same graph with circular self-loop marks; equation “A_tilde = A + I_N”.
+3. Symmetric normalization: adjacency matrix becomes stabilized/balanced; equation “A_hat = D_tilde^{-1/2} A_tilde D_tilde^{-1/2}”.
+4. GCN Layer 1: message passing from neighboring nodes into hidden embeddings; equation “H^1 = ReLU(A_hat X W^0)”.
+5. GCN Layer 2: hidden embeddings transformed into class logits/probabilities; equation “Z = softmax(A_hat H^1 W^1)”.
+6. Prediction: each node colored by predicted class using 3–4 class colors; keep labeled/training nodes visually distinct.
+7. Training loss: loss computed only on labeled nodes, not all nodes; equation “L = -sum_{i in Y_L} sum_f Y_if log Z_if”; annotation “cross-entropy only on labeled nodes”.
+
+Design requirements:
+- Dark-mode first: background #070B14 or #0B1020, panels #111827, thin blue-gray borders.
+- Restrained scientific color palette: cyan for propagation, amber for labels, mint/green for normalization, coral for loss.
+- Editorial technical typography, not default UI; clean readable equation text.
+- Equations must be large enough to read in a full-width blog figure.
+- Arrows emphasize: A, X, Y_L -> A_tilde -> A_hat -> H^1 -> Z -> loss on labeled nodes.
+- Title: “GCN: full semi-supervised training flow”.
+- Subtitle: “Graph structure propagates features; labels supervise only a subset of nodes.”
+- Keep layout self-explanatory and original; avoid copying the original paper’s figure.
+- Avoid generic AI-looking purple gradients, glossy 3D blobs, photorealism, excessive decoration, or copying the original paper’s visual structure.
+- Ensure all math symbols are legible and correctly rendered.
