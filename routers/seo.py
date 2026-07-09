@@ -11,6 +11,7 @@ Endpoints:
   GET /blog/{slug}     — single post (HTML, JSON-LD BlogPosting graph)
   GET /sitemap.xml     — XML sitemap of public URLs
   GET /feed.xml        — RSS 2.0 feed of published posts
+  GET /llms-full.txt   — full-text published blog corpus for AI/search retrieval
 """
 
 import html
@@ -89,6 +90,24 @@ def _strip_leading_h1(content: str) -> str:
     headings and mid-body H1s are left untouched.
     """
     return _LEADING_H1_RE.sub("", content, count=1)
+
+
+def _normalize_latex_delimiters(content: str) -> str:
+    r"""Normalize LaTeX note delimiters to markdown-math dollar delimiters.
+
+    PaperWiki/Notion-derived reviews often use ``\(...\)`` and ``\[...\]``.
+    Plain Markdown treats those backslashes as escapes, producing broken text
+    such as ``(\tilde A)`` in the SSR HTML. The React renderer uses
+    remark-math/KaTeX, whose portable delimiter is ``$...$`` / ``$$...$$``.
+    Keep the transformation narrow so ordinary prose is left untouched.
+    """
+    content = re.sub(r"\\\[([\s\S]*?)\\\]", lambda m: f"$${m.group(1).strip()}$$", content)
+    return re.sub(r"\\\(([^\n]*?)\\\)", lambda m: f"${m.group(1).strip()}$", content)
+
+
+def _normalize_blog_markdown(content: str) -> str:
+    """Apply SSR-safe blog markdown normalizations before rendering."""
+    return _normalize_latex_delimiters(_strip_leading_h1(content))
 
 
 def _category_of(post: dict) -> str:
@@ -444,7 +463,7 @@ def _render_article(
         for t in post.get("tags", [])
     )
     # Drop the duplicate leading H1 so the title <h1> is the page's only H1.
-    rendered_html = _md.render(_strip_leading_h1(post.get("content", "")))
+    rendered_html = _md.render(_normalize_blog_markdown(post.get("content", "")))
 
     def _link(p: dict) -> str:
         return (
@@ -680,6 +699,8 @@ async def sitemap() -> Response:
     rows = [
         f"  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc><priority>0.8</priority></url>",
+        f"  <url><loc>{SITE_URL}/llms.txt</loc><priority>0.5</priority></url>",
+        f"  <url><loc>{SITE_URL}/llms-full.txt</loc><priority>0.5</priority></url>",
     ]
     # Category hubs — only list a hub that has at least one published post.
     cats_present = {_category_of(p) for p in published}
@@ -823,7 +844,68 @@ async def llms_txt() -> Response:
         "## Optional\n"
         f"- [RSS feed]({SITE_URL}/feed.xml)\n"
         f"- [Sitemap]({SITE_URL}/sitemap.xml)\n"
+        f"- [Full blog text index]({SITE_URL}/llms-full.txt)\n"
     )
+    return Response(
+        content=body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.get("/llms-full.txt")
+async def llms_full_txt() -> Response:
+    """Return the complete markdown body of every published blog post.
+
+    ``/blog/{slug}`` remains the canonical indexable HTML page. This text feed is
+    an auxiliary discovery/retrieval surface for AI search crawlers and internal
+    retrieval systems that prefer a compact plaintext corpus. Drafts and deleted
+    posts are excluded so unpublished content never leaks into search indexes.
+    """
+    with _posts_lock:
+        posts = _load_posts()
+
+    published = [p for p in posts if p.get("published") and p.get("slug")]
+    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+
+    sections: list[str] = [
+        "# Jiphyeonjeon published blog full-text index",
+        "",
+        (
+            "Canonical HTML pages live under /blog/{slug}; this file mirrors only "
+            "published post text to help search and AI retrieval systems discover "
+            "the complete article bodies."
+        ),
+    ]
+    for post in published:
+        title = post.get("title", "")
+        slug = post.get("slug", "")
+        excerpt = post.get("excerpt", "")
+        tags = ", ".join(str(t) for t in post.get("tags", []))
+        category = _category_of(post)
+        date = _format_date(post)
+        canonical = f"{SITE_URL}/blog/{slug}"
+        content = _normalize_blog_markdown(post.get("content", "")).strip()
+        sections.append(
+            "\n".join(
+                [
+                    "",
+                    "---",
+                    "",
+                    f"## {title}",
+                    "",
+                    f"- Canonical: {canonical}",
+                    f"- Date: {date}",
+                    f"- Category: {category}",
+                    f"- Tags: {tags}",
+                    f"- Excerpt: {excerpt}",
+                    "",
+                    content,
+                ]
+            )
+        )
+
+    body = "\n".join(sections).rstrip() + "\n"
     return Response(
         content=body,
         media_type="text/plain; charset=utf-8",

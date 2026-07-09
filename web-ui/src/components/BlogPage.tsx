@@ -79,6 +79,22 @@ function stripLeadingH1(content: string): string {
   return content.replace(LEADING_H1_RE, '');
 }
 
+// Blog paper reviews have historically used LaTeX delimiters from source
+// notes (\(...\) and \[...\]). remark-math/KaTeX expects dollar
+// delimiters, while Markdown parsers treat the backslashes as escapes and can
+// render broken text like `(\tilde A)` instead of math. Normalize before
+// handing content to ReactMarkdown so both new and legacy posts render math.
+function normalizeLatexDelimiters(content: string): string {
+  return content
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expr: string) => `$$${expr.trim()}$$`)
+    .replace(/\\\(([^\n]*?)\\\)/g, (_match, expr: string) => `$${expr.trim()}$`);
+}
+
+
+function normalizeBlogMarkdown(content: string): string {
+  return normalizeLatexDelimiters(stripLeadingH1(content));
+}
+
 function categoryHref(key: CategoryFilter): string {
   return key === DEFAULT_CATEGORY ? '/blog' : `/blog/category/${key}`;
 }
@@ -724,7 +740,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeKatex]}
           >
-            {stripLeadingH1(selectedPost.content)}
+            {normalizeBlogMarkdown(selectedPost.content)}
           </ReactMarkdown>
         </div>
 
