@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api_server import app
+from routers.seo import _normalize_latex_delimiters
 
 PUBLISHED_SLUG = "hello-world-abc12345"
 UNPUBLISHED_SLUG = "draft-post-def67890"
@@ -22,7 +23,7 @@ _FIXED_POSTS = [
         "title": "Hello World Research Note",
         "slug": PUBLISHED_SLUG,
         "excerpt": "An introductory writeup about paper review.",
-        "content": "# Heading\n\nThis is the **rendered** body text of the post.",
+        "content": "# Heading\n\nThis is the **rendered** body text of the post with math \\(\\tilde A\\) and display:\n\n\\[\\mathcal{L}=x\\]",
         "author": "test-admin",
         "tags": ["rag", "llm"],
         "thumbnail_url": None,
@@ -150,6 +151,24 @@ def test_llms_txt_lists_published_posts(client: TestClient) -> None:
     assert "# 집현전" in body
     assert PUBLISHED_SLUG in body
     assert UNPUBLISHED_SLUG not in body
+    assert "/llms-full.txt" in body
+
+
+def test_llms_full_txt_contains_all_published_post_bodies(client: TestClient) -> None:
+    resp = client.get("/llms-full.txt")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/plain")
+    body = resp.text
+
+    assert f"Canonical: https://jiphyeonjeon.kr/blog/{PUBLISHED_SLUG}" in body
+    assert f"Canonical: https://jiphyeonjeon.kr/blog/{KOREAN_SLUG}" in body
+    assert "rendered** body text" in body
+    assert "본문 내용은 한국어로 렌더링됩니다." in body
+    assert "$\\tilde A$" in body
+    assert "$$\\mathcal{L}=x$$" in body
+
+    assert UNPUBLISHED_SLUG not in body
+    assert "Draft content that bots must not see." not in body
 
 
 def test_llms_txt_has_geo_sections(client: TestClient) -> None:
@@ -194,6 +213,27 @@ def test_ssr_post_has_single_h1(client: TestClient) -> None:
     assert html.count("<h1") == 1
     assert 'class="blog-detail-title"' in html
     assert ">Heading</h1>" not in html
+
+
+def test_latex_note_delimiters_are_normalized_before_markdown() -> None:
+    r"""PaperWiki-style \( ... \) and \[ ... \] delimiters do not get markdown-escaped."""
+    text = "Inline \\(\\tilde A\\) and block:\n\\[\n\\mathcal{L}=x\n\\]"
+
+    normalized = _normalize_latex_delimiters(text)
+
+    assert "$\\tilde A$" in normalized
+    assert "$$\\mathcal{L}=x$$" in normalized
+    assert "\\(" not in normalized
+    assert "\\[" not in normalized
+
+
+def test_ssr_post_keeps_latex_backslashes_after_normalization(client: TestClient) -> None:
+    r"""SSR should not turn \(\tilde A\) into the visibly broken (\tilde A)."""
+    html = client.get(f"/blog/{PUBLISHED_SLUG}").text
+
+    assert "$\\tilde A$" in html
+    assert "(\\tilde A)" not in html
+    assert "$$\\mathcal{L}=x$$" in html
 
 
 def test_ssr_post_has_related_and_prevnext_links(client: TestClient) -> None:
@@ -245,6 +285,7 @@ def test_unknown_category_returns_404(client: TestClient) -> None:
 def test_sitemap_lists_nonempty_category_hub_only(client: TestClient) -> None:
     body = client.get("/sitemap.xml").text
     assert f"{'https://jiphyeonjeon.kr'}/blog/category/engineering" in body
+    assert "https://jiphyeonjeon.kr/llms-full.txt" in body
     # No published paper-review posts in the fixtures -> hub omitted from sitemap.
     assert "/blog/category/paper-review" not in body
 
