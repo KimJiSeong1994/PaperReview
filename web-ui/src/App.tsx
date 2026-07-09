@@ -14,6 +14,7 @@ const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
+const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 
 const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
 const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
@@ -87,13 +88,9 @@ function App() {
         <Route
           path="/paper-viewer"
           element={
-            isAuthenticated ? (
-              <Suspense fallback={<div className="app-loading">Loading...</div>}>
-                <MyPage onBack={() => navigate('/')} />
-              </Suspense>
-            ) : (
-              <Navigate to="/" />
-            )
+            <Suspense fallback={<div className="app-loading">Loading...</div>}>
+              <PaperViewerRoute />
+            </Suspense>
           }
         />
         <Route
