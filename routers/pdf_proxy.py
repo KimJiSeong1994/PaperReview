@@ -17,7 +17,7 @@ from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from .deps import limiter
@@ -374,13 +374,28 @@ async def _resolve_single(
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
-@router.get("/pdf/proxy")
-@limiter.limit("30/minute")
-async def proxy_pdf(
-    request: Request,
-    url: str = Query(..., description="PDF URL to proxy"),
-) -> StreamingResponse:
-    """Proxy a PDF download from an allowed academic domain."""
+def _pdf_proxy_response_headers(upstream_headers: httpx.Headers) -> dict[str, str]:
+    """Copy PDF/range headers that pdf.js depends on, excluding hop-by-hop headers."""
+    response_headers: dict[str, str] = {
+        "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=3600",
+    }
+    for source_name, target_name in (
+        ("content-length", "Content-Length"),
+        ("content-range", "Content-Range"),
+        ("accept-ranges", "Accept-Ranges"),
+        ("etag", "ETag"),
+        ("last-modified", "Last-Modified"),
+    ):
+        value = upstream_headers.get(source_name)
+        if value:
+            response_headers[target_name] = value
+    response_headers.setdefault("Accept-Ranges", "bytes")
+    return response_headers
+
+
+async def _proxy_pdf_response(request: Request, url: str, *, include_body: bool) -> Response | StreamingResponse:
+    """Proxy a PDF response, preserving Range requests for pdf.js."""
     if not _is_allowed_url(url):
         raise HTTPException(
             status_code=400,
@@ -401,45 +416,86 @@ async def proxy_pdf(
         logger.error("Request error while resolving PDF redirects: %s - %s", url, exc)
         raise HTTPException(status_code=502, detail="Failed to reach the PDF server")
 
-    # H-1: True streaming -- open a streaming connection to the final URL
-    # and yield chunks without loading the entire body into memory.
-    # We capture content-length from the stream's initial headers.
+    upstream_headers: dict[str, str] = {}
+    range_header = request.headers.get("range")
+    if range_header:
+        upstream_headers["Range"] = range_header
+
+    if not include_body:
+        try:
+            head_resp = await client.head(final_url, headers=upstream_headers)
+        except httpx.TimeoutException:
+            logger.warning("Timeout while reading PDF headers: %s", final_url)
+            raise HTTPException(status_code=504, detail="Upstream PDF server timed out")
+        except httpx.RequestError as exc:
+            logger.error("Header request error for %s: %s", final_url, exc)
+            raise HTTPException(status_code=502, detail="Failed to reach the PDF server")
+
+        return Response(
+            status_code=head_resp.status_code,
+            media_type=head_resp.headers.get("content-type") or "application/pdf",
+            headers=_pdf_proxy_response_headers(head_resp.headers),
+        )
+
+    try:
+        upstream_request = client.build_request("GET", final_url, headers=upstream_headers)
+        upstream_resp = await client.send(upstream_request, stream=True)
+    except httpx.TimeoutException:
+        logger.warning("Timeout while opening PDF stream: %s", final_url)
+        raise HTTPException(status_code=504, detail="Upstream PDF server timed out")
+    except httpx.RequestError as exc:
+        logger.error("Request error while opening PDF stream: %s - %s", final_url, exc)
+        raise HTTPException(status_code=502, detail="Failed to reach the PDF server")
+
+    if upstream_resp.status_code == 404:
+        await upstream_resp.aclose()
+        raise HTTPException(status_code=404, detail="PDF not found at the given URL")
+    if upstream_resp.status_code >= 400 and upstream_resp.status_code != 416:
+        status_code = upstream_resp.status_code
+        await upstream_resp.aclose()
+        logger.warning("Upstream returned %d for %s", status_code, final_url)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Upstream server returned HTTP {status_code}",
+        )
+
     async def _stream_pdf():
         try:
-            async with client.stream("GET", final_url) as stream_resp:
-                if stream_resp.status_code == 404:
-                    raise HTTPException(status_code=404, detail="PDF not found at the given URL")
-                if stream_resp.status_code >= 400:
-                    logger.warning("Upstream returned %d for %s", stream_resp.status_code, final_url)
-                    raise HTTPException(
-                        status_code=502,
-                        detail=f"Upstream server returned HTTP {stream_resp.status_code}",
-                    )
-                async for chunk in stream_resp.aiter_bytes(chunk_size=64 * 1024):
-                    yield chunk
+            async for chunk in upstream_resp.aiter_bytes(chunk_size=64 * 1024):
+                yield chunk
         except httpx.TimeoutException:
             logger.warning("Timeout while streaming PDF: %s", final_url)
         except httpx.RequestError as exc:
             logger.error("Streaming error for %s: %s", final_url, exc)
-
-    # Use a HEAD request to get Content-Length for the response headers
-    response_headers: dict[str, str] = {
-        "Content-Disposition": "inline",
-        "Cache-Control": "public, max-age=3600",
-    }
-    try:
-        head_resp = await client.head(final_url)
-        cl = head_resp.headers.get("content-length")
-        if cl:
-            response_headers["Content-Length"] = cl
-    except httpx.RequestError as exc:
-        logger.debug("HEAD request for Content-Length failed for %s: %s", final_url, exc)
+        finally:
+            await upstream_resp.aclose()
 
     return StreamingResponse(
         _stream_pdf(),
-        media_type="application/pdf",
-        headers=response_headers,
+        status_code=upstream_resp.status_code,
+        media_type=upstream_resp.headers.get("content-type") or "application/pdf",
+        headers=_pdf_proxy_response_headers(upstream_resp.headers),
     )
+
+
+@router.get("/pdf/proxy")
+@limiter.limit("30/minute")
+async def proxy_pdf(
+    request: Request,
+    url: str = Query(..., description="PDF URL to proxy"),
+) -> StreamingResponse:
+    """Proxy a PDF download from an allowed academic domain."""
+    return await _proxy_pdf_response(request, url, include_body=True)
+
+
+@router.head("/pdf/proxy")
+@limiter.limit("30/minute")
+async def head_proxy_pdf(
+    request: Request,
+    url: str = Query(..., description="PDF URL to proxy"),
+) -> Response:
+    """Return proxied PDF headers for clients that probe before streaming."""
+    return await _proxy_pdf_response(request, url, include_body=False)
 
 
 @router.get("/pdf/resolve", response_model=PdfResolveResponse)
