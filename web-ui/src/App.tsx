@@ -85,6 +85,18 @@ function App() {
           }
         />
         <Route
+          path="/paper-viewer"
+          element={
+            isAuthenticated ? (
+              <Suspense fallback={<div className="app-loading">Loading...</div>}>
+                <MyPage onBack={() => navigate('/')} />
+              </Suspense>
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
           path="/admin"
           element={
             isAuthenticated && userRole === 'admin' ? (
