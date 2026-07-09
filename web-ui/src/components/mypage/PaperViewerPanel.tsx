@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { resolvePdfUrl, batchResolvePdfUrls, getS2ReaderUrl, generatePdfHighlights, explainMathFormula } from '../../api/client';
+import { buildPdfSrc } from '../../utils/pdfSource';
 import type { HighlightItem, MathExplanation } from '../../api/client';
 import './PaperViewerPanel.css';
 
@@ -65,18 +66,6 @@ const MemoPage = memo(function MemoPage({
     />
   );
 });
-
-function buildPdfSrc(pdfUrl: string): string {
-  try {
-    const hostname = new URL(pdfUrl).hostname;
-    if (hostname === 'arxiv.org' || hostname.endsWith('.arxiv.org')) {
-      return pdfUrl;
-    }
-  } catch {
-    // Invalid URL — fall through to proxy
-  }
-  return `/api/pdf/proxy?url=${encodeURIComponent(pdfUrl)}`;
-}
 
 function formatAuthors(authors: string[]): string {
   if (!authors || authors.length === 0) return '';
