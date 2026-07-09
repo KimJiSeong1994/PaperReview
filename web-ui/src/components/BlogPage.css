@@ -1039,7 +1039,7 @@
 }
 
 .blog-detail-content pre {
-  background: linear-gradient(180deg, var(--wov-06), var(--wov-03));
+  background: var(--wov-04);
   border: 1px solid var(--wov-10);
   border-radius: 14px;
   padding: 18px 20px;
@@ -1061,7 +1061,7 @@
   position: relative;
   border: 1px solid var(--indigo-bd-20);
   border-left: 4px solid var(--indigo-bd-55);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), var(--wov-02));
+  background: var(--wov-04);
   border-radius: 14px;
   padding: 18px 22px;
   margin: 30px 0;
