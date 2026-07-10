@@ -92,6 +92,30 @@ def _strip_leading_h1(content: str) -> str:
     return _LEADING_H1_RE.sub("", content, count=1)
 
 
+def _repair_corrupted_latex_escapes(content: str) -> str:
+    r"""Repair common JSON escape damage in stored markdown math.
+
+    A markdown fragment containing ``\tilde`` can be accidentally serialized as
+    the JSON escape ``\t`` plus ``ilde``, which becomes a tab character and
+    renders as ``ilde{A}``. Keep this narrow: only repair the exact tab+ilde
+    sequence observed in blog math, without touching ordinary prose tabs.
+    """
+    return content.replace("\t" + "ilde", r"\tilde")
+
+
+def _normalize_display_math_fences(content: str) -> str:
+    r"""Put display-math dollar fences on their own lines.
+
+    remark-math/KaTeX and other markdown math parsers are more reliable when
+    ``$$`` opens/closes a flow block instead of sharing a line with content.
+    """
+    return re.sub(
+        r"\$\$([\s\S]*?)\$\$",
+        lambda m: f"$$\n{m.group(1).strip()}\n$$",
+        content,
+    )
+
+
 def _normalize_latex_delimiters(content: str) -> str:
     r"""Normalize LaTeX note delimiters to markdown-math dollar delimiters.
 
@@ -198,7 +222,9 @@ def _render_ssr_math_fallback(content: str) -> str:
 
 def _normalize_blog_markdown(content: str, *, ssr_math_fallback: bool = False) -> str:
     """Apply SSR-safe blog markdown normalizations before rendering."""
-    normalized = _normalize_latex_delimiters(_strip_leading_h1(content))
+    normalized = _normalize_display_math_fences(
+        _normalize_latex_delimiters(_strip_leading_h1(_repair_corrupted_latex_escapes(content)))
+    )
     if ssr_math_fallback:
         return _render_ssr_math_fallback(normalized)
     return normalized

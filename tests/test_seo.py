@@ -165,7 +165,7 @@ def test_llms_full_txt_contains_all_published_post_bodies(client: TestClient) ->
     assert "rendered** body text" in body
     assert "본문 내용은 한국어로 렌더링됩니다." in body
     assert "$\\tilde A$" in body
-    assert "$$\\mathcal{L}=x$$" in body
+    assert "$$\n\\mathcal{L}=x\n$$" in body
 
     assert UNPUBLISHED_SLUG not in body
     assert "Draft content that bots must not see." not in body
