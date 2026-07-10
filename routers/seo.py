@@ -164,7 +164,10 @@ def _render_ssr_math_fallback(content: str) -> str:
 
         stripped = line.strip()
         if display is not None:
-            if stripped == "$$":
+            if stripped.endswith("$$"):
+                before_close = line[: line.rfind("$$")]
+                if before_close.strip():
+                    display.append(before_close)
                 safe = html.escape("\n".join(display).strip(), quote=False)
                 rendered.append(f'<div class="blog-math-display"><code>{safe}</code></div>')
                 display = None
@@ -175,9 +178,13 @@ def _render_ssr_math_fallback(content: str) -> str:
         if stripped == "$$":
             display = []
             continue
-        if stripped.startswith("$$") and stripped.endswith("$$") and len(stripped) > 4:
-            safe = html.escape(stripped[2:-2].strip(), quote=False)
-            rendered.append(f'<div class="blog-math-display"><code>{safe}</code></div>')
+        if stripped.startswith("$$"):
+            after_open = line[line.find("$$") + 2 :]
+            if after_open.strip().endswith("$$"):
+                safe = html.escape(after_open[: after_open.rfind("$$")].strip(), quote=False)
+                rendered.append(f'<div class="blog-math-display"><code>{safe}</code></div>')
+            else:
+                display = [after_open] if after_open.strip() else []
             continue
 
         rendered.append(_inline(line))

@@ -23,7 +23,7 @@ _FIXED_POSTS = [
         "title": "Hello World Research Note",
         "slug": PUBLISHED_SLUG,
         "excerpt": "An introductory writeup about paper review.",
-        "content": "# Heading\n\nThis is the **rendered** body text of the post with math \\(\\tilde A\\) and display:\n\n\\[\\mathcal{L}=x\\]",
+        "content": "# Heading\n\nThis is the **rendered** body text of the post with math \\(\\tilde A\\) and display:\n\n\\[\\mathcal{L}=x\\]\n\n$$\\mathcal{Q}=y_0+\\lambda\\mathcal{R}_{reg},\\quad\n\\mathcal{R}_{reg}=\\sum_{i,j}A_{ij}\\|f(X_i)-f(X_j)\\|^2$$",
         "author": "test-admin",
         "tags": ["rag", "llm"],
         "thumbnail_url": None,
