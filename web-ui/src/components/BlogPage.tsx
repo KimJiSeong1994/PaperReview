@@ -86,7 +86,7 @@ function stripLeadingH1(content: string): string {
 // handing content to ReactMarkdown so both new and legacy posts render math.
 function repairCorruptedLatexEscapes(content: string): string {
   // Repair JSON escape damage where LaTeX `\tilde` was stored as tab + `ilde`.
-  return content.replace(/\u0009ilde/g, '\\tilde');
+  return content.replaceAll('\t' + 'ilde', '\\tilde');
 }
 
 function normalizeDisplayMathFences(content: string): string {
