@@ -84,6 +84,16 @@ function stripLeadingH1(content: string): string {
 // delimiters, while Markdown parsers treat the backslashes as escapes and can
 // render broken text like `(\tilde A)` instead of math. Normalize before
 // handing content to ReactMarkdown so both new and legacy posts render math.
+function repairCorruptedLatexEscapes(content: string): string {
+  // Repair JSON escape damage where LaTeX `\tilde` was stored as tab + `ilde`.
+  return content.replace(/\u0009ilde/g, '\\tilde');
+}
+
+function normalizeDisplayMathFences(content: string): string {
+  // remark-math parses display math most reliably when $$ fences are on their own lines.
+  return content.replace(/\$\$([\s\S]*?)\$\$/g, (_match, expr: string) => `$$\n${expr.trim()}\n$$`);
+}
+
 function normalizeLatexDelimiters(content: string): string {
   return content
     .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expr: string) => `$$${expr.trim()}$$`)
@@ -92,7 +102,7 @@ function normalizeLatexDelimiters(content: string): string {
 
 
 function normalizeBlogMarkdown(content: string): string {
-  return normalizeLatexDelimiters(stripLeadingH1(content));
+  return normalizeDisplayMathFences(normalizeLatexDelimiters(stripLeadingH1(repairCorruptedLatexEscapes(content))));
 }
 
 function categoryHref(key: CategoryFilter): string {
