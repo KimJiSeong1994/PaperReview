@@ -16,6 +16,20 @@ def test_generate_slug_drops_random_id_suffix() -> None:
     )
 
 
+def test_generate_slug_drops_trailing_year_suffix() -> None:
+    assert (
+        blog._generate_slug(
+            "GraphSAGE Inductive Representation Learning Large Graphs Review 2026",
+            "graphsage-170602216-2026-review",
+        )
+        == "graphsage-inductive-representation-learning-large-graphs-review"
+    )
+    assert (
+        blog._generate_slug("Best Papers from 2026 Survey", "abc12345")
+        == "best-papers-from-2026-survey"
+    )
+
+
 def test_unique_slug_adds_counter_only_on_collision() -> None:
     posts = [
         {"id": "a", "slug": "skillopt-search-policy-training"},

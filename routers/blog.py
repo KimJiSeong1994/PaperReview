@@ -105,9 +105,11 @@ def _generate_slug(title: str, post_id: str) -> str:
     """Generate a readable URL-safe slug without a UUID suffix.
 
     ASCII-compatible titles become stable human-readable slugs, e.g.
-    ``"SkillOpt Search Policy Training"`` ->
-    ``"skillopt-search-policy-training"``. Non-ASCII dominant titles still
-    fall back to a short id because this backend does not transliterate Korean.
+    ``"SkillOpt Search Policy Training 2026"`` ->
+    ``"skillopt-search-policy-training"``. A trailing 4-digit year is
+    removed so evergreen paper-review URLs stay clean. Non-ASCII dominant
+    titles still fall back to a short id because this backend does not
+    transliterate Korean.
     Uniqueness is handled separately by :func:`_unique_slug`, which appends
     ``-2``, ``-3`` only when a collision actually exists.
     """
@@ -116,7 +118,10 @@ def _generate_slug(title: str, post_id: str) -> str:
     ascii_part = normalized.encode("ascii", "ignore").decode("ascii").strip().lower()
     # Replace non-alphanumeric with hyphens, collapse multiples
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_part).strip("-")
-    slug = re.sub(r"-+", "-", slug)[:80].strip("-")
+    slug = re.sub(r"-+", "-", slug)
+    # Drop trailing year suffixes such as ``-2026`` from generated canonical URLs.
+    slug = re.sub(r"-(?:19|20)\d{2}$", "", slug)
+    slug = slug[:80].strip("-")
 
     if slug and len(slug) >= 3:
         return slug
