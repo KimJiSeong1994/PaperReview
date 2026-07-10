@@ -102,23 +102,47 @@ def _record_deleted(slug: str) -> None:
 
 
 def _generate_slug(title: str, post_id: str) -> str:
-    """Generate a URL-safe slug from the title.
+    """Generate a readable URL-safe slug without a UUID suffix.
 
-    For ASCII-compatible titles, produces a readable slug (e.g. "hello-world").
-    For non-ASCII titles (Korean, etc.), uses a shortened UUID prefix to
-    guarantee uniqueness and URL safety.
+    ASCII-compatible titles become stable human-readable slugs, e.g.
+    ``"SkillOpt Search Policy Training"`` ->
+    ``"skillopt-search-policy-training"``. Non-ASCII dominant titles still
+    fall back to a short id because this backend does not transliterate Korean.
+    Uniqueness is handled separately by :func:`_unique_slug`, which appends
+    ``-2``, ``-3`` only when a collision actually exists.
     """
     # Normalize unicode, strip accents
     normalized = unicodedata.normalize("NFKD", title)
     ascii_part = normalized.encode("ascii", "ignore").decode("ascii").strip().lower()
     # Replace non-alphanumeric with hyphens, collapse multiples
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_part).strip("-")
+    slug = re.sub(r"-+", "-", slug)[:80].strip("-")
 
     if slug and len(slug) >= 3:
-        # Append short id suffix to avoid collision
-        return f"{slug}-{post_id[:8]}"
-    # Non-ASCII dominant title: use id-based slug
+        return slug
+    # Non-ASCII dominant title: use id-based fallback
     return post_id[:8]
+
+
+def _unique_slug(base_slug: str, posts: list[dict], *, current_post_id: str | None = None) -> str:
+    """Return ``base_slug`` unless another post already owns it.
+
+    Keeps SEO-friendly URLs clean by avoiding random suffixes. If a title is
+    reused, suffixes are deterministic and readable: ``slug``, ``slug-2``,
+    ``slug-3``. ``current_post_id`` lets updates keep their existing slug.
+    """
+    taken = {
+        p.get("slug")
+        for p in posts
+        if p.get("slug") and (current_post_id is None or p.get("id") != current_post_id)
+    }
+    if base_slug not in taken:
+        return base_slug
+
+    i = 2
+    while f"{base_slug}-{i}" in taken:
+        i += 1
+    return f"{base_slug}-{i}"
 
 
 def _estimate_reading_time(content: str) -> int:
@@ -145,6 +169,12 @@ class PostCreateRequest(BaseModel):
     excerpt: str = Field("", max_length=500)
     tags: list[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
+    slug: Optional[str] = Field(
+        None,
+        min_length=3,
+        max_length=120,
+        description="Optional URL slug. If omitted, generated from title without a random suffix.",
+    )
     published: bool = True
     category: BlogCategory = Field(
         DEFAULT_CATEGORY,
@@ -160,6 +190,7 @@ class PostUpdateRequest(BaseModel):
     excerpt: Optional[str] = Field(None, max_length=500)
     tags: Optional[list[str]] = None
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
+    slug: Optional[str] = Field(None, min_length=3, max_length=120)
     published: Optional[bool] = None
     category: Optional[BlogCategory] = None
 
@@ -337,7 +368,7 @@ async def create_post(
     """Create a new blog post. Admin only."""
     post_id = uuid.uuid4().hex
     now = datetime.now().isoformat()
-    slug = _generate_slug(request.title, post_id)
+    base_slug = _generate_slug(request.slug or request.title, post_id)
 
     # Sanitize tags: strip whitespace, lowercase, deduplicate
     tags = list(dict.fromkeys(t.strip() for t in request.tags if t.strip()))
@@ -345,7 +376,7 @@ async def create_post(
     post = {
         "id": post_id,
         "title": request.title.strip(),
-        "slug": slug,
+        "slug": base_slug,
         "excerpt": request.excerpt.strip() if request.excerpt else "",
         "content": request.content,
         "author": admin,
@@ -360,12 +391,13 @@ async def create_post(
 
     with _posts_lock:
         posts = _load_posts()
+        post["slug"] = _unique_slug(base_slug, posts)
         posts.append(post)
         _save_posts(posts)
 
-    logger.info("Blog post created: id=%s slug=%s author=%s", post_id, slug, admin)
+    logger.info("Blog post created: id=%s slug=%s author=%s", post_id, post["slug"], admin)
     if post["published"]:
-        _indexnow_submit_async([_indexnow_post_url(slug)])
+        _indexnow_submit_async([_indexnow_post_url(post["slug"])])
     return PostDetail(**post)
 
 
@@ -390,7 +422,12 @@ async def update_post(
         for key, value in update_data.items():
             if key == "title" and value is not None:
                 post["title"] = value.strip()
-                post["slug"] = _generate_slug(value, post["id"])
+                if "slug" not in update_data:
+                    base_slug = _generate_slug(value, post["id"])
+                    post["slug"] = _unique_slug(base_slug, posts, current_post_id=post["id"])
+            elif key == "slug" and value is not None:
+                base_slug = _generate_slug(value, post["id"])
+                post["slug"] = _unique_slug(base_slug, posts, current_post_id=post["id"])
             elif key == "content" and value is not None:
                 post["content"] = value
                 post["reading_time_min"] = _estimate_reading_time(value)
