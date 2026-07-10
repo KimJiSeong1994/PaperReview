@@ -15,6 +15,7 @@ Endpoints:
 """
 
 import html
+import importlib.util
 import json
 import logging
 import re
@@ -46,6 +47,27 @@ def _locale(lang: str) -> str:
     """Map a language code to its Open Graph locale string."""
     return "ko_KR" if lang == "ko" else "en_US"
 
+
+def _absolute_url(url: str | None) -> str:
+    """Return an absolute public URL for crawler-facing metadata.
+
+    Stored blog media often uses root-relative paths such as
+    ``/api/blog/figures/foo.png``. Browsers resolve those fine, but Google
+    structured-data and social-card validators are stricter and more reliable
+    when ``image``/``og:image`` values are absolute crawlable URLs.
+    """
+    value = (url or "").strip()
+    if not value:
+        return ""
+    if value.startswith(("https://", "http://")):
+        return value
+    if value.startswith("//"):
+        return f"https:{value}"
+    if value.startswith("/"):
+        return f"{SITE_URL}{value}"
+    return f"{SITE_URL}/{value}"
+
+
 # ── Constants ─────────────────────────────────────────────────────────
 
 SITE_URL = "https://jiphyeonjeon.kr"
@@ -74,7 +96,10 @@ BLOG_CATEGORIES: dict[str, tuple[str, str]] = {
     ),
 }
 
-_md = MarkdownIt("default", {"html": True, "linkify": True})
+# ``linkify`` requires optional linkify-it-py. Keep SSR crawler output
+# available even when the optional package is absent in test/minimal deploys.
+_LINKIFY_AVAILABLE = importlib.util.find_spec("linkify_it") is not None
+_md = MarkdownIt("default", {"html": True, "linkify": _LINKIFY_AVAILABLE})
 
 # Matches a single leading top-level ATX heading ("# ...") plus trailing blank
 # lines, used to drop the duplicate H1 many posts repeat as their first line.
@@ -385,6 +410,8 @@ def _blog_posting_graph(post: dict) -> dict:
     url = f"https://jiphyeonjeon.kr/blog/{slug}"
     section = "Paper Reviews" if post.get("category") == "paper-review" else "Engineering"
 
+    image = _absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE
+
     posting = {
         "@type": "BlogPosting",
         "headline": title,
@@ -399,7 +426,7 @@ def _blog_posting_graph(post: dict) -> dict:
         "publisher": {"@id": ORG_ID},
         "inLanguage": _detect_lang(f"{title} {content or excerpt}"),
         "wordCount": len(content.split()),
-        "image": post.get("thumbnail_url") or OG_DEFAULT_IMAGE,
+        "image": image,
     }
     return {
         "@context": "https://schema.org",
@@ -695,7 +722,7 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         description=post.get("excerpt") or post["title"],
         canonical=f"{SITE_URL}/blog/{slug}",
         og_type="article",
-        image=post.get("thumbnail_url") or OG_DEFAULT_IMAGE,
+        image=_absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE,
         json_ld=_blog_posting_graph(post),
         article_html=_render_article(post, related=related, prev_post=older, next_post=newer),
         lang=lang,

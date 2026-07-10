@@ -26,7 +26,7 @@ _FIXED_POSTS = [
         "content": "# Heading\n\nThis is the **rendered** body text of the post with math \\(\\tilde A\\) and display:\n\n\\[\\mathcal{L}=x\\]\n\n$$\\mathcal{Q}=y_0+\\lambda\\mathcal{R}_{reg},\\quad\n\\mathcal{R}_{reg}=\\sum_{i,j}A_{ij}\\|f(X_i)-f(X_j)\\|^2$$",
         "author": "test-admin",
         "tags": ["rag", "llm"],
-        "thumbnail_url": None,
+        "thumbnail_url": "/api/blog/figures/hello-world.png",
         "created_at": "2026-01-15T10:00:00",
         "updated_at": None,
         "published": True,
@@ -80,6 +80,16 @@ def test_published_post_renders_full_html(client: TestClient) -> None:
     assert "rendered" in body  # markdown-rendered content text
     assert '"@type": "BlogPosting"' in body or '"@type":"BlogPosting"' in body
     assert "application/ld+json" in body
+
+
+def test_post_image_metadata_uses_absolute_urls(client: TestClient) -> None:
+    """Crawler-facing image metadata should not expose root-relative /api paths."""
+    body = client.get(f"/blog/{PUBLISHED_SLUG}").text
+
+    assert 'property="og:image" content="https://jiphyeonjeon.kr/api/blog/figures/hello-world.png"' in body
+    assert 'name="twitter:image" content="https://jiphyeonjeon.kr/api/blog/figures/hello-world.png"' in body
+    assert '"image": "https://jiphyeonjeon.kr/api/blog/figures/hello-world.png"' in body
+    assert 'content="/api/blog/figures/hello-world.png"' not in body
 
 
 def test_unpublished_post_is_404_noindex(client: TestClient) -> None:
