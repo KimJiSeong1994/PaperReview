@@ -1,0 +1,9 @@
+Use case: scientific-educational
+Asset type: blog infographic replacement
+Primary request: Edit the existing GCN full-flow infographic from dark navy PaperBanana style to a clean white / warm off-white PaperBanana style.
+Input image role: edit target; preserve the same diagram.
+Style/medium: crisp scientific infographic, white paper background, dark charcoal text, thin light-gray panel borders, preserved accent colors.
+Composition/framing: keep the exact seven-panel horizontal pipeline, bottom caveat/result rail, arrows, node diagrams, matrices, loss block, and W0/W1 feedback loop.
+Text constraints: preserve all existing labels, equations, numbering, and captions exactly; do not rewrite or add text.
+Color constraints: change only the overall background/theme from dark to white tone; convert light text/strokes to dark readable ink; keep cyan/yellow/blue/purple/red/green accents recognizable.
+Avoid: no missing panels, no new objects, no layout drift, no watermark, no text corruption.
