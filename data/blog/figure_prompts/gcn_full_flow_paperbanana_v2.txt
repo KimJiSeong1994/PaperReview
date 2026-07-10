@@ -1,0 +1,19 @@
+Use case: scientific-educational
+Asset type: full-width blog figure for a Korean research blog, 16:9 dark-mode infographic
+Primary request: Create a new PaperBanana-style explanatory diagram summarizing the full Kipf & Welling GCN review: spectral simplification, normalized 2-layer GCN training, sparse labels, masked loss, and key caveats. This must be an original diagram, not copied from the paper.
+Style/medium: premium clean vector-like research infographic, dark navy/graphite background, subtle grid, rounded panels, restrained luminous accents, editorial technical design.
+Composition/framing: wide horizontal 16:9. Main left-to-right pipeline on top/middle with 7 compact panels. A thin bottom evidence/caveat rail with small badges. Keep text minimal and very readable.
+Title text (verbatim): "GCN: From Spectral Idea to Semi-Supervised Node Classification"
+Subtitle text (verbatim): "Full graph propagates features; only labeled nodes supervise the loss."
+Main pipeline labels (verbatim, use exactly these short English labels):
+1. "Sparse labels: A, X, Y_L"
+2. "Spectral idea -> 1-hop filter"
+3. "Self-loops: A_tilde = A + I"
+4. "Normalize: A_hat"
+5. "Layer 1: A_hat X W0 -> H1"
+6. "Layer 2: A_hat H1 W1 -> Z"
+7. "Masked CE: labeled nodes only"
+Bottom rail badges (verbatim, small but readable): "Transductive", "Full-batch", "Undirected", "Edge features not native", "Cora 81.5", "Pubmed 79.0"
+Visual content: Panel 1 shows a node-link graph A, feature matrix X, and only 3 amber labeled nodes Y_L among muted unlabeled nodes. Panel 2 shows a complex spectral wave/filter compressing into a local 1-hop neighborhood. Panel 3 shows self-loop arcs on every node. Panel 4 shows a balanced normalized adjacency matrix icon labeled A_hat, no complex formula. Panel 5 shows undirected neighbor aggregation with cyan glow and hidden embeddings H1. Panel 6 shows all-node class probabilities Z with colored mini-bars inside nodes. Panel 7 isolates only the amber labeled nodes feeding a coral loss box; unlabeled nodes are visible but greyed out and explicitly not connected to loss. Add a small circular arrow from loss back to W0 and W1 labeled "update W0, W1".
+Color palette: background #070B14, panels #111827, borders #1E293B, cyan #22D3EE for propagation, amber #FBBF24 for labeled nodes, mint #34D399 for normalization, coral #FB7185 for loss, lavender #A78BFA and sky #7DD3FC for class colors, white text.
+Constraints: Use minimal readable English labels only. Avoid complex LaTeX, unicode accents, tiny paragraphs, or dense equations. Use ASCII tokens like A_tilde, A_hat, H1, Z, W0, W1. Make the semi-supervised point visually unmistakable: unlabeled nodes participate in propagation but do not connect to the loss. Do not imply A_hat is learned; only W0 and W1 are updated. Do not show directed arrows between graph nodes; use undirected aggregation glow. No original paper figure copying, no t-SNE plot, no photorealism, no glossy 3D blobs, no watermark, no logo.
