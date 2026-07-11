@@ -265,11 +265,87 @@ def test_blog_index_grouped_by_category(client: TestClient) -> None:
     assert ">Engineering</a>" in html
 
 
-def test_blog_index_defaults_to_engineering_category(client: TestClient) -> None:
-    """The /blog index defaults to the Engineering category hub content."""
-    html = client.get("/blog").text
-    assert ">Engineering</a>" in html
+def test_blog_index_renders_every_nonempty_category(monkeypatch) -> None:
+    """The /blog index links every category hub and its posts, not just one.
+
+    Non-JS crawlers discover posts by following anchors from /blog, so the
+    paper-review section must not be orphaned behind client-side navigation.
+    """
+    review_post = {
+        "id": "ffff2222dddd",
+        "title": "DeepWalk Review",
+        "slug": "deepwalk-review-ffff2222",
+        "excerpt": "A deep review of DeepWalk.",
+        "content": "Review body.",
+        "author": "test-admin",
+        "tags": ["PaperReview"],
+        "thumbnail_url": None,
+        "created_at": "2026-04-01T09:00:00",
+        "updated_at": None,
+        "published": True,
+        "reading_time_min": 1,
+        "category": "paper-review",
+    }
+    monkeypatch.setattr("routers.seo._load_posts", lambda: [*_FIXED_POSTS, review_post])
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    html = TestClient(app).get("/blog").text
+    assert "/blog/category/paper-review" in html
+    assert ">Paper Reviews</a>" in html
+    assert f'/blog/{review_post["slug"]}' in html
     assert "/blog/category/engineering" in html
+    assert ">Engineering</a>" in html
+    assert f"/blog/{PUBLISHED_SLUG}" in html
+
+
+def test_paper_review_post_links_reviewed_paper_in_json_ld(monkeypatch) -> None:
+    """A review citing '**Paper:** …' emits ScholarlyArticle + about/citation."""
+    review_post = {
+        "id": "eeee3333aaaa",
+        "title": "DeepWalk Review",
+        "slug": "deepwalk-review-eeee3333",
+        "excerpt": "A deep review of DeepWalk.",
+        "content": (
+            "# DeepWalk Review\n\n"
+            '**Paper:** Perozzi, Bryan; Al-Rfou, Rami; Skiena, Steven. (2014). '
+            '"DeepWalk: Online Learning of Social Representations." '
+            "*KDD 2014*, arXiv:1403.6652. https://doi.org/10.1145/2623330.2623732\n\n"
+            "## Review\n\nBody text."
+        ),
+        "author": "test-admin",
+        "tags": ["PaperReview"],
+        "thumbnail_url": None,
+        "created_at": "2026-04-01T09:00:00",
+        "updated_at": None,
+        "published": True,
+        "reading_time_min": 1,
+        "category": "paper-review",
+    }
+    monkeypatch.setattr("routers.seo._load_posts", lambda: [*_FIXED_POSTS, review_post])
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    html = TestClient(app).get(f"/blog/{review_post['slug']}").text
+
+    arxiv_url = "https://arxiv.org/abs/1403.6652"
+    assert '"@type": "ScholarlyArticle"' in html
+    assert f'"@id": "{arxiv_url}"' in html
+    assert '"name": "DeepWalk: Online Learning of Social Representations"' in html
+    assert f'"about": {{"@id": "{arxiv_url}"}}' in html
+    assert f'"citation": {{"@id": "{arxiv_url}"}}' in html
+    assert '"propertyID": "arXiv", "value": "1403.6652"' in html
+    assert '"propertyID": "DOI", "value": "10.1145/2623330.2623732"' in html
+    assert '"name": "Perozzi, Bryan"' in html
+
+
+def test_non_review_post_has_no_scholarly_article(client: TestClient) -> None:
+    """Posts without a paper citation keep their JSON-LD unchanged."""
+    html = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert "ScholarlyArticle" not in html
+    assert '"citation"' not in html
+
+
+def test_blog_index_omits_empty_category(client: TestClient) -> None:
+    """A category with no published posts renders no section on /blog."""
+    html = client.get("/blog").text
+    assert "/blog/category/paper-review" not in html
 
 
 def test_category_hub_renders_and_self_canonicalizes(client: TestClient) -> None:
