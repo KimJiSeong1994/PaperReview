@@ -342,6 +342,67 @@ def _parse_dt(value: str) -> datetime:
         return datetime.now()
 
 
+# ── Primary paper reference extraction ───────────────────────────────
+# Shared contract with web-ui/src/utils/blogPaperReference.ts — the same
+# "**Paper:**" citation block is parsed on both sides, so keep the regexes
+# and fallbacks identical when changing either implementation.
+
+_PAPER_BLOCK_RE = re.compile(
+    r"\*\*Paper:\*\*\s*(.*?)(?=\n\s*\*\*Abstract:\*\*|\n\s*---|\n\s*##\s|$)",
+    re.IGNORECASE | re.DOTALL,
+)
+_ARXIV_RE = re.compile(r"arXiv:?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.IGNORECASE)
+_DOI_URL_RE = re.compile(r"https://doi\.org/([^\s)]+)", re.IGNORECASE)
+_DOI_TEXT_RE = re.compile(r"\b(?:doi|DOI):\s*(10\.\d{4,9}/[^\s)]+)", re.IGNORECASE)
+_QUOTED_TITLE_RE = re.compile(r'"([^"]+)"')
+_YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
+
+
+def _extract_primary_paper_reference(post: dict) -> dict | None:
+    """Return the reviewed paper's citation parsed from the post content.
+
+    Mirrors ``extractPrimaryPaperReference`` in the frontend. Returns a dict
+    with ``title``, ``authors`` and optional ``year``/``arxiv_id``/``doi``/
+    ``url``, or ``None`` when no citation can be recovered.
+    """
+    content = post.get("content", "") or ""
+    match = _PAPER_BLOCK_RE.search(content)
+    if not match and post.get("category") != "paper-review":
+        return None
+
+    block = (match.group(1) if match else content[:1000]).strip()
+    if not block:
+        return None
+
+    arxiv_match = _ARXIV_RE.search(block)
+    arxiv_id = arxiv_match.group(1).strip().rstrip(".,;:") if arxiv_match else None
+    doi_match = _DOI_URL_RE.search(block) or _DOI_TEXT_RE.search(block)
+    doi = doi_match.group(1).rstrip(".,;:") if doi_match else None
+    title_match = _QUOTED_TITLE_RE.search(block)
+    title = (title_match.group(1).strip() if title_match else "") or post.get("title", "")
+    title = re.sub(r"\.$", "", title)
+    year_match = _YEAR_RE.search(block)
+
+    before_title = block.split('"')[0].strip()
+    without_year = re.sub(r"\([^)]*\d{4}[^)]*\)\.?\s*$", "", before_title).strip()
+    authors = [a.strip() for a in without_year.split(";") if a.strip()]
+
+    if not arxiv_id and not doi and not title:
+        return None
+
+    ref: dict = {"title": title, "authors": authors}
+    if year_match:
+        ref["year"] = int(year_match.group(1))
+    if arxiv_id:
+        ref["arxiv_id"] = arxiv_id
+        ref["url"] = f"https://arxiv.org/abs/{arxiv_id}"
+    elif doi:
+        ref["url"] = f"https://doi.org/{doi}"
+    if doi:
+        ref["doi"] = doi
+    return ref
+
+
 # ── JSON-LD builders (must byte-match the frontend builder) ───────────
 
 
@@ -397,6 +458,29 @@ def _breadcrumb(title: str | None = None, slug: str | None = None) -> dict:
     return {"@type": "BreadcrumbList", "itemListElement": items}
 
 
+def _scholarly_article_node(ref: dict) -> dict:
+    """Return a ScholarlyArticle node for the paper a review is about."""
+    node: dict = {
+        "@type": "ScholarlyArticle",
+        "@id": ref["url"],
+        "name": ref["title"],
+    }
+    if ref.get("authors"):
+        node["author"] = [{"@type": "Person", "name": name} for name in ref["authors"]]
+    identifiers = []
+    if ref.get("arxiv_id"):
+        identifiers.append(
+            {"@type": "PropertyValue", "propertyID": "arXiv", "value": ref["arxiv_id"]}
+        )
+    if ref.get("doi"):
+        identifiers.append({"@type": "PropertyValue", "propertyID": "DOI", "value": ref["doi"]})
+        if ref.get("arxiv_id"):
+            node["sameAs"] = [f"https://doi.org/{ref['doi']}"]
+    if identifiers:
+        node["identifier"] = identifiers
+    return node
+
+
 def _blog_posting_graph(post: dict) -> dict:
     """Return the @graph for a single BlogPosting page."""
     title = post.get("title", "")
@@ -428,10 +512,18 @@ def _blog_posting_graph(post: dict) -> dict:
         "wordCount": len(content.split()),
         "image": image,
     }
-    return {
-        "@context": "https://schema.org",
-        "@graph": [_organization_node(), posting, _breadcrumb(title, slug)],
-    }
+
+    graph = [_organization_node(), posting]
+    # Link the review to the paper it discusses so answer engines can connect
+    # "what does <paper> propose?" queries to this post as a citable source.
+    ref = _extract_primary_paper_reference(post)
+    if ref and ref.get("url"):
+        posting["about"] = {"@id": ref["url"]}
+        posting["citation"] = {"@id": ref["url"]}
+        graph.append(_scholarly_article_node(ref))
+    graph.append(_breadcrumb(title, slug))
+
+    return {"@context": "https://schema.org", "@graph": graph}
 
 
 def _blog_index_graph(posts: list[dict]) -> dict:
@@ -739,8 +831,6 @@ async def blog_index_ssr() -> HTMLResponse:
 
     published = [p for p in posts if p.get("published")]
     published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
-    default_category = "engineering"
-
     def _index_section(cat: str) -> str:
         label, _desc = BLOG_CATEGORIES[cat]
         cat_posts = [p for p in published if _category_of(p) == cat]
@@ -758,9 +848,10 @@ async def blog_index_ssr() -> HTMLResponse:
             f"<ul>{items}</ul></section>"
         )
 
-    # /blog defaults to the Engineering category; other categories remain
-    # available through their explicit /blog/category/<category> hubs.
-    sections = _index_section(default_category)
+    # Render every category section so each hub and every published post is
+    # one anchor hop from /blog — non-JS crawlers (GPTBot, ClaudeBot, Yeti)
+    # discover posts by following <a> links, not by executing the SPA.
+    sections = "".join(_index_section(cat) for cat in BLOG_CATEGORIES)
     body = (
         '<div class="blog-container"><div class="blog-content">'
         f"<h1>Blog</h1>{sections}"

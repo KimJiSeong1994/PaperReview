@@ -4,6 +4,11 @@
 // byte-match these shapes, so do not reorder keys or change values without
 // coordinating both sides.
 
+import {
+  extractPrimaryPaperReference,
+  type BlogPaperReference,
+} from '../utils/blogPaperReference';
+
 export const SITE_URL = 'https://jiphyeonjeon.kr';
 export const OG_DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
 
@@ -144,6 +149,32 @@ export function blogBreadcrumb(title?: string, slug?: string): Record<string, un
   };
 }
 
+/** ScholarlyArticle node for the paper a review is about (keep in byte-sync with seo.py). */
+function scholarlyArticleNode(ref: BlogPaperReference & { url: string }): Record<string, unknown> {
+  const node: Record<string, unknown> = {
+    '@type': 'ScholarlyArticle',
+    '@id': ref.url,
+    name: ref.title,
+  };
+  if (ref.authors.length > 0) {
+    node.author = ref.authors.map((name) => ({ '@type': 'Person', name }));
+  }
+  const identifiers: Record<string, unknown>[] = [];
+  if (ref.arxiv_id) {
+    identifiers.push({ '@type': 'PropertyValue', propertyID: 'arXiv', value: ref.arxiv_id });
+  }
+  if (ref.doi) {
+    identifiers.push({ '@type': 'PropertyValue', propertyID: 'DOI', value: ref.doi });
+    if (ref.arxiv_id) {
+      node.sameAs = [`https://doi.org/${ref.doi}`];
+    }
+  }
+  if (identifiers.length > 0) {
+    node.identifier = identifiers;
+  }
+  return node;
+}
+
 export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
@@ -167,10 +198,18 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     image: post.thumbnail_url || OG_DEFAULT_IMAGE,
   };
 
-  return {
-    '@context': 'https://schema.org',
-    '@graph': [organizationNode(), posting, blogBreadcrumb(post.title, post.slug)],
-  };
+  const graph: Record<string, unknown>[] = [organizationNode(), posting];
+  // Link the review to the paper it discusses so answer engines can connect
+  // "what does <paper> propose?" queries to this post as a citable source.
+  const ref = extractPrimaryPaperReference(post);
+  if (ref?.url) {
+    posting.about = { '@id': ref.url };
+    posting.citation = { '@id': ref.url };
+    graph.push(scholarlyArticleNode(ref as BlogPaperReference & { url: string }));
+  }
+  graph.push(blogBreadcrumb(post.title, post.slug));
+
+  return { '@context': 'https://schema.org', '@graph': graph };
 }
 
 export function blogIndexGraph(

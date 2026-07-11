@@ -158,6 +158,54 @@ describe('blogPostingGraph', () => {
     expect(posting.inLanguage).toBe('en');
   });
 
+  it('links the reviewed paper via about/citation and a ScholarlyArticle node', () => {
+    const reviewPost: BlogPostLike = {
+      ...samplePost,
+      slug: 'deepwalk-review',
+      category: 'paper-review',
+      content:
+        '# DeepWalk Review\n\n'
+        + '**Paper:** Perozzi, Bryan; Al-Rfou, Rami; Skiena, Steven. (2014). '
+        + '"DeepWalk: Online Learning of Social Representations." '
+        + '*KDD 2014*, arXiv:1403.6652. https://doi.org/10.1145/2623330.2623732\n\n'
+        + '## Review\n\nBody text.',
+    };
+    const nodes = blogPostingGraph(reviewPost)['@graph'] as Record<string, unknown>[];
+    const posting = nodes.find((n) => n['@type'] === 'BlogPosting')!;
+    const article = nodes.find((n) => n['@type'] === 'ScholarlyArticle')!;
+
+    const arxivUrl = 'https://arxiv.org/abs/1403.6652';
+    expect(posting.about).toEqual({ '@id': arxivUrl });
+    expect(posting.citation).toEqual({ '@id': arxivUrl });
+    expect(article['@id']).toBe(arxivUrl);
+    expect(article.name).toBe('DeepWalk: Online Learning of Social Representations');
+    expect(article.author).toEqual([
+      { '@type': 'Person', name: 'Perozzi, Bryan' },
+      { '@type': 'Person', name: 'Al-Rfou, Rami' },
+      { '@type': 'Person', name: 'Skiena, Steven.' },
+    ]);
+    expect(article.sameAs).toEqual(['https://doi.org/10.1145/2623330.2623732']);
+    expect(article.identifier).toEqual([
+      { '@type': 'PropertyValue', propertyID: 'arXiv', value: '1403.6652' },
+      { '@type': 'PropertyValue', propertyID: 'DOI', value: '10.1145/2623330.2623732' },
+    ]);
+    // The ScholarlyArticle sits between the posting and the breadcrumb.
+    expect(nodes.map((n) => n['@type'])).toEqual([
+      'Organization',
+      'BlogPosting',
+      'ScholarlyArticle',
+      'BreadcrumbList',
+    ]);
+  });
+
+  it('emits no about/citation for a post without a paper reference', () => {
+    const nodes = blogPostingGraph(samplePost)['@graph'] as Record<string, unknown>[];
+    const posting = nodes.find((n) => n['@type'] === 'BlogPosting')!;
+    expect(posting.about).toBeUndefined();
+    expect(posting.citation).toBeUndefined();
+    expect(nodes.some((n) => n['@type'] === 'ScholarlyArticle')).toBe(false);
+  });
+
   it('sets inLanguage to ko when the post contains Korean text', () => {
     const koreanPost: BlogPostLike = {
       ...samplePost,
