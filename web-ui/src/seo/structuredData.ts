@@ -8,6 +8,7 @@ import {
   extractPrimaryPaperReference,
   type BlogPaperReference,
 } from '../utils/blogPaperReference';
+import { BLOG_SERIES, seriesOf } from './series';
 
 export const SITE_URL = 'https://jiphyeonjeon.kr';
 export const OG_DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
@@ -202,6 +203,11 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     image: post.thumbnail_url || OG_DEFAULT_IMAGE,
   };
 
+  const seriesId = seriesOf(post.slug);
+  if (seriesId) {
+    posting.isPartOf = { '@id': `${SITE_URL}/blog/series/${seriesId}#collection` };
+  }
+
   const graph: Record<string, unknown>[] = [organizationNode(), posting];
   // Link the review to the paper it discusses so answer engines can connect
   // "what does <paper> propose?" queries to this post as a citable source.
@@ -214,6 +220,49 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
   graph.push(blogBreadcrumb(post.title, post.slug));
 
   return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+/** @graph for a series pillar page (CollectionPage + ordered ItemList). */
+export function seriesGraph(
+  seriesId: string,
+  posts: Pick<BlogPostLike, 'slug' | 'title'>[],
+): Record<string, unknown> {
+  const series = BLOG_SERIES[seriesId];
+  const url = `${SITE_URL}/blog/series/${seriesId}`;
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      organizationNode(),
+      {
+        '@type': 'CollectionPage',
+        '@id': `${url}#collection`,
+        url,
+        name: `${series.title} — Jiphyeonjeon Blog`,
+        description: series.description,
+        isPartOf: { '@id': `${SITE_URL}/blog#blog` },
+        publisher: { '@id': ORG_ID },
+        mainEntity: {
+          '@type': 'ItemList',
+          itemListOrder: 'https://schema.org/ItemListOrderAscending',
+          numberOfItems: posts.length,
+          itemListElement: posts.map((p, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: p.title,
+            url: blogCanonical(p.slug),
+          })),
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
+          { '@type': 'ListItem', position: 3, name: series.title, item: url },
+        ],
+      },
+    ],
+  };
 }
 
 export function blogIndexGraph(

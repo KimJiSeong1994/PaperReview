@@ -352,6 +352,84 @@ def test_non_review_post_has_no_scholarly_article(client: TestClient) -> None:
     assert '"citation"' not in html
 
 
+def _series_fixture_posts() -> list[dict]:
+    """Two published members of the gnn series plus the base fixtures."""
+    from routers.seo import BLOG_SERIES
+
+    slugs = BLOG_SERIES["gnn"]["slugs"]
+    members = [
+        {
+            "id": f"series{i}",
+            "title": f"Series Post {i}",
+            "slug": slug,
+            "excerpt": f"Excerpt {i}.",
+            "content": "Body text.",
+            "author": "test-admin",
+            "tags": ["PaperReview"],
+            "thumbnail_url": None,
+            "created_at": f"2026-05-0{i + 1}T09:00:00",
+            "updated_at": None,
+            "published": True,
+            "reading_time_min": 1,
+            "category": "paper-review",
+        }
+        for i, slug in enumerate(slugs[:2])
+    ]
+    return [*_FIXED_POSTS, *members]
+
+
+def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    resp = TestClient(app).get("/blog/series/gnn")
+    assert resp.status_code == 200
+    html = resp.text
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
+    assert "GNN 논문 리뷰 시리즈" in html
+    assert '"@type": "CollectionPage"' in html
+    assert '"@type": "ItemList"' in html
+    assert '"numberOfItems": 2' in html
+    # Ordered: position 1 is the first series slug.
+    assert html.index("Series Post 0") < html.index("Series Post 1")
+    assert "noindex" not in html
+
+
+def test_series_member_post_has_banner_and_is_part_of(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    first, second = BLOG_SERIES["gnn"]["slugs"][:2]
+    html = TestClient(app).get(f"/blog/{first}").text
+    assert '<nav class="blog-series"' in html
+    assert 'href="/blog/series/gnn"' in html
+    # Only 2 of the series slugs are published -> next link targets the 2nd,
+    # and position is computed over published members only (1/2편).
+    assert "1/2편" in html
+    assert f'href="/blog/{second}">시리즈 다음 글' in html
+    assert '"isPartOf": {"@id": "https://jiphyeonjeon.kr/blog/series/gnn#collection"}' in html
+
+
+def test_empty_series_hub_is_noindex(client: TestClient) -> None:
+    """Base fixtures publish no series members -> hub served noindex."""
+    resp = client.get("/blog/series/gnn")
+    assert resp.status_code == 200
+    assert '<meta name="robots" content="noindex,nofollow">' in resp.text
+
+
+def test_unknown_series_returns_404(client: TestClient) -> None:
+    resp = client.get("/blog/series/zzz-unknown")
+    assert resp.status_code == 404
+
+
+def test_sitemap_lists_nonempty_series_hub_only(monkeypatch, client: TestClient) -> None:
+    # Base fixtures: no members published -> series hub omitted.
+    assert "/blog/series/gnn" not in client.get("/sitemap.xml").text
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    assert "/blog/series/gnn" in TestClient(app).get("/sitemap.xml").text
+
+
 def test_blog_index_omits_empty_category(client: TestClient) -> None:
     """A category with no published posts renders no section on /blog."""
     html = client.get("/blog").text

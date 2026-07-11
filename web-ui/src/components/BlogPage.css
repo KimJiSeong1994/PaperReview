@@ -1500,3 +1500,65 @@
 .blog-prevnext a:hover {
   color: var(--indigo-strong);
 }
+
+/* ── Series (banner on posts + pillar page list) ────────────────────── */
+
+.blog-series {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--wov-03);
+  border: 1px solid var(--wov-05);
+  border-radius: 8px;
+}
+
+.blog-series a {
+  color: var(--indigo);
+  text-decoration: none;
+}
+
+.blog-series a:hover {
+  text-decoration: underline;
+}
+
+.blog-series-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.blog-series-list li a {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--text-hi);
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.blog-series-list li a:hover .blog-series-item-title {
+  color: var(--indigo);
+}
+
+.blog-series-pos {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--indigo);
+}
+
+.blog-series-item-excerpt {
+  margin: 4px 0 0 25px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
