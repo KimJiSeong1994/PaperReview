@@ -27,6 +27,7 @@ AI_SEARCH_AND_DISCOVERY_AGENTS = [
 ]
 
 PRIVATE_PATHS = [
+    "/api/",
     "/admin",
     "/admin/",
     "/mypage",
@@ -74,11 +75,21 @@ PRIVATE_DISALLOWED_SAMPLES = [
     "/mypage",
     "/share/token",
     "/share/curriculum/x",
+    "/api/auth/login",
+    "/api/recommendations/list",
+    "/api/analytics/event",
+    "/api/private/data",
+    "/api/user/settings",
     "/api/shared/x",
     "/api/shared/curriculum/x",
     "/api/admin/dashboard",
     "/api/me/all",
     "/api/bookmarks",
+    "/api/curricula/course/progress",
+    "/api/deep-review/status/session",
+    "/api/deep-review/report/session",
+    "/api/deep-review/verification/session",
+    "/api/light-rag/status",
 ]
 
 
@@ -193,6 +204,23 @@ def test_effective_policy_allows_public_paths_for_representative_agents() -> Non
         text = robots_path.read_text(encoding="utf-8")
         for agent in REPRESENTATIVE_USER_AGENTS:
             for path in PUBLIC_ALLOWED_SAMPLES:
+                assert _is_allowed(agent, path, text), f"{agent} should allow {path} in {robots_path}"
+
+
+def test_blog_media_allow_rules_beat_api_disallow_by_longest_match() -> None:
+    for robots_path in ROBOTS_PATHS:
+        text = robots_path.read_text(encoding="utf-8")
+        for agent in REPRESENTATIVE_USER_AGENTS:
+            rules = _rules_for(agent, text)
+            assert ("disallow", "/api/") in rules, f"{agent} should broadly block API paths in {robots_path}"
+            for path in ["/api/blog/thumbnail/x", "/api/blog/figures/x"]:
+                matching_rules = [
+                    (directive, pattern)
+                    for directive, pattern in rules
+                    if _pattern_matches(pattern, path)
+                ]
+                best_length = max(_match_length(pattern) for _, pattern in matching_rules)
+                assert best_length > _match_length("/api/")
                 assert _is_allowed(agent, path, text), f"{agent} should allow {path} in {robots_path}"
 
 
