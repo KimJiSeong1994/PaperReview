@@ -252,6 +252,8 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True only when the API definitively said the post is gone (404/410).
+  const [postNotFound, setPostNotFound] = useState(false);
 
   // Editor state (admin only)
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
@@ -319,6 +321,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       setLoading(true);
       setError(null);
       setSelectedPost(null);
+      setPostNotFound(false);
       setView('detail');
 
       fetchBlogPost(slug)
@@ -328,6 +331,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         })
         .catch((err: unknown) => {
           if (cancelled) return;
+          const status = (err as { response?: { status?: number } }).response?.status;
+          // Only a definitive 404/410 means the post is gone. Anything else
+          // (network failure, robots-blocked XHR in Google's renderer, 5xx)
+          // must NOT flip the page to noindex — the server-rendered HTML is
+          // the source of truth and already indexes real posts.
+          setPostNotFound(status === 404 || status === 410);
           setError(getErrorMessage(err, 'Failed to load post.'));
         })
         .finally(() => {
@@ -959,7 +968,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       ? `${categoryLabel} | Jiphyeonjeon Blog`
       : BLOG_TITLE;
   const seoDescription = seoPost?.excerpt || BLOG_DESCRIPTION;
-  const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost);
+  const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost && postNotFound);
   const seoCanonical = seoPost
     ? blogCanonical(seoPost.slug)
     : initialCategory

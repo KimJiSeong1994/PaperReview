@@ -7,8 +7,11 @@
 # Anthropic separates Claude-SearchBot/Claude-User (visibility for search/user
 # queries) from ClaudeBot (model-development training); Google AI features use
 # ordinary indexed, crawlable pages and require no special AI markup.
-# Note: /api/ is broadly blocked except for blog images served from
-# /api/blog/thumbnail/ and /api/blog/figures/, which must remain crawlable.
+# Note: /api/ is broadly blocked except for public blog resources: images
+# (/api/blog/thumbnail/, /api/blog/figures/) and the read-only post/tag API
+# (/api/blog/posts, /api/blog/tags). The post API must stay crawlable or
+# Google's renderer blocks the SPA's XHR, the client marks the page noindex,
+# and every post becomes un-indexable despite perfect SSR HTML.
 
 # Default policy for all crawlers: public pages allowed, private paths blocked.
 User-agent: *
@@ -17,6 +20,8 @@ Allow: /blog
 Allow: /blog/
 Allow: /api/blog/thumbnail/
 Allow: /api/blog/figures/
+Allow: /api/blog/posts
+Allow: /api/blog/tags
 Disallow: /api/
 Disallow: /admin
 Disallow: /admin/
@@ -61,6 +66,8 @@ Allow: /blog
 Allow: /blog/
 Allow: /api/blog/thumbnail/
 Allow: /api/blog/figures/
+Allow: /api/blog/posts
+Allow: /api/blog/tags
 Disallow: /api/
 Disallow: /admin
 Disallow: /admin/
