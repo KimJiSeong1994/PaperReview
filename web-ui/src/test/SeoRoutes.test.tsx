@@ -100,8 +100,9 @@ describe('SEO-sensitive routes', () => {
     expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
   });
 
-  it('marks failed blog slug loads noindex,nofollow instead of indexing a soft 404', async () => {
-    vi.mocked(fetchBlogPost).mockRejectedValue(new Error('missing'));
+  it('marks 404 blog slug loads noindex,nofollow instead of indexing a soft 404', async () => {
+    const notFound = Object.assign(new Error('missing'), { response: { status: 404 } });
+    vi.mocked(fetchBlogPost).mockRejectedValue(notFound);
 
     renderWithAuth(
       '/blog/missing-slug',
@@ -120,6 +121,30 @@ describe('SEO-sensitive routes', () => {
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
       'https://jiphyeonjeon.kr/blog',
+    );
+  });
+
+  it('does NOT noindex a blog slug when the fetch fails without a 404/410', async () => {
+    // Google's Web Rendering Service blocks robots-disallowed XHRs, which
+    // surfaces as a network-style failure with no HTTP status. That must not
+    // override the server-rendered "index, follow" for a real post.
+    vi.mocked(fetchBlogPost).mockRejectedValue(new Error('Network Error'));
+
+    renderWithAuth(
+      '/blog/real-post-slug',
+      <Routes>
+        <Route path="/blog/:slug" element={<BlogPage isAdmin={false} slug="real-post-slug" />} />
+      </Routes>,
+    );
+
+    expect(await screen.findByText('Network Error')).toBeInTheDocument();
+    await waitFor(() => {
+      const robots = document.head.querySelector('meta[name="robots"]');
+      expect(robots?.getAttribute('content') ?? '').not.toContain('noindex');
+    });
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://jiphyeonjeon.kr/blog/real-post-slug',
     );
   });
 
