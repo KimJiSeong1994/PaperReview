@@ -57,7 +57,11 @@ export function organizationNode(): Record<string, unknown> {
     disambiguatingDescription:
       'A modern AI research tool; not the 15th-century Joseon-dynasty royal '
       + 'research institute of the same name (the Hall of Worthies).',
-    sameAs: ['https://github.com/KimJiSeong1994/PaperReview'],
+    sameAs: [
+      'https://github.com/KimJiSeong1994/PaperReview',
+      'https://github.com/KimJiSeong1994',
+      'https://www.linkedin.com/in/jiseong-kim-868218193/',
+    ],
     logo: {
       '@type': 'ImageObject',
       url: `${SITE_URL}/Jiphyeonjeon_llama.png`,

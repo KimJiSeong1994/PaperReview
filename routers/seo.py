@@ -84,6 +84,23 @@ DIST_INDEX = Path("web-ui/dist/index.html")
 
 ORG_ID = "https://jiphyeonjeon.kr/#organization"
 
+# Maintainer profile links shown site-wide for service credibility. Keep in
+# sync with web-ui/src/components/SiteFooter.tsx and structuredData.ts.
+GITHUB_PROFILE_URL = "https://github.com/KimJiSeong1994"
+LINKEDIN_PROFILE_URL = "https://www.linkedin.com/in/jiseong-kim-868218193/"
+
+# Pre-hydration footer appended inside #root on SSR pages so non-JS crawlers
+# and users see the same maintainer links the React SiteFooter renders.
+_SITE_FOOTER_HTML = (
+    '<footer class="site-footer">'
+    '<span class="site-footer-brand">© Jiphyeonjeon (집현전)</span>'
+    '<nav class="site-footer-links" aria-label="Maintainer profiles">'
+    f'<a href="{GITHUB_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">GitHub</a>'
+    '<span class="site-footer-sep" aria-hidden="true">·</span>'
+    f'<a href="{LINKEDIN_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">LinkedIn</a>'
+    "</nav></footer>"
+)
+
 # Indexable blog category hubs: value -> (display label, hub description).
 BLOG_CATEGORIES: dict[str, tuple[str, str]] = {
     "paper-review": (
@@ -422,7 +439,11 @@ def _organization_node() -> dict:
             "A modern AI research tool; not the 15th-century Joseon-dynasty royal "
             "research institute of the same name (the Hall of Worthies)."
         ),
-        "sameAs": ["https://github.com/KimJiSeong1994/PaperReview"],
+        "sameAs": [
+            "https://github.com/KimJiSeong1994/PaperReview",
+            GITHUB_PROFILE_URL,
+            LINKEDIN_PROFILE_URL,
+        ],
         "logo": {
             "@type": "ImageObject",
             "url": "https://jiphyeonjeon.kr/Jiphyeonjeon_llama.png",
@@ -677,7 +698,7 @@ def _build_document(
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n    '
         f"{theme_script}\n    "
         f"{head}\n  </head>\n  <body>\n    "
-        f'<div id="root">{article_html}</div>\n    '
+        f'<div id="root">{article_html}{_SITE_FOOTER_HTML}</div>\n    '
         f"{scripts}\n  </body>\n</html>"
     )
 

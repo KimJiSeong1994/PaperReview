@@ -197,7 +197,17 @@ def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
     """The Organization JSON-LD on an SSR blog page carries sameAs + disambiguation."""
     html = client.get(f"/blog/{PUBLISHED_SLUG}").text
     assert "github.com/KimJiSeong1994/PaperReview" in html
+    assert "linkedin.com/in/jiseong-kim-868218193" in html
     assert "disambiguatingDescription" in html
+
+
+def test_ssr_pages_render_site_footer_with_profile_links(client: TestClient) -> None:
+    """Every SSR page carries the maintainer-profile footer for credibility."""
+    for path in ("/blog", f"/blog/{PUBLISHED_SLUG}", "/blog/category/engineering"):
+        html = client.get(path).text
+        assert '<footer class="site-footer">' in html, path
+        assert 'href="https://github.com/KimJiSeong1994"' in html, path
+        assert 'href="https://www.linkedin.com/in/jiseong-kim-868218193/"' in html, path
 
 
 def test_spa_shell_defaults_to_dark_before_paint() -> None:

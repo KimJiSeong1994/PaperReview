@@ -5,6 +5,7 @@ import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
+import SiteFooter from './components/SiteFooter';
 import { homeGraph } from './seo/structuredData';
 import { useAuth } from './contexts/AuthContext';
 
@@ -208,6 +209,7 @@ function App() {
           }
         />
       </Routes>
+      <SiteFooter />
     </div>
   );
 }

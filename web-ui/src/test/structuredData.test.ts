@@ -48,7 +48,11 @@ describe('organizationNode', () => {
 
   it('grounds the entity with sameAs and a disambiguating description', () => {
     const node = organizationNode();
-    expect(node.sameAs).toEqual(['https://github.com/KimJiSeong1994/PaperReview']);
+    expect(node.sameAs).toEqual([
+      'https://github.com/KimJiSeong1994/PaperReview',
+      'https://github.com/KimJiSeong1994',
+      'https://www.linkedin.com/in/jiseong-kim-868218193/',
+    ]);
     expect(typeof node.description).toBe('string');
     // Must disambiguate from the historical Joseon-dynasty institute for AI engines.
     expect(String(node.disambiguatingDescription)).toMatch(/not the .*institute/i);
