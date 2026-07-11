@@ -101,6 +101,41 @@ _SITE_FOOTER_HTML = (
     "</nav></footer>"
 )
 
+# Ordered blog series hubs (pillar pages). Keys are the /blog/series/{id}
+# path segment; ``slugs`` is the recommended reading order. Keep in sync with
+# web-ui/src/seo/series.ts (shared contract, like the JSON-LD builders).
+BLOG_SERIES: dict[str, dict] = {
+    "gnn": {
+        "title": "GNN 논문 리뷰 시리즈",
+        "description": (
+            "그래프 신경망(GNN)의 핵심 논문 8편을 랜덤워크 임베딩부터 "
+            "메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성까지 "
+            "권장 순서로 깊이 있게 읽는 한국어 딥리뷰 시리즈. 스탠퍼드 "
+            "CS224W(Machine Learning with Graphs) 커리큘럼과 나란히 읽을 "
+            "수 있도록 구성했다."
+        ),
+        "slugs": [
+            "deepwalk-online-learning-social-representations-review-2026",
+            "semi-supervised-classification-graph-convolutional-networks-review-2026",
+            "graphsage-inductive-representation-learning-large-graphs-review-2026",
+            "graph-attention-networks-gat-review-2026",
+            "how-powerful-are-graph-neural-networks-gin-review-2026",
+            "heterogeneous-graph-neural-network-hetgnn-review-2026",
+            "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+            "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+        ],
+    },
+}
+
+
+def _series_membership(slug: str) -> tuple[str, int] | None:
+    """Return ``(series_id, position)`` (1-based) for a slug, else ``None``."""
+    for series_id, series in BLOG_SERIES.items():
+        if slug in series["slugs"]:
+            return series_id, series["slugs"].index(slug) + 1
+    return None
+
+
 # Indexable blog category hubs: value -> (display label, hub description).
 BLOG_CATEGORIES: dict[str, tuple[str, str]] = {
     "paper-review": (
@@ -534,6 +569,13 @@ def _blog_posting_graph(post: dict) -> dict:
         "image": image,
     }
 
+    membership = _series_membership(slug)
+    if membership:
+        series_id, _position = membership
+        posting["isPartOf"] = {
+            "@id": f"https://jiphyeonjeon.kr/blog/series/{series_id}#collection"
+        }
+
     graph = [_organization_node(), posting]
     # Link the review to the paper it discusses so answer engines can connect
     # "what does <paper> propose?" queries to this post as a citable source.
@@ -607,6 +649,50 @@ def _category_graph(category: str, label: str, description: str, posts: list[dic
                 "isPartOf": {"@id": "https://jiphyeonjeon.kr/blog#blog"},
                 "publisher": {"@id": ORG_ID},
                 "hasPart": blog_posts,
+            },
+            breadcrumb,
+        ],
+    }
+
+
+def _series_graph(series_id: str, title: str, description: str, posts: list[dict]) -> dict:
+    """Return the @graph for a series pillar page (CollectionPage + ItemList)."""
+    url = f"https://jiphyeonjeon.kr/blog/series/{series_id}"
+    items = [
+        {
+            "@type": "ListItem",
+            "position": i + 1,
+            "name": p.get("title", ""),
+            "url": f"https://jiphyeonjeon.kr/blog/{p.get('slug', '')}",
+        }
+        for i, p in enumerate(posts)
+    ]
+    breadcrumb = {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://jiphyeonjeon.kr/"},
+            {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://jiphyeonjeon.kr/blog"},
+            {"@type": "ListItem", "position": 3, "name": title, "item": url},
+        ],
+    }
+    return {
+        "@context": "https://schema.org",
+        "@graph": [
+            _organization_node(),
+            {
+                "@type": "CollectionPage",
+                "@id": f"{url}#collection",
+                "url": url,
+                "name": f"{title} — Jiphyeonjeon Blog",
+                "description": description,
+                "isPartOf": {"@id": "https://jiphyeonjeon.kr/blog#blog"},
+                "publisher": {"@id": ORG_ID},
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "itemListOrder": "https://schema.org/ItemListOrderAscending",
+                    "numberOfItems": len(items),
+                    "itemListElement": items,
+                },
             },
             breadcrumb,
         ],
@@ -708,6 +794,7 @@ def _render_article(
     related: list[dict] | None = None,
     prev_post: dict | None = None,
     next_post: dict | None = None,
+    published_slugs: set[str] | None = None,
 ) -> str:
     """Render the visible <article> body for a single blog post.
 
@@ -724,6 +811,41 @@ def _render_article(
     )
     # Drop the duplicate leading H1 so the title <h1> is the page's only H1.
     rendered_html = _md.render(_normalize_blog_markdown(post.get("content", ""), ssr_math_fallback=True))
+
+    # Series banner: anchors every member post to its pillar page and to the
+    # previous/next post in reading order (crawlable cluster signal). Reading
+    # order is filtered to published slugs so the banner never links a 404.
+    series_html = ""
+    slug = post.get("slug", "")
+    for series_id, series in BLOG_SERIES.items():
+        slugs = [
+            s
+            for s in series["slugs"]
+            if published_slugs is None or s in published_slugs
+        ]
+        if slug not in slugs:
+            continue
+        position = slugs.index(slug) + 1
+        total = len(slugs)
+        parts = [
+            f'<a href="/blog/series/{html.escape(series_id, quote=True)}">'
+            f'{html.escape(series["title"], quote=True)}</a>'
+            f" · {position}/{total}편"
+        ]
+        if position > 1:
+            parts.append(
+                f'<a rel="prev" href="/blog/{html.escape(slugs[position - 2], quote=True)}">'
+                "← 시리즈 이전 글</a>"
+            )
+        if position < total:
+            parts.append(
+                f'<a rel="next" href="/blog/{html.escape(slugs[position], quote=True)}">'
+                "시리즈 다음 글 →</a>"
+            )
+        series_html = (
+            f'<nav class="blog-series" aria-label="Series">{" ".join(parts)}</nav>'
+        )
+        break
 
     def _link(p: dict) -> str:
         return (
@@ -765,6 +887,7 @@ def _render_article(
         f'<span class="blog-detail-reading-time">{reading_time} min read</span>'
         "</div>"
         f'<div class="blog-detail-tags">{tags_html}</div>'
+        f"{series_html}"
         f'<div class="blog-detail-content">{rendered_html}</div>'
         f"{related_html}"
         f"{prevnext_html}"
@@ -837,7 +960,13 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         og_type="article",
         image=_absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE,
         json_ld=_blog_posting_graph(post),
-        article_html=_render_article(post, related=related, prev_post=older, next_post=newer),
+        article_html=_render_article(
+            post,
+            related=related,
+            prev_post=older,
+            next_post=newer,
+            published_slugs={p.get("slug", "") for p in published},
+        ),
         lang=lang,
         locale=locale,
     )
@@ -873,9 +1002,23 @@ async def blog_index_ssr() -> HTMLResponse:
     # one anchor hop from /blog — non-JS crawlers (GPTBot, ClaudeBot, Yeti)
     # discover posts by following <a> links, not by executing the SPA.
     sections = "".join(_index_section(cat) for cat in BLOG_CATEGORIES)
+
+    published_slugs = {p.get("slug", "") for p in published}
+    series_links = "".join(
+        f'<li><a href="/blog/series/{html.escape(sid, quote=True)}">'
+        f'{html.escape(series["title"], quote=True)}</a></li>'
+        for sid, series in BLOG_SERIES.items()
+        if any(s in published_slugs for s in series["slugs"])
+    )
+    series_block = (
+        f'<nav aria-label="Series"><h2>Series</h2><ul>{series_links}</ul></nav>'
+        if series_links
+        else ""
+    )
+
     body = (
         '<div class="blog-container"><div class="blog-content">'
-        f"<h1>Blog</h1>{sections}"
+        f"<h1>Blog</h1>{series_block}{sections}"
         "</div></div>"
     )
 
@@ -887,6 +1030,61 @@ async def blog_index_ssr() -> HTMLResponse:
         image=OG_DEFAULT_IMAGE,
         json_ld=_blog_index_graph(published),
         article_html=body,
+    )
+    return HTMLResponse(content=document, status_code=200)
+
+
+@router.get("/blog/series/{series_id}", response_class=HTMLResponse)
+async def blog_series_ssr(series_id: str) -> HTMLResponse:
+    """Server-render a series pillar page in reading order.
+
+    Unknown series 404. A series whose posts are all unpublished is served
+    ``noindex`` so a thin hub is not indexed.
+    """
+    series = BLOG_SERIES.get(series_id)
+    if series is None:
+        body = '<div class="blog-container"><p>Series not found.</p></div>'
+        document = _build_document(
+            title="Series not found | Jiphyeonjeon Blog",
+            description="Series not found.",
+            canonical=f"{SITE_URL}/blog",
+            og_type="website",
+            image=OG_DEFAULT_IMAGE,
+            json_ld=None,
+            article_html=body,
+            noindex=True,
+        )
+        return HTMLResponse(content=document, status_code=404)
+
+    with _posts_lock:
+        posts = _load_posts()
+
+    by_slug = {p.get("slug"): p for p in posts if p.get("published")}
+    ordered = [by_slug[s] for s in series["slugs"] if s in by_slug]
+
+    items = "".join(
+        f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
+        f'{html.escape(p.get("title", ""), quote=True)}</a> — '
+        f'{html.escape(p.get("excerpt", ""), quote=True)}</li>'
+        for p in ordered
+    )
+    body = (
+        '<div class="blog-container"><div class="blog-content">'
+        '<nav aria-label="breadcrumb"><a href="/blog">Blog</a></nav>'
+        f'<h1>{html.escape(series["title"], quote=True)}</h1>'
+        f'<p>{html.escape(series["description"], quote=True)}</p>'
+        f"<ol>{items}</ol>"
+        "</div></div>"
+    )
+    document = _build_document(
+        title=f'{series["title"]} | Jiphyeonjeon Blog',
+        description=series["description"],
+        canonical=f"{SITE_URL}/blog/series/{series_id}",
+        og_type="website",
+        image=OG_DEFAULT_IMAGE,
+        json_ld=_series_graph(series_id, series["title"], series["description"], ordered),
+        article_html=body,
+        noindex=not ordered,
     )
     return HTMLResponse(content=document, status_code=200)
 
@@ -967,6 +1165,14 @@ async def sitemap() -> Response:
         if cat in cats_present:
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/category/{cat}</loc>"
+                f"<priority>0.7</priority></url>"
+            )
+    # Series hubs — same nonempty rule as category hubs.
+    published_slugs = {p.get("slug", "") for p in published}
+    for sid, series in BLOG_SERIES.items():
+        if any(s in published_slugs for s in series["slugs"]):
+            rows.append(
+                f"  <url><loc>{SITE_URL}/blog/series/{sid}</loc>"
                 f"<priority>0.7</priority></url>"
             )
     for post in published:

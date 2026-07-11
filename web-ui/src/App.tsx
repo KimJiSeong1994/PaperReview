@@ -16,6 +16,7 @@ const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumVie
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
+const SeriesPage = lazy(() => import('./components/SeriesPage'));
 
 const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
 const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
@@ -24,6 +25,11 @@ const SITE_URL = 'https://jiphyeonjeon.kr';
 function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
   const { slug } = useParams<{ slug: string }>();
   return <BlogPage isAdmin={isAdmin} slug={slug} />;
+}
+
+function BlogSeriesRoute() {
+  const { seriesId } = useParams<{ seriesId: string }>();
+  return <SeriesPage seriesId={seriesId ?? ''} />;
 }
 
 function BlogCategoryRoute({ isAdmin }: { isAdmin: boolean }) {
@@ -119,6 +125,14 @@ function App() {
           element={
             <Suspense fallback={<div className="app-loading">Loading...</div>}>
               <BlogCategoryRoute isAdmin={userRole === 'admin'} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/blog/series/:seriesId"
+          element={
+            <Suspense fallback={<div className="app-loading">Loading...</div>}>
+              <BlogSeriesRoute />
             </Suspense>
           }
         />

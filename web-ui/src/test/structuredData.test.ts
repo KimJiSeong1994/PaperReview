@@ -9,10 +9,12 @@ import {
   blogCanonical,
   blogPostingGraph,
   blogIndexGraph,
+  seriesGraph,
   detectLang,
   localeFor,
   type BlogPostLike,
 } from '../seo/structuredData';
+import { BLOG_SERIES, seriesOf } from '../seo/series';
 
 const samplePost: BlogPostLike = {
   slug: 'graph-rag-notes',
@@ -220,6 +222,51 @@ describe('blogPostingGraph', () => {
     const nodes = blogPostingGraph(koreanPost)['@graph'] as Record<string, unknown>[];
     const posting = nodes.find((n) => n['@type'] === 'BlogPosting')!;
     expect(posting.inLanguage).toBe('ko');
+  });
+});
+
+describe('series', () => {
+  it('maps a member slug to its series and marks the posting isPartOf', () => {
+    const memberSlug = BLOG_SERIES.gnn.slugs[0];
+    expect(seriesOf(memberSlug)).toBe('gnn');
+    expect(seriesOf('some-unrelated-post')).toBeNull();
+
+    const nodes = blogPostingGraph({ ...samplePost, slug: memberSlug })[
+      '@graph'
+    ] as Record<string, unknown>[];
+    const posting = nodes.find((n) => n['@type'] === 'BlogPosting')!;
+    expect(posting.isPartOf).toEqual({
+      '@id': 'https://jiphyeonjeon.kr/blog/series/gnn#collection',
+    });
+  });
+
+  it('does not mark non-member posts', () => {
+    const nodes = blogPostingGraph(samplePost)['@graph'] as Record<string, unknown>[];
+    const posting = nodes.find((n) => n['@type'] === 'BlogPosting')!;
+    expect(posting.isPartOf).toBeUndefined();
+  });
+});
+
+describe('seriesGraph', () => {
+  it('emits CollectionPage with an ascending ItemList and 3-item breadcrumb', () => {
+    const posts = [
+      { slug: 'a-post', title: 'A' },
+      { slug: 'b-post', title: 'B' },
+    ];
+    const nodes = seriesGraph('gnn', posts)['@graph'] as Record<string, unknown>[];
+    const page = nodes.find((n) => n['@type'] === 'CollectionPage')!;
+    const list = page.mainEntity as Record<string, unknown>;
+    const breadcrumb = nodes.find((n) => n['@type'] === 'BreadcrumbList')!;
+
+    expect(page['@id']).toBe('https://jiphyeonjeon.kr/blog/series/gnn#collection');
+    expect(list['@type']).toBe('ItemList');
+    expect(list.itemListOrder).toBe('https://schema.org/ItemListOrderAscending');
+    expect(list.numberOfItems).toBe(2);
+    expect(list.itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'A', url: 'https://jiphyeonjeon.kr/blog/a-post' },
+      { '@type': 'ListItem', position: 2, name: 'B', url: 'https://jiphyeonjeon.kr/blog/b-post' },
+    ]);
+    expect((breadcrumb.itemListElement as unknown[])).toHaveLength(3);
   });
 });
 

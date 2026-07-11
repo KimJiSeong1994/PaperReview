@@ -25,6 +25,7 @@ import {
   deleteBlogPost,
 } from '../api/client';
 import { buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
+import { BLOG_SERIES, seriesOf } from '../seo/series';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -523,6 +524,22 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             <span className="blog-side-count">{categoryCounts[seg.key]}</span>
           </a>
         ))}
+        <div className="blog-side-label">Series</div>
+        {Object.entries(BLOG_SERIES).map(([sid, series]) => (
+          <a
+            key={sid}
+            href={`/blog/series/${sid}`}
+            className="blog-side-item"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/blog/series/${sid}`);
+            }}
+          >
+            <span className="blog-side-icon">{sidebarIcon('paper-review')}</span>
+            <span className="blog-side-text">{series.title}</span>
+            <span className="blog-side-count">{series.slugs.length}</span>
+          </a>
+        ))}
       </nav>
     </aside>
   );
@@ -768,6 +785,23 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             </a>
           )}
         </div>
+
+        {(() => {
+          const seriesId = seriesOf(selectedPost.slug);
+          if (!seriesId) return null;
+          const series = BLOG_SERIES[seriesId];
+          const position = series.slugs.indexOf(selectedPost.slug) + 1;
+          const prevSlug = position > 1 ? series.slugs[position - 2] : null;
+          const nextSlug = position < series.slugs.length ? series.slugs[position] : null;
+          return (
+            <nav className="blog-series" aria-label="Series">
+              <a href={`/blog/series/${seriesId}`}>{series.title}</a>
+              {` · ${position}/${series.slugs.length}편`}
+              {prevSlug && <a rel="prev" href={`/blog/${prevSlug}`}>← 시리즈 이전 글</a>}
+              {nextSlug && <a rel="next" href={`/blog/${nextSlug}`}>시리즈 다음 글 →</a>}
+            </nav>
+          );
+        })()}
 
         <div className="blog-detail-content">
           <ReactMarkdown
