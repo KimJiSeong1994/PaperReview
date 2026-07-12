@@ -1,0 +1,13 @@
+Jiphyeonjeon (집현전) / PaperReview
+Copyright 2026 Jiseong (KimJiSeong1994)
+
+AI-powered academic research platform: multi-source paper search,
+multi-agent deep paper reviews, personalized curricula, citation graph
+exploration, and a public research blog.
+
+Live service: https://jiphyeonjeon.kr
+Source:       https://github.com/KimJiSeong1994/PaperReview
+MCP bridge:   https://github.com/KimJiSeong1994/jiphyeonjeon-agent
+
+See the LICENSE file for the terms under which this software is
+distributed (Apache License 2.0).
