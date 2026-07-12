@@ -108,7 +108,7 @@ BLOG_SERIES: dict[str, dict] = {
     "gnn": {
         "title": "GNN 논문 리뷰 시리즈",
         "description": (
-            "그래프 신경망(GNN)의 핵심 논문 8편을 랜덤워크 임베딩부터 "
+            "그래프 신경망(GNN)의 핵심 논문 9편을 랜덤워크 임베딩부터 "
             "메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성까지 "
             "권장 순서로 깊이 있게 읽는 한국어 딥리뷰 시리즈. 스탠퍼드 "
             "CS224W(Machine Learning with Graphs) 커리큘럼과 나란히 읽을 "
@@ -121,6 +121,7 @@ BLOG_SERIES: dict[str, dict] = {
             "graph-attention-networks-gat-review-2026",
             "how-powerful-are-graph-neural-networks-gin-review-2026",
             "heterogeneous-graph-neural-network-hetgnn-review-2026",
+            "heterogeneous-graph-attention-network-han-review-2026",
             "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
             "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
         ],
@@ -1318,6 +1319,36 @@ async def llms_txt() -> Response:
     )
 
 
+_HEADING_RE = re.compile(r"^(#{1,5}) ")
+_THEMATIC_BREAK_RE = re.compile(r"^\s*-{3,}\s*$")
+
+
+def _demote_headings_and_rules(markdown: str) -> str:
+    """Demote ATX headings one level and rewrite ``---`` breaks as ``***``.
+
+    In llms-full.txt each post's title is the only ``#`` heading and ``---``
+    is the only post separator, so a naive chunker can split the corpus at
+    post boundaries and keep every chunk attributable to its canonical URL.
+    Body headings therefore move down one level (capped at ``######``) and
+    in-body thematic breaks become ``***``. Fenced code blocks are untouched.
+    """
+    out: list[str] = []
+    in_fence = False
+    for line in markdown.split("\n"):
+        stripped = line.lstrip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if not in_fence:
+            if _HEADING_RE.match(line):
+                line = "#" + line
+            elif _THEMATIC_BREAK_RE.match(line):
+                line = "***"
+        out.append(line)
+    return "\n".join(out)
+
+
 @router.get("/llms-full.txt")
 async def llms_full_txt() -> Response:
     """Return the complete markdown body of every published blog post.
@@ -1326,6 +1357,9 @@ async def llms_full_txt() -> Response:
     an auxiliary discovery/retrieval surface for AI search crawlers and internal
     retrieval systems that prefer a compact plaintext corpus. Drafts and deleted
     posts are excluded so unpublished content never leaks into search indexes.
+    Each post is one ``# {title}`` section separated by ``---`` lines; body
+    headings are demoted so those two markers stay unambiguous chunk
+    boundaries (see ``_demote_headings_and_rules``).
     """
     with _posts_lock:
         posts = _load_posts()
@@ -1350,14 +1384,16 @@ async def llms_full_txt() -> Response:
         category = _category_of(post)
         date = _format_date(post)
         canonical = f"{SITE_URL}/blog/{slug}"
-        content = _normalize_blog_markdown(post.get("content", "")).strip()
+        content = _demote_headings_and_rules(
+            _normalize_blog_markdown(post.get("content", "")).strip()
+        )
         sections.append(
             "\n".join(
                 [
                     "",
                     "---",
                     "",
-                    f"## {title}",
+                    f"# {title}",
                     "",
                     f"- Canonical: {canonical}",
                     f"- Date: {date}",
