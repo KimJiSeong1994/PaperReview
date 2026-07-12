@@ -181,6 +181,59 @@ def test_llms_full_txt_contains_all_published_post_bodies(client: TestClient) ->
     assert "Draft content that bots must not see." not in body
 
 
+def test_llms_full_txt_keeps_post_boundaries_unambiguous(monkeypatch) -> None:
+    """Post titles are the only ``#`` headings and ``---`` the only separator.
+
+    A naive chunker must be able to split the corpus at post boundaries so
+    every retrieved chunk stays attributable to its canonical URL.
+    """
+    tricky = {
+        "id": "tricky1234",
+        "title": "Tricky Markdown Post",
+        "slug": "tricky-markdown-post",
+        "excerpt": "Post with body headings and rules.",
+        "content": (
+            "# Duplicate H1\n\n## Section A\n\ntext\n\n---\n\n"
+            "### Sub B\n\n```python\n# code comment, not a heading\n---\n```\n"
+        ),
+        "author": "test-admin",
+        "tags": [],
+        "thumbnail_url": None,
+        "created_at": "2026-04-02T09:00:00",
+        "updated_at": None,
+        "published": True,
+        "reading_time_min": 1,
+    }
+    monkeypatch.setattr("routers.seo._load_posts", lambda: [*_FIXED_POSTS, tricky])
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    body = TestClient(app).get("/llms-full.txt").text
+
+    published_count = 3  # two published fixtures + tricky
+
+    def _outside_fences(text: str) -> list[str]:
+        lines, fenced = [], False
+        for line in text.split("\n"):
+            if line.lstrip().startswith(("```", "~~~")):
+                fenced = not fenced
+                continue
+            if not fenced:
+                lines.append(line)
+        return lines
+
+    visible = _outside_fences(body)
+    hash_headings = [line for line in visible if line.startswith("# ")]
+    # Corpus header + one per post; body headings were all demoted.
+    assert len(hash_headings) == published_count + 1
+    separators = [line for line in visible if line.strip() == "---"]
+    assert len(separators) == published_count
+    # Body headings demoted one level; thematic break rewritten.
+    assert "### Section A" in body
+    assert "#### Sub B" in body
+    assert "\n***\n" in body
+    # Fenced code content untouched.
+    assert "# code comment, not a heading" in body
+
+
 def test_llms_txt_has_geo_sections(client: TestClient) -> None:
     """llms.txt exposes entity/capabilities/optional sections and dated posts."""
     body = client.get("/llms.txt").text
