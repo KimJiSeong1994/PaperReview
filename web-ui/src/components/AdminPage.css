@@ -1176,6 +1176,14 @@
   color: var(--text-faint);
 }
 
+/* Coverage hint shown when analytics history is shorter than the picked
+   window (why 28일 and 90일 can look identical). */
+.visits-window-coverage {
+  margin-left: 6px;
+  color: color-mix(in srgb, var(--amber) 78%, var(--text-muted));
+  font-weight: 600;
+}
+
 .visits-banner {
   display: flex;
   align-items: center;
