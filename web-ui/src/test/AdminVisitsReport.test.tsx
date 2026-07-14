@@ -70,16 +70,20 @@ describe('AdminVisitsReport', () => {
 
     await waitFor(() => expect(fetchAdminVisitsReport).toHaveBeenCalledWith(28));
     expect(await screen.findByText('방문 추이')).toBeInTheDocument();
-    expect(screen.getByText('데이터 출처')).toBeInTheDocument(); // provenance header
-    expect(screen.getByText('12')).toBeInTheDocument(); // visitors tile
-    expect(screen.getByText('60%')).toBeInTheDocument(); // engaged rate
-    expect(screen.getByText('독자층')).toBeInTheDocument(); // new audience section
+    // Band dividers group the report.
+    expect(screen.getByText('사람 방문')).toBeInTheDocument();
+    expect(screen.getByText('AI · 유입')).toBeInTheDocument();
+    // At-a-glance hero repeats headline numbers, so several appear twice.
+    expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1); // visitors
+    expect(screen.getAllByText('60%').length).toBeGreaterThanOrEqual(1); // engaged rate
+    expect(screen.getByText(/퍼스트파티 직접수집/)).toBeInTheDocument(); // data-source line
+    expect(screen.getByText('독자층')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
     expect(screen.getByText(/GA4 연동 대기 중/)).toBeInTheDocument();
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
-    expect(screen.getByText('AI 인용 fetch')).toBeInTheDocument(); // relabeled
-    expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument(); // new channel section
-    expect(screen.getByText('Google')).toBeInTheDocument(); // channel row
+    expect(screen.getAllByText('AI 인용 fetch').length).toBeGreaterThanOrEqual(1); // relabeled
+    expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument();
+    expect(screen.getByText('Google')).toBeInTheDocument();
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
     expect(screen.getByText('검색')).toBeInTheDocument(); // product event label
   });
