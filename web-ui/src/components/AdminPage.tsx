@@ -47,7 +47,7 @@ type Tab = 'dashboard' | 'visits' | 'users' | 'papers' | 'bookmarks' | 'curricul
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: 'Dashboard',
-  visits: '방문 리포트',
+  visits: 'Visitors',
   users: 'Users',
   papers: 'Papers',
   bookmarks: 'Bookmarks',
@@ -460,7 +460,7 @@ export default function AdminPage() {
 
         {/* Visits Tab */}
         {activeTab === 'visits' && (
-          <Suspense fallback={<div className="admin-loading">방문 리포트 로딩 중...</div>}>
+          <Suspense fallback={<div className="admin-loading">Loading visitors...</div>}>
             <AdminVisitsReport />
           </Suspense>
         )}
