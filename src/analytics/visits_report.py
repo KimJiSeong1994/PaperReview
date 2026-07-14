@@ -11,6 +11,7 @@ matches how the (Korean) admin thinks about days.
 from __future__ import annotations
 
 import datetime as dt
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -248,12 +249,33 @@ def build_visits_report(
     }
 
 
+# A "dataset not found" sync error is not a real failure: GA4's BigQuery
+# export only creates the dataset once the property receives its first data,
+# so until then the dashboard should read as "waiting to connect", not "failed".
+_DATASET_MISSING_RE = re.compile(r"not\s*found.*dataset|dataset.*not\s*found", re.IGNORECASE)
+
+
+def _classify_ga4_state(last_run: dict[str, Any] | None, has_channels: bool) -> str:
+    """Return a UI-facing GA4 state: connected / pending / failed / never_run."""
+    if has_channels:
+        return "connected"
+    if last_run is None:
+        return "never_run"
+    if last_run.get("status") == "success":
+        return "connected"
+    error = str(last_run.get("error") or "")
+    if _DATASET_MISSING_RE.search(error):
+        return "pending"
+    return "failed"
+
+
 def _ga4_status(conn: sqlite3.Connection, start_utc: str, top_limit: int) -> dict[str, Any]:
     """GA4 sync health + channel breakdown when data exists.
 
-    The BigQuery sync has historically failed (location misconfiguration), so
-    the dashboard must degrade gracefully: always report the last run status,
-    include channel data only when rows are present.
+    Degrades gracefully: always reports the last run and a UI-facing ``state``,
+    and includes channel data only when rows are present. A missing export
+    dataset is surfaced as ``pending`` rather than ``failed`` — the export
+    materializes the dataset only after GA4 first receives data.
     """
     last_run_row = conn.execute(
         """
@@ -283,6 +305,7 @@ def _ga4_status(conn: sqlite3.Connection, start_utc: str, top_limit: int) -> dic
     ]
     return {
         "available": bool(channels),
+        "state": _classify_ga4_state(last_run, bool(channels)),
         "last_run": last_run,
         "channels": channels,
     }

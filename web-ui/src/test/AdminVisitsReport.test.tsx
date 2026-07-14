@@ -36,7 +36,12 @@ const REPORT = {
   product_events: { search: 3 },
   ga4: {
     available: false,
-    last_run: { sync_finished_at: '2026-07-13T19:52:30Z', status: 'failed', error: 'NotFound: 404' },
+    state: 'pending' as const,
+    last_run: {
+      sync_finished_at: '2026-07-13T19:52:30Z',
+      status: 'failed',
+      error: 'NotFound: 404 Not found: Dataset x',
+    },
     channels: [],
   },
   ai: {
@@ -50,7 +55,7 @@ const REPORT = {
 };
 
 describe('AdminVisitsReport', () => {
-  it('renders traffic tiles, tables, AI section, and the GA4 failure banner', async () => {
+  it('renders traffic tiles, tables, AI section, and the GA4 pending banner', async () => {
     vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
       data: REPORT,
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
@@ -61,7 +66,7 @@ describe('AdminVisitsReport', () => {
     expect(await screen.findByText('방문 추이')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument(); // visitors tile
     expect(screen.getByText('8 / 4')).toBeInTheDocument(); // new / returning
-    expect(screen.getByText(/GA4 동기화 실패 상태/)).toBeInTheDocument();
+    expect(screen.getByText(/GA4 연동 대기 중/)).toBeInTheDocument();
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
     expect(screen.getByText('검색')).toBeInTheDocument(); // product event label

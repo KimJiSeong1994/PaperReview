@@ -123,6 +123,32 @@ def test_ga4_status_reports_last_failed_run(analytics_db: Path) -> None:
     assert report["ga4"]["last_run"]["status"] == "failed"
     # Multi-line BigQuery errors are trimmed to their first line.
     assert "\n" not in report["ga4"]["last_run"]["error"]
+    # A "dataset not found" error is the export-not-yet-created case, surfaced
+    # as pending (waiting to connect) rather than a hard failure.
+    assert report["ga4"]["state"] == "pending"
+
+
+def test_ga4_state_pending_when_no_run_yet(analytics_db: Path) -> None:
+    report = build_visits_report(analytics_db, days=7, now=NOW)
+    assert report["ga4"]["state"] == "never_run"
+
+
+def test_ga4_state_failed_for_non_dataset_errors(analytics_db: Path) -> None:
+    conn = sqlite3.connect(str(analytics_db))
+    conn.execute(
+        """
+        INSERT INTO ga_sync_runs
+          (sync_started_at, sync_finished_at, status, start_date, end_date,
+           project_id, dataset, property_id, rows_daily, rows_events,
+           rows_pages, error)
+        VALUES ('t0', 't1', 'failed', 'd0', 'd1', 'p', 'ds', 'prop',
+                0, 0, 0, 'Forbidden: 403 Permission bigquery.tables.get denied')
+        """
+    )
+    conn.commit()
+    conn.close()
+    report = build_visits_report(analytics_db, days=7, now=NOW)
+    assert report["ga4"]["state"] == "failed"
 
 
 LOG_TEMPLATE = (
