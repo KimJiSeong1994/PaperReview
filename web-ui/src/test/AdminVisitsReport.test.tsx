@@ -23,6 +23,10 @@ const REPORT = {
       returning_visitors: 4,
       new_visitors: 8,
       avg_daily_visitors: 0.4,
+      engaged_sessions: 18,
+      engaged_rate: 0.6,
+      bounce_rate: 0.4,
+      pages_per_session: 2.9,
     },
     daily: [
       { date: '2026-07-13', visitors: 3, sessions: 5, page_views: 20 },
@@ -51,6 +55,8 @@ const REPORT = {
     citation_paths: [{ path: '/blog/post-a', hits: 2 }],
     ai_referral_hits: 1,
     ai_referral_sources: [{ source: 'chatgpt.com', hits: 1 }],
+    crawled_pages: [{ path: '/blog/deepwalk', hits: 7 }],
+    channels: [{ channel: 'Google', hits: 34 }],
   },
 };
 
@@ -64,10 +70,16 @@ describe('AdminVisitsReport', () => {
 
     await waitFor(() => expect(fetchAdminVisitsReport).toHaveBeenCalledWith(28));
     expect(await screen.findByText('방문 추이')).toBeInTheDocument();
+    expect(screen.getByText('데이터 출처')).toBeInTheDocument(); // provenance header
     expect(screen.getByText('12')).toBeInTheDocument(); // visitors tile
-    expect(screen.getByText('8 / 4')).toBeInTheDocument(); // new / returning
+    expect(screen.getByText('60%')).toBeInTheDocument(); // engaged rate
+    expect(screen.getByText('독자층')).toBeInTheDocument(); // new audience section
+    expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
     expect(screen.getByText(/GA4 연동 대기 중/)).toBeInTheDocument();
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
+    expect(screen.getByText('AI 인용 fetch')).toBeInTheDocument(); // relabeled
+    expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument(); // new channel section
+    expect(screen.getByText('Google')).toBeInTheDocument(); // channel row
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
     expect(screen.getByText('검색')).toBeInTheDocument(); // product event label
   });

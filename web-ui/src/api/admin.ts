@@ -32,6 +32,10 @@ export interface AdminVisitsReport {
       returning_visitors: number;
       new_visitors: number;
       avg_daily_visitors: number;
+      engaged_sessions: number;
+      engaged_rate: number;
+      bounce_rate: number;
+      pages_per_session: number;
     };
     daily: VisitsDaily[];
   };
@@ -66,6 +70,8 @@ export interface AdminVisitsReport {
     citation_paths?: { path: string; hits: number }[];
     ai_referral_hits?: number;
     ai_referral_sources?: { source: string; hits: number }[];
+    crawled_pages?: { path: string; hits: number }[];
+    channels?: { channel: string; hits: number }[];
   };
 }
 
