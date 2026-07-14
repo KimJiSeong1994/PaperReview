@@ -1426,9 +1426,11 @@
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 }
 
-/* Separate the stat-tile row from a chart/table card that follows it inside
-   the same section (e.g. 방문 추이) — otherwise they read as one crowded block. */
-.visits-report .admin-stats-grid + .visits-card {
+/* Separate the stat-tile row from a chart/table block that follows it inside
+   the same section (방문 추이 → chart card, AI 크롤러·인용 유입 → card pair) —
+   otherwise the tiles and the block below read as one crowded mass. */
+.visits-report .admin-stats-grid + .visits-card,
+.visits-report .admin-stats-grid + .visits-chart-pair {
   margin-top: 16px;
 }
 
