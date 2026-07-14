@@ -1310,6 +1310,14 @@
   margin-bottom: 0;
 }
 
+/* Consistent vertical rhythm: a section title sits 8px above its own body but
+   16px below the previous section, so each title groups with its content
+   instead of floating equidistant between two sections. Adds to the report's
+   8px flex gap (→16px). Band-to-section spacing is left to .visits-band. */
+.visits-report .visits-section + .visits-section {
+  margin-top: 8px;
+}
+
 .visits-section-title {
   display: flex;
   align-items: center;
