@@ -127,37 +127,6 @@
   border-radius: 14px;
   padding: 18px 20px;
   box-shadow: var(--card-shadow);
-  transition:
-    box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease;
-}
-
-.admin-stat-card:hover {
-  border-color: var(--card-border-hover);
-  box-shadow: var(--card-shadow-hover);
-  transform: translateY(-1px);
-}
-
-/* Hairline accent along the top edge — reads as polish, not chrome. */
-.admin-stat-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  border-radius: 14px 14px 0 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--indigo) 55%, transparent),
-    transparent
-  );
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.admin-stat-card:hover::before {
-  opacity: 1;
 }
 
 .admin-stat-label {
@@ -197,14 +166,6 @@
   padding: 20px;
   overflow: hidden;
   box-shadow: var(--card-shadow);
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.admin-chart-card:hover,
-.admin-list-card:hover,
-.admin-recent-card:hover {
-  border-color: var(--card-border-hover);
-  box-shadow: var(--card-shadow-hover);
 }
 
 .admin-chart-title {
@@ -1508,12 +1469,6 @@
   border-radius: 14px;
   padding: 20px;
   box-shadow: var(--card-shadow);
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.visits-card:hover {
-  border-color: var(--card-border-hover);
-  box-shadow: var(--card-shadow-hover);
 }
 
 .visits-card-stack {
