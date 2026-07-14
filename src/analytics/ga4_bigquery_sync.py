@@ -357,25 +357,44 @@ def _open_bigquery_client(project_id: str, location: str | None) -> QueryClient:
     return bigquery.Client(**kwargs)
 
 
-def _resolve_dataset_location(config: AnalyticsSyncConfig) -> str | None:
-    """Return the configured location, else the dataset's actual location.
-
-    Every sync run before 2026-07 failed with "Dataset ... was not found in
-    location US" because GA4 exports land in the property's region while an
-    unconfigured client defaults to US. Dataset metadata lookups are
-    location-agnostic, so we ask BigQuery where the dataset lives instead of
-    requiring GA4_BQ_LOCATION to be set correctly by hand.
-    """
-    if config.location:
-        return config.location
+def _probe_dataset_location(project: str, dataset: str) -> str:
+    """Ask BigQuery where the dataset actually lives (location-agnostic call)."""
     from google.cloud import bigquery
 
-    project, dataset = normalize_project_dataset(config.project_id, config.dataset)
     probe = bigquery.Client(project=project)
     try:
         return str(probe.get_dataset(f"{project}.{dataset}").location)
     finally:
         probe.close()
+
+
+def _resolve_dataset_location(
+    config: AnalyticsSyncConfig,
+    probe: Any = _probe_dataset_location,
+) -> str | None:
+    """Return the dataset's real location; configured value is only a fallback.
+
+    Every sync run before 2026-07 failed with "Dataset ... was not found in
+    location US": GA4 exports land in the property's region while the query
+    client ran in US — and the configured GA4_BQ_LOCATION itself was wrong,
+    so the dataset's own metadata must win over configuration. If the probe
+    fails (dataset missing entirely, or no datasets.get permission) we fall
+    back to the configured location when present, else re-raise so the run
+    log records the real problem: a dataset that does not exist means the
+    GA4 → BigQuery export link was never created for this property.
+    """
+    project, dataset = normalize_project_dataset(config.project_id, config.dataset)
+    try:
+        return str(probe(project, dataset))
+    except Exception as exc:
+        if config.location:
+            logger.warning(
+                "dataset location probe failed (%s); using configured %r",
+                exc,
+                config.location,
+            )
+            return config.location
+        raise
 
 
 def _run_query(client: QueryClient, query: str, job_config: Any | None) -> list[dict[str, Any]]:
@@ -477,9 +496,6 @@ def sync_ga4_daily_aggregates(
     ensure_analytics_db(config.analytics_db_path)
 
     started_at = utc_now_iso()
-    bq_client = client or _open_bigquery_client(
-        config.project_id, _resolve_dataset_location(config)
-    )
     job_config = None if client is not None else _make_query_job_config(
         start_date,
         end_date,
@@ -494,6 +510,12 @@ def sync_ga4_daily_aggregates(
     error: str | None = None
 
     try:
+        # Client creation sits inside the try so a failed location probe
+        # (e.g. the export dataset does not exist) is recorded in
+        # ga_sync_runs instead of crashing without a trace.
+        bq_client = client or _open_bigquery_client(
+            config.project_id, _resolve_dataset_location(config)
+        )
         daily_rows = _run_query(bq_client, build_daily_metrics_query(config), job_config)
         event_rows = _run_query(bq_client, build_event_metrics_query(config), job_config)
         page_rows = _run_query(bq_client, build_page_metrics_query(config), job_config)
