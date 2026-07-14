@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 
 const Plot = lazy(() => import('../PlotlyChart'));
+const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
 
 /* ── Error Boundary for charts ─────────────────────────────────────── */
 class ChartErrorBoundary extends Component<
@@ -42,7 +43,16 @@ import {
 } from '../api/client';
 import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse, AdminCurriculumUser } from '../api/client';
 
-type Tab = 'dashboard' | 'users' | 'papers' | 'bookmarks' | 'curricula';
+type Tab = 'dashboard' | 'visits' | 'users' | 'papers' | 'bookmarks' | 'curricula';
+
+const TAB_LABELS: Record<Tab, string> = {
+  dashboard: 'Dashboard',
+  visits: '방문 리포트',
+  users: 'Users',
+  papers: 'Papers',
+  bookmarks: 'Bookmarks',
+  curricula: 'Curricula',
+};
 
 /* ── Folder icon SVGs (matching MyPage style) ─────────────────────── */
 
@@ -437,16 +447,23 @@ export default function AdminPage() {
       <div className="admin-content">
         {/* Tabs */}
         <div className="admin-tabs">
-          {(['dashboard', 'users', 'papers', 'bookmarks', 'curricula'] as Tab[]).map((tab) => (
+          {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'admin-tab--active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
+
+        {/* Visits Tab */}
+        {activeTab === 'visits' && (
+          <Suspense fallback={<div className="admin-loading">방문 리포트 로딩 중...</div>}>
+            <AdminVisitsReport />
+          </Suspense>
+        )}
 
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && dashboardLoading && (

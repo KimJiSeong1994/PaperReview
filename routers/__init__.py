@@ -14,6 +14,7 @@ from .paper_reviews import router as paper_reviews_router
 from .chat import router as chat_router
 from .lightrag import router as lightrag_router
 from .admin import router as admin_router
+from .admin_analytics import router as admin_analytics_router
 from .exploration import router as exploration_router
 from .share import router as share_router
 from .curriculum import router as curriculum_router
@@ -36,6 +37,7 @@ __all__ = [
     "chat_router",
     "lightrag_router",
     "admin_router",
+    "admin_analytics_router",
     "exploration_router",
     "share_router",
     "curriculum_router",

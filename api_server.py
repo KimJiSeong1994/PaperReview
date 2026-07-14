@@ -38,6 +38,7 @@ from routers import (
     chat_router,
     lightrag_router,
     admin_router,
+    admin_analytics_router,
     exploration_router,
     share_router,
     curriculum_router,
@@ -304,6 +305,7 @@ app.include_router(paper_reviews_router)
 app.include_router(chat_router)
 app.include_router(lightrag_router)
 app.include_router(admin_router)
+app.include_router(admin_analytics_router)
 app.include_router(exploration_router)
 app.include_router(share_router)
 app.include_router(curriculum_router)
