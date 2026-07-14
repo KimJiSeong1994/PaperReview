@@ -367,9 +367,9 @@
 .blog-side-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 9px 10px;
   border: none;
   border-radius: 9px;
   background: transparent;
@@ -409,6 +409,9 @@
 
 .blog-side-text {
   flex: 1;
+  /* Keep Korean series titles on one line; if a longer title ever must wrap,
+     break at a space (word) boundary, never mid-syllable. */
+  word-break: keep-all;
 }
 
 .blog-side-count {
