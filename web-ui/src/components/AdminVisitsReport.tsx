@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { Component, lazy, Suspense, useCallback, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { fetchAdminVisitsReport, type AdminVisitsReport as VisitsReportData } from '../api/client';
 
@@ -73,6 +73,54 @@ function peakColors(values: number[], peak: number | null, color: string): strin
   return values.map((_, i) => (i === peak ? color : `${color}73`));
 }
 
+/** Accessible ⓘ tooltip: hover + keyboard focus reveal it (pure CSS), Escape
+ *  dismisses. Placed on section titles / subheads (left-anchored, never near
+ *  the right edge) so the popover cannot clip off-screen. No layout shift. */
+function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+  const [dismissed, setDismissed] = useState(false);
+  const id = useId();
+  return (
+    <span
+      className="infotip"
+      data-dismissed={dismissed || undefined}
+      onMouseLeave={() => setDismissed(false)}
+    >
+      <button
+        type="button"
+        className="infotip-trigger"
+        aria-label={label}
+        aria-describedby={id}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setDismissed(true);
+            e.currentTarget.blur();
+          }
+        }}
+      >
+        ⓘ
+      </button>
+      <span role="tooltip" id={id} className="infotip-pop">
+        {children}
+      </span>
+    </span>
+  );
+}
+
+/** Big headline number for the at-a-glance row (indigo, larger than tiles). */
+function HeroStat({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="visits-hero-stat">
+      <p className="visits-hero-value">{value}</p>
+      <p className="visits-hero-label">{label}</p>
+    </div>
+  );
+}
+
+/** Eyebrow band divider grouping the report into 사람 방문 / AI·유입 / 제품. */
+function Band({ label }: { label: string }) {
+  return <div className="visits-band" role="separator" aria-label={label}>{label}</div>;
+}
+
 function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="admin-stat-card">
@@ -83,10 +131,23 @@ function StatTile({ label, value, hint }: { label: string; value: ReactNode; hin
   );
 }
 
-function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+function Section({
+  title,
+  tip,
+  note,
+  children,
+}: {
+  title: string;
+  tip?: string;
+  note?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="visits-section">
-      <h3 className="visits-section-title">{title}</h3>
+      <h3 className="visits-section-title">
+        <span>{title}</span>
+        {tip && <InfoTip label={`${title} 설명`}>{tip}</InfoTip>}
+      </h3>
       {note && <p className="visits-section-note">{note}</p>}
       {children}
     </section>
@@ -181,48 +242,51 @@ function AdminVisitsReport() {
         </span>
       </div>
 
-      <div className="visits-provenance">
-        <span className="visits-section-title" style={{ margin: 0 }}>
-          데이터 출처
-        </span>
-        <ul>
-          <li>
-            <b>방문·세션·페이지뷰</b> — 동의한 방문자의 퍼스트파티 직접 수집. 봇은 자바스크립트를
-            실행하지 않아 제외되므로 GA4보다 방문 수가 깨끗합니다.
-          </li>
-          <li>
-            <b>AI 크롤러·인용</b> — nginx 접근 로그 기준(10분 캐시). 사람 방문 지표와 겹치지
-            않습니다.
-          </li>
-          <li>
-            <b>전체 채널(GA4)</b> — 연동 복구 시 표시됩니다. 모든 시각은 KST, 오늘 자는 아직
-            집계 중입니다.
-          </li>
-        </ul>
+      {/* At-a-glance: the four numbers that answer "how are we doing". */}
+      <div className="visits-hero">
+        <HeroStat label="방문자" value={fmt(totals.visitors)} />
+        <HeroStat label="세션" value={fmt(totals.sessions)} />
+        <HeroStat label="참여율" value={pct(totals.engaged_rate)} />
+        <HeroStat label="AI 인용 fetch" value={fmt(ai.citation_clicks ?? 0)} />
       </div>
+
+      <p className="visits-meta-line">
+        사람 지표는 퍼스트파티 직접수집, AI·채널은 nginx 로그 기준 · 모든 시각 KST
+        <InfoTip label="데이터 출처 설명">
+          방문·세션·페이지뷰는 동의 방문자의 퍼스트파티 직접 수집 — 봇은 자바스크립트를 실행하지
+          않아 제외돼 GA4보다 깨끗합니다. AI 크롤러·인용은 nginx 접근 로그(10분 캐시)로 사람
+          지표와 겹치지 않습니다. 전체 채널(GA4)은 연동 복구 시 표시되며 오늘 자는 아직 집계
+          중입니다.
+        </InfoTip>
+      </p>
 
       {(report.ga4.state === 'pending' || report.ga4.state === 'failed') && (
         <div className={`visits-banner visits-banner--${report.ga4.state}`}>
           {report.ga4.state === 'pending' ? (
             <>
-              GA4 연동 대기 중입니다 — GA4 속성에 방문 데이터가 아직 쌓이지 않아 BigQuery
-              내보내기 데이터셋이 생성되지 않았습니다. 방문자가 쿠키 동의 후 유입되기
-              시작하면 자동으로 연결됩니다. 아래 지표는 동의와 무관하게 수집되는 퍼스트파티
-              기준입니다.
+              GA4 연동 대기 중 — 아래는 동의와 무관한 퍼스트파티 기준 지표입니다
+              <InfoTip label="GA4 연동 대기 설명">
+                GA4 속성에 방문 데이터가 아직 쌓이지 않아 BigQuery 내보내기 데이터셋이 생성되지
+                않았습니다. 방문자가 쿠키 동의 후 유입되기 시작하면 자동으로 연결됩니다.
+              </InfoTip>
             </>
           ) : (
             <>
-              GA4 동기화 오류 ({report.ga4.last_run?.sync_finished_at?.slice(0, 10)}):{' '}
-              {report.ga4.last_run?.error ?? 'unknown error'} — 아래 지표는 퍼스트파티 수집
-              기준입니다.
+              GA4 동기화 오류 ({report.ga4.last_run?.sync_finished_at?.slice(0, 10)}) — 아래는
+              퍼스트파티 기준입니다
+              <InfoTip label="GA4 오류 상세">
+                {report.ga4.last_run?.error ?? 'unknown error'}
+              </InfoTip>
             </>
           )}
         </div>
       )}
 
+      <Band label="사람 방문" />
+
       <Section
         title="방문 추이"
-        note="방문자는 중복 제거한 순 방문자, 세션은 30분 이상 끊긴 뒤 다시 들어온 방문 묶음입니다. 한 사람이 여러 번 오면 세션이 방문자보다 큽니다."
+        tip="방문자는 중복 제거한 순 방문자, 세션은 30분 이상 끊긴 뒤 다시 들어온 방문 묶음입니다. 한 사람이 여러 번 오면 세션이 방문자보다 큽니다."
       >
         <div className="admin-stats-grid">
           <StatTile
@@ -230,26 +294,10 @@ function AdminVisitsReport() {
             value={fmt(totals.visitors)}
             hint={`일 평균 ${totals.avg_daily_visitors}`}
           />
-          <StatTile
-            label="세션"
-            value={fmt(totals.sessions)}
-            hint="30분 넘게 비활동 후 재방문 시 새 세션"
-          />
-          <StatTile
-            label="페이지뷰"
-            value={fmt(totals.page_views)}
-            hint="열린 페이지 수 합계(새로고침 포함)"
-          />
-          <StatTile
-            label="페이지 / 세션"
-            value={totals.pages_per_session}
-            hint="세션당 평균 조회 페이지"
-          />
-          <StatTile
-            label="참여율"
-            value={pct(totals.engaged_rate)}
-            hint="2페이지 이상 보거나 제품 이벤트를 남긴 세션"
-          />
+          <StatTile label="세션" value={fmt(totals.sessions)} />
+          <StatTile label="페이지뷰" value={fmt(totals.page_views)} />
+          <StatTile label="페이지 / 세션" value={totals.pages_per_session} />
+          <StatTile label="참여율" value={pct(totals.engaged_rate)} />
         </div>
         {daily.length > 1 && (
           <Card>
@@ -301,18 +349,18 @@ function AdminVisitsReport() {
               <thead>
                 <tr>
                   <th>날짜</th>
-                  <th>방문자</th>
-                  <th>세션</th>
-                  <th>페이지뷰</th>
+                  <th className="visits-num-th">방문자</th>
+                  <th className="visits-num-th">세션</th>
+                  <th className="visits-num-th">페이지뷰</th>
                 </tr>
               </thead>
               <tbody>
                 {daily.map((d) => (
                   <tr key={d.date}>
                     <td>{d.date}</td>
-                    <td>{fmt(d.visitors)}</td>
-                    <td>{fmt(d.sessions)}</td>
-                    <td>{fmt(d.page_views)}</td>
+                    <td className="visits-num">{fmt(d.visitors)}</td>
+                    <td className="visits-num">{fmt(d.sessions)}</td>
+                    <td className="visits-num">{fmt(d.page_views)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -324,11 +372,11 @@ function AdminVisitsReport() {
 
       <Section
         title="독자층"
-        note="신규는 이 기간에 처음 방문한 브라우저, 재방문은 이전에도 방문한 적이 있는 브라우저입니다. 표본이 작을 때는 참고용으로만 보세요."
+        tip="신규는 이 기간에 처음 방문한 브라우저, 재방문은 이전에도 온 적 있는 브라우저입니다. 표본이 작을 때는 참고용으로만 보세요."
       >
         <div className="admin-stats-grid">
-          <StatTile label="신규 방문자" value={fmt(totals.new_visitors)} hint="기간 내 첫 방문" />
-          <StatTile label="재방문자" value={fmt(totals.returning_visitors)} hint="이전에도 방문" />
+          <StatTile label="신규 방문자" value={fmt(totals.new_visitors)} />
+          <StatTile label="재방문자" value={fmt(totals.returning_visitors)} />
           <StatTile
             label="재방문율"
             value={totals.visitors ? pct(totals.returning_visitors / totals.visitors) : '—'}
@@ -338,7 +386,7 @@ function AdminVisitsReport() {
             value={pct(totals.bounce_rate)}
             hint="한 페이지만 보고 떠난 세션"
           />
-          <StatTile label="로그인 사용자" value={fmt(totals.signed_in_users)} hint="기간 내 로그인 계정 수" />
+          <StatTile label="로그인 사용자" value={fmt(totals.signed_in_users)} />
         </div>
       </Section>
 
@@ -348,7 +396,7 @@ function AdminVisitsReport() {
             ? `언제 들어오나 — 피크 ${timing.peak_hour}시 · ${DOW_LABELS[timing.peak_day_of_week]}요일`
             : '언제 들어오나'
         }
-        note="방문이 아니라 페이지뷰를 시간대(KST)·요일로 나눈 분포입니다. 가장 진한 막대가 피크이며, 발행·공지 발송 시점을 잡는 데 씁니다."
+        tip="방문이 아니라 페이지뷰를 시간대(KST)·요일로 나눈 분포입니다. 가장 진한 막대가 피크이며 발행·공지 발송 시점을 잡는 데 씁니다."
       >
         <div className="visits-chart-pair">
           <Card>
@@ -412,7 +460,7 @@ function AdminVisitsReport() {
 
       <Section
         title="인기 페이지"
-        note="동의 방문자 기준 페이지뷰가 많은 순서입니다. 봇은 자바스크립트를 실행하지 않아 이 표에서 제외되며, 크롤러 트래픽은 아래 AI 섹션에서 봅니다."
+        tip="동의 방문자 기준 페이지뷰 순입니다. 봇은 제외되며 크롤러 트래픽은 아래 AI 섹션에서 봅니다."
       >
         {report.top_pages.length === 0 ? (
           <EmptyState>이 기간에 집계된 페이지뷰가 없습니다.</EmptyState>
@@ -442,7 +490,7 @@ function AdminVisitsReport() {
 
       <Section
         title="어디로 들어와서 남는가"
-        note="세션이 처음 도착한 페이지(랜딩)별로, 그 세션이 실제로 읽혔는지를 참여율로 봅니다."
+        tip="세션이 처음 도착한 페이지(랜딩)별 참여율입니다. 참여율 = 2페이지 이상 봤거나 제품 이벤트(검색·북마크 등)를 남긴 세션의 비율. 낮으면 유입은 되지만 읽히지 않는다는 뜻이고, '즉시 이탈 많음'은 세션 5건 이상에서 참여율 30% 미만인 랜딩에 붙습니다."
       >
         {report.landing.length === 0 ? (
           <EmptyState>이 기간에 랜딩 데이터가 없습니다.</EmptyState>
@@ -473,16 +521,14 @@ function AdminVisitsReport() {
             </table>
           </Card>
         )}
-        <p className="visits-note">
-          참여율 = 페이지를 2개 이상 봤거나 제품 이벤트(검색·북마크 등)를 남긴 세션의 비율.
-          참여율이 낮은 페이지는 유입은 되지만 읽히지 않는다는 뜻이며, '즉시 이탈 많음'은 세션 5건
-          이상 중 참여율 30% 미만인 랜딩에 붙습니다.
-        </p>
       </Section>
+
+      <Band label="AI · 유입" />
 
       <Section
         title="AI 크롤러·인용 유입"
-        note="이 섹션만 nginx 접근 로그에서 집계하며 사람 방문 지표와 겹치지 않습니다. 색인 크롤 → 답변용 fetch → 실제 클릭 유입의 3단계로 봅니다."
+        tip="이 섹션만 nginx 접근 로그에서 집계하며 사람 방문 지표와 겹치지 않습니다."
+        note="색인 크롤 → 답변용 fetch → 클릭 유입 3단계로 봅니다."
       >
         {!ai.available ? (
           <EmptyState>
@@ -495,22 +541,27 @@ function AdminVisitsReport() {
               <StatTile
                 label="AI 봇 히트"
                 value={fmt((ai.bots ?? []).reduce((sum, b) => sum + b.hits, 0))}
-                hint="GPTBot·ClaudeBot 등 색인 크롤러 요청(사람 방문 아님)"
+                hint="색인 크롤러 요청(사람 방문 아님)"
               />
               <StatTile
                 label="AI 인용 fetch"
                 value={fmt(ai.citation_clicks ?? 0)}
-                hint="ChatGPT·Claude·Perplexity가 답변 위해 페이지를 가져간 횟수"
+                hint="답변 위해 페이지를 가져간 횟수"
               />
               <StatTile
                 label="AI 클릭 유입"
                 value={fmt(ai.ai_referral_hits ?? 0)}
-                hint="AI 답변 링크로 실제 방문한 브라우저"
+                hint="AI 답변 링크로 실제 방문"
               />
             </div>
             <div className="visits-chart-pair">
               <Card>
-                <p className="visits-subhead">색인 크롤러</p>
+                <p className="visits-subhead">
+                  색인 크롤러
+                  <InfoTip label="색인 크롤러 설명">
+                    오류(빨간 숫자)가 많으면 크롤러가 해당 콘텐츠를 못 읽고 있다는 신호입니다.
+                  </InfoTip>
+                </p>
                 <table className="visits-table">
                   <thead>
                     <tr>
@@ -533,51 +584,52 @@ function AdminVisitsReport() {
                     ))}
                   </tbody>
                 </table>
-                <p className="visits-caption">
-                  오류(빨간 숫자)가 많으면 크롤러가 해당 콘텐츠를 못 읽고 있다는 신호입니다.
-                </p>
               </Card>
               <div className="visits-card-stack">
                 {(ai.crawled_pages?.length ?? 0) > 0 && (
                   <Card>
-                    <p className="visits-subhead">AI가 크롤한 페이지 (색인 커버리지)</p>
-                    <table className="visits-table">
-                      <thead>
-                        <tr>
-                          <th>페이지</th>
-                          <th className="visits-num-th">크롤</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(ai.crawled_pages ?? []).map((p) => (
-                          <tr key={p.path}>
-                            <td className="visits-path">{p.path}</td>
-                            <td className="visits-num">{fmt(p.hits)}</td>
+                    <details className="visits-drill">
+                      <summary className="visits-subhead">AI가 크롤한 페이지 (색인 커버리지)</summary>
+                      <table className="visits-table">
+                        <thead>
+                          <tr>
+                            <th>페이지</th>
+                            <th className="visits-num-th">크롤</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {(ai.crawled_pages ?? []).map((p) => (
+                            <tr key={p.path}>
+                              <td className="visits-path">{p.path}</td>
+                              <td className="visits-num">{fmt(p.hits)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
                   </Card>
                 )}
                 {(ai.citation_paths?.length ?? 0) > 0 && (
                   <Card>
-                    <p className="visits-subhead">AI 답변에서 클릭된 페이지 (GEO 성과)</p>
-                    <table className="visits-table">
-                      <thead>
-                        <tr>
-                          <th>페이지</th>
-                          <th className="visits-num-th">fetch</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(ai.citation_paths ?? []).map((p) => (
-                          <tr key={p.path}>
-                            <td className="visits-path">{p.path}</td>
-                            <td className="visits-num">{fmt(p.hits)}</td>
+                    <details className="visits-drill">
+                      <summary className="visits-subhead">AI 답변에서 클릭된 페이지 (GEO 성과)</summary>
+                      <table className="visits-table">
+                        <thead>
+                          <tr>
+                            <th>페이지</th>
+                            <th className="visits-num-th">fetch</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {(ai.citation_paths ?? []).map((p) => (
+                            <tr key={p.path}>
+                              <td className="visits-path">{p.path}</td>
+                              <td className="visits-num">{fmt(p.hits)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
                   </Card>
                 )}
               </div>
@@ -588,7 +640,7 @@ function AdminVisitsReport() {
 
       <Section
         title="검색·소셜 유입"
-        note="nginx referrer 기준 실제 외부 유입 채널입니다. 퍼스트파티 payload는 개인정보 보호를 위해 referrer를 지우므로 이 채널 구분은 로그에서만 볼 수 있습니다."
+        tip="nginx referrer 기준 실제 외부 유입 채널입니다. 퍼스트파티 payload는 개인정보 보호를 위해 referrer를 지우므로 이 채널 구분은 로그에서만 볼 수 있습니다."
       >
         {(ai.channels?.length ?? 0) === 0 ? (
           <EmptyState>이 기간에 집계된 외부 검색·소셜 유입이 없습니다.</EmptyState>
@@ -611,21 +663,6 @@ function AdminVisitsReport() {
               </tbody>
             </table>
           </Card>
-        )}
-      </Section>
-
-      <Section
-        title="제품 이벤트"
-        note="방문자가 남긴 핵심 행동(검색·로그인·딥리뷰·북마크 등)의 발생 횟수입니다. 트래픽이 실제 제품 사용으로 이어졌는지 보는 지표입니다."
-      >
-        {productEvents.length === 0 ? (
-          <EmptyState>이 기간에 기록된 제품 이벤트가 없습니다.</EmptyState>
-        ) : (
-          <div className="admin-stats-grid">
-            {productEvents.map(([name, count]) => (
-              <StatTile key={name} label={EVENT_LABELS[name] ?? name} value={fmt(count)} />
-            ))}
-          </div>
         )}
       </Section>
 
@@ -665,7 +702,7 @@ function AdminVisitsReport() {
       {report.ga4.available && (
         <Section
           title="GA4 채널"
-          note="GA4가 집계한 소스/매체별 채널입니다. GA4는 동의 기반 표본이라, 동의와 무관한 퍼스트파티 지표보다 수치가 작을 수 있습니다."
+          tip="GA4가 집계한 소스/매체별 채널입니다. GA4는 동의 기반 표본이라 퍼스트파티 지표보다 수치가 작을 수 있습니다."
         >
           <Card>
           <table className="visits-table">
@@ -691,6 +728,23 @@ function AdminVisitsReport() {
           </Card>
         </Section>
       )}
+
+      <Band label="제품" />
+
+      <Section
+        title="제품 이벤트"
+        tip="방문자가 남긴 핵심 행동(검색·로그인·딥리뷰·북마크 등)의 발생 횟수로, 트래픽이 실제 제품 사용으로 이어졌는지 봅니다."
+      >
+        {productEvents.length === 0 ? (
+          <EmptyState>이 기간에 기록된 제품 이벤트가 없습니다.</EmptyState>
+        ) : (
+          <div className="admin-stats-grid">
+            {productEvents.map(([name, count]) => (
+              <StatTile key={name} label={EVENT_LABELS[name] ?? name} value={fmt(count)} />
+            ))}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
