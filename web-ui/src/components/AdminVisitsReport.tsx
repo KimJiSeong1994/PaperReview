@@ -305,23 +305,32 @@ function AdminVisitsReport() {
             <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
               <Plot
                 data={[
-                  {
-                    type: 'scatter',
-                    mode: 'lines',
-                    name: '방문자',
-                    x: daily.map((d) => d.date),
-                    y: daily.map((d) => d.visitors),
-                    line: { color: colors.visitors, width: 2 },
-                    hovertemplate: '%{x}<br>방문자 %{y}<extra></extra>',
-                  },
+                  // 세션 is the larger series → draw it first (behind) so the
+                  // smaller 방문자 line + fill sit on top and are never
+                  // occluded. legendrank keeps the legend in 방문자→세션 order.
                   {
                     type: 'scatter',
                     mode: 'lines',
                     name: '세션',
+                    legendrank: 2,
                     x: daily.map((d) => d.date),
                     y: daily.map((d) => d.sessions),
-                    line: { color: colors.sessions, width: 2 },
+                    line: { color: colors.sessions, width: 2, shape: 'spline', smoothing: 0.5 },
+                    fill: 'tozeroy',
+                    fillcolor: `${colors.sessions}${isDark ? '2b' : '1e'}`,
                     hovertemplate: '%{x}<br>세션 %{y}<extra></extra>',
+                  },
+                  {
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: '방문자',
+                    legendrank: 1,
+                    x: daily.map((d) => d.date),
+                    y: daily.map((d) => d.visitors),
+                    line: { color: colors.visitors, width: 2, shape: 'spline', smoothing: 0.5 },
+                    fill: 'tozeroy',
+                    fillcolor: `${colors.visitors}${isDark ? '30' : '22'}`,
+                    hovertemplate: '%{x}<br>방문자 %{y}<extra></extra>',
                   },
                 ]}
                 layout={{
@@ -329,12 +338,22 @@ function AdminVisitsReport() {
                   height: 260,
                   margin: { t: 10, b: 40, l: 36, r: 10 },
                   hovermode: 'x unified',
+                  hoverlabel: {
+                    bgcolor: isDark ? 'rgba(22,22,25,0.96)' : 'rgba(255,255,255,0.98)',
+                    bordercolor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.10)',
+                    font: {
+                      color: isDark ? '#e8e8ea' : '#1e293b',
+                      size: 12,
+                      family: 'Pretendard, sans-serif',
+                    },
+                  },
                   legend: { orientation: 'h', y: 1.12, font: { color: 'var(--text-muted)' } },
-                  xaxis: { gridcolor: 'rgba(128,128,128,0.08)', color: 'var(--text-faint)' },
+                  xaxis: { gridcolor: 'rgba(128,128,128,0.08)', color: 'var(--text-faint)', zeroline: false },
                   yaxis: {
-                    gridcolor: 'rgba(128,128,128,0.12)',
+                    gridcolor: 'rgba(128,128,128,0.10)',
                     color: 'var(--text-faint)',
                     rangemode: 'tozero',
+                    zeroline: false,
                   },
                 }}
                 config={{ displayModeBar: false, responsive: true }}
