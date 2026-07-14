@@ -73,16 +73,18 @@ function StatTile({ label, value, hint }: { label: string; value: ReactNode; hin
   );
 }
 
-function Section({ tag, title, children }: { tag: string; title: string; children: ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="visits-section">
-      <div className="visits-section-head">
-        <span className="visits-section-tag">{tag}</span>
-        <h3 className="visits-section-title">{title}</h3>
-      </div>
+      <h3 className="visits-section-title">{title}</h3>
       {children}
     </section>
   );
+}
+
+/** Chart/table container matching the app's card tone (.admin-stat-card). */
+function Card({ children }: { children: ReactNode }) {
+  return <div className="visits-card">{children}</div>;
 }
 
 function AdminVisitsReport() {
@@ -172,7 +174,7 @@ function AdminVisitsReport() {
         </div>
       )}
 
-      <Section tag="TRAFFIC" title="방문 추이">
+      <Section title="방문 추이">
         <div className="admin-stats-grid">
           <StatTile label="방문자" value={totals.visitors} hint={`일 평균 ${totals.avg_daily_visitors}`} />
           <StatTile label="세션" value={totals.sessions} />
@@ -184,6 +186,7 @@ function AdminVisitsReport() {
           <StatTile label="로그인 사용자" value={totals.signed_in_users} />
         </div>
         {daily.length > 1 && (
+          <Card>
           <ChartErrorBoundary>
             <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
               <Plot
@@ -225,34 +228,34 @@ function AdminVisitsReport() {
               />
             </Suspense>
           </ChartErrorBoundary>
-        )}
-        <details className="visits-table-toggle">
-          <summary>데이터 표로 보기</summary>
-          <table className="visits-table">
-            <thead>
-              <tr>
-                <th>날짜</th>
-                <th>방문자</th>
-                <th>세션</th>
-                <th>페이지뷰</th>
-              </tr>
-            </thead>
-            <tbody>
-              {daily.map((d) => (
-                <tr key={d.date}>
-                  <td>{d.date}</td>
-                  <td>{d.visitors}</td>
-                  <td>{d.sessions}</td>
-                  <td>{d.page_views}</td>
+          <details className="visits-table-toggle">
+            <summary>데이터 표로 보기</summary>
+            <table className="visits-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>방문자</th>
+                  <th>세션</th>
+                  <th>페이지뷰</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
+              </thead>
+              <tbody>
+                {daily.map((d) => (
+                  <tr key={d.date}>
+                    <td>{d.date}</td>
+                    <td>{d.visitors}</td>
+                    <td>{d.sessions}</td>
+                    <td>{d.page_views}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+          </Card>
+        )}
       </Section>
 
       <Section
-        tag="TIMING"
         title={
           timing.peak_hour !== null && timing.peak_day_of_week !== null
             ? `언제 들어오나 — 피크 ${timing.peak_hour}시 · ${DOW_LABELS[timing.peak_day_of_week]}요일`
@@ -260,6 +263,7 @@ function AdminVisitsReport() {
         }
       >
         <div className="visits-chart-pair">
+          <Card>
           <ChartErrorBoundary>
             <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
               <Plot
@@ -286,6 +290,8 @@ function AdminVisitsReport() {
               />
             </Suspense>
           </ChartErrorBoundary>
+          </Card>
+          <Card>
           <ChartErrorBoundary>
             <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
               <Plot
@@ -312,58 +318,63 @@ function AdminVisitsReport() {
               />
             </Suspense>
           </ChartErrorBoundary>
+          </Card>
         </div>
       </Section>
 
-      <Section tag="ARTICLES" title="인기 페이지">
-        <table className="visits-table">
-          <thead>
-            <tr>
-              <th>페이지</th>
-              <th>페이지뷰</th>
-              <th>방문자</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.top_pages.map((p) => (
-              <tr key={p.path}>
-                <td className="visits-path">{p.path}</td>
-                <td>{p.page_views}</td>
-                <td>{p.visitors}</td>
+      <Section title="인기 페이지">
+        <Card>
+          <table className="visits-table">
+            <thead>
+              <tr>
+                <th>페이지</th>
+                <th>페이지뷰</th>
+                <th>방문자</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {report.top_pages.map((p) => (
+                <tr key={p.path}>
+                  <td className="visits-path">{p.path}</td>
+                  <td>{p.page_views}</td>
+                  <td>{p.visitors}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       </Section>
 
-      <Section tag="LANDING" title="어디로 들어와서 남는가">
-        <table className="visits-table">
-          <thead>
-            <tr>
-              <th>첫 페이지</th>
-              <th>세션</th>
-              <th>참여율</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.landing.map((p) => (
-              <tr key={p.path}>
-                <td className="visits-path">{p.path}</td>
-                <td>{p.sessions}</td>
-                <td>
-                  {Math.round(p.engaged_rate * 100)}%
-                  {p.engaged_rate < 0.3 && p.sessions >= 5 && (
-                    <span className="visits-flag">즉시 이탈 많음</span>
-                  )}
-                </td>
+      <Section title="어디로 들어와서 남는가">
+        <Card>
+          <table className="visits-table">
+            <thead>
+              <tr>
+                <th>첫 페이지</th>
+                <th>세션</th>
+                <th>참여율</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {report.landing.map((p) => (
+                <tr key={p.path}>
+                  <td className="visits-path">{p.path}</td>
+                  <td>{p.sessions}</td>
+                  <td>
+                    {Math.round(p.engaged_rate * 100)}%
+                    {p.engaged_rate < 0.3 && p.sessions >= 5 && (
+                      <span className="visits-flag">즉시 이탈 많음</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
         <p className="visits-note">참여율 = 페이지를 2개 이상 보거나 제품 이벤트를 남긴 세션 비율.</p>
       </Section>
 
-      <Section tag="AI" title="AI 크롤러·인용 유입">
+      <Section title="AI 크롤러·인용 유입">
         {!ai.available ? (
           <p className="visits-note">
             nginx 로그를 읽을 수 없어 크롤러 지표를 표시할 수 없습니다
@@ -388,29 +399,31 @@ function AdminVisitsReport() {
               />
             </div>
             <div className="visits-chart-pair">
-              <table className="visits-table">
-                <thead>
-                  <tr>
-                    <th>봇</th>
-                    <th>히트</th>
-                    <th>정상</th>
-                    <th>오류</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(ai.bots ?? []).map((b) => (
-                    <tr key={b.bot}>
-                      <td>{b.bot}</td>
-                      <td>{b.hits}</td>
-                      <td>{b.ok}</td>
-                      <td>{b.errors > 0 ? <span className="visits-flag">{b.errors}</span> : 0}</td>
+              <Card>
+                <table className="visits-table">
+                  <thead>
+                    <tr>
+                      <th>봇</th>
+                      <th>히트</th>
+                      <th>정상</th>
+                      <th>오류</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div>
+                  </thead>
+                  <tbody>
+                    {(ai.bots ?? []).map((b) => (
+                      <tr key={b.bot}>
+                        <td>{b.bot}</td>
+                        <td>{b.hits}</td>
+                        <td>{b.ok}</td>
+                        <td>{b.errors > 0 ? <span className="visits-flag">{b.errors}</span> : 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+              <div className="visits-card-stack">
                 {(ai.citation_paths?.length ?? 0) > 0 && (
-                  <>
+                  <Card>
                     <p className="visits-subhead">인용 클릭된 페이지</p>
                     <table className="visits-table">
                       <tbody>
@@ -422,10 +435,10 @@ function AdminVisitsReport() {
                         ))}
                       </tbody>
                     </table>
-                  </>
+                  </Card>
                 )}
                 {(ai.ai_referral_sources?.length ?? 0) > 0 && (
-                  <>
+                  <Card>
                     <p className="visits-subhead">AI 리퍼럴 출처</p>
                     <table className="visits-table">
                       <tbody>
@@ -437,7 +450,7 @@ function AdminVisitsReport() {
                         ))}
                       </tbody>
                     </table>
-                  </>
+                  </Card>
                 )}
               </div>
             </div>
@@ -445,7 +458,7 @@ function AdminVisitsReport() {
         )}
       </Section>
 
-      <Section tag="PRODUCT" title="제품 이벤트">
+      <Section title="제품 이벤트">
         {productEvents.length === 0 ? (
           <p className="visits-note">이 기간에 기록된 제품 이벤트가 없습니다.</p>
         ) : (
@@ -457,38 +470,41 @@ function AdminVisitsReport() {
         )}
       </Section>
 
-      <Section tag="ACQUISITION" title="유입 경로 (UTM)">
+      <Section title="유입 경로 (UTM)">
         {report.acquisition.utm_sources.length === 0 ? (
           <p className="visits-note">
             UTM 파라미터가 붙은 유입이 없습니다. AI·검색 리퍼럴은 위 AI 섹션에, 전체 채널 구분은
             GA4 동기화 복구 후 제공됩니다.
           </p>
         ) : (
-          <table className="visits-table">
-            <thead>
-              <tr>
-                <th>소스</th>
-                <th>매체</th>
-                <th>페이지뷰</th>
-                <th>세션</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.acquisition.utm_sources.map((s) => (
-                <tr key={`${s.utm_source}/${s.utm_medium}`}>
-                  <td>{s.utm_source}</td>
-                  <td>{s.utm_medium ?? '-'}</td>
-                  <td>{s.page_views}</td>
-                  <td>{s.sessions}</td>
+          <Card>
+            <table className="visits-table">
+              <thead>
+                <tr>
+                  <th>소스</th>
+                  <th>매체</th>
+                  <th>페이지뷰</th>
+                  <th>세션</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {report.acquisition.utm_sources.map((s) => (
+                  <tr key={`${s.utm_source}/${s.utm_medium}`}>
+                    <td>{s.utm_source}</td>
+                    <td>{s.utm_medium ?? '-'}</td>
+                    <td>{s.page_views}</td>
+                    <td>{s.sessions}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         )}
       </Section>
 
       {report.ga4.available && (
-        <Section tag="GA4" title="GA4 채널">
+        <Section title="GA4 채널">
+          <Card>
           <table className="visits-table">
             <thead>
               <tr>
@@ -509,6 +525,7 @@ function AdminVisitsReport() {
               ))}
             </tbody>
           </table>
+          </Card>
         </Section>
       )}
     </div>
