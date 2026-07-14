@@ -237,12 +237,38 @@ def test_visits_endpoint_requires_admin(
     assert resp.status_code == 401
 
 
-def test_resolve_dataset_location_prefers_configured_value(tmp_path: Path) -> None:
-    config = AnalyticsSyncConfig(
+def _config(tmp_path: Path, location: str | None = None) -> AnalyticsSyncConfig:
+    return AnalyticsSyncConfig(
         project_id="p",
         dataset="ds",
         property_id="prop",
         analytics_db_path=tmp_path / "a.db",
-        location="asia-northeast3",
+        location=location,
     )
-    assert _resolve_dataset_location(config) == "asia-northeast3"
+
+
+def test_resolve_dataset_location_probe_wins_over_configured(tmp_path: Path) -> None:
+    """A wrongly-configured GA4_BQ_LOCATION must not override reality."""
+    config = _config(tmp_path, location="US")
+    assert (
+        _resolve_dataset_location(config, probe=lambda p, d: "asia-northeast3")
+        == "asia-northeast3"
+    )
+
+
+def test_resolve_dataset_location_falls_back_to_configured_on_probe_failure(
+    tmp_path: Path,
+) -> None:
+    def failing_probe(project: str, dataset: str) -> str:
+        raise RuntimeError("no datasets.get permission")
+
+    config = _config(tmp_path, location="asia-northeast3")
+    assert _resolve_dataset_location(config, probe=failing_probe) == "asia-northeast3"
+
+
+def test_resolve_dataset_location_reraises_without_fallback(tmp_path: Path) -> None:
+    def failing_probe(project: str, dataset: str) -> str:
+        raise RuntimeError("Dataset p:ds does not exist")
+
+    with pytest.raises(RuntimeError, match="does not exist"):
+        _resolve_dataset_location(_config(tmp_path), probe=failing_probe)
