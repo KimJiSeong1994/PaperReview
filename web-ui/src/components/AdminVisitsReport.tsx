@@ -67,6 +67,14 @@ const nf = new Intl.NumberFormat('ko-KR');
 const fmt = (n: number) => nf.format(n);
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 
+/** Inclusive calendar-day span between two YYYY-MM-DD dates (0 if unparsable). */
+function daySpan(startISO: string, endISO: string): number {
+  const s = Date.parse(`${startISO}T00:00:00Z`);
+  const e = Date.parse(`${endISO}T00:00:00Z`);
+  if (Number.isNaN(s) || Number.isNaN(e)) return 0;
+  return Math.round((e - s) / 86_400_000) + 1;
+}
+
 /** Emphasize the peak bar; recede the rest (45% alpha) so the peak reads at
  *  a glance. ``color`` is a 6-digit hex; ``73`` is the appended alpha byte. */
 function peakColors(values: number[], peak: number | null, color: string): string[] {
@@ -221,6 +229,13 @@ function AdminVisitsReport() {
   const ai = report.ai;
   const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
 
+  // Analytics history is finite: when the selected window reaches back before
+  // the first collected day, the report only covers from that first day — so
+  // e.g. 28일 and 90일 look near-identical. Surface that so the shorter result
+  // doesn't read as "the toggle is broken".
+  const coveredDays = daySpan(report.window.start, report.window.end);
+  const windowLimited = coveredDays > 0 && coveredDays < days - 1;
+
   return (
     <div className="admin-dashboard visits-report">
       <div className="visits-toolbar">
@@ -239,6 +254,15 @@ function AdminVisitsReport() {
         </div>
         <span className="visits-window-range">
           {report.window.start} ~ {report.window.end} (KST)
+          {windowLimited && (
+            <>
+              <span className="visits-window-coverage">· 집계 {coveredDays}일분</span>
+              <InfoTip label="집계 기간 안내">
+                분석 데이터가 아직 {coveredDays}일치만 쌓여 있어, 이보다 긴 기간(예: 28·90일)을
+                선택해도 결과가 거의 같습니다. 데이터가 더 쌓일수록 기간별 차이가 뚜렷해집니다.
+              </InfoTip>
+            </>
+          )}
         </span>
       </div>
 
