@@ -209,12 +209,32 @@ def build_visits_report(
             )
         }
 
+        engaged_sessions = conn.execute(
+            f"SELECT COUNT(*) AS n FROM ({_ENGAGED_SESSION_SQL})", params
+        ).fetchone()["n"]
+
+        single_page_sessions = conn.execute(
+            """
+            SELECT COUNT(*) AS n FROM (
+              SELECT session_id
+              FROM app_analytics_events
+              WHERE created_at >= :start_utc
+              GROUP BY session_id
+              HAVING COUNT(*) = 1
+            )
+            """,
+            params,
+        ).fetchone()["n"]
+
         ga4 = _ga4_status(conn, start_utc, top_limit)
     finally:
         conn.close()
 
     peak_hour = max(range(24), key=lambda h: hour_of_day[h]) if any(hour_of_day) else None
     peak_dow = max(range(7), key=lambda d: day_of_week[d]) if any(day_of_week) else None
+
+    sessions_total = totals["sessions"] or 0
+    page_views_total = totals["page_views"] or 0
 
     return {
         "window": {
@@ -226,12 +246,22 @@ def build_visits_report(
         "traffic": {
             "totals": {
                 "visitors": totals["visitors"] or 0,
-                "sessions": totals["sessions"] or 0,
-                "page_views": totals["page_views"] or 0,
+                "sessions": sessions_total,
+                "page_views": page_views_total,
                 "signed_in_users": totals["signed_in_users"] or 0,
                 "returning_visitors": returning or 0,
                 "new_visitors": max((totals["visitors"] or 0) - (returning or 0), 0),
                 "avg_daily_visitors": round((totals["visitors"] or 0) / days, 1),
+                "engaged_sessions": engaged_sessions,
+                "engaged_rate": round(engaged_sessions / sessions_total, 3)
+                if sessions_total
+                else 0.0,
+                "bounce_rate": round(single_page_sessions / sessions_total, 3)
+                if sessions_total
+                else 0.0,
+                "pages_per_session": round(page_views_total / sessions_total, 1)
+                if sessions_total
+                else 0.0,
             },
             "daily": daily,
         },

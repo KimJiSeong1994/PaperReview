@@ -48,11 +48,75 @@ _BOT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # to a "citation click" that is directly measurable.
 _USER_FETCH_BOTS = {"ChatGPT-User", "Claude-User", "Perplexity-User"}
 
+# Search/answer-engine indexing crawlers (not user-triggered fetches). The set
+# of pages these fetch is a live "what is being indexed" GEO coverage list.
+_INDEXING_BOTS = {
+    "GPTBot",
+    "OAI-SearchBot",
+    "ClaudeBot",
+    "Claude-SearchBot",
+    "PerplexityBot",
+    "Googlebot",
+    "Bingbot",
+    "Yeti(Naver)",
+    "Applebot",
+}
+
 _AI_REFERRER_RE = re.compile(
     r"chatgpt\.com|perplexity\.ai|claude\.ai|anthropic\.com|gemini\.google|"
     r"copilot\.microsoft|you\.com|deepseek\.com",
     re.IGNORECASE,
 )
+
+# Real external referrer hosts (search + social). Self-navigation, AI-engine
+# referrers, and infra noise are excluded — the AI referrers are counted
+# separately as citation traffic. Raw-IP and cloud-host referrers (e.g. the
+# server's own EC2 address hitting itself, health checks, scanners) dominate
+# the log and are not real acquisition channels, so they are dropped.
+_SELF_HOST_RE = re.compile(r"://(www\.)?jiphyeonjeon\.kr", re.IGNORECASE)
+_REFERRER_HOST_RE = re.compile(r"^https?://([^/]+)", re.IGNORECASE)
+_INFRA_HOST_RE = re.compile(
+    r"^(\d{1,3}\.){3}\d{1,3}$"  # bare IPv4
+    r"|amazonaws\.com$|compute\.internal$|\.local$|^localhost$",
+    re.IGNORECASE,
+)
+_CHANNEL_HOSTS = {
+    "www.google.com": "Google",
+    "google.com": "Google",
+    "com.google.android.googlequicksearchbox": "Google",
+    "duckduckgo.com": "DuckDuckGo",
+    "www.bing.com": "Bing",
+    "bing.com": "Bing",
+    "search.naver.com": "Naver",
+    "news.ycombinator.com": "Hacker News",
+    "www.reddit.com": "Reddit",
+    "out.reddit.com": "Reddit",
+    "github.com": "GitHub",
+    "www.linkedin.com": "LinkedIn",
+    "lnkd.in": "LinkedIn",
+    "t.co": "X (Twitter)",
+    "www.facebook.com": "Facebook",
+    "l.facebook.com": "Facebook",
+    "m.facebook.com": "Facebook",
+}
+
+
+def _channel_for(referer: str) -> str | None:
+    """Map a referer URL to a named external channel, else None."""
+    if not referer or referer == "-" or _SELF_HOST_RE.search(referer):
+        return None
+    if _AI_REFERRER_RE.search(referer):
+        return None
+    host_match = _REFERRER_HOST_RE.match(referer)
+    if not host_match:
+        return None
+    host = host_match.group(1).lower().split(":", 1)[0]
+    if _INFRA_HOST_RE.search(host):
+        return None
+    if host in _CHANNEL_HOSTS:
+        return _CHANNEL_HOSTS[host]
+    # Unknown external host — surface the bare host so nothing is silently lost.
+    return host
 
 # 127.0.0.1 - - [11/Jul/2026:13:04:03 +0000] "GET /x HTTP/1.1" 200 123 "ref" "ua"
 _LOG_LINE_RE = re.compile(
@@ -101,6 +165,8 @@ def build_crawler_report(
     citation_paths: dict[str, int] = {}
     ai_referral_hits = 0
     ai_referral_sources: dict[str, int] = {}
+    crawled_pages: dict[str, int] = {}
+    channels: dict[str, int] = {}
 
     try:
         for line in _iter_log_lines(log_dir):
@@ -116,7 +182,8 @@ def build_crawler_report(
                     bot_name = name
                     break
             is_ai_ref = bool(_AI_REFERRER_RE.search(referer))
-            if bot_name is None and not is_ai_ref:
+            channel = _channel_for(referer) if bot_name is None else None
+            if bot_name is None and not is_ai_ref and channel is None:
                 continue
 
             try:
@@ -125,6 +192,8 @@ def build_crawler_report(
                 continue
             if ts < cutoff:
                 continue
+
+            path = m.group("path").split("?", 1)[0]
 
             if bot_name is not None:
                 entry = bot_hits.setdefault(
@@ -138,29 +207,34 @@ def build_crawler_report(
                     entry["errors"] += 1
                 if bot_name in _USER_FETCH_BOTS:
                     citation_clicks += 1
-                    path = m.group("path").split("?", 1)[0]
                     citation_paths[path] = citation_paths.get(path, 0) + 1
+                elif bot_name in _INDEXING_BOTS and status < 400 and path.startswith("/blog"):
+                    crawled_pages[path] = crawled_pages.get(path, 0) + 1
 
-            if is_ai_ref and bot_name is None:
+            if bot_name is None and is_ai_ref:
                 ai_referral_hits += 1
                 host = _AI_REFERRER_RE.search(referer).group(0).lower()
                 ai_referral_sources[host] = ai_referral_sources.get(host, 0) + 1
+            elif bot_name is None and channel is not None:
+                channels[channel] = channels.get(channel, 0) + 1
     except (OSError, PermissionError) as exc:
         return {"available": False, "reason": f"{type(exc).__name__}: {exc}"}
+
+    def _rank(counts: dict[str, int], key: str) -> list[dict[str, Any]]:
+        return sorted(
+            ({key: k, "hits": n} for k, n in counts.items()),
+            key=lambda r: -r["hits"],
+        )[:top_limit]
 
     report = {
         "available": True,
         "bots": sorted(bot_hits.values(), key=lambda b: -b["hits"]),
         "citation_clicks": citation_clicks,
-        "citation_paths": sorted(
-            ({"path": p, "hits": n} for p, n in citation_paths.items()),
-            key=lambda r: -r["hits"],
-        )[:top_limit],
+        "citation_paths": _rank(citation_paths, "path"),
         "ai_referral_hits": ai_referral_hits,
-        "ai_referral_sources": sorted(
-            ({"source": s, "hits": n} for s, n in ai_referral_sources.items()),
-            key=lambda r: -r["hits"],
-        )[:top_limit],
+        "ai_referral_sources": _rank(ai_referral_sources, "source"),
+        "crawled_pages": _rank(crawled_pages, "path"),
+        "channels": _rank(channels, "channel"),
     }
     if now is None:
         _cache[days] = (time.monotonic(), report)

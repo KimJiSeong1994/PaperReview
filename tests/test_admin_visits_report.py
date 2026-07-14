@@ -97,6 +97,12 @@ def test_build_visits_report_aggregates(analytics_db: Path) -> None:
     assert landing["/blog"]["engaged_rate"] == 1.0
     assert landing["/blog/post-a"]["engaged_rate"] == 0.0
 
+    # s1 (3 events) is engaged; s2 (1 event) bounces.
+    assert totals["engaged_sessions"] == 1
+    assert totals["engaged_rate"] == 0.5
+    assert totals["bounce_rate"] == 0.5
+    assert totals["pages_per_session"] == 1.5  # 3 page_views / 2 sessions
+
     assert report["product_events"] == {"search": 1}
 
     assert report["ga4"]["available"] is False
@@ -190,6 +196,30 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             referer="https://chatgpt.com/",
             ua="Mozilla/5.0 (Macintosh)",
         ),
+        # external search referral (Google) -> a named channel
+        LOG_TEMPLATE.format(
+            time="13/Jul/2026:10:04:00 +0000",
+            path="/blog/post-a",
+            status=200,
+            referer="https://www.google.com/",
+            ua="Mozilla/5.0 (Macintosh)",
+        ),
+        # internal navigation -> excluded from channels
+        LOG_TEMPLATE.format(
+            time="13/Jul/2026:10:05:00 +0000",
+            path="/blog/post-b",
+            status=200,
+            referer="https://jiphyeonjeon.kr/blog",
+            ua="Mozilla/5.0 (Macintosh)",
+        ),
+        # server self-IP hitting itself -> infra noise, excluded from channels
+        LOG_TEMPLATE.format(
+            time="13/Jul/2026:10:06:00 +0000",
+            path="/blog/post-c",
+            status=200,
+            referer="http://3.36.168.124/",
+            ua="Mozilla/5.0 (Macintosh)",
+        ),
         # too old — outside every window used in tests
         LOG_TEMPLATE.format(
             time="01/Jan/2026:00:00:00 +0000",
@@ -218,6 +248,10 @@ def test_crawler_report_classifies_bots_and_referrals(nginx_logs: Path) -> None:
     assert report["citation_paths"] == [{"path": "/blog/post-a", "hits": 1}]
     assert report["ai_referral_hits"] == 1
     assert report["ai_referral_sources"] == [{"source": "chatgpt.com", "hits": 1}]
+    # GPTBot fetched /blog/post-a with a 200 -> a crawled (indexed) blog page.
+    assert report["crawled_pages"] == [{"path": "/blog/post-a", "hits": 1}]
+    # Google referral is a named channel; internal + AI referrers are excluded.
+    assert report["channels"] == [{"channel": "Google", "hits": 1}]
 
 
 def test_crawler_report_degrades_without_log_access(
