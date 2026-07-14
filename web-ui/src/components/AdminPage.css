@@ -1426,6 +1426,12 @@
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 }
 
+/* Separate the stat-tile row from a chart/table card that follows it inside
+   the same section (e.g. 방문 추이) — otherwise they read as one crowded block. */
+.visits-report .admin-stats-grid + .visits-card {
+  margin-top: 16px;
+}
+
 .visits-report .admin-stat-card .admin-stat-value {
   color: var(--text-hi);
 }
