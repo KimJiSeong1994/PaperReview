@@ -14,6 +14,63 @@ export interface AdminDashboard {
   recent_papers: { title: string; source: string; collected_at: string }[];
 }
 
+export interface VisitsDaily {
+  date: string;
+  visitors: number;
+  sessions: number;
+  page_views: number;
+}
+
+export interface AdminVisitsReport {
+  window: { days: number; start: string; end: string; timezone: string };
+  traffic: {
+    totals: {
+      visitors: number;
+      sessions: number;
+      page_views: number;
+      signed_in_users: number;
+      returning_visitors: number;
+      new_visitors: number;
+      avg_daily_visitors: number;
+    };
+    daily: VisitsDaily[];
+  };
+  timing: {
+    hour_of_day: number[];
+    day_of_week: number[];
+    peak_hour: number | null;
+    peak_day_of_week: number | null;
+  };
+  top_pages: { path: string; page_views: number; visitors: number }[];
+  landing: { path: string; sessions: number; engaged_rate: number }[];
+  acquisition: {
+    utm_sources: {
+      utm_source: string;
+      utm_medium: string | null;
+      page_views: number;
+      sessions: number;
+    }[];
+  };
+  product_events: Record<string, number>;
+  ga4: {
+    available: boolean;
+    last_run: { sync_finished_at: string; status: string; error: string | null } | null;
+    channels: { source: string; medium: string; users: number; sessions: number }[];
+  };
+  ai: {
+    available: boolean;
+    reason?: string;
+    bots?: { bot: string; hits: number; ok: number; errors: number }[];
+    citation_clicks?: number;
+    citation_paths?: { path: string; hits: number }[];
+    ai_referral_hits?: number;
+    ai_referral_sources?: { source: string; hits: number }[];
+  };
+}
+
+export const fetchAdminVisitsReport = (days: number) =>
+  api.get<AdminVisitsReport>('/api/admin/analytics/visits', { params: { days } });
+
 export interface AdminUser {
   username: string;
   role: string;

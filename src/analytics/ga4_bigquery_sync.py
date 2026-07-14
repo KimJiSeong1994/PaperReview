@@ -357,6 +357,27 @@ def _open_bigquery_client(project_id: str, location: str | None) -> QueryClient:
     return bigquery.Client(**kwargs)
 
 
+def _resolve_dataset_location(config: AnalyticsSyncConfig) -> str | None:
+    """Return the configured location, else the dataset's actual location.
+
+    Every sync run before 2026-07 failed with "Dataset ... was not found in
+    location US" because GA4 exports land in the property's region while an
+    unconfigured client defaults to US. Dataset metadata lookups are
+    location-agnostic, so we ask BigQuery where the dataset lives instead of
+    requiring GA4_BQ_LOCATION to be set correctly by hand.
+    """
+    if config.location:
+        return config.location
+    from google.cloud import bigquery
+
+    project, dataset = normalize_project_dataset(config.project_id, config.dataset)
+    probe = bigquery.Client(project=project)
+    try:
+        return str(probe.get_dataset(f"{project}.{dataset}").location)
+    finally:
+        probe.close()
+
+
 def _run_query(client: QueryClient, query: str, job_config: Any | None) -> list[dict[str, Any]]:
     job = client.query(query, job_config=job_config)
     return _materialize(job.result())
@@ -456,7 +477,9 @@ def sync_ga4_daily_aggregates(
     ensure_analytics_db(config.analytics_db_path)
 
     started_at = utc_now_iso()
-    bq_client = client or _open_bigquery_client(config.project_id, config.location)
+    bq_client = client or _open_bigquery_client(
+        config.project_id, _resolve_dataset_location(config)
+    )
     job_config = None if client is not None else _make_query_job_config(
         start_date,
         end_date,
