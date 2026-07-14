@@ -108,8 +108,8 @@ BLOG_SERIES: dict[str, dict] = {
     "gnn": {
         "title": "GNN 논문 리뷰 시리즈",
         "description": (
-            "그래프 신경망(GNN)의 핵심 논문 9편을 랜덤워크 임베딩부터 "
-            "메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성까지 "
+            "그래프 신경망(GNN)의 핵심 논문 10편을 랜덤워크 임베딩부터 "
+            "메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성, 강한 베이스라인 재평가까지 "
             "권장 순서로 깊이 있게 읽는 한국어 딥리뷰 시리즈. 스탠퍼드 "
             "CS224W(Machine Learning with Graphs) 커리큘럼과 나란히 읽을 "
             "수 있도록 구성했다."
@@ -124,6 +124,7 @@ BLOG_SERIES: dict[str, dict] = {
             "heterogeneous-graph-attention-network-han-review-2026",
             "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
             "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+            "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
         ],
     },
 }
