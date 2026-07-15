@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api_server import app
-from routers.seo import _normalize_latex_delimiters
+from routers.seo import _blog_seo_meta, _normalize_latex_delimiters
 
 PUBLISHED_SLUG = "hello-world-abc12345"
 UNPUBLISHED_SLUG = "draft-post-def67890"
@@ -69,6 +69,30 @@ def client(monkeypatch) -> TestClient:
     monkeypatch.setattr("routers.seo._load_posts", lambda: list(_FIXED_POSTS))
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     return TestClient(app)
+
+
+def test_blog_seo_meta_enriches_paper_reviews_with_arxiv() -> None:
+    title, desc = _blog_seo_meta(
+        {
+            "category": "paper-review",
+            "title": "DeepWalk: Online Learning of Social Representations",
+            "excerpt": "랜덤워크 임베딩 리뷰.",
+            "content": '**Paper:** Perozzi et al. "DeepWalk: Online Learning of Social '
+            'Representations" (KDD 2014). arXiv:1403.6652\n\n**Abstract:** ...',
+        }
+    )
+    assert title == (
+        "DeepWalk: Online Learning of Social Representations — arXiv:1403.6652 논문 리뷰 · 집현전"
+    )
+    assert desc == "arXiv:1403.6652 · 랜덤워크 임베딩 리뷰."
+
+
+def test_blog_seo_meta_leaves_non_paper_posts_unchanged() -> None:
+    title, desc = _blog_seo_meta(
+        {"title": "Hello World Research Note", "excerpt": "An intro.", "content": "# Heading\n\nbody"}
+    )
+    assert title == "Hello World Research Note | Jiphyeonjeon Blog"
+    assert desc == "An intro."
 
 
 def test_published_post_renders_full_html(client: TestClient) -> None:
