@@ -50,6 +50,7 @@ const REPORT = {
       overall_conversion: 0.25,
     },
   ],
+  deep_review_outcome: { started: 5, completed: 2, failed: 1, abandoned: 2 },
   ga4: {
     available: false,
     state: 'pending' as const,
@@ -103,6 +104,12 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('검색 → 딥리뷰 완료')).toBeInTheDocument();
     expect(screen.getByText('전환 25%')).toBeInTheDocument();
     expect(screen.getByText('↓5')).toBeInTheDocument(); // drop-off annotation
+    // Deep-review outcome breakdown (완료/실패/이탈).
+    expect(screen.getByText('딥리뷰 결과')).toBeInTheDocument();
+    expect(screen.getByText(/딥리뷰 결과 — 시작 5건/)).toBeInTheDocument();
+    expect(screen.getByText('완료율 40%')).toBeInTheDocument();
+    expect(screen.getByText(/실패 1/)).toBeInTheDocument();
+    expect(screen.getByText(/이탈 2/)).toBeInTheDocument();
   });
 
   it('surfaces the API error state', async () => {

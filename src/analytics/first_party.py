@@ -16,14 +16,17 @@ ALLOWED_FIRST_PARTY_EVENTS = frozenset(
     {
         "page_view",
         "search",
+        "paper_select",
         "login",
         "sign_up",
         "deep_review_start",
         "deep_review_complete",
+        "deep_review_fail",
         "bookmark_save",
         "report_download",
         "poster_generate_start",
         "poster_generate_complete",
+        "poster_generate_fail",
     }
 )
 

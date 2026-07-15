@@ -19,14 +19,17 @@ const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const EVENT_LABELS: Record<string, string> = {
   page_view: '방문',
   search: '검색',
+  paper_select: '논문 선택',
   login: '로그인',
   sign_up: '가입',
   deep_review_start: '딥리뷰 시작',
   deep_review_complete: '딥리뷰 완료',
+  deep_review_fail: '딥리뷰 실패',
   bookmark_save: '북마크',
   report_download: '리포트 다운로드',
   poster_generate_start: '포스터 시작',
   poster_generate_complete: '포스터 완료',
+  poster_generate_fail: '포스터 실패',
 };
 
 function useIsDark(): boolean {
@@ -183,6 +186,46 @@ function EmptyState({ children }: { children: ReactNode }) {
   return <p className="visits-note">{children}</p>;
 }
 
+/** Deep-review terminal outcome as one stacked bar: completed / failed /
+ *  abandoned — separates "it broke" from "the user left". */
+function ReviewOutcome({ outcome }: { outcome: VisitsReportData['deep_review_outcome'] }) {
+  const { started, completed, failed, abandoned } = outcome;
+  const seg = (n: number) => `${(n / started) * 100}%`;
+  return (
+    <Card>
+      <div className="visits-funnel-head">
+        <span>딥리뷰 결과 — 시작 {fmt(started)}건</span>
+        <span className="visits-funnel-conv">완료율 {pct(completed / started)}</span>
+      </div>
+      <div className="visits-outcome-bar">
+        {completed > 0 && (
+          <span className="visits-outcome-seg visits-outcome-done" style={{ width: seg(completed) }} />
+        )}
+        {failed > 0 && (
+          <span className="visits-outcome-seg visits-outcome-fail" style={{ width: seg(failed) }} />
+        )}
+        {abandoned > 0 && (
+          <span className="visits-outcome-seg visits-outcome-drop" style={{ width: seg(abandoned) }} />
+        )}
+      </div>
+      <div className="visits-outcome-legend">
+        <span>
+          <i className="visits-outcome-done" />
+          완료 {fmt(completed)}
+        </span>
+        <span>
+          <i className="visits-outcome-fail" />
+          실패 {fmt(failed)}
+        </span>
+        <span>
+          <i className="visits-outcome-drop" />
+          이탈 {fmt(abandoned)}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
 /** A curated conversion funnel: each step a bar scaled to its conversion rate
  *  (vs. the first step), with session count, rate, and drop-off from the
  *  previous step. Design-token bars (theme-aware), no chart dependency. */
@@ -264,8 +307,14 @@ function AdminVisitsReport() {
   const { timing } = report;
   const ai = report.ai;
   const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
-  // Guard against an older backend during rollout that predates the funnels key.
+  // Guard against an older backend during rollout that predates these keys.
   const funnels = report.funnels ?? [];
+  const reviewOutcome = report.deep_review_outcome ?? {
+    started: 0,
+    completed: 0,
+    failed: 0,
+    abandoned: 0,
+  };
 
   // Analytics history is finite: when the selected window reaches back before
   // the first collected day, the report only covers from that first day — so
@@ -824,6 +873,17 @@ function AdminVisitsReport() {
               <FunnelChart key={f.id} funnel={f} />
             ))}
           </div>
+        )}
+      </Section>
+
+      <Section
+        title="딥리뷰 결과"
+        tip="딥리뷰를 시작한 세션이 완료됐는지, 실패했는지, 아니면 완료·실패 없이 이탈했는지를 나눕니다. 시작→완료 이탈 중 '실패'와 '그냥 떠남'을 구분해 줍니다."
+      >
+        {reviewOutcome.started === 0 ? (
+          <EmptyState>이 기간에 시작된 딥리뷰가 없습니다.</EmptyState>
+        ) : (
+          <ReviewOutcome outcome={reviewOutcome} />
         )}
       </Section>
 

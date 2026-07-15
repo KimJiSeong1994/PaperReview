@@ -62,6 +62,14 @@ export function trackDeepReviewComplete(selectedCount: number): void {
   sendAllowedEvent('deep_review_complete', { selected_count_bucket: bucketCount(selectedCount) });
 }
 
+export function trackDeepReviewFail(selectedCount: number): void {
+  sendAllowedEvent('deep_review_fail', { selected_count_bucket: bucketCount(selectedCount) });
+}
+
+export function trackPaperSelect(source: 'list' | 'graph'): void {
+  sendAllowedEvent('paper_select', { source });
+}
+
 export function trackBookmarkSave(): void {
   sendAllowedEvent('bookmark_save');
 }
@@ -76,4 +84,8 @@ export function trackPosterGenerateStart(): void {
 
 export function trackPosterGenerateComplete(): void {
   sendAllowedEvent('poster_generate_complete');
+}
+
+export function trackPosterGenerateFail(): void {
+  sendAllowedEvent('poster_generate_fail');
 }

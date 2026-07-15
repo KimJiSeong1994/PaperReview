@@ -20,8 +20,11 @@ import { copyToClipboard } from '../utils/clipboard';
 import {
   trackBookmarkSave,
   trackDeepReviewComplete,
+  trackDeepReviewFail,
   trackDeepReviewStart,
+  trackPaperSelect,
   trackPosterGenerateComplete,
+  trackPosterGenerateFail,
   trackPosterGenerateStart,
   trackReportDownload,
   trackSearchEvent,
@@ -353,11 +356,13 @@ function SearchPage() {
   };
 
   const handlePaperSelect = (paper: Paper) => {
+    trackPaperSelect('list');
     setSelectedPaper(paper);
     setHighlightedPapers(new Set());
   };
 
   const handleNodeClickWithHighlight = (paper: Paper) => {
+    trackPaperSelect('graph');
     setSelectedPaper(paper);
 
     if (graphData && graphData.edges) {
@@ -411,9 +416,11 @@ function SearchPage() {
           trackPosterGenerateComplete();
           setPosterHtml(result.poster_html);
         } else {
+          trackPosterGenerateFail();
           setGuidanceMessage(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
         }
       } catch (err: any) {
+        trackPosterGenerateFail();
         console.error('Direct poster generation failed:', err);
         setGuidanceMessage(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
       } finally {
@@ -509,12 +516,18 @@ function SearchPage() {
   };
 
   useEffect(() => {
-    if (reviewStatus !== 'completed') {
+    // Fire exactly one terminal outcome per review run: complete or fail.
+    // The ref resets while the review is processing/idle so the next run tracks.
+    if (reviewStatus !== 'completed' && reviewStatus !== 'failed') {
       trackedCompletedReviewRef.current = false;
       return;
     }
     if (!trackedCompletedReviewRef.current) {
-      trackDeepReviewComplete(selectedPapersForReview.size);
+      if (reviewStatus === 'completed') {
+        trackDeepReviewComplete(selectedPapersForReview.size);
+      } else {
+        trackDeepReviewFail(selectedPapersForReview.size);
+      }
       trackedCompletedReviewRef.current = true;
     }
   }, [reviewStatus, selectedPapersForReview.size]);

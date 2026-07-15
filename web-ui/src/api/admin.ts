@@ -62,6 +62,12 @@ export interface AdminVisitsReport {
     steps: { event: string; count: number; rate: number; drop_off: number }[];
     overall_conversion: number;
   }[];
+  deep_review_outcome: {
+    started: number;
+    completed: number;
+    failed: number;
+    abandoned: number;
+  };
   ga4: {
     available: boolean;
     state: 'connected' | 'pending' | 'failed' | 'never_run';

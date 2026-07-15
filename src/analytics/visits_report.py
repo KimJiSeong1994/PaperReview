@@ -62,6 +62,13 @@ CURATED_FUNNELS: list[dict[str, Any]] = [
         "steps": ["search", "deep_review_start", "deep_review_complete"],
     },
     {
+        # Fills the middle: paper_select (opening a result) is optional and not a
+        # prerequisite of a review, so it is its own funnel, not a review step.
+        "id": "search_to_engagement",
+        "label": "검색 → 결과 관여",
+        "steps": ["search", "paper_select"],
+    },
+    {
         "id": "review_to_bookmark",
         "label": "딥리뷰 완료 → 북마크",
         "steps": ["deep_review_complete", "bookmark_save"],
@@ -142,6 +149,46 @@ def build_funnel_report(
         "label": funnel["label"],
         "steps": steps,
         "overall_conversion": round(counts[-1] / base, 3) if base else 0.0,
+    }
+
+
+def build_deep_review_outcome(conn: sqlite3.Connection, start_utc: str) -> dict[str, int]:
+    """Split deep-review sessions by terminal outcome: complete vs fail vs
+    abandon. Answers "did it fail or did the user just leave?" — a session that
+    started counts as completed if it later completed, else failed if it later
+    failed, else abandoned (started, no terminal event)."""
+    row = conn.execute(
+        """
+        WITH s AS (
+          SELECT session_id,
+            MIN(CASE WHEN event_name = 'deep_review_start' THEN created_at END) AS t_start,
+            MIN(CASE WHEN event_name = 'deep_review_complete' THEN created_at END) AS t_done,
+            MIN(CASE WHEN event_name = 'deep_review_fail' THEN created_at END) AS t_fail
+          FROM app_analytics_events
+          WHERE created_at >= :start_utc
+            AND event_name IN
+              ('deep_review_start', 'deep_review_complete', 'deep_review_fail')
+          GROUP BY session_id
+        )
+        SELECT
+          COUNT(DISTINCT CASE WHEN t_start IS NOT NULL THEN session_id END) AS started,
+          COUNT(DISTINCT CASE WHEN t_start IS NOT NULL AND t_done >= t_start
+                              THEN session_id END) AS completed,
+          COUNT(DISTINCT CASE WHEN t_start IS NOT NULL AND t_fail >= t_start
+                              AND (t_done IS NULL OR t_done < t_start)
+                              THEN session_id END) AS failed
+        FROM s
+        """,
+        {"start_utc": start_utc},
+    ).fetchone()
+    started = row["started"] or 0
+    completed = row["completed"] or 0
+    failed = row["failed"] or 0
+    return {
+        "started": started,
+        "completed": completed,
+        "failed": failed,
+        "abandoned": max(started - completed - failed, 0),
     }
 
 
@@ -323,6 +370,7 @@ def build_visits_report(
         ).fetchone()["n"]
 
         funnels = [build_funnel_report(conn, start_utc, f) for f in CURATED_FUNNELS]
+        deep_review_outcome = build_deep_review_outcome(conn, start_utc)
 
         ga4 = _ga4_status(conn, start_utc, top_limit)
     finally:
@@ -374,6 +422,7 @@ def build_visits_report(
         "acquisition": {"utm_sources": utm_sources},
         "product_events": product_events,
         "funnels": funnels,
+        "deep_review_outcome": deep_review_outcome,
         "ga4": ga4,
     }
 

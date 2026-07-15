@@ -134,9 +134,10 @@ def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:
     report = build_visits_report(db, days=7, now=NOW)
 
     funnels = {f["id"]: f for f in report["funnels"]}
-    # All four curated funnels are present.
+    # All curated funnels are present.
     assert set(funnels) == {
         "search_to_review",
+        "search_to_engagement",
         "review_to_bookmark",
         "onboarding",
         "poster_flow",
@@ -153,6 +154,37 @@ def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:
     poster = funnels["poster_flow"]
     assert [s["count"] for s in poster["steps"]] == [4, 0, 0]
     assert poster["overall_conversion"] == 0.0
+
+    # No paper_select events seeded -> engagement funnel drops to zero.
+    assert [s["count"] for s in funnels["search_to_engagement"]["steps"]] == [4, 0]
+
+    # Started A/B/D; only A completed; none failed -> B and D are abandoned.
+    assert report["deep_review_outcome"] == {
+        "started": 3,
+        "completed": 1,
+        "failed": 0,
+        "abandoned": 2,
+    }
+
+
+def test_deep_review_outcome_splits_fail_and_abandon(tmp_path: Path) -> None:
+    db = tmp_path / "analytics.db"
+    ensure_analytics_db(db)
+    _seed(
+        db,
+        [
+            # completed
+            (None, "cA", "sA", "deep_review_start", "/", "2026-07-14T01:00:00Z"),
+            (None, "cA", "sA", "deep_review_complete", "/", "2026-07-14T01:05:00Z"),
+            # failed
+            (None, "cB", "sB", "deep_review_start", "/", "2026-07-14T02:00:00Z"),
+            (None, "cB", "sB", "deep_review_fail", "/", "2026-07-14T02:02:00Z"),
+            # abandoned (started, no terminal event)
+            (None, "cC", "sC", "deep_review_start", "/", "2026-07-14T03:00:00Z"),
+        ],
+    )
+    outcome = build_visits_report(db, days=7, now=NOW)["deep_review_outcome"]
+    assert outcome == {"started": 3, "completed": 1, "failed": 1, "abandoned": 1}
 
 
 def test_ga4_status_reports_last_failed_run(analytics_db: Path) -> None:
