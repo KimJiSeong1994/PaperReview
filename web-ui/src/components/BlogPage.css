@@ -906,6 +906,18 @@
   text-wrap: balance;
 }
 
+/* Lead/deck: the (usually Korean) excerpt surfaced under the title. First
+   natural-language summary on the page — reads as a standfirst and carries the
+   Korean search terms the English <h1> lacks. */
+.blog-detail-lead {
+  font-size: 19px;
+  line-height: 1.7;
+  color: var(--text-soft);
+  margin: -6px 0 26px;
+  letter-spacing: -0.011em;
+  text-wrap: pretty;
+}
+
 .blog-detail-meta {
   display: flex;
   align-items: center;

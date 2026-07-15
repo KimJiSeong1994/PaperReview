@@ -87,6 +87,16 @@ def test_blog_seo_meta_enriches_paper_reviews_with_arxiv() -> None:
     assert desc == "arXiv:1403.6652 · 랜덤워크 임베딩 리뷰."
 
 
+def test_blog_post_renders_excerpt_as_lead(client: TestClient) -> None:
+    """The excerpt is surfaced as a visible lead paragraph under the title
+    (on-page Korean/summary text for search), not only in the meta tag."""
+    body = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert (
+        '<p class="blog-detail-lead">An introductory writeup about paper review.</p>'
+        in body
+    )
+
+
 def test_blog_seo_meta_leaves_non_paper_posts_unchanged() -> None:
     title, desc = _blog_seo_meta(
         {"title": "Hello World Research Note", "excerpt": "An intro.", "content": "# Heading\n\nbody"}
