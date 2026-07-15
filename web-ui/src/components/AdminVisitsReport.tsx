@@ -17,6 +17,7 @@ const SERIES = {
 const WINDOWS = [7, 28, 90] as const;
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const EVENT_LABELS: Record<string, string> = {
+  page_view: '방문',
   search: '검색',
   login: '로그인',
   sign_up: '가입',
@@ -182,6 +183,41 @@ function EmptyState({ children }: { children: ReactNode }) {
   return <p className="visits-note">{children}</p>;
 }
 
+/** A curated conversion funnel: each step a bar scaled to its conversion rate
+ *  (vs. the first step), with session count, rate, and drop-off from the
+ *  previous step. Design-token bars (theme-aware), no chart dependency. */
+function FunnelChart({ funnel }: { funnel: VisitsReportData['funnels'][number] }) {
+  const base = funnel.steps[0]?.count ?? 0;
+  return (
+    <Card>
+      <div className="visits-funnel-head">
+        <span>{funnel.label}</span>
+        <span className="visits-funnel-conv">전환 {base ? pct(funnel.overall_conversion) : '—'}</span>
+      </div>
+      <div className="visits-funnel">
+        {funnel.steps.map((step, i) => (
+          <div className="visits-funnel-row" key={step.event}>
+            <span className="visits-funnel-name">{EVENT_LABELS[step.event] ?? step.event}</span>
+            <span className="visits-funnel-track">
+              <span
+                className="visits-funnel-fill"
+                style={{ width: `${base ? Math.max(step.rate * 100, step.count > 0 ? 3 : 0) : 0}%` }}
+              />
+              <span className="visits-funnel-count">{fmt(step.count)}</span>
+            </span>
+            <span className="visits-funnel-pct">
+              {base ? (i === 0 ? '100%' : pct(step.rate)) : '—'}
+              {i > 0 && step.drop_off > 0 && (
+                <span className="visits-funnel-drop">↓{fmt(step.drop_off)}</span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function AdminVisitsReport() {
   const isDark = useIsDark();
   const colors = isDark ? SERIES.dark : SERIES.light;
@@ -228,6 +264,8 @@ function AdminVisitsReport() {
   const { timing } = report;
   const ai = report.ai;
   const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
+  // Guard against an older backend during rollout that predates the funnels key.
+  const funnels = report.funnels ?? [];
 
   // Analytics history is finite: when the selected window reaches back before
   // the first collected day, the report only covers from that first day — so
@@ -773,6 +811,21 @@ function AdminVisitsReport() {
       )}
 
       <Band label="제품" />
+
+      <Section
+        title="전환 퍼널"
+        tip="세션 단위 순차 전환입니다. 각 단계는 같은 세션 안에서 앞 단계를 거친 뒤 해당 이벤트를 남긴 세션 수이며, 전환율은 첫 단계 대비 비율입니다. 표본이 작으면 비율이 크게 흔들리니 건수를 함께 보세요."
+      >
+        {funnels.every((f) => (f.steps[0]?.count ?? 0) === 0) ? (
+          <EmptyState>이 기간에 퍼널 첫 단계에 도달한 세션이 없습니다.</EmptyState>
+        ) : (
+          <div className="visits-funnel-grid">
+            {funnels.map((f) => (
+              <FunnelChart key={f.id} funnel={f} />
+            ))}
+          </div>
+        )}
+      </Section>
 
       <Section
         title="제품 이벤트"
