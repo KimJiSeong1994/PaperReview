@@ -767,6 +767,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
         <h1 className="blog-detail-title">{selectedPost.title}</h1>
 
+        {selectedPost.excerpt && (
+          <p className="blog-detail-lead">{selectedPost.excerpt}</p>
+        )}
+
         <div className="blog-detail-meta">
           <span className="blog-detail-author">{selectedPost.author}</span>
           <span className="blog-card-dot" aria-hidden="true" />

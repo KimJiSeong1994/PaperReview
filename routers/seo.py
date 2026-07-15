@@ -808,6 +808,12 @@ def _render_article(
     author = html.escape(post.get("author", ""), quote=True)
     created = html.escape(_format_date(post), quote=True)
     reading_time = post.get("reading_time_min", 1)
+    # Surface the (usually Korean) excerpt as a visible lead paragraph under the
+    # title. The reviews' <h1> is the English paper name, so this is the first
+    # natural-language Korean text on the page — the on-page signal Korean
+    # queries ("… 논문 리뷰/정리") can actually match.
+    excerpt = html.escape((post.get("excerpt") or "").strip(), quote=True)
+    lead_html = f'<p class="blog-detail-lead">{excerpt}</p>' if excerpt else ""
     tags_html = "".join(
         f'<span class="blog-tag">{html.escape(str(t), quote=True)}</span>'
         for t in post.get("tags", [])
@@ -884,6 +890,7 @@ def _render_article(
         '<div class="blog-container"><div class="blog-content">'
         '<div class="blog-detail">'
         f'<h1 class="blog-detail-title">{title}</h1>'
+        f"{lead_html}"
         '<div class="blog-detail-meta">'
         f'<span class="blog-detail-author">{author}</span>'
         f'<span class="blog-detail-date">{created}</span>'
