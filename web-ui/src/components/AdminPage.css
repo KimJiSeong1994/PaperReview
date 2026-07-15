@@ -1653,6 +1653,55 @@
   color: color-mix(in srgb, var(--amber) 80%, var(--text-muted));
 }
 
+/* Deep-review outcome: one stacked bar (완료 / 실패 / 이탈). */
+.visits-outcome-bar {
+  display: flex;
+  height: 22px;
+  margin-top: 4px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--wov-05);
+}
+
+.visits-outcome-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.visits-outcome-done {
+  background: var(--teal);
+}
+
+.visits-outcome-fail {
+  background: var(--danger);
+}
+
+.visits-outcome-drop {
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+}
+
+.visits-outcome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-outcome-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visits-outcome-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
 .visits-table-toggle {
   margin-top: 12px;
 }
