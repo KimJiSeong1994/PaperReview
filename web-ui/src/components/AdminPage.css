@@ -1560,6 +1560,99 @@
   color: var(--text-muted);
 }
 
+/* ── Conversion funnels ─────────────────────────────────────────────── */
+.visits-funnel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.visits-funnel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.visits-funnel-conv {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--indigo-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.visits-funnel-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 60px;
+  align-items: center;
+  gap: 10px;
+}
+
+.visits-funnel-name {
+  font-size: 12px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visits-funnel-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 26px;
+  background: var(--wov-05);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.visits-funnel-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--indigo) 55%, transparent),
+    var(--indigo)
+  );
+  transition: width 0.3s ease;
+}
+
+.visits-funnel-count {
+  position: relative;
+  padding-left: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-funnel-pct {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  justify-content: flex-end;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-funnel-drop {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--amber) 80%, var(--text-muted));
+}
+
 .visits-table-toggle {
   margin-top: 12px;
 }

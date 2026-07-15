@@ -109,6 +109,52 @@ def test_build_visits_report_aggregates(analytics_db: Path) -> None:
     assert report["ga4"]["last_run"] is None
 
 
+def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:
+    db = tmp_path / "analytics.db"
+    ensure_analytics_db(db)
+    _seed(
+        db,
+        [
+            # sA: full search -> start -> complete, in order
+            (None, "cA", "sA", "search", "/", "2026-07-14T01:00:00Z"),
+            (None, "cA", "sA", "deep_review_start", "/", "2026-07-14T01:01:00Z"),
+            (None, "cA", "sA", "deep_review_complete", "/", "2026-07-14T01:05:00Z"),
+            # sB: search + start, never completes
+            (None, "cB", "sB", "search", "/", "2026-07-14T02:00:00Z"),
+            (None, "cB", "sB", "deep_review_start", "/", "2026-07-14T02:01:00Z"),
+            # sC: search only
+            (None, "cC", "sC", "search", "/", "2026-07-14T03:00:00Z"),
+            # sD: a stale complete precedes this session's search -> must NOT
+            # count toward the complete step (ordering is enforced).
+            (None, "cD", "sD", "deep_review_complete", "/", "2026-07-14T04:00:00Z"),
+            (None, "cD", "sD", "search", "/", "2026-07-14T04:01:00Z"),
+            (None, "cD", "sD", "deep_review_start", "/", "2026-07-14T04:02:00Z"),
+        ],
+    )
+    report = build_visits_report(db, days=7, now=NOW)
+
+    funnels = {f["id"]: f for f in report["funnels"]}
+    # All four curated funnels are present.
+    assert set(funnels) == {
+        "search_to_review",
+        "review_to_bookmark",
+        "onboarding",
+        "poster_flow",
+    }
+
+    fr = funnels["search_to_review"]
+    counts = [s["count"] for s in fr["steps"]]
+    assert counts == [4, 3, 1]  # search A/B/C/D; start A/B/D; complete only A
+    assert [s["rate"] for s in fr["steps"]] == [1.0, 0.75, 0.25]
+    assert [s["drop_off"] for s in fr["steps"]] == [0, 1, 2]
+    assert fr["overall_conversion"] == 0.25
+
+    # A funnel with no data degrades to zeros without dividing by zero.
+    poster = funnels["poster_flow"]
+    assert [s["count"] for s in poster["steps"]] == [4, 0, 0]
+    assert poster["overall_conversion"] == 0.0
+
+
 def test_ga4_status_reports_last_failed_run(analytics_db: Path) -> None:
     conn = sqlite3.connect(str(analytics_db))
     conn.execute(

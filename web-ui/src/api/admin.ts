@@ -56,6 +56,12 @@ export interface AdminVisitsReport {
     }[];
   };
   product_events: Record<string, number>;
+  funnels: {
+    id: string;
+    label: string;
+    steps: { event: string; count: number; rate: number; drop_off: number }[];
+    overall_conversion: number;
+  }[];
   ga4: {
     available: boolean;
     state: 'connected' | 'pending' | 'failed' | 'never_run';

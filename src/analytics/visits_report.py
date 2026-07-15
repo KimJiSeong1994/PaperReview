@@ -16,6 +16,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from src.analytics.first_party import ALLOWED_FIRST_PARTY_EVENTS
+
 KST = dt.timezone(dt.timedelta(hours=9))
 
 # Sessions with more than one page_view, or any non-page_view product event,
@@ -47,6 +49,100 @@ def _window_start_utc(days: int, now: dt.datetime | None = None) -> str:
         hour=0, minute=0, second=0, microsecond=0
     )
     return start_kst.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# Curated product funnels rendered on the admin report. Each is an ordered list
+# of first-party event names; a session counts toward step k only if it fired
+# every earlier step at-or-before step k (first-occurrence ordered funnel). No
+# extra instrumentation is required — all steps are existing events.
+CURATED_FUNNELS: list[dict[str, Any]] = [
+    {
+        "id": "search_to_review",
+        "label": "검색 → 딥리뷰 완료",
+        "steps": ["search", "deep_review_start", "deep_review_complete"],
+    },
+    {
+        "id": "review_to_bookmark",
+        "label": "딥리뷰 완료 → 북마크",
+        "steps": ["deep_review_complete", "bookmark_save"],
+    },
+    {
+        "id": "onboarding",
+        "label": "온보딩 (방문 → 가입 → 검색)",
+        "steps": ["page_view", "sign_up", "login", "search"],
+    },
+    {
+        "id": "poster_flow",
+        "label": "검색 → 포스터 생성",
+        "steps": ["search", "poster_generate_start", "poster_generate_complete"],
+    },
+]
+
+# Fail fast on a typo'd event name in a curated funnel.
+for _f in CURATED_FUNNELS:
+    _unknown = set(_f["steps"]) - ALLOWED_FIRST_PARTY_EVENTS
+    if _unknown:
+        raise ValueError(f"funnel {_f['id']!r} references unknown events: {sorted(_unknown)}")
+
+
+def _funnel_counts(
+    conn: sqlite3.Connection, start_utc: str, steps: list[str]
+) -> list[int]:
+    """Distinct sessions reaching each ordered step within the window.
+
+    Per session we take the first timestamp of each step event, then require
+    each step's first occurrence to be at-or-after the previous step's. Uses
+    ``>=`` (not ``>``) because ``created_at`` is second-precision, so adjacent
+    steps can share a second; ties are counted as "in order".
+    """
+    params: dict[str, Any] = {"start_utc": start_utc}
+    when_cols = []
+    for i, event in enumerate(steps):
+        params[f"e{i}"] = event
+        when_cols.append(f"MIN(CASE WHEN event_name = :e{i} THEN created_at END) AS t{i}")
+    placeholders = ", ".join(f":e{i}" for i in range(len(steps)))
+
+    count_cols = []
+    for i in range(len(steps)):
+        conds = ["t0 IS NOT NULL"] + [f"t{k} >= t{k - 1}" for k in range(1, i + 1)]
+        count_cols.append(
+            f"COUNT(DISTINCT CASE WHEN {' AND '.join(conds)} THEN session_id END) AS s{i}"
+        )
+
+    sql = f"""
+    WITH step_times AS (
+      SELECT session_id, {', '.join(when_cols)}
+      FROM app_analytics_events
+      WHERE created_at >= :start_utc AND event_name IN ({placeholders})
+      GROUP BY session_id
+    )
+    SELECT {', '.join(count_cols)} FROM step_times
+    """
+    row = conn.execute(sql, params).fetchone()
+    return [row[f"s{i}"] or 0 for i in range(len(steps))]
+
+
+def build_funnel_report(
+    conn: sqlite3.Connection, start_utc: str, funnel: dict[str, Any]
+) -> dict[str, Any]:
+    """One curated funnel: per-step session counts, conversion rate, drop-off."""
+    counts = _funnel_counts(conn, start_utc, funnel["steps"])
+    base = counts[0] or 0
+    steps = [
+        {
+            "event": event,
+            "count": counts[i],
+            "rate": round(counts[i] / base, 3) if base else 0.0,
+            "drop_off": (counts[i - 1] - counts[i]) if i > 0 else 0,
+        }
+        for i, event in enumerate(funnel["steps"])
+    ]
+    return {
+        "id": funnel["id"],
+        "label": funnel["label"],
+        "steps": steps,
+        "overall_conversion": round(counts[-1] / base, 3) if base else 0.0,
+    }
 
 
 def build_visits_report(
@@ -226,6 +322,8 @@ def build_visits_report(
             params,
         ).fetchone()["n"]
 
+        funnels = [build_funnel_report(conn, start_utc, f) for f in CURATED_FUNNELS]
+
         ga4 = _ga4_status(conn, start_utc, top_limit)
     finally:
         conn.close()
@@ -275,6 +373,7 @@ def build_visits_report(
         "landing": landing,
         "acquisition": {"utm_sources": utm_sources},
         "product_events": product_events,
+        "funnels": funnels,
         "ga4": ga4,
     }
 

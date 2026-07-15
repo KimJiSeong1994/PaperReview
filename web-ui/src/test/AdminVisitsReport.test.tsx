@@ -38,6 +38,18 @@ const REPORT = {
   landing: [{ path: '/blog', sessions: 10, engaged_rate: 0.2 }],
   acquisition: { utm_sources: [] },
   product_events: { search: 3 },
+  funnels: [
+    {
+      id: 'search_to_review',
+      label: '검색 → 딥리뷰 완료',
+      steps: [
+        { event: 'search', count: 40, rate: 1.0, drop_off: 0 },
+        { event: 'deep_review_start', count: 15, rate: 0.375, drop_off: 25 },
+        { event: 'deep_review_complete', count: 10, rate: 0.25, drop_off: 5 },
+      ],
+      overall_conversion: 0.25,
+    },
+  ],
   ga4: {
     available: false,
     state: 'pending' as const,
@@ -85,7 +97,12 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument();
     expect(screen.getByText('Google')).toBeInTheDocument();
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
-    expect(screen.getByText('검색')).toBeInTheDocument(); // product event label
+    expect(screen.getAllByText('검색').length).toBeGreaterThanOrEqual(1); // product event + funnel step label
+    // Conversion funnel section renders with its steps + overall conversion.
+    expect(screen.getByText('전환 퍼널')).toBeInTheDocument();
+    expect(screen.getByText('검색 → 딥리뷰 완료')).toBeInTheDocument();
+    expect(screen.getByText('전환 25%')).toBeInTheDocument();
+    expect(screen.getByText('↓5')).toBeInTheDocument(); // drop-off annotation
   });
 
   it('surfaces the API error state', async () => {
