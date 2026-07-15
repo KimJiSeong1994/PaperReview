@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
+import {
+  blogSeoMeta,
+  buildPaperViewerHref,
+  extractPrimaryPaperReference,
+} from '../utils/blogPaperReference';
 
 describe('blog paper reference extraction', () => {
   it('extracts the primary GraphSAGE arXiv paper from the Paper block only', () => {
@@ -36,5 +40,47 @@ describe('blog paper reference extraction', () => {
     expect(href).toContain('title=GNNExplainer');
     expect(href).toContain('pdf_url=https%3A%2F%2Farxiv.org%2Fpdf%2F1903.03894.pdf');
     expect(href).toContain('source=blog-reference');
+  });
+});
+
+describe('blogSeoMeta', () => {
+  const paperPost = {
+    category: 'paper-review',
+    title: 'DeepWalk: Online Learning of Social Representations',
+    excerpt: '랜덤워크 임베딩을 소개한 DeepWalk 리뷰.',
+    content:
+      '**Paper:** Perozzi et al. "DeepWalk: Online Learning of Social Representations" ' +
+      '(KDD 2014). arXiv:1403.6652\n\n**Abstract:** ...',
+  };
+
+  it('enriches a paper review title/description with the arXiv id (H1 untouched)', () => {
+    const meta = blogSeoMeta(paperPost);
+    expect(meta.title).toBe(
+      'DeepWalk: Online Learning of Social Representations — arXiv:1403.6652 논문 리뷰 · 집현전',
+    );
+    expect(meta.description).toBe('arXiv:1403.6652 · 랜덤워크 임베딩을 소개한 DeepWalk 리뷰.');
+    // The raw article title (the <h1>) is never mutated.
+    expect(paperPost.title).toBe('DeepWalk: Online Learning of Social Representations');
+  });
+
+  it('adds a 논문 리뷰 cue for a paper review without an arXiv id', () => {
+    const meta = blogSeoMeta({
+      category: 'paper-review',
+      title: 'Some DOI-only Paper',
+      excerpt: '요약.',
+      content: '**Paper:** Author. "Some DOI-only Paper" (2020). DOI: 10.1000/xyz\n\n**Abstract:** ...',
+    });
+    expect(meta.title).toBe('Some DOI-only Paper 논문 리뷰 · 집현전');
+  });
+
+  it('leaves non-paper posts on the plain blog title', () => {
+    const meta = blogSeoMeta({
+      category: 'engineering',
+      title: '집현전 검색 고도화를 에이전트에게 넘겼다',
+      excerpt: '엔지니어링 노트.',
+      content: 'SkillOpt 로 검색 프롬프트를 최적화한 기록.',
+    });
+    expect(meta.title).toBe('집현전 검색 고도화를 에이전트에게 넘겼다 | Jiphyeonjeon Blog');
+    expect(meta.description).toBe('엔지니어링 노트.');
   });
 });

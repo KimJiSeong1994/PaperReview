@@ -898,6 +898,27 @@ def _render_article(
     )
 
 
+def _blog_seo_meta(post: dict) -> tuple[str, str]:
+    """SEO ``<title>`` + meta description for a post.
+
+    Enriches paper reviews with the reviewed paper's arXiv id and a Korean
+    "논문 리뷰" cue so the page matches how people actually search (real GSC
+    queries look like ``deepwalk ... arxiv 1403.6652``). The reader-facing
+    ``<h1>`` (``post['title']``) is deliberately left untouched — only the
+    search-facing title/description carry the keywords. Mirrors
+    ``blogSeoMeta`` in the frontend so SSR and client render agree.
+    """
+    title = post.get("title", "")
+    excerpt = (post.get("excerpt") or title).strip()
+    ref = _extract_primary_paper_reference(post)
+    arxiv_id = ref.get("arxiv_id") if ref else None
+    if arxiv_id:
+        return f"{title} — arXiv:{arxiv_id} 논문 리뷰 · 집현전", f"arXiv:{arxiv_id} · {excerpt}"[:300]
+    if ref:
+        return f"{title} 논문 리뷰 · 집현전", excerpt
+    return f"{title} | Jiphyeonjeon Blog", excerpt
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
@@ -956,9 +977,10 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
 
     lang = _detect_lang(post["title"] + " " + post.get("content", ""))
     locale = _locale(lang)
+    seo_title, seo_description = _blog_seo_meta(post)
     document = _build_document(
-        title=f"{post['title']} | Jiphyeonjeon Blog",
-        description=post.get("excerpt") or post["title"],
+        title=seo_title,
+        description=seo_description,
         canonical=f"{SITE_URL}/blog/{slug}",
         og_type="article",
         image=_absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE,

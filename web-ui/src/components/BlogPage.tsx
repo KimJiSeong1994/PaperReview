@@ -24,7 +24,7 @@ import {
   updateBlogPost,
   deleteBlogPost,
 } from '../api/client';
-import { buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
+import { blogSeoMeta, buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
 import { BLOG_SERIES, seriesOf } from '../seo/series';
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -996,12 +996,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const seoPost = view === 'detail' ? selectedPost : null;
   const categoryView = view === 'list';
   const categoryLabel = categoryView ? CATEGORY_META[activeCategory].label : '';
-  const seoTitle = seoPost
-    ? `${seoPost.title} | Jiphyeonjeon Blog`
+  const seoMeta = seoPost ? blogSeoMeta(seoPost) : null;
+  const seoTitle = seoMeta
+    ? seoMeta.title
     : categoryView
       ? `${categoryLabel} | Jiphyeonjeon Blog`
       : BLOG_TITLE;
-  const seoDescription = seoPost?.excerpt || BLOG_DESCRIPTION;
+  const seoDescription = seoMeta ? seoMeta.description : BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost && postNotFound);
   const seoCanonical = seoPost
     ? blogCanonical(seoPost.slug)

@@ -74,6 +74,31 @@ export function extractPrimaryPaperReference(post: BlogPaperPostLike): BlogPaper
   return ref;
 }
 
+/**
+ * SEO <title> + meta description for a blog post. Paper reviews get the
+ * reviewed paper's arXiv id and a Korean "논문 리뷰" cue so the page matches how
+ * people actually search; the reader-facing article headline is untouched.
+ * Mirrors ``_blog_seo_meta`` in routers/seo.py so SSR and client render agree.
+ */
+export function blogSeoMeta(
+  post: BlogPaperPostLike & { excerpt?: string },
+): { title: string; description: string } {
+  const base = post.title;
+  const excerpt = (post.excerpt || base).trim();
+  const ref = extractPrimaryPaperReference(post);
+  const arxivId = ref?.arxiv_id;
+  if (arxivId) {
+    return {
+      title: `${base} — arXiv:${arxivId} 논문 리뷰 · 집현전`,
+      description: `arXiv:${arxivId} · ${excerpt}`.slice(0, 300),
+    };
+  }
+  if (ref) {
+    return { title: `${base} 논문 리뷰 · 집현전`, description: excerpt };
+  }
+  return { title: `${base} | Jiphyeonjeon Blog`, description: excerpt };
+}
+
 export function buildPaperViewerHref(ref: BlogPaperReference): string {
   const params = new URLSearchParams();
   params.set('title', ref.title);
