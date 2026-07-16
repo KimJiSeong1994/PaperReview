@@ -74,7 +74,7 @@ const REPORT = {
 };
 
 describe('AdminVisitsReport', () => {
-  it('renders traffic tiles, tables, AI section, and the GA4 pending banner', async () => {
+  it('renders traffic tiles, tables, and the AI section', async () => {
     vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
       data: REPORT,
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
@@ -92,7 +92,6 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText(/퍼스트파티 직접수집/)).toBeInTheDocument(); // data-source line
     expect(screen.getByText('독자층')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
-    expect(screen.getByText(/GA4 연동 대기 중/)).toBeInTheDocument();
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
     expect(screen.getAllByText('AI 인용 fetch').length).toBeGreaterThanOrEqual(1); // relabeled
     expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument();
