@@ -1,0 +1,29 @@
+name: IndexNow resubmit
+
+# Auto-index new/changed blog content on IndexNow engines (Bing, Naver, Yandex,
+# Seznam). The publish API already pings IndexNow on create/update, but posts
+# added by a direct data-file edit + deploy bypass that path — this daily job is
+# the safety net that (re)submits every live published URL. Google is not an
+# IndexNow engine; it discovers new posts via the auto-updated /sitemap.xml.
+on:
+  schedule:
+    # 05:17 KST daily (20:17 UTC), after the usual publish/deploy window.
+    - cron: "17 20 * * *"
+  workflow_dispatch:
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Submit live published URLs to IndexNow
+        env:
+          SITE_URL: https://jiphyeonjeon.kr
+          # Public verification token (served at the host root /<key>.txt); override
+          # via the INDEXNOW_KEY repo variable if the deployed key ever changes.
+          INDEXNOW_KEY: ${{ vars.INDEXNOW_KEY || '8f3a1c07b94e2d65a0f8c3b12e6d47a9' }}
+        run: python scripts/submit_indexnow.py
