@@ -128,6 +128,21 @@ BLOG_SERIES: dict[str, dict] = {
             "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
         ],
     },
+    "dwe": {
+        "title": "DWE 논문 리뷰 시리즈",
+        "description": (
+            "단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩"
+            "(Dynamic Word Embeddings)의 핵심 논문을 시간순으로 깊이 있게 읽는 "
+            "한국어 딥리뷰 시리즈. 공동 행렬 분해로 시간 구간 간 정렬 문제를 "
+            "학습 안에서 푸는 DW2V(WSDM 2018)와, 확률적 생성 모델로 정렬을 "
+            "설계 단계에서 소거한 Dynamic Bernoulli Embeddings(WWW 2018)를 "
+            "다룬다."
+        ),
+        "slugs": [
+            "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+            "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+        ],
+    },
 }
 
 
