@@ -81,6 +81,13 @@ function stripLeadingH1(content: string): string {
   return content.replace(LEADING_H1_RE, '');
 }
 
+// The stripped leading H1 is a Korean subtitle ("SDNE 심층 분석: … 논문 해설").
+// Surface it as a Korean <h2> dek. Mirrors routers/seo.py::_leading_h1_text.
+function leadingH1Text(content: string): string {
+  const m = (content || '').match(/^\s*#[ \t]+([^\n]+)/);
+  return m ? m[1].trim() : '';
+}
+
 // Blog paper reviews have historically used LaTeX delimiters from source
 // notes (\(...\) and \[...\]). remark-math/KaTeX expects dollar
 // delimiters, while Markdown parsers treat the backslashes as escapes and can
@@ -766,6 +773,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         )}
 
         <h1 className="blog-detail-title">{selectedPost.title}</h1>
+
+        {(() => {
+          const dek = leadingH1Text(selectedPost.content);
+          return dek && dek !== selectedPost.title ? (
+            <h2 className="blog-detail-dek">{dek}</h2>
+          ) : null;
+        })()}
 
         {selectedPost.excerpt && (
           <p className="blog-detail-lead">{selectedPost.excerpt}</p>

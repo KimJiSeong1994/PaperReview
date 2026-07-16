@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api_server import app
-from routers.seo import _blog_seo_meta, _normalize_latex_delimiters
+from routers.seo import _blog_posting_graph, _blog_seo_meta, _normalize_latex_delimiters
 
 PUBLISHED_SLUG = "hello-world-abc12345"
 UNPUBLISHED_SLUG = "draft-post-def67890"
@@ -95,6 +95,42 @@ def test_blog_post_renders_excerpt_as_lead(client: TestClient) -> None:
         '<p class="blog-detail-lead">An introductory writeup about paper review.</p>'
         in body
     )
+
+
+def test_blog_post_renders_korean_dek_from_leading_h1(client: TestClient) -> None:
+    """The stripped leading markdown H1 is surfaced as an <h2> dek (a Korean
+    heading), not discarded — while the body keeps a single title <h1>."""
+    body = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert '<h2 class="blog-detail-dek">Heading</h2>' in body
+    # Still exactly one title H1.
+    assert body.count('class="blog-detail-title"') == 1
+
+
+def test_faq_section_emits_faqpage_jsonld() -> None:
+    post = {
+        "title": "GIN Review",
+        "slug": "gin-review",
+        "excerpt": "요약",
+        "author": "test",
+        "content": (
+            "본문.\n\n## 자주 묻는 질문\n\n"
+            "### GIN 논문이란?\nGIN은 그래프 신경망의 표현력을 다룬 논문입니다.\n\n"
+            "### GIN의 핵심 기여는?\nWL 테스트만큼 강력한 GNN을 증명했습니다.\n"
+        ),
+        "tags": [],
+    }
+    graph = _blog_posting_graph(post)["@graph"]
+    faq = next((n for n in graph if n.get("@type") == "FAQPage"), None)
+    assert faq is not None
+    questions = [q["name"] for q in faq["mainEntity"]]
+    assert questions == ["GIN 논문이란?", "GIN의 핵심 기여는?"]
+    assert faq["mainEntity"][0]["acceptedAnswer"]["text"].startswith("GIN은 그래프 신경망")
+
+
+def test_no_faq_section_emits_no_faqpage() -> None:
+    post = {"title": "T", "slug": "s", "excerpt": "e", "author": "a", "content": "# T\n\n본문만.", "tags": []}
+    graph = _blog_posting_graph(post)["@graph"]
+    assert not any(n.get("@type") == "FAQPage" for n in graph)
 
 
 def test_blog_seo_meta_leaves_non_paper_posts_unchanged() -> None:

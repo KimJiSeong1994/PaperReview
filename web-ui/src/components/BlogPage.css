@@ -906,6 +906,18 @@
   text-wrap: balance;
 }
 
+/* Korean subtitle dek: the stripped leading H1, surfaced under the English
+   title as a real <h2> so the page has a Korean heading. */
+.blog-detail-dek {
+  font-size: clamp(18px, 3vw, 23px);
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--text-soft);
+  margin: -8px 0 14px;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
 /* Lead/deck: the (usually Korean) excerpt surfaced under the title. First
    natural-language summary on the page — reads as a standfirst and carries the
    Korean search terms the English <h1> lacks. */
