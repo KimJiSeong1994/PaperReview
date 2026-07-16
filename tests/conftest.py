@@ -1,6 +1,7 @@
 """Shared test fixtures for the Paper Review Agent backend."""
 
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -19,6 +20,18 @@ os.environ.setdefault("APP_PASSWORD", "test-admin-password")
 os.environ.setdefault("APP_USERNAME", "test-admin")
 
 _TEST_JWT_SECRET = os.environ["JWT_SECRET"]
+
+
+# Bound every socket operation so a slow/unreachable external API (OpenAlex,
+# arXiv, Semantic Scholar, Scholar, DBLP, GitHub, …) can never hang the suite —
+# this is what stalled CI for ~40 min. Unlike hard-blocking, a short default
+# timeout preserves the real code path (the paper searchers make their call and
+# gracefully degrade on a slow one), so real-pipeline tests keep passing; it
+# just caps a multi-minute stall at a few seconds. In-process ASGI (httpx
+# ASGITransport) and SQLite use no sockets and are unaffected. Opt out with
+# ALLOW_TEST_NETWORK=1 for a deliberate integration run.
+if os.environ.get("ALLOW_TEST_NETWORK") != "1":
+    socket.setdefaulttimeout(float(os.environ.get("TEST_SOCKET_TIMEOUT", "8")))
 
 
 def _make_test_token(username: str = "test-admin", role: str = "admin") -> str:

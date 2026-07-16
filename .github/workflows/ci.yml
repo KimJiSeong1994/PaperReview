@@ -9,6 +9,10 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    # Backstop: the suite runs in ~1 min. If a test ever stalls on an external
+    # call despite the conftest socket timeout, fail fast instead of hanging
+    # the whole pipeline (and its deploy) for the GitHub 6-hour default.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
