@@ -35,7 +35,12 @@ SITE_HOST = SITE_URL.split("://", 1)[-1].split("/", 1)[0]
 # submitted key always match.
 INDEXNOW_KEY = os.getenv("INDEXNOW_KEY", "8f3a1c07b94e2d65a0f8c3b12e6d47a9")
 INDEXNOW_ENABLED = os.getenv("INDEXNOW_ENABLED", "true").lower() == "true"
-KEY_LOCATION = f"{SITE_URL}/api/indexnow/{INDEXNOW_KEY}.txt"
+# IndexNow scopes submissions to the key file's directory: a key under
+# /api/indexnow/ could only verify /api/indexnow/* URLs (so /blog/* submissions
+# were silently rejected with 422). Point keyLocation at the root copy
+# (web-ui/public/<key>.txt, served at /) so the whole host is verified. The
+# /api/indexnow/<key>.txt route is kept as an equivalent fallback.
+KEY_LOCATION = f"{SITE_URL}/{INDEXNOW_KEY}.txt"
 INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow"
 
 BLOG_DIR = Path("data/blog")

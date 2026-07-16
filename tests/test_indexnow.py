@@ -63,7 +63,7 @@ def test_submit_noop_when_disabled(monkeypatch) -> None:
     assert asyncio.run(submit_indexnow(["https://jiphyeonjeon.kr/"])) is False
 
 
-def test_keylocation_points_under_api(monkeypatch) -> None:
-    assert indexnow.KEY_LOCATION == (
-        f"{indexnow.SITE_URL}/api/indexnow/{INDEXNOW_KEY}.txt"
-    )
+def test_keylocation_is_root_scoped(monkeypatch) -> None:
+    # Must be at the host root so /blog/* URLs pass IndexNow's directory-scope
+    # verification (a /api/indexnow/ key would only cover /api/indexnow/*).
+    assert indexnow.KEY_LOCATION == f"{indexnow.SITE_URL}/{INDEXNOW_KEY}.txt"
