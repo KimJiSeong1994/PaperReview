@@ -371,28 +371,6 @@ function AdminVisitsReport() {
         </InfoTip>
       </p>
 
-      {(report.ga4.state === 'pending' || report.ga4.state === 'failed') && (
-        <div className={`visits-banner visits-banner--${report.ga4.state}`}>
-          {report.ga4.state === 'pending' ? (
-            <>
-              GA4 연동 대기 중 — 아래는 동의와 무관한 퍼스트파티 기준 지표입니다
-              <InfoTip label="GA4 연동 대기 설명">
-                GA4 속성에 방문 데이터가 아직 쌓이지 않아 BigQuery 내보내기 데이터셋이 생성되지
-                않았습니다. 방문자가 쿠키 동의 후 유입되기 시작하면 자동으로 연결됩니다.
-              </InfoTip>
-            </>
-          ) : (
-            <>
-              GA4 동기화 오류 ({report.ga4.last_run?.sync_finished_at?.slice(0, 10)}) — 아래는
-              퍼스트파티 기준입니다
-              <InfoTip label="GA4 오류 상세">
-                {report.ga4.last_run?.error ?? 'unknown error'}
-              </InfoTip>
-            </>
-          )}
-        </div>
-      )}
-
       <Band label="사람 방문" />
 
       <Section
