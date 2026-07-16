@@ -191,6 +191,22 @@ def _strip_leading_h1(content: str) -> str:
     return _LEADING_H1_RE.sub("", content, count=1)
 
 
+_LEADING_H1_TEXT_RE = re.compile(r"\A\s*#[ \t]+([^\n]+)")
+
+
+def _leading_h1_text(content: str) -> str:
+    """Return the (usually Korean) leading ``# `` heading text, else ``""``.
+
+    The visible ``<h1>`` is the English ``post['title']`` and the markdown's own
+    leading heading is stripped to avoid a duplicate H1 — but that heading is a
+    Korean subtitle ("SDNE 심층 분석: … 논문 해설"). We surface it as a Korean
+    ``<h2>`` dek so the page carries a Korean heading (the on-page signal Korean
+    queries lack), without editing the post body.
+    """
+    m = _LEADING_H1_TEXT_RE.match(content or "")
+    return m.group(1).strip() if m else ""
+
+
 def _repair_corrupted_latex_escapes(content: str) -> str:
     r"""Repair common JSON escape damage in stored markdown math.
 
@@ -559,6 +575,48 @@ def _scholarly_article_node(ref: dict) -> dict:
     return node
 
 
+_FAQ_SECTION_RE = re.compile(
+    r"^##[ \t]+(?:자주\s*묻는\s*질문|FAQ|Q\s*&\s*A)[^\n]*\n(.*?)(?=\n##[ \t]|\Z)",
+    re.S | re.M,
+)
+_FAQ_QA_RE = re.compile(r"^###[ \t]+([^\n]+)\n(.*?)(?=\n###[ \t]|\Z)", re.S | re.M)
+
+
+def _extract_faq(content: str) -> list[tuple[str, str]]:
+    """Parse a ``## 자주 묻는 질문`` section into (question, answer) pairs.
+
+    Empty until posts add an FAQ section (Tier-2 content); pre-wired so that the
+    moment such a section exists it auto-emits FAQPage rich-result markup with
+    no further code change.
+    """
+    section = _FAQ_SECTION_RE.search(content or "")
+    if not section:
+        return []
+    pairs: list[tuple[str, str]] = []
+    for qa in _FAQ_QA_RE.finditer(section.group(1)):
+        q = qa.group(1).strip()
+        a = " ".join(qa.group(2).split()).strip()
+        if q and a:
+            pairs.append((q, a))
+    return pairs
+
+
+def _faq_node(pairs: list[tuple[str, str]], url: str) -> dict:
+    """A schema.org FAQPage node built from question/answer pairs."""
+    return {
+        "@type": "FAQPage",
+        "@id": f"{url}#faq",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": q,
+                "acceptedAnswer": {"@type": "Answer", "text": a},
+            }
+            for q, a in pairs
+        ],
+    }
+
+
 def _blog_posting_graph(post: dict) -> dict:
     """Return the @graph for a single BlogPosting page."""
     title = post.get("title", "")
@@ -612,6 +670,9 @@ def _blog_posting_graph(post: dict) -> dict:
         posting["citation"] = {"@id": ref["url"]}
         graph.append(_scholarly_article_node(ref))
     graph.append(_breadcrumb(title, slug))
+    faq = _extract_faq(content)
+    if faq:
+        graph.append(_faq_node(faq, url))
 
     return {"@context": "https://schema.org", "@graph": graph}
 
@@ -860,6 +921,14 @@ def _render_article(
     # queries ("… 논문 리뷰/정리") can actually match.
     excerpt = html.escape((post.get("excerpt") or "").strip(), quote=True)
     lead_html = f'<p class="blog-detail-lead">{excerpt}</p>' if excerpt else ""
+    # Korean subtitle dek from the stripped leading H1 (only when it adds Korean
+    # beyond the English title).
+    dek = _leading_h1_text(post.get("content", ""))
+    dek_html = (
+        f'<h2 class="blog-detail-dek">{html.escape(dek, quote=True)}</h2>'
+        if dek and dek != post.get("title", "")
+        else ""
+    )
     tags_html = "".join(
         f'<span class="blog-tag">{html.escape(str(t), quote=True)}</span>'
         for t in post.get("tags", [])
@@ -936,6 +1005,7 @@ def _render_article(
         '<div class="blog-container"><div class="blog-content">'
         '<div class="blog-detail">'
         f'<h1 class="blog-detail-title">{title}</h1>'
+        f"{dek_html}"
         f"{lead_html}"
         '<div class="blog-detail-meta">'
         f'<span class="blog-detail-author">{author}</span>'

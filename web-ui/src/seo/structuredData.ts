@@ -180,6 +180,30 @@ function scholarlyArticleNode(ref: BlogPaperReference & { url: string }): Record
   return node;
 }
 
+// Parse a '## 자주 묻는 질문' section into Q/A pairs -> FAQPage. Empty until a
+// post adds an FAQ section; mirrors routers/seo.py::_extract_faq.
+// No /m flag: $ must mean end-of-string (mirrors Python's \Z). Line starts are
+// anchored with (?:^|\n) instead, since /m would make $ match every line end
+// and truncate the section/answer capture right after the heading.
+const FAQ_SECTION_RE = /(?:^|\n)##[ \t]+(?:자주\s*묻는\s*질문|FAQ|Q\s*&\s*A)[^\n]*\n([\s\S]*?)(?=\n##[ \t]|$)/;
+const FAQ_QA_RE = /(?:^|\n)###[ \t]+([^\n]+)\n([\s\S]*?)(?=\n###[ \t]|$)/g;
+
+function faqNode(content: string, url: string): Record<string, unknown> | null {
+  const section = (content || '').match(FAQ_SECTION_RE);
+  if (!section) return null;
+  const mainEntity: Record<string, unknown>[] = [];
+  FAQ_QA_RE.lastIndex = 0;
+  let qa: RegExpExecArray | null;
+  while ((qa = FAQ_QA_RE.exec(section[1])) !== null) {
+    const q = qa[1].trim();
+    const a = qa[2].replace(/\s+/g, ' ').trim();
+    if (q && a) {
+      mainEntity.push({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } });
+    }
+  }
+  return mainEntity.length ? { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity } : null;
+}
+
 export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
@@ -226,6 +250,8 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     graph.push(scholarlyArticleNode(ref as BlogPaperReference & { url: string }));
   }
   graph.push(blogBreadcrumb(post.title, post.slug));
+  const faq = faqNode(post.content, blogCanonical(post.slug));
+  if (faq) graph.push(faq);
 
   return { '@context': 'https://schema.org', '@graph': graph };
 }

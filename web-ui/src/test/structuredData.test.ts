@@ -131,6 +131,30 @@ describe('blogPostingGraph', () => {
     expect(posting.image).toBe(samplePost.thumbnail_url);
   });
 
+  it('emits a FAQPage node when the post has a 자주 묻는 질문 section', () => {
+    const withFaq: BlogPostLike = {
+      slug: 'gin-review',
+      title: 'GIN Review',
+      excerpt: 'x',
+      author: 'A',
+      tags: [],
+      created_at: '2026-06-10T00:00:00.000Z',
+      content:
+        '본문.\n\n## 자주 묻는 질문\n\n### GIN 논문이란?\nGIN은 표현력을 다룬 논문입니다.\n\n' +
+        '### 핵심 기여는?\nWL 테스트만큼 강력한 GNN을 증명했습니다.\n',
+    };
+    const nodes = blogPostingGraph(withFaq)['@graph'] as Record<string, unknown>[];
+    const faq = nodes.find((n) => n['@type'] === 'FAQPage') as Record<string, unknown> | undefined;
+    expect(faq).toBeDefined();
+    const questions = (faq!.mainEntity as Record<string, unknown>[]).map((q) => q.name);
+    expect(questions).toEqual(['GIN 논문이란?', '핵심 기여는?']);
+  });
+
+  it('omits FAQPage when there is no FAQ section', () => {
+    const nodes = blogPostingGraph(samplePost)['@graph'] as Record<string, unknown>[];
+    expect(nodes.some((n) => n['@type'] === 'FAQPage')).toBe(false);
+  });
+
   it('falls back to created_at and default image when fields are missing', () => {
     const minimal: BlogPostLike = {
       slug: 'minimal',
