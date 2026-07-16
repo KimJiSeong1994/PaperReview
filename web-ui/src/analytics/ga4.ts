@@ -272,10 +272,17 @@ export function trackPageView(pageViewOrPath: PageViewPayload | string, optionsO
 
   if (!isSafePageViewPayload(pageViewOrPath)) return false;
 
-  win?.gtag?.('config', measurementId, {
+  // Send an explicit page_view *event* — not a repeat gtag('config'). The
+  // initial config sets send_page_view:false, and GA4 ignores a duplicate
+  // config for an already-configured id, so a config here emits no hit and GA4
+  // records nothing. This branch (used by AnalyticsRouteTracker) must mirror
+  // the string overload above.
+  win?.gtag?.('event', 'page_view', {
     page_path: pageViewOrPath.page_path,
     page_location: pageViewOrPath.page_location,
+    ...(isEnabled(env.VITE_GA_DEBUG) ? { debug_mode: true } : {}),
   });
+  lastPagePath = pageViewOrPath.page_path;
   sendFirstPartyAnalyticsEvent('page_view', pageViewOrPath.first_party_payload ?? {}, pageViewOrPath.page_path);
   return true;
 }

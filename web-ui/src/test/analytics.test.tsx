@@ -187,8 +187,8 @@ describe('GA4 privacy-safe measurement', () => {
     await user.click(getByRole('button', { name: 'Share' }));
 
     const pageViews = pushedEvents().filter(
-      (event) => event[0] === 'config'
-        && event[1] === 'G-TEST123'
+      (event) => event[0] === 'event'
+        && event[1] === 'page_view'
         && Boolean((event[2] as Record<string, unknown> | undefined)?.page_path),
     );
     expect(pageViews).toHaveLength(2);

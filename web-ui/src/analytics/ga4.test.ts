@@ -158,7 +158,9 @@ describe('GA4 adapter', () => {
     );
 
     const payload = (win as Window & { dataLayer: unknown[] }).dataLayer.at(-1);
-    expect(payload).toEqual(['config', 'G-TEST123', { page_path: '/', page_location: 'https://jiphyeonjeon.kr/' }]);
+    // A page_view *event* (not a duplicate config) — a repeat config for an
+    // already-configured id emits no GA4 hit, so this must be an event.
+    expect(payload).toEqual(['event', 'page_view', { page_path: '/', page_location: 'https://jiphyeonjeon.kr/' }]);
     expect(JSON.stringify(payload)).not.toContain('private+paper+title');
     expect(JSON.stringify(payload)).not.toContain('?q=');
   });
