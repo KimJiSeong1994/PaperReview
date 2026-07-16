@@ -132,13 +132,17 @@ BLOG_SERIES: dict[str, dict] = {
         "title": "DWE 논문 리뷰 시리즈",
         "description": (
             "단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩"
-            "(Dynamic Word Embeddings)의 핵심 논문을 시간순으로 깊이 있게 읽는 "
-            "한국어 딥리뷰 시리즈. 공동 행렬 분해로 시간 구간 간 정렬 문제를 "
-            "학습 안에서 푸는 DW2V(WSDM 2018)와, 확률적 생성 모델로 정렬을 "
-            "설계 단계에서 소거한 Dynamic Bernoulli Embeddings(WWW 2018)를 "
-            "다룬다."
+            "(Dynamic Word Embeddings)의 핵심 논문 5편을 변화점 탐지부터 "
+            "의미 변화의 통계 법칙, 베이지안 공동 학습, 공동 행렬 분해, "
+            "확률적 생성 모델까지 시간순으로 깊이 있게 읽는 한국어 딥리뷰 "
+            "시리즈. 시간 구간별로 따로 학습한 임베딩을 사후에 맞추던 정렬 "
+            "문제가 학습 안으로, 다시 모델 설계 안으로 흡수되는 흐름을 "
+            "계보로 따라간다."
         ),
         "slugs": [
+            "statistically-significant-detection-linguistic-change-review",
+            "diachronic-word-embeddings-statistical-laws-semantic-change-review",
+            "dynamic-word-embeddings-bayesian-skip-gram-review",
             "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
             "dynamic-bernoulli-embeddings-language-evolution-review-2026",
         ],
