@@ -167,6 +167,26 @@ def test_feed_valid_rss_with_published_link(client: TestClient) -> None:
     assert root.tag == "rss"
     assert f"/blog/{PUBLISHED_SLUG}" in resp.text
     assert UNPUBLISHED_SLUG not in resp.text
+    # Korean content -> ko feed language (was mislabeled en); + self atom link.
+    assert "<language>ko</language>" in resp.text
+    assert 'rel="self"' in resp.text and "/feed.xml" in resp.text
+    assert "<lastBuildDate>" in resp.text
+
+
+def test_sitemap_has_image_namespace_and_thumbnail(client: TestClient) -> None:
+    body = client.get("/sitemap.xml").text
+    assert "http://www.google.com/schemas/sitemap-image/1.1" in body
+    # The published fixture post has a thumbnail_url -> surfaced as an image loc.
+    assert "<image:image>" in body
+    assert "https://jiphyeonjeon.kr/api/blog/figures/hello-world.png" in body
+
+
+def test_blog_post_author_is_grounded_person(client: TestClient) -> None:
+    body = client.get(f"/blog/{PUBLISHED_SLUG}").text
+    assert "https://github.com/KimJiSeong1994" in body
+    assert "https://www.linkedin.com/in/jiseong-kim-868218193/" in body
+    assert 'property="article:published_time"' in body
+    assert 'property="og:image:alt"' in body
 
 
 def test_korean_post_uses_ko_locale(client: TestClient) -> None:

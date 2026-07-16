@@ -574,7 +574,12 @@ def _blog_posting_graph(post: dict) -> dict:
         "@type": "BlogPosting",
         "headline": title,
         "description": excerpt,
-        "author": {"@type": "Person", "name": author},
+        "author": {
+            "@type": "Person",
+            "name": author,
+            "url": GITHUB_PROFILE_URL,
+            "sameAs": [GITHUB_PROFILE_URL, LINKEDIN_PROFILE_URL],
+        },
         "datePublished": created_at,
         "dateModified": updated_at,
         "keywords": tags,
@@ -636,16 +641,20 @@ def _blog_index_graph(posts: list[dict]) -> dict:
 
 
 def _category_graph(category: str, label: str, description: str, posts: list[dict]) -> dict:
-    """Return the @graph for a category hub page (CollectionPage)."""
+    """Return the @graph for a category hub page (CollectionPage + ItemList)."""
     url = f"https://jiphyeonjeon.kr/blog/category/{category}"
-    blog_posts = [
-        {
-            "@type": "BlogPosting",
-            "headline": p.get("title", ""),
-            "url": f"https://jiphyeonjeon.kr/blog/{p.get('slug', '')}",
-        }
-        for p in posts[:20]
-    ]
+    item_list = {
+        "@type": "ItemList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": i + 1,
+                "name": p.get("title", ""),
+                "url": f"https://jiphyeonjeon.kr/blog/{p.get('slug', '')}",
+            }
+            for i, p in enumerate(posts[:20])
+        ],
+    }
     breadcrumb = {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -666,7 +675,7 @@ def _category_graph(category: str, label: str, description: str, posts: list[dic
                 "description": description,
                 "isPartOf": {"@id": "https://jiphyeonjeon.kr/blog#blog"},
                 "publisher": {"@id": ORG_ID},
-                "hasPart": blog_posts,
+                "mainEntity": item_list,
             },
             breadcrumb,
         ],
@@ -738,6 +747,8 @@ def _build_document(
     noindex: bool = False,
     lang: str = "en",
     locale: str = "en_US",
+    published_time: str | None = None,
+    modified_time: str | None = None,
 ) -> str:
     """Assemble a full SSR HTML document with SEO head + SPA boot assets.
 
@@ -764,6 +775,19 @@ def _build_document(
         'max-snippet:-1, max-video-preview:-1">\n    '
     )
     ld_block = f"{_json_ld_script(json_ld)}\n    " if json_ld else ""
+    # article:* times parity with the client SEOHead (only for article pages).
+    article_meta = ""
+    if og_type == "article":
+        if published_time:
+            article_meta += (
+                f'<meta property="article:published_time" '
+                f'content="{html.escape(published_time, quote=True)}">\n    '
+            )
+        if modified_time:
+            article_meta += (
+                f'<meta property="article:modified_time" '
+                f'content="{html.escape(modified_time, quote=True)}">\n    '
+            )
 
     head = (
         f'<title>{esc_title}</title>\n    '
@@ -775,12 +799,15 @@ def _build_document(
         f'<meta property="og:type" content="{esc_type}">\n    '
         f'<meta property="og:url" content="{esc_canonical}">\n    '
         f'<meta property="og:image" content="{esc_image}">\n    '
+        f'<meta property="og:image:alt" content="{esc_title}">\n    '
         f'<meta property="og:site_name" content="Jiphyeonjeon">\n    '
         f'<meta property="og:locale" content="{esc_locale}">\n    '
         f'<meta property="og:locale:alternate" content="{alternate_locale}">\n    '
+        f'{article_meta}'
         f'<meta name="twitter:card" content="summary_large_image">\n    '
         f'<meta name="twitter:title" content="{esc_title}">\n    '
         f'<meta name="twitter:description" content="{esc_desc}">\n    '
+        f'<meta name="twitter:image:alt" content="{esc_title}">\n    '
         f'<meta name="twitter:image" content="{esc_image}">\n    '
         f'<link rel="alternate" type="application/rss+xml" href="/feed.xml">\n    '
         f'{ld_block}'
@@ -1016,6 +1043,8 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         ),
         lang=lang,
         locale=locale,
+        published_time=post.get("created_at") or None,
+        modified_time=post.get("updated_at") or post.get("created_at") or None,
     )
     return HTMLResponse(content=document, status_code=200)
 
@@ -1200,11 +1229,17 @@ async def sitemap() -> Response:
 
     published = [p for p in posts if p.get("published")]
 
+    # Site-wide freshness signal for the non-post hub rows (home/blog/category/
+    # series/llms): the most recent post date. Helps crawlers re-fetch hubs when
+    # any post changes.
+    site_lastmod = max((_format_date(p) for p in published), default="")
+    lm = f"<lastmod>{site_lastmod}</lastmod>" if site_lastmod else ""
+
     rows = [
-        f"  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>",
-        f"  <url><loc>{SITE_URL}/blog</loc><priority>0.8</priority></url>",
-        f"  <url><loc>{SITE_URL}/llms.txt</loc><priority>0.5</priority></url>",
-        f"  <url><loc>{SITE_URL}/llms-full.txt</loc><priority>0.5</priority></url>",
+        f"  <url><loc>{SITE_URL}/</loc>{lm}<priority>1.0</priority></url>",
+        f"  <url><loc>{SITE_URL}/blog</loc>{lm}<priority>0.8</priority></url>",
+        f"  <url><loc>{SITE_URL}/llms.txt</loc>{lm}<priority>0.5</priority></url>",
+        f"  <url><loc>{SITE_URL}/llms-full.txt</loc>{lm}<priority>0.5</priority></url>",
     ]
     # Category hubs — only list a hub that has at least one published post.
     cats_present = {_category_of(p) for p in published}
@@ -1212,7 +1247,7 @@ async def sitemap() -> Response:
         if cat in cats_present:
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/category/{cat}</loc>"
-                f"<priority>0.7</priority></url>"
+                f"{lm}<priority>0.7</priority></url>"
             )
     # Series hubs — same nonempty rule as category hubs.
     published_slugs = {p.get("slug", "") for p in published}
@@ -1220,7 +1255,7 @@ async def sitemap() -> Response:
         if any(s in published_slugs for s in series["slugs"]):
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/series/{sid}</loc>"
-                f"<priority>0.7</priority></url>"
+                f"{lm}<priority>0.7</priority></url>"
             )
     for post in published:
         try:
@@ -1228,9 +1263,16 @@ async def sitemap() -> Response:
             if not slug:
                 continue
             lastmod = _format_date(post)
+            # Google image sitemap: surface the post thumbnail for Image search.
+            image_abs = _absolute_url(post.get("thumbnail_url"))
+            image_tag = (
+                f"<image:image><image:loc>{html.escape(image_abs)}</image:loc></image:image>"
+                if image_abs
+                else ""
+            )
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/{html.escape(slug)}</loc>"
-                f"<lastmod>{lastmod}</lastmod><priority>0.7</priority></url>"
+                f"<lastmod>{lastmod}</lastmod><priority>0.7</priority>{image_tag}</url>"
             )
         except Exception:  # noqa: BLE001 - one bad post must not 500 the sitemap
             logger.warning("Skipping post in sitemap due to error", exc_info=True)
@@ -1238,7 +1280,8 @@ async def sitemap() -> Response:
 
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+        ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
         + "\n".join(rows)
         + "\n</urlset>"
     )
@@ -1263,24 +1306,33 @@ async def feed() -> Response:
         slug = post.get("slug", "")
         link = f"{SITE_URL}/blog/{slug}"
         pub_date = format_datetime(_parse_dt(post.get("created_at", "")))
+        cat_label = BLOG_CATEGORIES.get(_category_of(post), ("", ""))[0]
+        category_tag = f"      <category>{html.escape(cat_label)}</category>\n" if cat_label else ""
         items.append(
             "    <item>\n"
             f"      <title>{html.escape(post.get('title', ''))}</title>\n"
             f"      <link>{html.escape(link)}</link>\n"
             f'      <guid isPermaLink="true">{html.escape(link)}</guid>\n'
             f"      <pubDate>{pub_date}</pubDate>\n"
+            f"{category_tag}"
             f"      <description><![CDATA[{post.get('excerpt', '')}]]></description>\n"
             "    </item>"
         )
 
+    last_build = (
+        format_datetime(_parse_dt(published[0].get("created_at", ""))) if published else ""
+    )
+    last_build_tag = f"    <lastBuildDate>{last_build}</lastBuildDate>\n" if last_build else ""
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<rss version="2.0">\n'
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n'
         "  <channel>\n"
         "    <title>Jiphyeonjeon Blog</title>\n"
         f"    <link>{SITE_URL}/blog</link>\n"
+        f'    <atom:link href="{SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>\n'
         f"    <description>{html.escape(BLOG_DESCRIPTION)}</description>\n"
-        "    <language>en</language>\n"
+        "    <language>ko</language>\n"
+        f"{last_build_tag}"
         + "\n".join(items)
         + "\n  </channel>\n</rss>"
     )
