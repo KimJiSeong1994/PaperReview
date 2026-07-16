@@ -53,16 +53,35 @@ def post_url(slug: str) -> str:
 
 
 def published_urls() -> list[str]:
-    """Home, blog index, and every published post URL (dedup, ordered)."""
+    """Home, blog index, category/series hubs, and every published post URL
+    (dedup, ordered) — so hub pages get (re)indexed instantly too, not only
+    posts."""
     urls = [f"{SITE_URL}/", f"{SITE_URL}/blog"]
     try:
         with open(POSTS_FILE, encoding="utf-8") as f:
             posts = json.load(f).get("posts", [])
     except (OSError, json.JSONDecodeError):
         posts = []
-    for p in posts:
-        if p.get("published") and p.get("slug"):
-            urls.append(post_url(p["slug"]))
+
+    published = [p for p in posts if p.get("published") and p.get("slug")]
+
+    # Lazy import to avoid a circular import at module load.
+    try:
+        from routers.seo import BLOG_CATEGORIES, BLOG_SERIES, _category_of
+
+        cats_present = {_category_of(p) for p in published}
+        for cat in BLOG_CATEGORIES:
+            if cat in cats_present:
+                urls.append(f"{SITE_URL}/blog/category/{cat}")
+        published_slugs = {p["slug"] for p in published}
+        for sid, series in BLOG_SERIES.items():
+            if any(s in published_slugs for s in series["slugs"]):
+                urls.append(f"{SITE_URL}/blog/series/{sid}")
+    except Exception:  # noqa: BLE001 - hub URLs are a bonus; never break posting
+        logger.warning("Could not add hub URLs to IndexNow batch", exc_info=True)
+
+    for p in published:
+        urls.append(post_url(p["slug"]))
     return list(dict.fromkeys(urls))
 
 

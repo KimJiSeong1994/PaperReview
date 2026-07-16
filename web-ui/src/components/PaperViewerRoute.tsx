@@ -64,6 +64,10 @@ export default function PaperViewerRoute() {
         title={pageTitle}
         description="집현전 Paper Viewer에서 논문 PDF를 바로 읽고 확인합니다."
         canonical={canonical}
+        // Every shared PDF link is a unique ?title=…&pdf_url=… combo; keep these
+        // thin, near-duplicate viewer pages out of the index (follow so the
+        // links still pass) so they don't dilute crawl budget for /blog.
+        robots="noindex,follow"
       />
       <header className="paper-viewer-route-header">
         <button className="paper-viewer-route-back" onClick={() => navigate(-1)} type="button">

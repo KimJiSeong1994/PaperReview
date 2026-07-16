@@ -27,6 +27,7 @@ Disallow: /admin
 Disallow: /admin/
 Disallow: /mypage
 Disallow: /mypage/
+Disallow: /paper-viewer
 Disallow: /share/*
 Disallow: /share/curriculum/*
 Disallow: /api/admin*
@@ -73,6 +74,7 @@ Disallow: /admin
 Disallow: /admin/
 Disallow: /mypage
 Disallow: /mypage/
+Disallow: /paper-viewer
 Disallow: /share/*
 Disallow: /share/curriculum/*
 Disallow: /api/admin*

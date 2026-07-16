@@ -187,7 +187,15 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
-    author: { '@type': 'Person', name: post.author },
+    author: {
+      '@type': 'Person',
+      name: post.author,
+      url: 'https://github.com/KimJiSeong1994',
+      sameAs: [
+        'https://github.com/KimJiSeong1994',
+        'https://www.linkedin.com/in/jiseong-kim-868218193/',
+      ],
+    },
     datePublished: post.created_at,
     dateModified: post.updated_at || post.created_at,
     keywords: post.tags,
