@@ -134,8 +134,10 @@ def validate_candidate_artifact(
     expected_hash = _require_digest(artifact.get("candidate_hash"), "candidate_hash")
     if expected_hash != canonical_self_hash(artifact, "candidate_hash"):
         raise DeepReviewSkillOptValidationError("candidate_hash does not match candidate content")
-    _require_digest(artifact.get("policy_hash"), "policy_hash")
-    _require_digest(artifact.get("baseline_hash"), "baseline_hash")
+    policy_hash = _require_digest(artifact.get("policy_hash"), "policy_hash")
+    baseline_hash = _require_digest(artifact.get("baseline_hash"), "baseline_hash")
+    if policy_hash == baseline_hash:
+        raise DeepReviewSkillOptValidationError("candidate policy_hash must differ from baseline_hash")
     dataset_hash = _require_digest(artifact.get("dataset_hash"), "dataset_hash")
     control_hash = _require_digest(artifact.get("control_hash"), "control_hash")
     if dataset is not None:
@@ -150,11 +152,15 @@ def validate_candidate_artifact(
     holdout_gate = artifact.get("holdout_gate")
     _validate_gate(selection_gate, "selection_gate")
     _validate_gate(holdout_gate, "holdout_gate")
+    if holdout_gate.get("split") != "test":
+        raise DeepReviewSkillOptValidationError("holdout_gate split must be test")
     rollout = artifact.get("rollout")
     if not isinstance(rollout, Mapping):
         raise DeepReviewSkillOptValidationError("candidate rollout must be an object")
     if rollout.get("runtime_default_off") is not True or rollout.get("rollout_fraction") != 0.0:
         raise DeepReviewSkillOptValidationError("candidate rollout must stay default-off with fraction 0.0")
+    if rollout.get("manual_approval_required") is not True:
+        raise DeepReviewSkillOptValidationError("candidate rollout must require manual approval")
     runtime_env = artifact.get("runtime_env")
     required_env = {
         "SKILLOPT_DEEP_REVIEW_POLICY_ENABLED",
@@ -164,6 +170,11 @@ def validate_candidate_artifact(
     }
     if not isinstance(runtime_env, Mapping) or set(runtime_env) != required_env:
         raise DeepReviewSkillOptValidationError("candidate runtime_env mismatch")
+    if runtime_env.get("SKILLOPT_DEEP_REVIEW_POLICY_ENABLED") != "true":
+        raise DeepReviewSkillOptValidationError("candidate runtime_env must explicitly enable the approved policy")
+    runtime_path = runtime_env.get("SKILLOPT_DEEP_REVIEW_POLICY_PATH")
+    if not isinstance(runtime_path, str) or not Path(runtime_path).is_absolute():
+        raise DeepReviewSkillOptValidationError("candidate runtime_env policy path must be absolute")
     if runtime_env.get("SKILLOPT_DEEP_REVIEW_POLICY_HASH") != artifact.get("policy_hash"):
         raise DeepReviewSkillOptValidationError("candidate runtime_env policy hash mismatch")
     if runtime_env.get("SKILLOPT_DEEP_REVIEW_POLICY_SCOPE") != SCOPE:
@@ -171,6 +182,8 @@ def validate_candidate_artifact(
     rollback_to = artifact.get("rollback_to")
     if not isinstance(rollback_to, Mapping) or rollback_to.get("policy_hash") != artifact.get("baseline_hash"):
         raise DeepReviewSkillOptValidationError("candidate rollback_to must point to baseline_hash")
+    if rollback_to.get("feature_flag") != "SKILLOPT_DEEP_REVIEW_POLICY_ENABLED=false":
+        raise DeepReviewSkillOptValidationError("candidate rollback_to must disable the runtime policy")
 
 
 def validate_rollback_record(

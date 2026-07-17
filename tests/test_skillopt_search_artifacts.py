@@ -35,6 +35,14 @@ def test_skillopt_dataset_contract_is_valid():
     assert dataset["provenance"]["raw_user_logs_included"] is False
 
 
+def test_dataset_contract_rejects_content_mutation_with_retained_hash():
+    dataset = load_json(DATASET)
+    dataset["queries"][0]["query_text"] = "tampered but otherwise valid query"
+
+    with pytest.raises(ValidationError, match="canonical dataset content"):
+        validate_dataset_contract(dataset)
+
+
 def test_skillopt_dataset_group_split_has_no_leakage():
     dataset = load_json(DATASET)
     groups_by_split: dict[str, set[str]] = {"train": set(), "selection": set(), "test": set()}
@@ -195,6 +203,14 @@ def test_execution_control_rejects_empty_control_hash():
     control["control_hash"] = ""
 
     with pytest.raises(ValidationError, match="control_hash"):
+        validate_execution_control(control)
+
+
+def test_execution_control_rejects_content_mutation_with_retained_hash():
+    control = load_json(CONTROL)
+    control["version"] = "execution-control-v0-tampered"
+
+    with pytest.raises(ValidationError, match="canonical control content"):
         validate_execution_control(control)
 
 

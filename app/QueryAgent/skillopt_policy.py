@@ -105,21 +105,7 @@ def load_skillopt_policy_from_env(
         raise SkillOptPolicyError(
             f"{SKILLOPT_POLICY_PATH_ENV} must be an absolute path"
         )
-    try:
-        file_stat = path.stat()
-    except OSError as exc:
-        raise SkillOptPolicyError(f"Failed to stat SkillOpt policy file: {path}") from exc
-    if not stat.S_ISREG(file_stat.st_mode):
-        raise SkillOptPolicyError(f"SkillOpt policy path must be a regular file: {path}")
-    if file_stat.st_size > _MAX_POLICY_BYTES:
-        raise SkillOptPolicyError(
-            f"SkillOpt policy file exceeds {_MAX_POLICY_BYTES} bytes"
-        )
-
-    try:
-        raw_content = path.read_bytes()
-    except OSError as exc:
-        raise SkillOptPolicyError(f"Failed to read SkillOpt policy file: {path}") from exc
+    raw_content = _read_regular_policy_file(path)
 
     actual_hash = hashlib.sha256(raw_content).hexdigest()
     if actual_hash != expected_hash:
@@ -142,6 +128,50 @@ def load_skillopt_policy_from_env(
         scope=scope,
         reason="enabled",
     )
+
+
+def _read_regular_policy_file(path: Path) -> bytes:
+    """Read one non-symlink regular file through a single descriptor."""
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    link_stat = None
+    if not no_follow:
+        try:
+            link_stat = path.lstat()
+        except OSError as exc:
+            raise SkillOptPolicyError(f"Failed to inspect SkillOpt policy file: {path}") from exc
+        if stat.S_ISLNK(link_stat.st_mode):
+            raise SkillOptPolicyError(f"SkillOpt policy path must not be a symlink: {path}")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | no_follow
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise SkillOptPolicyError(f"Failed to open SkillOpt policy file: {path}") from exc
+    try:
+        file_stat = os.fstat(descriptor)
+        if link_stat is not None:
+            current_path_stat = path.lstat()
+            if stat.S_ISLNK(current_path_stat.st_mode):
+                raise SkillOptPolicyError(f"SkillOpt policy path became a symlink while opening: {path}")
+            if (
+                (file_stat.st_dev, file_stat.st_ino) != (link_stat.st_dev, link_stat.st_ino)
+                or (current_path_stat.st_dev, current_path_stat.st_ino) != (file_stat.st_dev, file_stat.st_ino)
+            ):
+                raise SkillOptPolicyError(f"SkillOpt policy file changed while opening: {path}")
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise SkillOptPolicyError(f"SkillOpt policy path must be a regular file: {path}")
+        if file_stat.st_size > _MAX_POLICY_BYTES:
+            raise SkillOptPolicyError(f"SkillOpt policy file exceeds {_MAX_POLICY_BYTES} bytes")
+        with os.fdopen(descriptor, "rb", closefd=True) as handle:
+            descriptor = -1
+            raw_content = handle.read(_MAX_POLICY_BYTES + 1)
+    except OSError as exc:
+        raise SkillOptPolicyError(f"Failed to read SkillOpt policy file: {path}") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(raw_content) > _MAX_POLICY_BYTES:
+        raise SkillOptPolicyError(f"SkillOpt policy file exceeds {_MAX_POLICY_BYTES} bytes")
+    return raw_content
 
 
 def build_skillopt_policy_prompt_block(policy: SkillOptPolicy) -> str:

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
-from src.search_eval.approved_policy import export_approved_skillopt_policy
+from src.search_eval.approved_policy import export_approved_skillopt_policy, split_retrieval_evaluation_record
 from src.search_eval.continuous_optimizer import (
     append_reward_memory_entry,
     build_live_canary_handoff,
@@ -19,7 +20,7 @@ from src.search_eval.continuous_optimizer import (
 )
 from src.search_eval.retrieval_eval import build_fixture_retrieval_results, score_retrieval_results
 from src.search_eval.skillopt_adapter import canonical_file_hash
-from src.search_eval.skillopt_contract import ValidationError
+from src.search_eval.skillopt_contract import ValidationError, load_json
 from src.search_eval.skillopt_materializer import materialize_skillopt_search_benchmark
 
 DATASET = "data/search_eval/skillopt_paper_search_v0.json"
@@ -68,6 +69,20 @@ def _evals(best_skill: Path | None = None) -> tuple[dict, dict]:
     return baseline_eval, candidate_eval
 
 
+def _two_stage_eval_inputs(baseline_eval: dict, candidate_eval: dict) -> dict:
+    dataset = load_json(DATASET)
+    selection_ids = [query["query_id"] for query in dataset["queries"] if query["split"] == "selection"]
+    test_ids = [query["query_id"] for query in dataset["queries"] if query["split"] == "test"]
+    return {
+        "selection_baseline_eval": split_retrieval_evaluation_record(baseline_eval, selection_ids),
+        "selection_candidate_eval": split_retrieval_evaluation_record(candidate_eval, selection_ids),
+        "holdout_eval_loader": lambda: (
+            split_retrieval_evaluation_record(baseline_eval, test_ids),
+            split_retrieval_evaluation_record(candidate_eval, test_ids),
+        ),
+    }
+
+
 def _approved_policy(tmp_path: Path) -> tuple[dict, dict, dict, Path, Path]:
     best_skill = _candidate_best_skill(tmp_path)
     baseline_eval, candidate_eval = _evals(best_skill)
@@ -78,8 +93,7 @@ def _approved_policy(tmp_path: Path) -> tuple[dict, dict, dict, Path, Path]:
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=manifest_path,
         minimum_ndcg_delta=0.01,
     )
@@ -125,6 +139,14 @@ def test_optimizer_decision_updates_reward_memory_only_after_approval(tmp_path: 
         materialization_manifest_path=manifest_path,
     )
     validate_optimizer_decision_record(decision)
+
+    selection_reward = round(
+        artifact["metric_snapshot"]["candidate"] - artifact["metric_snapshot"]["baseline"],
+        6,
+    )
+    full_record_reward = round(candidate_eval["nDCG@10"] - baseline_eval["nDCG@10"], 6)
+    assert selection_reward != full_record_reward
+    assert decision["reward"] == selection_reward
 
     memory_path = tmp_path / "reward-memory.jsonl"
     entry = append_reward_memory_entry(memory_path, decision, approved_policy_artifact_path=_artifact_path)
@@ -207,6 +229,35 @@ def test_reward_memory_rejects_duplicate_artifact_even_with_new_run_id(tmp_path:
 
     with pytest.raises(ValidationError, match="duplicate approved artifact"):
         append_reward_memory_entry(memory_path, duplicate_decision, approved_policy_artifact_path=artifact_path)
+
+
+def test_reward_memory_concurrent_duplicate_is_one_locked_append(tmp_path: Path):
+    artifact, baseline_eval, candidate_eval, manifest_path, artifact_path = _approved_policy(tmp_path)
+    decision = build_optimizer_decision_record(
+        run_id="run-concurrent-duplicate",
+        approved_policy_artifact=artifact,
+        baseline_eval=baseline_eval,
+        candidate_eval=candidate_eval,
+        dataset_path=DATASET,
+        control_path=CONTROL,
+        baseline_skill_path=BASELINE_SKILL,
+        materialization_manifest_path=manifest_path,
+    )
+    memory_path = tmp_path / "concurrent-reward-memory.jsonl"
+
+    def append_once():
+        try:
+            append_reward_memory_entry(memory_path, decision, approved_policy_artifact_path=artifact_path)
+            return "appended"
+        except ValidationError as exc:
+            return str(exc)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: append_once(), range(2)))
+
+    assert results.count("appended") == 1
+    assert sum("duplicate" in result for result in results) == 1
+    assert len(memory_path.read_text(encoding="utf-8").splitlines()) == 1
 
 
 def test_reward_memory_rejects_forged_approved_artifact_hash(tmp_path: Path):
@@ -439,6 +490,52 @@ def test_run_continuous_optimization_iteration_does_not_append_on_downstream_fai
     assert not reward_memory.exists()
 
 
+def test_iteration_stages_outputs_before_reward_append_and_retry_succeeds(tmp_path: Path, monkeypatch):
+    _artifact, baseline_eval, candidate_eval, manifest_path, artifact_path = _approved_policy(tmp_path)
+    reward_memory = tmp_path / "reward-memory.jsonl"
+    output_dir = tmp_path / "iteration"
+    original_write_text = Path.write_text
+
+    def fail_reward_entry(self, *args, **kwargs):
+        if self.name == "reward_memory_entry.json":
+            raise OSError("forced staged artifact failure")
+        return original_write_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_reward_entry)
+    with pytest.raises(OSError, match="forced staged artifact failure"):
+        run_continuous_optimization_iteration(
+            run_id="retryable-run",
+            output_dir=output_dir,
+            approved_policy_artifact_path=artifact_path,
+            baseline_eval=baseline_eval,
+            candidate_eval=candidate_eval,
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            materialization_manifest_path=manifest_path,
+            reward_memory_path=reward_memory,
+            next_holdout_generation_id="holdout:generation-2:test",
+        )
+    assert not reward_memory.exists()
+
+    monkeypatch.setattr(Path, "write_text", original_write_text)
+    result = run_continuous_optimization_iteration(
+        run_id="retryable-run",
+        output_dir=output_dir,
+        approved_policy_artifact_path=artifact_path,
+        baseline_eval=baseline_eval,
+        candidate_eval=candidate_eval,
+        dataset_path=DATASET,
+        control_path=CONTROL,
+        baseline_skill_path=BASELINE_SKILL,
+        materialization_manifest_path=manifest_path,
+        reward_memory_path=reward_memory,
+        next_holdout_generation_id="holdout:generation-2:test",
+    )
+    assert result["manifest"]["status"] == "complete"
+    assert len(reward_memory.read_text(encoding="utf-8").splitlines()) == 1
+
+
 def test_reward_memory_rejects_forged_reward_value(tmp_path: Path):
     artifact, baseline_eval, candidate_eval, manifest_path, artifact_path = _approved_policy(tmp_path)
     decision = build_optimizer_decision_record(
@@ -474,6 +571,26 @@ def test_live_canary_handoff_requires_manual_approval_and_stale_hash_check(tmp_p
     validate_live_canary_handoff(handoff)
     assert handoff["rollout_fraction"] == 0.0
     assert handoff["state"] == "manual_approval_required_before_enablement"
+
+    substituted_path = {
+        **handoff,
+        "runtime_env": {
+            **handoff["runtime_env"],
+            "SKILLOPT_SEARCH_POLICY_PATH": str((tmp_path / "other-policy.md").resolve()),
+        },
+    }
+    with pytest.raises(ValidationError, match="approved runtime_policy_path"):
+        validate_live_canary_handoff(substituted_path)
+
+    substituted_hash = {
+        **handoff,
+        "runtime_env": {
+            **handoff["runtime_env"],
+            "SKILLOPT_SEARCH_POLICY_HASH": "sha256:" + "f" * 64,
+        },
+    }
+    with pytest.raises(ValidationError, match="approved skill hash"):
+        validate_live_canary_handoff(substituted_hash)
 
     tampered_sla = {**handoff, "rollback_sla_minutes": 999}
     with pytest.raises(ValidationError, match="rollback_sla"):

@@ -81,9 +81,15 @@ selection-critical canonical-title recall miss. Approved exports persist
 `nDCG@10`/`Recall@10` pass status.
 
 Approved exports also persist `holdout_gate` evidence for the independent `test`
-split. The holdout gate requires each public/synthetic test query to retain positive
-`nDCG@10` and `Recall@10`, so selection/val improvements cannot be promoted on
-aggregate metrics alone when the independent holdout loses canonical-title recall.
+split. Selection and holdout evidence are separately hash-bound. The holdout gate
+requires each public/synthetic test query to avoid baseline regressions in
+`nDCG@10` and `Recall@10`, so global improvements cannot mask an independent
+holdout collapse.
+
+Dataset and execution-control identifiers are canonical self-hashes. Reward-memory
+duplicate detection and append run under one cross-process lock, and iteration
+artifacts are staged before the positive reward append so partial failures remain
+retryable without committing reward.
 
 CI uses deterministic fixture retrieval outputs to verify the materialization, scorer,
 and approval/export contract without live APIs. A live SkillOpt run still requires the

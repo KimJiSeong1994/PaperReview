@@ -89,9 +89,15 @@ SKILLOPT_DEEP_REVIEW_REWARD_MEMORY=/home/ubuntu/PaperReviewAgent/logs/skillopt_d
 ```
 
 A successful run emits one JSON line with `status=complete`, artifact hashes,
-and the active runtime policy hash. When status/reward paths are configured, it
-also writes a latest-status snapshot and appends a compact reward-memory entry
+and the active runtime policy hash. When a status path is configured, both
+successful and failed validation runs atomically replace the latest-status
+snapshot so monitoring does not retain stale success. Successful runs with a
+configured reward path also append a compact reward-memory entry
 containing the holdout reward delta. That memory is the handoff point for future
 RL/SkillOpt candidate generators; the cron still does not mutate live prompts by
 itself. In strict mode validation failures return a non-zero exit code so
 cron/system monitoring can alert on drift.
+
+Reward entries use a deterministic candidate/dataset/control identity under an
+interprocess lock. Replaying the same approved candidate is an idempotent success
+that appends no duplicate positive reward memory.

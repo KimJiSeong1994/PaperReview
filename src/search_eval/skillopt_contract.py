@@ -8,6 +8,7 @@ incompatible execution controls.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -149,10 +150,18 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def canonical_self_hash(value: Mapping[str, Any], hash_field: str) -> str:
+    """Return a canonical sha256 over an artifact excluding its hash field."""
+    payload = dict(value)
+    payload.pop(hash_field, None)
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
 def validate_dataset_contract(dataset: Mapping[str, Any]) -> None:
     """Validate the v0 benchmark dataset contract."""
     _require_keys(dataset, REQUIRED_DATASET_FIELDS, "dataset")
-    _require_non_empty_string(dataset.get("dataset_hash"), "dataset.dataset_hash")
+    dataset_hash = _require_sha256_digest(dataset.get("dataset_hash"), "dataset.dataset_hash")
     if dataset.get("primary_metric") != PRIMARY_METRIC:
         raise ValidationError("dataset primary_metric must be nDCG@10")
     guardrail_metrics = dataset.get("guardrail_metrics")
@@ -246,12 +255,14 @@ def validate_dataset_contract(dataset: Mapping[str, Any]) -> None:
     missing_selection_intents = required_selection_intents - intents_by_split["selection"]
     if missing_selection_intents:
         raise ValidationError(f"selection split missing required intents: {sorted(missing_selection_intents)}")
+    if dataset_hash != canonical_self_hash(dataset, "dataset_hash"):
+        raise ValidationError("dataset.dataset_hash does not match canonical dataset content")
 
 
 def validate_execution_control(control: Mapping[str, Any]) -> None:
     """Validate the execution-control matrix for comparable rollouts."""
     _require_keys(control, REQUIRED_CONTROL_FIELDS, "execution_control")
-    _require_non_empty_string(control.get("control_hash"), "execution_control.control_hash")
+    control_hash = _require_sha256_digest(control.get("control_hash"), "execution_control.control_hash")
     if control.get("cache_policy") != "disabled_or_cold_per_rollout":
         raise ValidationError("execution_control.cache_policy must be disabled_or_cold_per_rollout")
     if control.get("scope") != V1_ALLOWED_SCOPE:
@@ -301,6 +312,8 @@ def validate_execution_control(control: Mapping[str, Any]) -> None:
     missing = _REQUIRED_ROLLOUT_METADATA - set(metadata)
     if missing:
         raise ValidationError(f"required_rollout_metadata missing {sorted(missing)}")
+    if control_hash != canonical_self_hash(control, "control_hash"):
+        raise ValidationError("execution_control.control_hash does not match canonical control content")
 
 
 def validate_candidate_artifact(

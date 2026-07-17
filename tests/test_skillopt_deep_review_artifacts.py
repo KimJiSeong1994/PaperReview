@@ -155,6 +155,44 @@ def test_deep_review_candidate_rejects_holdout_regression() -> None:
         validate_candidate_artifact(artifact)
 
 
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    (
+        (lambda artifact: artifact.__setitem__("policy_hash", artifact["baseline_hash"]), "must differ"),
+        (
+            lambda artifact: artifact["runtime_env"].__setitem__(
+                "SKILLOPT_DEEP_REVIEW_POLICY_ENABLED", "false"
+            ),
+            "explicitly enable",
+        ),
+        (
+            lambda artifact: artifact["runtime_env"].__setitem__(
+                "SKILLOPT_DEEP_REVIEW_POLICY_PATH", "relative/policy.md"
+            ),
+            "path must be absolute",
+        ),
+        (
+            lambda artifact: artifact["rollout"].__setitem__("manual_approval_required", False),
+            "manual approval",
+        ),
+        (lambda artifact: artifact["holdout_gate"].__setitem__("split", "dev"), "split must be test"),
+        (
+            lambda artifact: artifact["rollback_to"].__setitem__(
+                "feature_flag", "SKILLOPT_DEEP_REVIEW_POLICY_ENABLED=true"
+            ),
+            "disable the runtime policy",
+        ),
+    ),
+)
+def test_deep_review_candidate_rejects_unsafe_rollout_metadata(mutate, message: str) -> None:
+    artifact = load_json(CANDIDATE)
+    mutate(artifact)
+    artifact["candidate_hash"] = canonical_self_hash(artifact, "candidate_hash")
+
+    with pytest.raises(DeepReviewSkillOptValidationError, match=message):
+        validate_candidate_artifact(artifact)
+
+
 def test_deep_review_rollback_rejects_feature_flag_left_on() -> None:
     record = load_json(ROLLBACK)
     record["feature_flag_after"] = True

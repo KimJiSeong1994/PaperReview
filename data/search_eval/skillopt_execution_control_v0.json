@@ -1,6 +1,6 @@
 {
   "version": "execution-control-v0",
-  "control_hash": "control_v0_query_analyzer_standard_20260704",
+  "control_hash": "sha256:e9cd676df72784b3747d1494272b9815d34467072b073110abb1bcbd6687bb93",
   "scope": "query_analyzer_standard_search",
   "fast_mode": false,
   "use_llm_search": false,
