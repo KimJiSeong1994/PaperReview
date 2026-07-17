@@ -250,6 +250,13 @@ describe('blogPostingGraph', () => {
 });
 
 describe('series', () => {
+  it('places the systematic contextualized-embedding comparison at the end of DWE', () => {
+    const slug = 'a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change';
+    expect(BLOG_SERIES.dwe.slugs).toHaveLength(12);
+    expect(BLOG_SERIES.dwe.slugs.at(-1)).toBe(slug);
+    expect(seriesOf(slug)).toBe('dwe');
+  });
+
   it('maps a member slug to its series and marks the posting isPartOf', () => {
     const memberSlug = BLOG_SERIES.gnn.slugs[0];
     expect(seriesOf(memberSlug)).toBe('gnn');
