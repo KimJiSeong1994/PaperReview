@@ -521,6 +521,15 @@ def _series_fixture_posts() -> list[dict]:
     return [*_FIXED_POSTS, *members]
 
 
+def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -> None:
+    from routers.seo import BLOG_SERIES
+
+    slug = "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change"
+    assert len(BLOG_SERIES["dwe"]["slugs"]) == 12
+    assert BLOG_SERIES["dwe"]["slugs"][-1] == slug
+    assert "핵심 논문 12편" in BLOG_SERIES["dwe"]["description"]
+
+
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
