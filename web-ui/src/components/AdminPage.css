@@ -1143,120 +1143,234 @@
 
 .visits-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 9px;
 }
 
 .visits-window-picker {
   display: inline-flex;
-  gap: 6px;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #f3f1fa;
 }
 
 .visits-window-btn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--wov-08);
+  min-width: 58px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 0;
   background: transparent;
-  color: var(--text-muted);
+  color: #706d7d;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 
 .visits-window-btn--active {
-  background: var(--indigo);
-  border-color: var(--indigo);
-  color: var(--bg-input);
+  background: #e8e5ff;
+  color: #4b3ee8;
 }
 
 .visits-window-range {
   font-size: 12px;
-  color: var(--text-faint);
+  color: #918e9d;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Coverage hint shown when analytics history is shorter than the picked
    window (why 28일 and 90일 can look identical). */
 .visits-window-coverage {
   margin-left: 6px;
-  color: color-mix(in srgb, var(--amber) 78%, var(--text-muted));
+  color: #a45d00;
   font-weight: 600;
 }
 
-/* Report width — constrain so tables/tiles don't sprawl edge-to-edge. */
 .visits-report {
-  max-width: 1180px;
+  --bg-input: #ffffff;
+  --text-hi: #17161f;
+  --text-soft: #35323f;
+  --text-muted: #706d7d;
+  --text-faint: #918e9d;
+  --wov-04: #f5f4f7;
+  --wov-05: #f1f0f5;
+  --wov-06: #eeedf2;
+  --wov-08: #e8e7ec;
+  --wov-10: #dfdde5;
+  --indigo: #4f46e5;
+  --indigo-mid: #5b4df5;
+  --indigo-strong: #4037d7;
+  max-width: 1216px;
   margin: 0 auto;
-  gap: 8px;
+  padding: 50px 56px 72px;
+  gap: 0;
+  color: var(--text-soft);
+  background: #ffffff;
+  border: 1px solid #ecebf0;
+  border-radius: 24px;
+  box-shadow: 0 1px 2px rgba(28, 25, 42, 0.03);
 }
 
-/* At-a-glance hero row: the 4 headline numbers, above the section grids. */
-.visits-hero {
+.visits-report-header {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 28px;
+  margin-bottom: 44px;
 }
 
-.visits-hero-stat {
-  background: var(--bg-input);
-  border: 1px solid var(--wov-08);
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: var(--card-shadow);
+.visits-report-kicker,
+.visits-summary-kicker,
+.visits-band-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.visits-hero-value {
+.visits-report-heading h1 {
   margin: 0;
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.05;
+  color: #17161f;
+  font-size: clamp(30px, 3vw, 42px);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.visits-report-heading p {
+  max-width: 680px;
+  margin: 14px 0 0;
+  color: #706d7d;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.visits-summary {
+  padding: 25px 24px 20px;
+  border: 1px solid #e6e2ff;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.visits-summary h2 {
+  margin: 0;
+  color: #17161f;
+  font-size: 23px;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+}
+
+.visits-summary-copy {
+  margin: 8px 0 22px;
+  color: #706d7d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.visits-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.visits-insight-card {
+  min-width: 0;
+  padding: 19px 20px;
+  border: 1px solid #ecebf0;
+  border-radius: 15px;
+  background: #f7f7fa;
+}
+
+.visits-insight-eyebrow {
+  margin: 0;
+  color: #706d7d;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.visits-insight-headline {
+  margin: 8px 0 0;
+  color: #17161f;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.45;
   letter-spacing: -0.02em;
-  color: var(--indigo-strong);
   font-variant-numeric: tabular-nums;
 }
 
-.visits-hero-label {
-  margin: 6px 0 0;
+.visits-insight-body {
+  margin: 11px 0 0;
+  color: #706d7d;
   font-size: 12px;
-  color: var(--text-muted);
+  line-height: 1.7;
 }
 
-@media (max-width: 720px) {
-  .visits-hero {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.visits-method {
+  margin: 40px 0 0;
+  padding: 16px 19px;
+  border: 1px solid #ecebf0;
+  border-radius: 16px;
+  background: #ffffff;
 }
 
-/* One-line data-source note beside the hero (detail behind the ⓘ). */
-.visits-meta-line {
+.visits-method summary {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--text-faint);
-}
-
-/* Band divider — eyebrow grouping (사람 방문 / AI·유입 / 제품). */
-.visits-band {
-  margin: 20px 0 4px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--wov-06);
-  font-size: 11px;
+  justify-content: space-between;
+  gap: 16px;
+  color: #35323f;
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--indigo-mid, var(--indigo));
+  cursor: pointer;
 }
 
-.visits-band:first-of-type {
-  margin-top: 12px;
+.visits-method summary span:last-child {
+  color: #918e9d;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-method p {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #f0eff3;
+  color: #706d7d;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.visits-band {
+  margin: 54px 0 24px;
+  padding-top: 34px;
+  border-top: 1px solid #ecebf0;
+}
+
+.visits-band h2 {
+  margin: 0;
+  color: #17161f;
+  font-size: 27px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+
+.visits-band p {
+  margin: 9px 0 0;
+  color: #706d7d;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .visits-section {
-  margin-bottom: 0;
+  margin: 0;
+  padding: 22px;
+  border: 1px solid #f0eff3;
+  border-radius: 18px;
+  background: #f8f8fb;
 }
 
 /* Consistent vertical rhythm: a section title sits 8px above its own body but
@@ -1264,23 +1378,24 @@
    instead of floating equidistant between two sections. Adds to the report's
    8px flex gap (→16px). Band-to-section spacing is left to .visits-band. */
 .visits-report .visits-section + .visits-section {
-  margin-top: 8px;
+  margin-top: 18px;
 }
 
 .visits-section-title {
   display: flex;
   align-items: center;
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-hi);
+  margin: 0 0 14px;
+  color: #17161f;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .visits-section-note {
-  margin: -2px 0 12px;
+  margin: -7px 0 16px;
   font-size: 12.5px;
   line-height: 1.6;
-  color: var(--text-muted);
+  color: #706d7d;
   max-width: 62ch;
 }
 
@@ -1289,6 +1404,42 @@
   font-size: 11.5px;
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .visits-report {
+    padding: 34px 28px 52px;
+  }
+
+  .visits-report-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .visits-toolbar {
+    align-items: flex-start;
+  }
+
+  .visits-insight-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .visits-report {
+    padding: 28px 18px 42px;
+    border-radius: 18px;
+  }
+
+  .visits-method summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .visits-section {
+    padding: 17px;
+  }
 }
 
 /* Info tooltip — hover + keyboard focus; no layout shift; token-themed. */
@@ -1380,7 +1531,8 @@
 
 /* Scoped refinements — keep the Dashboard tab's cards untouched. */
 .visits-report .admin-stats-grid {
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 /* Separate the stat-tile row from a chart/table block that follows it inside
@@ -1392,10 +1544,21 @@
 }
 
 .visits-report .admin-stat-card .admin-stat-value {
-  color: var(--text-hi);
+  color: #17161f;
+  font-size: 27px;
+}
+
+.visits-report .admin-stat-card {
+  padding: 16px 17px;
+  border-color: #e8e7ec;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .visits-report .admin-stat-label {
+  margin-bottom: 9px;
+  color: #706d7d;
   text-transform: none;
   letter-spacing: normal;
 }
@@ -1452,11 +1615,11 @@
 
 /* Chart / table card — matches .admin-stat-card tone. */
 .visits-card {
-  background: var(--bg-input);
-  border: 1px solid var(--wov-08);
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: var(--card-shadow);
+  padding: 18px;
+  border: 1px solid #e8e7ec;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .visits-card-stack {
@@ -1492,19 +1655,20 @@
 
 .visits-table th {
   text-align: left;
-  padding: 8px 12px;
-  color: var(--text-faint);
+  padding: 10px 12px;
+  color: #858291;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  font-size: 11px;
-  border-bottom: 1px solid var(--wov-08);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+  border-bottom: 1px solid #e8e7ec;
 }
 
 .visits-table td {
-  padding: 8px 12px;
-  color: var(--text-soft);
-  border-bottom: 1px solid var(--wov-04);
+  padding: 10px 12px;
+  color: #35323f;
+  border-bottom: 1px solid #f0eff3;
+  font-variant-numeric: tabular-nums;
 }
 
 .visits-table tr:last-child td {
@@ -1561,7 +1725,7 @@
   margin-left: auto;
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--indigo-strong);
+  color: #4f46e5;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1591,7 +1755,7 @@
   display: flex;
   align-items: center;
   height: 26px;
-  background: var(--wov-05);
+  background: #f1eff8;
   border-radius: 7px;
   overflow: hidden;
 }
@@ -1602,8 +1766,8 @@
   border-radius: 7px;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--indigo) 55%, transparent),
-    var(--indigo)
+    #a79fff,
+    #5b4df5
   );
   transition: width 0.3s ease;
 }
@@ -1649,15 +1813,15 @@
 }
 
 .visits-outcome-done {
-  background: var(--teal);
+  background: #5b4df5;
 }
 
 .visits-outcome-fail {
-  background: var(--danger);
+  background: #f07892;
 }
 
 .visits-outcome-drop {
-  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+  background: #c9c6d2;
 }
 
 .visits-outcome-legend {
