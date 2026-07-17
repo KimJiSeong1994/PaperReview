@@ -35,13 +35,13 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
     title: 'DWE 논문 리뷰 시리즈',
     description:
       '단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩'
-      + '(Dynamic Word Embeddings)의 핵심 논문 8편을 변화점 통계 검정부터 '
+      + '(Dynamic Word Embeddings)의 핵심 논문 9편을 변화점 통계 검정부터 '
       + '의미 변화의 통계 법칙, 베이지안 상태공간 모델, 공동 행렬 분해, '
-      + '확률적 생성 모델, 컴퍼스 정렬, 문맥화 표현의 기하 분석, 그리고 '
-      + '문맥화 임베딩과의 결합까지 시간순으로 깊이 있게 읽는 한국어 '
-      + '딥리뷰 시리즈. 시간 구간별로 따로 학습한 임베딩을 사후에 맞추던 '
-      + '정렬 문제가 학습 안으로, 다시 모델 설계 안으로 흡수되는 흐름을 '
-      + '계보로 따라간다.',
+      + '확률적 생성 모델, 컴퍼스 정렬, 문맥화 표현의 기하 분석, 문맥화 '
+      + '임베딩과의 결합, 그리고 문맥화 탐지 연구의 조망까지 시간순으로 '
+      + '깊이 있게 읽는 한국어 딥리뷰 시리즈. 시간 구간별로 따로 학습한 '
+      + '임베딩을 사후에 맞추던 정렬 문제가 학습 안으로, 다시 모델 설계 '
+      + '안으로 흡수되는 흐름을 계보로 따라간다.',
     slugs: [
       'statistically-significant-detection-linguistic-change-review-2026',
       'diachronic-word-embeddings-statistical-laws-semantic-change-review-2026',
@@ -51,6 +51,7 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
       'training-temporal-word-embeddings-compass-twec-review-2026',
       'how-contextual-are-contextualized-word-representations-review-2026',
       'dynamic-contextualized-word-embeddings-dcwe-review-2026',
+      'contextualised-semantic-shift-detection-survey-review-2026',
     ],
   },
 };
