@@ -4,14 +4,12 @@ import { fetchAdminVisitsReport, type AdminVisitsReport as VisitsReportData } fr
 
 const Plot = lazy(() => import('../PlotlyChart'));
 
-// Validated categorical palette (dataviz method): slot 1 blue = 방문자,
-// slot 2 aqua = 세션. Dark steps are the same hues re-stepped for the dark
-// surface (#0f0f0f) — CVD ΔE and 3:1 contrast checked with the palette
-// validator; the light-mode aqua contrast WARN is relieved by the data
-// tables that accompany every chart on this page.
+// Report-local violet palette: the Visitors surface intentionally stays light
+// and editorial even when the surrounding admin shell uses the dark theme.
 const SERIES = {
-  light: { visitors: '#2a78d6', sessions: '#1baf7a', bar: '#256abf' },
-  dark: { visitors: '#3987e5', sessions: '#199e70', bar: '#3987e5' },
+  visitors: '#4f46e5',
+  sessions: '#9b5cff',
+  bar: '#5b4df5',
 };
 
 const WINDOWS = [7, 28, 90] as const;
@@ -32,20 +30,6 @@ const EVENT_LABELS: Record<string, string> = {
   poster_generate_fail: '포스터 실패',
 };
 
-function useIsDark(): boolean {
-  const read = () => document.documentElement.getAttribute('data-theme') !== 'light';
-  const [isDark, setIsDark] = useState(read);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setIsDark(read()));
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    });
-    return () => observer.disconnect();
-  }, []);
-  return isDark;
-}
-
 class ChartErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
@@ -64,7 +48,7 @@ class ChartErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 const BASE_LAYOUT = {
   paper_bgcolor: 'transparent',
   plot_bgcolor: 'transparent',
-  font: { color: 'var(--text-muted)', size: 11, family: 'Pretendard, sans-serif' },
+  font: { color: '#706d7d', size: 11, family: 'Pretendard, sans-serif' },
 } as const;
 
 const nf = new Intl.NumberFormat('ko-KR');
@@ -118,19 +102,40 @@ function InfoTip({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Big headline number for the at-a-glance row (indigo, larger than tiles). */
-function HeroStat({ label, value }: { label: string; value: ReactNode }) {
+function InsightCard({
+  eyebrow,
+  headline,
+  body,
+}: {
+  eyebrow: string;
+  headline: ReactNode;
+  body: ReactNode;
+}) {
   return (
-    <div className="visits-hero-stat">
-      <p className="visits-hero-value">{value}</p>
-      <p className="visits-hero-label">{label}</p>
-    </div>
+    <article className="visits-insight-card">
+      <p className="visits-insight-eyebrow">{eyebrow}</p>
+      <h3 className="visits-insight-headline">{headline}</h3>
+      <p className="visits-insight-body">{body}</p>
+    </article>
   );
 }
 
-/** Eyebrow band divider grouping the report into 사람 방문 / AI·유입 / 제품. */
-function Band({ label }: { label: string }) {
-  return <div className="visits-band" role="separator" aria-label={label}>{label}</div>;
+function Band({
+  label,
+  title,
+  description,
+}: {
+  label: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <header className="visits-band" aria-label={label}>
+      <span className="visits-band-eyebrow">{label}</span>
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </header>
+  );
 }
 
 function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
@@ -262,8 +267,7 @@ function FunnelChart({ funnel }: { funnel: VisitsReportData['funnels'][number] }
 }
 
 function AdminVisitsReport() {
-  const isDark = useIsDark();
-  const colors = isDark ? SERIES.dark : SERIES.light;
+  const colors = SERIES;
   const [days, setDays] = useState<number>(28);
   const [report, setReport] = useState<VisitsReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -325,53 +329,81 @@ function AdminVisitsReport() {
 
   return (
     <div className="admin-dashboard visits-report">
-      <div className="visits-toolbar">
-        <div className="visits-window-picker" role="tablist" aria-label="기간 선택">
-          {WINDOWS.map((w) => (
-            <button
-              key={w}
-              role="tab"
-              aria-selected={days === w}
-              className={`visits-window-btn ${days === w ? 'visits-window-btn--active' : ''}`}
-              onClick={() => setDays(w)}
-            >
-              {w}일
-            </button>
-          ))}
+      <header className="visits-report-header">
+        <div className="visits-report-heading">
+          <span className="visits-report-kicker">ADMIN ANALYTICS</span>
+          <h1>방문 분석 리포트</h1>
+          <p>누가 들어왔고, 무엇을 살펴봤으며, 제품 행동으로 어떻게 이어졌는지 보여줍니다.</p>
         </div>
-        <span className="visits-window-range">
-          {report.window.start} ~ {report.window.end} (KST)
-          {windowLimited && (
-            <>
-              <span className="visits-window-coverage">· 집계 {coveredDays}일분</span>
-              <InfoTip label="집계 기간 안내">
-                분석 데이터가 아직 {coveredDays}일치만 쌓여 있어, 이보다 긴 기간(예: 28·90일)을
-                선택해도 결과가 거의 같습니다. 데이터가 더 쌓일수록 기간별 차이가 뚜렷해집니다.
-              </InfoTip>
-            </>
-          )}
-        </span>
-      </div>
+        <div className="visits-toolbar">
+          <div className="visits-window-picker" role="tablist" aria-label="기간 선택">
+            {WINDOWS.map((w) => (
+              <button
+                key={w}
+                role="tab"
+                aria-selected={days === w}
+                className={`visits-window-btn ${days === w ? 'visits-window-btn--active' : ''}`}
+                onClick={() => setDays(w)}
+              >
+                {w}일
+              </button>
+            ))}
+          </div>
+          <span className="visits-window-range">
+            {report.window.start} ~ {report.window.end} (KST)
+            {windowLimited && (
+              <>
+                <span className="visits-window-coverage">· 집계 {coveredDays}일분</span>
+                <InfoTip label="집계 기간 안내">
+                  분석 데이터가 아직 {coveredDays}일치만 쌓여 있어, 이보다 긴 기간(예: 28·90일)을
+                  선택해도 결과가 거의 같습니다. 데이터가 더 쌓일수록 기간별 차이가 뚜렷해집니다.
+                </InfoTip>
+              </>
+            )}
+          </span>
+        </div>
+      </header>
 
-      {/* At-a-glance: the four numbers that answer "how are we doing". */}
-      <div className="visits-hero">
-        <HeroStat label="방문자" value={fmt(totals.visitors)} />
-        <HeroStat label="세션" value={fmt(totals.sessions)} />
-        <HeroStat label="참여율" value={pct(totals.engaged_rate)} />
-        <HeroStat label="AI 인용 fetch" value={fmt(ai.citation_clicks ?? 0)} />
-      </div>
+      <section className="visits-summary" aria-labelledby="visits-summary-title">
+        <span className="visits-summary-kicker">핵심 요약</span>
+        <h2 id="visits-summary-title">이번 기간을 한 문장씩 읽어보세요</h2>
+        <p className="visits-summary-copy">세부 지표보다 먼저 방문, 참여, 외부 연결의 규모를 보여줍니다.</p>
+        <div className="visits-insight-grid">
+          <InsightCard
+            eyebrow={`최근 ${days}일 방문`}
+            headline={<>{fmt(totals.visitors)}명이 {fmt(totals.sessions)}번 방문</>}
+            body={`한 사람당 평균 ${totals.visitors ? (totals.sessions / totals.visitors).toFixed(1) : '0'}회 방문했습니다.`}
+          />
+          <InsightCard
+            eyebrow={`최근 ${days}일 참여`}
+            headline={<>{fmt(totals.engaged_sessions)}개 세션이 의미 있게 참여</>}
+            body={`전체 세션의 ${pct(totals.engaged_rate)}가 두 페이지 이상 보거나 핵심 행동을 남겼습니다.`}
+          />
+          <InsightCard
+            eyebrow={`최근 ${days}일 AI 연결`}
+            headline={<>답변 fetch {fmt(ai.citation_clicks ?? 0)}번 · 실제 유입 {fmt(ai.ai_referral_hits ?? 0)}번</>}
+            body="AI가 콘텐츠를 가져간 횟수와 답변 링크를 통해 실제로 들어온 방문을 나눠 봅니다."
+          />
+        </div>
+      </section>
 
-      <p className="visits-meta-line">
-        사람 지표는 퍼스트파티 직접수집, AI·채널은 nginx 로그 기준 · 모든 시각 KST
-        <InfoTip label="데이터 출처 설명">
-          방문·세션·페이지뷰는 동의 방문자의 퍼스트파티 직접 수집 — 봇은 자바스크립트를 실행하지
-          않아 제외돼 GA4보다 깨끗합니다. AI 크롤러·인용은 nginx 접근 로그(10분 캐시)로 사람
-          지표와 겹치지 않습니다. 전체 채널(GA4)은 연동 복구 시 표시되며 오늘 자는 아직 집계
-          중입니다.
-        </InfoTip>
-      </p>
+      <details className="visits-method">
+        <summary>
+          <span>집계 기간과 기준</span>
+          <span>{days}일 · 퍼스트파티 방문 · nginx 유입</span>
+        </summary>
+        <p>
+          사람 지표는 퍼스트파티 직접수집, AI·채널은 nginx 로그 기준이며 모든 시각은 KST입니다.
+          방문·세션·페이지뷰는 동의 방문자의 직접 수집 데이터라 자바스크립트를 실행하지 않는 봇이
+          제외됩니다. AI 크롤러·인용은 nginx 접근 로그로 별도 집계합니다.
+        </p>
+      </details>
 
-      <Band label="사람 방문" />
+      <Band
+        label="사람 방문"
+        title="도달과 이용"
+        description="얼마나 발견됐고, 어떤 경로와 시점에 들어왔으며, 다시 찾아왔는지 봅니다."
+      />
 
       <Section
         title="방문 추이"
@@ -406,7 +438,7 @@ function AdminVisitsReport() {
                     y: daily.map((d) => d.sessions),
                     line: { color: colors.sessions, width: 2, shape: 'spline', smoothing: 0.5 },
                     fill: 'tozeroy',
-                    fillcolor: `${colors.sessions}${isDark ? '2b' : '1e'}`,
+                    fillcolor: `${colors.sessions}18`,
                     hovertemplate: '%{x}<br>세션 %{y}<extra></extra>',
                   },
                   {
@@ -418,7 +450,7 @@ function AdminVisitsReport() {
                     y: daily.map((d) => d.visitors),
                     line: { color: colors.visitors, width: 2, shape: 'spline', smoothing: 0.5 },
                     fill: 'tozeroy',
-                    fillcolor: `${colors.visitors}${isDark ? '30' : '22'}`,
+                    fillcolor: `${colors.visitors}20`,
                     hovertemplate: '%{x}<br>방문자 %{y}<extra></extra>',
                   },
                 ]}
@@ -428,10 +460,10 @@ function AdminVisitsReport() {
                   margin: { t: 10, b: 40, l: 36, r: 10 },
                   hovermode: 'x unified',
                   hoverlabel: {
-                    bgcolor: isDark ? 'rgba(22,22,25,0.96)' : 'rgba(255,255,255,0.98)',
-                    bordercolor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.10)',
+                    bgcolor: 'rgba(255,255,255,0.98)',
+                    bordercolor: 'rgba(15,23,42,0.10)',
                     font: {
-                      color: isDark ? '#e8e8ea' : '#1e293b',
+                      color: '#1e293b',
                       size: 12,
                       family: 'Pretendard, sans-serif',
                     },
@@ -631,7 +663,11 @@ function AdminVisitsReport() {
         )}
       </Section>
 
-      <Band label="AI · 유입" />
+      <Band
+        label="AI · 유입"
+        title="AI와 외부 유입"
+        description="검색·소셜·AI 답변이 콘텐츠 발견과 실제 방문으로 이어지는 흐름을 봅니다."
+      />
 
       <Section
         title="AI 크롤러·인용 유입"
@@ -837,7 +873,11 @@ function AdminVisitsReport() {
         </Section>
       )}
 
-      <Band label="제품" />
+      <Band
+        label="제품"
+        title="제품 행동과 전환"
+        description="방문이 검색, 딥리뷰, 북마크 같은 실제 제품 사용으로 이어졌는지 봅니다."
+      />
 
       <Section
         title="전환 퍼널"

@@ -82,6 +82,12 @@ describe('AdminVisitsReport', () => {
     render(<AdminVisitsReport />);
 
     await waitFor(() => expect(fetchAdminVisitsReport).toHaveBeenCalledWith(28));
+    expect(await screen.findByRole('heading', { name: '방문 분석 리포트' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '이번 기간을 한 문장씩 읽어보세요' })).toBeInTheDocument();
+    expect(screen.getByText('12명이 30번 방문')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '도달과 이용' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI와 외부 유입' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '제품 행동과 전환' })).toBeInTheDocument();
     expect(await screen.findByText('방문 추이')).toBeInTheDocument();
     // Band dividers group the report.
     expect(screen.getByText('사람 방문')).toBeInTheDocument();
