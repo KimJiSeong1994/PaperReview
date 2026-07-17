@@ -108,6 +108,11 @@ def main(argv: list[str] | None = None) -> int:
             "checked_at": _utc_stamp(),
             "reason": str(exc),
         }
+        if args.status_path:
+            try:
+                _write_json_atomic(Path(args.status_path), message)
+            except OSError as persist_exc:
+                message["status_persist_error"] = str(persist_exc)
         print(json.dumps(message, ensure_ascii=False, sort_keys=True))
         return 2 if args.strict else 0
 
