@@ -99,6 +99,21 @@ def test_loader_accepts_hash_pinned_absolute_policy(tmp_path: Path) -> None:
     assert "DeepReview analysis prompt path" in block
 
 
+def test_loader_rejects_symlink_policy_path(tmp_path: Path) -> None:
+    path, digest = _write_policy(tmp_path)
+    symlink = tmp_path / "deep-review-policy-link.md"
+    symlink.symlink_to(path)
+
+    with pytest.raises(SkillOptDeepReviewPolicyError, match="Failed to open|must not be a symlink"):
+        load_skillopt_deep_review_policy_from_env(
+            {
+                SKILLOPT_DEEP_REVIEW_POLICY_ENABLED_ENV: "true",
+                SKILLOPT_DEEP_REVIEW_POLICY_PATH_ENV: str(symlink),
+                SKILLOPT_DEEP_REVIEW_POLICY_HASH_ENV: digest,
+            }
+        )
+
+
 def test_loader_rejects_missing_hash_wrong_scope_relative_path_and_unsafe_content(tmp_path: Path) -> None:
     path, digest = _write_policy(tmp_path)
     with pytest.raises(SkillOptDeepReviewPolicyError, match=SKILLOPT_DEEP_REVIEW_POLICY_HASH_ENV):

@@ -52,13 +52,34 @@ def export_approved_skillopt_policy(
         control_path=control_path,
         baseline_skill_path=baseline_skill_path,
     )
+    selection_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "selection"]
+    selection_baseline = _subset_eval_record(baseline_eval, selection_ids)
+    selection_candidate = _subset_eval_record(candidate_eval, selection_ids)
     assert_candidate_beats_baseline(
-        baseline_record=baseline_eval,
-        candidate_record=candidate_eval,
+        baseline_record=selection_baseline,
+        candidate_record=selection_candidate,
         minimum_delta=minimum_ndcg_delta,
     )
-    selection_gate = _build_selection_gate_evidence(dataset=dataset, candidate_eval=candidate_eval)
-    holdout_gate = _build_holdout_gate_evidence(dataset=dataset, candidate_eval=candidate_eval)
+    selection_gate = _build_selection_gate_evidence(
+        dataset=dataset,
+        candidate_eval=candidate_eval,
+        baseline_eval_hash=_mapping_hash(selection_baseline),
+        candidate_eval_hash=_mapping_hash(selection_candidate),
+    )
+    test_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "test"]
+    holdout_baseline = _subset_eval_record(baseline_eval, test_ids)
+    holdout_candidate = _subset_eval_record(candidate_eval, test_ids)
+    assert_candidate_beats_baseline(
+        baseline_record=holdout_baseline,
+        candidate_record=holdout_candidate,
+    )
+    holdout_gate = _build_holdout_gate_evidence(
+        dataset=dataset,
+        baseline_eval=baseline_eval,
+        candidate_eval=candidate_eval,
+        baseline_eval_hash=_mapping_hash(holdout_baseline),
+        candidate_eval_hash=_mapping_hash(holdout_candidate),
+    )
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -165,7 +186,13 @@ def _guardrail_snapshot(record: Mapping[str, Any]) -> dict[str, float]:
     }
 
 
-def _build_selection_gate_evidence(*, dataset: Mapping[str, Any], candidate_eval: Mapping[str, Any]) -> dict[str, Any]:
+def _build_selection_gate_evidence(
+    *,
+    dataset: Mapping[str, Any],
+    candidate_eval: Mapping[str, Any],
+    baseline_eval_hash: str,
+    candidate_eval_hash: str,
+) -> dict[str, Any]:
     required_intents = {"author_search", "method_search"}
     selection_queries = [
         query
@@ -207,21 +234,37 @@ def _build_selection_gate_evidence(*, dataset: Mapping[str, Any], candidate_eval
     if failed:
         failed_summary = ", ".join(f"{row['query_id']}({row['intent']})" for row in failed)
         raise ValidationError(f"selection gate failed canonical anchor recall for: {failed_summary}")
-    return {
+    evidence = {
         "status": "passed",
+        "baseline_eval_hash": baseline_eval_hash,
+        "candidate_eval_hash": candidate_eval_hash,
         "required_intents": sorted(required_intents),
         "passed_query_ids": passed_query_ids,
         "per_query": per_query,
     }
+    evidence["evidence_hash"] = _mapping_hash(evidence)
+    return evidence
 
 
-def _build_holdout_gate_evidence(*, dataset: Mapping[str, Any], candidate_eval: Mapping[str, Any]) -> dict[str, Any]:
+def _build_holdout_gate_evidence(
+    *,
+    dataset: Mapping[str, Any],
+    baseline_eval: Mapping[str, Any],
+    candidate_eval: Mapping[str, Any],
+    baseline_eval_hash: str,
+    candidate_eval_hash: str,
+) -> dict[str, Any]:
     test_queries = [query for query in dataset["queries"] if query["split"] == "test"]
     if not test_queries:
         raise ValidationError("holdout gate requires at least one test query")
     rows_by_id = {
         str(row["query_id"]): row
         for row in candidate_eval["per_query"]
+        if isinstance(row, Mapping) and isinstance(row.get("query_id"), str)
+    }
+    baseline_rows_by_id = {
+        str(row["query_id"]): row
+        for row in baseline_eval["per_query"]
         if isinstance(row, Mapping) and isinstance(row.get("query_id"), str)
     }
     per_query = []
@@ -231,9 +274,17 @@ def _build_holdout_gate_evidence(*, dataset: Mapping[str, Any], candidate_eval: 
         row = rows_by_id.get(query_id)
         if not isinstance(row, Mapping):
             raise ValidationError(f"holdout gate missing candidate eval for {query_id}")
+        baseline_row = baseline_rows_by_id.get(query_id)
+        if not isinstance(baseline_row, Mapping):
+            raise ValidationError(f"holdout gate missing baseline eval for {query_id}")
         ndcg = float(row["ndcg_at_10"])
         recall = float(row["recall_at_10"])
-        passed = ndcg > 0.0 and recall > 0.0
+        passed = (
+            ndcg > 0.0
+            and recall > 0.0
+            and ndcg >= float(baseline_row["ndcg_at_10"])
+            and recall >= float(baseline_row["recall_at_10"])
+        )
         per_query.append(
             {
                 "query_id": query_id,
@@ -250,12 +301,36 @@ def _build_holdout_gate_evidence(*, dataset: Mapping[str, Any], candidate_eval: 
     if failed:
         failed_summary = ", ".join(f"{row['query_id']}({row['intent']})" for row in failed)
         raise ValidationError(f"holdout gate failed canonical anchor recall for: {failed_summary}")
-    return {
+    evidence = {
         "status": "passed",
         "split": "test",
+        "baseline_eval_hash": baseline_eval_hash,
+        "candidate_eval_hash": candidate_eval_hash,
         "passed_query_ids": passed_query_ids,
         "per_query": per_query,
     }
+    evidence["evidence_hash"] = _mapping_hash(evidence)
+    return evidence
+
+
+def _subset_eval_record(record: Mapping[str, Any], query_ids: list[str]) -> dict[str, Any]:
+    wanted = set(query_ids)
+    rows = [dict(row) for row in record["per_query"] if row.get("query_id") in wanted]
+    if len(rows) != len(wanted):
+        raise ValidationError("retrieval evaluation is missing required split rows")
+    count = len(rows)
+    subset = dict(record)
+    subset["per_query"] = rows
+    subset["query_count"] = count
+    for target, source in (
+        ("nDCG@10", "ndcg_at_10"),
+        ("MRR@10", "mrr_at_10"),
+        ("Recall@5", "recall_at_5"),
+        ("Recall@10", "recall_at_10"),
+        ("wrong_paper_handoff_rate", "wrong_paper_handoff"),
+    ):
+        subset[target] = round(sum(float(row[source]) for row in rows) / count, 6)
+    return subset
 
 
 def validate_runtime_policy_text(text: str) -> None:
@@ -301,8 +376,11 @@ def validate_approved_policy_artifact(artifact: Mapping[str, Any]) -> None:
     env = artifact.get("runtime_env")
     if not isinstance(env, Mapping):
         raise ValidationError("approved_policy_artifact.runtime_env must be an object")
-    if env.get("SKILLOPT_SEARCH_POLICY_HASH") != artifact.get("skill_hash"):
-        raise ValidationError("approved_policy_artifact runtime hash must match skill_hash")
+    _validate_runtime_env(
+        env,
+        runtime_policy_path=artifact.get("runtime_policy_path"),
+        skill_hash=artifact.get("skill_hash"),
+    )
     metrics = artifact.get("metric_snapshot")
     if not isinstance(metrics, Mapping):
         raise ValidationError("approved_policy_artifact.metric_snapshot must be an object")
@@ -324,11 +402,42 @@ def validate_approved_policy_artifact(artifact: Mapping[str, Any]) -> None:
         raise ValidationError("approved_policy_artifact rollback hash must match baseline_hash")
 
 
+def _validate_runtime_env(env: Mapping[str, Any], *, runtime_policy_path: Any, skill_hash: Any) -> None:
+    required = {
+        "SKILLOPT_SEARCH_POLICY_ENABLED",
+        "SKILLOPT_SEARCH_POLICY_PATH",
+        "SKILLOPT_SEARCH_POLICY_HASH",
+        "SKILLOPT_SEARCH_POLICY_SCOPE",
+    }
+    if set(env) != required:
+        raise ValidationError("approved_policy_artifact runtime_env must contain exactly the four rollout keys")
+    if env.get("SKILLOPT_SEARCH_POLICY_ENABLED") != "true":
+        raise ValidationError("approved_policy_artifact runtime_env enabled must be true")
+    policy_path = env.get("SKILLOPT_SEARCH_POLICY_PATH")
+    if not isinstance(policy_path, str) or not Path(policy_path).is_absolute():
+        raise ValidationError("approved_policy_artifact runtime_env path must be absolute")
+    if policy_path != runtime_policy_path:
+        raise ValidationError("approved_policy_artifact runtime_env path must match runtime_policy_path")
+    if env.get("SKILLOPT_SEARCH_POLICY_HASH") != skill_hash:
+        raise ValidationError("approved_policy_artifact runtime hash must match skill_hash")
+    if env.get("SKILLOPT_SEARCH_POLICY_SCOPE") != V1_ALLOWED_SCOPE:
+        raise ValidationError("approved_policy_artifact runtime_env scope is invalid")
+
+
 def _validate_selection_gate_artifact(selection_gate: Any) -> None:
     if not isinstance(selection_gate, Mapping):
         raise ValidationError("approved_policy_artifact.selection_gate must be an object")
     if selection_gate.get("status") != "passed":
         raise ValidationError("approved_policy_artifact.selection_gate must be passed")
+    _validate_gate_evidence_hash(selection_gate, "selection_gate")
+    _require_sha256_text(
+        selection_gate.get("baseline_eval_hash"),
+        "approved_policy_artifact.selection_gate.baseline_eval_hash",
+    )
+    _require_sha256_text(
+        selection_gate.get("candidate_eval_hash"),
+        "approved_policy_artifact.selection_gate.candidate_eval_hash",
+    )
     required_intents = selection_gate.get("required_intents")
     if set(required_intents or []) != {"author_search", "method_search"}:
         raise ValidationError("approved_policy_artifact.selection_gate required_intents is invalid")
@@ -375,6 +484,15 @@ def _validate_holdout_gate_artifact(holdout_gate: Any) -> None:
         raise ValidationError("approved_policy_artifact.holdout_gate must be an object")
     if holdout_gate.get("status") != "passed" or holdout_gate.get("split") != "test":
         raise ValidationError("approved_policy_artifact.holdout_gate must be passed test evidence")
+    _validate_gate_evidence_hash(holdout_gate, "holdout_gate")
+    _require_sha256_text(
+        holdout_gate.get("baseline_eval_hash"),
+        "approved_policy_artifact.holdout_gate.baseline_eval_hash",
+    )
+    _require_sha256_text(
+        holdout_gate.get("candidate_eval_hash"),
+        "approved_policy_artifact.holdout_gate.candidate_eval_hash",
+    )
     passed_query_ids = holdout_gate.get("passed_query_ids")
     if not isinstance(passed_query_ids, list) or any(not isinstance(query_id, str) or not query_id for query_id in passed_query_ids):
         raise ValidationError("approved_policy_artifact.holdout_gate passed_query_ids is invalid")
@@ -404,6 +522,15 @@ def _validate_holdout_gate_artifact(holdout_gate: Any) -> None:
         actual_passed_query_ids.append(query_id)
     if passed_query_ids != actual_passed_query_ids:
         raise ValidationError("approved_policy_artifact.holdout_gate passed_query_ids must match passed per_query ids")
+
+
+def _validate_gate_evidence_hash(gate: Mapping[str, Any], field: str) -> None:
+    expected = gate.get("evidence_hash")
+    _require_sha256_text(expected, f"approved_policy_artifact.{field}.evidence_hash")
+    payload = dict(gate)
+    payload.pop("evidence_hash", None)
+    if _mapping_hash(payload) != expected:
+        raise ValidationError(f"approved_policy_artifact.{field} evidence_hash mismatch")
 
 
 def _validate_artifact_guardrails(guardrails: Any) -> None:

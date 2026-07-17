@@ -8,13 +8,15 @@ candidate generation and rollout remain explicit upstream approval steps.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+
+from filelock import FileLock
 
 from app.DeepAgent.skillopt_policy import (
     SkillOptDeepReviewPolicyError,
@@ -172,12 +174,14 @@ def persist_guard_outputs(
     *,
     status_path: str | Path | None,
     reward_memory_path: str | Path | None,
-) -> None:
+) -> bool:
     """Persist latest status and append-only reward memory when configured."""
+    reward_appended = False
     if status_path:
         _write_json_atomic(Path(status_path), dict(summary))
     if reward_memory_path:
-        _append_jsonl(Path(reward_memory_path), build_reward_memory_entry(summary))
+        reward_appended = _append_jsonl(Path(reward_memory_path), build_reward_memory_entry(summary))
+    return reward_appended
 
 
 def build_reward_memory_entry(summary: Mapping[str, Any]) -> dict[str, Any]:
@@ -189,7 +193,7 @@ def build_reward_memory_entry(summary: Mapping[str, Any]) -> dict[str, Any]:
     candidate = _finite_float(metric.get("candidate"), "holdout_primary_metric.candidate")
     return {
         "version": "skillopt-deep-review-reward-memory-entry-v0",
-        "entry_id": f"deep-review-{uuid4()}",
+        "entry_id": _reward_identity(summary),
         "created_at": _utc_stamp(),
         "status": summary.get("status"),
         "scope": summary.get("scope"),
@@ -218,10 +222,35 @@ def _write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
     tmp_path.replace(path)
 
 
-def _append_jsonl(path: Path, value: Mapping[str, Any]) -> None:
+def _append_jsonl(path: Path, value: Mapping[str, Any]) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
+    with FileLock(str(path) + ".lock"):
+        with path.open("a+", encoding="utf-8") as handle:
+            handle.seek(0)
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    existing = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise DeepReviewSkillOptCronError(
+                        f"reward memory contains invalid JSON at line {line_number}"
+                    ) from exc
+                if existing.get("entry_id") == value.get("entry_id"):
+                    return False
+            handle.seek(0, os.SEEK_END)
+            handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    return True
+
+
+def _reward_identity(summary: Mapping[str, Any]) -> str:
+    identity = "|".join(
+        str(summary.get(field) or "")
+        for field in ("candidate_hash", "dataset_hash", "control_hash")
+    )
+    return "deep-review-" + hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
 def _finite_float(value: Any, field: str) -> float:

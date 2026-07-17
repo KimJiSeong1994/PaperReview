@@ -84,20 +84,7 @@ def load_skillopt_deep_review_policy_from_env(
         raise SkillOptDeepReviewPolicyError(
             f"{SKILLOPT_DEEP_REVIEW_POLICY_PATH_ENV} must be an absolute path"
         )
-    try:
-        file_stat = path.stat()
-    except OSError as exc:
-        raise SkillOptDeepReviewPolicyError(f"Failed to stat DeepReview policy file: {path}") from exc
-    if not stat.S_ISREG(file_stat.st_mode):
-        raise SkillOptDeepReviewPolicyError(f"DeepReview policy path must be a regular file: {path}")
-    if file_stat.st_size > _MAX_POLICY_BYTES:
-        raise SkillOptDeepReviewPolicyError(
-            f"DeepReview policy file exceeds {_MAX_POLICY_BYTES} bytes"
-        )
-    try:
-        raw_content = path.read_bytes()
-    except OSError as exc:
-        raise SkillOptDeepReviewPolicyError(f"Failed to read DeepReview policy file: {path}") from exc
+    raw_content = _read_regular_policy_file(path)
     actual_hash = hashlib.sha256(raw_content).hexdigest()
     if actual_hash != expected_hash:
         raise SkillOptDeepReviewPolicyError(
@@ -117,6 +104,53 @@ def load_skillopt_deep_review_policy_from_env(
         scope=scope,
         reason="enabled",
     )
+
+
+def _read_regular_policy_file(path: Path) -> bytes:
+    """Read one non-symlink regular file through a single descriptor."""
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    link_stat = None
+    if not no_follow:
+        try:
+            link_stat = path.lstat()
+        except OSError as exc:
+            raise SkillOptDeepReviewPolicyError(
+                f"Failed to inspect DeepReview policy file: {path}"
+            ) from exc
+        if stat.S_ISLNK(link_stat.st_mode):
+            raise SkillOptDeepReviewPolicyError(
+                f"DeepReview policy path must not be a symlink: {path}"
+            )
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | no_follow
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise SkillOptDeepReviewPolicyError(f"Failed to open DeepReview policy file: {path}") from exc
+    try:
+        file_stat = os.fstat(descriptor)
+        if link_stat is not None and (file_stat.st_dev, file_stat.st_ino) != (link_stat.st_dev, link_stat.st_ino):
+            raise SkillOptDeepReviewPolicyError(
+                f"DeepReview policy file changed while opening: {path}"
+            )
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise SkillOptDeepReviewPolicyError(f"DeepReview policy path must be a regular file: {path}")
+        if file_stat.st_size > _MAX_POLICY_BYTES:
+            raise SkillOptDeepReviewPolicyError(
+                f"DeepReview policy file exceeds {_MAX_POLICY_BYTES} bytes"
+            )
+        with os.fdopen(descriptor, "rb", closefd=True) as handle:
+            descriptor = -1
+            raw_content = handle.read(_MAX_POLICY_BYTES + 1)
+    except OSError as exc:
+        raise SkillOptDeepReviewPolicyError(f"Failed to read DeepReview policy file: {path}") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(raw_content) > _MAX_POLICY_BYTES:
+        raise SkillOptDeepReviewPolicyError(
+            f"DeepReview policy file exceeds {_MAX_POLICY_BYTES} bytes"
+        )
+    return raw_content
 
 
 def build_skillopt_deep_review_policy_prompt_block(policy: SkillOptDeepReviewPolicy) -> str:

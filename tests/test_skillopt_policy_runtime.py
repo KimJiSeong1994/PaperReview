@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -152,6 +153,35 @@ class TestSkillOptPolicyLoader:
                     SKILLOPT_POLICY_ENABLED_ENV: "true",
                     SKILLOPT_POLICY_PATH_ENV: "relative_policy.md",
                     SKILLOPT_POLICY_HASH_ENV: f"sha256:{digest}",
+                }
+            )
+
+    def test_policy_loader_rejects_symlink_path(self, tmp_path: Path) -> None:
+        path, digest = _write_policy(tmp_path)
+        symlink = tmp_path / "policy-link.md"
+        symlink.symlink_to(path)
+
+        with pytest.raises(SkillOptPolicyError, match="Failed to open|must not be a symlink"):
+            load_skillopt_policy_from_env(
+                {
+                    SKILLOPT_POLICY_ENABLED_ENV: "true",
+                    SKILLOPT_POLICY_PATH_ENV: str(symlink),
+                    SKILLOPT_POLICY_HASH_ENV: digest,
+                }
+            )
+
+    def test_policy_loader_rejects_symlink_without_no_follow_flag(self, tmp_path: Path, monkeypatch) -> None:
+        path, digest = _write_policy(tmp_path)
+        symlink = tmp_path / "portable-policy-link.md"
+        symlink.symlink_to(path)
+        monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+
+        with pytest.raises(SkillOptPolicyError, match="must not be a symlink"):
+            load_skillopt_policy_from_env(
+                {
+                    SKILLOPT_POLICY_ENABLED_ENV: "true",
+                    SKILLOPT_POLICY_PATH_ENV: str(symlink),
+                    SKILLOPT_POLICY_HASH_ENV: digest,
                 }
             )
 

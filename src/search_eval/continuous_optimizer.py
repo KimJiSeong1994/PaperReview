@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from filelock import FileLock
 
 from .approved_policy import validate_approved_policy_artifact
 from .skillopt_materializer import validate_skillopt_materialization_manifest
@@ -336,8 +339,7 @@ def validate_next_iteration_seed(seed: Mapping[str, Any]) -> None:
         raise ValidationError("next iteration seed must rotate holdout and keep test split out of training reward")
 
 
-def append_reward_memory_entry(
-    memory_path: str | Path,
+def _build_reward_memory_entry(
     decision_record: Mapping[str, Any],
     *,
     approved_policy_artifact_path: str | Path,
@@ -376,11 +378,6 @@ def append_reward_memory_entry(
     safety = decision_record["safety"]
     if safety.get("rolled_back") or safety.get("quarantined"):
         raise ValidationError("reward memory rejects rolled-back or quarantined decisions")
-    _reject_duplicate_reward_memory_entry(
-        Path(memory_path),
-        run_id=str(decision_record["run_id"]),
-        artifact_file_hash=str(decision_record["approved_policy_artifact_file_hash"]),
-    )
     entry = {
         "version": REWARD_MEMORY_VERSION,
         "run_id": decision_record["run_id"],
@@ -395,11 +392,37 @@ def append_reward_memory_entry(
         "approved_policy_artifact_file_hash": decision_record["approved_policy_artifact_file_hash"],
     }
     validate_reward_memory_entry(entry)
-    path = Path(memory_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\n")
     return entry
+
+
+def append_reward_memory_entry(
+    memory_path: str | Path,
+    decision_record: Mapping[str, Any],
+    *,
+    approved_policy_artifact_path: str | Path,
+) -> dict[str, Any]:
+    entry = _build_reward_memory_entry(
+        decision_record,
+        approved_policy_artifact_path=approved_policy_artifact_path,
+    )
+    _append_reward_memory_entry_value(Path(memory_path), entry)
+    return entry
+
+
+def _append_reward_memory_entry_value(path: Path, entry: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(path) + ".lock"):
+        with path.open("a+", encoding="utf-8") as f:
+            f.seek(0)
+            _reject_duplicate_reward_memory_entry(
+                f.read(),
+                run_id=str(entry["run_id"]),
+                artifact_file_hash=str(entry["approved_policy_artifact_file_hash"]),
+            )
+            f.seek(0, os.SEEK_END)
+            f.write(json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
 
 
 def validate_reward_memory_entry(entry: Mapping[str, Any]) -> None:
@@ -529,6 +552,22 @@ def validate_live_canary_handoff(handoff: Mapping[str, Any]) -> None:
     env = handoff.get("runtime_env")
     if not isinstance(rollback, Mapping) or not isinstance(env, Mapping):
         raise ValidationError("live canary handoff requires rollback and runtime env")
+    required_env = {
+        "SKILLOPT_SEARCH_POLICY_ENABLED",
+        "SKILLOPT_SEARCH_POLICY_PATH",
+        "SKILLOPT_SEARCH_POLICY_HASH",
+        "SKILLOPT_SEARCH_POLICY_SCOPE",
+    }
+    if set(env) != required_env:
+        raise ValidationError("live canary runtime_env must contain exactly the four rollout keys")
+    if env.get("SKILLOPT_SEARCH_POLICY_ENABLED") != "true":
+        raise ValidationError("live canary runtime_env enabled must be true")
+    policy_path = env.get("SKILLOPT_SEARCH_POLICY_PATH")
+    if not isinstance(policy_path, str) or not Path(policy_path).is_absolute():
+        raise ValidationError("live canary runtime_env path must be absolute")
+    _require_digest(env.get("SKILLOPT_SEARCH_POLICY_HASH"), "live_canary.runtime_env.policy_hash")
+    if env.get("SKILLOPT_SEARCH_POLICY_SCOPE") != V1_ALLOWED_SCOPE:
+        raise ValidationError("live canary runtime_env scope is invalid")
     if rollback.get("skill_hash") == env.get("SKILLOPT_SEARCH_POLICY_HASH"):
         raise ValidationError("live canary rollback target must differ from candidate policy")
 
@@ -596,8 +635,7 @@ def run_continuous_optimization_iteration(
             encoding="utf-8",
         )
 
-    reward_entry = append_reward_memory_entry(
-        reward_memory_path,
+    reward_entry = _build_reward_memory_entry(
         decision,
         approved_policy_artifact_path=artifact_path,
     )
@@ -638,6 +676,7 @@ def run_continuous_optimization_iteration(
     validate_continuous_iteration_manifest(manifest)
     manifest_path = output / "continuous_iteration_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    _append_reward_memory_entry_value(Path(reward_memory_path), reward_entry)
     return {
         "manifest": manifest,
         "manifest_path": str(manifest_path),
@@ -822,10 +861,8 @@ def _summary_live_canary(handoff: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _reject_duplicate_reward_memory_entry(memory_path: Path, *, run_id: str, artifact_file_hash: str) -> None:
-    if not memory_path.exists():
-        return
-    for line_number, line in enumerate(memory_path.read_text(encoding="utf-8").splitlines(), start=1):
+def _reject_duplicate_reward_memory_entry(memory_text: str, *, run_id: str, artifact_file_hash: str) -> None:
+    for line_number, line in enumerate(memory_text.splitlines(), start=1):
         if not line.strip():
             continue
         try:

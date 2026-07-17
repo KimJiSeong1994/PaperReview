@@ -16,7 +16,7 @@ from src.search_eval.retrieval_eval import (
     validate_retrieval_evaluation_record,
 )
 from src.search_eval.skillopt_adapter import canonical_file_hash
-from src.search_eval.skillopt_contract import ValidationError
+from src.search_eval.skillopt_contract import ValidationError, load_json
 from src.search_eval.skillopt_materializer import (
     ENV_NAME,
     materialize_skillopt_search_benchmark,
@@ -58,6 +58,29 @@ def _candidate_best_skill(tmp_path: Path) -> Path:
 
 def _bind_eval_to_skill(candidate_eval: dict, best_skill: Path) -> dict:
     return {**candidate_eval, "evaluated_skill_hash": canonical_file_hash(best_skill)}
+
+
+def _approved_policy(tmp_path: Path) -> dict:
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(dataset_path=DATASET, quality="baseline"),
+    )
+    candidate_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(dataset_path=DATASET, quality="candidate"),
+    )
+    best_skill = _candidate_best_skill(tmp_path)
+    candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
+    return export_approved_skillopt_policy(
+        best_skill_path=best_skill,
+        output_dir=tmp_path / "approved",
+        dataset_path=DATASET,
+        control_path=CONTROL,
+        baseline_skill_path=BASELINE_SKILL,
+        baseline_eval=baseline_eval,
+        candidate_eval=candidate_eval,
+        materialization_manifest_path=_materialization_manifest_path(tmp_path),
+    )
 
 
 def test_materialize_skillopt_search_benchmark_writes_official_shape(tmp_path: Path):
@@ -445,7 +468,7 @@ def test_approved_policy_artifact_rejects_zero_ndcg_selection_gate(tmp_path: Pat
     tampered["selection_gate"]["per_query"][0] = dict(tampered["selection_gate"]["per_query"][0])
     tampered["selection_gate"]["per_query"][0]["ndcg_at_10"] = 0.0
 
-    with pytest.raises(ValidationError, match="ndcg_at_10"):
+    with pytest.raises(ValidationError, match="evidence_hash"):
         validate_approved_policy_artifact(tampered)
 
 
@@ -477,6 +500,78 @@ def test_approved_policy_artifact_rejects_tampered_holdout_gate(tmp_path: Path):
     tampered["holdout_gate"]["per_query"][0]["recall_at_10"] = 0.0
 
     with pytest.raises(ValidationError, match="holdout_gate"):
+        validate_approved_policy_artifact(tampered)
+
+
+def test_export_rejects_test_split_regression_hidden_by_global_improvement(tmp_path: Path):
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(dataset_path=DATASET, quality="baseline"),
+    )
+    candidate_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(dataset_path=DATASET, quality="candidate"),
+    )
+    test_ids = {
+        query["query_id"]
+        for query in load_json(DATASET)["queries"]
+        if query["split"] == "test"
+    }
+    candidate_eval["per_query"] = [dict(row) for row in candidate_eval["per_query"]]
+    for row in candidate_eval["per_query"]:
+        if row["query_id"] in test_ids:
+            row["ndcg_at_10"] = 0.001
+            row["recall_at_10"] = 0.001
+    count = len(candidate_eval["per_query"])
+    candidate_eval["nDCG@10"] = round(
+        sum(row["ndcg_at_10"] for row in candidate_eval["per_query"]) / count,
+        6,
+    )
+    candidate_eval["Recall@10"] = round(
+        sum(row["recall_at_10"] for row in candidate_eval["per_query"]) / count,
+        6,
+    )
+    assert candidate_eval["nDCG@10"] > baseline_eval["nDCG@10"]
+    best_skill = _candidate_best_skill(tmp_path)
+    candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
+
+    with pytest.raises(ValidationError, match="candidate nDCG@10|holdout gate"):
+        export_approved_skillopt_policy(
+            best_skill_path=best_skill,
+            output_dir=tmp_path / "approved",
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            baseline_eval=baseline_eval,
+            candidate_eval=candidate_eval,
+            materialization_manifest_path=_materialization_manifest_path(tmp_path),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        ("SKILLOPT_SEARCH_POLICY_ENABLED", "false", "enabled must be true"),
+        ("SKILLOPT_SEARCH_POLICY_PATH", "relative/policy.md", "path must be absolute"),
+        ("SKILLOPT_SEARCH_POLICY_SCOPE", "other_scope", "scope is invalid"),
+    ),
+)
+def test_approved_policy_artifact_rejects_unsafe_runtime_env(tmp_path: Path, field, value, message):
+    artifact = _approved_policy(tmp_path)
+    tampered = dict(artifact)
+    tampered["runtime_env"] = dict(artifact["runtime_env"])
+    tampered["runtime_env"][field] = value
+
+    with pytest.raises(ValidationError, match=message):
+        validate_approved_policy_artifact(tampered)
+
+
+def test_approved_policy_artifact_rejects_extra_runtime_env_key(tmp_path: Path):
+    artifact = _approved_policy(tmp_path)
+    tampered = dict(artifact)
+    tampered["runtime_env"] = {**artifact["runtime_env"], "SKILLOPT_UNSAFE_EXTRA": "1"}
+
+    with pytest.raises(ValidationError, match="exactly the four"):
         validate_approved_policy_artifact(tampered)
 
 

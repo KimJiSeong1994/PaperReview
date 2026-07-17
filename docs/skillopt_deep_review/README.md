@@ -97,3 +97,7 @@ containing the holdout reward delta. That memory is the handoff point for future
 RL/SkillOpt candidate generators; the cron still does not mutate live prompts by
 itself. In strict mode validation failures return a non-zero exit code so
 cron/system monitoring can alert on drift.
+
+Reward entries use a deterministic candidate/dataset/control identity under an
+interprocess lock. Replaying the same approved candidate is an idempotent success
+that appends no duplicate positive reward memory.

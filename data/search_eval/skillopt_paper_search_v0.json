@@ -1,6 +1,6 @@
 {
   "version": "skillopt-paper-search-v0",
-  "dataset_hash": "dataset_v1_synthetic_public_20260704_selection_coverage",
+  "dataset_hash": "sha256:8d5091e245c0648d23a199a8c9f11c7ca1bdefa6a5e7ad0489195f8912e1f5c2",
   "provenance": {
     "type": "synthetic_and_public_seed",
     "raw_user_logs_included": false,

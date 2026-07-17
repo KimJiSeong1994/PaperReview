@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from src.deep_review_eval import cron_runner
@@ -139,3 +140,43 @@ def test_deep_review_skillopt_cron_persists_status_and_reward_memory(tmp_path, m
     assert entries[0]["version"] == "skillopt-deep-review-reward-memory-entry-v0"
     assert entries[0]["reward"] == 0.08
     assert entries[0]["safety"]["artifact_validation_passed"] is True
+
+
+def test_deep_review_reward_memory_idempotently_skips_duplicate_candidate(tmp_path, monkeypatch, capsys):
+    _clear_env(monkeypatch)
+    reward_memory = tmp_path / "reward_memory.jsonl"
+    args = ["--reward-memory", str(reward_memory), "--strict"]
+
+    assert cron_runner.main(args) == 0
+    capsys.readouterr()
+    assert cron_runner.main(args) == 0
+
+    message = json.loads(capsys.readouterr().out)
+    entries = reward_memory.read_text(encoding="utf-8").splitlines()
+    assert message["status"] == "complete"
+    assert len(entries) == 1
+
+
+def test_deep_review_reward_memory_concurrent_replay_appends_once(tmp_path, monkeypatch):
+    _clear_env(monkeypatch)
+    reward_memory = tmp_path / "concurrent_reward_memory.jsonl"
+    summary = cron_runner.run_guard_iteration(
+        dataset_path="data/deep_review_eval/skillopt_deep_review_v0.json",
+        control_path="data/deep_review_eval/skillopt_execution_control_v0.json",
+        candidate_artifact_path="data/deep_review_eval/skillopt_candidate_artifact_example.json",
+        rollback_record_path="data/deep_review_eval/skillopt_rollback_record_example.json",
+    )
+
+    def persist_once():
+        return cron_runner.persist_guard_outputs(
+            summary,
+            status_path=None,
+            reward_memory_path=reward_memory,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: persist_once(), range(2)))
+
+    assert results.count(True) == 1
+    assert results.count(False) == 1
+    assert len(reward_memory.read_text(encoding="utf-8").splitlines()) == 1
