@@ -132,15 +132,16 @@ BLOG_SERIES: dict[str, dict] = {
         "title": "DWE 논문 리뷰 시리즈",
         "description": (
             "단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩"
-            "(Dynamic Word Embeddings)의 핵심 논문 5편을 의미 변화의 통계 "
-            "법칙부터 공동 행렬 분해, 확률적 생성 모델, 컴퍼스 정렬, 그리고 "
-            "문맥화 임베딩과의 결합까지 시간순으로 깊이 있게 읽는 한국어 "
-            "딥리뷰 시리즈. 시간 구간별로 따로 학습한 임베딩을 사후에 맞추던 "
-            "정렬 문제가 학습 안으로, 다시 모델 설계 안으로 흡수되는 흐름을 "
-            "계보로 따라간다."
+            "(Dynamic Word Embeddings)의 핵심 논문 6편을 의미 변화의 통계 "
+            "법칙부터 베이지안 상태공간 모델, 공동 행렬 분해, 확률적 생성 "
+            "모델, 컴퍼스 정렬, 그리고 문맥화 임베딩과의 결합까지 시간순으로 "
+            "깊이 있게 읽는 한국어 딥리뷰 시리즈. 시간 구간별로 따로 학습한 "
+            "임베딩을 사후에 맞추던 정렬 문제가 학습 안으로, 다시 모델 설계 "
+            "안으로 흡수되는 흐름을 계보로 따라간다."
         ),
         "slugs": [
             "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+            "dynamic-word-embeddings-dsg-review-2026",
             "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
             "dynamic-bernoulli-embeddings-language-evolution-review-2026",
             "training-temporal-word-embeddings-compass-twec-review-2026",
