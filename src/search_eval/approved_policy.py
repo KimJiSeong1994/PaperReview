@@ -6,7 +6,7 @@ import shutil
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .retrieval_eval import assert_candidate_beats_baseline, validate_retrieval_evaluation_record
 from .skillopt_adapter import canonical_file_hash
@@ -22,8 +22,9 @@ def export_approved_skillopt_policy(
     dataset_path: str | Path,
     control_path: str | Path,
     baseline_skill_path: str | Path,
-    baseline_eval: Mapping[str, Any],
-    candidate_eval: Mapping[str, Any],
+    selection_baseline_eval: Mapping[str, Any],
+    selection_candidate_eval: Mapping[str, Any],
+    holdout_eval_loader: Callable[[], tuple[Mapping[str, Any], Mapping[str, Any]]],
     materialization_manifest_path: str | Path,
     minimum_ndcg_delta: float = 0.0,
 ) -> dict[str, Any]:
@@ -37,11 +38,12 @@ def export_approved_skillopt_policy(
     load_baseline_skill(baseline_skill_path)
     validate_runtime_policy_text(Path(best_skill_path).read_text(encoding="utf-8"))
     best_skill_hash = canonical_file_hash(best_skill_path)
-    validate_retrieval_evaluation_record(baseline_eval)
-    validate_retrieval_evaluation_record(candidate_eval)
-    _validate_eval_record_matches_dataset(baseline_eval, dataset)
-    _validate_eval_record_matches_dataset(candidate_eval, dataset)
-    _validate_candidate_eval_matches_skill(candidate_eval, best_skill_hash)
+    selection_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "selection"]
+    validate_retrieval_evaluation_record(selection_baseline_eval)
+    validate_retrieval_evaluation_record(selection_candidate_eval)
+    _validate_eval_record_matches_query_ids(selection_baseline_eval, dataset, selection_ids)
+    _validate_eval_record_matches_query_ids(selection_candidate_eval, dataset, selection_ids)
+    _validate_candidate_eval_matches_skill(selection_candidate_eval, best_skill_hash)
     manifest = load_json(materialization_manifest_path)
     validate_skillopt_materialization_manifest(manifest)
     _validate_manifest_matches_inputs(
@@ -52,33 +54,34 @@ def export_approved_skillopt_policy(
         control_path=control_path,
         baseline_skill_path=baseline_skill_path,
     )
-    selection_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "selection"]
-    selection_baseline = _subset_eval_record(baseline_eval, selection_ids)
-    selection_candidate = _subset_eval_record(candidate_eval, selection_ids)
     assert_candidate_beats_baseline(
-        baseline_record=selection_baseline,
-        candidate_record=selection_candidate,
+        baseline_record=selection_baseline_eval,
+        candidate_record=selection_candidate_eval,
         minimum_delta=minimum_ndcg_delta,
     )
     selection_gate = _build_selection_gate_evidence(
         dataset=dataset,
-        candidate_eval=candidate_eval,
-        baseline_eval_hash=_mapping_hash(selection_baseline),
-        candidate_eval_hash=_mapping_hash(selection_candidate),
+        candidate_eval=selection_candidate_eval,
+        baseline_eval_hash=_mapping_hash(selection_baseline_eval),
+        candidate_eval_hash=_mapping_hash(selection_candidate_eval),
     )
+    holdout_baseline_eval, holdout_candidate_eval = holdout_eval_loader()
     test_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "test"]
-    holdout_baseline = _subset_eval_record(baseline_eval, test_ids)
-    holdout_candidate = _subset_eval_record(candidate_eval, test_ids)
+    validate_retrieval_evaluation_record(holdout_baseline_eval)
+    validate_retrieval_evaluation_record(holdout_candidate_eval)
+    _validate_eval_record_matches_query_ids(holdout_baseline_eval, dataset, test_ids)
+    _validate_eval_record_matches_query_ids(holdout_candidate_eval, dataset, test_ids)
+    _validate_candidate_eval_matches_skill(holdout_candidate_eval, best_skill_hash)
     assert_candidate_beats_baseline(
-        baseline_record=holdout_baseline,
-        candidate_record=holdout_candidate,
+        baseline_record=holdout_baseline_eval,
+        candidate_record=holdout_candidate_eval,
     )
     holdout_gate = _build_holdout_gate_evidence(
         dataset=dataset,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
-        baseline_eval_hash=_mapping_hash(holdout_baseline),
-        candidate_eval_hash=_mapping_hash(holdout_candidate),
+        baseline_eval=holdout_baseline_eval,
+        candidate_eval=holdout_candidate_eval,
+        baseline_eval_hash=_mapping_hash(holdout_baseline_eval),
+        candidate_eval_hash=_mapping_hash(holdout_candidate_eval),
     )
 
     output = Path(output_dir)
@@ -107,14 +110,15 @@ def export_approved_skillopt_policy(
         },
         "metric_snapshot": {
             "primary_metric": "nDCG@10",
+            "split": "selection",
             "evaluated_skill_hash": best_skill_hash,
-            "baseline": float(baseline_eval["nDCG@10"]),
-            "candidate": float(candidate_eval["nDCG@10"]),
-            "baseline_eval_hash": _mapping_hash(baseline_eval),
-            "candidate_eval_hash": _mapping_hash(candidate_eval),
+            "baseline": float(selection_baseline_eval["nDCG@10"]),
+            "candidate": float(selection_candidate_eval["nDCG@10"]),
+            "baseline_eval_hash": _mapping_hash(selection_baseline_eval),
+            "candidate_eval_hash": _mapping_hash(selection_candidate_eval),
             "guardrails": {
-                "baseline": _guardrail_snapshot(baseline_eval),
-                "candidate": _guardrail_snapshot(candidate_eval),
+                "baseline": _guardrail_snapshot(selection_baseline_eval),
+                "candidate": _guardrail_snapshot(selection_candidate_eval),
             },
         },
         "selection_gate": selection_gate,
@@ -132,10 +136,13 @@ def export_approved_skillopt_policy(
     return {**artifact, "artifact_path": str(artifact_path), "runtime_env_path": str(env_path)}
 
 
-def _validate_eval_record_matches_dataset(record: Mapping[str, Any], dataset: Mapping[str, Any]) -> None:
+def _validate_eval_record_matches_query_ids(
+    record: Mapping[str, Any],
+    dataset: Mapping[str, Any],
+    expected_ids: list[str],
+) -> None:
     if record.get("dataset_hash") != dataset.get("dataset_hash"):
         raise ValidationError("retrieval evaluation dataset_hash does not match dataset")
-    expected_ids = [str(query["query_id"]) for query in dataset["queries"]]
     per_query = record.get("per_query")
     if not isinstance(per_query, list):
         raise ValidationError("retrieval evaluation per_query must be a list")
@@ -313,7 +320,7 @@ def _build_holdout_gate_evidence(
     return evidence
 
 
-def _subset_eval_record(record: Mapping[str, Any], query_ids: list[str]) -> dict[str, Any]:
+def split_retrieval_evaluation_record(record: Mapping[str, Any], query_ids: list[str]) -> dict[str, Any]:
     wanted = set(query_ids)
     rows = [dict(row) for row in record["per_query"] if row.get("query_id") in wanted]
     if len(rows) != len(wanted):
@@ -386,6 +393,8 @@ def validate_approved_policy_artifact(artifact: Mapping[str, Any]) -> None:
         raise ValidationError("approved_policy_artifact.metric_snapshot must be an object")
     if metrics.get("primary_metric") != "nDCG@10":
         raise ValidationError("approved_policy_artifact primary_metric must be nDCG@10")
+    if metrics.get("split") != "selection":
+        raise ValidationError("approved_policy_artifact metric_snapshot must be selection-only")
     if metrics.get("evaluated_skill_hash") != artifact.get("skill_hash"):
         raise ValidationError("approved_policy_artifact evaluated_skill_hash must match skill_hash")
     _require_sha256_text(metrics.get("baseline_eval_hash"), "approved_policy_artifact.metric_snapshot.baseline_eval_hash")

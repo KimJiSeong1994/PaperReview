@@ -17,7 +17,7 @@ from typing import Any
 
 from filelock import FileLock
 
-from .approved_policy import validate_approved_policy_artifact
+from .approved_policy import split_retrieval_evaluation_record, validate_approved_policy_artifact
 from .skillopt_materializer import validate_skillopt_materialization_manifest
 from .retrieval_eval import assert_candidate_beats_baseline, validate_retrieval_evaluation_record
 from .skillopt_adapter import canonical_file_hash
@@ -105,9 +105,12 @@ def build_optimizer_decision_record(
     metrics = approved_policy_artifact["metric_snapshot"]
     if candidate_eval.get("evaluated_skill_hash") != skill_hash:
         raise ValidationError("optimizer candidate_eval evaluated_skill_hash must match approved skill_hash")
-    if _mapping_hash(baseline_eval) != metrics.get("baseline_eval_hash"):
+    selection_ids = [str(query["query_id"]) for query in dataset["queries"] if query["split"] == "selection"]
+    selection_baseline_eval = split_retrieval_evaluation_record(baseline_eval, selection_ids)
+    selection_candidate_eval = split_retrieval_evaluation_record(candidate_eval, selection_ids)
+    if _mapping_hash(selection_baseline_eval) != metrics.get("baseline_eval_hash"):
         raise ValidationError("optimizer baseline_eval hash must match approved artifact")
-    if _mapping_hash(candidate_eval) != metrics.get("candidate_eval_hash"):
+    if _mapping_hash(selection_candidate_eval) != metrics.get("candidate_eval_hash"):
         raise ValidationError("optimizer candidate_eval hash must match approved artifact")
     if baseline_eval.get("dataset_hash") != dataset.get("dataset_hash"):
         raise ValidationError("optimizer baseline_eval dataset_hash mismatch")
@@ -133,7 +136,11 @@ def build_optimizer_decision_record(
     if dict(manifest.get("source_hashes", {})) != expected_source_hashes:
         raise ValidationError("optimizer materialization source_hashes mismatch")
 
-    reward = round(float(candidate_eval["nDCG@10"]) - float(baseline_eval["nDCG@10"]), 6)
+    reward = round(
+        float(selection_candidate_eval["nDCG@10"])
+        - float(selection_baseline_eval["nDCG@10"]),
+        6,
+    )
     record = {
         "version": OPTIMIZER_RECORD_VERSION,
         "run_id": run_id.strip(),
@@ -490,6 +497,8 @@ def build_live_canary_handoff(
         "scope": V1_ALLOWED_SCOPE,
         "approved_policy_artifact_hash": canonical_file_hash(artifact_path),
         "artifact_created_at": artifact["created_at"],
+        "runtime_policy_path": artifact["runtime_policy_path"],
+        "approved_skill_hash": artifact["skill_hash"],
         "runtime_env": artifact["runtime_env"],
         "selection_gate": artifact["selection_gate"],
         "holdout_gate": artifact["holdout_gate"],
@@ -510,6 +519,8 @@ def validate_live_canary_handoff(handoff: Mapping[str, Any]) -> None:
         "scope",
         "approved_policy_artifact_hash",
         "artifact_created_at",
+        "runtime_policy_path",
+        "approved_skill_hash",
         "runtime_env",
         "selection_gate",
         "holdout_gate",
@@ -566,6 +577,11 @@ def validate_live_canary_handoff(handoff: Mapping[str, Any]) -> None:
     if not isinstance(policy_path, str) or not Path(policy_path).is_absolute():
         raise ValidationError("live canary runtime_env path must be absolute")
     _require_digest(env.get("SKILLOPT_SEARCH_POLICY_HASH"), "live_canary.runtime_env.policy_hash")
+    if policy_path != handoff.get("runtime_policy_path"):
+        raise ValidationError("live canary runtime_env path must match approved runtime_policy_path")
+    _require_digest(handoff.get("approved_skill_hash"), "live_canary.approved_skill_hash")
+    if env.get("SKILLOPT_SEARCH_POLICY_HASH") != handoff.get("approved_skill_hash"):
+        raise ValidationError("live canary runtime_env hash must match approved skill hash")
     if env.get("SKILLOPT_SEARCH_POLICY_SCOPE") != V1_ALLOWED_SCOPE:
         raise ValidationError("live canary runtime_env scope is invalid")
     if rollback.get("skill_hash") == env.get("SKILLOPT_SEARCH_POLICY_HASH"):

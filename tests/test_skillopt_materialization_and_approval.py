@@ -7,6 +7,7 @@ import pytest
 
 from src.search_eval.approved_policy import (
     export_approved_skillopt_policy,
+    split_retrieval_evaluation_record,
     validate_approved_policy_artifact,
 )
 from src.search_eval.retrieval_eval import (
@@ -60,6 +61,26 @@ def _bind_eval_to_skill(candidate_eval: dict, best_skill: Path) -> dict:
     return {**candidate_eval, "evaluated_skill_hash": canonical_file_hash(best_skill)}
 
 
+def _two_stage_eval_inputs(baseline_eval: dict, candidate_eval: dict) -> dict:
+    dataset = load_json(DATASET)
+    selection_ids = [query["query_id"] for query in dataset["queries"] if query["split"] == "selection"]
+    test_ids = [query["query_id"] for query in dataset["queries"] if query["split"] == "test"]
+    selection_baseline = split_retrieval_evaluation_record(baseline_eval, selection_ids)
+    selection_candidate = split_retrieval_evaluation_record(candidate_eval, selection_ids)
+
+    def load_holdout():
+        return (
+            split_retrieval_evaluation_record(baseline_eval, test_ids),
+            split_retrieval_evaluation_record(candidate_eval, test_ids),
+        )
+
+    return {
+        "selection_baseline_eval": selection_baseline,
+        "selection_candidate_eval": selection_candidate,
+        "holdout_eval_loader": load_holdout,
+    }
+
+
 def _approved_policy(tmp_path: Path) -> dict:
     baseline_eval = score_retrieval_results(
         dataset_path=DATASET,
@@ -77,8 +98,7 @@ def _approved_policy(tmp_path: Path) -> dict:
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
 
@@ -184,8 +204,7 @@ def test_export_approved_skillopt_policy_writes_runtime_artifacts(tmp_path: Path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
 
@@ -227,8 +246,7 @@ def test_export_approved_policy_rejects_missing_runtime_safety_phrase(tmp_path: 
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
 
@@ -252,8 +270,7 @@ def test_export_approved_policy_rejects_eval_skill_hash_mismatch(tmp_path: Path)
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
 
@@ -269,20 +286,29 @@ def test_export_approved_policy_rejects_wrong_eval_query_binding(tmp_path: Path)
     )
     candidate_eval = dict(candidate_eval)
     candidate_eval["per_query"] = list(candidate_eval["per_query"])
-    candidate_eval["per_query"][0] = dict(candidate_eval["per_query"][0])
-    candidate_eval["per_query"][0]["query_id"] = "wrong-query-id"
+    selection_id = next(
+        query["query_id"]
+        for query in load_json(DATASET)["queries"]
+        if query["split"] == "selection"
+    )
+    selection_index = next(
+        index
+        for index, row in enumerate(candidate_eval["per_query"])
+        if row["query_id"] == selection_id
+    )
+    candidate_eval["per_query"][selection_index] = dict(candidate_eval["per_query"][selection_index])
+    candidate_eval["per_query"][selection_index]["query_id"] = "wrong-query-id"
     best_skill = _candidate_best_skill(tmp_path)
     candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
 
-    with pytest.raises(ValidationError, match="per_query ids"):
+    with pytest.raises(ValidationError, match="missing required split rows|per_query ids"):
         export_approved_skillopt_policy(
             best_skill_path=best_skill,
             output_dir=tmp_path / "approved",
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
 
@@ -310,8 +336,7 @@ def test_export_rejected_candidate_writes_no_runtime_artifacts_for_selection_gat
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
 
@@ -343,8 +368,7 @@ def test_export_rejected_candidate_writes_no_runtime_artifacts_for_holdout_gate_
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
 
@@ -394,8 +418,7 @@ def test_approved_policy_artifact_rejects_tampered_guardrail_regression(tmp_path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
     tampered = dict(artifact)
@@ -427,8 +450,7 @@ def test_approved_policy_artifact_rejects_tampered_selection_gate(tmp_path: Path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
     tampered = dict(artifact)
@@ -458,8 +480,7 @@ def test_approved_policy_artifact_rejects_zero_ndcg_selection_gate(tmp_path: Pat
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
     tampered = dict(artifact)
@@ -489,8 +510,7 @@ def test_approved_policy_artifact_rejects_tampered_holdout_gate(tmp_path: Path):
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
     tampered = dict(artifact)
@@ -542,10 +562,57 @@ def test_export_rejects_test_split_regression_hidden_by_global_improvement(tmp_p
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            baseline_eval=baseline_eval,
-            candidate_eval=candidate_eval,
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
             materialization_manifest_path=_materialization_manifest_path(tmp_path),
         )
+
+
+def test_selection_failure_never_opens_holdout_evaluation(tmp_path: Path):
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(dataset_path=DATASET, quality="baseline"),
+    )
+    best_skill = _candidate_best_skill(tmp_path)
+    selection_ids = [
+        query["query_id"]
+        for query in load_json(DATASET)["queries"]
+        if query["split"] == "selection"
+    ]
+    selection_baseline = split_retrieval_evaluation_record(baseline_eval, selection_ids)
+    selection_candidate = {
+        **selection_baseline,
+        "evaluated_skill_hash": canonical_file_hash(best_skill),
+    }
+    holdout_opened = False
+
+    def forbidden_holdout_loader():
+        nonlocal holdout_opened
+        holdout_opened = True
+        raise AssertionError("holdout must remain sealed when selection fails")
+
+    with pytest.raises(ValidationError, match="candidate nDCG@10"):
+        export_approved_skillopt_policy(
+            best_skill_path=best_skill,
+            output_dir=tmp_path / "approved",
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            selection_baseline_eval=selection_baseline,
+            selection_candidate_eval=selection_candidate,
+            holdout_eval_loader=forbidden_holdout_loader,
+            materialization_manifest_path=_materialization_manifest_path(tmp_path),
+            minimum_ndcg_delta=0.01,
+        )
+
+    assert holdout_opened is False
+
+
+def test_selection_and_holdout_evidence_bind_distinct_records(tmp_path: Path):
+    artifact = _approved_policy(tmp_path)
+
+    assert artifact["metric_snapshot"]["split"] == "selection"
+    assert artifact["selection_gate"]["candidate_eval_hash"] == artifact["metric_snapshot"]["candidate_eval_hash"]
+    assert artifact["selection_gate"]["candidate_eval_hash"] != artifact["holdout_gate"]["candidate_eval_hash"]
 
 
 @pytest.mark.parametrize(
@@ -592,8 +659,7 @@ def test_approved_policy_artifact_rejects_non_finite_primary_metric(tmp_path: Pa
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        baseline_eval=baseline_eval,
-        candidate_eval=candidate_eval,
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
         materialization_manifest_path=_materialization_manifest_path(tmp_path),
     )
     tampered = dict(artifact)

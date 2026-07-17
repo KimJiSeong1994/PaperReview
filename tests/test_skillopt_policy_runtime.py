@@ -185,6 +185,34 @@ class TestSkillOptPolicyLoader:
                 }
             )
 
+    def test_policy_loader_fallback_rejects_same_inode_symlink_swap(self, tmp_path: Path, monkeypatch) -> None:
+        path, digest = _write_policy(tmp_path)
+        hardlink = tmp_path / "same-inode-policy.md"
+        os.link(path, hardlink)
+        real_open = os.open
+        swapped = False
+
+        def swap_after_open(open_path, flags, *args, **kwargs):
+            nonlocal swapped
+            descriptor = real_open(open_path, flags, *args, **kwargs)
+            if not swapped:
+                swapped = True
+                Path(open_path).unlink()
+                Path(open_path).symlink_to(hardlink)
+            return descriptor
+
+        monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+        monkeypatch.setattr(os, "open", swap_after_open)
+
+        with pytest.raises(SkillOptPolicyError, match="became a symlink"):
+            load_skillopt_policy_from_env(
+                {
+                    SKILLOPT_POLICY_ENABLED_ENV: "true",
+                    SKILLOPT_POLICY_PATH_ENV: str(path),
+                    SKILLOPT_POLICY_HASH_ENV: digest,
+                }
+            )
+
     def test_policy_loader_rejects_wrong_scope_and_unsafe_content(self, tmp_path: Path) -> None:
         path, digest = _write_policy(tmp_path)
         with pytest.raises(SkillOptPolicyError, match=SKILLOPT_POLICY_SCOPE_ENV):

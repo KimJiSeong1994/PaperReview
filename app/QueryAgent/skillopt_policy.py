@@ -148,8 +148,15 @@ def _read_regular_policy_file(path: Path) -> bytes:
         raise SkillOptPolicyError(f"Failed to open SkillOpt policy file: {path}") from exc
     try:
         file_stat = os.fstat(descriptor)
-        if link_stat is not None and (file_stat.st_dev, file_stat.st_ino) != (link_stat.st_dev, link_stat.st_ino):
-            raise SkillOptPolicyError(f"SkillOpt policy file changed while opening: {path}")
+        if link_stat is not None:
+            current_path_stat = path.lstat()
+            if stat.S_ISLNK(current_path_stat.st_mode):
+                raise SkillOptPolicyError(f"SkillOpt policy path became a symlink while opening: {path}")
+            if (
+                (file_stat.st_dev, file_stat.st_ino) != (link_stat.st_dev, link_stat.st_ino)
+                or (current_path_stat.st_dev, current_path_stat.st_ino) != (file_stat.st_dev, file_stat.st_ino)
+            ):
+                raise SkillOptPolicyError(f"SkillOpt policy file changed while opening: {path}")
         if not stat.S_ISREG(file_stat.st_mode):
             raise SkillOptPolicyError(f"SkillOpt policy path must be a regular file: {path}")
         if file_stat.st_size > _MAX_POLICY_BYTES:
