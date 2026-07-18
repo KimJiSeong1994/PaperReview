@@ -14,6 +14,15 @@ vi.mock('../PlotlyChart', () => ({
 
 const REPORT = {
   window: { days: 28, start: '2026-06-17', end: '2026-07-14', timezone: 'Asia/Seoul' },
+  measurement: {
+    population: 'consented_browser_events' as const,
+    session_definition: 'browser_tab_lifetime' as const,
+    first_event_at: '2026-06-17T00:00:00Z',
+    last_event_at: '2026-07-14T02:00:00Z',
+    history_days: 28,
+    observed_days: 2,
+    event_count: 95,
+  },
   traffic: {
     totals: {
       visitors: 12,
@@ -95,7 +104,9 @@ describe('AdminVisitsReport', () => {
     // At-a-glance hero repeats headline numbers, so several appear twice.
     expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1); // visitors
     expect(screen.getAllByText('60%').length).toBeGreaterThanOrEqual(1); // engaged rate
-    expect(screen.getByText(/퍼스트파티 직접수집/)).toBeInTheDocument(); // data-source line
+    expect(screen.getByText(/퍼스트파티 이벤트 표본/)).toBeInTheDocument(); // data-source line
+    expect(screen.getByText(/동의 표본/)).toBeInTheDocument();
+    expect(screen.getByText(/30분 비활동 기준 세션이 아닙니다/)).toBeInTheDocument();
     expect(screen.getByText('독자층')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
@@ -103,6 +114,8 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument();
     expect(screen.getByText('Google')).toBeInTheDocument();
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
+    expect(screen.getByText('GA4 채널')).toBeInTheDocument();
+    expect(screen.getByText(/연동을 기다리고 있습니다/)).toBeInTheDocument();
     expect(screen.getAllByText('검색').length).toBeGreaterThanOrEqual(1); // product event + funnel step label
     // Conversion funnel section renders with its steps + overall conversion.
     expect(screen.getByText('전환 퍼널')).toBeInTheDocument();

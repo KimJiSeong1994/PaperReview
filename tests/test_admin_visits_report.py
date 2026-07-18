@@ -75,8 +75,19 @@ def test_build_visits_report_aggregates(analytics_db: Path) -> None:
     assert totals["signed_in_users"] == 1
     assert totals["returning_visitors"] == 1
     assert totals["new_visitors"] == 1
+    assert totals["avg_daily_visitors"] == 0.3
 
     assert report["window"]["timezone"] == "Asia/Seoul"
+    assert report["window"]["start"] == "2026-07-08"
+    assert report["measurement"] == {
+        "population": "consented_browser_events",
+        "session_definition": "browser_tab_lifetime",
+        "first_event_at": "2026-01-01T00:00:00Z",
+        "last_event_at": "2026-07-14T02:00:00Z",
+        "history_days": 7,
+        "observed_days": 1,
+        "event_count": 4,
+    }
     daily = {d["date"]: d for d in report["traffic"]["daily"]}
     assert daily["2026-07-14"]["visitors"] == 2
     assert daily["2026-07-14"]["page_views"] == 3
@@ -107,6 +118,27 @@ def test_build_visits_report_aggregates(analytics_db: Path) -> None:
 
     assert report["ga4"]["available"] is False
     assert report["ga4"]["last_run"] is None
+
+
+def test_avg_daily_visitors_sums_daily_distinct_counts(tmp_path: Path) -> None:
+    db = tmp_path / "analytics.db"
+    ensure_analytics_db(db)
+    _seed(
+        db,
+        [
+            (None, "c1", "s1", "page_view", "/blog", "2026-07-13T01:00:00Z"),
+            (None, "c1", "s2", "page_view", "/blog", "2026-07-14T01:00:00Z"),
+        ],
+    )
+
+    report = build_visits_report(db, days=7, now=NOW)
+
+    # One period-unique visitor appeared on two separate days: the daily
+    # average must use 2 daily visitors / 7 days, not 1 unique / 7 days.
+    assert report["traffic"]["totals"]["visitors"] == 1
+    assert report["traffic"]["totals"]["avg_daily_visitors"] == 0.3
+    assert report["measurement"]["history_days"] == 2
+    assert report["measurement"]["observed_days"] == 2
 
 
 def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:

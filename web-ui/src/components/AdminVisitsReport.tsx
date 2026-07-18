@@ -30,6 +30,13 @@ const EVENT_LABELS: Record<string, string> = {
   poster_generate_fail: '포스터 실패',
 };
 
+const GA4_STATE_COPY: Record<VisitsReportData['ga4']['state'], string> = {
+  connected: '동기화는 정상이며 선택 기간의 채널 데이터를 표시합니다.',
+  pending: 'BigQuery 내보내기 데이터셋이 아직 준비되지 않아 연동을 기다리고 있습니다.',
+  failed: '최근 GA4 동기화가 실패했습니다. 오류와 권한 설정을 확인해야 합니다.',
+  never_run: 'GA4 동기화 실행 이력이 없습니다.',
+};
+
 class ChartErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
@@ -320,12 +327,22 @@ function AdminVisitsReport() {
     abandoned: 0,
   };
 
-  // Analytics history is finite: when the selected window reaches back before
-  // the first collected day, the report only covers from that first day — so
-  // e.g. 28일 and 90일 look near-identical. Surface that so the shorter result
-  // doesn't read as "the toggle is broken".
-  const coveredDays = daySpan(report.window.start, report.window.end);
-  const windowLimited = coveredDays > 0 && coveredDays < days - 1;
+  // Older backends did not expose measurement metadata. Keep the fallback so
+  // a rolling deployment remains readable while preferring server definitions.
+  const measurement = report.measurement ?? {
+    population: 'consented_browser_events' as const,
+    session_definition: 'browser_tab_lifetime' as const,
+    first_event_at: null,
+    last_event_at: null,
+    history_days: daySpan(report.window.start, report.window.end),
+    observed_days: daily.length,
+    event_count: 0,
+  };
+  const coveredDays = measurement.history_days;
+  const windowLimited = coveredDays > 0 && coveredDays < days;
+  const lastEventLabel = measurement.last_event_at
+    ? new Date(measurement.last_event_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    : '수집 기록 없음';
 
   return (
     <div className="admin-dashboard visits-report">
@@ -389,13 +406,15 @@ function AdminVisitsReport() {
 
       <details className="visits-method">
         <summary>
-          <span>집계 기간과 기준</span>
-          <span>{days}일 · 퍼스트파티 방문 · nginx 유입</span>
+          <span>측정 신뢰도와 집계 기준</span>
+          <span>동의 표본 · 활동일 {measurement.observed_days}일 · 마지막 {lastEventLabel}</span>
         </summary>
         <p>
-          사람 지표는 퍼스트파티 직접수집, AI·채널은 nginx 로그 기준이며 모든 시각은 KST입니다.
-          방문·세션·페이지뷰는 동의 방문자의 직접 수집 데이터라 자바스크립트를 실행하지 않는 봇이
-          제외됩니다. AI 크롤러·인용은 nginx 접근 로그로 별도 집계합니다.
+          방문·세션·페이지뷰는 분석에 동의한 브라우저의 퍼스트파티 이벤트 표본입니다. 방문자는
+          브라우저 식별자, 세션은 같은 브라우저 탭이 유지되는 동안의 이벤트 묶음이므로 전체 트래픽이나
+          GA식 30분 세션과 동일하지 않습니다. 사람 지표는 KST 달력일, AI·외부 유입은 nginx 로그의
+          최근 시간 범위로 집계합니다. 선택 기간 이벤트는 {fmt(measurement.event_count)}건이며,
+          퍼스트파티 마지막 수신 시각은 {lastEventLabel}입니다.
         </p>
       </details>
 
@@ -407,7 +426,7 @@ function AdminVisitsReport() {
 
       <Section
         title="방문 추이"
-        tip="방문자는 중복 제거한 순 방문자, 세션은 30분 이상 끊긴 뒤 다시 들어온 방문 묶음입니다. 한 사람이 여러 번 오면 세션이 방문자보다 큽니다."
+        tip="방문자는 동의 브라우저 식별자의 기간 순사용자 수입니다. 세션은 같은 브라우저 탭의 수명 동안 유지되는 이벤트 묶음이며, 30분 비활동 기준 세션이 아닙니다."
       >
         <div className="admin-stats-grid">
           <StatTile
@@ -810,7 +829,10 @@ function AdminVisitsReport() {
         )}
       </Section>
 
-      <Section title="유입 경로 (UTM)">
+      <Section
+        title="블로그 유입 경로 (UTM)"
+        tip="현재 UTM 집계는 /blog/ 경로의 페이지뷰만 포함하며 서비스 전체 캠페인 성과가 아닙니다."
+      >
         {report.acquisition.utm_sources.length === 0 ? (
           <EmptyState>
             UTM 파라미터가 붙은 링크로 들어온 방문이 없습니다. 캠페인·뉴스레터 링크에 UTM을 달면
@@ -843,18 +865,18 @@ function AdminVisitsReport() {
         )}
       </Section>
 
-      {report.ga4.available && (
-        <Section
-          title="GA4 채널"
-          tip="GA4가 집계한 소스/매체별 채널입니다. GA4는 동의 기반 표본이라 퍼스트파티 지표보다 수치가 작을 수 있습니다."
-        >
+      <Section
+        title="GA4 채널"
+        tip="GA4가 집계한 소스/매체별 채널입니다. 사용자 값은 일별 total_users 합계여서 선택 기간의 순사용자 수가 아닐 수 있습니다."
+      >
+        {report.ga4.available ? (
           <Card>
           <table className="visits-table">
             <thead>
               <tr>
                 <th>소스</th>
                 <th>매체</th>
-                <th className="visits-num-th">사용자</th>
+                <th className="visits-num-th">사용자 · 일별 합</th>
                 <th className="visits-num-th">세션</th>
               </tr>
             </thead>
@@ -870,8 +892,15 @@ function AdminVisitsReport() {
             </tbody>
           </table>
           </Card>
-        </Section>
-      )}
+        ) : (
+          <Card>
+            <EmptyState>
+              {GA4_STATE_COPY[report.ga4.state]}
+              {report.ga4.last_run?.error ? ` 최근 오류: ${report.ga4.last_run.error}` : ''}
+            </EmptyState>
+          </Card>
+        )}
+      </Section>
 
       <Band
         label="제품"

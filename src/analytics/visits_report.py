@@ -51,6 +51,18 @@ def _window_start_utc(days: int, now: dt.datetime | None = None) -> str:
     return start_kst.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _inclusive_day_span(start_date: str | None, end_date: str) -> int:
+    """Inclusive ISO-date span, or zero when no valid start is available."""
+    if not start_date:
+        return 0
+    try:
+        start = dt.date.fromisoformat(start_date)
+        end = dt.date.fromisoformat(end_date)
+    except ValueError:
+        return 0
+    return max((end - start).days + 1, 0)
+
+
 # Curated product funnels rendered on the admin report. Each is an ordered list
 # of first-party event names; a session counts toward step k only if it fired
 # every earlier step at-or-before step k (first-occurrence ordered funnel). No
@@ -202,9 +214,34 @@ def build_visits_report(
     """Aggregate the first-party event log into the admin visits report."""
     start_utc = _window_start_utc(days, now)
     now_kst = (now or dt.datetime.now(dt.timezone.utc)).astimezone(KST)
+    requested_start_date = (now_kst.date() - dt.timedelta(days=days - 1)).isoformat()
+    window_end_date = now_kst.date().isoformat()
     conn = _connect(db_path)
     try:
         params = {"start_utc": start_utc, "top_limit": top_limit}
+
+        measurement_row = conn.execute(
+            """
+            SELECT
+              MIN(created_at) AS first_event_at,
+              MAX(received_at) AS last_event_at,
+              substr(datetime(MIN(created_at), '+9 hours'), 1, 10)
+                AS first_event_date
+            FROM app_analytics_events
+            """
+        ).fetchone()
+
+        window_measurement_row = conn.execute(
+            """
+            SELECT
+              COUNT(*) AS event_count,
+              COUNT(DISTINCT substr(datetime(created_at, '+9 hours'), 1, 10))
+                AS observed_days
+            FROM app_analytics_events
+            WHERE created_at >= :start_utc
+            """,
+            params,
+        ).fetchone()
 
         totals = conn.execute(
             """
@@ -381,13 +418,26 @@ def build_visits_report(
 
     sessions_total = totals["sessions"] or 0
     page_views_total = totals["page_views"] or 0
+    daily_visitor_total = sum(int(row["visitors"] or 0) for row in daily)
+    first_event_date = measurement_row["first_event_date"]
+    history_start_date = max(first_event_date, requested_start_date) if first_event_date else None
+    history_days = min(_inclusive_day_span(history_start_date, window_end_date), days)
 
     return {
         "window": {
             "days": days,
-            "start": daily[0]["date"] if daily else now_kst.strftime("%Y-%m-%d"),
-            "end": now_kst.strftime("%Y-%m-%d"),
+            "start": requested_start_date,
+            "end": window_end_date,
             "timezone": "Asia/Seoul",
+        },
+        "measurement": {
+            "population": "consented_browser_events",
+            "session_definition": "browser_tab_lifetime",
+            "first_event_at": measurement_row["first_event_at"],
+            "last_event_at": measurement_row["last_event_at"],
+            "history_days": history_days,
+            "observed_days": window_measurement_row["observed_days"] or 0,
+            "event_count": window_measurement_row["event_count"] or 0,
         },
         "traffic": {
             "totals": {
@@ -397,7 +447,9 @@ def build_visits_report(
                 "signed_in_users": totals["signed_in_users"] or 0,
                 "returning_visitors": returning or 0,
                 "new_visitors": max((totals["visitors"] or 0) - (returning or 0), 0),
-                "avg_daily_visitors": round((totals["visitors"] or 0) / days, 1),
+                # A visitor may appear on multiple days. Sum each day's
+                # distinct visitors before dividing by the requested window.
+                "avg_daily_visitors": round(daily_visitor_total / days, 1),
                 "engaged_sessions": engaged_sessions,
                 "engaged_rate": round(engaged_sessions / sessions_total, 3)
                 if sessions_total
