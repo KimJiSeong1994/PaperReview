@@ -166,8 +166,11 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
     papers = papers_data.get("papers", [])
     bookmarks_data = load_bookmarks()
 
+    # This is a volatile deep-review job registry, not a web-analytics session
+    # count. Keep the legacy response key below for API compatibility, but
+    # expose a correctly named canonical field for the admin UI.
     with review_sessions_lock:
-        session_count = len(review_sessions)
+        recent_review_session_count = len(review_sessions)
 
     # Knowledge graph metadata
     kg_nodes, kg_edges = 0, 0
@@ -193,9 +196,10 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
             year_counter[y] += 1
     papers_by_year = [{"year": y, "count": c} for y, c in sorted(year_counter.items())]
 
-    # Top search queries
+    # Queries attached to stored papers. One query can contribute many papers,
+    # so this is a collection-contribution count, not search-event frequency.
     query_counter = Counter(p.get("search_query", "") for p in papers if p.get("search_query"))
-    top_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(7)]
+    collection_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(7)]
 
     # Top categories
     cat_counter: Counter = Counter()
@@ -219,14 +223,34 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
         "total_users": len(users),
         "total_papers": len(papers),
         "total_bookmarks": len(bookmarks_data.get("bookmarks", [])),
-        "total_sessions": session_count,
+        "recent_review_sessions": recent_review_session_count,
+        # Deprecated compatibility alias. This has never represented visits.
+        "total_sessions": recent_review_session_count,
         "kg_nodes": kg_nodes,
         "kg_edges": kg_edges,
         "papers_by_source": papers_by_source,
         "papers_by_year": papers_by_year,
-        "top_queries": top_queries,
+        "collection_queries": collection_queries,
+        # Deprecated compatibility alias. Counts stored papers per query.
+        "top_queries": collection_queries,
         "top_categories": top_categories,
         "recent_papers": recent_papers,
+        "metric_definitions": {
+            "recent_review_sessions": {
+                "population": "volatile_deep_review_jobs",
+                "ttl_hours": 24,
+                "durable": False,
+            },
+            "collection_queries": {
+                "population": "stored_papers_with_search_query",
+                "unit": "papers",
+                "is_search_frequency": False,
+            },
+            "paper_catalog": {
+                "source": "raw_papers_json",
+                "relationship_to_users": "none",
+            },
+        },
     }
 
 

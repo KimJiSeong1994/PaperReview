@@ -90,6 +90,8 @@ function RankList({
 }
 
 export default function AdminDashboardReport({ stats }: { stats: AdminDashboard }) {
+  const recentReviewSessions = stats.recent_review_sessions ?? stats.total_sessions ?? 0;
+  const collectionQueries = stats.collection_queries ?? stats.top_queries ?? [];
   const leadingSource = stats.papers_by_source?.reduce<(typeof stats.papers_by_source)[number] | null>(
     (leader, current) => (!leader || current.count > leader.count ? current : leader),
     null,
@@ -121,13 +123,13 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
         <div className="visits-insight-grid">
           <InsightCard
             eyebrow="이용과 콘텐츠"
-            headline={<>{fmt(stats.total_users)}명이 {fmt(stats.total_papers)}편을 탐색</>}
-            body={`사용자 한 명당 평균 ${(stats.total_papers / Math.max(stats.total_users, 1)).toFixed(1)}편의 논문이 축적돼 있습니다.`}
+            headline={<>{fmt(stats.total_users)}명 등록 · {fmt(stats.total_papers)}편 보유</>}
+            body="등록 계정 수와 전역 논문 카탈로그의 누적 규모이며, 사용자별 열람량을 뜻하지 않습니다."
           />
           <InsightCard
-            eyebrow="저장과 재방문"
-            headline={<>{fmt(stats.total_bookmarks)}개 저장 · {fmt(stats.total_sessions)}개 세션</>}
-            body="북마크와 세션을 함께 보면 수집된 콘텐츠가 실제 탐색 행동으로 이어지는 규모를 알 수 있습니다."
+            eyebrow="저장과 최근 작업"
+            headline={<>{fmt(stats.total_bookmarks)}개 저장 · {fmt(recentReviewSessions)}개 리뷰 작업</>}
+            body="리뷰 작업은 최근 24시간의 인메모리 작업 수로, 방문 세션이나 영구 작업 이력이 아닙니다."
           />
           <InsightCard
             eyebrow="지식 연결"
@@ -138,7 +140,7 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
       </section>
 
       <div className="dashboard-context-strip" aria-label="리포트 기준">
-        <div><span>집계 기준</span><strong>현재 누적 데이터</strong></div>
+        <div><span>집계 기준</span><strong>누적 자산 · 휘발성 작업 분리</strong></div>
         <div><span>주요 수집원</span><strong>{leadingSource?.source ?? '기록 없음'}</strong></div>
         <div><span>최근 수집</span><strong>{latestDate}</strong></div>
       </div>
@@ -161,7 +163,7 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
           <StatTile label="사용자" value={fmt(stats.total_users)} hint="등록 계정" />
           <StatTile label="논문" value={fmt(stats.total_papers)} hint="수집 콘텐츠" />
           <StatTile label="북마크" value={fmt(stats.total_bookmarks)} hint="저장 행동" />
-          <StatTile label="세션" value={fmt(stats.total_sessions)} hint="탐색 기록" />
+          <StatTile label="최근 리뷰 작업" value={fmt(recentReviewSessions)} hint="24시간 인메모리" />
           <StatTile label="KG 노드" value={fmt(stats.kg_nodes)} hint="지식 개체" />
           <StatTile label="KG 연결" value={fmt(stats.kg_edges)} hint="개체 관계" />
         </div>
@@ -234,15 +236,15 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
       </section>
 
       <Band
-        label="탐색 신호"
-        title="관심과 분류"
-        description="어떤 질문으로 탐색하고, 어떤 연구 분야에 콘텐츠가 모여 있는지 비교합니다."
+        label="수집 메타데이터"
+        title="수집 기여와 분류"
+        description="검색 인기도가 아니라, 저장된 논문에 남은 수집 쿼리와 연구 분야를 비교합니다."
       />
       <div className="dashboard-rank-grid">
         <RankList
-          title="많이 찾은 검색어"
-          emptyLabel="검색 데이터가 없습니다."
-          rows={(stats.top_queries ?? []).map((item) => ({ label: item.query, count: item.count }))}
+          title="논문 수집 기여 쿼리 · 논문 수"
+          emptyLabel="수집 쿼리 데이터가 없습니다."
+          rows={collectionQueries.map((item) => ({ label: item.query, count: item.count }))}
         />
         <RankList
           title="상위 연구 분야"

@@ -4,14 +4,34 @@ export interface AdminDashboard {
   total_users: number;
   total_papers: number;
   total_bookmarks: number;
-  total_sessions: number;
+  recent_review_sessions: number;
+  /** @deprecated Volatile deep-review jobs, not traffic sessions. */
+  total_sessions?: number;
   kg_nodes: number;
   kg_edges: number;
   papers_by_source: { source: string; count: number }[];
   papers_by_year: { year: string; count: number }[];
-  top_queries: { query: string; count: number }[];
+  collection_queries: { query: string; count: number }[];
+  /** @deprecated Stored-paper contribution counts, not search frequency. */
+  top_queries?: { query: string; count: number }[];
   top_categories: { category: string; count: number }[];
   recent_papers: { title: string; source: string; collected_at: string }[];
+  metric_definitions: {
+    recent_review_sessions: {
+      population: 'volatile_deep_review_jobs';
+      ttl_hours: number;
+      durable: false;
+    };
+    collection_queries: {
+      population: 'stored_papers_with_search_query';
+      unit: 'papers';
+      is_search_frequency: false;
+    };
+    paper_catalog: {
+      source: 'raw_papers_json';
+      relationship_to_users: 'none';
+    };
+  };
 }
 
 export interface VisitsDaily {
@@ -23,6 +43,15 @@ export interface VisitsDaily {
 
 export interface AdminVisitsReport {
   window: { days: number; start: string; end: string; timezone: string };
+  measurement: {
+    population: 'consented_browser_events';
+    session_definition: 'browser_tab_lifetime';
+    first_event_at: string | null;
+    last_event_at: string | null;
+    history_days: number;
+    observed_days: number;
+    event_count: number;
+  };
   traffic: {
     totals: {
       visitors: number;

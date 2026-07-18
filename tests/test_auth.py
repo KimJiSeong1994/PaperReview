@@ -284,6 +284,9 @@ class TestRoleBasedAccess:
         data = resp.json()
         assert "total_users" in data
         assert "total_papers" in data
+        assert "recent_review_sessions" in data
+        assert "collection_queries" in data
+        assert data["metric_definitions"]["recent_review_sessions"]["durable"] is False
 
     async def test_user_cannot_access_admin(self, client):
         """A regular user token gets 403 on admin-only endpoints."""
