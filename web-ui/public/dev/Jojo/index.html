@@ -50,9 +50,9 @@
             <!-- 카메라 영상 -->
             <video id="video" autoplay muted playsinline class="w-full h-full object-cover opacity-0 transition-opacity duration-1000"></video>
 
-            <!-- 30초 게임 타이머 -->
+            <!-- 10초 게임 타이머 -->
             <div id="timerBadge" class="absolute right-3 top-3 z-20 hidden rounded-xl border border-white/20 bg-slate-950/80 px-3 py-2 font-black text-white shadow-lg backdrop-blur-sm" aria-live="polite">
-                ⏱️ <span id="timerDisplay" class="font-mono text-2xl text-yellow-400">30</span><span class="text-sm text-slate-300">초</span>
+                ⏱️ <span id="timerDisplay" class="font-mono text-2xl text-yellow-400">10</span><span class="text-sm text-slate-300">초</span>
             </div>
             
             <!-- 상태창 & 로딩 화면 -->
@@ -114,7 +114,7 @@
                 <div class="mb-3 text-center">
                     <p class="text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Hall of Fame</p>
                     <h2 class="text-xl font-black text-white">웃음 베스트 전당 🏆</h2>
-                    <p class="mt-1 text-xs text-slate-400">30초 라운드별 최고 사진 중 TOP 3</p>
+                    <p class="mt-1 text-xs text-slate-400">10초 라운드별 최고 사진 중 TOP 3</p>
                 </div>
                 <div id="hallOfFameGrid" class="grid grid-cols-1 gap-3 sm:grid-cols-3"></div>
                 <p class="mt-3 text-center text-xs text-slate-500">이 페이지를 열어둔 동안만 보관되며 서버로 전송되지 않습니다.</p>
@@ -166,10 +166,10 @@
         let roundBestImage = '';
         let hallOfFameShots = [];
         let bestShotHighlightTimer;
-        const GAME_DURATION_SECONDS = 30;
+        const GAME_DURATION_SECONDS = 10;
         const HALL_OF_FAME_SIZE = 3;
         const SMOOTHING_FACTOR = 0.22; // 표정 변화를 빠르게 따라가되 화면이 튀지 않게 완화
-        const DIFFICULTY_EXPONENT = 1.8; // 평범한 미소도 반응하고 활짝 웃을수록 고득점
+        const DIFFICULTY_EXPONENT = 4.0; // 크게 웃어야 점수가 본격적으로 오르는 고난도 설정
         const FACE_DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({
             inputSize: 320,
             scoreThreshold: 0.35,
@@ -416,11 +416,11 @@
 
             statusOverlay.classList.remove('hidden');
             statusText.classList.remove('animate-pulse');
-            statusText.innerHTML = `⏱️ 30초 게임 종료!<br><span class="text-2xl font-black text-yellow-400">최고 ${roundBestScore}점</span>`;
+            statusText.innerHTML = `⏱️ ${GAME_DURATION_SECONDS}초 게임 종료!<br><span class="text-2xl font-black text-yellow-400">최고 ${roundBestScore}점</span>`;
             showStartButton('다시 게임 😆');
         }
 
-        // 4. 카메라 재생 시점부터 정확히 30초 동안 분석한다.
+        // 4. 첫 카메라 프레임이 준비된 시점부터 제한시간 동안 분석한다.
         function beginRound() {
             if (gameActive) return;
             resetRoundUI();
