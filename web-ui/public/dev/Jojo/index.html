@@ -52,10 +52,13 @@
             
             <!-- 상태창 & 로딩 화면 -->
             <div id="statusOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 p-6 text-center">
-                <div id="loadingSpinner" class="loader mb-4"></div>
-                <p id="statusText" class="text-yellow-400 font-semibold text-lg animate-pulse">
-                    AI 얼굴 인식 준비 중...<br><span class="text-sm text-slate-400">(처음엔 10~20초 정도 걸릴 수 있어요)</span>
+                <div id="loadingSpinner" class="loader mb-4 hidden"></div>
+                <p id="statusText" class="text-yellow-400 font-semibold text-lg">
+                    준비되면 게임을 시작하세요!<br><span class="text-sm text-slate-400">버튼을 누른 뒤 카메라 권한을 허용해주세요.</span>
                 </p>
+                <button id="startButton" type="button" class="mt-6 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 px-8 py-4 text-xl font-black text-slate-950 shadow-lg shadow-orange-500/30 transition hover:scale-105 hover:shadow-orange-500/50 active:scale-95 focus:outline-none focus:ring-4 focus:ring-yellow-300/50">
+                    게임 시작 😆
+                </button>
                 <div id="cameraHint" class="hidden mt-4 text-sm text-slate-300 bg-slate-800 p-4 rounded-xl border border-slate-600">
                     ⚠️ 화면이 안 나온다면 <b>카메라 접근 권한</b>을 허용해주세요.<br>
                     (브라우저 주소창 왼쪽의 자물쇠 아이콘 클릭 ➔ 카메라 허용)
@@ -125,8 +128,10 @@
         const statusText = document.getElementById('statusText');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const cameraHint = document.getElementById('cameraHint');
+        const startButton = document.getElementById('startButton');
 
         let confettiFired = false;
+        let modelsLoaded = false;
         
         // 부드러운 점수 변화를 위한 변수
         let displayedScore = 0;
@@ -138,7 +143,31 @@
         // 확실하게 동작하는 GitHub 호스팅 모델 URL 사용
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 
-        // 1. AI 모델 로드하기
+        function showStartButton(label = '다시 시도') {
+            loadingSpinner.classList.add('hidden');
+            startButton.innerText = label;
+            startButton.disabled = false;
+            startButton.classList.remove('hidden');
+        }
+
+        // 1. 시작 버튼을 누른 뒤에만 모델과 카메라를 준비한다.
+        async function startGame() {
+            startButton.disabled = true;
+            startButton.classList.add('hidden');
+            cameraHint.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            statusText.classList.add('animate-pulse');
+            statusText.innerHTML = "AI 얼굴 인식 준비 중...<br><span class='text-sm text-slate-400'>(처음엔 10~20초 정도 걸릴 수 있어요)</span>";
+
+            if (modelsLoaded) {
+                statusText.innerText = '카메라를 켜는 중입니다...';
+                await startVideo();
+                return;
+            }
+            await loadModels();
+        }
+
+        // 2. AI 모델 로드하기
         async function loadModels() {
             try {
                 // 모델 2개 로드 (얼굴 찾기, 표정 분석)
@@ -146,21 +175,24 @@
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
                 ]);
-                
+
+                modelsLoaded = true;
                 statusText.innerText = "카메라를 켜는 중입니다...";
-                startVideo();
+                await startVideo();
             } catch (error) {
                 console.error("모델 로딩 에러:", error);
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ AI 다운로드 실패.<br>인터넷 환경을 확인하고 새로고침 해주세요.";
+                statusText.classList.remove('animate-pulse');
+                showStartButton();
             }
         }
 
-        // 2. 카메라 시작하기
+        // 3. 카메라 시작하기
         async function startVideo() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ 이 브라우저에서는 카메라를 지원하지 않습니다.";
+                statusText.classList.remove('animate-pulse');
+                showStartButton();
                 return;
             }
 
@@ -171,13 +203,14 @@
                 video.srcObject = stream;
             } catch (err) {
                 console.error("카메라 에러:", err);
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ 카메라에 접근할 수 없습니다.";
+                statusText.classList.remove('animate-pulse');
                 cameraHint.classList.remove('hidden'); // 권한 힌트 표시
+                showStartButton();
             }
         }
 
-        // 3. 비디오 재생이 시작되면 분석 루프 시작
+        // 4. 비디오 재생이 시작되면 분석 루프 시작
         video.addEventListener('play', () => {
             // 로딩 오버레이 숨기기
             statusOverlay.classList.add('hidden');
@@ -203,7 +236,7 @@
             }, 100);
         });
 
-        // 4. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
+        // 5. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
         function captureBestSmile(score) {
             if (!video.videoWidth || !video.videoHeight) return;
 
@@ -229,7 +262,7 @@
             }, 500);
         }
 
-        // 5. UI 및 점수 업데이트 로직
+        // 6. UI 및 점수 업데이트 로직
         function updateScoreUI(happyProb, isFaceDetected) {
             let targetScore = 0;
 
@@ -296,7 +329,7 @@
             }
         }
 
-        // 6. 100점 달성 시 폭죽 효과
+        // 7. 100점 달성 시 폭죽 효과
         function fireConfetti() {
             var duration = 2000;
             var end = Date.now() + duration;
@@ -323,8 +356,8 @@
             }());
         }
 
-        // 앱 구동 시작
-        loadModels();
+        // 사용자가 명시적으로 시작하기 전에는 모델 다운로드와 카메라 요청을 하지 않는다.
+        startButton.addEventListener('click', startGame);
     </script>
 </body>
 </html>
