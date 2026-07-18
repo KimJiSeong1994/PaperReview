@@ -49,13 +49,21 @@
             
             <!-- 카메라 영상 -->
             <video id="video" autoplay muted playsinline class="w-full h-full object-cover opacity-0 transition-opacity duration-1000"></video>
+
+            <!-- 30초 게임 타이머 -->
+            <div id="timerBadge" class="absolute right-3 top-3 z-20 hidden rounded-xl border border-white/20 bg-slate-950/80 px-3 py-2 font-black text-white shadow-lg backdrop-blur-sm" aria-live="polite">
+                ⏱️ <span id="timerDisplay" class="font-mono text-2xl text-yellow-400">30</span><span class="text-sm text-slate-300">초</span>
+            </div>
             
             <!-- 상태창 & 로딩 화면 -->
             <div id="statusOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 p-6 text-center">
-                <div id="loadingSpinner" class="loader mb-4"></div>
-                <p id="statusText" class="text-yellow-400 font-semibold text-lg animate-pulse">
-                    AI 얼굴 인식 준비 중...<br><span class="text-sm text-slate-400">(처음엔 10~20초 정도 걸릴 수 있어요)</span>
+                <div id="loadingSpinner" class="loader mb-4 hidden"></div>
+                <p id="statusText" class="text-yellow-400 font-semibold text-lg">
+                    준비되면 게임을 시작하세요!<br><span class="text-sm text-slate-400">버튼을 누른 뒤 카메라 권한을 허용해주세요.</span>
                 </p>
+                <button id="startButton" type="button" class="mt-6 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 px-8 py-4 text-xl font-black text-slate-950 shadow-lg shadow-orange-500/30 transition hover:scale-105 hover:shadow-orange-500/50 active:scale-95 focus:outline-none focus:ring-4 focus:ring-yellow-300/50">
+                    게임 시작 😆
+                </button>
                 <div id="cameraHint" class="hidden mt-4 text-sm text-slate-300 bg-slate-800 p-4 rounded-xl border border-slate-600">
                     ⚠️ 화면이 안 나온다면 <b>카메라 접근 권한</b>을 허용해주세요.<br>
                     (브라우저 주소창 왼쪽의 자물쇠 아이콘 클릭 ➔ 카메라 허용)
@@ -82,6 +90,35 @@
             <div class="w-full h-6 bg-slate-700 rounded-full overflow-hidden p-1 shadow-inner">
                 <div id="happinessBar" class="h-full w-0 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded-full transition-all duration-[50ms] ease-linear"></div>
             </div>
+
+            <!-- 최고 점수 순간 자동 캡처 -->
+            <section id="bestShotCard" class="hidden w-full rounded-2xl border border-yellow-400/50 bg-slate-900/70 p-4 shadow-lg transition-all duration-300" aria-live="polite">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.2em] text-yellow-400">Best Smile</p>
+                        <h2 class="text-lg font-extrabold text-white">최고의 웃음 순간 📸</h2>
+                    </div>
+                    <div class="rounded-xl bg-yellow-400 px-3 py-2 text-slate-950 shadow-md shadow-yellow-500/20">
+                        <span id="bestScoreDisplay" class="text-2xl font-black font-mono">0</span>
+                        <span class="text-sm font-extrabold">점</span>
+                    </div>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+                    <canvas id="bestShotCanvas" class="block aspect-[4/3] w-full object-cover" aria-label="최고 웃음 점수가 기록된 순간"></canvas>
+                </div>
+                <p class="mt-3 text-center text-xs text-slate-400">최고 점수가 갱신될 때 자동으로 바뀝니다. 사진은 서버로 전송되지 않습니다.</p>
+            </section>
+
+            <!-- 라운드별 최고 사진 TOP 3 -->
+            <section id="hallOfFameSection" class="hidden w-full rounded-2xl border border-orange-400/40 bg-gradient-to-b from-orange-950/40 to-slate-900/80 p-4 shadow-lg" aria-live="polite">
+                <div class="mb-3 text-center">
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Hall of Fame</p>
+                    <h2 class="text-xl font-black text-white">웃음 베스트 전당 🏆</h2>
+                    <p class="mt-1 text-xs text-slate-400">30초 라운드별 최고 사진 중 TOP 3</p>
+                </div>
+                <div id="hallOfFameGrid" class="grid grid-cols-1 gap-3 sm:grid-cols-3"></div>
+                <p class="mt-3 text-center text-xs text-slate-500">이 페이지를 열어둔 동안만 보관되며 서버로 전송되지 않습니다.</p>
+            </section>
             
             <!-- 소속 표기 (우측 하단) -->
             <div class="w-full text-right mt-2">
@@ -99,23 +136,67 @@
         const emoji = document.getElementById('emoji');
         const levelText = document.getElementById('levelText');
         const scoreBadge = document.getElementById('scoreBadge');
+        const bestShotCard = document.getElementById('bestShotCard');
+        const bestShotCanvas = document.getElementById('bestShotCanvas');
+        const bestScoreDisplay = document.getElementById('bestScoreDisplay');
+        const timerBadge = document.getElementById('timerBadge');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const hallOfFameSection = document.getElementById('hallOfFameSection');
+        const hallOfFameGrid = document.getElementById('hallOfFameGrid');
         
         const statusOverlay = document.getElementById('statusOverlay');
         const statusText = document.getElementById('statusText');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const cameraHint = document.getElementById('cameraHint');
+        const startButton = document.getElementById('startButton');
 
         let confettiFired = false;
+        let modelsLoaded = false;
+        let gameActive = false;
+        let analysisInFlight = false;
+        let analysisIntervalId;
+        let countdownIntervalId;
+        let gameEndsAt = 0;
         
         // 부드러운 점수 변화를 위한 변수
         let displayedScore = 0;
+        let roundBestScore = 0;
+        let roundBestImage = '';
+        let hallOfFameShots = [];
+        let bestShotHighlightTimer;
+        const GAME_DURATION_SECONDS = 30;
+        const HALL_OF_FAME_SIZE = 3;
         const SMOOTHING_FACTOR = 0.08; // 점수 변화 속도 (낮을수록 천천히 오름)
         const DIFFICULTY_EXPONENT = 4.5; // 난이도 (높을수록 100점 맞기 어려움)
         
         // 확실하게 동작하는 GitHub 호스팅 모델 URL 사용
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 
-        // 1. AI 모델 로드하기
+        function showStartButton(label = '다시 시도') {
+            loadingSpinner.classList.add('hidden');
+            startButton.innerText = label;
+            startButton.disabled = false;
+            startButton.classList.remove('hidden');
+        }
+
+        // 1. 시작 버튼을 누른 뒤에만 모델과 카메라를 준비한다.
+        async function startGame() {
+            startButton.disabled = true;
+            startButton.classList.add('hidden');
+            cameraHint.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            statusText.classList.add('animate-pulse');
+            statusText.innerHTML = "AI 얼굴 인식 준비 중...<br><span class='text-sm text-slate-400'>(처음엔 10~20초 정도 걸릴 수 있어요)</span>";
+
+            if (modelsLoaded) {
+                statusText.innerText = '카메라를 켜는 중입니다...';
+                await startVideo();
+                return;
+            }
+            await loadModels();
+        }
+
+        // 2. AI 모델 로드하기
         async function loadModels() {
             try {
                 // 모델 2개 로드 (얼굴 찾기, 표정 분석)
@@ -123,21 +204,24 @@
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
                 ]);
-                
+
+                modelsLoaded = true;
                 statusText.innerText = "카메라를 켜는 중입니다...";
-                startVideo();
+                await startVideo();
             } catch (error) {
                 console.error("모델 로딩 에러:", error);
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ AI 다운로드 실패.<br>인터넷 환경을 확인하고 새로고침 해주세요.";
+                statusText.classList.remove('animate-pulse');
+                showStartButton();
             }
         }
 
-        // 2. 카메라 시작하기
+        // 3. 카메라 시작하기
         async function startVideo() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ 이 브라우저에서는 카메라를 지원하지 않습니다.";
+                statusText.classList.remove('animate-pulse');
+                showStartButton();
                 return;
             }
 
@@ -146,41 +230,170 @@
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
                 });
                 video.srcObject = stream;
+                await video.play();
             } catch (err) {
                 console.error("카메라 에러:", err);
-                loadingSpinner.style.display = 'none';
                 statusText.innerHTML = "❌ 카메라에 접근할 수 없습니다.";
+                statusText.classList.remove('animate-pulse');
                 cameraHint.classList.remove('hidden'); // 권한 힌트 표시
+                showStartButton();
             }
         }
 
-        // 3. 비디오 재생이 시작되면 분석 루프 시작
-        video.addEventListener('play', () => {
-            // 로딩 오버레이 숨기기
+        function resetRoundUI() {
+            displayedScore = 0;
+            roundBestScore = 0;
+            roundBestImage = '';
+            confettiFired = false;
+            scoreDisplay.innerText = '0';
+            bestScoreDisplay.innerText = '0';
+            happinessBar.style.width = '0%';
+            emoji.innerText = '😐';
+            levelText.innerText = '활짝 웃어 최고 점수에 도전하세요!';
+            levelText.className = 'text-sm font-bold text-slate-400';
+            scoreBadge.classList.remove('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+            bestShotCard.classList.add('hidden');
+        }
+
+        async function analyzeFrame() {
+            if (!gameActive || analysisInFlight || video.paused || video.ended) return;
+            analysisInFlight = true;
+            try {
+                const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+                if (detections) {
+                    updateScoreUI(detections.expressions.happy || 0, true);
+                } else {
+                    updateScoreUI(0, false);
+                }
+            } catch (error) {
+                console.error('인식 에러:', error);
+            } finally {
+                analysisInFlight = false;
+            }
+        }
+
+        function updateCountdown() {
+            const remaining = Math.max(0, Math.ceil((gameEndsAt - Date.now()) / 1000));
+            timerDisplay.innerText = remaining;
+            if (remaining <= 5) {
+                timerDisplay.classList.add('text-red-400', 'animate-pulse');
+                timerDisplay.classList.remove('text-yellow-400');
+            }
+            if (remaining === 0) finishGame();
+        }
+
+        function renderHallOfFame() {
+            hallOfFameGrid.replaceChildren();
+            hallOfFameShots.forEach((shot, index) => {
+                const card = document.createElement('article');
+                card.className = 'overflow-hidden rounded-xl border border-orange-300/30 bg-slate-950 shadow-md';
+
+                const image = document.createElement('img');
+                image.src = shot.image;
+                image.alt = `${index + 1}위 웃음 사진, ${shot.score}점`;
+                image.className = 'aspect-[4/3] w-full object-cover';
+
+                const caption = document.createElement('div');
+                caption.className = 'flex items-center justify-between px-3 py-2';
+
+                const rank = document.createElement('span');
+                rank.className = 'text-sm font-black text-orange-300';
+                rank.innerText = `${index + 1}위`;
+
+                const score = document.createElement('span');
+                score.className = 'font-mono text-xl font-black text-yellow-400';
+                score.innerText = `${shot.score}점`;
+
+                caption.append(rank, score);
+                card.append(image, caption);
+                hallOfFameGrid.append(card);
+            });
+            hallOfFameSection.classList.toggle('hidden', hallOfFameShots.length === 0);
+        }
+
+        function saveRoundBestToHallOfFame() {
+            if (!roundBestImage) return;
+            hallOfFameShots.push({
+                score: roundBestScore,
+                image: roundBestImage,
+                capturedAt: Date.now(),
+            });
+            hallOfFameShots.sort((a, b) => b.score - a.score || a.capturedAt - b.capturedAt);
+            hallOfFameShots = hallOfFameShots.slice(0, HALL_OF_FAME_SIZE);
+            renderHallOfFame();
+        }
+
+        function finishGame() {
+            if (!gameActive) return;
+            gameActive = false;
+            clearInterval(analysisIntervalId);
+            clearInterval(countdownIntervalId);
+            analysisInFlight = false;
+            timerDisplay.innerText = '0';
+            timerBadge.classList.add('hidden');
+            saveRoundBestToHallOfFame();
+
+            const stream = video.srcObject;
+            if (stream) stream.getTracks().forEach((track) => track.stop());
+            video.srcObject = null;
+            video.classList.add('opacity-0');
+            video.classList.remove('opacity-100');
+
+            statusOverlay.classList.remove('hidden');
+            statusText.classList.remove('animate-pulse');
+            statusText.innerHTML = `⏱️ 30초 게임 종료!<br><span class="text-2xl font-black text-yellow-400">최고 ${roundBestScore}점</span>`;
+            showStartButton('다시 게임 😆');
+        }
+
+        // 4. 카메라 재생 시점부터 정확히 30초 동안 분석한다.
+        function beginRound() {
+            if (gameActive) return;
+            resetRoundUI();
+            gameActive = true;
+            gameEndsAt = Date.now() + GAME_DURATION_SECONDS * 1000;
+            timerDisplay.innerText = GAME_DURATION_SECONDS;
+            timerDisplay.classList.add('text-yellow-400');
+            timerDisplay.classList.remove('text-red-400', 'animate-pulse');
+            timerBadge.classList.remove('hidden');
             statusOverlay.classList.add('hidden');
             video.classList.remove('opacity-0');
             video.classList.add('opacity-100');
 
-            // 0.1초마다 얼굴 분석
-            setInterval(async () => {
-                if(video.paused || video.ended) return;
+            analysisIntervalId = setInterval(analyzeFrame, 100);
+            countdownIntervalId = setInterval(updateCountdown, 200);
+            updateCountdown();
+        }
 
-                try {
-                    const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        video.addEventListener('play', beginRound);
 
-                    if (detections) {
-                        const happyProb = detections.expressions.happy || 0;
-                        updateScoreUI(happyProb, true);
-                    } else {
-                        updateScoreUI(0, false);
-                    }
-                } catch(e) {
-                    console.error("인식 에러:", e);
-                }
-            }, 100);
-        });
+        // 5. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
+        function captureBestSmile(score) {
+            if (!video.videoWidth || !video.videoHeight) return;
 
-        // 4. UI 및 점수 업데이트 로직
+            roundBestScore = score;
+            bestScoreDisplay.innerText = roundBestScore;
+
+            bestShotCanvas.width = video.videoWidth;
+            bestShotCanvas.height = video.videoHeight;
+            const context = bestShotCanvas.getContext('2d');
+            if (!context) return;
+
+            context.save();
+            context.translate(bestShotCanvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, bestShotCanvas.width, bestShotCanvas.height);
+            context.restore();
+            roundBestImage = bestShotCanvas.toDataURL('image/jpeg', 0.86);
+
+            bestShotCard.classList.remove('hidden');
+            bestShotCard.classList.add('ring-4', 'ring-yellow-400/60', 'scale-[1.01]');
+            clearTimeout(bestShotHighlightTimer);
+            bestShotHighlightTimer = setTimeout(() => {
+                bestShotCard.classList.remove('ring-4', 'ring-yellow-400/60', 'scale-[1.01]');
+            }, 500);
+        }
+
+        // 6. UI 및 점수 업데이트 로직
         function updateScoreUI(happyProb, isFaceDetected) {
             let targetScore = 0;
 
@@ -188,6 +401,13 @@
                 // 난이도 조절: 지수(4.5)를 적용하여 활짝 웃지 않으면 점수가 확 낮아짐
                 const adjustedProb = Math.pow(happyProb, DIFFICULTY_EXPONENT);
                 targetScore = Math.min(100, adjustedProb * 100);
+            }
+
+            // 화면용 점수는 부드럽게 움직이지만, 사진은 실제 웃음 확률이
+            // 가장 높았던 프레임을 놓치지 않도록 스무딩 전에 기록한다.
+            const instantScore = Math.round(targetScore);
+            if (isFaceDetected && instantScore > roundBestScore) {
+                captureBestSmile(instantScore);
             }
             
             // 점수가 한 번에 튀지 않고 천천히 목표치를 따라가게 만듦 (스무딩)
@@ -240,7 +460,7 @@
             }
         }
 
-        // 5. 100점 달성 시 폭죽 효과
+        // 7. 100점 달성 시 폭죽 효과
         function fireConfetti() {
             var duration = 2000;
             var end = Date.now() + duration;
@@ -267,8 +487,8 @@
             }());
         }
 
-        // 앱 구동 시작
-        loadModels();
+        // 사용자가 명시적으로 시작하기 전에는 모델 다운로드와 카메라 요청을 하지 않는다.
+        startButton.addEventListener('click', startGame);
     </script>
 </body>
 </html>
