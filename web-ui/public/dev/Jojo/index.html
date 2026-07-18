@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웃음대회</title>
+    <!-- Tailwind CSS (스타일링) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Face API (얼굴 및 표정 인식, 가장 안정적인 버전) -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <!-- Canvas Confetti (폭죽 효과) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* 비디오 좌우 반전 (거울 모드) */
+        video {
+            transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+        }
+        /* 로딩 스피너 애니메이션 */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #facc15;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 메인 컨테이너 -->
+    <div class="relative w-full max-w-lg bg-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-6 overflow-hidden border border-slate-700">
+        
+        <!-- 타이틀 구역 -->
+        <div class="text-center">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">
+                웃음대회 😆
+            </h1>
+            <p class="text-slate-400 text-sm">진짜로 활짝 웃어야 100점이 나옵니다!</p>
+        </div>
+
+        <!-- 비디오 화면 구역 -->
+        <div class="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden shadow-inner border border-slate-700 flex items-center justify-center">
+            
+            <!-- 카메라 영상 -->
+            <video id="video" autoplay muted playsinline class="w-full h-full object-cover opacity-0 transition-opacity duration-1000"></video>
+            
+            <!-- 상태창 & 로딩 화면 -->
+            <div id="statusOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 p-6 text-center">
+                <div id="loadingSpinner" class="loader mb-4"></div>
+                <p id="statusText" class="text-yellow-400 font-semibold text-lg animate-pulse">
+                    AI 얼굴 인식 준비 중...<br><span class="text-sm text-slate-400">(처음엔 10~20초 정도 걸릴 수 있어요)</span>
+                </p>
+                <div id="cameraHint" class="hidden mt-4 text-sm text-slate-300 bg-slate-800 p-4 rounded-xl border border-slate-600">
+                    ⚠️ 화면이 안 나온다면 <b>카메라 접근 권한</b>을 허용해주세요.<br>
+                    (브라우저 주소창 왼쪽의 자물쇠 아이콘 클릭 ➔ 카메라 허용)
+                </div>
+            </div>
+        </div>
+
+        <!-- 점수 표시 구역 -->
+        <div class="w-full flex flex-col items-center gap-4">
+            
+            <!-- 숫자 점수 및 이모지 -->
+            <div id="scoreBadge" class="flex items-center justify-center gap-3 bg-slate-700 px-6 py-4 rounded-2xl border-2 border-transparent transition-all duration-300">
+                <span id="emoji" class="text-4xl transition-all duration-300">😐</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="scoreDisplay" class="text-6xl font-black text-white font-mono tracking-tighter">0</span>
+                    <span class="text-xl text-slate-400 font-bold">점</span>
+                </div>
+            </div>
+
+            <!-- 난이도 안내 -->
+            <p id="levelText" class="text-sm font-bold text-slate-400">얼굴을 보여주세요!</p>
+
+            <!-- 프로그레스 바 -->
+            <div class="w-full h-6 bg-slate-700 rounded-full overflow-hidden p-1 shadow-inner">
+                <div id="happinessBar" class="h-full w-0 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded-full transition-all duration-[50ms] ease-linear"></div>
+            </div>
+            
+            <!-- 소속 표기 (우측 하단) -->
+            <div class="w-full text-right mt-2">
+                <span class="text-sm font-bold text-slate-500/80 tracking-widest bg-slate-900/50 px-3 py-1 rounded-lg">
+                    산돌교회 주일학교
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const happinessBar = document.getElementById('happinessBar');
+        const emoji = document.getElementById('emoji');
+        const levelText = document.getElementById('levelText');
+        const scoreBadge = document.getElementById('scoreBadge');
+        
+        const statusOverlay = document.getElementById('statusOverlay');
+        const statusText = document.getElementById('statusText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const cameraHint = document.getElementById('cameraHint');
+
+        let confettiFired = false;
+        
+        // 부드러운 점수 변화를 위한 변수
+        let displayedScore = 0;
+        const SMOOTHING_FACTOR = 0.08; // 점수 변화 속도 (낮을수록 천천히 오름)
+        const DIFFICULTY_EXPONENT = 4.5; // 난이도 (높을수록 100점 맞기 어려움)
+        
+        // 확실하게 동작하는 GitHub 호스팅 모델 URL 사용
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+
+        // 1. AI 모델 로드하기
+        async function loadModels() {
+            try {
+                // 모델 2개 로드 (얼굴 찾기, 표정 분석)
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+                ]);
+                
+                statusText.innerText = "카메라를 켜는 중입니다...";
+                startVideo();
+            } catch (error) {
+                console.error("모델 로딩 에러:", error);
+                loadingSpinner.style.display = 'none';
+                statusText.innerHTML = "❌ AI 다운로드 실패.<br>인터넷 환경을 확인하고 새로고침 해주세요.";
+            }
+        }
+
+        // 2. 카메라 시작하기
+        async function startVideo() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                loadingSpinner.style.display = 'none';
+                statusText.innerHTML = "❌ 이 브라우저에서는 카메라를 지원하지 않습니다.";
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("카메라 에러:", err);
+                loadingSpinner.style.display = 'none';
+                statusText.innerHTML = "❌ 카메라에 접근할 수 없습니다.";
+                cameraHint.classList.remove('hidden'); // 권한 힌트 표시
+            }
+        }
+
+        // 3. 비디오 재생이 시작되면 분석 루프 시작
+        video.addEventListener('play', () => {
+            // 로딩 오버레이 숨기기
+            statusOverlay.classList.add('hidden');
+            video.classList.remove('opacity-0');
+            video.classList.add('opacity-100');
+
+            // 0.1초마다 얼굴 분석
+            setInterval(async () => {
+                if(video.paused || video.ended) return;
+
+                try {
+                    const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+
+                    if (detections) {
+                        const happyProb = detections.expressions.happy || 0;
+                        updateScoreUI(happyProb, true);
+                    } else {
+                        updateScoreUI(0, false);
+                    }
+                } catch(e) {
+                    console.error("인식 에러:", e);
+                }
+            }, 100);
+        });
+
+        // 4. UI 및 점수 업데이트 로직
+        function updateScoreUI(happyProb, isFaceDetected) {
+            let targetScore = 0;
+
+            if (isFaceDetected) {
+                // 난이도 조절: 지수(4.5)를 적용하여 활짝 웃지 않으면 점수가 확 낮아짐
+                const adjustedProb = Math.pow(happyProb, DIFFICULTY_EXPONENT);
+                targetScore = Math.min(100, adjustedProb * 100);
+            }
+            
+            // 점수가 한 번에 튀지 않고 천천히 목표치를 따라가게 만듦 (스무딩)
+            displayedScore += (targetScore - displayedScore) * SMOOTHING_FACTOR;
+            const finalUiScore = Math.round(displayedScore);
+            
+            // 화면 업데이트
+            scoreDisplay.innerText = finalUiScore;
+            happinessBar.style.width = `${finalUiScore}%`;
+
+            // 얼굴이 아예 안 보이고 점수도 떨어졌을 때 초기화 상태
+            if (!isFaceDetected && finalUiScore < 2) {
+                emoji.innerText = "👀";
+                levelText.innerText = "얼굴을 찾는 중...";
+                levelText.className = "text-sm font-bold text-slate-400";
+                scoreBadge.classList.remove('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+                confettiFired = false;
+                return;
+            }
+
+            // 점수 구간별 이모지 및 피드백 텍스트 변경
+            if (finalUiScore >= 99) {
+                emoji.innerText = "🤣";
+                levelText.innerText = "완벽한 진짜 미소!! 💯 (달성!)";
+                levelText.className = "text-sm font-bold text-yellow-400 animate-pulse";
+                scoreBadge.classList.add('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+                
+                if (!confettiFired) {
+                    fireConfetti();
+                    confettiFired = true;
+                }
+            } else if (finalUiScore >= 80) {
+                emoji.innerText = "😆";
+                levelText.innerText = "거의 다 왔어요! 눈을 더 찡긋!";
+                levelText.className = "text-sm font-bold text-green-400";
+                scoreBadge.classList.remove('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+                confettiFired = false;
+            } else if (finalUiScore >= 40) {
+                emoji.innerText = "🙂";
+                levelText.innerText = "미소가 보입니다. 훨씬 더 활짝 웃어보세요!";
+                levelText.className = "text-sm font-bold text-blue-400";
+                scoreBadge.classList.remove('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+                confettiFired = false;
+            } else {
+                emoji.innerText = "😐";
+                levelText.innerText = "웃음기가 부족합니다. 힘껏 웃어보세요!";
+                levelText.className = "text-sm font-bold text-slate-400";
+                scoreBadge.classList.remove('scale-110', 'border-yellow-400', 'bg-yellow-900/40', 'shadow-lg', 'shadow-yellow-500/50');
+                confettiFired = false;
+            }
+        }
+
+        // 5. 100점 달성 시 폭죽 효과
+        function fireConfetti() {
+            var duration = 2000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#facc15', '#fb923c', '#4ade80']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#facc15', '#fb923c', '#4ade80']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        // 앱 구동 시작
+        loadModels();
+    </script>
+</body>
+</html>
