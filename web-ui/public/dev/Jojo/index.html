@@ -82,6 +82,24 @@
             <div class="w-full h-6 bg-slate-700 rounded-full overflow-hidden p-1 shadow-inner">
                 <div id="happinessBar" class="h-full w-0 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded-full transition-all duration-[50ms] ease-linear"></div>
             </div>
+
+            <!-- 최고 점수 순간 자동 캡처 -->
+            <section id="bestShotCard" class="hidden w-full rounded-2xl border border-yellow-400/50 bg-slate-900/70 p-4 shadow-lg transition-all duration-300" aria-live="polite">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.2em] text-yellow-400">Best Smile</p>
+                        <h2 class="text-lg font-extrabold text-white">최고의 웃음 순간 📸</h2>
+                    </div>
+                    <div class="rounded-xl bg-yellow-400 px-3 py-2 text-slate-950 shadow-md shadow-yellow-500/20">
+                        <span id="bestScoreDisplay" class="text-2xl font-black font-mono">0</span>
+                        <span class="text-sm font-extrabold">점</span>
+                    </div>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+                    <canvas id="bestShotCanvas" class="block aspect-[4/3] w-full object-cover" aria-label="최고 웃음 점수가 기록된 순간"></canvas>
+                </div>
+                <p class="mt-3 text-center text-xs text-slate-400">최고 점수가 갱신될 때 자동으로 바뀝니다. 사진은 서버로 전송되지 않습니다.</p>
+            </section>
             
             <!-- 소속 표기 (우측 하단) -->
             <div class="w-full text-right mt-2">
@@ -99,6 +117,9 @@
         const emoji = document.getElementById('emoji');
         const levelText = document.getElementById('levelText');
         const scoreBadge = document.getElementById('scoreBadge');
+        const bestShotCard = document.getElementById('bestShotCard');
+        const bestShotCanvas = document.getElementById('bestShotCanvas');
+        const bestScoreDisplay = document.getElementById('bestScoreDisplay');
         
         const statusOverlay = document.getElementById('statusOverlay');
         const statusText = document.getElementById('statusText');
@@ -109,6 +130,8 @@
         
         // 부드러운 점수 변화를 위한 변수
         let displayedScore = 0;
+        let bestScore = 0;
+        let bestShotHighlightTimer;
         const SMOOTHING_FACTOR = 0.08; // 점수 변화 속도 (낮을수록 천천히 오름)
         const DIFFICULTY_EXPONENT = 4.5; // 난이도 (높을수록 100점 맞기 어려움)
         
@@ -180,7 +203,33 @@
             }, 100);
         });
 
-        // 4. UI 및 점수 업데이트 로직
+        // 4. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
+        function captureBestSmile(score) {
+            if (!video.videoWidth || !video.videoHeight) return;
+
+            bestScore = score;
+            bestScoreDisplay.innerText = bestScore;
+
+            bestShotCanvas.width = video.videoWidth;
+            bestShotCanvas.height = video.videoHeight;
+            const context = bestShotCanvas.getContext('2d');
+            if (!context) return;
+
+            context.save();
+            context.translate(bestShotCanvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, bestShotCanvas.width, bestShotCanvas.height);
+            context.restore();
+
+            bestShotCard.classList.remove('hidden');
+            bestShotCard.classList.add('ring-4', 'ring-yellow-400/60', 'scale-[1.01]');
+            clearTimeout(bestShotHighlightTimer);
+            bestShotHighlightTimer = setTimeout(() => {
+                bestShotCard.classList.remove('ring-4', 'ring-yellow-400/60', 'scale-[1.01]');
+            }, 500);
+        }
+
+        // 5. UI 및 점수 업데이트 로직
         function updateScoreUI(happyProb, isFaceDetected) {
             let targetScore = 0;
 
@@ -188,6 +237,13 @@
                 // 난이도 조절: 지수(4.5)를 적용하여 활짝 웃지 않으면 점수가 확 낮아짐
                 const adjustedProb = Math.pow(happyProb, DIFFICULTY_EXPONENT);
                 targetScore = Math.min(100, adjustedProb * 100);
+            }
+
+            // 화면용 점수는 부드럽게 움직이지만, 사진은 실제 웃음 확률이
+            // 가장 높았던 프레임을 놓치지 않도록 스무딩 전에 기록한다.
+            const instantScore = Math.round(targetScore);
+            if (isFaceDetected && instantScore > bestScore) {
+                captureBestSmile(instantScore);
             }
             
             // 점수가 한 번에 튀지 않고 천천히 목표치를 따라가게 만듦 (스무딩)
@@ -240,7 +296,7 @@
             }
         }
 
-        // 5. 100점 달성 시 폭죽 효과
+        // 6. 100점 달성 시 폭죽 효과
         function fireConfetti() {
             var duration = 2000;
             var end = Date.now() + duration;
