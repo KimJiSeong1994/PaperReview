@@ -6,8 +6,8 @@
     <title>웃음대회</title>
     <!-- Tailwind CSS (스타일링) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Face API (얼굴 및 표정 인식, 가장 안정적인 버전) -->
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
+    <!-- Face API (얼굴 및 표정 인식, 검증한 버전으로 고정) -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.min.js"></script>
     <!-- Canvas Confetti (폭죽 효과) -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -166,11 +166,11 @@
         let bestShotHighlightTimer;
         const GAME_DURATION_SECONDS = 30;
         const HALL_OF_FAME_SIZE = 3;
-        const SMOOTHING_FACTOR = 0.08; // 점수 변화 속도 (낮을수록 천천히 오름)
-        const DIFFICULTY_EXPONENT = 4.5; // 난이도 (높을수록 100점 맞기 어려움)
+        const SMOOTHING_FACTOR = 0.22; // 표정 변화를 빠르게 따라가되 화면이 튀지 않게 완화
+        const DIFFICULTY_EXPONENT = 1.8; // 평범한 미소도 반응하고 활짝 웃을수록 고득점
         
-        // 확실하게 동작하는 GitHub 호스팅 모델 URL 사용
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+        // 라이브러리와 모델 버전을 함께 고정해 CDN 업데이트에 따른 불일치를 막는다.
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
 
         function showStartButton(label = '다시 시도') {
             loadingSpinner.classList.add('hidden');
@@ -196,9 +196,39 @@
             await loadModels();
         }
 
-        // 2. AI 모델 로드하기
+        async function initializeInferenceBackend() {
+            if (!window.faceapi || !faceapi.tf) {
+                throw new Error('Face API를 불러오지 못했습니다.');
+            }
+
+            const backendCandidates = ['webgl', 'cpu'];
+            const backendErrors = [];
+
+            for (const backendName of backendCandidates) {
+                try {
+                    const selected = await faceapi.tf.setBackend(backendName);
+                    if (!selected) {
+                        backendErrors.push(`${backendName}: 초기화 거부`);
+                        continue;
+                    }
+                    await faceapi.tf.ready();
+                    console.info(`AI 실행 엔진: ${faceapi.tf.getBackend()}`);
+                    return;
+                } catch (error) {
+                    backendErrors.push(`${backendName}: ${error.message || error}`);
+                    console.warn(`${backendName} 실행 엔진 초기화 실패`, error);
+                }
+            }
+
+            throw new Error(`사용 가능한 AI 실행 엔진이 없습니다. ${backendErrors.join(' / ')}`);
+        }
+
+        // 2. AI 실행 엔진과 모델 로드하기
         async function loadModels() {
             try {
+                // WebGL을 우선 사용하고, 지원하지 않는 기기에서는 WASM 요청 없이 CPU로 전환한다.
+                await initializeInferenceBackend();
+
                 // 모델 2개 로드 (얼굴 찾기, 표정 분석)
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -398,7 +428,7 @@
             let targetScore = 0;
 
             if (isFaceDetected) {
-                // 난이도 조절: 지수(4.5)를 적용하여 활짝 웃지 않으면 점수가 확 낮아짐
+                // 완만한 곡선을 적용해 평범한 미소부터 점수가 움직이고 활짝 웃을수록 크게 오른다.
                 const adjustedProb = Math.pow(happyProb, DIFFICULTY_EXPONENT);
                 targetScore = Math.min(100, adjustedProb * 100);
             }
