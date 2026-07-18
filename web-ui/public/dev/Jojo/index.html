@@ -149,6 +149,8 @@
         const loadingSpinner = document.getElementById('loadingSpinner');
         const cameraHint = document.getElementById('cameraHint');
         const startButton = document.getElementById('startButton');
+        const analysisCanvas = document.createElement('canvas');
+        const analysisContext = analysisCanvas.getContext('2d', { willReadFrequently: true });
 
         let confettiFired = false;
         let modelsLoaded = false;
@@ -168,6 +170,10 @@
         const HALL_OF_FAME_SIZE = 3;
         const SMOOTHING_FACTOR = 0.22; // 표정 변화를 빠르게 따라가되 화면이 튀지 않게 완화
         const DIFFICULTY_EXPONENT = 1.8; // 평범한 미소도 반응하고 활짝 웃을수록 고득점
+        const FACE_DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({
+            inputSize: 320,
+            scoreThreshold: 0.35,
+        });
         
         // 라이브러리와 모델 버전을 함께 고정해 CDN 업데이트에 따른 불일치를 막는다.
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
@@ -246,6 +252,28 @@
             }
         }
 
+        function waitForFirstVideoFrame() {
+            if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    video.removeEventListener('loadeddata', handleLoadedData);
+                    reject(new Error('카메라의 첫 화면을 불러오지 못했습니다.'));
+                }, 10000);
+
+                function handleLoadedData() {
+                    if (!video.videoWidth || !video.videoHeight) return;
+                    clearTimeout(timeoutId);
+                    video.removeEventListener('loadeddata', handleLoadedData);
+                    resolve();
+                }
+
+                video.addEventListener('loadeddata', handleLoadedData);
+            });
+        }
+
         // 3. 카메라 시작하기
         async function startVideo() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -255,13 +283,18 @@
                 return;
             }
 
+            let stream;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
                 });
                 video.srcObject = stream;
                 await video.play();
+                await waitForFirstVideoFrame();
+                beginRound();
             } catch (err) {
+                if (stream) stream.getTracks().forEach((track) => track.stop());
+                video.srcObject = null;
                 console.error("카메라 에러:", err);
                 statusText.innerHTML = "❌ 카메라에 접근할 수 없습니다.";
                 statusText.classList.remove('animate-pulse');
@@ -286,10 +319,22 @@
         }
 
         async function analyzeFrame() {
-            if (!gameActive || analysisInFlight || video.paused || video.ended) return;
+            const frameIsReady = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+                && video.videoWidth
+                && video.videoHeight;
+            if (!gameActive || analysisInFlight || video.paused || video.ended || !frameIsReady || !analysisContext) return;
+
             analysisInFlight = true;
             try {
-                const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+                if (analysisCanvas.width !== video.videoWidth || analysisCanvas.height !== video.videoHeight) {
+                    analysisCanvas.width = video.videoWidth;
+                    analysisCanvas.height = video.videoHeight;
+                }
+                analysisContext.drawImage(video, 0, 0, analysisCanvas.width, analysisCanvas.height);
+
+                const detections = await faceapi
+                    .detectSingleFace(analysisCanvas, FACE_DETECTOR_OPTIONS)
+                    .withFaceExpressions();
                 if (detections) {
                     updateScoreUI(detections.expressions.happy || 0, true);
                 } else {
@@ -379,6 +424,7 @@
         function beginRound() {
             if (gameActive) return;
             resetRoundUI();
+            analysisInFlight = false;
             gameActive = true;
             gameEndsAt = Date.now() + GAME_DURATION_SECONDS * 1000;
             timerDisplay.innerText = GAME_DURATION_SECONDS;
@@ -393,8 +439,6 @@
             countdownIntervalId = setInterval(updateCountdown, 200);
             updateCountdown();
         }
-
-        video.addEventListener('play', beginRound);
 
         // 5. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
         function captureBestSmile(score) {
