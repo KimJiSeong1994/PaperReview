@@ -13,7 +13,7 @@
         "word-sense-induction",
         "multilingual-nlp"
       ],
-      "thumbnail_url": "/api/blog/figures/paper-figure1-dwug-eintagsfliege.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T22:01:07+09:00",
       "updated_at": "2026-07-17T22:29:04+09:00",
       "published": true,
@@ -34,7 +34,7 @@
         "DiachronicEmbeddings",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/tahmasebi-fig1-replacement-types.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T16:10:00+09:00",
       "updated_at": "2026-07-17T16:10:00+09:00",
       "published": true,
@@ -55,7 +55,7 @@
         "UsageTypes",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/giulianelli-fig1-usage-types-atom.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T15:10:00+09:00",
       "updated_at": "2026-07-17T15:10:00+09:00",
       "published": true,
@@ -76,7 +76,7 @@
         "Survey",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/montanelli-fig1-workflow.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T11:50:00+09:00",
       "updated_at": "2026-07-17T11:50:00+09:00",
       "published": true,
@@ -97,7 +97,7 @@
         "WordEmbeddings",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/kulkarni-fig1-semantic-space.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T11:00:00+09:00",
       "updated_at": "2026-07-17T11:00:00+09:00",
       "published": true,
@@ -118,7 +118,7 @@
         "StateSpaceModel",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/bamler-fig1-drifting-words.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T10:30:00+09:00",
       "updated_at": "2026-07-17T10:30:00+09:00",
       "published": true,
@@ -140,7 +140,7 @@
         "Anisotropy",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/ethayarajh-fig1-anisotropy.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-17T00:05:00+09:00",
       "updated_at": "2026-07-17T00:05:00+09:00",
       "published": true,
@@ -161,7 +161,7 @@
         "CBOW",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/twec-fig1-compass.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-16T23:10:00+09:00",
       "updated_at": "2026-07-16T23:10:00+09:00",
       "published": true,
@@ -181,7 +181,7 @@
         "HistWords",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/hamilton-fig1-semantic-change-trajectory.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-16T21:45:00+09:00",
       "updated_at": "2026-07-16T23:10:00+09:00",
       "published": true,
@@ -202,7 +202,7 @@
         "BERT",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/dcwe-fig2-architecture.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-16T21:45:00+09:00",
       "updated_at": "2026-07-16T22:40:00+09:00",
       "published": true,
@@ -223,7 +223,7 @@
         "Autoencoder",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/sdne-fig2-framework.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-15T00:30:00+09:00",
       "updated_at": "2026-07-15T00:30:00+09:00",
       "published": true,
@@ -244,7 +244,7 @@
         "GraphLevelTasks",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/gnnplus-fig2-architecture.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-14T01:00:00+09:00",
       "updated_at": "2026-07-14T01:00:00+09:00",
       "published": true,
@@ -265,7 +265,7 @@
         "Persona",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/boundary-fig1-claims.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-14T00:30:00+09:00",
       "updated_at": "2026-07-14T00:30:00+09:00",
       "published": true,
@@ -286,7 +286,7 @@
         "PopulationAlignment",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/papg-fig2-framework.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-13T00:30:00+09:00",
       "updated_at": "2026-07-13T00:30:00+09:00",
       "published": true,
@@ -307,7 +307,7 @@
         "MatrixFactorization",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/dw2v-fig1-trajectories.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-12T01:00:00+09:00",
       "updated_at": "2026-07-12T01:00:00+09:00",
       "published": true,
@@ -328,7 +328,7 @@
         "BernoulliEmbeddings",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/dbe-fig2-graphical-model.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-12T00:30:00+09:00",
       "updated_at": "2026-07-12T00:30:00+09:00",
       "published": true,
@@ -349,7 +349,7 @@
         "GraphNeuralNetworks",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/han-fig2-architecture.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-11T01:00:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -370,7 +370,7 @@
         "NetworkEmbedding",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/hetgnn-fig2-architecture.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-11T00:30:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -391,7 +391,7 @@
         "SkipGram",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/deepwalk-fig3-overview.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-10T23:00:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -413,7 +413,7 @@
         "InductiveLearning",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/gat-fig1-attention.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-10T22:00:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -434,7 +434,7 @@
         "ExpressivePower",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/gin-fig1-wl-framework.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-10T21:30:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -455,7 +455,7 @@
         "NodeEmbedding",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/graphsage-sample-aggregate-paperbanana-v2.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-10T11:10:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -476,7 +476,7 @@
         "SpectralGraphConvolution",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/gcn-full-training-flow-paperbanana-v3-white.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-09T23:55:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -497,7 +497,7 @@
         "GraphXAI",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/gnnexplainer-fig1-overview.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-09T17:20:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -518,7 +518,7 @@
         "NRM",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/tgnn-infoflow-fig1-overview.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-09T12:00:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -539,7 +539,7 @@
         "PromptOptimization",
         "PaperReview"
       ],
-      "thumbnail_url": "/api/blog/figures/skillopt-fig1-overview.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-08T00:30:00+09:00",
       "updated_at": "2026-07-12T22:00:00+09:00",
       "published": true,
@@ -560,7 +560,7 @@
         "개인화",
         "추천시스템"
       ],
-      "thumbnail_url": "",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-04-28T16:17:25.455537+00:00",
       "updated_at": "2026-04-30T02:02:37.836598+00:00",
       "published": true,
@@ -582,7 +582,7 @@
         "연구에이전트",
         "기술구축"
       ],
-      "thumbnail_url": "/api/blog/figures/fig_jiphyeonjeon_agent_architecture_paperbanana_v4.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-04-26T19:08:24.075768+09:00",
       "updated_at": "2026-04-27T21:06:04.230455+09:00",
       "published": true,
@@ -607,7 +607,7 @@
       "published": true,
       "author": "집현전 팀",
       "reading_time_min": 8,
-      "thumbnail_url": "/api/blog/thumbnail/9fdf6c688749",
+      "thumbnail_url": "/og-default.jpg",
       "category": "engineering"
     },
     {
@@ -628,7 +628,7 @@
       "published": true,
       "author": "jiphyeonjeon",
       "reading_time_min": 13,
-      "thumbnail_url": null,
+      "thumbnail_url": "/og-default.jpg",
       "category": "engineering"
     },
     {
@@ -644,7 +644,7 @@
         "시각화",
         "GraphRAG"
       ],
-      "thumbnail_url": "",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-03-28T03:08:15.290879+00:00",
       "updated_at": "2026-03-28T03:08:15.290879+00:00",
       "published": true,
@@ -665,7 +665,7 @@
         "RaR",
         "ArxivQA"
       ],
-      "thumbnail_url": "",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-03-25T16:00:38.759092+00:00",
       "updated_at": "2026-03-25T16:00:38.759092+00:00",
       "published": true,
@@ -686,7 +686,7 @@
         "논문검색",
         "집현전"
       ],
-      "thumbnail_url": "/api/blog/figures/fig_skillopt_training_loop.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-05T16:34:51.458789+00:00",
       "updated_at": "2026-07-06T15:17:09.142945+00:00",
       "published": true,
@@ -708,7 +708,7 @@
         "graph-machine-learning",
         "temporal-graphs"
       ],
-      "thumbnail_url": null,
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-18T12:00:00+09:00",
       "updated_at": null,
       "published": true,
@@ -731,7 +731,7 @@
         "multi-agent-systems",
         "agent-evaluation"
       ],
-      "thumbnail_url": null,
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-18T12:00:00+09:00",
       "updated_at": "2026-07-20T00:30:00+09:00",
       "published": true,
@@ -754,7 +754,7 @@
         "faithfulness",
         "temporal-xai"
       ],
-      "thumbnail_url": "/api/blog/figures/paper-sae-interpretability-utility.png",
+      "thumbnail_url": "/og-default.jpg",
       "created_at": "2026-07-19T12:00:00+09:00",
       "updated_at": null,
       "published": true,
