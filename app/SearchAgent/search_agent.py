@@ -1,12 +1,12 @@
-from typing import Dict, List, Any, Optional, Set
+from typing import Callable, Dict, List, Any, Optional, Set, TypeVar
 import asyncio
-import atexit
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 import logging
 import os
+import threading
 import time
 
 from src.collector.paper.arxiv_searcher import ArxivSearcher
@@ -48,8 +48,80 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-_SEARCH_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="search")
-atexit.register(_SEARCH_EXECUTOR.shutdown, wait=False)
+_LLM_CONTEXT_SEARCH_TIMEOUT_SECONDS = 60.0
+_SEARCH_OPERATION_TIMEOUT_SECONDS = 60.0
+_SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS = 30.0
+MAX_ACTIVE_GENERATIONS_PER_OPERATION = 2
+_OPERATION_STATE_INIT_LOCK = threading.Lock()
+_T = TypeVar("_T")
+
+
+def _new_search_executor() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=8, thread_name_prefix="search")
+
+
+class SearchCapacityExceeded(RuntimeError):
+    """Raised when an operation has reached its active-generation limit."""
+
+    def __init__(self, operation: str) -> None:
+        self.operation = operation
+        super().__init__(
+            f"Search capacity exceeded for {operation}; retry after current searches finish"
+        )
+
+
+class _OperationGeneration:
+    """Own one operation-local executor until all submitted work finishes."""
+
+    def __init__(self, owner: "SearchAgent", operation: str) -> None:
+        self._owner = owner
+        self.operation = operation
+        self._executor = _new_search_executor()
+        self._futures: List[concurrent.futures.Future[Any]] = []
+        self._release_lock = threading.Lock()
+        self._close_started = False
+        self._released = False
+
+    def submit(
+        self, function: Callable[..., _T], *args: Any, **kwargs: Any
+    ) -> concurrent.futures.Future[_T]:
+        future = self._executor.submit(function, *args, **kwargs)
+        self._futures.append(future)
+        return future
+
+    def close(self) -> None:
+        """Cancel queued work and reclaim workers without waiting on running calls."""
+        with self._release_lock:
+            if self._close_started:
+                return
+            self._close_started = True
+
+        for future in self._futures:
+            if not future.done():
+                future.cancel()
+
+        if any(future.running() for future in self._futures):
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            threading.Thread(
+                target=self._shutdown_and_release,
+                name=f"operation_cleanup_{self.operation}",
+                daemon=True,
+            ).start()
+            return
+
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        self._release()
+
+    def _shutdown_and_release(self) -> None:
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        self._release()
+
+    def _release(self) -> None:
+        with self._release_lock:
+            if self._released:
+                return
+            self._released = True
+        self._owner._release_operation_generation(self.operation, self)
 
 
 class SearchAgent:
@@ -123,6 +195,50 @@ class SearchAgent:
         # OpenAI API 키 저장 (embedding 생성용)
         self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
 
+    def _operation_generation_state(
+        self,
+    ) -> tuple[threading.Lock, dict[str, set[_OperationGeneration]]]:
+        if not hasattr(self, "_operation_generation_runtime"):
+            with _OPERATION_STATE_INIT_LOCK:
+                if not hasattr(self, "_operation_generation_runtime"):
+                    self._operation_generation_runtime = (threading.Lock(), {})
+        return self._operation_generation_runtime
+
+    def _begin_operation_generation(
+        self, operation: str
+    ) -> _OperationGeneration:
+        lock, generations = self._operation_generation_state()
+        with lock:
+            active_generations = generations.get(operation)
+            if (
+                active_generations is not None
+                and len(active_generations) >= MAX_ACTIVE_GENERATIONS_PER_OPERATION
+            ):
+                logger.warning(
+                    "[SearchAgent] %s reached the active generation limit (%d)",
+                    operation,
+                    MAX_ACTIVE_GENERATIONS_PER_OPERATION,
+                )
+                raise SearchCapacityExceeded(operation)
+            generation = _OperationGeneration(self, operation)
+            if active_generations is None:
+                generations[operation] = {generation}
+            else:
+                active_generations.add(generation)
+            return generation
+
+    def _release_operation_generation(
+        self, operation: str, generation: _OperationGeneration
+    ) -> None:
+        lock, generations = self._operation_generation_state()
+        with lock:
+            active_generations = generations.get(operation)
+            if active_generations is None:
+                return
+            active_generations.discard(generation)
+            if not active_generations:
+                del generations[operation]
+
     @log_search_operation("Multi-Source")
     def search_all_sources(self, query: str, max_results_per_source: int = 5) -> Dict[str, List[Dict[str, Any]]]:
         results = {
@@ -137,56 +253,35 @@ class SearchAgent:
         # 검색 기록 저장
         self._add_to_history(query, "multi_source")
 
+        generation = self._begin_operation_generation("search_all_sources")
+
         # 각 소스별 직접 검색 (병렬 처리)
-        executor = _SEARCH_EXECUTOR
-        # 각 검색 작업을 병렬로 실행
-        arxiv_future = executor.submit(self.arxiv_searcher.search, query, max_results_per_source)
-        connected_papers_future = executor.submit(self.connected_papers_searcher.search, query, max_results_per_source)
-        google_scholar_future = executor.submit(self.google_scholar_searcher.search, query, max_results_per_source)
-        openalex_future = executor.submit(self.openalex_searcher.search, query, max_results_per_source)
-        dblp_future = executor.submit(self.dblp_searcher.search, query, max_results_per_source)
-        openalex_korean_future = (
-            executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)
-            if _contains_korean(query) else None
-        )
-
-        # 결과 수집
         try:
-            results["arxiv"] = arxiv_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] arXiv search timed out or failed: %s", e)
-            results["arxiv"] = []
+            # 각 검색 작업을 병렬로 실행
+            source_futures = [
+                ("arxiv", "arXiv", generation.submit(self.arxiv_searcher.search, query, max_results_per_source)),
+                ("connected_papers", "Connected Papers", generation.submit(self.connected_papers_searcher.search, query, max_results_per_source)),
+                ("google_scholar", "Google Scholar", generation.submit(self.google_scholar_searcher.search, query, max_results_per_source)),
+                ("openalex", "OpenAlex", generation.submit(self.openalex_searcher.search, query, max_results_per_source)),
+                ("dblp", "DBLP", generation.submit(self.dblp_searcher.search, query, max_results_per_source)),
+            ]
+            if _contains_korean(query):
+                source_futures.append(
+                    ("openalex_korean", "OpenAlex Korean", generation.submit(self.openalex_searcher.search_korean, query, max_results_per_source))
+                )
 
-        try:
-            results["connected_papers"] = connected_papers_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] Connected Papers search timed out or failed: %s", e)
-            results["connected_papers"] = []
-
-        try:
-            results["google_scholar"] = google_scholar_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] Google Scholar search timed out or failed: %s", e)
-            results["google_scholar"] = []
-
-        try:
-            results["openalex"] = openalex_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] OpenAlex search timed out or failed: %s", e)
-            results["openalex"] = []
-
-        try:
-            results["dblp"] = dblp_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] DBLP search timed out or failed: %s", e)
-            results["dblp"] = []
-
-        if openalex_korean_future is not None:
-            try:
-                results["openalex_korean"] = openalex_korean_future.result(timeout=30)
-            except (concurrent.futures.TimeoutError, Exception) as e:
-                logger.warning("[WARNING] OpenAlex Korean search timed out or failed: %s", e)
-                results["openalex_korean"] = []
+            # 결과 수집
+            deadline = time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS
+            for source, label, future in source_futures:
+                try:
+                    results[source] = future.result(
+                        timeout=max(0.0, deadline - time.monotonic())
+                    )
+                except Exception as e:
+                    logger.warning("[WARNING] %s search timed out or failed: %s", label, e)
+                    results[source] = []
+        finally:
+            generation.close()
 
         return results
 
@@ -211,39 +306,46 @@ class SearchAgent:
 
         seen_titles = {"arxiv": set(), "connected_papers": set(), "google_scholar": set(), "openalex": set(), "dblp": set(), "openalex_korean": set()}
 
-        # 병렬 검색 작업 정의
-        executor = _SEARCH_EXECUTOR
-        futures = {
-            # 기본 검색
-            executor.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
-            executor.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
-            executor.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
-            executor.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
-            executor.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
-            # Enhanced 검색 (arXiv 제외 — rate limit 방지)
-            executor.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
-            executor.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
-        }
-        # 한국어 쿼리일 때만 OpenAlex Korean 검색 추가
-        if _contains_korean(query):
-            futures[executor.submit(self.openalex_searcher.search_korean, query, max_results_per_source)] = ("openalex_korean", "basic")
+        generation = self._begin_operation_generation("enhanced_search_all_sources")
 
+        # 병렬 검색 작업 정의
         try:
-            for future in concurrent.futures.as_completed(futures, timeout=60):
-                source, search_type = futures[future]
-                try:
-                    papers = future.result(timeout=5)
-                    for paper in papers:
-                        title_lower = paper.get('title', '').lower()
-                        if title_lower and title_lower not in seen_titles[source]:
-                            seen_titles[source].add(title_lower)
-                            results[source].append(paper)
-                except concurrent.futures.TimeoutError:
-                    logger.warning("[WARNING] %s %s search timed out", source, search_type)
-                except Exception as e:
-                    logger.warning("[SearchAgent] %s %s search failed: %s", source, search_type, e)
-        except concurrent.futures.TimeoutError:
-            logger.warning("[WARNING] Enhanced search overall timeout (60s) — returning partial results")
+            futures = {
+                # 기본 검색
+                generation.submit(self.arxiv_searcher.search, query, max_results_per_source): ("arxiv", "basic"),
+                generation.submit(self.google_scholar_searcher.search, query, max_results_per_source): ("google_scholar", "basic"),
+                generation.submit(self.connected_papers_searcher.search, query, max_results_per_source): ("connected_papers", "basic"),
+                generation.submit(self.openalex_searcher.search, query, max_results_per_source): ("openalex", "basic"),
+                generation.submit(self.dblp_searcher.search, query, max_results_per_source): ("dblp", "basic"),
+                # Enhanced 검색 (arXiv 제외 — rate limit 방지)
+                generation.submit(self.google_scholar_searcher.enhanced_search, query, max_results_per_source // 2): ("google_scholar", "enhanced"),
+                generation.submit(self.openalex_searcher.enhanced_search, query, max_results_per_source // 2): ("openalex", "enhanced"),
+            }
+            # 한국어 쿼리일 때만 OpenAlex Korean 검색 추가
+            if _contains_korean(query):
+                futures[generation.submit(self.openalex_searcher.search_korean, query, max_results_per_source)] = ("openalex_korean", "basic")
+
+            deadline = time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS
+            try:
+                for future in concurrent.futures.as_completed(
+                    futures, timeout=max(0.0, deadline - time.monotonic())
+                ):
+                    source, search_type = futures[future]
+                    try:
+                        papers = future.result(timeout=5)
+                        for paper in papers:
+                            title_lower = paper.get('title', '').lower()
+                            if title_lower and title_lower not in seen_titles[source]:
+                                seen_titles[source].add(title_lower)
+                                results[source].append(paper)
+                    except concurrent.futures.TimeoutError:
+                        logger.warning("[WARNING] %s %s search timed out", source, search_type)
+                    except Exception as e:
+                        logger.warning("[SearchAgent] %s %s search failed: %s", source, search_type, e)
+            except concurrent.futures.TimeoutError:
+                logger.warning("[WARNING] Enhanced search overall timeout (60s) — returning partial results")
+        finally:
+            generation.close()
 
         # 결과 수 제한
         for source in results:
@@ -268,25 +370,32 @@ class SearchAgent:
 
         self._add_to_history(f"title:{title}", "title_search")
 
-        executor = _SEARCH_EXECUTOR
-        futures = {
-            executor.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
-            executor.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
-            executor.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
-            executor.submit(self.openalex_searcher.search_by_title, title, max_results): "openalex",
-            executor.submit(self.dblp_searcher.search_by_title, title, max_results): "dblp",
-        }
+        generation = self._begin_operation_generation("search_by_paper_title")
 
-        for future in concurrent.futures.as_completed(futures):
-            source = futures[future]
+        try:
+            futures = {
+                generation.submit(self.arxiv_searcher.search_by_title, title, max_results): "arxiv",
+                generation.submit(self.google_scholar_searcher.search_by_title, title, max_results): "google_scholar",
+                generation.submit(self.connected_papers_searcher.search, title, max_results): "connected_papers",
+                generation.submit(self.openalex_searcher.search_by_title, title, max_results): "openalex",
+                generation.submit(self.dblp_searcher.search_by_title, title, max_results): "dblp",
+            }
+
+            deadline = time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS
             try:
-                results[source] = future.result(timeout=30)
+                for future in concurrent.futures.as_completed(
+                    futures, timeout=max(0.0, deadline - time.monotonic())
+                ):
+                    source = futures[future]
+                    try:
+                        results[source] = future.result()
+                    except Exception as e:
+                        logger.warning("[SearchAgent] %s title search failed: %s", source, e)
+                        results[source] = []
             except concurrent.futures.TimeoutError:
-                logger.warning("[WARNING] %s title search timed out", source)
-                results[source] = []
-            except Exception as e:
-                logger.warning("[SearchAgent] %s title search failed: %s", source, e)
-                results[source] = []
+                logger.warning("[WARNING] Title search overall timeout — returning partial results")
+        finally:
+            generation.close()
 
         return results
 
@@ -305,55 +414,50 @@ class SearchAgent:
 
         self._add_to_history(f"similar:{paper_title[:50]}", "similar_search")
 
-        executor = _SEARCH_EXECUTOR
-        # arXiv와 Google Scholar에서 유사 논문 검색
-        arxiv_future = executor.submit(
-            self.arxiv_searcher.search_similar_papers,
-            paper_title, paper_abstract, max_results
-        )
-
-        # 키워드 기반 검색으로 대체
-        keywords = self._extract_search_keywords(paper_title, paper_abstract)
-        scholar_future = executor.submit(
-            self.google_scholar_searcher.search,
-            keywords, max_results
-        )
-
-        # OpenAlex 키워드 검색
-        openalex_future = executor.submit(
-            self.openalex_searcher.search,
-            keywords, max_results
-        )
-
-        # DBLP 키워드 검색
-        dblp_future = executor.submit(
-            self.dblp_searcher.search,
-            keywords, max_results
-        )
+        generation = self._begin_operation_generation("find_similar_papers")
 
         try:
-            results["arxiv"] = arxiv_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] arXiv similar search timed out or failed: %s", e)
-            results["arxiv"] = []
+            # arXiv와 Google Scholar에서 유사 논문 검색
+            arxiv_future = generation.submit(
+                self.arxiv_searcher.search_similar_papers,
+                paper_title, paper_abstract, max_results
+            )
 
-        try:
-            results["google_scholar"] = scholar_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] Google Scholar search timed out or failed: %s", e)
-            results["google_scholar"] = []
+            # 키워드 기반 검색으로 대체
+            keywords = self._extract_search_keywords(paper_title, paper_abstract)
+            scholar_future = generation.submit(
+                self.google_scholar_searcher.search,
+                keywords, max_results
+            )
 
-        try:
-            results["openalex"] = openalex_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] OpenAlex search timed out or failed: %s", e)
-            results["openalex"] = []
+            # OpenAlex 키워드 검색
+            openalex_future = generation.submit(
+                self.openalex_searcher.search,
+                keywords, max_results
+            )
 
-        try:
-            results["dblp"] = dblp_future.result(timeout=30)
-        except (concurrent.futures.TimeoutError, Exception) as e:
-            logger.warning("[WARNING] DBLP search timed out or failed: %s", e)
-            results["dblp"] = []
+            # DBLP 키워드 검색
+            dblp_future = generation.submit(
+                self.dblp_searcher.search,
+                keywords, max_results
+            )
+
+            deadline = time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS
+            for source, label, future in (
+                ("arxiv", "arXiv similar", arxiv_future),
+                ("google_scholar", "Google Scholar", scholar_future),
+                ("openalex", "OpenAlex", openalex_future),
+                ("dblp", "DBLP", dblp_future),
+            ):
+                try:
+                    results[source] = future.result(
+                        timeout=max(0.0, deadline - time.monotonic())
+                    )
+                except Exception as e:
+                    logger.warning("[WARNING] %s search timed out or failed: %s", label, e)
+                    results[source] = []
+        finally:
+            generation.close()
 
         return results
 
@@ -409,6 +513,7 @@ class SearchAgent:
             logger.info("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
             return self.enhanced_search_all_sources(query, max_results_per_source)
 
+        generation = self._begin_operation_generation("llm_context_search")
         try:
             # 1. LLM으로 최적화된 검색 쿼리 생성
             logger.info("[SearchAgent] Generating LLM search queries for: %s...", query[:50])
@@ -438,6 +543,8 @@ class SearchAgent:
                     keywords = unified.get("keywords", [])
                     translated_query = unified.get("improved_query", query)
                     search_context = unified.get("search_strategy", "")
+                except SearchCapacityExceeded:
+                    raise
                 except Exception:
                     logger.warning(
                         "[SearchAgent] analyze_and_prepare failed; falling back to individual calls",
@@ -463,53 +570,52 @@ class SearchAgent:
                 "openalex_korean": set()
             }
 
-            executor = _SEARCH_EXECUTOR
             futures = []
 
             # arXiv 검색 (rate limit 방지: 쿼리 1개만)
             for arxiv_query in arxiv_queries[:1]:
                 futures.append(
-                    (executor.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
+                    (generation.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
                      "arxiv", arxiv_query)
                 )
 
             # Google Scholar 검색 (여러 쿼리)
             for scholar_query in scholar_queries[:3]:
                 futures.append(
-                    (executor.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
+                    (generation.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
                      "google_scholar", scholar_query)
                 )
 
             # Connected Papers 검색 (키워드 기반)
             keyword_query = " ".join(keywords[:4]) if keywords else query
             futures.append(
-                (executor.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
+                (generation.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
                  "connected_papers", keyword_query)
             )
 
             # OpenAlex 검색
             futures.append(
-                (executor.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
+                (generation.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
                  "openalex", keyword_query)
             )
 
             # DBLP 검색
             futures.append(
-                (executor.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
+                (generation.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
                  "dblp", keyword_query)
             )
 
             # OpenAlex Korean 검색
             futures.append(
-                (executor.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
+                (generation.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
                  "openalex_korean", keyword_query)
             )
 
             # 결과 수집 (전체 60초 타임아웃)
-            _deadline = time.monotonic() + 60
+            deadline = time.monotonic() + _LLM_CONTEXT_SEARCH_TIMEOUT_SECONDS
             for future_tuple in futures:
                 future, source, q = future_tuple
-                remaining = max(0.1, _deadline - time.monotonic())
+                remaining = max(0.0, deadline - time.monotonic())
                 try:
                     papers = future.result(timeout=remaining)
                     for paper in papers:
@@ -521,6 +627,9 @@ class SearchAgent:
                             results[source].append(paper)
                 except concurrent.futures.TimeoutError:
                     logger.warning("[SearchAgent] Timeout for %s: %s...", source, q[:30])
+                    break
+                except SearchCapacityExceeded:
+                    raise
                 except Exception as e:
                     logger.warning("[SearchAgent] Error in %s search: %s", source, e)
 
@@ -543,10 +652,14 @@ class SearchAgent:
 
             return results
 
+        except SearchCapacityExceeded:
+            raise
         except Exception as e:
             logger.error("[SearchAgent] LLM Context Search failed: %s", e, exc_info=True)
             # 실패 시 기본 검색으로 대체
             return self.enhanced_search_all_sources(query, max_results_per_source)
+        finally:
+            generation.close()
 
     @log_search_operation("Smart Search")
     def smart_search(self, query: str, max_results: int = 20) -> Dict[str, Any]:
@@ -581,6 +694,8 @@ class SearchAgent:
                         analysis.get('intent'),
                         analysis.get('confidence'),
                     )
+                except SearchCapacityExceeded:
+                    raise
                 except Exception as e:
                     logger.warning(
                         "[SmartSearch] analyze_and_prepare failed, falling back to analyze_query: %s",
@@ -593,6 +708,8 @@ class SearchAgent:
                             analysis.get('intent'),
                             analysis.get('confidence'),
                         )
+                    except SearchCapacityExceeded:
+                        raise
                     except Exception as e2:
                         logger.warning("[SmartSearch] Query analysis failed: %s", e2)
 
@@ -650,6 +767,8 @@ class SearchAgent:
 
             return result
 
+        except SearchCapacityExceeded:
+            raise
         except Exception as e:
             logger.error("[SmartSearch] Error: %s", e)
             # 실패 시 기본 검색
@@ -807,28 +926,38 @@ class SearchAgent:
                 if not extra_queries:
                     return first_results[:max_results]
 
-                extra_futures = []
-                for sq in extra_queries:
-                    fut = _SEARCH_EXECUTOR.submit(
-                        self.search_google_scholar,
-                        sq, max_results, sort_by, year_start, year_end, author,
-                    )
-                    extra_futures.append(fut)
+                generation = self._begin_operation_generation(
+                    "google_scholar_extra_queries"
+                )
 
-                # Merge and deduplicate by title
-                all_results = list(first_results)
-                seen_titles = {p.get("title", "").lower().strip() for p in all_results}
+                try:
+                    extra_futures = []
+                    for sq in extra_queries:
+                        fut = generation.submit(
+                            self.search_google_scholar,
+                            sq, max_results, sort_by, year_start, year_end, author,
+                        )
+                        extra_futures.append(fut)
 
-                for fut in extra_futures:
-                    try:
-                        extra_papers = fut.result(timeout=30)
-                        for p in extra_papers:
-                            t = p.get("title", "").lower().strip()
-                            if t and t not in seen_titles:
-                                seen_titles.add(t)
-                                all_results.append(p)
-                    except Exception as e:
-                        logger.warning("[SearchAgent] Extra scholar query failed: %s", e)
+                    # Merge and deduplicate by title
+                    all_results = list(first_results)
+                    seen_titles = {p.get("title", "").lower().strip() for p in all_results}
+
+                    deadline = time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS
+                    for fut in extra_futures:
+                        try:
+                            extra_papers = fut.result(
+                                timeout=max(0.0, deadline - time.monotonic())
+                            )
+                            for p in extra_papers:
+                                t = p.get("title", "").lower().strip()
+                                if t and t not in seen_titles:
+                                    seen_titles.add(t)
+                                    all_results.append(p)
+                        except Exception as e:
+                            logger.warning("[SearchAgent] Extra scholar query failed: %s", e)
+                finally:
+                    generation.close()
 
                 return all_results[:max_results]
 
@@ -861,6 +990,8 @@ class SearchAgent:
                 logger.warning("Unknown search source: %s", source_name)
                 return []
 
+        except SearchCapacityExceeded:
+            raise
         except Exception as e:
             logger.warning("Source %s search failed: %s", source_name, e)
             return []
@@ -889,31 +1020,38 @@ class SearchAgent:
         results: Dict[str, List[Dict[str, Any]]] = {}
         futures: Dict[concurrent.futures.Future, str] = {}
 
-        executor = _SEARCH_EXECUTOR
-        for source in sources:
-            fut = executor.submit(
-                self._search_single_source,
-                source, query, filters, source_queries, max_results,
-            )
-            futures[fut] = source
+        generation = self._begin_operation_generation("search_with_filters")
 
         try:
-            for future in concurrent.futures.as_completed(futures, timeout=60):
-                source = futures[future]
-                try:
-                    results[source] = future.result(timeout=5)
-                except Exception as e:
-                    logger.warning("[SearchAgent] %s search failed: %s", source, e)
-                    results[source] = []
-        except concurrent.futures.TimeoutError:
-            logger.warning(
-                "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
-            )
-            for future, source in futures.items():
-                if source not in results:
-                    if not future.done():
-                        future.cancel()  # best-effort; ThreadPool 작업 중단은 보장 안 됨
-                    results[source] = []
+            for source in sources:
+                fut = generation.submit(
+                    self._search_single_source,
+                    source, query, filters, source_queries, max_results,
+                )
+                futures[fut] = source
+
+            deadline = time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS
+            try:
+                for future in concurrent.futures.as_completed(
+                    futures, timeout=max(0.0, deadline - time.monotonic())
+                ):
+                    source = futures[future]
+                    try:
+                        results[source] = future.result(timeout=5)
+                    except Exception as e:
+                        logger.warning("[SearchAgent] %s search failed: %s", source, e)
+                        results[source] = []
+            except concurrent.futures.TimeoutError:
+                logger.warning(
+                    "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
+                )
+                for future, source in futures.items():
+                    if source not in results:
+                        if not future.done():
+                            future.cancel()  # best-effort; ThreadPool 작업 중단은 보장 안 됨
+                        results[source] = []
+        finally:
+            generation.close()
 
         return results
 
@@ -995,6 +1133,8 @@ class SearchAgent:
 
         results: Dict[str, List[Dict[str, Any]]] = {}
         for source, outcome in zip(sources, completed):
+            if isinstance(outcome, SearchCapacityExceeded):
+                raise outcome
             if isinstance(outcome, Exception):
                 logger.warning(
                     "[SearchAgent] async source %s failed: %s", source, outcome,

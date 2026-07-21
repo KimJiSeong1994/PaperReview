@@ -43,6 +43,7 @@ from app.QueryAgent.skillopt_policy import (
     SkillOptPolicyError,
     load_skillopt_policy_from_env,
 )
+from app.SearchAgent.search_agent import SearchCapacityExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,14 @@ def _current_degradation_markers() -> Optional[List[str]]:
     return list(_RANKER_DEGRADATION_REASONS)
 
 router = APIRouter(prefix="/api", tags=["search"])
+
+
+def _search_capacity_unavailable(error: SearchCapacityExceeded) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=str(error),
+        headers={"Retry-After": "1"},
+    )
 
 
 # ── GraphRAG auxiliary recall ─────────────────────────────────────────
@@ -618,28 +627,21 @@ def _log_cache_file_count() -> None:
         logger.warning("[Cache] Schema mismatch count error: %s", e)
 
 
-# 서버 시작 시 만료 캐시 정리
-_cleanup_expired_cache()
-_log_cache_file_count()
+_CACHE_MAINTENANCE_INTERVAL_SECONDS = 1800.0
+_PREFETCH_STARTUP_DELAY_SECONDS = 30.0
+_PREFETCH_QUERY_DELAY_SECONDS = 5.0
+_PREFETCH_CYCLE_INTERVAL_SECONDS = 2700.0
+_BACKGROUND_JOIN_TIMEOUT_SECONDS = 5.0
 
 
-def _periodic_cache_maintenance():
+def _periodic_cache_maintenance(stop_event: threading.Event) -> None:
     """30분 주기 백그라운드 캐시 정리 + 빈도 데이터 저장"""
-    while True:
-        time.sleep(1800)
+    while not stop_event.wait(_CACHE_MAINTENANCE_INTERVAL_SECONDS):
         try:
             _cleanup_expired_cache()
             _save_query_freq()
         except Exception as e:
             logger.warning("[Cache] Periodic cleanup error: %s", e)
-
-
-_cache_maintenance_thread = threading.Thread(
-    target=_periodic_cache_maintenance,
-    daemon=True,
-    name="cache-maintenance",
-)
-_cache_maintenance_thread.start()
 
 
 # ── Popular query prefetching ──────────────────────────────────────
@@ -667,10 +669,18 @@ _query_freq_lock = threading.Lock()
 _FREQ_FILE = Path("data/cache/query_freq.json")
 
 _SEED_QUERIES = [
-    "transformer", "large language model", "reinforcement learning",
-    "diffusion model", "graph neural network", "retrieval augmented generation",
-    "vision language model", "mixture of experts", "test-time compute",
-    "agent", "reasoning", "alignment",
+    "transformer",
+    "large language model",
+    "reinforcement learning",
+    "diffusion model",
+    "graph neural network",
+    "retrieval augmented generation",
+    "vision language model",
+    "mixture of experts",
+    "test-time compute",
+    "agent",
+    "reasoning",
+    "alignment",
 ]
 
 
@@ -717,80 +727,197 @@ def _load_query_freq() -> None:
         pass
 
 
-_load_query_freq()
+_query_freq_loaded = False
+_prefetch_cycle_lock = threading.Lock()
 
 
-_prefetch_running = False
+def _load_query_freq_once() -> None:
+    """Load persisted frequencies once without multiplying counts on restart."""
+    global _query_freq_loaded
+    with _query_freq_lock:
+        if _query_freq_loaded:
+            return
+        _query_freq_loaded = True
+    _load_query_freq()
 
 
-def _prefetch_popular_queries():
-    """Background thread: periodically pre-fetches popular query results into cache."""
-    global _prefetch_running
-    import time as _time
-
-    # Prevent overlapping cycles
-    if _prefetch_running:
+def _prefetch_popular_queries_once(stop_event: threading.Event) -> Optional[int]:
+    """Run at most one prefetch cycle, returning ``None`` if one is active."""
+    if stop_event.is_set():
+        return 0
+    if not _prefetch_cycle_lock.acquire(blocking=False):
         logger.info("[Prefetch] Already running, skipping")
-        return
-    _prefetch_running = True
+        return None
 
     try:
-        # Wait for server startup to complete
-        _time.sleep(30)
+        cycle_start = time.monotonic()
+        popular = _get_popular_queries()
+        logger.info("[Prefetch] Starting prefetch cycle (%d queries)...", len(popular))
 
-        while True:
-            cycle_start = _time.time()
-            popular = _get_popular_queries()
-            logger.info("[Prefetch] Starting prefetch cycle (%d queries)...", len(popular))
+        # arXiv/google_scholar excluded: global semaphore + rate limits block user searches
+        default_sources = ["connected_papers", "openalex", "dblp", "openalex_korean"]
 
-            # arXiv/google_scholar excluded: global semaphore + rate limits block user searches
-            default_sources = ["connected_papers", "openalex", "dblp", "openalex_korean"]
-
-            fetched = 0
-            for query in popular:
-                try:
-                    cache_key = _compute_cache_key(query, default_sources, {"sort_by": "relevance", "year_start": None, "year_end": None, "author": None, "category": None, "fast_mode": False})
-                    if _get_cached_result(cache_key) is not None:
-                        logger.debug("[Prefetch] Cache hit for '%s', skipping", query)
-                        continue
-
-                    filters = {
-                        "sources": default_sources,
-                        "max_results": 20,
+        fetched = 0
+        for query in popular:
+            if stop_event.is_set():
+                break
+            try:
+                cache_key = _compute_cache_key(
+                    query,
+                    default_sources,
+                    {
                         "sort_by": "relevance",
-                    }
-                    results = search_agent.search_with_filters(query, filters)
+                        "year_start": None,
+                        "year_end": None,
+                        "author": None,
+                        "category": None,
+                        "fast_mode": False,
+                    },
+                )
+                if _get_cached_result(cache_key) is not None:
+                    logger.debug("[Prefetch] Cache hit for '%s', skipping", query)
+                    continue
 
-                    if results:
-                        total = sum(len(papers) for papers in results.values())
-                        _set_cache(cache_key, results, ttl_seconds=3600)  # 1 hour TTL (matches default)
-                        logger.info("[Prefetch] Cached '%s': %d papers", query, total)
-                        fetched += 1
+                filters = {
+                    "sources": default_sources,
+                    "max_results": 20,
+                    "sort_by": "relevance",
+                }
+                results = search_agent.search_with_filters(query, filters)
 
-                    # Respect rate limits between queries
-                    _time.sleep(5)
+                if results:
+                    total = sum(len(papers) for papers in results.values())
+                    _set_cache(cache_key, results, ttl_seconds=3600)
+                    logger.info("[Prefetch] Cached '%s': %d papers", query, total)
+                    fetched += 1
+            except Exception as e:
+                logger.warning("[Prefetch] Failed for '%s': %s", query, e)
 
-                except Exception as e:
-                    logger.warning("[Prefetch] Failed for '%s': %s", query, e)
-                    _time.sleep(5)
+            # Respect rate limits, but let lifecycle shutdown interrupt the wait.
+            if stop_event.wait(_PREFETCH_QUERY_DELAY_SECONDS):
+                break
 
-            cycle_duration = _time.time() - cycle_start
-            logger.info("[Prefetch] Cycle complete: %d/%d queries prefetched (%.0fs)", fetched, len(popular), cycle_duration)
-
-            # Sleep until next cycle (45 minutes), accounting for actual cycle time
-            next_sleep = max(0, 2700 - cycle_duration)
-            _time.sleep(next_sleep)
+        cycle_duration = time.monotonic() - cycle_start
+        logger.info(
+            "[Prefetch] Cycle complete: %d/%d queries prefetched (%.0fs)",
+            fetched,
+            len(popular),
+            cycle_duration,
+        )
+        return fetched
     finally:
-        _prefetch_running = False
+        _prefetch_cycle_lock.release()
 
 
-# Start prefetch in background thread on module load
-_prefetch_thread = threading.Thread(
-    target=_prefetch_popular_queries,
-    daemon=True,
-    name="query-prefetch",
-)
-_prefetch_thread.start()
+def _prefetch_popular_queries(stop_event: threading.Event) -> None:
+    """Periodically prefetch popular queries until lifecycle shutdown."""
+    if stop_event.wait(_PREFETCH_STARTUP_DELAY_SECONDS):
+        return
+
+    while not stop_event.is_set():
+        cycle_start = time.monotonic()
+        _prefetch_popular_queries_once(stop_event)
+        cycle_duration = time.monotonic() - cycle_start
+        next_wait = max(0.0, _PREFETCH_CYCLE_INTERVAL_SECONDS - cycle_duration)
+        if stop_event.wait(next_wait):
+            return
+
+
+class _BackgroundWorkerGeneration:
+    """One immutable stop signal shared by one pair of lifecycle workers."""
+
+    def __init__(
+        self,
+        stop_event: threading.Event,
+        cache_thread: threading.Thread,
+        prefetch_thread: threading.Thread,
+    ) -> None:
+        self.stop_event = stop_event
+        self.threads = (cache_thread, prefetch_thread)
+
+
+_background_workers_lock = threading.Lock()
+_background_generation: Optional[_BackgroundWorkerGeneration] = None
+_cache_maintenance_thread: Optional[threading.Thread] = None
+_prefetch_thread: Optional[threading.Thread] = None
+
+
+def start_search_background_workers() -> bool:
+    """Start the lifespan-owned workers once; return whether a generation began.
+
+    A signaled generation that is still alive remains authoritative. This is
+    important after a bounded stop times out: its event is never cleared and a
+    replacement generation cannot overlap it.
+    """
+    global _background_generation, _cache_maintenance_thread, _prefetch_thread
+
+    with _background_workers_lock:
+        current = _background_generation
+        if current is not None and any(thread.is_alive() for thread in current.threads):
+            return False
+
+        stop_event = threading.Event()
+        cache_thread = threading.Thread(
+            target=_periodic_cache_maintenance,
+            args=(stop_event,),
+            daemon=True,
+            name="cache-maintenance",
+        )
+        prefetch_thread = threading.Thread(
+            target=_prefetch_popular_queries,
+            args=(stop_event,),
+            daemon=True,
+            name="query-prefetch",
+        )
+        generation = _BackgroundWorkerGeneration(
+            stop_event,
+            cache_thread,
+            prefetch_thread,
+        )
+        _background_generation = generation
+        _cache_maintenance_thread = cache_thread
+        _prefetch_thread = prefetch_thread
+
+        _cleanup_expired_cache()
+        _log_cache_file_count()
+        _load_query_freq_once()
+        cache_thread.start()
+        prefetch_thread.start()
+        return True
+
+
+def stop_search_background_workers(
+    join_timeout: float = _BACKGROUND_JOIN_TIMEOUT_SECONDS,
+) -> bool:
+    """Signal and boundedly join the active worker generation.
+
+    Returns ``True`` when no lifecycle worker remains alive. A timed-out live
+    generation stays registered and signaled so a later start cannot overlap it.
+    """
+    global _background_generation, _cache_maintenance_thread, _prefetch_thread
+
+    with _background_workers_lock:
+        generation = _background_generation
+        if generation is None:
+            return True
+        generation.stop_event.set()
+
+    deadline = time.monotonic() + max(0.0, join_timeout)
+    current_thread = threading.current_thread()
+    for thread in generation.threads:
+        if thread is current_thread or not thread.is_alive():
+            continue
+        thread.join(timeout=max(0.0, deadline - time.monotonic()))
+
+    with _background_workers_lock:
+        if _background_generation is not generation:
+            return _background_generation is None
+        if any(thread.is_alive() for thread in generation.threads):
+            return False
+        _background_generation = None
+        _cache_maintenance_thread = None
+        _prefetch_thread = None
+        return True
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -961,6 +1088,8 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
         return LLMSearchResponse(results=results, total=total, metadata=metadata)
 
+    except SearchCapacityExceeded as e:
+        raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         logger.error("[API] LLM Search timed out after %ds", _LLM_SEARCH_TIMEOUT)
         raise HTTPException(status_code=504, detail=f"LLM search timed out after {_LLM_SEARCH_TIMEOUT}s")
@@ -1018,6 +1147,8 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
 
         return result
 
+    except SearchCapacityExceeded as e:
+        raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         logger.error("[API] Smart Search timed out after %ds", _SMART_SEARCH_TIMEOUT)
         raise HTTPException(status_code=504, detail=f"Smart search timed out after {_SMART_SEARCH_TIMEOUT}s")
@@ -1868,6 +1999,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
 
     try:
         return await asyncio.wait_for(_run_search_pipeline(), timeout=_SEARCH_TIMEOUT)
+    except SearchCapacityExceeded as e:
+        raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         # Return partial results collected so far instead of failing completely
         partial_results = _partial["results"]
@@ -2108,13 +2241,23 @@ def _sse_event(event: str, data: Any) -> str:
 
 # ── Admin: manual prefetch trigger ───────────────────────────────────
 
+
 @router.post("/prefetch-popular")
 async def trigger_prefetch():
-    """Manually trigger popular query prefetch (admin use)."""
-    t = threading.Thread(
-        target=_prefetch_popular_queries,
-        daemon=True,
-        name="query-prefetch-manual",
+    """Run one bounded popular-query prefetch cycle (admin use)."""
+    popular_count = len(_get_popular_queries())
+    fetched = await asyncio.to_thread(
+        _prefetch_popular_queries_once,
+        threading.Event(),
     )
-    t.start()
-    return {"message": "Prefetch started", "queries": len(_get_popular_queries())}
+    if fetched is None:
+        return {
+            "message": "Prefetch already running",
+            "queries": popular_count,
+            "fetched": 0,
+        }
+    return {
+        "message": "Prefetch completed",
+        "queries": popular_count,
+        "fetched": fetched,
+    }

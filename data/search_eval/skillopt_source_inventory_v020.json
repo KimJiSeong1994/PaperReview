@@ -1,0 +1,2184 @@
+{
+  "files": [
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": ".env.example",
+      "sha256": "aadeabbfdcc8fe2cfe4745e83766f9972060e1ba334424f40049b5288f633844",
+      "size_bytes": 1775
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": ".gitignore",
+      "sha256": "ccc571f27c27db25a1defe3121dfc401c9e30f8d8f2ac334d0ebeeb2b144a62e",
+      "size_bytes": 1303
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "CHANGELOG.md",
+      "sha256": "d8e6870e6eb74976a2ead264f93b92f0253508276dd7a42a4c823c696ae8282c",
+      "size_bytes": 4965
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "CONTRIBUTING.md",
+      "sha256": "922d22ae22cf49347b2318a076ce2543e9a0f704f638576a5686bd54690504d0",
+      "size_bytes": 1124
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "LICENSE",
+      "sha256": "9515a04280cf50ce154eb3ab8fa375c7cc5e6b45ea5cb23b7ff3830737020c15",
+      "size_bytes": 1078
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "README.md",
+      "sha256": "b6be9223180db746c4cb6366f2a55bb0722cbaa3d766e00b34ba401debec7568",
+      "size_bytes": 7169
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "SECURITY.md",
+      "sha256": "b02bf4e236e9335b27298a77688c751d18ca7e6052873d0d3d29eda37d0a72fa",
+      "size_bytes": 542
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/README.md",
+      "sha256": "763f13cccf1036a14981d2a0d5b2065d8504c14af793f3b4734b815d51b69de7",
+      "size_bytes": 3565
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/alfworld/gpt5.5_skill.md",
+      "sha256": "c8219398bf587dae9c33f832f97ed749ea0de978ef8627840df139e0fc3fff20",
+      "size_bytes": 13179
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/docvqa/gpt5.5_skill.md",
+      "sha256": "5432e21a8bb053b13d0cb50372ff371924a925a459ff108725c67c806c9e8a2f",
+      "size_bytes": 1963
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/livemath/gpt5.5_skill.md",
+      "sha256": "53073aa57ce84de76d9976f76a0f80b301c2e76b334b5206b1de1e0d6abd9357",
+      "size_bytes": 3343
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/officeqa/gpt5.5_skill.md",
+      "sha256": "fc15969126fbc4bc0bb53b654df4984ff748d35965e1ba50af52aebe703aa59e",
+      "size_bytes": 6456
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/searchqa/gpt5.5_skill.md",
+      "sha256": "4e0a19d42dea09538e5431ad9241eaf6d6ce0a7fbd6c5578e6e5fcee77c187f8",
+      "size_bytes": 9941
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "ckpt/spreadsheetbench/gpt5.5_skill.md",
+      "sha256": "82249a54bba13550aa87dcc84087728ebb176d753c95bc09e6b9c49f30942892",
+      "size_bytes": 13335
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/_base_/default.yaml",
+      "sha256": "569109a3e5357780cdf38f467a90818c4ea1718af14c6abb2232f841660492ec",
+      "size_bytes": 4203
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/alfworld/default.yaml",
+      "sha256": "823b0705e4ac26a6517b5ef51abe0f1935e4f60226caa519e34ed0e1087b097c",
+      "size_bytes": 476
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/docvqa/default.yaml",
+      "sha256": "fdd2be153d10e7f07fd1e90697ee8ce64ebe74207161aa1ac59a01db5498e5ee",
+      "size_bytes": 454
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/features/soft_gate.yaml",
+      "sha256": "3d12234d717a095bf769b138c695b97b2d4737a24f0c5acac0f1bf6fbd1d9f69",
+      "size_bytes": 2702
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/livemathematicianbench/default.yaml",
+      "sha256": "36781831d905a515e6f1031d3691b3814db0588e063d3f92d71a0d720ef09f29",
+      "size_bytes": 462
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/officeqa/default.yaml",
+      "sha256": "2345a08a0aa3b205032439de4f5b429b02d657b76442df34030b7850807aaa61",
+      "size_bytes": 712
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/searchqa/default.yaml",
+      "sha256": "4393ea112362140d7ece5f0fbe0a78a47ca7637f06466109c247591aa570ebe0",
+      "size_bytes": 504
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "configs/spreadsheetbench/default.yaml",
+      "sha256": "4cce24962a200958d584a2b4ca040bc19f0b87c46e970e4f9b0628d3d5f2037d",
+      "size_bytes": 599
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/README.md",
+      "sha256": "c0c1cc72979259765d270fe922fc3e23f7f175708528e3d0fe71bb196234620d",
+      "size_bytes": 7082
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/alfworld_path_split/split_manifest.json",
+      "sha256": "9a6e0e267e5ac24a53a70c312ee62c20b85afc30c8635c138b164ec91bca3978",
+      "size_bytes": 735
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/alfworld_path_split/test/items.json",
+      "sha256": "34fc9439b0555e9bea76e2a7d1947953250e5a0cd9363d75ea64c2605ac0c33e",
+      "size_bytes": 28714
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/alfworld_path_split/train/items.json",
+      "sha256": "76dc1f738fafc9c3c0dae606eb9434b1e1a34b814874e4d791242f9ec90e6378",
+      "size_bytes": 8171
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/alfworld_path_split/val/items.json",
+      "sha256": "1533c56bd98577314a2ed12daffb9be4c1e1de2b052b61d0093b865b753da3f9",
+      "size_bytes": 3806
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/docvqa_id_split/split_manifest.json",
+      "sha256": "70c6b6708a5a22a7bbf17c27aacf28406bffdda43a31e6044868f662c017f516",
+      "size_bytes": 1060
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/docvqa_id_split/test/items.json",
+      "sha256": "ede36981c1f774b6b4aa983f6153f22e606b67a01fd75302b48311e8add3f64c",
+      "size_bytes": 141340
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/docvqa_id_split/train/items.json",
+      "sha256": "7187cfcef49003035b1492a0190dd2183fd17d753a1b310e06f3fe8c54edcb4d",
+      "size_bytes": 40385
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/docvqa_id_split/val/items.json",
+      "sha256": "7dff0d8bfbe42e1173b4c789af13b55a37c7c17f450d49d2c9d0a93559920687",
+      "size_bytes": 19998
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/livemathematicianbench_id_split/split_manifest.json",
+      "sha256": "68895fef12f92e361bb16f70c4ec5a2aae6800214db9d57eee17b49b9c8ad9a7",
+      "size_bytes": 1003
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/livemathematicianbench_id_split/test/items.json",
+      "sha256": "e2971057bfe44f6849c53cdfd133f97c2c1db850ac43a8527d80096eb22be241",
+      "size_bytes": 22019
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/livemathematicianbench_id_split/train/items.json",
+      "sha256": "6135e20d660f75fe93ebb8623e9be860eca19a064ae6de83876106f93abc47df",
+      "size_bytes": 6223
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/livemathematicianbench_id_split/val/items.json",
+      "sha256": "c0773e0509cf35bc4c1447e334970fde00e0636318aed3057c96be4e2fb37370",
+      "size_bytes": 3201
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/officeqa_id_split/split_manifest.json",
+      "sha256": "8f76983eadeb6670df2fc88f568fa86c6318d4e8f02912bf05c5c69955a867e7",
+      "size_bytes": 719
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/officeqa_id_split/test/items.json",
+      "sha256": "563c30589e897f08161df4d2778578e14a8a2887391813e8d45c3d39eafd900d",
+      "size_bytes": 65730
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/officeqa_id_split/train/items.json",
+      "sha256": "1bb3a9ca003f6ba7aff34cf2d1fe23d9af12ff647060ac8b7d4c22dcb9e84b56",
+      "size_bytes": 18261
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/officeqa_id_split/val/items.json",
+      "sha256": "1d7fc4443718a8fc565faf4450d31109880dbf8103759a306289f5ba9407f11b",
+      "size_bytes": 9020
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/searchqa_id_split/split_manifest.json",
+      "sha256": "b19de95cc4079e065525d25fe65859618887d69c9ffd647dbda61fd6015e2f2a",
+      "size_bytes": 586
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/searchqa_id_split/test/items.json",
+      "sha256": "b6056005ed8ffa03239a0295644d83968513bed80235927716fca14926ff11bc",
+      "size_bytes": 75603
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/searchqa_id_split/train/items.json",
+      "sha256": "3ae7532c2d11d9ec63ed20e3a4e425db5f6fa51a618622be848d88aa63187f0d",
+      "size_bytes": 21603
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/searchqa_id_split/val/items.json",
+      "sha256": "2fccbfc16f858a1f2c9b16551c5047b2f4468dff2537f782059ac7355db37e8e",
+      "size_bytes": 10803
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/spreadsheetbench_id_split/split_manifest.json",
+      "sha256": "51f1b431696eb26b338dc75f9c03ea6919e1cf93b4a077fd28e6451855fb1fc7",
+      "size_bytes": 745
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/spreadsheetbench_id_split/test/items.json",
+      "sha256": "6fc4269f4887208d8edd64a256e9cd6ebec0027daca483c4c98d8de4c800caf9",
+      "size_bytes": 34618
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/spreadsheetbench_id_split/train/items.json",
+      "sha256": "e46cf20e900250d0efd2e1a11d22d34a05f9352e3c5b5faa43eccf7592c69694",
+      "size_bytes": 9910
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "data/spreadsheetbench_id_split/val/items.json",
+      "sha256": "352386755d583fab3141eed82177e1b57c13d5ee89101ed806c0f8ad4beec034",
+      "size_bytes": 4940
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/contributing.md",
+      "sha256": "94fc960c56f46a1326b28659ff5f3ae3c1bd20bf93b5a2954ce5d5e987149659",
+      "size_bytes": 1708
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/configuration.md",
+      "sha256": "32f995191247718fd2b94f0340f5cd3653e151af7c3516929348363353e0632e",
+      "size_bytes": 4420
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/dl-analogy.md",
+      "sha256": "e8b8d5e50a28450db4addb35e59d6bc9a487f454b7962243d13f8355e8e338af",
+      "size_bytes": 3150
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/first-experiment.md",
+      "sha256": "3c7845761f1dd4e34835adfcca2748705ca40c0fa32af501bb540715f08fca88",
+      "size_bytes": 2501
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/installation.md",
+      "sha256": "46ba1fe65522efc27f59aa6acf5126ea9fa190ebf6a90f96c4038d07443ec500",
+      "size_bytes": 1404
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/local-env-smoke.md",
+      "sha256": "170baa5c8d10a49dc128ff2aedab064367d54c74f6b8826f6432c95ab2ca7e59",
+      "size_bytes": 4129
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/new-backend.md",
+      "sha256": "dd34d74298ca31f72cf5e42a0a8f70da1e44a5aa70f7edb32a92f223f0150ab8",
+      "size_bytes": 3457
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/new-benchmark.md",
+      "sha256": "f83044abc25736b4a090d951b679642b9fa15abe26044ac409ed6e98d8328026",
+      "size_bytes": 12724
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/skill-document.md",
+      "sha256": "5786315700403264277a9ea922755a3ad522816358f7faff9bb3312cbf5b12c0",
+      "size_bytes": 2574
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guide/training-loop.md",
+      "sha256": "c83dbdbbbe09f4cbf609a7880c254a5e863fc1ddab0169f4946c24c00c3fa947",
+      "size_bytes": 3861
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/guideline.html",
+      "sha256": "c34172acb4e2c0b5c24181e57b0118c6273befefaab8a47fd3b9287f4d20c744",
+      "size_bytes": 72429
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/index.md",
+      "sha256": "c15bb4ee31ecd9308b236fe65f767e136b165044a5f97d6ca477437a02b74640",
+      "size_bytes": 4640
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/reference/api.md",
+      "sha256": "a5d94af809b528a6f75d1b3e2a3aa269790400a554191412a445e5d18536794b",
+      "size_bytes": 6827
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/reference/cli.md",
+      "sha256": "b268d4b651703af6a8315e5ce7f0e1651759a35e76e6498f9428981cd3ef2d60",
+      "size_bytes": 1586
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/reference/config.md",
+      "sha256": "809e6f1dd59f2e9c98787789c47a2c05ff7a54e0d0f3204c9c75c1fd7696acf3",
+      "size_bytes": 4647
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/sleep/README.md",
+      "sha256": "0ff52c3a6dc08295e0faf30c680671fe60f0a0e4f730f6806735e0d2b9bff9fe",
+      "size_bytes": 5665
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/sleep/RESULTS.md",
+      "sha256": "4cc79d6607580bc322694c8203c7c573bd8c0020c25488bd77f989d6def28c46",
+      "size_bytes": 8347
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "docs/superpowers/specs/2026-06-07-skillopt-sleep-claude-code-plugin-design.md",
+      "sha256": "4f678ecd12485fa5ddf3e7cdd41dcfbd73ed3360b17ba992260081fcae7ff293",
+      "size_bytes": 17412
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "index.html",
+      "sha256": "9ff5b91ef844cae8f4af44fab7621bea0949e261c225557a074a82a98a556f4a",
+      "size_bytes": 83942
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "mkdocs.yml",
+      "sha256": "6d66b08abd3f506e311926b598eca5d3ed9fb04ef968d83b7fcfc4c55f829c1c",
+      "size_bytes": 2060
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/README.md",
+      "sha256": "c25c323c71d06bbcabf0c8d41b7bcbb3f2bbe098c1774f3e1ebd66c08d03a582",
+      "size_bytes": 10188
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/.claude-plugin/marketplace.json",
+      "sha256": "e8e5290cbb87ba5419e0c7f7f16374ef319c3998e94ca3b5d4c981aa86cfdfca",
+      "size_bytes": 1157
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/.claude-plugin/plugin.json",
+      "sha256": "03a45d9e16ccdc9c46e181c000bbfcc9dd9fd4bbdb3d753f97e9c854c52e06cb",
+      "size_bytes": 877
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/README.md",
+      "sha256": "26e169e7a297fb5fa16b423bc65ff448cb72e1caa744aed50cea689271e74efc",
+      "size_bytes": 6092
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/commands/skillopt-sleep.md",
+      "sha256": "2c8f60739e965dc63761bd76a43102356e24b51bdb386508705cf36b4d30cab6",
+      "size_bytes": 3299
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/hooks/hooks.json",
+      "sha256": "ad5a64ed871da420bac85f8f9f30c9a343e5a0043d648b8f2052b90e2f5b439a",
+      "size_bytes": 273
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/claude-code/hooks/on-session-end.sh",
+      "sha256": "1747d2407fdd4cc084787876e428699eb71e5ea4972a6fa669fc4354f9019fad",
+      "size_bytes": 737
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/claude-code/scripts/install-cron.sh",
+      "sha256": "835919028b63d8caccec5f431948e4e59288c2c5b0cdbe1d56135819f7d4209b",
+      "size_bytes": 1523
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/claude-code/scripts/run-sleep.sh",
+      "sha256": "38528169fa516dfd2487840285ff30f06a405ffc3dfd134f44790dfc609bdd6d",
+      "size_bytes": 1963
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/claude-code/scripts/sleep.sh",
+      "sha256": "e01228bdddb235f3006e70ee6e6fea8555451d6d77c14b7b8a95d5734c3fbfbd",
+      "size_bytes": 1369
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/claude-code/skills/skillopt-sleep/SKILL.md",
+      "sha256": "640ad56eddccb7ac3cb550b66464d1201c2c4b44427886d38485f6e453b34a75",
+      "size_bytes": 7060
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/codex/README.md",
+      "sha256": "0f7767645268b8d35ca03168cfbecfefe18cf6ef6386a4e379b147f89d774891",
+      "size_bytes": 4428
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/codex/install.sh",
+      "sha256": "f166359b2f5f4fd809633c4a91ce6e33fda044942c244ebf131844f22278fed4",
+      "size_bytes": 1578
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/codex/skills/skillopt-sleep/SKILL.md",
+      "sha256": "66201aa72e1422f559752e75a75fac76663f174eb1faeb8fda0aa9f836745d2a",
+      "size_bytes": 6327
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/README.md",
+      "sha256": "15f14d8a3be638105f8185485736524e4138e32c60aa64c648bcef6e16952199",
+      "size_bytes": 3144
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/copilot-instructions.snippet.md",
+      "sha256": "f01ab40d09540116649446f2a9d1a46841fdd71592d7a3cdcb21196039273cfe",
+      "size_bytes": 2036
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/mcp-config.example.json",
+      "sha256": "b0e1176201f7ad031525775d762ad79a6e2b265f10796a73c7c8e8c64a1d1e74",
+      "size_bytes": 208
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/copilot/mcp_server.py",
+      "sha256": "aeef5126979412720bd5b161b51222b3d99e9edac2836bcaf26de212cd52bed9",
+      "size_bytes": 7429
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/skillopt/README.md",
+      "sha256": "32f69bec80ca10061f7e1527e4fa098cee71be80e00bdd1a12ed6fe535b42e9c",
+      "size_bytes": 4167
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/skillopt/copilot-instructions.snippet.md",
+      "sha256": "73ecabd3646d5171c34ace1c6e61f9ee50e2660908223ef77687ed4f70c7ec93",
+      "size_bytes": 1695
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/skillopt/mcp-config.example.json",
+      "sha256": "c917924cb8e1121108c516be9c31850a5c5e501ae7cbb8bb981b52c4647310d4",
+      "size_bytes": 216
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/copilot/skillopt/mcp_server.py",
+      "sha256": "35f861cbaad8c4779a2b83568129c84fd2cf6741dabeba091abb2271b9d950a6",
+      "size_bytes": 9107
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/README.md",
+      "sha256": "49ae40352d1b54fe268940e3b574371ec5c87c18f06c146acc5e16fe839ea497",
+      "size_bytes": 2821
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/devin-rules.snippet.md",
+      "sha256": "16737ef51ca7cc8bea444ad4d04af99792e99e3aa4a8f2a52c5aff12dd972eba",
+      "size_bytes": 1030
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/fixtures/devin_sample.json",
+      "sha256": "4dee17f9a63e348e09348601f106804e9d1bc9bbc59d9838e041bc6cb8777539",
+      "size_bytes": 744
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/harvest_devin.py",
+      "sha256": "3bbff2b1deea7500b6b5fabda0b78ce744822068020ba225894fddaf7a1ff342",
+      "size_bytes": 22817
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/judge.py",
+      "sha256": "0704a248bfa853891ca2b71b4e1196259529f6fdf75812786adfb0ad33b4f295",
+      "size_bytes": 5374
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/mcp-config.example.json",
+      "sha256": "206df864b990556af8298c7e50e52ce8536e1fd5779311676ee074e1fd32d98c",
+      "size_bytes": 240
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/devin/mcp_server.py",
+      "sha256": "866c840d48119347edec26fa90c6d307540c568edbb75c98d83a0ad91924dbcf",
+      "size_bytes": 10100
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/README.md",
+      "sha256": "169c5cfd66c5d61b6e012f469be89ff7858aa4ac07531b3837ebb11d5046c59c",
+      "size_bytes": 4037
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/SKILL.md",
+      "sha256": "75c537b03df089bd99823511155eddf8dc0cccc956fc21e7c15bb4a1be9942cc",
+      "size_bytes": 4613
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/config.json",
+      "sha256": "d66e686b9cf8c0ff6f4c9d3c6618bbb86f5a19314c23bb570a7952e5fcc353d8",
+      "size_bytes": 763
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/openclaw/run_sleep.py",
+      "sha256": "2b4adddb0c80fdc8b8b190e7dc76fbba4752a62febb22dd0be237a63bc0ec7b0",
+      "size_bytes": 4715
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/openclaw/run_sleep_cron.sh",
+      "sha256": "2307882ca50ec76f91df315a905155d36fc9e470350588e8933ae54d6f0075b3",
+      "size_bytes": 2205
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/skillopt_sleep_openclaw.py",
+      "sha256": "8423bb0a708fb421bf9994d6123e6ab97418e48a50322eab0ee30930ffbbbb3a",
+      "size_bytes": 10005
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/openclaw/slash_sleep.py",
+      "sha256": "3708931909fa68ee9a2c7c77959c2398ba0ca6edf91e2a59cd36b08777e305c0",
+      "size_bytes": 11992
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/tests/devops-tasks.json",
+      "sha256": "7cfc7569a63b89a147a57c916ab19a23ac4e3610010ab0cf34540ad091ab635c",
+      "size_bytes": 5248
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/tests/research-cron-tasks.json",
+      "sha256": "0d72854e484a959a04b5dffdd5ae1a271776a18bb0a4162653e786ad89873ec6",
+      "size_bytes": 7014
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "plugins/openclaw/tests/wiki-tasks.json",
+      "sha256": "a530f9c8924ef5f1f7918baf95dc428185bd21eaf1615a30d00198f860d70a87",
+      "size_bytes": 5155
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "plugins/run-sleep.sh",
+      "sha256": "38528169fa516dfd2487840285ff30f06a405ffc3dfd134f44790dfc609bdd6d",
+      "size_bytes": 1963
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "pyproject.toml",
+      "sha256": "19aa8995cf51ea1bd2c8ab48104c8b42d2319b4bb3a22d4333acbe7083732393",
+      "size_bytes": 2555
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "requirements.txt",
+      "sha256": "95c3c4c22e3e9bbde7d34cb8771bae2b6de6299e8d67ba1a827c0fb091016c3f",
+      "size_bytes": 1163
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "scripts/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "scripts/eval_only.py",
+      "sha256": "606a3dbb15b0a27b7650b90fc27448f0491b71efea85ea2fbf8406d2e51b709c",
+      "size_bytes": 22785
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "scripts/materialize_searchqa.py",
+      "sha256": "1fc7980632dcfe3f676eff39b1dc4289cef755797952ddc8bbc2d9670fafb5ea",
+      "size_bytes": 4720
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "scripts/run_alfworld.sh",
+      "sha256": "44132a51ff6a00e1ad8de3bf82612ae1bc441036c93a11c07744b9f39501f7d9",
+      "size_bytes": 2357
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "scripts/run_searchqa.sh",
+      "sha256": "aa4445f10e55540c0cbf7e13aa16b723f5cec560f30703761a31b24f76dc76b9",
+      "size_bytes": 1692
+    },
+    {
+      "kind": "file",
+      "mode": "0755",
+      "path": "scripts/run_spreadsheetbench.sh",
+      "sha256": "a9225c9a194886b6112673e46db12129a83390ab537bf1ed8a717bb813e34dac",
+      "size_bytes": 1724
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "scripts/train.py",
+      "sha256": "86f61b58fc94e25a89aa4b6bff04795e324907409ac81b8afab1e0bf6a810d5b",
+      "size_bytes": 26328
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/arxiv-logomark-small.svg",
+      "sha256": "95ed9a2942ee7f25174e0975752a25456e6ece86d83a1d6dd1a8eb948cda7eb4",
+      "size_bytes": 1687
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/epoch-trends-1.png",
+      "sha256": "82b0f934b0fa8a63d05441f6472ab12e61c4bf2f79f40ebfc5549d43680ec292",
+      "size_bytes": 80428
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/openai.png",
+      "sha256": "8a33312f6bb17c1edddf8f9d7fbac09ce1d1d697d6601f37227afa879e94c52e",
+      "size_bytes": 11297
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/pipeline-1.png",
+      "sha256": "227839fb759feb636f470157c483a51e39b375af8f20b21b25f55752e2a5d0b4",
+      "size_bytes": 399300
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/qwen-color.png",
+      "sha256": "de9bc7e285164e0d284a7b9555511c7f7767af7699d6272b3b67b376eeddbfb3",
+      "size_bytes": 10324
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt-assets/teaser-1.png",
+      "sha256": "d19b06a404219cc8be2784648572333991329b49bfc814ee2322bf68d3e2561b",
+      "size_bytes": 416734
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt.html",
+      "sha256": "9ff5b91ef844cae8f4af44fab7621bea0949e261c225557a074a82a98a556f4a",
+      "size_bytes": 83942
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/__init__.py",
+      "sha256": "acde34f209004e93450198fbcc4cf5f161e5079c53e5e38492d934e42347995c",
+      "size_bytes": 728
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/config.py",
+      "sha256": "bf605a065a672fc5347a1d653b3e6f877204b4ae2833ca6250051cb2ba209970",
+      "size_bytes": 12486
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/datasets/__init__.py",
+      "sha256": "39a907e5207f3daa2477a4b3f9b01395fbadd43918f22ecdb8d4c132958467e7",
+      "size_bytes": 324
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/datasets/base.py",
+      "sha256": "82a68f80271fadb4947f49b81a27cf03af08af61ed85d5326381a7955d0da48b",
+      "size_bytes": 18879
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/engine/__init__.py",
+      "sha256": "ef54fb8adc9731d16ec85321959437a41df1ba9c88114a424fa4da12df2a82db",
+      "size_bytes": 303
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/engine/trainer.py",
+      "sha256": "deae957533ae6b50ffc241bf91df4707230f5a09540c5a996875e92018eb9951",
+      "size_bytes": 114993
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/__init__.py",
+      "sha256": "a3e66f90175f614a239a4f1264569cefdc6f8c7c62f4204986119d9c8f605621",
+      "size_bytes": 36
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/_template/README.md",
+      "sha256": "5b8d4d182b142619d5232c47a762b7febee2f3392ffb6ba514b0da7da81a9d53",
+      "size_bytes": 1808
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/_template/config_template.yaml",
+      "sha256": "fffd17288fc5f518ecf35772e26567643b0c1ca14c5bb0fa72596ff3cd475eb5",
+      "size_bytes": 2976
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/_template/env_template.py",
+      "sha256": "4fb7cf0a1e43df616450ba1193f103d36b19f4679da9dafbb481a62be8651484",
+      "size_bytes": 5844
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/_template/loader_template.py",
+      "sha256": "3722effd1180357c40f7e6cb0b3cc1e135d16855de3409d92bcc87f82f24fdaa",
+      "size_bytes": 3180
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/__init__.py",
+      "sha256": "9338a5fbfeb5e983b39feae2c00858cfef2146e8b6fcc977dd86ce0060aa9c9d",
+      "size_bytes": 139
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/adapter.py",
+      "sha256": "15fa76d3e5ad6694a2bbe670b53cab301127493433d2a575f2f02e5e7e98083f",
+      "size_bytes": 15073
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/dataloader.py",
+      "sha256": "3dff2eb535576c109c770d5a90a7a6e9d9442bd15c8035ff77a3f942766ecb7b",
+      "size_bytes": 3879
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/prompts/analyst_error.md",
+      "sha256": "b8747f41bf2b9535b852e93b74eda268ff260591b982e82c4f068e9cab4c3b8c",
+      "size_bytes": 2932
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/prompts/analyst_success.md",
+      "sha256": "1cf47b94ecca52109cbe813f7f35661c4f6ff5db1067c944a3c2e2d2467501b6",
+      "size_bytes": 1554
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/prompts/rollout_no_history.md",
+      "sha256": "fcf6fe7a561729ccc4581697f5c8ad5986c150e56e32d761bad944b2fc9da614",
+      "size_bytes": 515
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/prompts/rollout_with_history.md",
+      "sha256": "7b17c85e102f3e49400df99bd3f333337827df9441abd873926a566ad9858027",
+      "size_bytes": 768
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/prompts/rollout_with_memory.md",
+      "sha256": "74ff72a6e78d0feab1edd3295b5c7fe430f27c7d0d462871779784b008d16f92",
+      "size_bytes": 846
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/reflect.py",
+      "sha256": "1dc783ea375e1d8e513a53e7007df3cbc4dae7c1ef8cc2994f843b5e560b1f88",
+      "size_bytes": 91
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/rollout.py",
+      "sha256": "eaacb4e895e4b399801b0496ee4cd4de51820a484bfa856e3804f5d47e298a20",
+      "size_bytes": 12739
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/skills/initial.md",
+      "sha256": "01bd29e825b81715e7b592e135a9a9d6d0f812a5e84dcd56b51cc1075247f941",
+      "size_bytes": 2966
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/__init__.py",
+      "sha256": "4fe9aa8cca043c4587235d89b5e99b30b655227c08be51251347896c6d13f766",
+      "size_bytes": 389
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/alfworld_envs.py",
+      "sha256": "abf75595e9af8d673d136d2f83484f185e10ee38eaaee276985c7483787df179",
+      "size_bytes": 7435
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/alfworld_projection.py",
+      "sha256": "b4a6fe296a09fedea023c5f820b89e36acc39fe38de47f2542da01d270fed155",
+      "size_bytes": 1876
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/alfworld_prompts.py",
+      "sha256": "5356d37f2c0b141b8cf80e16882584c9470e6f0453a8cd401b1094769e680a87",
+      "size_bytes": 378
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/config_tw.yaml",
+      "sha256": "a33f87ab43253ea602f93c9a0b176771a8ae16a34cd953130e45fc03700f1f49",
+      "size_bytes": 7733
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/env_base.py",
+      "sha256": "1d2b23d7b9dcc9fda2c7ccb1680a671cf8ffeb7a5b8a15c0b08847a609613e82",
+      "size_bytes": 2860
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/env_manager.py",
+      "sha256": "f20a9b34cc365b985ea0b08fd5ead5fe2d843b796f9eec6a7f988840d9f26b9a",
+      "size_bytes": 5480
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/alfworld/vendor/memory.py",
+      "sha256": "16cab09411702c5d885387a5921f6ae3dfdb9bc277057e4fb3c2efac48638e33",
+      "size_bytes": 2406
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/base.py",
+      "sha256": "ea8c650e8bce460be047a03183cf17fbc49b436345cd1b1484093f763c6c64d7",
+      "size_bytes": 12297
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/__init__.py",
+      "sha256": "cc98501c0d2aee0afca305abc72241ec5cb314b7aae719e6ad0a4c6634b8968d",
+      "size_bytes": 46
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/adapter.py",
+      "sha256": "9f98e40a2dce8f7a63edb61727cf068c3417942726cd8d10fe3c3cc511ece476",
+      "size_bytes": 3330
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/dataloader.py",
+      "sha256": "c4ec63cbaeb93b36a60dd61026972bf04da4aa0c1cc43ddfb44db4c3ef823e83",
+      "size_bytes": 2273
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/evaluator.py",
+      "sha256": "09157ae524c546dfa1e5c42c3383b017303e04a95c09a5c9683e06d618b66b0b",
+      "size_bytes": 3602
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/prompts/analyst_error.md",
+      "sha256": "29ff71f094b66472b015a4dabc68a3d5d77e9e72a086f9e09b74643c237bdb54",
+      "size_bytes": 1808
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/prompts/analyst_success.md",
+      "sha256": "71052e02f76ad03b3e1755c88dfb2932fd69fe27326be0afd5e09c2cf1d2654b",
+      "size_bytes": 1220
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/prompts/rollout_system.md",
+      "sha256": "f6484254d7e4a8bc8504caab5090937e650c4ffda1baa233d5be65202560ffd9",
+      "size_bytes": 510
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/rollout.py",
+      "sha256": "0750bc09f460607fede146e17fe5eafb2a97f42e580b79c6180f72a88b410801",
+      "size_bytes": 14596
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/docvqa/skills/initial.md",
+      "sha256": "60fa9bae90590a50970c9d5d33d92eaa412bf1fa380bd00c8343430202795d97",
+      "size_bytes": 536
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/__init__.py",
+      "sha256": "728bc6782ef8f7f8de3f54589f0dc268c78823029428e464cd2d0187ca8c56b4",
+      "size_bytes": 62
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/adapter.py",
+      "sha256": "f4fe95d156a3e63f0c5ec78d76c1fcb9a87db05fe368212eebfc5689a71de5fb",
+      "size_bytes": 4597
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/dataloader.py",
+      "sha256": "bd0537a7a47e6ab49f92bd6987495cb6560ae817a7f0b2bf0b4825b04662c5ff",
+      "size_bytes": 10776
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/evaluator.py",
+      "sha256": "97c92063a38228e91bbb6a12cad7a783374900c9975610654b50b3a4eb997488",
+      "size_bytes": 2131
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/prompts/analyst_error.md",
+      "sha256": "9cd5e3449b9013fb67b6dec930486bd8c23c7128f2746f97a1ca29b07b178150",
+      "size_bytes": 1700
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/prompts/analyst_success.md",
+      "sha256": "42619d41000d16b7e5194e5dd09ba67fcd65d1c5ae8b04b4097c38e45a02750d",
+      "size_bytes": 1070
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/prompts/rollout_system.md",
+      "sha256": "506702528eabd178a7f4e3f4a44339175a712cec8d6d68e4c3c7032e9f6c3df6",
+      "size_bytes": 494
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/reflect.py",
+      "sha256": "a987082a62a8f8eaa7b97a6ecbf447d9bacfb7ec5f54bb1fe9c0ee5885690054",
+      "size_bytes": 105
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/rollout.py",
+      "sha256": "79712e2405a91c104130422bec97473eb83549245af94d2204daf8adb18ab273",
+      "size_bytes": 16805
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/livemathematicianbench/skills/initial.md",
+      "sha256": "84d545e168a047349fe4f6851708c6e34a7fc755c6ae3804775cbc671a8aab3f",
+      "size_bytes": 1018
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/__init__.py",
+      "sha256": "78a588eb690f26cd9e2bdeb6eac88ca5848c75a3758af073a777f020902b0f01",
+      "size_bytes": 48
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/adapter.py",
+      "sha256": "4790e47fb518f266f0c54669c48aa5a5a1ade4a6da1286a5e0d3a30528e355ec",
+      "size_bytes": 4695
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/dataloader.py",
+      "sha256": "709c89c6708d698b24abbeee94841d6bc6202ffc65ce2253f5fdc16fc6e603bb",
+      "size_bytes": 2572
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/evaluator.py",
+      "sha256": "49dad2a2bdede9665541102fe47ca74ab2a0cc05ad84d2f8ca047f223c1b4aef",
+      "size_bytes": 1422
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/prompts/analyst_error.md",
+      "sha256": "7e29d2009757776fe02e1d5278bd4f3aae541e15af47bbaadf71d34bfe92073e",
+      "size_bytes": 2033
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/prompts/analyst_success.md",
+      "sha256": "5569d91461e70e04eaa9e362b6cd0de1f95294b0cbf1f0ef00f923d2c9143195",
+      "size_bytes": 1375
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/prompts/rollout_system.md",
+      "sha256": "dccf88db96ad91011c1ffd49339b3312db30c7e5f26d92dd2123f81cd5ba49f0",
+      "size_bytes": 903
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/rollout.py",
+      "sha256": "f517afe5d2e39344b598ae6b3c945c9da9645132e2a8facf1f1af36dc0319909",
+      "size_bytes": 34397
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/skills/initial.md",
+      "sha256": "9d377d1c2906981be23fef1ce93e349f2b63f8f49a40d9368f191d95987b20ab",
+      "size_bytes": 887
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/officeqa/tool_runtime.py",
+      "sha256": "c94510816a4e8afdb1b1abd6c65a800d294f9c4b7bf2eb966f831b502227a4f4",
+      "size_bytes": 19887
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/__init__.py",
+      "sha256": "3874a40b6adfb028a32a8aa3a54604b1586032131a30cf53271e3cf0b2ece2fc",
+      "size_bytes": 48
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/adapter.py",
+      "sha256": "8959e7ab0e1494c23f6c2cedcce669c78de5539f9ae00d4619b81a88f884e491",
+      "size_bytes": 3325
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/dataloader.py",
+      "sha256": "de33859056bb195cc629a132d66c1afc018b0f6bdd46a74ae53cfc9eaa64af24",
+      "size_bytes": 1265
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/evaluator.py",
+      "sha256": "b69136fa727fedeede7ab257144f4dc937877bd1792f13c5c596d566df66fbd3",
+      "size_bytes": 3096
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/prompts/analyst_error.md",
+      "sha256": "ac58184f03e2198244ace28a9339674256061a62433787aed358954e6a031a19",
+      "size_bytes": 2312
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/prompts/analyst_success.md",
+      "sha256": "0a169f33a141ed544b460d3f800f9dd2da28450d42b93556a3656cf8a45f0322",
+      "size_bytes": 1515
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/prompts/rollout_system.md",
+      "sha256": "080659db39377c7cb5673063466e16c51446397d09aa3f0382152cea3ca1abbe",
+      "size_bytes": 536
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/reflect.py",
+      "sha256": "cecf8e770bc920d2a3a4a7ee1c9d7a20734c18f39a26d05c751abf4a04062b7c",
+      "size_bytes": 91
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/rollout.py",
+      "sha256": "f733f3bdf3418b8e314eccfa5da601c25a63433ec5f185530a9245cac221266b",
+      "size_bytes": 18018
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/searchqa/skills/initial.md",
+      "sha256": "d3ed21de4a5216da7c3cd63acc2330dc78227524753c9d29573e6692f48d6709",
+      "size_bytes": 104
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/__init__.py",
+      "sha256": "bb65dbdcc0273c225958903cf9f5f9a441e5d1770b2875f80845e4d2df8f8837",
+      "size_bytes": 171
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/adapter.py",
+      "sha256": "6abbb7e9aa2b21ea8f7e113d7d07e9b2ea2d4c66163625fa6af4ea720071f51a",
+      "size_bytes": 5801
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/codegen_agent.py",
+      "sha256": "673863aae9379bb5448c30e449264450d0471091be18e022e8d5c4227fc12a44",
+      "size_bytes": 28059
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/dataloader.py",
+      "sha256": "d5ab3731ba4430b52b71a49c1df355e32b0fe6ff62fc74ceb7a9b693c3e0957d",
+      "size_bytes": 1056
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/evaluator.py",
+      "sha256": "341dd5a5e6109460fce41b336d78a897bd691159c5410a5fd98701de713dd162",
+      "size_bytes": 5509
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/executor.py",
+      "sha256": "574300782a10d121f046bcbe5894d29e805ce2c89a6c1f0e5403d6c9d4b949eb",
+      "size_bytes": 1990
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/prompts/analyst_error.md",
+      "sha256": "2e5aeb30856529ff39e40c84483a55971744f9c97fdb679b98e07bcebd668839",
+      "size_bytes": 2335
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/prompts/analyst_success.md",
+      "sha256": "6c71d691286275f8cf775a5517e16d705bd31d2b4bce6b4136b59a7a9ba3abf2",
+      "size_bytes": 1515
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/prompts/codegen_system.md",
+      "sha256": "a8b561ebd38fc384035cd7e9210ad679e6f84ad581233f0d51a2086e96f690b4",
+      "size_bytes": 568
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/prompts/critical_rules.md",
+      "sha256": "47a0c80e670adbfe7dbe585fd1f2db8f7e5af999f274e3644c5fc80ad92ff8e2",
+      "size_bytes": 575
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/prompts/react_system.md",
+      "sha256": "907cb385ea2f7a82877e0c058d880dd610de2bd7c0161f0df2920568660456af",
+      "size_bytes": 1058
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/react_agent.py",
+      "sha256": "6779790b19987b8a4b6e4a9d9df9680aaffa44d58aea7228566a79b12b937553",
+      "size_bytes": 13469
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/reflect.py",
+      "sha256": "6f4c5ae1714f2f7478c43adc31258876a257c70996760aa1f7f39cf01c5a21a3",
+      "size_bytes": 99
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/rollout.py",
+      "sha256": "bcdc864dd629ab833cbb95d74a45ccff4a9fa6648d34d453eb5c9c8a16493f56",
+      "size_bytes": 39306
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/envs/spreadsheetbench/skills/initial.md",
+      "sha256": "5c49d03008aea2c7151b134da20f2258a746c7323b76f0e49ec2c1ea8c131f26",
+      "size_bytes": 1598
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/evaluation/__init__.py",
+      "sha256": "1d34dd85f77152bca307443ec0ad4609cdc0f8fb0d68638d1e1235d2e5bbc854",
+      "size_bytes": 428
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/evaluation/gate.py",
+      "sha256": "3dfa23e45bb24c4126c4b14f668c3df4315483caddd0767f72c64a6f30554e46",
+      "size_bytes": 4626
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/gradient/__init__.py",
+      "sha256": "570b2e37e2ca7a82b76ee0a0054cd8ecd849a55552d83dab1f7029be099fc43d",
+      "size_bytes": 542
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/gradient/aggregate.py",
+      "sha256": "08e5e17ff13fb03838cf9a136af974ce5d21424bbba8a93b62ae983afe896d3f",
+      "size_bytes": 9348
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/gradient/reflect.py",
+      "sha256": "537a72293ebdeec88da6d7055e8b9af6204a8766a9f02bc9cf131fbe61499a8e",
+      "size_bytes": 25202
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/__init__.py",
+      "sha256": "b9753eb60761b99926724de0454bc58b3ff5b9e38a0c96295fcecc177740662f",
+      "size_bytes": 17573
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/azure_openai.py",
+      "sha256": "0a726c842e4fafad169e0b7d8552624c9b071cde96512d80e29db4670cc6a12a",
+      "size_bytes": 34070
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/backend_config.py",
+      "sha256": "df85c09b8a1bf35624d0a53eaa3d98804f418a313c084632e1f8a0a7129a558a",
+      "size_bytes": 7870
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/claude_backend.py",
+      "sha256": "456a40aaeb8de0ce14501c4303ff09f866e5f8426d9eb2c9548db9df713279f3",
+      "size_bytes": 18975
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/codex_backend.py",
+      "sha256": "5e5c9bcfe414e00155b28ad659d9be22af2998da36ad234a849c575577dcc256",
+      "size_bytes": 20527
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/codex_harness.py",
+      "sha256": "7ccb3554ed1dfed3dfb10637ebb9f00253f015e612a314510a561760a993cde9",
+      "size_bytes": 38150
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/common.py",
+      "sha256": "4070694cd436bcff72672e22c1ad362ec4db649e928906b30489dfbaeae7d82f",
+      "size_bytes": 7533
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/minimax_backend.py",
+      "sha256": "94f326182a922b53c2246d7f3619b5222356657fa9b516c2253c1832eeafa480",
+      "size_bytes": 9490
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/qwen_backend.py",
+      "sha256": "d0e049fbe7f0674aa224c8546cff0bd520856a75ad0223c848e89925c197cc13",
+      "size_bytes": 15643
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/model/router.py",
+      "sha256": "3265614f352cd0dd665f39eb351278351b0f3c98f7dc3cde9a6b4b005015e5fb",
+      "size_bytes": 7059
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/__init__.py",
+      "sha256": "5f18d2f2fbcd469ef7ff64705fbb6b883102b28cccee7353af21e8bb36b8749b",
+      "size_bytes": 628
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/appendix.py",
+      "sha256": "220c373fd1e0bb14f47b99a51ff7c712dfc9387c6107f4fae3f89f9102ca4f9c",
+      "size_bytes": 6269
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/clip.py",
+      "sha256": "0c1060799884eb32e131000299ae78af094ee375d9c81c3dd1e1e2c78bd3c728",
+      "size_bytes": 3980
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/lr_autonomous.py",
+      "sha256": "8ce459602b548c495825af9fba9621fcb5066b798876cdd0306b5d4ed48d2b68",
+      "size_bytes": 3543
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/meta_skill.py",
+      "sha256": "a9b02bded86aca1575bf8647d85c55808fbe12162b5de69ca91c3ef2b7424b6d",
+      "size_bytes": 2959
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/rewrite.py",
+      "sha256": "d5606e7859d9a36e34b3d870fd1d9f8172f3cdc97cfd2160610c3fed2de3f158",
+      "size_bytes": 2015
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/scheduler.py",
+      "sha256": "9656edc495cdde8fe8f94cace83f9f2d42188895648bb59d99ad8f6b60f47912",
+      "size_bytes": 4028
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/select.py",
+      "sha256": "e675ebfe4c79627c944e6aa90de6542f85deaf948054c1cfe1b8876ec8442dab",
+      "size_bytes": 162
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/skill.py",
+      "sha256": "1cb3ecd9da7ab5ea89ad86780f3e4536fcf5cda84455ea6ae8fcc9c86cc73d3f",
+      "size_bytes": 7383
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/skill_aware.py",
+      "sha256": "ea37beb95056ac52a61167153a2e05b05692d55fbe2b3bcfb039516801f0b418",
+      "size_bytes": 8897
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/slow_update.py",
+      "sha256": "90e71c6fd4ae5ca0506a2e0bee604a9c05f53b0d8d017618a0d44e65635efaed",
+      "size_bytes": 15119
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/optimizer/update_modes.py",
+      "sha256": "37c15553afd820a94216caadfe80d29a9cbfca7c01dacee3b628e439830d8841",
+      "size_bytes": 4914
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/__init__.py",
+      "sha256": "50c017a18c35d990bf24d5efa4019aaa13bb3ef8db0e2b50dcab5c923a376455",
+      "size_bytes": 1893
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_error.md",
+      "sha256": "40eaf561c7fdbdfc1c7a1febd9f7c3540270ca6d5e7e0a8798c7c90b8d303200",
+      "size_bytes": 1951
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_error_full_rewrite.md",
+      "sha256": "a81389ca63e75f13d6aca4d2f01cd6825a364e9cca833f316de125014a2f7365",
+      "size_bytes": 1258
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_error_rewrite.md",
+      "sha256": "c393358b2be63d49bc8400944f17bcfb45f58aed5959cf6a46c2e1c1caefcd1b",
+      "size_bytes": 1934
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_success.md",
+      "sha256": "0ffc8f85e13af2b14e1b9f3307a44d30ecf60e9d803ccb9190fdd9785e43fabc",
+      "size_bytes": 1646
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_success_full_rewrite.md",
+      "sha256": "359a7481e348a89d51e5c7ee60a3d4d1d7a5ce7fdd8193d490c64f2667aeec55",
+      "size_bytes": 1219
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/analyst_success_rewrite.md",
+      "sha256": "758bfe107d15ba1b5318f7191ea9e965fb09982b12599d62fee9db0d823f22f0",
+      "size_bytes": 1408
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/lr_autonomous.md",
+      "sha256": "667c78c7873a28fae0e6f47c5c6ed556d76dfe337c74da986757c9e4fadb1f0e",
+      "size_bytes": 745
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_failure.md",
+      "sha256": "071313895da226840164ccda6e7f01d5f849ea128037d3f337cddab66ae799db",
+      "size_bytes": 1422
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_failure_full_rewrite.md",
+      "sha256": "adef4b6e8f0b1d7cf992e4bd9a34f633375b122cc054477c305a228627ec79ae",
+      "size_bytes": 1099
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_failure_rewrite.md",
+      "sha256": "e9cd2289d8515bca4561e52d3c8da14a2fe97d1b2e77d50f0d34f2fb257326c1",
+      "size_bytes": 1059
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_final.md",
+      "sha256": "b2c7b452032fbbe3b223e877b766ea6202775d685c3b32e68956a402e775b84b",
+      "size_bytes": 1398
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_final_full_rewrite.md",
+      "sha256": "21ee282d5720dd07dcea9ddd3cce2de893adeeed51518a0c241590130f1635bd",
+      "size_bytes": 1053
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_final_rewrite.md",
+      "sha256": "6a79e19eebe2fbbe20f93a6b864c7c157388bbae168980154c0cdac452bbdfe4",
+      "size_bytes": 926
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_success.md",
+      "sha256": "6b816bcf5526d31164b779921f3c8c847541bf92fbe26c6a38b555eb3b753712",
+      "size_bytes": 1121
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_success_full_rewrite.md",
+      "sha256": "8f1339cd57ed41af82f8ac7675891a9a58412b5c7ef4e6762a12ad8caad347ca",
+      "size_bytes": 1103
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/merge_success_rewrite.md",
+      "sha256": "2b293d9a16da199cade8bdade560b12553577ad66aacb0f9de3ae979aa150ab7",
+      "size_bytes": 1006
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/meta_skill.md",
+      "sha256": "b2bab7f7635cd2a94348de6adf15ceaa247ddabd0a2a8bb7c53eab5cfca7deba",
+      "size_bytes": 1755
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/ranking.md",
+      "sha256": "8bf37725b7b328d8d54af7a8fb173179bdd0f02b57399ed2cc7a5b5d25edea8a",
+      "size_bytes": 999
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/ranking_rewrite.md",
+      "sha256": "2ff8c755188704352cb7dd5c57bbce66c506145a5a5cd212b8881bd09d608031",
+      "size_bytes": 647
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/rewrite_skill.md",
+      "sha256": "2da412ee1d92ab32e59f8a33e2816a2c315edef5e2906d7628d8d093ae0dc68a",
+      "size_bytes": 1234
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/prompts/slow_update.md",
+      "sha256": "7f6f97d2283a370ad072a91ad61e152551f4f4eb4f519c9a1c5c60679b4782f2",
+      "size_bytes": 2998
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/scheduler/__init__.py",
+      "sha256": "0b5dde163078007b9c45b14db83d2fb676d62d11bc81df90155a50f1d73d0623",
+      "size_bytes": 283
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/types.py",
+      "sha256": "80cb01e921a2640fc4497aaba2b19de538c3592a03a73db9c2f2d950f6c15dc5",
+      "size_bytes": 10357
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/utils/__init__.py",
+      "sha256": "7a2f608332c095057fa82173f4841dee1d6f9f7a127b35a4770bf418319bc5f0",
+      "size_bytes": 224
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/utils/json_utils.py",
+      "sha256": "613fafa6a1de784d39abfcd19ee08f879f749703b80cbc965d64d83f6c6d714c",
+      "size_bytes": 6480
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt/utils/scoring.py",
+      "sha256": "f5756974a6d0f62f45bc408cc18ea13376eb1ab6592a351e8722d53860fcb8e9",
+      "size_bytes": 920
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/__init__.py",
+      "sha256": "d25a522b7dad66390534813218f524e6be99cbf717c0f3bc2a4f4f077369497f",
+      "size_bytes": 826
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/__main__.py",
+      "sha256": "6b6c6e574eccfe167e904abbf78a0ecd3109860891c7c464bea4ad48321ed05a",
+      "size_bytes": 14261
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/backend.py",
+      "sha256": "71aeacfe9aed5cbce7212826ec4cc19fb233209951c10146562d84f975059d78",
+      "size_bytes": 65668
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/budget.py",
+      "sha256": "d76de39b1d28c6ec8a0f0744f8508ad8ed750128462639d62e23c862bff2189a",
+      "size_bytes": 3117
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/config.py",
+      "sha256": "9cdf60e94a769d727d75bb9cd9e22e8be12c809dfcedfba8db11bcddd98cef08",
+      "size_bytes": 7215
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/consolidate.py",
+      "sha256": "f6b33d790754ac6a87c7ec61a61f6534d95989d6ee430a7846cb6fe547345006",
+      "size_bytes": 12102
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/cycle.py",
+      "sha256": "00f6666cdbb7e6da02f21475de8045388f2c8e0bb09eba78f5f0cd7699c1de70",
+      "size_bytes": 13579
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/dream.py",
+      "sha256": "472a73f5fb6b0b0c4dc956476a7d5deca4791004e9585a1c253784cee84306d9",
+      "size_bytes": 5601
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/__init__.py",
+      "sha256": "4e25623fd0a05acf2183081f9cf56d6f773905c65546d8e1420c6e8897e2d512",
+      "size_bytes": 34
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/gbrain_bench.py",
+      "sha256": "26614e95f3cdbc47c714c88fe6438b9ce0e8adca6faafb947ec1bb4aba4c47cd",
+      "size_bytes": 4247
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/personas.py",
+      "sha256": "66d8681552f59b8191e0d2f13307009847b863b40deb642ea903471ad50d5123",
+      "size_bytes": 3529
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/report.py",
+      "sha256": "1378e76e630f7ce02acd68efabfc2b5e285a98c10a1d2ecc7af2778679fe12dd",
+      "size_bytes": 5662
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/run_experiment.py",
+      "sha256": "ecf122529ee7ca36c913e5bc36d14141fdab87af227b03e8cf60405501b7c8e9",
+      "size_bytes": 7788
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/run_gbrain.py",
+      "sha256": "4349d92813dd4d85d5b92d3b34afcfc9d22f71e59505d71697f3ffec09953a57",
+      "size_bytes": 9578
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/run_transfer.py",
+      "sha256": "420c8d677f9280e3a81f8123b809a73b906d1c3ffcdf02f485af2ba985f6d31f",
+      "size_bytes": 6487
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/experiments/sweep.py",
+      "sha256": "299f5a3ec69d5c9ee44db0335f51f00061ca592eee8f2212608fa80a0c9be626",
+      "size_bytes": 7305
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/gate.py",
+      "sha256": "658982e845430ee08bd47fe0e2326df067369a6af63741d98f2930e069cd4c70",
+      "size_bytes": 2143
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/harvest.py",
+      "sha256": "a1acb98401e5c64882d9f6160e41367c678e193fa7d6f6fe693bbaefd092d061",
+      "size_bytes": 10592
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/harvest_codex.py",
+      "sha256": "7bd7b20a2e2fa48a481a660b2f71a0596fd7193575dac201e34a8f0f66a6af2b",
+      "size_bytes": 7348
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/harvest_sources.py",
+      "sha256": "d35db29ba42250844884405c258523406154654f208ae7315d2fc84601d30b50",
+      "size_bytes": 1243
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/judges.py",
+      "sha256": "e9c973ef9c067c703347ff997083446805a8e6f7fac571673219a752ebb5f188",
+      "size_bytes": 3243
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/llm_miner.py",
+      "sha256": "b6eb7e25af9f4803f3ea2b0fe3c2fd17e8989577dafb7e419d7ff0efeb514953",
+      "size_bytes": 5243
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/memory.py",
+      "sha256": "58187bd0e28bade31b4f952cdef26ac0aa4d8f9c4d0e53ac14b3e5a2f36a62dc",
+      "size_bytes": 4299
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/mine.py",
+      "sha256": "0e50a78ae89b902b5e736ecb27db2244e23584fdc4b1d22ef60c7c73bb363de2",
+      "size_bytes": 11550
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/replay.py",
+      "sha256": "21ac17d4d6dcbf55c1197d99bc7df0f2a60255907eaf4c8a7d943b4b4730cbac",
+      "size_bytes": 5468
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/rollout.py",
+      "sha256": "c27307ce8e0df62f130a03b07b0ee10d1fed953d57c9753d086fff58327541c3",
+      "size_bytes": 6107
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/scheduler.py",
+      "sha256": "c0e21e795e7c55a04badd058aa53fed167710219043ba7d33d450a3ecb2b627a",
+      "size_bytes": 5370
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/slow_update.py",
+      "sha256": "5a31d521424fe037032e77377100b5cb70e9dd426fc16745fa84e68ef5018248",
+      "size_bytes": 5670
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/staging.py",
+      "sha256": "503744eedfa017759f192bba80dd765d28205e4ab3e5bc9a41cd5808be72234c",
+      "size_bytes": 5937
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/state.py",
+      "sha256": "46ee2a3fc9c4830f8454f11b6f2535040c653cec432c907e26a4616445f368dc",
+      "size_bytes": 3680
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/tasks_file.py",
+      "sha256": "0c11133b89323add763f59cc35ea46f2cb71814743271ad86b53756e3881a103",
+      "size_bytes": 2671
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_sleep/types.py",
+      "sha256": "87170a1e7657edaf96f2fc09a32525c346afc52b172cc9219bc88ec9b47963a8",
+      "size_bytes": 5984
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_webui/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_webui/__main__.py",
+      "sha256": "68207d7402236c8bb309f0dd96f683ed37626d0d612e52293c474c0a6785dc62",
+      "size_bytes": 87
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "skillopt_webui/app.py",
+      "sha256": "c5adbeac86b635d2831300c66c5bef4b0715f0463fc2826667b75d63eaedf0d1",
+      "size_bytes": 27182
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_alfworld_paths.py",
+      "sha256": "4e85ce11ea87be0647bce949bf219eac1b37752cc9d99a46795cb9f19c68865b",
+      "size_bytes": 1233
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_devin_plugin.py",
+      "sha256": "5575c49ae9634c130167fafa44762c58818475f9992f0962819f203365ffa7ad",
+      "size_bytes": 3958
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_json_utils.py",
+      "sha256": "66b327db93b1313506cea6a27fbd1a76440b27fb02a2483c618d0b863ab05294",
+      "size_bytes": 8124
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_materialize_searchqa.py",
+      "sha256": "7359029c8051aebe472dc05f55558788f609a4a80d59e6a47f5ab56b395217cf",
+      "size_bytes": 2149
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_mcp_schema.py",
+      "sha256": "1c2984a3a39ebef8fd530b4a562a76b58f35feb2b0a0ac6edbb1b8841e738507",
+      "size_bytes": 1336
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_plugin_sync.py",
+      "sha256": "97e1873e0f816a86a53be0f723db18669d0fe9dc17369e124a1ea4b29b96537f",
+      "size_bytes": 3265
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_qwen_backend.py",
+      "sha256": "f6d89706ac064b5318c5b50fbc4e3349fa078231b893c898c0863bf75242c682",
+      "size_bytes": 7489
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_scoring.py",
+      "sha256": "7db821392d66d5f416dbfb957c350c6f29168f01bdfac52133a8b92d343e58a9",
+      "size_bytes": 3138
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_searchqa_rollout_failfast.py",
+      "sha256": "fc2628bd5a5f0011df74aa2f443643a3be36c4dd9e18deddc1e4fab3db1ca695",
+      "size_bytes": 875
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_skill_aware_reflection.py",
+      "sha256": "0783ccf19f9eb6f4a4ff38623740bfae20df4a1b8f5acca98b685f6373829694",
+      "size_bytes": 11994
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_sleep_engine.py",
+      "sha256": "c6bfe7efb0f04ea6c65f88bc4819609c3f370a5f28c55e148685634c25d897c2",
+      "size_bytes": 58081
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_types.py",
+      "sha256": "1ef203f1797ff234d8a7d04b3606cfc9ef9d2e581c0534581b168573a55a1edb",
+      "size_bytes": 8490
+    },
+    {
+      "kind": "file",
+      "mode": "0644",
+      "path": "tests/test_webui_env_preflight.py",
+      "sha256": "05c45e36af77578212e2efe252f60d2766453c10cd6c13f390984eb9b2e04f10",
+      "size_bytes": 2810
+    }
+  ],
+  "identity": "sha256:b62a1830d8143ce18d6d6e7165a8b205bedbf0718994ee5e16450617d0b64b8c",
+  "tree_git_sha1": "5a603e937a20f1078059f94039a50028c022487a",
+  "version": "skillopt_source_inventory_v020"
+}

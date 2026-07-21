@@ -7,6 +7,7 @@ SkillOpt execution-control fixture declares.
 from __future__ import annotations
 
 import math
+from decimal import Decimal
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -47,6 +48,9 @@ def score_retrieval_results(
     p95_latency_ms: float = 0.0,
     token_estimate: float = 0.0,
     cost_estimate: float = 0.0,
+    evidence_mode: str = "fixture",
+    capture_id: str | None = None,
+    capture_hash: str | None = None,
 ) -> dict[str, Any]:
     """Score ranked paper-search results against the offline SkillOpt fixture.
 
@@ -57,6 +61,15 @@ def score_retrieval_results(
     """
     dataset = load_json(dataset_path)
     validate_dataset_contract(dataset)
+    evidence = _validate_evidence_descriptor(
+        {
+            "mode": evidence_mode,
+            "capture_id": capture_id,
+            "capture_hash": capture_hash,
+        }
+    )
+    if evidence_mode == "measured" and float(p95_latency_ms) <= 0.0:
+        raise ValidationError("measured retrieval evidence requires positive p95_latency_ms")
     started = time.perf_counter()
 
     per_query = []
@@ -70,12 +83,13 @@ def score_retrieval_results(
     summary = _summarize(per_query)
     summary.update(
         {
-            "version": "skillopt-retrieval-eval-v0",
+            "version": "skillopt-retrieval-eval-v1",
             "dataset_hash": dataset["dataset_hash"],
             "query_count": len(per_query),
             "p95_latency_ms": float(p95_latency_ms),
             "token_estimate": float(token_estimate),
             "cost_estimate": float(cost_estimate),
+            "evidence": evidence,
             "scoring_elapsed_ms": round(elapsed_ms, 3),
             "per_query": [score.__dict__ for score in per_query],
         }
@@ -128,12 +142,13 @@ def validate_retrieval_evaluation_record(record: Mapping[str, Any]) -> None:
         "p95_latency_ms",
         "token_estimate",
         "cost_estimate",
+        "evidence",
         "per_query",
     }
     missing = required - set(record)
     if missing:
         raise ValidationError(f"retrieval_evaluation missing required keys: {sorted(missing)}")
-    if record.get("version") != "skillopt-retrieval-eval-v0":
+    if record.get("version") != "skillopt-retrieval-eval-v1":
         raise ValidationError("retrieval_evaluation.version is invalid")
     if int(record.get("query_count", 0)) <= 0:
         raise ValidationError("retrieval_evaluation.query_count must be positive")
@@ -141,6 +156,9 @@ def validate_retrieval_evaluation_record(record: Mapping[str, Any]) -> None:
         _require_finite_metric(record.get(metric), f"retrieval_evaluation.{metric}", minimum=0.0, maximum=1.0)
     for metric in ["p95_latency_ms", "token_estimate", "cost_estimate"]:
         _require_finite_metric(record.get(metric), f"retrieval_evaluation.{metric}", minimum=0.0)
+    evidence = _validate_evidence_descriptor(record.get("evidence"))
+    if evidence["mode"] == "measured" and float(record["p95_latency_ms"]) <= 0.0:
+        raise ValidationError("measured retrieval evidence requires positive p95_latency_ms")
     per_query = record.get("per_query")
     if not isinstance(per_query, Sequence) or isinstance(per_query, (str, bytes)):
         raise ValidationError("retrieval_evaluation.per_query must be a list")
@@ -169,6 +187,38 @@ def _validate_per_query_rows(rows: Sequence[Any]) -> list[QueryRetrievalScore]:
     return scores
 
 
+def _validate_evidence_descriptor(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != {
+        "mode",
+        "capture_id",
+        "capture_hash",
+    }:
+        raise ValidationError("retrieval_evaluation.evidence keys mismatch")
+    mode = value.get("mode")
+    capture_id = value.get("capture_id")
+    capture_hash = value.get("capture_hash")
+    if mode == "fixture":
+        if capture_id is not None or capture_hash is not None:
+            raise ValidationError("fixture retrieval evidence must not claim a capture")
+    elif mode == "measured":
+        if not isinstance(capture_id, str) or not capture_id.strip():
+            raise ValidationError("measured retrieval evidence requires capture_id")
+        if (
+            not isinstance(capture_hash, str)
+            or not capture_hash.startswith("sha256:")
+            or len(capture_hash) != 71
+            or any(character not in "0123456789abcdef" for character in capture_hash[7:])
+        ):
+            raise ValidationError("measured retrieval evidence requires capture_hash")
+    else:
+        raise ValidationError("retrieval_evaluation.evidence mode must be fixture or measured")
+    return {
+        "mode": mode,
+        "capture_id": capture_id,
+        "capture_hash": capture_hash,
+    }
+
+
 def _require_finite_metric(value: Any, field: str, *, minimum: float, maximum: float | None = None) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValidationError(f"{field} must be a finite number")
@@ -193,7 +243,7 @@ def assert_candidate_beats_baseline(
     validate_retrieval_evaluation_record(candidate_record)
     baseline = float(baseline_record["nDCG@10"])
     candidate = float(candidate_record["nDCG@10"])
-    if candidate < baseline + minimum_delta:
+    if Decimal(str(candidate)) < Decimal(str(baseline)) + Decimal(str(minimum_delta)):
         raise ValidationError(
             f"candidate nDCG@10 must improve baseline by >= {minimum_delta}: "
             f"baseline={baseline}, candidate={candidate}"

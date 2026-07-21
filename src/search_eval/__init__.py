@@ -1,8 +1,13 @@
 """Offline search-evaluation contracts for SkillOpt experiments."""
 
 from .query_analyzer_pilot import load_baseline_skill, run_offline_query_analyzer_pilot
-from .shadow_eval import SHADOW_EVAL_FEATURE_FLAG, run_shadow_evaluation, validate_shadow_evaluation_record
+from .approved_policy import (
+    ValidatedApprovedSkillOptPolicy,
+    export_approved_skillopt_policy,
+    load_validated_approved_skillopt_policy,
+)
 from .continuous_optimizer import (
+    ValidatedOptimizerDecisionRecord,
     append_reward_memory_entry,
     build_continuous_iteration_summary,
     build_live_canary_handoff,
@@ -17,10 +22,6 @@ from .continuous_optimizer import (
     validate_next_iteration_seed,
     validate_optimizer_decision_record,
     validate_reward_memory_entry,
-)
-from .skillopt_candidate_generation import (
-    record_candidate_generation_manifest,
-    validate_candidate_generation_manifest,
 )
 from .skillopt_adapter import (
     SkillOptBenchmarkCase,
@@ -43,18 +44,21 @@ from .skillopt_contract import (
 )
 
 __all__ = [
-    "SHADOW_EVAL_FEATURE_FLAG",
     "SkillOptBenchmarkCase",
     "REQUIRED_ARTIFACT_FIELDS",
     "REQUIRED_CONTROL_FIELDS",
     "REQUIRED_DATASET_FIELDS",
     "REQUIRED_ROLLBACK_FIELDS",
     "ValidationError",
+    "ValidatedApprovedSkillOptPolicy",
+    "ValidatedOptimizerDecisionRecord",
     "append_reward_memory_entry",
     "build_continuous_iteration_summary",
     "build_live_canary_handoff",
     "build_next_iteration_seed",
     "build_optimizer_decision_record",
+    "export_approved_skillopt_policy",
+    "load_validated_approved_skillopt_policy",
     "load_approved_policy_artifact_from_path",
     "run_continuous_optimization_iteration",
     "build_skillopt_benchmark_cases",
@@ -73,10 +77,6 @@ __all__ = [
     "validate_optimizer_decision_record",
     "validate_reward_memory_entry",
     "run_offline_query_analyzer_pilot",
-    "record_candidate_generation_manifest",
-    "run_shadow_evaluation",
-    "validate_candidate_generation_manifest",
     "validate_rollback_record",
-    "validate_shadow_evaluation_record",
     "validate_skillopt_rollout_skeleton",
 ]

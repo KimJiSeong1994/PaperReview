@@ -4,6 +4,7 @@ This script is intended for cron. It is deliberately config-gated: when the
 required approved/evaluation artifacts are not configured, it exits 0 with a
 SKIPPED message so production search behavior is never mutated by accident.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,27 +20,36 @@ _REQUIRED_ENV = {
     "approved_policy_artifact_path": "SKILLOPT_APPROVED_POLICY_ARTIFACT",
     "baseline_eval_path": "SKILLOPT_BASELINE_EVAL",
     "candidate_eval_path": "SKILLOPT_CANDIDATE_EVAL",
-    "materialization_manifest_path": "SKILLOPT_MATERIALIZATION_MANIFEST",
 }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--approved-policy-artifact", default=os.getenv("SKILLOPT_APPROVED_POLICY_ARTIFACT"))
+    parser.add_argument(
+        "--approved-policy-artifact",
+        default=os.getenv("SKILLOPT_APPROVED_POLICY_ARTIFACT"),
+    )
     parser.add_argument("--baseline-eval", default=os.getenv("SKILLOPT_BASELINE_EVAL"))
-    parser.add_argument("--candidate-eval", default=os.getenv("SKILLOPT_CANDIDATE_EVAL"))
-    parser.add_argument("--materialization-manifest", default=os.getenv("SKILLOPT_MATERIALIZATION_MANIFEST"))
+    parser.add_argument(
+        "--candidate-eval", default=os.getenv("SKILLOPT_CANDIDATE_EVAL")
+    )
     parser.add_argument(
         "--dataset",
-        default=os.getenv("SKILLOPT_DATASET", "data/search_eval/skillopt_paper_search_v0.json"),
+        default=os.getenv(
+            "SKILLOPT_DATASET", "data/search_eval/skillopt_paper_search_v0.json"
+        ),
     )
     parser.add_argument(
         "--control",
-        default=os.getenv("SKILLOPT_CONTROL", "data/search_eval/skillopt_execution_control_v0.json"),
+        default=os.getenv(
+            "SKILLOPT_CONTROL", "data/search_eval/skillopt_execution_control_v0.json"
+        ),
     )
     parser.add_argument(
         "--baseline-skill",
-        default=os.getenv("SKILLOPT_BASELINE_SKILL", "docs/skillopt_search/baseline_skill.md"),
+        default=os.getenv(
+            "SKILLOPT_BASELINE_SKILL", "docs/skillopt_search/baseline_skill.md"
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -47,7 +57,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--reward-memory",
-        default=os.getenv("SKILLOPT_REWARD_MEMORY", "data/search_eval/reward_memory.jsonl"),
+        default=os.getenv(
+            "SKILLOPT_REWARD_MEMORY", "data/search_eval/reward_memory.jsonl"
+        ),
     )
     parser.add_argument("--run-id", default=os.getenv("SKILLOPT_RUN_ID"))
     parser.add_argument(
@@ -88,7 +100,6 @@ def main(argv: list[str] | None = None) -> int:
         dataset_path=args.dataset,
         control_path=args.control,
         baseline_skill_path=args.baseline_skill,
-        materialization_manifest_path=args.materialization_manifest,
         reward_memory_path=args.reward_memory,
         next_holdout_generation_id=next_holdout,
     )
@@ -113,7 +124,6 @@ def _missing_required_args(args: argparse.Namespace) -> list[str]:
         "approved_policy_artifact_path": args.approved_policy_artifact,
         "baseline_eval_path": args.baseline_eval,
         "candidate_eval_path": args.candidate_eval,
-        "materialization_manifest_path": args.materialization_manifest,
     }
     return [env for field, env in _REQUIRED_ENV.items() if not values[field]]
 
