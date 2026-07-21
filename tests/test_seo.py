@@ -614,7 +614,10 @@ def test_unknown_category_returns_404(client: TestClient) -> None:
 def test_sitemap_lists_nonempty_category_hub_only(client: TestClient) -> None:
     body = client.get("/sitemap.xml").text
     assert f"{'https://jiphyeonjeon.kr'}/blog/category/engineering" in body
-    assert "https://jiphyeonjeon.kr/llms-full.txt" in body
+    # llms.txt is discovered at its well-known root path, not via the sitemap,
+    # and is not an indexable page — listing it only spent crawl budget.
+    assert "https://jiphyeonjeon.kr/llms.txt" not in body
+    assert "https://jiphyeonjeon.kr/llms-full.txt" not in body
     # No published paper-review posts in the fixtures -> hub omitted from sitemap.
     assert "/blog/category/paper-review" not in body
 
