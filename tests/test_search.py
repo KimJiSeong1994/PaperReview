@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.SearchAgent.search_agent import SearchCapacityExceeded
+
 
 # ---------------------------------------------------------------------------
 # Shared mock return values
@@ -223,3 +225,30 @@ class TestSearch:
         all_papers = [p for papers in body["results"].values() for p in papers]
         assert all_papers == [], "Expected no results for non-academic query"
         assert body["total"] == 0
+
+
+@pytest.mark.parametrize(
+    ("path", "search_method"),
+    [
+        ("/api/llm-search", "llm_context_search"),
+        ("/api/smart-search", "smart_search"),
+        ("/api/search", "async_search_with_filters"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_user_search_boundaries_return_503_at_capacity(
+    client, _patch_search_singletons, path, search_method
+):
+    search_agent = _patch_search_singletons["search_agent"]
+    getattr(search_agent, search_method).side_effect = SearchCapacityExceeded(
+        "llm_context_search"
+    )
+
+    response = await client.post(
+        path,
+        json={"query": "machine learning", "fast_mode": True, "save_papers": False},
+    )
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "1"
+    assert "capacity exceeded" in response.json()["detail"].lower()

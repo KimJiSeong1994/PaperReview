@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api_server import app
+from routers import admin_analytics
 from routers.deps.auth import get_admin_user
 from src.analytics.crawler_logs import build_crawler_report
 from src.analytics.ga4_bigquery_sync import (
@@ -379,6 +380,11 @@ def client(
     analytics_db: Path, nginx_logs: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[TestClient]:
     monkeypatch.setenv("ANALYTICS_DB_PATH", str(analytics_db))
+    monkeypatch.setattr(
+        admin_analytics,
+        "build_visits_report",
+        lambda db_path, days: build_visits_report(db_path, days=days, now=NOW),
+    )
     app.dependency_overrides[get_admin_user] = lambda: "test-admin"
     try:
         yield TestClient(app)

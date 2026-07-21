@@ -57,6 +57,10 @@ from routers.indexnow import (
     router as indexnow_router,
     submit_async as indexnow_submit_async,
 )
+from routers.search import (
+    start_search_background_workers,
+    stop_search_background_workers,
+)
 
 # ── App setup ──────────────────────────────────────────────────────────
 
@@ -103,8 +107,23 @@ def _warm_cross_encoder() -> None:
     """
     try:
         from app.QueryAgent.relevance_filter import LocalRelevanceScorer
+        from transformers.utils.logging import (
+            disable_progress_bar,
+            enable_progress_bar,
+            is_progress_bar_enabled,
+        )
+
         # get_model() triggers lazy singleton init (downloads model on first call)
-        model = LocalRelevanceScorer.get_model()
+        progress_bars_were_enabled = is_progress_bar_enabled()
+        try:
+            disable_progress_bar()
+            model = LocalRelevanceScorer.get_model()
+        finally:
+            if progress_bars_were_enabled:
+                enable_progress_bar()
+            else:
+                disable_progress_bar()
+
         if model is not None:
             logger.info("Cross-encoder model warmed up successfully")
         else:
@@ -146,6 +165,7 @@ async def lifespan(app: FastAPI):
     # that replaces per-event INSERTs with ``executemany`` batches.
     try:
         from src.events.event_bus import get_event_bus
+
         get_event_bus().register_main_loop(asyncio.get_running_loop())
     except RuntimeError:
         logger.warning(
@@ -155,32 +175,42 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("failed to register main loop with event bus")
 
-    # Notify IndexNow (Bing/Yandex/…) of public URLs on startup/deploy so
-    # git-based blog edits get picked up without an API call.
-    if INDEXNOW_ENABLED:
-        indexnow_submit_async(indexnow_published_urls())
-
-    yield
-
-    # Shutdown: drain batched events before process exit (US-007).
     try:
-        from src.events.event_bus import get_event_bus
-        await get_event_bus().wait_for_drain(timeout=5.0)
-    except RuntimeError:
-        # Bus was never initialized — nothing to drain.
-        pass
-    except Exception:
-        logger.exception("event bus drain failed at shutdown")
+        # Notify IndexNow (Bing/Yandex/…) of public URLs on startup/deploy so
+        # git-based blog edits get picked up without an API call.
+        if INDEXNOW_ENABLED:
+            indexnow_submit_async(indexnow_published_urls())
 
-    # Shutdown: close the module-level httpx.AsyncClient singleton so the
-    # TCP connection pool and keepalive sockets are released before the
-    # ASGI server exits (F-35).  Without this, SIGTERM on a rolling deploy
-    # leaks file descriptors until the interpreter is reaped.
-    try:
-        from routers.pdf_proxy import close_http_client
-        await close_http_client()
-    except Exception:
-        logger.exception("http client close failed at shutdown")
+        start_search_background_workers()
+        yield
+    finally:
+        try:
+            if not stop_search_background_workers():
+                logger.warning("search background workers did not stop before timeout")
+        except Exception:
+            logger.exception("search background worker shutdown failed")
+
+        # Shutdown: drain batched events before process exit (US-007).
+        try:
+            from src.events.event_bus import get_event_bus
+
+            await get_event_bus().wait_for_drain(timeout=5.0)
+        except RuntimeError:
+            # Bus was never initialized — nothing to drain.
+            pass
+        except Exception:
+            logger.exception("event bus drain failed at shutdown")
+
+        # Shutdown: close the module-level httpx.AsyncClient singleton so the
+        # TCP connection pool and keepalive sockets are released before the
+        # ASGI server exits (F-35).  Without this, SIGTERM on a rolling deploy
+        # leaks file descriptors until the interpreter is reaped.
+        try:
+            from routers.pdf_proxy import close_http_client
+
+            await close_http_client()
+        except Exception:
+            logger.exception("http client close failed at shutdown")
 
 
 app = FastAPI(

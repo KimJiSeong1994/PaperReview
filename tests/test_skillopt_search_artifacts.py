@@ -10,6 +10,7 @@ import pytest
 from src.search_eval.skillopt_adapter import canonical_file_hash
 from src.search_eval.skillopt_contract import (
     ValidationError,
+    canonical_self_hash,
     load_json,
     validate_candidate_artifact,
     validate_dataset_contract,
@@ -43,9 +44,71 @@ def test_dataset_contract_rejects_content_mutation_with_retained_hash():
         validate_dataset_contract(dataset)
 
 
+@pytest.mark.parametrize(
+    ("artifact_path", "hash_field", "validator"),
+    [
+        (DATASET, "dataset_hash", validate_dataset_contract),
+        (CONTROL, "control_hash", validate_execution_control),
+    ],
+)
+def test_contract_rejects_top_level_extra_keys_after_self_hash_recomputation(
+    artifact_path, hash_field, validator
+):
+    artifact = load_json(artifact_path)
+    artifact["raw_logs"] = "private raw user logs session_id"
+    artifact[hash_field] = canonical_self_hash(artifact, hash_field)
+
+    with pytest.raises(ValidationError, match="forbidden keys.*raw_logs"):
+        validator(artifact)
+
+
+@pytest.mark.parametrize(
+    ("mapping_path", "extra_key"),
+    [
+        (("provenance",), "hostile_extra"),
+        (("splits",), "holdout"),
+        (("queries", 0), "hostile_extra"),
+        (("queries", 0, "labels"), "hostile_extra"),
+    ],
+)
+def test_dataset_contract_rejects_nested_mapping_extras(mapping_path, extra_key):
+    dataset = load_json(DATASET)
+    target = dataset
+    for key in mapping_path:
+        target = target[key]
+    target[extra_key] = []
+    dataset["dataset_hash"] = canonical_self_hash(dataset, "dataset_hash")
+
+    with pytest.raises(ValidationError, match=f"forbidden keys.*{extra_key}"):
+        validate_dataset_contract(dataset)
+
+
+@pytest.mark.parametrize("label_key", ["must_include", "acceptable", "must_exclude"])
+@pytest.mark.parametrize(
+    ("invalid_labels", "match"),
+    [
+        ("not-a-list", "must be a list"),
+        ([""], "must contain non-empty strings"),
+    ],
+)
+def test_dataset_contract_validates_every_label_collection(
+    label_key: str, invalid_labels, match: str
+):
+    dataset = load_json(DATASET)
+    dataset["queries"][0]["labels"][label_key] = invalid_labels
+    dataset["dataset_hash"] = canonical_self_hash(dataset, "dataset_hash")
+
+    with pytest.raises(ValidationError, match=f"labels.{label_key}.*{match}"):
+        validate_dataset_contract(dataset)
+
+
 def test_skillopt_dataset_group_split_has_no_leakage():
     dataset = load_json(DATASET)
-    groups_by_split: dict[str, set[str]] = {"train": set(), "selection": set(), "test": set()}
+    groups_by_split: dict[str, set[str]] = {
+        "train": set(),
+        "selection": set(),
+        "test": set(),
+    }
     for query in dataset["queries"]:
         groups_by_split[query["split"]].add(query["group_id"])
 
@@ -59,7 +122,9 @@ def test_skillopt_dataset_selection_split_covers_live_gate_intents():
 
     validate_dataset_contract(dataset)
 
-    selection_intents = {query["intent"] for query in dataset["queries"] if query["split"] == "selection"}
+    selection_intents = {
+        query["intent"] for query in dataset["queries"] if query["split"] == "selection"
+    }
     assert {"author_search", "method_search"} <= selection_intents
     assert sum(1 for query in dataset["queries"] if query["split"] == "selection") >= 2
 
@@ -72,7 +137,9 @@ def test_dataset_contract_rejects_selection_split_without_method_holdout():
         if query["query_id"] != "q-selection-method-resnet"
     ]
 
-    with pytest.raises(ValidationError, match="selection split.*at least two|selection split missing"):
+    with pytest.raises(
+        ValidationError, match="selection split.*at least two|selection split missing"
+    ):
         validate_dataset_contract(dataset)
 
 
@@ -100,7 +167,10 @@ def test_candidate_artifact_has_rollback_and_matching_hashes():
     assert artifact["rollback_to"]["skill_hash"] == artifact["baseline_hash"]
     assert artifact["rollout_metadata"]["skill_hash"] == artifact["skill_hash"]
     assert artifact["metric_snapshot"]["primary_metric"] == "nDCG@10"
-    assert artifact["metric_snapshot"]["candidate"] >= artifact["metric_snapshot"]["baseline"]
+    assert (
+        artifact["metric_snapshot"]["candidate"]
+        >= artifact["metric_snapshot"]["baseline"]
+    )
 
 
 def test_candidate_artifact_rejects_mismatched_dataset_hash():
@@ -192,7 +262,10 @@ def test_dataset_contract_rejects_missing_guardrail_metrics():
 
 def test_dataset_contract_rejects_duplicate_guardrail_metrics():
     dataset = dict(load_json(DATASET))
-    dataset["guardrail_metrics"] = [*dataset["guardrail_metrics"], dataset["guardrail_metrics"][0]]
+    dataset["guardrail_metrics"] = [
+        *dataset["guardrail_metrics"],
+        dataset["guardrail_metrics"][0],
+    ]
 
     with pytest.raises(ValidationError, match="duplicates"):
         validate_dataset_contract(dataset)
@@ -216,7 +289,9 @@ def test_execution_control_rejects_content_mutation_with_retained_hash():
 
 def test_execution_control_rejects_confidence_gate_drift():
     control = dict(load_json(CONTROL))
-    control["query_analyzer_confidence_gate"] = dict(control["query_analyzer_confidence_gate"])
+    control["query_analyzer_confidence_gate"] = dict(
+        control["query_analyzer_confidence_gate"]
+    )
     control["query_analyzer_confidence_gate"]["minimum_confidence"] = 0.1
 
     with pytest.raises(ValidationError, match="minimum_confidence"):
@@ -225,7 +300,9 @@ def test_execution_control_rejects_confidence_gate_drift():
 
 def test_execution_control_rejects_confidence_gate_extra_keys():
     control = dict(load_json(CONTROL))
-    control["query_analyzer_confidence_gate"] = dict(control["query_analyzer_confidence_gate"])
+    control["query_analyzer_confidence_gate"] = dict(
+        control["query_analyzer_confidence_gate"]
+    )
     control["query_analyzer_confidence_gate"]["candidate_override"] = True
 
     with pytest.raises(ValidationError, match="candidate_override"):
@@ -234,7 +311,9 @@ def test_execution_control_rejects_confidence_gate_extra_keys():
 
 def test_execution_control_rejects_overlap_gate_drift():
     control = dict(load_json(CONTROL))
-    control["improved_query_overlap_gate"] = dict(control["improved_query_overlap_gate"])
+    control["improved_query_overlap_gate"] = dict(
+        control["improved_query_overlap_gate"]
+    )
     control["improved_query_overlap_gate"]["minimum_overlap"] = 0.1
 
     with pytest.raises(ValidationError, match="minimum_overlap"):
@@ -322,9 +401,23 @@ def test_execution_control_rejects_relevance_filter_candidate_prompt_alias():
 
 def test_execution_control_rejects_duplicate_rollout_metadata():
     control = dict(load_json(CONTROL))
-    control["required_rollout_metadata"] = [*control["required_rollout_metadata"], "skill_hash"]
+    control["required_rollout_metadata"] = [
+        *control["required_rollout_metadata"],
+        "skill_hash",
+    ]
 
     with pytest.raises(ValidationError, match="duplicates"):
+        validate_execution_control(control)
+
+
+def test_execution_control_rejects_extra_rollout_metadata():
+    control = load_json(CONTROL)
+    control["required_rollout_metadata"].append("hostile_extra_metadata")
+    control["control_hash"] = canonical_self_hash(control, "control_hash")
+
+    with pytest.raises(
+        ValidationError, match="forbidden entries.*hostile_extra_metadata"
+    ):
         validate_execution_control(control)
 
 
@@ -351,7 +444,9 @@ def test_candidate_artifact_rejects_missing_dataset_declared_guardrail():
     dataset = load_json(DATASET)
     artifact = dict(load_json(CANDIDATE))
     artifact["metric_snapshot"] = dict(artifact["metric_snapshot"])
-    artifact["metric_snapshot"]["guardrails"] = dict(artifact["metric_snapshot"]["guardrails"])
+    artifact["metric_snapshot"]["guardrails"] = dict(
+        artifact["metric_snapshot"]["guardrails"]
+    )
     artifact["metric_snapshot"]["guardrails"].pop("Recall@10")
 
     with pytest.raises(ValidationError, match="Recall@10"):
@@ -392,23 +487,57 @@ def test_candidate_artifact_rejects_empty_hashes_and_bad_timestamp():
 def test_dataset_contract_rejects_private_query_text():
     dataset = dict(load_json(DATASET))
     dataset["queries"] = [dict(query) for query in dataset["queries"]]
-    dataset["queries"][0]["query_text"] = "john.doe@example.com private rejected query from raw user logs"
+    dataset["queries"][0]["query_text"] = (
+        "john.doe@example.com private rejected query from raw user logs"
+    )
 
     with pytest.raises(ValidationError, match="private or raw-log"):
         validate_dataset_contract(dataset)
 
 
-@pytest.mark.parametrize("field", ["group_id", "intent", "locale", "difficulty", "downstream"])
+@pytest.mark.parametrize(
+    ("artifact_path", "hash_field", "nested_path"),
+    [
+        (DATASET, "dataset_hash", ("provenance", "privacy_review")),
+        (DATASET, "dataset_hash", ("queries", 0, "labels", "acceptable", 0)),
+        (CONTROL, "control_hash", ("hyde_policy", "reason")),
+        (CONTROL, "control_hash", ("required_rollout_metadata", 0)),
+    ],
+)
+def test_contract_recursively_rejects_private_nested_strings_after_rehash(
+    artifact_path, hash_field, nested_path
+):
+    artifact = load_json(artifact_path)
+    target = artifact
+    for key in nested_path[:-1]:
+        target = target[key]
+    target[nested_path[-1]] = "john.doe@example.com private raw user logs session_id"
+    artifact[hash_field] = canonical_self_hash(artifact, hash_field)
+
+    with pytest.raises(ValidationError, match="private or raw-log text"):
+        if hash_field == "dataset_hash":
+            validate_dataset_contract(artifact)
+        else:
+            validate_execution_control(artifact)
+
+
+@pytest.mark.parametrize(
+    "field", ["group_id", "intent", "locale", "difficulty", "downstream"]
+)
 def test_dataset_contract_rejects_private_query_metadata_fields(field: str):
     dataset = dict(load_json(DATASET))
     dataset["queries"] = [dict(query) for query in dataset["queries"]]
-    dataset["queries"][0][field] = "john.doe@example.com private rejected query from raw user logs"
+    dataset["queries"][0][field] = (
+        "john.doe@example.com private rejected query from raw user logs"
+    )
 
     with pytest.raises(ValidationError, match="private or raw-log"):
         validate_dataset_contract(dataset)
 
 
-@pytest.mark.parametrize("phrase", ["raw user identifiers", "private query", "private queries"])
+@pytest.mark.parametrize(
+    "phrase", ["raw user identifiers", "private query", "private queries"]
+)
 def test_dataset_contract_rejects_private_provenance_strings(phrase: str):
     dataset = dict(load_json(DATASET))
     dataset["provenance"] = dict(dataset["provenance"])
@@ -421,7 +550,9 @@ def test_dataset_contract_rejects_private_provenance_strings(phrase: str):
 def test_candidate_artifact_rejects_guardrail_threshold_breach():
     artifact = dict(load_json(CANDIDATE))
     artifact["metric_snapshot"] = dict(artifact["metric_snapshot"])
-    artifact["metric_snapshot"]["guardrails"] = dict(artifact["metric_snapshot"]["guardrails"])
+    artifact["metric_snapshot"]["guardrails"] = dict(
+        artifact["metric_snapshot"]["guardrails"]
+    )
     artifact["metric_snapshot"]["guardrails"]["wrong_paper_handoff_rate"] = 1.0
 
     with pytest.raises(ValidationError, match="wrong_paper_handoff_rate"):
@@ -431,7 +562,9 @@ def test_candidate_artifact_rejects_guardrail_threshold_breach():
 def test_candidate_artifact_rejects_latency_threshold_breach():
     artifact = dict(load_json(CANDIDATE))
     artifact["metric_snapshot"] = dict(artifact["metric_snapshot"])
-    artifact["metric_snapshot"]["guardrails"] = dict(artifact["metric_snapshot"]["guardrails"])
+    artifact["metric_snapshot"]["guardrails"] = dict(
+        artifact["metric_snapshot"]["guardrails"]
+    )
     artifact["metric_snapshot"]["guardrails"]["p95_latency_ms"] = 999999
 
     with pytest.raises(ValidationError, match="p95_latency_ms"):
@@ -503,7 +636,18 @@ def test_rollback_record_rejects_candidate_hash_drift():
 
 
 def test_search_eval_is_not_imported_by_production_modules():
-    excluded_parts = {".venv", "tests", "docs", "search_eval", "deep_review_eval", "__pycache__"}
+    excluded_parts = {
+        ".venv",
+        "tests",
+        "docs",
+        "search_eval",
+        "deep_review_eval",
+        "__pycache__",
+    }
+    expected_non_production_consumers = [
+        "tools/skillopt_compat/__init__.py",
+        "tools/skillopt_compat/run_compat.py",
+    ]
     hits = []
     for path in ROOT.rglob("*.py"):
         relative = path.relative_to(ROOT)
@@ -513,7 +657,7 @@ def test_search_eval_is_not_imported_by_production_modules():
         if "search_eval" in text or "deep_review_eval" in text:
             hits.append(str(relative))
 
-    assert hits == []
+    assert sorted(hits) == expected_non_production_consumers
 
 
 def test_search_eval_fixtures_are_not_gitignored():
@@ -535,7 +679,9 @@ def test_search_eval_package_is_excluded_from_distribution():
 def test_candidate_artifact_standalone_requires_full_v1_guardrails():
     artifact = load_json(CANDIDATE)
     artifact["metric_snapshot"] = dict(artifact["metric_snapshot"])
-    artifact["metric_snapshot"]["guardrails"] = dict(artifact["metric_snapshot"]["guardrails"])
+    artifact["metric_snapshot"]["guardrails"] = dict(
+        artifact["metric_snapshot"]["guardrails"]
+    )
     for name in ["Recall@10", "token_estimate", "cost_estimate"]:
         artifact["metric_snapshot"]["guardrails"].pop(name)
 
