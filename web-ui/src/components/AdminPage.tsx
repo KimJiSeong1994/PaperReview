@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
+import { FolderIcon, ChevronIcon, FileIcon } from './AdminTreeIcons';
 
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
 const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
+const AdminMembersReport = lazy(() => import('./AdminMembersReport'));
 import {
   getAdminDashboard,
   getAdminUsers,
@@ -16,73 +18,16 @@ import {
   deleteAdminBookmark,
   getAdminCurricula,
 } from '../api/client';
-import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse, AdminCurriculumUser } from '../api/client';
+import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse } from '../api/client';
 
-type Tab = 'dashboard' | 'visits' | 'users' | 'papers' | 'bookmarks' | 'curricula';
+type Tab = 'dashboard' | 'visits' | 'members' | 'papers';
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: 'Dashboard',
   visits: 'Visitors',
-  users: 'Users',
+  members: 'Members',
   papers: 'Papers',
-  bookmarks: 'Bookmarks',
-  curricula: 'Curricula',
 };
-
-/* ── Folder icon SVGs (matching MyPage style) ─────────────────────── */
-
-function FolderIcon({ open }: { open: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" className="admin-tree-folder-icon">
-      {open ? (
-        <>
-          <path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1" fill="rgba(99,102,241,0.15)" stroke="#818cf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M5 19h14a2 2 0 0 0 2-2l-3-7H4l-1 7a2 2 0 0 0 2 2z" fill="rgba(99,102,241,0.25)" stroke="#818cf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </>
-      ) : (
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="rgba(156,163,175,0.1)" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" className="admin-tree-chevron">
-      <path d="M6 4l4 4-4 4" />
-    </svg>
-  );
-}
-
-function FileIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="rgba(156,163,175,0.08)" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="14 2 14 8 20 8" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function BookmarkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CurriculumIcon({ type }: { type: 'fork' | 'custom' }) {
-  return type === 'fork' ? (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
-      <path d="M7 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm10 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm-5 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" stroke="#818cf8" strokeWidth="1.5" />
-      <path d="M7 8v4c0 2 2 4 5 4m5-8v4c0 2-2 4-5 4" stroke="#818cf8" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className="admin-tree-file-icon">
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a5b4fc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export default function AdminPage() {
   const navigate = useNavigate();
@@ -94,9 +39,6 @@ export default function AdminPage() {
   // Users
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [userBookmarks, setUserBookmarks] = useState<AdminBookmark[]>([]);
-  const [userBookmarksLoading, setUserBookmarksLoading] = useState(false);
 
   // Papers – tree view
   const [paperStats, setPaperStats] = useState<AdminPaperUserStats | null>(null);
@@ -109,16 +51,13 @@ export default function AdminPage() {
   const [folderLoading, setFolderLoading] = useState(false);
   const [selectedPapers, setSelectedPapers] = useState<Set<number>>(new Set());
 
-  // Bookmarks – tree view
+  // Bookmarks
   const [bookmarks, setBookmarks] = useState<AdminBookmark[]>([]);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
-  const [openBookmarkFolder, setOpenBookmarkFolder] = useState<string | null>(null);
-  const [expandedBookmark, setExpandedBookmark] = useState<string | null>(null);
 
-  // Curricula – tree view
+  // Curricula
   const [curriculaData, setCurriculaData] = useState<AdminCurriculaResponse | null>(null);
   const [curriculaLoading, setCurriculaLoading] = useState(false);
-  const [openCurriculaFolder, setOpenCurriculaFolder] = useState<string | null>(null);
 
   // Confirm dialog
   const [confirm, setConfirm] = useState<{
@@ -228,10 +167,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (activeTab === 'dashboard') loadDashboard();
-    else if (activeTab === 'users') loadUsers();
     else if (activeTab === 'papers') loadPaperStats();
-    else if (activeTab === 'bookmarks') loadBookmarks();
-    else if (activeTab === 'curricula') loadCurricula();
+    else if (activeTab === 'members') {
+      // 통합 탭은 세 소스를 함께 그리므로 병렬로 받는다.
+      loadUsers();
+      loadBookmarks();
+      loadCurricula();
+    }
   }, [activeTab, loadDashboard, loadUsers, loadPaperStats, loadBookmarks, loadCurricula]);
 
   // ── Paper folder expand ──────────────────────────────────────────
@@ -244,25 +186,6 @@ export default function AdminPage() {
     } else {
       setOpenPaperFolder(username);
       loadFolderPapers(username, 1);
-    }
-  };
-
-  // ── User expand → load bookmarks ────────────────────────────────
-
-  const handleExpandUser = async (username: string) => {
-    if (expandedUser === username) {
-      setExpandedUser(null);
-      return;
-    }
-    setExpandedUser(username);
-    setUserBookmarksLoading(true);
-    try {
-      const data = await getAdminBookmarks(username);
-      setUserBookmarks(data.bookmarks);
-    } catch {
-      setUserBookmarks([]);
-    } finally {
-      setUserBookmarksLoading(false);
     }
   };
 
@@ -292,8 +215,9 @@ export default function AdminPage() {
           const result = await deleteUser(username);
           // Refresh from backend rather than optimistically splicing so
           // partial failures don't produce a stale-but-"gone" row.
-          await loadUsers();
-          if (expandedUser === username) setExpandedUser(null);
+          // 통합 탭은 세 소스를 한 화면에 그리므로 북마크/커리큘럼도 함께
+          // 다시 받아야 삭제된 유저의 잔여 기록이 남지 않는다.
+          await Promise.all([loadUsers(), loadBookmarks(), loadCurricula()]);
           loadDashboard();
 
           const partials: string[] = Array.isArray(result?.partial_failures)
@@ -382,17 +306,6 @@ export default function AdminPage() {
     });
   };
 
-  // Group bookmarks by username for tree view
-  const bookmarkGroups = useMemo(() => {
-    const groups: Record<string, AdminBookmark[]> = {};
-    for (const bm of bookmarks) {
-      const user = bm.username || '(unknown)';
-      if (!groups[user]) groups[user] = [];
-      groups[user].push(bm);
-    }
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [bookmarks]);
-
   // ── Render ───────────────────────────────────────────────────────
 
   return (
@@ -455,131 +368,20 @@ export default function AdminPage() {
           </Suspense>
         )}
 
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="admin-table-container">
-            {usersLoading ? (
-              <div className="admin-loading">Loading users...</div>
-            ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 30 }}></th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Created</th>
-                    <th>Bookmarks</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <>
-                      <tr key={u.username} className={expandedUser === u.username ? 'admin-row-expanded' : ''}>
-                        <td>
-                          <button
-                            className={`admin-expand-btn ${expandedUser === u.username ? 'admin-expand-btn--open' : ''}`}
-                            onClick={() => handleExpandUser(u.username)}
-                            title="View bookmarks & papers"
-                          >
-                            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                              <path d="M6 4l4 4-4 4" />
-                            </svg>
-                          </button>
-                        </td>
-                        <td>
-                          <span
-                            className="admin-username-link"
-                            onClick={() => handleExpandUser(u.username)}
-                          >
-                            {u.username}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`admin-role-badge admin-role-badge--${u.role}`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
-                        <td>{u.bookmark_count}</td>
-                        <td>
-                          <button
-                            className="admin-action-btn"
-                            onClick={(e) => { e.stopPropagation(); handleToggleRole(u.username, u.role); }}
-                            disabled={u.username === currentUsername}
-                          >
-                            {u.role === 'admin' ? 'Demote' : 'Promote'}
-                          </button>
-                          <button
-                            className="admin-action-btn admin-action-btn--danger"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.username); }}
-                            disabled={u.username === currentUsername}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                      {expandedUser === u.username && (
-                        <tr key={`${u.username}-detail`} className="admin-detail-row">
-                          <td colSpan={6}>
-                            <div className="admin-user-detail">
-                              <h4 className="admin-detail-title">
-                                {u.username}'s Bookmarks & Papers
-                              </h4>
-                              {userBookmarksLoading ? (
-                                <div className="admin-detail-loading">Loading...</div>
-                              ) : userBookmarks.length === 0 ? (
-                                <div className="admin-detail-empty">No bookmarks</div>
-                              ) : (
-                                <div className="admin-detail-bookmarks">
-                                  {userBookmarks.map((bm) => (
-                                    <div key={bm.id} className="admin-detail-bookmark">
-                                      <div className="admin-detail-bookmark-header">
-                                        <div className="admin-detail-bookmark-info">
-                                          <span className="admin-detail-bookmark-title">{bm.title}</span>
-                                          <span className="admin-detail-bookmark-meta">
-                                            {bm.topic} &middot; {bm.num_papers} papers
-                                            {bm.query && <> &middot; Query: "{bm.query}"</>}
-                                          </span>
-                                        </div>
-                                        <span className="admin-detail-bookmark-date">
-                                          {bm.created_at ? new Date(bm.created_at).toLocaleDateString() : ''}
-                                        </span>
-                                      </div>
-                                      {bm.papers.length > 0 && (
-                                        <div className="admin-detail-papers">
-                                          {bm.papers.map((p, idx) => (
-                                            <div key={idx} className="admin-detail-paper-item">
-                                              <span className="admin-detail-paper-idx">{idx + 1}.</span>
-                                              <span className="admin-detail-paper-title">{p.title}</span>
-                                              {p.authors.length > 0 && (
-                                                <span className="admin-detail-paper-authors">
-                                                  — {p.authors.slice(0, 3).join(', ')}{p.authors.length > 3 ? ' et al.' : ''}
-                                                </span>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  ))}
-                  {users.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="admin-empty">No users found</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
+        {/* Members Tab — 계정 · 북마크 · 커리큘럼 통합 */}
+        {activeTab === 'members' && (
+          <Suspense fallback={<div className="admin-loading">Loading members...</div>}>
+            <AdminMembersReport
+              users={users}
+              bookmarks={bookmarks}
+              curricula={curriculaData}
+              loading={usersLoading || bookmarksLoading || curriculaLoading}
+              currentUsername={currentUsername}
+              onToggleRole={handleToggleRole}
+              onDeleteUser={handleDeleteUser}
+              onDeleteBookmark={handleDeleteBookmark}
+            />
+          </Suspense>
         )}
 
         {/* Papers Tab — Tree View */}
@@ -700,214 +502,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Bookmarks Tab — Tree View */}
-        {activeTab === 'bookmarks' && (
-          <div className="admin-tree-wrapper">
-            {/* Tree header */}
-            <div className="admin-tree-header">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.5">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="admin-tree-header-title">Bookmarks</span>
-              <span className="admin-tree-header-count">{bookmarks.length} total</span>
-            </div>
-
-            {bookmarksLoading ? (
-              <div className="admin-loading">Loading...</div>
-            ) : bookmarkGroups.length > 0 ? (
-              <div className="admin-tree">
-                {bookmarkGroups.map(([username, userBookmarksList], idx) => {
-                  const isOpen = openBookmarkFolder === username;
-                  const isLast = idx === bookmarkGroups.length - 1;
-                  return (
-                    <div key={username} className={`admin-tree-folder ${isLast ? 'last' : ''}`}>
-                      {/* User folder row */}
-                      <div
-                        className={`admin-tree-folder-row ${isOpen ? 'open' : ''}`}
-                        onClick={() => {
-                          setOpenBookmarkFolder(isOpen ? null : username);
-                          setExpandedBookmark(null);
-                        }}
-                      >
-                        <ChevronIcon />
-                        <FolderIcon open={isOpen} />
-                        <span className="admin-tree-folder-name">{username}</span>
-                        <span className="admin-tree-folder-count">{userBookmarksList.length}</span>
-                      </div>
-
-                      {/* Expanded bookmarks */}
-                      {isOpen && (
-                        <div className="admin-tree-children">
-                          {userBookmarksList.length === 0 ? (
-                            <div className="admin-tree-empty-hint">No bookmarks</div>
-                          ) : (
-                            userBookmarksList.map((bm) => {
-                              const bmExpanded = expandedBookmark === bm.id;
-                              return (
-                                <div key={bm.id} className="admin-tree-bookmark-node">
-                                  {/* Bookmark item */}
-                                  <div className={`admin-tree-file ${bmExpanded ? 'admin-tree-file--open' : ''}`}>
-                                    <div className="admin-tree-guide-line" />
-                                    {bm.papers.length > 0 ? (
-                                      <button
-                                        className={`admin-tree-expand-mini ${bmExpanded ? 'open' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); setExpandedBookmark(bmExpanded ? null : bm.id); }}
-                                      >
-                                        <ChevronIcon />
-                                      </button>
-                                    ) : (
-                                      <span style={{ width: 16, flexShrink: 0 }} />
-                                    )}
-                                    <BookmarkIcon />
-                                    <div className="admin-tree-file-info" style={{ flex: 1 }}>
-                                      <span className="admin-tree-file-title">{bm.title}</span>
-                                      <span className="admin-tree-file-meta">
-                                        {bm.topic}{bm.num_papers > 0 && <> &middot; {bm.num_papers} papers</>}
-                                        {bm.query && <> &middot; "{bm.query}"</>}
-                                        {bm.created_at && <> &middot; {new Date(bm.created_at).toLocaleDateString()}</>}
-                                      </span>
-                                    </div>
-                                    <button
-                                      className="admin-action-btn admin-action-btn--danger"
-                                      style={{ flexShrink: 0, marginLeft: 8 }}
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteBookmark(bm.id, bm.title); }}
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-
-                                  {/* Expanded papers sub-tree */}
-                                  {bmExpanded && bm.papers.length > 0 && (
-                                    <div className="admin-tree-sub-children">
-                                      {bm.papers.map((p, pIdx) => (
-                                        <div key={pIdx} className="admin-tree-file admin-tree-sub-file">
-                                          <div className="admin-tree-guide-line" />
-                                          <FileIcon />
-                                          <div className="admin-tree-file-info">
-                                            <span className="admin-tree-file-title">{p.title}</span>
-                                            {p.authors.length > 0 && (
-                                              <span className="admin-tree-file-meta">
-                                                {p.authors.slice(0, 3).join(', ')}{p.authors.length > 3 ? ' et al.' : ''}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="admin-loading">No bookmarks found</div>
-            )}
-          </div>
-        )}
-        {/* Curricula Tab — Tree View */}
-        {activeTab === 'curricula' && (
-          <div className="admin-tree-wrapper">
-            {/* Tree header */}
-            <div className="admin-tree-header">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="admin-tree-header-title">User Curricula</span>
-              <span className="admin-tree-header-count">
-                {curriculaData?.total_user_curricula ?? 0} courses · {curriculaData?.total_users_with_curricula ?? 0} users
-              </span>
-            </div>
-
-            {curriculaLoading ? (
-              <div className="admin-loading">Loading...</div>
-            ) : curriculaData && curriculaData.users.length > 0 ? (
-              <div className="admin-tree">
-                {curriculaData.users.map((user: AdminCurriculumUser, idx: number) => {
-                  const isOpen = openCurriculaFolder === user.username;
-                  const isLast = idx === curriculaData.users.length - 1;
-                  return (
-                    <div key={user.username} className={`admin-tree-folder ${isLast ? 'last' : ''}`}>
-                      {/* User folder row */}
-                      <div
-                        className={`admin-tree-folder-row ${isOpen ? 'open' : ''}`}
-                        onClick={() => setOpenCurriculaFolder(isOpen ? null : user.username)}
-                      >
-                        <ChevronIcon />
-                        <FolderIcon open={isOpen} />
-                        <span className="admin-tree-folder-name">{user.username}</span>
-                        <div className="admin-cur-badges">
-                          {user.fork_count > 0 && (
-                            <span className="admin-cur-badge admin-cur-badge--fork">
-                              Fork {user.fork_count}
-                            </span>
-                          )}
-                          {user.custom_count > 0 && (
-                            <span className="admin-cur-badge admin-cur-badge--custom">
-                              Custom {user.custom_count}
-                            </span>
-                          )}
-                          {user.total_read_papers > 0 && (
-                            <span className="admin-cur-badge admin-cur-badge--progress">
-                              {user.total_read_papers} read
-                            </span>
-                          )}
-                        </div>
-                        <span className="admin-tree-folder-count">{user.total_curricula}</span>
-                      </div>
-
-                      {/* Expanded curricula list */}
-                      {isOpen && (
-                        <div className="admin-tree-children">
-                          {user.curricula.length === 0 ? (
-                            <div className="admin-tree-empty-hint">
-                              No owned curricula (progress only via presets)
-                            </div>
-                          ) : (
-                            user.curricula.map((cur) => (
-                              <div key={cur.id} className="admin-tree-file">
-                                <div className="admin-tree-guide-line" />
-                                <CurriculumIcon type={cur.type} />
-                                <div className="admin-tree-file-info" style={{ flex: 1 }}>
-                                  <span className="admin-tree-file-title">{cur.name}</span>
-                                  <span className="admin-tree-file-meta">
-                                    <span className={`admin-cur-type admin-cur-type--${cur.type}`}>
-                                      {cur.type}
-                                    </span>
-                                    {cur.forked_from && <> · from {cur.forked_from}</>}
-                                    {' · '}{cur.total_modules} modules · {cur.total_papers} papers
-                                    {' · '}{cur.difficulty}
-                                  </span>
-                                </div>
-                              </div>
-                            ))
-                          )}
-
-                          {/* Progress summary */}
-                          {user.total_read_papers > 0 && (
-                            <div className="admin-cur-progress-summary">
-                              <span className="admin-cur-progress-label">Reading Progress</span>
-                              <span className="admin-cur-progress-value">
-                                {user.total_read_papers} papers read across {user.courses_with_progress} course{user.courses_with_progress !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="admin-loading">No user curricula found</div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Transient notice (success / warn / error) */}
