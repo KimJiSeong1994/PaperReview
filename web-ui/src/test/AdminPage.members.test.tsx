@@ -101,20 +101,20 @@ function renderPage() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('AdminPage — Members tab wiring', () => {
-  it('shows Dashboard, Visitors, Members, Papers tabs and no old Users/Bookmarks/Curricula tabs', () => {
+  it('shows only Dashboard, Visitors, Members tabs — Users/Bookmarks/Curricula/Papers are all folded in', () => {
     renderPage();
 
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Visitors' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Members' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Papers' })).toBeInTheDocument();
 
     expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bookmarks' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Curricula' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Papers' })).not.toBeInTheDocument();
   });
 
-  it('calls getAdminUsers, getAdminBookmarks, and getAdminCurricula in parallel when Members tab is clicked', async () => {
+  it('calls getAdminUsers, getAdminBookmarks, getAdminCurricula, and getAdminPaperStats in parallel when Members tab is clicked', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Members' }));
@@ -123,9 +123,10 @@ describe('AdminPage — Members tab wiring', () => {
     expect(getAdminUsers).toHaveBeenCalledTimes(1);
     expect(getAdminBookmarks).toHaveBeenCalledTimes(1);
     expect(getAdminCurricula).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getAdminPaperStats).toHaveBeenCalledTimes(1));
   });
 
-  it('re-fetches users, bookmarks, AND curricula after user deletion (regression: stale orphan row bug)', async () => {
+  it('re-fetches users, bookmarks, curricula, AND paper stats after user deletion (regression: stale orphan row bug)', async () => {
     // Background: deleteUser cascade removes the user's bookmarks on the backend.
     // If the frontend only re-fetches getAdminUsers, the deleted user's bookmarks
     // remain in local state and that user reappears as a "bookmark-only orphan row"
@@ -139,6 +140,7 @@ describe('AdminPage — Members tab wiring', () => {
     const userCallsBefore = vi.mocked(getAdminUsers).mock.calls.length;
     const bmCallsBefore = vi.mocked(getAdminBookmarks).mock.calls.length;
     const curCallsBefore = vi.mocked(getAdminCurricula).mock.calls.length;
+    const paperCallsBefore = vi.mocked(getAdminPaperStats).mock.calls.length;
 
     // Trigger the delete flow via the stub button in the mocked MembersReport
     fireEvent.click(screen.getByRole('button', { name: 'trigger-delete-bob' }));
@@ -149,18 +151,11 @@ describe('AdminPage — Members tab wiring', () => {
 
     await waitFor(() => {
       expect(deleteUser).toHaveBeenCalledWith('bob');
-      // All three sources must be re-fetched — not just users
+      // All four sources must be re-fetched — not just users
       expect(vi.mocked(getAdminUsers).mock.calls.length).toBeGreaterThan(userCallsBefore);
       expect(vi.mocked(getAdminBookmarks).mock.calls.length).toBeGreaterThan(bmCallsBefore);
       expect(vi.mocked(getAdminCurricula).mock.calls.length).toBeGreaterThan(curCallsBefore);
+      expect(vi.mocked(getAdminPaperStats).mock.calls.length).toBeGreaterThan(paperCallsBefore);
     });
-  });
-
-  it('calls getAdminPaperStats when Papers tab is clicked (regression guard)', async () => {
-    renderPage();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Papers' }));
-
-    await waitFor(() => expect(getAdminPaperStats).toHaveBeenCalledTimes(1));
   });
 });

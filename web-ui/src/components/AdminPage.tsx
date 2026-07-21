@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
-import { FolderIcon, ChevronIcon, FileIcon } from './AdminTreeIcons';
 
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
 const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
@@ -20,13 +19,12 @@ import {
 } from '../api/client';
 import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse } from '../api/client';
 
-type Tab = 'dashboard' | 'visits' | 'members' | 'papers';
+type Tab = 'dashboard' | 'visits' | 'members';
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: 'Dashboard',
   visits: 'Visitors',
   members: 'Members',
-  papers: 'Papers',
 };
 
 export default function AdminPage() {
@@ -167,19 +165,20 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (activeTab === 'dashboard') loadDashboard();
-    else if (activeTab === 'papers') loadPaperStats();
     else if (activeTab === 'members') {
-      // 통합 탭은 세 소스를 함께 그리므로 병렬로 받는다.
+      // 통합 탭은 네 소스를 함께 그리므로 병렬로 받는다.
       loadUsers();
       loadBookmarks();
       loadCurricula();
+      loadPaperStats();
     }
   }, [activeTab, loadDashboard, loadUsers, loadPaperStats, loadBookmarks, loadCurricula]);
 
   // ── Paper folder expand ──────────────────────────────────────────
 
-  const handleToggleFolder = (username: string) => {
-    if (openPaperFolder === username) {
+  // Members 트리의 유저 폴더가 열리면 username, 닫히면 null이 온다.
+  const handleToggleFolder = (username: string | null) => {
+    if (username === null) {
       setOpenPaperFolder(null);
       setFolderPapers([]);
       setSelectedPapers(new Set());
@@ -215,9 +214,9 @@ export default function AdminPage() {
           const result = await deleteUser(username);
           // Refresh from backend rather than optimistically splicing so
           // partial failures don't produce a stale-but-"gone" row.
-          // 통합 탭은 세 소스를 한 화면에 그리므로 북마크/커리큘럼도 함께
-          // 다시 받아야 삭제된 유저의 잔여 기록이 남지 않는다.
-          await Promise.all([loadUsers(), loadBookmarks(), loadCurricula()]);
+          // 통합 탭은 네 소스를 한 화면에 그리므로 북마크/커리큘럼/논문 집계도
+          // 함께 다시 받아야 삭제된 유저의 잔여 기록이 남지 않는다.
+          await Promise.all([loadUsers(), loadBookmarks(), loadCurricula(), loadPaperStats()]);
           loadDashboard();
 
           const partials: string[] = Array.isArray(result?.partial_failures)
@@ -368,138 +367,32 @@ export default function AdminPage() {
           </Suspense>
         )}
 
-        {/* Members Tab — 계정 · 북마크 · 커리큘럼 통합 */}
+        {/* Members Tab — 계정 · 북마크 · 커리큘럼 · 논문 통합 */}
         {activeTab === 'members' && (
           <Suspense fallback={<div className="admin-loading">Loading members...</div>}>
             <AdminMembersReport
               users={users}
               bookmarks={bookmarks}
               curricula={curriculaData}
-              loading={usersLoading || bookmarksLoading || curriculaLoading}
+              loading={usersLoading || bookmarksLoading || curriculaLoading || paperStatsLoading}
               currentUsername={currentUsername}
               onToggleRole={handleToggleRole}
               onDeleteUser={handleDeleteUser}
               onDeleteBookmark={handleDeleteBookmark}
+              paperStats={paperStats}
+              folderPapers={folderPapers}
+              folderPage={folderPage}
+              folderTotalPages={folderTotalPages}
+              folderTotal={folderTotal}
+              folderLoading={folderLoading}
+              selectedPapers={selectedPapers}
+              onExpandMember={handleToggleFolder}
+              onPaperPageChange={loadFolderPapers}
+              onTogglePaperSelect={togglePaperSelect}
+              onToggleAllPapers={toggleAllPapers}
+              onDeletePapers={handleDeletePapers}
             />
           </Suspense>
-        )}
-
-        {/* Papers Tab — Tree View */}
-        {activeTab === 'papers' && (
-          <div className="admin-tree-wrapper">
-            {/* Tree header */}
-            <div className="admin-tree-header">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6b7280" strokeWidth="1.5">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="admin-tree-header-title">Papers</span>
-              <span className="admin-tree-header-count">{paperStats?.total ?? 0} total</span>
-            </div>
-
-            {paperStatsLoading ? (
-              <div className="admin-loading">Loading...</div>
-            ) : paperStats && paperStats.users.length > 0 ? (
-              <div className="admin-tree">
-                {paperStats.users.map((userStat, idx) => {
-                  const isOpen = openPaperFolder === userStat.username;
-                  const isLast = idx === paperStats.users.length - 1;
-                  return (
-                    <div key={userStat.username} className={`admin-tree-folder ${isLast ? 'last' : ''}`}>
-                      {/* Folder row */}
-                      <div
-                        className={`admin-tree-folder-row ${isOpen ? 'open' : ''}`}
-                        onClick={() => handleToggleFolder(userStat.username)}
-                      >
-                        <ChevronIcon />
-                        <FolderIcon open={isOpen} />
-                        <span className="admin-tree-folder-name">{userStat.username}</span>
-                        <span className="admin-tree-folder-count">{userStat.paper_count}</span>
-                      </div>
-
-                      {/* Expanded children */}
-                      {isOpen && (
-                        <div className="admin-tree-children">
-                          {/* Bulk bar */}
-                          {selectedPapers.size > 0 && (
-                            <div className="admin-bulk-bar" style={{ margin: '0 0 8px 0', borderRadius: 8 }}>
-                              <span className="admin-bulk-count">{selectedPapers.size} selected</span>
-                              <button className="admin-bulk-delete-btn" onClick={handleDeletePapers}>
-                                Delete Selected
-                              </button>
-                            </div>
-                          )}
-
-                          {folderLoading ? (
-                            <div className="admin-tree-empty-hint">Loading papers...</div>
-                          ) : folderPapers.length === 0 ? (
-                            <div className="admin-tree-empty-hint">No papers</div>
-                          ) : (
-                            <>
-                              {/* Select all */}
-                              <div className="admin-tree-select-all">
-                                <input
-                                  type="checkbox"
-                                  className="admin-checkbox"
-                                  checked={folderPapers.length > 0 && selectedPapers.size === folderPapers.length}
-                                  onChange={toggleAllPapers}
-                                />
-                                <span className="admin-tree-select-all-label">Select all on this page</span>
-                              </div>
-
-                              {/* Paper items */}
-                              {folderPapers.map((p) => (
-                                <div key={p.index} className="admin-tree-file">
-                                  <div className="admin-tree-guide-line" />
-                                  <input
-                                    type="checkbox"
-                                    className="admin-checkbox"
-                                    checked={selectedPapers.has(p.index)}
-                                    onChange={() => togglePaperSelect(p.index)}
-                                  />
-                                  <FileIcon />
-                                  <div className="admin-tree-file-info">
-                                    <span className="admin-tree-file-title">{p.title}</span>
-                                    <span className="admin-tree-file-meta">
-                                      {p.authors.join(', ')}{p.source && <> &middot; {p.source}</>}{p.published_date && <> &middot; {p.published_date}</>}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-
-                              {/* Pagination */}
-                              {folderTotalPages > 1 && (
-                                <div className="admin-pagination" style={{ padding: '10px 0' }}>
-                                  <button
-                                    className="admin-page-btn"
-                                    disabled={folderPage <= 1}
-                                    onClick={() => openPaperFolder && loadFolderPapers(openPaperFolder, folderPage - 1)}
-                                  >
-                                    Prev
-                                  </button>
-                                  <span className="admin-page-info">
-                                    {folderPage} / {folderTotalPages} ({folderTotal})
-                                  </span>
-                                  <button
-                                    className="admin-page-btn"
-                                    disabled={folderPage >= folderTotalPages}
-                                    onClick={() => openPaperFolder && loadFolderPapers(openPaperFolder, folderPage + 1)}
-                                  >
-                                    Next
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="admin-loading">No papers found</div>
-            )}
-          </div>
         )}
 
       </div>
