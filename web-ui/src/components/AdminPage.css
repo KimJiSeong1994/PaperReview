@@ -288,46 +288,6 @@
   flex-shrink: 0;
 }
 
-/* ===== Tables ===== */
-.admin-table-container {
-  background: var(--bg-input);
-  border: 1px solid var(--wov-08);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.admin-table th {
-  text-align: left;
-  padding: 12px 16px;
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  background: var(--wov-03);
-  border-bottom: 1px solid var(--wov-08);
-}
-
-.admin-table td {
-  padding: 10px 16px;
-  font-size: 13px;
-  color: var(--text-soft);
-  border-bottom: 1px solid var(--wov-04);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
-.admin-table tr:hover td {
-  background: var(--wov-02);
-}
-
 /* ===== Badges ===== */
 .admin-role-badge {
   display: inline-block;
@@ -546,162 +506,6 @@
   height: 14px;
   cursor: pointer;
   accent-color: rgba(99, 102, 241, 0.8);
-}
-
-/* ===== Expand Button ===== */
-.admin-expand-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.admin-expand-btn:hover {
-  color: var(--indigo);
-  background: rgba(99, 102, 241, 0.1);
-}
-
-.admin-expand-btn--open {
-  color: var(--indigo);
-}
-
-.admin-expand-btn--open svg {
-  transform: rotate(90deg);
-  transition: transform 0.15s ease;
-}
-
-.admin-expand-btn svg {
-  transition: transform 0.15s ease;
-}
-
-/* ===== Clickable Username ===== */
-.admin-username-link {
-  color: var(--indigo);
-  cursor: pointer;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-
-.admin-username-link:hover {
-  color: var(--violet);
-  text-decoration: underline;
-}
-
-/* ===== Expanded Row ===== */
-.admin-row-expanded td {
-  background: rgba(99, 102, 241, 0.04);
-}
-
-.admin-detail-row td {
-  padding: 0 !important;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-/* ===== User Detail (expanded in Users tab) ===== */
-.admin-user-detail {
-  padding: 16px 20px;
-}
-
-.admin-detail-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-soft);
-  margin: 0 0 12px 0;
-}
-
-.admin-detail-loading,
-.admin-detail-empty {
-  font-size: 12px;
-  color: var(--text-faint);
-  padding: 8px 0;
-}
-
-.admin-detail-bookmarks {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.admin-detail-bookmark {
-  background: var(--wov-03);
-  border: 1px solid var(--wov-06);
-  border-radius: 8px;
-  padding: 10px 14px;
-}
-
-.admin-detail-bookmark-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.admin-detail-bookmark-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.admin-detail-bookmark-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.admin-detail-bookmark-meta {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-.admin-detail-bookmark-date {
-  font-size: 11px;
-  color: var(--text-faint);
-  flex-shrink: 0;
-}
-
-/* ===== Papers Detail List ===== */
-.admin-detail-papers {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 14px;
-}
-
-.admin-detail-paper-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  padding: 3px 0;
-}
-
-.admin-detail-paper-idx {
-  color: var(--text-faint);
-  flex-shrink: 0;
-  min-width: 18px;
-}
-
-.admin-detail-paper-title {
-  color: var(--text-soft);
-  font-weight: 400;
-}
-
-.admin-detail-paper-authors {
-  color: var(--text-faint);
-  font-size: 11px;
-  flex-shrink: 0;
 }
 
 /* ===== Filter Bar ===== */
@@ -2196,6 +2000,28 @@
 
 .visits-table-toggle summary {
   cursor: pointer;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ===== Members Tab ===== */
+.admin-member-subhead {
+  padding: 10px 4px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.admin-member-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-member-meta {
+  padding: 2px 4px 6px;
   font-size: 12px;
   color: var(--text-faint);
 }
