@@ -26,7 +26,7 @@ VALID_CATEGORIES: frozenset[str] = frozenset({"paper-review", "engineering"})
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from filelock import FileLock
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .deps import get_admin_user, get_optional_user
 from .indexnow import post_url as _indexnow_post_url, submit_async as _indexnow_submit_async
@@ -228,6 +228,18 @@ class PostDetail(PostSummary):
     """Full post including markdown content and thumbnail."""
     content: str
     thumbnail_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _derive_has_thumbnail(self) -> "PostDetail":
+        """Keep ``has_thumbnail`` in step with ``thumbnail_url``.
+
+        Detail responses are built straight from the stored post dict, which
+        has no ``has_thumbnail`` key, so the field fell back to its ``False``
+        default and contradicted the list endpoint (which computes it). Derive
+        it here so every construction site agrees.
+        """
+        self.has_thumbnail = bool(self.thumbnail_url)
+        return self
 
 
 class PostListResponse(BaseModel):
