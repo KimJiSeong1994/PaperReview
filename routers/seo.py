@@ -1314,7 +1314,7 @@ async def sitemap() -> Response:
     published = [p for p in posts if p.get("published")]
 
     # Site-wide freshness signal for the non-post hub rows (home/blog/category/
-    # series/llms): the most recent post date. Helps crawlers re-fetch hubs when
+    # series): the most recent post date. Helps crawlers re-fetch hubs when
     # any post changes.
     site_lastmod = max((_format_date(p) for p in published), default="")
     lm = f"<lastmod>{site_lastmod}</lastmod>" if site_lastmod else ""
@@ -1322,9 +1322,13 @@ async def sitemap() -> Response:
     rows = [
         f"  <url><loc>{SITE_URL}/</loc>{lm}<priority>1.0</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc>{lm}<priority>0.8</priority></url>",
-        f"  <url><loc>{SITE_URL}/llms.txt</loc>{lm}<priority>0.5</priority></url>",
-        f"  <url><loc>{SITE_URL}/llms-full.txt</loc>{lm}<priority>0.5</priority></url>",
     ]
+    # /llms.txt and /llms-full.txt are deliberately absent. llmstxt.org defines
+    # discovery by the well-known root path, the way robots.txt is found, so a
+    # sitemap row buys nothing — and a sitemap is a catalogue of pages meant to
+    # be indexed, which these are not. Listing them only spent crawl budget and
+    # filled Search Console's "discovered, not indexed" bucket, hiding the posts
+    # that genuinely were not indexed. Both paths are still served at 200.
     # Category hubs — only list a hub that has at least one published post.
     cats_present = {_category_of(p) for p in published}
     for cat in BLOG_CATEGORIES:
