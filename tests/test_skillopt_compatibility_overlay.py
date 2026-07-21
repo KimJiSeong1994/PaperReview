@@ -935,19 +935,31 @@ def test_execution_contains_preinstalled_global_import_hooks(
         sys.path_hooks[:] = path_hooks_before
 
 
-def test_scoped_audit_observer_rejects_prebound_process_and_socket_aliases(
-    tmp_path: Path,
-) -> None:
-    from src.search_eval import skillopt_compatibility_overlay as overlay_module
+def test_scoped_audit_observer_rejects_prebound_process_and_socket_aliases() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    child_code = """
+import socket
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
-    root = tmp_path / "execution"
+import pytest
+
+from src.search_eval import skillopt_compatibility_overlay as overlay_module
+from src.search_eval.skillopt_compatibility_overlay import _ExecutionSentinel
+from src.search_eval.skillopt_contract import ValidationError
+
+
+with tempfile.TemporaryDirectory() as temporary_directory:
+    root = Path(temporary_directory) / "execution"
     root.mkdir()
     sentinel = _ExecutionSentinel(root)
     prebound_popen = subprocess.Popen
     prebound_socket = socket.socket
 
     def hostile_open() -> None:
-        process = prebound_popen(["/usr/bin/true"])
+        process = prebound_popen([sys.executable, "-c", "pass"])
         process.wait()
 
     class HostileFinder:
@@ -955,6 +967,7 @@ def test_scoped_audit_observer_rejects_prebound_process_and_socket_aliases(
             connection = prebound_socket()
             connection.close()
 
+    expected_counts = {"provider": 0, "network": 0, "subprocess": 0}
     for action in (hostile_open, HostileFinder().find_spec):
         with pytest.raises(ValidationError, match="forbidden action"):
             try:
@@ -962,17 +975,28 @@ def test_scoped_audit_observer_rejects_prebound_process_and_socket_aliases(
                     action()
             except overlay_module._ExecutionDenied as exc:
                 raise ValidationError("forbidden action attempted") from exc
-        assert sentinel.counts() == {
-            "provider": 0,
-            "network": 0,
-            "subprocess": 0,
-        }
+        assert sentinel.counts() == expected_counts
 
     with overlay_module._restricted_execution_boundary(sentinel):
         pass
+    assert sentinel.counts() == expected_counts
     with overlay_module._restricted_execution_boundary(sentinel):
         pass
-    assert sentinel.counts() == {"provider": 0, "network": 0, "subprocess": 0}
+    assert sentinel.counts() == expected_counts
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", child_code],
+        cwd=repository_root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"child interpreter failed with return code {result.returncode}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
 
 
 def test_execution_rejects_callable_alias_replacement(

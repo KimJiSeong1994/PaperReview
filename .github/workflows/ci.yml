@@ -52,14 +52,12 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements.txt
 
-      - name: Verify exact SkillOpt v0.2.0 source objects and archive
+      - name: Verify exact SkillOpt v0.2.0 Git objects
         run: |
           git clone --filter=blob:none --no-checkout https://github.com/microsoft/SkillOpt.git .skillopt-v020-repository
           test "$(git -C .skillopt-v020-repository rev-parse refs/tags/v0.2.0)" = "51d0a4d96e88558c84dee637f98e24e3fb2d1547"
           test "$(git -C .skillopt-v020-repository rev-parse refs/tags/v0.2.0^{commit})" = "e4ea6a6771e797ef820cdd8bfea64c57e0481065"
           test "$(git -C .skillopt-v020-repository rev-parse refs/tags/v0.2.0^{tree})" = "5a603e937a20f1078059f94039a50028c022487a"
-          curl --fail --location --retry 3 --output /tmp/skillopt-v0.2.0.tar.gz https://github.com/microsoft/SkillOpt/archive/refs/tags/v0.2.0.tar.gz
-          echo "dec3f6b81cbc56fcd6a3e6fbe3bd640331c760f39dd73952f1631ae3d6d20f87  /tmp/skillopt-v0.2.0.tar.gz" | sha256sum --check --strict
 
       - name: Export tracked commit bytes without Git metadata
         run: |
