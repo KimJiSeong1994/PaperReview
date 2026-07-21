@@ -14,7 +14,7 @@ import math
 import re
 import unicodedata
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -34,6 +34,9 @@ from .indexnow import post_url as _indexnow_post_url, submit_async as _indexnow_
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/blog", tags=["blog"])
+
+# Hangul, Kana, and CJK ideographs — scripts written without spaces.
+_CJK_RE = re.compile(r"[가-힣぀-ヿ一-鿿]")
 
 BLOG_DIR = Path("data/blog")
 POSTS_FILE = BLOG_DIR / "posts.json"
@@ -153,14 +156,19 @@ def _unique_slug(base_slug: str, posts: list[dict], *, current_post_id: str | No
 def _estimate_reading_time(content: str) -> int:
     """Estimate reading time in minutes (approx 200 words/min).
 
-    Counts both whitespace-separated tokens (for English) and
-    CJK character runs (each CJK char ~ 1 word) to handle mixed content.
+    Counts whitespace-separated tokens (for English) plus CJK characters at
+    2.5 chars per word-equivalent (~500 CJK chars/min), so mixed Korean and
+    English content is estimated on one scale. CJK characters are removed
+    before the whitespace pass so a mixed run is not counted twice.
     """
     if not content:
         return 1
-    # Count whitespace-separated tokens
-    word_count = len(content.split())
-    minutes = max(1, math.ceil(word_count / 200))
+    # CJK runs carry no spaces, so content.split() alone undercounts Korean
+    # posts several-fold. Count CJK characters separately and drop them from
+    # the whitespace pass so mixed Korean/English text is not counted twice.
+    cjk_count = len(_CJK_RE.findall(content))
+    word_count = len(_CJK_RE.sub(" ", content).split())
+    minutes = max(1, math.ceil((word_count + cjk_count / 2.5) / 200))
     return minutes
 
 
@@ -372,7 +380,7 @@ async def create_post(
 ) -> PostDetail:
     """Create a new blog post. Admin only."""
     post_id = uuid.uuid4().hex
-    now = datetime.now().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     base_slug = _generate_slug(request.slug or request.title, post_id)
 
     # Sanitize tags: strip whitespace, lowercase, deduplicate
@@ -443,7 +451,7 @@ async def update_post(
             else:
                 post[key] = value
 
-        post["updated_at"] = datetime.now().isoformat()
+        post["updated_at"] = datetime.now(timezone.utc).isoformat()
         _save_posts(posts)
 
     logger.info("Blog post updated: id=%s by=%s", post_id, admin)

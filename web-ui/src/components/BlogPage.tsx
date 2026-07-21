@@ -200,9 +200,13 @@ function buildSlug(title: string): string {
     .slice(0, 80);
 }
 
+// Mirrors _estimate_reading_time in routers/blog.py — keep the two in sync.
+const CJK_RE = /[가-힣぀-ヿ一-鿿]/g;
+
 function estimateReadingTime(content: string): number {
-  const words = content.trim().split(/\s+/).length;
-  return Math.max(1, Math.round(words / 200));
+  const cjkCount = (content.match(CJK_RE) || []).length;
+  const words = content.replace(CJK_RE, ' ').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil((words + cjkCount / 2.5) / 200));
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {
