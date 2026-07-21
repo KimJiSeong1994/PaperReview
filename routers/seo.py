@@ -1055,7 +1055,7 @@ def _blog_seo_meta(post: dict) -> tuple[str, str]:
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
-@router.get("/blog/{slug}", response_class=HTMLResponse)
+@router.api_route("/blog/{slug}", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def blog_post_ssr(slug: str) -> HTMLResponse:
     """Server-render a single blog post.
 
@@ -1133,7 +1133,7 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
     return HTMLResponse(content=document, status_code=200)
 
 
-@router.get("/blog", response_class=HTMLResponse)
+@router.api_route("/blog", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def blog_index_ssr() -> HTMLResponse:
     """Server-render the blog index with links to every published post."""
     with _posts_lock:
@@ -1194,7 +1194,7 @@ async def blog_index_ssr() -> HTMLResponse:
     return HTMLResponse(content=document, status_code=200)
 
 
-@router.get("/blog/series/{series_id}", response_class=HTMLResponse)
+@router.api_route("/blog/series/{series_id}", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def blog_series_ssr(series_id: str) -> HTMLResponse:
     """Server-render a series pillar page in reading order.
 
@@ -1249,7 +1249,7 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
     return HTMLResponse(content=document, status_code=200)
 
 
-@router.get("/blog/category/{category}", response_class=HTMLResponse)
+@router.api_route("/blog/category/{category}", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def blog_category_ssr(category: str) -> HTMLResponse:
     """Server-render an indexable category hub (paper-review / engineering).
 
@@ -1305,7 +1305,7 @@ async def blog_category_ssr(category: str) -> HTMLResponse:
     return HTMLResponse(content=document, status_code=200)
 
 
-@router.get("/sitemap.xml")
+@router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap() -> Response:
     """Return an XML sitemap of public URLs (home, blog index, published posts)."""
     with _posts_lock:
@@ -1376,7 +1376,7 @@ async def sitemap() -> Response:
     )
 
 
-@router.get("/feed.xml")
+@router.api_route("/feed.xml", methods=["GET", "HEAD"])
 async def feed() -> Response:
     """Return an RSS 2.0 feed of the 30 newest published posts."""
     with _posts_lock:
@@ -1427,7 +1427,7 @@ async def feed() -> Response:
     )
 
 
-@router.get("/llms.txt")
+@router.api_route("/llms.txt", methods=["GET", "HEAD"])
 async def llms_txt() -> Response:
     """Return an llmstxt.org-format guide to the site for AI engines."""
     with _posts_lock:
@@ -1531,7 +1531,7 @@ def _demote_headings_and_rules(markdown: str) -> str:
     return "\n".join(out)
 
 
-@router.get("/llms-full.txt")
+@router.api_route("/llms-full.txt", methods=["GET", "HEAD"])
 async def llms_full_txt() -> Response:
     """Return the complete markdown body of every published blog post.
 
