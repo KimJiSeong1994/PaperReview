@@ -5,6 +5,8 @@ import type {
   AdminBookmark,
   AdminCurriculaResponse,
   AdminCurriculumUser,
+  AdminPaper,
+  AdminPaperUserStats,
 } from '../api/client';
 import { FolderIcon, ChevronIcon, FileIcon, BookmarkIcon, CurriculumIcon } from './AdminTreeIcons';
 
@@ -20,14 +22,28 @@ interface AdminMembersReportProps {
   onToggleRole: (username: string, currentRole: string) => void;
   onDeleteUser: (username: string) => void;
   onDeleteBookmark: (bookmarkId: string, title: string) => void;
+  /* 논문은 유저별 집계만 미리 받고, 폴더를 펼칠 때 비로소 한 페이지씩 로드한다. */
+  paperStats: AdminPaperUserStats | null;
+  folderPapers: AdminPaper[];
+  folderPage: number;
+  folderTotalPages: number;
+  folderTotal: number;
+  folderLoading: boolean;
+  selectedPapers: Set<number>;
+  onExpandMember: (username: string | null) => void;
+  onPaperPageChange: (username: string, page: number) => void;
+  onTogglePaperSelect: (index: number) => void;
+  onToggleAllPapers: () => void;
+  onDeletePapers: () => void;
 }
 
-/* 계정 · 북마크 · 커리큘럼을 username 하나로 접어둔 행. */
+/* 계정 · 북마크 · 커리큘럼 · 논문 수를 username 하나로 접어둔 행. */
 interface MemberRow {
   username: string;
   account: AdminUser | null;
   bookmarks: AdminBookmark[];
   curriculum: AdminCurriculumUser | null;
+  paperCount: number;
 }
 
 function InsightCard({ eyebrow, headline, body }: { eyebrow: string; headline: ReactNode; body: string }) {
@@ -69,11 +85,23 @@ export default function AdminMembersReport({
   onToggleRole,
   onDeleteUser,
   onDeleteBookmark,
+  paperStats,
+  folderPapers,
+  folderPage,
+  folderTotalPages,
+  folderTotal,
+  folderLoading,
+  selectedPapers,
+  onExpandMember,
+  onPaperPageChange,
+  onTogglePaperSelect,
+  onToggleAllPapers,
+  onDeletePapers,
 }: AdminMembersReportProps) {
   const [openMember, setOpenMember] = useState<string | null>(null);
   const [openBookmark, setOpenBookmark] = useState<string | null>(null);
 
-  // 계정이 사라진 뒤 남은 북마크/커리큘럼도 보이도록 세 소스의 username 합집합으로 행을 만든다.
+  // 계정이 사라진 뒤 남은 북마크/커리큘럼/논문도 보이도록 네 소스의 username 합집합으로 행을 만든다.
   const members = useMemo<MemberRow[]>(() => {
     const bookmarksByUser: Record<string, AdminBookmark[]> = {};
     for (const bm of bookmarks) {
@@ -85,11 +113,15 @@ export default function AdminMembersReport({
       (curricula?.users ?? []).map((u) => [u.username, u]),
     );
     const accountByUser = new Map<string, AdminUser>(users.map((u) => [u.username, u]));
+    const paperCountByUser = new Map<string, number>(
+      (paperStats?.users ?? []).map((u) => [u.username, u.paper_count]),
+    );
 
     const usernames = new Set<string>([
       ...accountByUser.keys(),
       ...Object.keys(bookmarksByUser),
       ...curriculumByUser.keys(),
+      ...paperCountByUser.keys(),
     ]);
 
     return Array.from(usernames)
@@ -99,8 +131,9 @@ export default function AdminMembersReport({
         account: accountByUser.get(username) ?? null,
         bookmarks: bookmarksByUser[username] ?? [],
         curriculum: curriculumByUser.get(username) ?? null,
+        paperCount: paperCountByUser.get(username) ?? 0,
       }));
-  }, [users, bookmarks, curricula]);
+  }, [users, bookmarks, curricula, paperStats]);
 
   const adminCount = users.filter((u) => u.role === 'admin').length;
   const savedPapers = bookmarks.reduce((sum, bm) => sum + (bm.num_papers ?? 0), 0);
@@ -114,6 +147,10 @@ export default function AdminMembersReport({
   );
   const topLearner = (curricula?.users ?? []).reduce<AdminCurriculumUser | null>(
     (top, user) => (!top || user.total_curricula > top.total_curricula ? user : top),
+    null,
+  );
+  const topCollector = members.reduce<MemberRow | null>(
+    (top, row) => (row.paperCount > 0 && (!top || row.paperCount > top.paperCount) ? row : top),
     null,
   );
 
@@ -130,7 +167,7 @@ export default function AdminMembersReport({
         <div className="visits-report-heading">
           <span className="visits-report-kicker">MEMBER OPERATIONS</span>
           <h1>회원 통합 관리</h1>
-          <p>계정, 저장한 북마크, 학습 커리큘럼을 유저 한 명 단위로 묶어 한 화면에서 확인하고 조치합니다.</p>
+          <p>계정, 저장한 북마크, 학습 커리큘럼, 수집한 논문을 유저 한 명 단위로 묶어 한 화면에서 확인하고 조치합니다.</p>
         </div>
       </header>
 
@@ -160,9 +197,9 @@ export default function AdminMembersReport({
       </section>
 
       <div className="dashboard-context-strip" aria-label="리포트 기준">
-        <div><span>집계 기준</span><strong>유저 단위 통합</strong></div>
         <div><span>최다 북마크 보유자</span><strong>{topBookmarker?.username ?? '기록 없음'}</strong></div>
         <div><span>최다 커리큘럼 보유자</span><strong>{topLearner?.username ?? '기록 없음'}</strong></div>
+        <div><span>최다 논문 수집자</span><strong>{topCollector?.username ?? '기록 없음'}</strong></div>
       </div>
 
       <Band
@@ -184,6 +221,7 @@ export default function AdminMembersReport({
           <StatTile label="관리자" value={fmt(adminCount)} hint="admin 권한" />
           <StatTile label="북마크" value={fmt(bookmarks.length)} hint="저장 행동" />
           <StatTile label="저장 논문" value={fmt(savedPapers)} hint="북마크 내 논문" />
+          <StatTile label="수집 논문" value={fmt(paperStats?.total ?? 0)} hint="검색으로 적재" />
           <StatTile label="커리큘럼" value={fmt(curriculaCount)} hint={`${fmt(usersWithCurricula)}명 보유`} />
           <StatTile label="읽은 논문" value={fmt(readPapers)} hint="진도 기록" />
         </div>
@@ -191,8 +229,8 @@ export default function AdminMembersReport({
 
       <Band
         label="회원 상세"
-        title="유저별 계정 · 북마크 · 커리큘럼"
-        description="유저를 펼치면 그 사람이 저장한 북마크와 진행 중인 커리큘럼을 한 번에 확인할 수 있습니다."
+        title="유저별 계정 · 북마크 · 커리큘럼 · 논문"
+        description="유저를 펼치면 저장한 북마크, 진행 중인 커리큘럼, 수집한 논문을 한 번에 확인할 수 있습니다."
       />
 
       <section className="visits-section dashboard-section">
@@ -220,6 +258,8 @@ export default function AdminMembersReport({
                     onClick={() => {
                       setOpenMember(isOpen ? null : member.username);
                       setOpenBookmark(null);
+                      // 논문은 지연 로딩이라 부모가 열림/닫힘을 알아야 한다.
+                      onExpandMember(isOpen ? null : member.username);
                     }}
                   >
                     <ChevronIcon />
@@ -244,6 +284,11 @@ export default function AdminMembersReport({
                       {(curriculum?.total_read_papers ?? 0) > 0 && (
                         <span className="admin-cur-badge admin-cur-badge--progress">
                           읽음 {curriculum?.total_read_papers}
+                        </span>
+                      )}
+                      {member.paperCount > 0 && (
+                        <span className="admin-cur-badge admin-cur-badge--papers">
+                          논문 {member.paperCount}
                         </span>
                       )}
                     </div>
@@ -378,6 +423,75 @@ export default function AdminMembersReport({
                             {curriculum?.total_read_papers} papers read across {curriculum?.courses_with_progress} course{curriculum?.courses_with_progress !== 1 ? 's' : ''}
                           </span>
                         </div>
+                      )}
+
+                      <div className="admin-member-subhead">Papers</div>
+                      {selectedPapers.size > 0 && (
+                        <div className="admin-bulk-bar" style={{ margin: '0 0 8px 0', borderRadius: 8 }}>
+                          <span className="admin-bulk-count">{selectedPapers.size} selected</span>
+                          <button className="admin-bulk-delete-btn" onClick={onDeletePapers}>
+                            Delete Selected
+                          </button>
+                        </div>
+                      )}
+
+                      {folderLoading ? (
+                        <div className="admin-tree-empty-hint">Loading papers...</div>
+                      ) : folderPapers.length === 0 ? (
+                        <div className="admin-tree-empty-hint">No papers</div>
+                      ) : (
+                        <>
+                          <div className="admin-tree-select-all">
+                            <input
+                              type="checkbox"
+                              className="admin-checkbox"
+                              checked={folderPapers.length > 0 && selectedPapers.size === folderPapers.length}
+                              onChange={onToggleAllPapers}
+                            />
+                            <span className="admin-tree-select-all-label">Select all on this page</span>
+                          </div>
+
+                          {folderPapers.map((p) => (
+                            <div key={p.index} className="admin-tree-file">
+                              <div className="admin-tree-guide-line" />
+                              <input
+                                type="checkbox"
+                                className="admin-checkbox"
+                                checked={selectedPapers.has(p.index)}
+                                onChange={() => onTogglePaperSelect(p.index)}
+                              />
+                              <FileIcon />
+                              <div className="admin-tree-file-info">
+                                <span className="admin-tree-file-title">{p.title}</span>
+                                <span className="admin-tree-file-meta">
+                                  {p.authors.join(', ')}{p.source && <> &middot; {p.source}</>}{p.published_date && <> &middot; {p.published_date}</>}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+
+                          {folderTotalPages > 1 && (
+                            <div className="admin-pagination" style={{ padding: '10px 0' }}>
+                              <button
+                                className="admin-page-btn"
+                                disabled={folderPage <= 1}
+                                onClick={() => onPaperPageChange(member.username, folderPage - 1)}
+                              >
+                                Prev
+                              </button>
+                              <span className="admin-page-info">
+                                {folderPage} / {folderTotalPages} ({folderTotal})
+                              </span>
+                              <button
+                                className="admin-page-btn"
+                                disabled={folderPage >= folderTotalPages}
+                                onClick={() => onPaperPageChange(member.username, folderPage + 1)}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

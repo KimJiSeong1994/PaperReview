@@ -820,6 +820,11 @@
   background: rgba(94, 234, 212, 0.10);
 }
 
+.admin-cur-badge--papers {
+  color: var(--amber);
+  background: rgba(251, 191, 36, 0.12);
+}
+
 .admin-cur-type {
   font-size: 10px;
   font-weight: 500;
