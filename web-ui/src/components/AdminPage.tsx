@@ -5,7 +5,6 @@ import './AdminPage.css';
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
 const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
 const AdminMembersReport = lazy(() => import('./AdminMembersReport'));
-const AdminActivityReport = lazy(() => import('./AdminActivityReport'));
 import {
   getAdminDashboard,
   getAdminUsers,
@@ -20,13 +19,12 @@ import {
 } from '../api/client';
 import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse } from '../api/client';
 
-type Tab = 'dashboard' | 'visits' | 'members' | 'activity';
+type Tab = 'dashboard' | 'visits' | 'members';
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: 'Dashboard',
   visits: 'Visitors',
   members: 'Members',
-  activity: '활동',
 };
 
 export default function AdminPage() {
@@ -394,13 +392,6 @@ export default function AdminPage() {
               onToggleAllPapers={toggleAllPapers}
               onDeletePapers={handleDeletePapers}
             />
-          </Suspense>
-        )}
-
-        {/* Activity Tab — 성장 · 활성 · 검색 · 북마크 · 딥리뷰 */}
-        {activeTab === 'activity' && (
-          <Suspense fallback={<div className="admin-loading">Loading activity...</div>}>
-            <AdminActivityReport />
           </Suspense>
         )}
 

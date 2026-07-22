@@ -49,7 +49,7 @@ def test_payload_size_limit() -> None:
 
 
 def test_all_thirteen_enum_members_present() -> None:
-    """Exactly 14 EventType members are defined."""
+    """Exactly 13 EventType members are defined."""
     expected = {
         "BOOKMARK_ADD",
         "BOOKMARK_REMOVE",
@@ -64,7 +64,6 @@ def test_all_thirteen_enum_members_present() -> None:
         "QUERY_SUBMIT",
         "RECOMMENDATION_READ",
         "RECOMMENDATION_FEEDBACK",
-        "LOGIN",
     }
     actual = {m.name for m in EventType}
     assert actual == expected
