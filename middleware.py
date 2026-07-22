@@ -17,6 +17,9 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 logger = logging.getLogger("PaperReview")
 
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "120"))
+# 이 시간을 넘긴 요청만 INFO로 남긴다. 정상 트래픽까지 INFO로 올리면 로그가
+# 검색 한 건에 수십 줄씩 불어난다.
+SLOW_REQUEST_LOG_THRESHOLD = float(os.getenv("SLOW_REQUEST_LOG_THRESHOLD", "1.0"))
 
 # Known AI crawler user-agents and AI-engine referer hosts (case-insensitive).
 _AI_BOT_RE = re.compile(
@@ -75,6 +78,17 @@ class TimingSecurityHeadersMiddleware:
                 logger.warning(
                     "Slow request (%ds limit exceeded): %s %s → %s (%.1fms)",
                     REQUEST_TIMEOUT,
+                    scope.get("method", "?"),
+                    scope.get("path", "?"),
+                    status_holder["code"] or 0,
+                    duration_ms,
+                )
+            elif duration_s > SLOW_REQUEST_LOG_THRESHOLD:
+                # 앱 로거는 INFO 레벨이라 debug 로그는 버려진다. 그 결과 120초
+                # 상한에 걸리지 않은 느린 요청은 프로덕션에 흔적이 남지 않았다.
+                # 임계값을 넘는 것만 INFO로 올려 정상 트래픽은 조용히 둔다.
+                logger.info(
+                    "Slow request: %s %s → %s (%.1fms)",
                     scope.get("method", "?"),
                     scope.get("path", "?"),
                     status_holder["code"] or 0,
