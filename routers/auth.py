@@ -151,6 +151,21 @@ def _decode_token(token: str) -> dict:
     return _decode_jwt(req)
 
 
+def _emit_login_event(username: str) -> None:
+    """Record a durable ``login`` event (fire-and-forget).
+
+    Upgrades active-user accuracy beyond the events proxy. Must never block or
+    fail the login: any error (bus not ready, validation) is swallowed.
+    """
+    try:
+        from src.events.emit import emit_or_warn
+        from src.events.event_types import EventType, UserEvent
+
+        emit_or_warn(UserEvent(user_id=username, event_type=EventType.LOGIN))
+    except Exception:  # pragma: no cover — login must succeed regardless
+        logger.debug("login event emit skipped", exc_info=True)
+
+
 # ── Endpoints ────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=MessageResponse)
@@ -188,6 +203,7 @@ async def login(request: Request, login_request: LoginRequest):
 
     role = user.get("role", "user")
     token = _create_token(login_request.username, role=role)
+    _emit_login_event(login_request.username)
     return TokenResponse(access_token=token, username=login_request.username, role=role)
 
 

@@ -19,6 +19,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from starlette.requests import Request
 
+from src.analytics import review_store
 from src.utils.openai_responses_compat import create_chat_completion
 from app.DeepAgent.skillopt_policy import (
     SkillOptDeepReviewPolicyError,
@@ -976,6 +977,17 @@ def _generate_fallback_report(
     return "\n".join(report)
 
 
+def _persist_review_finish(session_id: str) -> None:
+    """Mirror the terminal in-memory session status into the durable store."""
+    with review_sessions_lock:
+        session = review_sessions.get(session_id)
+        if not session:
+            return
+        status = session.get("status", "failed")
+        error = session.get("error")
+    review_store.record_finished(session_id, status=status, error=error)
+
+
 def run_deep_review_background(
     session_id: str,
     paper_ids: List[str],
@@ -1102,6 +1114,7 @@ def run_deep_review_background(
                     review_sessions[session_id]["error"] = result.get("error", "Unknown error")
 
         logger.info("[Deep Review] Session %s completed: %s", session_id, result["status"])
+        _persist_review_finish(session_id)
 
     except Exception as e:
         logger.exception("[Deep Review] Session %s failed: %s", session_id, e)
@@ -1109,6 +1122,7 @@ def run_deep_review_background(
             if session_id in review_sessions:
                 review_sessions[session_id]["status"] = "failed"
                 review_sessions[session_id]["error"] = str(e)
+        _persist_review_finish(session_id)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -1141,6 +1155,15 @@ async def start_deep_review(
                 "created_at": datetime.now().isoformat(),
                 "username": username,
             }
+
+        # Durable record for admin metrics (survives the 24h TTL + restarts).
+        review_store.record_started(
+            session_id=session_id,
+            username=username,
+            num_papers=len(review_request.paper_ids),
+            num_researchers=review_request.num_researchers,
+            fast_mode=review_request.fast_mode,
+        )
 
         background_tasks.add_task(
             run_deep_review_background,

@@ -38,6 +38,7 @@ class EventType(str, Enum):
     QUERY_SUBMIT = "query_submit"
     RECOMMENDATION_FEEDBACK = "recommendation_feedback"
     RECOMMENDATION_READ = "recommendation_read"
+    LOGIN = "login"
 
 
 # ---------------------------------------------------------------------------
