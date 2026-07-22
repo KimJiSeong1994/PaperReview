@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import concurrent.futures
+import threading
 import time
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
@@ -58,29 +59,63 @@ class LocalRelevanceScorer:
 
     _instance = None
     _model = None
+    # 로드는 20~97초가 걸릴 수 있어(아래 참조) 동시 요청이 각자 로드하지 않도록 직렬화한다.
+    _model_lock = threading.Lock()
 
     def __init__(self) -> None:
         pass
 
     @classmethod
     def get_model(cls):
-        """Lazy initialization of cross-encoder model (singleton)."""
-        if cls._model is None:
+        """Lazy initialization of cross-encoder model (singleton).
+
+        가중치가 이미 로컬에 있어도 기본 로드는 Hugging Face Hub에 메타데이터를
+        확인하러 나가며, 그 왕복이 측정상 로드 시간의 98%를 차지한다
+        (네트워크 허용 20~97초 vs ``local_files_only`` 0.4초). 랭킹 단계 예산이
+        25초라 이 지연만으로 타임아웃돼 무랭킹 결과가 반환됐다.
+
+        그래서 로컬 캐시를 먼저 시도하고, 캐시가 없을 때만 네트워크로 내려받는다.
+        내려받은 뒤에는 다음 로드부터 빠른 경로를 탄다.
+        """
+        if cls._model is not None:
+            return cls._model
+
+        with cls._model_lock:
+            # 락을 기다리는 동안 다른 스레드가 이미 로드했을 수 있다.
+            if cls._model is not None:
+                return cls._model
+
             try:
                 from sentence_transformers import CrossEncoder  # type: ignore
-                cls._model = CrossEncoder(
-                    "cross-encoder/ms-marco-MiniLM-L-6-v2",  # 22MB, fast
-                    max_length=512,
-                )
-                logger.info("[LocalScorer] Cross-encoder model loaded successfully")
             except ImportError:
                 logger.warning(
                     "[LocalScorer] sentence-transformers not installed, local scoring unavailable"
                 )
                 return None
-            except Exception as e:
-                logger.warning("[LocalScorer] Failed to load cross-encoder: %s", e)
-                return None
+
+            # local_files_only=True 우선. 캐시 미스면 False로 한 번만 재시도한다.
+            for local_only in (True, False):
+                try:
+                    cls._model = CrossEncoder(
+                        "cross-encoder/ms-marco-MiniLM-L-6-v2",  # 22MB, fast
+                        max_length=512,
+                        local_files_only=local_only,
+                    )
+                    logger.info(
+                        "[LocalScorer] Cross-encoder model loaded successfully (local_files_only=%s)",
+                        local_only,
+                    )
+                    return cls._model
+                except Exception as e:
+                    if local_only:
+                        logger.info(
+                            "[LocalScorer] Cross-encoder not in local cache, downloading once: %s",
+                            e,
+                        )
+                        continue
+                    logger.warning("[LocalScorer] Failed to load cross-encoder: %s", e)
+                    return None
+
         return cls._model
 
     @classmethod
