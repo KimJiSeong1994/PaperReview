@@ -50,10 +50,10 @@
             <!-- 카메라 영상 -->
             <video id="video" autoplay muted playsinline class="w-full h-full object-cover opacity-0 transition-opacity duration-1000"></video>
 
-            <!-- 사용자가 원할 때 측정을 끝낸다. -->
-            <button id="stopButton" type="button" class="absolute right-3 top-3 z-20 hidden rounded-xl border border-white/20 bg-red-500/90 px-4 py-2 font-black text-white shadow-lg backdrop-blur-sm transition hover:bg-red-400 active:scale-95 focus:outline-none focus:ring-4 focus:ring-red-300/50">
-                측정 종료
-            </button>
+            <!-- 6초 게임 타이머 -->
+            <div id="timerBadge" class="absolute right-3 top-3 z-20 hidden rounded-xl border border-white/20 bg-slate-950/80 px-3 py-2 font-black text-white shadow-lg backdrop-blur-sm" aria-live="polite">
+                ⏱️ <span id="timerDisplay" class="font-mono text-2xl text-yellow-400">6</span><span class="text-sm text-slate-300">초</span>
+            </div>
             
             <!-- 상태창 & 로딩 화면 -->
             <div id="statusOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-10 p-6 text-center">
@@ -114,7 +114,7 @@
                 <div class="mb-3 text-center">
                     <p class="text-xs font-bold uppercase tracking-[0.2em] text-orange-300">Hall of Fame</p>
                     <h2 class="text-xl font-black text-white">웃음 베스트 전당 🏆</h2>
-                    <p class="mt-1 text-xs text-slate-400">도전별 최고 사진 중 TOP 3</p>
+                    <p class="mt-1 text-xs text-slate-400">6초 라운드별 최고 사진 중 TOP 3</p>
                 </div>
                 <div id="hallOfFameGrid" class="grid grid-cols-1 gap-3 sm:grid-cols-3"></div>
                 <p class="mt-3 text-center text-xs text-slate-500">이 페이지를 열어둔 동안만 보관되며 서버로 전송되지 않습니다.</p>
@@ -139,7 +139,8 @@
         const bestShotCard = document.getElementById('bestShotCard');
         const bestShotCanvas = document.getElementById('bestShotCanvas');
         const bestScoreDisplay = document.getElementById('bestScoreDisplay');
-        const stopButton = document.getElementById('stopButton');
+        const timerBadge = document.getElementById('timerBadge');
+        const timerDisplay = document.getElementById('timerDisplay');
         const hallOfFameSection = document.getElementById('hallOfFameSection');
         const hallOfFameGrid = document.getElementById('hallOfFameGrid');
         
@@ -156,6 +157,8 @@
         let gameActive = false;
         let analysisInFlight = false;
         let analysisIntervalId;
+        let countdownIntervalId;
+        let gameEndsAt = 0;
         
         // 부드러운 점수 변화를 위한 변수
         let displayedScore = 0;
@@ -163,6 +166,7 @@
         let roundBestImage = '';
         let hallOfFameShots = [];
         let bestShotHighlightTimer;
+        const GAME_DURATION_SECONDS = 6;
         const HALL_OF_FAME_SIZE = 3;
         const SMOOTHING_FACTOR = 0.22; // 표정 변화를 빠르게 따라가되 화면이 튀지 않게 완화
         const DIFFICULTY_EXPONENT = 12.0; // 평범한 활짝 웃음은 낮추되 거의 완벽한 표정에서는 고득점을 허용
@@ -343,6 +347,16 @@
             }
         }
 
+        function updateCountdown() {
+            const remaining = Math.max(0, Math.ceil((gameEndsAt - Date.now()) / 1000));
+            timerDisplay.innerText = remaining;
+            if (remaining <= 3) {
+                timerDisplay.classList.add('text-red-400', 'animate-pulse');
+                timerDisplay.classList.remove('text-yellow-400');
+            }
+            if (remaining === 0) finishGame();
+        }
+
         function renderHallOfFame() {
             hallOfFameGrid.replaceChildren();
             hallOfFameShots.forEach((shot, index) => {
@@ -388,8 +402,10 @@
             if (!gameActive) return;
             gameActive = false;
             clearInterval(analysisIntervalId);
+            clearInterval(countdownIntervalId);
             analysisInFlight = false;
-            stopButton.classList.add('hidden');
+            timerDisplay.innerText = '0';
+            timerBadge.classList.add('hidden');
             saveRoundBestToHallOfFame();
 
             const stream = video.srcObject;
@@ -400,22 +416,28 @@
 
             statusOverlay.classList.remove('hidden');
             statusText.classList.remove('animate-pulse');
-            statusText.innerHTML = `측정 종료!<br><span class="text-2xl font-black text-yellow-400">최고 ${roundBestScore}점</span>`;
-            showStartButton('다시 도전 😆');
+            statusText.innerHTML = `⏱️ ${GAME_DURATION_SECONDS}초 게임 종료!<br><span class="text-2xl font-black text-yellow-400">최고 ${roundBestScore}점</span>`;
+            showStartButton('다시 게임 😆');
         }
 
-        // 4. 첫 카메라 프레임이 준비되면 사용자가 종료할 때까지 분석한다.
+        // 4. 첫 카메라 프레임이 준비된 시점부터 제한시간 동안 분석한다.
         function beginRound() {
             if (gameActive) return;
             resetRoundUI();
             analysisInFlight = false;
             gameActive = true;
-            stopButton.classList.remove('hidden');
+            gameEndsAt = Date.now() + GAME_DURATION_SECONDS * 1000;
+            timerDisplay.innerText = GAME_DURATION_SECONDS;
+            timerDisplay.classList.add('text-yellow-400');
+            timerDisplay.classList.remove('text-red-400', 'animate-pulse');
+            timerBadge.classList.remove('hidden');
             statusOverlay.classList.add('hidden');
             video.classList.remove('opacity-0');
             video.classList.add('opacity-100');
 
             analysisIntervalId = setInterval(analyzeFrame, 100);
+            countdownIntervalId = setInterval(updateCountdown, 200);
+            updateCountdown();
         }
 
         // 5. 최고 점수가 갱신된 정확한 순간을 거울 방향 그대로 캡처
@@ -541,7 +563,6 @@
 
         // 사용자가 명시적으로 시작하기 전에는 모델 다운로드와 카메라 요청을 하지 않는다.
         startButton.addEventListener('click', startGame);
-        stopButton.addEventListener('click', finishGame);
     </script>
 </body>
 </html>
