@@ -166,10 +166,15 @@
         let roundBestImage = '';
         let hallOfFameShots = [];
         let bestShotHighlightTimer;
+        let perfectSmileStartedAt = 0;
         const GAME_DURATION_SECONDS = 6;
         const HALL_OF_FAME_SIZE = 3;
         const SMOOTHING_FACTOR = 0.22; // 표정 변화를 빠르게 따라가되 화면이 튀지 않게 완화
-        const DIFFICULTY_EXPONENT = 12.0; // 평범한 활짝 웃음은 낮추되 거의 완벽한 표정에서는 고득점을 허용
+        const DIFFICULTY_EXPONENT = 18.0; // 상위 점수로 갈수록 웃음 강도 차이를 더욱 엄격하게 반영
+        const PERFECT_SMILE_THRESHOLD = 0.999;
+        const PERFECT_SMILE_HOLD_MS = 4000;
+        const PERFECT_SCORE_START = 90;
+        const PERFECT_SCORE_BEFORE_COMPLETION = 99.4;
         const FACE_DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({
             inputSize: 320,
             scoreThreshold: 0.35,
@@ -308,6 +313,7 @@
             roundBestScore = 0;
             roundBestImage = '';
             confettiFired = false;
+            perfectSmileStartedAt = 0;
             scoreDisplay.innerText = '0';
             bestScoreDisplay.innerText = '0';
             happinessBar.style.width = '0%';
@@ -467,14 +473,35 @@
             }, 500);
         }
 
+        function calculateTargetScore(happyProb, now) {
+            const normalizedProb = Math.max(0, Math.min(1, happyProb));
+            const curveScore = Math.pow(normalizedProb, DIFFICULTY_EXPONENT) * 100;
+
+            if (normalizedProb < PERFECT_SMILE_THRESHOLD) {
+                perfectSmileStartedAt = 0;
+                return Math.min(PERFECT_SCORE_START, curveScore);
+            }
+
+            if (!perfectSmileStartedAt) {
+                perfectSmileStartedAt = now;
+            }
+
+            const holdProgress = Math.min(1, (now - perfectSmileStartedAt) / PERFECT_SMILE_HOLD_MS);
+            if (holdProgress === 1) return 100;
+            return PERFECT_SCORE_START
+                + holdProgress * (PERFECT_SCORE_BEFORE_COMPLETION - PERFECT_SCORE_START);
+        }
+
         // 6. UI 및 점수 업데이트 로직
         function updateScoreUI(happyProb, isFaceDetected) {
             let targetScore = 0;
 
             if (isFaceDetected) {
-                // 완만한 곡선을 적용해 평범한 미소부터 점수가 움직이고 활짝 웃을수록 크게 오른다.
-                const adjustedProb = Math.pow(happyProb, DIFFICULTY_EXPONENT);
-                targetScore = Math.min(100, adjustedProb * 100);
+                // 90점까지는 표정 강도로 계산하고, 100점은 거의 완벽한 웃음을
+                // 연속으로 유지한 시간에 따라 천천히 허용한다.
+                targetScore = calculateTargetScore(happyProb, performance.now());
+            } else {
+                perfectSmileStartedAt = 0;
             }
 
             // 화면용 점수는 부드럽게 움직이지만, 사진은 실제 웃음 확률이
