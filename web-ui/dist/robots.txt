@@ -12,6 +12,13 @@
 # (/api/blog/posts, /api/blog/tags). The post API must stay crawlable or
 # Google's renderer blocks the SPA's XHR, the client marks the page noindex,
 # and every post becomes un-indexable despite perfect SSR HTML.
+# Note: /paper-viewer is deliberately NOT disallowed. Blog post bodies link to
+# it ~229 times (one per cited reference, each with a distinct query string).
+# Disallowing it meant crawlers discovered every one of those URLs but were
+# blocked from fetching them, so they never saw the route's own
+# `noindex,follow` (PaperViewerRoute.tsx) — the exact recipe for "Indexed,
+# though blocked by robots.txt". Letting the fetch through lets the noindex do
+# its job, and `follow` returns the link equity to the cited posts.
 
 # Default policy for all crawlers: public pages allowed, private paths blocked.
 User-agent: *
@@ -27,7 +34,6 @@ Disallow: /admin
 Disallow: /admin/
 Disallow: /mypage
 Disallow: /mypage/
-Disallow: /paper-viewer
 Disallow: /share/*
 Disallow: /share/curriculum/*
 Disallow: /api/admin*
@@ -74,7 +80,6 @@ Disallow: /admin
 Disallow: /admin/
 Disallow: /mypage
 Disallow: /mypage/
-Disallow: /paper-viewer
 Disallow: /share/*
 Disallow: /share/curriculum/*
 Disallow: /api/admin*
