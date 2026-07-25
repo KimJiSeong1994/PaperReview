@@ -129,6 +129,16 @@ body {
   line-height: 1.1;
 }
 
+/* The Hangul brand name rides along in the H1 for Korean brand queries, but at
+   a smaller weight so the 64px title does not wrap on phones. */
+.brand-title-ko {
+  font-size: 0.45em;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
 .brand-tagline {
   font-size: 22px;
   font-weight: 400;

@@ -552,7 +552,13 @@ function SearchPage() {
       {!loading && papers.length === 0 && !query && (
         <div className="centered-search">
           <div className="brand-section">
-            <h1 className="brand-title">Jiphyeonjeon</h1>
+            {/* Matches the pre-hydration <h1> in web-ui/index.html. React
+                replaces #root on mount, so a bare "Jiphyeonjeon" here meant
+                JS-rendering crawlers saw a different (and Hangul-free) H1 than
+                non-JS ones — and Korean brand queries are "집현전". */}
+            <h1 className="brand-title">
+              Jiphyeonjeon <span className="brand-title-ko">(집현전)</span>
+            </h1>
             <p className="brand-tagline">The AI Search Engine You Control</p>
           </div>
           <SearchBar

@@ -6,7 +6,6 @@ import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
-import { homeGraph } from './seo/structuredData';
 import { useAuth } from './contexts/AuthContext';
 
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -148,11 +147,15 @@ function App() {
           path="*"
           element={
             <>
+              {/* No jsonLd here: web-ui/index.html already ships the identical
+                  home @graph statically, and SEOHead does not remove it. Passing
+                  it again emitted a second, byte-identical graph after hydration
+                  — the same @id nodes twice. The static copy is the one to keep;
+                  it is the only one non-JS crawlers ever see. */}
               <SEOHead
                 title={HOME_TITLE}
                 description={HOME_DESCRIPTION}
                 canonical={`${SITE_URL}/`}
-                jsonLd={homeGraph()}
               />
               {/* Minimal header */}
               <div className="app-header">
