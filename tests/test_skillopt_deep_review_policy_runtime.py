@@ -23,6 +23,7 @@ from app.DeepAgent.skillopt_policy import (
     SkillOptDeepReviewPolicyError,
     build_skillopt_deep_review_policy_prompt_block,
     load_skillopt_deep_review_policy_from_env,
+    resolve_skillopt_deep_review_prompt_block,
 )
 
 ENV_VARS = (
@@ -228,6 +229,29 @@ def test_invalid_enabled_policy_fails_closed_with_warning(
     assert payload["success"] is True
     assert "SkillOpt optimized policy" not in llm.prompts[0]
     assert any("SkillOpt DeepReview policy disabled" in rec.message for rec in caplog.records)
+
+
+def test_resolve_prompt_block_reason_distinguishes_disabled_from_invalid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Every fallback yields an empty block, so the reason must separate them."""
+    logger = logging.getLogger("test.skillopt.deep_review")
+
+    _clear_env(monkeypatch)
+    assert resolve_skillopt_deep_review_prompt_block(logger) == ("", "disabled")
+
+    path, digest = _write_policy(tmp_path)
+    monkeypatch.setenv(SKILLOPT_DEEP_REVIEW_POLICY_ENABLED_ENV, "true")
+    monkeypatch.setenv(SKILLOPT_DEEP_REVIEW_POLICY_PATH_ENV, str(path))
+    monkeypatch.setenv(SKILLOPT_DEEP_REVIEW_POLICY_HASH_ENV, "sha256:" + "0" * 64)
+    block, reason = resolve_skillopt_deep_review_prompt_block(logger)
+    assert block == ""
+    assert reason == "invalid_config"
+
+    monkeypatch.setenv(SKILLOPT_DEEP_REVIEW_POLICY_HASH_ENV, f"sha256:{digest}")
+    block, reason = resolve_skillopt_deep_review_prompt_block(logger)
+    assert reason == "enabled"
+    assert "SkillOpt optimized policy" in block
 
 
 def test_deep_review_policy_path_does_not_import_dev_eval(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

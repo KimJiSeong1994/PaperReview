@@ -125,6 +125,17 @@ class _OperationGeneration:
 
 
 class SearchAgent:
+    # Source name → searcher attribute, for sources whose searcher can report
+    # circuit-breaker state. Sources absent here simply never report one.
+    _SOURCE_SEARCHER_ATTRS = {
+        "arxiv": "arxiv_searcher",
+        "connected_papers": "connected_papers_searcher",
+        "google_scholar": "google_scholar_searcher",
+        "openalex": "openalex_searcher",
+        "openalex_korean": "openalex_searcher",
+        "dblp": "dblp_searcher",
+    }
+
     def __init__(self, data_dir: str = None, openai_api_key: str = None):
         self.arxiv_searcher = ArxivSearcher()
         self.connected_papers_searcher = ConnectedPapersSearcher()
@@ -864,6 +875,21 @@ class SearchAgent:
     def get_categories(self) -> Dict[str, List[Dict[str, str]]]:
         return {"arxiv": self.arxiv_searcher.get_categories()}
 
+    def _source_outcome_mode(self, source_name: str, papers: List[Dict[str, Any]]) -> str:
+        """Describe what a completed source search actually did.
+
+        Reporting a bare "searched" for a source that returned nothing makes a
+        degraded source indistinguishable from a healthy one that simply had no
+        matches — and hides a circuit breaker that never issued a request.
+        """
+        if papers:
+            return "searched"
+        searcher = self._SOURCE_SEARCHER_ATTRS.get(source_name)
+        is_circuit_open = getattr(getattr(self, searcher or "", None), "is_circuit_open", None)
+        if callable(is_circuit_open) and is_circuit_open():
+            return "circuit_open"
+        return "searched_empty"
+
     def _search_single_source(
         self,
         source_name: str,
@@ -1109,7 +1135,7 @@ class SearchAgent:
                 source_modes[source_name] = "skipped_non_korean_query"
                 return source_name, []
 
-            source_modes[source_name] = "searched"
+            source_modes[source_name] = "dispatched"
             fut = loop.run_in_executor(
                 None,
                 self._search_single_source,
@@ -1118,6 +1144,7 @@ class SearchAgent:
             try:
                 papers = await asyncio.wait_for(asyncio.shield(fut), timeout=timeout)
                 source_timings[source_name] = round(time.time() - started_at, 3)
+                source_modes[source_name] = self._source_outcome_mode(source_name, papers)
                 return source_name, papers
             except asyncio.TimeoutError:
                 source_timings[source_name] = round(time.time() - started_at, 3)

@@ -183,6 +183,18 @@ class GoogleScholarSearcher:
                     self._consecutive_failures = 0
             return True
 
+    def is_circuit_open(self) -> bool:
+        """Report circuit-breaker state without mutating it.
+
+        ``_is_available`` resets the failure counter once the cooldown lapses,
+        so callers that only want to *observe* the breaker must not use it.
+        """
+        with self._state_lock:
+            return (
+                self._consecutive_failures >= self._circuit_breaker_threshold
+                and time.time() < self._disabled_until
+            )
+
     def _record_success(self):
         """검색 성공 시 실패 카운터 초기화"""
         with self._state_lock:

@@ -24,9 +24,7 @@ from app.DeepAgent.system_prompts import (
     ADVISOR_AGENT_PROMPT
 )
 from app.DeepAgent.skillopt_policy import (
-    SkillOptDeepReviewPolicyError,
-    build_skillopt_deep_review_policy_prompt_block,
-    load_skillopt_deep_review_policy_from_env,
+    resolve_skillopt_deep_review_prompt_block,
 )
 
 logger = logging.getLogger(__name__)
@@ -303,12 +301,10 @@ def analyze_paper_deep(paper_json: str) -> str:
     # Format authors safely
     authors_str = _format_authors(authors, max_count=5)
 
-    skillopt_policy_block = ""
-    try:
-        skillopt_policy = load_skillopt_deep_review_policy_from_env()
-        skillopt_policy_block = build_skillopt_deep_review_policy_prompt_block(skillopt_policy)
-    except SkillOptDeepReviewPolicyError as exc:
-        logger.warning("SkillOpt DeepReview policy disabled: %s", exc)
+    skillopt_policy_block, skillopt_policy_reason = (
+        resolve_skillopt_deep_review_prompt_block(logger)
+    )
+    logger.info("[Deep Review] SkillOpt policy: %s", skillopt_policy_reason)
 
     analysis_prompt = f"""You are a PhD-level research analyst. Conduct a comprehensive deep analysis of this academic paper.{skillopt_policy_block}
 

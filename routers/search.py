@@ -21,7 +21,7 @@ import unicodedata
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -425,10 +425,17 @@ def _recommendation_normalized_terms(query: str, *, max_terms: int = 8) -> list[
     return terms
 
 
-def _skillopt_result_cache_namespace(*, apply_skillopt_policy: bool) -> str:
-    """Return the validated SkillOpt namespace for full search-result caching."""
+def _skillopt_result_cache_namespace(
+    *, apply_skillopt_policy: bool
+) -> Tuple[str, str]:
+    """Return the validated SkillOpt namespace and why that namespace was chosen.
+
+    The reason is reported separately because every fallback path collapses to
+    the ``"baseline"`` namespace: without it, an intentionally disabled policy
+    and a misconfigured one are indistinguishable from the response alone.
+    """
     if not apply_skillopt_policy:
-        return "baseline"
+        return "baseline", "not_requested"
     try:
         policy = load_skillopt_policy_from_env()
     except SkillOptPolicyError as e:
@@ -436,10 +443,10 @@ def _skillopt_result_cache_namespace(*, apply_skillopt_policy: bool) -> str:
             "[API] SkillOpt search policy excluded from result cache namespace by invalid configuration: %s",
             e,
         )
-        return "baseline"
+        return "baseline", "invalid_config"
     if not policy.enabled:
-        return "baseline"
-    return policy.content_hash
+        return "baseline", policy.reason
+    return policy.content_hash, policy.reason
 
 
 def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) -> str:
@@ -1321,7 +1328,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         apply_skillopt_policy = (
             not request.use_llm_search and not request.fast_mode
         )
-        skillopt_cache_namespace = _skillopt_result_cache_namespace(
+        skillopt_cache_namespace, skillopt_policy_reason = _skillopt_result_cache_namespace(
             apply_skillopt_policy=apply_skillopt_policy
         )
         user_filters = {
@@ -1335,6 +1342,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         }
         stage_modes["skillopt_policy_cache_namespace"] = skillopt_cache_namespace
         stage_modes["skillopt_policy_requested"] = apply_skillopt_policy
+        stage_modes["skillopt_policy_reason"] = skillopt_policy_reason
         cache_lookup_start = time.time()
         cache_key = _compute_cache_key(request.query, request.sources, user_filters)
         cached = _get_cached_result(cache_key, require_academic_guard=True)

@@ -6,6 +6,7 @@ dev-only DeepReview approval/evaluation package.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import stat
 from dataclasses import dataclass
@@ -175,6 +176,24 @@ SkillOpt optimized policy for {policy.scope}:
 
 {policy.content}
 """.rstrip()
+
+
+def resolve_skillopt_deep_review_prompt_block(
+    logger: logging.Logger,
+    env: Mapping[str, str] | None = None,
+) -> tuple[str, str]:
+    """Return the DeepReview prompt block and why that block was chosen.
+
+    Every fallback path yields an empty block, so callers cannot tell an
+    intentionally disabled policy from a misconfigured one by the block alone.
+    The reason makes that distinction observable.
+    """
+    try:
+        policy = load_skillopt_deep_review_policy_from_env(env)
+    except SkillOptDeepReviewPolicyError as exc:
+        logger.warning("SkillOpt DeepReview policy disabled by invalid configuration: %s", exc)
+        return "", "invalid_config"
+    return build_skillopt_deep_review_policy_prompt_block(policy), policy.reason
 
 
 def _normalize_hash(value: str) -> str:
