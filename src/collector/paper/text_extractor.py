@@ -1,7 +1,7 @@
 import io
 import logging
 import re
-import PyPDF2
+import pypdf
 import pdfplumber
 
 import requests
@@ -61,22 +61,22 @@ class TextExtractor:
                     return full_text if full_text.strip() else None
 
             except Exception as e:
-                logger.debug("pdfplumber failed for arXiv PDF, trying PyPDF2: %s", e)
+                logger.debug("pdfplumber failed for arXiv PDF, trying pypdf: %s", e)
                 pdf_file.seek(0)
-                return self._extract_with_pypdf2(pdf_file)
+                return self._extract_with_pypdf(pdf_file)
 
         except Exception as e:
             logger.warning("arXiv PDF extraction failed: %s", e)
             return None
 
-    def _extract_with_pypdf2(self, pdf_file: io.BytesIO) -> Optional[str]:
+    def _extract_with_pypdf(self, pdf_file: io.BytesIO) -> Optional[str]:
         try:
-            reader = PyPDF2.PdfReader(pdf_file)
+            reader = pypdf.PdfReader(pdf_file)
             full_text = '\n\n'.join([page.extract_text() for page in reader.pages if page.extract_text()])
             return full_text if full_text.strip() else None
 
         except Exception as e:
-            logger.debug("PyPDF2 extraction failed: %s", e)
+            logger.debug("pypdf extraction failed: %s", e)
             return None
 
     def _extract_from_scihub(self, paper: Dict[str, Any]) -> Optional[str]:
@@ -113,9 +113,9 @@ class TextExtractor:
                                 return full_text if full_text.strip() else None
 
                         except Exception as e:
-                            logger.debug("pdfplumber failed for SciHub PDF, trying PyPDF2: %s", e)
+                            logger.debug("pdfplumber failed for SciHub PDF, trying pypdf: %s", e)
                             pdf_file.seek(0)
-                            return self._extract_with_pypdf2(pdf_file)
+                            return self._extract_with_pypdf(pdf_file)
 
                 except Exception as e:
                     logger.debug("SciHub mirror %s failed: %s", mirror, e)
