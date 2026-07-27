@@ -3,6 +3,132 @@
 Status of this document: analysis and proposal. It authorizes nothing and it is
 not a record of approval.
 
+**Decision: DEFER.** The Step -1 and Step 0 pilots ran on 2026-07-27/28 and
+their measurements trip the plan's own stop conditions. Training is not
+impossible, but the dataset it would require is out of proportion to the value
+it could deliver. See "Pilot results" below. The execution order from Step 1
+onward is deferred, not cancelled — the gates that decide it are now measured
+rather than assumed.
+
+## Pilot results
+
+### Step -1: intent and source distribution
+
+Aggregated from 3.3 months of production logs (2026-04-18 to 2026-07-27),
+793,459 delivered papers. Only aggregate counts were extracted; no individual
+query text was read, which keeps the `raw_user_logs_included: false` constraint
+intact.
+
+| Source | Calls | Papers delivered | Hit rate | Share |
+|---|---|---|---|---|
+| OpenAlex (4 variants) | 108,208 | 731,307 | ~53% | **92.17%** |
+| Connected Papers | 25,549 | 39,734 | 8.3% | 5.01% |
+| Citation/Reference collection | 1,256 | 10,508 | ~75% | 1.32% |
+| **arXiv** | 1,383 | 11,910 | 55.6% | **1.50%** |
+| DBLP | 25,554 | **0** | **0%** | 0% |
+| Google Scholar | 3,027 | **0** | **0%** | 0% |
+
+Two findings, one of which is larger than this project.
+
+**arXiv carries 1.50% of delivered results.** Applying the plan's own impact
+formula to an arXiv-only training result: `+0.05 × 1.50% = +0.00075` blended
+nDCG. That is not a user-visible improvement.
+
+This share understates arXiv's potential rather than its demand — arXiv is
+deliberately excluded from prefetch (`routers/search.py:758`) and throttled to
+one request per 3.5s by a class-level semaphore. But the sources carrying the
+other 98% are the ones currently broken, so the forward-looking picture differs
+from the historical one.
+
+**DBLP and Google Scholar have delivered nothing for 3.3 months.** 25,554 and
+3,027 calls respectively, zero papers from either. This is not the transient
+outage it appeared to be during the same-day investigation; it is a chronic
+state. It is a larger operational problem than policy training and is tracked
+separately.
+
+### Step 0: sigma, proxy correlation, cost calibration
+
+8 dataset queries run through QueryAnalyzer under two policies, each generated
+arXiv query executed live, per-query nDCG@10 scored via
+`retrieval_eval.score_retrieval_results` with `evidence_mode="measured"`.
+
+| Gate | Measured | Plan's rule | Verdict |
+|---|---|---|---|
+| sigma | **0.278** (n=7) | `> 0.15` → DEFER | **DEFER** |
+| Spearman rho | **0.568** (n=16) | `< 0.7` → Option C not eligible | **C disqualified** |
+| Model | `gpt-5.4-mini` | pin the model | cost model needs rebuild |
+
+Per-query nDCG@10, baseline versus an aggressively rewritten variant:
+
+| Query | Baseline | Variant | Diff |
+|---|---|---|---|
+| ko-llm-finetuning | 0.159 | 0.582 | **+0.423** |
+| transformer-attention | 0.053 | 0.078 | +0.025 |
+| method-resnet | 0.184 | 0.201 | +0.016 |
+| graph-rag | 0.902 | 0.902 | 0.000 |
+| method-bert | 0.123 | 0.123 | 0.000 |
+| ambiguous-agent | 0.925 | 0.850 | −0.074 |
+| author-hinton | 0.432 | 0.000 | **−0.432** |
+| author-bengio | 0.902 | 0.371 | **−0.531** |
+
+Aggregate: baseline 0.460, variant 0.388, mean difference −0.020.
+
+### What the pilot established
+
+**The policy does change retrieval.** A first attempt used a variant that added
+a single rule and produced sigma = 0.0, which read as "arXiv ranking is
+insensitive to query phrasing." That reading was wrong. Rewriting the arXiv
+construction strategy outright moves per-query nDCG between −0.53 and +0.42.
+The training premise is sound.
+
+**Precision-first arXiv rules destroy author queries.** The variant mandated
+title-only fields and quoted phrases. Topic queries improved; author queries
+collapsed — Hinton to zero results, Bengio from 0.902 to 0.371. A query like
+`au:"Geoffrey Hinton" AND ti:"capsule network"` is too narrow to match.
+
+**The required dataset is out of reach.** At the measured sigma, a paired
+t-test at α=0.05 and 80% power needs:
+
+| Detectable delta | Selection split | Total dataset |
+|---|---|---|
+| 0.05 | 243 | **~1,216** |
+| 0.01 (the contract floor) | 6,082 | **~30,410** |
+
+The plan's own target of ~980 queries is insufficient even at the relaxed
+0.05 threshold. Manual curation at this scale is months of domain-expert work.
+
+**The text-proxy reward is not usable.** rho = 0.568 sits in the "risky" band
+and below the 0.7 admission threshold. Option C is disqualified on measurement,
+which is what the Architect and Critic both predicted would happen if the
+correlation were measured before committing.
+
+### The cheaper alternative the pilot revealed
+
+Sigma is large because per-query behaviour splits by intent, not because the
+signal is noisy. Narrowing helps topic queries and destroys author queries —
+and eight queries were enough to show the split. Separating the arXiv rules by
+intent is a hand-authored change that can be validated on a handful of queries,
+not a training problem requiring thousands.
+
+That is the recommended next move if search-policy quality is worth pursuing
+before the dead sources are restored.
+
+### Reproduction
+
+The pilot scripts live outside the repository (session scratchpad) because they
+target a deferred plan. To re-run: set the four `SKILLOPT_SEARCH_POLICY_*`
+variables to the policy under test, call
+`QueryAnalyzer.analyze_and_prepare(query, apply_skillopt_policy=True)`, execute
+`source_queries["arxiv"]` through `ArxivSearcher`, and score with
+`score_retrieval_results(evidence_mode="measured", ...)`.
+
+Two methodology notes for whoever repeats this. Run both policies per query in
+an alternating order — a first attempt ran all baselines first, arXiv HTTP
+503-throttled that phase alone, and the resulting comparison measured API
+availability rather than policy effect. And persist the raw search results
+before scoring; the searches are the expensive part and a scoring bug should
+not cost them.
+
 ## Current state
 
 Measured against production on 2026-07-27.
@@ -108,16 +234,29 @@ canonical work.
 
 ## Execution order
 
+**Steps 1 onward are deferred.** Steps -1 and 0 have run; their results are
+above and they trip the plan's stop conditions. What follows is retained as the
+route to take if the deferral is lifted — the sizing figures in step 1 are now
+measured rather than assumed.
+
 Steps 1–6 are prerequisites for step 7. The lock is the last gate, not the
 first obstacle.
 
+**-1. Intent and source distribution audit.** Done. arXiv carries 1.50% of
+delivered results; DBLP and Google Scholar carry none. See "Pilot results".
+
 **0. Restore search sources.** OpenAlex daily credits are exhausted (limit
 1000, 10 per request, `retry-after` ~11.4h) and DBLP refuses connections from
-the production host. Baseline capture is impossible until these recover.
-Measured fan-out is ~6.2 OpenAlex requests per search, which caps the free tier
-at roughly 16 searches per day.
+the production host. Measured fan-out is ~6.2 OpenAlex requests per search,
+which caps the free tier at roughly 16 searches per day.
 
-**1. Expand the evaluation dataset from 8 queries to roughly 1000.** This is
+This is now the highest-value item in the document. DBLP and Google Scholar
+have returned zero results across 28,581 calls over 3.3 months while continuing
+to consume request budget and latency on every search. That is a live
+degradation of the product, independent of anything to do with policy training.
+
+**1. Expand the evaluation dataset from 8 queries to ~1,216** (revised upward
+from ~980 by the measured σ; see 1a). This is
 the dominant cost and it is data work, not code work. Each query needs
 `must_include` / `acceptable` / `must_exclude` labels applied with domain
 knowledge.
@@ -140,13 +279,16 @@ what the most optimistic variance assumption needs. Reaching 196 in the
 selection split requires **roughly 980 queries in total**, and that is the
 optimistic case: at σ=0.10 it would take about 3900.
 
-**1a. Estimate σ from a pilot before committing to a total.** The table spans a
-20x range in required sample size, and nothing in the repository indicates
-which end applies. Label 30–50 queries first, score baseline against candidate,
-and measure the variance of the paired differences. That single number collapses
-the range and tells you what the real dataset target is. Skipping this means
-either overbuilding by thousands of queries or discovering mid-project that the
-target was far too low.
+**1a. Estimate σ from a pilot before committing to a total.** Done — this is
+what deferred the plan. The measured σ is **0.278**, above the top of the range
+assumed above. At that variance the dataset needs ~1,216 queries to detect a
+0.05 improvement and ~30,410 to detect the 0.01 contract floor. The ~980 target
+in this step is therefore too small by a factor that manual curation cannot
+close in any reasonable time.
+
+The pilot used 7 usable pairs, so the σ estimate itself has a wide confidence
+interval. It is precise enough for the decision at hand: even the optimistic
+end of that interval leaves the dataset requirement far above what exists.
 
 The current test split is 2 queries. No amount of pipeline work makes the gate
 passable at this sample size.
@@ -257,9 +399,17 @@ in a search response.
 
 ## Open questions
 
+- Why have DBLP and Google Scholar returned zero results across 28,581 calls
+  over 3.3 months, and what does it cost to keep calling them? This is the
+  highest-value open question in the document and it is not about training.
+- Does splitting the arXiv rules by intent recover the author-query regression
+  without training? The pilot suggests it would, on eight queries.
 - What is the "separately controlled production authorization and deployment
   system" that `operations.md` requires?
 - Why does search carry a governance chain that deep review does not? Deep
   review activates with four environment variables and no `not_authorized`
-  lock. The documents do not explain the asymmetry.
-- Who labels the expanded evaluation dataset, and against which corpus?
+  lock. The documents do not explain the asymmetry. The deep review benchmark
+  is two fixture items, so the asymmetry is not explained by a higher bar
+  having been met there.
+- Who labels the expanded evaluation dataset, and against which corpus? At
+  ~1,216 queries this is the binding constraint on the whole plan.
