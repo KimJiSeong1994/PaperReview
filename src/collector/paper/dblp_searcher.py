@@ -8,8 +8,8 @@ DBLP REST API를 통한 컴퓨터 과학 논문 검색 (무료, API 키 불필�
 
 import requests
 from typing import List, Dict, Any, Optional
-import time
 
+from src.collector.paper.rate_limiter import RateLimiter
 from src.utils.logger import log_search_operation
 
 
@@ -25,9 +25,8 @@ class DBLPSearcher:
         self.session = requests.Session()
         self.session.headers.update(self.headers)
 
-        # Rate limiting
-        self.request_delay = 1.0
-        self.last_request_time = 0
+        # Rate limiting (thread-safe: this searcher is a shared singleton)
+        self._rate_limiter = RateLimiter(1.0)
 
     def close(self):
         """Close the HTTP session."""
@@ -38,11 +37,7 @@ class DBLPSearcher:
 
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이"""
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        if elapsed < self.request_delay:
-            time.sleep(self.request_delay - elapsed)
-        self.last_request_time = time.time()
+        self._rate_limiter.wait()
 
     def _extract_authors(self, info: Dict) -> List[str]:
         """DBLP authors 필드에서 저자 목록 추출 (다형성 처리)"""

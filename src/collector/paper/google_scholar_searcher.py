@@ -11,6 +11,7 @@ Google Scholar 검색 클라이언트 (Enhanced)
 
 import requests
 from bs4 import BeautifulSoup
+from src.collector.paper.rate_limiter import RateLimiter
 from typing import List, Dict, Any, Optional, Set
 import time
 import re
@@ -76,8 +77,9 @@ class GoogleScholarSearcher:
         self.session.headers.update(self.headers)
 
         # 요청 간 딜레이 (Rate limiting 방지)
-        self.request_delay = 2.0
-        self.last_request_time = 0
+        # Thread-safe: this searcher is a shared singleton. Jitter is kept —
+        # Scholar blocks clients that request on a metronome.
+        self._rate_limiter = RateLimiter(2.0, jitter=(1.5, 2.5))
 
         # 재시도 설정 (속도 우선 — 403 차단 시 빠르게 포기)
         self.max_retries = 1
@@ -161,13 +163,7 @@ class GoogleScholarSearcher:
 
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이 (랜덤 추가)"""
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        # 기본 딜레이 + 랜덤 추가 (1.5~2.5초)
-        delay = self.request_delay + random.uniform(1.5, 2.5)
-        if elapsed < delay:
-            time.sleep(delay - elapsed)
-        self.last_request_time = time.time()
+        self._rate_limiter.wait()
 
     def _is_available(self) -> bool:
         """Circuit breaker: Google Scholar 사용 가능 여부 확인"""
