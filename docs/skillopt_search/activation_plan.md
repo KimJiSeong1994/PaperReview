@@ -1,9 +1,7 @@
 # Search SkillOpt — Activation Plan
 
-Status of this document: analysis and proposal. It authorizes nothing. The
-production gate remains default-off per `operations.md`, and nothing here
-substitutes for the separate external approval and deployment system that
-document requires.
+Status of this document: analysis and proposal. It authorizes nothing and it is
+not a record of approval.
 
 ## Current state
 
@@ -11,11 +9,12 @@ Measured against production on 2026-07-27.
 
 | Component | State |
 |---|---|
-| Runtime policy gate (`app/QueryAgent/skillopt_policy.py`) | Complete. All 15 failure modes fail closed to baseline. |
+| Runtime policy gate (`app/QueryAgent/skillopt_policy.py`) | Complete. Every failure mode fails closed to baseline. |
 | Cron runner (`src/search_eval/cron_runner.py`) | Complete and registered. Runs daily at 03:20 KST. |
 | Evaluation modules (`src/search_eval/`) | Complete. `evidence_mode="measured"` supported. |
 | Approval exporter (`src/search_eval/approved_policy.py`) | Complete, and deliberately locked. |
-| Policy file | **Missing.** `baseline_skill.md` is documentation, not a usable policy. |
+| Reward adapter | **Mock only.** Reward is a marker-string check; it never runs a search. |
+| Policy file | Hand-authored `candidate_skill_v1_draft.md`. `baseline_skill.md` is documentation, not a usable policy. |
 | Evaluation dataset | **8 queries.** Statistically insufficient for the approval gate. |
 | Approval artifacts | **Missing.** All three. |
 
@@ -29,8 +28,37 @@ runner records this every night:
  "reason": "missing_required_skillopt_artifacts", "status": "SKIPPED"}
 ```
 
-Production reports `stage_modes.skillopt_policy_reason = "disabled"` — the
-runtime env gate is unset, which is the intended default.
+### The runtime gate is open; the approval chain is not
+
+On 2026-07-27 the four runtime environment variables were set manually in
+production against `candidate_skill_v1_draft.md`, and the service now reports
+`stage_modes.skillopt_policy_reason = "enabled"`.
+
+This is worth stating precisely, because it is easy to overclaim:
+
+- The **runtime gate** (`load_skillopt_policy_from_env`) only checks the four
+  env vars and the file's hash, scope, and required phrases. It does not
+  consult any approval artifact, which is why manual activation works.
+- The **approval chain** is untouched. No candidate was trained, no acceptance
+  manifest exists, no approval artifact was exported, and the lock in
+  `approved_policy.py` was not modified. The cron still reports SKIPPED.
+- The active policy is **hand-authored, not SkillOpt-trained**, and its effect
+  on search quality is unmeasured — steps 1 and 4 below are what would measure
+  it.
+
+What has been observed is that the policy changes query generation in the
+intended direction: an author query now yields
+`au:"Hinton, Geoffrey" AND ((ti:capsule OR ti:networks) OR ...)`, which returns
+19 arXiv results led by the author's capsule papers. That is evidence the
+mechanism works, not evidence that retrieval quality improved.
+
+Rollback is a single env change plus a restart. Policy-on and policy-off
+results occupy separate cache namespaces, so disabling the gate restores
+baseline hits with no cross-contamination.
+
+`operations.md` states that external production deployment is a no-go without a
+separately controlled authorization system. That system still does not exist,
+and the manual activation above did not go through one.
 
 ## Why `baseline_skill.md` cannot be used as a policy
 
@@ -47,11 +75,11 @@ unsuitable as prompt content:
 Any replacement must avoid meta-commentary about its own approval status for
 the same reason. Status belongs in this document, not in the policy file.
 
-## Proposed candidate policy
+## Candidate policy
 
-`candidate_skill_v1_draft.md` in this directory. Validation: four required
-phrases present, 3776 bytes (23% of the 16 KiB limit),
-`sha256:457b473b68a84fb8f8d85e703925eb967655f3e7e73df189df2e986fd31975a6`.
+`candidate_skill_v1_draft.md` in this directory — currently the active policy.
+Validation: four required phrases present, 3776 bytes (23% of the 16 KiB
+limit), `sha256:457b473b68a84fb8f8d85e703925eb967655f3e7e73df189df2e986fd31975a6`.
 
 Each rule addresses a defect found by comparing the dataset labels in
 `data/search_eval/skillopt_paper_search_v0.json` against the QueryAnalyzer
@@ -60,6 +88,14 @@ prompt in `app/QueryAgent/query_analyzer.py:815-845`.
 | Defect | Evidence | Rule |
 |---|---|---|
 | `author_search` cannot be expressed in an arXiv query | Prompt RULES specify `ti:`/`abs:` only; no `au:`. The approval selection gate requires `author_search` coverage. | arXiv `au:"Last, First"` syntax |
+
+The `au:` form was checked against the live arXiv API rather than assumed.
+`au:"Hinton, Geoffrey"` and `au:"Geoffrey Hinton"` both return 58 results — the
+index normalises the quoted phrase, so the comma form is not a broken query.
+The bare `au:hinton` the repository uses elsewhere
+(`arxiv_searcher.py:381`) returns 769, so the quoted form deliberately trades
+recall for precision on author-intent queries. Whether that trade helps nDCG is
+one of the things step 1 would measure.
 | `ambiguous` cannot be classified | Prompt intent enum has 8 values, none of them `ambiguous`; the test split contains an `ambiguous` query. | Treat as ambiguous without inventing an enum value |
 | DBLP 2–4 keyword limit is routinely violated | Prompt says "2-4 core technical keywords only"; observed output was 5 words. `dblp_searcher.py` defends with stopword removal and 8-word truncation. | Hard limit, drop verbs and qualifiers |
 | No instruction covers `must_exclude` | Labels exclude wrong-domain matches ("real estate agent memory", "computer vision attention map only"); the prompt says nothing about domain anchoring. | Add one domain-anchoring term for ambiguous queries |
@@ -72,7 +108,7 @@ canonical work.
 
 ## Execution order
 
-Steps 1–5 are prerequisites for step 6. The lock is the last gate, not the
+Steps 1–6 are prerequisites for step 7. The lock is the last gate, not the
 first obstacle.
 
 **0. Restore search sources.** OpenAlex daily credits are exhausted (limit
@@ -81,8 +117,8 @@ the production host. Baseline capture is impossible until these recover.
 Measured fan-out is ~6.2 OpenAlex requests per search, which caps the free tier
 at roughly 16 searches per day.
 
-**1. Expand the evaluation dataset from 8 queries to 200+.** This is the
-dominant cost and it is data work, not code work. Each query needs
+**1. Expand the evaluation dataset from 8 queries to roughly 1000.** This is
+the dominant cost and it is data work, not code work. Each query needs
 `must_include` / `acceptable` / `must_exclude` labels applied with domain
 knowledge.
 
@@ -91,11 +127,26 @@ minimum detectable difference is 0.05–0.15 depending on variance — five to
 fifteen times the target. Required sample size for a paired t-test at α=0.05
 and 80% power:
 
-| σ of paired differences | Required n |
+| σ of paired differences | Required n **in the evaluated split** |
 |---|---|
 | 0.05 | 196 |
 | 0.10 | 785 |
 | 0.15 | 1766 |
+
+These are per-split figures, and the gate scores the `selection` split, which
+the dataset defines as 20% of the total (`train 0.6 / selection 0.2 /
+test 0.2`). A 200-query dataset yields only 40 selection queries — a fifth of
+what the most optimistic variance assumption needs. Reaching 196 in the
+selection split requires **roughly 980 queries in total**, and that is the
+optimistic case: at σ=0.10 it would take about 3900.
+
+**1a. Estimate σ from a pilot before committing to a total.** The table spans a
+20x range in required sample size, and nothing in the repository indicates
+which end applies. Label 30–50 queries first, score baseline against candidate,
+and measure the variance of the paired differences. That single number collapses
+the range and tells you what the real dataset target is. Skipping this means
+either overbuilding by thousands of queries or discovering mid-project that the
+target was far too low.
 
 The current test split is 2 queries. No amount of pipeline work makes the gate
 passable at this sample size.
@@ -108,19 +159,45 @@ integration.
 **3. Finalize the candidate policy.** The draft exists; it should be tuned
 against the expanded dataset from step 1.
 
-**4. Stand up the external SkillOpt runner.** This is not a package install.
+**4. Write a real reward adapter.** The repository has no working reward
+function. The adapter it emits (`skillopt_compatibility_overlay.py`,
+`ADAPTER_BYTES`) declares itself "Deterministic mock-only" and its `rollout()`
+is:
+
+```python
+passed = _SUCCESS_MARKER in skill_content
+return [{"hard": int(passed), "soft": float(passed), ...}]
+```
+
+The reward is whether the skill text contains a marker string. It never runs a
+search and never computes nDCG. Training against this adapter would optimize
+for inserting that marker. The mock exists to prove the adapter interface
+matches SkillOpt v0.2.0's `EnvAdapter` / `SplitDataLoader` contracts — it is a
+compatibility check, not a training environment.
+
+A real adapter must run QueryAnalyzer with the candidate skill, execute the
+resulting source queries, and score the results through
+`retrieval_eval.score_retrieval_results`. It therefore depends on step 1 (the
+labelled dataset) and step 2 (a capture to score against), and is paired with
+them rather than following step 3.
+
+**5. Stand up the external SkillOpt runner.** This is not a package install.
 The repository never imports `skillopt`; `skillopt_compatibility_overlay.py`
 emits adapter source as inert bytes for an external runner to execute. CI pins
 `microsoft/SkillOpt` v0.2.0 by tag, commit, and tree hash for supply-chain
 verification only. A separate runner environment, model credentials, and
 same-domain custody evidence are required.
 
-**5. Produce the three approval artifacts.** Once configured, the existing cron
+**6. Produce the three approval artifacts.** Once configured, the existing cron
 stops reporting SKIPPED.
 
-**6. Decide how to handle the activation lock.** Human decision — see below.
+**7. Decide how to handle the activation lock.** Human decision — see below.
 
-**7. Roll out.** Resolve the prefetch cache issue first.
+**8. Roll out.** Resolve the prefetch cache issue first.
+
+Steps 0 and 1 have no dependency on each other and can run in parallel. Source
+recovery is infrastructure work; dataset labelling is not blocked by it until
+step 2 needs a capture.
 
 ## The activation lock
 
@@ -134,7 +211,7 @@ Options: (a) keep the lock and build the separate approval layer the contract
 requires, (b) relax it conditionally, (c) bypass it with manual env
 configuration.
 
-Recommendation: **do not decide yet.** Steps 1–5 are unstarted, and debating
+Recommendation: **do not decide yet.** Steps 1–6 are unstarted, and debating
 the removal of a safety interlock before there is a candidate policy or a
 usable dataset inverts the order of work.
 
