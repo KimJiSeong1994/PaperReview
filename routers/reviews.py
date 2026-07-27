@@ -21,9 +21,7 @@ from starlette.requests import Request
 
 from src.utils.openai_responses_compat import create_chat_completion
 from app.DeepAgent.skillopt_policy import (
-    SkillOptDeepReviewPolicyError,
-    build_skillopt_deep_review_policy_prompt_block,
-    load_skillopt_deep_review_policy_from_env,
+    resolve_skillopt_deep_review_prompt_block,
 )
 
 from .deps import (
@@ -181,6 +179,10 @@ class ReviewStatusResponse(BaseModel):
     report_available: bool = False
     error: Optional[str] = None
     verification_stats: Optional[VerificationStats] = None
+    # "enabled" / "disabled" / "invalid_config", or None when the review path
+    # never reached the policy gate. Lets operators tell a deliberately
+    # disabled policy from one silently rejected by bad configuration.
+    skillopt_policy_reason: Optional[str] = None
 
 
 # ── Helper functions ───────────────────────────────────────────────────
@@ -234,18 +236,15 @@ def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dic
     return enriched
 
 
-def _load_skillopt_deep_review_prompt_block() -> str:
+def _load_skillopt_deep_review_prompt_block() -> tuple[str, str]:
     """Load optional DeepReview SkillOpt prompt guidance for live review paths.
 
     The gate is runtime-safe: absent env returns an empty block, and invalid
-    enabled config logs a warning while preserving baseline behavior.
+    enabled config logs a warning while preserving baseline behavior. The
+    returned reason distinguishes those two cases, which the empty block alone
+    cannot.
     """
-    try:
-        policy = load_skillopt_deep_review_policy_from_env()
-        return build_skillopt_deep_review_policy_prompt_block(policy)
-    except SkillOptDeepReviewPolicyError as exc:
-        logger.warning("SkillOpt DeepReview policy disabled: %s", exc)
-        return ""
+    return resolve_skillopt_deep_review_prompt_block(logger)
 
 
 def run_fast_review(
@@ -335,7 +334,10 @@ def run_fast_review(
         papers_text.append(paper_entry)
 
     combined_papers = "\n".join(papers_text)
-    skillopt_policy_block = _load_skillopt_deep_review_prompt_block()
+    skillopt_policy_block, skillopt_policy_reason = _load_skillopt_deep_review_prompt_block()
+    with review_sessions_lock:
+        if session_id in review_sessions:
+            review_sessions[session_id]["skillopt_policy_reason"] = skillopt_policy_reason
 
     prompt = f"""당신은 Nature, Science 등 최상위 저널의 리뷰어이자, 해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다.{skillopt_policy_block}
 다음 {len(papers)}편의 논문을 단순히 요약하는 것이 아니라, **비판적으로 분석하고 학술적 통찰을 도출**하여
@@ -1186,6 +1188,7 @@ async def get_review_status(session_id: str, username: str = Depends(get_current
             report_available=session.get("report_available", False),
             error=session.get("error"),
             verification_stats=v_stats,
+            skillopt_policy_reason=session.get("skillopt_policy_reason"),
         )
 
 

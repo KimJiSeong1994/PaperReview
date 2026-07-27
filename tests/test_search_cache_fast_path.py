@@ -288,8 +288,14 @@ def test_skillopt_result_cache_namespace_uses_validated_hash(monkeypatch, tmp_pa
     monkeypatch.setenv(SKILLOPT_POLICY_PATH_ENV, str(path))
     monkeypatch.setenv(SKILLOPT_POLICY_HASH_ENV, f"sha256:{digest}")
 
-    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=True) == f"sha256:{digest}"
-    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=False) == "baseline"
+    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=True) == (
+        f"sha256:{digest}",
+        "enabled",
+    )
+    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=False) == (
+        "baseline",
+        "not_requested",
+    )
 
 
 def test_invalid_skillopt_result_cache_namespace_fails_closed(monkeypatch, tmp_path, caplog):
@@ -311,7 +317,54 @@ def test_invalid_skillopt_result_cache_namespace_fails_closed(monkeypatch, tmp_p
     monkeypatch.setenv(SKILLOPT_POLICY_HASH_ENV, "sha256:" + "0" * 64)
 
     with caplog.at_level(logging.WARNING, logger="routers.search"):
-        namespace = rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)
+        namespace, reason = rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)
 
     assert namespace == "baseline"
+    assert reason == "invalid_config"
     assert any("SkillOpt search policy excluded" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fast_mode,expected_reason",
+    [(True, "not_requested"), (False, "disabled")],
+)
+async def test_search_response_reports_skillopt_baseline_reason(
+    client, monkeypatch, fast_mode, expected_reason
+):
+    """Operators must be able to read the baseline fallback reason off the response."""
+    from routers import search as rs
+    from app.QueryAgent.skillopt_policy import SKILLOPT_POLICY_ENABLED_ENV
+
+    monkeypatch.delenv(SKILLOPT_POLICY_ENABLED_ENV, raising=False)
+
+    cached = {"arxiv": [{"title": "Cached", "authors": [], "abstract": "c", "source": "arxiv"}]}
+    with (
+        patch.object(rs, "_get_cached_result", return_value=cached),
+        patch.object(rs, "_set_cache", return_value=None),
+    ):
+        resp = await client.post(
+            "/api/search",
+            json={"query": "machine learning", "fast_mode": fast_mode, "save_papers": False},
+        )
+
+    assert resp.status_code == 200, resp.text
+    stage_modes = resp.json()["stage_modes"]
+    assert stage_modes["skillopt_policy_cache_namespace"] == "baseline"
+    assert stage_modes["skillopt_policy_reason"] == expected_reason
+
+
+def test_skillopt_baseline_reasons_distinguish_disabled_from_not_requested(monkeypatch):
+    """A requested-but-disabled policy must not look the same as a policy never requested."""
+    from routers import search as rs
+    from app.QueryAgent.skillopt_policy import SKILLOPT_POLICY_ENABLED_ENV
+
+    monkeypatch.delenv(SKILLOPT_POLICY_ENABLED_ENV, raising=False)
+
+    requested = rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)
+    not_requested = rs._skillopt_result_cache_namespace(apply_skillopt_policy=False)
+
+    assert requested == ("baseline", "disabled")
+    assert not_requested == ("baseline", "not_requested")
+    assert requested[0] == not_requested[0]
+    assert requested[1] != not_requested[1]

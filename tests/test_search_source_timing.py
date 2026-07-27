@@ -28,6 +28,51 @@ async def test_async_search_records_source_timing_metadata(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_async_search_reports_empty_result_as_its_own_mode(monkeypatch):
+    """A source that ran but matched nothing must not claim a plain "searched"."""
+    agent = SearchAgent.__new__(SearchAgent)
+    monkeypatch.setattr(
+        agent, "_search_single_source", lambda *a, **k: []
+    )
+
+    metadata = {"timings": {}, "timeouts": {}, "modes": {}}
+    results = await agent.async_search_with_filters(
+        "transformer",
+        {"sources": ["arxiv"], "max_results": 1, "_metadata": metadata},
+    )
+
+    assert results == {"arxiv": []}
+    assert metadata["modes"] == {"arxiv": "searched_empty"}
+
+
+@pytest.mark.asyncio
+async def test_async_search_reports_open_circuit_breaker(monkeypatch):
+    """An empty result from a short-circuited source is reported as circuit_open."""
+    agent = SearchAgent.__new__(SearchAgent)
+    agent.google_scholar_searcher = MagicMock()
+    agent.google_scholar_searcher.is_circuit_open.return_value = True
+    monkeypatch.setattr(agent, "_search_single_source", lambda *a, **k: [])
+
+    metadata = {"timings": {}, "timeouts": {}, "modes": {}}
+    await agent.async_search_with_filters(
+        "transformer",
+        {"sources": ["google_scholar"], "max_results": 1, "_metadata": metadata},
+    )
+
+    assert metadata["modes"] == {"google_scholar": "circuit_open"}
+
+    # A breaker that is closed again falls back to the plain empty mode.
+    agent.google_scholar_searcher.is_circuit_open.return_value = False
+    metadata = {"timings": {}, "timeouts": {}, "modes": {}}
+    await agent.async_search_with_filters(
+        "transformer",
+        {"sources": ["google_scholar"], "max_results": 1, "_metadata": metadata},
+    )
+
+    assert metadata["modes"] == {"google_scholar": "searched_empty"}
+
+
+@pytest.mark.asyncio
 async def test_async_search_skips_openalex_korean_for_non_korean_query(monkeypatch):
     agent = SearchAgent.__new__(SearchAgent)
 
