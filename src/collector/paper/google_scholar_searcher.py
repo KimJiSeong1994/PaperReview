@@ -51,6 +51,10 @@ def _get_free_proxy(timeout: int = 5) -> Optional[str]:
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
 
+    # Class-level: throttling is per-upstream, not per-instance. Jitter is kept
+    # — Scholar blocks clients that request on a metronome.
+    _rate_limiter = RateLimiter(2.0, jitter=(1.5, 2.5))
+
     def __init__(self):
         self.base_url = "https://scholar.google.com"
         # 다양한 User-Agent 로테이션
@@ -75,11 +79,6 @@ class GoogleScholarSearcher:
         # 랜덤 User-Agent 선택
         self.headers['User-Agent'] = random.choice(self.user_agents)
         self.session.headers.update(self.headers)
-
-        # 요청 간 딜레이 (Rate limiting 방지)
-        # Thread-safe: this searcher is a shared singleton. Jitter is kept —
-        # Scholar blocks clients that request on a metronome.
-        self._rate_limiter = RateLimiter(2.0, jitter=(1.5, 2.5))
 
         # 재시도 설정 (속도 우선 — 403 차단 시 빠르게 포기)
         self.max_retries = 1

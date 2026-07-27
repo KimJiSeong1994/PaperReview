@@ -28,9 +28,12 @@ class SemanticScholarClient:
 
     BASE_URL = "https://api.semanticscholar.org/graph/v1"
 
+    # Class-level: throttling is per-upstream, not per-instance. Several call
+    # sites build their own client (exploration routers) and per-instance
+    # limiters would not see each other.
+    _rate_limiter = RateLimiter(_MIN_REQUEST_INTERVAL)
+
     def __init__(self) -> None:
-        # Thread-safe: this client is shared across concurrent searches.
-        self._rate_limiter = RateLimiter(_MIN_REQUEST_INTERVAL)
 
         headers: Dict[str, str] = {
             "User-Agent": (

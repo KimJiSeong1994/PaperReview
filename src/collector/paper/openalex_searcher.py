@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 class OpenAlexSearcher:
     """OpenAlex API 검색 클라이언트"""
 
+    # Class-level: the upstream quota is per-IP, so the throttle must cover the
+    # whole process. Several call sites build their own searcher (curriculum,
+    # related-paper wiki), and per-instance limiters would not see each other.
+    _rate_limiter = RateLimiter(0.5)
+
     def __init__(self):
         self.base_url = "https://api.openalex.org/works"
         self.headers = {
@@ -25,8 +30,6 @@ class OpenAlexSearcher:
         self.session = requests.Session()
         self.session.headers.update(self.headers)
 
-        # Rate limiting (thread-safe: this searcher is a shared singleton)
-        self._rate_limiter = RateLimiter(0.5)
 
     def close(self):
         """Close the HTTP session."""
