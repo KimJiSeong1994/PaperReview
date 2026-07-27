@@ -12,6 +12,7 @@ import time
 from typing import Any, Dict, Optional
 
 import requests
+from src.collector.paper.rate_limiter import RateLimiter
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,7 +29,8 @@ class SemanticScholarClient:
     BASE_URL = "https://api.semanticscholar.org/graph/v1"
 
     def __init__(self) -> None:
-        self._last_request_time: float = 0.0
+        # Thread-safe: this client is shared across concurrent searches.
+        self._rate_limiter = RateLimiter(_MIN_REQUEST_INTERVAL)
 
         headers: Dict[str, str] = {
             "User-Agent": (
@@ -47,10 +49,7 @@ class SemanticScholarClient:
         self.session.headers.update(headers)
 
     def _enforce_rate_limit(self) -> None:
-        elapsed = time.monotonic() - self._last_request_time
-        if elapsed < _MIN_REQUEST_INTERVAL:
-            time.sleep(_MIN_REQUEST_INTERVAL - elapsed)
-        self._last_request_time = time.monotonic()
+        self._rate_limiter.wait()
 
     def request_with_retry(
         self,

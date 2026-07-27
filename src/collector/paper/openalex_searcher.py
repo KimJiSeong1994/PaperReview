@@ -6,8 +6,8 @@ OpenAlex REST API를 통한 학술 논문 검색 (무료, API 키 불필요)
 import logging
 import requests
 from typing import List, Dict, Any, Optional
-import time
 
+from src.collector.paper.rate_limiter import RateLimiter
 from src.utils.logger import log_search_operation
 
 logger = logging.getLogger(__name__)
@@ -25,9 +25,8 @@ class OpenAlexSearcher:
         self.session = requests.Session()
         self.session.headers.update(self.headers)
 
-        # Rate limiting
-        self.request_delay = 0.5
-        self.last_request_time = 0
+        # Rate limiting (thread-safe: this searcher is a shared singleton)
+        self._rate_limiter = RateLimiter(0.5)
 
     def close(self):
         """Close the HTTP session."""
@@ -38,11 +37,7 @@ class OpenAlexSearcher:
 
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이"""
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        if elapsed < self.request_delay:
-            time.sleep(self.request_delay - elapsed)
-        self.last_request_time = time.time()
+        self._rate_limiter.wait()
 
     def _reconstruct_abstract(self, inverted_index: Optional[Dict]) -> str:
         """OpenAlex abstract_inverted_index에서 원문 재구성"""
