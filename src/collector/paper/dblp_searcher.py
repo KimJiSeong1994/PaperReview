@@ -16,6 +16,10 @@ from src.utils.logger import log_search_operation
 class DBLPSearcher:
     """DBLP API 검색 클라이언트"""
 
+    # Class-level: throttling is per-upstream, not per-instance. See
+    # OpenAlexSearcher for the rationale.
+    _rate_limiter = RateLimiter(1.0)
+
     def __init__(self):
         self.base_url = "https://dblp.org/search/publ/api"
         self.headers = {
@@ -25,8 +29,6 @@ class DBLPSearcher:
         self.session = requests.Session()
         self.session.headers.update(self.headers)
 
-        # Rate limiting (thread-safe: this searcher is a shared singleton)
-        self._rate_limiter = RateLimiter(1.0)
 
     def close(self):
         """Close the HTTP session."""
