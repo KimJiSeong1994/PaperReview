@@ -71,6 +71,8 @@ export interface SearchResponse {
   quality_mode?: 'standard' | 'fast' | 'cache_fast_path' | string;
   degraded?: string[] | null;
   metadata?: Record<string, unknown>;
+  /** Echoed back on POST /api/search/click to join a click to its search. */
+  query_hash?: string;
 }
 
 // LightRAG types

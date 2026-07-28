@@ -6,6 +6,20 @@ export const searchPapers = async (request: SearchRequest, signal?: AbortSignal)
   return response.data;
 };
 
+/**
+ * Record which result the user opened, so search quality has a behavioural
+ * signal rather than only offline label matching.
+ *
+ * Fire-and-forget: the server treats this as best-effort and a failure here
+ * must never interrupt opening a paper.
+ */
+export const trackSearchClick = (queryHash: string, paperId: string): void => {
+  if (!queryHash || !paperId) return;
+  void api
+    .post('/api/search/click', { query_hash: queryHash, paper_id: paperId })
+    .catch(() => {});
+};
+
 export const savePapers = async (results: Record<string, any[]>, query: string) => {
   const response = await api.post('/api/save', { results, query });
   return response.data;

@@ -5,6 +5,7 @@ import DetailPanel from './DetailPanel';
 import SearchBar from './SearchBar';
 import {
   searchPapers,
+  trackSearchClick,
   getGraphData,
   startDeepReview,
   saveBookmark,
@@ -39,6 +40,9 @@ function SearchPage() {
 
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+  // Set from each search response; sent back with a click so the event can be
+  // joined to the search that produced the result.
+  const [queryHash, setQueryHash] = useState<string>('');
   const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -203,6 +207,8 @@ function SearchPage() {
 
       if (isStaleSearch(requestId, abortController)) return;
 
+      setQueryHash(results.query_hash || '');
+
       // Check if query was classified as non-academic
       const qa = results.query_analysis;
       if (qa && qa.is_academic === false) {
@@ -357,12 +363,14 @@ function SearchPage() {
 
   const handlePaperSelect = (paper: Paper) => {
     trackPaperSelect('list');
+    trackSearchClick(queryHash, paper.doc_id || '');
     setSelectedPaper(paper);
     setHighlightedPapers(new Set());
   };
 
   const handleNodeClickWithHighlight = (paper: Paper) => {
     trackPaperSelect('graph');
+    trackSearchClick(queryHash, paper.doc_id || '');
     setSelectedPaper(paper);
 
     if (graphData && graphData.edges) {

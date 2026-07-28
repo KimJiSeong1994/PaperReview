@@ -264,6 +264,9 @@ class SearchResponse(BaseModel):
     # unavailable). Contains short machine-readable markers such as
     # ``"ranker_unavailable"`` — the frontend and operators key off these.
     degraded: Optional[List[str]] = None
+    # Identifier the client echoes back on POST /api/search/click so a click
+    # can be joined to the search that produced it.
+    query_hash: Optional[str] = None
 
 
 class QueryAnalysisRequest(BaseModel):
@@ -423,6 +426,15 @@ def _recommendation_normalized_terms(query: str, *, max_terms: int = 8) -> list[
         if len(terms) >= max_terms:
             break
     return terms
+
+
+def _query_hash(query: str) -> str:
+    """Stable identifier tying a SEARCH_CLICK back to its QUERY_SUBMIT.
+
+    Returned to the client so the browser does not have to reimplement this
+    and drift from the server's definition.
+    """
+    return hashlib.sha256(query.encode("utf-8")).hexdigest()[:12]
 
 
 def _skillopt_result_cache_namespace(
@@ -1363,7 +1375,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         user_id=username,
                         event_type=EventType.QUERY_SUBMIT,
                         payload={
-                            "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                            "query_hash": _query_hash(request.query),
                             "results_count": total,
                             "ranking_applied": False,
                             "source_counts": {
@@ -1380,6 +1392,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             return SearchResponse(
                 results=cached,
                 total=total,
+                query_hash=_query_hash(request.query),
                 query_analysis=None,
                 stage_timings=stage_timings,
                 stage_modes=stage_modes,
@@ -1477,6 +1490,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             return SearchResponse(
                 results={s: [] for s in request.sources},
                 total=0,
+                query_hash=_query_hash(request.query),
                 query_analysis={"is_academic": False, "original_query": request.query},
                 stage_timings=stage_timings,
                 stage_modes=stage_modes,
@@ -1557,7 +1571,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         user_id=username,
                         event_type=EventType.QUERY_SUBMIT,
                         payload={
-                            "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                            "query_hash": _query_hash(request.query),
                             "normalized_terms": _recommendation_normalized_terms(request.query),
                             "results_count": total,
                             "ranking_applied": False,
@@ -1578,6 +1592,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             return SearchResponse(
                 results=cached_after_guard,
                 total=total,
+                query_hash=_query_hash(request.query),
                 query_analysis=query_analysis,
                 stage_timings=stage_timings,
                 stage_modes=stage_modes,
@@ -1972,7 +1987,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                     user_id=username,
                     event_type=EventType.QUERY_SUBMIT,
                     payload={
-                        "query_hash": hashlib.sha256(request.query.encode("utf-8")).hexdigest()[:12],
+                        "query_hash": _query_hash(request.query),
                         "normalized_terms": _recommendation_normalized_terms(request.query),
                         "results_count": total,
                         "ranking_applied": _hybrid_ranker is not None,
@@ -1987,6 +2002,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         return SearchResponse(
             results=results,
             total=total,
+            query_hash=_query_hash(request.query),
             query_analysis=query_analysis,
             stage_timings=stage_timings,
             stage_modes=stage_modes,
@@ -2026,6 +2042,7 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             return SearchResponse(
                 results=partial_results,
                 total=total,
+                query_hash=_query_hash(request.query),
                 query_analysis=_partial["query_analysis"],
                 stage_timings=_partial.get("stage_timings", {}),
                 stage_modes=_partial.get("stage_modes", {}),
