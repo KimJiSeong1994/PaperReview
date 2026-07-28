@@ -990,7 +990,12 @@ class SearchAgent:
             elif source_name == "openalex":
                 openalex_q = source_queries.get("openalex", query)
                 results_optimized = self.openalex_searcher.enhanced_search(openalex_q, max_results)
-                if openalex_q != query:
+                # Only fall back to the original query when the optimized one
+                # came up short. enhanced_search already runs its own title
+                # search internally, so firing this unconditionally spent a
+                # third OpenAlex request per search to re-cover ground the
+                # first two usually covered.
+                if openalex_q != query and len(results_optimized) < max_results:
                     results_original = self.openalex_searcher.search_by_title(query, max_results // 2)
                     seen_titles = {p.get("title", "").lower() for p in results_optimized}
                     for p in results_original:
@@ -1006,6 +1011,17 @@ class SearchAgent:
             elif source_name == "openalex_korean":
                 original_query = filters.get("original_query")
                 korean_q = source_queries.get("openalex_korean")
+                # Gate here rather than in the async orchestrator alone: every
+                # caller routes through this function, and the sync path (used
+                # by prefetch) previously ran the Korean search for English
+                # queries. search_korean costs up to two OpenAlex requests, and
+                # the daily credit budget is the binding constraint.
+                if not any(
+                    _contains_korean(t)
+                    for t in (query, original_query, korean_q)
+                    if t
+                ):
+                    return []
                 if original_query and _contains_korean(original_query):
                     korean_q = original_query
                 elif not korean_q:
