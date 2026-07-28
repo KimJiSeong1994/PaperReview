@@ -52,66 +52,119 @@ separately.
 arXiv query executed live, per-query nDCG@10 scored via
 `retrieval_eval.score_retrieval_results` with `evidence_mode="measured"`.
 
+**The first round of these measurements was invalid and has been replaced.**
+`query_analyzer.py:178` calls the model with `temperature=0.3`. Re-running the
+*same* baseline policy twice produced a per-query standard deviation of
+**0.216** — the same magnitude as the effect being measured. Every sigma
+reported before this correction mixed policy effect with sampling noise and is
+withdrawn.
+
+The fix is evaluation-only greedy decoding: the measurement harness wraps
+`create_chat_completion` and forces `temperature=0`. Production is untouched;
+0.3 is live search behaviour and lowering it is a separate decision. A control
+run with the identical policy on both arms then produced per-query differences
+of exactly zero across all 8 queries, confirming the harness is deterministic
+and that arXiv itself returns stable results for a stable query.
+
+All figures below are from the deterministic harness.
+
 | Gate | Measured | Plan's rule | Verdict |
 |---|---|---|---|
-| sigma | **0.278** (n=7) | `> 0.15` → DEFER | **DEFER** |
-| Spearman rho | **0.568** (n=16) | `< 0.7` → Option C not eligible | **C disqualified** |
-| Model | `gpt-5.4-mini` | pin the model | cost model needs rebuild |
+| sigma | **0.204–0.231** | `> 0.15` → DEFER | **DEFER** |
+| Spearman rho | **0.264–0.532** | `< 0.7` → Option C not eligible | **C disqualified** |
+| Model | `gpt-5.4-mini` | pin the model | pinned |
+| Tokens | 16 calls: 24,182 in / 4,538 out | measure cost | ~1,511 in + 284 out per call |
 
-Per-query nDCG@10, baseline versus an aggressively rewritten variant:
+Two hand-authored variants were measured against the deployed baseline. Neither
+beats it.
 
-| Query | Baseline | Variant | Diff |
+| Policy | nDCG@10 | vs baseline | sigma |
 |---|---|---|---|
-| ko-llm-finetuning | 0.159 | 0.582 | **+0.423** |
-| transformer-attention | 0.053 | 0.078 | +0.025 |
-| method-resnet | 0.184 | 0.201 | +0.016 |
-| graph-rag | 0.902 | 0.902 | 0.000 |
-| method-bert | 0.123 | 0.123 | 0.000 |
-| ambiguous-agent | 0.925 | 0.850 | −0.074 |
-| author-hinton | 0.432 | 0.000 | **−0.432** |
-| author-bengio | 0.902 | 0.371 | **−0.531** |
+| **baseline** (deployed) | **0.5091** | — | — |
+| intent-split | 0.4222 | −0.087 | 0.231 |
+| aggressive | 0.3976 | −0.070 | 0.204 |
 
-Aggregate: baseline 0.460, variant 0.388, mean difference −0.020.
+Per-query:
+
+| Query | Baseline | Aggressive | Intent-split |
+|---|---|---|---|
+| author-hinton | 0.432 | **0.000** | **0.456** |
+| author-bengio | 0.902 | 0.371 | 0.543 |
+| graph-rag | 0.861 | 0.902 | **0.963** |
+| transformer-attention | 0.048 | 0.078 | 0.123 |
+| ko-llm-finetuning | 0.582 | 0.582 | **0.044** |
+| method-resnet | 0.201 | 0.201 | 0.201 |
+| ambiguous-agent | 0.925 | 0.925 | 0.925 |
+| method-bert | 0.123 | 0.123 | 0.123 |
+
+Required sample size at the corrected sigma, paired t-test at α=0.05 and 80%
+power:
+
+| Detectable delta | sigma=0.204 | sigma=0.231 |
+|---|---|---|
+| 0.05 | 131 selection / **~653 total** | 168 selection / **~840 total** |
+| 0.01 (contract floor) | 3,266 / ~16,329 | 4,201 / ~21,004 |
+
+Lower than the ~1,216 previously reported, and still far beyond the 8 queries
+that exist.
 
 ### What the pilot established
 
-**The policy does change retrieval.** A first attempt used a variant that added
-a single rule and produced sigma = 0.0, which read as "arXiv ranking is
-insensitive to query phrasing." That reading was wrong. Rewriting the arXiv
-construction strategy outright moves per-query nDCG between −0.53 and +0.42.
-The training premise is sound.
+**The policy does change retrieval, and the effect is now separable from
+noise.** Under greedy decoding, an identical policy on both arms yields exactly
+zero difference, while a rewritten arXiv strategy yields sigma 0.204–0.231. The
+training premise is sound and the measurement is trustworthy — but only after
+the temperature fix. Before it, both readings available (sigma = 0.0 and sigma
+= 0.278) were artefacts.
 
-**Precision-first arXiv rules destroy author queries.** The variant mandated
-title-only fields and quoted phrases. Topic queries improved; author queries
-collapsed — Hinton to zero results, Bengio from 0.902 to 0.371. A query like
-`au:"Geoffrey Hinton" AND ti:"capsule network"` is too narrow to match.
+**Precision-first arXiv rules destroy author queries.** Mandating title-only
+fields and quoted phrases collapses author intent: Hinton to zero results,
+Bengio from 0.902 to 0.371. `au:"Geoffrey Hinton" AND ti:"capsule network"` is
+too narrow to match anything.
 
-**The required dataset is out of reach.** At the measured sigma, a paired
-t-test at α=0.05 and 80% power needs:
+**Splitting the rules by intent fixes what it targets and breaks something
+else.** A second variant kept the tight rules for topic queries and loosened
+the `au:` clause for author queries. It worked where aimed — Hinton recovered
+to 0.456, above baseline; Bengio to 0.543 — and it improved graph-rag and
+transformer queries. But `ko-llm-finetuning` fell from 0.582 to **0.044**, one
+regression large enough to erase every gain. The author-side rule was written
+from evidence; its effect on a Korean-language topic query was not predicted.
 
-| Detectable delta | Selection split | Total dataset |
-|---|---|---|
-| 0.05 | 243 | **~1,216** |
-| 0.01 (the contract floor) | 6,082 | **~30,410** |
+This is the argument for a training loop stated concretely. Hand-editing rules
+fixes the case in front of you and silently damages a case you did not check,
+and 8 queries cannot surface that before deployment.
 
-The plan's own target of ~980 queries is insufficient even at the relaxed
-0.05 threshold. Manual curation at this scale is months of domain-expert work.
+**The required dataset is out of reach.** See the corrected table above:
+~653–840 queries to detect a 0.05 improvement, ~16,000–21,000 for the 0.01
+contract floor. Manual curation at that scale is months of domain-expert work.
 
-**The text-proxy reward is not usable.** rho = 0.568 sits in the "risky" band
-and below the 0.7 admission threshold. Option C is disqualified on measurement,
-which is what the Architect and Critic both predicted would happen if the
-correlation were measured before committing.
+**The text-proxy reward is not usable.** rho measures 0.532 for one variant and
+0.264 for the other, both below the 0.7 admission threshold. Option C is
+disqualified on measurement, which is what the Architect and Critic both
+predicted would happen if the correlation were measured before committing.
 
-### The cheaper alternative the pilot revealed
+**The deployed baseline is the best policy measured.** At 0.5091 it beats both
+hand-authored alternatives. No policy change is warranted.
 
-Sigma is large because per-query behaviour splits by intent, not because the
-signal is noisy. Narrowing helps topic queries and destroys author queries —
-and eight queries were enough to show the split. Separating the arXiv rules by
-intent is a hand-authored change that can be validated on a handful of queries,
-not a training problem requiring thousands.
+### The cheaper alternative was tried and it failed
 
-That is the recommended next move if search-policy quality is worth pursuing
-before the dead sources are restored.
+An earlier revision of this document proposed splitting the arXiv rules by
+intent as a hand-authored shortcut around training: narrowing helps topic
+queries and destroys author queries, eight queries were enough to show the
+split, so encode the split by hand and skip the dataset.
+
+That was tried. It is the `intent-split` row in the tables above. It fixed the
+regression it targeted — Hinton from 0.000 to 0.456 — and lost more elsewhere
+than it gained, ending at 0.4222 against the baseline's 0.5091.
+
+The shortcut fails for the reason the training loop exists. Eight queries show
+you which rule to write; they do not show you what that rule costs on the cases
+you did not examine. `ko-llm-finetuning` dropped from 0.582 to 0.044 and nothing
+in the evidence used to write the rule predicted it.
+
+A larger dataset does not merely make the statistics valid. It is the only
+thing that makes a rule change safe to reason about at all — by hand or by
+optimizer.
 
 ### Reproduction
 
@@ -122,12 +175,22 @@ variables to the policy under test, call
 `source_queries["arxiv"]` through `ArxivSearcher`, and score with
 `score_retrieval_results(evidence_mode="measured", ...)`.
 
-Two methodology notes for whoever repeats this. Run both policies per query in
-an alternating order — a first attempt ran all baselines first, arXiv HTTP
-503-throttled that phase alone, and the resulting comparison measured API
-availability rather than policy effect. And persist the raw search results
-before scoring; the searches are the expensive part and a scoring bug should
-not cost them.
+Three methodology notes for whoever repeats this.
+
+Force `temperature=0` for the analyzer during evaluation. At the production 0.3,
+identical policies differ by 0.216 stdev and no comparison at this sample size
+means anything. Wrap `create_chat_completion` rather than editing
+`query_analyzer.py:178` — production decoding is a separate decision.
+
+Run a control first: the same policy on both arms must produce exactly zero
+per-query difference. If it does not, stop and fix the harness before
+interpreting any policy comparison.
+
+Run both policies per query in an alternating order, and persist raw search
+results before scoring. A first attempt ran all baselines first, arXiv HTTP
+503-throttled that phase alone, and the comparison measured API availability
+rather than policy effect. The searches are the expensive part; a scoring bug
+should not cost them.
 
 ## Current state
 
@@ -255,8 +318,8 @@ have returned zero results across 28,581 calls over 3.3 months while continuing
 to consume request budget and latency on every search. That is a live
 degradation of the product, independent of anything to do with policy training.
 
-**1. Expand the evaluation dataset from 8 queries to ~1,216** (revised upward
-from ~980 by the measured σ; see 1a). This is
+**1. Expand the evaluation dataset from 8 queries to ~650–840** (revised from
+~980 by the corrected σ; see 1a). This is
 the dominant cost and it is data work, not code work. Each query needs
 `must_include` / `acceptable` / `must_exclude` labels applied with domain
 knowledge.
@@ -280,15 +343,16 @@ selection split requires **roughly 980 queries in total**, and that is the
 optimistic case: at σ=0.10 it would take about 3900.
 
 **1a. Estimate σ from a pilot before committing to a total.** Done — this is
-what deferred the plan. The measured σ is **0.278**, above the top of the range
-assumed above. At that variance the dataset needs ~1,216 queries to detect a
-0.05 improvement and ~30,410 to detect the 0.01 contract floor. The ~980 target
-in this step is therefore too small by a factor that manual curation cannot
-close in any reasonable time.
+what deferred the plan. The corrected σ is **0.204–0.231**, above the top of
+the range assumed above. At that variance the dataset needs ~653–840 queries to
+detect a 0.05 improvement and ~16,000–21,000 for the 0.01 contract floor. The
+~980 target in this step is in the right neighbourhood for the relaxed
+threshold but nowhere near the contract floor, and either figure is far beyond
+the 8 queries that exist.
 
-The pilot used 7 usable pairs, so the σ estimate itself has a wide confidence
-interval. It is precise enough for the decision at hand: even the optimistic
-end of that interval leaves the dataset requirement far above what exists.
+The σ estimate rests on 8 deterministic pairs, so its own confidence interval
+is wide. It is precise enough for the decision at hand: even the optimistic end
+leaves the dataset requirement two orders of magnitude above what exists.
 
 The current test split is 2 queries. No amount of pipeline work makes the gate
 passable at this sample size.
@@ -412,4 +476,4 @@ in a search response.
   is two fixture items, so the asymmetry is not explained by a higher bar
   having been met there.
 - Who labels the expanded evaluation dataset, and against which corpus? At
-  ~1,216 queries this is the binding constraint on the whole plan.
+  ~650–840 queries this is the binding constraint on the whole plan.
