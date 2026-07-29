@@ -143,13 +143,13 @@ body {
   background-position: bottom center;
   background-size: contain;
   filter: invert(1);
-  opacity: 0.38;
+  opacity: 0.26;
   pointer-events: none;
 }
 
 :root[data-theme='light'] .centered-search::after {
   filter: none;
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 .brand-section {
