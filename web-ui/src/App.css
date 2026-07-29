@@ -19,8 +19,13 @@ body {
   background: var(--bg);
 }
 
+/* Fixed header needs its own ground: below ~1556px the page content scrolls
+   underneath and used to read straight through the nav. */
 .app-header {
-  background: transparent;
+  background: var(--bg); /* fallback where color-mix is unsupported */
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--wov-04);
   padding: 16px 24px 16px 24px; /* results-view와 동일한 왼쪽 패딩 */
   position: fixed;
   top: 0;
@@ -89,6 +94,12 @@ body {
   color: var(--text);
 }
 
+.nav-btn:focus-visible,
+.logo:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
 .nav-btn-active {
   color: var(--indigo);
   background: rgba(99, 102, 241, 0.1);
@@ -109,6 +120,36 @@ body {
   justify-content: flex-start; /* Changed from center to flex-start to move content up */
   padding: 120px 24px 64px; /* Increased top padding to 120px to move content down */
   min-height: calc(100vh - 80px);
+  position: relative;
+}
+
+/* Decorative hanok + llama motif in the blank space below the search bar.
+   The asset carries its own alpha (lineart only, no white plate), so
+   invert(1) recolors the strokes for dark mode without painting a box. */
+.centered-search::after {
+  content: '';
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 86vw);
+  aspect-ratio: 626 / 339;
+  background-image: url('/introduce-hanok-bg.png');
+  background-image: image-set(
+    url('/introduce-hanok-bg.webp') type('image/webp'),
+    url('/introduce-hanok-bg.png') type('image/png')
+  );
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: contain;
+  filter: invert(1);
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+:root[data-theme='light'] .centered-search::after {
+  filter: none;
+  opacity: 0.55;
 }
 
 .brand-section {

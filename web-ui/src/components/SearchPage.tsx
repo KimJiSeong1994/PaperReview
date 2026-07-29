@@ -48,6 +48,9 @@ function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [enrichmentLoading, setEnrichmentLoading] = useState(false);
   const [query, setQuery] = useState('');
+  // Survives a failed search so the empty state can hand the query back
+  // instead of dropping it (a chip click has no other copy of it).
+  const [attemptedQuery, setAttemptedQuery] = useState('');
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -67,15 +70,18 @@ function SearchPage() {
 
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
+  const [guidanceSticky, setGuidanceSticky] = useState(false);
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRequestIdRef = useRef(0);
   const trackedCompletedReviewRef = useRef(false);
 
-  // Auto-dismiss guidance message after 3 seconds
+  // Auto-dismiss guidance message after 3 seconds. Hard failures opt out —
+  // a 3s window is a nudge for the non-academic hint, but it silently ate
+  // the search error and left the empty state looking like a blank result.
   useEffect(() => {
-    if (!guidanceMessage) return;
+    if (!guidanceMessage || guidanceSticky) return;
     const timer = setTimeout(() => setGuidanceMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [guidanceMessage]);
@@ -176,6 +182,7 @@ function SearchPage() {
   const handleSearch = async (searchQuery: string, source: 'home' | 'fixed_bar' | 'url_prefill' = papers.length > 0 || query ? 'fixed_bar' : 'home') => {
     if (!searchQuery.trim()) return;
 
+    setAttemptedQuery(searchQuery);
     searchRequestIdRef.current += 1;
     const requestId = searchRequestIdRef.current;
 
@@ -186,6 +193,7 @@ function SearchPage() {
     searchAbortRef.current = abortController;
 
     setGuidanceMessage(null);
+    setGuidanceSticky(false);
     setEnrichmentLoading(false);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
@@ -288,6 +296,7 @@ function SearchPage() {
         errorMessage = error.message;
       }
 
+      setGuidanceSticky(true);
       setGuidanceMessage(`검색 중 오류가 발생했습니다: ${errorMessage}`);
 
       setPapers([]);
@@ -570,9 +579,12 @@ function SearchPage() {
             <p className="brand-tagline">The AI Search Engine You Control</p>
           </div>
           <SearchBar
+            key={attemptedQuery}
+            initialQuery={attemptedQuery}
             onSearch={handleSearch}
             loading={loading}
             guidanceMessage={guidanceMessage}
+            guidanceSticky={guidanceSticky}
             onQueryChange={() => setGuidanceMessage(null)}
           />
         </div>
@@ -597,6 +609,7 @@ function SearchPage() {
                   onSearch={handleSearch}
                   loading={loading}
                   guidanceMessage={guidanceMessage}
+                  guidanceSticky={guidanceSticky}
                   onQueryChange={() => setGuidanceMessage(null)}
                 />
               </div>
@@ -979,6 +992,7 @@ function SearchPage() {
               onSearch={handleSearch}
               loading={loading}
               guidanceMessage={guidanceMessage}
+              guidanceSticky={guidanceSticky}
               onQueryChange={() => setGuidanceMessage(null)}
             />
           </div>

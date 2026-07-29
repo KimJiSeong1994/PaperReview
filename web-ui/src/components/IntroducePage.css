@@ -1,0 +1,111 @@
+/* /introduce — hero only; the body is the shared LandingSections. */
+
+.introduce-page {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 48px 20px 80px;
+}
+
+@media (min-width: 640px) {
+  .introduce-page {
+    padding: 72px 24px 96px;
+  }
+}
+
+.introduce-hero {
+  margin-bottom: 40px;
+}
+
+@media (min-width: 640px) {
+  .introduce-hero {
+    margin-bottom: 56px;
+  }
+}
+
+.introduce-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-hi);
+  letter-spacing: -0.5px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .introduce-title {
+    font-size: 40px;
+  }
+}
+
+.introduce-lead {
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.85;
+  margin: 14px 0 0;
+  max-width: 34rem;
+  word-break: keep-all;
+}
+
+@media (min-width: 640px) {
+  .introduce-lead {
+    font-size: 17px;
+  }
+}
+
+.introduce-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.introduce-btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--indigo-mid);
+  color: var(--bg);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.introduce-btn:hover {
+  opacity: 0.88;
+}
+
+.introduce-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.introduce-btn--ghost {
+  background: transparent;
+  border-color: var(--wov-15);
+  color: var(--text-soft);
+}
+
+.introduce-btn--ghost:hover {
+  opacity: 1;
+  border-color: var(--ibd-40);
+  color: var(--indigo);
+}
+
+/* Light mode: --indigo-mid on white is too light for the button label, and
+   the ghost border all but disappears. */
+:root[data-theme='light'] .introduce-btn {
+  background: var(--indigo-strong);
+  color: #ffffff;
+}
+
+/* --wov-20 lands at ~1.9:1 on white; --text-muted clears 3:1 for the border. */
+:root[data-theme='light'] .introduce-btn--ghost {
+  background: transparent;
+  border-color: var(--text-muted);
+  color: var(--text);
+}

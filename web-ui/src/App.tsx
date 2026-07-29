@@ -16,9 +16,12 @@ const BlogPage = lazy(() => import('./components/BlogPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
+const IntroducePage = lazy(() => import('./components/IntroducePage'));
 
 const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
 const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
+const INTRODUCE_TITLE = 'Introduce | Jiphyeonjeon (집현전)';
+const INTRODUCE_DESCRIPTION = '집현전은 검색과 리뷰, 학습을 하나로 잇는 AI 연구 도구입니다. 멀티소스 논문 검색, 근거를 검증하는 딥리뷰, 학습 커리큘럼, Claude MCP 연동을 소개합니다.';
 const SITE_URL = 'https://jiphyeonjeon.kr';
 
 function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
@@ -50,6 +53,89 @@ function App() {
       setShowLoginModal(true);
     }
   };
+
+  // Shared by the root route and /introduce. The other routes ship their own
+  // headers (BlogPage, AdminPage, ...), so this stays a plain element rather
+  // than a component — no remount of RecommendationBell on App re-render.
+  const header = (
+    <div className="app-header">
+      <div className="header-nav">
+        <a
+          className="logo"
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/');
+          }}
+          style={{ cursor: 'pointer', textDecoration: 'none' }}
+        >
+          <picture>
+            <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+            <img
+              src="/Jiphyeonjeon_llama.png"
+              alt="Jiphyeonjeon"
+              className="logo-icon"
+              width={128}
+              height={128}
+              loading="eager"
+              fetchPriority="high"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </picture>
+          <span className="brand-name">Jiphyeonjeon</span>
+        </a>
+        <nav className="header-actions" aria-label="주 메뉴">
+          {isAuthenticated && <RecommendationBell />}
+          {isAuthenticated && userRole === 'admin' && (
+            <button className="nav-btn" onClick={() => navigate('/admin')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Admin
+            </button>
+          )}
+          <button className="nav-btn" onClick={() => navigate('/introduce')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Introduce
+          </button>
+          <button className="nav-btn" onClick={() => navigate('/blog')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Blog
+          </button>
+          <button className="nav-btn" onClick={handleMyPageClick}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            My Page
+          </button>
+          {isAuthenticated && (
+            <button className="nav-btn" onClick={logout}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          )}
+        </nav>
+      </div>
+    </div>
+  );
 
   return (
     <div className="app">
@@ -144,6 +230,23 @@ function App() {
           }
         />
         <Route
+          path="/introduce"
+          element={
+            <>
+              <SEOHead
+                title={INTRODUCE_TITLE}
+                description={INTRODUCE_DESCRIPTION}
+                canonical={`${SITE_URL}/introduce`}
+                locale="ko_KR"
+              />
+              {header}
+              <Suspense fallback={<div className="app-loading">Loading...</div>}>
+                <IntroducePage />
+              </Suspense>
+            </>
+          }
+        />
+        <Route
           path="*"
           element={
             <>
@@ -157,68 +260,7 @@ function App() {
                 description={HOME_DESCRIPTION}
                 canonical={`${SITE_URL}/`}
               />
-              {/* Minimal header */}
-              <div className="app-header">
-                <div className="header-nav">
-                  <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-                    <picture>
-                      <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
-                      <img
-                        src="/Jiphyeonjeon_llama.png"
-                        alt="Jiphyeonjeon"
-                        className="logo-icon"
-                        width={128}
-                        height={128}
-                        loading="eager"
-                        fetchPriority="high"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </picture>
-                    <span className="brand-name">Jiphyeonjeon</span>
-                  </div>
-                  <div className="header-actions">
-                    {isAuthenticated && <RecommendationBell />}
-                    {isAuthenticated && userRole === 'admin' && (
-                      <button className="nav-btn" onClick={() => navigate('/admin')}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        Admin
-                      </button>
-                    )}
-                    <button className="nav-btn" onClick={() => navigate('/blog')}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                      Blog
-                    </button>
-                    <button className="nav-btn" onClick={handleMyPageClick}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
-                      My Page
-                    </button>
-                    {isAuthenticated && (
-                      <button className="nav-btn" onClick={logout}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                          <polyline points="16 17 21 12 16 7"></polyline>
-                          <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        Logout
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {header}
               <Suspense fallback={<div className="app-loading">Loading...</div>}>
                 <SearchPage />
               </Suspense>
