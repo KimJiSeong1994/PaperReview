@@ -129,10 +129,10 @@ body {
 .centered-search::after {
   content: '';
   position: absolute;
-  bottom: 32px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(560px, 86vw);
+  width: min(720px, 92vw);
   aspect-ratio: 626 / 339;
   background-image: url('/introduce-hanok-bg.png');
   background-image: image-set(
