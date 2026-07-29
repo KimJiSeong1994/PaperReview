@@ -1,6 +1,6 @@
 .search-bar-container {
   width: 100%;
-  max-width: 680px;
+  max-width: min(680px, 92vw);
   margin: 0 auto;
 }
 
@@ -16,7 +16,7 @@
   border-radius: 16px;
   padding: 0 16px 0 20px;
   transition: all 0.2s ease;
-  min-height: 64px;
+  min-height: clamp(52px, 7vh, 64px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   gap: 4px;
 }

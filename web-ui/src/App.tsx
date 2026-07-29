@@ -97,14 +97,17 @@ function App() {
               Admin
             </button>
           )}
-          <button className="nav-btn" onClick={() => navigate('/introduce')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            Introduce
-          </button>
+          {/* Introduce는 작업 중 — 프로덕션 빌드에서는 숨긴다 (DEV 전용). */}
+          {import.meta.env.DEV && (
+            <button className="nav-btn" onClick={() => navigate('/introduce')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              Introduce
+            </button>
+          )}
           <button className="nav-btn" onClick={() => navigate('/blog')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -229,23 +232,26 @@ function App() {
             </Suspense>
           }
         />
-        <Route
-          path="/introduce"
-          element={
-            <>
-              <SEOHead
-                title={INTRODUCE_TITLE}
-                description={INTRODUCE_DESCRIPTION}
-                canonical={`${SITE_URL}/introduce`}
-                locale="ko_KR"
-              />
-              {header}
-              <Suspense fallback={<div className="app-loading">Loading...</div>}>
-                <IntroducePage />
-              </Suspense>
-            </>
-          }
-        />
+        {/* Introduce는 작업 중 — 프로덕션 빌드에서는 라우트 자체를 제외한다. */}
+        {import.meta.env.DEV && (
+          <Route
+            path="/introduce"
+            element={
+              <>
+                <SEOHead
+                  title={INTRODUCE_TITLE}
+                  description={INTRODUCE_DESCRIPTION}
+                  canonical={`${SITE_URL}/introduce`}
+                  locale="ko_KR"
+                />
+                {header}
+                <Suspense fallback={<div className="app-loading">Loading...</div>}>
+                  <IntroducePage />
+                </Suspense>
+              </>
+            }
+          />
+        )}
         <Route
           path="*"
           element={
