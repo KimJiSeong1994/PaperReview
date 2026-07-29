@@ -6,10 +6,12 @@ interface SearchBarProps {
   loading: boolean;
   guidanceMessage?: string | null;
   onQueryChange?: () => void;
+  initialQuery?: string;
+  guidanceSticky?: boolean;
 }
 
-function SearchBar({ onSearch, loading, guidanceMessage, onQueryChange }: SearchBarProps) {
-  const [query, setQuery] = useState('');
+function SearchBar({ onSearch, loading, guidanceMessage, onQueryChange, initialQuery = '', guidanceSticky = false }: SearchBarProps) {
+  const [query, setQuery] = useState(initialQuery);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +47,7 @@ function SearchBar({ onSearch, loading, guidanceMessage, onQueryChange }: Search
         </div>
       </form>
       {guidanceMessage && (
-        <div className="search-guidance">
+        <div className={`search-guidance${guidanceSticky ? ' search-guidance--sticky' : ''}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="16" x2="12" y2="12" />

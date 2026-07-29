@@ -191,6 +191,11 @@
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Errors stay put; only the transient hint fades out. */
+.search-guidance--sticky {
+  animation: guidance-in 0.2s ease-out;
+}
+
 @keyframes guidance-out {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: 0; transform: translateY(-4px); }
