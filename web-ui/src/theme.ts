@@ -4,7 +4,7 @@
 // (before first paint, from localStorage or the dark default). This module
 // reads/updates it at runtime and persists the user's explicit choice.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
@@ -36,4 +36,25 @@ export function useTheme(): { theme: Theme; toggle: () => void } {
     setThemeState(toggleTheme());
   }, []);
   return { theme, toggle };
+}
+
+/**
+ * Reactive read-only theme hook. Unlike `useTheme`, this subscribes to
+ * `<html data-theme>` mutations, so a component re-renders when *any* toggle
+ * flips the theme (the toggle button lives elsewhere in the tree). Needed by
+ * canvas/SVG renderers (Plotly, Sigma) that must recompute colors on toggle.
+ */
+export function useThemeObserver(): Theme {
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  useEffect(() => {
+    const observer = new MutationObserver(() => setThemeState(getTheme()));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    // Sync in case the attribute changed between initial state and subscription.
+    setThemeState(getTheme());
+    return () => observer.disconnect();
+  }, []);
+  return theme;
 }

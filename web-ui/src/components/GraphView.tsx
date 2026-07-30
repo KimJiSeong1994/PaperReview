@@ -5,6 +5,7 @@ import './GraphView.css';
 import type { GraphData, Paper } from '../types';
 import type { GraphStats } from './graph/types';
 import { useGraphData } from './graph/useGraphData';
+import { useThemeObserver } from '../theme';
 
 const SigmaGraphView = lazy(() => import('./graph/SigmaGraphView'));
 
@@ -23,12 +24,14 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const [edgeOpacity, setEdgeOpacity] = useState(0.7);
   const [minCitations, setMinCitations] = useState(0);
   const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
+  const theme = useThemeObserver();
 
   // Sigma mode: use shared stats from useGraphData hook
   const { stats: sigmaStats } = useGraphData(
     useSigma ? graphData : null,
     minCitations,
     yearFilter,
+    theme,
   );
 
   const { plotData, layout, stats } = useMemo(() => {
@@ -38,6 +41,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
     let nodes = graphData.nodes;
     const edges = graphData.edges;
+
+    const isLight = theme === 'light';
 
     // Apply filters
     if (minCitations > 0) {
@@ -151,7 +156,11 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       mode: 'lines' as const,
       line: {
         width: 0.7,
-        color: `rgba(156, 163, 175, ${group.opacity})`,
+        // Light: dark ink with a raised alpha floor (faint ~0.3, strong ~0.6);
+        // gray-400 low-alpha reads at ~1.3:1 on white and disappears.
+        color: isLight
+          ? `rgba(17, 24, 39, ${Math.min(0.6, Math.max(0.3, group.opacity))})`
+          : `rgba(156, 163, 175, ${group.opacity})`,
       },
       hoverinfo: 'skip' as const,
       showlegend: false,
@@ -220,8 +229,15 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           if (isSelected) {
             // Selected node - purple color matching highlighted edges
             return 'rgba(168, 85, 247, 0.95)'; // Purple color like edges
+          } else if (isLight) {
+            // Light: darker teal->green gradient (#0d9488 -> #16a34a) by year,
+            // full opacity — the dark green washes out on white (<3:1).
+            const r = Math.round(13 + 9 * relative);
+            const g = Math.round(148 + 15 * relative);
+            const b = Math.round(136 - 62 * relative);
+            return `rgba(${r}, ${g}, ${b}, 1)`;
           } else {
-            // All other nodes: use original green/blue color with 0.95 opacity (exactly like web_app.py line 301)
+            // Dark: original green/blue color with 0.95 opacity (matches web_app.py line 301)
             // Ensure baseGreen is clamped to valid range
             const clampedGreen = Math.max(150, Math.min(220, baseGreen));
             // Return color as a proper rgba string
@@ -264,13 +280,19 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           showscale: false, // Disable color scale to use direct color values
           line: {
             width: isSelected ? 3.5 : (isHighlighted ? 3 : 2),
-            color: isSelected 
+            // Light: dark-ink borders (white borders vanish on white); dark: unchanged.
+            // Selected keeps its light-purple ring in both themes (purple treatment).
+            color: isSelected
               ? 'rgba(221, 214, 254, 1)' // Light purple border for selected node to match purple node color
-              : (isHighlighted 
-                ? '#ffffff' // White border for highlighted
-                : (hasHighlightedNodes 
-                  ? 'rgba(255, 255, 255, 0.6)' // Slightly transparent white border for normal nodes when highlighted
-                  : '#ffffff')),
+              : (isLight
+                ? (hasHighlightedNodes && !isHighlighted
+                  ? 'rgba(17, 24, 39, 0.5)'
+                  : 'rgba(17, 24, 39, 0.9)')
+                : (isHighlighted
+                  ? '#ffffff' // White border for highlighted
+                  : (hasHighlightedNodes
+                    ? 'rgba(255, 255, 255, 0.6)' // Slightly transparent white border for normal nodes when highlighted
+                    : '#ffffff'))),
           },
         },
         hovertext: nodeList.map(n => n.title || ''),
@@ -311,9 +333,14 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         textposition: 'middle center',
         textfont: {
           size: 9,
-          color: hasHighlightedNodes && !isSelected && !isHighlighted 
-            ? 'rgba(255, 255, 255, 0.6)' // More visible text for non-highlighted nodes
-            : 'rgba(255, 255, 255, 0.9)', // White text for better visibility on dark background
+          // Light: dark-ink labels (white text is invisible on white); dark: unchanged.
+          color: isLight
+            ? (hasHighlightedNodes && !isSelected && !isHighlighted
+              ? 'rgba(17, 24, 39, 0.6)'
+              : 'rgba(17, 24, 39, 0.9)')
+            : (hasHighlightedNodes && !isSelected && !isHighlighted
+              ? 'rgba(255, 255, 255, 0.6)' // More visible text for non-highlighted nodes
+              : 'rgba(255, 255, 255, 0.9)'), // White text for better visibility on dark background
         },
         hoverinfo: 'skip',
         showlegend: false,
@@ -343,7 +370,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       ...(selectedTextTrace ? [selectedTextTrace] : []),
     ].filter(Boolean) as Data[];
 
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const plotLayout: Partial<Layout> = {
       showlegend: false,
       hovermode: 'closest',
@@ -378,7 +404,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     };
 
     return { plotData, layout: plotLayout, stats };
-  }, [graphData, selectedPaper, highlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter]);
+  }, [graphData, selectedPaper, highlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter, theme]);
 
   // Papers를 Map으로 변환하여 빠른 조회 (useMemo로 최적화)
   const papersMap = useMemo(() => {

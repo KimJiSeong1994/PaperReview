@@ -1,10 +1,56 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { SigmaContainer, useRegisterEvents, useSetSettings, useSigma } from '@react-sigma/core';
+import { drawDiscNodeHover, type NodeHoverDrawingFunction } from 'sigma/rendering';
 import '@react-sigma/core/lib/react-sigma.min.css';
 import './SigmaGraphView.css';
 import type { SigmaGraphViewProps } from './types';
 import { useGraphData } from './useGraphData';
 import type { Paper } from '../../types';
+import { useThemeObserver, type Theme } from '../../theme';
+
+/**
+ * Sigma's default hover renderer always paints a WHITE box (hardcoded #FFF) and
+ * then draws the label in settings.labelColor. In dark mode labelColor is white,
+ * so the hover label was white-on-white (invisible). Force a dark-ink hover label
+ * — the hover box is white in both themes, so dark ink reads in both.
+ * Hoisted to module scope so its reference is stable: SigmaContainer rebuilds the
+ * Sigma instance whenever a settings value changes by identity, and an inline
+ * function would differ every render.
+ */
+const drawHoverInk: NodeHoverDrawingFunction = (context, data, settings) =>
+  drawDiscNodeHover(context, data, {
+    ...settings,
+    labelColor: { color: 'rgba(17, 24, 39, 0.9)' },
+  });
+
+/**
+ * Per-theme colors. The `dark` branch reproduces the previous hardcoded
+ * literals exactly (dark must stay pixel-identical). Light uses dark-ink /
+ * slate values so nodes, edges, and labels read on a white ground.
+ * Selected/highlight purple is theme-independent (kept in the reducers).
+ */
+const THEME_COLORS = {
+  dark: {
+    label: 'rgba(255, 255, 255, 0.9)',
+    defaultNode: 'rgba(60, 150, 150, 0.95)',
+    defaultEdge: 'rgba(156, 163, 175, 0.3)',
+    nodeDimmed: 'rgba(60, 150, 150, 0.3)',
+    edgeDefault: (weight: number, opacity: number) =>
+      `rgba(156, 163, 175, ${(Math.min(0.6, 0.3 + weight * 0.3) * opacity).toFixed(2)})`,
+    edgeDimmed: (weight: number, opacity: number) =>
+      `rgba(156, 163, 175, ${(Math.min(0.35, 0.15 + weight * 0.2) * opacity).toFixed(2)})`,
+  },
+  light: {
+    label: 'rgba(17, 24, 39, 0.9)',
+    defaultNode: '#0d9488',
+    defaultEdge: 'rgba(17, 24, 39, 0.45)',
+    nodeDimmed: 'rgba(71, 85, 105, 0.35)',
+    edgeDefault: (weight: number, opacity: number) =>
+      `rgba(17, 24, 39, ${(Math.min(0.75, 0.45 + weight * 0.3) * opacity).toFixed(2)})`,
+    edgeDimmed: (weight: number, opacity: number) =>
+      `rgba(71, 85, 105, ${(Math.min(0.35, 0.15 + weight * 0.2) * opacity).toFixed(2)})`,
+  },
+} as const;
 
 /**
  * Inner component that registers Sigma events for click handling
@@ -17,6 +63,7 @@ function GraphEvents({
   onNodeClick,
   showLabels,
   edgeOpacity,
+  theme,
 }: {
   selectedPaper: Paper | null;
   highlightedPapers: Set<string>;
@@ -24,6 +71,7 @@ function GraphEvents({
   onNodeClick: (paper: Paper) => void;
   showLabels: boolean;
   edgeOpacity: number;
+  theme: Theme;
 }) {
   const sigma = useSigma();
   const registerEvents = useRegisterEvents();
@@ -121,13 +169,13 @@ function GraphEvents({
         res.zIndex = 2;
       } else if (hasActiveSelection && !highlightedNeighbors.has(node)) {
         // Dim unrelated nodes
-        res.color = 'rgba(60, 150, 150, 0.3)';
+        res.color = THEME_COLORS[theme].nodeDimmed;
         res.zIndex = 0;
       }
 
       return res;
     },
-    [selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, highlightedNeighbors],
+    [selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, highlightedNeighbors, theme],
   );
 
   const edgeReducer = useCallback(
@@ -153,21 +201,19 @@ function GraphEvents({
       } else if (hasActiveSelection) {
         // Dim unrelated edges
         const weight = (data.weight as number) || 0.1;
-        const normalizedOpacity = Math.min(0.35, 0.15 + weight * 0.2) * edgeOpacity;
-        res.color = `rgba(156, 163, 175, ${normalizedOpacity.toFixed(2)})`;
+        res.color = THEME_COLORS[theme].edgeDimmed(weight, edgeOpacity);
         res.size = 0.7;
         res.zIndex = 0;
       } else {
         // Default: apply edge opacity
         const weight = (data.weight as number) || 0.1;
-        const normalizedOpacity = Math.min(0.6, 0.3 + weight * 0.3) * edgeOpacity;
-        res.color = `rgba(156, 163, 175, ${normalizedOpacity.toFixed(2)})`;
+        res.color = THEME_COLORS[theme].edgeDefault(weight, edgeOpacity);
         res.size = 0.7;
       }
 
       return res;
     },
-    [sigma, selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, edgeOpacity],
+    [sigma, selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, edgeOpacity, theme],
   );
 
   // Apply settings including reducers and label visibility
@@ -176,13 +222,15 @@ function GraphEvents({
       nodeReducer,
       edgeReducer,
       renderLabels: showLabels,
-      labelColor: { color: 'rgba(255, 255, 255, 0.9)' },
+      // Ink label in light; also fixes the both-theme hover label — Sigma's
+      // default hover box is white, so a white label was invisible on hover.
+      labelColor: { color: THEME_COLORS[theme].label },
       labelSize: 9,
       labelFont: 'Roboto, sans-serif',
       labelRenderedSizeThreshold: 6,
       zIndex: true,
     });
-  }, [setSettings, nodeReducer, edgeReducer, showLabels]);
+  }, [setSettings, nodeReducer, edgeReducer, showLabels, theme]);
 
   return null;
 }
@@ -202,7 +250,9 @@ function SigmaGraphView({
   minCitations,
   yearFilter,
 }: SigmaGraphViewProps) {
-  const { graph } = useGraphData(graphData, minCitations, yearFilter);
+  const theme = useThemeObserver();
+  const { graph } = useGraphData(graphData, minCitations, yearFilter, theme);
+  const colors = THEME_COLORS[theme];
 
   if (!graphData || graphData.nodes.length === 0) {
     return null;
@@ -215,17 +265,13 @@ function SigmaGraphView({
         style={{ width: '100%', height: '620px', background: 'var(--bg-elev)' }}
         settings={{
           renderLabels: showLabels,
-          labelColor: {
-            color:
-              document.documentElement.getAttribute('data-theme') === 'light'
-                ? 'rgba(17, 24, 39, 0.9)'
-                : 'rgba(255, 255, 255, 0.9)',
-          },
+          labelColor: { color: colors.label },
           labelSize: 9,
           labelFont: 'Roboto, sans-serif',
           labelRenderedSizeThreshold: 6,
-          defaultEdgeColor: 'rgba(156, 163, 175, 0.3)',
-          defaultNodeColor: 'rgba(60, 150, 150, 0.95)',
+          defaultEdgeColor: colors.defaultEdge,
+          defaultNodeColor: colors.defaultNode,
+          defaultDrawNodeHover: drawHoverInk,
           zIndex: true,
           enableEdgeEvents: false,
           minEdgeThickness: 0.5,
@@ -239,6 +285,7 @@ function SigmaGraphView({
           onNodeClick={onNodeClick}
           showLabels={showLabels}
           edgeOpacity={edgeOpacity}
+          theme={theme}
         />
       </SigmaContainer>
     </div>

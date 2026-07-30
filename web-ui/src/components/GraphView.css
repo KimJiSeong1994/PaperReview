@@ -202,6 +202,21 @@
   border-color: rgba(221, 214, 254, 1);
 }
 
+/* Light theme: match the darker teal->green node gradient endpoints used by the
+   Plotly/Sigma renderers; the dark-tuned green washes out on white. Selected
+   stays purple but takes a dark-ink ring so it's visible on the white legend. */
+:root[data-theme='light'] .legend-node-old {
+  background: #0d9488;
+}
+
+:root[data-theme='light'] .legend-node-recent {
+  background: #16a34a;
+}
+
+:root[data-theme='light'] .legend-node-selected {
+  border-color: rgba(17, 24, 39, 0.6);
+}
+
 .legend-text {
   color: var(--text-muted);
   font-style: italic;

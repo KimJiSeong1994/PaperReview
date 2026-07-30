@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Graph from 'graphology';
 import type { GraphData } from '../../types';
+import type { Theme } from '../../theme';
 import type { GraphStats } from './types';
 
 /**
@@ -12,6 +13,7 @@ export function useGraphData(
   graphData: GraphData | null,
   minCitations: number,
   yearFilter: [number, number] | null,
+  theme: Theme = 'dark',
 ): { graph: Graph; stats: GraphStats } {
   return useMemo(() => {
     const graph = new Graph();
@@ -64,13 +66,17 @@ export function useGraphData(
       if (nodeIdSet.has(nodeId)) return; // skip duplicate
       nodeIdSet.add(nodeId);
 
-      // Color: year-based green gradient — rgba(60, 150~220, 150, 0.95)
+      // Color: year-based gradient. Dark: rgba(60, 150~220, 150, 0.95).
+      // Light: darker teal->green (#0d9488 -> #16a34a) for >=3:1 on white.
       const nodeYear = n.year ? Number(n.year) : null;
       const year = nodeYear && !isNaN(nodeYear) ? nodeYear : minYear;
       const relative = yearRange > 0 ? (year - minYear) / yearRange : 0;
       const baseGreen = Math.floor(150 + relative * 70);
       const clampedGreen = Math.max(150, Math.min(220, baseGreen));
-      const color = `rgba(60, ${clampedGreen}, 150, 0.95)`;
+      const color =
+        theme === 'light'
+          ? `rgb(${Math.round(13 + 9 * relative)}, ${Math.round(148 + 15 * relative)}, ${Math.round(136 - 62 * relative)})`
+          : `rgba(60, ${clampedGreen}, 150, 0.95)`;
 
       // Size: log scale matching Plotly — baseSize 12 + 6 * log10(citations + 1)
       const citations = n.citations || 1;
@@ -107,7 +113,8 @@ export function useGraphData(
 
       graph.addEdge(source, target, {
         weight: edge.weight || 0.1,
-        color: 'rgba(156, 163, 175, 0.3)',
+        // Build-time baseline; the edgeReducer recolors per render (see SigmaGraphView).
+        color: theme === 'light' ? 'rgba(17, 24, 39, 0.45)' : 'rgba(156, 163, 175, 0.3)',
         size: 0.7,
       });
       addedEdges++;
@@ -128,5 +135,5 @@ export function useGraphData(
     };
 
     return { graph, stats };
-  }, [graphData, minCitations, yearFilter]);
+  }, [graphData, minCitations, yearFilter, theme]);
 }
