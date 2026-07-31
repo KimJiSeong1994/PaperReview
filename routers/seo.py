@@ -1489,6 +1489,22 @@ async def llms_txt() -> Response:
         ]
     )
 
+    # Series hubs (pillar pages) — derived from BLOG_SERIES so new series are
+    # picked up automatically. Each line names the hub, its size, and the
+    # recommended reading order so answer engines can cite the collection.
+    published_slugs = {p.get("slug") for p in published}
+    series_lines: list[str] = []
+    for series_id, series in BLOG_SERIES.items():
+        live_slugs = [s for s in series["slugs"] if s in published_slugs]
+        if not live_slugs:
+            continue
+        series_lines.append(
+            f"- [{series['title']}]({SITE_URL}/blog/series/{series_id}) "
+            f"({len(live_slugs)} posts, in recommended reading order): "
+            f"{series['description']}"
+        )
+    series_section = "\n".join(series_lines)
+
     body = (
         "# 집현전 (Jiphyeonjeon)\n"
         "\n"
@@ -1509,6 +1525,9 @@ async def llms_txt() -> Response:
         "\n"
         "## Key pages\n"
         f"{key_pages}\n"
+        "\n"
+        "## Series\n"
+        f"{series_section}\n"
         "\n"
         "## Blog\n"
         f"{blog_section}\n"
