@@ -530,6 +530,16 @@ def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -
     assert "핵심 논문 12편" in BLOG_SERIES["dwe"]["description"]
 
 
+def test_graphrag_series_places_causalrag2_after_causalrag() -> None:
+    from routers.seo import BLOG_SERIES
+
+    slugs = BLOG_SERIES["graphrag"]["slugs"]
+    causalrag = slugs.index("causalrag-causal-graph-retrieval")
+    assert len(slugs) == 7
+    assert slugs[causalrag + 1] == "causalrag2-hugrag-hierarchical-causal-gating"
+    assert "핵심 논문 7편" in BLOG_SERIES["graphrag"]["description"]
+
+
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())

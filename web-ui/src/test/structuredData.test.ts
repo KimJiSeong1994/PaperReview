@@ -257,6 +257,16 @@ describe('series', () => {
     expect(seriesOf(slug)).toBe('dwe');
   });
 
+  it('places CausalRAG2 immediately after CausalRAG in GraphRAG', () => {
+    const slug = 'causalrag2-hugrag-hierarchical-causal-gating';
+    const causalRagIndex = BLOG_SERIES.graphrag.slugs.indexOf(
+      'causalrag-causal-graph-retrieval',
+    );
+    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(7);
+    expect(BLOG_SERIES.graphrag.slugs[causalRagIndex + 1]).toBe(slug);
+    expect(seriesOf(slug)).toBe('graphrag');
+  });
+
   it('maps a member slug to its series and marks the posting isPartOf', () => {
     const memberSlug = BLOG_SERIES.gnn.slugs[0];
     expect(seriesOf(memberSlug)).toBe('gnn');
