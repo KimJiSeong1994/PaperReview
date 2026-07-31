@@ -1146,7 +1146,7 @@
     },
     {
       "id": "31bf64397cd24e708f78240d826803c3",
-      "title": "CausalRAG2(HugRAG) 심층 분석: 계층 사이를 인과 게이트로 잇는 Graph RAG",
+      "title": "CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG",
       "slug": "causalrag2-hugrag-hierarchical-causal-gating",
       "excerpt": "HugRAG에서 CausalRAG2로 이름을 바꾼 ICML 2026 논문이 계층형 지식 그래프, 인과 게이트, 질의별 인과 필터를 결합해 정보 고립과 검색 노이즈를 줄이는 방법을 분석합니다.",
       "tags": [
