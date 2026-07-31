@@ -59,6 +59,25 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
       'a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change',
     ],
   },
+  graphrag: {
+    title: 'GraphRAG 논문 리뷰 시리즈',
+    description:
+      'LLM 검색증강생성에 지식 그래프를 결합하는 GraphRAG 계열의 핵심 '
+      + '논문 6편을 그래프 연상 기억(HippoRAG)부터 경량 이중 검색(LightRAG), '
+      + '계층 집약과 LCA 검색(LeanRAG), 인과 경로 검색(CausalRAG), 계층 '
+      + '검색과 적응적 통합(Deep GraphRAG), 다단계 파이프라인과 컴팩트 '
+      + '추출 모델(RAGU)까지 권장 순서로 깊이 있게 읽는 한국어 딥리뷰 '
+      + '시리즈. 문서 간 연관 구조를 어떻게 색인하고, 무엇을 검색 단위로 '
+      + '삼으며, 그 근거를 어디까지 믿어야 하는지를 계보로 따라간다.',
+    slugs: [
+      'hipporag-neurobiologically-inspired-long-term-memory',
+      'lightrag-dual-level-graph-rag',
+      'leanrag-semantic-aggregation-hierarchical-retrieval',
+      'causalrag-causal-graph-retrieval',
+      'deep-graphrag',
+      'ragu',
+    ],
+  },
 };
 
 /** Return the series id containing a slug, else null. */
