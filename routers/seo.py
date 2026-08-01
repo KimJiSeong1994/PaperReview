@@ -1331,7 +1331,7 @@ async def blog_category_ssr(category: str) -> HTMLResponse:
 
 @router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap() -> Response:
-    """Return an XML sitemap of public URLs (home, blog index, published posts)."""
+    """Return an XML sitemap of public URLs and published content."""
     with _posts_lock:
         posts = _load_posts()
 
@@ -1345,6 +1345,7 @@ async def sitemap() -> Response:
 
     rows = [
         f"  <url><loc>{SITE_URL}/</loc>{lm}<priority>1.0</priority></url>",
+        f"  <url><loc>{SITE_URL}/introduce</loc>{lm}<priority>0.8</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc>{lm}<priority>0.8</priority></url>",
     ]
     # /llms.txt and /llms-full.txt are deliberately absent. llmstxt.org defines

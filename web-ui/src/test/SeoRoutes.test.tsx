@@ -73,6 +73,20 @@ describe('SEO-sensitive routes', () => {
     vi.restoreAllMocks();
   });
 
+  it('keeps the existing search experience on the root route', async () => {
+    renderWithAuth('/', <App />);
+
+    expect(await screen.findByRole('heading', {
+      level: 1,
+      name: /Jiphyeonjeon.*집현전/,
+    })).toBeInTheDocument();
+    expect(screen.getByText('The AI Search Engine You Control')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {
+      name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
+    })).not.toBeInTheDocument();
+  });
+
   it('routes /blog/:slug directly to BlogPage and fetches the slug detail', async () => {
     vi.mocked(fetchBlogPost).mockResolvedValue(blogPostResponse);
 
@@ -83,6 +97,23 @@ describe('SEO-sensitive routes', () => {
     });
     expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
     expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
+  });
+
+  it('serves the public introduction route with Korean-first metadata', async () => {
+    renderWithAuth('/introduce', <App />);
+
+    expect(await screen.findByRole('heading', {
+      name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
+    })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '소개' })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(document.title).toBe('집현전 소개 | 논문을 찾고 근거까지 읽는 연구 도구');
+    });
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://jiphyeonjeon.kr/introduce',
+    );
   });
 
   it('supports BlogPage slug mode without first loading the list', async () => {

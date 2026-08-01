@@ -191,6 +191,7 @@ def test_sitemap_valid_xml_published_only(client: TestClient) -> None:
     # Parses as valid XML.
     root = ET.fromstring(resp.text)
     assert root.tag.endswith("urlset")
+    assert "https://jiphyeonjeon.kr/introduce" in resp.text
     assert PUBLISHED_SLUG in resp.text
     assert UNPUBLISHED_SLUG not in resp.text
 
