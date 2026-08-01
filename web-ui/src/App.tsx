@@ -19,8 +19,8 @@ const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
 const IntroducePage = lazy(() => import('./components/IntroducePage'));
 
-const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
-const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
+const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
+const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
 const INTRODUCE_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전 소개';
 const INTRODUCE_DESCRIPTION = '집현전은 arXiv·Google Scholar·OpenAlex 등에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.';
 const SITE_URL = 'https://jiphyeonjeon.kr';
@@ -265,6 +265,8 @@ function App() {
                 title={HOME_TITLE}
                 description={HOME_DESCRIPTION}
                 canonical={`${SITE_URL}/`}
+                locale="ko_KR"
+                robots={INDEX_ROBOTS}
               />
               {header}
               <Suspense fallback={<div className="app-loading">Loading...</div>}>

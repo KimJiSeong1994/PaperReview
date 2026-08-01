@@ -374,6 +374,18 @@ def test_spa_shell_defaults_to_dark_before_paint() -> None:
     assert "setAttribute('data-theme', 'dark')" in html
 
 
+def test_spa_shell_has_korean_search_metadata_and_feed_discovery() -> None:
+    """Non-JS search crawlers receive metadata matching the Korean-first home page."""
+    html = Path("web-ui/index.html").read_text(encoding="utf-8")
+    assert '<html lang="ko">' in html
+    assert "<title>AI 논문 검색·리뷰 도구 | 집현전</title>" in html
+    assert 'name="description"' in html and "원문 근거" in html
+    assert 'name="robots" content="index, follow, max-image-preview:large' in html
+    assert 'property="og:locale" content="ko_KR"' in html
+    assert 'rel="alternate" type="application/rss+xml" href="/feed.xml"' in html
+    assert '"@type": "WebSite"' in html and '"alternateName": "집현전"' in html
+
+
 def test_ssr_sets_theme_before_paint(client: TestClient) -> None:
     """SSR blog pages set data-theme early (default dark) so it isn't lost pre-hydration."""
     for path in ("/blog", f"/blog/{PUBLISHED_SLUG}", "/blog/category/engineering"):

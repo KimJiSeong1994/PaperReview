@@ -56,8 +56,7 @@ const staticContent = `
 `;
 
 const replacements = [
-  [/<html lang="en">/, '<html lang="ko">'],
-  [/(<meta\s+name="viewport"[^>]*>)/, `$1\n    <meta name="robots" content="${robots}" />`],
+  [/(<meta\s+name="robots"\s+content=")[^"]*("\s*\/?>)/, `$1${robots}$2`],
   [/(<meta\s+name="description"\s+content=")[^"]*("\s*\/?>)/, `$1${description}$2`],
   [/(<link\s+rel="canonical"\s+href=")[^"]*("\s*\/?>)/, `$1${canonical}$2`],
   [/(<meta\s+property="og:title"\s+content=")[^"]*("\s*\/?>)/, `$1${title}$2`],

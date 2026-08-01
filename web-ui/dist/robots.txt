@@ -60,6 +60,12 @@ User-agent: Claude-Web
 User-agent: PerplexityBot
 User-agent: Googlebot
 User-agent: Bingbot
+User-agent: Yeti
+User-agent: DAUM
+User-agent: DuckDuckBot
+User-agent: Slurp
+User-agent: YandexBot
+User-agent: Baiduspider
 User-agent: Applebot
 User-agent: Applebot-Extended
 User-agent: Google-Extended

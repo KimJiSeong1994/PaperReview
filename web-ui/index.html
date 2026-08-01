@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <!-- Set the theme before first paint (no flash): saved choice, else dark. -->
@@ -19,36 +19,38 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/Jiphyeonjeon_llama.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="google-site-verification" content="T6KH8OGHPLHZ8KnUBjdIch-W6igstEd_8MvTxn0utG0" />
     <meta name="naver-site-verification" content="adf96dcebc28cf0a9e9e66f9c6f69d00f5a0ed4c" />
     <meta
       name="description"
-      content="Jiphyeonjeon helps researchers explore papers, reviews, recommendations, and research notes."
+      content="집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다."
     />
     <meta name="author" content="Jiphyeonjeon" />
     <link rel="canonical" href="https://jiphyeonjeon.kr/" />
-    <meta property="og:title" content="Jiphyeonjeon - Paper Graph Explorer" />
+    <link rel="alternate" type="application/rss+xml" href="/feed.xml" />
+    <meta property="og:title" content="AI 논문 검색·리뷰 도구 | 집현전" />
     <meta
       property="og:description"
-      content="Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon."
+      content="집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://jiphyeonjeon.kr/" />
     <meta property="og:site_name" content="Jiphyeonjeon" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:locale:alternate" content="ko_KR" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:locale:alternate" content="en_US" />
     <meta property="og:image" content="https://jiphyeonjeon.kr/og-default.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Jiphyeonjeon" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Jiphyeonjeon - Paper Graph Explorer" />
+    <meta name="twitter:title" content="AI 논문 검색·리뷰 도구 | 집현전" />
     <meta
       name="twitter:description"
-      content="Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon."
+      content="집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다."
     />
     <meta name="twitter:image" content="https://jiphyeonjeon.kr/og-default.jpg" />
-    <title>Jiphyeonjeon - Paper Graph Explorer</title>
+    <title>AI 논문 검색·리뷰 도구 | 집현전</title>
     <!--
       Static entity graph for the root URL (/) — crawlers & AI answer engines
       that fetch "/" get no JSON-LD otherwise, since only /blog is server-rendered.
@@ -78,7 +80,7 @@
             "@id": "https://jiphyeonjeon.kr/#website",
             "url": "https://jiphyeonjeon.kr",
             "name": "Jiphyeonjeon",
-            "alternateName": "Jiphyeonjeon - Paper Graph Explorer",
+            "alternateName": "집현전",
             "inLanguage": ["en", "ko"],
             "publisher": { "@id": "https://jiphyeonjeon.kr/#organization" },
             "potentialAction": {
@@ -120,8 +122,8 @@
     <div id="root">
       <main>
         <h1>Jiphyeonjeon (집현전)</h1>
-        <p>AI-powered academic paper search and multi-agent deep review — search arXiv, Google Scholar and OpenAlex, generate deep paper reviews, build study curricula, and explore citation graphs.</p>
-        <p lang="ko">집현전은 arXiv·Google Scholar·OpenAlex 등 여러 출처에서 논문을 검색하고, 멀티 에이전트 심층 리뷰와 학습 커리큘럼, 인용 그래프 탐색을 제공하는 AI 연구 도구입니다.</p>
+        <p>집현전은 arXiv·Google Scholar·OpenAlex 등 여러 출처에서 논문을 검색하고, 멀티 에이전트 심층 리뷰와 학습 커리큘럼, 인용 그래프 탐색을 제공하는 AI 연구 도구입니다.</p>
+        <p lang="en">AI-powered academic paper search and multi-agent deep review — search arXiv, Google Scholar and OpenAlex, generate deep paper reviews, build study curricula, and explore citation graphs.</p>
         <!-- Pre-hydration anchors: the only crawlable path from / into the
              server-rendered blog for bots that do not execute JavaScript. -->
         <nav aria-label="Site">

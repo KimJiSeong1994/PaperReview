@@ -85,6 +85,22 @@ describe('SEO-sensitive routes', () => {
     expect(screen.queryByRole('heading', {
       name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
     })).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(document.title).toBe('AI 논문 검색·리뷰 도구 | 집현전');
+    });
+    expect(document.head.querySelector('meta[name="description"]')).toHaveAttribute(
+      'content',
+      expect.stringContaining('원문 근거'),
+    );
+    expect(document.head.querySelector('meta[property="og:locale"]')).toHaveAttribute(
+      'content',
+      'ko_KR',
+    );
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+    );
   });
 
   it('routes /blog/:slug directly to BlogPage and fetches the slug detail', async () => {
@@ -276,7 +292,7 @@ describe('SEO-sensitive routes', () => {
     });
   });
 
-  it('resets private route robots metadata when returning to the public home route', async () => {
+  it('resets private route robots metadata to indexable on the public home route', async () => {
     vi.mocked(getSharedBookmark).mockResolvedValue({
       id: 'shared-1',
       title: 'Private Shared Report',
@@ -325,7 +341,10 @@ describe('SEO-sensitive routes', () => {
     );
 
     await waitFor(() => {
-      expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+      expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+        'content',
+        'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+      );
       expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
         'href',
         'https://jiphyeonjeon.kr/',

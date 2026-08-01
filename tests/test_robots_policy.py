@@ -24,6 +24,12 @@ AI_SEARCH_AND_DISCOVERY_AGENTS = [
     "PerplexityBot",
     "Googlebot",
     "Bingbot",
+    "Yeti",
+    "DAUM",
+    "DuckDuckBot",
+    "Slurp",
+    "YandexBot",
+    "Baiduspider",
 ]
 
 PRIVATE_PATHS = [
@@ -60,6 +66,14 @@ REPRESENTATIVE_USER_AGENTS = [
     "Claude-SearchBot",
     "Claude-User",
     "PerplexityBot",
+    "Googlebot",
+    "Bingbot",
+    "Yeti",
+    "DAUM",
+    "DuckDuckBot",
+    "Slurp",
+    "YandexBot",
+    "Baiduspider",
 ]
 
 PUBLIC_ALLOWED_SAMPLES = [

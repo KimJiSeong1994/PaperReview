@@ -78,7 +78,7 @@ export function websiteNode(): Record<string, unknown> {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: 'Jiphyeonjeon',
-    alternateName: 'Jiphyeonjeon - Paper Graph Explorer',
+    alternateName: '집현전',
     inLanguage: ['en', 'ko'],
     publisher: { '@id': ORG_ID },
     // Sitelinks searchbox — the ?q= target is read by SearchPage.
