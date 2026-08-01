@@ -124,8 +124,8 @@ body {
 }
 
 /* Decorative hanok + llama motif in the blank space below the search bar.
-   The shallow radial layers ground the transparent artwork without baking a
-   large opaque foreground into either theme asset. */
+   Dark mode uses shallow radial layers to ground the transparent artwork;
+   light mode keeps the original transparent asset uncolored. */
 .centered-search::after {
   content: '';
   /* Flex child, not absolute: it takes only the space left below the search
@@ -176,39 +176,13 @@ body {
 }
 
 :root[data-theme='light'] .centered-search::after {
-  background-image:
-    url('/introduce-hanok-bg.png'),
-    radial-gradient(
-      ellipse at center,
-      rgba(132, 100, 63, 0.34) 0%,
-      rgba(165, 132, 91, 0.25) 46%,
-      rgba(194, 169, 130, 0.14) 62%,
-      transparent 78%
-    ),
-    radial-gradient(
-      ellipse at center,
-      rgba(84, 65, 43, 0.24) 0%,
-      rgba(84, 65, 43, 0.12) 54%,
-      transparent 78%
-    );
+  background-image: url('/introduce-hanok-bg.png');
   background-image: image-set(
       url('/introduce-hanok-bg.webp') type('image/webp'),
       url('/introduce-hanok-bg.png') type('image/png')
-    ),
-    radial-gradient(
-      ellipse at center,
-      rgba(132, 100, 63, 0.34) 0%,
-      rgba(165, 132, 91, 0.25) 46%,
-      rgba(194, 169, 130, 0.14) 62%,
-      transparent 78%
-    ),
-    radial-gradient(
-      ellipse at center,
-      rgba(84, 65, 43, 0.24) 0%,
-      rgba(84, 65, 43, 0.12) 54%,
-      transparent 78%
     );
-  background-size: contain, 98% 20%, 88% 12%;
+  background-position: bottom center;
+  background-size: contain;
   opacity: 0.9;
 }
 
