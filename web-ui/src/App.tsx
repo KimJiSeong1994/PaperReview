@@ -97,7 +97,7 @@ function App() {
               Admin
             </button>
           )}
-          <button className="nav-btn" onClick={() => navigate('/introduce')}>
+          <button className="nav-btn" onClick={() => navigate('/introduce/')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
@@ -236,7 +236,7 @@ function App() {
               <SEOHead
                 title={INTRODUCE_TITLE}
                 description={INTRODUCE_DESCRIPTION}
-                canonical={`${SITE_URL}/introduce`}
+                canonical={`${SITE_URL}/introduce/`}
                 locale="ko_KR"
               />
               {header}

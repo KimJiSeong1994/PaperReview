@@ -10,7 +10,7 @@ const destinationPath = resolve(webUiDirectory, 'dist/introduce/index.html');
 const title = '집현전 소개 | 논문을 찾고 근거까지 읽는 연구 도구';
 const description =
   '집현전은 여러 소스에서 논문을 찾고 비교하며, 중요한 주장을 원문에서 확인하고 다음에 읽을 자료까지 정리하는 AI 연구 도구입니다.';
-const canonical = 'https://jiphyeonjeon.kr/introduce';
+const canonical = 'https://jiphyeonjeon.kr/introduce/';
 
 const replacements = [
   [/<html lang="en">/, '<html lang="ko">'],

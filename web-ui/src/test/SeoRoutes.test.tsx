@@ -112,7 +112,7 @@ describe('SEO-sensitive routes', () => {
     });
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
-      'https://jiphyeonjeon.kr/introduce',
+      'https://jiphyeonjeon.kr/introduce/',
     );
   });
 
