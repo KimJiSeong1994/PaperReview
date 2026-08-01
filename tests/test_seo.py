@@ -332,6 +332,7 @@ def test_llms_txt_has_geo_sections(client: TestClient) -> None:
         "## About",
         "## Capabilities",
         "## Review methodology",
+        "## Claude access",
         "## Key pages",
         "## Blog",
         "## Optional",
@@ -341,6 +342,8 @@ def test_llms_txt_has_geo_sections(client: TestClient) -> None:
     assert "github.com/KimJiSeong1994/PaperReview" in body
     assert "/feed.xml" in body and "/sitemap.xml" in body
     assert "[About Jiphyeonjeon](https://jiphyeonjeon.kr/introduce/)" in body
+    assert "[Claude extension overview](https://jiphyeonjeon.kr/introduce/#claude)" in body
+    assert "github.com/KimJiSeong1994/jiphyeonjeon-agent" in body
     assert "quotation, paraphrase, inference, and unverified claims" in body
     # Published posts carry an ISO date (from created_at 2026-01-15).
     assert "(2026-01-15)" in body

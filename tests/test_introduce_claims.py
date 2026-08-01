@@ -48,3 +48,12 @@ def test_introduce_static_route_exposes_search_content_without_javascript() -> N
     assert "AI 논문 리뷰의 주장은 어떻게 검증하나요?" in source
     assert "AboutPage" in source
     assert "BreadcrumbList" in source
+
+
+def test_introduce_static_route_explains_optional_claude_access() -> None:
+    """Claude crawlers can distinguish the public web app from its extension."""
+    source = STATIC_ROUTE_SOURCE.read_text(encoding="utf-8")
+
+    assert "Claude에서 집현전 활용하기" in source
+    assert "웹 서비스와 별도로 설치하는 오픈소스 확장" in source
+    assert "https://github.com/KimJiSeong1994/jiphyeonjeon-agent" in source

@@ -39,6 +39,11 @@ const staticContent = `
           <h3>로그인 없이 무엇을 사용할 수 있나요?</h3>
           <p>논문 검색과 공개 논문 리뷰 읽기는 바로 시작할 수 있습니다. 개인 연구 공간의 리뷰·메모·북마크 저장은 로그인 후 이용합니다.</p>
         </section>
+        <section id="claude">
+          <h2>Claude에서 집현전 활용하기</h2>
+          <p>집현전의 서비스 소개와 공개 논문 리뷰는 웹에서 바로 읽을 수 있습니다. 집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장으로, Claude 대화 안에서 논문 검색·리뷰·북마크·커리큘럼 기능을 호출합니다.</p>
+          <p><a href="https://github.com/KimJiSeong1994/jiphyeonjeon-agent">집현전 Agent 설치와 소스 보기</a></p>
+        </section>
         <nav aria-label="주요 페이지">
           <a href="/">논문 검색</a> · <a href="/blog">연구 블로그</a> · <a href="/blog/category/paper-review">공개 논문 리뷰</a>
         </nav>
