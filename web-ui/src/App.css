@@ -123,7 +123,9 @@ body {
   position: relative;
 }
 
-/* Decorative hanok + llama scene in the blank space below the search bar. */
+/* Decorative hanok + llama motif in the blank space below the search bar.
+   The shallow radial layers ground the transparent artwork without baking a
+   large opaque foreground into either theme asset. */
 .centered-search::after {
   content: '';
   /* Flex child, not absolute: it takes only the space left below the search
@@ -134,37 +136,80 @@ body {
   width: 90%;
   min-height: 0;
   margin-top: 20px;
-  background-image: url('/introduce-hanok-night.png');
+  background-image:
+    url('/introduce-hanok-night.png'),
+    radial-gradient(
+      ellipse at center,
+      rgba(217, 174, 103, 0.28) 0%,
+      rgba(126, 91, 52, 0.22) 42%,
+      rgba(57, 40, 25, 0.12) 62%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(99, 66, 36, 0.24) 0%,
+      rgba(62, 43, 27, 0.13) 52%,
+      transparent 78%
+    );
   background-image: image-set(
       url('/introduce-hanok-night.webp') type('image/webp'),
       url('/introduce-hanok-night.png') type('image/png')
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(217, 174, 103, 0.28) 0%,
+      rgba(126, 91, 52, 0.22) 42%,
+      rgba(57, 40, 25, 0.12) 62%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(99, 66, 36, 0.24) 0%,
+      rgba(62, 43, 27, 0.13) 52%,
+      transparent 78%
     );
   background-repeat: no-repeat;
-  background-position: bottom center;
-  background-size: contain;
-  -webkit-mask-image: radial-gradient(ellipse 76% 40% at 50% 58%, #000 55%, transparent 100%);
-  mask-image: radial-gradient(ellipse 76% 40% at 50% 58%, #000 55%, transparent 100%);
-  opacity: 0.96;
+  background-position: bottom center, bottom center, bottom center;
+  background-size: contain, 96% 20%, 84% 12%;
+  opacity: 0.9;
   pointer-events: none;
 }
 
 :root[data-theme='light'] .centered-search::after {
-  background-image: url('/introduce-hanok-bg.png');
+  background-image:
+    url('/introduce-hanok-bg.png'),
+    radial-gradient(
+      ellipse at center,
+      rgba(132, 100, 63, 0.34) 0%,
+      rgba(165, 132, 91, 0.25) 46%,
+      rgba(194, 169, 130, 0.14) 62%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(84, 65, 43, 0.24) 0%,
+      rgba(84, 65, 43, 0.12) 54%,
+      transparent 78%
+    );
   background-image: image-set(
       url('/introduce-hanok-bg.webp') type('image/webp'),
       url('/introduce-hanok-bg.png') type('image/png')
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(132, 100, 63, 0.34) 0%,
+      rgba(165, 132, 91, 0.25) 46%,
+      rgba(194, 169, 130, 0.14) 62%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(84, 65, 43, 0.24) 0%,
+      rgba(84, 65, 43, 0.12) 54%,
+      transparent 78%
     );
-  opacity: 0.96;
-}
-
-@media (max-width: 600px) {
-  .centered-search::after {
-    width: 100%;
-    background-position: center bottom 20px;
-    background-size: auto 210px;
-    -webkit-mask-image: radial-gradient(ellipse 100% 36% at 50% 72%, #000 58%, transparent 100%);
-    mask-image: radial-gradient(ellipse 100% 36% at 50% 72%, #000 58%, transparent 100%);
-  }
+  background-size: contain, 98% 20%, 88% 12%;
+  opacity: 0.9;
 }
 
 /* Night sky: faint stars across the hero in dark mode only. */
