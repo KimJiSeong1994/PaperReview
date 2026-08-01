@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
@@ -7,6 +7,7 @@ import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
 import { useAuth } from './contexts/AuthContext';
+import { INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
 
 const MyPage = lazy(() => import('./components/MyPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
@@ -20,9 +21,11 @@ const IntroducePage = lazy(() => import('./components/IntroducePage'));
 
 const HOME_TITLE = 'Jiphyeonjeon - Paper Graph Explorer';
 const HOME_DESCRIPTION = 'Explore papers, reviews, recommendations, and research notes with Jiphyeonjeon.';
-const INTRODUCE_TITLE = '집현전 소개 | 논문을 찾고 근거까지 읽는 연구 도구';
-const INTRODUCE_DESCRIPTION = '집현전은 여러 소스에서 논문을 찾고 비교하며, 중요한 주장을 원문에서 확인하고 다음에 읽을 자료까지 정리하는 AI 연구 도구입니다.';
+const INTRODUCE_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전 소개';
+const INTRODUCE_DESCRIPTION = '집현전은 arXiv·Google Scholar·OpenAlex 등에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.';
 const SITE_URL = 'https://jiphyeonjeon.kr';
+const INTRODUCE_JSON_LD = introduceGraph();
+const INDEX_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
 function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
   const { slug } = useParams<{ slug: string }>();
@@ -97,15 +100,15 @@ function App() {
               Admin
             </button>
           )}
-          <button className="nav-btn" onClick={() => navigate('/introduce/')}>
+          <Link className="nav-btn" to="/introduce/">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
             소개
-          </button>
-          <button className="nav-btn" onClick={() => navigate('/blog')}>
+          </Link>
+          <Link className="nav-btn" to="/blog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -114,7 +117,7 @@ function App() {
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
             Blog
-          </button>
+          </Link>
           <button className="nav-btn" onClick={handleMyPageClick}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -236,8 +239,11 @@ function App() {
               <SEOHead
                 title={INTRODUCE_TITLE}
                 description={INTRODUCE_DESCRIPTION}
-                canonical={`${SITE_URL}/introduce/`}
+                canonical={INTRODUCE_URL}
                 locale="ko_KR"
+                image={OG_DEFAULT_IMAGE}
+                robots={INDEX_ROBOTS}
+                jsonLd={INTRODUCE_JSON_LD}
               />
               {header}
               <Suspense fallback={<div className="app-loading">Loading...</div>}>

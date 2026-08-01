@@ -409,6 +409,35 @@
   margin-top: 16px;
 }
 
+.landing-faq-list {
+  margin: 0;
+  border-top: 1px solid var(--wov-08);
+}
+
+.landing-faq-item {
+  display: grid;
+  gap: 10px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--wov-08);
+}
+
+.landing-faq-item dt {
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.landing-faq-item dd {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.85;
+  word-break: keep-all;
+}
+
 .landing-claude:focus {
   outline: none;
 }
@@ -779,6 +808,16 @@
 
   .landing-evidence-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-faq-item {
+    grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.22fr);
+    gap: 32px;
+    padding: 28px 0;
+  }
+
+  .landing-faq-item dd {
+    font-size: 14px;
   }
 
   .landing-evidence-cell {

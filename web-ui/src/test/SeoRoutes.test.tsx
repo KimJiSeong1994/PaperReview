@@ -105,15 +105,26 @@ describe('SEO-sensitive routes', () => {
     expect(await screen.findByRole('heading', {
       name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
     })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '소개' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '소개' })).toHaveAttribute('href', '/introduce/');
+    expect(screen.getByText('집현전은 어떤 AI 논문 검색 도구인가요?')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(document.title).toBe('집현전 소개 | 논문을 찾고 근거까지 읽는 연구 도구');
+      expect(document.title).toBe('AI 논문 검색·리뷰 도구 | 집현전 소개');
     });
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
       'https://jiphyeonjeon.kr/introduce/',
     );
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+    );
+    expect(document.head.querySelector('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      'https://jiphyeonjeon.kr/og-default.jpg',
+    );
+    const graph = JSON.parse(document.querySelector('script#seo-json-ld')?.textContent || '{}');
+    expect(graph['@graph'].some((node: Record<string, unknown>) => node['@type'] === 'AboutPage')).toBe(true);
   });
 
   it('supports BlogPage slug mode without first loading the list', async () => {

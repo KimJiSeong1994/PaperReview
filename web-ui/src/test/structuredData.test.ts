@@ -6,6 +6,7 @@ import {
   websiteNode,
   softwareApplicationNode,
   homeGraph,
+  introduceGraph,
   blogCanonical,
   blogPostingGraph,
   blogIndexGraph,
@@ -86,11 +87,26 @@ describe('softwareApplicationNode', () => {
     const node = softwareApplicationNode();
     expect(node['@type']).toBe('WebApplication');
     expect(node['@id']).toBe('https://jiphyeonjeon.kr/#app');
+    expect(node.applicationCategory).toBe('EducationalApplication');
     expect(node.operatingSystem).toBe('Web');
     expect(Array.isArray(node.featureList)).toBe(true);
     expect((node.featureList as string[]).length).toBeGreaterThan(0);
     expect(node.offers).toEqual({ '@type': 'Offer', price: '0', priceCurrency: 'USD' });
     expect(node.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
+  });
+});
+
+describe('introduceGraph', () => {
+  it('connects the Korean AboutPage to the application, organization, and breadcrumb', () => {
+    const graph = introduceGraph()['@graph'] as Record<string, unknown>[];
+    const about = graph.find((node) => node['@type'] === 'AboutPage')!;
+    const breadcrumb = graph.find((node) => node['@type'] === 'BreadcrumbList')!;
+
+    expect(about.url).toBe('https://jiphyeonjeon.kr/introduce/');
+    expect(about.inLanguage).toBe('ko');
+    expect(about.mainEntity).toEqual({ '@id': 'https://jiphyeonjeon.kr/#app' });
+    expect(about.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
+    expect((breadcrumb.itemListElement as unknown[])).toHaveLength(2);
   });
 });
 

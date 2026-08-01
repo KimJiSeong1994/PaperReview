@@ -328,11 +328,20 @@ def test_llms_full_txt_keeps_post_boundaries_unambiguous(monkeypatch) -> None:
 def test_llms_txt_has_geo_sections(client: TestClient) -> None:
     """llms.txt exposes entity/capabilities/optional sections and dated posts."""
     body = client.get("/llms.txt").text
-    for section in ("## About", "## Capabilities", "## Key pages", "## Blog", "## Optional"):
+    for section in (
+        "## About",
+        "## Capabilities",
+        "## Review methodology",
+        "## Key pages",
+        "## Blog",
+        "## Optional",
+    ):
         assert section in body, f"missing {section}"
     # Entity grounding + machine-readable resources for AI engines.
     assert "github.com/KimJiSeong1994/PaperReview" in body
     assert "/feed.xml" in body and "/sitemap.xml" in body
+    assert "[About Jiphyeonjeon](https://jiphyeonjeon.kr/introduce/)" in body
+    assert "quotation, paraphrase, inference, and unverified claims" in body
     # Published posts carry an ISO date (from created_at 2026-01-15).
     assert "(2026-01-15)" in body
 

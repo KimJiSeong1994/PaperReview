@@ -1489,6 +1489,8 @@ async def llms_txt() -> Response:
     key_pages = "\n".join(
         [
             f"- [Home / Search]({SITE_URL}/): paper search interface",
+            f"- [About Jiphyeonjeon]({SITE_URL}/introduce/): AI paper search, "
+            "multi-paper review, source-grounded claim verification, and access details",
             f"- [Blog]({SITE_URL}/blog): research notes and write-ups",
             *key_page_cats,
         ]
@@ -1523,10 +1525,20 @@ async def llms_txt() -> Response:
         "Source: https://github.com/KimJiSeong1994/PaperReview\n"
         "\n"
         "## Capabilities\n"
-        "- Academic paper search across arXiv, Google Scholar, and OpenAlex\n"
-        "- Multi-agent deep paper review\n"
+        "- Academic paper search across arXiv, Google Scholar, OpenAlex, DBLP, "
+        "Connected Papers, and Korean academic search\n"
+        "- Multi-paper AI review that compares common findings, conflicts, and methods\n"
+        "- Source-grounded claim verification that distinguishes quotation, paraphrase, "
+        "inference, and unverified claims\n"
         "- Study curriculum builder\n"
         "- Citation graph explorer\n"
+        "\n"
+        "## Review methodology\n"
+        "Jiphyeonjeon searches broadly, reviews papers side by side, and checks important "
+        "interpretations against source passages before presenting follow-up reading. "
+        f"See the [product explanation]({SITE_URL}/introduce/) and the "
+        f"[public CausalRAG2 evidence example]({SITE_URL}/blog/"
+        "causalrag2-hugrag-hierarchical-causal-gating).\n"
         "\n"
         "## Key pages\n"
         f"{key_pages}\n"

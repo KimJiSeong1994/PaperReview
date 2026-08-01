@@ -12,6 +12,7 @@ import { BLOG_SERIES, seriesOf } from './series';
 
 export const SITE_URL = 'https://jiphyeonjeon.kr';
 export const OG_DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
+export const INTRODUCE_URL = `${SITE_URL}/introduce/`;
 
 const ORG_ID = 'https://jiphyeonjeon.kr/#organization';
 
@@ -54,7 +55,8 @@ export function organizationNode(): Record<string, unknown> {
     url: SITE_URL,
     description:
       'AI-powered academic paper search and multi-agent deep-review web app for '
-      + 'researchers, covering arXiv, Google Scholar and OpenAlex.',
+      + 'researchers, covering arXiv, Google Scholar, OpenAlex, DBLP, '
+      + 'Connected Papers, and Korean academic search.',
     disambiguatingDescription:
       'A modern AI research tool; not the 15th-century Joseon-dynasty royal '
       + 'research institute of the same name (the Hall of Worthies).',
@@ -98,17 +100,27 @@ export function softwareApplicationNode(): Record<string, unknown> {
     '@id': `${SITE_URL}/#app`,
     name: 'Jiphyeonjeon',
     url: SITE_URL,
-    applicationCategory: 'EducationApplication',
+    description:
+      'AI research tool for academic paper search, multi-paper comparison, '
+      + 'deep review, source-grounded claim verification, and follow-up reading.',
+    applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
+    browserRequirements: 'Requires JavaScript. Works in a modern web browser.',
     inLanguage: ['en', 'ko'],
+    audience: {
+      '@type': 'EducationalAudience',
+      audienceType: ['Researchers', 'Graduate students', 'Research engineers'],
+    },
     featureList: [
-      'Academic paper search across arXiv, Google Scholar, and OpenAlex',
-      'Multi-agent deep paper review',
+      'Academic paper search across six configured scholarly sources',
+      'Multi-paper AI comparison and deep review',
+      'Source-grounded claim verification',
       'Study curriculum builder',
       'Citation graph explorer',
     ],
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     publisher: { '@id': ORG_ID },
+    sameAs: ['https://github.com/KimJiSeong1994/PaperReview'],
   };
 }
 
@@ -116,6 +128,50 @@ export function homeGraph(): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
     '@graph': [organizationNode(), websiteNode(), softwareApplicationNode()],
+  };
+}
+
+/** About-page graph that connects the visible product explanation to the site entity. */
+export function introduceGraph(): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      organizationNode(),
+      websiteNode(),
+      softwareApplicationNode(),
+      {
+        '@type': 'AboutPage',
+        '@id': `${INTRODUCE_URL}#about`,
+        url: INTRODUCE_URL,
+        name: 'AI 논문 검색·리뷰 도구 | 집현전 소개',
+        description:
+          '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 '
+          + '핵심 주장을 원문 근거와 대조하는 연구 도구입니다.',
+        inLanguage: 'ko',
+        isPartOf: { '@id': `${SITE_URL}/#website` },
+        about: { '@id': `${SITE_URL}/#app` },
+        mainEntity: { '@id': `${SITE_URL}/#app` },
+        publisher: { '@id': ORG_ID },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${INTRODUCE_URL}#breadcrumb`,
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: '집현전',
+            item: `${SITE_URL}/`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: '소개',
+            item: INTRODUCE_URL,
+          },
+        ],
+      },
+    ],
   };
 }
 

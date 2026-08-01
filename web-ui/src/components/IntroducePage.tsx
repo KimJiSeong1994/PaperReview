@@ -7,6 +7,7 @@ const INTRO_NAV = [
   { href: '#workflow', label: '연구 흐름' },
   { href: '#outputs', label: '근거와 공개 리뷰' },
   { href: '#capabilities', label: '주요 기능' },
+  { href: '#faq', label: '자주 묻는 질문' },
   { href: '#claude', label: 'Claude 확장' },
 ];
 
@@ -28,13 +29,14 @@ function IntroducePage() {
               <span>근거까지 읽습니다.</span>
             </h1>
             <p className="introduce-lead">
-              질문에 맞는 논문을 찾고, 여러 편을 함께 읽어 쟁점을 정리합니다.
+              arXiv·Google Scholar·OpenAlex 등 여러 출처에서 질문에 맞는 논문을 찾고,
+              여러 편을 AI로 함께 읽어 쟁점을 정리합니다.
               중요한 주장은 원문에서 다시 확인하고, 다음에 읽을 논문까지 남깁니다.
             </p>
             <div className="introduce-cta">
-              <button type="button" className="introduce-btn" onClick={() => navigate('/')}>
+              <Link className="introduce-btn" to="/">
                 논문 검색해보기
-              </button>
+              </Link>
               <Link className="introduce-btn introduce-btn--ghost" to="/blog/category/paper-review">
                 공개 리뷰 읽기
               </Link>

@@ -48,6 +48,9 @@
 ## Information architecture
 - Primary navigation: Home/search, 소개, Blog, My Page; admin tools appear only for authorized users.
 - Core routes/screens: `/`, `/introduce`, `/blog`, `/blog/category/:category`, `/blog/series/:seriesId`, `/blog/:slug`, `/mypage`, `/paper-viewer`.
+- `/introduce/` is the canonical public product explanation. Its build artifact must keep
+  meaningful Korean fallback content, crawlable internal links, and route-specific
+  `AboutPage` JSON-LD so search and answer engines do not depend on client rendering.
 - Introduction hierarchy: product definition → access and scope → differentiators → four-stage workflow → visible claim/evidence example and public outputs → capability detail → optional Claude extension → final actions.
 - Blog hierarchy: category/series context → title and metadata → markdown article → related navigation/admin controls.
 

@@ -54,7 +54,7 @@
       that fetch "/" get no JSON-LD otherwise, since only /blog is server-rendered.
       Keep in sync with web-ui/src/seo/structuredData.ts homeGraph().
     -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" id="home-json-ld">
       {
         "@context": "https://schema.org",
         "@graph": [
@@ -64,7 +64,7 @@
             "name": "Jiphyeonjeon",
             "alternateName": "집현전",
             "url": "https://jiphyeonjeon.kr",
-            "description": "AI-powered academic paper search and multi-agent deep-review web app for researchers, covering arXiv, Google Scholar and OpenAlex.",
+            "description": "AI-powered academic paper search and multi-agent deep-review web app for researchers, covering arXiv, Google Scholar, OpenAlex, DBLP, Connected Papers, and Korean academic search.",
             "disambiguatingDescription": "A modern AI research tool; not the 15th-century Joseon-dynasty royal research institute of the same name (the Hall of Worthies).",
             "sameAs": [
               "https://github.com/KimJiSeong1994/PaperReview",
@@ -92,17 +92,25 @@
             "@id": "https://jiphyeonjeon.kr/#app",
             "name": "Jiphyeonjeon",
             "url": "https://jiphyeonjeon.kr",
-            "applicationCategory": "EducationApplication",
+            "description": "AI research tool for academic paper search, multi-paper comparison, deep review, source-grounded claim verification, and follow-up reading.",
+            "applicationCategory": "EducationalApplication",
             "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript. Works in a modern web browser.",
             "inLanguage": ["en", "ko"],
+            "audience": {
+              "@type": "EducationalAudience",
+              "audienceType": ["Researchers", "Graduate students", "Research engineers"]
+            },
             "featureList": [
-              "Academic paper search across arXiv, Google Scholar, and OpenAlex",
-              "Multi-agent deep paper review",
+              "Academic paper search across six configured scholarly sources",
+              "Multi-paper AI comparison and deep review",
+              "Source-grounded claim verification",
               "Study curriculum builder",
               "Citation graph explorer"
             ],
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-            "publisher": { "@id": "https://jiphyeonjeon.kr/#organization" }
+            "publisher": { "@id": "https://jiphyeonjeon.kr/#organization" },
+            "sameAs": ["https://github.com/KimJiSeong1994/PaperReview"]
           }
         ]
       }
@@ -118,6 +126,7 @@
              server-rendered blog for bots that do not execute JavaScript. -->
         <nav aria-label="Site">
           <ul>
+            <li><a href="/introduce/">About — AI paper search, review, and evidence verification</a></li>
             <li><a href="/blog">Blog — research writeups &amp; paper reviews</a></li>
             <li><a href="/blog/category/paper-review">Paper Reviews</a></li>
             <li><a href="/blog/category/engineering">Engineering</a></li>

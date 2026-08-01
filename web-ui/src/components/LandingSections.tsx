@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { copyToClipboard } from '../utils/clipboard';
 import './LandingSections.css';
 
@@ -129,6 +129,25 @@ const EVIDENCE_EXAMPLE = {
   to: '/blog/causalrag2-hugrag-hierarchical-causal-gating',
 };
 
+const FAQ_ITEMS = [
+  {
+    question: '집현전은 어떤 AI 논문 검색 도구인가요?',
+    answer: '집현전은 arXiv, Google Scholar, OpenAlex, DBLP, Connected Papers와 국내 논문 검색을 한곳에서 연결합니다. 질문에 맞는 논문을 찾은 뒤 비교, 딥리뷰, 원문 근거 확인과 다음 읽기까지 이어갑니다.',
+  },
+  {
+    question: 'AI 논문 리뷰의 주장은 어떻게 검증하나요?',
+    answer: '리뷰의 중요한 주장마다 이를 뒷받침하는 원문 구절을 찾습니다. 직접 인용, 의역, 추론, 미확인을 구분해 AI 요약이 논문이 말하는 범위를 벗어나지 않는지 확인합니다.',
+  },
+  {
+    question: '로그인 없이 무엇을 사용할 수 있나요?',
+    answer: '논문 검색과 공개된 논문 리뷰 읽기는 로그인 없이 시작할 수 있습니다. 리뷰, 메모와 북마크를 개인 연구 공간에 저장하는 기능은 로그인 후 이용합니다.',
+  },
+  {
+    question: '누구에게 적합한 연구 도구인가요?',
+    answer: '새 주제의 핵심 논문을 찾는 연구자와 대학원생, 여러 방법론을 비교하는 리서치 엔지니어, 논문의 주장과 실제 근거를 빠르게 대조해야 하는 독자에게 적합합니다.',
+  },
+];
+
 const SKILL_MAP = [
   {
     situation: '논문 하나를 깊게 읽고 싶다',
@@ -212,8 +231,6 @@ function SectionHeading({ kicker, title, body }: { kicker: string; title: string
 }
 
 function LandingSections({ onExampleSearch }: LandingSectionsProps) {
-  const navigate = useNavigate();
-
   return (
     <div className="landing">
       <section className="landing-section" id="difference">
@@ -342,6 +359,22 @@ function LandingSections({ onExampleSearch }: LandingSectionsProps) {
         </div>
       </section>
 
+      <section className="landing-section" id="faq">
+        <SectionHeading
+          kicker="Frequently asked questions"
+          title="AI 논문 검색과 리뷰, 자주 묻는 질문"
+          body="집현전이 찾는 자료의 범위와 AI 리뷰의 검증 방식, 로그인 전후 이용 범위를 먼저 확인하세요."
+        />
+        <dl className="landing-faq-list">
+          {FAQ_ITEMS.map(item => (
+            <div className="landing-faq-item" key={item.question}>
+              <dt>{item.question}</dt>
+              <dd>{item.answer}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <section className="landing-section landing-claude" id="claude" tabIndex={-1}>
         <SectionHeading
           kicker="Optional Claude extension"
@@ -413,7 +446,7 @@ function LandingSections({ onExampleSearch }: LandingSectionsProps) {
         <h2>궁금한 주제부터 검색해보세요</h2>
         <p>검색은 바로 시작할 수 있습니다. 집현전이 논문을 읽고 근거를 표시하는 방식이 궁금하다면 공개 리뷰를 먼저 살펴보세요.</p>
         <div className="landing-closing-actions">
-          <button type="button" className="landing-cta" onClick={() => navigate('/')}>논문 검색하기</button>
+          <Link className="landing-cta" to="/">논문 검색하기</Link>
           <Link className="landing-cta landing-cta--ghost" to="/blog/category/paper-review">공개 리뷰 읽기</Link>
           <a className="landing-link landing-closing-link" href="#claude">Claude 확장 보기 ↑</a>
         </div>

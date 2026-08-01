@@ -77,6 +77,8 @@ body {
 }
 
 .nav-btn {
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -87,6 +89,7 @@ body {
   border-radius: 6px;
   transition: all 0.2s;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .nav-btn:hover {
