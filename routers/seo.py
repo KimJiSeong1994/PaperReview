@@ -161,8 +161,9 @@ BLOG_SERIES: dict[str, dict] = {
         "title": "GraphRAG 논문 리뷰 시리즈",
         "description": (
             "LLM 검색증강생성에 지식 그래프를 결합하는 GraphRAG 계열의 핵심 "
-            "논문 8편을 전역 커뮤니티 요약(MS GraphRAG)과 그래프 연상 기억"
-            "(HippoRAG)부터 경량 이중 검색(LightRAG), "
+            "논문 9편을 전역 커뮤니티 요약(MS GraphRAG), 그래프 연상 기억"
+            "(HippoRAG), 이를 비모수적 장기 기억으로 확장한 HippoRAG 2부터 "
+            "경량 이중 검색(LightRAG), "
             "계층 집약과 LCA 검색(LeanRAG), 인과 경로 검색(CausalRAG), 계층형 "
             "인과 게이트(CausalRAG2), 계층 검색과 적응적 통합(Deep GraphRAG), "
             "다단계 파이프라인과 컴팩트 추출 모델(RAGU)까지 권장 순서로 깊이 "
@@ -173,6 +174,7 @@ BLOG_SERIES: dict[str, dict] = {
         "slugs": [
             "ms-graphrag-global-query-focused-summarization",
             "hipporag-neurobiologically-inspired-long-term-memory",
+            "hipporag2-from-rag-to-memory",
             "lightrag-dual-level-graph-rag",
             "leanrag-semantic-aggregation-hierarchical-retrieval",
             "causalrag-causal-graph-retrieval",
