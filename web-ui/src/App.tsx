@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Link, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
@@ -8,7 +8,7 @@ import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
 import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './contexts/AuthContext';
-import { INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
+import { INTRODUCE_KO_URL, INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
 
 const MyPage = lazy(() => import('./components/MyPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
@@ -24,8 +24,12 @@ const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
 const INTRODUCE_TITLE = 'AI Paper Search & Review | About Jiphyeonjeon';
 const INTRODUCE_DESCRIPTION = 'Jiphyeonjeon searches across scholarly sources, compares papers in an AI deep review, and checks important claims against source passages before guiding the next read.';
+const INTRODUCE_KO_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전 소개';
+const INTRODUCE_KO_DESCRIPTION = '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.';
 const SITE_URL = 'https://jiphyeonjeon.kr';
 const INTRODUCE_JSON_LD = introduceGraph();
+const INTRODUCE_KO_JSON_LD = introduceGraph('ko');
+const INTRODUCE_ALTERNATES = { en: INTRODUCE_URL, ko: INTRODUCE_KO_URL, 'x-default': INTRODUCE_URL };
 const INDEX_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
 function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
@@ -48,7 +52,10 @@ function BlogCategoryRoute({ isAdmin }: { isAdmin: boolean }) {
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, userRole, showLoginModal, setShowLoginModal, login, logout } = useAuth();
+  const isKoreanIntroduce = location.pathname.startsWith('/ko/introduce');
+  const isIntroduceRoute = isKoreanIntroduce || location.pathname.startsWith('/introduce');
 
   const handleMyPageClick = () => {
     if (isAuthenticated) {
@@ -90,7 +97,8 @@ function App() {
           </picture>
           <span className="brand-name">Jiphyeonjeon</span>
         </a>
-        <nav className="header-actions" aria-label="Main navigation">
+        <div className="header-right">
+        <nav className="header-actions" aria-label={isKoreanIntroduce ? '주요 메뉴' : 'Main navigation'}>
           {isAuthenticated && <RecommendationBell />}
           {isAuthenticated && userRole === 'admin' && (
             <button className="nav-btn" onClick={() => navigate('/admin')}>
@@ -101,14 +109,13 @@ function App() {
               Admin
             </button>
           )}
-          <ThemeToggle />
-          <Link className="nav-btn" to="/introduce/">
+          <Link className="nav-btn" to={isKoreanIntroduce ? '/ko/introduce/' : '/introduce/'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            About
+            {isKoreanIntroduce ? '소개' : 'About'}
           </Link>
           <Link className="nav-btn" to="/blog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -118,14 +125,14 @@ function App() {
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            Blog
+            {isKoreanIntroduce ? '블로그' : 'Blog'}
           </Link>
           <button className="nav-btn" onClick={handleMyPageClick}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            My Page
+            {isKoreanIntroduce ? '마이페이지' : 'My Page'}
           </button>
           {isAuthenticated && (
             <button className="nav-btn" onClick={logout}>
@@ -134,10 +141,25 @@ function App() {
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              Logout
+              {isKoreanIntroduce ? '로그아웃' : 'Logout'}
             </button>
           )}
         </nav>
+        <div className="header-utilities" role="group" aria-label={isKoreanIntroduce ? '화면 설정' : 'Display settings'}>
+          {isIntroduceRoute && (
+            <Link
+              className="language-switch"
+              to={isKoreanIntroduce ? '/introduce/' : '/ko/introduce/'}
+              lang={isKoreanIntroduce ? 'en' : 'ko'}
+              hrefLang={isKoreanIntroduce ? 'en' : 'ko'}
+              aria-label={isKoreanIntroduce ? 'View this page in English' : '이 페이지를 한국어로 보기'}
+            >
+              {isKoreanIntroduce ? 'EN' : '한국어'}
+            </Link>
+          )}
+          <ThemeToggle />
+        </div>
+        </div>
       </div>
     </div>
   );
@@ -246,10 +268,32 @@ function App() {
                 image={OG_DEFAULT_IMAGE}
                 robots={INDEX_ROBOTS}
                 jsonLd={INTRODUCE_JSON_LD}
+                alternates={INTRODUCE_ALTERNATES}
               />
               {header}
               <Suspense fallback={<div className="app-loading">Loading...</div>}>
-                <IntroducePage />
+                <IntroducePage locale="en" />
+              </Suspense>
+            </>
+          }
+        />
+        <Route
+          path="/ko/introduce"
+          element={
+            <>
+              <SEOHead
+                title={INTRODUCE_KO_TITLE}
+                description={INTRODUCE_KO_DESCRIPTION}
+                canonical={INTRODUCE_KO_URL}
+                locale="ko_KR"
+                image={OG_DEFAULT_IMAGE}
+                robots={INDEX_ROBOTS}
+                jsonLd={INTRODUCE_KO_JSON_LD}
+                alternates={INTRODUCE_ALTERNATES}
+              />
+              {header}
+              <Suspense fallback={<div className="app-loading">불러오는 중...</div>}>
+                <IntroducePage locale="ko" />
               </Suspense>
             </>
           }

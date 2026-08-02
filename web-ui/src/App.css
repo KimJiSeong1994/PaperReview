@@ -77,6 +77,45 @@ body {
   gap: 12px;
 }
 
+.header-right,
+.header-utilities {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  min-width: 0;
+  gap: 14px;
+}
+
+.header-utilities {
+  gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--wov-08);
+}
+
+.language-switch {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 7px 4px;
+  border-radius: 6px;
+  transition: color 0.18s, background 0.18s;
+}
+
+.language-switch:hover {
+  color: var(--text);
+  background: var(--wov-05);
+}
+
+.language-switch:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
 .app-header .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -85,18 +124,17 @@ body {
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid var(--wov-08);
+  border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.18s, background 0.18s, border-color 0.18s;
+  transition: color 0.18s, background 0.18s;
 }
 
 .app-header .theme-toggle:hover {
   color: var(--text);
   background: var(--wov-05);
-  border-color: var(--wov-10);
 }
 
 .app-header .theme-toggle:focus-visible {
@@ -146,7 +184,21 @@ body {
   }
 
   .header-actions {
+    gap: 0;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .header-utilities {
     gap: 4px;
+    padding-left: 6px;
+  }
+
+  .language-switch {
+    padding: 7px 2px;
+    font-size: 11px;
   }
 
   .nav-btn {
@@ -161,6 +213,12 @@ body {
   .nav-btn svg {
     flex: 0 0 auto;
     margin-right: 0 !important;
+  }
+
+  .app-header .theme-toggle {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
   }
 }
 

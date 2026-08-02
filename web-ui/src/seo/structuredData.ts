@@ -13,6 +13,7 @@ import { BLOG_SERIES, seriesOf } from './series';
 export const SITE_URL = 'https://jiphyeonjeon.kr';
 export const OG_DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
 export const INTRODUCE_URL = `${SITE_URL}/introduce/`;
+export const INTRODUCE_KO_URL = `${SITE_URL}/ko/introduce/`;
 
 const ORG_ID = 'https://jiphyeonjeon.kr/#organization';
 
@@ -132,7 +133,15 @@ export function homeGraph(): Record<string, unknown> {
 }
 
 /** About-page graph that connects the visible product explanation to the site entity. */
-export function introduceGraph(): Record<string, unknown> {
+export function introduceGraph(locale: 'en' | 'ko' = 'en'): Record<string, unknown> {
+  const isKorean = locale === 'ko';
+  const url = isKorean ? INTRODUCE_KO_URL : INTRODUCE_URL;
+  const title = isKorean
+    ? 'AI 논문 검색·리뷰 도구 | 집현전 소개'
+    : 'AI Paper Search & Review | About Jiphyeonjeon';
+  const description = isKorean
+    ? '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.'
+    : 'Jiphyeonjeon searches scholarly sources, compares papers in an AI deep review, and checks important claims against source passages before guiding the next read.';
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -141,13 +150,11 @@ export function introduceGraph(): Record<string, unknown> {
       softwareApplicationNode(),
       {
         '@type': 'AboutPage',
-        '@id': `${INTRODUCE_URL}#about`,
-        url: INTRODUCE_URL,
-        name: 'AI Paper Search & Review | About Jiphyeonjeon',
-        description:
-          'Jiphyeonjeon searches scholarly sources, compares papers in an AI deep review, '
-          + 'and checks important claims against source passages before guiding the next read.',
-        inLanguage: 'en',
+        '@id': `${url}#about`,
+        url,
+        name: title,
+        description,
+        inLanguage: locale,
         isPartOf: { '@id': `${SITE_URL}/#website` },
         about: { '@id': `${SITE_URL}/#app` },
         mainEntity: { '@id': `${SITE_URL}/#app` },
@@ -155,19 +162,19 @@ export function introduceGraph(): Record<string, unknown> {
       },
       {
         '@type': 'BreadcrumbList',
-        '@id': `${INTRODUCE_URL}#breadcrumb`,
+        '@id': `${url}#breadcrumb`,
         itemListElement: [
           {
             '@type': 'ListItem',
             position: 1,
-            name: 'Jiphyeonjeon',
+            name: isKorean ? '집현전' : 'Jiphyeonjeon',
             item: `${SITE_URL}/`,
           },
           {
             '@type': 'ListItem',
             position: 2,
-            name: 'About',
-            item: INTRODUCE_URL,
+            name: isKorean ? '소개' : 'About',
+            item: url,
           },
         ],
       },

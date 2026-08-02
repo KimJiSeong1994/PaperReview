@@ -108,6 +108,17 @@ describe('introduceGraph', () => {
     expect(about.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
     expect((breadcrumb.itemListElement as unknown[])).toHaveLength(2);
   });
+
+  it('builds a distinct Korean AboutPage graph', () => {
+    const graph = introduceGraph('ko')['@graph'] as Record<string, unknown>[];
+    const about = graph.find((node) => node['@type'] === 'AboutPage')!;
+    const breadcrumb = graph.find((node) => node['@type'] === 'BreadcrumbList')!;
+
+    expect(about.url).toBe('https://jiphyeonjeon.kr/ko/introduce/');
+    expect(about.inLanguage).toBe('ko');
+    expect(about.name).toContain('집현전 소개');
+    expect((breadcrumb.itemListElement as Record<string, unknown>[])[1].name).toBe('소개');
+  });
 });
 
 describe('homeGraph', () => {

@@ -14,6 +14,7 @@ export interface SEOHeadProps {
   publishedTime?: string;
   modifiedTime?: string;
   locale?: string;
+  alternates?: Record<string, string>;
 }
 
 function upsertMeta(selector: string, attrs: Record<string, string>) {
@@ -37,6 +38,20 @@ function upsertCanonical(href: string) {
   }
   element.setAttribute(MANAGED_ATTR, 'true');
   element.setAttribute('href', href);
+}
+
+function upsertAlternate(hreflang: string, href: string) {
+  let element = document.head.querySelector<HTMLLinkElement>(
+    `link[rel="alternate"][hreflang="${hreflang}"]`,
+  );
+  if (!element) {
+    element = document.createElement('link');
+    element.setAttribute('rel', 'alternate');
+    element.setAttribute('hreflang', hreflang);
+    document.head.appendChild(element);
+  }
+  element.setAttribute('href', href);
+  element.setAttribute(MANAGED_ATTR, 'true');
 }
 
 function upsertJsonLd(data: Record<string, unknown>) {
@@ -71,10 +86,12 @@ export default function SEOHead({
   publishedTime,
   modifiedTime,
   locale = 'en_US',
+  alternates,
 }: SEOHeadProps) {
   useEffect(() => {
     removeManagedTags();
     document.title = title;
+    document.documentElement.lang = locale === 'ko_KR' ? 'ko' : 'en';
 
     const ogImage = image || OG_DEFAULT_IMAGE;
 
@@ -95,6 +112,12 @@ export default function SEOHead({
     if (canonical) {
       upsertCanonical(canonical);
       upsertMeta('meta[property="og:url"]', { property: 'og:url', content: canonical });
+    }
+
+    if (alternates) {
+      for (const [hreflang, href] of Object.entries(alternates)) {
+        upsertAlternate(hreflang, href);
+      }
     }
 
     if (robots) {
@@ -134,7 +157,7 @@ export default function SEOHead({
     return () => {
       removeManagedTags();
     };
-  }, [canonical, description, image, jsonLd, locale, modifiedTime, publishedTime, robots, title, type]);
+  }, [alternates, canonical, description, image, jsonLd, locale, modifiedTime, publishedTime, robots, title, type]);
 
   return null;
 }

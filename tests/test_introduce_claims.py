@@ -28,12 +28,15 @@ def test_introduce_avoids_unmeasured_review_duration_claims() -> None:
     assert "4-5 minutes" not in source
 
 
-def test_introduce_visible_copy_is_english() -> None:
+def test_introduce_maintains_english_and_korean_copy() -> None:
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (INTRO_SOURCE, LANDING_SOURCE)
     )
-    assert re.search(r"[가-힣]", source) is None
+    assert "Find the papers." in source
+    assert "논문을 찾은 뒤," in source
+    assert "What kind of AI paper search tool is Jiphyeonjeon?" in source
+    assert "집현전은 어떤 AI 논문 검색 도구인가요?" in source
 
 
 def test_introduce_blog_links_resolve_to_published_posts() -> None:
@@ -55,10 +58,14 @@ def test_introduce_blog_links_resolve_to_published_posts() -> None:
 def test_introduce_static_route_exposes_search_content_without_javascript() -> None:
     source = STATIC_ROUTE_SOURCE.read_text(encoding="utf-8")
     assert 'data-static-route="introduce"' in source
+    assert 'data-static-route="introduce-ko"' in source
     assert "From paper search to source verification" in source
     assert "How are claims in an AI paper review verified?" in source
     assert "AboutPage" in source
     assert "BreadcrumbList" in source
+    assert 'https://jiphyeonjeon.kr/ko/introduce/' in source
+    assert 'hreflang="en"' in source
+    assert 'hreflang="ko"' in source
 
 
 def test_introduce_static_route_explains_optional_claude_access() -> None:
