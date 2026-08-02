@@ -1170,7 +1170,7 @@
     },
     {
       "id": "ms-graphrag-global-query-focused-summarization",
-      "title": "MS GraphRAG 심층 분석: 커뮤니티 요약으로 문서 전체를 질문하는 RAG",
+      "title": "From Local to Global: A Graph RAG Approach to Query-Focused Summarization",
       "slug": "ms-graphrag-global-query-focused-summarization",
       "excerpt": "MS GraphRAG가 문서를 엔티티 그래프와 계층형 커뮤니티 보고서로 바꾸고 global sensemaking question에 답하는 방법, 실험 결과, 그리고 graph 효과와 global summarization 효과가 분리되지 않은 한계를 분석합니다.",
       "author": "Jiphyeonjeon Team",
@@ -1194,7 +1194,7 @@
     },
     {
       "id": "hipporag2-from-rag-to-memory",
-      "title": "HippoRAG 2 심층 분석: Graph RAG를 비모수적 장기 기억으로 확장하기",
+      "title": "From RAG to Memory: Non-Parametric Continual Learning for Large Language Models",
       "slug": "hipporag2-from-rag-to-memory",
       "excerpt": "HippoRAG 2가 passage node, query-to-triple, recognition memory와 PPR을 결합해 사실 검색의 손실을 줄이면서 multi-hop retrieval을 개선하는 원리, 실험 결과, 비용과 continual-learning 해석의 경계를 분석합니다.",
       "author": "Jiphyeonjeon Team",
