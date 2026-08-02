@@ -564,14 +564,16 @@ def test_graphrag_series_starts_with_ms_graphrag() -> None:
     slugs = BLOG_SERIES["graphrag"]["slugs"]
     causalrag = slugs.index("causalrag-causal-graph-retrieval")
     ms_graphrag = "ms-graphrag-global-query-focused-summarization"
+    kgp = "knowledge-graph-prompting-multi-document-qa"
     hipporag = slugs.index("hipporag-neurobiologically-inspired-long-term-memory")
     hipporag2 = "hipporag2-from-rag-to-memory"
-    assert len(slugs) == 9
+    assert len(slugs) == 10
     assert slugs[0] == ms_graphrag
+    assert slugs[1] == kgp
     assert slugs[hipporag + 1] == hipporag2
     assert slugs[causalrag + 1] == "causalrag2-hugrag-hierarchical-causal-gating"
     assert slugs[-1] == "ragu"
-    assert "핵심 논문 9편" in BLOG_SERIES["graphrag"]["description"]
+    assert "핵심 논문 10편" in BLOG_SERIES["graphrag"]["description"]
 
 
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:

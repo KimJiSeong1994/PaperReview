@@ -287,18 +287,21 @@ describe('series', () => {
   it('starts GraphRAG with MS GraphRAG and preserves the causal sequence', () => {
     const causalRag2Slug = 'causalrag2-hugrag-hierarchical-causal-gating';
     const msGraphRagSlug = 'ms-graphrag-global-query-focused-summarization';
+    const kgpSlug = 'knowledge-graph-prompting-multi-document-qa';
     const hippoRagSlug = 'hipporag-neurobiologically-inspired-long-term-memory';
     const hippoRag2Slug = 'hipporag2-from-rag-to-memory';
     const causalRagIndex = BLOG_SERIES.graphrag.slugs.indexOf(
       'causalrag-causal-graph-retrieval',
     );
     const hippoRagIndex = BLOG_SERIES.graphrag.slugs.indexOf(hippoRagSlug);
-    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(9);
+    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(10);
     expect(BLOG_SERIES.graphrag.slugs[0]).toBe(msGraphRagSlug);
+    expect(BLOG_SERIES.graphrag.slugs[1]).toBe(kgpSlug);
     expect(BLOG_SERIES.graphrag.slugs[hippoRagIndex + 1]).toBe(hippoRag2Slug);
     expect(BLOG_SERIES.graphrag.slugs[causalRagIndex + 1]).toBe(causalRag2Slug);
     expect(BLOG_SERIES.graphrag.slugs.at(-1)).toBe('ragu');
     expect(seriesOf(msGraphRagSlug)).toBe('graphrag');
+    expect(seriesOf(kgpSlug)).toBe('graphrag');
     expect(seriesOf(hippoRag2Slug)).toBe('graphrag');
   });
 
