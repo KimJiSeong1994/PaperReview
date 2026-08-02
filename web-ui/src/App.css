@@ -73,7 +73,35 @@ body {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.app-header .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s, border-color 0.18s;
+}
+
+.app-header .theme-toggle:hover {
+  color: var(--text);
+  background: var(--wov-05);
+  border-color: var(--wov-10);
+}
+
+.app-header .theme-toggle:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
 }
 
 .nav-btn {
@@ -106,6 +134,34 @@ body {
 .nav-btn-active {
   color: var(--indigo);
   background: rgba(99, 102, 241, 0.1);
+}
+
+@media (max-width: 760px) {
+  .app-header {
+    padding: 12px 14px;
+  }
+
+  .brand-name {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .nav-btn {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .nav-btn svg {
+    flex: 0 0 auto;
+    margin-right: 0 !important;
+  }
 }
 
 .main-content {

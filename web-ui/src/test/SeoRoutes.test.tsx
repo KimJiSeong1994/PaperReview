@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '../App';
 import BlogPage from '../components/BlogPage';
 import SharedView from '../components/SharedView';
@@ -67,6 +67,7 @@ describe('SEO-sensitive routes', () => {
     localStorage.clear();
     document.head.innerHTML = '';
     document.title = '';
+    document.documentElement.setAttribute('data-theme', 'dark');
   });
 
   afterEach(() => {
@@ -101,6 +102,12 @@ describe('SEO-sensitive routes', () => {
       'content',
       'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     );
+
+    const themeToggle = screen.getByRole('button', { name: 'Switch to light mode' });
+    fireEvent.click(themeToggle);
+    expect(document.documentElement).toHaveAttribute('data-theme', 'light');
+    expect(localStorage.getItem('theme')).toBe('light');
+    expect(themeToggle).toHaveAccessibleName('Switch to dark mode');
   });
 
   it('routes /blog/:slug directly to BlogPage and fetches the slug detail', async () => {
@@ -115,17 +122,17 @@ describe('SEO-sensitive routes', () => {
     expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
   });
 
-  it('serves the public introduction route with Korean-first metadata', async () => {
+  it('serves the public introduction route with English-first metadata', async () => {
     renderWithAuth('/introduce', <App />);
 
     expect(await screen.findByRole('heading', {
-      name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
+      name: /Find the papers.*Read the evidence/i,
     })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '소개' })).toHaveAttribute('href', '/introduce/');
-    expect(screen.getByText('집현전은 어떤 AI 논문 검색 도구인가요?')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/introduce/');
+    expect(screen.getByText('What kind of AI paper search tool is Jiphyeonjeon?')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(document.title).toBe('AI 논문 검색·리뷰 도구 | 집현전 소개');
+      expect(document.title).toBe('AI Paper Search & Review | About Jiphyeonjeon');
     });
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
@@ -138,6 +145,10 @@ describe('SEO-sensitive routes', () => {
     expect(document.head.querySelector('meta[property="og:image"]')).toHaveAttribute(
       'content',
       'https://jiphyeonjeon.kr/og-default.jpg',
+    );
+    expect(document.head.querySelector('meta[property="og:locale"]')).toHaveAttribute(
+      'content',
+      'en_US',
     );
     const graph = JSON.parse(document.querySelector('script#seo-json-ld')?.textContent || '{}');
     expect(graph['@graph'].some((node: Record<string, unknown>) => node['@type'] === 'AboutPage')).toBe(true);

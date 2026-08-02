@@ -6,6 +6,7 @@ import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
+import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './contexts/AuthContext';
 import { INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
 
@@ -21,8 +22,8 @@ const IntroducePage = lazy(() => import('./components/IntroducePage'));
 
 const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
-const INTRODUCE_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전 소개';
-const INTRODUCE_DESCRIPTION = '집현전은 arXiv·Google Scholar·OpenAlex 등에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.';
+const INTRODUCE_TITLE = 'AI Paper Search & Review | About Jiphyeonjeon';
+const INTRODUCE_DESCRIPTION = 'Jiphyeonjeon searches across scholarly sources, compares papers in an AI deep review, and checks important claims against source passages before guiding the next read.';
 const SITE_URL = 'https://jiphyeonjeon.kr';
 const INTRODUCE_JSON_LD = introduceGraph();
 const INDEX_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
@@ -89,7 +90,7 @@ function App() {
           </picture>
           <span className="brand-name">Jiphyeonjeon</span>
         </a>
-        <nav className="header-actions" aria-label="주 메뉴">
+        <nav className="header-actions" aria-label="Main navigation">
           {isAuthenticated && <RecommendationBell />}
           {isAuthenticated && userRole === 'admin' && (
             <button className="nav-btn" onClick={() => navigate('/admin')}>
@@ -100,13 +101,14 @@ function App() {
               Admin
             </button>
           )}
+          <ThemeToggle />
           <Link className="nav-btn" to="/introduce/">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            소개
+            About
           </Link>
           <Link className="nav-btn" to="/blog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -240,7 +242,7 @@ function App() {
                 title={INTRODUCE_TITLE}
                 description={INTRODUCE_DESCRIPTION}
                 canonical={INTRODUCE_URL}
-                locale="ko_KR"
+                locale="en_US"
                 image={OG_DEFAULT_IMAGE}
                 robots={INDEX_ROBOTS}
                 jsonLd={INTRODUCE_JSON_LD}

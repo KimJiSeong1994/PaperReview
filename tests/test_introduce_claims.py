@@ -17,12 +17,23 @@ def test_introduce_does_not_display_a_volatile_public_review_count() -> None:
     )
     assert "PUBLISHED_REVIEWS" not in source
     assert re.search(r"공개(?:된)? 리뷰[^\n]{0,30}\d+편", source) is None
+    assert re.search(r"\b\d+\s+(?:public\s+)?(?:paper\s+)?reviews?\b", source, re.I) is None
 
 
 def test_introduce_avoids_unmeasured_review_duration_claims() -> None:
     source = LANDING_SOURCE.read_text(encoding="utf-8")
     assert "4~5분" not in source
     assert "4-5분" not in source
+    assert "4–5 minutes" not in source
+    assert "4-5 minutes" not in source
+
+
+def test_introduce_visible_copy_is_english() -> None:
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (INTRO_SOURCE, LANDING_SOURCE)
+    )
+    assert re.search(r"[가-힣]", source) is None
 
 
 def test_introduce_blog_links_resolve_to_published_posts() -> None:
@@ -44,8 +55,8 @@ def test_introduce_blog_links_resolve_to_published_posts() -> None:
 def test_introduce_static_route_exposes_search_content_without_javascript() -> None:
     source = STATIC_ROUTE_SOURCE.read_text(encoding="utf-8")
     assert 'data-static-route="introduce"' in source
-    assert "AI 논문 검색에서 원문 검증까지" in source
-    assert "AI 논문 리뷰의 주장은 어떻게 검증하나요?" in source
+    assert "From paper search to source verification" in source
+    assert "How are claims in an AI paper review verified?" in source
     assert "AboutPage" in source
     assert "BreadcrumbList" in source
 
@@ -54,6 +65,6 @@ def test_introduce_static_route_explains_optional_claude_access() -> None:
     """Claude crawlers can distinguish the public web app from its extension."""
     source = STATIC_ROUTE_SOURCE.read_text(encoding="utf-8")
 
-    assert "Claude에서 집현전 활용하기" in source
-    assert "웹 서비스와 별도로 설치하는 오픈소스 확장" in source
+    assert "Use Jiphyeonjeon with Claude" in source
+    assert "optional open-source extension installed separately" in source
     assert "https://github.com/KimJiSeong1994/jiphyeonjeon-agent" in source

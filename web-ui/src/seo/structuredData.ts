@@ -143,11 +143,11 @@ export function introduceGraph(): Record<string, unknown> {
         '@type': 'AboutPage',
         '@id': `${INTRODUCE_URL}#about`,
         url: INTRODUCE_URL,
-        name: 'AI 논문 검색·리뷰 도구 | 집현전 소개',
+        name: 'AI Paper Search & Review | About Jiphyeonjeon',
         description:
-          '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 '
-          + '핵심 주장을 원문 근거와 대조하는 연구 도구입니다.',
-        inLanguage: 'ko',
+          'Jiphyeonjeon searches scholarly sources, compares papers in an AI deep review, '
+          + 'and checks important claims against source passages before guiding the next read.',
+        inLanguage: 'en',
         isPartOf: { '@id': `${SITE_URL}/#website` },
         about: { '@id': `${SITE_URL}/#app` },
         mainEntity: { '@id': `${SITE_URL}/#app` },
@@ -160,13 +160,13 @@ export function introduceGraph(): Record<string, unknown> {
           {
             '@type': 'ListItem',
             position: 1,
-            name: '집현전',
+            name: 'Jiphyeonjeon',
             item: `${SITE_URL}/`,
           },
           {
             '@type': 'ListItem',
             position: 2,
-            name: '소개',
+            name: 'About',
             item: INTRODUCE_URL,
           },
         ],

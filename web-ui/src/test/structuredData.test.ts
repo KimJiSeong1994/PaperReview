@@ -97,13 +97,13 @@ describe('softwareApplicationNode', () => {
 });
 
 describe('introduceGraph', () => {
-  it('connects the Korean AboutPage to the application, organization, and breadcrumb', () => {
+  it('connects the English AboutPage to the application, organization, and breadcrumb', () => {
     const graph = introduceGraph()['@graph'] as Record<string, unknown>[];
     const about = graph.find((node) => node['@type'] === 'AboutPage')!;
     const breadcrumb = graph.find((node) => node['@type'] === 'BreadcrumbList')!;
 
     expect(about.url).toBe('https://jiphyeonjeon.kr/introduce/');
-    expect(about.inLanguage).toBe('ko');
+    expect(about.inLanguage).toBe('en');
     expect(about.mainEntity).toEqual({ '@id': 'https://jiphyeonjeon.kr/#app' });
     expect(about.publisher).toEqual({ '@id': 'https://jiphyeonjeon.kr/#organization' });
     expect((breadcrumb.itemListElement as unknown[])).toHaveLength(2);
