@@ -1492,8 +1492,10 @@ async def llms_txt() -> Response:
     key_pages = "\n".join(
         [
             f"- [Home / Search]({SITE_URL}/): paper search interface",
-            f"- [About Jiphyeonjeon]({SITE_URL}/introduce/): AI paper search, "
+            f"- [About Jiphyeonjeon — English]({SITE_URL}/introduce/): AI paper search, "
             "multi-paper review, source-grounded claim verification, and access details",
+            f"- [집현전 소개 — 한국어]({SITE_URL}/ko/introduce/): AI 논문 검색, "
+            "다중 논문 리뷰, 원문 근거 검증과 이용 방법",
             f"- [Blog]({SITE_URL}/blog): research notes and write-ups",
             *key_page_cats,
         ]
@@ -1539,7 +1541,8 @@ async def llms_txt() -> Response:
         "## Review methodology\n"
         "Jiphyeonjeon searches broadly, reviews papers side by side, and checks important "
         "interpretations against source passages before presenting follow-up reading. "
-        f"See the [product explanation]({SITE_URL}/introduce/) and the "
+        f"See the product explanation in [English]({SITE_URL}/introduce/) or "
+        f"[한국어]({SITE_URL}/ko/introduce/), and the "
         f"[public CausalRAG2 evidence example]({SITE_URL}/blog/"
         "causalrag2-hugrag-hierarchical-causal-gating).\n"
         "\n"

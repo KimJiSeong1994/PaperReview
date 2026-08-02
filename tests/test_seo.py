@@ -342,7 +342,9 @@ def test_llms_txt_has_geo_sections(client: TestClient) -> None:
     # Entity grounding + machine-readable resources for AI engines.
     assert "github.com/KimJiSeong1994/PaperReview" in body
     assert "/feed.xml" in body and "/sitemap.xml" in body
-    assert "[About Jiphyeonjeon](https://jiphyeonjeon.kr/introduce/)" in body
+    assert "[About Jiphyeonjeon — English](https://jiphyeonjeon.kr/introduce/)" in body
+    assert "[집현전 소개 — 한국어](https://jiphyeonjeon.kr/ko/introduce/)" in body
+    assert "[한국어](https://jiphyeonjeon.kr/ko/introduce/)" in body
     assert "[Claude extension overview](https://jiphyeonjeon.kr/introduce/#claude)" in body
     assert "github.com/KimJiSeong1994/jiphyeonjeon-agent" in body
     assert "quotation, paraphrase, inference, and unverified claims" in body
