@@ -134,7 +134,10 @@ describe('SEO-sensitive routes', () => {
     })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/introduce/');
     expect(screen.getByText('What kind of AI paper search tool is Jiphyeonjeon?')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '이 페이지를 한국어로 보기' })).toHaveAttribute('href', '/ko/introduce/');
+    const languageTabs = screen.getByRole('navigation', { name: 'Introduction language' });
+    expect(within(languageTabs).getByRole('link', { name: '한국어' })).toHaveAttribute('href', '/ko/introduce/');
+    expect(within(languageTabs).getByRole('link', { name: '한국어' })).not.toHaveAttribute('aria-current');
+    expect(within(languageTabs).getByRole('link', { name: 'English' })).toHaveAttribute('aria-current', 'page');
 
     await waitFor(() => {
       expect(document.title).toBe('AI Paper Search & Review | About Jiphyeonjeon');
@@ -172,7 +175,10 @@ describe('SEO-sensitive routes', () => {
       name: /논문을 찾은 뒤.*근거까지 읽습니다/,
     })).toBeInTheDocument();
     expect(screen.getByText('집현전은 어떤 AI 논문 검색 도구인가요?')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View this page in English' })).toHaveAttribute('href', '/introduce/');
+    const languageTabs = screen.getByRole('navigation', { name: '소개 페이지 언어' });
+    expect(within(languageTabs).getByRole('link', { name: '한국어' })).toHaveAttribute('aria-current', 'page');
+    expect(within(languageTabs).getByRole('link', { name: 'English' })).toHaveAttribute('href', '/introduce/');
+    expect(within(languageTabs).getByRole('link', { name: 'English' })).not.toHaveAttribute('aria-current');
 
     await waitFor(() => {
       expect(document.title).toBe('AI 논문 검색·리뷰 도구 | 집현전 소개');

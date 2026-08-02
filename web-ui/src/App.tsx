@@ -147,15 +147,29 @@ function App() {
         </nav>
         <div className="header-utilities" role="group" aria-label={isKoreanIntroduce ? '화면 설정' : 'Display settings'}>
           {isIntroduceRoute && (
-            <Link
-              className="language-switch"
-              to={isKoreanIntroduce ? '/introduce/' : '/ko/introduce/'}
-              lang={isKoreanIntroduce ? 'en' : 'ko'}
-              hrefLang={isKoreanIntroduce ? 'en' : 'ko'}
-              aria-label={isKoreanIntroduce ? 'View this page in English' : '이 페이지를 한국어로 보기'}
+            <nav
+              className="language-tabs"
+              aria-label={isKoreanIntroduce ? '소개 페이지 언어' : 'Introduction language'}
             >
-              {isKoreanIntroduce ? 'EN' : '한국어'}
-            </Link>
+              <Link
+                className={`language-tab${isKoreanIntroduce ? ' language-tab-active' : ''}`}
+                to="/ko/introduce/"
+                lang="ko"
+                hrefLang="ko"
+                aria-current={isKoreanIntroduce ? 'page' : undefined}
+              >
+                한국어
+              </Link>
+              <Link
+                className={`language-tab${isKoreanIntroduce ? '' : ' language-tab-active'}`}
+                to="/introduce/"
+                lang="en"
+                hrefLang="en"
+                aria-current={isKoreanIntroduce ? undefined : 'page'}
+              >
+                English
+              </Link>
+            </nav>
           )}
           <ThemeToggle />
         </div>
