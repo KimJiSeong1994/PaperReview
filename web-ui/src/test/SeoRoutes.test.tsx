@@ -126,6 +126,34 @@ describe('SEO-sensitive routes', () => {
     expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
   });
 
+  it('hides urban spatial sociology from the blog sidebar only', async () => {
+    vi.mocked(fetchBlogPosts).mockResolvedValue({
+      data: {
+        posts: [{ ...blogPost, category: 'paper-review', published: true }],
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchBlogPosts>>);
+
+    renderWithAuth(
+      '/blog',
+      <Routes>
+        <Route path="/blog" element={<BlogPage isAdmin={false} />} />
+      </Routes>,
+    );
+
+    const sidebar = await screen.findByRole('tablist', {
+      name: 'Filter posts by category',
+    });
+    expect(within(sidebar).getByRole('link', {
+      name: /GNN 논문 리뷰 시리즈/,
+    })).toBeInTheDocument();
+    expect(within(sidebar).getByRole('link', {
+      name: /GraphRAG 논문 리뷰 시리즈/,
+    })).toBeInTheDocument();
+    expect(within(sidebar).queryByRole('link', {
+      name: /도시공간 사회학 논문 리뷰 시리즈/,
+    })).not.toBeInTheDocument();
+  });
+
   it('serves the public introduction route with English-first metadata', async () => {
     renderWithAuth('/introduce', <App />);
 

@@ -1252,7 +1252,8 @@
         "spatial-interaction",
         "gravity-model",
         "graph-neural-network",
-        "physics-informed-learning"
+        "physics-informed-learning",
+        "urban-spatial-sociology"
       ],
       "thumbnail_url": "/api/blog/figures/pig-gnn-fig1-pipeline.jpg",
       "created_at": "2026-08-03T00:00:00+09:00",
@@ -1278,7 +1279,8 @@
         "graph-neural-network",
         "graph-transformer",
         "transfer-learning",
-        "spatial-segregation"
+        "spatial-segregation",
+        "urban-spatial-sociology"
       ],
       "thumbnail_url": "/api/blog/figures/neurogravity-fig2-architecture.png",
       "created_at": "2026-08-04T00:00:00+09:00",

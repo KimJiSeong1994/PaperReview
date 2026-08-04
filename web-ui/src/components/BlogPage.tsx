@@ -536,21 +536,23 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           </a>
         ))}
         <div className="blog-side-label">Series</div>
-        {Object.entries(BLOG_SERIES).map(([sid, series]) => (
-          <a
-            key={sid}
-            href={`/blog/series/${sid}`}
-            className="blog-side-item"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate(`/blog/series/${sid}`);
-            }}
-          >
-            <span className="blog-side-icon">{sidebarIcon('paper-review')}</span>
-            <span className="blog-side-text">{series.title}</span>
-            <span className="blog-side-count">{series.slugs.length}</span>
-          </a>
-        ))}
+        {Object.entries(BLOG_SERIES)
+          .filter(([sid]) => sid !== 'urban-spatial-sociology')
+          .map(([sid, series]) => (
+            <a
+              key={sid}
+              href={`/blog/series/${sid}`}
+              className="blog-side-item"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/blog/series/${sid}`);
+              }}
+            >
+              <span className="blog-side-icon">{sidebarIcon('paper-review')}</span>
+              <span className="blog-side-text">{series.title}</span>
+              <span className="blog-side-count">{series.slugs.length}</span>
+            </a>
+          ))}
       </nav>
     </aside>
   );
