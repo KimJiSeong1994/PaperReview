@@ -558,22 +558,24 @@ def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -
     assert "핵심 논문 12편" in BLOG_SERIES["dwe"]["description"]
 
 
-def test_graphrag_series_starts_with_ms_graphrag() -> None:
+def test_graphrag_series_follows_foundational_publication_order() -> None:
     from routers.seo import BLOG_SERIES
 
     slugs = BLOG_SERIES["graphrag"]["slugs"]
-    causalrag = slugs.index("causalrag-causal-graph-retrieval")
-    ms_graphrag = "ms-graphrag-global-query-focused-summarization"
-    kgp = "knowledge-graph-prompting-multi-document-qa"
-    hipporag = slugs.index("hipporag-neurobiologically-inspired-long-term-memory")
-    hipporag2 = "hipporag2-from-rag-to-memory"
-    assert len(slugs) == 10
-    assert slugs[0] == ms_graphrag
-    assert slugs[1] == kgp
-    assert slugs[hipporag + 1] == hipporag2
-    assert slugs[causalrag + 1] == "causalrag2-hugrag-hierarchical-causal-gating"
-    assert slugs[-1] == "ragu"
+    assert slugs == [
+        "knowledge-graph-prompting-multi-document-qa",
+        "ms-graphrag-global-query-focused-summarization",
+        "hipporag-neurobiologically-inspired-long-term-memory",
+        "lightrag-dual-level-graph-rag",
+        "hipporag2-from-rag-to-memory",
+        "causalrag-causal-graph-retrieval",
+        "leanrag-semantic-aggregation-hierarchical-retrieval",
+        "deep-graphrag",
+        "causalrag2-hugrag-hierarchical-causal-gating",
+        "ragu",
+    ]
     assert "핵심 논문 10편" in BLOG_SERIES["graphrag"]["description"]
+    assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
 
 
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
