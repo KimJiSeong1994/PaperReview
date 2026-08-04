@@ -302,6 +302,19 @@ describe('series', () => {
     expect(seriesOf(BLOG_SERIES.graphrag.slugs.at(-1)!)).toBe('graphrag');
   });
 
+  it('groups urban mobility graph papers into urban spatial sociology', () => {
+    const series = BLOG_SERIES['urban-spatial-sociology'];
+    expect(series.title).toBe('도시공간 사회학 논문 리뷰 시리즈');
+    expect(series.slugs).toEqual([
+      'transferable-human-mobility-network-reconstruction-with-neurogravity',
+      'theory-informed-interpretable-graph-learning-urban-commuting-flows',
+    ]);
+    expect(series.description).toContain('핵심 논문 2편');
+    expect(series.description).toContain('원논문의 최초 공개 순서');
+    expect(seriesOf(series.slugs[0])).toBe('urban-spatial-sociology');
+    expect(seriesOf(series.slugs[1])).toBe('urban-spatial-sociology');
+  });
+
   it('maps a member slug to its series and marks the posting isPartOf', () => {
     const memberSlug = BLOG_SERIES.gnn.slugs[0];
     expect(seriesOf(memberSlug)).toBe('gnn');

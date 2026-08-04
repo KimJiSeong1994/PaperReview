@@ -85,6 +85,22 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
       'ragu',
     ],
   },
+  'urban-spatial-sociology': {
+    title: '도시공간 사회학 논문 리뷰 시리즈',
+    description:
+      '도시의 공간 구조와 인간 이동을 그래프와 공간 상호작용 이론으로 '
+      + '읽는 핵심 논문 2편을 이동 네트워크의 부분 관측 복원과 도시 간 '
+      + '전이를 다룬 neuroGravity, 통근 흐름의 생산·흡인 비대칭과 거리 '
+      + '감쇠를 학습 제약으로 결합한 PIG-GNN까지 원논문의 최초 공개 '
+      + '순서로 읽는 '
+      + '한국어 딥리뷰 시리즈. 도시 이동을 단순 예측 문제가 아니라 공간 '
+      + '분리, 통근 구조, 지역 간 관계를 함께 설명하는 사회학적 대상으로 '
+      + '살펴본다.',
+    slugs: [
+      'transferable-human-mobility-network-reconstruction-with-neurogravity',
+      'theory-informed-interpretable-graph-learning-urban-commuting-flows',
+    ],
+  },
 };
 
 /** Return the series id containing a slug, else null. */

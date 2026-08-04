@@ -578,6 +578,19 @@ def test_graphrag_series_follows_foundational_publication_order() -> None:
     assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
 
 
+def test_urban_spatial_sociology_series_tracks_mobility_papers() -> None:
+    from routers.seo import BLOG_SERIES
+
+    series = BLOG_SERIES["urban-spatial-sociology"]
+    assert series["title"] == "도시공간 사회학 논문 리뷰 시리즈"
+    assert series["slugs"] == [
+        "transferable-human-mobility-network-reconstruction-with-neurogravity",
+        "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    ]
+    assert "핵심 논문 2편" in series["description"]
+    assert "원논문의 최초 공개 순서" in series["description"]
+
+
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
