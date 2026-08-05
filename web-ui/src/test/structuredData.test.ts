@@ -293,10 +293,12 @@ describe('series', () => {
       'hipporag2-from-rag-to-memory',
       'causalrag-causal-graph-retrieval',
       'leanrag-semantic-aggregation-hierarchical-retrieval',
+      'linearrag-linear-graph-retrieval-augmented-generation',
       'deep-graphrag',
       'causalrag2-hugrag-hierarchical-causal-gating',
       'ragu',
     ]);
+    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(11);
     expect(BLOG_SERIES.graphrag.description).toContain('기초 연구부터 최초 공개 순서');
     expect(seriesOf(BLOG_SERIES.graphrag.slugs[0])).toBe('graphrag');
     expect(seriesOf(BLOG_SERIES.graphrag.slugs.at(-1)!)).toBe('graphrag');

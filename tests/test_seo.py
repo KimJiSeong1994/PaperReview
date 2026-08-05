@@ -570,11 +570,12 @@ def test_graphrag_series_follows_foundational_publication_order() -> None:
         "hipporag2-from-rag-to-memory",
         "causalrag-causal-graph-retrieval",
         "leanrag-semantic-aggregation-hierarchical-retrieval",
+        "linearrag-linear-graph-retrieval-augmented-generation",
         "deep-graphrag",
         "causalrag2-hugrag-hierarchical-causal-gating",
         "ragu",
     ]
-    assert "핵심 논문 10편" in BLOG_SERIES["graphrag"]["description"]
+    assert "핵심 논문 11편" in BLOG_SERIES["graphrag"]["description"]
     assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
 
 

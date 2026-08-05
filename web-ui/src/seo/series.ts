@@ -63,10 +63,11 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
     title: 'GraphRAG 논문 리뷰 시리즈',
     description:
       'LLM 검색증강생성에 지식 그래프를 결합하는 GraphRAG 계열의 핵심 '
-      + '논문 10편을 LLM 기반 문서 그래프 탐색(KGP), 전역 커뮤니티 '
+      + '논문 11편을 LLM 기반 문서 그래프 탐색(KGP), 전역 커뮤니티 '
       + '요약(MS GraphRAG), 그래프 연상 기억(HippoRAG), 경량 이중 '
       + '검색(LightRAG), 비모수적 장기 기억(HippoRAG 2), 인과 경로 '
-      + '검색(CausalRAG), 계층 집약과 LCA 검색(LeanRAG), 계층 검색과 '
+      + '검색(CausalRAG), 계층 집약과 LCA 검색(LeanRAG), 관계 추출 없는 '
+      + '선형 그래프 검색(LinearRAG), 계층 검색과 '
       + '적응적 통합(Deep GraphRAG), 계층형 인과 게이트(CausalRAG2), '
       + '다단계 파이프라인과 컴팩트 추출 모델(RAGU)까지 기초 연구부터 '
       + '최초 공개 순서로 깊이 있게 읽는 한국어 딥리뷰 '
@@ -80,6 +81,7 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
       'hipporag2-from-rag-to-memory',
       'causalrag-causal-graph-retrieval',
       'leanrag-semantic-aggregation-hierarchical-retrieval',
+      'linearrag-linear-graph-retrieval-augmented-generation',
       'deep-graphrag',
       'causalrag2-hugrag-hierarchical-causal-gating',
       'ragu',
