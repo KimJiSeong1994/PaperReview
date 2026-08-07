@@ -17,6 +17,11 @@ import {
   trackSearchEvent,
 } from '../analytics/events';
 
+const authState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  setShowLoginModal: vi.fn(),
+}));
+
 vi.mock('../api/client', () => ({
   fetchBatchReferences: vi.fn(),
   generatePoster: vi.fn(),
@@ -32,10 +37,7 @@ vi.mock('../hooks/useDeepReview', () => ({
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    isAuthenticated: true,
-    setShowLoginModal: vi.fn(),
-  }),
+  useAuth: () => authState,
 }));
 
 vi.mock('../analytics/events', () => ({
@@ -77,6 +79,7 @@ async function submitSearch(query: string) {
 describe('SearchPage analytics instrumentation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.isAuthenticated = true;
     HTMLElement.prototype.scrollIntoView = vi.fn();
     vi.mocked(useDeepReview).mockReturnValue({
       reviewSessionId: 'review-session-1',
@@ -136,6 +139,29 @@ describe('SearchPage analytics instrumentation', () => {
 
     graphDeferred.resolve({ nodes: [], edges: [] });
     refsDeferred.resolve({ references: [] });
+  });
+
+  it('keeps anonymous graph search public without protected reference enrichment', async () => {
+    authState.isAuthenticated = false;
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: {
+        arxiv: [{
+          doc_id: 'paper-public',
+          title: 'Public Graph Result',
+          authors: ['A. Researcher'],
+          year: 2026,
+          abstract: 'abstract',
+        }],
+      },
+      total: 1,
+    });
+
+    renderSearchPage();
+    await submitSearch('public graph search');
+
+    await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(1));
+    expect(fetchBatchReferences).not.toHaveBeenCalled();
+    expect(authState.setShowLoginModal).not.toHaveBeenCalled();
   });
 
   it('tracks poster completion when session poster generation falls back to direct generation', async () => {

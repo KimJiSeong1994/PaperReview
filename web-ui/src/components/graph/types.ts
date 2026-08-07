@@ -1,4 +1,5 @@
 import type { GraphData, Paper } from '../../types';
+import type { GraphMode } from './graphPresentation';
 
 export interface SigmaGraphViewProps {
   graphData: GraphData;
@@ -10,6 +11,8 @@ export interface SigmaGraphViewProps {
   edgeOpacity: number;
   minCitations: number;
   yearFilter: [number, number] | null;
+  graphMode: GraphMode;
+  pathEdgeKeys: Set<string>;
 }
 
 export interface GraphStats {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PaperList from './PaperList';
 import DetailPanel from './DetailPanel';
@@ -60,6 +60,8 @@ function SearchPage() {
   } = useDeepReview();
   const [showReport, setShowReport] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [showResultsPanel, setShowResultsPanel] = useState(true);
+  const [showDetailsPanel, setShowDetailsPanel] = useState(true);
 
   // Bookmark states
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
@@ -71,6 +73,16 @@ function SearchPage() {
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
   const [guidanceSticky, setGuidanceSticky] = useState(false);
+
+  const communityByPaper = useMemo(() => Object.fromEntries(
+    (graphData?.nodes || []).map(node => [
+      String(node.id),
+      {
+        communityId: node.community_id ?? 0,
+        label: node.community_label || `주제 ${Number(node.community_id ?? 0) + 1}`,
+      },
+    ]),
+  ), [graphData]);
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
@@ -126,6 +138,10 @@ function SearchPage() {
     };
 
     const enrichReferences = async () => {
+      // Reference enrichment is authenticated. Anonymous search must remain a
+      // public graph flow instead of turning a background 401 into a login modal.
+      if (!isAuthenticated) return;
+
       const topPapers = basePapers.slice(0, 5).map(p => ({
         title: p.title,
         doi: p.doi,
@@ -722,10 +738,35 @@ function SearchPage() {
             </div>
           </div>
 
-          <div className="main-container">
-            <div className="left-panel">
+          <div className="results-workspace-toolbar" aria-label="검색 결과 보기 설정">
+            <div className="results-context">
+              <strong>{papers.length}편의 논문 관계</strong>
+              <span>{enrichmentLoading ? '관계를 확장하는 중' : '그래프 준비 완료'}</span>
+            </div>
+            <div className="results-panel-actions">
+              <button
+                type="button"
+                className={showResultsPanel ? 'active' : ''}
+                aria-pressed={showResultsPanel}
+                onClick={() => setShowResultsPanel(value => !value)}
+              >
+                관련 논문
+              </button>
+              <button
+                type="button"
+                className={showDetailsPanel ? 'active' : ''}
+                aria-pressed={showDetailsPanel}
+                onClick={() => setShowDetailsPanel(value => !value)}
+              >
+                논문 정보
+              </button>
+            </div>
+          </div>
+
+          <div className={`main-container ${showResultsPanel ? '' : 'results-panel-collapsed'} ${showDetailsPanel ? '' : 'details-panel-collapsed'}`}>
+            <div className={`left-panel ${showResultsPanel ? '' : 'is-collapsed'}`}>
               <div className="pane-title">
-                Prior & Related Works
+                연구 탐색
                 {selectedPapersForReview.size > 0 && (
                   <span style={{ marginLeft: '8px', fontSize: '0.9em', color: 'var(--text-faint)' }}>
                     ({selectedPapersForReview.size} 선택됨)
@@ -736,16 +777,22 @@ function SearchPage() {
                 papers={papers}
                 selectedPaper={selectedPaper}
                 onSelect={handlePaperSelect}
+                highlightedPapers={highlightedPapers}
+                communityByPaper={communityByPaper}
                 selectedForReview={selectedPapersForReview}
                 onToggleForReview={handlePaperToggleForReview}
               />
             </div>
 
             <div className="center-panel">
-              <div className="pane-title">Graph View</div>
+              <div className="pane-title graph-pane-title">
+                <span>논문 관계 그래프</span>
+                <span className="graph-pane-caption">노드를 선택하면 가까운 연구가 함께 강조됩니다</span>
+              </div>
               {graphData ? (
                 <Suspense fallback={<div className="app-loading">Loading graph...</div>}>
                   <GraphViewComponent
+                    key={queryHash || query}
                     graphData={graphData}
                     selectedPaper={selectedPaper}
                     highlightedPapers={highlightedPapers}
@@ -759,8 +806,8 @@ function SearchPage() {
             </div>
 
             {!showReport && (
-              <div className="right-panel">
-                <div className="pane-title">Details</div>
+              <div className={`right-panel ${showDetailsPanel ? '' : 'is-collapsed'}`}>
+                <div className="pane-title">논문 정보</div>
                 {selectedPaper ? (
                   <DetailPanel
                     paper={selectedPaper}
@@ -779,7 +826,7 @@ function SearchPage() {
             )}
 
             {showReport && (
-              <div className="right-panel">
+              <div className={`right-panel ${showDetailsPanel ? '' : 'is-collapsed'}`}>
                 <div className="pane-title">
                   Deep Research Report
                   <div className="report-title-actions">

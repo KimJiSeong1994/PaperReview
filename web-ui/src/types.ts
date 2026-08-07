@@ -22,17 +22,35 @@ export interface GraphNode {
   citations?: number;
   authors?: string[];
   weight?: number;
+  community_id?: number;
+  community_label?: string;
+  hop_distance?: number;
 }
 
 export interface GraphEdge {
   source: string;
   target: string;
   weight?: number;
+  shared_terms?: string[];
+}
+
+export interface GraphCommunity {
+  community_id: number;
+  label: string;
+  nodes: string[];
+  size: number;
 }
 
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  meta?: {
+    edge_method: 'semantic_cosine' | 'title_keyword_jaccard' | 'unavailable';
+    edge_label: string;
+    edge_threshold?: number;
+    directed: boolean;
+    communities?: GraphCommunity[];
+  };
 }
 
 export interface SearchRequest {

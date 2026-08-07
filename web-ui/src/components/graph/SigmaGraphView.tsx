@@ -7,6 +7,7 @@ import type { SigmaGraphViewProps } from './types';
 import { useGraphData } from './useGraphData';
 import type { Paper } from '../../types';
 import { useThemeObserver, type Theme } from '../../theme';
+import { graphEdgeKey, type GraphMode } from './graphPresentation';
 
 /**
  * Sigma's default hover renderer always paints a WHITE box (hardcoded #FFF) and
@@ -64,6 +65,8 @@ function GraphEvents({
   showLabels,
   edgeOpacity,
   theme,
+  graphMode,
+  pathEdgeKeys,
 }: {
   selectedPaper: Paper | null;
   highlightedPapers: Set<string>;
@@ -72,6 +75,8 @@ function GraphEvents({
   showLabels: boolean;
   edgeOpacity: number;
   theme: Theme;
+  graphMode: GraphMode;
+  pathEdgeKeys: Set<string>;
 }) {
   const sigma = useSigma();
   const registerEvents = useRegisterEvents();
@@ -185,11 +190,14 @@ function GraphEvents({
       const source = graph.source(edge);
       const target = graph.target(edge);
 
-      const isConnectedToSelection =
-        (selectedNodeId && (source === selectedNodeId || target === selectedNodeId)) ||
-        highlightedPapers.has(source) ||
-        highlightedPapers.has(target) ||
-        (hoveredNode && (source === hoveredNode || target === hoveredNode));
+      const isConnectedToSelection = graphMode === 'path'
+        ? pathEdgeKeys.has(graphEdgeKey(source, target))
+        : (
+          (selectedNodeId && (source === selectedNodeId || target === selectedNodeId)) ||
+          highlightedPapers.has(source) ||
+          highlightedPapers.has(target) ||
+          (hoveredNode && (source === hoveredNode || target === hoveredNode))
+        );
 
       if (isConnectedToSelection) {
         // Highlight connected edges: purple, thicker
@@ -213,7 +221,7 @@ function GraphEvents({
 
       return res;
     },
-    [sigma, selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, edgeOpacity, theme],
+    [sigma, selectedNodeId, highlightedPapers, hoveredNode, hasActiveSelection, edgeOpacity, theme, graphMode, pathEdgeKeys],
   );
 
   // Apply settings including reducers and label visibility
@@ -249,6 +257,8 @@ function SigmaGraphView({
   edgeOpacity,
   minCitations,
   yearFilter,
+  graphMode,
+  pathEdgeKeys,
 }: SigmaGraphViewProps) {
   const theme = useThemeObserver();
   const { graph } = useGraphData(graphData, minCitations, yearFilter, theme);
@@ -262,7 +272,7 @@ function SigmaGraphView({
     <div className="sigma-graph-container">
       <SigmaContainer
         graph={graph}
-        style={{ width: '100%', height: '620px', background: 'var(--bg-elev)' }}
+        style={{ width: '100%', height: '100%', background: 'var(--bg-elev)' }}
         settings={{
           renderLabels: showLabels,
           labelColor: { color: colors.label },
@@ -286,6 +296,8 @@ function SigmaGraphView({
           showLabels={showLabels}
           edgeOpacity={edgeOpacity}
           theme={theme}
+          graphMode={graphMode}
+          pathEdgeKeys={pathEdgeKeys}
         />
       </SigmaContainer>
     </div>

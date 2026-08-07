@@ -72,6 +72,14 @@
 ## Components
 - Existing components to reuse: `SEOHead`, shared app header/footer, `LandingSections`, `CopySnippet`, `Link`, existing theme tokens and hanok assets.
 - New/changed components: intro hero scope strip, local section navigation, evidence-led differentiator rows, visible claim/evidence example, public-output links, intent-split closing CTA.
+- Search graph contract: the relationship graph remains the primary search-results workspace; related-paper and paper-detail panels are visible by default and independently collapsible. View settings are open by default but remain collapsible, and controls stay clear of task-critical graph content.
+- Graph semantics: distinguish the origin paper, current selection, path nodes, and topic communities without relying on color alone; expose the active edge-calculation method and keep year as tooltip or secondary metadata rather than the primary node color.
+- Graph visual treatment: use a `Research Nexus Console` workspace in dark mode: a deep neutral canvas, six restrained community colors, citation-and-connectivity-aware hub sizing, and softly bounded topic regions. Show the full edge set by default at restrained opacity, while reserving layered glow and sampled curves for selected-neighborhood and strongest-path relationships; keep a visible control for switching back to the quieter structural backbone. Light mode removes ambient glow and uses calmer, higher-luminance community colors.
+- Graph exploration layers: keep `기본 지형` as the permanent ranked-field canvas, with independently switchable `3-hop` and `원문 경로` overlays. Both may be active together, preserve the selected paper and node positions, and avoid implying citation direction; hop numbers mean strongest-neighbor expansion depth, not citation depth. Compute community positioning against the full fetched graph before applying 20/35/50 visibility limits so the user's mental map does not shift with density controls.
+- Graph communities and evidence: keep softly bounded topic communities visible as stable spatial context; expose similarity score and shared title/keyword terms on focused relationships so every emphasized edge has an inspectable reason.
+- Research-landscape decluttering: preserve the organic source layout, gently expand community centroids, and slightly compact each community instead of packing topics into isolated grid zones. The research landscape remains the single stable canvas; 3-hop and origin-path analysis are additive layers on that canvas. Use tight low-alpha hulls that remain visibly bounded against the canvas, render default full edges quietly, and retain the structural-backbone toggle as the decluttered alternative.
+- Graph density: use all 50 search candidates by default with explicit 20/35/50 controls so the relationship surface does not discard already-fetched papers. In `3-hop 주변`, retain every reachable layer up to the chosen limit and expose 1-hop, 2-hop, and 3-hop distance through rings, counts, and text. Always retain task-critical nodes such as the origin, current selection, and active path; keep any hidden results available in the synchronized paper list.
+- Graph workspace chrome: the graph expands when either side panel is collapsed. Keep the paper explorer compact, open both the related-paper and paper-detail panels by default, and place settings, labels, and edge-density controls in an accessible floating tool stack that does not cover important graph content.
 - Variants and states: dark/light themes, desktop/mobile workflow layout, collapsed/expanded MCP details, copy success feedback.
 - Token/component ownership: global tokens remain in `index.css`; intro-specific layout and variants stay in `IntroducePage.css` and `LandingSections.css`; blog article styling remains in `BlogPage.css`.
 
@@ -80,11 +88,15 @@
 - Keyboard/focus behavior: every CTA, anchor, summary, and copy control has a visible focus ring; in-page anchors account for the fixed header.
 - Contrast/readability: primary text uses strong tokens; muted text is secondary only; light-theme borders and buttons retain visible contrast.
 - Screen-reader semantics: one page `h1`, ordered heading levels, semantic sections/lists/tables, descriptive link labels, decorative art hidden from assistive technology.
+- Graph accessibility: synchronize graph selection with a keyboard-operable paper list and announce the selected paper's direct relationship count; graph filters and mobile panel controls meet the same visible-focus and touch-target rules as primary actions.
+- Graph layer accessibility: implement analysis layers as an ARIA-labelled pressed-button group with checkbox-like state indicators, disable selection-dependent layers until a paper is selected, and summarize active hop/path evidence as text outside the canvas. Preserve an off-screen layer/count summary when compact layouts hide visible detail text.
+- Graph sensory accessibility: community color is always paired with role shape, focus ring, text label, or paper-list marker. On desktop, show at least one readable representative-paper label per visible community before filling the remaining label budget, with at most eight priority labels total. Keep community annotations on one natural line with their `·` separator intact; do not force semantic phrases onto separate lines. Keep canvas labels out of compact mobile layouts, preserve the off-canvas selection summary, maintain a calm non-glowing light theme, and meet 44px touch targets on mobile.
 - Reduced motion and sensory considerations: no required animation; transitions are disabled or minimized under `prefers-reduced-motion`.
 
 ## Responsive behavior
 - Supported breakpoints/devices: 360px mobile through wide desktop; primary breakpoint 640px and layout breakpoint 900px.
 - Layout adaptations: two-column hero becomes linear; proof metrics wrap; workflow rail becomes stacked; wide tool tables scroll; CTAs become comfortable touch targets.
+- Search graph adaptation: at 900px and below the graph is rendered first at full width; the default-open related-paper and paper-detail panels stack below it and remain independently collapsible instead of forcing the three-column desktop canvas off-screen. At 520px and below, graph tools occupy a dedicated horizontal row above the canvas rather than overlaying nodes or community regions.
 - Touch/hover differences: hover is supplemental; all mobile interactive targets are at least 44px high.
 
 ## Interaction states
@@ -99,6 +111,8 @@
 - Tone: precise, analytical, calm, evidence-aware, and Korean-first.
 - Terminology: use “논문 검색”, “딥리뷰”, “원문 근거”, “사실검증”, “학습 경로”, and “공개 리뷰” consistently; keep MCP/tool identifiers in English.
 - Microcopy rules: lead with one concrete research outcome before listing features; describe the connected path from question to evidence and next reading; qualify runtime-dependent claims with “최대” or “구성된”; refer to the public-review library without a volatile item count; state which actions need sign-in or a separate extension; avoid fixed speed claims, unsupported superiority claims, and absolutes; do not conflate fast review with deep fact verification.
+- Graph microcopy: call the surface “논문 관계 그래프”; name the actual relationship method (for example “제목·키워드 유사도”), label neighborhood depth as `1-hop / 2-hop / 3-hop 강한 관계 확장`, and avoid implying citation, causal, or directional relationships when the graph is undirected similarity data.
+- Graph layer microcopy: use “기본 지형”, “3-hop”, and “원문 경로”, with a visible `기본 지형 + …` active-layer summary; reserve “선행 연구”, “후속 연구”, and directional arrows for future citation data that actually supports those claims. Keep the console status Korean-first and omit implementation details such as layout algorithms.
 
 ## Implementation constraints
 - Framework/styling system: React 19 + TypeScript + React Router + plain CSS.

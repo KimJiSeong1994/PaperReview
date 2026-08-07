@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import traceback
+from collections import Counter
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
@@ -182,6 +183,92 @@ def _build_edges_jaccard(
 
             if score >= JACCARD_EDGE_THRESHOLD:
                 graph.add_edge(doc_id1, doc_id2, weight=round(score, 3))
+
+
+_GRAPH_LABEL_STOPWORDS = {
+    "about", "after", "analysis", "approach", "based", "between", "from",
+    "model", "models", "paper", "research", "study", "system", "systems",
+    "through", "toward", "towards", "using", "with",
+}
+
+
+def _paper_graph_terms(paper: Dict[str, Any]) -> tuple[set[str], set[str]]:
+    """Return normalized keyword phrases and useful title tokens for graph explanations."""
+    keyword_terms: set[str] = set()
+    for keyword in paper.get("keywords") or []:
+        if isinstance(keyword, str):
+            normalized = " ".join(keyword.lower().split()).strip()
+            if len(normalized) > 2:
+                keyword_terms.add(normalized)
+
+    title_terms = {
+        token.lower()
+        for token in re.findall(r"[A-Za-z0-9가-힣-]+", paper.get("title", ""))
+        if len(token) > 3 and token.lower() not in _GRAPH_LABEL_STOPWORDS
+    }
+    return keyword_terms, title_terms
+
+
+def _annotate_graph_explanations(
+    graph: nx.Graph,
+    papers_data: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Attach deterministic community labels and inspectable shared edge terms."""
+    paper_by_id = {str(paper.get("doc_id", "")): paper for paper in papers_data}
+    terms_by_id = {
+        paper_id: _paper_graph_terms(paper)
+        for paper_id, paper in paper_by_id.items()
+    }
+
+    for source, target in graph.edges():
+        source_keywords, source_title = terms_by_id.get(str(source), (set(), set()))
+        target_keywords, target_title = terms_by_id.get(str(target), (set(), set()))
+        shared_keywords = sorted(source_keywords & target_keywords, key=lambda term: (-len(term), term))
+        shared_title = sorted(source_title & target_title)
+        shared_terms = list(dict.fromkeys([*shared_keywords, *shared_title]))[:4]
+        graph.edges[source, target]["shared_terms"] = shared_terms
+
+    if graph.number_of_nodes() == 0:
+        return []
+
+    detected = nx.community.louvain_communities(graph, weight="weight", seed=42)
+    ordered = sorted(
+        detected,
+        key=lambda node_set: (-len(node_set), min(str(node_id) for node_id in node_set)),
+    )
+    communities: List[Dict[str, Any]] = []
+
+    for community_id, node_set in enumerate(ordered):
+        keyword_counts: Counter[str] = Counter()
+        title_counts: Counter[str] = Counter()
+        for node_id in node_set:
+            keyword_terms, title_terms = terms_by_id.get(str(node_id), (set(), set()))
+            keyword_counts.update(keyword_terms)
+            title_counts.update(title_terms)
+
+        ranked_keywords = sorted(keyword_counts.items(), key=lambda item: (-item[1], item[0]))
+        ranked_titles = sorted(title_counts.items(), key=lambda item: (-item[1], item[0]))
+        label_terms = [term for term, _ in ranked_keywords[:2]]
+        for term, _ in ranked_titles:
+            if len(label_terms) >= 2:
+                break
+            if term not in label_terms:
+                label_terms.append(term)
+        label = " · ".join(label_terms) if label_terms else f"주제 {community_id + 1}"
+
+        node_ids = sorted(str(node_id) for node_id in node_set)
+        for node_id in node_set:
+            graph.nodes[node_id]["community_id"] = community_id
+            graph.nodes[node_id]["community_label"] = label
+
+        communities.append({
+            "community_id": community_id,
+            "label": label,
+            "nodes": node_ids,
+            "size": len(node_ids),
+        })
+
+    return communities
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -559,11 +646,17 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     # ── Edge building strategy ──────────────────────────────────
     n_papers = len(papers_data)
     _MAX_JACCARD_PAPERS = 500  # Jaccard O(n^2) 상한
+    edge_method = "title_keyword_jaccard"
+    edge_label = "제목·키워드 유사도"
+    edge_threshold: Optional[float] = JACCARD_EDGE_THRESHOLD
 
     if n_papers >= _FAISS_THRESHOLD:
         try:
             logger.info("[Graph] Using FAISS ANN for %d papers", n_papers)
             _build_edges_faiss(papers_data, graph)
+            edge_method = "semantic_cosine"
+            edge_label = "제목 의미 유사도"
+            edge_threshold = _FAISS_MIN_SIM
         except Exception as faiss_err:
             logger.warning("[Graph] FAISS failed: %s", faiss_err)
             if n_papers <= _MAX_JACCARD_PAPERS:
@@ -571,8 +664,13 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
                 _build_edges_jaccard(papers_data, graph)
             else:
                 logger.warning("[Graph] %d papers too large for Jaccard fallback, skipping edges", n_papers)
+                edge_method = "unavailable"
+                edge_label = "연결 계산 불가"
+                edge_threshold = None
     else:
         _build_edges_jaccard(papers_data, graph)
+
+    communities = _annotate_graph_explanations(graph, papers_data)
 
     # Layout
     try:
@@ -617,6 +715,8 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "journal": node_data.get("journal", ""),
                     "doc_id": str(node_id),
                     "weight": node_data.get("weight", 1),
+                    "community_id": node_data.get("community_id"),
+                    "community_label": node_data.get("community_label", ""),
                 }
             )
 
@@ -627,12 +727,23 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "source": str(start),
                     "target": str(end),
                     "weight": graph.edges[start, end].get("weight", 0.1),
+                    "shared_terms": graph.edges[start, end].get("shared_terms", []),
                 }
             )
     else:
         edges = []
 
-    return {"nodes": nodes, "edges": edges}
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "meta": {
+            "edge_method": edge_method,
+            "edge_label": edge_label,
+            "edge_threshold": edge_threshold,
+            "directed": False,
+            "communities": communities,
+        },
+    }
 
 
 @router.post("/graph-data")

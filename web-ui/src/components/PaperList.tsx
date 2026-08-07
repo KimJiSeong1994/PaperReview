@@ -6,11 +6,13 @@ interface PaperListProps {
   papers: Paper[];
   selectedPaper: Paper | null;
   onSelect: (paper: Paper) => void;
+  highlightedPapers?: Set<string>;
+  communityByPaper?: Record<string, { communityId: number; label: string }>;
   selectedForReview?: Set<string>;
   onToggleForReview?: (paperId: string) => void;
 }
 
-function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggleForReview }: PaperListProps) {
+function PaperList({ papers, selectedPaper, onSelect, highlightedPapers, communityByPaper, selectedForReview, onToggleForReview }: PaperListProps) {
   const selectedRef = useRef<HTMLDivElement>(null);
   
   // Scroll to selected paper when it changes
@@ -50,26 +52,60 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
     }
   };
 
+  const handleCardKeyDown = (e: React.KeyboardEvent, paper: Paper) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(paper);
+    }
+  };
+
+  const relatedRank = (paperId: string) => {
+    if (!highlightedPapers?.has(String(paperId))) return null;
+    return Array.from(highlightedPapers).indexOf(String(paperId)) + 1;
+  };
+
+  const communityMarker = (paperId: string) => {
+    const community = communityByPaper?.[String(paperId)];
+    if (!community) return null;
+    return (
+      <span className="paper-community" title={community.label}>
+        <span
+          className={`paper-community-dot community-tone-${community.communityId % 6}`}
+          aria-hidden="true"
+        />
+        <span>{community.label}</span>
+      </span>
+    );
+  };
+
   return (
-    <div className="paper-list">
+    <div className="paper-list" role="list" aria-label="검색된 논문">
       {papers.length > 0 && (
         <div
           key={papers[0].doc_id}
           ref={selectedPaper?.doc_id === papers[0].doc_id ? selectedRef : null}
           className={`paper-card ${papers[0].doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(papers[0].doc_id) ? 'selected-for-review' : ''} origin`}
           onClick={() => onSelect(papers[0])}
+          onKeyDown={(e) => handleCardKeyDown(e, papers[0])}
+          role="listitem"
+          tabIndex={0}
+          aria-current={papers[0].doc_id === selectedPaper?.doc_id ? 'true' : undefined}
         >
           {onToggleForReview && (
             <input
               type="checkbox"
               className="paper-checkbox"
+              aria-label={`${papers[0].title} 리뷰 선택`}
               checked={selectedForReview?.has(papers[0].doc_id) || false}
               onChange={() => {}}
               onClick={(e) => handleCheckboxClick(e, papers[0].doc_id)}
             />
           )}
           <div className="paper-content">
-          <div className="origin-badge">Origin Paper</div>
+          <div className="paper-role-row">
+            <div className="origin-badge">Origin</div>
+            {communityMarker(papers[0].doc_id)}
+          </div>
           <div className="paper-title">{papers[0].title}</div>
           <div className="paper-meta">{formatSummary(papers[0])}</div>
           </div>
@@ -80,20 +116,33 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
         <div
           key={paper.doc_id}
           ref={selectedPaper?.doc_id === paper.doc_id ? selectedRef : null}
-          className={`paper-card ${paper.doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(paper.doc_id) ? 'selected-for-review' : ''}`}
+          className={`paper-card ${paper.doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(paper.doc_id) ? 'selected-for-review' : ''} ${highlightedPapers?.has(String(paper.doc_id)) ? 'graph-related' : ''}`}
           onClick={() => onSelect(paper)}
+          onKeyDown={(e) => handleCardKeyDown(e, paper)}
+          role="listitem"
+          tabIndex={0}
+          aria-current={paper.doc_id === selectedPaper?.doc_id ? 'true' : undefined}
         >
           {onToggleForReview && (
             <input
               type="checkbox"
               className="paper-checkbox"
+              aria-label={`${paper.title} 리뷰 선택`}
               checked={selectedForReview?.has(paper.doc_id) || false}
               onChange={() => {}}
               onClick={(e) => handleCheckboxClick(e, paper.doc_id)}
             />
           )}
           <div className="paper-content">
-          {paper.source === 'reference' && <div className="ref-badge">Cited Paper</div>}
+          <div className="paper-role-row">
+            <span>
+              {paper.source === 'reference' && <span className="ref-badge">Reference</span>}
+              {relatedRank(paper.doc_id) && (
+                <span className="related-rank-badge">유사 {relatedRank(paper.doc_id)}</span>
+              )}
+            </span>
+            {communityMarker(paper.doc_id)}
+          </div>
           <div className="paper-title">{paper.title}</div>
           <div className="paper-meta">{formatSummary(paper)}</div>
           </div>
@@ -104,4 +153,3 @@ function PaperList({ papers, selectedPaper, onSelect, selectedForReview, onToggl
 }
 
 export default PaperList;
-
