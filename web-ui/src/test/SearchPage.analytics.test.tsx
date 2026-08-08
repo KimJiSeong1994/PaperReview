@@ -108,6 +108,27 @@ describe('SearchPage analytics instrumentation', () => {
     });
   });
 
+  it('shows an accessible library-search status for a search that takes longer than the flash threshold', async () => {
+    const searchDeferred = createDeferred<{
+      query_analysis: { is_academic: false };
+      results: Record<string, never>;
+    }>();
+    vi.mocked(searchPapers).mockReturnValue(searchDeferred.promise as never);
+
+    renderSearchPage();
+    await submitSearch('slow academic search');
+
+    const status = await screen.findByRole('status', {}, { timeout: 1200 });
+    expect(status).toHaveTextContent('집현전 서고 탐색 중');
+    expect(status).toHaveTextContent('질문과 맞닿은 논문을 찾고 있습니다');
+    expect(status.querySelector('.search-loading-illustration')).toHaveAttribute('aria-hidden', 'true');
+
+    searchDeferred.resolve({
+      query_analysis: { is_academic: false },
+      results: {},
+    });
+  });
+
 
   it('renders primary search results before graph and reference enrichment finish', async () => {
     const graphDeferred = createDeferred<{ nodes: []; edges: [] }>();

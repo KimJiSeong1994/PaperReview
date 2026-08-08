@@ -100,7 +100,7 @@
 - Touch/hover differences: hover is supplemental; all mobile interactive targets are at least 44px high.
 
 ## Interaction states
-- Loading: lazy routes show the existing app loading state; copy buttons retain layout while feedback changes.
+- Loading: paper search uses the Jiphyeonjeon library scene as a narrative status surface: the canonical scholar hero is visually prominent through its round silhouette, expressive face, and `RESEARCH` headband while visibly finding books; concise Korean copy explains that titles and core content are being reviewed. Dark mode uses the warm lamplit ink scene; light mode switches to a separate neutral hanji-white and muted-indigo daylight asset rather than filtering the dark artwork or carrying its ochre cast across themes. Keep the status truthful (no invented percentage or time promise), expose it through a polite live region, treat the illustration as decorative, and limit motion to a subtle nonessential pulse/zoom that is removed under reduced-motion. Lazy routes keep the compact app loading state; copy buttons retain layout while feedback changes.
 - Empty: search and blog empty states remain explicit and actionable.
 - Error: failed search/review/API states preserve the user's query or task context.
 - Success: copied commands announce success; completed review/public links expose the resulting artifact.

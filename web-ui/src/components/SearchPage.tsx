@@ -608,11 +608,31 @@ function SearchPage() {
 
       {loading && (
         <div className="loading-screen">
-          <div className="loading-message-bubble">
-            <div className="loading-text">
-              결과를 분석하고 있습니다...
+          <section
+            className="search-loading-scene"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <div
+              className="search-loading-illustration"
+              aria-hidden="true"
+            />
+            <div className="search-loading-shade" aria-hidden="true" />
+            <div className="search-loading-copy">
+              <div className="search-loading-kicker">
+                <span className="search-loading-signal" aria-hidden="true" />
+                집현전 서고 탐색 중
+              </div>
+              <h2>질문과 맞닿은 논문을 찾고 있습니다</h2>
+              <p>여러 연구의 제목과 핵심 내용을 살피며 읽을 만한 자료를 고르고 있어요.</p>
+              <div className="search-loading-books" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
