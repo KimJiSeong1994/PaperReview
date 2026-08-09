@@ -579,6 +579,20 @@ def test_graphrag_series_follows_foundational_publication_order() -> None:
     assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
 
 
+def test_graph_causality_series_follows_foundational_order() -> None:
+    from routers.seo import BLOG_SERIES
+
+    series = BLOG_SERIES["graph-causality"]
+    assert series["title"] == "Graph causality 논문 리뷰 시리즈"
+    assert series["slugs"] == [
+        "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+        "cic-dynamical-causality-under-invisible-confounders",
+        "ic2-interventional-dynamical-causality-under-latent-confounders",
+    ]
+    assert "핵심 논문 3편" in series["description"]
+    assert "공개·기초 흐름 순서" in series["description"]
+
+
 def test_urban_spatial_sociology_series_tracks_mobility_papers() -> None:
     from routers.seo import BLOG_SERIES
 

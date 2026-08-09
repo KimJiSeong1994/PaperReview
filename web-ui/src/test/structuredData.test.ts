@@ -304,6 +304,20 @@ describe('series', () => {
     expect(seriesOf(BLOG_SERIES.graphrag.slugs.at(-1)!)).toBe('graphrag');
   });
 
+  it('orders Graph causality from PCM through CIC to IC2', () => {
+    const series = BLOG_SERIES['graph-causality'];
+    expect(series.title).toBe('Graph causality 논문 리뷰 시리즈');
+    expect(series.slugs).toEqual([
+      'pcm-partial-cross-mapping-eliminates-indirect-causal-influences',
+      'cic-dynamical-causality-under-invisible-confounders',
+      'ic2-interventional-dynamical-causality-under-latent-confounders',
+    ]);
+    expect(series.description).toContain('핵심 논문 3편');
+    expect(series.description).toContain('공개·기초 흐름 순서');
+    expect(seriesOf(series.slugs[0])).toBe('graph-causality');
+    expect(seriesOf(series.slugs.at(-1)!)).toBe('graph-causality');
+  });
+
   it('groups urban mobility graph papers into urban spatial sociology', () => {
     const series = BLOG_SERIES['urban-spatial-sociology'];
     expect(series.title).toBe('도시공간 사회학 논문 리뷰 시리즈');

@@ -87,6 +87,21 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
       'ragu',
     ],
   },
+  'graph-causality': {
+    title: 'Graph causality 논문 리뷰 시리즈',
+    description:
+      '그래프와 동역학 시계열 위에서 직접 인과, 간접 인과, 잠재 교란자를 '
+      + '구분하려는 graph causality 계열의 핵심 논문 3편을 PCM의 '
+      + '부분 교차사상, CIC의 보이지 않는 교란자 분해, IC2의 개입 '
+      + '동역학 인과 추정까지 원논문의 공개·기초 흐름 순서로 읽는 '
+      + '한국어 딥리뷰 시리즈. 관계 그래프를 예측 대상이 아니라 인과 '
+      + '구조를 복원해야 할 연구 지형으로 다룬다.',
+    slugs: [
+      'pcm-partial-cross-mapping-eliminates-indirect-causal-influences',
+      'cic-dynamical-causality-under-invisible-confounders',
+      'ic2-interventional-dynamical-causality-under-latent-confounders',
+    ],
+  },
   'urban-spatial-sociology': {
     title: '도시공간 사회학 논문 리뷰 시리즈',
     description:
