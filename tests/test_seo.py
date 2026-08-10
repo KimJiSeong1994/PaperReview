@@ -478,6 +478,29 @@ def test_blog_index_renders_every_nonempty_category(monkeypatch) -> None:
     assert f"/blog/{PUBLISHED_SLUG}" in html
 
 
+def test_paper_review_hub_uses_append_order_for_same_time_publications(monkeypatch) -> None:
+    """Paper Reviews shows the later-published item first when dates tie."""
+    shared = {
+        "excerpt": "Review excerpt.",
+        "content": "Review body.",
+        "author": "test-admin",
+        "tags": ["PaperReview"],
+        "thumbnail_url": None,
+        "created_at": "2026-08-08T00:00:00+09:00",
+        "updated_at": None,
+        "published": True,
+        "reading_time_min": 1,
+        "category": "paper-review",
+    }
+    first = {**shared, "id": "first", "title": "First review", "slug": "first-review"}
+    second = {**shared, "id": "second", "title": "Second review", "slug": "second-review"}
+    monkeypatch.setattr("routers.seo._load_posts", lambda: [first, second])
+
+    html = TestClient(app).get("/blog/category/paper-review").text
+
+    assert html.index("Second review") < html.index("First review")
+
+
 def test_paper_review_post_links_reviewed_paper_in_json_ld(monkeypatch) -> None:
     """A review citing '**Paper:** …' emits ScholarlyArticle + about/citation."""
     review_post = {

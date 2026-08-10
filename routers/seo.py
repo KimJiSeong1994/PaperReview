@@ -27,7 +27,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, Response
 from markdown_it import MarkdownIt
 
-from .blog import _load_deleted, _load_posts, _posts_lock
+from .blog import _load_deleted, _load_posts, _posts_lock, _sort_posts_by_publication
 
 logger = logging.getLogger(__name__)
 
@@ -1164,7 +1164,7 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         return HTMLResponse(content=document, status_code=404)
 
     published = [p for p in posts if p.get("published")]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
     related = _related_posts(post, published)
     idx = next((i for i, p in enumerate(published) if p.get("slug") == slug), None)
     older = published[idx + 1] if idx is not None and idx + 1 < len(published) else None
@@ -1202,7 +1202,7 @@ async def blog_index_ssr() -> HTMLResponse:
         posts = _load_posts()
 
     published = [p for p in posts if p.get("published")]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
     def _index_section(cat: str) -> str:
         label, _desc = BLOG_CATEGORIES[cat]
         cat_posts = [p for p in published if _category_of(p) == cat]
@@ -1338,7 +1338,7 @@ async def blog_category_ssr(category: str) -> HTMLResponse:
         posts = _load_posts()
 
     published = [p for p in posts if p.get("published") and _category_of(p) == category]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
 
     items = "".join(
         f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
@@ -1451,7 +1451,7 @@ async def feed() -> Response:
         posts = _load_posts()
 
     published = [p for p in posts if p.get("published")]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
 
     items = []
     for post in published[:30]:
@@ -1502,7 +1502,7 @@ async def llms_txt() -> Response:
         posts = _load_posts()
 
     published = [p for p in posts if p.get("published")]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
 
     def _blog_line(post: dict) -> str:
         title = post.get("title", "")
@@ -1658,7 +1658,7 @@ async def llms_full_txt() -> Response:
         posts = _load_posts()
 
     published = [p for p in posts if p.get("published") and p.get("slug")]
-    published.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    published = _sort_posts_by_publication(published)
 
     sections: list[str] = [
         "# Jiphyeonjeon published blog full-text index",
