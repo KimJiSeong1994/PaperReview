@@ -616,17 +616,17 @@ def test_graph_causality_series_follows_foundational_order() -> None:
     assert "공개·기초 흐름 순서" in series["description"]
 
 
-def test_urban_spatial_sociology_series_tracks_mobility_papers() -> None:
-    from routers.seo import BLOG_SERIES
+def test_removed_urban_spatial_sociology_series_has_no_membership() -> None:
+    from routers.seo import BLOG_SERIES, _series_membership
 
-    series = BLOG_SERIES["urban-spatial-sociology"]
-    assert series["title"] == "도시공간 사회학 논문 리뷰 시리즈"
-    assert series["slugs"] == [
-        "transferable-human-mobility-network-reconstruction-with-neurogravity",
-        "theory-informed-interpretable-graph-learning-urban-commuting-flows",
-    ]
-    assert "핵심 논문 2편" in series["description"]
-    assert "원논문의 최초 공개 순서" in series["description"]
+    assert "urban-spatial-sociology" not in BLOG_SERIES
+    assert _series_membership(
+        "transferable-human-mobility-network-reconstruction-with-neurogravity"
+    ) is None
+    assert _series_membership(
+        "theory-informed-interpretable-graph-learning-urban-commuting-flows"
+    ) is None
+    assert TestClient(app).get("/blog/series/urban-spatial-sociology").status_code == 404
 
 
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
