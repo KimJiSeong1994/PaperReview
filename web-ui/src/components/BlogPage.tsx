@@ -537,7 +537,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         ))}
         <div className="blog-side-label">Series</div>
         {Object.entries(BLOG_SERIES)
-          .filter(([sid]) => sid !== 'urban-spatial-sociology')
           .map(([sid, series]) => (
             <a
               key={sid}
