@@ -65,6 +65,30 @@ def _load_posts() -> list[dict]:
         return []
 
 
+def _sort_posts_by_publication(posts: list[dict]) -> list[dict]:
+    """Return newest publications first with deterministic same-time ordering.
+
+    ``posts.json`` is append-oriented, so a later list position represents a
+    later publication when two posts share the same ``created_at`` value. This
+    tie-break keeps category/index views aligned with actual publishing order
+    without affecting the explicit chapter order defined by blog series.
+    """
+
+    def _key(indexed_post: tuple[int, dict]) -> tuple[float, int]:
+        index, post = indexed_post
+        raw = str(post.get("created_at") or "")
+        try:
+            published_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if published_at.tzinfo is None:
+                published_at = published_at.replace(tzinfo=timezone.utc)
+            timestamp = published_at.timestamp()
+        except (TypeError, ValueError, OverflowError):
+            timestamp = float("-inf")
+        return timestamp, index
+
+    return [post for _, post in sorted(enumerate(posts), key=_key, reverse=True)]
+
+
 def _save_posts(posts: list[dict]) -> None:
     """Save posts to posts.json (atomic write). Caller must hold _posts_lock."""
     _ensure_blog_dir()
@@ -340,8 +364,7 @@ async def list_posts(
     if category:
         posts = [p for p in posts if p.get("category", DEFAULT_CATEGORY) == category]
 
-    # Sort by created_at descending
-    posts.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    posts = _sort_posts_by_publication(posts)
 
     # Pagination
     total = len(posts)

@@ -50,6 +50,35 @@ def test_unique_slug_adds_counter_only_on_collision() -> None:
     )
 
 
+def test_list_posts_breaks_publication_time_ties_by_append_order(monkeypatch) -> None:
+    """A later-added review appears first when publication timestamps tie."""
+    shared = {
+        "excerpt": "Review excerpt.",
+        "content": "Review body.",
+        "author": "test-admin",
+        "tags": [],
+        "category": "paper-review",
+        "thumbnail_url": None,
+        "created_at": "2026-08-08T00:00:00+09:00",
+        "updated_at": None,
+        "published": True,
+        "reading_time_min": 1,
+    }
+    posts = [
+        {**shared, "id": "first", "title": "First review", "slug": "first-review"},
+        {**shared, "id": "second", "title": "Second review", "slug": "second-review"},
+    ]
+    monkeypatch.setattr(blog, "_load_posts", lambda: posts)
+
+    response = TestClient(app).get("/api/blog/posts?category=paper-review&limit=100")
+
+    assert response.status_code == 200
+    assert [post["slug"] for post in response.json()["posts"]] == [
+        "second-review",
+        "first-review",
+    ]
+
+
 def test_create_post_uses_clean_slug_and_resolves_collision(monkeypatch) -> None:
     existing = [
         {
