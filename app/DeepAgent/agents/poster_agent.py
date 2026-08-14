@@ -13,6 +13,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from uuid import uuid4
+
+from app.DeepAgent.poster.result_contract import CODE_FALLBACK_USED, success_for_status
+from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +346,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 "validation_score": float
             }
         """
+        started = datetime.now()
+        generation_id = f"poster_{uuid4().hex[:12]}"
+        warnings: List[str] = []
         try:
             # Phase 0.5: Figure Extraction (논문 삽도 추출)
             figures = []
@@ -415,33 +422,87 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 if validation_score < 0.75:
                     poster_html = self._refine_poster(poster_html, validation.suggestions)
 
-            # 외부 이미지 URL 자동 제거 (Gemini가 삽입할 수 있는 외부 로고 방어)
-            poster_html = self._sanitize_external_images(poster_html)
+            sanitized_html = sanitize_poster_markup(poster_html)
+            if sanitized_html != poster_html:
+                warnings.append("Poster markup was sanitized before saving.")
+            poster_html = sanitized_html
 
             # 결과 반환
             result = {
-                "success": True,
+                "poster_status": "succeeded",
+                "status": "succeeded",
+                "success": success_for_status("succeeded"),
                 "poster_html": poster_html,
                 "poster_path": None,
-                "validation_score": validation_score
+                "validation_score": validation_score,
+                "warnings": warnings,
+                "error_code": "",
+                "retryable": False,
+                "generation_id": generation_id,
+                "timings": {
+                    "agent_total_ms": round((datetime.now() - started).total_seconds() * 1000, 2),
+                },
+                "provenance": {
+                    "generator": "PosterGenerationAgent",
+                    "model": self.model if self.llm else "",
+                    "theme": self.theme,
+                    "fallback": False,
+                },
+                "quality": {
+                    "validation_score": validation_score,
+                },
+                "artifacts": {},
             }
 
             # 저장
             if output_dir:
                 result["poster_path"] = self._save_poster(poster_html, output_dir)
+                result["artifacts"]["poster_path"] = result["poster_path"]
+            result["artifacts"]["html_bytes"] = len(poster_html.encode("utf-8"))
 
             return result
 
         except Exception as e:
             logger.error("포스터 생성 실패, fallback 사용: %s", e, exc_info=True)
+            fallback_html = sanitize_poster_markup(
+                self._generate_simple_fallback(report_content, num_papers)
+            )
+            fallback_path = None
+            if output_dir:
+                try:
+                    fallback_path = self._save_poster(fallback_html, output_dir)
+                except Exception as save_exc:
+                    logger.warning("Fallback poster save failed: %s", save_exc)
 
             # Fallback
             return {
-                "success": False,
-                "poster_html": self._generate_simple_fallback(report_content, num_papers),
-                "poster_path": None,
+                "status": "degraded",
+                "poster_status": "degraded",
+                "success": success_for_status("degraded"),
+                "poster_html": fallback_html,
+                "poster_path": fallback_path,
                 "validation_score": 0.5,
-                "error": str(e)
+                "error": str(e),
+                "warnings": ["Poster generation failed; safe fallback HTML was returned."],
+                "error_code": CODE_FALLBACK_USED,
+                "retryable": True,
+                "generation_id": generation_id,
+                "timings": {
+                    "agent_total_ms": round((datetime.now() - started).total_seconds() * 1000, 2),
+                },
+                "provenance": {
+                    "generator": "PosterGenerationAgent",
+                    "model": self.model if self.llm else "",
+                    "theme": self.theme,
+                    "fallback": True,
+                },
+                "quality": {
+                    "validation_score": 0.5,
+                },
+                "artifacts": {
+                    "poster_path": fallback_path or "",
+                    "html_bytes": len(fallback_html.encode("utf-8")),
+                },
             }
 
     def _generate_autofigure_svgs(self, content) -> List[Dict[str, Any]]:
@@ -1520,21 +1581,11 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
 
     @staticmethod
     def _sanitize_external_images(html: str) -> str:
-        """외부 URL 이미지 태그를 제거한다 (Gemini가 삽입한 로고/아이콘 방어).
-
-        허용: data:image/ base64, 인라인 SVG, 폰트 CDN
-        제거: <img src="https://..."> 형태의 외부 이미지
-        """
-        # <img src="https://..." ...> 또는 <img src="http://..." ...> 제거
-        sanitized = re.sub(
-            r'<img\s+[^>]*src\s*=\s*["\']https?://[^"\']*["\'][^>]*/?>',
-            '',
-            html,
-            flags=re.IGNORECASE,
-        )
+        """Sanitize generated poster markup through the central poster policy."""
+        sanitized = sanitize_poster_markup(html)
         removed = len(html) - len(sanitized)
         if removed > 0:
-            logger.info("외부 이미지 URL %d자 제거됨", removed)
+            logger.info("Poster sanitizer removed %d chars", removed)
         return sanitized
 
     def _save_poster(self, poster_html: str, output_dir: Path) -> str:

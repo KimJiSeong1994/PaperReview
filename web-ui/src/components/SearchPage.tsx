@@ -10,6 +10,8 @@ import {
   startDeepReview,
   saveBookmark,
   fetchBatchReferences,
+  classifyPosterError,
+  classifyPosterResponse,
   generatePoster,
   generatePosterDirect,
 } from '../api/client';
@@ -69,6 +71,7 @@ function SearchPage() {
   // Poster states
   const [posterLoading, setPosterLoading] = useState(false);
   const [posterHtml, setPosterHtml] = useState<string | null>(null);
+  const [posterWarning, setPosterWarning] = useState<string | null>(null);
 
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
@@ -431,31 +434,68 @@ function SearchPage() {
   const handleGeneratePoster = async () => {
     if (reviewSessionId && reviewStatus === 'completed' && reviewReport) {
       setPosterLoading(true);
+      setPosterWarning(null);
       try {
+        let useDirectFallback = false;
         trackPosterGenerateStart();
-        const result = await generatePoster(reviewSessionId);
-        if (result.poster_html) {
-          trackPosterGenerateComplete();
-          setPosterHtml(result.poster_html);
-          return;
+        try {
+          const result = await generatePoster(reviewSessionId);
+          const poster = classifyPosterResponse(result);
+          if (poster.canPreview) {
+            if (poster.isCompleteAnalytics) {
+              trackPosterGenerateComplete(poster.status);
+            } else {
+              trackPosterGenerateFail(poster.status);
+            }
+            setPosterWarning(poster.status === 'degraded'
+              ? poster.warning || '포스터가 일부 제한된 상태로 생성되었습니다. 내용을 확인한 뒤 사용하세요.'
+              : null);
+            setPosterHtml(poster.posterHtml);
+            return;
+          }
+          if (poster.canUseDirectFallback) {
+            useDirectFallback = true;
+          } else {
+            trackPosterGenerateFail(poster.status);
+            setGuidanceMessage(`포스터 생성 실패: ${poster.error || '알 수 없는 오류'}`);
+            return;
+          }
+        } catch (err: unknown) {
+          const posterError = classifyPosterError(err);
+          if (!posterError.canUseDirectFallback) {
+            trackPosterGenerateFail(posterError.status);
+            console.warn('Session-based poster failed without direct fallback:', posterError.status);
+            setGuidanceMessage(`포스터 생성 실패: ${posterError.error || '알 수 없는 오류'}`);
+            return;
+          }
+          useDirectFallback = true;
         }
-      } catch (err: any) {
-        console.warn('Session-based poster failed, trying direct:', err?.response?.status);
-      }
 
-      try {
-        const result = await generatePosterDirect(reviewReport, selectedPapersForReview.size);
-        if (result.poster_html) {
-          trackPosterGenerateComplete();
-          setPosterHtml(result.poster_html);
-        } else {
-          trackPosterGenerateFail();
-          setGuidanceMessage(`포스터 생성 실패: ${(result as any).error || '알 수 없는 오류'}`);
+        if (useDirectFallback) {
+          console.warn('Session-based poster unavailable, trying direct fallback');
         }
-      } catch (err: any) {
-        trackPosterGenerateFail();
-        console.error('Direct poster generation failed:', err);
-        setGuidanceMessage(`포스터 생성 중 오류: ${err?.response?.data?.detail || err?.message || '알 수 없는 오류'}`);
+
+        const result = await generatePosterDirect(reviewReport, selectedPapersForReview.size);
+        const poster = classifyPosterResponse(result);
+        if (poster.canPreview) {
+          if (poster.isCompleteAnalytics) {
+            trackPosterGenerateComplete(poster.status);
+          } else {
+            trackPosterGenerateFail(poster.status);
+          }
+          setPosterWarning(poster.status === 'degraded'
+            ? poster.warning || '포스터가 일부 제한된 상태로 생성되었습니다. 내용을 확인한 뒤 사용하세요.'
+            : null);
+          setPosterHtml(poster.posterHtml);
+        } else {
+          trackPosterGenerateFail(poster.status);
+          setGuidanceMessage(`포스터 생성 실패: ${poster.error || '알 수 없는 오류'}`);
+        }
+      } catch (err: unknown) {
+        const posterError = classifyPosterError(err);
+        trackPosterGenerateFail(posterError.status);
+        console.error('Poster generation failed:', err);
+        setGuidanceMessage(`포스터 생성 중 오류: ${posterError.error || '알 수 없는 오류'}`);
       } finally {
         setPosterLoading(false);
       }
@@ -1096,9 +1136,26 @@ function SearchPage() {
                 </button>
               </div>
             </div>
+            {posterWarning && (
+              <div
+                role="alert"
+                style={{
+                  margin: '12px 16px 0',
+                  padding: '10px 12px',
+                  border: '1px solid rgba(234, 179, 8, 0.45)',
+                  borderRadius: '6px',
+                  background: 'rgba(234, 179, 8, 0.12)',
+                  color: '#92400e',
+                  fontSize: '13px',
+                }}
+              >
+                {posterWarning}
+              </div>
+            )}
             <iframe
               className="poster-modal-iframe"
               srcDoc={posterHtml}
+              sandbox=""
               title="Poster Preview"
             />
           </div>

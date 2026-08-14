@@ -17,8 +17,24 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from starlette.requests import Request
 
-from .deps import get_optional_user
+from app.DeepAgent.poster.resource_policy import (
+    AUTOFIGURE_IMAGE_B64_MAX_CHARS,
+    AUTOFIGURE_MAX_FIGURES,
+    AUTOFIGURE_PAPER_ANALYSES_MAX,
+    AUTOFIGURE_POSTER_BATCH_CONCURRENCY,
+    AUTOFIGURE_POSTER_BATCH_TIMEOUT_SECONDS,
+    AUTOFIGURE_TEXT_MAX_CHARS,
+)
+from app.DeepAgent.poster.result_contract import (
+    CODE_ACTIVE_JOB,
+    CODE_SESSION_UNAVAILABLE,
+    CODE_TIMEOUT_UNCLASSIFIED,
+)
+from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
+
+from .deps import get_current_user, get_optional_user, limiter, review_sessions, review_sessions_lock
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +54,7 @@ except ImportError:
     )
 
 router = APIRouter(prefix="/api/autofigure", tags=["autofigure"])
+_poster_batch_semaphore = asyncio.Semaphore(AUTOFIGURE_POSTER_BATCH_CONCURRENCY)
 
 
 # ── Pydantic models ──────────────────────────────────────────────────
@@ -45,8 +62,13 @@ router = APIRouter(prefix="/api/autofigure", tags=["autofigure"])
 class MethodToSvgRequest(BaseModel):
     """Request body for converting methodology text to SVG."""
 
-    method_text: str = Field(..., min_length=1, description="Methodology text to visualise")
-    paper_title: str = Field(default="", description="Optional paper title for context")
+    method_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=AUTOFIGURE_TEXT_MAX_CHARS,
+        description="Methodology text to visualise",
+    )
+    paper_title: str = Field(default="", max_length=500, description="Optional paper title for context")
     style_hints: Optional[Dict[str, Any]] = Field(
         default=None, description="Color scheme and styling hints"
     )
@@ -67,19 +89,31 @@ class MethodToSvgResponse(BaseModel):
 class FigureToSvgRequest(BaseModel):
     """Request body for converting a raster image to SVG."""
 
-    image_base64: str = Field(..., min_length=1, description="Base64-encoded image data")
-    mime_type: str = Field(default="image/png", description="MIME type of the image")
+    image_base64: str = Field(
+        ...,
+        min_length=1,
+        max_length=AUTOFIGURE_IMAGE_B64_MAX_CHARS,
+        description="Base64-encoded image data",
+    )
+    mime_type: str = Field(default="image/png", pattern=r"^image/(png|jpeg|jpg|webp)$", description="MIME type of the image")
 
 
 class PosterFiguresRequest(BaseModel):
     """Request body for batch poster figure generation."""
 
-    session_id: str = Field(..., min_length=1, description="Deep review session ID")
-    methodology: str = Field(..., min_length=1, description="Extracted methodology text")
-    paper_analyses: List[Dict[str, Any]] = Field(
-        default_factory=list, description="Per-paper analysis data"
+    session_id: str = Field(..., min_length=1, max_length=128, description="Deep review session ID")
+    methodology: str = Field(
+        ...,
+        min_length=1,
+        max_length=AUTOFIGURE_TEXT_MAX_CHARS,
+        description="Extracted methodology text",
     )
-    max_figures: int = Field(default=3, ge=1, le=10, description="Maximum figures to generate")
+    paper_analyses: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        max_length=AUTOFIGURE_PAPER_ANALYSES_MAX,
+        description="Per-paper analysis data",
+    )
+    max_figures: int = Field(default=3, ge=1, le=AUTOFIGURE_MAX_FIGURES, description="Maximum figures to generate")
 
 
 class PosterFiguresResponse(BaseModel):
@@ -103,6 +137,25 @@ def _require_autofigure() -> None:
             status_code=503,
             detail="AutoFigure service is not available. The autofigure_client module could not be imported.",
         )
+
+
+def _require_poster_session_owner(session_id: str, username: str) -> None:
+    """Return 404 for unknown or non-owned sessions to avoid enumeration."""
+    with review_sessions_lock:
+        session = review_sessions.get(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "poster_status": "failed",
+                    "status": "failed",
+                    "success": False,
+                    "error_code": CODE_SESSION_UNAVAILABLE,
+                    "retryable": False,
+                },
+            )
+        if session.get("username") != username:
+            raise HTTPException(status_code=404, detail="Session not found")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
@@ -133,7 +186,7 @@ async def method_to_svg(
         logger.info("[AutoFigure] method-to-svg completed in %.2fs", elapsed)
         return MethodToSvgResponse(
             success=result.success,
-            svg_content=result.final_svg,
+            svg_content=sanitize_poster_markup(result.final_svg),
             figure_png_b64=result.figure_png_b64,
             error=result.error,
         )
@@ -175,7 +228,7 @@ async def figure_to_svg(
         logger.info("[AutoFigure] figure-to-svg completed in %.2fs", elapsed)
         return MethodToSvgResponse(
             success=result.success,
-            svg_content=result.final_svg,
+            svg_content=sanitize_poster_markup(result.final_svg),
             figure_png_b64=result.figure_png_b64,
             error=result.error,
         )
@@ -214,9 +267,11 @@ async def health_check() -> Dict[str, Any]:
 
 
 @router.post("/generate-poster-figures", response_model=PosterFiguresResponse)
+@limiter.limit("3/minute")
 async def generate_poster_figures(
+    request: Request,
     body: PosterFiguresRequest,
-    username: str | None = Depends(get_optional_user),
+    username: str = Depends(get_current_user),
 ) -> PosterFiguresResponse:
     """Generate multiple SVG figures for a conference poster.
 
@@ -224,7 +279,9 @@ async def generate_poster_figures(
     overall methodology and up to ``max_figures - 1`` SVGs for
     individual paper analyses, all generated concurrently.
     """
+    del request
     _require_autofigure()
+    _require_poster_session_owner(body.session_id, username)
     start = time.monotonic()
     logger.info(
         "[AutoFigure] generate-poster-figures requested by=%s session=%s "
@@ -236,42 +293,60 @@ async def generate_poster_figures(
     )
 
     try:
-        client = get_autofigure_client()
+        try:
+            await asyncio.wait_for(_poster_batch_semaphore.acquire(), timeout=0.1)
+        except asyncio.TimeoutError as exc:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error_code": CODE_ACTIVE_JOB,
+                    "message": "AutoFigure poster batch concurrency budget exhausted",
+                    "retryable": True,
+                },
+            ) from exc
 
-        # ContentProxy: build_method_prompt expects a content-like object
-        class _ContentProxy:
-            def __init__(self, methodology: str):
-                self.methodology = methodology
-                self.contributions: List[str] = []
+        try:
+            client = get_autofigure_client()
 
-        content_proxy = _ContentProxy(body.methodology)
-        method_prompt = build_method_prompt(content_proxy, body.paper_analyses)
-        paper_prompts = build_paper_figure_prompts(body.paper_analyses)
+            # ContentProxy: build_method_prompt expects a content-like object
+            class _ContentProxy:
+                def __init__(self, methodology: str):
+                    self.methodology = methodology
+                    self.contributions: List[str] = []
 
-        # Limit paper prompts so total figures do not exceed max_figures
-        # (1 slot is reserved for the overall methodology figure)
-        paper_prompts = paper_prompts[: max(body.max_figures - 1, 0)]
+            content_proxy = _ContentProxy(body.methodology)
+            method_prompt = build_method_prompt(content_proxy, body.paper_analyses)
+            paper_prompts = build_paper_figure_prompts(body.paper_analyses)
 
-        # Prepare coroutines
-        tasks: List[asyncio.Task[Any]] = []
+            # Limit paper prompts so total figures do not exceed max_figures
+            # (1 slot is reserved for the overall methodology figure)
+            paper_prompts = paper_prompts[: max(body.max_figures - 1, 0)]
 
-        # Overall methodology SVG
-        tasks.append(
-            asyncio.ensure_future(
-                client.method_to_svg(method_prompt)
-            )
-        )
-
-        # Per-paper SVGs
-        for prompt_info in paper_prompts:
-            tasks.append(
-                asyncio.ensure_future(
-                    client.method_to_svg(prompt_info["method_prompt"])
+            tasks: List[asyncio.Task[Any]] = [
+                asyncio.create_task(client.method_to_svg(method_prompt))
+            ]
+            for prompt_info in paper_prompts:
+                tasks.append(
+                    asyncio.create_task(
+                        client.method_to_svg(prompt_info["method_prompt"])
+                    )
                 )
-            )
 
-        # Run concurrently, tolerating individual failures
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=AUTOFIGURE_POSTER_BATCH_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError as exc:
+            raise HTTPException(
+                status_code=504,
+                detail={
+                    "error_code": CODE_TIMEOUT_UNCLASSIFIED,
+                    "message": "AutoFigure poster batch timed out",
+                    "retryable": False,
+                },
+            ) from exc
+        finally:
+            _poster_batch_semaphore.release()
 
         figures: List[Dict[str, Any]] = []
         errors: List[str] = []
@@ -286,7 +361,7 @@ async def generate_poster_figures(
         else:
             figures.append({
                 "paper_title": "Overall Methodology",
-                "svg_content": method_result.final_svg,
+                "svg_content": sanitize_poster_markup(method_result.final_svg),
                 "figure_png_b64": method_result.figure_png_b64,
             })
 
@@ -307,7 +382,7 @@ async def generate_poster_figures(
             else:
                 figures.append({
                     "paper_title": paper_title,
-                    "svg_content": res.final_svg,
+                    "svg_content": sanitize_poster_markup(res.final_svg),
                     "figure_png_b64": res.figure_png_b64,
                 })
 
