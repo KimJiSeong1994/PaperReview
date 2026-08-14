@@ -1,5 +1,74 @@
 # SkillOpt Paper Search Scaffolding
 
+## Ranking sweep — the real ranker against the labelled benchmark
+
+`score_retrieval_results` had only ever been fed `build_fixture_retrieval_results`,
+whose own docstring says it is not a live search claim. `src/search_eval/ranking_sweep.py`
+supplies the missing half: it ranks a real candidate pool with the production
+`HybridRanker` and scores it with that same scorer.
+
+```bash
+python -m src.search_eval.ranking_sweep capture              # once; needs network
+python -m src.search_eval.ranking_sweep sweep --weights 0 0.5 1 2 4
+```
+
+`capture` queries arXiv, OpenAlex and DBLP (no API key) for each benchmark query
+and pins the union by sha256. `sweep` then ranks that fixed pool at each weight,
+so every arm sees identical candidates and only the fusion varies. Records come
+out as `measured` evidence bound to the pool hash.
+
+### Result: the cross-encoder is excluded from the fusion
+
+nDCG@10, measured with the dense signal both off and on (`--semantic`):
+
+| ce_weight | 0.0 | 0.5 | 1.0 | 2.0 | 4.0 |
+|---|---|---|---|---|---|
+| semantic off | **0.3655** | 0.3392 | 0.3236 | 0.3317 | 0.2975 |
+| semantic on | **0.3304** | 0.3282 | 0.2981 | 0.3004 | 0.2995 |
+
+Both configurations agree: quality degrades as the cross-encoder gains weight,
+with the cliff between 0.5 and 1.0. The cause is model fit, not a bug.
+`ms-marco-MiniLM-L-6-v2` is trained for web-passage question answering and
+rewards documents that restate the query. For "transformer attention mechanism"
+it ranks *Attention Is All You Need* 19th of 44 candidates, behind obscure papers
+whose titles recombine the query words — while the citation signal ranks it 4th.
+Topical similarity is already the dense signal's job, so it has no gap to fill.
+
+`CROSS_ENCODER_RRF_WEIGHT` is therefore `0.0`, and the ranker skips the model
+pass entirely at that weight rather than multiplying its output by zero. Raising
+the constant restores the signal; the sweep's `cross_encoder_weight` argument
+re-measures it at any time without touching production.
+
+Caveats that bound this result: 8 queries, and labels are matched by
+case-insensitive substring over title+abstract, which suits the benchmark's
+canonical-paper anchors but is not a general relevance judgement.
+
+## Measured ranking quality from real clicks
+
+Everything else in this directory scores *fixtures*. `src/search_eval/click_metrics.py`
+is the one evaluation path scored from behaviour: it reads the QUERY_SUBMIT /
+SEARCH_CLICK ledger in `data/events.db` and reports MRR@k, CTR@1/5/k, and the
+clicked-rank histogram. It is read-only, offline, and imports nothing from the
+approval chain.
+
+```bash
+python -m src.search_eval.click_metrics --days 30
+python -m src.search_eval.click_metrics --days 30 --by-variant
+```
+
+`--by-variant` groups impressions by the `ranking_variant` recorded on each
+QUERY_SUBMIT (currently the cross-encoder RRF weight, `ce_w=<value>`), which is
+how `CROSS_ENCODER_RRF_WEIGHT` in `src/graph_rag/hybrid_ranker.py` should be
+tuned: change it, let both variants accumulate impressions, compare MRR@10.
+Cache hits are excluded from that split because a cached body was ordered by
+whichever weight was live when it was written.
+
+Clicks recorded before the `rank` field existed carry no position; they appear
+as `clicks_without_rank` rather than being scored or dropped. This output is the
+`measured` evidence class the approval chain below asks for — fixture evidence
+validates the pipeline only.
+
+
 This directory documents the offline foundation for applying Microsoft SkillOpt
 to Jiphyeonjeon paper search, including the PR0-PR2 artifact-only automation
 boundary and the PR2.5 accepted-import-to-approval trust chain.

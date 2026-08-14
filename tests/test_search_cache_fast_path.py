@@ -152,7 +152,6 @@ async def test_query_analysis_fallback_cache_is_not_pre_analysis_guarded(client)
     with (
         patch.object(rs, "query_analyzer", analyzer),
         patch.object(rs, "search_agent", search_agent),
-        patch.object(rs, "relevance_filter", None),
         patch.object(rs, "_hybrid_ranker", None),
         patch.object(rs, "_get_cached_result", return_value=None),
         patch.object(rs, "_set_cache", return_value=None) as set_cache,
@@ -212,7 +211,6 @@ async def test_search_response_includes_source_timing_metadata(client):
     with (
         patch.object(rs, "query_analyzer", analyzer),
         patch.object(rs, "search_agent", search_agent),
-        patch.object(rs, "relevance_filter", None),
         patch.object(rs, "_hybrid_ranker", None),
         patch.object(rs, "_get_cached_result", return_value=None),
         patch.object(rs, "_set_cache", return_value=None) as set_cache,

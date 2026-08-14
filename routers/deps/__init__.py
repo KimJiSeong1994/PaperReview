@@ -57,7 +57,7 @@ from .auth import (
 from .middleware import API_AUTH_KEY, limiter, verify_api_key
 
 # ── Agents (depends on config) ──────────────────────────────────────
-from .agents import query_analyzer, relevance_filter, search_agent
+from .agents import query_analyzer, search_agent
 
 # ── OpenAI / LightRAG singletons (standalone) ───────────────────────
 from .openai_client import get_light_rag_agent, get_openai_client

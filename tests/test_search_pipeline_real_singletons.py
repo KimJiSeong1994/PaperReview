@@ -152,7 +152,6 @@ def real_ranker_client(tmp_path, monkeypatch):
     with (
         patch("routers.search.query_analyzer", qa_mock),
         patch("routers.search.search_agent", sa_mock),
-        patch("routers.search.relevance_filter", None),  # fast_mode also skips
         # NOTE: we deliberately do NOT patch routers.search._hybrid_ranker
         # Suppress cache IO to keep tests hermetic
         patch("routers.search._set_cache", return_value=None),
@@ -302,4 +301,75 @@ async def test_ranking_signature_proves_path_executed(real_ranker_async_client):
     assert sb.get("rrf_mode") is True, (
         "rrf_mode flag missing — rank_papers_rrf did not run. "
         f"Breakdown: {sb}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_response_carries_global_rank_matching_the_fused_score(
+    real_ranker_async_client,
+):
+    """The fused order must survive the per-source bucketing of the response.
+
+    ``results`` is ``Dict[source, papers]``, so a client that walks the buckets
+    sees source-grouped output and never the cross-source ranking. ``_rank``
+    is what carries it. This asserts the field is present, is a total order,
+    and agrees with the ranker's own ``_hybrid_score`` — i.e. it really is the
+    fused order and not the bucket order relabelled.
+    """
+    ac, headers, _papers = real_ranker_async_client
+    resp = await ac.post(
+        "/api/search",
+        headers=headers,
+        json={
+            "query": "attention",
+            "fast_mode": True,
+            "save_papers": False,
+            "sources": ["arxiv", "openalex"],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    all_papers = [p for papers in resp.json()["results"].values() for p in papers]
+    assert all_papers, "No papers returned — search pipeline broken upstream"
+
+    ranks = [p.get("_rank") for p in all_papers]
+    assert all(isinstance(r, int) for r in ranks), (
+        f"_rank missing from response papers — the client cannot recover the "
+        f"ranking order. Got: {ranks}"
+    )
+    assert sorted(ranks) == list(range(len(all_papers))), (
+        f"_rank is not a total order over the response: {sorted(ranks)}"
+    )
+
+    by_rank = sorted(all_papers, key=lambda p: p["_rank"])
+    scores = [p["_hybrid_score"] for p in by_rank if "_hybrid_score" in p]
+    assert scores == sorted(scores, reverse=True), (
+        "_rank disagrees with _hybrid_score — the published order is not the "
+        f"fused order. Scores in _rank order: {scores}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_source_buckets_alone_would_lose_the_ranking(real_ranker_async_client):
+    """Precondition for the test above: bucket order != ranked order here.
+
+    If the mocked sources ever return papers that happen to already be in
+    fused order, the previous test would pass even with the ordering bug
+    reintroduced. This fails loudly in that case instead.
+    """
+    ac, headers, _papers = real_ranker_async_client
+    resp = await ac.post(
+        "/api/search",
+        headers=headers,
+        json={
+            "query": "transformer attention",
+            "fast_mode": True,
+            "save_papers": False,
+            "sources": ["arxiv", "openalex"],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    bucket_order = [p["_rank"] for papers in resp.json()["results"].values() for p in papers]
+    assert bucket_order != sorted(bucket_order), (
+        "Bucket order already equals ranked order, so the ordering guard is "
+        "vacuous for this fixture — vary the mocked source results."
     )

@@ -90,13 +90,11 @@ def _patch_search_singletons():
     """
     qa_mock = _make_query_analyzer_mock()
     sa_mock = _make_search_agent_mock()
-    rf_mock = None   # graceful degradation: no relevance filter
     hr_mock = None   # graceful degradation: no hybrid ranker
 
     with (
         patch("routers.search.query_analyzer", qa_mock),
         patch("routers.search.search_agent", sa_mock),
-        patch("routers.search.relevance_filter", rf_mock),
         patch("routers.search._hybrid_ranker", hr_mock),
         # Prevent reading from / writing to the on-disk search cache
         patch("routers.search._set_cache", return_value=None),

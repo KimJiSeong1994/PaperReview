@@ -13,10 +13,17 @@ export const searchPapers = async (request: SearchRequest, signal?: AbortSignal)
  * Fire-and-forget: the server treats this as best-effort and a failure here
  * must never interrupt opening a paper.
  */
-export const trackSearchClick = (queryHash: string, paperId: string): void => {
+export const trackSearchClick = (queryHash: string, paperId: string, rank?: number): void => {
   if (!queryHash || !paperId) return;
   void api
-    .post('/api/search/click', { query_hash: queryHash, paper_id: paperId })
+    .post('/api/search/click', {
+      query_hash: queryHash,
+      paper_id: paperId,
+      // 1-based position in the ranked list the user actually saw. Without it
+      // the server can tell *that* a result was clicked but not *where* it
+      // ranked, which is what MRR and CTR@k are computed from.
+      ...(rank && rank > 0 ? { rank } : {}),
+    })
     .catch(() => {});
 };
 
