@@ -2,14 +2,15 @@
 
 ## Source of truth
 - Status: Active
-- Last refreshed: 2026-08-01
-- Primary product surfaces: public home/search, introduction page, blog/category/series pages, paper-review articles, authenticated research workspace.
+- Last refreshed: 2026-08-14
+- Primary product surfaces: public home/search, introduction page, blog/category/series pages, paper-review articles, authenticated research workspace, academic poster generation and preview/export.
 - Evidence reviewed:
   - `web-ui/src/App.tsx`, `web-ui/src/App.css`, `web-ui/src/index.css` — application shell, navigation, theme tokens, and hanok visual language.
   - `web-ui/src/components/IntroducePage.tsx`, `LandingSections.tsx` and their CSS — introduction narrative, conversion paths, responsive behavior.
   - `web-ui/src/components/SearchPage.tsx`, `MyPage.tsx`, `PaperViewerRoute.tsx` — implemented research flows and interaction states.
   - `data/blog/posts.json` — public result inventory and introduction-page proof count.
   - `docs/design-bookmark-review-highlight-integration.md`, `docs/mcp-distribution.md` — product boundaries and distribution context.
+  - `app/DeepAgent/config/style_guides/academic_poster_general.md`, `app/DeepAgent/config/poster_styles.yaml`, `app/DeepAgent/config/style_manager.py` — academic poster generation style contract, YAML theme defaults, and generated CSS.
   - `web-ui/public/introduce-hanok-*.{png,webp}`, `Jiphyeonjeon_llama.*` — brand assets.
   - `KimJiSeong1994/jiphyeonjeon-agent` main branch, reviewed 2026-08-01 — Claude integration claims, 11 MCP tools, and 6 user workflow skills.
   - Official Elicit, Consensus, SciSpace, ResearchRabbit, Litmaps, Connected Papers, Semantic Scholar, and Undermind product pages, reviewed 2026-08-01 — content-positioning evidence only, not visual references.
@@ -53,6 +54,7 @@
   `AboutPage` JSON-LD so search and answer engines do not depend on client rendering.
 - Introduction hierarchy: product definition → access and scope → differentiators → four-stage workflow → visible claim/evidence example and public outputs → capability detail → optional Claude extension → final actions.
 - Blog hierarchy: category/series context → title and metadata → markdown article → related navigation/admin controls.
+- Poster hierarchy: paper/review thesis → author/source context → primary evidence wall → metrics with real labels → method/figure/table support → limitations → provenance/review metadata → compact references. The poster is a primary generated artifact, not a decorative export of the search page.
 
 ## Design principles
 - Evidence before breadth: prove value with public outputs and source-aware language before listing capabilities.
@@ -60,6 +62,7 @@
 - Reading rhythm over decoration: typography, spacing, and a few meaningful visual anchors carry the design.
 - Progressive disclosure: keep MCP tool catalogs and installation detail available without making them the first-time visitor's main path.
 - Tradeoffs: favor an editorial research dossier over a dense dashboard or conventional card-heavy landing page.
+- Poster principle: evidence density beats ornament. Academic posters use a 4:3 A3 landscape Editorial Evidence Wall that keeps thesis, evidence, metrics, limitations, and metadata visible without relying on remote assets or placeholder claims.
 
 ## Visual language
 - Color: dark-first neutral background; indigo for actions and research-review accents; warm amber is limited to dark-theme hanok lighting while the light-theme illustration stays neutral.
@@ -68,6 +71,7 @@
 - Shape/radius/elevation: 10–18px restrained surfaces, 1px translucent borders, quiet shadows; use open editorial rows before cards.
 - Motion: short nonessential hover/focus transitions; honor reduced-motion preferences.
 - Imagery/iconography: hanok/llama assets establish the brand; product diagrams and published artifacts establish trust. Decorative imagery must not obscure text.
+- Academic poster visual contract: default generated posters use a 1600px x 1200px, 4:3 A3 landscape canvas with a 12-column grid, system-only fonts, sentence case, no forced uppercase, no negative letter spacing, and wrapping rules for long Korean/English mixed titles and technical identifiers. Poster palettes stay academic and multi-neutral rather than one-note gradients.
 
 ## Components
 - Existing components to reuse: `SEOHead`, shared app header/footer, `LandingSections`, `CopySnippet`, `Link`, existing theme tokens and hanok assets.
@@ -82,6 +86,8 @@
 - Graph workspace chrome: the graph expands when either side panel is collapsed. Keep the paper explorer compact, open both the related-paper and paper-detail panels by default, and place settings, labels, and edge-density controls in an accessible floating tool stack that does not cover important graph content.
 - Variants and states: dark/light themes, desktop/mobile workflow layout, collapsed/expanded MCP details, copy success feedback.
 - Token/component ownership: global tokens remain in `index.css`; intro-specific layout and variants stay in `IntroducePage.css` and `LandingSections.css`; blog article styling remains in `BlogPage.css`.
+- Poster components: reuse the generated HTML preview/download modal, sanitized poster iframe flow, YAML theme tokens, and `StyleManager` CSS output. New poster sections should map to thesis, evidence, metrics, figure/table, limitations, metadata, and references rather than generic card grids.
+- Poster evidence contract: metric blocks must use actual labels and source context; thesis/evidence metadata must identify generation date/status and safe provenance; limitations must remain visible as scholarly content.
 
 ## Accessibility
 - Target standard: WCAG 2.2 AA practical compliance.
@@ -92,12 +98,14 @@
 - Graph layer accessibility: implement analysis layers as an ARIA-labelled pressed-button group with checkbox-like state indicators, disable selection-dependent layers until a paper is selected, and summarize active hop/path evidence as text outside the canvas. Preserve an off-screen layer/count summary when compact layouts hide visible detail text.
 - Graph sensory accessibility: community color is always paired with role shape, focus ring, text label, or paper-list marker. On desktop, show at least one readable representative-paper label per visible community before filling the remaining label budget, with at most eight priority labels total. Keep community annotations on one natural line with their `·` separator intact; do not force semantic phrases onto separate lines. Keep canvas labels out of compact mobile layouts, preserve the off-canvas selection summary, maintain a calm non-glowing light theme, and meet 44px touch targets on mobile.
 - Reduced motion and sensory considerations: no required animation; transitions are disabled or minimized under `prefers-reduced-motion`.
+- Poster accessibility: generated posters target WCAG 2.2 AA for preview/export, one `h1`, semantic section headings, selectable text, real metric labels, non-color-only evidence encoding, visible focus for modal controls, and static content under reduced motion.
 
 ## Responsive behavior
 - Supported breakpoints/devices: 360px mobile through wide desktop; primary breakpoint 640px and layout breakpoint 900px.
 - Layout adaptations: two-column hero becomes linear; proof metrics wrap; workflow rail becomes stacked; wide tool tables scroll; CTAs become comfortable touch targets.
 - Search graph adaptation: at 900px and below the graph is rendered first at full width; the default-open related-paper and paper-detail panels stack below it and remain independently collapsible instead of forcing the three-column desktop canvas off-screen. At 520px and below, graph tools occupy a dedicated horizontal row above the canvas rather than overlaying nodes or community regions.
 - Touch/hover differences: hover is supplemental; all mobile interactive targets are at least 44px high.
+- Poster responsive contract: 1200-1600px previews retain the 4:3 12-column canvas; 760-1199px previews preserve source order with reduced spans; below 760px the poster stacks as a readable article preview without clipped titles or horizontal overflow. Print output centers the 4:3 canvas at 396mm × 297mm on a marginless 420mm × 297mm A3 landscape page, preserving ratio with narrow side gutters, exact color adjustment, and no external font/network dependency.
 
 ## Interaction states
 - Loading: paper search uses the Jiphyeonjeon library scene as a narrative status surface: the canonical scholar hero is visually prominent through its round silhouette, expressive face, and `RESEARCH` headband while visibly finding books; concise Korean copy explains that titles and core content are being reviewed. Dark mode uses the warm lamplit ink scene; light mode switches to a separate neutral hanji-white and muted-indigo daylight asset rather than filtering the dark artwork or carrying its ochre cast across themes. Keep the status truthful (no invented percentage or time promise), expose it through a polite live region, treat the illustration as decorative, and limit motion to a subtle nonessential pulse/zoom that is removed under reduced-motion. Lazy routes keep the compact app loading state; copy buttons retain layout while feedback changes.
@@ -120,6 +128,7 @@
 - Performance constraints: reuse optimized WebP/PNG assets, lazy-load the intro route, and avoid new client data fetching solely for decoration.
 - Compatibility constraints: preserve dark default, light overrides, production routing, canonical metadata, and static crawler discovery.
 - Test/screenshot expectations: targeted intro/SEO tests, full frontend tests, production build, `git diff --check`, and desktop/mobile dark/light screenshots.
+- Poster implementation constraints: default poster styling lives in `poster_styles.yaml` and generated CSS from `style_manager.py`; keep the 4:3 canvas, 1200-1600px flexible width, self-contained system font stack, print CSS, responsive CSS, and legacy `.grid-container` / `.col` compatibility. Do not add new runtime dependencies or remote font/image requirements.
 
 ## Open questions
 - [ ] Add measured review-duration telemetry before publishing latency ranges / owner: product + backend / impact: performance proof.

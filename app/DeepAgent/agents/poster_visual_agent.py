@@ -121,13 +121,9 @@ class PosterVisualAgent:
         if not steps and methodology:
             steps = self._parse_methodology_steps(methodology)
 
-        # 3순위: 기본 fallback
+        # 근거가 없으면 장식용 기본 단계를 만들지 않는다.
         if not steps:
-            steps = [
-                {'title': 'Input', 'desc': 'Data Collection'},
-                {'title': 'Processing', 'desc': 'Analysis & Modeling'},
-                {'title': 'Output', 'desc': 'Results & Evaluation'},
-            ]
+            return ''
 
         return self.generate_pipeline_diagram(steps)
 
@@ -146,11 +142,8 @@ class PosterVisualAgent:
         if papers:
             return self._generate_paper_comparison_svg(papers)
 
-        # 3순위: 기본 바 차트
-        return self.generate_bar_chart({
-            'labels': ['Paper 1', 'Paper 2', 'Paper 3'],
-            'values': [0.85, 0.78, 0.92],
-        })
+        # 근거가 없으면 가짜 논문/수치 차트를 만들지 않는다.
+        return ''
 
     # ── 데이터 기반 SVG 헬퍼 ────────────────────────────────────────
 
@@ -473,14 +466,11 @@ class PosterVisualAgent:
         Returns:
             SVG 문자열
         """
+        if not steps:
+            return ''
+
         PosterVisualAgent._svg_counter += 1
         uid = PosterVisualAgent._svg_counter
-        if not steps:
-            steps = [
-                {'title': 'Step 1', 'desc': 'Data Input'},
-                {'title': 'Step 2', 'desc': 'Processing'},
-                {'title': 'Step 3', 'desc': 'Output'}
-            ]
 
         n_steps = min(len(steps), 8)
         has_desc = any(step.get('desc', '') for step in steps[:n_steps])
@@ -562,11 +552,7 @@ class PosterVisualAgent:
             SVG 문자열
         """
         if not events:
-            events = [
-                {'year': '2020', 'title': 'Event 1', 'desc': 'Description'},
-                {'year': '2021', 'title': 'Event 2', 'desc': 'Description'},
-                {'year': '2022', 'title': 'Event 3', 'desc': 'Description'}
-            ]
+            return ''
 
         n_events = len(events)
         event_gap = 100
@@ -610,8 +596,16 @@ class PosterVisualAgent:
         Returns:
             SVG 문자열
         """
-        labels = data.get('labels', ['Model A', 'Model B', 'Model C'])
-        values = data.get('values', [0.85, 0.75, 0.90])
+        labels = data.get('labels') or []
+        values = data.get('values') or []
+        if (
+            not isinstance(labels, list)
+            or not isinstance(values, list)
+            or not labels
+            or len(labels) != len(values)
+            or not all(isinstance(value, (int, float)) for value in values)
+        ):
+            return ''
 
         n_bars = len(labels)
         bar_width = 40
@@ -656,4 +650,3 @@ class PosterVisualAgent:
 
         svg += '\n        </svg>'
         return svg
-

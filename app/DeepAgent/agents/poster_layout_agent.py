@@ -68,7 +68,7 @@ class PosterLayoutAgent:
     """
 
     def __init__(self, design_pattern_manager: Optional[Any] = None):
-        self.aspect_ratio = "20:9"  # 가로형 와이드
+        self.aspect_ratio = "4:3"  # A3 landscape / 1600x1200 screen canvas
         self.pattern_manager = design_pattern_manager or (get_design_pattern_manager() if get_design_pattern_manager else None)
 
     def plan(self, content) -> LayoutPlan:
@@ -348,12 +348,7 @@ class PosterLayoutAgent:
 
     def _generate_grid_template(self, layout_type: LayoutType) -> str:
         """CSS Grid 템플릿 생성"""
-        templates = {
-            LayoutType.THREE_COLUMN: "1fr 2fr 1fr",
-            LayoutType.TWO_COLUMN: "1fr 1fr",
-            LayoutType.ONE_COLUMN: "1fr"
-        }
-        return templates[layout_type]
+        return "repeat(12, minmax(0, 1fr))"
 
     def calculate_visual_balance(self, sections: List[Section]) -> float:
         """
@@ -417,8 +412,10 @@ class PosterLayoutAgent:
         Returns:
             LayoutType
         """
-        layout_type_str = pattern_layout.get('type', 'three_column')
+        layout_type_str = pattern_layout.get('type', 'editorial_evidence_wall')
 
+        if layout_type_str == 'editorial_evidence_wall':
+            return LayoutType.THREE_COLUMN
         if 'three' in layout_type_str or '3' in layout_type_str:
             return LayoutType.THREE_COLUMN
         elif 'two' in layout_type_str or '2' in layout_type_str:
@@ -436,9 +433,13 @@ class PosterLayoutAgent:
         Returns:
             CSS Grid template string
         """
-        ratio = pattern_layout.get('ratio', [1, 1, 1])
+        grid = pattern_layout.get('grid', {})
+        if pattern_layout.get('type') == 'editorial_evidence_wall' or grid.get('columns') == 12:
+            return "repeat(12, minmax(0, 1fr))"
+
+        ratio = pattern_layout.get('ratio', [1] * 12)
         ratio_fr = ' '.join([f"{r}fr" for r in ratio])
-        return f"grid-template-columns: {ratio_fr};"
+        return ratio_fr
 
     def _create_sections_from_pattern(self, content, pattern_layout: Dict[str, Any]) -> List[Section]:
         """
@@ -452,6 +453,11 @@ class PosterLayoutAgent:
             List of Section objects
         """
         sections = []
+        if pattern_layout.get('type') == 'editorial_evidence_wall':
+            # The legacy Section model still groups content into three reading
+            # lanes; CSS maps those lanes onto the canonical 12-column canvas.
+            return self._create_three_column_sections(content)
+
         section_map = pattern_layout.get('sections', {})
 
         # 패턴에 정의된 섹션 배치 사용
@@ -532,4 +538,3 @@ class PosterLayoutAgent:
             )
 
         return None
-

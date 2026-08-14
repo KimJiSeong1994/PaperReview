@@ -67,10 +67,14 @@ class PosterCriticAgent:
         - Grid 레이아웃 사용 여부
         - figure/img 태그 존재
         - 콘텐츠 길이
-        - 폰트 import 여부
+        - self-contained 자산 구성
+        - print/responsive CSS 준비도
+        - 학술 주장-근거 계층과 의미론적 figure 구조
+        - 템플릿 placeholder 및 제목 대문자 강제 여부
         """
         issues: List[str] = []
         metrics: Dict[str, float] = {}
+        html_lower = html.lower()
 
         # 1. DOCTYPE 체크
         has_doctype = html.strip().upper().startswith("<!DOCTYPE")
@@ -111,11 +115,18 @@ class PosterCriticAgent:
         if not has_grid:
             issues.append("No CSS Grid layout detected. Multi-column layout is recommended.")
 
-        # 6. Figure/이미지 — base64 직삽입 여부 체크
+        # 6. Figure/이미지 — base64 직삽입 및 의미 구조 체크
         img_count = len(re.findall(r'<img[\s>]', html, re.IGNORECASE))
+        visual_count = svg_count + img_count
+        figure_count = len(re.findall(r'<figure[\s>]', html, re.IGNORECASE))
+        figcaption_count = len(re.findall(r'<figcaption[\s>]', html, re.IGNORECASE))
         has_base64_images = 'data:image' in html
         if img_count > 0 and not has_base64_images:
             issues.append("Images use external URLs instead of base64 data URIs — they may not render.")
+        if visual_count > 0 and figure_count == 0:
+            issues.append("Visual assets are not wrapped in semantic <figure> elements.")
+        if figure_count > 0 and figcaption_count < max(1, min(figure_count, visual_count)):
+            issues.append("Figures need descriptive <figcaption> text for academic evidence and accessibility.")
 
         # 6.5. 플레이스홀더 잔류 체크
         if '<!-- VISUALIZATIONS_PLACEHOLDER -->' in html:
@@ -124,6 +135,22 @@ class PosterCriticAgent:
             issues.append("Figures placeholder was not replaced — paper figures missing.")
         if 'FIGURE_' in html and 'BASE64' in html:
             issues.append("Figure base64 placeholders (FIGURE_N_BASE64) were not replaced.")
+        generic_placeholder_patterns = [
+            r'\bMetric\s+[A-Z]\b',
+            r'\bMethod\s+[A-Z]\b',
+            r'\bPaper\s+\d+\b',
+            r'\bDataset\s+[A-Z]\b',
+            r'\bResult\s+[A-Z]\b',
+            r'\bLorem ipsum\b',
+            r'\bTBD\b',
+            r'\bTODO\b',
+        ]
+        generic_placeholders = [
+            pattern for pattern in generic_placeholder_patterns
+            if re.search(pattern, html, re.IGNORECASE)
+        ]
+        if generic_placeholders:
+            issues.append("Generic template placeholders remain (for example Metric A, Method A, Paper 1, TODO/TBD).")
 
         # 7. 콘텐츠 길이
         # 태그 제거 후 텍스트 길이 추정
@@ -136,17 +163,87 @@ class PosterCriticAgent:
             issues.append(f"Content may be too dense ({text_length} chars). Consider summarizing.")
         metrics["readability"] = min(max(text_length - 300, 0) / 5000.0, 1.0)
 
-        # 8. 폰트 import
-        has_font_import = bool(re.search(r'fonts\.googleapis\.com|@font-face|@import.*font', html, re.IGNORECASE))
-        if not has_font_import:
-            issues.append("No web font import found. Consider using Google Fonts for better typography.")
+        # 8. Self-contained 자산 구성: 외부 CDN/font 의존은 재현성과 인쇄 안정성을 낮춘다.
+        external_dependency_patterns = [
+            r'<link[^>]+href=["\']https?://',
+            r'<script[^>]+src=["\']https?://',
+            r'<img[^>]+src=["\']https?://',
+            r'@import\s+url\(["\']?https?://',
+            r'url\(["\']?https?://',
+            r'fonts\.googleapis\.com|fonts\.gstatic\.com',
+            r'cdn\.[\w.-]+|cdnjs\.cloudflare\.com|jsdelivr\.net|unpkg\.com',
+        ]
+        external_dependency_count = sum(
+            len(re.findall(pattern, html, re.IGNORECASE))
+            for pattern in external_dependency_patterns
+        )
+        if external_dependency_count > 0:
+            issues.append("External font/CDN/asset dependencies detected. Poster HTML should be self-contained.")
+        metrics["self_contained"] = 1.0 if external_dependency_count == 0 else max(0.0, 1.0 - external_dependency_count * 0.25)
+
+        # 8.5. Print 및 responsive 준비도
+        has_page_rule = bool(re.search(r'@page\b', css_content, re.IGNORECASE))
+        has_print_media = bool(re.search(r'@media\s+print\b', css_content, re.IGNORECASE))
+        has_print_color_adjust = bool(re.search(r'(?:-webkit-)?print-color-adjust\s*:\s*exact', css_content, re.IGNORECASE))
+        has_break_control = bool(re.search(r'break-inside\s*:\s*avoid|page-break-inside\s*:\s*avoid', css_content, re.IGNORECASE))
+        print_checks = [has_page_rule, has_print_media, has_print_color_adjust, has_break_control]
+        metrics["print"] = sum(print_checks) / len(print_checks)
+        if not has_page_rule:
+            issues.append("Missing @page print sizing/margin rules.")
+        if not has_print_media:
+            issues.append("Missing @media print rules for exported posters.")
+        if not has_print_color_adjust:
+            issues.append("Missing print-color-adjust: exact for faithful print/export colors.")
+        if not has_break_control:
+            issues.append("Missing break-inside/page-break-inside controls to prevent split poster sections.")
+
+        has_viewport_meta = bool(re.search(r'<meta[^>]+name=["\']viewport["\']', html, re.IGNORECASE))
+        has_responsive_media = bool(re.search(r'@media\s*\([^)]*(max-width|min-width|orientation|aspect-ratio)', css_content, re.IGNORECASE))
+        has_responsive_units = bool(re.search(r'\b(clamp|minmax|vw|vh|vmin|vmax|rem|%)\b', css_content, re.IGNORECASE))
+        responsive_checks = [has_viewport_meta, has_responsive_media, has_responsive_units]
+        metrics["responsive"] = sum(responsive_checks) / len(responsive_checks)
+        if not has_viewport_meta:
+            issues.append("Missing viewport meta tag for responsive rendering.")
+        if not has_responsive_media:
+            issues.append("Missing responsive @media rules for narrow screens or alternate aspect ratios.")
+
+        # 8.6. 제목 대문자 강제: CSS로 강제된 all-caps는 학술 포스터 가독성을 떨어뜨릴 수 있다.
+        title_match = re.search(r'<h1[^>]*>(.*?)</h1>', html, re.IGNORECASE | re.DOTALL)
+        title_text = re.sub(r'<[^>]+>', '', title_match.group(1)).strip() if title_match else ""
+        title_letters = re.sub(r'[^A-Za-z]', '', title_text)
+        title_is_all_caps = len(title_letters) >= 20 and title_letters.upper() == title_letters
+        forces_uppercase_title = bool(re.search(
+            r'(h1|title|header|\.title|\.poster-title)[^{]{0,120}\{[^}]*text-transform\s*:\s*uppercase',
+            css_content,
+            re.IGNORECASE | re.DOTALL,
+        ))
+        if forces_uppercase_title or title_is_all_caps:
+            issues.append("Title appears to force all-uppercase styling; prefer readable Title Case unless the acronym/content requires caps.")
 
         # 9. 학술 요소
         academic_keywords = ['abstract', 'methodology', 'conclusion', 'results', 'findings', 'contribution']
-        found_academic = sum(1 for kw in academic_keywords if kw.lower() in html.lower())
-        metrics["academic"] = min(found_academic / 4.0, 1.0)
+        found_academic = sum(1 for kw in academic_keywords if kw.lower() in html_lower)
+        thesis_keywords = ['thesis', 'claim', 'contribution', 'hypothesis', 'takeaway', 'key idea']
+        evidence_keywords = ['evidence', 'results', 'findings', 'experiment', 'ablation', 'benchmark', 'evaluation']
+        has_thesis_signal = any(kw in html_lower for kw in thesis_keywords)
+        has_evidence_signal = any(kw in html_lower for kw in evidence_keywords) or visual_count > 0
+        has_metric_signal = bool(re.search(r'\b\d+(?:\.\d+)?\s*(?:%|x|ms|s|points?|accuracy|auc|f1|bleu|rouge)\b', text_only, re.IGNORECASE))
+        academic_checks = [
+            found_academic >= 2,
+            has_thesis_signal,
+            has_evidence_signal,
+            has_metric_signal,
+            figure_count == 0 or figcaption_count >= min(figure_count, max(1, visual_count)),
+        ]
+        metrics["academic"] = sum(academic_checks) / len(academic_checks)
         if found_academic < 2:
             issues.append("Missing standard academic sections (Abstract, Methodology, Results, etc.).")
+        if not has_thesis_signal:
+            issues.append("Missing a clear thesis/contribution/claim hierarchy.")
+        if not has_evidence_signal:
+            issues.append("Missing explicit evidence/results hierarchy to support the thesis.")
+        if not has_metric_signal:
+            issues.append("Missing concrete quantitative metrics or evidence values.")
 
         # 종합 점수 계산
         score = sum(metrics.values()) / max(len(metrics), 1)
@@ -200,6 +297,17 @@ Evaluate the following HTML poster and provide structured feedback.
 3. **Aesthetics** (0.0-1.0): Is the design visually appealing with good color choices and layout?
 4. **Academic Standards** (0.0-1.0): Does it follow academic poster conventions?
 5. **Visual Balance** (0.0-1.0): Is there a good balance of text, charts, and white space?
+6. **Print Readiness** (0.0-1.0): Does CSS include @page, @media print, print-color-adjust, and break-inside/page-break-inside controls?
+7. **Self-contained Delivery** (0.0-1.0): Does the poster avoid external fonts, CDNs, scripts, stylesheets, and remote image URLs?
+8. **Responsive Robustness** (0.0-1.0): Does it include viewport metadata, responsive @media rules, and scalable sizing?
+
+## Critical Review Rules
+- Do NOT penalize missing Google Fonts or web font imports. Prefer system fonts or embedded assets.
+- Penalize external font/CDN/remote asset dependencies because exported academic posters must render offline and print consistently.
+- Check that visual evidence uses semantic <figure> and descriptive <figcaption> where appropriate.
+- Check for a clear thesis/contribution/claim hierarchy supported by results, evidence, figures, and concrete metrics.
+- Flag generic template leftovers such as "Metric A", "Method A", "Paper 1", "Dataset A", TODO/TBD, lorem ipsum, or unreplaced figure placeholders.
+- Flag forced all-uppercase title styling when it harms readability; do not require uppercase titles.
 {style_section}
 
 ## Poster HTML
@@ -218,7 +326,10 @@ Respond ONLY with valid JSON (no markdown, no extra text):
     "readability": <float>,
     "aesthetics": <float>,
     "academic": <float>,
-    "balance": <float>
+    "balance": <float>,
+    "print": <float>,
+    "self_contained": <float>,
+    "responsive": <float>
   }}
 }}"""
 

@@ -9,7 +9,9 @@ Poster Composition Agent
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
+from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -224,26 +226,29 @@ class PosterCompositionAgent:
         section_directives = self._build_section_directives(composition)
         comparison_tables_block = self._build_comparison_tables_block(content)
         keywords_str = ", ".join(composition.keywords)
-        grid_col_css = (
-            "repeat(3, 1fr)" if composition.grid_columns >= 3
-            else "repeat(2, 1fr)"
-        )
+        paper_count = len(content.paper_analyses or [])
+        ref_count = len(getattr(content, 'references', []) or [])
+        figure_count = composition.total_figures
 
         return f"""당신은 NeurIPS/ICML 학회 포스터 디자이너입니다.
-아래 지정된 섹션 구조와 figure 배치 지시를 **정확히** 따라 HTML 포스터를 생성하세요.
+아래 지정된 섹션 구조와 figure 배치 지시를 **정확히** 따라 self-contained HTML 학회지 포스터를 생성하세요.
 
 ## 핵심 원칙
 1. **figure는 반드시 관련 섹션 카드 안에 배치** — 별도 "Additional Visualizations" 섹션 생성 금지
 2. **<!-- EMBED_SVG_N --> 플레이스홀더를 그대로 유지** — 실제 SVG 데이터는 후처리에서 교체됨
 3. **<!-- EMBED_FIGURE_N --> 플레이스홀더를 그대로 유지** — 실제 이미지는 후처리에서 교체됨
-4. 논문별 색상 코드를 카드 border-left 및 SVG 색상에 일관되게 적용
-5. 각 논문 카드 안에 해당 논문의 구체적 파이프라인 SVG를 직접 생성 (generic "Input→Process→Output" 금지)
+4. 논문별 색상 코드를 카드 border-left, evidence chip, caption accent에 일관되게 적용
+5. 각 논문 카드 안의 다이어그램은 해당 논문의 방법/데이터/모델/결과명을 써서 구체화하고 범용 입출력 흐름명, 익명 지표명, 익명 방법명 금지
+6. 외부 font/CDN/image/script/style URL은 절대 금지. 시스템 폰트와 인라인 CSS만 사용
 
 ## 포스터 메타데이터
 - **제목**: {composition.title}
 - **부제목**: {composition.subtitle}
 - **키워드**: {keywords_str}
-- **그리드**: {composition.grid_columns}열 레이아웃
+- **논문 수**: {paper_count}
+- **참고문헌 수**: {ref_count}
+- **Figure 수**: {figure_count}
+- **디자인 계약**: Editorial Evidence Wall, 4:3/A3 landscape, 12-column responsive grid
 
 ## 섹션별 콘텐츠 및 Figure 배치 지시
 
@@ -261,35 +266,39 @@ class PosterCompositionAgent:
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{composition.title}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>인라인 CSS만 사용</style>
 </head>
 <body>
-
-<header>
-  제목 + 부제목 + 키워드 배지
+<main class="poster poster--a3-landscape">
+<header class="poster-header">
+  <p class="kicker">Academic Review Poster</p>
+  <h1 class="poster-title title-ko title-long">제목</h1>
+  <p class="poster-subtitle">부제목</p>
+  <div class="evidence-meta">
+    <span>papers {paper_count}</span><span>refs {ref_count}</span><span>figures {figure_count}</span>
+  </div>
 </header>
-
-<section class="overview-section">
-  초록+배경 텍스트 | 파이프라인 다이어그램 SVG 또는 <!-- EMBED_SVG_N -->
+<aside class="thesis-strip">첫 번째 핵심 발견 기반 thesis 문장</aside>
+<section class="overview-section grid-span-12">
+  <div class="overview-copy"><h2>Research Frame</h2><p>초록+배경</p></div>
+  <figure><!-- EMBED_SVG_N 또는 의미 있는 인라인 SVG --><figcaption>연구 파이프라인 다이어그램</figcaption></figure>
 </section>
-
-<section class="papers-grid">
-  <!-- 논문 카드들: 텍스트 + SVG + <!-- EMBED_SVG_N --> + <!-- EMBED_FIGURE_N --> -->
+<section class="papers-section grid-span-12">
+  <h2>Evidence Papers</h2>
+  <article class="paper-card">논문별 텍스트 + figure/figcaption</article>
 </section>
-
-<section class="comparison-section">
+<section class="comparison-section grid-span-8">
   비교 테이블 + 결과 차트
 </section>
-
-<section class="findings-section">
+<section class="findings-section grid-span-4">
   핵심 발견 + 기여 목록
 </section>
-
-<section class="conclusion-section">
+<section class="conclusion-section grid-span-12">
   결론
 </section>
-
+</main>
 </body>
 </html>
 ```
@@ -298,188 +307,179 @@ class PosterCompositionAgent:
 
 ```css
 :root {{
-  --primary: #2563eb;
-  --bg: #f8fafc;
-  --card-radius: 12px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+  --ink: #172033;
+  --muted: #596579;
+  --paper: #fffdf8;
+  --panel: #ffffff;
+  --line: #d9dee8;
+  --blue: #2457a6;
+  --green: #0f766e;
+  --amber: #b45309;
+  --red: #b91c1c;
+  --gap: 10px;
+  --radius: 8px;
 }}
-
-body {{
-  font-family: 'Inter', 'Noto Sans KR', sans-serif;
-  background: var(--bg);
+@page {{
+  size: A3 landscape;
   margin: 0;
-  padding: 0;
 }}
-
-.poster-container {{
-  max-width: 1600px;
+* {{ box-sizing: border-box; }}
+html, body {{
+  margin: 0;
+  background: #e7e9ee;
+  color: var(--ink);
+  font-family: var(--font-main);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}}
+.poster {{
+  width: min(100%, 1580px);
+  aspect-ratio: 4 / 3;
+  min-height: 900px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 12px;
+  background: var(--paper);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: var(--gap);
 }}
-
-header {{
-  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+.poster-header, .thesis-strip, section {{
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 16px 18px;
+  break-inside: avoid;
+}}
+.poster-header {{
+  grid-column: 1 / -1;
+  background: #172033;
   color: white;
-  padding: 32px 40px;
-  border-radius: var(--card-radius);
-  margin-bottom: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 20px;
 }}
-
-header h1 {{
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 8px;
-  line-height: 1.2;
-}}
-
-header h2 {{
-  font-size: 1.1rem;
-  font-weight: 400;
-  opacity: 0.85;
+.poster-title {{
+  font-size: clamp(2rem, 3vw, 3.4rem);
+  line-height: 1.08;
   margin: 0;
 }}
-
-.keyword-badge {{
-  display: inline-block;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 20px;
-  padding: 3px 12px;
+.title-long {{
+  font-size: clamp(1.55rem, 2.35vw, 2.75rem);
+}}
+.title-ko {{
+  letter-spacing: 0;
+}}
+.evidence-meta {{
+  display: flex;
+  gap: 20px;
+  align-items: start;
   font-size: 0.78rem;
-  margin: 4px 3px;
+  text-transform: uppercase;
 }}
-
-.overview-section {{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 24px;
-}}
-
-.papers-grid {{
-  display: grid;
-  grid-template-columns: {grid_col_css};
-  gap: 20px;
-  margin-bottom: 24px;
-}}
-
-.paper-card {{
-  background: white;
-  border-radius: var(--card-radius);
-  padding: 24px;
-  box-shadow: var(--shadow);
-  border-top: 3px solid currentColor;
-}}
-
-.paper-card h3 {{
-  font-size: 1rem;
+.thesis-strip {{
+  grid-column: 1 / -1;
+  border-left: 6px solid var(--green);
+  font-size: 1.05rem;
   font-weight: 700;
-  margin: 0 0 12px;
-  line-height: 1.3;
 }}
-
-.paper-card svg,
-.paper-card .embed-figure {{
+.grid-span-4 {{ grid-column: span 4; }}
+.grid-span-8 {{ grid-column: span 8; }}
+.grid-span-12 {{ grid-column: 1 / -1; }}
+.papers-section {{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}}
+.papers-section > h2 {{
+  grid-column: 1 / -1;
+}}
+.paper-card {{
+  border-left: 4px solid currentColor;
+  padding-left: 12px;
+  break-inside: avoid;
+ }}
+h2 {{
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--blue);
+}}
+h3 {{
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}}
+p, li, td, th {{
+  font-size: 0.82rem;
+  line-height: 1.45;
+}}
+figure {{
+  margin: 10px 0;
+  break-inside: avoid;
+}}
+figure img, figure svg {{
   width: 100%;
   height: auto;
-  border-radius: 8px;
-  margin: 12px 0;
+  max-height: 180px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }}
-
-.comparison-section,
-.findings-section,
-.conclusion-section {{
-  background: white;
-  border-radius: var(--card-radius);
-  padding: 28px;
-  box-shadow: var(--shadow);
-  margin-bottom: 24px;
+figcaption {{
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }}
-
-.section-heading {{
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 16px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #e2e8f0;
-}}
-
-table.comparison-table {{
+table {{
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
-  margin-top: 12px;
+  table-layout: fixed;
 }}
-
-table.comparison-table th {{
-  background: #f1f5f9;
-  font-weight: 600;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  text-align: left;
-}}
-
-table.comparison-table td {{
-  padding: 9px 12px;
-  border: 1px solid #e2e8f0;
+th, td {{
+  padding: 6px 7px;
+  border: 1px solid var(--line);
   vertical-align: top;
 }}
-
-table.comparison-table tr:nth-child(even) td {{
-  background: #f8fafc;
+th {{ background: #eef2f7; }}
+@media (max-width: 1199px) {{
+  .poster {{ aspect-ratio: auto; grid-template-columns: repeat(8, minmax(0, 1fr)); }}
+  .grid-span-4, .grid-span-8 {{ grid-column: 1 / -1; }}
 }}
-
-.findings-list {{
-  list-style: none;
-  padding: 0;
-  margin: 0;
+@media (max-width: 760px) {{
+  body {{ background: var(--paper); }}
+  .poster {{ width: 100%; min-height: 0; padding: 12px; grid-template-columns: 1fr; }}
+  .poster-header, .thesis-strip, section, .grid-span-4, .grid-span-8, .grid-span-12 {{ grid-column: 1 / -1; }}
+  .papers-section {{ grid-template-columns: 1fr; }}
 }}
-
-.findings-list li {{
-  display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}}
-
-.findings-list li::before {{
-  content: "▶";
-  color: var(--primary);
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  margin-top: 4px;
-}}
-
-.embed-placeholder {{
-  display: block;
-  background: #f1f5f9;
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.8rem;
-  margin: 12px 0;
+@media print {{
+  html, body {{ width: 420mm; height: 297mm; overflow: hidden; }}
+  body {{ background: white; padding: 0; display: flex; justify-content: center; }}
+  .poster {{ width: 396mm; height: 297mm; min-height: 297mm; max-width: none; box-shadow: none; overflow: hidden; }}
+  * {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+  section, article, figure, table {{ break-inside: avoid; }}
 }}
 ```
 
 ## 출력 규칙
 - <!DOCTYPE html>로 시작하는 완전한 HTML만 출력 (설명 텍스트, 코드블록 마커 제외)
 - <!-- EMBED_SVG_N --> 와 <!-- EMBED_FIGURE_N --> 플레이스홀더는 반드시 원문 그대로 포함
-- figure 플레이스홀더는 반드시 해당 논문/섹션 카드 내부에 위치해야 함
+- figure 플레이스홀더는 반드시 `<figure>` 안에 두고 바로 뒤에 의미 있는 `<figcaption>`을 제공
 - 별도 "추가 시각화" 또는 "Additional Visualizations" 섹션 생성 금지
+- overview 12컬럼 대형 evidence-flow 밴드, papers 12컬럼 3열 evidence wall, 하단 comparison 6컬럼/findings 3컬럼/conclusion 3컬럼 배치 준수
+- 논문 원문에 실제 정량 결과가 있으면 실제 metric label과 단위/비교 맥락을 붙여 evidence panel 제목 옆에 강조하되 수치를 새로 만들지 마세요
+- 추출된 limitations는 숨기거나 잘라내지 말고 각 evidence panel에 짧고 명시적으로 노출하세요
+- thesis strip에는 생성일, 합성 상태, 입력 논문 수를 안전한 provenance metadata로 표시하세요
+- 첫 번째 key finding을 thesis strip으로 재서술
+- 제목에는 긴 한국어/영문 제목 대응 class (`title-ko`, `title-en`, `title-long`)를 적용
 
 ## 절대 금지 사항
-- <img src="https://..."> 등 외부 URL 이미지 절대 사용 금지
+- 원격 URL 기반 이미지 절대 사용 금지
 - Wikipedia, Google, arXiv 등 외부 서비스의 로고/아이콘/워터마크 삽입 금지
 - 이미지는 반드시 data:image/... base64 또는 인라인 SVG만 허용
-- 폰트 CDN 외에는 어떤 외부 URL도 참조 금지
+- 폰트 CDN 포함 어떤 외부 URL도 참조 금지
 - 장식용 아이콘, 이모지 이미지, 클립아트 삽입 금지"""
 
     def inject_figures_by_composition(
@@ -517,9 +517,14 @@ table.comparison-table tr:nth-child(even) td {{
                 b64 = af.get('figure_png_b64', '')
                 if b64:
                     img_html = (
-                        f'<img src="data:image/png;base64,{b64}" '
+                        f'<figure class="embed-autofigure" style="margin:12px 0;">'
+                        f'<img src="data:image/png;base64,{self._esc(b64)}" '
                         f'alt="{self._esc(af.get("paper_title", ""))}" '
                         f'style="width:100%;height:auto;border-radius:8px;" />'
+                        f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
+                        f'{self._esc(af.get("paper_title", "자동 생성 overview figure"))}'
+                        f'</figcaption>'
+                        f'</figure>'
                     )
                     poster_html = poster_html.replace(placeholder, img_html)
                 else:
@@ -528,12 +533,15 @@ table.comparison-table tr:nth-child(even) td {{
 
             # SVG를 반응형으로 래핑
             if not svg_content.startswith('<svg'):
-                svg_content = f'<svg xmlns="http://www.w3.org/2000/svg">{svg_content}</svg>'
+                svg_content = f'<svg>{svg_content}</svg>'
             svg_content = sanitize_poster_markup(svg_content)
             svg_wrapped = (
-                f'<div class="embed-autofigure" style="width:100%;margin:12px 0;">'
+                f'<figure class="embed-autofigure" style="width:100%;margin:12px 0;">'
                 f'{svg_content}'
-                f'</div>'
+                f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
+                f'{self._esc(af.get("paper_title", "자동 생성 연구 다이어그램"))}'
+                f'</figcaption>'
+                f'</figure>'
             )
             poster_html = poster_html.replace(placeholder, svg_wrapped)
 
@@ -629,21 +637,24 @@ table.comparison-table tr:nth-child(even) td {{
         cards: List[CompositionSection] = []
 
         for i, paper in enumerate(paper_analyses[:6]):
-            title = paper.get('title', f'Paper {i + 1}')
+            title = (paper.get('title') or '').strip() or 'Untitled evidence source'
             color = _PAPER_COLORS[i % len(_PAPER_COLORS)]
 
             # 텍스트 콘텐츠 조합
             text_parts = []
-            methodology = (paper.get('methodology') or '')[:600]
-            contributions = (paper.get('contributions') or '')[:400]
-            results = (paper.get('results') or '')[:400]
+            methodology = self._poster_excerpt(paper.get('methodology') or '', 150)
+            contributions = self._poster_excerpt(paper.get('contributions') or '', 130)
+            results = self._poster_excerpt(paper.get('results') or '', 140)
+            limitations = self._poster_excerpt(paper.get('limitations') or '', 120)
 
             if methodology:
-                text_parts.append(f"**핵심 방법론**\n{methodology}")
+                text_parts.append(f"**핵심 방법론** {methodology}")
             if contributions:
-                text_parts.append(f"**주요 기여**\n{contributions}")
+                text_parts.append(f"**주요 기여** {contributions}")
             if results:
-                text_parts.append(f"**실험 결과**\n{results}")
+                text_parts.append(f"**실험 결과** {results}")
+            if limitations:
+                text_parts.append(f"**한계** {limitations}")
 
             fig_placements: List[FigurePlacement] = []
 
@@ -1124,192 +1135,188 @@ table.comparison-table tr:nth-child(even) td {{
         figures = figures or []
         esc = self._esc
 
+        sections_by_role: Dict[SectionRole, List[CompositionSection]] = {}
+        for sec in composition.sections:
+            sections_by_role.setdefault(sec.role, []).append(sec)
+
+        overview = (sections_by_role.get(SectionRole.OVERVIEW) or [None])[0]
+        comparison = (sections_by_role.get(SectionRole.COMPARISON) or [None])[0]
+        findings = (sections_by_role.get(SectionRole.FINDINGS) or [None])[0]
+        conclusion = (sections_by_role.get(SectionRole.CONCLUSION) or [None])[0]
+        paper_sections = sections_by_role.get(SectionRole.PAPER_CARD, [])
+
+        title_text = composition.title or "Academic Review Poster"
+        title_classes = ["poster-title"]
+        if len(title_text) >= 72:
+            title_classes.append("title-long")
+        if any(ord(ch) > 127 for ch in title_text):
+            title_classes.append("title-ko")
+        else:
+            title_classes.append("title-en")
+
         keywords_html = ''.join(
             f'<span class="keyword">{esc(k)}</span>'
             for k in composition.keywords[:8]
         )
 
-        # 참고문헌 HTML
+        paper_count = len(getattr(content, 'paper_analyses', []) or paper_sections)
         refs = getattr(content, 'references', []) if content else []
+        ref_count = len(refs or [])
+        source_figure_count = len(autofigure_svgs) + len(figures)
+        figure_count = source_figure_count or composition.total_figures
+
         if refs:
             refs_items = ' '.join(
                 f'[{i+1}] {esc(r)}' for i, r in enumerate(refs[:8])
             )
             refs_html = refs_items
         else:
-            refs_html = '논문 검색 및 분석 결과는 arXiv, Google Scholar 등의 공개 데이터를 기반으로 합니다.'
+            refs_html = 'References were unavailable in the extracted review payload.'
 
-        # ── Binary-tree 레이아웃 계산 ─────────────────────────────────
-        layout = self._compute_panel_layout(composition)
+        first_finding = ''
+        if content and getattr(content, 'key_findings', None):
+            first_finding = content.key_findings[0]
+        elif findings:
+            first_finding = findings.text_content.split('\n')[0].strip('- *')
+        thesis_html = esc(first_finding or "핵심 결론이 입력 리포트에서 추출되지 않았습니다.")
+        generated_on = date.today().isoformat()
+        synthesis_status = 'synthesized' if content and paper_count else 'partial'
 
-        # 섹션 인덱스 → 레이아웃 좌표 매핑
-        layout_map: Dict[int, Dict[str, float]] = {
-            item["section_index"]: item for item in layout
-        }
-
-        # 섹션 번호 부여 (PAPER_CARD 그룹은 1개 번호)
-        section_numbers: Dict[int, int] = {}
-        num = 1
-        paper_num_assigned = False
-        for idx, sec in enumerate(composition.sections):
-            if sec.role == SectionRole.HEADER:
-                continue
-            if sec.role == SectionRole.PAPER_CARD:
-                if not paper_num_assigned:
-                    section_numbers[idx] = num
-                    num += 1
-                    paper_num_assigned = True
-                # 나머지 PAPER_CARD는 그룹 번호와 동일
-            else:
-                section_numbers[idx] = num
-                num += 1
-
-        # 섹션 역할 → 제목 매핑
-        _role_titles = {
-            SectionRole.OVERVIEW: "연구 개요",
-            SectionRole.PAPER_CARD: None,  # 논문 카드는 개별 제목 사용
-            SectionRole.COMPARISON: "비교 분석",
-            SectionRole.FINDINGS: "핵심 발견 및 기여",
-            SectionRole.CONCLUSION: "결론",
-        }
-
-        # ── 패널 HTML 생성 ────────────────────────────────────────────
         visual_agent = PosterVisualAgent()
-        gap = 0.8  # 패널 간 갭 (%)
 
-        # 논문 카드 그룹 처리: 여러 PAPER_CARD를 하나의 패널 안에 서브그리드로 배치
-        paper_card_indices = [
-            idx for idx, sec in enumerate(composition.sections)
-            if sec.role == SectionRole.PAPER_CARD
-        ]
-        # 첫 번째 PAPER_CARD의 레이아웃을 그룹 대표로 사용하되,
-        # 모든 PAPER_CARD 레이아웃 좌표를 병합하여 바운딩 박스를 구한다.
-        paper_group_bbox: Optional[Dict[str, float]] = None
-        if paper_card_indices:
-            coords = [layout_map[i] for i in paper_card_indices if i in layout_map]
-            if coords:
-                min_x = min(c["x"] for c in coords)
-                min_y = min(c["y"] for c in coords)
-                max_x = max(c["x"] + c["w"] for c in coords)
-                max_y = max(c["y"] + c["h"] for c in coords)
-                paper_group_bbox = {
-                    "x": min_x, "y": min_y,
-                    "w": max_x - min_x, "h": max_y - min_y,
-                }
+        def section_body(sec: Optional[CompositionSection], default_text: str = "") -> str:
+            if not sec:
+                return self._text_to_html(default_text)
+            if sec.role == SectionRole.COMPARISON:
+                return self._markdown_table_to_html(sec.text_content)
+            return self._text_to_html(sec.text_content)
 
-        panels_html = ''
-
-        # 이미 그룹 렌더링 한 PAPER_CARD 인덱스 추적
-        paper_cards_rendered = False
-
-        for idx, sec in enumerate(composition.sections):
-            if sec.role == SectionRole.HEADER:
-                continue  # 헤더는 별도 영역
-
-            if idx not in layout_map:
-                continue
-
-            # ── PAPER_CARD 그룹 렌더링 ────────────────────────────
-            if sec.role == SectionRole.PAPER_CARD:
-                if paper_cards_rendered:
-                    continue  # 이미 그룹으로 렌더링 완료
-                paper_cards_rendered = True
-
-                if paper_group_bbox is None:
-                    continue
-
-                bw = paper_group_bbox["w"] - gap
-
-                # 개별 논문 카드 HTML 목록
-                paper_sections = [
-                    composition.sections[i] for i in paper_card_indices
-                ]
-                cards = []
-                for psec in paper_sections:
-                    color = psec.color_code or '#2563eb'
-
-                    fig_html = ''
-                    for fp in psec.figures:
-                        fig_html += self._render_figure_html(
-                            fp, autofigure_svgs, figures,
-                        )
-                    if not fig_html and psec.text_content:
-                        method_text = (
-                            psec.text_content.split('**주요 기여**')[0]
-                            if '**주요 기여**' in psec.text_content
-                            else psec.text_content[:600]
-                        )
-                        steps = visual_agent._parse_methodology_steps(method_text)
-                        if steps:
-                            svg = visual_agent.generate_pipeline_diagram(steps)
-                            fig_html = f'<div style="margin:12px 0;">{svg}</div>'
-
-                    text_html = self._text_to_html(psec.text_content)
-                    cards.append(
-                        f'<div class="paper-card" style="border-left-color:{color};">'
-                        f'<h3 style="color:{color};">{esc(psec.title)}</h3>'
-                        f'{text_html}'
-                        f'{fig_html}'
-                        f'</div>'
-                    )
-
-                sec_num = section_numbers.get(paper_card_indices[0], 2)
-                span = ' span-full' if bw > 55 else ''
-                panels_html += (
-                    f'<div class="panel{span}">'
-                    f'<div class="panel-inner section-card">'
-                    f'<h2 class="section-heading">'
-                    f'<span class="section-num">{sec_num}</span>'
-                    f'논문별 분석</h2>'
-                    f'<div class="paper-grid">{"".join(cards)}</div>'
-                    f'</div></div>'
-                )
-                continue
-
-            # ── 일반 섹션 (OVERVIEW, COMPARISON, FINDINGS, CONCLUSION) ──
-            coords = layout_map[idx]
-            pw = coords["w"]
-
-            sec_num = section_numbers.get(idx, 1)
-            heading_title = _role_titles.get(sec.role, sec.title) or sec.title
-
-            # figure HTML
-            fig_html = ''.join(
+        def section_figures(sec: Optional[CompositionSection]) -> str:
+            if not sec:
+                return ""
+            return ''.join(
                 self._render_figure_html(fp, autofigure_svgs, figures)
                 for fp in sec.figures
             )
 
-            # 섹션 역할별 특수 처리
-            if sec.role == SectionRole.OVERVIEW and not fig_html:
-                methodology = getattr(content, 'methodology', '') if content else ''
-                if not methodology:
-                    methodology = ''
-                steps = visual_agent._parse_methodology_steps(methodology)
+        def metric_callout(text: str) -> str:
+            """Surface one labelled result only when its source text supports it."""
+            result_text = (text or '').split('**실험 결과**', 1)[-1]
+            result_text = result_text.split('**한계**', 1)[0].strip()
+            metric = (
+                r"[+-]?\d+(?:\.\d+)?(?:\s?(?:%|×|x)|\s+"
+                r"(?:points?|pts?|ms|seconds?|papers?|tasks?|samples?))"
+            )
+            patterns = (
+                (
+                    rf"\b(?:cuts?|reduces?|decreases?)\s+(.{{2,64}}?)\s+from\s+"
+                    rf"{metric}\s+to\s+({metric})",
+                    lambda match: (match.group(1), match.group(2)),
+                ),
+                (
+                    rf"\b(?:improves?|increases?|raises?)\s+(.{{2,64}}?)\s+by\s+({metric})",
+                    lambda match: (match.group(1), match.group(2)),
+                ),
+                (
+                    rf"\b(?:preserves?|retains?)\s+({metric})\s+(?:of\s+)?"
+                    r"(.{2,64}?)(?:\s+in\b|\s+on\b|\s+across\b|[.;]|$)",
+                    lambda match: (f"{match.group(2)} preserved", match.group(1)),
+                ),
+            )
+
+            label = value = ''
+            for pattern, unpack in patterns:
+                match = re.search(pattern, result_text, flags=re.IGNORECASE)
+                if match:
+                    label, value = unpack(match)
+                    break
+
+            if not value:
+                match = re.search(metric, result_text, flags=re.IGNORECASE)
+                if not match:
+                    return ""
+                value = match.group(0)
+                context = result_text.replace(value, ' ')
+                context = re.sub(
+                    r"\b(?:reports?|shows?|achieves?|reaches?|records?)\b",
+                    ' ',
+                    context,
+                    flags=re.IGNORECASE,
+                )
+                label = self._poster_excerpt(context.strip(' .,:;-'), 42)
+
+            label = self._poster_excerpt(label.strip(' .,:;-'), 42)
+            if not label:
+                return ""
+            return (
+                f'<div class="metric-callout" title="{esc(result_text)}" '
+                f'aria-label="{esc(label)}: {esc(value)}">'
+                f'<span class="metric-label">{esc(label)}</span>'
+                f'<strong>{esc(value)}</strong>'
+                '</div>'
+            )
+
+        overview_fig_html = section_figures(overview)
+        if overview and not overview_fig_html:
+            methodology = getattr(content, 'methodology', '') if content else ''
+            steps = visual_agent._parse_methodology_steps(methodology or overview.text_content)
+            if steps:
+                svg = sanitize_poster_markup(visual_agent.generate_pipeline_diagram(steps))
+                overview_fig_html = (
+                    '<figure class="evidence-figure overview-figure">'
+                    f'{svg}'
+                    '<figcaption>연구 파이프라인 다이어그램: 추출된 방법론 단계를 요약한 자동 생성 개요.</figcaption>'
+                    '</figure>'
+                )
+
+        paper_cards_html = []
+        for i, psec in enumerate(paper_sections):
+            color = psec.color_code or _PAPER_COLORS[i % len(_PAPER_COLORS)]
+            ptitle = psec.title or f"Evidence source {i + 1}"
+            paper_title_class = "paper-title title-long" if len(ptitle) >= 58 else "paper-title"
+            fig_html = section_figures(psec)
+            if not fig_html and psec.text_content:
+                method_text = (
+                    psec.text_content.split('**주요 기여**')[0]
+                    if '**주요 기여**' in psec.text_content
+                    else psec.text_content[:600]
+                )
+                steps = visual_agent._parse_methodology_steps(method_text)
                 if steps:
-                    svg = visual_agent.generate_pipeline_diagram(steps)
+                    svg = sanitize_poster_markup(visual_agent.generate_pipeline_diagram(steps))
                     fig_html = (
-                        f'<div style="margin:12px 0;">{svg}'
-                        f'<p style="font-size:0.8rem;color:#64748b;'
-                        f'text-align:center;margin-top:6px;">'
-                        f'연구 파이프라인 다이어그램</p></div>'
+                        '<figure class="evidence-figure">'
+                        f'{svg}'
+                        f'<figcaption>{esc(ptitle)} 방법론 흐름을 요약한 자동 생성 다이어그램.</figcaption>'
+                        '</figure>'
                     )
 
-            if sec.role == SectionRole.COMPARISON:
-                content_html = self._markdown_table_to_html(sec.text_content)
-            else:
-                content_html = self._text_to_html(sec.text_content)
-
-            span = ' span-full' if pw > 55 else ''
-            panels_html += (
-                f'<div class="panel{span}">'
-                f'<div class="panel-inner section-card">'
-                f'<h2 class="section-heading">'
-                f'<span class="section-num">{sec_num}</span>'
-                f'{esc(heading_title)}</h2>'
-                f'{content_html}'
+            paper_cards_html.append(
+                f'<article class="paper-card" style="--paper-color:{esc(color)};">'
+                f'<div class="paper-meta">Evidence {i + 1:02d}</div>'
+                f'<div class="paper-heading-row">'
+                f'<h3 class="{paper_title_class}">{esc(ptitle)}</h3>'
+                f'{metric_callout(psec.text_content)}'
+                f'</div>'
+                f'<div class="paper-card-body{"" if fig_html else " paper-card-body--text-only"}">'
+                f'<div class="paper-copy">{self._text_to_html(psec.text_content)}</div>'
                 f'{fig_html}'
-                f'</div></div>'
+                f'</div>'
+                f'</article>'
             )
+
+        if not paper_cards_html:
+            paper_cards_html.append(
+                '<article class="paper-card" style="--paper-color:#2457a6;">'
+                '<div class="paper-meta">Evidence</div>'
+                '<h3 class="paper-title">No individual paper cards were extracted</h3>'
+                '<p>논문별 세부 분석 데이터가 없어 전체 리뷰 단위로 요약합니다.</p>'
+                '</article>'
+            )
+
+        comparison_fig_html = section_figures(comparison)
+        findings_fig_html = section_figures(findings)
+        conclusion_fig_html = section_figures(conclusion)
 
         html = f'''<!DOCTYPE html>
 <html lang="ko">
@@ -1317,398 +1324,581 @@ table.comparison-table tr:nth-child(even) td {{
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{esc(composition.title)} - Academic Poster</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" as="style" crossorigin
-  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 <style>
 /* ================================================================
-   NeurIPS / ICML / CVPR — Academic Poster Template
-   Aspect ratio: 4:3 landscape (48" × 36" equivalent)
+   Editorial Evidence Wall — self-contained academic poster
+   Contract: 4:3 / A3 landscape, 12-column responsive grid
    ================================================================ */
 :root {{
-  --font-main: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
-               'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  /* brand colours */
-  --c-header-bg:   #1B2A4A;
-  --c-header-text: #FFFFFF;
-  --c-primary:     #2563EB;
-  --c-secondary:   #059669;
-  --c-accent-muted:#DBEAFE;
-  /* content */
-  --c-bg:          #FAFAFA;
-  --c-card:        #FFFFFF;
-  --c-border:      #E5E7EB;
-  --c-text:        #1A1A1A;
-  --c-text-sub:    #374151;
-  --c-text-muted:  #6B7280;
-  --c-caption:     #555555;
-  /* geometry */
-  --radius-card:   8px;
-  --radius-modal:  12px;
-  --gap:           1.5rem;
-  --pad-card:      1.5rem;
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR",
+               "Apple SD Gothic Neo", Arial, sans-serif;
+  --ink: #172033;
+  --muted: #596579;
+  --quiet: #7a8494;
+  --paper: #fffdf8;
+  --panel: #ffffff;
+  --panel-soft: #f4f7fb;
+  --line: #d9dee8;
+  --blue: #2457a6;
+  --green: #0f766e;
+  --amber: #b45309;
+  --red: #b91c1c;
+  --gap: 12px;
+  --radius: 8px;
 }}
 
+@page {{
+  size: A3 landscape;
+  margin: 0;
+}}
 *,*::before,*::after {{ box-sizing: border-box; }}
+
+html, body {{
+  margin: 0;
+  min-height: 100%;
+}}
 
 body {{
   font-family: var(--font-main);
-  background: #D1D5DB;
+  background: #e7e9ee;
   margin: 0;
-  padding: 2rem;
-  color: var(--c-text);
-  font-size: 0.92rem;
-  line-height: 1.65;
+  padding: 16px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.48;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   word-break: keep-all;
   overflow-wrap: break-word;
-  overflow-x: auto;       /* 좁은 뷰포트에서 가로 스크롤 */
 }}
 
-/* ── Poster shell — wide format, height grows with content ── */
 .poster {{
-  width: 100%;
-  min-width: 1200px;
-  max-width: 1800px;
+  width: min(100%, 1580px);
+  aspect-ratio: 4 / 3;
+  min-height: 900px;
   margin: 0 auto;
-  background: var(--c-bg);
-  border-radius: var(--radius-modal);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-  display: flex;
-  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid #cfd5df;
+  box-shadow: 0 14px 40px rgba(23,32,51,0.18);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: var(--gap);
 }}
 
-/* ================================================================
-   HEADER — full-width dark bar
-   ================================================================ */
 .poster-header {{
-  background: var(--c-header-bg);
-  color: var(--c-header-text);
-  padding: 2rem 3rem 1.75rem;
+  grid-column: 1 / -1;
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 12px 18px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 2rem;
-  flex-shrink: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 18px;
+  break-inside: avoid;
 }}
-.poster-header-left {{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 80px;
-}}
-.conference-badge {{
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 6px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.75rem;
+.kicker {{
+  margin: 0 0 6px;
+  color: #a8d5ff;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #93C5FD;
-  white-space: nowrap;
-}}
-.poster-header-center {{
-  text-align: center;
 }}
 .poster-header h1 {{
-  font-size: clamp(1.6rem, 2.8vw, 3.5rem);
+  font-size: clamp(1.9rem, 2.8vw, 3rem);
   font-weight: 800;
-  color: var(--c-header-text);
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  line-height: 1.08;
+  letter-spacing: 0;
+}}
+.poster-header h1.title-long {{
+  font-size: clamp(1.45rem, 1.95vw, 2.2rem);
+  line-height: 1.05;
 }}
 .poster-header .subtitle {{
-  font-size: clamp(0.85rem, 1.1vw, 1.2rem);
-  font-weight: 400;
-  color: rgba(255,255,255,0.82);
   margin: 0;
-  line-height: 1.5;
+  color: rgba(255,255,255,0.82);
+  font-size: 0.98rem;
+  line-height: 1.45;
 }}
-.poster-header-right {{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 80px;
-}}
-.credit-badge {{
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.7rem;
-  color: rgba(255,255,255,0.55);
-  text-align: center;
-  white-space: nowrap;
-}}
-.keyword-bar {{
-  margin-top: 1rem;
+.keyword-row {{
+  margin-top: 9px;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
+  gap: 6px;
 }}
 .keyword {{
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
-  color: #BFDBFE;
-  padding: 0.2rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 999px;
+  color: #dbeafe;
+  padding: 3px 9px;
+  font-size: 0.72rem;
   font-weight: 500;
 }}
-
-/* ================================================================
-   CONTENT AREA — Paper2Poster Binary-Tree Absolute Layout
-   ================================================================ */
-.poster-content {{
-  background: var(--c-bg);
+.evidence-meta {{
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--gap);
-  padding: var(--gap);
-  min-height: 60vw;         /* 와이드 비율 유지 (4:3 ≈ 75vw, 여유있게) */
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  align-self: start;
+  gap: 6px;
+  min-width: 246px;
 }}
-
-/* ── Panel — flow-based grid item ── */
-.panel {{
-  min-width: 0;
+.evidence-meta span {{
+  border: 1px solid rgba(255,255,255,0.24);
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 0.72rem;
+  text-transform: uppercase;
 }}
-.panel-inner {{
-  width: 100%;
-}}
-.panel.span-full {{
-  grid-column: 1 / -1;
-}}
-
-/* ================================================================
-   SECTION CARD
-   ================================================================ */
-.section-card {{
-  background: var(--c-card);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
-  padding: var(--pad-card);
-  display: flex;
-  flex-direction: column;
-}}
-
-/* Section heading — numbered, with underline accent */
-.section-heading {{
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--c-text);
-  margin: 0 0 1rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 2px solid var(--c-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex-shrink: 0;
-}}
-.section-num {{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  background: var(--c-primary);
+.evidence-meta strong {{
+  display: block;
   color: #fff;
-  border-radius: 50%;
-  font-size: 0.85rem;
-  font-weight: 700;
-  flex-shrink: 0;
+  font-size: 1rem;
 }}
 
-/* ================================================================
-   PAPER CARDS — 2-column sub-grid
-   ================================================================ */
-.paper-grid {{
+.thesis-strip,
+.section-card {{
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 13px 15px;
+  min-width: 0;
+  break-inside: avoid;
+}}
+.thesis-strip {{
+  grid-column: 1 / -1;
+  border-left: 6px solid var(--green);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1rem;
-}}
-.paper-card {{
-  background: var(--c-card);
-  border: 1px solid var(--c-border);
-  border-left-width: 4px;
-  border-radius: var(--radius-card);
-  padding: 1.1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}}
-.paper-card h3 {{
-  font-size: 0.95rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: baseline;
+  font-size: 1.03rem;
   font-weight: 700;
-  margin: 0 0 0.5rem;
-  line-height: 1.4;
+}}
+.thesis-strip .label {{
+  color: var(--green);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}}
+.provenance-meta {{
+  display: flex;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+}}
+.provenance-meta span + span::before {{
+  content: "·";
+  margin-right: 8px;
+  color: var(--quiet);
+}}
+.overview-section {{
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.5fr);
+  gap: 16px;
+  align-items: start;
+}}
+.papers-section {{ grid-column: 1 / -1; }}
+.overview-section,
+.papers-section,
+.comparison-section,
+.findings-section,
+.conclusion-section {{
+  padding: 10px 12px;
+}}
+.comparison-section {{
+  grid-column: span 6;
+  grid-row: 5;
+}}
+.findings-section {{
+  grid-column: span 3;
+  grid-row: 5;
+}}
+.conclusion-section {{
+  grid-column: span 3;
+  grid-row: 5;
+}}
+.conclusion-section {{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}}
+.findings-body {{
+  columns: 1;
+}}
+.findings-body h4,
+.findings-body ul {{
+  break-inside: avoid;
 }}
 
-/* ================================================================
-   TYPOGRAPHY — shared between section-card and paper-card
-   ================================================================ */
+.section-card h2 {{
+  margin: 0 0 8px;
+  color: var(--blue);
+  font-size: 1rem;
+  line-height: 1.22;
+  font-weight: 700;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}}
+.section-eyebrow {{
+  margin: 0 0 5px;
+  color: var(--quiet);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}}
 .section-card h4,
 .paper-card h4 {{
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--c-text);
-  margin: 0.9rem 0 0.3rem;
-  padding-left: 0.6rem;
-  border-left: 3px solid var(--c-accent-muted);
+  margin: 8px 0 3px;
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}}
+.paper-card h4 {{
+  margin: 5px 0 2px;
 }}
 .section-card p,
 .paper-card p {{
-  font-size: 0.88rem;
-  line-height: 1.65;
-  color: var(--c-text-sub);
-  margin: 0.25rem 0;
+  margin: 0 0 5px;
+  color: #2f3a4d;
+  font-size: 0.76rem;
+  line-height: 1.4;
 }}
-.section-card strong,
-.paper-card strong {{
-  font-weight: 600;
-  color: var(--c-text);
+.paper-card p {{
+  overflow-wrap: anywhere;
 }}
 .section-card ul,
 .paper-card ul {{
-  list-style: none;
-  padding-left: 0;
-  margin: 0.4rem 0;
+  margin: 4px 0 0;
+  padding-left: 1.05rem;
 }}
 .section-card li,
 .paper-card li {{
-  position: relative;
-  padding: 0.2rem 0 0.2rem 1.1rem;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  color: var(--c-text-sub);
-}}
-.section-card li::before,
-.paper-card li::before {{
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.55rem;
-  width: 5px;
-  height: 5px;
-  background: var(--c-primary);
-  border-radius: 50%;
+  margin: 0 0 3px;
+  color: #2f3a4d;
+  font-size: 0.76rem;
+  line-height: 1.38;
 }}
 
-/* ================================================================
-   TABLE — comparison section
-   ================================================================ */
-.section-card table {{
+.paper-grid {{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}}
+.paper-card {{
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--paper-color, var(--blue));
+  border-radius: 7px;
+  padding: 10px 11px;
+  background: #fff;
+  min-width: 0;
+  break-inside: avoid;
+}}
+.paper-meta {{
+  color: var(--paper-color, var(--blue));
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}}
+.paper-title {{
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.32;
+}}
+.paper-title.title-long {{
+  font-size: 0.82rem;
+  line-height: 1.28;
+}}
+.paper-heading-row {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}}
+.metric-callout {{
+  min-width: 68px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  text-align: right;
+}}
+.metric-callout span {{
+  display: block;
+  color: var(--muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}}
+.metric-callout strong {{
+  display: block;
+  color: var(--paper-color, var(--blue));
+  font-size: 1.08rem;
+  line-height: 1.05;
+}}
+.paper-card-body {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(86px, 0.42fr);
+  gap: 8px;
+  align-items: start;
+}}
+.paper-card-body--text-only {{
+  grid-template-columns: 1fr;
+}}
+
+table {{
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
-  margin: 0.75rem 0;
+  table-layout: fixed;
+  margin: 8px 0 10px;
 }}
-.section-card th {{
-  padding: 0.5rem 0.85rem;
+th, td {{
+  border: 1px solid var(--line);
+  padding: 6px 7px;
   text-align: left;
-  font-weight: 600;
-  color: var(--c-text);
-  border-bottom: 2px solid var(--c-primary);
-  background: #F3F4F6;
+  vertical-align: top;
+  font-size: 0.76rem;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
 }}
-.section-card td {{
-  padding: 0.45rem 0.85rem;
-  border-bottom: 1px solid var(--c-border);
-  color: var(--c-text-sub);
+th {{
+  background: #eef2f7;
+  color: var(--ink);
+  font-weight: 700;
 }}
-.section-card tbody tr:nth-child(even) td {{ background: #F9FAFB; }}
-.section-card tbody tr:hover td {{ background: #EFF6FF; }}
+tbody tr:nth-child(even) td {{ background: #f8fafc; }}
 
-/* ================================================================
-   FIGURES
-   ================================================================ */
-.section-card figure,
-.paper-card figure {{
-  margin: 0.75rem 0;
+figure {{
+  margin: 7px 0 0;
   text-align: center;
+  break-inside: avoid;
 }}
-.section-card figcaption,
-.paper-card figcaption {{
-  font-size: 0.8rem;
-  color: var(--c-caption);
-  margin-top: 0.4rem;
-  font-style: italic;
-}}
-.section-card img,
-.paper-card img {{
+figure img,
+figure svg {{
   max-width: 100%;
+  width: 100%;
   height: auto;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--c-border);
+  max-height: 120px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}}
+.overview-figure svg {{
+  height: 150px;
+  max-height: 150px;
+}}
+.paper-card figure svg,
+.paper-card figure img {{
+  max-height: 100px;
+}}
+figcaption {{
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  margin-top: 5px;
+  text-align: left;
 }}
 
-/* ================================================================
-   FOOTER — full-width references bar
-   ================================================================ */
 .poster-footer {{
-  background: #F3F4F6;
-  border-top: 1px solid var(--c-border);
-  padding: 0.75rem 2rem;
-  display: flex;
-  align-items: baseline;
-  gap: 2rem;
-  flex-shrink: 0;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
 }}
-.footer-refs {{
-  flex: 1;
-  font-size: 0.75rem;
-  color: var(--c-text-muted);
-  line-height: 1.55;
+
+@media (max-width: 1199px) {{
+  body {{ padding: 10px; }}
+  .poster {{
+    aspect-ratio: auto;
+    min-height: 0;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }}
+  .overview-section,
+  .papers-section,
+  .comparison-section,
+  .findings-section,
+  .conclusion-section {{
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }}
+  .overview-section {{
+    grid-template-columns: 1fr;
+  }}
+  .paper-grid {{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}
 }}
-.footer-refs strong {{
-  color: var(--c-text-sub);
-  font-weight: 600;
+
+@media (max-width: 760px) {{
+  body {{ padding: 0; background: var(--paper); }}
+  .poster {{
+    width: 100%;
+    border: 0;
+    box-shadow: none;
+    padding: 12px;
+    grid-template-columns: 1fr;
+  }}
+  .poster-header {{
+    grid-template-columns: 1fr;
+  }}
+  .evidence-meta {{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+  }}
+  .thesis-strip,
+  .section-card,
+  .overview-section,
+  .papers-section,
+  .comparison-section,
+  .findings-section,
+  .conclusion-section {{
+    grid-column: 1 / -1;
+  }}
+  .conclusion-section {{
+    grid-template-columns: 1fr;
+  }}
+  .thesis-strip {{
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }}
+  .provenance-meta {{
+    flex-wrap: wrap;
+    white-space: normal;
+  }}
+  .findings-body {{
+    columns: 1;
+  }}
+  .paper-grid {{
+    grid-template-columns: 1fr;
+  }}
+  .paper-card-body {{
+    grid-template-columns: 1fr;
+  }}
+  .paper-heading-row {{
+    grid-template-columns: 1fr;
+  }}
+  .metric-callout {{
+    justify-self: start;
+    text-align: left;
+  }}
 }}
-.footer-credit {{
-  font-size: 0.7rem;
-  color: #9CA3AF;
-  white-space: nowrap;
+
+@media print {{
+  html, body {{
+    width: 420mm;
+    height: 297mm;
+    overflow: hidden;
+  }}
+  body {{
+    background: white;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+  }}
+  .poster {{
+    width: 396mm;
+    height: 297mm;
+    min-height: 297mm;
+    max-width: none;
+    box-shadow: none;
+    border: 0;
+    overflow: hidden;
+  }}
+  * {{
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }}
+  .section-card,
+  .paper-card,
+  figure,
+  table,
+  tr {{
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }}
 }}
 </style>
 </head>
 <body>
-<div class="poster">
-
-  <!-- ── HEADER ─────────────────────────────────────────────── -->
+<main class="poster poster--a3-landscape" aria-label="Academic review poster">
   <header class="poster-header">
-    <div class="poster-header-left">
-      <span class="conference-badge">Academic<br>Poster</span>
-    </div>
-    <div class="poster-header-center">
-      <h1>{esc(composition.title)}</h1>
+    <div>
+      <p class="kicker">Academic Review Poster</p>
+      <h1 class="{' '.join(title_classes)}">{esc(title_text)}</h1>
       <p class="subtitle">{esc(composition.subtitle)}</p>
-      <div class="keyword-bar">{keywords_html}</div>
+      <div class="keyword-row">{keywords_html}</div>
     </div>
-    <div class="poster-header-right">
-      <span class="credit-badge">PaperReview<br>Agent</span>
+    <div class="evidence-meta" aria-label="Evidence metadata">
+      <span><strong>{paper_count}</strong> papers</span>
+      <span><strong>{ref_count}</strong> refs</span>
+      <span><strong>{figure_count}</strong> figures</span>
     </div>
   </header>
 
-  <!-- ── CONTENT — Binary-Tree Layout ──────────────────────────── -->
-  <main class="poster-content">
-    {panels_html}
-  </main>
+  <aside class="thesis-strip">
+    <span class="label">Thesis</span>
+    <span>{thesis_html}</span>
+    <span class="provenance-meta" aria-label="Review provenance">
+      <span>Generated {generated_on}</span>
+      <span>Status {synthesis_status}</span>
+      <span>{paper_count} source papers</span>
+    </span>
+  </aside>
 
-  <!-- ── FOOTER ──────────────────────────────────────────────── -->
-  <footer class="poster-footer">
-    <div class="footer-refs">
-      <strong>참고문헌</strong>&ensp;{refs_html}
+  <section class="section-card overview-section">
+    <div class="overview-copy">
+      <p class="section-eyebrow">01 / Research Frame</p>
+      <h2>{esc(overview.title if overview else "연구 개요")}</h2>
+      {section_body(overview, "추출된 초록과 연구 배경이 없습니다.")}
     </div>
-    <span class="footer-credit">Generated by PaperReviewAgent</span>
-  </footer>
+    {overview_fig_html}
+  </section>
 
-</div>
+  <section class="section-card papers-section">
+    <p class="section-eyebrow">02 / Evidence Papers</p>
+    <h2>논문별 증거 벽</h2>
+    <div class="paper-grid">
+      {''.join(paper_cards_html)}
+    </div>
+  </section>
+
+  <section class="section-card comparison-section">
+    <p class="section-eyebrow">03 / Cross-paper Comparison</p>
+    <h2>{esc(comparison.title if comparison else "비교 분석")}</h2>
+    {section_body(comparison, "비교 테이블이 추출되지 않았습니다.")}
+    {comparison_fig_html}
+  </section>
+
+  <section class="section-card findings-section">
+    <p class="section-eyebrow">04 / Findings</p>
+    <h2>{esc(findings.title if findings else "핵심 발견 및 기여")}</h2>
+    <div class="findings-body">{section_body(findings, "핵심 발견이 추출되지 않았습니다.")}</div>
+    {findings_fig_html}
+  </section>
+
+  <section class="section-card conclusion-section">
+    <div>
+      <p class="section-eyebrow">05 / Takeaway</p>
+      <h2>{esc(conclusion.title if conclusion else "결론")}</h2>
+      {section_body(conclusion, "결론이 추출되지 않았습니다.")}
+      {conclusion_fig_html}
+    </div>
+    <footer class="poster-footer">
+      <strong>참고문헌</strong>&ensp;{refs_html}
+    </footer>
+  </section>
+</main>
 </body>
 </html>'''
         return sanitize_poster_markup(html)
@@ -1725,16 +1915,19 @@ body {{
             svg = af.get('svg_content', '')
             if svg:
                 svg = sanitize_poster_markup(svg)
-                return f'''<div style="margin:12px 0;text-align:center;">
+                return f'''<figure class="evidence-figure" style="margin:12px 0;">
                     {svg}
-                    <p style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</p>
-                </div>'''
+                    <figcaption style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
+                </figure>'''
         elif fp.source == 'paper_figure' and fp.figure_index < len(figures):
             fig = figures[fp.figure_index]
             b64 = fig.get('image_base64', '') if isinstance(fig, dict) else getattr(fig, 'image_base64', '')
             if b64:
-                return f'''<figure style="margin:12px 0;">
-                    <img src="data:image/png;base64,{self._esc(b64)}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
+                mime = fig.get('mime_type', 'image/png') if isinstance(fig, dict) else getattr(fig, 'mime_type', 'image/png')
+                if mime not in {'image/png', 'image/jpeg', 'image/webp', 'image/gif'}:
+                    mime = 'image/png'
+                return f'''<figure class="embed-figure" style="margin:12px 0;">
+                    <img src="data:{self._esc(mime)};base64,{self._esc(b64)}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
                     <figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
                 </figure>'''
         return ''
@@ -1811,6 +2004,20 @@ body {{
             tables_html.append(self._rows_to_table(current_rows))
 
         return '\n'.join(tables_html)
+
+    @staticmethod
+    def _poster_excerpt(text: str, limit: int) -> str:
+        """Return a bounded, visible excerpt instead of clipping text in CSS."""
+        normalized = re.sub(r'\s+', ' ', str(text or '')).strip()
+        if len(normalized) <= limit:
+            return normalized
+
+        first_sentence = re.split(r'(?<=[.!?。])\s+', normalized, maxsplit=1)[0]
+        if len(first_sentence) <= limit:
+            return first_sentence
+
+        shortened = normalized[: limit + 1].rsplit(' ', 1)[0].rstrip(' ,;:')
+        return f"{shortened or normalized[:limit].rstrip()}…"
 
     @staticmethod
     def _rows_to_table(rows: List[List[str]]) -> str:

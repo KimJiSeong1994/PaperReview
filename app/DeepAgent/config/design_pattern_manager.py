@@ -231,10 +231,10 @@ class DesignPatternManager:
 
         layout = pattern['layout']
         return LayoutConfig(
-            type=layout.get('type', 'three_column'),
-            ratio=layout.get('ratio', [1, 1, 1]),
-            aspect_ratio=layout.get('aspect_ratio', '20:9'),
-            min_width=layout.get('min_width', '1600px'),
+            type=layout.get('type', 'editorial_evidence_wall'),
+            ratio=layout.get('ratio', [1] * 12),
+            aspect_ratio=layout.get('aspect_ratio', '4:3'),
+            min_width=layout.get('min_width', 'min(100%, 1600px)'),
             sections=layout.get('sections', {})
         )
 
@@ -303,8 +303,8 @@ class DesignPatternManager:
 ### Layout Configuration
 - Type: {layout_config.type if layout_config else 'flexible'}
 - Grid Ratio: {':'.join(map(str, layout_config.ratio)) if layout_config else '1:1:1'}
-- Aspect Ratio: {layout_config.aspect_ratio if layout_config else '20:9'}
-- Min Width: {layout_config.min_width if layout_config else '1600px'}
+- Aspect Ratio: {layout_config.aspect_ratio if layout_config else '4:3'} (A3 landscape, 1600x1200 screen canvas)
+- Width: {layout_config.min_width if layout_config else 'min(100%, 1600px)'} with responsive scaling, not fixed viewport overflow
 
 ### Color Palette
 """
@@ -422,4 +422,3 @@ def get_design_pattern_manager() -> DesignPatternManager:
     if _design_pattern_manager is None:
         _design_pattern_manager = DesignPatternManager()
     return _design_pattern_manager
-
