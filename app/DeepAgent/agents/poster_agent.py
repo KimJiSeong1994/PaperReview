@@ -912,12 +912,13 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         sections = []
         for i, paper in enumerate(content.paper_analyses[:6]):
-            title = paper.get('title', f'논문 {i+1}')
+            title = (paper.get('title') or '').strip() or 'Untitled evidence source'
             methodology = (paper.get('methodology', '') or '')[:800]
             contributions = (paper.get('contributions', '') or '')[:600]
             results = (paper.get('results', '') or '')[:600]
+            limitations = (paper.get('limitations', '') or '')[:400]
 
-            if not (methodology or contributions or results):
+            if not (methodology or contributions or results or limitations):
                 continue
 
             section = f"""
@@ -929,6 +930,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 section += f"**주요 기여**: {contributions}\n"
             if results:
                 section += f"**실험 결과**: {results}\n"
+            if limitations:
+                section += f"**한계**: {limitations}\n"
 
             sections.append(section)
 
@@ -1173,13 +1176,14 @@ SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확�
         colors = ['#2563eb', '#7c3aed', '#059669', '#ea580c', '#0891b2', '#d97706']
         cards = []
         for i, paper in enumerate(paper_analyses[:6]):
-            title = paper.get('title', f'Paper {i + 1}')
+            title = (paper.get('title') or '').strip() or 'Untitled evidence source'
             methodology = (paper.get('methodology', '') or '')[:600]
             contributions = (paper.get('contributions', '') or '')[:400]
             results = (paper.get('results', '') or '')[:400]
+            limitations = (paper.get('limitations', '') or '')[:300]
             color = colors[i % len(colors)]
 
-            if not (methodology or contributions or results):
+            if not (methodology or contributions or results or limitations):
                 continue
 
             card = f"""
@@ -1188,6 +1192,7 @@ SVG 차트(Bar Chart, Radar Chart 등)를 생성할 때 이 데이터를 정확�
 - **방법론**: {methodology}
 - **기여**: {contributions}
 - **결과**: {results}
+- **한계**: {limitations}
 - **SVG 요구**: 이 논문의 핵심 파이프라인을 SVG 플로우차트로 표현 (색상: {color})
 """
             cards.append(card)
@@ -1231,7 +1236,7 @@ SVG는 해당 논문의 방법론을 구체적으로 시각화해야 합니다 (
 ## 포스터 HTML 구조 (이 구조를 따르세요)
 
 ```html
-<header> 제목 + 부제목 + 키워드 배지 </header>
+<header> 제목 + 부제목 + 키워드 + 생성일/합성상태/입력 논문 수 </header>
 
 <section class="overview-section">
   <div class="overview-text"> 초록 + 배경 </div>
@@ -1244,14 +1249,15 @@ SVG는 해당 논문의 방법론을 구체적으로 시각화해야 합니다 (
 
 <section class="papers-grid">
   <!-- 논문 수에 따라 자동 배치: repeat(auto-fit, minmax(450px, 1fr)) -->
-  <div class="paper-card" style="border-left: 4px solid [논문색상]">
+  <article class="paper-card" style="--paper-color:#2457a6">
     <h3>논문 제목</h3>
-    <p>방법론 설명...</p>
+    <p class="method" data-content="source-methodology"></p>
     <svg viewBox="0 0 400 160" style="width:100%">
       <!-- 이 논문 고유의 아키텍처 다이어그램 -->
     </svg>
-    <p class="results">주요 결과...</p>
-  </div>
+    <p class="results" data-content="source-results"></p>
+    <p class="limitations" data-content="source-limitations"></p>
+  </article>
   <!-- 다음 논문 카드... -->
 </section>
 
@@ -1260,7 +1266,7 @@ SVG는 해당 논문의 방법론을 구체적으로 시각화해야 합니다 (
 </section>
 
 <section class="conclusion-section">
-  결론 + Key Findings
+  결론 + Key Findings + provenance metadata + 참고문헌
 </section>
 ```
 
@@ -1277,16 +1283,25 @@ SVG는 해당 논문의 방법론을 구체적으로 시각화해야 합니다 (
 
 ```css
 :root {{ --primary: #2563eb; --bg: #f8fafc; }}
-body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
-.papers-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }}
-.paper-card {{ background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }}
+body {{ font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }}
+.poster-container {{ width:min(100%, 1600px); aspect-ratio:4/3; margin:0 auto; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); }}
+.papers-grid {{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }}
+.paper-card {{ background:white; border-radius:8px; padding:20px; border-left:4px solid var(--paper-color); }}
+@page {{ size:A3 landscape; margin:0; }}
+@media print {{ html,body {{ width:420mm; height:297mm; overflow:hidden; }} body {{ background:white; padding:0; display:flex; justify-content:center; }} .poster-container {{ width:396mm; height:297mm; min-height:297mm; max-width:none; box-shadow:none; overflow:hidden; }} }}
+@media (max-width:1199px) {{ .poster-container {{ aspect-ratio:auto; grid-template-columns:repeat(6,minmax(0,1fr)); }} .papers-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)); }} }}
+@media (max-width:760px) {{ .poster-container {{ grid-template-columns:1fr; }} .papers-grid {{ grid-template-columns:1fr; }} }}
 ```
 
 ## 절대 금지 사항
 - <img src="https://..."> 등 외부 URL 이미지 절대 사용 금지
 - Wikipedia, Google, arXiv 등 외부 서비스의 로고/아이콘 삽입 금지
 - 이미지는 반드시 인라인 SVG만 허용 (외부 URL, 클립아트, 이모지 이미지 금지)
-- 폰트 CDN 외에는 어떤 외부 URL도 참조 금지
+- Google Fonts, Tailwind, CDN, 외부 스타일시트/스크립트 등 어떤 외부 리소스도 참조 금지
+- 긴 한국어/영어 혼합 제목은 원문 대소문자를 보존하고 uppercase/text-transform을 적용하지 말 것
+- 임의의 알파벳 placeholder 라벨 금지. 데이터가 있으면 Accuracy, F1, Latency, Throughput 등 실제 의미 라벨을 사용
+- metric은 실제 label, value, unit, baseline/sample context를 가능한 범위에서 함께 표시하고 수치를 새로 만들지 말 것
+- 추출된 limitations와 생성일/합성 상태/입력 논문 수 provenance metadata를 반드시 보이게 둘 것
 
 ## 출력
 <!DOCTYPE html>로 시작하는 완전한 HTML. 설명/코드블록 없이 HTML만."""
@@ -1304,16 +1319,20 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
         else:
             custom_css = self._get_default_css()
 
+        generated_on = datetime.now().date().isoformat()
+        paper_count = len(getattr(content, 'paper_analyses', []) or [])
+        synthesis_status = 'synthesized' if paper_count else 'partial'
+
         # 헤더 생성
         header_html = f'''<header>
             <div class="title-area">
-                <h1>{content.title}</h1>
-                <h2>{content.subtitle}</h2>
-                <div class="authors">Systematic Literature Review | {datetime.now().strftime("%Y-%m-%d")}</div>
+                <h1>{self._escape_html(content.title)}</h1>
+                <h2>{self._escape_html(content.subtitle)}</h2>
+                <div class="authors">Source-grounded literature review</div>
             </div>
             <div class="affiliation">
-                <div class="conf-name">AI & Graph Learning Conference</div>
-                <div>{datetime.now().strftime("%B %d, %Y")}</div>
+                <div class="conf-name">Status {synthesis_status}</div>
+                <div>Generated {generated_on} &middot; {paper_count} source papers</div>
             </div>
         </header>'''
 
@@ -1326,9 +1345,42 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
                 columns[col] = []
             columns[col].append((section.order, section, data['html']))
 
+        limitations = []
+        for paper in getattr(content, 'paper_analyses', []) or []:
+            limitation = str(paper.get('limitations') or '').strip()
+            if limitation and limitation not in limitations:
+                limitations.append(limitation)
+        if limitations:
+            limitations_html = '<ul>' + ''.join(
+                f'<li>{self._escape_html(item)}</li>' for item in limitations[:6]
+            ) + '</ul>'
+        else:
+            limitations_html = '<p>Limitations were unavailable in the extracted review payload.</p>'
+
+        references = getattr(content, 'references', []) or []
+        references_text = ' '.join(
+            f'[{index + 1}] {self._escape_html(str(reference))}'
+            for index, reference in enumerate(references[:8])
+        ) or 'References were unavailable in the extracted review payload.'
+
+        scholarly_notes = [
+            f'''<aside class="section-box limitations-block">
+                <div class="section-title">한계 (Limitations)</div>
+                <div class="section-content">{limitations_html}</div>
+            </aside>''',
+            f'''<aside class="section-box poster-metadata">
+                <div class="section-title">Provenance &amp; References</div>
+                <div class="section-content">
+                    <p>Generated {generated_on} &middot; Status {synthesis_status} &middot; {paper_count} source papers</p>
+                    <p>{references_text}</p>
+                </div>
+            </aside>''',
+        ]
+
         # 각 컬럼 정렬 및 HTML 생성
         columns_html = []
-        for col_num in sorted(columns.keys()):
+        sorted_columns = sorted(columns.keys())
+        for col_num in sorted_columns:
             sections_in_col = sorted(columns[col_num], key=lambda x: x[0])
 
             col_sections_html = []
@@ -1339,8 +1391,14 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
                 </div>'''
                 col_sections_html.append(section_box)
 
+            if col_num == sorted_columns[-1]:
+                col_sections_html.extend(scholarly_notes)
+
             col_html = f'<div class="col">{"".join(col_sections_html)}</div>'
             columns_html.append(col_html)
+
+        if not columns_html:
+            columns_html.append(f'<div class="col">{"".join(scholarly_notes)}</div>')
 
         # 전체 HTML 조립 (YAML 스타일 적용)
         poster_html = f'''<!DOCTYPE html>
@@ -1348,11 +1406,7 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{content.title} - Academic Poster</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{self._escape_html(content.title)} - Academic Poster</title>
     <style>
         {custom_css}
     </style>
@@ -1404,26 +1458,26 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
         }
 
         body {
-            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
             background-color: #e2e8f0;
             color: var(--text-color);
             margin: 0;
             padding: 20px;
-            min-width: 1600px;
             overflow-x: auto;
         }
 
         .poster-container {
             width: 100%;
-            max-width: 2200px;
+            max-width: 1600px;
+            min-height: min(1200px, calc(100vw * 0.75));
             margin: 0 auto;
             background-color: var(--bg-color);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            padding: 40px;
+            padding: clamp(24px, 2.5vw, 40px);
             box-sizing: border-box;
-            aspect-ratio: 20 / 9;
+            aspect-ratio: 4 / 3;
         }
 
         header {
@@ -1441,8 +1495,9 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
             color: var(--primary);
             margin: 0;
             line-height: 1.1;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
+            text-transform: none;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
         }
 
         .title-area h2 {
@@ -1470,12 +1525,13 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
 
         .grid-container {
             display: grid;
-            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
             gap: 30px;
             flex-grow: 1;
         }
 
         .col {
+            grid-column: span 4;
             display: flex;
             flex-direction: column;
             gap: 25px;
@@ -1520,6 +1576,77 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
         li {
             padding: 4px 0;
         }
+
+        @page {
+            size: A3 landscape;
+            margin: 0;
+        }
+
+        @media print {
+            html, body {
+                width: 420mm;
+                height: 297mm;
+                overflow: hidden;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+            }
+
+            .poster-container {
+                width: 396mm;
+                height: 297mm;
+                max-width: none;
+                min-height: 297mm;
+                box-shadow: none;
+                break-inside: avoid;
+                overflow: hidden;
+            }
+        }
+
+        @media (max-width: 1199px) {
+            .grid-container {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+            }
+
+            .col {
+                grid-column: span 3;
+            }
+        }
+
+        @media (max-width: 760px) {
+            body {
+                padding: 12px;
+                overflow-x: hidden;
+            }
+
+            .poster-container {
+                aspect-ratio: auto;
+                min-height: auto;
+                padding: 20px;
+            }
+
+            header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .affiliation {
+                text-align: left;
+            }
+
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+
+            .col {
+                grid-column: 1 / -1;
+            }
+        }
         '''
 
     def _generate_simple_fallback(self, report_content: str, num_papers: int) -> str:
@@ -1550,27 +1677,31 @@ body {{ font-family: 'Inter', 'Noto Sans KR', sans-serif; }}
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{self._escape_html(title)} - Academic Poster</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {{ --primary: #2563eb; --secondary: #1e293b; --accent: #f59e0b; --bg: #f8fafc; }}
         * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:'Inter','Noto Sans KR',sans-serif; background:var(--bg); padding:24px; }}
-        .poster {{ max-width:1600px; margin:0 auto; background:white; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.08); overflow:hidden; }}
+        body {{ font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; background:var(--bg); padding:24px; }}
+        .poster {{ width:min(100%,1600px); min-height:min(1200px, calc(100vw * 0.75)); aspect-ratio:4/3; margin:0 auto; background:white; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,0.08); overflow:hidden; display:flex; flex-direction:column; }}
         header {{ background:linear-gradient(135deg, var(--primary), #1d4ed8); color:white; padding:32px 40px; }}
-        header h1 {{ font-size:2.5rem; font-weight:800; margin-bottom:8px; }}
+        header h1 {{ font-size:2.5rem; font-weight:800; margin-bottom:8px; text-transform:none; letter-spacing:0; overflow-wrap:anywhere; }}
         header p {{ font-size:1.1rem; opacity:0.9; }}
-        .content {{ padding:32px 40px; display:grid; grid-template-columns:1fr 1fr; gap:24px; }}
-        .section-box {{ background:var(--bg); border-radius:8px; padding:20px; border-left:4px solid var(--primary); }}
+        .content {{ padding:32px 40px; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:24px; flex:1; }}
+        .section-box {{ grid-column:span 6; background:var(--bg); border-radius:8px; padding:20px; border-left:4px solid var(--primary); }}
         .section-title {{ font-size:1.2rem; font-weight:700; color:var(--primary); margin-bottom:12px; }}
         p {{ font-size:0.95rem; color:var(--secondary); line-height:1.7; }}
+        @page {{ size:A3 landscape; margin:0; }}
+        @media print {{ html,body {{ width:420mm; height:297mm; overflow:hidden; }} body {{ background:white; padding:0; display:flex; justify-content:center; }} .poster {{ width:396mm; height:297mm; min-height:297mm; max-width:none; box-shadow:none; overflow:hidden; }} }}
+        @media (max-width:1199px) {{ .content {{ grid-template-columns:repeat(6,minmax(0,1fr)); }} .section-box {{ grid-column:span 3; }} }}
+        @media (max-width:760px) {{ body {{ padding:12px; }} .poster {{ aspect-ratio:auto; min-height:auto; }} .content {{ grid-template-columns:1fr; padding:24px; }} .section-box {{ grid-column:1 / -1; }} header {{ padding:28px 24px; }} }}
     </style>
 </head>
 <body>
     <div class="poster">
         <header>
             <h1>{self._escape_html(title)}</h1>
-            <p>Systematic Literature Review &middot; {num_papers} papers analyzed</p>
+            <p>Systematic Literature Review &middot; {num_papers} source papers &middot; Generated {datetime.now().date().isoformat()} &middot; Status partial</p>
         </header>
         <div class="content">
             {sections_html}

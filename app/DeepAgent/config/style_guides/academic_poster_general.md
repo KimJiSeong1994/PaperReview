@@ -1,117 +1,122 @@
 # Academic Poster Style Guide (General)
 
-## Color Strategy
+## Output Contract
 
-### Zone-Based Color Assignment
-- **Header Zone**: Primary color gradient background, white text
-- **Content Zones**: White/light background with colored accents
-- **Highlight Zones**: Accent color background for key findings
-- **Footer Zone**: Subtle gray, secondary information
+- Default format: A3 landscape academic poster with a 4:3 composition.
+- Screen canvas: design and preview against 1600px x 1200px; allow responsive rendering from 1200px to 1600px without changing the information hierarchy.
+- Poster surface: one self-contained HTML document. Do not depend on remote fonts, CDN stylesheets, external scripts, tracking pixels, or network-loaded decorative assets.
+- Primary model: Editorial Evidence Wall, not a slide deck, SaaS dashboard, or decorative infographic.
+- Required content: title, authors or source context when available, thesis statement, evidence blocks, metric labels, limitations, and provenance or review metadata.
 
-### Recommended Academic Color Palettes
-- **Classic Blue**: Primary #2563eb, Secondary #1e293b, Accent #f59e0b, BG #f8fafc
-- **Deep Teal**: Primary #0d9488, Secondary #1e293b, Accent #f97316, BG #f0fdfa
-- **Royal Purple**: Primary #7c3aed, Secondary #1e293b, Accent #06b6d4, BG #faf5ff
+## Editorial Evidence Wall
 
-### Color Usage Rules
-- Maximum 3-4 primary colors plus neutrals
-- Text on colored backgrounds must have contrast ratio >= 4.5:1
-- Use opacity variants (0.1, 0.2) for subtle backgrounds
-- Never use pure black (#000000) for body text; use #1e293b or #334155
+- Treat the poster as a dense but readable research wall: thesis first, evidence next, interpretation last.
+- Use a 12-column grid for the main canvas. Recommended spans:
+  - Title/header: 12 columns.
+  - Thesis or key claim: 5-7 columns.
+  - Primary figure, method map, or result table: 5-7 columns.
+  - Evidence cards: 3-4 columns each.
+  - Limitations, metadata, and references: 3-6 columns.
+- Legacy 1-column, 2-column, and 3-column renderers may map onto the 12-column grid, but the 4:3 canvas and evidence-first hierarchy remain mandatory.
+- Avoid nested cards and excessive panel chrome. Use section rhythm, rules, and restrained background shifts before adding framed containers.
 
-## Shapes & Containers
+## Layout And Grid
 
-### Section Boxes
-- Border-radius: 12px for main containers, 8px for nested elements
-- Box-shadow: `0 4px 6px rgba(0,0,0,0.05)` for subtle depth
-- Border: 1px solid with 0.1 opacity of primary color
-- Padding: 20-24px internal spacing
-
-### Diagram Elements
-- **Process boxes**: Rounded rectangles (rx=8, ry=8), filled with light primary
-- **Data containers**: Rectangles with dashed borders for data/datasets
-- **Decision points**: Diamond shapes for branching logic
-- **Cylinders**: For database/storage representation
-
-## Lines & Arrows
-
-### Connection Types
-- **Sequential flow**: Solid lines with arrowhead (`marker-end`)
-- **Data flow**: Dashed lines (stroke-dasharray: 4,4)
-- **Bidirectional**: Double arrowheads
-- **Grouping**: Dotted lines for loose association
-
-### Arrow Style
-- Stroke-width: 2px for main flows, 1.5px for secondary
-- Color: Match section primary or use #64748b (neutral)
-- Use orthogonal paths (right angles) for structured diagrams
-- Use curved paths (quadratic bezier) for organic/flow diagrams
+- Aspect ratio: 4 / 3.
+- Default width: 1600px; responsive minimum: 1200px for poster preview and export.
+- Main grid: `repeat(12, minmax(0, 1fr))`.
+- Outer padding: 48px desktop/export, 32px for narrower previews, 18-24px below 760px.
+- Grid gap: 24px desktop/export, 18px below 1200px, 14px below 760px.
+- Header height should stay compact enough to leave evidence visible in the first viewport.
+- Do not fill every pixel. Keep at least one clear reading path from thesis to evidence to implication.
 
 ## Typography
 
-### Hierarchy
-| Element | Size | Weight | Case |
-|---------|------|--------|------|
-| Poster Title | 3-3.5rem | 800-900 | Title Case or UPPERCASE |
-| Subtitle | 1.5-1.8rem | 500 | Title Case |
-| Section Header | 1.3-1.5rem | 700-800 | Title Case |
-| Body Text | 1-1.1rem | 400 | Sentence case |
-| Labels/Captions | 0.8-0.9rem | 500 | Sentence case |
-| SVG Text | 12-14px | 500-600 | - |
-
 ### Font Stack
+
+Use only local/system fonts:
+
 ```css
-font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", Arial, sans-serif;
 ```
 
-### Line Heights
-- Titles: 1.1-1.2
-- Body: 1.5-1.6
-- Captions: 1.3-1.4
+### Hierarchy
 
-## SVG Best Practices
+| Element | Size | Weight | Case |
+| --- | --- | --- | --- |
+| Poster title | 2.4-3.1rem | 800-900 | Sentence case or source title case |
+| Subtitle / thesis | 1.35-1.7rem | 600-700 | Sentence case |
+| Section header | 1.05-1.25rem | 700-800 | Sentence case |
+| Body text | 0.92-1.05rem | 400-500 | Sentence case |
+| Metric value | 1.55-2.4rem | 800-900 | As reported |
+| Labels/captions | 0.72-0.9rem | 500-650 | Sentence case |
+| SVG labels | 12-16px | 500-700 | Sentence case |
 
-### ViewBox
-- Always use `viewBox` attribute (e.g., `viewBox="0 0 600 400"`)
-- Use `preserveAspectRatio="xMidYMid meet"` for responsive scaling
-- Set width="100%" on the SVG element, let viewBox control proportions
+### Long Titles And Mixed Language
 
-### Definitions & Reuse
-- Define gradients, markers, and filters in `<defs>` block
-- Use `<use>` for repeated elements
-- Define arrowhead markers: `<marker id="arrowhead" ...>`
+- Do not force uppercase, negative letter spacing, or tight line-height on Korean/English mixed titles.
+- Allow long titles to wrap across 2-4 lines; preserve technical terms, model names, dataset names, and equations.
+- Use `overflow-wrap: anywhere` for title, section, metric, and label containers so long English identifiers do not break the poster.
+- Use line-height 1.12-1.22 for titles and 1.5-1.7 for body text.
 
-### Text in SVG
-- Use `text-anchor="middle"` for centered labels
-- Use `dominant-baseline="middle"` for vertical centering
-- Font-size in px (12-14px for labels, 16-18px for headers)
-- Wrap long text with `<tspan>` elements
+## Color Strategy
 
-### Colors in SVG
-- Use CSS variables where possible: `fill="var(--primary)"`
-- Fallback: inline fill/stroke attributes
-- Consistent opacity for overlapping elements
+- Use a restrained academic palette with one primary color, one accent, one success/positive color, one warning/contrast color, and neutrals.
+- Recommended default: primary #1d4ed8, secondary #172033, accent #d97706, success #0f766e, warning #b45309, background #f7f8fb.
+- Text on colored backgrounds must meet WCAG AA contrast; prefer dark text on light evidence panels.
+- Do not use pure black for body text; use deep neutral ink such as #172033 or #243044.
+- Use color to connect thesis, evidence, and metric families. Do not rely on color alone for meaning.
 
-## Layout Principles
+## Evidence And Metrics
 
-### Grid Structure
-- **3-Column Grid**: `grid-template-columns: 1fr 1.2fr 1fr` (balanced)
-- **Asymmetric Grid**: `grid-template-columns: 1fr 2fr 1fr` (center-heavy)
-- Gap: 25-30px between columns
-- Gap: 20-25px between section boxes
+- Every metric must have a real label: dataset, unit, comparison baseline, sample size, or measurement context where available.
+- Avoid placeholder labels such as "Result 1", "Metric A", "High", or "Improved" unless the source report actually uses them.
+- Each evidence block should expose at least one of: source section, paper title, DOI/arXiv identifier, table/figure reference, quote context, or review provenance.
+- Include a thesis/evidence metadata band with generation date, input paper count, review/session identifier when safe to reveal, and status such as synthesized, degraded, or partial.
+- Limitations are a required scholarly component, not optional footer decoration.
 
-### Aspect Ratio
-- Target: 20:9 (landscape, wide-format)
-- Minimum width: 1600px
-- Use `aspect-ratio: 20 / 9` in CSS
+## Shapes And Containers
 
-### Content Distribution
-- Left column: Introduction, Background, Motivation
-- Center column: Main results, Architecture diagrams, Charts
-- Right column: Conclusions, Timeline, References
+- Main evidence sections may use 8px radius; avoid larger pill-like shapes for serious academic content.
+- Use 1px borders, soft section rules, and low-opacity tints before heavy shadows.
+- Recommended shadow: `0 8px 18px rgba(15, 23, 42, 0.08)` for the poster sheet only; evidence panels should stay flatter.
+- Use tables, callout strips, and figure captions as academic containers. Avoid decorative badges that do not carry data.
 
-### White Space
-- Poster padding: 30-40px
-- Section internal padding: 20px
-- Minimum gap between elements: 15px
-- Don't fill every pixel — breathing room improves readability
+## Diagrams, Lines, And Arrows
+
+- SVG figures must include `viewBox` and render responsively with `width: 100%`.
+- Prefer orthogonal paths for pipelines and method flow; use curved paths only where they clarify grouping or sequence.
+- Label arrows with the actual transformation or evidence relationship, not generic "process" wording.
+- Use `marker-end` for directional flows only when direction is semantically true.
+- Diagram text follows the same mixed-language and wrapping rules as HTML text.
+
+## Accessibility
+
+- Target: WCAG 2.2 AA practical compliance for preview and downloadable HTML.
+- Maintain visible focus states for modal, download, close, and any in-poster anchors.
+- Preserve semantic heading order. One poster title should be the only `h1`.
+- Do not convey metric state through color alone; pair color with label, icon, pattern, or text.
+- Respect `prefers-reduced-motion`; poster content should be static by default.
+
+## Responsive Preview
+
+- 1200-1600px: keep the 12-column grid and 4:3 canvas.
+- 760-1199px: retain evidence order while allowing 6-column spans; reduce padding and gaps.
+- Below 760px: stack sections in source order, remove fixed min-width, and let the poster behave as a readable article preview.
+- Text must not overlap or clip at any supported width. Prefer wrapping and smaller local type scales over horizontal overflow.
+
+## Print And Export
+
+- Print target: A3 landscape.
+- Use `@page { size: A3 landscape; margin: 0; }`.
+- Center the 4:3 canvas at `396mm × 297mm` inside the `420mm × 297mm` A3 page; the remaining 12mm gutters on each side preserve the poster ratio without cropping or extra pages.
+- Avoid page-breaking inside figures, metric groups, evidence blocks, tables, and references where practical.
+- Use exact color adjustment for print: `print-color-adjust: exact`.
+- The printable poster must not depend on browser access to external font files or remote images.
+
+## Content Quality Rules
+
+- Lead with the paper or review thesis, not generic conference branding.
+- Keep claims falsifiable and tied to evidence. Qualify generated or inferred statements.
+- Prefer concise Korean-first phrasing while preserving English technical terms, dataset names, and paper titles.
+- References and metadata may be compact, but they must remain readable and selectable.

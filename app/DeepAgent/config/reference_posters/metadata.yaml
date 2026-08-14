@@ -4,38 +4,37 @@
 reference_posters:
   multi_crit_reference:
     file: "multi_crit_reference.html"
-    description: "3-column balanced layout with radar chart and bar chart"
-    layout_type: "three_column"
-    primary_visualization: "radar_chart"
+    description: "12-column Editorial Evidence Wall emphasizing sourced metrics"
+    layout_type: "editorial_evidence_wall"
+    primary_visualization: "metric_definition_list"
     domains:
       - general
       - nlp_agent
       - theory
     best_for:
-      - "performance comparison"
-      - "multi-dimensional evaluation"
-      - "balanced content distribution"
+      - "source-backed performance or evaluation metrics"
+      - "claim-to-evidence traceability"
+      - "limitations and provenance visibility"
 
   pipeline_reference:
     file: "pipeline_reference.html"
-    description: "Asymmetric layout with center pipeline diagram and result table"
-    layout_type: "asymmetric"
-    primary_visualization: "pipeline_diagram"
+    description: "12-column Editorial Evidence Wall emphasizing sourced figures or pipeline evidence"
+    layout_type: "editorial_evidence_wall"
+    primary_visualization: "semantic_figure"
     domains:
       - nlp_agent
       - cv
       - general
     best_for:
-      - "architecture/pipeline description"
-      - "system design"
-      - "process flow"
-      - "method comparison"
+      - "source-derived architecture or pipeline evidence"
+      - "figure/table support with figcaption"
+      - "thesis-to-provenance poster flow"
 
 # Selection rules
 selection_rules:
-  # If content has pipeline/architecture → pipeline_reference
+  # If content has source-derived pipeline/architecture evidence → pipeline_reference
   has_pipeline: "pipeline_reference"
-  # If content has performance metrics → multi_crit_reference
+  # If content has source-backed performance metrics → multi_crit_reference
   has_performance_metrics: "multi_crit_reference"
   # Default fallback
   default: "multi_crit_reference"

@@ -3,197 +3,235 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reference Poster - Multi-Criteria Analysis Style</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<title>Reference Poster - Editorial Evidence Wall Metrics</title>
 <style>
 :root {
-  --primary: #2563eb;
-  --secondary: #1e293b;
-  --accent: #f59e0b;
+  --primary: #1d4ed8;
+  --secondary: #334155;
+  --accent: #b45309;
   --bg: #f8fafc;
   --box-bg: #ffffff;
-  --border: #e2e8f0;
-  --text: #334155;
-  --text-light: #64748b;
+  --border: #cbd5e1;
+  --text: #1e293b;
+  --text-light: #475569;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   background: #e2e8f0;
-  min-width: 1600px;
   padding: 20px;
+  overflow-x: auto;
 }
 .poster {
-  width: 100%; max-width: 2200px; margin: 0 auto;
+  width: 100%;
+  max-width: 1600px;
+  min-height: min(1200px, calc(100vw * 0.75));
+  margin: 0 auto;
   background: var(--bg);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  color: var(--text);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
   padding: 36px;
-  aspect-ratio: 20/9;
-  display: flex; flex-direction: column;
-}
-header {
-  display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 4px solid var(--primary);
-  padding-bottom: 16px; margin-bottom: 24px;
-}
-header h1 {
-  font-size: 3rem; font-weight: 900; color: var(--primary);
-  text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.1;
-}
-header h2 {
-  font-size: 1.4rem; font-weight: 500; color: var(--secondary); margin-top: 6px;
-}
-.meta { font-size: 0.95rem; color: var(--text-light); margin-top: 4px; }
-.grid {
+  aspect-ratio: 4 / 3;
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
-  gap: 24px;
-  flex: 1;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: 20px;
 }
-.col { display: flex; flex-direction: column; gap: 20px; }
-.box {
+.thesis {
+  grid-column: 1 / 13;
+  border-bottom: 4px solid var(--primary);
+  padding-bottom: 16px;
+}
+.thesis h1 {
+  font-size: clamp(2rem, 3vw, 3.25rem);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.thesis p {
+  margin-top: 8px;
+  max-width: 96ch;
+  color: var(--secondary);
+  font-size: 1.18rem;
+  line-height: 1.45;
+}
+.panel {
   background: var(--box-bg);
-  border-radius: 12px; padding: 20px;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  border-radius: 8px;
+  padding: 18px;
 }
-.box-title {
-  font-size: 1.3rem; font-weight: 800; color: var(--primary);
-  border-bottom: 2px solid #cbd5e1;
-  padding-bottom: 8px; margin-bottom: 12px;
+.panel h2 {
+  color: var(--primary);
+  font-size: 1.12rem;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 12px;
 }
-.box p, .box li {
-  font-size: 1rem; line-height: 1.6; color: var(--text);
+.panel p,
+.panel li,
+.panel dd,
+.panel dt,
+figcaption {
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
-.box ul { padding-left: 16px; }
-.highlight {
-  background: #eff6ff; border-left: 4px solid var(--primary);
-  padding: 12px 16px; margin: 8px 0; border-radius: 0 8px 8px 0;
+.evidence { grid-column: 1 / 7; }
+.metrics { grid-column: 7 / 13; }
+.limitations { grid-column: 1 / 6; }
+.provenance { grid-column: 6 / 9; }
+.references { grid-column: 9 / 13; }
+.evidence-list,
+.reference-list {
+  padding-left: 1.2rem;
+}
+.evidence-list li,
+.reference-list li {
+  min-height: 1.6em;
+  margin-bottom: 8px;
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 88px;
+}
+.metric-card dt {
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+.metric-card dd {
+  color: var(--text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.evidence-figure {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.figure-slot {
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+  color: var(--text-light);
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+figcaption {
+  color: var(--text-light);
+  margin-top: 10px;
+}
+.limitations {
+  border-color: #fed7aa;
+}
+.provenance {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+@page { size: A3 landscape; margin: 0; }
+@media print {
+  html, body { width: 420mm; height: 297mm; overflow: hidden; }
+  body { background: #fff; padding: 0; display: flex; justify-content: center; }
+  .poster {
+    width: 396mm;
+    height: 297mm;
+    max-width: none;
+    min-height: 297mm;
+    box-shadow: none;
+    overflow: hidden;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+@media (max-width: 1199px) {
+  .poster { padding: 28px; gap: 16px; }
+  .evidence { grid-column: 1 / 8; }
+  .metrics { grid-column: 8 / 13; }
+  .limitations { grid-column: 1 / 7; }
+  .provenance { grid-column: 7 / 13; }
+  .references { grid-column: 1 / 13; }
+  .metric-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  body { padding: 12px; overflow-x: hidden; }
+  .poster { aspect-ratio: auto; min-height: auto; display: block; padding: 22px; }
+  .panel, .thesis { margin-bottom: 16px; }
 }
 </style>
 </head>
 <body>
-<div class="poster">
-  <header>
-    <div>
-      <h1>[Research Title]</h1>
-      <h2>[Subtitle — Research Focus Area]</h2>
-      <div class="meta">Systematic Literature Review | 2025</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-weight:700;color:var(--primary);font-size:1.2rem">AI Conference 2025</div>
-    </div>
+<main class="poster" aria-label="Academic poster reference">
+  <header class="thesis">
+    <h1 data-content=""></h1>
+    <p data-content=""><!-- Review thesis populated from verified paper/review content. --></p>
   </header>
-  <div class="grid">
-    <!-- Left Column -->
-    <div class="col">
-      <div class="box">
-        <div class="box-title">Motivation</div>
-        <p>[Research motivation and background context]</p>
+
+  <section class="panel evidence" aria-labelledby="metrics-evidence-title">
+    <h2 id="metrics-evidence-title">Evidence</h2>
+    <ol class="evidence-list" data-content="">
+      <li data-content=""><!-- Source-backed evidence statement. --></li>
+      <li data-content=""><!-- Source-backed evidence statement. --></li>
+      <li data-content=""><!-- Source-backed evidence statement. --></li>
+    </ol>
+    <figure class="evidence-figure" data-content="">
+      <div class="figure-slot" data-content=""><!-- Source-derived comparison chart, table, or extracted figure. --></div>
+      <figcaption data-content=""><!-- Caption identifies the figure source and evidence role. --></figcaption>
+    </figure>
+  </section>
+
+  <section class="panel metrics" aria-labelledby="metrics-title">
+    <h2 id="metrics-title">Metrics</h2>
+    <dl class="metric-grid" data-content="">
+      <div class="metric-card" data-content="">
+        <dt data-content=""></dt>
+        <dd data-content=""></dd>
       </div>
-      <div class="box">
-        <div class="box-title">Abstract</div>
-        <p>[Concise abstract of the research analysis]</p>
+      <div class="metric-card" data-content="">
+        <dt data-content=""></dt>
+        <dd data-content=""></dd>
       </div>
-      <div class="box">
-        <div class="box-title">Methodology</div>
-        <p>[Analysis methodology description]</p>
+      <div class="metric-card" data-content="">
+        <dt data-content=""></dt>
+        <dd data-content=""></dd>
       </div>
-    </div>
-    <!-- Center Column -->
-    <div class="col">
-      <div class="box">
-        <div class="box-title">Performance Comparison</div>
-        <!-- Radar Chart SVG -->
-        <svg viewBox="0 0 500 400" width="100%" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <marker id="dot" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="6" markerHeight="6">
-              <circle cx="3" cy="3" r="3" fill="var(--primary)"/>
-            </marker>
-          </defs>
-          <!-- Radar grid -->
-          <g transform="translate(250,200)">
-            <polygon points="0,-150 142,-46 88,121 -88,121 -142,-46" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-            <polygon points="0,-100 95,-31 59,81 -59,81 -95,-31" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-            <polygon points="0,-50 47,-15 29,40 -29,40 -47,-15" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-            <!-- Axes -->
-            <line x1="0" y1="0" x2="0" y2="-150" stroke="#cbd5e1" stroke-width="1"/>
-            <line x1="0" y1="0" x2="142" y2="-46" stroke="#cbd5e1" stroke-width="1"/>
-            <line x1="0" y1="0" x2="88" y2="121" stroke="#cbd5e1" stroke-width="1"/>
-            <line x1="0" y1="0" x2="-88" y2="121" stroke="#cbd5e1" stroke-width="1"/>
-            <line x1="0" y1="0" x2="-142" y2="-46" stroke="#cbd5e1" stroke-width="1"/>
-            <!-- Data polygon -->
-            <polygon points="0,-120 114,-37 62,85 -70,97 -114,-37" fill="rgba(37,99,235,0.15)" stroke="var(--primary)" stroke-width="2"/>
-            <!-- Labels -->
-            <text x="0" y="-162" text-anchor="middle" font-size="12" fill="#334155" font-weight="600">Accuracy</text>
-            <text x="155" y="-46" text-anchor="start" font-size="12" fill="#334155" font-weight="600">Speed</text>
-            <text x="95" y="140" text-anchor="start" font-size="12" fill="#334155" font-weight="600">Scalability</text>
-            <text x="-95" y="140" text-anchor="end" font-size="12" fill="#334155" font-weight="600">Efficiency</text>
-            <text x="-155" y="-46" text-anchor="end" font-size="12" fill="#334155" font-weight="600">Robustness</text>
-          </g>
-        </svg>
+      <div class="metric-card" data-content="">
+        <dt data-content=""></dt>
+        <dd data-content=""></dd>
       </div>
-      <div class="box">
-        <div class="box-title">Key Results</div>
-        <!-- Bar Chart SVG -->
-        <svg viewBox="0 0 500 250" width="100%" preserveAspectRatio="xMidYMid meet">
-          <g transform="translate(60,20)">
-            <!-- Grid -->
-            <line x1="0" y1="0" x2="0" y2="200" stroke="#e2e8f0" stroke-width="1"/>
-            <line x1="0" y1="200" x2="400" y2="200" stroke="#e2e8f0" stroke-width="1"/>
-            <!-- Bars -->
-            <rect x="20" y="40" width="60" height="160" rx="4" fill="var(--primary)" opacity="0.8"/>
-            <rect x="110" y="80" width="60" height="120" rx="4" fill="var(--accent)" opacity="0.8"/>
-            <rect x="200" y="20" width="60" height="180" rx="4" fill="#10b981" opacity="0.8"/>
-            <rect x="290" y="60" width="60" height="140" rx="4" fill="#8b5cf6" opacity="0.8"/>
-            <!-- Labels -->
-            <text x="50" y="220" text-anchor="middle" font-size="11" fill="#64748b">Method A</text>
-            <text x="140" y="220" text-anchor="middle" font-size="11" fill="#64748b">Method B</text>
-            <text x="230" y="220" text-anchor="middle" font-size="11" fill="#64748b">Method C</text>
-            <text x="320" y="220" text-anchor="middle" font-size="11" fill="#64748b">Method D</text>
-            <!-- Values -->
-            <text x="50" y="35" text-anchor="middle" font-size="11" fill="var(--primary)" font-weight="600">85.2</text>
-            <text x="140" y="75" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">72.1</text>
-            <text x="230" y="15" text-anchor="middle" font-size="11" fill="#10b981" font-weight="600">91.4</text>
-            <text x="320" y="55" text-anchor="middle" font-size="11" fill="#8b5cf6" font-weight="600">78.6</text>
-          </g>
-        </svg>
-      </div>
-    </div>
-    <!-- Right Column -->
-    <div class="col">
-      <div class="box">
-        <div class="box-title">Key Findings</div>
-        <ul>
-          <li>[Finding 1 with specific data]</li>
-          <li>[Finding 2 with specific data]</li>
-          <li>[Finding 3 with specific data]</li>
-        </ul>
-      </div>
-      <div class="box">
-        <div class="box-title">Timeline</div>
-        <!-- Timeline SVG -->
-        <svg viewBox="0 0 300 300" width="100%" preserveAspectRatio="xMidYMid meet">
-          <line x1="150" y1="20" x2="150" y2="280" stroke="#e2e8f0" stroke-width="2"/>
-          <circle cx="150" cy="50" r="8" fill="var(--primary)"/>
-          <text x="170" y="55" font-size="12" fill="#334155" font-weight="600">2020 — [Event]</text>
-          <circle cx="150" cy="120" r="8" fill="var(--accent)"/>
-          <text x="170" y="125" font-size="12" fill="#334155" font-weight="600">2022 — [Event]</text>
-          <circle cx="150" cy="190" r="8" fill="#10b981"/>
-          <text x="170" y="195" font-size="12" fill="#334155" font-weight="600">2024 — [Event]</text>
-          <circle cx="150" cy="260" r="8" fill="#8b5cf6"/>
-          <text x="170" y="265" font-size="12" fill="#334155" font-weight="600">2025 — [Event]</text>
-        </svg>
-      </div>
-      <div class="box">
-        <div class="box-title">Conclusion</div>
-        <div class="highlight">
-          <p>[Key takeaway message]</p>
-        </div>
-        <p>[Conclusion summary]</p>
-      </div>
-    </div>
-  </div>
-</div>
+    </dl>
+  </section>
+
+  <section class="panel limitations" aria-labelledby="metrics-limitations-title">
+    <h2 id="metrics-limitations-title">Limitations</h2>
+    <ul class="evidence-list" data-content="">
+      <li data-content=""><!-- Missing evidence, scope boundary, or caveat from the review. --></li>
+      <li data-content=""><!-- Missing evidence, scope boundary, or caveat from the review. --></li>
+    </ul>
+  </section>
+
+  <aside class="panel provenance" aria-labelledby="metrics-provenance-title">
+    <h2 id="metrics-provenance-title">Provenance</h2>
+    <p data-content=""><!-- Generation date, review status, source path, and tool/model provenance. --></p>
+  </aside>
+
+  <section class="panel references" aria-labelledby="metrics-references-title">
+    <h2 id="metrics-references-title">References</h2>
+    <ol class="reference-list" data-content="">
+      <li data-content=""><!-- Bibliographic entry or source identifier. --></li>
+      <li data-content=""><!-- Bibliographic entry or source identifier. --></li>
+    </ol>
+  </section>
+</main>
 </body>
 </html>
