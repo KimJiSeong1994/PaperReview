@@ -82,10 +82,10 @@ export function trackPosterGenerateStart(): void {
   sendAllowedEvent('poster_generate_start');
 }
 
-export function trackPosterGenerateComplete(): void {
-  sendAllowedEvent('poster_generate_complete');
+export function trackPosterGenerateComplete(status: string = 'succeeded'): void {
+  sendAllowedEvent('poster_generate_complete', { status });
 }
 
-export function trackPosterGenerateFail(): void {
-  sendAllowedEvent('poster_generate_fail');
+export function trackPosterGenerateFail(status: string = 'failed'): void {
+  sendAllowedEvent('poster_generate_fail', { status });
 }

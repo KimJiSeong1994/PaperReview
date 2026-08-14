@@ -16,13 +16,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from src.utils.openai_responses_compat import create_chat_completion
 from app.DeepAgent.skillopt_policy import (
     resolve_skillopt_deep_review_prompt_block,
 )
+from app.DeepAgent.poster import PosterApplicationService, PosterServiceError
+from app.DeepAgent.poster.result_contract import CODE_SESSION_UNAVAILABLE, public_error_detail
 
 from .deps import (
     DEFAULT_RESEARCH_MODEL,
@@ -52,6 +54,7 @@ def _require_session_owner(session: Dict[str, Any], username: str) -> None:
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["reviews"])
+_poster_service = PosterApplicationService()
 
 # ── Cache-stable system prompts ────────────────────────────────────────
 # Kept as module-level immutable strings so OpenAI automatic prompt caching
@@ -1309,23 +1312,30 @@ async def get_verification_detail(session_id: str, username: str = Depends(get_c
 
 
 @router.post("/deep-review/visualize/{session_id}")
-async def generate_poster_visualization(session_id: str, username: str = Depends(get_current_user)):
+@limiter.limit("3/minute")
+async def generate_poster_visualization(
+    request: Request,
+    session_id: str,
+    username: str = Depends(get_current_user),
+):
     """Generate a conference poster from the deep research report."""
+    del request
     try:
         logger.info("[Poster API] Starting poster generation for session: %s", session_id)
-
-        try:
-            from app.DeepAgent.agents import PosterGenerationAgent
-
-            logger.info("[Poster API] PosterGenerationAgent imported successfully")
-        except Exception as e:
-            logger.exception("[Poster API] Failed to import PosterGenerationAgent: %s", e)
-            raise HTTPException(status_code=500, detail=f"Failed to import PosterGenerationAgent: {str(e)}")
 
         with review_sessions_lock:
             if session_id not in review_sessions:
                 logger.error("[Poster API] Session not found: %s", session_id)
-                raise HTTPException(status_code=404, detail="Session not found")
+                raise HTTPException(
+                    status_code=404,
+                    detail={
+                        "poster_status": "failed",
+                        "status": "failed",
+                        "success": False,
+                        "error_code": CODE_SESSION_UNAVAILABLE,
+                        "retryable": False,
+                    },
+                )
 
             session = review_sessions[session_id]
             _require_session_owner(session, username)
@@ -1350,34 +1360,6 @@ async def generate_poster_visualization(session_id: str, username: str = Depends
         with open(md_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
         logger.info("[Poster API] Report content loaded: %s chars", len(report_content))
-
-        try:
-            from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
-
-            pattern_manager = get_design_pattern_manager()
-            logger.info("[Poster API] DesignPatternManager initialized")
-        except Exception as e:
-            logger.warning("[Poster API] Failed to initialize DesignPatternManager: %s", e)
-            pattern_manager = None
-
-        try:
-            poster_agent = PosterGenerationAgent(
-                model="gemini-2.5-flash-preview-05-20",
-                design_pattern_manager=pattern_manager,
-                enable_critic=True,
-                max_critic_rounds=2,
-            )
-            logger.info(
-                "[Poster API] PosterGenerationAgent initialized: llm=%s, critic=%s, api_key=%s",
-                poster_agent.llm is not None,
-                poster_agent.critic_agent is not None,
-                bool(poster_agent.api_key),
-            )
-        except Exception as e:
-            logger.exception("[Poster API] Failed to initialize PosterGenerationAgent: %s", e)
-            raise HTTPException(
-                status_code=500, detail=f"Failed to initialize PosterGenerationAgent: {str(e)}"
-            )
 
         poster_dir = workspace_path / "posters"
         num_papers = session.get("num_papers", 0)
@@ -1409,19 +1391,53 @@ async def generate_poster_visualization(session_id: str, username: str = Depends
             len(papers_data) if papers_data else 0,
         )
 
-        try:
-            result = await asyncio.to_thread(
-                poster_agent.generate_poster,
-                report_content=report_content,
-                num_papers=num_papers,
-                output_dir=poster_dir,
-                papers_data=papers_data,
+        def _agent_factory():
+            from app.DeepAgent.agents import PosterGenerationAgent
+
+            try:
+                from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+
+                pattern_manager = get_design_pattern_manager()
+                logger.info("[Poster API] DesignPatternManager initialized")
+            except Exception as e:
+                logger.warning("[Poster API] Failed to initialize DesignPatternManager: %s", e)
+                pattern_manager = None
+
+            poster_agent = PosterGenerationAgent(
+                model="gemini-2.5-flash-preview-05-20",
+                design_pattern_manager=pattern_manager,
+                enable_critic=True,
+                max_critic_rounds=2,
             )
             logger.info(
-                "[Poster API] Poster generated: success=%s, path=%s",
-                result.get("success"),
+                "[Poster API] PosterGenerationAgent initialized: llm=%s, critic=%s, api_key=%s",
+                poster_agent.llm is not None,
+                poster_agent.critic_agent is not None,
+                bool(poster_agent.api_key),
+            )
+            return poster_agent
+
+        try:
+            result = await _poster_service.generate(
+                report_content=report_content,
+                num_papers=num_papers,
+                agent_factory=_agent_factory,
+                output_dir=poster_dir,
+                papers_data=papers_data,
+                session_id=session_id,
+                provenance={"route": "deep-review/visualize"},
+            )
+            logger.info(
+                "[Poster API] Poster generated: status=%s, success=%s, path=%s",
+                result.get("status"),
+                result.get("success", False),
                 result.get("poster_path", "N/A"),
             )
+        except PosterServiceError as e:
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=public_error_detail(e),
+            ) from e
         except Exception as e:
             logger.exception("[Poster API] Failed to generate poster: %s", e)
             raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
@@ -1432,6 +1448,7 @@ async def generate_poster_visualization(session_id: str, username: str = Depends
             raise HTTPException(status_code=500, detail=error_msg)
 
         return {
+            **result,
             "success": result["success"],
             "session_id": session_id,
             "poster_html": result["poster_html"],
@@ -1448,13 +1465,15 @@ async def generate_poster_visualization(session_id: str, username: str = Depends
 
 class DirectPosterRequest(BaseModel):
     """세션 없이 리포트 콘텐츠로 직접 포스터를 생성하는 요청."""
-    report_content: str
-    num_papers: int = 0
+    report_content: str = Field(..., min_length=1, max_length=200_000)
+    num_papers: int = Field(default=0, ge=0, le=50)
 
 
 @router.post("/deep-review/visualize-direct")
+@limiter.limit("3/minute")
 async def generate_poster_direct(
-    request: DirectPosterRequest,
+    request: Request,
+    body: DirectPosterRequest,
     username: str = Depends(get_current_user),
 ):
     """세션 없이 리포트 마크다운으로 직접 포스터를 생성한다.
@@ -1464,41 +1483,52 @@ async def generate_poster_direct(
     """
     # Suppress unused-variable lint: we require auth but don't use username
     # directly here; auth acts as a rate-limit / resource-protection gate.
-    del username
+    del request, username
     try:
-        logger.info("[Poster Direct] Starting: %d chars, %d papers", len(request.report_content), request.num_papers)
+        logger.info("[Poster Direct] Starting: %d chars, %d papers", len(body.report_content), body.num_papers)
 
-        from app.DeepAgent.agents import PosterGenerationAgent
-        try:
-            from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
-            pattern_manager = get_design_pattern_manager()
-        except Exception:
-            pattern_manager = None
+        def _agent_factory():
+            from app.DeepAgent.agents import PosterGenerationAgent
 
-        poster_agent = PosterGenerationAgent(
-            model="gemini-2.5-flash-preview-05-20",
-            design_pattern_manager=pattern_manager,
-            enable_critic=True,
-            max_critic_rounds=1,  # 직접 생성은 1라운드로 빠르게
-        )
-        logger.info("[Poster Direct] Agent: llm=%s, api_key=%s", poster_agent.llm is not None, bool(poster_agent.api_key))
+            try:
+                from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+                pattern_manager = get_design_pattern_manager()
+            except Exception:
+                pattern_manager = None
 
-        result = await asyncio.to_thread(
-            poster_agent.generate_poster,
-            report_content=request.report_content,
-            num_papers=request.num_papers,
+            poster_agent = PosterGenerationAgent(
+                model="gemini-2.5-flash-preview-05-20",
+                design_pattern_manager=pattern_manager,
+                enable_critic=True,
+                max_critic_rounds=1,  # 직접 생성은 1라운드로 빠르게
+            )
+            logger.info("[Poster Direct] Agent: llm=%s, api_key=%s", poster_agent.llm is not None, bool(poster_agent.api_key))
+            return poster_agent
+
+        result = await _poster_service.generate(
+            report_content=body.report_content,
+            num_papers=body.num_papers,
+            agent_factory=_agent_factory,
+            session_id="",
+            provenance={"route": "deep-review/visualize-direct"},
         )
 
         if not result.get("poster_html"):
             raise HTTPException(status_code=500, detail=result.get("error", "Empty poster"))
 
         return {
+            **result,
             "success": result["success"],
             "session_id": "",
             "poster_html": result["poster_html"],
             "poster_path": "",
             "error": result.get("error", ""),
         }
+    except PosterServiceError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=public_error_detail(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:

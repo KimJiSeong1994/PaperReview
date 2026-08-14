@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import {
@@ -13,24 +12,32 @@ import {
 import { useDeepReview } from '../hooks/useDeepReview';
 import {
   trackPosterGenerateComplete,
+  trackPosterGenerateFail,
   trackPosterGenerateStart,
   trackSearchEvent,
 } from '../analytics/events';
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({
   isAuthenticated: true,
   setShowLoginModal: vi.fn(),
 }));
 
-vi.mock('../api/client', () => ({
-  fetchBatchReferences: vi.fn(),
-  generatePoster: vi.fn(),
-  generatePosterDirect: vi.fn(),
-  getGraphData: vi.fn(),
-  saveBookmark: vi.fn(),
-  searchPapers: vi.fn(),
-  startDeepReview: vi.fn(),
-}));
+vi.mock('../api/client', async () => {
+  const reviewApi = await vi.importActual<typeof import('../api/review')>('../api/review');
+  return {
+    classifyPosterError: reviewApi.classifyPosterError,
+    classifyPosterResponse: reviewApi.classifyPosterResponse,
+    fetchBatchReferences: vi.fn(),
+    generatePoster: vi.fn(),
+    generatePosterDirect: vi.fn(),
+    getGraphData: vi.fn(),
+    saveBookmark: vi.fn(),
+    searchPapers: vi.fn(),
+    startDeepReview: vi.fn(),
+  };
+});
 
 vi.mock('../hooks/useDeepReview', () => ({
   useDeepReview: vi.fn(),
@@ -45,6 +52,7 @@ vi.mock('../analytics/events', () => ({
   trackDeepReviewComplete: vi.fn(),
   trackDeepReviewStart: vi.fn(),
   trackPosterGenerateComplete: vi.fn(),
+  trackPosterGenerateFail: vi.fn(),
   trackPosterGenerateStart: vi.fn(),
   trackReportDownload: vi.fn(),
   trackSearchEvent: vi.fn(),
@@ -70,10 +78,58 @@ function createDeferred<T>() {
 }
 
 async function submitSearch(query: string) {
-  const user = userEvent.setup();
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText('Search papers...'), {
+      target: { value: query },
+    });
+    fireEvent.click(screen.getByTitle('Search'));
+  });
+}
 
-  await user.type(screen.getByPlaceholderText('Search papers...'), query);
-  await user.click(screen.getByTitle('Search'));
+async function renderPosterReadySearch() {
+  vi.mocked(searchPapers).mockResolvedValue({
+    results: {
+      arxiv: [{
+        doc_id: 'paper-1',
+        title: 'Poster Paper',
+        authors: ['A. Researcher'],
+        year: 2026,
+        abstract: 'abstract',
+      }],
+    },
+    total: 1,
+  });
+
+  renderSearchPage();
+  await submitSearch('poster analytics');
+
+  expect(await screen.findAllByText('Poster Paper')).toHaveLength(2);
+  await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(fetchBatchReferences).toHaveBeenCalledTimes(1));
+
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
+  });
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /generate poster/i }));
+  });
+}
+
+async function expectPosterMenuReady() {
+  const posterPreview = screen.queryByTitle('Poster Preview');
+  if (posterPreview) {
+    await act(async () => {
+      fireEvent.click(screen.getByText('✕'));
+    });
+    await waitFor(() => expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument());
+  }
+
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
+  });
+  const generateButton = await screen.findByRole('button', { name: /generate poster/i });
+  expect(generateButton).toBeEnabled();
+  expect(generateButton).toHaveTextContent('Generate Poster');
 }
 
 describe('SearchPage analytics instrumentation', () => {
@@ -185,38 +241,160 @@ describe('SearchPage analytics instrumentation', () => {
     expect(authState.setShowLoginModal).not.toHaveBeenCalled();
   });
 
-  it('tracks poster completion when session poster generation falls back to direct generation', async () => {
-    vi.mocked(searchPapers).mockResolvedValue({
-      results: {
-        arxiv: [{
-          doc_id: 'paper-1',
-          title: 'Privacy Paper',
-          authors: ['A. Researcher'],
-          year: 2026,
-          abstract: 'abstract',
-        }],
-      },
-      total: 1,
-    });
-    vi.mocked(generatePoster).mockRejectedValue(new Error('session poster failed'));
-    vi.mocked(generatePosterDirect).mockResolvedValue({
+  it('tracks poster completion for a succeeded V2 session poster', async () => {
+    vi.mocked(generatePoster).mockResolvedValue({
       success: true,
       session_id: 'review-session-1',
+      poster_status: 'succeeded',
       poster_html: '<html>poster</html>',
       poster_path: '/poster.html',
     });
 
-    renderSearchPage();
-    await submitSearch('privacy preserving analytics');
+    await renderPosterReadySearch();
 
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: /tools/i }));
-    await user.click(await screen.findByRole('button', { name: /generate poster/i }));
+    expect(await screen.findByTitle('Poster Preview')).toHaveAttribute('sandbox', '');
+    expect(generatePosterDirect).not.toHaveBeenCalled();
+    expect(trackPosterGenerateStart).toHaveBeenCalledTimes(1);
+    expect(trackPosterGenerateComplete).toHaveBeenCalledWith('succeeded');
+    expect(trackPosterGenerateFail).not.toHaveBeenCalled();
+    await expectPosterMenuReady();
+  });
+
+  it('previews degraded posters with a visible warning without complete analytics', async () => {
+    vi.mocked(generatePoster).mockResolvedValue({
+      success: true,
+      session_id: 'review-session-1',
+      poster_status: 'degraded',
+      poster_html: '<html>poster</html>',
+      poster_path: '/poster.html',
+      warnings: ['Some source figures were omitted.'],
+    });
+
+    await renderPosterReadySearch();
+
+    expect(await screen.findByTitle('Poster Preview')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Some source figures were omitted.');
+    expect(generatePosterDirect).not.toHaveBeenCalled();
+    expect(trackPosterGenerateComplete).not.toHaveBeenCalled();
+    expect(trackPosterGenerateFail).toHaveBeenCalledWith('degraded');
+    await expectPosterMenuReady();
+  }, 10_000);
+
+  it('tracks failed poster statuses without falling back to direct generation', async () => {
+    vi.mocked(generatePoster).mockResolvedValue({
+      success: false,
+      session_id: 'review-session-1',
+      poster_status: 'failed',
+      error: 'Poster render failed',
+    });
+
+    await renderPosterReadySearch();
+
+    await waitFor(() => {
+      expect(trackPosterGenerateFail).toHaveBeenCalledWith('failed');
+    });
+    expect(generatePosterDirect).not.toHaveBeenCalled();
+    expect(trackPosterGenerateComplete).not.toHaveBeenCalled();
+    expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument();
+    await expectPosterMenuReady();
+  });
+
+  it.each(['timeout', 'active', 'rate_limited', 'unknown'] as const)(
+    'does not use direct fallback for %s poster error_code',
+    async (errorCode) => {
+      vi.mocked(generatePoster).mockRejectedValue({
+        response: {
+          data: {
+            detail: {
+              error_code: errorCode,
+              message: `${errorCode} status`,
+              poster_status: errorCode,
+            },
+          },
+        },
+      });
+
+      await renderPosterReadySearch();
+
+      await waitFor(() => {
+        expect(trackPosterGenerateFail).toHaveBeenCalledWith(errorCode);
+      });
+      expect(generatePosterDirect).not.toHaveBeenCalled();
+      expect(trackPosterGenerateComplete).not.toHaveBeenCalled();
+    },
+  );
+
+  it('maps structured poster_rate_limited errors to rate_limited without fallback and clears spinner', async () => {
+    vi.mocked(generatePoster).mockRejectedValue({
+      response: {
+        status: 429,
+        data: {
+          detail: {
+            error_code: 'poster_rate_limited',
+            message: 'Poster generation rate limited',
+            retryable: true,
+          },
+        },
+      },
+    });
+
+    await renderPosterReadySearch();
+
+    await waitFor(() => {
+      expect(trackPosterGenerateFail).toHaveBeenCalledWith('rate_limited');
+    });
+    expect(generatePosterDirect).not.toHaveBeenCalled();
+    expect(trackPosterGenerateComplete).not.toHaveBeenCalled();
+    await expectPosterMenuReady();
+  });
+
+  it('uses direct fallback only for a structured poster_session_unavailable error_code', async () => {
+    vi.mocked(generatePoster).mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          detail: {
+            error_code: 'poster_session_unavailable',
+            generation_id: 'poster-generation-1',
+            message: 'Poster session unavailable',
+            poster_status: 'failed',
+            retryable: false,
+          },
+        },
+      },
+    });
+    vi.mocked(generatePosterDirect).mockResolvedValue({
+      success: true,
+      session_id: 'review-session-1',
+      poster_status: 'succeeded',
+      poster_html: '<html>poster</html>',
+      poster_path: '/poster.html',
+    });
+
+    await renderPosterReadySearch();
 
     await waitFor(() => {
       expect(generatePosterDirect).toHaveBeenCalledWith('review report markdown', 0);
     });
     expect(trackPosterGenerateStart).toHaveBeenCalledTimes(1);
-    expect(trackPosterGenerateComplete).toHaveBeenCalledTimes(1);
+    expect(trackPosterGenerateComplete).toHaveBeenCalledWith('succeeded');
+  });
+
+  it('does not use direct fallback for a plain ownership-like 404 without explicit error_code', async () => {
+    vi.mocked(generatePoster).mockRejectedValue({
+      response: {
+        status: 404,
+        data: { detail: 'Session not found' },
+      },
+    });
+
+    await renderPosterReadySearch();
+
+    await waitFor(() => {
+      expect(trackPosterGenerateFail).toHaveBeenCalledWith('unknown');
+    });
+    expect(generatePosterDirect).not.toHaveBeenCalled();
+    expect(trackPosterGenerateComplete).not.toHaveBeenCalled();
+    await expectPosterMenuReady();
   });
 });

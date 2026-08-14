@@ -26,6 +26,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.DeepAgent.poster.result_contract import (
+    CODE_RATE_LIMITED,
+    new_generation_id,
+)
+
 # Importing routers triggers deps.py which sets up SSL, env, agents, etc.
 from routers import (
     auth_router,
@@ -220,9 +225,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+def _is_poster_rate_limited_path(path: str) -> bool:
+    return (
+        path.startswith("/api/deep-review/visualize/")
+        or path == "/api/deep-review/visualize-direct"
+        or path == "/api/autofigure/generate-poster-figures"
+    )
+
+
+async def poster_aware_rate_limit_handler(
+    request: Request,
+    exc: RateLimitExceeded,
+):
+    path = request.url.path
+    if not _is_poster_rate_limited_path(path):
+        return _rate_limit_exceeded_handler(request, exc)
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": {
+                "poster_status": "failed",
+                "status": "failed",
+                "success": False,
+                "error_code": CODE_RATE_LIMITED,
+                "retryable": True,
+                "generation_id": new_generation_id(),
+            }
+        },
+    )
+
+
 # Rate limiting
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, poster_aware_rate_limit_handler)
 
 # CORS middleware - configurable via environment.
 # Production default only allows the public domain; local dev servers must

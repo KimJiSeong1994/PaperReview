@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from app.DeepAgent.poster.sanitizer import escape_text, sanitize_poster_markup
+
 from .poster_content_agent import ExtractedContent
 from .poster_visual_agent import PosterVisualAgent
 
@@ -527,6 +529,7 @@ table.comparison-table tr:nth-child(even) td {{
             # SVG를 반응형으로 래핑
             if not svg_content.startswith('<svg'):
                 svg_content = f'<svg xmlns="http://www.w3.org/2000/svg">{svg_content}</svg>'
+            svg_content = sanitize_poster_markup(svg_content)
             svg_wrapped = (
                 f'<div class="embed-autofigure" style="width:100%;margin:12px 0;">'
                 f'{svg_content}'
@@ -557,7 +560,7 @@ table.comparison-table tr:nth-child(even) td {{
 
             img_html = (
                 f'<figure class="embed-figure" style="margin:12px 0;">'
-                f'<img src="data:{mime};base64,{b64}" '
+                f'<img src="data:{self._esc(mime)};base64,{self._esc(b64)}" '
                 f'alt="{self._esc(caption)}" '
                 f'style="width:100%;height:auto;border-radius:8px;" />'
                 f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
@@ -1308,7 +1311,7 @@ table.comparison-table tr:nth-child(even) td {{
                 f'</div></div>'
             )
 
-        return f'''<!DOCTYPE html>
+        html = f'''<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -1708,6 +1711,7 @@ body {{
 </div>
 </body>
 </html>'''
+        return sanitize_poster_markup(html)
 
     def _render_figure_html(
         self,
@@ -1720,6 +1724,7 @@ body {{
             af = autofigure_svgs[fp.figure_index]
             svg = af.get('svg_content', '')
             if svg:
+                svg = sanitize_poster_markup(svg)
                 return f'''<div style="margin:12px 0;text-align:center;">
                     {svg}
                     <p style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</p>
@@ -1729,7 +1734,7 @@ body {{
             b64 = fig.get('image_base64', '') if isinstance(fig, dict) else getattr(fig, 'image_base64', '')
             if b64:
                 return f'''<figure style="margin:12px 0;">
-                    <img src="data:image/png;base64,{b64}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
+                    <img src="data:image/png;base64,{self._esc(b64)}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
                     <figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
                 </figure>'''
         return ''
@@ -1737,6 +1742,11 @@ body {{
     def _text_to_html(self, text: str) -> str:
         """마크다운 텍스트를 HTML로 변환한다 (CSS 클래스 기반)."""
         import re
+
+        def inline_markup(value: str) -> str:
+            escaped = self._esc(value)
+            return re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', escaped)
+
         lines = text.strip().split('\n')
         parts = []
         for line in lines:
@@ -1744,12 +1754,12 @@ body {{
             if not stripped:
                 continue
             if stripped.startswith('- ') or stripped.startswith('* '):
-                item = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', stripped[2:])
+                item = inline_markup(stripped[2:])
                 parts.append(f'<li>{item}</li>')
             elif stripped.startswith('**') and stripped.endswith('**'):
                 parts.append(f'<h4>{self._esc(stripped.strip("*"))}</h4>')
             elif stripped.startswith('**'):
-                clean = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', stripped)
+                clean = inline_markup(stripped)
                 parts.append(f'<p>{clean}</p>')
             else:
                 parts.append(f'<p>{self._esc(stripped)}</p>')
@@ -1809,10 +1819,10 @@ body {{
             return ''
         header = rows[0]
         body = rows[1:]
-        th = ''.join(f'<th>{h}</th>' for h in header)
+        th = ''.join(f'<th>{escape_text(h)}</th>' for h in header)
         trs = []
         for row in body:
-            tds = ''.join(f'<td>{c}</td>' for c in row)
+            tds = ''.join(f'<td>{escape_text(c)}</td>' for c in row)
             trs.append(f'<tr>{tds}</tr>')
         return f'''<table>
             <thead><tr>{th}</tr></thead>
