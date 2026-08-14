@@ -39,9 +39,15 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_EVENTS_DB = Path("data/events.db")
+DEFAULT_ANALYTICS_DB = Path("data/analytics.db")
 
 _QUERY_SUBMIT = "query_submit"
 _SEARCH_CLICK = "search_click"
+
+# First-party analytics event names carrying the same signal for everyone,
+# signed-in or not. ``search`` is the impression, ``paper_select`` the click.
+_ANALYTICS_IMPRESSION = "search"
+_ANALYTICS_CLICK = "paper_select"
 
 
 @dataclass
@@ -207,6 +213,90 @@ def build_impressions(
     return impressions, orphan_clicks
 
 
+def build_impressions_from_analytics(
+    db_path: Path = DEFAULT_ANALYTICS_DB,
+    *,
+    days: int = 30,
+) -> tuple[list[Impression], int]:
+    """Build impressions from the first-party analytics ledger.
+
+    That ledger is where the volume is: ``user_events`` only records signed-in
+    users, so it held zero clicks. Analytics covers everyone who consented,
+    anonymous included, and carries no query text — impressions and clicks are
+    joined by a random per-search ``search_id`` rather than by anything derived
+    from what was typed.
+
+    A row without a ``search_id`` predates that field and is skipped rather
+    than guessed at; the count comes back as ``orphan_clicks`` for clicks.
+    """
+    if not db_path.exists():
+        raise FileNotFoundError(f"analytics db not found: {db_path}")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            """
+            SELECT event_name, client_id, payload, created_at
+              FROM app_analytics_events
+             WHERE event_name IN (?, ?)
+               AND created_at >= ?
+             ORDER BY created_at ASC
+            """,
+            (_ANALYTICS_IMPRESSION, _ANALYTICS_CLICK, since.isoformat()),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    by_search: dict[str, Impression] = {}
+    clicks: list[tuple[str, int | None]] = []
+    orphan_clicks = 0
+
+    for event_name, client_id, payload_raw, created_at in rows:
+        at = _parse_ts(created_at)
+        if at is None:
+            continue
+        try:
+            payload = json.loads(payload_raw) if payload_raw else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        search_id = payload.get("search_id")
+        if not isinstance(search_id, str) or not search_id:
+            continue
+
+        if event_name == _ANALYTICS_IMPRESSION:
+            # A repeated search_id would mean a client reused an id; keep the
+            # first so clicks are not double-counted against two impressions.
+            by_search.setdefault(search_id, Impression(
+                user_id=client_id or "anonymous",
+                query_hash=search_id,
+                at=at,
+                results_count=0,
+                cache_hit=False,
+                ranking_variant=str(payload.get("ranking_variant") or "unknown"),
+            ))
+        else:
+            rank = payload.get("rank")
+            clicks.append(
+                (search_id, int(rank) if isinstance(rank, int) and rank >= 1 else None)
+            )
+
+    for search_id, rank in clicks:
+        impression = by_search.get(search_id)
+        if impression is None:
+            orphan_clicks += 1
+            continue
+        if rank is None:
+            impression.unranked_clicks += 1
+        else:
+            impression.ranked_clicks.append(rank)
+
+    impressions = sorted(by_search.values(), key=lambda imp: imp.at)
+    return impressions, orphan_clicks
+
+
 def score_impressions(
     impressions: list[Impression],
     *,
@@ -294,7 +384,17 @@ def score_by_variant(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--db", type=Path, default=DEFAULT_EVENTS_DB)
+    parser.add_argument("--db", type=Path, default=None)
+    parser.add_argument(
+        "--source",
+        choices=("analytics", "events"),
+        default="analytics",
+        help=(
+            "analytics (default) reads the consented first-party ledger, which "
+            "covers anonymous visitors; events reads user_events, which only "
+            "records signed-in users"
+        ),
+    )
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument(
@@ -309,9 +409,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    impressions, orphans = build_impressions(
-        args.db, days=args.days, include_cache_hits=not args.exclude_cache_hits
-    )
+    if args.source == "analytics":
+        impressions, orphans = build_impressions_from_analytics(
+            args.db or DEFAULT_ANALYTICS_DB, days=args.days
+        )
+    else:
+        impressions, orphans = build_impressions(
+            args.db or DEFAULT_EVENTS_DB,
+            days=args.days,
+            include_cache_hits=not args.exclude_cache_hits,
+        )
     if args.by_variant:
         report = {
             variant: metrics.to_dict()

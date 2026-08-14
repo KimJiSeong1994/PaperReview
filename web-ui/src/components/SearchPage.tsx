@@ -45,6 +45,11 @@ function SearchPage() {
   // Set from each search response; sent back with a click so the event can be
   // joined to the search that produced the result.
   const [queryHash, setQueryHash] = useState<string>('');
+  // Random per search, sent with the impression and echoed back on each click
+  // so the anonymous analytics channel can join the two. Encodes nothing about
+  // the query itself — see SearchImpression in analytics/events.
+  const [searchId, setSearchId] = useState<string>('');
+  const [rankingVariant, setRankingVariant] = useState<string>('');
   const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,6 +105,10 @@ function SearchPage() {
     const timer = setTimeout(() => setGuidanceMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [guidanceMessage]);
+
+  const newImpressionId = () => (
+    globalThis.crypto?.randomUUID?.() ?? `s_${Math.random().toString(36).slice(2)}`
+  );
 
   const hashString = (str: string) => {
     let hash = 0;
@@ -202,6 +211,8 @@ function SearchPage() {
     if (!searchQuery.trim()) return;
 
     setAttemptedQuery(searchQuery);
+    const impressionId = newImpressionId();
+    setSearchId(impressionId);
     searchRequestIdRef.current += 1;
     const requestId = searchRequestIdRef.current;
 
@@ -235,6 +246,10 @@ function SearchPage() {
       if (isStaleSearch(requestId, abortController)) return;
 
       setQueryHash(results.query_hash || '');
+      const variant = String(
+        (results.stage_modes as Record<string, unknown> | undefined)?.ranking_variant ?? '',
+      );
+      setRankingVariant(variant);
 
       // Check if query was classified as non-academic
       const qa = results.query_analysis;
@@ -250,7 +265,7 @@ function SearchPage() {
         setSelectedPapersForReview(new Set());
         setQuery('');
         setLoading(false);
-        trackSearchEvent(searchQuery, 'non_academic', 0, source);
+        trackSearchEvent(searchQuery, 'non_academic', 0, source, { searchId: impressionId });
         return;
       }
 
@@ -294,7 +309,8 @@ function SearchPage() {
 
       setPapers(allPapers);
       setGraphData(null);
-      trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source);
+      trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source,
+        { searchId: impressionId, rankingVariant: variant });
 
       if (allPapers.length > 0) {
         setSelectedPaper(allPapers[0]);
@@ -332,7 +348,7 @@ function SearchPage() {
       setSelectedPaper(null);
       setHighlightedPapers(new Set());
       setSelectedPapersForReview(new Set());
-      trackSearchEvent(searchQuery, 'error', 0, source);
+      trackSearchEvent(searchQuery, 'error', 0, source, { searchId: impressionId });
     } finally {
       clearTimeout(loadingTimer);
       if (!isStaleSearch(requestId, abortController)) {
@@ -402,14 +418,14 @@ function SearchPage() {
   const rankOf = (paper: Paper) => papers.indexOf(paper) + 1;
 
   const handlePaperSelect = (paper: Paper) => {
-    trackPaperSelect('list');
+    trackPaperSelect('list', { searchId, rankingVariant, rank: rankOf(paper) });
     trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
     setHighlightedPapers(new Set());
   };
 
   const handleNodeClickWithHighlight = (paper: Paper) => {
-    trackPaperSelect('graph');
+    trackPaperSelect('graph', { searchId, rankingVariant, rank: rankOf(paper) });
     trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
 

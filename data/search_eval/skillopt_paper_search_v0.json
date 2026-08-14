@@ -1,6 +1,6 @@
 {
   "version": "skillopt-paper-search-v0",
-  "dataset_hash": "sha256:8d5091e245c0648d23a199a8c9f11c7ca1bdefa6a5e7ad0489195f8912e1f5c2",
+  "dataset_hash": "sha256:b9970a88ae497c6e646505233ce934342b8ed5526b718c3f268a976cae98828a",
   "provenance": {
     "type": "synthetic_and_public_seed",
     "raw_user_logs_included": false,
@@ -32,9 +32,16 @@
       "difficulty": "easy",
       "downstream": "search_to_review",
       "labels": {
-        "must_include": ["Attention Is All You Need"],
-        "acceptable": ["self-attention", "multi-head attention"],
-        "must_exclude": ["computer vision attention map only"]
+        "must_include": [
+          "Attention Is All You Need"
+        ],
+        "acceptable": [
+          "self-attention",
+          "multi-head attention"
+        ],
+        "must_exclude": [
+          "computer vision attention map only"
+        ]
       }
     },
     {
@@ -47,9 +54,16 @@
       "difficulty": "medium",
       "downstream": "search_to_explore",
       "labels": {
-        "must_include": ["large language model fine-tuning"],
-        "acceptable": ["instruction tuning", "parameter-efficient fine-tuning"],
-        "must_exclude": ["classical language model smoothing"]
+        "must_include": [
+          "large language model fine-tuning"
+        ],
+        "acceptable": [
+          "instruction tuning",
+          "parameter-efficient fine-tuning"
+        ],
+        "must_exclude": [
+          "classical language model smoothing"
+        ]
       }
     },
     {
@@ -62,9 +76,16 @@
       "difficulty": "medium",
       "downstream": "search_only",
       "labels": {
-        "must_include": ["GraphRAG"],
-        "acceptable": ["graph retrieval augmented generation", "knowledge graph RAG"],
-        "must_exclude": ["graph neural network only"]
+        "must_include": [
+          "GraphRAG"
+        ],
+        "acceptable": [
+          "graph retrieval augmented generation",
+          "knowledge graph RAG"
+        ],
+        "must_exclude": [
+          "graph neural network only"
+        ]
       }
     },
     {
@@ -77,9 +98,16 @@
       "difficulty": "medium",
       "downstream": "search_to_review",
       "labels": {
-        "must_include": ["Dynamic Routing Between Capsules"],
-        "acceptable": ["capsule networks", "Geoffrey Hinton"],
-        "must_exclude": ["pharmaceutical capsule"]
+        "must_include": [
+          "Dynamic Routing Between Capsules"
+        ],
+        "acceptable": [
+          "capsule networks",
+          "Geoffrey Hinton"
+        ],
+        "must_exclude": [
+          "pharmaceutical capsule"
+        ]
       }
     },
     {
@@ -92,9 +120,16 @@
       "difficulty": "medium",
       "downstream": "search_to_review",
       "labels": {
-        "must_include": ["Representation Learning: A Review and New Perspectives"],
-        "acceptable": ["deep learning", "Bengio representation learning"],
-        "must_exclude": ["unrelated author with same surname"]
+        "must_include": [
+          "Representation Learning: A Review and New Perspectives"
+        ],
+        "acceptable": [
+          "deep learning",
+          "Bengio representation learning"
+        ],
+        "must_exclude": [
+          "unrelated author with same surname"
+        ]
       }
     },
     {
@@ -107,9 +142,16 @@
       "difficulty": "medium",
       "downstream": "search_to_review",
       "labels": {
-        "must_include": ["Deep Residual Learning for Image Recognition"],
-        "acceptable": ["ResNet", "skip connections"],
-        "must_exclude": ["residual statistics only"]
+        "must_include": [
+          "Deep Residual Learning for Image Recognition"
+        ],
+        "acceptable": [
+          "ResNet",
+          "skip connections"
+        ],
+        "must_exclude": [
+          "residual statistics only"
+        ]
       }
     },
     {
@@ -122,9 +164,18 @@
       "difficulty": "hard",
       "downstream": "search_to_explore",
       "labels": {
-        "must_include": ["agent memory", "benchmark"],
-        "acceptable": ["long-term memory for language agents", "LLM agent benchmark"],
-        "must_exclude": ["real estate agent memory", "software agent unrelated to LLM"]
+        "must_include": [
+          "agent memory",
+          "benchmark"
+        ],
+        "acceptable": [
+          "long-term memory for language agents",
+          "LLM agent benchmark"
+        ],
+        "must_exclude": [
+          "real estate agent memory",
+          "software agent unrelated to LLM"
+        ]
       }
     },
     {
@@ -137,9 +188,368 @@
       "difficulty": "medium",
       "downstream": "search_to_review",
       "labels": {
-        "must_include": ["BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"],
-        "acceptable": ["contextual embeddings", "bidirectional transformers"],
-        "must_exclude": ["Sesame Street character"]
+        "must_include": [
+          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+        ],
+        "acceptable": [
+          "contextual embeddings",
+          "bidirectional transformers"
+        ],
+        "must_exclude": [
+          "Sesame Street character"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-adam-optimizer",
+      "query_text": "adaptive per-parameter learning rate optimizer deep networks",
+      "group_id": "adam-optimizer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Adam: A Method for Stochastic Optimization"
+        ],
+        "acceptable": [
+          "adaptive learning rate",
+          "stochastic gradient descent"
+        ],
+        "must_exclude": [
+          "adam sandler filmography"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-gan-original",
+      "query_text": "generative adversarial networks original paper",
+      "group_id": "gan-original",
+      "split": "train",
+      "locale": "en",
+      "intent": "paper_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Generative Adversarial Networks"
+        ],
+        "acceptable": [
+          "adversarial training",
+          "generator discriminator"
+        ],
+        "must_exclude": [
+          "adversarial attack robustness only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-ko-diffusion",
+      "query_text": "확산 모델 diffusion model 이미지 생성 연구",
+      "group_id": "diffusion-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "topic_exploration",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Denoising Diffusion Probabilistic Models"
+        ],
+        "acceptable": [
+          "score-based generative",
+          "latent diffusion"
+        ],
+        "must_exclude": [
+          "molecular diffusion in liquids"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-cot-prompting",
+      "query_text": "getting language models to reason step by step before answering",
+      "group_id": "cot-prompting",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"
+        ],
+        "acceptable": [
+          "step by step reasoning",
+          "prompting strategy"
+        ],
+        "must_exclude": [
+          "chain rule differentiation"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-vit",
+      "query_text": "vision transformer image classification patches",
+      "group_id": "vision-transformer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "An Image is Worth 16x16 Words"
+        ],
+        "acceptable": [
+          "vision transformer",
+          "image patches transformer"
+        ],
+        "must_exclude": [
+          "16x16 pixel art rendering"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-ko-rag",
+      "query_text": "검색 증강 생성 RAG retrieval augmented generation 논문",
+      "group_id": "rag-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "survey",
+      "difficulty": "medium",
+      "downstream": "search_only",
+      "labels": {
+        "must_include": [
+          "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"
+        ],
+        "acceptable": [
+          "retrieval augmented",
+          "knowledge intensive"
+        ],
+        "must_exclude": [
+          "rag rug textile manufacturing"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-ppo",
+      "query_text": "clipped surrogate objective stable policy gradient training",
+      "group_id": "ppo-rl",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Proximal Policy Optimization Algorithms"
+        ],
+        "acceptable": [
+          "policy gradient",
+          "trust region"
+        ],
+        "must_exclude": [
+          "proximal humeral fracture"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-unet-segmentation",
+      "query_text": "encoder decoder skip connections medical imaging cell boundaries",
+      "group_id": "unet-segmentation",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "U-Net: Convolutional Networks for Biomedical Image Segmentation"
+        ],
+        "acceptable": [
+          "encoder decoder segmentation",
+          "skip connections segmentation"
+        ],
+        "must_exclude": [
+          "road network segmentation only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-mixed-gnn",
+      "query_text": "graph neural network 그래프 신경망 node classification",
+      "group_id": "gnn-mixed",
+      "split": "train",
+      "locale": "mixed",
+      "intent": "topic_exploration",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Semi-Supervised Classification with Graph Convolutional Networks"
+        ],
+        "acceptable": [
+          "graph attention network",
+          "message passing"
+        ],
+        "must_exclude": [
+          "social graph visualization tool"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-batchnorm",
+      "query_text": "batch normalization internal covariate shift training",
+      "group_id": "batch-normalization",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Batch Normalization"
+        ],
+        "acceptable": [
+          "layer normalization",
+          "training stabilization"
+        ],
+        "must_exclude": [
+          "batch processing job scheduler"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-author-lecun-conv",
+      "query_text": "yann lecun convolutional network document recognition",
+      "group_id": "lecun-convnet",
+      "split": "selection",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Gradient-based learning applied to document recognition"
+        ],
+        "acceptable": [
+          "convolutional neural network",
+          "handwritten digit"
+        ],
+        "must_exclude": [
+          "lecun interview transcript"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-method-lora",
+      "query_text": "low rank adaptation parameter efficient fine-tuning llm",
+      "group_id": "lora-peft",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "LoRA: Low-Rank Adaptation of Large Language Models"
+        ],
+        "acceptable": [
+          "parameter-efficient fine-tuning",
+          "adapter tuning"
+        ],
+        "must_exclude": [
+          "low rank matrix completion only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-ko-clip",
+      "query_text": "이미지 텍스트 대조 학습 contrastive language image pretraining",
+      "group_id": "clip-ko",
+      "split": "selection",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Learning Transferable Visual Models From Natural Language Supervision"
+        ],
+        "acceptable": [
+          "contrastive language-image",
+          "zero-shot transfer"
+        ],
+        "must_exclude": [
+          "clip art library"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-dpo",
+      "query_text": "direct preference optimization language model alignment",
+      "group_id": "dpo-alignment",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Direct Preference Optimization"
+        ],
+        "acceptable": [
+          "preference learning",
+          "rlhf alternative"
+        ],
+        "must_exclude": [
+          "differential privacy optimization"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-ko-timeseries",
+      "query_text": "시계열 예측 transformer 장기 예측 모델",
+      "group_id": "timeseries-ko",
+      "split": "test",
+      "locale": "ko",
+      "intent": "latest_research",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Informer"
+        ],
+        "acceptable": [
+          "long sequence time-series forecasting",
+          "temporal fusion"
+        ],
+        "must_exclude": [
+          "time series database indexing"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-mamba-ssm",
+      "query_text": "state space model linear time sequence modeling",
+      "group_id": "mamba-ssm",
+      "split": "test",
+      "locale": "en",
+      "intent": "latest_research",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Mamba"
+        ],
+        "acceptable": [
+          "structured state space",
+          "selective state space"
+        ],
+        "must_exclude": [
+          "mamba snake venom study"
+        ]
       }
     }
   ]

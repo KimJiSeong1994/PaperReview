@@ -131,11 +131,16 @@ def test_skillopt_dataset_selection_split_covers_live_gate_intents():
 
 def test_dataset_contract_rejects_selection_split_without_method_holdout():
     dataset = dict(load_json(DATASET))
+    # Drop every method_search query from the selection split, not one named
+    # query: the gate is about the intent being covered at all, and pinning a
+    # single query id made the test silently stop testing that once a second
+    # method_search query was added.
     dataset["queries"] = [
         query
         for query in dataset["queries"]
-        if query["query_id"] != "q-selection-method-resnet"
+        if not (query["split"] == "selection" and query["intent"] == "method_search")
     ]
+    dataset["dataset_hash"] = canonical_self_hash(dataset, "dataset_hash")
 
     with pytest.raises(
         ValidationError, match="selection split.*at least two|selection split missing"

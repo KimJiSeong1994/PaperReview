@@ -59,6 +59,10 @@ def _make_query_analyzer_mock() -> MagicMock:
 def _make_search_agent_mock() -> MagicMock:
     mock = MagicMock()
     mock.save_papers.return_value = {"new_papers": 1, "duplicates": 0}
+    # Deep search deduplicates through the agent. A bare MagicMock would return
+    # a mock whose len() is 0 and which iterates empty, silently emptying the
+    # result set — so the mock has to behave like the real collaborator here.
+    mock.deduplicator.deduplicate.side_effect = lambda papers, **_kw: list(papers)
     return mock
 
 

@@ -1001,7 +1001,7 @@ def _interleave_source_candidates(
 
 def _stamp_global_rank(
     ranked_papers: List[Dict[str, Any]],
-    results: Dict[str, List[Dict[str, Any]]],
+    results: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> None:
     """Write each paper's global position onto the paper itself as ``_rank``.
 
@@ -1021,11 +1021,67 @@ def _stamp_global_rank(
     for paper in ranked_papers:
         paper["_rank"] = rank
         rank += 1
-    for papers in results.values():
+    for papers in (results or {}).values():
         for paper in papers:
             if "_rank" not in paper:
                 paper["_rank"] = rank
                 rank += 1
+
+
+async def _dedup_and_rank_deep_search(
+    query: str,
+    papers: List[Dict[str, Any]],
+    intent: str,
+) -> List[Dict[str, Any]]:
+    """Give the deep-search paths the same dedup and fusion as ``/api/search``.
+
+    Both deep-search endpoints returned whatever order the ReAct turns happened
+    to append in — turn 1's hits, then turn 2's, then graph expansion — with no
+    cross-source deduplication. A paper found by three turns appeared three
+    times, and the ranking signals never ran at all, so the two search entry
+    points disagreed about what "best" means.
+
+    Degrades to the input order on any failure: deep search is already slow and
+    an unranked answer beats no answer.
+    """
+    if not papers:
+        return papers
+
+    try:
+        papers = search_agent.deduplicator.deduplicate(papers)
+    except Exception as exc:  # noqa: BLE001 - ranking still worth attempting
+        logger.warning("[Deep Search] Dedup failed (continuing): %s", exc)
+
+    if _hybrid_ranker is None:
+        _stamp_global_rank(papers)
+        return papers
+
+    try:
+        loop = asyncio.get_running_loop()
+        ranked = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                partial(
+                    _hybrid_ranker.rank_papers,
+                    query=query,
+                    papers=papers,
+                    intent=intent,
+                    use_rrf=True,
+                ),
+            ),
+            timeout=_RANKING_TIMEOUT,
+        )
+        papers = list(ranked)
+    except asyncio.TimeoutError:
+        logger.warning(
+            "[Deep Search] Ranking timed out after %ds (returning dedup order)",
+            _RANKING_TIMEOUT,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Deep Search] Ranking failed (returning dedup order): %s", exc)
+
+    _stamp_global_rank(papers)
+    return papers
 
 
 def _rebuild_results_from_ranked(
@@ -1262,6 +1318,14 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         except Exception as e:
             logger.warning("[Deep Search][GraphRAG] Expansion failed (continuing): %s", e)
 
+        # 2.6. Dedup + hybrid ranking, before the rubric so the evaluation
+        # scores the set the caller actually receives.
+        result["papers"] = await _dedup_and_rank_deep_search(
+            request.query,
+            result.get("papers", []),
+            analysis.get("intent", "paper_search"),
+        )
+
         # 3. Rubric evaluation
         from app.QueryAgent.rubric_evaluator import RubricEvaluator
 
@@ -1351,6 +1415,10 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "fast_mode": request.fast_mode,
             "query_analyzer_enabled": bool(query_analyzer),
             "hybrid_ranker_enabled": bool(_hybrid_ranker),
+            # Echoed so the client can attribute an impression to the ranker
+            # that ordered it. Without this the anonymous analytics channel can
+            # measure ranking quality but not compare two rankers.
+            "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}",
         }
 
         # Cache lookup is safe before LLM query analysis: the key uses only
@@ -2146,7 +2214,12 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
                 max_results=request.max_results or 20,
             )
 
-            papers = result.get("papers", [])
+            papers = await _dedup_and_rank_deep_search(
+                request.query,
+                result.get("papers", []),
+                analysis.get("intent", "paper_search"),
+            )
+            result["papers"] = papers
             yield _sse_event("papers_found", {
                 "count": len(papers),
                 "turns_used": result.get("metadata", {}).get("turns_used", 1),
