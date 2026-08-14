@@ -30,11 +30,27 @@ function sendAllowedEvent(eventName: AnalyticsEventName, params?: AnalyticsEvent
   trackEvent(eventName, params);
 }
 
+/**
+ * Ties one search impression to the clicks it earns.
+ *
+ * `search_id` is random per search and encodes nothing about the query — it
+ * only lets a later `paper_select` be joined back to the result set it came
+ * from, which is what MRR and CTR are computed from. Deliberately not a hash
+ * of the query: a 48-bit hash of a common academic search is reversible by
+ * dictionary, and this channel promises not to carry search text.
+ */
+export interface SearchImpression {
+  searchId: string;
+  /** Ranking variant that ordered the results, echoed by the API. */
+  rankingVariant?: string;
+}
+
 export function trackSearchEvent(
   query: string,
   resultStatus: SearchStatus,
   resultCount: number,
   source: SearchSource,
+  impression?: SearchImpression,
 ): void {
   if (!query.trim()) return;
   sendAllowedEvent('search', {
@@ -43,6 +59,8 @@ export function trackSearchEvent(
     result_status: resultStatus,
     result_count_bucket: bucketCount(resultCount),
     source,
+    ...(impression?.searchId ? { search_id: impression.searchId } : {}),
+    ...(impression?.rankingVariant ? { ranking_variant: impression.rankingVariant } : {}),
   });
 }
 
@@ -66,8 +84,17 @@ export function trackDeepReviewFail(selectedCount: number): void {
   sendAllowedEvent('deep_review_fail', { selected_count_bucket: bucketCount(selectedCount) });
 }
 
-export function trackPaperSelect(source: 'list' | 'graph'): void {
-  sendAllowedEvent('paper_select', { source });
+export function trackPaperSelect(
+  source: 'list' | 'graph',
+  impression?: SearchImpression & { rank?: number },
+): void {
+  sendAllowedEvent('paper_select', {
+    source,
+    ...(impression?.searchId ? { search_id: impression.searchId } : {}),
+    // 1-based position in the ranked list. Paired with the impression's
+    // result count this is everything MRR@k and CTR@k need.
+    ...(impression?.rank && impression.rank > 0 ? { rank: impression.rank } : {}),
+  });
 }
 
 export function trackBookmarkSave(): void {

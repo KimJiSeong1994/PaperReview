@@ -24,7 +24,10 @@ CANDIDATE = ROOT / "data/search_eval/skillopt_candidate_artifact_example.json"
 def test_build_skillopt_benchmark_cases_from_dataset():
     cases = build_skillopt_benchmark_cases(DATASET)
 
-    assert len(cases) == 8
+    # Track the dataset rather than a literal: the benchmark is meant to grow,
+    # and a hardcoded count turns every added query into a failing test.
+    expected = len(load_json(DATASET)["queries"])
+    assert len(cases) == expected
     assert {case.split for case in cases} == {"train", "selection", "test"}
     assert all(case.expected_must_include for case in cases)
 
@@ -40,7 +43,13 @@ def test_create_skillopt_rollout_skeleton_is_dev_only_and_content_bound():
     assert skeleton["adapter_kind"] == "dev_only_skillopt_env_adapter_skeleton"
     assert skeleton["scope"] == "query_analyzer_standard_search"
     assert skeleton["source_hashes"]["baseline_skill_file"] == canonical_file_hash(BASELINE_SKILL)
-    assert skeleton["splits"] == {"train": 4, "selection": 2, "test": 2}
+    # Derived from the dataset for the same reason as the case count above:
+    # the split tallies must follow the benchmark as it grows, while still
+    # proving the skeleton counts each split rather than guessing.
+    expected_splits: dict[str, int] = {}
+    for query in load_json(DATASET)["queries"]:
+        expected_splits[query["split"]] = expected_splits.get(query["split"], 0) + 1
+    assert skeleton["splits"] == expected_splits
     assert skeleton["pilot_rollout_metadata"]["hyde_enabled"] is False
     assert skeleton["candidate_skill_hash"].startswith("sha256:")
 

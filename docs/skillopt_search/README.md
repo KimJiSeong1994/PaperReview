@@ -17,56 +17,85 @@ and pins the union by sha256. `sweep` then ranks that fixed pool at each weight,
 so every arm sees identical candidates and only the fusion varies. Records come
 out as `measured` evidence bound to the pool hash.
 
-### Result: the cross-encoder is excluded from the fusion
+### Result: the benchmark cannot resolve the cross-encoder weight
 
-nDCG@10, measured with the dense signal both off and on (`--semantic`):
+The sweep was run three times and reversed twice. The history matters more than
+any one table, so it is recorded here.
 
-| ce_weight | 0.0 | 0.5 | 1.0 | 2.0 | 4.0 |
-|---|---|---|---|---|---|
-| semantic off | **0.3655** | 0.3392 | 0.3236 | 0.3317 | 0.2975 |
-| semantic on | **0.3304** | 0.3282 | 0.2981 | 0.3004 | 0.2995 |
+| run | queries | verdict |
+|---|---|---|
+| 1 | 8 | `0.0` best; quality degrades monotonically with weight |
+| 2 | 24 | `2.0` best — the exact opposite |
+| 3 | 24, debiased | no difference: nDCG@10 spans 0.2866–0.2979 across `0.0`–`4.0` |
 
-Both configurations agree: quality degrades as the cross-encoder gains weight,
-with the cliff between 0.5 and 1.0. The cause is model fit, not a bug.
-`ms-marco-MiniLM-L-6-v2` is trained for web-passage question answering and
-rewards documents that restate the query. For "transformer attention mechanism"
-it ranks *Attention Is All You Need* 19th of 44 candidates, behind obscure papers
-whose titles recombine the query words — while the citation signal ranks it 4th.
-Topical similarity is already the dense signal's job, so it has no gap to fill.
+Run 2 reversed because of how the added queries were written: many paraphrased
+the target paper's own title (`"adam stochastic optimization method"` for
+*Adam: A Method for Stochastic Optimization*), and phrase restatement is exactly
+what `ms-marco-MiniLM-L-6-v2` is trained to reward. Splitting run 2 by query
+type showed the effect concentrated in those queries.
 
-`CROSS_ENCODER_RRF_WEIGHT` is therefore `0.0`, and the ranker skips the model
-pass entirely at that weight rather than multiplying its output by zero. Raising
-the constant restores the signal; the sweep's `cross_encoder_weight` argument
-re-measures it at any time without touching production.
+Run 3 rewrote every query whose text covered ≥60% of a ≥4-word target title,
+as a rule fixed before re-measuring rather than after seeing results. The effect
+disappeared. Absolute scores also dropped (0.40 → 0.30) because the queries no
+longer hand the answer to a lexical matcher — the benchmark got harder and more
+honest at the same time.
 
-Caveats that bound this result: 8 queries, and labels are matched by
-case-insensitive substring over title+abstract, which suits the benchmark's
-canonical-paper anchors but is not a general relevance judgement.
+`CROSS_ENCODER_RRF_WEIGHT` stays `0.0`, but the reason is now performance, not
+quality: no weight measurably beats another, Recall@10 mildly prefers low
+weights, and `0.0` is the only value that lets the ranker skip the model pass
+entirely. Settling it properly needs click data, not this instrument.
+
+Caveats that bound all three runs: 24 hand-written queries, and labels matched
+by case-insensitive substring over title+abstract — which cannot distinguish
+"ranked the canonical paper first" from "some paper mentioned the phrase".
+Queries whose target title is one or two words (*Mamba*, *Informer*,
+*Batch Normalization*) are especially weak for this reason.
 
 ## Measured ranking quality from real clicks
 
 Everything else in this directory scores *fixtures*. `src/search_eval/click_metrics.py`
-is the one evaluation path scored from behaviour: it reads the QUERY_SUBMIT /
-SEARCH_CLICK ledger in `data/events.db` and reports MRR@k, CTR@1/5/k, and the
-clicked-rank histogram. It is read-only, offline, and imports nothing from the
-approval chain.
+is the one evaluation path scored from behaviour: it reports MRR@k, CTR@1/5/k,
+and the clicked-rank histogram. It is read-only, offline, and imports nothing
+from the approval chain.
 
 ```bash
-python -m src.search_eval.click_metrics --days 30
+python -m src.search_eval.click_metrics --days 30              # anonymous + signed-in
 python -m src.search_eval.click_metrics --days 30 --by-variant
+python -m src.search_eval.click_metrics --source events        # signed-in only
 ```
 
-`--by-variant` groups impressions by the `ranking_variant` recorded on each
-QUERY_SUBMIT (currently the cross-encoder RRF weight, `ce_w=<value>`), which is
-how `CROSS_ENCODER_RRF_WEIGHT` in `src/graph_rag/hybrid_ranker.py` should be
-tuned: change it, let both variants accumulate impressions, compare MRR@10.
-Cache hits are excluded from that split because a cached body was ordered by
-whichever weight was live when it was written.
+It reads two ledgers, and the default is the one with the volume:
 
-Clicks recorded before the `rank` field existed carry no position; they appear
-as `clicks_without_rank` rather than being scored or dropped. This output is the
-`measured` evidence class the approval chain below asks for — fixture evidence
-validates the pipeline only.
+- **`analytics`** (default, `data/analytics.db`) — the consented first-party
+  channel, which covers anonymous visitors. Impressions are the existing
+  `search` event, clicks the existing `paper_select` event; no new event type
+  and no new tracking identity were introduced.
+- **`events`** (`data/events.db`) — the `user_events` ledger, which only records
+  signed-in users. It held **zero** clicks over four months and eight
+  `query_submit` rows in thirty days, which is why it cannot be the primary
+  source.
+
+The two are joined by `search_id`: a random value minted per search, sent with
+the impression and echoed on each click. Deliberately **not** a hash of the
+query — 48 bits of sha256 over a common academic search is reversible by
+dictionary, and this channel promises not to carry search text. The payload
+sanitizer strips anything matching `query`/`title`/`paper`/… before storage, so
+the promise is enforced rather than merely intended; `test_click_metrics.py`
+pins it.
+
+Coverage is bounded by consent: visitors who decline analytics contribute
+nothing, so treat the numbers as a sample rather than a census.
+
+`--by-variant` groups impressions by `ranking_variant` (currently the
+cross-encoder RRF weight, `ce_w=<value>`), which is how
+`CROSS_ENCODER_RRF_WEIGHT` should be settled: change it, let both variants
+accumulate impressions, compare MRR@10. Cache hits are excluded from that split
+because a cached body was ordered by whichever weight was live when it was
+written. Clicks with no recorded position appear as `clicks_without_rank`
+rather than being scored or dropped.
+
+This output is the `measured` evidence class the approval chain below asks for —
+fixture evidence validates the pipeline only.
 
 
 This directory documents the offline foundation for applying Microsoft SkillOpt

@@ -160,8 +160,22 @@ describe('SearchPage analytics instrumentation', () => {
     await submitSearch('private raw paper title');
 
     await waitFor(() => {
-      expect(trackSearchEvent).toHaveBeenCalledWith('private raw paper title', 'non_academic', 0, 'home');
+      expect(trackSearchEvent).toHaveBeenCalledWith(
+        'private raw paper title',
+        'non_academic',
+        0,
+        'home',
+        expect.objectContaining({ searchId: expect.any(String) }),
+      );
     });
+
+    // The wrapper is what keeps the query out of analytics: the raw text is an
+    // argument to it, never a field it forwards. The impression id must be
+    // random rather than derived from the query, or it would smuggle the text
+    // back in as a reversible hash.
+    const impression = vi.mocked(trackSearchEvent).mock.calls[0][4];
+    expect(JSON.stringify(impression)).not.toContain('private raw paper title');
+    expect(impression?.searchId).not.toContain('private');
   });
 
   it('shows an accessible library-search status for a search that takes longer than the flash threshold', async () => {

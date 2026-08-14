@@ -37,5 +37,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Vitest's 5s default is sized for unit tests. Several suites here render
+    // a whole page and drive it through search → enrichment → poster, which
+    // costs seconds per test and blew the default intermittently — the same
+    // file failed 1 to 10 tests run to run with no code change, always as
+    // "Test timed out", never as a wrong assertion.
+    //
+    // This buys headroom, not speed: the suites are still slow, and a real
+    // hang still fails, just later.
+    testTimeout: 20_000,
   },
 })

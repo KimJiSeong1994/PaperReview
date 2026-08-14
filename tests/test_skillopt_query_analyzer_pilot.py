@@ -8,7 +8,7 @@ import pytest
 
 from src.search_eval.query_analyzer_pilot import load_baseline_skill, run_offline_query_analyzer_pilot
 from src.search_eval.skillopt_adapter import canonical_file_hash
-from src.search_eval.skillopt_contract import ValidationError
+from src.search_eval.skillopt_contract import ValidationError, load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = ROOT / "data/search_eval/skillopt_paper_search_v0.json"
@@ -24,8 +24,14 @@ def test_offline_query_analyzer_pilot_returns_v1_metadata():
     )
 
     assert result["scope"] == "query_analyzer_standard_search"
-    assert result["query_count"] == 8
-    assert result["split_counts"] == {"train": 4, "selection": 2, "test": 2}
+    # Derived from the dataset: the benchmark is meant to grow, and literals
+    # here turn every added query into an unrelated failing test.
+    queries = load_json(DATASET)["queries"]
+    expected_splits: dict[str, int] = {}
+    for query in queries:
+        expected_splits[query["split"]] = expected_splits.get(query["split"], 0) + 1
+    assert result["query_count"] == len(queries)
+    assert result["split_counts"] == expected_splits
     assert result["rollout_metadata"]["skill_hash"] == canonical_file_hash(BASELINE_SKILL)
     assert result["rollout_metadata"]["hyde_enabled"] is False
     assert result["rollout_metadata"]["query_analysis_confidence"] >= 0.8

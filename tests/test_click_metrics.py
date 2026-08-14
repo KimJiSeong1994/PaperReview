@@ -16,6 +16,7 @@ import pytest
 from src.events.migrations import ensure_events_db
 from src.search_eval.click_metrics import (
     build_impressions,
+    build_impressions_from_analytics,
     score_by_variant,
     score_impressions,
 )
@@ -229,3 +230,104 @@ def test_cache_hits_are_excluded_from_variant_comparison(events_db):
 def test_missing_db_fails_loudly(tmp_path):
     with pytest.raises(FileNotFoundError):
         build_impressions(tmp_path / "nope.db", days=7)
+
+
+# ── first-party analytics source (covers anonymous visitors) ──────────
+
+
+@pytest.fixture
+def analytics_db(tmp_path):
+    """An analytics.db with an insert helper, using the production schema."""
+    from src.analytics.first_party import AppAnalyticsEvent, record_app_analytics_event
+
+    db_path = tmp_path / "analytics.db"
+
+    def _insert(event_name: str, payload: dict, *, client="client_abcdefgh"):
+        record_app_analytics_event(
+            db_path,
+            AppAnalyticsEvent(
+                user_id=None,
+                client_id=client,
+                session_id="session_abcdefgh",
+                event_name=event_name,
+                page_path="/",
+                payload=payload,
+            ),
+        )
+
+    return db_path, _insert
+
+
+def test_analytics_source_joins_clicks_to_their_search(analytics_db):
+    """The join key is a random per-search id, not anything about the query."""
+    db, insert = analytics_db
+    insert("search", {"search_id": "s1", "ranking_variant": "ce_w=0.0"})
+    insert("paper_select", {"search_id": "s1", "rank": 2})
+    insert("search", {"search_id": "s2", "ranking_variant": "ce_w=0.0"})
+
+    impressions, orphans = build_impressions_from_analytics(db, days=7)
+    metrics = score_impressions(impressions, k=10, orphan_clicks=orphans)
+
+    assert metrics.impressions == 2
+    assert metrics.impressions_with_click == 1
+    assert metrics.mrr_at_k == pytest.approx(0.25)  # (1/2 + 0) / 2
+
+
+def test_analytics_source_carries_no_query_text(analytics_db):
+    """Anything resembling query content must be stripped before storage.
+
+    The consent banner promises search text is not sent; the payload sanitizer
+    is what enforces it, so this pins that it still does.
+    """
+    db, insert = analytics_db
+    insert("search", {"search_id": "s1", "query": "대규모 언어 모델", "query_hash": "abc123"})
+
+    conn = sqlite3.connect(db)
+    try:
+        stored = conn.execute(
+            "SELECT payload FROM app_analytics_events WHERE event_name='search'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert "대규모" not in stored
+    assert "query_hash" not in stored
+    assert "s1" in stored, "the join key itself must survive"
+
+
+def test_analytics_click_without_a_rank_is_counted_separately(analytics_db):
+    db, insert = analytics_db
+    insert("search", {"search_id": "s1"})
+    insert("paper_select", {"search_id": "s1"})
+
+    impressions, orphans = build_impressions_from_analytics(db, days=7)
+    metrics = score_impressions(impressions, k=10, orphan_clicks=orphans)
+
+    assert metrics.clicks_without_rank == 1
+    assert metrics.mrr_at_k == 0.0
+
+
+def test_analytics_click_without_a_matching_search_is_orphaned(analytics_db):
+    db, insert = analytics_db
+    insert("paper_select", {"search_id": "unknown", "rank": 1})
+
+    _impressions, orphans = build_impressions_from_analytics(db, days=7)
+    assert orphans == 1
+
+
+def test_analytics_variants_are_comparable(analytics_db):
+    db, insert = analytics_db
+    insert("search", {"search_id": "a", "ranking_variant": "ce_w=0.0"})
+    insert("paper_select", {"search_id": "a", "rank": 1})
+    insert("search", {"search_id": "b", "ranking_variant": "ce_w=2.0"})
+    insert("paper_select", {"search_id": "b", "rank": 9})
+
+    impressions, _ = build_impressions_from_analytics(db, days=7)
+    by_variant = score_by_variant(impressions, k=10)
+
+    assert by_variant["ce_w=0.0"].mrr_at_k > by_variant["ce_w=2.0"].mrr_at_k
+
+
+def test_analytics_missing_db_fails_loudly(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        build_impressions_from_analytics(tmp_path / "nope.db", days=7)
