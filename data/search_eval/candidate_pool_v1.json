@@ -1,0 +1,1332 @@
+{
+  "version": "search-candidate-pool-v1",
+  "dataset_hash": "sha256:8d5091e245c0648d23a199a8c9f11c7ca1bdefa6a5e7ad0489195f8912e1f5c2",
+  "per_source": 15,
+  "sources": [
+    "arxiv",
+    "dblp",
+    "openalex"
+  ],
+  "candidates": {
+    "q-train-en-transformer-attention": [
+      {
+        "title": "Generalized Probabilistic Attention Mechanism in Transformers",
+        "abstract": "The Transformer architecture has become widely adopted due to its demonstrated success, attributed to the attention mechanism at its core. Despite these successes, the attention mechanism of Transformers is associated with two well-known issues: rank-collapse and gradient vanishing. In this paper, we present a theoretical analysis that it is inherently difficult to address both issues simultaneously in the conventional attention mechanism. To handle these issues, we introduce a novel class of attention mechanism, referred to as generalized probabilistic attention mechanism (GPAM), and its dual-attention implementation within the Transformer architecture. Unlike conventional attention mechanisms, GPAM allows for negative attention scores while preserving a fixed total sum. We provide theoretical evidence that the proposed dual-attention GPAM (daGPAM) effectively mitigates both the rank-collapse and gradient vanishing issues which are difficult to resolve simultaneously with the conventional attention mechanisms. Furthermore, we empirically validate this theoretical evidence, demonstrating the superiority of daGPAM compared to other alternative attention mechanisms that were proposed to address the same issues. Additionally, we demonstrate the practical benefits of GPAM in natural language processing tasks, such as language modeling and neural machine translation.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Understanding Transformers and Attention Mechanisms: An Introduction for Applied Mathematicians",
+        "abstract": "This document provides a brief introduction to the attention mechanism used in modern language models based on the Transformer architecture. We first illustrate how text is encoded as vectors and how the attention mechanism processes these vectors to encode semantic information. We then describe Multi-Headed Attention, examine how the Transformer architecture is built and look at some of its variants. Finally, we provide a glimpse at modern methods to reduce the computational and memory cost of attention, namely KV caching, Grouped Query attention and Latent Attention. This material is aimed at the applied mathematics community and was written as introductory presentation in the context of the IPAM Research Collaboration Workshop entitled \"Randomized Numerical Linear Algebra\" (RNLA), for the project: \"Randomization in Transformer models\".",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Nexus: Higher-Order Attention Mechanisms in Transformers",
+        "abstract": "Transformers have achieved significant success across various domains, relying on self-attention to capture dependencies. However, the standard first-order attention mechanism is often limited by a low-rank bottleneck, struggling to capture intricate, multi-hop relationships within a single layer. In this paper, we propose the Nexus, a novel architecture designed to enhance representational power through a recursive framework. Unlike standard approaches that use static linear projections for Queries and Keys, Nexus dynamically refines these representations via nested self-attention mechanisms. Specifically, the Query and Key vectors are themselves outputs of inner attention loops, allowing tokens to aggregate global context and model high-order correlations \\textit{prior} to the final attention computation. We enforce a parameter-efficient weight-sharing strategy across recursive steps, ensuring that this enhanced expressivity incurs $\\mathcal{O}(1)$ additional parameters. We provide theoretical analysis demonstrating that our method breaks the linear bottleneck of standard attention. Empirically, Nexus outperforms standard Transformers on multiple benchmarks.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Image Captioning using Multiple Transformers for Self-Attention Mechanism",
+        "abstract": "Real-time image captioning, along with adequate precision, is the main challenge of this research field. The present work, Multiple Transformers for Self-Attention Mechanism (MTSM), utilizes multiple transformers to address these problems. The proposed algorithm, MTSM, acquires region proposals using a transformer detector (DETR). Consequently, MTSM achieves the self-attention mechanism by transferring these region proposals and their visual and geometrical features through another transformer and learns the objects' local and global interconnections. The qualitative and quantitative results of the proposed algorithm, MTSM, are shown on the MSCOCO dataset.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Continuous-Time Attention: PDE-Guided Mechanisms for Long-Sequence Transformers",
+        "abstract": "We propose a novel framework, Continuous_Time Attention, which infuses partial differential equations (PDEs) into the Transformer's attention mechanism to address the challenges of extremely long input sequences. Instead of relying solely on a static attention matrix, we allow attention weights to evolve over a pseudo_time dimension via diffusion, wave, or reaction_diffusion dynamics. This mechanism systematically smooths local noise, enhances long_range dependencies, and stabilizes gradient flow. Theoretically, our analysis shows that PDE_based attention leads to better optimization landscapes and polynomial rather than exponential decay of distant interactions. Empirically, we benchmark our method on diverse experiments_demonstrating consistent gains over both standard and specialized long sequence Transformer variants. Our findings highlight the potential of PDE_based formulations to enrich attention mechanisms with continuous_time dynamics and global coherence.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Easy attention: A simple attention mechanism for temporal predictions with transformers",
+        "abstract": "To improve the robustness of transformer neural networks used for temporal-dynamics prediction of chaotic systems, we propose a novel attention mechanism called easy attention which we demonstrate in time-series reconstruction and prediction. While the standard self attention only makes use of the inner product of queries and keys, it is demonstrated that the keys, queries and softmax are not necessary for obtaining the attention score required to capture long-term dependencies in temporal sequences. Through the singular-value decomposition (SVD) on the softmax attention score, we further observe that self attention compresses the contributions from both queries and keys in the space spanned by the attention score. Therefore, our proposed easy-attention method directly treats the attention scores as learnable parameters. This approach produces excellent results when reconstructing and predicting the temporal dynamics of chaotic systems exhibiting more robustness and less complexity than self attention or the widely-used long short-term memory (LSTM) network. We show the improved performance of the easy-attention method in the Lorenz system, a turbulence shear flow and a model of a nuclear reactor.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Efficient Transformer-Based Piano Transcription With Sparse Attention Mechanisms",
+        "abstract": "This paper investigates automatic piano transcription based on computationally-efficient yet high-performant variants of the Transformer that can capture longer-term dependency over the whole musical piece. Recently, transformer-based sequence-to-sequence models have demonstrated excellent performance in piano transcription. These models, however, fail to deal with the whole piece at once due to the quadratic complexity of the self-attention mechanism, and music signals are thus typically processed in a sliding-window manner in practice. To overcome this limitation, we propose an efficient architecture with sparse attention mechanisms. Specifically, we introduce sliding-window self-attention mechanisms for both the encoder and decoder, and a hybrid global-local cross-attention mechanism that attends to various spans according to the MIDI token types. We also use a hierarchical pooling strategy between the encoder and decoder to further reduce computational load. Our experiments on the MAESTRO dataset showed that the proposed model achieved a significant reduction in computational cost and memory usage, accelerating inference speed, while maintaining transcription performance comparable to the full-attention baseline. This allows for training with longer audio contexts on the same hardware, demonstrating the viability of sparse attention for building efficient and high-performance piano transcription systems. The code is available at https://github.com/WX-Wei/efficient-seq2seq-piano-trans.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Masked Attention as a Mechanism for Improving Interpretability of Vision Transformers",
+        "abstract": "Vision Transformers are at the heart of the current surge of interest in foundation models for histopathology. They process images by breaking them into smaller patches following a regular grid, regardless of their content. Yet, not all parts of an image are equally relevant for its understanding. This is particularly true in computational pathology where background is completely non-informative and may introduce artefacts that could mislead predictions. To address this issue, we propose a novel method that explicitly masks background in Vision Transformers' attention mechanism. This ensures tokens corresponding to background patches do not contribute to the final image representation, thereby improving model robustness and interpretability. We validate our approach using prostate cancer grading from whole-slide images as a case study. Our results demonstrate that it achieves comparable performance with plain self-attention while providing more accurate and clinically meaningful attention heatmaps.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Mechanism and Emergence of Stacked Attention Heads in Multi-Layer Transformers",
+        "abstract": "In this paper, I introduce the retrieval problem, a simple yet common reasoning task that can be solved only by transformers with a minimum number of layers, which grows logarithmically with the input size. I empirically show that large language models can solve the task under different prompting formulations without any fine-tuning. To understand how transformers solve the retrieval problem, I train several transformers on a minimal formulation. Successful learning occurs only under the presence of an implicit curriculum. I uncover the learned mechanisms by studying the attention maps in the trained transformers. I also study the training process, uncovering that attention heads always emerge in a specific sequence guided by the implicit curriculum.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Dissecting the Interplay of Attention Paths in a Statistical Mechanics Theory of Transformers",
+        "abstract": "Despite the remarkable empirical performance of Transformers, their theoretical understanding remains elusive. Here, we consider a deep multi-head self-attention network, that is closely related to Transformers yet analytically tractable. We develop a statistical mechanics theory of Bayesian learning in this model, deriving exact equations for the network's predictor statistics under the finite-width thermodynamic limit, i.e., $N,P\\rightarrow\\infty$, $P/N=\\mathcal{O}(1)$, where $N$ is the network width and $P$ is the number of training examples. Our theory shows that the predictor statistics are expressed as a sum of independent kernels, each one pairing different 'attention paths', defined as information pathways through different attention heads across layers. The kernels are weighted according to a 'task-relevant kernel combination' mechanism that aligns the total kernel with the task labels. As a consequence, this interplay between attention paths enhances generalization performance. Experiments confirm our findings on both synthetic and real-world sequence classification tasks. Finally, our theory explicitly relates the kernel combination mechanism to properties of the learned weights, allowing for a qualitative transfer of its insights to models trained via gradient descent. As an illustration, we demonstrate an efficient size reduction of the network, by pruning those attention heads that are deemed less relevant by our theory.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "GTA: A Geometry-Aware Attention Mechanism for Multi-View Transformers",
+        "abstract": "As transformers are equivariant to the permutation of input tokens, encoding the positional information of tokens is necessary for many tasks. However, since existing positional encoding schemes have been initially designed for NLP tasks, their suitability for vision tasks, which typically exhibit different structural properties in their data, is questionable. We argue that existing positional encoding schemes are suboptimal for 3D vision tasks, as they do not respect their underlying 3D geometric structure. Based on this hypothesis, we propose a geometry-aware attention mechanism that encodes the geometric structure of tokens as relative transformation determined by the geometric relationship between queries and key-value pairs. By evaluating on multiple novel view synthesis (NVS) datasets in the sparse wide-baseline multi-view setting, we show that our attention, called Geometric Transform Attention (GTA), improves learning efficiency and performance of state-of-the-art transformer-based NVS models without any additional learned parameters and only minor computational overhead.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Linear Transformers as VAR Models: Aligning Autoregressive Attention Mechanisms with Autoregressive Forecasting",
+        "abstract": "Autoregressive attention-based time series forecasting (TSF) has drawn increasing interest, with mechanisms like linear attention sometimes outperforming vanilla attention. However, deeper Transformer architectures frequently misalign with autoregressive objectives, obscuring the underlying VAR structure embedded within linear attention and hindering their ability to capture the data generative processes in TSF. In this work, we first show that a single linear attention layer can be interpreted as a dynamic vector autoregressive (VAR) structure. We then explain that existing multi-layer Transformers have structural mismatches with the autoregressive forecasting objective, which impair interpretability and generalization ability. To address this, we show that by rearranging the MLP, attention, and input-output flow, multi-layer linear attention can also be aligned as a VAR model. Then, we propose Structural Aligned Mixture of VAR (SAMoVAR), a linear Transformer variant that integrates interpretable dynamic VAR weights for multivariate TSF. By aligning the Transformer architecture with autoregressive objectives, SAMoVAR delivers improved performance, interpretability, and computational efficiency, comparing to SOTA TSF models.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Speech Emotion Recognition Via CNN-Transformer and Multidimensional Attention Mechanism",
+        "abstract": "Speech Emotion Recognition (SER) is crucial in human-machine interactions. Mainstream approaches utilize Convolutional Neural Networks or Recurrent Neural Networks to learn local energy feature representations of speech segments from speech information, but struggle with capturing global information such as the duration of energy in speech. Some use Transformers to capture global information, but there is room for improvement in terms of parameter count and performance. Furthermore, existing attention mechanisms focus on spatial or channel dimensions, hindering learning of important temporal information in speech. In this paper, to model local and global information at different levels of granularity in speech and capture temporal, spatial and channel dependencies in speech signals, we propose a Speech Emotion Recognition network based on CNN-Transformer and multi-dimensional attention mechanisms. Specifically, a stack of CNN blocks is dedicated to capturing local information in speech from a time-frequency perspective. In addition, a time-channel-space attention mechanism is used to enhance features across three dimensions. Moreover, we model local and global dependencies of feature sequences using large convolutional kernels with depthwise separable convolutions and lightweight Transformer modules. We evaluate the proposed method on IEMOCAP and Emo-DB datasets and show our approach significantly improves the performance over the state-of-the-art methods.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Lean Attention: Hardware-Aware Scalable Attention Mechanism for the Decode-Phase of Transformers",
+        "abstract": "Transformer-based models have emerged as one of the most widely used architectures for natural language processing, natural language generation, and image generation. The size of the state-of-the-art models has increased steadily reaching billions of parameters. These huge models are memory hungry and incur significant inference latency even on cutting edge AI-accelerators, such as GPUs. Specifically, the time and memory complexity of the attention operation is quadratic in terms of the total context length, i.e., prompt and output tokens. Thus, several optimizations such as key-value tensor caching and FlashAttention computation have been proposed to deliver the low latency demands of applications relying on such large models. However, these techniques do not cater to the computationally distinct nature of different phases during inference.\n  To that end, we propose LeanAttention, a scalable technique of computing self-attention for the token-generation phase (decode-phase) of decoder-only transformer models. LeanAttention enables scaling the attention mechanism implementation for the challenging case of long context lengths by re-designing the execution flow for the decode-phase. We identify that the associative property of online softmax can be treated as a reduction operation thus allowing us to parallelize the attention computation over these large context lengths. We extend the \"stream-K\" style reduction of tiled calculation to self-attention to enable parallel computation resulting in an average of 2.6x attention execution speedup over FlashAttention-2 and up to 8.33x speedup for 512k context lengths.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Local Attention Mechanism: Boosting the Transformer Architecture for Long-Sequence Time Series Forecasting",
+        "abstract": "Transformers have become the leading choice in natural language processing over other deep learning architectures. This trend has also permeated the field of time series analysis, especially for long-horizon forecasting, showcasing promising results both in performance and running time.\n  In this paper, we introduce Local Attention Mechanism (LAM), an efficient attention mechanism tailored for time series analysis. This mechanism exploits the continuity properties of time series to reduce the number of attention scores computed. We present an algorithm for implementing LAM in tensor algebra that runs in time and memory O(nlogn), significantly improving upon the O(n^2) time and memory complexity of traditional attention mechanisms. We also note the lack of proper datasets to evaluate long-horizon forecast models. Thus, we propose a novel set of datasets to improve the evaluation of models addressing long-horizon forecasting challenges.\n  Our experimental analysis demonstrates that the vanilla transformer architecture magnified with LAM surpasses state-of-the-art models, including the vanilla attention mechanism. These results confirm the effectiveness of our approach and highlight a range of future challenges in long-sequence time series forecasting.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting",
+        "abstract": "Many real-world applications require the prediction of long sequence time-series, such as electricity consumption planning. Long sequence time-series forecasting (LSTF) demands a high prediction capacity of the model, which is the ability to capture precise long-range dependency coupling between output and input efficiently. Recent studies have shown the potential of Transformer to increase the prediction capacity. However, there are several severe issues with Transformer that prevent it from being directly applicable to LSTF, including quadratic time complexity, high memory usage, and inherent limitation of the encoder-decoder architecture. To address these issues, we design an efficient transformer-based model for LSTF, named Informer, with three distinctive characteristics: (i) a ProbSparse self-attention mechanism, which achieves O(L log L) in time complexity and memory usage, and has comparable performance on sequences' dependency alignment. (ii) the self-attention distilling highlights dominating attention by halving cascading layer input, and efficiently handles extreme long input sequences. (iii) the generative style decoder, while conceptually simple, predicts the long time-series sequences at one forward operation rather than a step-by-step way, which drastically improves the inference speed of long-sequence predictions. Extensive experiments on four large-scale datasets demonstrate that Informer significantly outperforms existing methods and provides a new solution to the LSTF problem.",
+        "year": "2021",
+        "citations": 6638,
+        "source": "openalex"
+      },
+      {
+        "title": "Attention Is All You Need",
+        "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.",
+        "year": "2025",
+        "citations": 6585,
+        "source": "openalex"
+      },
+      {
+        "title": "A novel time–frequency Transformer based on self–attention mechanism and its application in fault diagnosis of rolling bearings",
+        "abstract": "",
+        "year": "2021",
+        "citations": 528,
+        "source": "openalex"
+      },
+      {
+        "title": "TransUNet: Transformers Make Strong Encoders for Medical Image Segmentation",
+        "abstract": "Medical image segmentation is an essential prerequisite for developing healthcare systems, especially for disease diagnosis and treatment planning. On various medical image segmentation tasks, the u-shaped architecture, also known as U-Net, has become the de-facto standard and achieved tremendous success. However, due to the intrinsic locality of convolution operations, U-Net generally demonstrates limitations in explicitly modeling long-range dependency. Transformers, designed for sequence-to-sequence prediction, have emerged as alternative architectures with innate global self-attention mechanisms, but can result in limited localization abilities due to insufficient low-level details. In this paper, we propose TransUNet, which merits both Transformers and U-Net, as a strong alternative for medical image segmentation. On one hand, the Transformer encodes tokenized image patches from a convolution neural network (CNN) feature map as the input sequence for extracting global contexts. On the other hand, the decoder upsamples the encoded features which are then combined with the high-resolution CNN feature maps to enable precise localization. We argue that Transformers can serve as strong encoders for medical image segmentation tasks, with the combination of U-Net to enhance finer details by recovering localized spatial information. TransUNet achieves superior performances to various competing methods on different medical applications including multi-organ segmentation and cardiac segmentation. Code and models are available at https://github.com/Beckschen/TransUNet.",
+        "year": "2021",
+        "citations": 3924,
+        "source": "openalex"
+      },
+      {
+        "title": "Are Transformers Effective for Time Series Forecasting?",
+        "abstract": "Recently, there has been a surge of Transformer-based solutions for the long-term time series forecasting (LTSF) task. Despite the growing performance over the past few years, we question the validity of this line of research in this work. Specifically, Transformers is arguably the most successful solution to extract the semantic correlations among the elements in a long sequence. However, in time series modeling, we are to extract the temporal relations in an ordered set of continuous points. While employing positional encoding and using tokens to embed sub-series in Transformers facilitate preserving some ordering information, the nature of the permutation-invariant self-attention mechanism inevitably results in temporal information loss. To validate our claim, we introduce a set of embarrassingly simple one-layer linear models named LTSF-Linear for comparison. Experimental results on nine real-life datasets show that LTSF-Linear surprisingly outperforms existing sophisticated Transformer-based LTSF models in all cases, and often by a large margin. Moreover, we conduct comprehensive empirical studies to explore the impacts of various design elements of LTSF models on their temporal relation extraction capability. We hope this surprising finding opens up new research directions for the LTSF task. We also advocate revisiting the validity of Transformer-based solutions for other time series analysis tasks (e.g., anomaly detection) in the future.",
+        "year": "2023",
+        "citations": 2924,
+        "source": "openalex"
+      },
+      {
+        "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text\\n Transformer",
+        "abstract": "Transfer learning, where a model is first pre-trained on a data-rich task\\nbefore being fine-tuned on a downstream task, has emerged as a powerful\\ntechnique in natural language processing (NLP). The effectiveness of transfer\\nlearning has given rise to a diversity of approaches, methodology, and\\npractice. In this paper, we explore the landscape of transfer learning\\ntechniques for NLP by introducing a unified framework that converts all\\ntext-based language problems into a text-to-text format. Our systematic study\\ncompares pre-training objectives, architectures, unlabeled data sets, transfer\\napproaches, and other factors on dozens of language understanding tasks. By\\ncombining the insights from our exploration with scale and our new ``Colossal\\nClean Crawled Corpus'', we achieve state-of-the-art results on many benchmarks\\ncovering summarization, question answering, text classification, and more. To\\nfacilitate future work on transfer learning for NLP, we release our data set,\\npre-trained models, and code.\\n",
+        "year": "2019",
+        "citations": 8346,
+        "source": "openalex"
+      },
+      {
+        "title": "Transformer Architecture and Attention Mechanisms in Genome Data Analysis: A Comprehensive Review",
+        "abstract": "The emergence and rapid development of deep learning, specifically transformer-based architectures and attention mechanisms, have had transformative implications across several domains, including bioinformatics and genome data analysis. The analogous nature of genome sequences to language texts has enabled the application of techniques that have exhibited success in fields ranging from natural language processing to genomic data. This review provides a comprehensive analysis of the most recent advancements in the application of transformer architectures and attention mechanisms to genome and transcriptome data. The focus of this review is on the critical evaluation of these techniques, discussing their advantages and limitations in the context of genome data analysis. With the swift pace of development in deep learning methodologies, it becomes vital to continually assess and reflect on the current standing and future direction of the research. Therefore, this review aims to serve as a timely resource for both seasoned researchers and newcomers, offering a panoramic view of the recent advancements and elucidating the state-of-the-art applications in the field. Furthermore, this review paper serves to highlight potential areas of future investigation by critically evaluating studies from 2019 to 2023, thereby acting as a stepping-stone for further research endeavors.",
+        "year": "2023",
+        "citations": 221,
+        "source": "openalex"
+      },
+      {
+        "title": "Transformer in Transformer",
+        "abstract": "Transformer is a new kind of neural architecture which encodes the input data as powerful features via the attention mechanism. Basically, the visual transformers first divide the input images into several local patches and then calculate both representations and their relationship. Since natural images are of high complexity with abundant detail and color information, the granularity of the patch dividing is not fine enough for excavating features of objects in different scales and locations. In this paper, we point out that the attention inside these local patches are also essential for building visual transformers with high performance and we explore a new architecture, namely, Transformer iN Transformer (TNT). Specifically, we regard the local patches (e.g., 16$\\times$16) as \"visual sentences\" and present to further divide them into smaller patches (e.g., 4$\\times$4) as \"visual words\". The attention of each word will be calculated with other words in the given visual sentence with negligible computational costs. Features of both words and sentences will be aggregated to enhance the representation ability. Experiments on several benchmarks demonstrate the effectiveness of the proposed TNT architecture, e.g., we achieve an 81.5% top-1 accuracy on the ImageNet, which is about 1.7% higher than that of the state-of-the-art visual transformer with similar computational cost. The PyTorch code is available at https://github.com/huawei-noah/CV-Backbones, and the MindSpore code is available at https://gitee.com/mindspore/models/tree/master/research/cv/TNT.",
+        "year": "2021",
+        "citations": 1017,
+        "source": "openalex"
+      },
+      {
+        "title": "Swin-Transformer-Enabled YOLOv5 with Attention Mechanism for Small Object Detection on Satellite Images",
+        "abstract": "Object detection has made tremendous progress in natural images over the last decade. However, the results are hardly satisfactory when the natural image object detection algorithm is directly applied to satellite images. This is due to the intrinsic differences in the scale and orientation of objects generated by the bird’s-eye perspective of satellite photographs. Moreover, the background of satellite images is complex and the object area is small; as a result, small objects tend to be missing due to the challenge of feature extraction. Dense objects overlap and occlusion also affects the detection performance. Although the self-attention mechanism was introduced to detect small objects, the computational complexity increased with the image’s resolution. We modified the general one-stage detector YOLOv5 to adapt the satellite images to resolve the above problems. First, new feature fusion layers and a prediction head are added from the shallow layer for small object detection for the first time because it can maximally preserve the feature information. Second, the original convolutional prediction heads are replaced with Swin Transformer Prediction Heads (SPHs) for the first time. SPH represents an advanced self-attention mechanism whose shifted window design can reduce the computational complexity to linearity. Finally, Normalization-based Attention Modules (NAMs) are integrated into YOLOv5 to improve attention performance in a normalized way. The improved YOLOv5 is termed SPH-YOLOv5. It is evaluated on the NWPU-VHR10 dataset and DOTA dataset, which are widely used for satellite image object detection evaluations. Compared with the basal YOLOv5, SPH-YOLOv5 improves the mean Average Precision (mAP) by 0.071 on the DOTA dataset.",
+        "year": "2022",
+        "citations": 214,
+        "source": "openalex"
+      },
+      {
+        "title": "CSWin Transformer: A General Vision Transformer Backbone with Cross-Shaped Windows",
+        "abstract": "We present CSWin Transformer, an efficient and effective Transformer-based backbone for general-purpose vision tasks. A challenging issue in Transformer design is that global self-attention is very expensive to compute whereas local self-attention often limits the field of interactions of each token. To address this issue, we develop the Cross-Shaped Window self-attention mechanism for computing self-attention in the horizontal and vertical stripes in parallel that form a cross-shaped window, with each stripe obtained by splitting the input feature into stripes of equal width. We provide a mathematical analysis of the effect of the stripe width and vary the stripe width for different layers of the Transformer network which achieves strong modeling capability while limiting the computation cost. We also introduce Locally-enhanced Positional Encoding (LePE), which handles the local positional information better than existing encoding schemes. LePE naturally supports arbitrary input resolutions, and is thus especially effective and friendly for downstream tasks. Incorporated with these designs and a hierarchical structure, CSWin Transformer demonstrates competitive performance on common vision tasks. Specifically, it achieves 85.4% Top-1 accuracy on ImageNet-1K without any extra training data or label, 53.9 box AP and 46.4 mask AP on the COCO detection task, and 52.2 mIOU on the ADE20K semantic segmentation task, surpassing previous state-of-the-art Swin Transformer backbone by +1.2, +2.0, +1.4, and +2.0 respectively under the similar FLOPs setting. By further pretraining on the larger dataset ImageNet-21K, we achieve 87.5% Top-1 accuracy on ImageNet-1K and high segmentation performance on ADE20K with 55.7 mIoU.11Code and pretrain model is available at https://github.com/microsoft/CSWin-Transformer",
+        "year": "2022",
+        "citations": 1281,
+        "source": "openalex"
+      },
+      {
+        "title": "Gradient-based learning applied to document recognition",
+        "abstract": "Multilayer neural networks trained with the back-propagation algorithm constitute the best example of a successful gradient based learning technique. Given an appropriate network architecture, gradient-based learning algorithms can be used to synthesize a complex decision surface that can classify high-dimensional patterns, such as handwritten characters, with minimal preprocessing. This paper reviews various methods applied to handwritten character recognition and compares them on a standard handwritten digit recognition task. Convolutional neural networks, which are specifically designed to deal with the variability of 2D shapes, are shown to outperform all other techniques. Real-life document recognition systems are composed of multiple modules including field extraction, segmentation recognition, and language modeling. A new learning paradigm, called graph transformer networks (GTN), allows such multimodule systems to be trained globally using gradient-based methods so as to minimize an overall performance measure. Two systems for online handwriting recognition are described. Experiments demonstrate the advantage of global training, and the flexibility of graph transformer networks. A graph transformer network for reading a bank cheque is also described. It uses convolutional neural network character recognizers combined with global training techniques to provide record accuracy on business and personal cheques. It is deployed commercially and reads several million cheques per day.",
+        "year": "1998",
+        "citations": 59157,
+        "source": "openalex"
+      },
+      {
+        "title": "DenseSPH-YOLOv5: An automated damage detection model based on DenseNet and Swin-Transformer prediction head-enabled YOLOv5 with attention mechanism",
+        "abstract": "",
+        "year": "2023",
+        "citations": 258,
+        "source": "openalex"
+      },
+      {
+        "title": "Longformer: The Long-Document Transformer",
+        "abstract": "The quadratic complexity of standard attention (O(N²)) remains the dominant bottleneck for training and deploying large language models on long sequences. We introduce Murmurative Attention, a novel attention mechanism that replaces pairwise token-token interactions with token-to-slot interactions over a fixed-size learnable memory pool of M slots, achieving O(N·M) complexity with M ≪ N. The mechanism operates in four phases per round: (1) select — each token hard-selects the top-k relevant slots via dot-product similarity; (2) attend — tokens compute a standard softmax over their selected slots and aggregate their value vectors; (3) update — tokens write back to slots via an exponential moving average; and (4) diffuse — slots exchange information with their neighbors through a tridiagonal discrete Laplace stencil, enabling global information propagation across rounds. We prove that with M = 256 slots and R = 3 rounds, Murmurative Attention achieves identical language modeling perplexity to standard multi-head attention while consuming 4.4× fewer attention FLOPs at N=512 tokens, 10.1× fewer at N=4,096, and 20.2× fewer at N=8,192 — a gap that widens asymptotically. We implement efficient CUDA kernels including a WMMA tensor-core path, fuse the select-attend and update-diffuse operations into single GPU launches, and provide a full training benchmark comparing wall-clock time, memory, and perplexity-per-FLOP efficiency against standard attention and FlashAttention. Our results show that sub-quadratic attention can match the representational quality of full attention while dramatically reducing the computational cost of long-context training.",
+        "year": "2020",
+        "citations": 2206,
+        "source": "openalex"
+      },
+      {
+        "title": "Attention mechanisms in computer vision: A survey",
+        "abstract": "Humans can naturally and effectively find salient regions in complex scenes. Motivated by this observation, attention mechanisms were introduced into computer vision with the aim of imitating this aspect of the human visual system. Such an attention mechanism can be regarded as a dynamic weight adjustment process based on features of the input image. Attention mechanisms have achieved great success in many visual tasks, including image classification, object detection, semantic segmentation, video understanding, image generation, 3D vision, multimodal tasks, and self-supervised learning. In this survey, we provide a comprehensive review of various attention mechanisms in computer vision and categorize them according to approach, such as channel attention, spatial attention, temporal attention, and branch attention; a related repository https://github.com/MenghaoGuo/Awesome-Vision-Attentions is dedicated to collecting related work. We also suggest future directions for attention mechanism research.",
+        "year": "2022",
+        "citations": 2461,
+        "source": "openalex"
+      },
+      {
+        "title": "Rethinking Semantic Segmentation from a Sequence-to-Sequence Perspective with Transformers",
+        "abstract": "Most recent semantic segmentation methods adopt a fully-convolutional network (FCN) with an encoder-decoder architecture. The encoder progressively reduces the spatial resolution and learns more abstract/semantic visual concepts with larger receptive fields. Since context modeling is critical for segmentation, the latest efforts have been focused on increasing the receptive field, through either dilated/atrous convolutions or inserting attention modules. However, the encoder-decoder based FCN architecture remains unchanged. In this paper, we aim to provide an alternative perspective by treating semantic segmentation as a sequence-to-sequence prediction task. Specifically, we deploy a pure transformer (i.e., without convolution and resolution reduction) to encode an image as a sequence of patches. With the global context modeled in every layer of the transformer, this encoder can be combined with a simple decoder to provide a powerful segmentation model, termed SEgmentation TRansformer (SETR). Extensive experiments show that SETR achieves new state of the art on ADE20K (50.28% mIoU), Pascal Context (55.83% mIoU) and competitive results on Cityscapes. Particularly, we achieve the first position in the highly competitive ADE20K test server leaderboard on the day of submission.",
+        "year": "2021",
+        "citations": 3623,
+        "source": "openalex"
+      },
+      {
+        "title": "Grid Attention Transformer (GAT): Attention Mechanisms in Grid-Based Transformers for Vegetation Risk Analysis",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Spa-IHANet: Sparse self-attention transformer combined with improved hybrid attention mechanisms network for image inpainting",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Micro-Expression Recognition Using Convolutional Variational Attention Transformer (ConVAT) With Multihead Attention Mechanism",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "A Hybrid CNN-Transformer Model for Tomato Leaf Disease Classification Incorporating Gray-Aware Attention and RS-Convolutional Block Attention Mechanisms",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "AttentionMGT-DTA: A multi-modal drug-target affinity prediction using graph transformer and attention mechanism",
+        "abstract": "",
+        "year": "2024",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Dense Attention: A Densely Connected Attention Mechanism for Vision Transformer",
+        "abstract": "",
+        "year": "2023",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Easy attention: A simple self-attention mechanism for Transformers",
+        "abstract": "",
+        "year": "2023",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "LAS-Transformer: An Enhanced Transformer Based on the Local Attention Mechanism for Speech Recognition",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Transformer with multi-head attention mechanism for bearing fault detection",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "A transformer-based dual-branch feature extraction for printed circuit board defect detection with enhanced spatial attention mechanism",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "&apos;Trans-RCed: A self-attention-based transformer network with residual encoder-decoder mechanism for the detection of cyclic alternate patterns using single channel EEG",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Enhanced cervical cancer diagnosis using MobileNetV2 with transformer-based feature refinement and global attention mechanism",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Cervical cancer diagnosis using CT images: Enhancing the Swin Transformer model with global attention mechanism and Stochastic Depth",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "A dual-branch pathology-prior attention mechanism based on Swin Transformer for the classification of p16/Ki-67 dual-staining cervical pathological cytology images",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ],
+    "q-train-ko-llm-finetuning": [
+      {
+        "title": "A study on the development of an automated motorcycle helmet wearing detection system via fine-tuning of the LLaVA-1.6 model",
+        "abstract": "Although existing object-detection studies can identify the 'presence' of a helmet, they often fail to contextually assess whether the helmet is actually being worn. To address this limitation, we developed a visual question answering (VQA) system based on LLaVA-1.6, a state-of-the-art vision-language model (VLM), to determine the helmet-wearing status of motorcyclists. A custom dataset of 1,555 image-question-answer pairs was constructed using public datasets, specifically designed to elicit clear \"Yes” or ”No\" responses to a fixed question. We fine-tuned the model using Quantized Low-Rank Adaptation (QLoRA), a parameter-efficient technique that specializes the model by only updating a small set of adapter weights. Experimental results showed that the proposed system achieved 95% accuracy, significantly outperforming the vanilla model, which reached only 88% accuracy and required complex heuristic post-processing. Importantly, the system notably reduced critical false-negative errors—cases in which wearers were misidentified as non-wearers— highlighting its reliability for real-world enforcement scenarios. In conclusion, this study demonstrates that task-specific optimization of VLMs can enhance the applicability of AI in traffic safety, improving both the efficiency and accuracy of automated enforcement systems.",
+        "year": "2025",
+        "citations": 0,
+        "source": "openalex"
+      },
+      {
+        "title": "Multi-Agent Framework for Inferencing Activities of Objects in Satellite Image",
+        "abstract": "Inferring object activities from high-resolution satellite imagery is a critical task in remote sensing. However, improving activity inference performance typically requires large-scale domain-specific data acquisition and training, which incurs significant time and cost. When the application domain involves national defense and security, data access is further constrained by security classification systems, and inference performance depends on precise annotations by expert analysts rather than simple labeling. Moreover, conventional single-model static inference has structural limitations in capturing complex inter-object interactions and dynamic contexts. This study proposes an experience-based adaptive multi-agent collaboration framework that enhances accuracy and reliability solely through structural optimization at inference time and multi-agent collaboration, without domain data fine-tuning or large-scale retraining. The proposed system comprises five specialized artificial intelligence (AI) agents responsible for perception, vision-language context extraction, hypothesis generation, criticism, and supervision. Through an experience-based adaptive loop that iteratively performs hypothesis generation and critical verification, the framework progressively improves inference accuracy and reliability. Experimental results using the AI-hub satellite image object detection dataset demonstrate that the framework achieves Top-1 accuracy of 67.1%, Top-3 accuracy of 89.5%, Macro-F1 of 0.516, Brier score of 0.516, and expected calibration error (ECE) of 0.018, dominating all five baselines across every metric and reducing the calibration error by approximately one order of magnitude.",
+        "year": "2026",
+        "citations": 0,
+        "source": "openalex"
+      },
+      {
+        "title": "A Conversational AI Agent System Based on Large Language Models and Retrieval-Augmented Generation to Support Investigation",
+        "abstract": "Criminal investigation is a field that requires a high level of expertise and a thorough understanding of various legal frameworks. Thus, there is a growing need for an artificial intelligence (AI) agent service that can effectively provide knowledge-based Q&amp;A support within investigative contexts. This study proposes a reference architecture and benchmark for evaluating the performance of an AI chatbot system utilizing Large Language Models (LLM) and Retrieval-Augmented Generation (RAG). Through this, we offer practical guidelines for developing LLM-based AI systems specifically tailored to investigative work. Additionally, by applying and testing recent models such as GPT-4o and EXAONE 3.0, we demonstrate the feasibility of developing practical, field-ready AI systems for this domain.",
+        "year": "2024",
+        "citations": 0,
+        "source": "openalex"
+      },
+      {
+        "title": "A Generative AI-Based Production Platform for Webtoon-to-Video Conversion",
+        "abstract": "This paper proposes an AI-based integrated pipeline and platform that automatically converts webtoon content into short-form videos. The system adopts a 3-tier architecture composed of a producer platform, a consumer platform, and a shared backend. The producer platform carries out a 7-stage pipeline—cut segmentation, LLM-based story and emotion analysis, photorealistic image generation, video clip generation, and transition/BGM editing—mostly automatically from a webtoon input, while the user intervenes only in cut selection and minor edits. In particular, it analyzes the storyline of an entire episode and references it at every subsequent stage to realize advanced automatic prompting, and uses the first cut of a sequence as a style anchor together with a user-provided character reference image to preserve color tone and character consistency. The significance of this work lies in proposing an end-to-end environment in which non-expert creators can produce and distribute high-quality short-form content without complex prompting knowledge.",
+        "year": "2026",
+        "citations": 0,
+        "source": "openalex"
+      },
+      {
+        "title": "From Ultra-Fine to Fine: Fine-tuning Ultra-Fine Entity Typing Models to Fine-grained",
+        "abstract": "",
+        "year": "2023",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Parameter-Efficient Fine-Tuning for Medical Text Summarization: A Comparative Study of Lora, Prompt Tuning, and Full Fine-Tuning",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "The fine art of fine-tuning: A structured review of advanced LLM fine-tuning techniques",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Beyond efficient fine-tuning: Efficient hybrid fine-tuning of CLIP models guided by explainable ViT attention",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Unsupervised fine-tuning of vision-language models by fusing classifier tuning and visual prompt tuning",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Fine-Tuning Open-Source Large Language Models for Cybersecurity and IT Support: A Comparative Study on LLM Fine-Tuning Techniques",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Why LLM Safety Guardrails Collapse After Fine-tuning: A Similarity Analysis Between Alignment and Fine-tuning Datasets",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Beyond Fine-Tuning: The Present and Future of Parameter-Efficient Fine-Tuning in Vision Transformers",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Antidote: Post-fine-tuning Safety Alignment for Large Language Models against Harmful Fine-tuning Attack",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Panacea: Mitigating Harmful Fine-tuning for Large Language Models via Post-fine-tuning Perturbation",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Transfer Learning in Physics-Informed Neural Networks: Full Fine-Tuning, Lightweight Fine-Tuning, and Low-Rank Adaptation",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Be Careful When Fine-tuning On Open-Source LLMs: Your Fine-tuning Data Could Be Secretly Stolen!",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ],
+    "q-train-mixed-graph-rag": [
+      {
+        "title": "Retrieval-Augmented Generation with Graphs (GraphRAG)",
+        "abstract": "Retrieval-augmented generation (RAG) is a powerful technique that enhances downstream task execution by retrieving additional information, such as knowledge, skills, and tools from external sources. Graph, by its intrinsic \"nodes connected by edges\" nature, encodes massive heterogeneous and relational information, making it a golden resource for RAG in tremendous real-world applications. As a result, we have recently witnessed increasing attention on equipping RAG with Graph, i.e., GraphRAG. However, unlike conventional RAG, where the retriever, generator, and external data sources can be uniformly designed in the neural-embedding space, the uniqueness of graph-structured data, such as diverse-formatted and domain-specific relational knowledge, poses unique and significant challenges when designing GraphRAG for different domains. Given the broad applicability, the associated design challenges, and the recent surge in GraphRAG, a systematic and up-to-date survey of its key concepts and techniques is urgently desired. Following this motivation, we present a comprehensive and up-to-date survey on GraphRAG. Our survey first proposes a holistic GraphRAG framework by defining its key components, including query processor, retriever, organizer, generator, and data source. Furthermore, recognizing that graphs in different domains exhibit distinct relational patterns and require dedicated designs, we review GraphRAG techniques uniquely tailored to each domain. Finally, we discuss research challenges and brainstorm directions to inspire cross-disciplinary opportunities. Our survey repository is publicly maintained at https://github.com/Graph-RAG/GraphRAG/.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Graph Retrieval-Augmented Generation: A Survey",
+        "abstract": "Recently, Retrieval-Augmented Generation (RAG) has achieved remarkable success in addressing the challenges of Large Language Models (LLMs) without necessitating retraining. By referencing an external knowledge base, RAG refines LLM outputs, effectively mitigating issues such as ``hallucination'', lack of domain-specific knowledge, and outdated information. However, the complex structure of relationships among different entities in databases presents challenges for RAG systems. In response, GraphRAG leverages structural information across entities to enable more precise and comprehensive retrieval, capturing relational knowledge and facilitating more accurate, context-aware responses. Given the novelty and potential of GraphRAG, a systematic review of current technologies is imperative. This paper provides the first comprehensive overview of GraphRAG methodologies. We formalize the GraphRAG workflow, encompassing Graph-Based Indexing, Graph-Guided Retrieval, and Graph-Enhanced Generation. We then outline the core technologies and training methods at each stage. Additionally, we examine downstream tasks, application domains, evaluation methodologies, and industrial use cases of GraphRAG. Finally, we explore future research directions to inspire further inquiries and advance progress in the field. In order to track recent progress in this field, we set up a repository at \\url{https://github.com/pengboci/GraphRAG-Survey}.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "A Survey of Graph Retrieval-Augmented Generation for Customized Large Language Models",
+        "abstract": "Large language models (LLMs) have demonstrated remarkable capabilities in a wide range of tasks, yet their application to specialized domains remains challenging due to the need for deep expertise. Retrieval-Augmented generation (RAG) has emerged as a promising solution to customize LLMs for professional fields by seamlessly integrating external knowledge bases, enabling real-time access to domain-specific expertise during inference. Despite its potential, traditional RAG systems, based on flat text retrieval, face three critical challenges: (i) complex query understanding in professional contexts, (ii) difficulties in knowledge integration across distributed sources, and (iii) system efficiency bottlenecks at scale. This survey presents a systematic analysis of Graph-based Retrieval-Augmented Generation (GraphRAG), a new paradigm that revolutionizes domain-specific LLM applications. GraphRAG addresses traditional RAG limitations through three key innovations: (i) graph-structured knowledge representation that explicitly captures entity relationships and domain hierarchies, (ii) efficient graph-based retrieval techniques that enable context-preserving knowledge retrieval with multihop reasoning ability, and (iii) structure-aware knowledge integration algorithms that leverage retrieved knowledge for accurate and logical coherent generation of LLMs. In this survey, we systematically analyze the technical foundations of GraphRAG and examine current implementations across various professional domains, identifying key technical challenges and promising research directions. All the related resources of GraphRAG, including research papers, open-source data, and projects, are collected for the community in https://github.com/DEEP-PolyU/Awesome-GraphRAG.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Suppressing Domain-Specific Hallucination in Construction LLMs: A Knowledge Graph Foundation for GraphRAG and QLoRA on River and Sediment Control Technical Standards",
+        "abstract": "This paper addresses the challenge of answering technical questions derived from Japan's River and Sediment Control Technical Standards -- a multi-volume regulatory document covering survey, planning, design, and maintenance of river levees, dams, and sabo structures -- using open-source large language models running entirely on local hardware. We implement and evaluate three complementary approaches: Case A (plain 20B LLM baseline), Case B (8B LLM with QLoRA domain fine-tuning on 715 graph-derived QA pairs), and Case C (20B LLM augmented with a Neo4j knowledge graph via GraphRAG). All three cases use the Swallow series of Japanese-adapted LLMs and are evaluated on a 100-question benchmark spanning 8 technical categories, judged automatically by an independent LLM (Qwen2.5-14B, score 0--3). The key finding is a performance inversion: the 8B QLoRA fine-tuned model (Case B) achieves a judge average of 2.92/3 -- surpassing both the 20B plain baseline (Case A: 2.29/3, $+$0.63) and the 20B GraphRAG approach (Case C: 2.62/3, $+$0.30) -- while running at 3$\\times$ faster latency (14.2s vs. 42.2s for Case A). GraphRAG provides moderate gains ($+$0.33 over baseline) but is outperformed by domain-specific fine-tuning in both quality and efficiency. We document the full engineering pipeline, including knowledge graph construction (200 nodes, 268 relations), QLoRA training data generation from Neo4j relations, training on a single GPU (16 GB VRAM) using unsloth, GGUF Q4_K_M quantisation and Ollama deployment, and the graph retrieval and re-ranking design. High-level engineering lessons are distilled in the main body; implementation pitfalls and toolchain details are documented in Supplementary Materials.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Beyond the Parameters: A Technical Survey of Contextual Enrichment in Large Language Models: From In-Context Prompting to Causal Retrieval-Augmented Generation",
+        "abstract": "Large language models (LLMs) encode vast world knowledge in their parameters, yet they remain fundamentally limited by static knowledge, finite context windows, and weakly structured causal reasoning. This survey provides a unified account of augmentation strategies along a single axis: the degree of structured context supplied at inference time. We cover in-context learning and prompt engineering, Retrieval-Augmented Generation (RAG), GraphRAG, and CausalRAG. Beyond conceptual comparison, we provide a transparent literature-screening protocol, a claim-audit framework, and a structured cross-paper evidence synthesis that distinguishes higher-confidence findings from emerging results. The paper concludes with a deployment-oriented decision framework and concrete research priorities for trustworthy retrieval-augmented NLP.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Motif Counting in Complex Networks: A Comprehensive Survey",
+        "abstract": "Motif counting plays a crucial role in understanding the structural properties of networks. By computing motif frequencies, researchers can draw key insights into the structural properties of the underlying network. As networks become increasingly complex, different graph models have been proposed, giving rise to diverse motif patterns. These variations introduce unique computational challenges that require specialized algorithms tailored to specific motifs within different graph structures. This survey provides a comprehensive and structured overview of motif counting techniques across general graphs, heterogeneous graphs, and hypergraphs. We categorize existing algorithms according to their underlying computational strategies, emphasizing key similarities and distinctions. In addition to reviewing current methodologies, we examine their strengths, limitations, and computational trade-offs. Furthermore, we explore future directions in motif counting, including scalable implementations to improve efficiency in large-scale networks, algorithmic adaptations for dynamic, temporal, and attributed graphs, and deeper integration with large language models (LLMs) and graph-based retrieval-augmented generation (GraphRAG). By offering a detailed analysis of these approaches, this survey aims to support researchers and practitioners in advancing motif counting for increasingly complex network data.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      }
+    ],
+    "q-train-author-hinton-capsules": [
+      {
+        "title": "No Routing Needed Between Capsules",
+        "abstract": "Most capsule network designs rely on traditional matrix multiplication between capsule layers and computationally expensive routing mechanisms to deal with the capsule dimensional entanglement that the matrix multiplication introduces. By using Homogeneous Vector Capsules (HVCs), which use element-wise multiplication rather than matrix multiplication, the dimensions of the capsules remain unentangled. In this work, we study HVCs as applied to the highly structured MNIST dataset in order to produce a direct comparison to the capsule research direction of Geoffrey Hinton, et al. In our study, we show that a simple convolutional neural network using HVCs performs as well as the prior best performing capsule network on MNIST using 5.5x fewer parameters, 4x fewer training epochs, no reconstruction sub-network, and requiring no routing mechanism. The addition of multiple classification branches to the network establishes a new state of the art for the MNIST dataset with an accuracy of 99.87% for an ensemble of these models, as well as establishing a new state of the art for a single model (99.83% accurate).",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Homogeneous Vector Capsules Enable Adaptive Gradient Descent in Convolutional Neural Networks",
+        "abstract": "Capsules are the name given by Geoffrey Hinton to vector-valued neurons. Neural networks traditionally produce a scalar value for an activated neuron. Capsules, on the other hand, produce a vector of values, which Hinton argues correspond to a single, composite feature wherein the values of the components of the vectors indicate properties of the feature such as transformation or contrast. We present a new way of parameterizing and training capsules that we refer to as homogeneous vector capsules (HVCs). We demonstrate, experimentally, that altering a convolutional neural network (CNN) to use HVCs can achieve superior classification accuracy without increasing the number of parameters or operations in its architecture as compared to a CNN using a single final fully connected layer. Additionally, the introduction of HVCs enables the use of adaptive gradient descent, reducing the dependence a model's achievable accuracy has on the finely tuned hyperparameters of a non-adaptive optimizer. We demonstrate our method and results using two neural network architectures. First, a very simple monolithic CNN that when using HVCs achieved a 63% improvement in top-1 classification accuracy and a 35% improvement in top-5 classification accuracy over the baseline architecture. Second, with the CNN architecture referred to as Inception v3 that achieved similar accuracies both with and without HVCs. Additionally, the simple monolithic CNN when using HVCs showed no overfitting after more than 300 epochs whereas the baseline showed overfitting after 30 epochs. We use the ImageNet ILSVRC 2012 classification challenge dataset with both networks.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "A Survey of Convolutional Neural Networks: Analysis, Applications, and Prospects",
+        "abstract": "A convolutional neural network (CNN) is one of the most significant networks in the deep learning field. Since CNN made impressive achievements in many areas, including but not limited to computer vision and natural language processing, it attracted much attention from both industry and academia in the past few years. The existing reviews mainly focus on CNN's applications in different scenarios without considering CNN from a general perspective, and some novel ideas proposed recently are not covered. In this review, we aim to provide some novel ideas and prospects in this fast-growing field. Besides, not only 2-D convolution but also 1-D and multidimensional ones are involved. First, this review introduces the history of CNN. Second, we provide an overview of various convolutions. Third, some classic and advanced CNN models are introduced; especially those key points making them reach state-of-the-art results. Fourth, through experimental analysis, we draw some conclusions and provide several rules of thumb for functions and hyperparameter selection. Fifth, the applications of 1-D, 2-D, and multidimensional convolution are covered. Finally, some open issues and promising directions for CNN are discussed as guidelines for future work.",
+        "year": "2021",
+        "citations": 5034,
+        "source": "openalex"
+      },
+      {
+        "title": "Investigating Capsule Networks with Dynamic Routing for Text Classification",
+        "abstract": "In this study, we explore capsule networks with dynamic routing for text classification. We propose three strategies to stabilize the dynamic routing process to alleviate the disturbance of some noise capsules which may contain \"background\" information or have not been successfully trained. A series of experiments are conducted with capsule networks on six text classification benchmarks. Capsule networks achieve competitive results over the compared baseline methods on 4 out of 6 datasets, which shows the effectiveness of capsule networks for text classification. We additionally show that capsule networks exhibit significant improvement when transfer single-label to multi-label text classification over the competitors. To the best of our knowledge, this is the first work that capsule networks have been empirically investigated for text modeling 1 .",
+        "year": "2018",
+        "citations": 320,
+        "source": "openalex"
+      },
+      {
+        "title": "Review of deep learning: concepts, CNN architectures, challenges, applications, future directions",
+        "abstract": "In the last few years, the deep learning (DL) computing paradigm has been deemed the Gold Standard in the machine learning (ML) community. Moreover, it has gradually become the most widely used computational approach in the field of ML, thus achieving outstanding results on several complex cognitive tasks, matching or even beating those provided by human performance. One of the benefits of DL is the ability to learn massive amounts of data. The DL field has grown fast in the last few years and it has been extensively used to successfully address a wide range of traditional applications. More importantly, DL has outperformed well-known ML techniques in many domains, e.g., cybersecurity, natural language processing, bioinformatics, robotics and control, and medical information processing, among many others. Despite it has been contributed several works reviewing the State-of-the-Art on DL, all of them only tackled one aspect of the DL, which leads to an overall lack of knowledge about it. Therefore, in this contribution, we propose using a more holistic approach in order to provide a more suitable starting point from which to develop a full understanding of DL. Specifically, this review attempts to provide a more comprehensive survey of the most important aspects of DL and including those enhancements recently added to the field. In particular, this paper outlines the importance of DL, presents the types of DL techniques and networks. It then presents convolutional neural networks (CNNs) which the most utilized DL network type and describes the development of CNNs architectures together with their main features, e.g., starting with the AlexNet network and closing with the High-Resolution network (HR.Net). Finally, we further present the challenges and suggested solutions to help researchers understand the existing research gaps. It is followed by a list of the major DL applications. Computational tools including FPGA, GPU, and CPU are summarized along with a descripti",
+        "year": "2021",
+        "citations": 7774,
+        "source": "openalex"
+      },
+      {
+        "title": "Towards Scalable and Reliable Capsule Networks for Challenging NLP Applications",
+        "abstract": "Obstacles hindering the development of capsule networks for challenging NLP applications include poor scalability to large output spaces and less reliable routing processes. In this paper, we introduce (i) an agreement score to evaluate the performance of routing processes at instance level; (ii) an adaptive optimizer to enhance the reliability of routing; (iii) capsule compression and partial routing to improve the scalability of capsule networks. We validate our approach on two NLP tasks, namely: multi-label text classification and question answering. Experimental results show that our approach considerably improves over strong competitors on both tasks. In addition, we gain the best results in low-resource settings with few training instances. 1",
+        "year": "2019",
+        "citations": 139,
+        "source": "openalex"
+      },
+      {
+        "title": "Graph Capsule Convolutional Neural Networks",
+        "abstract": "Graph Convolutional Neural Networks (GCNNs) are the most recent exciting advancement in deep learning field and their applications are quickly spreading in multi-cross-domains including bioinformatics, chemoinformatics, social networks, natural language processing and computer vision. In this paper, we expose and tackle some of the basic weaknesses of a GCNN model with a capsule idea presented in \\cite{hinton2011transforming} and propose our Graph Capsule Network (GCAPS-CNN) model. In addition, we design our GCAPS-CNN model to solve especially graph classification problem which current GCNN models find challenging. Through extensive experiments, we show that our proposed Graph Capsule Network can significantly outperforms both the existing state-of-art deep learning methods and graph kernels on graph classification benchmark datasets.",
+        "year": "2018",
+        "citations": 95,
+        "source": "openalex"
+      },
+      {
+        "title": "Attention-Based Capsule Networks with Dynamic Routing for Relation Extraction",
+        "abstract": "A capsule is a group of neurons, whose activity vector represents the instantiation parameters of a specific type of entity. In this paper, we explore the capsule networks used for relation extraction in a multi-instance multilabel learning framework and propose a novel neural approach based on capsule networks with attention mechanisms. We evaluate our method with different benchmarks, and it is demonstrated that our method improves the precision of the predicted relations. Particularly, we show that capsule networks improve multiple entity pairs relation extraction 1 .",
+        "year": "2018",
+        "citations": 107,
+        "source": "openalex"
+      },
+      {
+        "title": "Hierarchical Multi-label Classification of Text with Capsule Networks",
+        "abstract": "Capsule networks have been shown to demonstrate good performance on structured data in the area of visual inference. In this paper we apply and compare simple shallow capsule networks for hierarchical multi-label text classification and show that they can perform superior to other neural networks, such as CNNs and LSTMs, and non-neural network architectures such as SVMs. For our experiments, we use the established Web of Science (WOS) dataset and introduce a new real-world scenario dataset, the BlurbGenreCollection (BGC). Our results confirm the hypothesis that capsule networks are especially advantageous for rare events and structurally diverse categories, which we attribute to their ability to combine latent encoded information.",
+        "year": "2019",
+        "citations": 92,
+        "source": "openalex"
+      },
+      {
+        "title": "Capsule Network with Interactive Attention for Aspect-Level Sentiment Classification",
+        "abstract": "Chunning Du, Haifeng Sun, Jingyu Wang, Qi Qi, Jianxin Liao, Tong Xu, Ming Liu. Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP). 2019.",
+        "year": "2019",
+        "citations": 82,
+        "source": "openalex"
+      }
+    ],
+    "q-selection-author-bengio": [
+      {
+        "title": "Representation Learning with Contrastive Predictive Coding",
+        "abstract": "While supervised learning has enabled great progress in many applications, unsupervised learning has not seen such widespread adoption, and remains an important and challenging endeavor for artificial intelligence. In this work, we propose a universal unsupervised learning approach to extract useful representations from high-dimensional data, which we call Contrastive Predictive Coding. The key insight of our model is to learn such representations by predicting the future in latent space by using powerful autoregressive models. We use a probabilistic contrastive loss which induces the latent space to capture information that is maximally useful to predict future samples. It also makes the model tractable by using negative sampling. While most prior work has focused on evaluating representations for a particular modality, we demonstrate that our approach is able to learn useful representations achieving strong performance on four distinct domains: speech, images, text and reinforcement learning in 3D environments.",
+        "year": "2018",
+        "citations": 4545,
+        "source": "openalex"
+      },
+      {
+        "title": "A survey on Image Data Augmentation for Deep Learning",
+        "abstract": "Deep convolutional neural networks have performed remarkably well on many Computer Vision tasks. However, these networks are heavily reliant on big data to avoid overfitting. Overfitting refers to the phenomenon when a network learns a function with very high variance such as to perfectly model the training data. Unfortunately, many application domains do not have access to big data, such as medical image analysis. This survey focuses on Data Augmentation, a data-space solution to the problem of limited data. Data Augmentation encompasses a suite of techniques that enhance the size and quality of training datasets such that better Deep Learning models can be built using them. The image augmentation algorithms discussed in this survey include geometric transformations, color space augmentations, kernel filters, mixing images, random erasing, feature space augmentation, adversarial training, generative adversarial networks, neural style transfer, and meta-learning. The application of augmentation methods based on GANs are heavily covered in this survey. In addition to augmentation techniques, this paper will briefly discuss other characteristics of Data Augmentation such as test-time augmentation, resolution impact, final dataset size, and curriculum learning. This survey will present existing methods for Data Augmentation, promising developments, and meta-level decisions for implementing Data Augmentation. Readers will understand how Data Augmentation can improve the performance of their models and expand limited datasets to take advantage of the capabilities of big data.",
+        "year": "2019",
+        "citations": 12829,
+        "source": "openalex"
+      },
+      {
+        "title": "Review of deep learning: concepts, CNN architectures, challenges, applications, future directions",
+        "abstract": "In the last few years, the deep learning (DL) computing paradigm has been deemed the Gold Standard in the machine learning (ML) community. Moreover, it has gradually become the most widely used computational approach in the field of ML, thus achieving outstanding results on several complex cognitive tasks, matching or even beating those provided by human performance. One of the benefits of DL is the ability to learn massive amounts of data. The DL field has grown fast in the last few years and it has been extensively used to successfully address a wide range of traditional applications. More importantly, DL has outperformed well-known ML techniques in many domains, e.g., cybersecurity, natural language processing, bioinformatics, robotics and control, and medical information processing, among many others. Despite it has been contributed several works reviewing the State-of-the-Art on DL, all of them only tackled one aspect of the DL, which leads to an overall lack of knowledge about it. Therefore, in this contribution, we propose using a more holistic approach in order to provide a more suitable starting point from which to develop a full understanding of DL. Specifically, this review attempts to provide a more comprehensive survey of the most important aspects of DL and including those enhancements recently added to the field. In particular, this paper outlines the importance of DL, presents the types of DL techniques and networks. It then presents convolutional neural networks (CNNs) which the most utilized DL network type and describes the development of CNNs architectures together with their main features, e.g., starting with the AlexNet network and closing with the High-Resolution network (HR.Net). Finally, we further present the challenges and suggested solutions to help researchers understand the existing research gaps. It is followed by a list of the major DL applications. Computational tools including FPGA, GPU, and CPU are summarized along with a descripti",
+        "year": "2021",
+        "citations": 7774,
+        "source": "openalex"
+      },
+      {
+        "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text\\n Transformer",
+        "abstract": "Transfer learning, where a model is first pre-trained on a data-rich task\\nbefore being fine-tuned on a downstream task, has emerged as a powerful\\ntechnique in natural language processing (NLP). The effectiveness of transfer\\nlearning has given rise to a diversity of approaches, methodology, and\\npractice. In this paper, we explore the landscape of transfer learning\\ntechniques for NLP by introducing a unified framework that converts all\\ntext-based language problems into a text-to-text format. Our systematic study\\ncompares pre-training objectives, architectures, unlabeled data sets, transfer\\napproaches, and other factors on dozens of language understanding tasks. By\\ncombining the insights from our exploration with scale and our new ``Colossal\\nClean Crawled Corpus'', we achieve state-of-the-art results on many benchmarks\\ncovering summarization, question answering, text classification, and more. To\\nfacilitate future work on transfer learning for NLP, we release our data set,\\npre-trained models, and code.\\n",
+        "year": "2019",
+        "citations": 8346,
+        "source": "openalex"
+      },
+      {
+        "title": "Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation",
+        "abstract": "In this paper, we propose a novel neural network model called RNN Encoder-Decoder that consists of two recurrent neural networks (RNN). One RNN encodes a sequence of symbols into a fixed-length vector representation, and the other decodes the representation into another sequence of symbols. The encoder and decoder of the proposed model are jointly trained to maximize the conditional probability of a target sequence given a source sequence. The performance of a statistical machine translation system is empirically found to improve by using the conditional probabilities of phrase pairs computed by the RNN Encoder-Decoder as an additional feature in the existing log-linear model. Qualitatively, we show that the proposed model learns a semantically and syntactically meaningful representation of linguistic phrases.",
+        "year": "2014",
+        "citations": 3480,
+        "source": "openalex"
+      },
+      {
+        "title": "Momentum Contrast for Unsupervised Visual Representation Learning",
+        "abstract": "We present Momentum Contrast (MoCo) for unsupervised visual representation learning. From a perspective on contrastive learning as dictionary look-up, we build a dynamic dictionary with a queue and a moving-averaged encoder. This enables building a large and consistent dictionary on-the-fly that facilitates contrastive unsupervised learning. MoCo provides competitive results under the common linear protocol on ImageNet classification. More importantly, the representations learned by MoCo transfer well to downstream tasks. MoCo can outperform its supervised pre-training counterpart in 7 detection/segmentation tasks on PASCAL VOC, COCO, and other datasets, sometimes surpassing it by large margins. This suggests that the gap between unsupervised and supervised representation learning has been largely closed in many vision tasks.",
+        "year": "2019",
+        "citations": 1013,
+        "source": "openalex"
+      },
+      {
+        "title": "Deep Learning using Rectified Linear Units (ReLU)",
+        "abstract": "The Rectified Linear Unit (ReLU) is a foundational activation function in artficial neural networks. Recent literature frequently misattributes its origin to the 2018 (initial) version of this paper, which exclusively investigated ReLU at the classification layer. This paper formally corrects the citation record by tracing the mathematical lineage of piecewise linear functions from early biological models to their definitive integration into deep learning by Nair &amp; Hinton (2010). Alongside this historical rectification, we present a comprehensive empirical comparison of the ReLU, Hyperbolic Tangent (Tanh), and Logistic (Sigmoid) activation functions across image classification, text classification, and image reconstruction tasks. To ensure statistical robustness, we evaluated these functions using 10 independent randomized trials and assessed significance using the non-parametric Kruskal-Wallis $H$ test. The empirical data validates the theoretical limitations of saturating functions. Sigmoid failed to converge in deep convolutional vision tasks due to the vanishing gradient problem, thus yielding accuracies equivalent to random probability. Conversely, ReLU and Tanh exhibited stable convergence. ReLU achieved the highest mean accuracy and F1-score on image classification and text classification tasks, while Tanh yielded the highest peak signal to noise ratio in image reconstruction. Ultimately, this study confirms a statistically significant performance variance among activations, thus reaffirming the necessity of non-saturating functions in deep architectures, and restores proper historical attribution to prior literature.",
+        "year": "2018",
+        "citations": 2506,
+        "source": "openalex"
+      },
+      {
+        "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer",
+        "abstract": "Transfer learning, where a model is first pre-trained on a data-rich task before being fine-tuned on a downstream task, has emerged as a powerful technique in natural language processing (NLP). The effectiveness of transfer learning has given rise to a diversity of approaches, methodology, and practice. In this paper, we explore the landscape of transfer learning techniques for NLP by introducing a unified framework that converts all text-based language problems into a text-to-text format. Our systematic study compares pre-training objectives, architectures, unlabeled data sets, transfer approaches, and other factors on dozens of language understanding tasks. By combining the insights from our exploration with scale and our new ``Colossal Clean Crawled Corpus'', we achieve state-of-the-art results on many benchmarks covering summarization, question answering, text classification, and more. To facilitate future work on transfer learning for NLP, we release our data set, pre-trained models, and code.",
+        "year": "2019",
+        "citations": 3693,
+        "source": "openalex"
+      },
+      {
+        "title": "LXMERT: Learning Cross-Modality Encoder Representations from Transformers",
+        "abstract": "Hao Tan, Mohit Bansal. Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP). 2019.",
+        "year": "2019",
+        "citations": 2320,
+        "source": "openalex"
+      },
+      {
+        "title": "Review of Deep Learning Algorithms and Architectures",
+        "abstract": "Deep learning (DL) is playing an increasingly important role in our lives. It has already made a huge impact in areas, such as cancer diagnosis, precision medicine, self-driving cars, predictive forecasting, and speech recognition. The painstakingly handcrafted feature extractors used in traditional learning, classification, and pattern recognition systems are not scalable for large-sized data sets. In many cases, depending on the problem complexity, DL can also overcome the limitations of earlier shallow networks that prevented efficient training and abstractions of hierarchical representations of multi-dimensional training data. Deep neural network (DNN) uses multiple (deep) layers of units with highly optimized algorithms and architectures. This paper reviews several optimization methods to improve the accuracy of the training and to reduce training time. We delve into the math behind training algorithms used in recent deep networks. We describe current shortcomings, enhancements, and implementations. The review also covers different types of deep architectures, such as deep convolution networks, deep residual networks, recurrent neural networks, reinforcement learning, variational autoencoders, and others.",
+        "year": "2019",
+        "citations": 1866,
+        "source": "openalex"
+      },
+      {
+        "title": "Explaining and Harnessing Adversarial Examples",
+        "abstract": "Several machine learning models, including neural networks, consistently misclassify adversarial examples---inputs formed by applying small but intentionally worst-case perturbations to examples from the dataset, such that the perturbed input results in the model outputting an incorrect answer with high confidence. Early attempts at explaining this phenomenon focused on nonlinearity and overfitting. We argue instead that the primary cause of neural networks' vulnerability to adversarial perturbation is their linear nature. This explanation is supported by new quantitative results while giving the first explanation of the most intriguing fact about them: their generalization across architectures and training sets. Moreover, this view yields a simple and fast method of generating adversarial examples. Using this approach to provide examples for adversarial training, we reduce the test set error of a maxout network on the MNIST dataset.",
+        "year": "2014",
+        "citations": 8145,
+        "source": "openalex"
+      },
+      {
+        "title": "Deep Learning of Representations for Unsupervised and Transfer Learning",
+        "abstract": "",
+        "year": "2012",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Learning General Purpose Distributed Sentence Representations via Large Scale Multi-task Learning",
+        "abstract": "",
+        "year": "2018",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Challenges in Representation Learning: A Report on Three Machine Learning Contests",
+        "abstract": "",
+        "year": "2013",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "On the Transfer of Object-Centric Representation Learning",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Object centric architectures enable efficient causal representation learning",
+        "abstract": "",
+        "year": "2024",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Interventional Causal Representation Learning",
+        "abstract": "",
+        "year": "2023",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Properties from mechanisms: an equivariance perspective on identifiable representation learning",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Weakly Supervised Representation Learning with Sparse Perturbations",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Discrete Compositional Representations as an Abstraction for Goal Conditioned Reinforcement Learning",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Combined Reinforcement Learning via Abstract Representations",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Learning deep representations by mutual information estimation and maximization",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Learning Problem-Agnostic Speech Representations from Multiple Self-Supervised Tasks",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Learning Speaker Representations with Mutual Information",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Unsupervised State Representation Learning in Atari",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Wasserstein Dependency Measure for Representation Learning",
+        "abstract": "",
+        "year": "2019",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ],
+    "q-selection-method-resnet": [
+      {
+        "title": "ResFPN: Residual Skip Connections in Multi-Resolution Feature Pyramid Networks for Accurate Dense Pixel Matching",
+        "abstract": "Dense pixel matching is required for many computer vision algorithms such as disparity, optical flow or scene flow estimation. Feature Pyramid Networks (FPN) have proven to be a suitable feature extractor for CNN-based dense matching tasks. FPN generates well localized and semantically strong features at multiple scales. However, the generic FPN is not utilizing its full potential, due to its reasonable but limited localization accuracy. Thus, we present ResFPN -- a multi-resolution feature pyramid network with multiple residual skip connections, where at any scale, we leverage the information from higher resolution maps for stronger and better localized features. In our ablation study, we demonstrate the effectiveness of our novel architecture with clearly higher accuracy than FPN. In addition, we verify the superior accuracy of ResFPN in many different pixel matching applications on established datasets like KITTI, Sintel, and FlyingThings3D.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "SIRe-Networks: Convolutional Neural Networks Architectural Extension for Information Preservation via Skip/Residual Connections and Interlaced Auto-Encoders",
+        "abstract": "Improving existing neural network architectures can involve several design choices such as manipulating the loss functions, employing a diverse learning strategy, exploiting gradient evolution at training time, optimizing the network hyper-parameters, or increasing the architecture depth. The latter approach is a straightforward solution, since it directly enhances the representation capabilities of a network; however, the increased depth generally incurs in the well-known vanishing gradient problem. In this paper, borrowing from different methods addressing this issue, we introduce an interlaced multi-task learning strategy, defined SIRe, to reduce the vanishing gradient in relation to the object classification task. The presented methodology directly improves a convolutional neural network (CNN) by preserving information from the input image through interlaced auto-encoders (AEs), and further refines the base network architecture by means of skip and residual connections. To validate the presented methodology, a simple CNN and various implementations of famous networks are extended via the SIRe strategy and extensively tested on five collections, i.e., MNIST, Fashion-MNIST, CIFAR-10, CIFAR-100, and Caltech-256; where the SIRe-extended architectures achieve significantly increased performances across all models and datasets, thus confirming the presented approach effectiveness.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Development of Skip Connection in Deep Neural Networks for Computer Vision and Medical Image Analysis: A Survey",
+        "abstract": "Deep learning has made significant progress in computer vision, specifically in image classification, object detection, and semantic segmentation. The skip connection has played an essential role in the architecture of deep neural networks,enabling easier optimization through residual learning during the training stage and improving accuracy during testing. Many neural networks have inherited the idea of residual learning with skip connections for various tasks, and it has been the standard choice for designing neural networks. This survey provides a comprehensive summary and outlook on the development of skip connections in deep neural networks. The short history of skip connections is outlined, and the development of residual learning in deep neural networks is surveyed. The effectiveness of skip connections in the training and testing stages is summarized, and future directions for using skip connections in residual learning are discussed. Finally, we summarize seminal papers, source code, models, and datasets that utilize skip connections in computer vision, including image classification, object detection, semantic segmentation, and image reconstruction. We hope this survey could inspire peer researchers in the community to develop further skip connections in various forms and tasks and the theory of residual learning in deep neural networks. The project page can be found at https://github.com/apple1986/Residual_Learning_For_Images",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Skip-Convolutions for Efficient Video Processing",
+        "abstract": "We propose Skip-Convolutions to leverage the large amount of redundancies in video streams and save computations. Each video is represented as a series of changes across frames and network activations, denoted as residuals. We reformulate standard convolution to be efficiently computed on residual frames: each layer is coupled with a binary gate deciding whether a residual is important to the model prediction,~\\eg foreground regions, or it can be safely skipped, e.g. background regions. These gates can either be implemented as an efficient network trained jointly with convolution kernels, or can simply skip the residuals based on their magnitude. Gating functions can also incorporate block-wise sparsity structures, as required for efficient implementation on hardware platforms. By replacing all convolutions with Skip-Convolutions in two state-of-the-art architectures, namely EfficientDet and HRNet, we reduce their computational cost consistently by a factor of 3~4x for two different tasks, without any accuracy drop. Extensive comparisons with existing model compression, as well as image and video efficiency methods demonstrate that Skip-Convolutions set a new state-of-the-art by effectively exploiting the temporal redundancies in videos.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Image Super-Resolution Using Very Deep Residual Channel Attention Networks",
+        "abstract": "Convolutional neural network (CNN) depth is of crucial importance for image super-resolution (SR). However, we observe that deeper networks for image SR are more difficult to train. The low-resolution inputs and features contain abundant low-frequency information, which is treated equally across channels, hence hindering the representational ability of CNNs. To solve these problems, we propose the very deep residual channel attention networks (RCAN). Specifically, we propose a residual in residual (RIR) structure to form very deep network, which consists of several residual groups with long skip connections. Each residual group contains some residual blocks with short skip connections. Meanwhile, RIR allows abundant low-frequency information to be bypassed through multiple skip connections, making the main network focus on learning high-frequency information. Furthermore, we propose a channel attention mechanism to adaptively rescale channel-wise features by considering interdependencies among channels. Extensive experiments show that our RCAN achieves better accuracy and visual improvements against state-of-the-art methods.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Single Image Super-resolution via a Lightweight Residual Convolutional Neural Network",
+        "abstract": "Recent years have witnessed great success of convolutional neural network (CNN) for various problems both in low and high level visions. Especially noteworthy is the residual network which was originally proposed to handle high-level vision problems and enjoys several merits. This paper aims to extend the merits of residual network, such as skip connection induced fast training, for a typical low-level vision problem, i.e., single image super-resolution. In general, the two main challenges of existing deep CNN for supper-resolution lie in the gradient exploding/vanishing problem and large numbers of parameters or computational cost as CNN goes deeper. Correspondingly, the skip connections or identity mapping shortcuts are utilized to avoid gradient exploding/vanishing problem. In addition, the skip connections have naturally centered the activation which led to better performance. To tackle with the second problem, a lightweight CNN architecture which has carefully designed width, depth and skip connections was proposed. In particular, a strategy of gradually varying the shape of network has been proposed for residual network. Different residual architectures for image super-resolution have also been compared. Experimental results have demonstrated that the proposed CNN model can not only achieve state-of-the-art PSNR and SSIM results for single image super-resolution but also produce visually pleasant results. This paper has extended the mmm 2017 oral conference paper with a considerable new analyses and more experiments especially from the perspective of centering activations and ensemble behaviors of residual network.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Denoising Auto-encoder with Recurrent Skip Connections and Residual Regression for Music Source Separation",
+        "abstract": "Convolutional neural networks with skip connections have shown good performance in music source separation. In this work, we propose a denoising Auto-encoder with Recurrent skip Connections (ARC). We use 1D convolution along the temporal axis of the time-frequency feature map in all layers of the fully-convolutional network. The use of 1D convolution makes it possible to apply recurrent layers to the intermediate outputs of the convolution layers. In addition, we also propose an enhancement network and a residual regression method to further improve the separation result. The recurrent skip connections, the enhancement module, and the residual regression all improve the separation quality. The ARC model with residual regression achieves 5.74 siganl-to-distoration ratio (SDR) in vocals with MUSDB in SiSEC 2018. We also evaluate the ARC model alone on the older dataset DSD100 (used in SiSEC 2016) and it achieves 5.91 SDR in vocals.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Free energy of Bayesian Convolutional Neural Network with Skip Connection",
+        "abstract": "Since the success of Residual Network(ResNet), many of architectures of Convolutional Neural Networks(CNNs) have adopted skip connection. While the generalization performance of CNN with skip connection has been explained within the framework of Ensemble Learning, the dependency on the number of parameters have not been revealed. In this paper, we show that Bayesian free energy of Convolutional Neural Network both with and without skip connection in Bayesian learning. The upper bound of free energy of Bayesian CNN with skip connection does not depend on the oveparametrization and, the generalization error of Bayesian CNN has similar property.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Hardware-efficient Residual Networks for FPGAs",
+        "abstract": "Residual networks (ResNets) employ skip connections in their networks -- reusing activations from previous layers -- to improve training convergence, but these skip connections create challenges for hardware implementations of ResNets. The hardware must either wait for skip connections to be processed before processing more incoming data or buffer them elsewhere. Without skip connections, ResNets would be more hardware-efficient. Thus, we present the teacher-student learning method to gradually prune away all of a ResNet's skip connections, constructing a network we call NonResNet. We show that when implemented for FPGAs, NonResNet decreases ResNet's BRAM utilization by 9% and LUT utilization by 3% and increases throughput by 5%.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "SkipNet: Learning Dynamic Routing in Convolutional Networks",
+        "abstract": "While deeper convolutional networks are needed to achieve maximum accuracy in visual perception tasks, for many inputs shallower networks are sufficient. We exploit this observation by learning to skip convolutional layers on a per-input basis. We introduce SkipNet, a modified residual network, that uses a gating network to selectively skip convolutional blocks based on the activations of the previous layer. We formulate the dynamic skipping problem in the context of sequential decision making and propose a hybrid learning algorithm that combines supervised learning and reinforcement learning to address the challenges of non-differentiable skipping decisions. We show SkipNet reduces computation by 30-90% while preserving the accuracy of the original model on four benchmark datasets and outperforms the state-of-the-art dynamic networks and static compression methods. We also qualitatively evaluate the gating policy to reveal a relationship between image scale and saliency and the number of layers skipped.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Skip Connections Matter: On the Transferability of Adversarial Examples Generated with ResNets",
+        "abstract": "Skip connections are an essential component of current state-of-the-art deep neural networks (DNNs) such as ResNet, WideResNet, DenseNet, and ResNeXt. Despite their huge success in building deeper and more powerful DNNs, we identify a surprising security weakness of skip connections in this paper. Use of skip connections allows easier generation of highly transferable adversarial examples. Specifically, in ResNet-like (with skip connections) neural networks, gradients can backpropagate through either skip connections or residual modules. We find that using more gradients from the skip connections rather than the residual modules according to a decay factor, allows one to craft adversarial examples with high transferability. Our method is termed Skip Gradient Method(SGM). We conduct comprehensive transfer attacks against state-of-the-art DNNs including ResNets, DenseNets, Inceptions, Inception-ResNet, Squeeze-and-Excitation Network (SENet) and robustly trained DNNs. We show that employing SGM on the gradient flow can greatly improve the transferability of crafted attacks in almost all cases. Furthermore, SGM can be easily combined with existing black-box attack techniques, and obtain high improvements over state-of-the-art transferability methods. Our findings not only motivate new research into the architectural vulnerability of DNNs, but also open up further challenges for the design of secure DNN architectures.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Norm-Preservation: Why Residual Networks Can Become Extremely Deep?",
+        "abstract": "Augmenting neural networks with skip connections, as introduced in the so-called ResNet architecture, surprised the community by enabling the training of networks of more than 1,000 layers with significant performance gains. This paper deciphers ResNet by analyzing the effect of skip connections, and puts forward new theoretical results on the advantages of identity skip connections in neural networks. We prove that the skip connections in the residual blocks facilitate preserving the norm of the gradient, and lead to stable back-propagation, which is desirable from optimization perspective. We also show that, perhaps surprisingly, as more residual blocks are stacked, the norm-preservation of the network is enhanced. Our theoretical arguments are supported by extensive empirical evidence. Can we push for extra norm-preservation? We answer this question by proposing an efficient method to regularize the singular values of the convolution operator and making the ResNet's transition layers extra norm-preserving. Our numerical investigations demonstrate that the learning dynamics and the classification performance of ResNet can be improved by making it even more norm preserving. Our results and the introduced modification for ResNet, referred to as Procrustes ResNets, can be used as a guide for training deeper networks and can also inspire new deeper architectures.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "The Importance of Skip Connections in Biomedical Image Segmentation",
+        "abstract": "In this paper, we study the influence of both long and short skip connections on Fully Convolutional Networks (FCN) for biomedical image segmentation. In standard FCNs, only long skip connections are used to skip features from the contracting path to the expanding path in order to recover spatial information lost during downsampling. We extend FCNs by adding short skip connections, that are similar to the ones introduced in residual networks, in order to build very deep FCNs (of hundreds of layers). A review of the gradient flow confirms that for a very deep FCN it is beneficial to have both long and short skip connections. Finally, we show that a very deep FCN can achieve near-to-state-of-the-art results on the EM dataset without any further post-processing.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Algebraic Representations for Faster Predictions in Convolutional Neural Networks",
+        "abstract": "Convolutional neural networks (CNNs) are a popular choice of model for tasks in computer vision. When CNNs are made with many layers, resulting in a deep neural network, skip connections may be added to create an easier gradient optimization problem while retaining model expressiveness. In this paper, we show that arbitrarily complex, trained, linear CNNs with skip connections can be simplified into a single-layer model, resulting in greatly reduced computational requirements during prediction time. We also present a method for training nonlinear models with skip connections that are gradually removed throughout training, giving the benefits of skip connections without requiring computational overhead during during prediction time. These results are demonstrated with practical examples on Residual Networks (ResNet) architecture.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Is the Skip Connection Provable to Reform the Neural Network Loss Landscape?",
+        "abstract": "The residual network is now one of the most effective structures in deep learning, which utilizes the skip connections to ``guarantee\" the performance will not get worse. However, the non-convexity of the neural network makes it unclear whether the skip connections do provably improve the learning ability since the nonlinearity may create many local minima. In some previous works \\cite{freeman2016topology}, it is shown that despite the non-convexity, the loss landscape of the two-layer ReLU network has good properties when the number $m$ of hidden nodes is very large. In this paper, we follow this line to study the topology (sub-level sets) of the loss landscape of deep ReLU neural networks with a skip connection and theoretically prove that the skip connection network inherits the good properties of the two-layer network and skip connections can help to control the connectedness of the sub-level sets, such that any local minima worse than the global minima of some two-layer ReLU network will be very ``shallow\". The ``depth\" of these local minima are at most $O(m^{(η-1)/n})$, where $n$ is the input dimension, $η<1$. This provides a theoretical explanation for the effectiveness of the skip connection in deep learning.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Identity Mappings in Deep Residual Networks",
+        "abstract": "",
+        "year": "2016",
+        "citations": 10200,
+        "source": "openalex"
+      },
+      {
+        "title": "Fast non-blind deconvolution via regularized residual networks with long/short skip-connections",
+        "abstract": "",
+        "year": "2017",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ],
+    "q-test-ambiguous-agent": [
+      {
+        "title": "MemoryArena: Benchmarking Agent Memory in Interdependent Multi-Session Agentic Tasks",
+        "abstract": "Existing evaluations of agents with memory typically assess memorization and action in isolation. One class of benchmarks evaluates memorization by testing recall of past conversations or text but fails to capture how memory is used to guide future decisions. Another class focuses on agents acting in single-session tasks without the need for long-term memory. However, in realistic settings, memorization and action are tightly coupled: agents acquire memory while interacting with the environment, and subsequently rely on that memory to solve future tasks. To capture this setting, we introduce MemoryArena, a unified evaluation gym for benchmarking agent memory in multi-session Memory-Agent-Environment loops. The benchmark consists of human-crafted agentic tasks with explicitly interdependent subtasks, where agents must learn from earlier actions and feedback by distilling experiences into memory, and subsequently use that memory to guide later actions to solve the overall task. MemoryArena supports evaluation across web navigation, preference-constrained planning, progressive information search, and sequential formal reasoning, and reveals that agents with near-saturated performance on existing long-context memory benchmarks like LoCoMo perform poorly in our agentic setting, exposing a gap in current evaluations for agents with memory.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "MemSyco-Bench: Benchmarking Sycophancy in Agent Memory",
+        "abstract": "Memory has emerged as a cornerstone of modern LLM-based agents, supporting their evolution from single-turn assistants to long-term collaborators. However, memory is not always beneficial: retrieved memories often induce a critical issue of sycophancy, causing agents to over-align with the user at the cost of factual accuracy or objective reasoning. Despite this emerging risk, existing memory benchmarks primarily evaluate whether memories are correctly stored, retrieved, or updated, while overlooking how retrieved memories influence downstream reasoning and decision-making. To bridge this gap, we propose MemSyco-Bench, a comprehensive benchmark for evaluating memory-induced sycophancy in agent systems. MemSyco-Bench measures when memory should influence a decision and how valid memory should be used. Specifically, it covers five tasks that assess whether agents can reject memory as factual evidence, respect its applicable scope, resolve conflicts between memory and objective evidence, track memory updates, and use valid memory for personalization. All related resources are collected for the community at https://github.com/XMUDeepLIT/MemSyco-Bench.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "SMMBench: A Benchmark for Source-Distributed Multimodal Agent Memory",
+        "abstract": "Existing benchmarks for multimodal memory reasoning largely evaluate systems within pre-assembled contexts, but under-evaluate whether agents can use evidence distributed across independently originated sources. We argue that source-distributed memory composition is an important and under-examined bottleneck in multimodal agent memory, especially when relevant evidence is fragmented across heterogeneous artifacts such as conversations, profiles, screenshots, tables, images, and documents. To address this gap, we introduce Source-distributed Multimodal Memory Benchmark(SMMBench), which measures whether agents can retrieve, align, and compose multimodal evidence scattered across multiple sources rather than reason within a single curated context. SMMBench evaluates four core capabilities: (1) cross-source multimodal reasoning; (2) conflict resolution; (3) preference reasoning; (4) memory-grounded action prediction. The benchmark contains 1877 samples grounded in 264 sources. Experiments on representative memory-style and retrieval-based baselines show that current systems still struggle on these capabilities, positioning source-distributed multimodal memory as an important and still under-evaluated challenge for multimodal agents. Our data are available at https://huggingface.co/datasets/HuacanChai/SMMBench.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "From Recall to Forgetting: Benchmarking Long-Term Memory for Personalized Agents",
+        "abstract": "Personalized agents that interact with users over long periods must maintain persistent memory across sessions and update it as circumstances change. However, existing benchmarks predominantly frame long-term memory evaluation as fact retrieval from past conversations, providing limited insight into agents' ability to consolidate memory over time or handle frequent knowledge updates. We introduce Memora, a long-term memory benchmark spanning weeks to months long user conversations. The benchmark evaluates three memory-grounded tasks: remembering, reasoning, and recommending. To ensure data quality, we employ automated memory-grounding checks and human evaluation. We further introduce Forgetting-Aware Memory Accuracy (FAMA), a metric that penalizes reliance on obsolete or invalidated memory when evaluating long-term memory. Evaluations of four LLMs and six memory agents reveal frequent reuse of invalid memories and failures to reconcile evolving memories. Memory agents offer marginal improvements, exposing shortcomings in long-term memory for personalized agents.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective",
+        "abstract": "Recent benchmarks for Large Language Model (LLM) agents mainly evaluate reasoning, planning, and execution. However, memory is also essential for agents, as it enables them to store, update, and retrieve information over time. This ability remains under-evaluated, largely because existing benchmarks do not provide a systematic way to assess memory mechanisms. In this paper, we study agent memory from a self-evolving perspective and introduce EvoMemBench, a unified benchmark organized along two axes: memory scope (in-episode vs. cross-episode) and memory content (knowledge-oriented vs. execution-oriented). We compare 15 representative memory methods with strong long-context baselines under a standardized protocol. Results show that current memory systems are still far from a general solution: long-context baselines remain highly competitive, memory helps most when the current context is insufficient or tasks are difficult, and no single memory form works consistently across all settings. Retrieval-based methods remain strong for knowledge-intensive settings, whereas procedural and long-term memory methods are more effective for execution-oriented tasks when their stored experience matches the task structure. We hope EvoMemBench facilitates future research on more effective memory systems for LLM-based agents. Our code is available at https://github.com/DSAIL-Memory/EvoMemBench.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "GateMem: Benchmarking Memory Governance in Multi-Principal Shared-Memory Agents",
+        "abstract": "Memory benchmarks for LLM agents largely assume single-user settings, leaving shared assistants for hospitals, workplaces, campuses, and households understudied. In these deployments, multiple principals write to a common memory pool and query it under different roles, scopes, and relationships, so memory quality requires governance as well as recall. We introduce GateMem, a benchmark for multi-principal shared-memory agents. GateMem jointly evaluates utility for legitimate long-horizon requests with state updates, access control across contextual authorization boundaries, and agent-facing active forgetting after explicit deletion requests. It spans medical, office, education, and household domains, with long-form multi-party episodes, incremental memory injection, hidden checkpoints, structured judging, and leak-target annotations. Across diverse baselines and backbone models, no method simultaneously achieves strong utility, robust access control, and reliable forgetting. Long-context prompting often yields the best governance score at high token cost, while retrieval-based and external-memory methods reduce cost yet still leak unauthorized or deleted information. These results show current memory agents remain far from reliable shared institutional deployment.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "TAME: A Trustworthy Test-Time Evolution of Agent Memory with Systematic Benchmarking",
+        "abstract": "Test-time evolution of agent memory represents a pivotal paradigm for advancing AGI, as it strengthens complex reasoning through experience accumulation without requiring parameter updates. However, even during benign task evolution, agent safety alignment remains vulnerable, a phenomenon known as Agent Memory Misevolution. To evaluate this phenomenon, we construct the Trust-Memevo benchmark and find that agents exhibit an overall decline in trustworthiness across multiple tasks during benign task evolution. To address this issue, we propose TAME, a trust-aware memory evolution framework in which a shared memory bank is jointly governed by an Executor and an Evaluator. The Executor retrieves and applies transferable experiences to support task solving, while the Evaluator assesses the contribution of each utilized experience to the outcome and produces trust-aware feedback to guide subsequent memory use. This executor-evaluator loop enables memory to be selectively reinforced, cautiously reused, and continuously expanded over time. Experiments show that TAME mitigates memory misevolution while achieving strong task performance. In particular, on the GPT-5.2 AIME benchmark, TAME improves accuracy by 14.6 percentage points over the strongest existing method and maintains competitive trustworthiness.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "EMemBench: Interactive Benchmarking of Episodic Memory for VLM Agents",
+        "abstract": "We introduce EMemBench, a programmatic benchmark for evaluating long-term memory of agents through interactive games. Rather than using a fixed set of questions, EMemBench generates questions from each agent's own trajectory, covering both text and visual game environments. Each template computes verifiable ground truth from underlying game signals, with controlled answerability and balanced coverage over memory skills: single/multi-hop recall, induction, temporal, spatial, logical, and adversarial. We evaluate memory agents with strong LMs/VLMs as backbones, using in-context prompting as baselines. Across 15 text games and multiple visual seeds, results are far from saturated: induction and spatial reasoning are persistent bottlenecks, especially in visual setting. Persistent memory yields clear gains for open backbones on text games, but improvements are less consistent for VLM agents, suggesting that visually grounded episodic memory remains an open challenge. A human study further confirms the difficulty of EMemBench.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "SubtleMemory: A Benchmark for Fine-Grained Relational Memory Discrimination in Long-Horizon AI Agents",
+        "abstract": "Persistent AI assistants, such as OpenClaw, accumulate large collections of related memories over long-term interactions. As these memories grow, they may reinforce one another, diverge across contexts, or directly conflict, making correct assistance depend on memory relations rather than isolated recall. Existing long-term memory benchmarks rarely probe how agents preserve and utilize such relations during downstream tasks. To address this gap, we introduce SubtleMemory, a benchmark for fine-grained relational memory discrimination in long-running AI agents. SubtleMemory constructs relation-controlled latent semantic artifacts whose variants instantiate complementary, nuanced, or contradictory relations, and embeds them into realistic user-agent histories, requiring agents to recover distributed relational structures during later queries and instructions. The benchmark contains 1,522 evaluation instances over 10 long histories, grounded in 1,090 relation-controlled memory-variant sets and spanning user-related and non-user-related queries. Evaluating six standalone memory systems, two Claw-style agents with native memory modules, and three Claw-style agents with plugin memory modules, we find that current systems remain weak on fine-grained relational memory discrimination. We further introduce diagnostic protocols that reveal distinct capability profiles across memory preservation, retrieval, and downstream reasoning stages.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Forgetful but Faithful: A Cognitive Memory Architecture and Benchmark for Privacy-Aware Generative Agents",
+        "abstract": "As generative agents become increasingly sophisticated and deployed in long-term interactive scenarios, their memory management capabilities emerge as a critical bottleneck for both performance and privacy. Current approaches either maintain unlimited memory stores, leading to computational intractability and privacy concerns, or employ simplistic forgetting mechanisms that compromise agent coherence and functionality. This paper introduces the Memory-Aware Retention Schema (MaRS), a novel framework for human-centered memory management in generative agents, coupled with six theoretically-grounded forgetting policies that balance performance, privacy, and computational efficiency. We present the Forgetful but Faithful Agent (FiFA) benchmark, a comprehensive evaluation framework that assesses agent performance across narrative coherence, goal completion, social recall accuracy, privacy preservation, and cost efficiency. Through extensive experimentation involving 300 evaluation runs across multiple memory budgets and agent configurations, we demonstrate that our hybrid forgetting policy achieves superior performance (composite score: 0.911) while maintaining computational tractability and privacy guarantees. Our work establishes new benchmarks for memory-budgeted agent evaluation and provides practical guidelines for deploying generative agents in resource-constrained, privacy-sensitive environments. The theoretical foundations, implementation framework, and empirical results contribute to the emerging field of human-centered AI by addressing fundamental challenges in agent memory management that directly impact user trust, system scalability, and regulatory compliance.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "H2HMem: A Multimodal Memory Benchmark for Agents in Human-Human Interactions",
+        "abstract": "Large language model agents are increasingly deployed in human-human interaction settings, such as meeting assistants and clinical documentation systems, where they must observe conversations and retain information for downstream queries. Unlike traditional human-assistant settings, these environments are inherently multimodal, involve complex discourse phenomena such as anaphora and deixis, and contain asynchronous or conflicting information from multiple participants. However, existing memory benchmarks largely focus on single-user, text-only interactions, failing to capture these challenges. To address this gap, we introduce H2HMem, a Human-to-Human Multimodal Memory Benchmark for evaluating memory capabilities in complex human-human interactions. H2HMem includes both dyadic and multi-party conversations with multimodal information streams, and evaluates agents along three dimensions: memory recall, reasoning, and application. Experiments with advanced agents reveal substantial limitations in constructing, retaining, and utilizing memories across modalities, participants, and sessions, highlighting substantial room for improvement in next-generation LLM agents.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "MedMemoryBench: Benchmarking Agent Memory in Personalized Healthcare",
+        "abstract": "The large-scale deployment of personalized healthcare agents demands memory mechanisms that are exceptionally precise, safe, and capable of long-term clinical tracking. However, existing benchmarks primarily focus on daily open-domain conversations, failing to capture the high-stakes complexity of real-world medical applications. Motivated by the stringent production requirements of an industry-leading health management agent serving tens of millions of active users, we introduce MedMemoryBench. We develop a human-agent collaborative pipeline to synthesize highly realistic, long-horizon medical trajectories based on clinically grounded, synthetic patient archetypes. This process yields a massive, expertly validated dataset comprising approximately 2,000 sessions and 16,000 interaction turns. Crucially, MedMemoryBench departs from traditional static evaluations by pioneering an \"evaluate-while-constructing\" streaming assessment protocol, which precisely mirrors dynamic memory accumulation in production environments. Furthermore, we formalize and systematically investigate the critical phenomenon of memory saturation, where sustained information influx actively degrades retrieval and reasoning robustness. Comprehensive benchmarking reveals severe bottlenecks in mainstream architectures, particularly concerning complex medical reasoning and noise resilience. By exposing these fundamental flaws, MedMemoryBench establishes a vital foundation for developing robust, production-ready medical agents.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory",
+        "abstract": "Statefulness is essential for large language model (LLM) agents to perform long-term planning and problem-solving. This makes memory a critical component, yet its management and evolution remain largely underexplored. Existing evaluations mostly focus on static conversational settings, where memory is passively retrieved from dialogue to answer queries, overlooking the dynamic ability to accumulate and reuse experience across evolving task streams. In real-world environments such as interactive problem assistants or embodied agents, LLMs are required to handle continuous task streams, yet often fail to learn from accumulated interactions, losing valuable contextual insights, a limitation that calls for test-time evolution, where LLMs retrieve, integrate, and update memory continuously during deployment. To bridge this gap, we introduce Evo-Memory, a comprehensive streaming benchmark and framework for evaluating self-evolving memory in LLM agents. Evo-Memory structures datasets into sequential task streams, requiring LLMs to search, adapt, and evolve memory after each interaction. We unify and implement over ten representative memory modules and evaluate them across 10 diverse multi-turn goal-oriented and single-turn reasoning and QA datasets. To better benchmark experience reuse, we provide a baseline method, ExpRAG, for retrieving and utilizing prior experience, and further propose ReMem, an action-think-memory refine pipeline that tightly integrates reasoning, task actions, and memory updates to achieve continual improvement.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "GroupMemBench: Benchmarking LLM Agent Memory in Multi-Party Conversations",
+        "abstract": "Large Language Model (LLM) agents increasingly serve as personal assistants and workplace collaborators, where their utility depends on memory systems that extract, retrieve, and apply information across long-running conversations. However, both existing memory systems and benchmarks are built around the dyadic, single-user setup, even though real deployments routinely span groups and channels with multiple users interacting with the agent and with each other. This mismatch leaves three properties of group memory unmeasured: (i) group dynamics that go beyond concatenated one-on-one chats, (ii) speaker-grounded belief tracking, where the per-user memory modeling is needed, and (iii) audience-adapted language, where Theory-of-Mind shifts produce role-specific vocabulary. We introduce GroupMemBench, a benchmark that exposes all three. A graph-grounded synthesis pipeline produces multi-party conversations with controllable reply structure and conditions each message on per-user personas and target audiences. An adversarial query pipeline then binds every question to a specific asker across six categories, spanning multi-hop reasoning, knowledge update, term ambiguity, user-implicit reasoning, temporal reasoning, and abstention, and iteratively searches challenging, realistic queries that reflect comprehensive memory capability. Benchmarking leading memory systems exposes a sharp collapse: the strongest one reaches only 46.0% average accuracy, with knowledge update at 27.1% and term ambiguity at 37.7%, while a simple BM25 baseline matches or exceeds most agent memory systems. This indicates current memory ingestion erases the structural and lexical features group memory depends on, leaving multi-user memory far from solved.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "OP-Bench: Benchmarking Over-Personalization for Memory-Augmented Personalized Conversational Agents",
+        "abstract": "Memory-augmented conversational agents enable personalized interactions using long-term user memory and have gained substantial traction. However, existing benchmarks primarily focus on whether agents can recall and apply user information, while overlooking whether such personalization is used appropriately. In fact, agents may overuse personal information, producing responses that feel forced, intrusive, or socially inappropriate to users. We refer to this issue as \\emph{over-personalization}. In this work, we formalize over-personalization into three types: Irrelevance, Repetition, and Sycophancy, and introduce \\textbf{OP-Bench} a benchmark of 1,700 verified instances constructed from long-horizon dialogue histories. Using \\textbf{OP-Bench}, we evaluate multiple large language models and memory-augmentation methods, and find that over-personalization is widespread when memory is introduced. Further analysis reveals that agents tend to retrieve and over-attend to user memories even when unnecessary. To address this issue, we propose \\textbf{Self-ReCheck}, a lightweight, model-agnostic memory filtering mechanism that mitigates over-personalization while preserving personalization performance. Our work takes an initial step toward more controllable and appropriate personalization in memory-augmented dialogue systems.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS)",
+        "abstract": "In this paper we report the set-up and results of the Multimodal Brain Tumor Image Segmentation Benchmark (BRATS) organized in conjunction with the MICCAI 2012 and 2013 conferences. Twenty state-of-the-art tumor segmentation algorithms were applied to a set of 65 multi-contrast MR scans of low- and high-grade glioma patients-manually annotated by up to four raters-and to 65 comparable scans generated using tumor image simulation software. Quantitative evaluations revealed considerable disagreement between the human raters in segmenting various tumor sub-regions (Dice scores in the range 74%-85%), illustrating the difficulty of this task. We found that different algorithms worked best for different sub-regions (reaching performance comparable to human inter-rater variability), but that no single algorithm ranked in the top for all sub-regions simultaneously. Fusing several good algorithms using a hierarchical majority vote yielded segmentations that consistently ranked above all individual algorithms, indicating remaining opportunities for further methodological improvements. The BRATS image data and manual annotations continue to be publicly available through an online evaluation system as an ongoing benchmarking resource.",
+        "year": "2014",
+        "citations": 6720,
+        "source": "openalex"
+      },
+      {
+        "title": "Persistent memory for AI coding agents: a pre-registered SWE-bench Verified benchmark",
+        "abstract": "AI coding agents lose state at every context compaction. They re-encounter the same failure modes session after session. world-model-mcp is an open-source MCP server that builds a temporal knowledge graph for codebases, capturing facts with provenance metadata and per-evidence-type decay, then re-injecting them after compaction. This paper reports the v0.9 benchmark testing whether that layer measurably reduces repeated coding-agent mistakes on a public corpus. 50 SWE-bench Verified tasks across five repositories (django, sympy, matplotlib, scikit-learn, sphinx) were run as paired baseline-vs-treatment per task. The methodology was committed to DESIGN.md on 2026-06-17, a week before the benchmark ran, so the result is pre-registered and cannot be adjusted post hoc. The treatment arm receives constraints extracted from prior baseline failures via the SWE-bench Pro 7-category failure taxonomy. The agent in both arms is Claude Code 2.1.177 headless. Across 49 paired SWE-bench Verified instances (1 dropped due to an upstream setup-script issue), baseline pass rate was 33/49 = 67.3 percent and treatment 38/49 = 77.6 percent, a delta of +10.2 percentage points. Within-domain delta (django + sympy, constraints from same repo family) was +15.0 pts. Cross-domain delta (matplotlib + scikit-learn + sphinx, constraints loaded only from a different repo family) was +6.9 pts with zero regressions on 18 baseline passes. Six FAIL-to-PASS flips and one regression were observed. Seven explicit limitations are documented verbatim, including single-trial design, within-domain constraint-failure overlap, and judge-model self-reference risk. The result establishes empirical evidence that persistent memory with provenance reduces coding-agent failure recurrence within-domain, with smaller positive signal cross-domain at no observed cost on the families tested.",
+        "year": "2023",
+        "citations": 49,
+        "source": "openalex"
+      },
+      {
+        "title": "Social Cognitive Theory: An Agentic Perspective",
+        "abstract": "This article presents the basic tenets of social cognitive theory. It is founded on a causal model of triadic reciprocal causation in which personal factors in the form of cognitive, affective and biological events, behavioral patterns, and environmental events all operate as interacting determinants that influence one another bidirectionally. Within this theory, human agency is embedded in a self theory encompassing self‐organizing, proactive, self‐reflective and self‐regulative mechanisms. Human agency can be exercised through direct personal agency; through proxy agency relying on the efforts of intermediaries; and by collective agency operating through shared beliefs of efficacy, pooled understandings, group aspirations and incentive systems, and collective action. Personal agency operates within a broad network of sociostructural influences. In these agentic transactions, people are producers as well as products of social systems. Growing transnational imbeddedness and interdependence of societies are creating new social realities in which global forces increasingly interact with national ones to shape the nature of cultural life.",
+        "year": "1999",
+        "citations": 2010,
+        "source": "openalex"
+      },
+      {
+        "title": "Generative Agents: Interactive Simulacra of Human Behavior",
+        "abstract": "Believable proxies of human behavior can empower interactive applications ranging from immersive environments to rehearsal spaces for interpersonal communication to prototyping tools. In this paper, we introduce generative agents: computational software agents that simulate believable human behavior. Generative agents wake up, cook breakfast, and head to work; artists paint, while authors write; they form opinions, notice each other, and initiate conversations; they remember and reflect on days past as they plan the next day. To enable generative agents, we describe an architecture that extends a large language model to store a complete record of the agent’s experiences using natural language, synthesize those memories over time into higher-level reflections, and retrieve them dynamically to plan behavior. We instantiate generative agents to populate an interactive sandbox environment inspired by The Sims, where end users can interact with a small town of twenty-five agents using natural language. In an evaluation, these generative agents produce believable individual and emergent social behaviors. For example, starting with only a single user-specified notion that one agent wants to throw a Valentine’s Day party, the agents autonomously spread invitations to the party over the next two days, make new acquaintances, ask each other out on dates to the party, and coordinate to show up for the party together at the right time. We demonstrate through ablation that the components of our agent architecture—observation, planning, and reflection—each contribute critically to the believability of agent behavior. By fusing large language models with computational interactive agents, this work introduces architectural and interaction patterns for enabling believable simulations of human behavior.",
+        "year": "2023",
+        "citations": 1678,
+        "source": "openalex"
+      },
+      {
+        "title": "Benchmarking Deep Reinforcement Learning for Continuous Control",
+        "abstract": "Recently, researchers have made significant progress combining the advances in deep learning for learning feature representations with reinforcement learning. Some notable examples include training agents to play Atari games based on raw pixel data and to acquire advanced manipulation skills using raw sensory inputs. However, it has been difficult to quantify progress in the domain of continuous control due to the lack of a commonly adopted benchmark. In this work, we present a benchmark suite of continuous control tasks, including classic tasks like cart-pole swing-up, tasks with very high state and action dimensionality such as 3D humanoid locomotion, tasks with partial observations, and tasks with hierarchical structure. We report novel findings based on the systematic evaluation of a range of implemented reinforcement learning algorithms. Both the benchmark and reference implementations are released at https://github.com/rllab/rllab in order to facilitate experimental reproducibility and to encourage adoption by other researchers.",
+        "year": "2016",
+        "citations": 967,
+        "source": "openalex"
+      },
+      {
+        "title": "Counterfactual Multi-Agent Policy Gradients",
+        "abstract": "Many real-world problems, such as network packet routing and the coordination of autonomous vehicles, are naturally modelled as cooperative multi-agent systems. There is a great need for new reinforcement learning methods that can efficiently learn decentralised policies for such systems. To this end, we propose a new multi-agent actor-critic method called counterfactual multi-agent (COMA) policy gradients. COMA uses a centralised critic to estimate the Q-function and decentralised actors to optimise the agents' policies. In addition, to address the challenges of multi-agent credit assignment, it uses a counterfactual baseline that marginalises out a single agent's action, while keeping the other agents' actions fixed. COMA also uses a critic representation that allows the counterfactual baseline to be computed efficiently in a single forward pass. We evaluate COMA in the testbed of StarCraft unit micromanagement, using a decentralised variant with significant partial observability. COMA significantly improves average performance over other multi-agent actor-critic methods in this setting, and the best performing agents are competitive with state-of-the-art centralised controllers that get access to the full state.",
+        "year": "2018",
+        "citations": 1712,
+        "source": "openalex"
+      },
+      {
+        "title": "The Arcade Learning Environment: An Evaluation Platform for General Agents",
+        "abstract": "In this article we introduce the Arcade Learning Environment (ALE): both a challenge problem and a platform and methodology for evaluating the development of general, domain-independent AI technology. ALE provides an interface to hundreds of Atari 2600 game environments, each one different, interesting, and designed to be a challenge for human players. ALE presents significant research challenges for reinforcement learning, model learning, model-based planning, imitation learning, transfer learning, and intrinsic motivation. Most importantly, it provides a rigorous testbed for evaluating and comparing approaches to these problems. We illustrate the promise of ALE by developing and benchmarking domain-independent agents designed using well-established AI techniques for both reinforcement learning and planning. In doing so, we also propose an evaluation methodology made possible by ALE, reporting empirical results on over 55 different games. All of the software, including the benchmark agents, is publicly available.",
+        "year": "2013",
+        "citations": 1070,
+        "source": "openalex"
+      },
+      {
+        "title": "On Tiny Episodic Memories in Continual Learning",
+        "abstract": "In continual learning (CL), an agent learns from a stream of tasks leveraging prior experience to transfer knowledge to future tasks. It is an ideal framework to decrease the amount of supervision in the existing learning algorithms. But for a successful knowledge transfer, the learner needs to remember how to perform previous tasks. One way to endow the learner the ability to perform tasks seen in the past is to store a small memory, dubbed episodic memory, that stores few examples from previous tasks and then to replay these examples when training for future tasks. In this work, we empirically analyze the effectiveness of a very small episodic memory in a CL setup where each training example is only seen once. Surprisingly, across four rather different supervised learning benchmarks adapted to CL, a very simple baseline, that jointly trains on both examples from the current task as well as examples stored in the episodic memory, significantly outperforms specifically designed CL approaches with and without episodic memory. Interestingly, we find that repetitive training on even tiny memories of past tasks does not harm generalization, on the contrary, it improves it, with gains between 7\\% and 17\\% when the memory is populated with a single example per class.",
+        "year": "2019",
+        "citations": 327,
+        "source": "openalex"
+      },
+      {
+        "title": "A survey on large language model based autonomous agents",
+        "abstract": "Abstract Autonomous agents have long been a research focus in academic and industry communities. Previous research often focuses on training agents with limited knowledge within isolated environments, which diverges significantly from human learning processes, and makes the agents hard to achieve human-like decisions. Recently, through the acquisition of vast amounts of Web knowledge, large language models (LLMs) have shown potential in human-level intelligence, leading to a surge in research on LLM-based autonomous agents. In this paper, we present a comprehensive survey of these studies, delivering a systematic review of LLM-based autonomous agents from a holistic perspective. We first discuss the construction of LLM-based autonomous agents, proposing a unified framework that encompasses much of previous work. Then, we present a overview of the diverse applications of LLM-based autonomous agents in social science, natural science, and engineering. Finally, we delve into the evaluation strategies commonly used for LLM-based autonomous agents. Based on the previous studies, we also present several challenges and future directions in this field.",
+        "year": "2024",
+        "citations": 1389,
+        "source": "openalex"
+      },
+      {
+        "title": "Memory engrams: Recalling the past and imagining the future",
+        "abstract": "In 1904, Richard Semon introduced the term \"engram\" to describe the neural substrate for storing memories. An experience, Semon proposed, activates a subset of cells that undergo off-line, persistent chemical and/or physical changes to become an engram. Subsequent reactivation of this engram induces memory retrieval. Although Semon's contributions were largely ignored in his lifetime, new technologies that allow researchers to image and manipulate the brain at the level of individual neurons has reinvigorated engram research. We review recent progress in studying engrams, including an evaluation of evidence for the existence of engrams, the importance of intrinsic excitability and synaptic plasticity in engrams, and the lifetime of an engram. Together, these findings are beginning to define an engram as the basic unit of memory.",
+        "year": "2020",
+        "citations": 1160,
+        "source": "openalex"
+      },
+      {
+        "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+        "abstract": "Large language models (LLMs) have been increasingly used to interact with external environments (e.g., games, compilers, APIs) as goal-driven agents. However, it remains challenging for these language agents to quickly and efficiently learn from trial-and-error as traditional reinforcement learning methods require extensive training samples and expensive model fine-tuning. We propose Reflexion, a novel framework to reinforce language agents not by updating weights, but instead through linguistic feedback. Concretely, Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials. Reflexion is flexible enough to incorporate various types (scalar values or free-form language) and sources (external or internally simulated) of feedback signals, and obtains significant improvements over a baseline agent across diverse tasks (sequential decision-making, coding, language reasoning). For example, Reflexion achieves a 91% pass@1 accuracy on the HumanEval coding benchmark, surpassing the previous state-of-the-art GPT-4 that achieves 80%. We also conduct ablation and analysis studies using different feedback signals, feedback incorporation methods, and agent types, and provide insights into how they affect performance.",
+        "year": "2023",
+        "citations": 277,
+        "source": "openalex"
+      },
+      {
+        "title": "AI-Assisted Pipeline for Dynamic Generation of Trustworthy Health Supplement Content at Scale",
+        "abstract": "Although geospatial question answering systems have received increasing attention in recent years, existing prototype systems struggle to properly answer qualitative spatial questions. In this work, we propose a unique framework for answering qualitative spatial questions, which comprises three main components: a geoparser that takes the input questions and extracts place semantic information from text, a reasoning system which is embedded with a crisp reasoner, and finally, answer extraction, which refines the solution space and generates final answers. We present an experimental design to evaluate our framework for point-based cardinal direction calculus (CDC) relations by developing an automated approach for generating three types of synthetic qualitative spatial questions. The initial evaluations of generated answers in our system are promising because a high proportion of answers were labelled correct.",
+        "year": "2018",
+        "citations": 46033,
+        "source": "openalex"
+      },
+      {
+        "title": "Improved metagenomic analysis with Kraken 2",
+        "abstract": "Although Kraken's k-mer-based approach provides a fast taxonomic classification of metagenomic sequence data, its large memory requirements can be limiting for some applications. Kraken 2 improves upon Kraken 1 by reducing memory usage by 85%, allowing greater amounts of reference genomic data to be used, while maintaining high accuracy and increasing speed fivefold. Kraken 2 also introduces a translated search mode, providing increased sensitivity in viral metagenomics analysis.",
+        "year": "2019",
+        "citations": 7402,
+        "source": "openalex"
+      },
+      {
+        "title": "Adversarial NLI: A New Benchmark for Natural Language Understanding",
+        "abstract": "We introduce a new large-scale NLI benchmark dataset, collected via an iterative, adversarial human-and-model-in-the-loop procedure. We show that training models on this new dataset leads to state-of-the-art performance on a variety of popular NLI benchmarks, while posing a more difficult challenge with its new test set. Our analysis sheds light on the shortcomings of current state-of-theart models, and shows that non-expert annotators are successful at finding their weaknesses. The data collection method can be applied in a never-ending learning scenario, becoming a moving target for NLU, rather than a static benchmark that will quickly saturate.",
+        "year": "2020",
+        "citations": 613,
+        "source": "openalex"
+      },
+      {
+        "title": "Challenges of real-world reinforcement learning: definitions, benchmarks and analysis",
+        "abstract": "",
+        "year": "2021",
+        "citations": 610,
+        "source": "openalex"
+      },
+      {
+        "title": "MemoryCD: Benchmarking Long-Context User Memory of LLM Agents for Lifelong Cross-Domain Personalization",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "ATANT v1.1: Positioning Continuity Evaluation Against Memory, Long-Context, and Agentic-Memory Benchmarks",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Memory Gym: Towards Endless Tasks to Benchmark Memory Capabilities of Agents",
+        "abstract": "",
+        "year": "2025",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Mem-Gallery: Benchmarking Multimodal Long-Term Conversational Memory for MLLM Agents",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "ENPMR-Bench: Benchmarking Proactive Memory Retrieval for Emotional Support Agents",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Mem2ActBench: A Benchmark for Evaluating Long-Term Memory Utilization in Task-Oriented Autonomous Agents",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Benchmarking Memory Architectures for Mobile Agents in Short-Term and Long-Term Applications",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ],
+    "q-test-method-bert": [
+      {
+        "title": "How Contextual are Contextualized Word Representations? Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings",
+        "abstract": "Replacing static word embeddings with contextualized word representations has yielded significant improvements on many NLP tasks. However, just how contextual are the contextualized representations produced by models such as ELMo and BERT? Are there infinitely many context-specific representations for each word, or are words essentially assigned one of a finite number of word-sense representations? For one, we find that the contextualized representations of all words are not isotropic in any layer of the contextualizing model. While representations of the same word in different contexts still have a greater cosine similarity than those of two different words, this self-similarity is much lower in upper layers. This suggests that upper layers of contextualizing models produce more context-specific representations, much like how upper layers of LSTMs produce more task-specific representations. In all layers of ELMo, BERT, and GPT-2, on average, less than 5% of the variance in a word's contextualized representations can be explained by a static embedding for that word, providing some justification for the success of contextualized representations.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "InvBERT: Reconstructing Text from Contextualized Word Embeddings by inverting the BERT pipeline",
+        "abstract": "Digital Humanities and Computational Literary Studies apply text mining methods to investigate literature. Such automated approaches enable quantitative studies on large corpora which would not be feasible by manual inspection alone. However, due to copyright restrictions, the availability of relevant digitized literary works is limited. Derived Text Formats (DTFs) have been proposed as a solution. Here, textual materials are transformed in such a way that copyright-critical features are removed, but that the use of certain analytical methods remains possible. Contextualized word embeddings produced by transformer-encoders (like BERT) are promising candidates for DTFs because they allow for state-of-the-art performance on various analytical tasks and, at first sight, do not disclose the original text. However, in this paper we demonstrate that under certain conditions the reconstruction of the original copyrighted text becomes feasible and its publication in the form of contextualized token representations is not safe. Our attempts to invert BERT suggest, that publishing the encoder as a black box together with the contextualized embeddings is critical, since it allows to generate data to train a decoder with a reconstruction accuracy sufficient to violate copyright laws.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "BERT, mBERT, or BiBERT? A Study on Contextualized Embeddings for Neural Machine Translation",
+        "abstract": "The success of bidirectional encoders using masked language models, such as BERT, on numerous natural language processing tasks has prompted researchers to attempt to incorporate these pre-trained models into neural machine translation (NMT) systems. However, proposed methods for incorporating pre-trained models are non-trivial and mainly focus on BERT, which lacks a comparison of the impact that other pre-trained models may have on translation performance. In this paper, we demonstrate that simply using the output (contextualized embeddings) of a tailored and suitable bilingual pre-trained language model (dubbed BiBERT) as the input of the NMT encoder achieves state-of-the-art translation performance. Moreover, we also propose a stochastic layer selection approach and a concept of dual-directional translation model to ensure the sufficient utilization of contextualized embeddings. In the case of without using back translation, our best models achieve BLEU scores of 30.45 for En->De and 38.61 for De->En on the IWSLT'14 dataset, and 31.26 for En->De and 34.94 for De->En on the WMT'14 dataset, which exceeds all published numbers.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "BERT as a Teacher: Contextual Embeddings for Sequence-Level Reward",
+        "abstract": "Measuring the quality of a generated sequence against a set of references is a central problem in many learning frameworks, be it to compute a score, to assign a reward, or to perform discrimination. Despite great advances in model architectures, metrics that scale independently of the number of references are still based on n-gram estimates. We show that the underlying operations, counting words and comparing counts, can be lifted to embedding words and comparing embeddings. An in-depth analysis of BERT embeddings shows empirically that contextual embeddings can be employed to capture the required dependencies while maintaining the necessary scalability through appropriate pruning and smoothing techniques. We cast unconditional generation as a reinforcement learning problem and show that our reward function indeed provides a more effective learning signal than n-gram reward in this challenging setting.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Picking BERT's Brain: Probing for Linguistic Dependencies in Contextualized Embeddings Using Representational Similarity Analysis",
+        "abstract": "As the name implies, contextualized representations of language are typically motivated by their ability to encode context. Which aspects of context are captured by such representations? We introduce an approach to address this question using Representational Similarity Analysis (RSA). As case studies, we investigate the degree to which a verb embedding encodes the verb's subject, a pronoun embedding encodes the pronoun's antecedent, and a full-sentence representation encodes the sentence's head word (as determined by a dependency parse). In all cases, we show that BERT's contextualized embeddings reflect the linguistic dependency being studied, and that BERT encodes these dependencies to a greater degree than it encodes less linguistically-salient controls. These results demonstrate the ability of our approach to adjudicate between hypotheses about which aspects of context are encoded in representations of language.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "CWTM: Leveraging Contextualized Word Embeddings from BERT for Neural Topic Modeling",
+        "abstract": "Most existing topic models rely on bag-of-words (BOW) representation, which limits their ability to capture word order information and leads to challenges with out-of-vocabulary (OOV) words in new documents. Contextualized word embeddings, however, show superiority in word sense disambiguation and effectively address the OOV issue. In this work, we introduce a novel neural topic model called the Contextlized Word Topic Model (CWTM), which integrates contextualized word embeddings from BERT. The model is capable of learning the topic vector of a document without BOW information. In addition, it can also derive the topic vectors for individual words within a document based on their contextualized word embeddings. Experiments across various datasets show that CWTM generates more coherent and meaningful topics compared to existing topic models, while also accommodating unseen words in newly encountered documents.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Does BERT Understand Sentiment? Leveraging Comparisons Between Contextual and Non-Contextual Embeddings to Improve Aspect-Based Sentiment Models",
+        "abstract": "When performing Polarity Detection for different words in a sentence, we need to look at the words around to understand the sentiment. Massively pretrained language models like BERT can encode not only just the words in a document but also the context around the words along with them. This begs the questions, \"Does a pretrain language model also automatically encode sentiment information about each word?\" and \"Can it be used to infer polarity towards different aspects?\". In this work we try to answer this question by showing that training a comparison of a contextual embedding from BERT and a generic word embedding can be used to infer sentiment. We also show that if we finetune a subset of weights the model built on comparison of BERT and generic word embedding, it can get state of the art results for Polarity Detection in Aspect Based Sentiment Classification datasets.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Stock Movement Prediction with Financial News using Contextualized Embedding from BERT",
+        "abstract": "News events can greatly influence equity markets. In this paper, we are interested in predicting the short-term movement of stock prices after financial news events using only the headlines of the news. To achieve this goal, we introduce a new text mining method called Fine-Tuned Contextualized-Embedding Recurrent Neural Network (FT-CE-RNN). Compared with previous approaches which use static vector representations of the news (static embedding), our model uses contextualized vector representations of the headlines (contextualized embeddings) generated from Bidirectional Encoder Representations from Transformers (BERT). Our model obtains the state-of-the-art result on this stock movement prediction task. It shows significant improvement compared with other baseline models, in both accuracy and trading simulations. Through various trading simulations based on millions of headlines from Bloomberg News, we demonstrate the ability of this model in real scenarios.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Med-BERT: pre-trained contextualized embeddings on large-scale structured electronic health records for disease prediction",
+        "abstract": "Deep learning (DL) based predictive models from electronic health records (EHR) deliver impressive performance in many clinical tasks. Large training cohorts, however, are often required to achieve high accuracy, hindering the adoption of DL-based models in scenarios with limited training data size. Recently, bidirectional encoder representations from transformers (BERT) and related models have achieved tremendous successes in the natural language processing domain. The pre-training of BERT on a very large training corpus generates contextualized embeddings that can boost the performance of models trained on smaller datasets. We propose Med-BERT, which adapts the BERT framework for pre-training contextualized embedding models on structured diagnosis data from 28,490,650 patients EHR dataset. Fine-tuning experiments are conducted on two disease-prediction tasks: (1) prediction of heart failure in patients with diabetes and (2) prediction of pancreatic cancer from two clinical databases. Med-BERT substantially improves prediction accuracy, boosting the area under receiver operating characteristics curve (AUC) by 2.02-7.12%. In particular, pre-trained Med-BERT substantially improves the performance of tasks with very small fine-tuning training sets (300-500 samples) boosting the AUC by more than 20% or equivalent to the AUC of 10 times larger training set. We believe that Med-BERT will benefit disease-prediction studies with small local training datasets, reduce data collection expenses, and accelerate the pace of artificial intelligence aided healthcare.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Does BERT Make Any Sense? Interpretable Word Sense Disambiguation with Contextualized Embeddings",
+        "abstract": "Contextualized word embeddings (CWE) such as provided by ELMo (Peters et al., 2018), Flair NLP (Akbik et al., 2018), or BERT (Devlin et al., 2019) are a major recent innovation in NLP. CWEs provide semantic vector representations of words depending on their respective context. Their advantage over static word embeddings has been shown for a number of tasks, such as text classification, sequence tagging, or machine translation. Since vectors of the same word type can vary depending on the respective context, they implicitly provide a model for word sense disambiguation (WSD). We introduce a simple but effective approach to WSD using a nearest neighbor classification on CWEs. We compare the performance of different CWE models for the task and can report improvements above the current state of the art for two standard WSD benchmark datasets. We further show that the pre-trained BERT model is able to place polysemic words into distinct 'sense' regions of the embedding space, while ELMo and Flair NLP do not seem to possess this ability.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Non-Contextual BERT or FastText? A Comparative Analysis",
+        "abstract": "Natural Language Processing (NLP) for low-resource languages, which lack large annotated datasets, faces significant challenges due to limited high-quality data and linguistic resources. The selection of embeddings plays a critical role in achieving strong performance in NLP tasks. While contextual BERT embeddings require a full forward pass, non-contextual BERT embeddings rely only on table lookup. Existing research has primarily focused on contextual BERT embeddings, leaving non-contextual embeddings largely unexplored. In this study, we analyze the effectiveness of non-contextual embeddings from BERT models (MuRIL and MahaBERT) and FastText models (IndicFT and MahaFT) for tasks such as news classification, sentiment analysis, and hate speech detection in one such low-resource language Marathi. We compare these embeddings with their contextual and compressed variants. Our findings indicate that non-contextual BERT embeddings extracted from the model's first embedding layer outperform FastText embeddings, presenting a promising alternative for low-resource NLP.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Sequence Tagging with Contextual and Non-Contextual Subword Representations: A Multilingual Evaluation",
+        "abstract": "Pretrained contextual and non-contextual subword embeddings have become available in over 250 languages, allowing massively multilingual NLP. However, while there is no dearth of pretrained embeddings, the distinct lack of systematic evaluations makes it difficult for practitioners to choose between them. In this work, we conduct an extensive evaluation comparing non-contextual subword embeddings, namely FastText and BPEmb, and a contextual representation method, namely BERT, on multilingual named entity recognition and part-of-speech tagging. We find that overall, a combination of BERT, BPEmb, and character representations works best across languages and tasks. A more detailed analysis reveals different strengths and weaknesses: Multilingual BERT performs well in medium- to high-resource languages, but is outperformed by non-contextual subword embeddings in a low-resource setting.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Using Paraphrases to Study Properties of Contextual Embeddings",
+        "abstract": "We use paraphrases as a unique source of data to analyze contextualized embeddings, with a particular focus on BERT. Because paraphrases naturally encode consistent word and phrase semantics, they provide a unique lens for investigating properties of embeddings. Using the Paraphrase Database's alignments, we study words within paraphrases as well as phrase representations. We find that contextual embeddings effectively handle polysemous words, but give synonyms surprisingly different representations in many cases. We confirm previous findings that BERT is sensitive to word order, but find slightly different patterns than prior work in terms of the level of contextualization across BERT's layers.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "BIG MOOD: Relating Transformers to Explicit Commonsense Knowledge",
+        "abstract": "We introduce a simple yet effective method of integrating contextual embeddings with commonsense graph embeddings, dubbed BERT Infused Graphs: Matching Over Other embeDdings. First, we introduce a preprocessing method to improve the speed of querying knowledge bases. Then, we develop a method of creating knowledge embeddings from each knowledge base. We introduce a method of aligning tokens between two misaligned tokenization methods. Finally, we contribute a method of contextualizing BERT after combining with knowledge base embeddings. We also show BERTs tendency to correct lower accuracy question types. Our model achieves a higher accuracy than BERT, and we score fifth on the official leaderboard of the shared task and score the highest without any additional language model pretraining.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Keyphrase Extraction from Scholarly Articles as Sequence Labeling using Contextualized Embeddings",
+        "abstract": "In this paper, we formulate keyphrase extraction from scholarly articles as a sequence labeling task solved using a BiLSTM-CRF, where the words in the input text are represented using deep contextualized embeddings. We evaluate the proposed architecture using both contextualized and fixed word embedding models on three different benchmark datasets (Inspec, SemEval 2010, SemEval 2017) and compare with existing popular unsupervised and supervised techniques. Our results quantify the benefits of (a) using contextualized embeddings (e.g. BERT) over fixed word embeddings (e.g. Glove); (b) using a BiLSTM-CRF architecture with contextualized word embeddings over fine-tuning the contextualized word embedding model directly, and (c) using genre-specific contextualized embeddings (SciBERT). Through error analysis, we also provide some insights into why particular models work better than others. Lastly, we present a case study where we analyze different self-attention layers of the two best models (BERT and SciBERT) to better understand the predictions made by each for the task of keyphrase extraction.",
+        "year": null,
+        "citations": 0,
+        "source": "arxiv"
+      },
+      {
+        "title": "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
+        "abstract": "Nils Reimers, Iryna Gurevych. Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP). 2019.",
+        "year": "2019",
+        "citations": 11555,
+        "source": "openalex"
+      },
+      {
+        "title": "ALBERT: A Lite BERT for Self-supervised Learning of Language\\n Representations",
+        "abstract": "Increasing model size when pretraining natural language representations often\\nresults in improved performance on downstream tasks. However, at some point\\nfurther model increases become harder due to GPU/TPU memory limitations and\\nlonger training times. To address these problems, we present two\\nparameter-reduction techniques to lower memory consumption and increase the\\ntraining speed of BERT. Comprehensive empirical evidence shows that our\\nproposed methods lead to models that scale much better compared to the original\\nBERT. We also use a self-supervised loss that focuses on modeling\\ninter-sentence coherence, and show it consistently helps downstream tasks with\\nmulti-sentence inputs. As a result, our best model establishes new\\nstate-of-the-art results on the GLUE, RACE, and \\\\squad benchmarks while having\\nfewer parameters compared to BERT-large. The code and the pretrained models are\\navailable at https://github.com/google-research/ALBERT.\\n",
+        "year": "2019",
+        "citations": 4076,
+        "source": "openalex"
+      },
+      {
+        "title": "BERTScore: Evaluating Text Generation with BERT",
+        "abstract": "We propose BERTScore, an automatic evaluation metric for text generation. Analogously to common metrics, BERTScore computes a similarity score for each token in the candidate sentence with each token in the reference sentence. However, instead of exact matches, we compute token similarity using contextual embeddings. We evaluate using the outputs of 363 machine translation and image captioning systems. BERTScore correlates better with human judgments and provides stronger model selection performance than existing metrics. Finally, we use an adversarial paraphrase detection task to show that BERTScore is more robust to challenging examples when compared to existing metrics.",
+        "year": "2019",
+        "citations": 2063,
+        "source": "openalex"
+      },
+      {
+        "title": "To BERT or not to BERT - Comparing Contextual Embeddings in a Deep Learning Architecture for the Automatic Recognition of four Types of Speech, Thought and Writing Representation",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "ZYC at SemEval-2026 Task 5: Application of BERT-based Contextual Embeddings Similarity for WSD",
+        "abstract": "",
+        "year": "2026",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Does BERT Recognize an Agent? Modeling Dowty&apos;s Proto-Roles with Contextual Embeddings",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "BERTrade: Using Contextual Embeddings to Parse Old French",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Understanding BERT&apos;s Mood: The Role of Contextual-Embeddings as User-Representations for Depression Assessment",
+        "abstract": "",
+        "year": "2022",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "On Refining BERT Contextualized Embeddings using Semantic Lexicons",
+        "abstract": "",
+        "year": "2021",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Deriving Contextualised Semantic Features from BERT (and Other Transformer Model) Embeddings",
+        "abstract": "",
+        "year": "2021",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "BERTRAM: Improved Word Embeddings Have Big Impact on Contextualized Model Performance",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Picking BERT&apos;s Brain: Probing for Linguistic Dependencies in Contextualized Embeddings Using Representational Similarity Analysis",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Understanding patient complaint characteristics using contextual clinical BERT embeddings",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "Contextualized BERT Sentence Embeddings for Author Profiling: The Cost of Performances",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      },
+      {
+        "title": "COBE: Contextualized Object Embeddings from Narrated Instructional Video",
+        "abstract": "",
+        "year": "2020",
+        "citations": 0,
+        "source": "dblp"
+      }
+    ]
+  },
+  "capture_errors": {},
+  "pool_hash": "sha256:55f16273e71bc61c06ff8a39281101d40c852cd285c63ac2e766190cdd4c7fa1"
+}

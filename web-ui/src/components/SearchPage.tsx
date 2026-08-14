@@ -283,6 +283,15 @@ function SearchPage() {
         });
       });
 
+      // The API returns papers grouped by source, so the loop above yields
+      // every arXiv hit, then every Scholar hit, and so on — which discards
+      // the cross-source ranking the backend computed. `_rank` carries that
+      // order; papers without one (partial/timed-out responses) keep their
+      // arrival order at the end.
+      allPapers.sort(
+        (a, b) => (a._rank ?? Number.MAX_SAFE_INTEGER) - (b._rank ?? Number.MAX_SAFE_INTEGER)
+      );
+
       setPapers(allPapers);
       setGraphData(null);
       trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source);
@@ -389,16 +398,19 @@ function SearchPage() {
     }
   };
 
+  /** 1-based position of *paper* in the ranked list on screen (0 when absent). */
+  const rankOf = (paper: Paper) => papers.indexOf(paper) + 1;
+
   const handlePaperSelect = (paper: Paper) => {
     trackPaperSelect('list');
-    trackSearchClick(queryHash, paper.doc_id || '');
+    trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
     setHighlightedPapers(new Set());
   };
 
   const handleNodeClickWithHighlight = (paper: Paper) => {
     trackPaperSelect('graph');
-    trackSearchClick(queryHash, paper.doc_id || '');
+    trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
 
     if (graphData && graphData.edges) {

@@ -70,7 +70,6 @@ def _patch_search_deps():
     with (
         patch("routers.search.query_analyzer", _make_query_analyzer_mock()),
         patch("routers.search.search_agent", _make_search_agent_mock()),
-        patch("routers.search.relevance_filter", None),
         patch("routers.search._hybrid_ranker", None),
         patch("routers.search._set_cache", return_value=None),
         patch("routers.search._get_cached_result", return_value=None),
@@ -219,6 +218,45 @@ class TestSearchClickEndpoint:
         assert evt.payload["query_hash"] == "abc123def456"
         assert evt.payload["paper_id"] == "arxiv:2401.00001"
         assert evt.paper_id == "arxiv:2401.00001"
+        assert "rank" not in evt.payload, "absent rank must not be invented"
+
+    @pytest.mark.asyncio
+    async def test_click_records_rank_when_supplied(
+        self, client: Any, auth_headers: dict
+    ) -> None:
+        """The clicked position is what MRR/CTR are computed from."""
+        captured: list[Any] = []
+
+        with patch("routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)):
+            resp = await client.post(
+                "/api/search/click",
+                json={
+                    "query_hash": "abc123def456",
+                    "paper_id": "arxiv:2401.00001",
+                    "rank": 7,
+                },
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200, resp.text
+        assert captured[0].payload["rank"] == 7
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad_rank", [0, -1, 5000])
+    async def test_click_rejects_out_of_range_rank(
+        self, client: Any, auth_headers: dict, bad_rank: int
+    ) -> None:
+        """Ranks are 1-based and bounded, so a hostile client cannot skew MRR."""
+        resp = await client.post(
+            "/api/search/click",
+            json={
+                "query_hash": "abc123def456",
+                "paper_id": "arxiv:2401.00001",
+                "rank": bad_rank,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422, resp.text
 
     @pytest.mark.asyncio
     async def test_click_no_emit_when_unauthenticated(self, client: Any) -> None:

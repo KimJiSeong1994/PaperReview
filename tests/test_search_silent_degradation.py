@@ -171,7 +171,6 @@ class TestHybridRankerDegradation:
             patch.object(rs, "_RANKER_DEGRADATION_REASONS", ["ranker_unavailable"]),
             patch.object(rs, "query_analyzer", qa_mock),
             patch.object(rs, "search_agent", sa_mock),
-            patch.object(rs, "relevance_filter", None),
             patch.object(rs, "_hybrid_ranker", None),
             patch.object(rs, "_set_cache", return_value=None),
             patch.object(rs, "_get_cached_result", return_value=None),

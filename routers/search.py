@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from starlette.requests import Request
 
@@ -34,7 +34,6 @@ from .deps import (
     get_optional_user,
     limiter,
     query_analyzer,
-    relevance_filter,
     search_agent,
 )
 from src.events.emit import emit_or_warn
@@ -54,7 +53,7 @@ logger = logging.getLogger(__name__)
 # not a runtime condition to hide. A prior hotfix (12b424f era) was
 # reintroduced where both ImportError and constructor failure were caught
 # by a broad ``except Exception`` — every search silently lost ranking.
-from src.graph_rag.hybrid_ranker import HybridRanker  # noqa: E402
+from src.graph_rag.hybrid_ranker import CROSS_ENCODER_RRF_WEIGHT, HybridRanker  # noqa: E402
 
 # Track ranker-degradation reasons so operators + API consumers see the
 # degradation instead of it being silent-ranking-skipped. Exposed on
@@ -386,7 +385,7 @@ SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
 # Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
-_CACHE_SCHEMA_VERSION = "v2-hybrid-rrf-semantic"
+_CACHE_SCHEMA_VERSION = "v3-global-rank-weighted-rrf"
 
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
@@ -477,6 +476,16 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
         "category": filters.get("category"),
         "sort_by": filters.get("sort_by", "relevance"),
         "fast_mode": filters.get("fast_mode", False),
+        # max_results bounds how many papers each source returns, so a body
+        # cached for a small request is a *truncated* answer for a larger one.
+        # Leaving it out let a max_results=10 search serve max_results=50
+        # callers for the full hour of TTL.
+        "max_results": filters.get("max_results"),
+        # use_llm_search selects an entirely different retrieval pipeline
+        # (llm_context_search). Both pipelines collapse to the "baseline"
+        # SkillOpt namespace while the policy is off, so without this field
+        # their result bodies shared one cache key.
+        "use_llm_search": filters.get("use_llm_search", False),
         "skillopt_policy": filters.get("skillopt_policy", "baseline"),
     }
     key_str = json.dumps(key_data, sort_keys=True)
@@ -945,16 +954,13 @@ def stop_search_background_workers(
 _ANALYZE_TIMEOUT = 15
 _LLM_SEARCH_TIMEOUT = 60
 _SMART_SEARCH_TIMEOUT = 60
-_SEARCH_TIMEOUT = 100           # 전체 검색 파이프라인 (분석+검색+랭킹+필터)
+_SEARCH_TIMEOUT = 100           # 전체 검색 파이프라인 (분석+검색+랭킹)
 _SOURCE_SEARCH_TIMEOUT = 40     # 멀티소스 검색 단계만
-_RELEVANCE_FILTER_TIMEOUT = 30  # LLM 관련성 필터 단계만
 _GRAPHRAG_TIMEOUT = 5           # GraphRAG 확장
 _RANKING_TIMEOUT = 25           # HyDE + hybrid ranking
 _MIN_BUDGET_FOR_GRAPHRAG = 18
 _MIN_BUDGET_FOR_RANKING = 12
 _MIN_BUDGET_FOR_HYDE_HARD = 28
-_RELEVANCE_FILTER_TOP_N = 30
-_MIN_BUDGET_FOR_RELEVANCE = 10
 _MAX_RANKING_CANDIDATES = 80
 
 
@@ -966,20 +972,6 @@ def _remaining_budget(start_time: float, total_budget: int = _SEARCH_TIMEOUT) ->
 def _ranking_candidate_cap(max_results: int) -> int:
     """Bound ranking input size while keeping enough recall for later stages."""
     return min(max(max_results * 2, 40), _MAX_RANKING_CANDIDATES)
-
-
-def _paper_identity(paper: Dict[str, Any]) -> str:
-    """Stable paper identity for dedup/filter recomposition."""
-    doi = (paper.get("doi") or "").strip().lower()
-    if doi:
-        return f"doi:{doi}"
-    arxiv_id = (paper.get("arxiv_id") or "").strip().lower()
-    if arxiv_id:
-        return f"arxiv:{arxiv_id}"
-    title = (paper.get("title") or "").strip().lower()
-    if title:
-        return f"title:{title}"
-    return f"fallback:{hashlib.sha256(json.dumps(paper, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]}"
 
 
 def _interleave_source_candidates(
@@ -1005,6 +997,35 @@ def _interleave_source_candidates(
             break
 
     return merged
+
+
+def _stamp_global_rank(
+    ranked_papers: List[Dict[str, Any]],
+    results: Dict[str, List[Dict[str, Any]]],
+) -> None:
+    """Write each paper's global position onto the paper itself as ``_rank``.
+
+    The response groups papers by source (``Dict[source, papers]``), which
+    throws away the cross-source order the ranker just computed: a client
+    that iterates the buckets sees every arXiv paper, then every Scholar
+    paper, and never the fused ranking. Carrying the rank *on the paper*
+    means the order survives both the bucketing and the result cache — a
+    cached body already contains ``_rank`` on every paper, so warm requests
+    keep the same order without re-ranking.
+
+    Papers the ranker never saw (beyond ``_MAX_RANKING_CANDIDATES``, or when
+    ranking was skipped) are stamped after the ranked ones, preserving their
+    source order. They stay in the response; they just sort last.
+    """
+    rank = 0
+    for paper in ranked_papers:
+        paper["_rank"] = rank
+        rank += 1
+    for papers in results.values():
+        for paper in papers:
+            if "_rank" not in paper:
+                paper["_rank"] = rank
+                rank += 1
 
 
 def _rebuild_results_from_ranked(
@@ -1329,7 +1350,6 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "use_llm_search": request.use_llm_search,
             "fast_mode": request.fast_mode,
             "query_analyzer_enabled": bool(query_analyzer),
-            "relevance_filter_enabled": bool(relevance_filter),
             "hybrid_ranker_enabled": bool(_hybrid_ranker),
         }
 
@@ -1350,6 +1370,8 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             "author": request.author,
             "category": request.category,
             "fast_mode": request.fast_mode,
+            "max_results": request.max_results,
+            "use_llm_search": request.use_llm_search,
             "skillopt_policy": skillopt_cache_namespace,
         }
         stage_modes["skillopt_policy_cache_namespace"] = skillopt_cache_namespace
@@ -1365,7 +1387,6 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             stage_modes["query_analysis_mode"] = "skipped_cache_hit"
             stage_modes["source_search_mode"] = "skipped_cache_hit"
             stage_modes["ranking_mode"] = "skipped_cache_hit"
-            stage_modes["relevance_filter_mode"] = "skipped_cache_hit"
             stage_modes["cache_fast_path"] = True
             stage_timings["total"] = round(time.time() - start_time, 3)
             logger.info("[API] Returning cached results before query analysis: %s papers", total)
@@ -1562,7 +1583,6 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             stage_modes["cache_after_guard"] = True
             stage_modes["source_search_mode"] = "skipped_cache_hit_after_guard"
             stage_modes["ranking_mode"] = "skipped_cache_hit_after_guard"
-            stage_modes["relevance_filter_mode"] = "skipped_cache_hit_after_guard"
             stage_timings["total"] = round(time.time() - start_time, 3)
             logger.info("[API] Returning cached results after academic guard: %s papers", total)
             if username:
@@ -1831,85 +1851,19 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             # Update partial results after ranking
             _partial["results"] = results
 
-            # Step 3: LLM Relevance filtering (only when not fast_mode)
-            if not request.fast_mode:
-                if relevance_filter:
-                    filter_start = time.time()
-                    try:
-                        if stage_modes.get("ranking_mode") == "skipped_low_budget":
-                            stage_modes["relevance_filter_mode"] = "skipped_after_low_budget_ranking"
-                            stage_timings["relevance_filter"] = 0.0
-                            logger.info("[API] Relevance filtering skipped because ranking was already skipped for low budget")
-                        else:
-                            remaining_before_filter = _remaining_budget(start_time)
-                            if remaining_before_filter < _MIN_BUDGET_FOR_RELEVANCE:
-                                stage_modes["relevance_filter_mode"] = "skipped_low_budget"
-                                stage_timings["relevance_filter"] = 0.0
-                                logger.info(
-                                    "[API] Relevance filtering skipped due to low remaining budget: %.2fs < %ds",
-                                    remaining_before_filter,
-                                    _MIN_BUDGET_FOR_RELEVANCE,
-                                )
-                            else:
-                                logger.info("[API] Applying relevance filtering (parallel mode)...")
-                                all_papers = list(ranked_candidates) if ranked_candidates else []
-                                for paper in all_papers:
-                                    paper["source"] = paper.get("_result_source", paper.get("source", "arxiv"))
-
-                                filter_candidates = all_papers[:_RELEVANCE_FILTER_TOP_N]
-                                if filter_candidates:
-                                    filtered_papers = await asyncio.wait_for(
-                                        loop.run_in_executor(
-                                            None,
-                                            partial(
-                                                relevance_filter.filter_papers,
-                                                request.query,
-                                                filter_candidates,
-                                                threshold=0.65,
-                                                max_papers=min(request.max_results, _RELEVANCE_FILTER_TOP_N),
-                                                parallel=True,
-                                            ),
-                                        ),
-                                        timeout=min(_RELEVANCE_FILTER_TIMEOUT, max(2.0, remaining_before_filter - 3)),
-                                    )
-                                    # Fallback: if filtering eliminated ALL papers, keep originals
-                                    if filtered_papers:
-                                        selected_keys = {_paper_identity(p) for p in filtered_papers}
-                                        filtered_tail = [
-                                            paper for paper in all_papers
-                                            if _paper_identity(paper) not in selected_keys
-                                        ]
-                                        combined_ranked = (filtered_papers + filtered_tail)[:request.max_results]
-                                        results = _rebuild_results_from_ranked(combined_ranked, _all_source_keys)
-                                        ranked_candidates = combined_ranked
-                                        logger.info(
-                                            "[API] Filtered top-%d candidates and preserved %d fallback papers",
-                                            len(filter_candidates),
-                                            max(0, len(combined_ranked) - len(filtered_papers)),
-                                        )
-                                    else:
-                                        logger.warning(
-                                            "[API] Relevance filter eliminated all %d top candidates — keeping ranked results",
-                                            len(filter_candidates),
-                                        )
-                                else:
-                                    logger.info("[API] No papers to filter")
-                                stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
-                                stage_modes["relevance_filter_mode"] = "enabled_top_n"
-                    except Exception as e:
-                        logger.exception("[API] Relevance filtering failed (using unfiltered results): %s", e)
-                        stage_timings["relevance_filter"] = round(time.time() - filter_start, 3)
-                        stage_modes["relevance_filter_mode"] = "error_fallback_unfiltered"
-                else:
-                    logger.info("[API] Relevance filtering skipped (OpenAI API key not configured)")
-                    stage_modes["relevance_filter_mode"] = "disabled_no_api_key"
-            else:
-                logger.info("[API] LLM relevance filtering skipped (fast mode)")
-                stage_modes["relevance_filter_mode"] = "skipped_fast_mode"
+            # Step 3: publish the fused order onto the papers themselves.
+            #
+            # There used to be a second reranking stage here (RelevanceFilter).
+            # It re-ran the same cross-encoder the ranker had already scored
+            # into RRF, then sorted the top candidates by that score alone —
+            # discarding the fusion — and re-appended everything below its
+            # threshold, so it filtered nothing. Its only real effect is now
+            # expressed as CROSS_ENCODER_RRF_WEIGHT inside the ranker, and the
+            # order is decided in exactly one place.
+            _stamp_global_rank(ranked_candidates, results)
         else:
-            logger.info("[API] No results to rank/filter")
+            logger.info("[API] No results to rank")
             stage_modes["ranking_mode"] = "skipped_no_results"
-            stage_modes["relevance_filter_mode"] = "skipped_no_results"
 
         # Ensure all sources present
         for source in request.sources:
@@ -1991,6 +1945,13 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         "normalized_terms": _recommendation_normalized_terms(request.query),
                         "results_count": total,
                         "ranking_applied": _hybrid_ranker is not None,
+                        # Which ranking variant ordered this impression, so the
+                        # offline click metrics can compare two rankers. Only
+                        # the fresh path records it: a cache hit was ordered by
+                        # whatever weight was live when it was stored, so
+                        # attributing it to the current one would corrupt the
+                        # comparison.
+                        "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}",
                         "source_counts": source_counts,
                         "elapsed_ms": int(stage_timings.get("total", 0) * 1000),
                         "cache_hit": False,
@@ -2075,6 +2036,11 @@ class SearchClickRequest(BaseModel):
 
     query_hash: str
     paper_id: str
+    # 1-based position of the clicked paper in the ranked list the user saw.
+    # Optional so older clients keep working; without it a click records that
+    # *something* was opened but not where it ranked, which is what MRR and
+    # CTR@k need. Bounded to keep a hostile client from writing junk ranks.
+    rank: Optional[int] = Field(default=None, ge=1, le=1000)
 
 
 @router.post("/search/click")
@@ -2092,10 +2058,16 @@ async def track_search_click(
         return {"tracked": False}
     if username:
         try:
+            payload: Dict[str, Any] = {
+                "query_hash": body.query_hash,
+                "paper_id": body.paper_id,
+            }
+            if body.rank is not None:
+                payload["rank"] = body.rank
             emit_or_warn(UserEvent(
                 user_id=username,
                 event_type=EventType.SEARCH_CLICK,
-                payload={"query_hash": body.query_hash, "paper_id": body.paper_id},
+                payload=payload,
                 paper_id=body.paper_id,
             ))
         except Exception:

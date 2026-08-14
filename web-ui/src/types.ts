@@ -10,6 +10,12 @@ export interface Paper {
   doi?: string;
   citations?: number;
   source?: string;
+  /**
+   * Global position assigned by the backend ranker, ascending. The API groups
+   * papers by source, so this is the only place the cross-source ranking
+   * survives — render in this order, not in bucket order.
+   */
+  _rank?: number;
   [key: string]: any;
 }
 

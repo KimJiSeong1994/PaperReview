@@ -137,6 +137,32 @@ SOURCE_BOOST: Dict[str, float] = {
 # ── RRF 상수 ──────────────────────────────────────────────────────
 RRF_K = 60
 
+# Cross-encoder 신호의 RRF 가중치. 나머지 넷(BM25/semantic/citations/recency)은
+# 각각 1.0이고, 0.0은 융합에서 제외한다는 뜻이다.
+#
+# 직전 파이프라인은 랭킹 뒤에 RelevanceFilter 단계를 두어 상위 후보를
+# cross-encoder 점수만으로 재정렬했다 — 사실상 가중치 무한대였다. 그 단계를
+# 제거하면서 처음에는 4.0을 사전값으로 두었으나, 라벨 벤치마크에 실제 랭커를
+# 돌려보니 방향 자체가 틀렸다. semantic을 끄고/켜고 각각 측정했고 둘 다 같은
+# 결론이었다 (nDCG@10):
+#
+#   ce_weight        0.0     0.5     1.0     2.0     4.0
+#   semantic off    0.3655  0.3392  0.3236  0.3317  0.2975
+#   semantic on     0.3304  0.3282  0.2981  0.3004  0.2995
+#
+# 원인은 모델 선택에 있다. ms-marco-MiniLM은 웹 패시지 질의응답용으로
+# 학습돼 "쿼리 문구를 그대로 반복하는 문서"를 선호한다. 학술 검색에서
+# 원하는 것은 그 분야의 정본 논문인데, 예컨대 "transformer attention
+# mechanism" 질의에서 이 모델은 "Attention Is All You Need"를 후보 44개 중
+# 19위에 놓고 쿼리 단어를 재조합한 무명 논문들을 위에 올린다(같은 질의에서
+# citations 신호는 이를 4위에 놓는다). 토픽 유사도는 semantic 임베딩이
+# 이미 맡고 있으므로 이 모델이 채울 자리가 없다.
+#
+# 0.0이면 아래 랭킹 경로가 추론 자체를 건너뛴다. 되돌리려면 이 값만 올리면
+# 되고, 오프라인 스윕은 cross_encoder_weight 인자로 언제든 재측정할 수 있다.
+# 재현: docs/skillopt_search/README.md 의 ranking sweep 참조.
+CROSS_ENCODER_RRF_WEIGHT = 0.0
+
 
 class HybridRanker:
     """BM25 + Dense + Citations + Recency 하이브리드 랭커
@@ -166,6 +192,7 @@ class HybridRanker:
         openai_client=None,
         use_rrf: bool = True,
         research_area: str = "",
+        cross_encoder_weight: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         논문 리스트를 하이브리드 점수로 랭킹.
@@ -193,6 +220,7 @@ class HybridRanker:
                 top_k=top_k,
                 openai_client=openai_client,
                 research_area=research_area,
+                cross_encoder_weight=cross_encoder_weight,
             )
 
         # ── Weighted-sum fallback (기존 동작 유지) ──────────────────
@@ -253,12 +281,14 @@ class HybridRanker:
         top_k: Optional[int] = None,
         openai_client=None,
         research_area: str = "",
+        cross_encoder_weight: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
         RRF (Reciprocal Rank Fusion) 방식으로 논문 랭킹.
 
-        각 신호(BM25, Semantic, Citations, Recency)로 독립 정렬 후
-        RRF 공식 score(d) = Σ 1/(k + rank_i(d)) 로 통합.
+        각 신호(BM25, Semantic, Citations, Recency, Cross-encoder)로 독립 정렬 후
+        가중 RRF 공식 score(d) = Σ w_i/(k + rank_i(d)) 로 통합.
+        cross-encoder만 w=CROSS_ENCODER_RRF_WEIGHT, 나머지는 w=1.0.
         마지막에 SOURCE_BOOST를 가산.
 
         Args:
@@ -267,6 +297,9 @@ class HybridRanker:
             intent: QueryAnalyzer가 판별한 검색 의도 (현재 미사용, 향후 확장)
             top_k: 상위 K개만 반환 (None이면 전부)
             openai_client: OpenAI 클라이언트 (HyDE 활성화용, 선택)
+            cross_encoder_weight: cross-encoder RRF 가중치 override.
+                None이면 CROSS_ENCODER_RRF_WEIGHT. 오프라인 스윕이 전역 상수를
+                변경하지 않고 여러 값을 비교하기 위한 인자다.
 
         Returns:
             RRF 점수 기준으로 정렬된 논문 리스트 (_hybrid_score, _score_breakdown 포함)
@@ -274,6 +307,9 @@ class HybridRanker:
         if not papers:
             return []
 
+        ce_weight = (
+            CROSS_ENCODER_RRF_WEIGHT if cross_encoder_weight is None else float(cross_encoder_weight)
+        )
         n = len(papers)
 
         bm25_scores = self._compute_bm25_scores(query, papers)
@@ -295,8 +331,13 @@ class HybridRanker:
         citation_ranks = _ranks_from_scores(citation_scores)
         recency_ranks = _ranks_from_scores(recency_scores)
 
-        # Cross-encoder (5번째 신호) — 미설치 시 빈 리스트 → RRF에서 제외
-        cross_encoder_scores = self._compute_cross_encoder_scores(query, papers)
+        # Cross-encoder (5번째 신호) — 미설치 시 빈 리스트 → RRF에서 제외.
+        # 가중치가 0이면 융합에 한 톨도 기여하지 않으므로 추론을 아예 돌리지
+        # 않는다. 후보 수십 건에 대한 모델 추론은 검색당 수백 ms짜리 비용이라
+        # "계산해두고 0을 곱하는" 형태로 남겨둘 만한 것이 아니다.
+        cross_encoder_scores = (
+            self._compute_cross_encoder_scores(query, papers) if ce_weight > 0 else []
+        )
         cross_encoder_available = len(cross_encoder_scores) == n
         if cross_encoder_available:
             cross_encoder_ranks = _ranks_from_scores(cross_encoder_scores)
@@ -316,7 +357,7 @@ class HybridRanker:
             rrf_citations = 1.0 / (RRF_K + citation_ranks[i])
             rrf_recency = 1.0 / (RRF_K + recency_ranks[i])
             rrf_cross_encoder = (
-                1.0 / (RRF_K + cross_encoder_ranks[i]) if cross_encoder_available else 0.0
+                ce_weight / (RRF_K + cross_encoder_ranks[i]) if cross_encoder_available else 0.0
             )
 
             rrf_score = rrf_bm25 + rrf_semantic + rrf_citations + rrf_recency + rrf_cross_encoder
@@ -332,6 +373,7 @@ class HybridRanker:
                 "rrf_citations": round(rrf_citations, 6),
                 "rrf_recency": round(rrf_recency, 6),
                 "rrf_cross_encoder": round(rrf_cross_encoder, 6),
+                "cross_encoder_weight": ce_weight if cross_encoder_available else 0.0,
                 "rrf_mode": True,
             }
 
