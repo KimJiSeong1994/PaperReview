@@ -106,13 +106,40 @@ export interface AdminVisitsReport {
   ai: {
     available: boolean;
     reason?: string;
-    bots?: { bot: string; hits: number; ok: number; errors: number }[];
+    bots?: {
+      bot: string;
+      hits: number;
+      ok: number;
+      errors: number;
+      verification_available: boolean;
+      verified_hits: number;
+      unverified_hits: number;
+      content_ok: number;
+      content_errors: number;
+      discovery_errors: number;
+      suspected_scan_hits: number;
+      suspected_scan_errors: number;
+      redirects: number;
+    }[];
+    verified_indexing_hits?: number;
+    verified_content_errors?: number;
+    discovery_errors?: number;
+    suspected_scan_hits?: number;
+    suspected_scan_errors?: number;
+    unverified_hits?: number;
     citation_clicks?: number;
     citation_paths?: { path: string; hits: number }[];
     ai_referral_hits?: number;
     ai_referral_sources?: { source: string; hits: number }[];
     crawled_pages?: { path: string; hits: number }[];
     channels?: { channel: string; hits: number }[];
+    log_window?: {
+      requested_days: number;
+      observed_days: number;
+      first_at: string | null;
+      last_at: string | null;
+    };
+    verification_failures?: string[];
   };
 }
 

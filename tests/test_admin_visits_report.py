@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import gzip
+import ipaddress
 import sqlite3
 from pathlib import Path
 from typing import Iterator
@@ -19,6 +20,7 @@ from fastapi.testclient import TestClient
 from api_server import app
 from routers import admin_analytics
 from routers.deps.auth import get_admin_user
+from src.analytics import crawler_logs
 from src.analytics.crawler_logs import build_crawler_report
 from src.analytics.ga4_bigquery_sync import (
     AnalyticsSyncConfig,
@@ -269,7 +271,7 @@ def test_ga4_state_failed_for_non_dataset_errors(analytics_db: Path) -> None:
 
 
 LOG_TEMPLATE = (
-    '1.2.3.4 - - [{time}] "GET {path} HTTP/1.1" {status} 123 "{referer}" "{ua}"\n'
+    '{ip} - - [{time}] "GET {path} HTTP/1.1" {status} 123 "{referer}" "{ua}"\n'
 )
 
 
@@ -279,6 +281,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     log_dir.mkdir()
     lines = [
         LOG_TEMPLATE.format(
+            ip="1.2.3.4",
             time="13/Jul/2026:10:00:00 +0000",
             path="/blog/post-a",
             status=200,
@@ -286,6 +289,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             ua="Mozilla/5.0 (compatible; GPTBot/1.0)",
         ),
         LOG_TEMPLATE.format(
+            ip="2.2.2.2",
             time="13/Jul/2026:10:01:00 +0000",
             path="/blog/post-a?utm=x",
             status=200,
@@ -293,6 +297,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             ua="ChatGPT-User/1.0",
         ),
         LOG_TEMPLATE.format(
+            ip="3.3.3.3",
             time="13/Jul/2026:10:02:00 +0000",
             path="/blog",
             status=404,
@@ -301,6 +306,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ),
         # human click-through from ChatGPT (AI referral, browser UA)
         LOG_TEMPLATE.format(
+            ip="4.4.4.4",
             time="13/Jul/2026:10:03:00 +0000",
             path="/blog/post-a",
             status=200,
@@ -309,6 +315,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ),
         # external search referral (Google) -> a named channel
         LOG_TEMPLATE.format(
+            ip="5.5.5.5",
             time="13/Jul/2026:10:04:00 +0000",
             path="/blog/post-a",
             status=200,
@@ -317,6 +324,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ),
         # internal navigation -> excluded from channels
         LOG_TEMPLATE.format(
+            ip="6.6.6.6",
             time="13/Jul/2026:10:05:00 +0000",
             path="/blog/post-b",
             status=200,
@@ -325,6 +333,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ),
         # server self-IP hitting itself -> infra noise, excluded from channels
         LOG_TEMPLATE.format(
+            ip="7.7.7.7",
             time="13/Jul/2026:10:06:00 +0000",
             path="/blog/post-c",
             status=200,
@@ -333,6 +342,7 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ),
         # too old — outside every window used in tests
         LOG_TEMPLATE.format(
+            ip="1.2.3.4",
             time="01/Jan/2026:00:00:00 +0000",
             path="/",
             status=200,
@@ -349,7 +359,11 @@ def nginx_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_crawler_report_classifies_bots_and_referrals(nginx_logs: Path) -> None:
-    report = build_crawler_report(days=7, now=NOW)
+    report = build_crawler_report(
+        days=7,
+        now=NOW,
+        verified_networks={"GPTBot": [ipaddress.ip_network("1.2.3.0/24")]},
+    )
     assert report["available"] is True
     bots = {b["bot"]: b for b in report["bots"]}
     assert bots["GPTBot"]["hits"] == 1  # the January hit is outside the window
@@ -363,13 +377,101 @@ def test_crawler_report_classifies_bots_and_referrals(nginx_logs: Path) -> None:
     assert report["crawled_pages"] == [{"path": "/blog/post-a", "hits": 1}]
     # Google referral is a named channel; internal + AI referrers are excluded.
     assert report["channels"] == [{"channel": "Google", "hits": 1}]
+    assert report["verified_indexing_hits"] == 1
+    assert report["verified_content_errors"] == 0
+    assert report["suspected_scan_hits"] == 0
+    assert report["log_window"]["observed_days"] == 1
+
+
+def test_crawler_report_separates_spoofed_scans_from_indexing_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_dir = tmp_path / "nginx"
+    log_dir.mkdir()
+
+    def line(ip: str, path: str, status: int, ua: str, minute: int) -> str:
+        return (
+            f'{ip} - - [13/Jul/2026:10:{minute:02d}:00 +0000] '
+            f'"GET {path} HTTP/1.1" {status} 123 "-" "{ua}"\n'
+        )
+
+    (log_dir / "access.log").write_text(
+        "".join(
+            [
+                # One scanner rotates through three provider identities.  Even
+                # its 200 blog request must not become verified crawl coverage.
+                line("9.9.9.9", "/.env", 404, "GPTBot", 0),
+                line("9.9.9.9", "/fetch", 404, "Googlebot", 1),
+                line("9.9.9.9", "/blog/post-a", 200, "Amazonbot", 2),
+                # Verified crawler failures have different meanings.
+                line("66.249.66.1", "/blog/missing", 404, "Googlebot", 3),
+                line("157.55.39.1", "/sitemap_index.xml", 404, "Bingbot", 4),
+                # User fetches count only successful public documents.
+                line("8.8.8.8", "/blog/post-a", 200, "ChatGPT-User", 5),
+                line("8.8.8.8", "/fetch", 404, "ChatGPT-User", 6),
+            ]
+        )
+    )
+    monkeypatch.setenv("NGINX_ACCESS_LOG_DIR", str(log_dir))
+
+    report = build_crawler_report(
+        days=7,
+        now=NOW,
+        verified_networks={
+            "Googlebot": [ipaddress.ip_network("66.249.64.0/19")],
+            "Bingbot": [ipaddress.ip_network("157.55.39.0/24")],
+            "GPTBot": [ipaddress.ip_network("20.0.0.0/8")],
+            "Amazonbot": [ipaddress.ip_network("18.0.0.0/8")],
+        },
+    )
+
+    bots = {bot["bot"]: bot for bot in report["bots"]}
+    assert report["suspected_scan_hits"] == 4
+    assert report["suspected_scan_errors"] == 3
+    assert report["verified_content_errors"] == 1
+    assert report["discovery_errors"] == 1
+    assert report["verified_indexing_hits"] == 0
+    assert report["citation_clicks"] == 1
+    assert report["citation_paths"] == [{"path": "/blog/post-a", "hits": 1}]
+    assert report["crawled_pages"] == []
+    assert bots["Googlebot"]["content_errors"] == 1
+    assert bots["Bingbot"]["discovery_errors"] == 1
+    assert bots["GPTBot"]["verified_hits"] == 0
+    assert bots["Amazonbot"]["suspected_scan_hits"] == 1
+
+
+def test_crawler_verifiers_are_cached_and_degrade_per_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def fake_fetch(url: str) -> str:
+        calls.append(url)
+        if "bingbot.json" in url:
+            raise OSError("temporary verifier outage")
+        if "amazonbot/searchbot" in url:
+            return '{"ip_prefix": "18.204.69.251/32"}'
+        return '{"prefixes": [{"ipv4Prefix": "20.0.0.0/24"}]}'
+
+    monkeypatch.setattr(crawler_logs, "_verifier_cache", None)
+    monkeypatch.setattr(crawler_logs, "_fetch_text", fake_fetch)
+
+    networks, failures = crawler_logs._load_verified_networks()
+    cached_networks, cached_failures = crawler_logs._load_verified_networks()
+
+    assert "Bingbot" in failures
+    assert "GPTBot" in networks
+    assert "Amazonbot" in networks
+    assert cached_networks is networks
+    assert cached_failures is failures
+    assert len(calls) == len(crawler_logs._JSON_VERIFIERS) + 1
 
 
 def test_crawler_report_degrades_without_log_access(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("NGINX_ACCESS_LOG_DIR", str(tmp_path / "definitely-missing"))
-    report = build_crawler_report(days=7, now=NOW)
+    report = build_crawler_report(days=7, now=NOW, verified_networks={})
     # Missing dir yields no matching files -> empty but available report.
     assert report["available"] is True
     assert report["bots"] == []
@@ -384,6 +486,15 @@ def client(
         admin_analytics,
         "build_visits_report",
         lambda db_path, days: build_visits_report(db_path, days=days, now=NOW),
+    )
+    monkeypatch.setattr(
+        admin_analytics,
+        "build_crawler_report",
+        lambda days: build_crawler_report(
+            days=days,
+            now=NOW,
+            verified_networks={"GPTBot": [ipaddress.ip_network("1.2.3.0/24")]},
+        ),
     )
     app.dependency_overrides[get_admin_user] = lambda: "test-admin"
     try:

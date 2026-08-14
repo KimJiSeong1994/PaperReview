@@ -317,6 +317,14 @@ function AdminVisitsReport() {
   const { totals, daily } = report.traffic;
   const { timing } = report;
   const ai = report.ai;
+  const botRows = ai.bots ?? [];
+  const legacyBotHits = botRows.reduce((sum, bot) => sum + bot.hits, 0);
+  const verifiedIndexingHits = ai.verified_indexing_hits ?? legacyBotHits;
+  const verifiedContentErrors =
+    ai.verified_content_errors ?? botRows.reduce((sum, bot) => sum + bot.errors, 0);
+  const suspectedScanHits = ai.suspected_scan_hits ?? 0;
+  const observedLogDays = ai.log_window?.observed_days ?? days;
+  const crawlerWindowLimited = observedLogDays > 0 && observedLogDays < days;
   const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
   // Guard against an older backend during rollout that predates these keys.
   const funnels = report.funnels ?? [];
@@ -691,7 +699,7 @@ function AdminVisitsReport() {
       <Section
         title="AI 크롤러·인용 유입"
         tip="이 섹션만 nginx 접근 로그에서 집계하며 사람 방문 지표와 겹치지 않습니다."
-        note="색인 크롤 → 답변용 fetch → 클릭 유입 3단계로 봅니다."
+        note="검증된 색인 크롤 → 성공한 답변용 fetch → 클릭 유입 3단계로 봅니다."
       >
         {!ai.available ? (
           <EmptyState>
@@ -702,57 +710,101 @@ function AdminVisitsReport() {
           <>
             <div className="admin-stats-grid">
               <StatTile
-                label="AI 봇 히트"
-                value={fmt((ai.bots ?? []).reduce((sum, b) => sum + b.hits, 0))}
-                hint="색인 크롤러 요청(사람 방문 아님)"
+                label="검증된 색인 크롤"
+                value={fmt(verifiedIndexingHits)}
+                hint="공식 IP에서 공개 색인 문서를 정상 수신한 요청"
               />
               <StatTile
-                label="AI 인용 fetch"
+                label="AI 답변 fetch (추정)"
                 value={fmt(ai.citation_clicks ?? 0)}
-                hint="답변 위해 페이지를 가져간 횟수"
+                hint="성공한 공개 콘텐츠 fetch만 포함"
               />
               <StatTile
                 label="AI 클릭 유입"
                 value={fmt(ai.ai_referral_hits ?? 0)}
                 hint="AI 답변 링크로 실제 방문"
               />
+              <StatTile
+                label="스캔 의심 요청"
+                value={fmt(suspectedScanHits)}
+                hint="민감 경로 탐색 또는 여러 봇 이름을 바꿔 쓴 요청"
+              />
             </div>
+            {(crawlerWindowLimited || (ai.verification_failures?.length ?? 0) > 0) && (
+              <p className="visits-ai-quality-note" role="status">
+                {crawlerWindowLimited && (
+                  <span>선택한 {days}일 중 nginx 로그 {observedLogDays}일분을 확인했습니다.</span>
+                )}
+                {(ai.verification_failures?.length ?? 0) > 0 && (
+                  <span>
+                    공식 IP 확인 불가: {(ai.verification_failures ?? []).join(', ')}. 해당 요청은
+                    미검증으로 유지됩니다.
+                  </span>
+                )}
+              </p>
+            )}
             <div className="visits-chart-pair">
               <Card>
                 <p className="visits-subhead">
-                  색인 크롤러
+                  크롤러 신뢰도
                   <InfoTip label="색인 크롤러 설명">
-                    오류(빨간 숫자)가 많으면 크롤러가 해당 콘텐츠를 못 읽고 있다는 신호입니다.
+                    콘텐츠 오류는 공식 IP로 검증된 봇이 실제 색인 문서를 읽지 못한 경우만
+                    계산합니다. 대체 사이트맵·이전 정적 파일은 탐색성 404, 민감 경로와 다중 UA는
+                    스캔 의심으로 분리합니다.
                   </InfoTip>
                 </p>
-                <table className="visits-table">
-                  <thead>
-                    <tr>
-                      <th>봇</th>
-                      <th className="visits-num-th">히트</th>
-                      <th className="visits-num-th">정상</th>
-                      <th className="visits-num-th">오류</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(ai.bots ?? []).map((b) => (
-                      <tr key={b.bot}>
-                        <td>{b.bot}</td>
-                        <td className="visits-num">{fmt(b.hits)}</td>
-                        <td className="visits-num">{fmt(b.ok)}</td>
-                        <td className="visits-num">
-                          {b.errors > 0 ? <span className="visits-flag">{fmt(b.errors)}</span> : 0}
-                        </td>
+                <div className="visits-table-scroll">
+                  <table className="visits-table visits-crawler-table">
+                    <thead>
+                      <tr>
+                        <th>봇</th>
+                        <th className="visits-num-th">전체</th>
+                        <th className="visits-num-th">공식 검증</th>
+                        <th className="visits-num-th">콘텐츠 정상</th>
+                        <th className="visits-num-th">콘텐츠 오류</th>
+                        <th className="visits-num-th">탐색·스캔</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {botRows.map((b) => (
+                        <tr key={b.bot}>
+                          <td>{b.bot}</td>
+                          <td className="visits-num">{fmt(b.hits)}</td>
+                          <td className="visits-num">
+                            {b.verification_available ? (
+                              fmt(b.verified_hits)
+                            ) : (
+                              <span className="visits-muted-badge">미지원</span>
+                            )}
+                          </td>
+                          <td className="visits-num">{fmt(b.content_ok ?? 0)}</td>
+                          <td className="visits-num">
+                            {(b.content_errors ?? 0) > 0 ? (
+                              <span className="visits-flag">{fmt(b.content_errors)}</span>
+                            ) : (
+                              0
+                            )}
+                          </td>
+                          <td className="visits-num">
+                            <span className="visits-neutral-badge">
+                              {fmt((b.discovery_errors ?? 0) + (b.suspected_scan_hits ?? 0))}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="visits-note">
+                  실제 색인 오류 {fmt(verifiedContentErrors)}건 · 탐색성 404{' '}
+                  {fmt(ai.discovery_errors ?? 0)}건 · 미검증 요청 {fmt(ai.unverified_hits ?? 0)}건
+                </p>
               </Card>
               <div className="visits-card-stack">
                 {(ai.crawled_pages?.length ?? 0) > 0 && (
                   <Card>
                     <details className="visits-drill">
-                      <summary className="visits-subhead">AI가 크롤한 페이지 (색인 커버리지)</summary>
+                      <summary className="visits-subhead">검증된 봇이 읽은 페이지 (색인 커버리지)</summary>
                       <table className="visits-table">
                         <thead>
                           <tr>
@@ -775,7 +827,7 @@ function AdminVisitsReport() {
                 {(ai.citation_paths?.length ?? 0) > 0 && (
                   <Card>
                     <details className="visits-drill">
-                      <summary className="visits-subhead">AI 답변에서 클릭된 페이지 (GEO 성과)</summary>
+                      <summary className="visits-subhead">AI 답변이 가져간 페이지 (추정 fetch)</summary>
                       <table className="visits-table">
                         <thead>
                           <tr>
