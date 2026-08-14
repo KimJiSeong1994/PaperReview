@@ -6,7 +6,6 @@ Deep review endpoints:
   POST /api/deep-review/visualize/{session_id}
 """
 
-import asyncio
 import hashlib
 import json
 import logging
