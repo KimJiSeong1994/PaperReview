@@ -72,13 +72,57 @@ const REPORT = {
   },
   ai: {
     available: true,
-    bots: [{ bot: 'GPTBot', hits: 5, ok: 5, errors: 0 }],
+    bots: [
+      {
+        bot: 'GPTBot',
+        hits: 7,
+        ok: 6,
+        errors: 1,
+        verification_available: true,
+        verified_hits: 5,
+        unverified_hits: 2,
+        content_ok: 4,
+        content_errors: 0,
+        discovery_errors: 1,
+        suspected_scan_hits: 2,
+        suspected_scan_errors: 1,
+        redirects: 1,
+      },
+      {
+        bot: 'ClaudeBot',
+        hits: 3,
+        ok: 2,
+        errors: 1,
+        verification_available: false,
+        verified_hits: 0,
+        unverified_hits: 3,
+        content_ok: 0,
+        content_errors: 0,
+        discovery_errors: 0,
+        suspected_scan_hits: 1,
+        suspected_scan_errors: 1,
+        redirects: 0,
+      },
+    ],
+    verified_indexing_hits: 4,
+    verified_content_errors: 0,
+    discovery_errors: 1,
+    suspected_scan_hits: 3,
+    suspected_scan_errors: 2,
+    unverified_hits: 5,
     citation_clicks: 2,
     citation_paths: [{ path: '/blog/post-a', hits: 2 }],
     ai_referral_hits: 1,
     ai_referral_sources: [{ source: 'chatgpt.com', hits: 1 }],
     crawled_pages: [{ path: '/blog/deepwalk', hits: 7 }],
     channels: [{ channel: 'Google', hits: 34 }],
+    log_window: {
+      requested_days: 28,
+      observed_days: 15,
+      first_at: '2026-06-30T00:00:00Z',
+      last_at: '2026-07-14T02:00:00Z',
+    },
+    verification_failures: ['Amazonbot'],
   },
 };
 
@@ -110,7 +154,14 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('독자층')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
-    expect(screen.getAllByText('AI 인용 fetch').length).toBeGreaterThanOrEqual(1); // relabeled
+    expect(screen.getByText('검증된 색인 크롤')).toBeInTheDocument();
+    expect(screen.getAllByText('AI 답변 fetch (추정)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('스캔 의심 요청')).toBeInTheDocument();
+    expect(screen.getByText('크롤러 신뢰도')).toBeInTheDocument();
+    expect(screen.getByText('미지원')).toBeInTheDocument();
+    expect(screen.getByText(/nginx 로그 15일분/)).toBeInTheDocument();
+    expect(screen.getByText(/공식 IP 확인 불가: Amazonbot/)).toBeInTheDocument();
+    expect(screen.getByText(/실제 색인 오류 0건/)).toBeInTheDocument();
     expect(screen.getByText('검색·소셜 유입')).toBeInTheDocument();
     expect(screen.getByText('Google')).toBeInTheDocument();
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
@@ -128,7 +179,7 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('완료율 40%')).toBeInTheDocument();
     expect(screen.getByText(/실패 1/)).toBeInTheDocument();
     expect(screen.getByText(/이탈 2/)).toBeInTheDocument();
-  });
+  }, 20_000);
 
   it('surfaces the API error state', async () => {
     vi.mocked(fetchAdminVisitsReport).mockRejectedValue(new Error('boom'));

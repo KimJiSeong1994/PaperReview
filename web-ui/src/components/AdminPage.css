@@ -1843,6 +1843,47 @@
   background: color-mix(in srgb, var(--danger-strong) 14%, transparent);
 }
 
+.visits-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.visits-crawler-table {
+  min-width: 690px;
+}
+
+.visits-muted-badge,
+.visits-neutral-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.visits-muted-badge {
+  color: #777382;
+  background: #f0eff3;
+}
+
+.visits-neutral-badge {
+  color: #665b39;
+  background: #f6f0df;
+}
+
+.visits-ai-quality-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 12px 2px 0;
+  color: #706d7d;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
 .visits-note {
   margin: 10px 0 0;
   font-size: 12px;
