@@ -11,7 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api_server import app
-from routers.seo import _blog_posting_graph, _blog_seo_meta, _normalize_latex_delimiters
+from routers.seo import (
+    _blog_posting_graph,
+    _blog_seo_meta,
+    _normalize_blog_markdown,
+    _normalize_latex_delimiters,
+)
 
 PUBLISHED_SLUG = "hello-world-abc12345"
 UNPUBLISHED_SLUG = "draft-post-def67890"
@@ -416,6 +421,19 @@ def test_latex_note_delimiters_are_normalized_before_markdown() -> None:
     assert "$$\\mathcal{L}=x$$" in normalized
     assert "\\(" not in normalized
     assert "\\[" not in normalized
+
+
+def test_indented_display_math_fences_are_aligned_at_column_zero() -> None:
+    r"""PaperWiki list indentation must not shift only one display-math fence."""
+    text = "- formula:\n  \\[\n  \\mathcal{U}(s)=x\n  \\]\n  explanation\n\n\\[y=z\\]"
+
+    normalized = _normalize_blog_markdown(text)
+
+    assert "\n  $$" not in normalized
+    assert normalized.count("\n$$\n") == 3
+    assert "$$\n\\mathcal{U}(s)=x\n$$" in normalized
+    assert "$$\ny=z\n$$" in normalized
+    assert "explanation" in normalized
 
 
 def test_ssr_post_keeps_latex_backslashes_after_normalization(client: TestClient) -> None:

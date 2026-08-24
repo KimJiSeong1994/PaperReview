@@ -99,8 +99,15 @@ function repairCorruptedLatexEscapes(content: string): string {
 }
 
 function normalizeDisplayMathFences(content: string): string {
-  // remark-math parses display math most reliably when $$ fences are on their own lines.
-  return content.replace(/\$\$([\s\S]*?)\$\$/g, (_match, expr: string) => `$$\n${expr.trim()}\n$$`);
+  // remark-math parses display math most reliably when both $$ fences start at
+  // column zero. PaperWiki often indents \[...\] inside list items; after the
+  // delimiter conversion that used to leave only the opening $$ indented, so
+  // remark-math paired the closing fence with a later equation and swallowed
+  // whole sections of the post as one KaTeX error.
+  return content.replace(
+    /^[ \t]*\$\$([\s\S]*?)\$\$[ \t]*$/gm,
+    (_match, expr: string) => `$$\n${expr.trim()}\n$$`,
+  );
 }
 
 function normalizeLatexDelimiters(content: string): string {
