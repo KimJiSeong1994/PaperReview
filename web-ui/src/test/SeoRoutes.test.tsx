@@ -126,6 +126,37 @@ describe('SEO-sensitive routes', () => {
     expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
   });
 
+  it('keeps indented display math from swallowing later blog content', async () => {
+    vi.mocked(fetchBlogPost).mockResolvedValue({
+      data: {
+        ...blogPost,
+        content: String.raw`- formula:
+  \[
+  \mathcal{U}(s)=x
+  \]
+  explanation
+
+- $\mathcal{P}:2^V\to V$
+
+![scheduler figure](/api/blog/figures/scheduler.png)
+
+Content after the formula.`,
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchBlogPost>>);
+
+    const { container } = renderWithAuth(
+      '/blog/direct-slug',
+      <Routes>
+        <Route path="/blog/:slug" element={<BlogPage isAdmin={false} slug="direct-slug" />} />
+      </Routes>,
+    );
+
+    expect(await screen.findByText('Content after the formula.')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'scheduler figure' })).toBeInTheDocument();
+    expect(container.querySelector('.katex-error')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('hides urban spatial sociology from the blog sidebar only', async () => {
     vi.mocked(fetchBlogPosts).mockResolvedValue({
       data: {

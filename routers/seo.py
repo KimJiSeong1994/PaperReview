@@ -278,11 +278,15 @@ def _normalize_display_math_fences(content: str) -> str:
 
     remark-math/KaTeX and other markdown math parsers are more reliable when
     ``$$`` opens/closes a flow block instead of sharing a line with content.
+    Strip list indentation from both fences as one unit: retaining indentation
+    on only the opening fence makes markdown-math pair its closing fence with a
+    later equation and can consume the intervening article as invalid math.
     """
     return re.sub(
-        r"\$\$([\s\S]*?)\$\$",
+        r"^[ \t]*\$\$([\s\S]*?)\$\$[ \t]*$",
         lambda m: f"$$\n{m.group(1).strip()}\n$$",
         content,
+        flags=re.MULTILINE,
     )
 
 
