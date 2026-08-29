@@ -7,7 +7,9 @@ export const fetchBlogPosts = (
   category?: BlogCategory,
   page?: number,
   limit?: number,
-) => api.get('/api/blog/posts', { params: { tag, category, page, limit } });
+  /** Full-text query: tokens are ANDed over title/tags/excerpt/body server-side. */
+  q?: string,
+) => api.get('/api/blog/posts', { params: { tag, category, page, limit, q } });
 
 export const fetchBlogPost = (slug: string) =>
   api.get(`/api/blog/posts/${slug}`);
