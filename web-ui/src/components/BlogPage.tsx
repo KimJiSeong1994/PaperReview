@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -39,6 +39,8 @@ interface BlogPost {
   tags: string[];
   category?: string;
   thumbnail_url?: string;
+  /** Body excerpt around the match — set by the API only for `?q=` body hits. */
+  snippet?: string | null;
   reading_time_min: number;
   created_at: string;
   updated_at: string;
@@ -119,6 +121,23 @@ function normalizeLatexDelimiters(content: string): string {
 
 function normalizeBlogMarkdown(content: string): string {
   return normalizeDisplayMathFences(normalizeLatexDelimiters(stripLeadingH1(repairCorruptedLatexEscapes(content))));
+}
+
+// Mirrors routers/blog.py::list_posts — whitespace split, capped at
+// _MAX_SEARCH_TOKENS — so what we highlight is exactly what the server matched.
+const MAX_SEARCH_TOKENS = 8;
+const REGEX_SPECIAL_RE = /[.*+?^${}()|[\]\\]/g;
+
+function searchTokensOf(query: string): string[] {
+  return query.split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_TOKENS);
+}
+
+/** Wrap every token occurrence in <mark>, as nodes (never dangerouslySetInnerHTML). */
+function highlight(text: string, tokens: string[]): React.ReactNode {
+  if (!tokens.length || !text) return text;
+  const pattern = new RegExp(`(${tokens.map((t) => t.replace(REGEX_SPECIAL_RE, '\\$&')).join('|')})`, 'gi');
+  // split() with a capturing group interleaves the matches at the odd indices.
+  return text.split(pattern).map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
 }
 
 function categoryHref(key: CategoryFilter): string {
@@ -264,6 +283,7 @@ const EMPTY_FORM: EditorForm = {
 
 function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -279,6 +299,24 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [form, setForm] = useState<EditorForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Search lives entirely in an overlay: `searchInput` is what the user typed,
+  // `query` is the debounced value that is actually fetched and mirrored to ?q=.
+  // Landing on /blog?q=foo opens the overlay pre-filled so a shared search link
+  // still works — a reach we keep over toss, which has no searchable URL.
+  const initialQuery = searchParams.get('q') ?? '';
+  const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery) && !slug);
+  const [searchInput, setSearchInput] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery.trim());
+  const [searchResults, setSearchResults] = useState<BlogPost[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  // Focus returns here when the overlay closes.
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  // Kept separate from `error`: sharing one slot let a failed search leave a
+  // permanent banner after clearing, and let a load-all failure make a
+  // successful empty search read as "검색을 완료하지 못했습니다".
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchTokens = useMemo(() => searchTokensOf(query), [query]);
 
   // ── Data fetching ──────────────────────────────────────────────────
 
@@ -298,6 +336,78 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       setLoading(false);
     }
   }, []);
+
+  // Debounce typing, then publish the query and mirror it to ?q=. Replace rather
+  // than push so the back button doesn't step through every keystroke.
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (next === query) return;
+    const timer = setTimeout(() => {
+      setQuery(next);
+      setSearchParams(next ? { q: next } : {}, { replace: true });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, query, setSearchParams]);
+
+  // Closing drops the query synchronously rather than letting the debounce do
+  // it, so ?q= and the results clear the instant the overlay goes away.
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchInput('');
+    setQuery('');
+    setSearchParams({}, { replace: true });
+    searchTriggerRef.current?.focus();
+  }, [setSearchParams]);
+
+  // Escape-to-close and body scroll lock, both only while the overlay is up.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeSearch();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [searchOpen, closeSearch]);
+
+  // Body matches can't be done client-side (the list response carries no
+  // content), so an active query is always a server round-trip.
+  useEffect(() => {
+    if (slug) return;
+    if (!query) {
+      setSearchResults(null);
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
+    // `cancelled` also drops a stale response that resolves after a newer one.
+    let cancelled = false;
+    setSearching(true);
+    fetchBlogPosts(undefined, undefined, 1, 20, query)
+      .then((response) => {
+        if (cancelled) return;
+        setSearchResults((response.data?.posts ?? response.data) as BlogPost[]);
+        setSearchError(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // A failed request must not masquerade as "no results" — an over-long
+        // query (422) or a network error would otherwise tell the user their
+        // search simply matched nothing.
+        setSearchResults([]);
+        setSearchError('검색에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, slug]);
 
   // ── Category filtering (client-side) ───────────────────────────────
 
@@ -503,6 +613,22 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           <span className="blog-brand-name">Jiphyeonjeon</span>
         </div>
         <div className="blog-header-actions">
+          {/* List view only: from a post, `openPost` deliberately skips the
+              navigate() when a slug route is already mounted, so a result click
+              there would swap the body without moving the URL. */}
+          {view === 'list' && (
+            <button
+              ref={searchTriggerRef}
+              className="blog-nav-btn blog-search-trigger"
+              aria-label="블로그 글 검색"
+              onClick={() => setSearchOpen(true)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          )}
           <button className="blog-nav-btn blog-nav-btn-active">Blog</button>
           <button className="blog-nav-btn" onClick={() => navigate('/')}>Search</button>
           <button className="blog-nav-btn" onClick={() => navigate('/mypage')}>My Page</button>
@@ -511,6 +637,114 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       </div>
     </div>
   );
+
+  // ── Search overlay ─────────────────────────────────────────────────
+
+  const searchResultRow = (post: BlogPost) => (
+    <a
+      key={post.id}
+      className="blog-search-result"
+      href={`/blog/${post.slug}`}
+      onClick={(e) => {
+        e.preventDefault();
+        closeSearch();
+        void openPost(post);
+      }}
+    >
+      <span className="blog-search-result-title">{highlight(post.title, searchTokens)}</span>
+      <span className="blog-search-result-snippet">
+        {highlight(post.snippet ?? post.excerpt, searchTokens)}
+      </span>
+    </a>
+  );
+
+  const renderSearchOverlay = () => {
+    const results = searchResults ?? [];
+    // The render that publishes a new `query` runs before the effect that sets
+    // `searching`, so without waiting for a landed response the empty state
+    // flashes for one frame — and the aria-live count announces a stale 0.
+    const settled = searchResults !== null && !searching;
+    return (
+      // Deliberately rendered inside .blog-container: every --wov-*/--indigo*
+      // token is scoped to that element (and its light-mode override), so a
+      // portal to <body> would strip the palette. position:fixed still escapes.
+      // No click-to-close on the backdrop: the overlay is an opaque full-screen
+      // takeover, so every stray click lands on it. That handler is why a shared
+      // /blog?q=… link looked like it never opened — one click closed it and
+      // wiped ?q= from the URL. Escape and the × button are the ways out.
+      <div className="blog-search-overlay">
+        <div className="blog-search-panel" role="dialog" aria-modal="true" aria-label="글 검색 창">
+          <div className="blog-search-topbar">
+            <span className="blog-search-brand">
+              <picture>
+                <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
+                <img
+                  src="/Jiphyeonjeon_llama.png"
+                  alt="Jiphyeonjeon"
+                  className="blog-search-logo"
+                  width={22}
+                  height={22}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              </picture>
+              Jiphyeonjeon
+            </span>
+            <button type="button" className="blog-search-close" aria-label="검색 닫기" onClick={closeSearch}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <input
+            className="blog-search-input"
+            type="search"
+            autoFocus
+            value={searchInput}
+            placeholder="주제, 시리즈 검색"
+            aria-label="검색어"
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+
+          {/* toss shows no result count; screen readers still need one. */}
+          <div className="blog-sr-only" role="status" aria-live="polite">
+            {query && settled && !searchError ? `검색 결과 ${results.length}개` : ''}
+          </div>
+
+          <div className="blog-search-results" aria-busy={searching}>
+            {searchError ? (
+              // A failed request must never read as "nothing matched".
+              <div className="blog-search-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <div className="blog-search-empty-title">검색을 완료하지 못했습니다</div>
+                <div className="blog-search-empty-sub">검색어를 줄이거나 잠시 후 다시 시도해보세요.</div>
+              </div>
+            ) : !query ? (
+              <>
+                {/* Unlabelled rows in the visual design; named for screen readers. */}
+                <div className="blog-sr-only">최근 글</div>
+                {posts.slice(0, 3).map(searchResultRow)}
+              </>
+            ) : settled && results.length === 0 ? (
+              <div className="blog-search-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <div className="blog-search-empty-title">검색 결과가 없어요</div>
+              </div>
+            ) : (
+              results.map(searchResultRow)
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ── Category sidebar (list view) ────────────────────────────────────
 
@@ -1049,7 +1283,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         title={seoTitle}
         description={seoDescription}
         canonical={seoCanonical}
-        robots={hasSlugError ? 'noindex,nofollow' : undefined}
+        robots={hasSlugError || (categoryView && query) ? 'noindex,nofollow' : undefined}
         type={seoPost ? 'article' : 'website'}
         image={seoPost ? seoPost.thumbnail_url || OG_DEFAULT_IMAGE : undefined}
         publishedTime={seoPost ? seoPost.created_at : undefined}
@@ -1058,6 +1292,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         jsonLd={seoPost ? blogPostingGraph(seoPost) : blogIndexGraph(posts)}
       />
       {renderHeader()}
+      {searchOpen && renderSearchOverlay()}
       <div className={`blog-content${view === 'list' ? ' blog-content--list' : ''}`}>
         {view === 'list' && renderList()}
         {view === 'detail' && renderDetail()}

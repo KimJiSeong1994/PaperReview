@@ -1,6 +1,6 @@
 """
 Blog endpoints:
-  GET    /api/blog/posts          — List published posts (public, paginated)
+  GET    /api/blog/posts          — List published posts (public, paginated, ?q= search)
   GET    /api/blog/posts/{slug}   — Get single post by slug (public)
   POST   /api/blog/posts          — Create post (admin only)
   PUT    /api/blog/posts/{id}     — Update post (admin only)
@@ -196,6 +196,97 @@ def _estimate_reading_time(content: str) -> int:
     return minutes
 
 
+# Search is a linear scan over every post: ``str.find`` first, then a
+# left-boundary regex only where the substring already hit (ASCII tokens only).
+# The prefilter matters — a bare lookbehind regex defeats CPython's literal
+# fast path and costs 3-5x more on the body scan. Over 66 posts / 1.3M chars
+# matching costs ~4ms for a rare token and ~16ms for one in nearly every post;
+# end-to-end is 13-33ms including the 2.1MB posts.json load.
+# ponytail: linear scan, add an index if the corpus outgrows ~10MB.
+_MAX_SEARCH_TOKENS = 8
+_SNIPPET_WIDTH = 160
+
+
+def _snippet_around(content: str, match_pos: int) -> str:
+    """Return ~160 chars of body text centred on the first match.
+
+    Whitespace and newlines are collapsed so markdown blocks read as one line;
+    no markdown parsing beyond that, since the frontend renders it as plain text.
+    """
+    start = max(0, match_pos - _SNIPPET_WIDTH // 2)
+    end = min(len(content), start + _SNIPPET_WIDTH)
+    body = " ".join(content[start:end].split())
+    return f"{'…' if start > 0 else ''}{body}{'…' if end < len(content) else ''}"
+
+
+def _compile_tokens(tokens: list[str]) -> list[tuple[str, Optional[re.Pattern]]]:
+    """Pair each token with its matcher, once per request rather than per post.
+
+    ASCII tokens need a left word boundary, or "gat" matches "aggregation" and
+    "ai" matches "training" — on an AI-research blog those are the first
+    queries typed. It is a left boundary and not ``\b`` on both sides so
+    prefix search still works: "embed" must find "embedding".
+    Korean tokens stay plain substrings: Hangul are word characters, so a
+    boundary assertion would stop "검색" matching "검색을" or "논문검색", and
+    that agglutinative matching is the whole reason body search works here.
+    """
+    return [
+        (token, re.compile(r"(?<![A-Za-z0-9])" + re.escape(token)) if token.isascii() else None)
+        for token in tokens
+    ]
+
+
+def _find(token: str, pattern: Optional[re.Pattern], haystack: str) -> int:
+    """Index of the first boundary-respecting hit, or ``-1``.
+
+    ``str.find`` runs first as a prefilter: the plain substring is a strict
+    superset of the boundary match, so a miss here is a miss for the regex too,
+    and it is several times cheaper. Korean tokens carry no pattern — for them
+    the substring test is already the answer.
+    """
+    pos = haystack.find(token)
+    if pos < 0 or pattern is None:
+        return pos
+    # The substring hit may be mid-word, so take the position from the regex.
+    hit = pattern.search(haystack)
+    return hit.start() if hit is not None else -1
+
+
+def _match_post(
+    post: dict, patterns: list[tuple[str, Optional[re.Pattern]]]
+) -> Optional[tuple[int, Optional[str]]]:
+    """Return ``(score, snippet)`` when every token matches, else ``None``.
+
+    Tokens are ANDed, each matching anywhere in title/tags/excerpt/content.
+    A token scores by the strongest field it hits (title 3 / tag 2 / excerpt 1
+    / body 0) so a title match outranks a body-only match. The snippet is built
+    only for body matches — otherwise the stored excerpt already shows why the
+    post matched.
+    """
+    title = (post.get("title") or "").lower()
+    tags = " ".join(post.get("tags") or []).lower()
+    excerpt = (post.get("excerpt") or "").lower()
+    content = (post.get("content") or "").lower()
+
+    score = 0
+    body_pos = -1
+    for token, pattern in patterns:
+        if _find(token, pattern, title) >= 0:
+            score += 3
+        elif _find(token, pattern, tags) >= 0:
+            score += 2
+        elif _find(token, pattern, excerpt) >= 0:
+            score += 1
+        elif (pos := _find(token, pattern, content)) >= 0:
+            if body_pos < 0:
+                body_pos = pos
+        else:
+            return None
+
+    snippet = _snippet_around(post.get("content") or "", body_pos) if body_pos >= 0 else None
+    return score, snippet
+
+
 # ── Pydantic models ──────────────────────────────────────────────────
 
 
@@ -246,6 +337,8 @@ class PostSummary(BaseModel):
     updated_at: Optional[str]
     published: bool
     reading_time_min: int
+    # Body excerpt around a search hit; None unless ?q= matched the body.
+    snippet: Optional[str] = None
 
 
 class PostDetail(PostSummary):
@@ -340,6 +433,9 @@ async def list_posts(
     category: Optional[str] = Query(
         None, max_length=32, description="Filter by category: 'paper-review' or 'engineering'"
     ),
+    q: Optional[str] = Query(
+        None, max_length=100, description="Full-text search over title, tags, excerpt and body"
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Posts per page"),
     current_user: Optional[str] = Depends(get_optional_user),
@@ -348,6 +444,8 @@ async def list_posts(
 
     Public users see only published posts.
     Admin users see all posts (published and drafts).
+    With ``q``, results are restricted to posts matching every token and sorted
+    by match relevance first, falling back to the same recency order for ties.
     """
     with _posts_lock:
         all_posts = _load_posts()
@@ -364,7 +462,29 @@ async def list_posts(
     if category:
         posts = [p for p in posts if p.get("category", DEFAULT_CATEGORY) == category]
 
+    # Full-text search: filter after the cheap metadata filters, before sorting.
+    tokens = (q or "").lower().split()[:_MAX_SEARCH_TOKENS]
+    scores: dict[str, int] = {}
+    snippets: dict[str, str] = {}
+    if tokens:
+        patterns = _compile_tokens(tokens)
+        matched = []
+        for p in posts:
+            hit = _match_post(p, patterns)
+            if hit is None:
+                continue
+            score, snippet = hit
+            matched.append(p)
+            scores[p.get("id")] = score
+            if snippet:
+                snippets[p.get("id")] = snippet
+        posts = matched
+
     posts = _sort_posts_by_publication(posts)
+    if tokens:
+        # Stable sort keeps the recency order above as the tie-break for
+        # equally-scored posts, so date parsing is not reimplemented here.
+        posts.sort(key=lambda p: scores.get(p.get("id"), 0), reverse=True)
 
     # Pagination
     total = len(posts)
@@ -378,6 +498,7 @@ async def list_posts(
     for p in page_posts:
         summary = {k: v for k, v in p.items() if k not in ("content", "thumbnail_url")}
         summary["has_thumbnail"] = bool(p.get("thumbnail_url"))
+        summary["snippet"] = snippets.get(p.get("id"))
         summaries.append(summary)
 
     return PostListResponse(
