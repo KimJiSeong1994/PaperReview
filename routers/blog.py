@@ -647,6 +647,28 @@ async def delete_post(
     return {"success": True, "deleted": post_id}
 
 
+def _merged_tag_counts(posts: list[dict]) -> list[tuple[str, int]]:
+    """Return ``(tag, count)`` for published posts, merged across casing.
+
+    Tags differing only by case collapse into one entry (counts summed,
+    displayed with the casing used most often). Takes ``posts`` rather than
+    loading them so the SEO tag hub — which patches its own ``_load_posts``
+    in tests — can share it without a second loader.
+    """
+    # Group by lowercase tag, tracking how often each original casing appears.
+    variants: dict[str, Counter[str]] = {}
+    for post in posts:
+        if not post.get("published"):
+            continue
+        for tag in post.get("tags", []):
+            variants.setdefault(tag.lower(), Counter())[tag] += 1
+    return [
+        # Most-used casing wins; ties broken by the lexicographically first.
+        (min(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0], sum(counts.values()))
+        for counts in variants.values()
+    ]
+
+
 @router.get("/tags", response_model=TagListResponse)
 async def list_tags(
     page: int = Query(1, ge=1, description="Page number"),
@@ -665,19 +687,7 @@ async def list_tags(
     with _posts_lock:
         all_posts = _load_posts()
 
-    # Group by lowercase tag, tracking how often each original casing appears.
-    variants: dict[str, Counter[str]] = {}
-    for post in all_posts:
-        if not post.get("published"):
-            continue
-        for tag in post.get("tags", []):
-            variants.setdefault(tag.lower(), Counter())[tag] += 1
-
-    merged = [
-        # Most-used casing wins; ties broken by the lexicographically first.
-        (min(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0], sum(counts.values()))
-        for counts in variants.values()
-    ]
+    merged = _merged_tag_counts(all_posts)
 
     if sort == "count":
         merged.sort(key=lambda tc: (-tc[1], tc[0].casefold()))
