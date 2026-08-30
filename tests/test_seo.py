@@ -751,3 +751,32 @@ def test_unknown_slug_still_returns_404(client: TestClient) -> None:
     resp = client.get("/blog/totally-unknown-slug-00000")
     assert resp.status_code == 404
     assert "noindex" in resp.text
+
+def test_tags_hub_is_ssr_200_and_indexable(client: TestClient) -> None:
+    """/blog/tags must not fall through to the /blog/{slug} handler (prod 404)."""
+    resp = client.get("/blog/tags")
+    assert resp.status_code == 200
+    html = resp.text
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/tags">' in html
+    assert "noindex" not in html
+    # Published tags are linked to the filtered list; unpublished ones are not.
+    assert 'href="/blog?tag=rag"' in html
+    assert 'href="/blog?tag=리뷰"' in html
+    assert "draft" not in html
+
+
+def test_tags_hub_merges_case_variants(monkeypatch) -> None:
+    posts = [
+        {"slug": "a", "title": "A", "excerpt": "", "content": "", "tags": ["GraphRAG"],
+         "published": True, "created_at": "2026-01-01T00:00:00+00:00"},
+        {"slug": "b", "title": "B", "excerpt": "", "content": "", "tags": ["graphrag"],
+         "published": True, "created_at": "2026-01-02T00:00:00+00:00"},
+    ]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    html = TestClient(app).get("/blog/tags").text
+    assert html.count("?tag=") == 1, "case variants must collapse to one link"
+
+
+def test_tags_hub_head_request(client: TestClient) -> None:
+    assert client.head("/blog/tags").status_code == 200

@@ -27,7 +27,13 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, Response
 from markdown_it import MarkdownIt
 
-from .blog import _load_deleted, _load_posts, _posts_lock, _sort_posts_by_publication
+from .blog import (
+    _load_deleted,
+    _load_posts,
+    _merged_tag_counts,
+    _posts_lock,
+    _sort_posts_by_publication,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1102,6 +1108,46 @@ def _blog_seo_meta(post: dict) -> tuple[str, str]:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
+
+@router.api_route("/blog/tags", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def blog_tags_ssr() -> HTMLResponse:
+    """Server-render the indexable tag hub.
+
+    Registered BEFORE ``/blog/{slug}``: FastAPI matches routes in registration
+    order, so a later literal loses to the earlier path parameter and ``tags``
+    would be looked up as a post slug and 404 (verified — that is exactly what
+    production did). The SPA paginates client-side; the crawlable body lists
+    every merged tag as a link so the hub carries real content.
+    """
+    with _posts_lock:
+        posts = _load_posts()
+
+    tags = sorted(_merged_tag_counts(posts), key=lambda tc: tc[0].casefold())
+    items = "".join(
+        f'<li><a href="/blog?tag={html.escape(t, quote=True)}">{html.escape(t, quote=True)}</a></li>'
+        for t, _ in tags
+    )
+    description = "집현전의 모든 글을 태그로 찾아볼 수 있습니다."
+    body = (
+        '<div class="blog-container"><div class="blog-content">'
+        '<nav aria-label="breadcrumb"><a href="/blog">Blog</a></nav>'
+        "<h1>Tags</h1>"
+        f"<p>{html.escape(description, quote=True)}</p>"
+        f"<ul>{items}</ul>"
+        "</div></div>"
+    )
+    document = _build_document(
+        title="Tags | Jiphyeonjeon Blog",
+        description=description,
+        canonical=f"{SITE_URL}/blog/tags",
+        og_type="website",
+        image=OG_DEFAULT_IMAGE,
+        json_ld=None,
+        article_html=body,
+        noindex=not tags,
+    )
+    return HTMLResponse(content=document, status_code=200)
 
 
 @router.api_route("/blog/{slug}", methods=["GET", "HEAD"], response_class=HTMLResponse)
