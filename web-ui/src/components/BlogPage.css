@@ -578,39 +578,6 @@
   }
 }
 
-/* ===== Tag Filter Pills ===== */
-.blog-tag-filters {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.blog-tag-filter-pill {
-  background: var(--wov-05);
-  border: 1px solid var(--wov-10);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 5px 12px;
-  border-radius: 100px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.2s;
-}
-
-.blog-tag-filter-pill:hover {
-  background: var(--indigo-bd-08);
-  border-color: var(--indigo-bd-25);
-  color: var(--indigo);
-}
-
-.blog-tag-filter-pill.active {
-  background: rgba(99, 102, 241, 0.2);
-  border-color: var(--indigo-bd-40);
-  color: var(--indigo);
-}
-
 /* ===== List Layout — left category sidebar + main column ===== */
 
 /* The list view uses a wider container than the reading views (detail/editor
