@@ -256,6 +256,48 @@
   max-width: 28rem;
 }
 
+/* Active ?tag= filter banner (list view). */
+.blog-tag-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -24px 0 32px;
+}
+
+.blog-tag-filter-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--indigo);
+  padding: 6px 12px;
+  border: 1px solid var(--indigo-bd-40);
+  border-radius: 40px;
+}
+
+.blog-tag-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s;
+}
+
+.blog-tag-filter-clear:hover {
+  background: var(--wov-05);
+  color: var(--text-strong);
+}
+
+.blog-tag-filter-clear:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
 .blog-admin-bar {
   display: flex;
   gap: 8px;

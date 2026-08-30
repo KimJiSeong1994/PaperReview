@@ -5,7 +5,7 @@ Blog endpoints:
   POST   /api/blog/posts          — Create post (admin only)
   PUT    /api/blog/posts/{id}     — Update post (admin only)
   DELETE /api/blog/posts/{id}     — Delete post (admin only)
-  GET    /api/blog/tags           — List all tags with post counts (public)
+  GET    /api/blog/tags           — List tags with post counts (public, paginated, ?sort=name|count)
 """
 
 import json
@@ -14,6 +14,7 @@ import math
 import re
 import unicodedata
 import uuid
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
@@ -374,8 +375,11 @@ class TagCount(BaseModel):
 
 
 class TagListResponse(BaseModel):
-    """Response for the tags endpoint."""
+    """Paginated tag list response."""
     tags: list[TagCount]
+    total: int
+    page: int
+    pages: int
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -644,21 +648,47 @@ async def delete_post(
 
 
 @router.get("/tags", response_model=TagListResponse)
-async def list_tags() -> TagListResponse:
-    """List all unique tags from published posts with their post counts."""
+async def list_tags(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(60, ge=1, le=300, description="Tags per page"),
+    sort: Literal["name", "count"] = Query(
+        "name", description="'name' = alphabetical, 'count' = most-used first"
+    ),
+) -> TagListResponse:
+    """List unique tags from published posts with their post counts.
+
+    Tags differing only by case are merged into one entry (counts summed,
+    displayed with the casing used most often) so the tag index never shows
+    two chips for the same tag. ``?tag=`` on /posts is case-insensitive, so
+    the merged casing still links correctly.
+    """
     with _posts_lock:
         all_posts = _load_posts()
 
-    tag_counts: dict[str, int] = {}
+    # Group by lowercase tag, tracking how often each original casing appears.
+    variants: dict[str, Counter[str]] = {}
     for post in all_posts:
         if not post.get("published"):
             continue
         for tag in post.get("tags", []):
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+            variants.setdefault(tag.lower(), Counter())[tag] += 1
 
-    # Sort by count descending, then alphabetically
-    sorted_tags = sorted(tag_counts.items(), key=lambda x: (-x[1], x[0]))
+    merged = [
+        # Most-used casing wins; ties broken by the lexicographically first.
+        (min(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0], sum(counts.values()))
+        for counts in variants.values()
+    ]
 
+    if sort == "count":
+        merged.sort(key=lambda tc: (-tc[1], tc[0].casefold()))
+    else:
+        merged.sort(key=lambda tc: tc[0].casefold())
+
+    total = len(merged)
+    start = (page - 1) * limit
     return TagListResponse(
-        tags=[TagCount(tag=t, count=c) for t, c in sorted_tags],
+        tags=[TagCount(tag=t, count=c) for t, c in merged[start : start + limit]],
+        total=total,
+        page=page,
+        pages=max(1, math.ceil(total / limit)),
     )

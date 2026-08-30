@@ -304,6 +304,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // `query` is the debounced value that is actually fetched and mirrored to ?q=.
   // Landing on /blog?q=foo opens the overlay pre-filled so a shared search link
   // still works — a reach we keep over toss, which has no searchable URL.
+  // A tag chip from /blog/tags lands here as ?tag=. Assumed never combined
+  // with ?q= — the search overlay owns that param on its own.
+  const tagFilter = searchParams.get('tag') ?? '';
+
   const initialQuery = searchParams.get('q') ?? '';
   const [searchOpen, setSearchOpen] = useState(Boolean(initialQuery) && !slug);
   const [searchInput, setSearchInput] = useState(initialQuery);
@@ -326,7 +330,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     try {
       // Fetch the full set (both categories) so the segmented control can
       // show accurate counts and switch tabs client-side without refetching.
-      const response = await fetchBlogPosts(undefined, undefined, 1, 100);
+      // With ?tag= the server narrows it first; the category tabs then filter
+      // that already-narrowed set client-side, exactly as before.
+      const response = await fetchBlogPosts(tagFilter || undefined, undefined, 1, 100);
       setPosts((response.data?.posts ?? response.data) as BlogPost[]);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to load posts.'));
@@ -335,7 +341,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tagFilter]);
 
   // Debounce typing, then publish the query and mirror it to ?q=. Replace rather
   // than push so the back button doesn't step through every keystroke.
@@ -440,6 +446,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       void loadPosts();
     });
   }, [loadPosts, slug]);
+
+  // Tags mostly live in one category, so the default tab is usually the empty
+  // one after filtering. Land on a tab that actually has hits.
+  useEffect(() => {
+    if (!tagFilter || posts.length === 0) return;
+    if (posts.some((p) => normalizeCategory(p.category) === activeCategory)) return;
+    setActiveCategory(normalizeCategory(posts[0].category));
+  }, [tagFilter, posts, activeCategory]);
 
   useEffect(() => {
     if (!slug) return;
@@ -776,6 +790,22 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             <span className="blog-side-count">{categoryCounts[seg.key]}</span>
           </a>
         ))}
+        <a
+          href="/blog/tags"
+          className="blog-side-item"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/blog/tags');
+          }}
+        >
+          <span className="blog-side-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
+              <path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+          </span>
+          <span className="blog-side-text">Tags</span>
+        </a>
         <div className="blog-side-label">Series</div>
         {Object.entries(BLOG_SERIES)
           .map(([sid, series]) => (
@@ -818,6 +848,23 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         </div>
         <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
       </header>
+
+      {tagFilter && (
+        <div className="blog-tag-filter">
+          <span className="blog-tag-filter-label">태그: {tagFilter}</span>
+          <button
+            type="button"
+            className="blog-tag-filter-clear"
+            aria-label="태그 필터 해제"
+            onClick={() => navigate('/blog')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {error && <div className="blog-error">{error}</div>}
 
@@ -1283,7 +1330,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         title={seoTitle}
         description={seoDescription}
         canonical={seoCanonical}
-        robots={hasSlugError || (categoryView && query) ? 'noindex,nofollow' : undefined}
+        robots={hasSlugError || (categoryView && (query || tagFilter)) ? 'noindex,nofollow' : undefined}
         type={seoPost ? 'article' : 'website'}
         image={seoPost ? seoPost.thumbnail_url || OG_DEFAULT_IMAGE : undefined}
         publishedTime={seoPost ? seoPost.created_at : undefined}
