@@ -23,5 +23,9 @@ export const updateBlogPost = (id: string, data: Record<string, unknown>) =>
 export const deleteBlogPost = (id: string) =>
   api.delete(`/api/blog/posts/${id}`);
 
-export const fetchBlogTags = () =>
-  api.get('/api/blog/tags');
+/** Paginated tag index. Zero-arg keeps the server defaults (page 1, 60, by name). */
+export const fetchBlogTags = (
+  page?: number,
+  limit?: number,
+  sort?: 'name' | 'count',
+) => api.get('/api/blog/tags', { params: { page, limit, sort } });

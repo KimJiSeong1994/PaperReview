@@ -1,0 +1,137 @@
+/* ===== /blog/tags — tag index =====
+   Every token used here (--text-strong, --text-muted, --indigo, --indigo-bd-*,
+   --wov-*) is declared on .blog-container and re-declared under
+   :root[data-theme="light"] .blog-container, so this file must only ever be
+   rendered inside that element — otherwise nothing resolves. */
+
+.blog-tags-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.blog-tags-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-strong);
+  letter-spacing: -0.5px;
+  margin: 0;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .blog-tags-title {
+    font-size: 48px;
+  }
+}
+
+.blog-tags-subtitle {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin: 12px 0 0;
+  line-height: 1.6;
+}
+
+/* ===== Chip flow ===== */
+
+.blog-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.blog-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 35px;
+  padding: 6px 12px;
+  border: 1px solid var(--indigo-bd-40);
+  border-radius: 40px;
+  background: transparent;
+  color: var(--indigo);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.blog-tag-chip:hover {
+  background: var(--indigo-bd-08);
+  border-color: var(--indigo-bd-55);
+}
+
+.blog-tag-chip:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* ===== Loading skeleton — same chip footprint, so nothing shifts on load ===== */
+
+.blog-tags-skeleton {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.blog-tags-skeleton-chip {
+  height: 35px;
+  width: 96px;
+  border-radius: 40px;
+}
+
+.blog-tags-skeleton-chip:nth-child(3n) {
+  width: 132px;
+}
+
+.blog-tags-skeleton-chip:nth-child(4n) {
+  width: 72px;
+}
+
+/* ===== Pagination ===== */
+
+.blog-tags-pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 48px;
+}
+
+.blog-tags-page-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--wov-10);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+
+.blog-tags-page-btn:hover:not(:disabled) {
+  background: var(--wov-05);
+  color: var(--text-strong);
+}
+
+.blog-tags-page-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.blog-tags-page-btn.active {
+  border-color: var(--indigo-bd-40);
+  color: var(--indigo);
+  font-weight: 600;
+}
+
+.blog-tags-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -15,6 +15,7 @@ const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
+const BlogTagsPage = lazy(() => import('./components/BlogTagsPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
@@ -259,6 +260,15 @@ function App() {
           element={
             <Suspense fallback={<div className="app-loading">Loading...</div>}>
               <BlogSeriesRoute />
+            </Suspense>
+          }
+        />
+        {/* Before /blog/:slug so "tags" is not swallowed as a post slug. */}
+        <Route
+          path="/blog/tags"
+          element={
+            <Suspense fallback={<div className="app-loading">Loading...</div>}>
+              <BlogTagsPage />
             </Suspense>
           }
         />
