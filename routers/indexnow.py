@@ -61,7 +61,7 @@ def published_urls() -> list[str]:
     """Home, blog index, category/series hubs, and every published post URL
     (dedup, ordered) — so hub pages get (re)indexed instantly too, not only
     posts."""
-    urls = [f"{SITE_URL}/", f"{SITE_URL}/blog"]
+    urls = [f"{SITE_URL}/", f"{SITE_URL}/blog", f"{SITE_URL}/blog/tags"]
     try:
         with open(POSTS_FILE, encoding="utf-8") as f:
             posts = json.load(f).get("posts", [])

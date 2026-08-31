@@ -1419,6 +1419,8 @@ async def sitemap() -> Response:
         f"  <url><loc>{SITE_URL}/introduce/</loc>{lm}<priority>0.8</priority></url>",
         f"  <url><loc>{SITE_URL}/ko/introduce/</loc>{lm}<priority>0.8</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc>{lm}<priority>0.8</priority></url>",
+        # Tag hub: indexable (#220) but invisible to crawlers until listed here.
+        f"  <url><loc>{SITE_URL}/blog/tags</loc>{lm}<priority>0.6</priority></url>",
     ]
     # /llms.txt and /llms-full.txt are deliberately absent. llmstxt.org defines
     # discovery by the well-known root path, the way robots.txt is found, so a

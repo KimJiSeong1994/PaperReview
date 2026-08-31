@@ -47,6 +47,7 @@ def test_published_urls_lists_only_published_with_slug(monkeypatch, tmp_path) ->
     urls = indexnow.published_urls()
     assert urls[0] == f"{indexnow.SITE_URL}/"
     assert f"{indexnow.SITE_URL}/blog" in urls
+    assert f"{indexnow.SITE_URL}/blog/tags" in urls
     assert f"{indexnow.SITE_URL}/blog/live-1" in urls
     assert f"{indexnow.SITE_URL}/blog/live-2" in urls
     assert f"{indexnow.SITE_URL}/blog/draft-1" not in urls
