@@ -198,6 +198,8 @@ def test_sitemap_valid_xml_published_only(client: TestClient) -> None:
     assert root.tag.endswith("urlset")
     assert "<loc>https://jiphyeonjeon.kr/introduce/</loc>" in resp.text
     assert "<loc>https://jiphyeonjeon.kr/ko/introduce/</loc>" in resp.text
+    # Tag hub must be announced, or the indexable page stays undiscovered.
+    assert "<loc>https://jiphyeonjeon.kr/blog/tags</loc>" in resp.text
     assert PUBLISHED_SLUG in resp.text
     assert UNPUBLISHED_SLUG not in resp.text
 
