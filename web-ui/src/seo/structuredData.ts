@@ -37,7 +37,9 @@ export interface BlogPostLike {
   author: string;
   tags: string[];
   category?: string;
-  thumbnail_url?: string;
+  // Nullable: the list endpoint resolves an effective cover and returns null
+  // when a post has none, rather than the /og-default.jpg placeholder.
+  thumbnail_url?: string | null;
   created_at: string;
   updated_at?: string;
 }
