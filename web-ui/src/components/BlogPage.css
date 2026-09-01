@@ -788,10 +788,6 @@
   border-color: var(--teal-bd-28);
 }
 
-.blog-detail-category {
-  margin-bottom: 14px;
-}
-
 /* ===== Category Selector (editor) ===== */
 .blog-editor-segments {
   display: inline-flex;
@@ -1146,10 +1142,6 @@
   transform: translateX(-2px);
 }
 
-.blog-detail-category {
-  margin-bottom: 12px;
-}
-
 .blog-detail-tags {
   display: flex;
   gap: 7px;
@@ -1197,9 +1189,7 @@
   gap: 10px 12px;
   font-size: 13px;
   color: var(--text-faint);
-  margin-bottom: 44px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--wov-08);
+  margin: 0 0 18px;
   flex-wrap: wrap;
 }
 
@@ -1235,6 +1225,9 @@
 /* ===== Markdown Rendered Content ===== */
 .blog-detail-content {
   max-width: none;
+  margin-top: 8px;
+  padding-top: 36px;
+  border-top: 1px solid var(--wov-08);
   font-size: 17px;
   line-height: 1.9;
   color: var(--text-soft);
@@ -1849,4 +1842,82 @@
   font-size: 13.5px;
   color: var(--text-muted);
   line-height: 1.6;
+}
+
+/* ===== Sticky table of contents (>= 1200px) ===== */
+.blog-toc {
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.blog-toc-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+}
+
+.blog-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.blog-toc-link {
+  display: block;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-decoration: none;
+  word-break: keep-all;
+  transition: color 0.15s;
+}
+
+.blog-toc-link:hover {
+  color: var(--text-soft);
+}
+
+.blog-toc-link.is-active {
+  color: var(--indigo);
+  font-weight: 650;
+}
+
+@media (min-width: 1200px) {
+  /* The detail column is capped at 960px, which cannot hold 820 + 40 + 240.
+     Widen it to exactly the grid's width so the article keeps its measure
+     instead of being squeezed to make room for the index. Matched through the
+     layout wrapper so it cannot outrank .blog-content--list, which sets 1280px
+     with the same specificity a few hundred lines earlier. */
+  .blog-content:has(.blog-detail-layout) {
+    max-width: 1148px;
+  }
+
+  .blog-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 820px) 240px;
+    gap: 40px;
+    justify-content: center;
+  }
+
+  /* The sticky index says the same thing — the body's own 목차 is redundant
+     here, but stays on narrower screens where no sidebar renders. */
+  .body-toc-heading,
+  .body-toc-list {
+    display: none;
+  }
+
+  /* Figures bleed past the text column, centered on it. That was symmetric
+     while the column was centered in the page; with the index beside it the
+     right edge reached 110px into the sidebar and drew over the links. Cap the
+     bleed at the gutter so it still breathes but stops short of the index. */
+  .blog-detail-content p:has(> img:only-child) {
+    width: min(100vw - 48px, 880px);
+  }
 }
