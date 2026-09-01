@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import BlogPage from '../components/BlogPage';
@@ -49,10 +49,10 @@ function LocationProbe() {
   return <span data-testid="location">{`${pathname}${search}`}</span>;
 }
 
-function renderBlog(entry = '/blog', isAdmin = false) {
+function renderBlog(entry = '/blog', isAdmin = false, initialCategory?: 'paper-review' | 'engineering') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <BlogPage isAdmin={isAdmin} />
+      <BlogPage isAdmin={isAdmin} initialCategory={initialCategory} />
       <LocationProbe />
     </MemoryRouter>,
   );
@@ -203,19 +203,13 @@ describe('BlogPage right rail', () => {
     expect(tags.getByRole('link', { name: '태그 전체 보기' })).toHaveAttribute('href', '/blog/tags');
   });
 
-  it('keeps the category tabs reachable and no longer duplicates the series', async () => {
+  it('no longer duplicates the series, and the category tabs are gone', async () => {
     renderBlog();
     await screen.findByRole('region', { name: '아티클 시리즈' });
 
     // Series live in the bottom section only — not in the rail as well.
     expect(screen.queryByRole('region', { name: '시리즈' })).toBeNull();
-
-    const tabs = within(screen.getByRole('navigation', { name: '카테고리' }));
-    expect(tabs.getByRole('link', { name: /Engineering/ })).toHaveAttribute('href', '/blog');
-    expect(tabs.getByRole('link', { name: /Paper Reviews/ })).toHaveAttribute(
-      'href',
-      '/blog/category/paper-review',
-    );
+    expect(screen.queryByRole('navigation', { name: '카테고리' })).toBeNull();
   });
 });
 
@@ -302,22 +296,6 @@ describe('BlogPage pagination', () => {
     await screen.findByRole('region', { name: '전체 아티클' });
 
     expect(screen.queryByRole('navigation', { name: '페이지' })).toBeNull();
-  });
-
-  it('returns to page 1 when the category tab changes', async () => {
-    const engineering = many(12);
-    const reviews = Array.from({ length: 7 }, (_, i) => post(`r${i}`, '01', { category: 'paper-review' }));
-    vi.mocked(fetchBlogPosts).mockResolvedValue(respond([...engineering, ...reviews]));
-    renderBlog('/blog?page=3');
-    await screen.findByRole('navigation', { name: '페이지' });
-    expect(titles()).toEqual(engineering.slice(10, 12).map((p) => p.title));
-
-    fireEvent.click(screen.getByRole('link', { name: /Paper Reviews/ }));
-
-    // A stale ?page=3 on a 2-page category would have shown an empty column.
-    expect(screen.getByTestId('location').textContent).toBe('/blog/category/paper-review');
-    expect(titles()).toEqual(reviews.slice(0, 5).map((p) => p.title));
-    expect(within(pager()).getByRole('button', { name: '1페이지' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('leaves the hero and the rail alone while the rows page', async () => {
@@ -441,5 +419,116 @@ describe('BlogPage series index', () => {
       expect(card.querySelector('img')).toBeNull();
       expect(card.querySelector('.blog-series-cover')).toBeInTheDocument();
     }
+  });
+});
+
+describe('BlogPage unified list', () => {
+  const mixed = [
+    post('e1', '06'),
+    post('r1', '05', { category: 'paper-review' }),
+    post('e2', '04'),
+    post('r2', '03', { category: 'paper-review' }),
+    post('e3', '02'),
+    post('r3', '01', { category: 'paper-review' }),
+  ];
+  const titles = () => within(list()).getAllByRole('link').map((a) => a.getAttribute('aria-label'));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(mixed));
+  });
+
+  it('shows both categories in one stream at /blog', async () => {
+    renderBlog();
+    await screen.findByRole('region', { name: '전체 아티클' });
+
+    expect(titles()).toEqual(['Post e1', 'Post r1', 'Post e2', 'Post r2', 'Post e3']);
+    // The row chip is what still tells them apart.
+    expect(within(row('Post r1')).getByText('Paper Review')).toBeInTheDocument();
+    expect(within(row('Post e1')).getByText('Engineering')).toBeInTheDocument();
+  });
+
+  it('still filters on the indexed /blog/category route, with a way back', async () => {
+    renderBlog('/blog/category/paper-review', false, 'paper-review');
+    await screen.findByRole('region', { name: '전체 아티클' });
+
+    expect(titles()).toEqual(['Post r1', 'Post r2', 'Post r3']);
+    expect(screen.getByText('Paper Reviews')).toBeInTheDocument();
+    expect(screen.getByLabelText('전체 글 보기')).toHaveAttribute('href', '/blog');
+  });
+
+  it('windows the pager correctly at the real 71-post size', async () => {
+    const all = Array.from({ length: 71 }, (_, i) => post(`p${i}`, '01'));
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(all));
+    renderBlog('/blog?page=15');
+    await screen.findByRole('navigation', { name: '페이지' });
+
+    const pager = within(screen.getByRole('navigation', { name: '페이지' }));
+    // 71 posts = 15 pages; the last window clamps to 11-15.
+    expect(pager.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      '이전 페이지', '11페이지', '12페이지', '13페이지', '14페이지', '15페이지', '다음 페이지',
+    ]);
+    expect(pager.getByRole('button', { name: '다음 페이지' })).toBeDisabled();
+    // 70 posts on 14 full pages leaves one on the last.
+    expect(within(list()).getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('draws the hero and the rail from the unified set', async () => {
+    renderBlog();
+    await screen.findByRole('region', { name: '주요 글' });
+
+    expect(heroTitle()).toBe('Post e1');
+    const recent = within(screen.getByRole('region', { name: '최근 글' }));
+    // Newest three are the hero's; the rail picks up where it left off, across
+    // both categories, with no overlap.
+    expect(recent.getAllByRole('link').map((a) => a.textContent)).toEqual(['Post r2', 'Post e3', 'Post r3']);
+  });
+});
+
+describe('BlogPage series shelf', () => {
+  const section = () => screen.getByRole('region', { name: '아티클 시리즈' });
+  const track = () => document.querySelector<HTMLElement>('.blog-series-grid')!;
+  const extras = ['x1', 'x2'];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(POSTS));
+  });
+
+  afterEach(() => {
+    for (const id of extras) delete BLOG_SERIES[id];
+  });
+
+  it('shows no arrows at the real 4 series on a desktop viewport', async () => {
+    renderBlog();
+    await screen.findByRole('region', { name: '아티클 시리즈' });
+
+    expect(within(section()).getAllByRole('link')).toHaveLength(4);
+    // Not disabled — absent. Four across is a plain static grid.
+    expect(within(section()).queryByRole('button')).toBeNull();
+  });
+
+  it('pages by a full row once the series overflow the shelf', async () => {
+    for (const id of extras) {
+      BLOG_SERIES[id] = { title: `Extra ${id}`, description: 'x', slugs: ['s'] };
+    }
+    renderBlog();
+    await screen.findByRole('region', { name: '아티클 시리즈' });
+
+    const prev = within(section()).getByRole('button', { name: '이전 시리즈' });
+    const next = within(section()).getByRole('button', { name: '다음 시리즈' });
+    expect(prev).toBeDisabled();
+    expect(next).not.toBeDisabled();
+    expect(track().style.transform).toBe('translateX(calc(0 * (100% + 24px)))');
+
+    fireEvent.click(next);
+
+    // 6 series over 4 columns = 2 pages; one step lands on the last.
+    expect(track().style.transform).toBe('translateX(calc(-1 * (100% + 24px)))');
+    expect(next).toBeDisabled();
+    expect(prev).not.toBeDisabled();
+
+    fireEvent.click(prev);
+    expect(track().style.transform).toBe('translateX(calc(0 * (100% + 24px)))');
   });
 });

@@ -60,8 +60,6 @@ type BlogView = 'list' | 'detail' | 'editor';
 // ── Categories ────────────────────────────────────────────────────────
 
 type CategoryKey = 'paper-review' | 'engineering';
-type CategoryFilter = CategoryKey;
-const DEFAULT_CATEGORY: CategoryKey = 'engineering';
 
 /** Posts per list page, and how many page numbers the pager shows at once. */
 const PAGE_SIZE = 5;
@@ -73,6 +71,19 @@ function pageWindow(page: number, pageCount: number): number[] {
   return Array.from({ length: Math.min(PAGE_WINDOW, pageCount) }, (_, i) => start + i);
 }
 
+/** Series shelf columns per breakpoint — mirrors .blog-series-grid's CSS. */
+const SERIES_BREAKPOINTS: [string, number][] = [
+  ['(max-width: 640px)', 1],
+  ['(max-width: 1099px)', 2],
+];
+const SERIES_COLUMNS = 4;
+
+function seriesColumns(): number {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return SERIES_COLUMNS;
+  const hit = SERIES_BREAKPOINTS.find(([query]) => window.matchMedia(query).matches);
+  return hit ? hit[1] : SERIES_COLUMNS;
+}
+
 /** The sticky table of contents only renders above this width. */
 const TOC_VIEWPORT_QUERY = '(min-width: 1200px)';
 
@@ -80,11 +91,6 @@ const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
   'paper-review': { label: 'Paper Reviews', badge: 'Paper Review' },
   engineering: { label: 'Engineering', badge: 'Engineering' },
 };
-
-const SEGMENTS: { key: CategoryFilter; label: string }[] = [
-  { key: 'engineering', label: 'Engineering' },
-  { key: 'paper-review', label: 'Paper Reviews' },
-];
 
 /** Coerce any stored/legacy value to a known category (defaults to engineering). */
 function normalizeCategory(category?: string): CategoryKey {
@@ -153,10 +159,6 @@ function highlight(text: string, tokens: string[]): React.ReactNode {
   const pattern = new RegExp(`(${tokens.map((t) => t.replace(REGEX_SPECIAL_RE, '\\$&')).join('|')})`, 'gi');
   // split() with a capturing group interleaves the matches at the odd indices.
   return text.split(pattern).map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
-}
-
-function categoryHref(key: CategoryFilter): string {
-  return key === DEFAULT_CATEGORY ? '/blog' : `/blog/category/${key}`;
 }
 
 function CategoryBadge({ category }: { category?: string }) {
@@ -297,7 +299,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory ?? DEFAULT_CATEGORY);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -327,6 +328,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // Hero carousel position. Manual only — no autoplay, so there is no timer to
   // pause for prefers-reduced-motion and nothing moves under a reader's focus.
   const [heroIndex, setHeroIndex] = useState(0);
+  // Series shelf paging. Same manual-only treatment as the hero.
+  const [seriesPage, setSeriesPage] = useState(0);
+  const [seriesCols, setSeriesCols] = useState(seriesColumns);
 
   // The sticky table of contents is a wide-screen affordance only: below
   // 1200px the article gets the full column and the body's own 목차 stands in.
@@ -436,24 +440,17 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     };
   }, [query, slug]);
 
-  // ── Category filtering (client-side) ───────────────────────────────
+  // ── Category filtering ─────────────────────────────────────────────
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<CategoryFilter, number> = {
-      'paper-review': 0,
-      engineering: 0,
-    };
-    for (const p of posts) counts[normalizeCategory(p.category)] += 1;
-    return counts;
-  }, [posts]);
-
+  // /blog is one unified stream. Only the indexed /blog/category/:category
+  // hubs narrow it, which is why this reads the route prop and nothing else.
   const visiblePosts = useMemo(
-    () => posts.filter((p) => normalizeCategory(p.category) === activeCategory),
-    [posts, activeCategory],
+    () => (initialCategory ? posts.filter((p) => normalizeCategory(p.category) === initialCategory) : posts),
+    [posts, initialCategory],
   );
 
-  // Paging lives in ?page= alone, so a category tab or a tag chip — both of
-  // which navigate to a bare path — resets to page 1 for free.
+  // Paging lives in ?page= alone, so a tag chip — which navigates to a bare
+  // path — resets to page 1 for free.
   const pageCount = Math.max(1, Math.ceil(visiblePosts.length / PAGE_SIZE));
   // Out of range clamps to the last page: ?page=9 on a 2-post category shows
   // posts, not an empty column.
@@ -480,29 +477,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   );
   const topTags = useMemo(() => mergedTagCounts(posts).slice(0, 8), [posts]);
 
-  // Keep the active filter in sync with the /blog/category/:category route.
-  // Adjust-during-render (React's recommended pattern) rather than an effect,
-  // so navigating between category hubs without a remount still re-filters.
-  const [lastInitialCategory, setLastInitialCategory] = useState(initialCategory);
-  if (initialCategory !== lastInitialCategory) {
-    setLastInitialCategory(initialCategory);
-    setActiveCategory(initialCategory ?? DEFAULT_CATEGORY);
-  }
-
   useEffect(() => {
     if (slug) return;
     queueMicrotask(() => {
       void loadPosts();
     });
   }, [loadPosts, slug]);
-
-  // Tags mostly live in one category, so the default tab is usually the empty
-  // one after filtering. Land on a tab that actually has hits.
-  useEffect(() => {
-    if (!tagFilter || posts.length === 0) return;
-    if (posts.some((p) => normalizeCategory(p.category) === activeCategory)) return;
-    setActiveCategory(normalizeCategory(posts[0].category));
-  }, [tagFilter, posts, activeCategory]);
 
   useEffect(() => {
     if (!slug) return;
@@ -540,6 +520,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const queries = SERIES_BREAKPOINTS.map(([q]) => window.matchMedia(q));
+    const sync = () => { setSeriesCols(seriesColumns()); setSeriesPage(0); };
+    queries.forEach((q) => q.addEventListener('change', sync));
+    return () => queries.forEach((q) => q.removeEventListener('change', sync));
+  }, []);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined;
@@ -703,29 +691,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           </picture>
           <span className="blog-brand-name">Jiphyeonjeon</span>
         </div>
-        {/* Two categories fit the header; the series and the tag hub keep
-            their own cards in the right rail so nothing is unreachable. */}
-        {view === 'list' && (
-          <nav className="blog-header-tabs" aria-label="카테고리">
-            {SEGMENTS.map((seg) => (
-              <a
-                key={seg.key}
-                href={categoryHref(seg.key)}
-                data-cat={seg.key}
-                className={`blog-header-tab${activeCategory === seg.key ? ' active' : ''}`}
-                aria-current={activeCategory === seg.key ? 'page' : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveCategory(seg.key);
-                  navigate(categoryHref(seg.key));
-                }}
-              >
-                {seg.label}
-                <span className="blog-header-tab-count">{categoryCounts[seg.key]}</span>
-              </a>
-            ))}
-          </nav>
-        )}
         <div className="blog-header-actions">
           {/* List view only: from a post, `openPost` deliberately skips the
               navigate() when a slug route is already mounted, so a result click
@@ -925,10 +890,46 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   // ── Series index (page bottom, full container width) ────────────────
 
+  const seriesPages = Math.ceil(Object.keys(BLOG_SERIES).length / seriesCols);
+
   const renderSeriesIndex = () => (
     <section className="blog-series-index" aria-labelledby="series-index">
-      <h2 className="blog-section-heading" id="series-index">아티클 시리즈</h2>
-      <div className="blog-series-grid">
+      <div className="blog-series-head">
+        <h2 className="blog-section-heading" id="series-index">아티클 시리즈</h2>
+        {/* Only when there is something off-screen: at 4 series on desktop the
+            shelf is a plain static grid, exactly as before. */}
+        {seriesPages > 1 && (
+          <div className="blog-series-controls">
+            <button
+              type="button"
+              className="blog-hero-arrow"
+              aria-label="이전 시리즈"
+              disabled={seriesPage === 0}
+              onClick={() => setSeriesPage((i) => Math.max(0, i - 1))}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="blog-hero-arrow"
+              aria-label="다음 시리즈"
+              disabled={seriesPage >= seriesPages - 1}
+              onClick={() => setSeriesPage((i) => Math.min(seriesPages - 1, i + 1))}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="blog-series-window">
+      <div
+        className="blog-series-grid"
+        style={{ transform: `translateX(calc(${-seriesPage} * (100% + 24px)))` }}
+      >
         {Object.entries(BLOG_SERIES).map(([sid, series]) => {
           // Cover = the first chapter's thumbnail, looked up in the whole post
           // list: a series living in the other category still gets its image.
@@ -961,6 +962,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             </a>
           );
         })}
+      </div>
       </div>
     </section>
   );
@@ -1062,6 +1064,18 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
       </header>
 
+      {initialCategory && (
+        <div className="blog-tag-filter">
+          <span className="blog-tag-filter-label">{CATEGORY_META[initialCategory].label}</span>
+          <a className="blog-tag-filter-clear" href="/blog" aria-label="전체 글 보기" onClick={railLink('/blog')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </a>
+        </div>
+      )}
+
       {tagFilter && (
         <div className="blog-tag-filter">
           <span className="blog-tag-filter-label">태그: {tagFilter}</span>
@@ -1119,10 +1133,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
                     </svg>
                   </div>
                   <div className="blog-empty-title">
-                    {activeCategory === 'paper-review' ? '논문 리뷰 글이 아직 없습니다' : '개발 노트가 아직 없습니다'}
+                    {initialCategory === 'paper-review' ? '논문 리뷰 글이 아직 없습니다' : '개발 노트가 아직 없습니다'}
                   </div>
                   <div className="blog-empty-subtitle">
-                    {activeCategory === 'paper-review'
+                    {initialCategory === 'paper-review'
                       ? '딥리뷰를 블로그 초안으로 정리하면 이곳에 모입니다.'
                       : '집현전 개발·제품 이야기가 곧 올라올 예정입니다.'}
                   </div>
@@ -1535,17 +1549,16 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const seoPost = view === 'detail' ? selectedPost : null;
   const categoryView = view === 'list';
-  const categoryLabel = categoryView ? CATEGORY_META[activeCategory].label : '';
   const seoMeta = seoPost ? blogSeoMeta(seoPost) : null;
   const seoTitle = seoMeta
     ? seoMeta.title
-    : categoryView
-      ? `${categoryLabel} | Jiphyeonjeon Blog`
+    : initialCategory
+      ? `${CATEGORY_META[initialCategory].label} | Jiphyeonjeon Blog`
       : BLOG_TITLE;
   const seoDescription = seoMeta ? seoMeta.description : BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost && postNotFound);
   const listCanonical = initialCategory
-    ? `${SITE_URL}/blog/category/${activeCategory}`
+    ? `${SITE_URL}/blog/category/${initialCategory}`
     : blogCanonical(hasSlugError ? undefined : slug);
   const seoCanonical = seoPost
     ? blogCanonical(seoPost.slug)

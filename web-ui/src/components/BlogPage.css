@@ -620,56 +620,6 @@
   margin-top: 6px;
 }
 
-/* ===== Category tabs in the app header ===== */
-.blog-header-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* Beats .blog-header-nav's space-between so the tabs sit by the logo. */
-  margin-left: 28px;
-  margin-right: auto;
-}
-
-.blog-header-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  color: var(--text-muted);
-  font-size: 15px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color 0.16s, background 0.16s;
-}
-
-.blog-header-tab:hover {
-  color: var(--text);
-  background: var(--wov-05);
-}
-
-.blog-header-tab.active {
-  color: var(--text-hi);
-  background: var(--wov-06);
-}
-
-.blog-header-tab:focus-visible {
-  outline: 2px solid var(--indigo);
-  outline-offset: 2px;
-}
-
-.blog-header-tab-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.blog-header-tab.active .blog-header-tab-count {
-  color: var(--indigo);
-}
-
 /* ===== Hero carousel ===== */
 .blog-hero {
   margin-bottom: 56px;
@@ -954,97 +904,6 @@
   }
 }
 
-/* The tabs need the full width of their own row once the brand and the
-   action buttons have taken theirs. */
-@media (max-width: 768px) {
-  .blog-header-nav {
-    flex-wrap: wrap;
-    row-gap: 12px;
-  }
-
-  .blog-header-tabs {
-    order: 1;
-    width: 100%;
-    margin: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .blog-header-tabs::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* ===== Category Badge (card meta + detail eyebrow) ===== */
-.blog-cat-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 100px;
-  border: 1px solid transparent;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.blog-cat-badge svg {
-  flex-shrink: 0;
-}
-
-/* Paper reviews — indigo (research) */
-.blog-cat-paper-review {
-  background: rgba(99, 102, 241, 0.14);
-  color: var(--indigo);
-  border-color: var(--indigo-bd-28);
-}
-
-/* Engineering — teal (build / product) */
-.blog-cat-engineering {
-  background: rgba(45, 212, 191, 0.13);
-  color: var(--teal);
-  border-color: var(--teal-bd-28);
-}
-
-/* ===== Category Selector (editor) ===== */
-.blog-editor-segments {
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.blog-editor-segment {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--wov-12);
-  background: var(--wov-03);
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.18s;
-}
-
-.blog-editor-segment:hover {
-  border-color: var(--wov-20);
-  color: var(--text);
-}
-
-.blog-editor-segment.active[data-cat='paper-review'] {
-  background: rgba(99, 102, 241, 0.18);
-  border-color: var(--indigo-bd-45);
-  color: var(--indigo-strong);
-}
-
-.blog-editor-segment.active[data-cat='engineering'] {
-  background: rgba(45, 212, 191, 0.16);
-  border-color: var(--teal-bd-45);
-  color: var(--teal-strong);
-}
-
 /* ===== Blog Post List — bare rows, no card chrome ===== */
 .blog-grid {
   display: flex;
@@ -1225,11 +1084,39 @@
   margin-top: 80px;
 }
 
+.blog-series-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.blog-series-controls {
+  display: flex;
+  gap: 8px;
+  /* The heading owns the section's bottom margin; sit on its baseline. */
+  margin-bottom: 28px;
+}
+
+/* The window clips; the track slides. Nothing here can scroll the document. */
+.blog-series-window {
+  overflow: hidden;
+}
+
 .blog-series-grid {
   display: grid;
-  /* 4 tracks at the 1024px container = 238px cards; a 5th wraps to row 2. */
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* One row of fixed-width tracks — 4 at the 1024px container = 238px each —
+     paged by transform rather than wrapped. */
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 72px) / 4);
   gap: 24px;
+  transition: transform 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-series-grid {
+    transition: none;
+  }
 }
 
 .blog-series-card {
@@ -1301,17 +1188,19 @@
 
 @media (max-width: 1099px) {
   .blog-series-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: calc((100% - 24px) / 2);
   }
 }
 
 @media (max-width: 640px) {
-  .blog-series {
+  /* Was .blog-series, which is the detail view's series pill — this rule had
+     been retargeting that instead of the shelf since the rename. */
+  .blog-series-index {
     margin-top: 56px;
   }
 
   .blog-series-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-auto-columns: 100%;
   }
 
   /* One per row: no neighbour to line up with, so let the card fit itself. */
