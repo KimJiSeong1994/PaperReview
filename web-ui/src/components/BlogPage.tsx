@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeSlug from 'rehype-slug';
 import rehypeKatex from 'rehype-katex';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
+import BlogTableOfContents, { BODY_TOC_HEADINGS } from './BlogTableOfContents';
 import ThemeToggle from './ThemeToggle';
 import {
   SITE_URL,
@@ -60,6 +62,9 @@ type BlogView = 'list' | 'detail' | 'editor';
 type CategoryKey = 'paper-review' | 'engineering';
 type CategoryFilter = CategoryKey;
 const DEFAULT_CATEGORY: CategoryKey = 'engineering';
+
+/** The sticky table of contents only renders above this width. */
+const TOC_VIEWPORT_QUERY = '(min-width: 1200px)';
 
 const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
   'paper-review': { label: 'Paper Reviews', badge: 'Paper Review' },
@@ -314,6 +319,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [query, setQuery] = useState(initialQuery.trim());
   const [searchResults, setSearchResults] = useState<BlogPost[] | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // The sticky table of contents is a wide-screen affordance only: below
+  // 1200px the article gets the full column and the body's own 목차 stands in.
+  const [isWideViewport, setIsWideViewport] = useState(
+    () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(TOC_VIEWPORT_QUERY).matches
+      : false,
+  );
   // Focus returns here when the overlay closes.
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   // Kept separate from `error`: sharing one slot let a failed search leave a
@@ -491,6 +504,34 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia(TOC_VIEWPORT_QUERY);
+    const handleChange = (event: MediaQueryListEvent) => setIsWideViewport(event.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Tag the body's own table-of-contents heading and its list so CSS can hide
+  // them on wide
+  // screens, where the sticky index says the same thing. Done on the rendered
+  // DOM rather than the markdown so no post content is rewritten; 목차-less
+  // posts simply find nothing. Classes are cleared first because React reuses
+  // heading nodes across posts.
+  useLayoutEffect(() => {
+    document
+      .querySelectorAll('.body-toc-heading, .body-toc-list')
+      .forEach((node) => node.classList.remove('body-toc-heading', 'body-toc-list'));
+    if (view !== 'detail' || !selectedPost) return;
+    const headings = document.querySelectorAll<HTMLElement>('.blog-detail-content h2');
+    for (const heading of headings) {
+      if (!BODY_TOC_HEADINGS.has(heading.textContent?.trim() ?? '')) continue;
+      heading.classList.add('body-toc-heading');
+      heading.nextElementSibling?.classList.add('body-toc-list');
+      break;
+    }
+  }, [view, selectedPost]);
 
   // ── Detail view ────────────────────────────────────────────────────
 
@@ -1053,32 +1094,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           Back to Blog
         </button>
 
-        <div className="blog-detail-category">
-          <CategoryBadge category={selectedPost.category} />
-        </div>
-
-        {selectedPost.tags.length > 0 && (
-          <div className="blog-detail-tags">
-            {selectedPost.tags.map((tag) => (
-              <span key={tag} className="blog-tag">{tag}</span>
-            ))}
-          </div>
-        )}
-
-        <h1 className="blog-detail-title">{selectedPost.title}</h1>
-
-        {(() => {
-          const dek = leadingH1Text(selectedPost.content);
-          return dek && dek !== selectedPost.title ? (
-            <h2 className="blog-detail-dek">{dek}</h2>
-          ) : null;
-        })()}
-
-        {selectedPost.excerpt && (
-          <p className="blog-detail-lead">{selectedPost.excerpt}</p>
-        )}
-
         <div className="blog-detail-meta">
+          <CategoryBadge category={selectedPost.category} />
+          <span className="blog-card-dot" aria-hidden="true" />
           <span className="blog-detail-author">{selectedPost.author}</span>
           <span className="blog-card-dot" aria-hidden="true" />
           <span>{formatDate(selectedPost.created_at)}</span>
@@ -1096,6 +1114,27 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             </a>
           )}
         </div>
+
+        <h1 className="blog-detail-title">{selectedPost.title}</h1>
+
+        {(() => {
+          const dek = leadingH1Text(selectedPost.content);
+          return dek && dek !== selectedPost.title ? (
+            <h2 className="blog-detail-dek">{dek}</h2>
+          ) : null;
+        })()}
+
+        {selectedPost.tags.length > 0 && (
+          <div className="blog-detail-tags">
+            {selectedPost.tags.map((tag) => (
+              <span key={tag} className="blog-tag">{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {selectedPost.excerpt && (
+          <p className="blog-detail-lead">{selectedPost.excerpt}</p>
+        )}
 
         {(() => {
           const seriesId = seriesOf(selectedPost.slug);
@@ -1117,7 +1156,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         <div className="blog-detail-content">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeRaw, rehypeKatex]}
+            rehypePlugins={[rehypeRaw, rehypeSlug, rehypeKatex]}
           >
             {normalizeBlogMarkdown(selectedPost.content)}
           </ReactMarkdown>
@@ -1342,7 +1381,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       {searchOpen && renderSearchOverlay()}
       <div className={`blog-content${view === 'list' ? ' blog-content--list' : ''}`}>
         {view === 'list' && renderList()}
-        {view === 'detail' && renderDetail()}
+        {view === 'detail' && (
+          <div className="blog-detail-layout">
+            {renderDetail()}
+            {isWideViewport && selectedPost && <BlogTableOfContents postKey={selectedPost.slug} />}
+          </div>
+        )}
         {view === 'editor' && isAdmin && renderEditor()}
       </div>
     </div>
