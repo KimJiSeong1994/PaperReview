@@ -225,37 +225,6 @@
   }
 }
 
-.blog-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.blog-page-title {
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--text-hi);
-  letter-spacing: -0.5px;
-  margin: 0;
-  line-height: 1.2;
-}
-
-@media (min-width: 640px) {
-  .blog-page-title {
-    font-size: 40px;
-  }
-}
-
-.blog-page-subtitle {
-  font-size: 18px;
-  color: var(--text-muted);
-  margin: 12px 0 0;
-  line-height: 1.6;
-  max-width: 28rem;
-}
-
 /* Active ?tag= filter banner (list view). */
 .blog-tag-filter {
   display: flex;
@@ -609,15 +578,6 @@
    so the list demotes the title block to a label. */
 .blog-content--list .blog-header {
   margin-bottom: 32px;
-}
-
-.blog-content--list .blog-page-title {
-  font-size: 26px;
-}
-
-.blog-content--list .blog-page-subtitle {
-  font-size: 15px;
-  margin-top: 6px;
 }
 
 /* ===== Hero carousel ===== */

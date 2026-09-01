@@ -1046,22 +1046,23 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const renderList = () => (
     <>
+      {/* The hero leads the page, so the masthead is gone visually. The h1
+          stays for assistive tech and for crawlers that render the SPA — the
+          SSR copy in routers/seo.py has its own, and dropping this one would
+          leave the rendered DOM with no heading at all. */}
       <header className="blog-header">
-        <div className="blog-title-row">
-          <h1 className="blog-page-title">Blog</h1>
-          {isAdmin && (
-            <div className="blog-admin-bar">
-              <button className="blog-new-post-btn" onClick={openNewEditor}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Post
-              </button>
-            </div>
-          )}
-        </div>
-        <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
+        <h1 className="blog-sr-only">Blog</h1>
+        {isAdmin && (
+          <div className="blog-admin-bar">
+            <button className="blog-new-post-btn" onClick={openNewEditor}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Post
+            </button>
+          </div>
+        )}
       </header>
 
       {initialCategory && (
