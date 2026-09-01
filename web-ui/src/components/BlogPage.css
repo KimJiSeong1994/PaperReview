@@ -578,19 +578,18 @@
   }
 }
 
-/* ===== List Layout — left category sidebar + main column ===== */
-
-/* The list view uses a wider container than the reading views (detail/editor
-   stay at 960px). This pulls the sidebar further left and gives the post
-   column more room. Defined after the base .blog-content so it wins. */
+/* ===== List Layout — main column + right rail =====
+   652 (main) + 72 (gap) + 300 (rail) = 1024 of grid, plus the 24px page
+   padding on each side. .blog-content--list is the only max-width that may
+   move: the base .blog-content and the detail override share its specificity. */
 .blog-content--list {
-  max-width: 1280px;
+  max-width: 1072px;
 }
 
 .blog-layout {
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
-  gap: 52px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
   align-items: start;
 }
 
@@ -598,160 +597,381 @@
   min-width: 0;
 }
 
-/* Cards sit inside a column now — drop the desktop negative-margin bleed
-   so they align cleanly against the sidebar gutter. */
-.blog-main .blog-card {
-  margin-left: 0;
-  margin-right: 0;
+.blog-section-heading {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-hi);
+  margin: 0 0 28px;
 }
 
-.blog-sidebar {
-  position: sticky;
-  top: 24px;
+/* The page still needs its <h1>, but the hero is the thing to look at —
+   so the list demotes the title block to a label. */
+.blog-content--list .blog-header {
+  margin-bottom: 32px;
 }
 
-.blog-side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.blog-content--list .blog-page-title {
+  font-size: 26px;
 }
 
-.blog-side-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  padding: 0 12px 10px;
+.blog-content--list .blog-page-subtitle {
+  font-size: 15px;
+  margin-top: 6px;
 }
 
-.blog-side-item {
+/* ===== Category tabs in the app header ===== */
+.blog-header-tabs {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
+  gap: 4px;
+  /* Beats .blog-header-nav's space-between so the tabs sit by the logo. */
+  margin-left: 28px;
+  margin-right: auto;
+}
+
+.blog-header-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
   color: var(--text-muted);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
-  cursor: pointer;
-  transition: color 0.16s, background 0.16s, box-shadow 0.16s;
+  white-space: nowrap;
+  transition: color 0.16s, background 0.16s;
 }
 
-.blog-side-item:hover {
-  background: var(--wov-05);
+.blog-header-tab:hover {
   color: var(--text);
+  background: var(--wov-05);
 }
 
-.blog-side-item:focus-visible {
+.blog-header-tab.active {
+  color: var(--text-hi);
+  background: var(--wov-06);
+}
+
+.blog-header-tab:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
 
-.blog-side-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  color: var(--text-muted);
+.blog-header-tab-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
-.blog-side-item[data-cat='paper-review'] .blog-side-icon {
+.blog-header-tab.active .blog-header-tab-count {
   color: var(--indigo);
 }
 
-.blog-side-item[data-cat='engineering'] .blog-side-icon {
-  color: var(--teal);
+/* ===== Hero carousel ===== */
+.blog-hero {
+  margin-bottom: 56px;
 }
 
-.blog-side-text {
-  flex: 1;
-  /* Keep Korean series titles on one line; if a longer title ever must wrap,
-     break at a space (word) boundary, never mid-syllable. */
-  word-break: keep-all;
+/* The carousel region takes focus so ArrowLeft/Right can reach it. */
+.blog-hero:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 8px;
+  border-radius: 12px;
 }
 
-.blog-side-count {
-  min-width: 20px;
-  padding: 1px 7px;
-  border-radius: 100px;
-  background: var(--wov-06);
+.blog-hero-slide {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.blog-hero-text {
+  flex: 1 1 440px;
+  min-width: 0;
+}
+
+.blog-hero-title {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  margin: 12px 0 0;
+}
+
+.blog-hero-link {
+  color: var(--text-hi);
+  text-decoration: none;
+}
+
+.blog-hero-link:hover {
+  color: var(--indigo);
+}
+
+.blog-hero-link:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.blog-hero-excerpt {
+  font-size: 17px;
+  line-height: 1.6;
   color: var(--text-muted);
+  margin: 16px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blog-hero-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.blog-hero-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--wov-10);
+  border-radius: 50%;
+  background: var(--wov-03);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.16s, background 0.16s, border-color 0.16s;
+}
+
+.blog-hero-arrow:hover {
+  color: var(--text);
+  background: var(--wov-06);
+  border-color: var(--wov-20);
+}
+
+.blog-hero-arrow:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.blog-hero-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-hero-media {
+  flex: 0 0 520px;
+  width: 520px;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--wov-04);
+}
+
+.blog-hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ===== Right rail ===== */
+.blog-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.blog-rail-card {
+  background: var(--wov-04);
+  border-radius: 24px;
+  padding: 24px;
+}
+
+.blog-rail-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 16px;
+}
+
+.blog-rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.blog-rail-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.blog-rail-rank {
+  min-width: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-rail-link {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-soft);
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.16s;
+}
+
+.blog-rail-link:hover {
+  color: var(--indigo);
+}
+
+.blog-rail-link:focus-visible,
+.blog-rail-tag:focus-visible,
+.blog-rail-more:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.blog-rail-count {
+  flex-shrink: 0;
   font-size: 11px;
   font-weight: 600;
+  color: var(--text-faint);
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
-/* Active — tinted per category (indigo = research, teal = build) */
-.blog-side-item.active {
+.blog-rail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blog-rail-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: var(--wov-06);
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.16s, background 0.16s;
+}
+
+.blog-rail-tag:hover {
+  background: var(--wov-10);
   color: var(--text);
 }
 
-.blog-side-item.active[data-cat='all'] {
-  background: var(--wov-07);
+.blog-rail-more {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--indigo);
+  text-decoration: none;
 }
 
-.blog-side-item.active[data-cat='all'] .blog-side-icon {
-  color: var(--text);
+.blog-rail-more:hover {
+  text-decoration: underline;
 }
 
-.blog-side-item.active[data-cat='paper-review'] {
-  background: rgba(99, 102, 241, 0.16);
-  color: var(--indigo-strong);
-  box-shadow: inset 0 0 0 1px var(--indigo-bd-22);
-}
-
-.blog-side-item.active[data-cat='engineering'] {
-  background: rgba(45, 212, 191, 0.14);
-  color: var(--teal-strong);
-  box-shadow: inset 0 0 0 1px var(--teal-bd-22);
-}
-
-.blog-side-item.active .blog-side-count {
-  background: var(--wov-12);
-  color: inherit;
-}
-
-/* Collapse to a horizontal scroller above the list on narrow screens */
-@media (max-width: 768px) {
+/* Two columns only once 652 + 72 + 300 actually fits. */
+@media (min-width: 1100px) {
   .blog-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 652px) 300px;
+    gap: 72px;
+  }
+
+  .blog-rail {
+    position: sticky;
+    top: 24px;
+  }
+
+  .blog-section-heading {
+    font-size: 32px;
+    margin-bottom: 32px;
+  }
+}
+
+@media (max-width: 900px) {
+  .blog-hero-media {
+    flex-basis: 380px;
+    width: 380px;
+    height: 205px;
+  }
+}
+
+@media (max-width: 768px) {
+  .blog-hero {
+    margin-bottom: 40px;
+  }
+
+  .blog-hero-slide {
+    flex-direction: column;
+    align-items: stretch;
     gap: 20px;
   }
 
-  .blog-sidebar {
-    position: static;
-    top: auto;
-    margin: 0 -20px;
-    padding: 0 20px;
+  /* Image first on touch, matching the rows below it. */
+  .blog-hero-media {
+    order: -1;
+    flex: none;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .blog-hero-title {
+    font-size: 26px;
+  }
+
+  .blog-hero-excerpt {
+    font-size: 15px;
+  }
+}
+
+/* The tabs need the full width of their own row once the brand and the
+   action buttons have taken theirs. */
+@media (max-width: 768px) {
+  .blog-header-nav {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .blog-header-tabs {
+    order: 1;
+    width: 100%;
+    margin: 0;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .blog-sidebar::-webkit-scrollbar {
+  .blog-header-tabs::-webkit-scrollbar {
     display: none;
-  }
-
-  .blog-side-nav {
-    flex-direction: row;
-    gap: 8px;
-    width: max-content;
-  }
-
-  .blog-side-label {
-    display: none;
-  }
-
-  .blog-side-item {
-    width: auto;
-    white-space: nowrap;
-    background: var(--wov-03);
-    border: 1px solid var(--wov-07);
   }
 }
 
@@ -825,159 +1045,132 @@
   color: var(--teal-strong);
 }
 
-/* ===== Blog Post List — single column, stacked ===== */
+/* ===== Blog Post List — bare rows, no card chrome ===== */
 .blog-grid {
   display: flex;
   flex-direction: column;
+  gap: 64px;
 }
 
-/* ===== Blog Card — alphaXiv style: rounded-2xl, subtle bg, no border ===== */
-.blog-card {
-  position: relative;
-  display: block;
-  border-radius: 16px;
-  background: var(--wov-03);
-  padding: 0 16px;
-  cursor: pointer;
+/* Row: text column, 32px gutter, 228x128 thumbnail flush right.
+   min-height rather than height — our titles run to 99 characters, so the
+   text sets the height and the thumbnail keeps its own. */
+.blog-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  min-height: 128px;
   text-decoration: none;
   color: inherit;
-  /* No opacity fade on hover — only title/arrow change color */
 }
 
-@media (min-width: 640px) {
-  .blog-card {
-    margin: 0 -16px;
-  }
+.blog-row:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 8px;
+  border-radius: 8px;
 }
 
-/* Separator: thin border-t between cards (not before first card) */
-.blog-card-separator {
-  border-top: 1px solid var(--wov-08);
+.blog-row-text {
+  flex: 1;
+  min-width: 0;
 }
 
-/* Inner content wrapper — py-7 / sm:py-9, flex-col gap-3 / sm:gap-4 */
-.blog-card-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 28px 0;
-}
-
-@media (min-width: 640px) {
-  .blog-card-inner {
-    gap: 16px;
-    padding: 36px 0;
-  }
-}
-
-/* Row 1: Date · Reading time */
-.blog-card-meta {
+.blog-row-chips {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 13px;
+  font-weight: 600;
+}
+
+.blog-row-cat[data-cat='paper-review'] {
+  color: var(--indigo);
+}
+
+.blog-row-cat[data-cat='engineering'] {
+  color: var(--teal);
+}
+
+.blog-row-author {
   color: var(--text-muted);
 }
 
-.blog-card-date {
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.blog-card-readtime {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-faint);
-}
-
-.blog-card-dot {
-  color: var(--wov-20);
-  user-select: none;
-}
-
-/* Row 2: Title + arrow */
-.blog-card-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.blog-card-title {
-  font-size: 21px;
-  font-weight: 600;
+.blog-row-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
   color: var(--text-strong);
-  line-height: 1.35;
-  margin: 0;
+  margin: 10px 0 0;
   transition: color 0.15s;
 }
 
-@media (min-width: 640px) {
-  .blog-card-title {
-    font-size: 26px;
-  }
-}
-
-.blog-card-arrow {
-  flex-shrink: 0;
-  color: var(--text-faint);
-  margin-top: 3px;
-  transition: color 0.15s, transform 0.15s;
-}
-
-/* Hover: only title and arrow change color; arrow nudges right-up */
-.blog-card:hover .blog-card-title {
+.blog-row:hover .blog-row-title {
   color: var(--indigo);
 }
 
-.blog-card:hover .blog-card-arrow {
-  color: var(--indigo);
-  transform: translate(2px, -2px);
-}
-
-/* Row 3: Excerpt */
-.blog-card-excerpt {
-  font-size: 15px;
+.blog-row-excerpt {
+  font-size: 17px;
+  line-height: 1.6;
   color: var(--text-muted);
-  line-height: 1.7;
-  margin: 0;
+  margin: 8px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  max-width: 560px;
 }
 
-/* Row 4: Author · Tags */
-.blog-card-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  padding-top: 4px;
+.blog-row-thumb {
+  flex: 0 0 228px;
+  width: 228px;
+  height: 128px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--wov-04);
 }
 
-.blog-card-author-label {
-  font-size: 13px;
-  color: var(--text-muted);
+.blog-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.blog-card-author-name {
-  font-weight: 600;
-  color: var(--text-strong);
+/* Side by side still, but the thumbnail gives up width before the text does. */
+@media (min-width: 769px) and (max-width: 1099px) {
+  .blog-row-thumb {
+    flex-basis: 180px;
+    width: 180px;
+    height: 101px;
+  }
 }
 
-.blog-tag {
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--indigo);
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 10px;
-  border-radius: 100px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+@media (max-width: 768px) {
+  .blog-grid {
+    gap: 40px;
+  }
+
+  .blog-row {
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .blog-row-thumb {
+    order: -1;
+    flex: none;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .blog-row-title {
+    font-size: 18px;
+  }
+
+  .blog-row-excerpt {
+    font-size: 15px;
+  }
 }
 
 /* Admin controls on card */
@@ -1023,29 +1216,180 @@
   border-color: rgba(239, 68, 68, 0.4);
 }
 
-/* ===== Loading Skeleton — no-thumbnail, alphaXiv layout ===== */
-.blog-skeleton-grid {
-  display: flex;
-  flex-direction: column;
+/* ===== Series index — full container width, below the list =====
+   Named -index, not .blog-series: that class is already the detail view's
+   series nav pill (and .blog-series-list is the series page). Sharing it made
+   this section inherit that pill's flex/padding/background, which squeezed the
+   238px cards to 230px and pulled the heading off the container's left edge. */
+.blog-series-index {
+  margin-top: 80px;
 }
 
-.blog-skeleton-card {
-  border-radius: 16px;
-  background: var(--wov-03);
-  padding: 0 16px;
+.blog-series-grid {
+  display: grid;
+  /* 4 tracks at the 1024px container = 238px cards; a 5th wraps to row 2. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.blog-series-card {
+  display: flex;
+  flex-direction: column;
+  height: 464px;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--wov-04);
+  color: inherit;
+  text-decoration: none;
   overflow: hidden;
 }
 
-.blog-skeleton-separator {
-  height: 1px;
-  background: var(--wov-08);
+.blog-series-card:hover .blog-series-title {
+  color: var(--indigo);
+}
+
+.blog-series-card:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.blog-series-cover {
+  width: 190px;
+  height: 190px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--wov-04);
+  flex-shrink: 0;
+}
+
+.blog-series-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.blog-series-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-strong);
+  margin: 20px 0 0;
+  transition: color 0.15s;
+}
+
+/* Ours run several sentences where toss's are one: 5 lines is what fits
+   between the title and the pinned count at 464px. */
+.blog-series-desc {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 10px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blog-series-count {
+  margin-top: auto;
+  padding-top: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+@media (max-width: 1099px) {
+  .blog-series-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .blog-series {
+    margin-top: 56px;
+  }
+
+  .blog-series-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One per row: no neighbour to line up with, so let the card fit itself. */
+  .blog-series-card {
+    height: auto;
+  }
+}
+
+/* ===== Pager — left-aligned to the row column, 36px squares ===== */
+.blog-pager {
+  display: flex;
+  align-items: center;
+  /* 7 buttons at 36 + 8 = 300px, so 390px viewports never overflow; wrap is
+     the backstop if the window ever grows. */
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 56px;
+}
+
+.blog-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s;
+}
+
+.blog-page-btn:hover:not(:disabled) {
+  background: var(--wov-05);
+  color: var(--text);
+}
+
+.blog-page-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.blog-page-btn.active {
+  background: var(--wov-06);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.blog-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ===== Loading Skeleton — same geometry as .blog-row ===== */
+.blog-skeleton-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.blog-skeleton-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  min-height: 128px;
 }
 
 .blog-skeleton-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 28px 0;
 }
 
 .blog-skeleton-line {
@@ -1055,28 +1399,66 @@
   animation: blog-shimmer 1.5s infinite;
 }
 
-/* Row 1: date · readtime */
-.blog-skeleton-line.short {
-  height: 12px;
-  width: 30%;
+.blog-skeleton-thumb {
+  flex: 0 0 228px;
+  width: 228px;
+  height: 128px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--skel-1) 25%, var(--skel-2) 50%, var(--skel-1) 75%);
+  background-size: 200% 100%;
+  animation: blog-shimmer 1.5s infinite;
+}
+
+/* Row 1: category · author */
+.blog-skeleton-line.chips {
+  height: 13px;
+  width: 34%;
 }
 
 /* Row 2: title */
 .blog-skeleton-line.title {
-  height: 22px;
-  width: 75%;
+  height: 21px;
+  width: 82%;
 }
 
 /* Row 3: excerpt line 1 */
 .blog-skeleton-line.full {
-  height: 13px;
+  height: 15px;
   width: 100%;
 }
 
 /* Row 3: excerpt line 2 */
 .blog-skeleton-line.excerpt {
-  height: 13px;
-  width: 65%;
+  height: 15px;
+  width: 62%;
+}
+
+@media (min-width: 769px) and (max-width: 1099px) {
+  .blog-skeleton-thumb {
+    flex-basis: 180px;
+    width: 180px;
+    height: 101px;
+  }
+}
+
+@media (max-width: 768px) {
+  .blog-skeleton-grid {
+    gap: 40px;
+  }
+
+  .blog-skeleton-card {
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .blog-skeleton-thumb {
+    order: -1;
+    flex: none;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
 }
 
 @keyframes blog-shimmer {
@@ -1147,6 +1529,24 @@
   gap: 7px;
   flex-wrap: wrap;
   margin-bottom: 18px;
+}
+
+/* Tag pill and meta separator — the list rows dropped both, so these two now
+   belong to the detail view alone. Unchanged from what it was using. */
+.blog-tag {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--indigo);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 100px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.blog-card-dot {
+  color: var(--wov-20);
+  user-select: none;
 }
 
 .blog-detail-title {

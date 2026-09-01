@@ -30,6 +30,9 @@ pypdf>=6.0.0
 pdfplumber>=0.10.0
 PyMuPDF>=1.24.0
 
+# Blog figure downscaling (GET /api/blog/figures/{name}?w=)
+Pillow>=11.0.0
+
 # Server-side blog SEO rendering (Markdown → HTML)
 # [linkify] extra pulls in linkify-it-py, required by the renderer's linkify:True option.
 markdown-it-py[linkify]>=3.0.0

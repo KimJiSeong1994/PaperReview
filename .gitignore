@@ -242,6 +242,8 @@ outputs/
 
 .omc
 data/blog/figures/run_*/
+# Derived downscaled figures — regenerated on demand, never committed
+data/blog/figures/.cache/
 .omx/
 AGENTS.md
 
