@@ -970,74 +970,84 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // ── Hero carousel (3 newest, manual only) ───────────────────────────
 
   const renderHero = () => {
-    const post = heroPosts[heroIndex];
-    const cat = normalizeCategory(post.category);
     const step = (delta: number) =>
       setHeroIndex((i) => (i + delta + heroPosts.length) % heroPosts.length);
     return (
+      // All slides occupy one grid cell, so the hero is always as tall as its
+      // tallest slide and paging moves nothing below it. Manual advance only,
+      // so polite is enough: the new slide is announced when it is asked for.
       <section
         className="blog-hero"
         aria-roledescription="carousel"
         aria-label="주요 글"
+        aria-live="polite"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'ArrowLeft') step(-1);
           else if (e.key === 'ArrowRight') step(1);
         }}
       >
-        {/* Manual advance only, so polite is enough: the slide changes because
-            the reader pressed a button, and the new one is announced then. */}
-        <div className="blog-hero-slide" aria-live="polite">
-          <div className="blog-hero-text">
-            <span className="blog-row-cat" data-cat={cat}>{CATEGORY_META[cat].badge}</span>
-            <h2 className="blog-hero-title">
-              <a
-                className="blog-hero-link"
-                href={`/blog/${post.slug}`}
-                onClick={(e) => { e.preventDefault(); void openPost(post); }}
-              >
-                {post.title}
-              </a>
-            </h2>
-            <p className="blog-hero-excerpt">{post.excerpt}</p>
-            <div className="blog-hero-controls">
-              <button type="button" className="blog-hero-arrow" aria-label="이전 글" onClick={() => step(-1)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-              <button type="button" className="blog-hero-arrow" aria-label="다음 글" onClick={() => step(1)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-              <span className="blog-hero-counter" aria-hidden="true">
-                {heroIndex + 1} / {heroPosts.length}
-              </span>
-            </div>
-          </div>
-          {post.thumbnail_url && (
-            // Same destination as the title above it — hidden from AT so the
-            // slide offers one link, not two, one of them unnamed.
-            <a
-              className="blog-hero-media"
-              href={`/blog/${post.slug}`}
-              tabIndex={-1}
-              aria-hidden="true"
-              onClick={(e) => { e.preventDefault(); void openPost(post); }}
+        {heroPosts.map((post, i) => {
+          const cat = normalizeCategory(post.category);
+          return (
+            // visibility: hidden also takes the inactive slides out of the tab
+            // order and the accessibility tree, so their links are unreachable.
+            <div
+              key={post.id}
+              className={`blog-hero-slide${i === heroIndex ? '' : ' is-hidden'}`}
             >
-              <img
-                src={figureSrc(post.thumbnail_url, 640)}
-                alt=""
-                width={520}
-                height={280}
-                loading="lazy"
-                decoding="async"
-                onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
-              />
-            </a>
-          )}
-        </div>
+              <div className="blog-hero-text">
+                <span className="blog-row-cat" data-cat={cat}>{CATEGORY_META[cat].badge}</span>
+                <h2 className="blog-hero-title">
+                  <a
+                    className="blog-hero-link"
+                    href={`/blog/${post.slug}`}
+                    onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                  >
+                    {post.title}
+                  </a>
+                </h2>
+                <p className="blog-hero-excerpt">{post.excerpt}</p>
+                <div className="blog-hero-controls">
+                  <button type="button" className="blog-hero-arrow" aria-label="이전 글" onClick={() => step(-1)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                  <button type="button" className="blog-hero-arrow" aria-label="다음 글" onClick={() => step(1)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                  <span className="blog-hero-counter" aria-hidden="true">
+                    {i + 1} / {heroPosts.length}
+                  </span>
+                </div>
+              </div>
+              {post.thumbnail_url && (
+                // Same destination as the title above it — hidden from AT so the
+                // slide offers one link, not two, one of them unnamed.
+                <a
+                  className="blog-hero-media"
+                  href={`/blog/${post.slug}`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                >
+                  <img
+                    src={figureSrc(post.thumbnail_url, 640)}
+                    alt=""
+                    width={520}
+                    height={280}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
+                  />
+                </a>
+              )}
+            </div>
+          );
+        })}
       </section>
     );
   };

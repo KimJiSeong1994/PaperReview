@@ -142,17 +142,17 @@ describe('BlogPage hero carousel', () => {
 
     expect(heroTitle()).toBe('Post f');
 
-    fireEvent.click(within(hero()).getByLabelText('다음 글'));
+    fireEvent.click(within(hero()).getByRole('button', { name: '다음 글' }));
     expect(heroTitle()).toBe('Post e');
 
-    fireEvent.click(within(hero()).getByLabelText('다음 글'));
+    fireEvent.click(within(hero()).getByRole('button', { name: '다음 글' }));
     expect(heroTitle()).toBe('Post d');
 
     // Wraps rather than dead-ending.
-    fireEvent.click(within(hero()).getByLabelText('다음 글'));
+    fireEvent.click(within(hero()).getByRole('button', { name: '다음 글' }));
     expect(heroTitle()).toBe('Post f');
 
-    fireEvent.click(within(hero()).getByLabelText('이전 글'));
+    fireEvent.click(within(hero()).getByRole('button', { name: '이전 글' }));
     expect(heroTitle()).toBe('Post d');
   });
 
@@ -365,6 +365,11 @@ describe('BlogPage row and carousel controls', () => {
 
     fireEvent.keyDown(hero(), { key: 'ArrowLeft' });
     expect(heroTitle()).toBe('Post f');
+
+    // The arrows resolve by role, so only the visible slide's pair exists as
+    // far as assistive tech — and as far as this query — is concerned.
+    fireEvent.click(within(hero()).getByRole('button', { name: '다음 글' }));
+    expect(heroTitle()).toBe('Post e');
   });
 });
 
@@ -488,7 +493,17 @@ describe('BlogPage unified list', () => {
 describe('BlogPage series shelf', () => {
   const section = () => screen.getByRole('region', { name: '아티클 시리즈' });
   const track = () => document.querySelector<HTMLElement>('.blog-series-grid')!;
-  const extras = ['x1', 'x2'];
+  const REAL_SERIES = { ...BLOG_SERIES };
+
+  /** Pin the shelf to `count` series, so these tests do not re-break every
+   *  time a real series is added — the arrow rule is about count vs columns,
+   *  not about which series happen to exist today. */
+  function pinSeriesCount(count: number) {
+    for (const id of Object.keys(BLOG_SERIES)) delete BLOG_SERIES[id];
+    for (let i = 0; i < count; i += 1) {
+      BLOG_SERIES[`s${i}`] = { title: `Series ${i}`, description: 'x', slugs: ['s'] };
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -496,10 +511,24 @@ describe('BlogPage series shelf', () => {
   });
 
   afterEach(() => {
-    for (const id of extras) delete BLOG_SERIES[id];
+    for (const id of Object.keys(BLOG_SERIES)) delete BLOG_SERIES[id];
+    Object.assign(BLOG_SERIES, REAL_SERIES);
   });
 
-  it('shows no arrows at the real 4 series on a desktop viewport', async () => {
+  it('renders one card per real series', async () => {
+    const expected = Object.keys(REAL_SERIES).length;
+    // Guards the guard: an emptied BLOG_SERIES would make the count assertion
+    // vacuously true, and the shelf renders nothing at zero.
+    expect(expected).toBeGreaterThanOrEqual(5);
+
+    renderBlog();
+    await screen.findByRole('region', { name: '아티클 시리즈' });
+
+    expect(within(section()).getAllByRole('link')).toHaveLength(expected);
+  });
+
+  it('shows no arrows while the series fit one row', async () => {
+    pinSeriesCount(4);
     renderBlog();
     await screen.findByRole('region', { name: '아티클 시리즈' });
 
@@ -509,9 +538,7 @@ describe('BlogPage series shelf', () => {
   });
 
   it('pages by a full row once the series overflow the shelf', async () => {
-    for (const id of extras) {
-      BLOG_SERIES[id] = { title: `Extra ${id}`, description: 'x', slugs: ['s'] };
-    }
+    pinSeriesCount(6);
     renderBlog();
     await screen.findByRole('region', { name: '아티클 시리즈' });
 
@@ -530,5 +557,46 @@ describe('BlogPage series shelf', () => {
 
     fireEvent.click(prev);
     expect(track().style.transform).toBe('translateX(calc(0 * (100% + 24px)))');
+  });
+});
+
+describe('BlogPage hero stacking', () => {
+  const slides = () => Array.from(document.querySelectorAll('.blog-hero-slide'));
+  const shown = () => slides().filter((el) => !el.classList.contains('is-hidden'));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(POSTS));
+  });
+
+  it('keeps every slide mounted so the hero cannot change height', async () => {
+    renderBlog();
+    await screen.findByRole('region', { name: '주요 글' });
+
+    // All three share one grid cell; the container is as tall as the tallest.
+    expect(slides()).toHaveLength(3);
+    expect(shown()).toHaveLength(1);
+
+    const container = hero();
+    const nodes = slides();
+    fireEvent.click(within(hero()).getByRole('button', { name: '다음 글' }));
+
+    // Same section, same slide nodes — only which one is visible changed, so
+    // there is nothing for the browser to reflow.
+    expect(hero()).toBe(container);
+    expect(slides()).toEqual(nodes);
+    expect(slides()).toHaveLength(3);
+    expect(shown()).toHaveLength(1);
+    expect(heroTitle()).toBe('Post e');
+  });
+
+  it('offers no link or button from a hidden slide', async () => {
+    renderBlog();
+    await screen.findByRole('region', { name: '주요 글' });
+
+    // One title link and one pair of arrows, though three slides are mounted.
+    expect(within(hero()).getAllByRole('link')).toHaveLength(1);
+    expect(within(hero()).getAllByRole('button')).toHaveLength(2);
+    expect(within(hero()).getByRole('link')).toHaveAccessibleName('Post f');
   });
 });

@@ -582,7 +582,19 @@
 
 /* ===== Hero carousel ===== */
 .blog-hero {
+  /* One cell, every slide in it: the hero is as tall as its tallest slide, at
+     every breakpoint, so paging cannot move the page. */
+  display: grid;
+  grid-template-areas: "slide";
   margin-bottom: 56px;
+}
+
+.blog-hero-slide {
+  grid-area: slide;
+}
+
+.blog-hero-slide.is-hidden {
+  visibility: hidden;
 }
 
 /* The carousel region takes focus so ArrowLeft/Right can reach it. */
@@ -686,10 +698,14 @@
   background: var(--wov-04);
 }
 
+/* contain, not cover: these are paper figures, and a crop takes the
+   half that carries the meaning. The container's ground shows through
+   the letterbox, and the small inset keeps the artwork off the radius. */
 .blog-hero-media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 10px;
   display: block;
 }
 
@@ -948,10 +964,14 @@
   background: var(--wov-04);
 }
 
+/* contain, not cover: these are paper figures, and a crop takes the
+   half that carries the meaning. The container's ground shows through
+   the letterbox, and the small inset keeps the artwork off the radius. */
 .blog-row-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 6px;
   display: block;
 }
 
@@ -1109,10 +1129,14 @@
   flex-shrink: 0;
 }
 
+/* contain, not cover: these are paper figures, and a crop takes the
+   half that carries the meaning. The container's ground shows through
+   the letterbox, and the small inset keeps the artwork off the radius. */
 .blog-series-cover img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 8px;
   display: block;
 }
 
@@ -1163,10 +1187,9 @@
     grid-auto-columns: 100%;
   }
 
-  /* One per row: no neighbour to line up with, so let the card fit itself. */
-  .blog-series-card {
-    height: auto;
-  }
+  /* Cards keep their fixed height even one-up: with 1 column the shelf pages
+     one card at a time, and a self-sized card made every step change the
+     section's height — the same jump the hero had. */
 }
 
 /* ===== Pager — left-aligned to the row column, 36px squares ===== */

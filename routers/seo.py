@@ -208,6 +208,26 @@ BLOG_SERIES: dict[str, dict] = {
             "ic2-interventional-dynamical-causality-under-latent-confounders",
         ],
     },
+    "jiphyeonjeon-build": {
+        "title": "집현전 개발 시리즈",
+        "description": (
+            "집현전을 만들며 남긴 개발 기록 7편. 단일 쿼리로는 닿지 않는 논문을 "
+            "찾으려 검색을 에이전트로 바꾼 일에서 출발해, 흩어진 논문 사이의 관계를 "
+            "그래프로 드러내고, LLM이 논문을 읽고 밑줄을 긋게 하고, 무엇부터 읽어야 "
+            "하는지를 커리큘럼으로 답하고, 그 기능들을 MCP 도구로 브라우저 밖까지 "
+            "넓히고, 연구자 페르소나로 추천을 개인화하고, 끝내 검색 프롬프트를 "
+            "고르는 일 자체를 에이전트에게 넘기기까지를 시간순으로 읽는 시리즈."
+        ),
+        "slugs": [
+            "search-agent-beyond-single-query-65bcbe5c30fd",
+            "paper-network-graph-hidden-connections-f954b2866fb4",
+            "auto-highlight-ai-scholarly-annotation-f6a5ccb4ce6b",
+            "curriculum-generator-jiphyeonjeon-9fdf6c688749",
+            "jiphyeonjeon-agent-mcp-tool-surface-a7c9e3d4b821",
+            "daily-recommendations-research-persona-dailyrec2026",
+            "skillopt-search-policy-training-90c0bb4ee568",
+        ],
+    },
 }
 
 
