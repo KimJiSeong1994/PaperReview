@@ -69,8 +69,7 @@ describe('BlogPage ?tag= filter', () => {
   });
 
   it('loads everything when no tag is present', async () => {
-    // Without a tag there is no auto-switch, so this post has to sit in the
-    // default (engineering) tab to be visible at all.
+    // /blog is one unified stream now, so category is irrelevant here.
     vi.mocked(fetchBlogPosts).mockResolvedValue(
       respond([post('b', 'Crawler health', { category: 'engineering' })]),
     );

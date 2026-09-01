@@ -11,6 +11,7 @@ Blog endpoints:
 import json
 import logging
 import math
+import os
 import re
 import unicodedata
 import uuid
@@ -40,6 +41,15 @@ router = APIRouter(prefix="/api/blog", tags=["blog"])
 _CJK_RE = re.compile(r"[가-힣぀-ヿ一-鿿]")
 
 BLOG_DIR = Path("data/blog")
+
+# Posts without a real cover carry this placeholder; the list page prefers a
+# neutral ground over 37 identical images, so it is treated as "no thumbnail".
+PLACEHOLDER_THUMBNAIL = "/og-default.jpg"
+# First inline figure in the markdown body, used as the fallback cover.
+_FIGURE_URL_RE = re.compile(r"/api/blog/figures/[^)\s\"']+")
+# Widths the figure endpoint will resize to. 456 is the 2x asset for a 228px box.
+_FIGURE_WIDTHS = frozenset({228, 456, 640})
+
 POSTS_FILE = BLOG_DIR / "posts.json"
 DELETED_FILE = BLOG_DIR / "deleted.json"
 _posts_lock = FileLock(str(POSTS_FILE) + ".lock")
@@ -51,6 +61,20 @@ _posts_lock = FileLock(str(POSTS_FILE) + ".lock")
 def _ensure_blog_dir() -> None:
     """Create data/blog/ directory if it does not exist."""
     BLOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _effective_thumbnail(post: dict) -> Optional[str]:
+    """Cover image for a post: own thumbnail > first inline figure > None.
+
+    The stored ``thumbnail_url`` is often the ``/og-default.jpg`` placeholder,
+    which would render as dozens of identical covers, so it is ignored in
+    favour of the first figure the body already embeds.
+    """
+    own = (post.get("thumbnail_url") or "").strip()
+    if own and own != PLACEHOLDER_THUMBNAIL:
+        return own
+    match = _FIGURE_URL_RE.search(post.get("content") or "")
+    return match.group(0) if match else None
 
 
 def _load_posts() -> list[dict]:
@@ -325,7 +349,7 @@ class PostUpdateRequest(BaseModel):
 
 
 class PostSummary(BaseModel):
-    """Post summary returned in list responses (no full content, no thumbnail)."""
+    """Post summary returned in list responses (no full content)."""
     id: str
     title: str
     slug: str
@@ -334,6 +358,9 @@ class PostSummary(BaseModel):
     tags: list[str]
     category: str = DEFAULT_CATEGORY
     has_thumbnail: bool = False
+    # In list responses this is the effective cover (see _effective_thumbnail);
+    # PostDetail inherits the field and returns the stored value verbatim.
+    thumbnail_url: Optional[str] = None
     created_at: str
     updated_at: Optional[str]
     published: bool
@@ -345,7 +372,6 @@ class PostSummary(BaseModel):
 class PostDetail(PostSummary):
     """Full post including markdown content and thumbnail."""
     content: str
-    thumbnail_url: Optional[str] = None
 
     @model_validator(mode="after")
     def _derive_has_thumbnail(self) -> "PostDetail":
@@ -402,25 +428,70 @@ async def get_thumbnail(post_id: str):
     return FileResponse(thumb_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
+def _resized_figure(fig_path: Path, width: int) -> Path:
+    """Return a ``width``-wide copy of ``fig_path``, cached under ``.cache/``.
+
+    Falls back to the original path when the source is already narrower (never
+    upscale) or is not a decodable image — a broken file must not 500 a request
+    that would otherwise have served its bytes.
+    """
+    cached = BLOG_DIR / "figures" / ".cache" / str(width) / fig_path.name
+    # Keyed on name alone: replacing a figure in place, under the same name,
+    # keeps serving the old cached copy. Figures are written once and referenced
+    # by post content, so that has not come up; delete .cache/ to force a rebuild.
+    if cached.is_file():
+        return cached
+    tmp: Optional[Path] = None
+    try:
+        from PIL import Image
+
+        with Image.open(fig_path) as img:
+            if img.width <= width:
+                return fig_path
+            fmt = img.format
+            img.thumbnail((width, img.height), Image.LANCZOS)
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            # Same format as the source, so the header sniffing below still
+            # reports the right content type for mislabelled files.
+            tmp = cached.with_name(f"{cached.name}.{os.getpid()}.tmp")
+            img.save(tmp, format=fmt)
+        os.replace(tmp, cached)
+    except Exception:
+        # A half-written temp file would otherwise accumulate on every retry.
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+        logger.warning("figure resize failed, serving original: %s", fig_path.name, exc_info=True)
+        return fig_path
+    return cached
+
+
 @router.get("/figures/{filename}")
-async def get_figure(filename: str):
-    """Serve blog figure images."""
+async def get_figure(
+    filename: str,
+    w: Optional[int] = Query(None, description=f"Downscale to this width. One of {sorted(_FIGURE_WIDTHS)}."),
+):
+    """Serve blog figure images, optionally downscaled to a fixed width."""
     from fastapi.responses import FileResponse
 
     # Path traversal 방지: filename에서 경로 구분자 차단
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
+    if w is not None and w not in _FIGURE_WIDTHS:
+        raise HTTPException(status_code=400, detail=f"w must be one of {sorted(_FIGURE_WIDTHS)}")
     fig_path = (BLOG_DIR / "figures" / filename).resolve()
     allowed_dir = (BLOG_DIR / "figures").resolve()
     if not str(fig_path).startswith(str(allowed_dir)):
         raise HTTPException(status_code=403, detail="Access denied")
-    if not fig_path.exists():
+    # is_file(), not exists(): ".cache" is a directory under figures/ and must
+    # not be servable as a figure.
+    if not fig_path.is_file():
         raise HTTPException(status_code=404, detail="Figure not found")
+    serve_path = _resized_figure(fig_path, w) if w else fig_path
     import mimetypes
-    media_type = mimetypes.guess_type(str(fig_path))[0] or "application/octet-stream"
+    media_type = mimetypes.guess_type(str(serve_path))[0] or "application/octet-stream"
     # .png 확장자지만 실제 JPEG인 경우 처리
     try:
-        with open(fig_path, "rb") as f:
+        with open(serve_path, "rb") as f:
             header = f.read(3)
         if header[:2] == b'\xff\xd8':
             media_type = "image/jpeg"
@@ -428,7 +499,7 @@ async def get_figure(filename: str):
             media_type = "image/png"
     except Exception:
         pass
-    return FileResponse(fig_path, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
+    return FileResponse(serve_path, media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/posts", response_model=PostListResponse)
@@ -502,6 +573,7 @@ async def list_posts(
     for p in page_posts:
         summary = {k: v for k, v in p.items() if k not in ("content", "thumbnail_url")}
         summary["has_thumbnail"] = bool(p.get("thumbnail_url"))
+        summary["thumbnail_url"] = _effective_thumbnail(p)
         summary["snippet"] = snippets.get(p.get("id"))
         summaries.append(summary)
 

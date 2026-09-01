@@ -105,7 +105,9 @@ describe('BlogPage search overlay', () => {
     const many = ['a', 'b', 'c', 'd'].map((id, i) => post(id, `Post ${i}`));
     vi.mocked(fetchBlogPosts).mockResolvedValue(respond(many));
     renderBlog();
-    await screen.findByText('Post 0');
+    // Load barrier only. findAll, not find: with 4 posts the list also renders
+    // the hero carousel, so the newest title is on screen twice by design.
+    await screen.findAllByText('Post 0');
 
     openSearch();
 

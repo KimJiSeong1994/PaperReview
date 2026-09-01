@@ -171,9 +171,9 @@ Content after the formula.`,
       </Routes>,
     );
 
-    const sidebar = await screen.findByRole('tablist', {
-      name: 'Filter posts by category',
-    });
+    // The series links now live in the 아티클 시리즈 section at the page
+    // bottom; this still asks the one place series links live.
+    const sidebar = await screen.findByRole('region', { name: '아티클 시리즈' });
     expect(within(sidebar).getByRole('link', {
       name: /GNN 논문 리뷰 시리즈/,
     })).toBeInTheDocument();

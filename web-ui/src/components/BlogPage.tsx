@@ -40,7 +40,7 @@ interface BlogPost {
   author: string;
   tags: string[];
   category?: string;
-  thumbnail_url?: string;
+  thumbnail_url?: string | null;
   /** Body excerpt around the match — set by the API only for `?q=` body hits. */
   snippet?: string | null;
   reading_time_min: number;
@@ -60,8 +60,29 @@ type BlogView = 'list' | 'detail' | 'editor';
 // ── Categories ────────────────────────────────────────────────────────
 
 type CategoryKey = 'paper-review' | 'engineering';
-type CategoryFilter = CategoryKey;
-const DEFAULT_CATEGORY: CategoryKey = 'engineering';
+
+/** Posts per list page, and how many page numbers the pager shows at once. */
+const PAGE_SIZE = 5;
+const PAGE_WINDOW = 5;
+
+/** The visible slice of page numbers, sliding to keep `page` in the middle. */
+function pageWindow(page: number, pageCount: number): number[] {
+  const start = Math.max(1, Math.min(page - Math.floor(PAGE_WINDOW / 2), pageCount - PAGE_WINDOW + 1));
+  return Array.from({ length: Math.min(PAGE_WINDOW, pageCount) }, (_, i) => start + i);
+}
+
+/** Series shelf columns per breakpoint — mirrors .blog-series-grid's CSS. */
+const SERIES_BREAKPOINTS: [string, number][] = [
+  ['(max-width: 640px)', 1],
+  ['(max-width: 1099px)', 2],
+];
+const SERIES_COLUMNS = 4;
+
+function seriesColumns(): number {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return SERIES_COLUMNS;
+  const hit = SERIES_BREAKPOINTS.find(([query]) => window.matchMedia(query).matches);
+  return hit ? hit[1] : SERIES_COLUMNS;
+}
 
 /** The sticky table of contents only renders above this width. */
 const TOC_VIEWPORT_QUERY = '(min-width: 1200px)';
@@ -70,11 +91,6 @@ const CATEGORY_META: Record<CategoryKey, { label: string; badge: string }> = {
   'paper-review': { label: 'Paper Reviews', badge: 'Paper Review' },
   engineering: { label: 'Engineering', badge: 'Engineering' },
 };
-
-const SEGMENTS: { key: CategoryFilter; label: string }[] = [
-  { key: 'engineering', label: 'Engineering' },
-  { key: 'paper-review', label: 'Paper Reviews' },
-];
 
 /** Coerce any stored/legacy value to a known category (defaults to engineering). */
 function normalizeCategory(category?: string): CategoryKey {
@@ -145,10 +161,6 @@ function highlight(text: string, tokens: string[]): React.ReactNode {
   return text.split(pattern).map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
 }
 
-function categoryHref(key: CategoryFilter): string {
-  return key === DEFAULT_CATEGORY ? '/blog' : `/blog/category/${key}`;
-}
-
 function CategoryBadge({ category }: { category?: string }) {
   const key = normalizeCategory(category);
   return (
@@ -171,38 +183,6 @@ function CategoryBadge({ category }: { category?: string }) {
   );
 }
 
-/** Leading icon for a sidebar category item (color set via CSS per data-cat). */
-function sidebarIcon(key: CategoryFilter) {
-  if (key === 'paper-review') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-      </svg>
-    );
-  }
-  if (key === 'engineering') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
-        <polyline points="16 18 22 12 16 6" />
-        <polyline points="8 6 2 12 8 18" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
-      <line x1="8" y1="6" x2="21" y2="6" />
-      <line x1="8" y1="12" x2="21" y2="12" />
-      <line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" />
-      <line x1="3" y1="12" x2="3.01" y2="12" />
-      <line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  );
-}
-
 // renderMarkdown replaced by ReactMarkdown component (XSS-safe)
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -220,6 +200,34 @@ function formatDate(isoString: string): string {
   } catch {
     return isoString;
   }
+}
+
+/** Ask the figure endpoint for a resized copy; leave any other URL alone. */
+function figureSrc(url: string, width: number): string {
+  if (!url.includes('/api/blog/figures/')) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}w=${width}`;
+}
+
+/** Tag counts over the already-fetched posts, merged across casing.
+ *  Mirrors routers/blog.py::_merged_tag_counts — most-used casing wins, ties
+ *  by the lexicographically first — so a chip here and one on /blog/tags are
+ *  the same chip, pointing at the same case-insensitive ?tag=. */
+function mergedTagCounts(posts: BlogPost[]): { tag: string; count: number }[] {
+  const variants = new Map<string, Map<string, number>>();
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      const key = tag.toLowerCase();
+      const bucket = variants.get(key) ?? new Map<string, number>();
+      bucket.set(tag, (bucket.get(tag) ?? 0) + 1);
+      variants.set(key, bucket);
+    }
+  }
+  return [...variants.values()]
+    .map((bucket) => {
+      const casings = [...bucket.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      return { tag: casings[0][0], count: casings.reduce((sum, [, n]) => sum + n, 0) };
+    })
+    .sort((a, b) => b.count - a.count || a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
 }
 
 function buildSlug(title: string): string {
@@ -250,14 +258,13 @@ function getErrorMessage(err: unknown, fallback: string): string {
 function BlogSkeletonCard() {
   return (
     <div className="blog-skeleton-card">
-      <div className="blog-skeleton-separator" />
       <div className="blog-skeleton-body">
-        <div className="blog-skeleton-line short" />
+        <div className="blog-skeleton-line chips" />
         <div className="blog-skeleton-line title" />
         <div className="blog-skeleton-line full" />
         <div className="blog-skeleton-line excerpt" />
-        <div className="blog-skeleton-line short" />
       </div>
+      <div className="blog-skeleton-thumb" />
     </div>
   );
 }
@@ -292,7 +299,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory ?? DEFAULT_CATEGORY);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -319,6 +325,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [query, setQuery] = useState(initialQuery.trim());
   const [searchResults, setSearchResults] = useState<BlogPost[] | null>(null);
   const [searching, setSearching] = useState(false);
+  // Hero carousel position. Manual only — no autoplay, so there is no timer to
+  // pause for prefers-reduced-motion and nothing moves under a reader's focus.
+  const [heroIndex, setHeroIndex] = useState(0);
+  // Series shelf paging. Same manual-only treatment as the hero.
+  const [seriesPage, setSeriesPage] = useState(0);
+  const [seriesCols, setSeriesCols] = useState(seriesColumns);
 
   // The sticky table of contents is a wide-screen affordance only: below
   // 1200px the article gets the full column and the body's own 목차 stands in.
@@ -428,30 +440,42 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     };
   }, [query, slug]);
 
-  // ── Category filtering (client-side) ───────────────────────────────
+  // ── Category filtering ─────────────────────────────────────────────
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<CategoryFilter, number> = {
-      'paper-review': 0,
-      engineering: 0,
-    };
-    for (const p of posts) counts[normalizeCategory(p.category)] += 1;
-    return counts;
-  }, [posts]);
-
+  // /blog is one unified stream. Only the indexed /blog/category/:category
+  // hubs narrow it, which is why this reads the route prop and nothing else.
   const visiblePosts = useMemo(
-    () => posts.filter((p) => normalizeCategory(p.category) === activeCategory),
-    [posts, activeCategory],
+    () => (initialCategory ? posts.filter((p) => normalizeCategory(p.category) === initialCategory) : posts),
+    [posts, initialCategory],
   );
 
-  // Keep the active filter in sync with the /blog/category/:category route.
-  // Adjust-during-render (React's recommended pattern) rather than an effect,
-  // so navigating between category hubs without a remount still re-filters.
-  const [lastInitialCategory, setLastInitialCategory] = useState(initialCategory);
-  if (initialCategory !== lastInitialCategory) {
-    setLastInitialCategory(initialCategory);
-    setActiveCategory(initialCategory ?? DEFAULT_CATEGORY);
-  }
+  // Paging lives in ?page= alone, so a tag chip — which navigates to a bare
+  // path — resets to page 1 for free.
+  const pageCount = Math.max(1, Math.ceil(visiblePosts.length / PAGE_SIZE));
+  // Out of range clamps to the last page: ?page=9 on a 2-post category shows
+  // posts, not an empty column.
+  const page = Math.min(Math.max(1, Number(searchParams.get('page')) || 1), pageCount);
+  const pagePosts = visiblePosts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Newest first. Array.sort is stable, so posts sharing a created_at keep the
+  // server's own publication tie-break instead of being reshuffled here.
+  const recentPosts = useMemo(
+    () => [...visiblePosts].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [visiblePosts],
+  );
+  // A three-slide carousel needs three slides; below that the whole list is
+  // already on screen and the hero would just repeat it.
+  const heroPosts = useMemo(
+    () => (recentPosts.length >= 3 ? recentPosts.slice(0, 3) : []),
+    [recentPosts],
+  );
+  // Slicing the *same* sorted array from 3 is what keeps the rail from
+  // repeating the hero — the two can never overlap by construction.
+  const railPosts = useMemo(
+    () => (heroPosts.length ? recentPosts.slice(3, 8) : []),
+    [heroPosts, recentPosts],
+  );
+  const topTags = useMemo(() => mergedTagCounts(posts).slice(0, 8), [posts]);
 
   useEffect(() => {
     if (slug) return;
@@ -459,14 +483,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       void loadPosts();
     });
   }, [loadPosts, slug]);
-
-  // Tags mostly live in one category, so the default tab is usually the empty
-  // one after filtering. Land on a tab that actually has hits.
-  useEffect(() => {
-    if (!tagFilter || posts.length === 0) return;
-    if (posts.some((p) => normalizeCategory(p.category) === activeCategory)) return;
-    setActiveCategory(normalizeCategory(posts[0].category));
-  }, [tagFilter, posts, activeCategory]);
 
   useEffect(() => {
     if (!slug) return;
@@ -504,6 +520,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const queries = SERIES_BREAKPOINTS.map(([q]) => window.matchMedia(q));
+    const sync = () => { setSeriesCols(seriesColumns()); setSeriesPage(0); };
+    queries.forEach((q) => q.addEventListener('change', sync));
+    return () => queries.forEach((q) => q.removeEventListener('change', sync));
+  }, []);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined;
@@ -801,94 +825,267 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     );
   };
 
-  // ── Category sidebar (list view) ────────────────────────────────────
+  const goToPage = (next: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (next <= 1) params.delete('page');
+    else params.set('page', String(next));
+    setSearchParams(params);
+    // Back to the top of the list, not to the pager the click came from.
+    // jsdom has no scrollIntoView, hence the optional call.
+    document.getElementById('all-articles')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
 
-  const renderSidebar = () => (
-    <aside className="blog-sidebar">
-      <nav
-        className="blog-side-nav"
-        role="tablist"
-        aria-orientation="vertical"
-        aria-label="Filter posts by category"
-      >
-        <div className="blog-side-label">Categories</div>
-        {SEGMENTS.map((seg) => (
-          <a
-            key={seg.key}
-            href={categoryHref(seg.key)}
-            role="tab"
-            data-cat={seg.key}
-            aria-selected={activeCategory === seg.key}
-            className={`blog-side-item ${activeCategory === seg.key ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveCategory(seg.key);
-              navigate(categoryHref(seg.key));
-            }}
-          >
-            <span className="blog-side-icon">{sidebarIcon(seg.key)}</span>
-            <span className="blog-side-text">{seg.label}</span>
-            <span className="blog-side-count">{categoryCounts[seg.key]}</span>
+  // ── Right rail (list view) ──────────────────────────────────────────
+
+  const railLink = (href: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(href);
+  };
+
+  const renderRail = () => (
+    <aside className="blog-rail">
+      {railPosts.length > 0 && (
+        <section className="blog-rail-card" aria-labelledby="rail-recent">
+          <h2 className="blog-rail-title" id="rail-recent">최근 글</h2>
+          <ol className="blog-rail-list">
+            {railPosts.map((post, i) => (
+              <li key={post.id} className="blog-rail-item">
+                <span className="blog-rail-rank" aria-hidden="true">{i + 1}</span>
+                <a
+                  className="blog-rail-link"
+                  href={`/blog/${post.slug}`}
+                  onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                >
+                  {post.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {topTags.length > 0 && (
+        <section className="blog-rail-card" aria-labelledby="rail-tags">
+          <h2 className="blog-rail-title" id="rail-tags">인기 태그</h2>
+          <div className="blog-rail-tags">
+            {topTags.map(({ tag, count }) => (
+              <a
+                key={tag}
+                className="blog-rail-tag"
+                href={`/blog?tag=${encodeURIComponent(tag)}`}
+                onClick={railLink(`/blog?tag=${encodeURIComponent(tag)}`)}
+              >
+                {tag}
+                <span className="blog-rail-count">{count}</span>
+              </a>
+            ))}
+          </div>
+          <a className="blog-rail-more" href="/blog/tags" onClick={railLink('/blog/tags')}>
+            태그 전체 보기
           </a>
-        ))}
-        <a
-          href="/blog/tags"
-          className="blog-side-item"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/blog/tags');
-          }}
-        >
-          <span className="blog-side-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
-              <path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z" />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
-            </svg>
-          </span>
-          <span className="blog-side-text">Tags</span>
-        </a>
-        <div className="blog-side-label">Series</div>
-        {Object.entries(BLOG_SERIES)
-          .map(([sid, series]) => (
-            <a
-              key={sid}
-              href={`/blog/series/${sid}`}
-              className="blog-side-item"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(`/blog/series/${sid}`);
-              }}
-            >
-              <span className="blog-side-icon">{sidebarIcon('paper-review')}</span>
-              <span className="blog-side-text">{series.title}</span>
-              <span className="blog-side-count">{series.slugs.length}</span>
-            </a>
-          ))}
-      </nav>
+        </section>
+      )}
     </aside>
   );
+
+  // ── Series index (page bottom, full container width) ────────────────
+
+  const seriesPages = Math.ceil(Object.keys(BLOG_SERIES).length / seriesCols);
+
+  const renderSeriesIndex = () => (
+    <section className="blog-series-index" aria-labelledby="series-index">
+      <div className="blog-series-head">
+        <h2 className="blog-section-heading" id="series-index">아티클 시리즈</h2>
+        {/* Only when there is something off-screen: at 4 series on desktop the
+            shelf is a plain static grid, exactly as before. */}
+        {seriesPages > 1 && (
+          <div className="blog-series-controls">
+            <button
+              type="button"
+              className="blog-hero-arrow"
+              aria-label="이전 시리즈"
+              disabled={seriesPage === 0}
+              onClick={() => setSeriesPage((i) => Math.max(0, i - 1))}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="blog-hero-arrow"
+              aria-label="다음 시리즈"
+              disabled={seriesPage >= seriesPages - 1}
+              onClick={() => setSeriesPage((i) => Math.min(seriesPages - 1, i + 1))}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="blog-series-window">
+      <div
+        className="blog-series-grid"
+        style={{ transform: `translateX(calc(${-seriesPage} * (100% + 24px)))` }}
+      >
+        {Object.entries(BLOG_SERIES).map(([sid, series]) => {
+          // Cover = the first chapter's thumbnail, looked up in the whole post
+          // list: a series living in the other category still gets its image.
+          const cover = posts.find((p) => p.slug === series.slugs[0])?.thumbnail_url;
+          return (
+            <a
+              key={sid}
+              className="blog-series-card"
+              href={`/blog/series/${sid}`}
+              onClick={railLink(`/blog/series/${sid}`)}
+            >
+              {/* The ground is painted by the wrapper either way, so a missing
+                  or failed cover costs no height. */}
+              <div className="blog-series-cover">
+                {cover && (
+                  <img
+                    src={figureSrc(cover, 456)}
+                    alt=""
+                    width={190}
+                    height={190}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+              </div>
+              <h3 className="blog-series-title">{series.title}</h3>
+              <p className="blog-series-desc">{series.description}</p>
+              <span className="blog-series-count">아티클 {series.slugs.length}개</span>
+            </a>
+          );
+        })}
+      </div>
+      </div>
+    </section>
+  );
+
+  // ── Hero carousel (3 newest, manual only) ───────────────────────────
+
+  const renderHero = () => {
+    const step = (delta: number) =>
+      setHeroIndex((i) => (i + delta + heroPosts.length) % heroPosts.length);
+    return (
+      // All slides occupy one grid cell, so the hero is always as tall as its
+      // tallest slide and paging moves nothing below it. Manual advance only,
+      // so polite is enough: the new slide is announced when it is asked for.
+      <section
+        className="blog-hero"
+        aria-roledescription="carousel"
+        aria-label="주요 글"
+        aria-live="polite"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') step(-1);
+          else if (e.key === 'ArrowRight') step(1);
+        }}
+      >
+        {heroPosts.map((post, i) => {
+          const cat = normalizeCategory(post.category);
+          return (
+            // visibility: hidden also takes the inactive slides out of the tab
+            // order and the accessibility tree, so their links are unreachable.
+            <div
+              key={post.id}
+              className={`blog-hero-slide${i === heroIndex ? '' : ' is-hidden'}`}
+            >
+              <div className="blog-hero-text">
+                <span className="blog-row-cat" data-cat={cat}>{CATEGORY_META[cat].badge}</span>
+                <h2 className="blog-hero-title">
+                  <a
+                    className="blog-hero-link"
+                    href={`/blog/${post.slug}`}
+                    onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                  >
+                    {post.title}
+                  </a>
+                </h2>
+                <p className="blog-hero-excerpt">{post.excerpt}</p>
+                <div className="blog-hero-controls">
+                  <button type="button" className="blog-hero-arrow" aria-label="이전 글" onClick={() => step(-1)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                  <button type="button" className="blog-hero-arrow" aria-label="다음 글" onClick={() => step(1)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                  <span className="blog-hero-counter" aria-hidden="true">
+                    {i + 1} / {heroPosts.length}
+                  </span>
+                </div>
+              </div>
+              {post.thumbnail_url && (
+                // Same destination as the title above it — hidden from AT so the
+                // slide offers one link, not two, one of them unnamed.
+                <a
+                  className="blog-hero-media"
+                  href={`/blog/${post.slug}`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                >
+                  <img
+                    src={figureSrc(post.thumbnail_url, 640)}
+                    alt=""
+                    width={520}
+                    height={280}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
+                  />
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </section>
+    );
+  };
 
   // ── List view ──────────────────────────────────────────────────────
 
   const renderList = () => (
     <>
+      {/* The hero leads the page, so the masthead is gone visually. The h1
+          stays for assistive tech and for crawlers that render the SPA — the
+          SSR copy in routers/seo.py has its own, and dropping this one would
+          leave the rendered DOM with no heading at all. */}
       <header className="blog-header">
-        <div className="blog-title-row">
-          <h1 className="blog-page-title">Blog</h1>
-          {isAdmin && (
-            <div className="blog-admin-bar">
-              <button className="blog-new-post-btn" onClick={openNewEditor}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Post
-              </button>
-            </div>
-          )}
-        </div>
-        <p className="blog-page-subtitle">Research writeups, experiments, and product notes.</p>
+        <h1 className="blog-sr-only">Blog</h1>
+        {isAdmin && (
+          <div className="blog-admin-bar">
+            <button className="blog-new-post-btn" onClick={openNewEditor}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Post
+            </button>
+          </div>
+        )}
       </header>
+
+      {initialCategory && (
+        <div className="blog-tag-filter">
+          <span className="blog-tag-filter-label">{CATEGORY_META[initialCategory].label}</span>
+          <a className="blog-tag-filter-clear" href="/blog" aria-label="전체 글 보기" onClick={railLink('/blog')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </a>
+        </div>
+      )}
 
       {tagFilter && (
         <div className="blog-tag-filter">
@@ -932,133 +1129,151 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           </div>
         </div>
       ) : (
-        <div className="blog-layout">
-          {renderSidebar()}
-          <div className="blog-main">
-            {visiblePosts.length === 0 ? (
-              <div className="blog-empty">
-                <div className="blog-empty-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48" style={{ opacity: 0.3 }}>
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </div>
-                <div className="blog-empty-title">
-                  {activeCategory === 'paper-review' ? '논문 리뷰 글이 아직 없습니다' : '개발 노트가 아직 없습니다'}
-                </div>
-                <div className="blog-empty-subtitle">
-                  {activeCategory === 'paper-review'
-                    ? '딥리뷰를 블로그 초안으로 정리하면 이곳에 모입니다.'
-                    : '집현전 개발·제품 이야기가 곧 올라올 예정입니다.'}
-                </div>
-              </div>
-            ) : (
-              <div className="blog-grid">
-                {visiblePosts.map((post, idx) => (
-            <a
-              key={post.id}
-              className="blog-card"
-              onClick={(e) => { e.preventDefault(); openPost(post); }}
-              href={`/blog/${post.slug}`}
-              role="article"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && openPost(post)}
-              aria-label={post.title}
-            >
-              {/* Separator — shown on all cards except the first */}
-              {idx > 0 && <div className="blog-card-separator" aria-hidden="true" />}
+        <>
+          {heroPosts.length > 0 && renderHero()}
 
-              <div className="blog-card-inner">
-
-                {/* Row 1: Category · Date · Reading time */}
-                <div className="blog-card-meta">
-                  <CategoryBadge category={post.category} />
-                  <time className="blog-card-date">{formatDate(post.created_at)}</time>
-                  <span className="blog-card-dot" aria-hidden="true">·</span>
-                  <span className="blog-card-readtime">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
+          <div className="blog-layout">
+            <section className="blog-main" aria-labelledby="all-articles">
+              <h2 className="blog-section-heading" id="all-articles">전체 아티클</h2>
+              {visiblePosts.length === 0 ? (
+                <div className="blog-empty">
+                  <div className="blog-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48" style={{ opacity: 0.3 }}>
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    {post.reading_time_min} min read
-                  </span>
-                </div>
-
-                {/* Row 2: Title + arrow icon */}
-                <div className="blog-card-title-row">
-                  <h2 className="blog-card-title">{post.title}</h2>
-                  <svg
-                    className="blog-card-arrow"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    width="20"
-                    height="20"
-                    aria-hidden="true"
-                  >
-                    <line x1="7" y1="17" x2="17" y2="7" />
-                    <polyline points="7 7 17 7 17 17" />
-                  </svg>
-                </div>
-
-                {/* Row 3: Excerpt */}
-                <p className="blog-card-excerpt">{post.excerpt}</p>
-
-                {/* Row 4: Author · Tags */}
-                <div className="blog-card-footer">
-                  <span className="blog-card-author-label">
-                    <span className="blog-card-author-name">{post.author}</span>
-                  </span>
-                  {post.tags.length > 0 && (
-                    <>
-                      <span className="blog-card-dot" aria-hidden="true">·</span>
-                      {post.tags.slice(0, 5).map((tag) => (
-                        <span key={tag} className="blog-tag">{tag}</span>
-                      ))}
-                    </>
-                  )}
-                </div>
-
-                {isAdmin && (
-                  <div
-                    className="blog-card-admin-actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      className="blog-card-edit-btn"
-                      onClick={(e) => openEditEditor(post, e)}
-                      aria-label="Edit post"
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                      className="blog-card-delete-btn"
-                      onClick={(e) => handleDelete(post, e)}
-                      aria-label="Delete post"
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v6M14 11v6" />
-                        <path d="M9 6V4h6v2" />
-                      </svg>
-                      Delete
-                    </button>
                   </div>
-                )}
+                  <div className="blog-empty-title">
+                    {initialCategory === 'paper-review' ? '논문 리뷰 글이 아직 없습니다' : '개발 노트가 아직 없습니다'}
+                  </div>
+                  <div className="blog-empty-subtitle">
+                    {initialCategory === 'paper-review'
+                      ? '딥리뷰를 블로그 초안으로 정리하면 이곳에 모입니다.'
+                      : '집현전 개발·제품 이야기가 곧 올라올 예정입니다.'}
+                  </div>
+                </div>
+              ) : (
+                <div className="blog-grid">
+                  {pagePosts.map((post) => {
+                    const cat = normalizeCategory(post.category);
+                    return (
+                      // The admin buttons are siblings of the row, not children:
+                      // a <button> inside an <a> is invalid, folds into the link's
+                      // accessible name, and could never be reached with Enter.
+                      <div key={post.id} className="blog-row-wrap">
+                        <a
+                          className="blog-row"
+                          href={`/blog/${post.slug}`}
+                          aria-label={post.title}
+                          onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                        >
+                          <div className="blog-row-text">
+                            <div className="blog-row-chips">
+                              <span className="blog-row-cat" data-cat={cat}>{CATEGORY_META[cat].badge}</span>
+                              <span className="blog-row-author">{post.author}</span>
+                            </div>
 
-              </div>
-            </a>
-                ))}
-              </div>
-            )}
+                            <h3 className="blog-row-title">{post.title}</h3>
+
+                            <p className="blog-row-excerpt">{post.excerpt}</p>
+                          </div>
+
+                          {/* No thumbnail is a layout case, not a missing image: the
+                              text column simply takes the whole row. */}
+                          {post.thumbnail_url && (
+                            <div className="blog-row-thumb">
+                              <img
+                                src={figureSrc(post.thumbnail_url, 456)}
+                                alt=""
+                                width={228}
+                                height={128}
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                        </a>
+
+                        {isAdmin && (
+                          <div className="blog-card-admin-actions">
+                            <button
+                              className="blog-card-edit-btn"
+                              onClick={(e) => openEditEditor(post, e)}
+                              aria-label="Edit post"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              className="blog-card-delete-btn"
+                              onClick={(e) => handleDelete(post, e)}
+                              aria-label="Delete post"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6l-1 14H6L5 6" />
+                                <path d="M10 11v6M14 11v6" />
+                                <path d="M9 6V4h6v2" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pageCount > 1 && (
+                <nav className="blog-pager" aria-label="페이지">
+                  <button
+                    type="button"
+                    className="blog-page-btn"
+                    aria-label="이전 페이지"
+                    disabled={page <= 1}
+                    onClick={() => goToPage(page - 1)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                  {pageWindow(page, pageCount).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`blog-page-btn${n === page ? ' active' : ''}`}
+                      aria-label={`${n}페이지`}
+                      aria-current={n === page ? 'page' : undefined}
+                      onClick={() => goToPage(n)}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="blog-page-btn"
+                    aria-label="다음 페이지"
+                    disabled={page >= pageCount}
+                    onClick={() => goToPage(page + 1)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                </nav>
+              )}
+            </section>
+
+            {renderRail()}
           </div>
-        </div>
+
+          {renderSeriesIndex()}
+        </>
       )}
     </>
   );
@@ -1345,20 +1560,24 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   const seoPost = view === 'detail' ? selectedPost : null;
   const categoryView = view === 'list';
-  const categoryLabel = categoryView ? CATEGORY_META[activeCategory].label : '';
   const seoMeta = seoPost ? blogSeoMeta(seoPost) : null;
   const seoTitle = seoMeta
     ? seoMeta.title
-    : categoryView
-      ? `${categoryLabel} | Jiphyeonjeon Blog`
+    : initialCategory
+      ? `${CATEGORY_META[initialCategory].label} | Jiphyeonjeon Blog`
       : BLOG_TITLE;
   const seoDescription = seoMeta ? seoMeta.description : BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost && postNotFound);
+  const listCanonical = initialCategory
+    ? `${SITE_URL}/blog/category/${initialCategory}`
+    : blogCanonical(hasSlugError ? undefined : slug);
   const seoCanonical = seoPost
     ? blogCanonical(seoPost.slug)
-    : initialCategory
-      ? `${SITE_URL}/blog/category/${activeCategory}`
-      : blogCanonical(hasSlugError ? undefined : slug);
+    // Each page lists a different slice, so collapsing them to page 1 would
+    // drop pages 2..n from the index.
+    : categoryView && page > 1
+      ? `${listCanonical}?page=${page}`
+      : listCanonical;
   const seoLocale = seoPost
     ? localeFor(detectLang(`${seoPost.title} ${seoPost.content || seoPost.excerpt || ''}`))
     : undefined;
