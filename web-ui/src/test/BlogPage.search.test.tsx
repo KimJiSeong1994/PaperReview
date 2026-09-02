@@ -555,4 +555,166 @@ describe('BlogPage search overlay', () => {
     expect(pageButton('다음 페이지')).toBeDisabled();
     expect(pageButton('이전 페이지')).not.toBeDisabled();
   });
+  // ── Arrow-key navigation ────────────────────────────────────────────
+
+  /** The row the arrow keys have selected, read the way a screen reader does. */
+  function activeRow() {
+    const id = screen.getByLabelText('검색어').getAttribute('aria-activedescendant');
+    return id ? document.getElementById(id)?.textContent : null;
+  }
+
+  function arrow(key: 'ArrowDown' | 'ArrowUp' | 'Enter') {
+    fireEvent.keyDown(screen.getByLabelText('검색어'), { key });
+  }
+
+  it('selects the first row on ArrowDown and points aria-activedescendant at it', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    // Nothing is selected until an arrow key asks for it.
+    expect(screen.getByLabelText('검색어')).not.toHaveAttribute('aria-activedescendant');
+
+    arrow('ArrowDown');
+
+    const rows = document.querySelectorAll('.blog-search-result');
+    expect(rows[0]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[0]).toHaveClass('active');
+    expect(activeRow()).toContain('Match 0');
+    // Focus never leaves the input — moving it onto the row would steal the caret.
+    expect(document.activeElement).toBe(screen.getByLabelText('검색어'));
+
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Match 1');
+    expect(rows[0]).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('stops at the last row of the page instead of wrapping or paging', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    // 12 results, 5 on this page: six ArrowDowns must not reach Match 5.
+    for (let i = 0; i < 6; i += 1) arrow('ArrowDown');
+
+    expect(activeRow()).toContain('Match 4');
+    expect(resultTitles()).toEqual(['Match 0', 'Match 1', 'Match 2', 'Match 3', 'Match 4']);
+  });
+
+  it('stops at the first row on ArrowUp instead of wrapping to the last', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    arrow('ArrowDown');
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Match 1');
+
+    arrow('ArrowUp');
+    arrow('ArrowUp');
+    arrow('ArrowUp');
+
+    expect(activeRow()).toContain('Match 0');
+  });
+
+  it('opens the active row on Enter, the same way a click does', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    arrow('ArrowDown');
+    arrow('ArrowDown');
+    arrow('Enter');
+
+    // Same effect the click path has: overlay gone, URL on the post.
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/blog/p1'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does nothing on Enter while no row is active', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    const before = screen.getByTestId('location').textContent;
+    arrow('Enter');
+
+    // Guessing the first result would send a reader somewhere they never chose.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('location').textContent).toBe(before);
+    expect(screen.getByTestId('location')).not.toHaveTextContent('/blog/');
+  });
+
+  it('drops the selection when the query changes under it', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    arrow('ArrowDown');
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Match 1');
+
+    // The replacement set is deliberately long enough that row 1 still exists:
+    // against a shorter one the render guard would hide a stale index anyway,
+    // and the test would pass without any reset at all.
+    vi.mocked(fetchBlogPosts).mockResolvedValue(
+      respond([post('z', 'Other hit'), post('y', 'Second hit'), post('x', 'Third hit')]),
+    );
+    await type('other');
+    await waitFor(() => expect(resultTitles()).toEqual(['Other hit', 'Second hit', 'Third hit']));
+
+    // An index left pointing at whatever row 1 now happens to be must not be live.
+    expect(screen.getByLabelText('검색어')).not.toHaveAttribute('aria-activedescendant');
+    expect(document.querySelector('.blog-search-result.active')).toBeNull();
+  });
+
+  it('drops the selection when the page changes under it', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Match 0');
+
+    fireEvent.click(pageButton('2페이지'));
+
+    expect(screen.getByLabelText('검색어')).not.toHaveAttribute('aria-activedescendant');
+    expect(document.querySelector('.blog-search-result.active')).toBeNull();
+  });
+
+  it('keeps typing working while a row is active', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Match 0');
+
+    // The input owns focus throughout, so a keystroke still lands in the field.
+    await type('match rank');
+
+    expect(screen.getByLabelText('검색어')).toHaveValue('match rank');
+  });
+
+  it('navigates the suggestion list too, and closes on Enter there', async () => {
+    renderBlog();
+    await screen.findByText('Crawler health');
+    openSearch();
+
+    expect(resultTitles()).toEqual(ALL_POSTS.map((p) => p.title));
+    arrow('ArrowDown');
+    expect(activeRow()).toContain('Ranking rewrite');
+
+    arrow('Enter');
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/blog/a'));
+  });
 });

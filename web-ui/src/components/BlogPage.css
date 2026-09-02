@@ -508,6 +508,14 @@
   opacity: 0.6;
 }
 
+/* The listbox wraps only the rows, so the pager stays outside it. It repeats
+   the parent's column+gap so the rhythm is exactly what it was before. */
+.blog-search-options {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
 /* No card, no background, no divider — the rhythm alone separates the rows.
    Same shape as .blog-row, one size down: text column, gutter, thumbnail
    flush right. min-height, not height — a wrapped title sets the row. */
@@ -526,6 +534,20 @@
   min-width: 0;
   flex-direction: column;
   gap: 6px;
+}
+
+/* The arrow-key selection. The rows carry no padding of their own, so the
+   highlight is painted by a box-shadow spread rather than by adding padding —
+   it reads as a bled-out card without shifting a single row. --wov-06 is
+   defined in both themes, so this lands in dark and light alike. */
+.blog-search-result.active {
+  background: var(--wov-06);
+  border-radius: 12px;
+  box-shadow: 0 0 0 12px var(--wov-06);
+}
+
+.blog-search-result.active .blog-search-result-title {
+  text-decoration: underline;
 }
 
 .blog-search-result:focus-visible {
