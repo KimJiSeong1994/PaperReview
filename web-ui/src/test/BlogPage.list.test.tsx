@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import BlogPage from '../components/BlogPage';
 import { fetchBlogPosts } from '../api/client';
@@ -127,6 +127,31 @@ describe('BlogPage list rows', () => {
     expect(heroImage).toHaveAttribute('width', '520');
     expect(heroImage).toHaveAttribute('height', '280');
     expect(heroImage?.getAttribute('src')).toBe('/api/blog/figures/f.png?w=640');
+  });
+});
+
+describe('BlogPage hash target', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(POSTS));
+  });
+
+  it('scrolls to the fragment the footer links at, once the list has loaded', async () => {
+    // React Router ignores the fragment, so /blog#series-index used to land at
+    // the top of the list with the shelf ~2,000px below. The list is fetched,
+    // so the target does not exist on the first render either.
+    const scrolled: string[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoViewStub(this: Element) {
+      scrolled.push(this.id || this.className);
+    };
+    try {
+      renderBlog('/blog#series-index');
+      await screen.findByRole('region', { name: '아티클 시리즈' });
+      await waitFor(() => expect(scrolled).toContain('series-index'));
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 });
 
