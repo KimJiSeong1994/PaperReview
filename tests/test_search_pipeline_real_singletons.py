@@ -19,6 +19,7 @@ Strategy:
 
 from __future__ import annotations
 
+import zlib
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -57,12 +58,18 @@ def _fake_papers(n: int = 10) -> List[Dict[str, Any]]:
 def _fake_embedding_batch(texts):
     """Deterministic mock embeddings matching 1536-dim (text-embedding-3-small).
 
-    Uses a seeded RNG per text so the same text always hashes to the same
-    vector — prevents flaky ranking order across runs.
+    Seeds from ``zlib.crc32``, not the built-in ``hash()``. Python salts
+    ``hash()`` for str per process, so the original — which claimed to keep
+    ranking order stable across runs — handed the same text a different
+    vector in every interpreter. Scores landed within ~0.001 of each other
+    across ten near-identical fixture papers, so that noise reordered them
+    run to run, and the ordering guard below, which asserts the bucket order
+    is not already the ranked order, failed whenever the shuffle happened to
+    come out sorted. crc32 is stable across processes and platforms.
     """
     out = []
     for t in texts:
-        seed = abs(hash(t)) % (2**32)
+        seed = zlib.crc32(t.encode("utf-8"))
         rng = np.random.default_rng(seed)
         out.append(rng.standard_normal(_EMBED_DIM).astype(np.float32))
     return out
