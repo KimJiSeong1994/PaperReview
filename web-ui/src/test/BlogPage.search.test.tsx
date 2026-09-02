@@ -129,10 +129,10 @@ describe('BlogPage search overlay', () => {
 
     await waitFor(() => expect(searchCalls()).toHaveLength(1));
     expect(searchCalls()[0][4]).toBe('rank');
-    expect(await screen.findByText(/검색 결과 1개/)).toBeInTheDocument();
+    await waitFor(() => expect(resultTitles()).toEqual(['Ranking rewrite']));
   });
 
-  it('shows the body snippet instead of the excerpt and marks the match', async () => {
+  it('shows the body snippet instead of the stored excerpt', async () => {
     renderBlog();
     await screen.findByText('Ranking rewrite');
     openSearch();
@@ -146,9 +146,6 @@ describe('BlogPage search overlay', () => {
     const snippet = await dialog.findByText(/we reworked/);
     expect(snippet).toHaveTextContent('…we reworked rank fusion…');
     expect(dialog.queryByText(/Ranking rewrite excerpt/)).not.toBeInTheDocument();
-    // Both the title and the snippet highlight the token, case-insensitively.
-    const marks = Array.from(document.querySelectorAll('mark')).map((m) => m.textContent);
-    expect(marks).toEqual(['Rank', 'rank']);
   });
 
   it('restores the unsearched state when the overlay is closed', async () => {
@@ -163,10 +160,10 @@ describe('BlogPage search overlay', () => {
     fireEvent.click(screen.getByLabelText('검색 닫기'));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(document.querySelectorAll('mark')).toHaveLength(0);
     // Reopening starts clean rather than resurrecting the last query.
     openSearch();
     expect(screen.getByLabelText('검색어')).toHaveValue('');
+    expect(resultTitles()).toEqual(ALL_POSTS.map((p) => p.title));
   });
 
   it('runs the query from ?q= on mount so a shared link reloads searched', async () => {
@@ -260,13 +257,12 @@ describe('BlogPage search overlay', () => {
 
     // The flash lasts a single render, so watch every mutation rather than
     // sampling: the render that publishes the debounced query lands before the
-    // effect that flags `searching`, and used to paint the empty state — and
-    // announce "검색 결과 0개" — with no response yet in hand.
+    // effect that flags `searching`, and used to paint the empty state with no
+    // response yet in hand.
     const flashes: string[] = [];
     const observer = new MutationObserver(() => {
       const text = document.body.textContent ?? '';
       if (text.includes('검색 결과가 없어요')) flashes.push('empty');
-      if (text.includes('검색 결과 0개')) flashes.push('count');
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
@@ -278,6 +274,71 @@ describe('BlogPage search overlay', () => {
     expect(flashes).toEqual([]);
   });
 
+  it('gives a result row the same figure the list already fetched, lazily', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+
+    vi.mocked(fetchBlogPosts).mockResolvedValue(
+      respond([post('a', 'Ranking rewrite', { thumbnail_url: '/api/blog/figures/fig-a.png' })]),
+    );
+    await type('rank');
+
+    await waitFor(() => expect(resultTitles()).toEqual(['Ranking rewrite']));
+    // Scoped to the row: alt="" keeps the figure out of the a11y tree, and the
+    // overlay's brand logo is the only <img> with a role.
+    const img = document.querySelector('.blog-search-result-thumb img') as HTMLImageElement;
+    // w=456 and not w=228: the list rows under the overlay request the very
+    // same URL, so a post visible in the list costs no extra bytes here.
+    expect(img).toHaveAttribute('src', '/api/blog/figures/fig-a.png?w=456');
+    expect(img).toHaveAttribute('loading', 'lazy');
+    expect(img).toHaveAttribute('decoding', 'async');
+    // Explicit box, so the row does not reflow when the figure lands.
+    expect(img).toHaveAttribute('width', '164');
+    expect(img).toHaveAttribute('height', '92');
+  });
+
+  it('renders a thumbnail-less result as a row with no image at all', async () => {
+    // Never a broken image and never a shorter row: min-height holds the
+    // geometry and the text column simply takes the width.
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+
+    vi.mocked(fetchBlogPosts).mockResolvedValue(
+      respond([post('a', 'Ranking rewrite', { thumbnail_url: null })]),
+    );
+    await type('rank');
+
+    await waitFor(() => expect(resultTitles()).toEqual(['Ranking rewrite']));
+    const row = document.querySelector('.blog-search-result') as HTMLElement;
+    expect(row.querySelector('img')).toBeNull();
+    expect(row.querySelector('.blog-search-result-thumb')).toBeNull();
+  });
+
+  it('carries title and snippet only — no category chip, no author', async () => {
+    // The search row is deliberately lighter than the list row it covers.
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+
+    vi.mocked(fetchBlogPosts).mockResolvedValue(
+      respond([post('a', 'Ranking rewrite', {
+        snippet: '…we reworked rank fusion…',
+        author: 'Hong Gildong',
+        category: 'paper-review',
+      })]),
+    );
+    await type('rank');
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/we reworked/)).toBeInTheDocument();
+    expect(within(dialog).queryByText('Hong Gildong')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Paper Review')).not.toBeInTheDocument();
+    expect(dialog.querySelector('.blog-row-cat')).toBeNull();
+    expect(dialog.querySelector('.blog-row-author')).toBeNull();
+  });
+
   it('renders the no-results state when nothing matches', async () => {
     renderBlog();
     await screen.findByText('Ranking rewrite');
@@ -287,6 +348,5 @@ describe('BlogPage search overlay', () => {
     await type('zzz');
 
     expect(await screen.findByText('검색 결과가 없어요')).toBeInTheDocument();
-    expect(screen.getByText(/검색 결과 0개/)).toBeInTheDocument();
   });
 });

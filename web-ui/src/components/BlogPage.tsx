@@ -144,23 +144,6 @@ function normalizeBlogMarkdown(content: string): string {
   return normalizeDisplayMathFences(normalizeLatexDelimiters(stripLeadingH1(repairCorruptedLatexEscapes(content))));
 }
 
-// Mirrors routers/blog.py::list_posts — whitespace split, capped at
-// _MAX_SEARCH_TOKENS — so what we highlight is exactly what the server matched.
-const MAX_SEARCH_TOKENS = 8;
-const REGEX_SPECIAL_RE = /[.*+?^${}()|[\]\\]/g;
-
-function searchTokensOf(query: string): string[] {
-  return query.split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_TOKENS);
-}
-
-/** Wrap every token occurrence in <mark>, as nodes (never dangerouslySetInnerHTML). */
-function highlight(text: string, tokens: string[]): React.ReactNode {
-  if (!tokens.length || !text) return text;
-  const pattern = new RegExp(`(${tokens.map((t) => t.replace(REGEX_SPECIAL_RE, '\\$&')).join('|')})`, 'gi');
-  // split() with a capturing group interleaves the matches at the odd indices.
-  return text.split(pattern).map((part, i) => (i % 2 === 1 ? <mark key={i}>{part}</mark> : part));
-}
-
 function CategoryBadge({ category }: { category?: string }) {
   const key = normalizeCategory(category);
   return (
@@ -345,7 +328,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // permanent banner after clearing, and let a load-all failure make a
   // successful empty search read as "검색을 완료하지 못했습니다".
   const [searchError, setSearchError] = useState<string | null>(null);
-  const searchTokens = useMemo(() => searchTokensOf(query), [query]);
 
   // ── Data fetching ──────────────────────────────────────────────────
 
@@ -730,10 +712,27 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         void openPost(post);
       }}
     >
-      <span className="blog-search-result-title">{highlight(post.title, searchTokens)}</span>
-      <span className="blog-search-result-snippet">
-        {highlight(post.snippet ?? post.excerpt, searchTokens)}
+      <span className="blog-search-result-text">
+        <span className="blog-search-result-title">{post.title}</span>
+        <span className="blog-search-result-snippet">{post.snippet ?? post.excerpt}</span>
       </span>
+
+      {/* Same w=456 asset the list rows request, so a post visible in the list
+          underneath costs nothing to show here. No thumbnail is a layout case,
+          not a missing image: min-height holds the row and the text spreads. */}
+      {post.thumbnail_url && (
+        <span className="blog-search-result-thumb">
+          <img
+            src={figureSrc(post.thumbnail_url, 456)}
+            alt=""
+            width={164}
+            height={92}
+            loading="lazy"
+            decoding="async"
+            onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
+          />
+        </span>
+      )}
     </a>
   );
 
@@ -786,7 +785,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             onChange={(e) => setSearchInput(e.target.value)}
           />
 
-          {/* toss shows no result count; screen readers still need one. */}
+          {/* Toss shows no result count and neither do we — but the count was
+              never on screen here either, it has always been sr-only. A sighted
+              reader sees the list change; without this a screen reader gets
+              nothing at all, so removing it costs feedback and matches nothing. */}
           <div className="blog-sr-only" role="status" aria-live="polite">
             {query && settled && !searchError ? `검색 결과 ${results.length}개` : ''}
           </div>
