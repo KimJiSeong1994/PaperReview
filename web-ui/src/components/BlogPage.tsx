@@ -71,6 +71,50 @@ function pageWindow(page: number, pageCount: number): number[] {
   return Array.from({ length: Math.min(PAGE_WINDOW, pageCount) }, (_, i) => start + i);
 }
 
+/** The one pager, shared by the article list and the search overlay. Renders
+    nothing for a single page so neither caller repeats that guard. */
+function renderPager(page: number, pageCount: number, onGo: (next: number) => void) {
+  if (pageCount <= 1) return null;
+  return (
+    <nav className="blog-pager" aria-label="페이지">
+      <button
+        type="button"
+        className="blog-page-btn"
+        aria-label="이전 페이지"
+        disabled={page <= 1}
+        onClick={() => onGo(page - 1)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+      {pageWindow(page, pageCount).map((n) => (
+        <button
+          key={n}
+          type="button"
+          className={`blog-page-btn${n === page ? ' active' : ''}`}
+          aria-label={`${n}페이지`}
+          aria-current={n === page ? 'page' : undefined}
+          onClick={() => onGo(n)}
+        >
+          {n}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="blog-page-btn"
+        aria-label="다음 페이지"
+        disabled={page >= pageCount}
+        onClick={() => onGo(page + 1)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </nav>
+  );
+}
+
 /** Series shelf columns per breakpoint — mirrors .blog-series-grid's CSS. */
 const SERIES_BREAKPOINTS: [string, number][] = [
   ['(max-width: 640px)', 1],
@@ -328,6 +372,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // permanent banner after clearing, and let a load-all failure make a
   // successful empty search read as "검색을 완료하지 못했습니다".
   const [searchError, setSearchError] = useState<string | null>(null);
+  // The search results page lives in component state, never in ?page=: the list
+  // underneath reads that param, so one shared value would page both at once
+  // and a deep link to /blog?page=3 would open search already on page 3.
+  const [searchPage, setSearchPage] = useState(1);
+  // The overlay scrolls its own results column, not the window.
+  // The overlay, not the results list, is the scrolling box (overflow-y on
+  // .blog-search-overlay), so paging has to reset that element's scrollTop.
+  const searchOverlayRef = useRef<HTMLDivElement>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────
 
@@ -444,6 +496,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       cancelled = true;
     };
   }, [query, slug]);
+
+  // A new query always starts at page 1 — including the '' a close sets, so
+  // reopening the overlay lands at the top too. Everything else is covered by
+  // the clamp in the overlay itself.
+  useEffect(() => {
+    setSearchPage(1);
+  }, [query]);
 
   // ── Category filtering ─────────────────────────────────────────────
 
@@ -767,6 +826,25 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     // `searching`, so without waiting for a landed response the empty state
     // flashes for one frame — and the aria-live count announces a stale 0.
     const settled = searchResults !== null && !searching;
+    const searchPageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+    // Clamped, not trusted: a stale page 4 against a 2-result response would
+    // otherwise slice past the end and render an empty results column.
+    const currentPage = Math.min(searchPage, searchPageCount);
+    const pageResults = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    const goToSearchPage = (next: number) => {
+      setSearchPage(next);
+      // Put the reader back on row 1, not on the pager they clicked — the
+      // overlay's equivalent of the list's scroll to #all-articles.
+      //
+      // Assignment, not scrollTo({behavior:'smooth'}): measured in Chrome, no
+      // smooth path moves this element at all — not the option, not CSS
+      // scroll-behavior, not scrollTo({top:0}) under it — while a plain
+      // scrollTop assignment lands every time. Instant is the better feel here
+      // anyway; the page's contents swap under you, so animating the gap
+      // between them only draws out a jump you cannot follow.
+      const box = searchOverlayRef.current;
+      if (box) box.scrollTop = 0;
+    };
     return (
       // Deliberately rendered inside .blog-container: every --wov-*/--indigo*
       // token is scoped to that element (and its light-mode override), so a
@@ -775,7 +853,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       // takeover, so every stray click lands on it. That handler is why a shared
       // /blog?q=… link looked like it never opened — one click closed it and
       // wiped ?q= from the URL. Escape and the × button are the ways out.
-      <div className="blog-search-overlay">
+      <div className="blog-search-overlay" ref={searchOverlayRef}>
         <div className="blog-search-panel" role="dialog" aria-modal="true" aria-label="글 검색 창">
           <div className="blog-search-topbar">
             <span className="blog-search-brand">
@@ -866,7 +944,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
                 <div className="blog-search-empty-title">검색 결과가 없어요</div>
               </div>
             ) : (
-              results.map(searchResultRow)
+              <>
+                {pageResults.map(searchResultRow)}
+                {renderPager(currentPage, searchPageCount, goToSearchPage)}
+              </>
             )}
           </div>
         </div>
@@ -1278,44 +1359,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
                 </div>
               )}
 
-              {pageCount > 1 && (
-                <nav className="blog-pager" aria-label="페이지">
-                  <button
-                    type="button"
-                    className="blog-page-btn"
-                    aria-label="이전 페이지"
-                    disabled={page <= 1}
-                    onClick={() => goToPage(page - 1)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                  </button>
-                  {pageWindow(page, pageCount).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      className={`blog-page-btn${n === page ? ' active' : ''}`}
-                      aria-label={`${n}페이지`}
-                      aria-current={n === page ? 'page' : undefined}
-                      onClick={() => goToPage(n)}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="blog-page-btn"
-                    aria-label="다음 페이지"
-                    disabled={page >= pageCount}
-                    onClick={() => goToPage(page + 1)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                </nav>
-              )}
+              {renderPager(page, pageCount, goToPage)}
             </section>
 
             {renderRail()}
