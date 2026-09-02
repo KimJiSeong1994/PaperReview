@@ -32,6 +32,9 @@ function post(id: string, title: string, extra: Record<string, unknown> = {}) {
 
 const ALL_POSTS = [post('a', 'Ranking rewrite'), post('b', 'Crawler health')];
 
+/** 12 matches — pages of 5, 5, 2, so both a full and a short last page exist. */
+const MANY_RESULTS = Array.from({ length: 12 }, (_, i) => post(`p${i}`, `Match ${i}`));
+
 type PostsResponse = Awaited<ReturnType<typeof fetchBlogPosts>>;
 const respond = (posts: unknown[]) => ({ data: { posts } }) as unknown as PostsResponse;
 
@@ -67,6 +70,22 @@ async function type(value: string) {
 /** Result rows inside the overlay, so the list underneath can't satisfy a match. */
 function resultTitles() {
   return Array.from(document.querySelectorAll('.blog-search-result-title')).map((n) => n.textContent);
+}
+
+/** The overlay's own pager — scoped, so the list's pager underneath can't stand in. */
+function searchPager() {
+  return within(screen.getByRole('dialog')).queryByLabelText('페이지');
+}
+
+function pageButton(label: string) {
+  return within(screen.getByRole('dialog')).getByLabelText(label);
+}
+
+/** Runs a query that matches MANY_RESULTS and waits for the first page to land. */
+async function searchMany(q: string) {
+  vi.mocked(fetchBlogPosts).mockResolvedValue(respond(MANY_RESULTS));
+  await type(q);
+  await waitFor(() => expect(resultTitles()).toHaveLength(5));
 }
 
 describe('BlogPage search overlay', () => {
@@ -437,5 +456,103 @@ describe('BlogPage search overlay', () => {
     await type('zzz');
 
     expect(await screen.findByText('검색 결과가 없어요')).toBeInTheDocument();
+  });
+  // ── Result pagination ───────────────────────────────────────────────
+
+  it('shows 5 results a page and walks the rest through the pager', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    expect(resultTitles()).toEqual(['Match 0', 'Match 1', 'Match 2', 'Match 3', 'Match 4']);
+    expect(searchPager()).toBeTruthy();
+
+    fireEvent.click(pageButton('2페이지'));
+
+    expect(resultTitles()).toEqual(['Match 5', 'Match 6', 'Match 7', 'Match 8', 'Match 9']);
+    expect(pageButton('2페이지')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('scrolls the box that actually scrolls when the page changes', async () => {
+    // The overlay carries overflow-y, not the results list inside it. Resetting
+    // the inner element's scrollTop moved nothing, so paging left the reader
+    // partway down the previous page — invisible to a test that only asserts
+    // some scrollTo ran, hence the assertion on which node received it.
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    const overlay = document.querySelector('.blog-search-overlay') as HTMLElement;
+    const list = document.querySelector('.blog-search-results') as HTMLElement;
+    overlay.scrollTop = 240;
+    list.scrollTop = 240;
+
+    fireEvent.click(pageButton('2페이지'));
+
+    // The effect, not the call: asserting "some scrollTo ran" passed happily
+    // while the wrong element was being reset.
+    expect(overlay.scrollTop).toBe(0);
+    expect(list.scrollTop).toBe(240);
+  });
+
+  it('keeps the count on the whole result set, not the page', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    // A reader looking at 5 rows still needs to know the search found 12.
+    expect(within(screen.getByRole('dialog')).getByText('총 12개')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('검색 결과 12개');
+  });
+
+  it('leaves the empty-query suggestion list unpaged', async () => {
+    // 12 posts loaded, so the list underneath does page — the overlay's three
+    // suggestions are not a result set and must not grow a pager of their own.
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(MANY_RESULTS));
+    renderBlog();
+    await screen.findAllByText('Match 0');
+    openSearch();
+
+    expect(resultTitles()).toEqual(['Match 0', 'Match 1', 'Match 2']);
+    expect(searchPager()).toBeNull();
+  });
+
+  it('returns to page 1 when the query changes', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    fireEvent.click(pageButton('3페이지'));
+    expect(resultTitles()).toEqual(['Match 10', 'Match 11']);
+
+    // 7 results: page 3 would *clamp* to page 2 (Match 5, 6). Landing on
+    // Match 0 is what proves the reset, not the clamp, did the work.
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond(MANY_RESULTS.slice(0, 7)));
+    await type('other');
+
+    await waitFor(() =>
+      expect(resultTitles()).toEqual(['Match 0', 'Match 1', 'Match 2', 'Match 3', 'Match 4']),
+    );
+  });
+
+  it('disables prev on the first page and next on the last', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+    await searchMany('match');
+
+    expect(pageButton('이전 페이지')).toBeDisabled();
+    expect(pageButton('다음 페이지')).not.toBeDisabled();
+
+    fireEvent.click(pageButton('다음 페이지'));
+    fireEvent.click(pageButton('다음 페이지'));
+
+    expect(resultTitles()).toEqual(['Match 10', 'Match 11']);
+    expect(pageButton('다음 페이지')).toBeDisabled();
+    expect(pageButton('이전 페이지')).not.toBeDisabled();
   });
 });
