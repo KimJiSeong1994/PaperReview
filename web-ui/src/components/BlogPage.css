@@ -426,7 +426,10 @@
 .blog-search-results {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  /* Toss's 10px sits between rows that are one line of title over one of
+     excerpt. Ours wrap to two and two, so 10px ran four-line blocks together
+     into a wall of text. */
+  gap: 28px;
   padding-top: 28px;
 }
 
@@ -914,10 +917,14 @@
 }
 
 /* ===== Blog Post List — bare rows, no card chrome ===== */
+/* 80px, not toss's 64. Toss pairs 64 with a 128px row, so the gap is half
+   the row; our titles wrap to three and four lines and the rows run 150-208px,
+   where the same 64 leaves an excerpt and the next row's chip closer together
+   than the lines inside either. 80 restores toss's proportion at our height. */
 .blog-grid {
   display: flex;
   flex-direction: column;
-  gap: 64px;
+  gap: 80px;
 }
 
 /* Row: text column, 32px gutter, 228x128 thumbnail flush right.
@@ -1018,8 +1025,11 @@
 }
 
 @media (max-width: 768px) {
+  /* Stacked, the row is ~350px tall against a 40px gap — the excerpt ran
+     straight into the next row's image. 56 is as much air as a phone can
+     spare while still reading as a break. */
   .blog-grid {
-    gap: 40px;
+    gap: 56px;
   }
 
   .blog-row {
@@ -1279,7 +1289,7 @@
 .blog-skeleton-grid {
   display: flex;
   flex-direction: column;
-  gap: 64px;
+  gap: 80px;
 }
 
 .blog-skeleton-card {
@@ -1348,7 +1358,7 @@
 
 @media (max-width: 768px) {
   .blog-skeleton-grid {
-    gap: 40px;
+    gap: 56px;
   }
 
   .blog-skeleton-card {
