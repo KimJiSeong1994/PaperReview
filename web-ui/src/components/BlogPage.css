@@ -295,14 +295,48 @@
   border-color: var(--indigo-bd-50);
 }
 
-/* ===== Search Overlay (header magnifier -> full-screen takeover) ===== */
-/* Modelled on toss.tech: an opaque page takeover with one ~700px centred
-   column, no card, no scrim, no dividers. Lives inside .blog-container so the
-   wov/indigo tokens (scoped to that element, and re-declared under
-   :root[data-theme="light"]) resolve in both themes. A portal to <body> would
-   render it unstyled — and, being opaque, unreadable. */
+/* ===== Search Overlay (header pill -> full-screen takeover) ===== */
+/* Modelled on tech.bigvalue.ai: an opaque page takeover with one 880px centred
+   column, no card, no scrim, no dividers, and a labelled section above the
+   rows. Lives inside .blog-container so the wov/indigo tokens (scoped to that
+   element, and re-declared under :root[data-theme="light"]) resolve in both
+   themes. A portal to <body> would render it unstyled — and, being opaque,
+   unreadable. */
+
+/* A pill, not a bare icon: the shortcut hint needs somewhere to live, and a
+   button that says 검색 is the one header control a first-time reader can name. */
 .blog-search-trigger {
-  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 128px;
+  height: 44px;
+  padding: 0 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--wov-10);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.blog-search-trigger:hover {
+  background: var(--wov-05);
+  border-color: var(--wov-20);
+}
+
+.blog-search-kbd {
+  margin-left: auto;
+  padding: 3px 6px;
+  background: var(--wov-04);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .blog-sr-only {
@@ -340,7 +374,7 @@
 /* The single content column: brand, input and results share one left edge. */
 .blog-search-panel {
   width: 100%;
-  max-width: 840px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 26px 20px 80px;
 }
@@ -394,18 +428,33 @@
   color: var(--text);
 }
 
+/* The icon is positioned over the field rather than laid out beside it, so the
+   input keeps its own full 880px box and the placeholder starts clear of it. */
+.blog-search-field {
+  position: relative;
+  margin-top: 20px;
+}
+
+.blog-search-field-icon {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
 .blog-search-input {
   display: block;
-  width: calc(100% - 28px);
-  height: 32px;
-  margin: 20px auto 0;
-  padding: 0 12px;
+  width: 100%;
+  height: 56px;
+  padding: 0 20px 0 56px;
   background: transparent;
   border: 1px solid var(--wov-10);
-  border-radius: 6px;
+  border-radius: 14px;
   color: var(--text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .blog-search-input::placeholder {
@@ -423,14 +472,35 @@
   appearance: none;
 }
 
+/* Always present: 최근 아티클 over the suggestions, 검색 결과 / 총 N개 over a
+   result set. aria-hidden — the sr-only live region below is the spoken channel. */
+/* Label left, count hard right across the column — bigvalue pins the count to
+   the list's right edge rather than trailing the label, so the eye finds it in
+   the same place whatever the label says. */
+.blog-search-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.blog-search-count {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
 .blog-search-results {
   display: flex;
   flex-direction: column;
-  /* Toss's 10px sits between rows that are one line of title over one of
-     excerpt. Ours wrap to two and two, so 10px ran four-line blocks together
-     into a wall of text. */
+  /* bigvalue's rows nearly touch, because theirs are one line of title over
+     one of excerpt. Ours wrap to two and two, so that ran four-line blocks
+     together into a wall of text. */
   gap: 28px;
-  padding-top: 28px;
+  padding-top: 16px;
 }
 
 /* Keep the current results in place, dimmed, while a newer query is in flight. */
@@ -445,7 +515,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  min-height: 112px;
+  min-height: 116px;
   text-decoration: none;
   cursor: pointer;
 }
@@ -476,7 +546,8 @@
 }
 
 .blog-search-result-snippet {
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 400;
   line-height: 1.6;
   color: var(--text-muted);
   display: -webkit-box;
@@ -554,7 +625,19 @@
   }
 
   .blog-search-results {
-    padding-top: 20px;
+    padding-top: 12px;
+  }
+
+  /* 128px of pill does not fit beside the remaining nav items on a ~390px
+     viewport, and a touch device has no Ctrl+K to advertise. */
+  .blog-search-trigger {
+    width: auto;
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  .blog-search-kbd {
+    display: none;
   }
 
   .blog-search-result-title {

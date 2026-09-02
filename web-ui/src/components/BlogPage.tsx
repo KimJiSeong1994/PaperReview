@@ -297,7 +297,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // Search lives entirely in an overlay: `searchInput` is what the user typed,
   // `query` is the debounced value that is actually fetched and mirrored to ?q=.
   // Landing on /blog?q=foo opens the overlay pre-filled so a shared search link
-  // still works — a reach we keep over toss, which has no searchable URL.
+  // still works — a reach we keep over bigvalue, which has no searchable URL.
   // A tag chip from /blog/tags lands here as ?tag=. Assumed never combined
   // with ?q= — the search overlay owns that param on its own.
   const tagFilter = searchParams.get('tag') ?? '';
@@ -386,6 +386,29 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       document.body.style.overflow = previousOverflow;
     };
   }, [searchOpen, closeSearch]);
+
+  // Cmd+K / Ctrl+K from anywhere on the page — the one shortcut the trigger
+  // pill advertises. List view only: the trigger is hidden on a post because
+  // `openPost` skips navigate() under a slug route, so a result click there
+  // would swap the body without moving the URL.
+  useEffect(() => {
+    if (view !== 'list') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'k' && e.key !== 'K') return;
+      if (!e.metaKey && !e.ctrlKey) return;
+      // Never steal the keystroke from someone typing — the editor's fields,
+      // the tag box, or any other input on the page owns it first.
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+      // Chrome/Firefox bind Ctrl+K to the address bar; without this the
+      // overlay opens behind a focused omnibox.
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [view]);
 
   // Body matches can't be done client-side (the list response carries no
   // content), so an active query is always a server round-trip.
@@ -680,14 +703,16 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           {view === 'list' && (
             <button
               ref={searchTriggerRef}
-              className="blog-nav-btn blog-search-trigger"
+              className="blog-search-trigger"
               aria-label="블로그 글 검색"
               onClick={() => setSearchOpen(true)}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" aria-hidden="true">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+              검색
+              {/* The shortcut is advertised, not just implemented — a pill with
+                  no hint is an icon button that got wider. Reads "Ctrl K" on
+                  every platform: Cmd+K works too, but a second string means a
+                  platform sniff, and Ctrl+K is the one both keyboards have. */}
+              <kbd className="blog-search-kbd" aria-hidden="true">Ctrl K</kbd>
             </button>
           )}
           <button className="blog-nav-btn blog-nav-btn-active">Blog</button>
@@ -775,20 +800,41 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             </button>
           </div>
 
-          <input
-            className="blog-search-input"
-            type="search"
-            autoFocus
-            value={searchInput}
-            placeholder="주제, 시리즈 검색"
-            aria-label="검색어"
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
+          {/* The magnifier lives inside the field (the input reserves it with
+              padding-left) rather than beside it — one 880px control, not two. */}
+          <div className="blog-search-field">
+            <svg className="blog-search-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              className="blog-search-input"
+              type="search"
+              autoFocus
+              value={searchInput}
+              placeholder="주제, 시리즈 검색"
+              aria-label="검색어"
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
 
-          {/* Toss shows no result count and neither do we — but the count was
-              never on screen here either, it has always been sr-only. A sighted
-              reader sees the list change; without this a screen reader gets
-              nothing at all, so removing it costs feedback and matches nothing. */}
+          {/* aria-hidden: the live region below already states this in words
+              tuned for speech, so exposing both would say the count twice. */}
+          <div className="blog-search-section" aria-hidden="true">
+            {query ? (
+              <>
+                검색 결과
+                {settled && !searchError && (
+                  <span className="blog-search-count">총 {results.length}개</span>
+                )}
+              </>
+            ) : (
+              '최근 아티클'
+            )}
+          </div>
+
+          {/* The count reaches a screen reader here and only here: a sighted
+              reader watches the list change, a reader needs it announced. */}
           <div className="blog-sr-only" role="status" aria-live="polite">
             {query && settled && !searchError ? `검색 결과 ${results.length}개` : ''}
           </div>
@@ -806,7 +852,8 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
               </div>
             ) : !query ? (
               <>
-                {/* Unlabelled rows in the visual design; named for screen readers. */}
+                {/* The visible 최근 아티클 label above is aria-hidden, so the
+                    suggestion list still needs a name of its own here. */}
                 <div className="blog-sr-only">최근 글</div>
                 {posts.slice(0, 3).map(searchResultRow)}
               </>

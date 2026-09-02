@@ -111,7 +111,7 @@ describe('BlogPage search overlay', () => {
 
     openSearch();
 
-    // No heading (toss lists suggestions bare) — assert the rows themselves.
+    // The 최근 아티클 heading is asserted separately; this is about the rows.
     expect(resultTitles()).toEqual(['Post 0', 'Post 1', 'Post 2']);
     // The suggestions reuse the already-loaded list rather than refetching.
     expect(searchCalls()).toHaveLength(0);
@@ -337,6 +337,95 @@ describe('BlogPage search overlay', () => {
     expect(within(dialog).queryByText('Paper Review')).not.toBeInTheDocument();
     expect(dialog.querySelector('.blog-row-cat')).toBeNull();
     expect(dialog.querySelector('.blog-row-author')).toBeNull();
+  });
+
+  it('opens on Cmd+K and on Ctrl+K from anywhere on the page', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+
+    fireEvent.keyDown(document.body, { key: 'k', metaKey: true });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('leaves the shortcut alone while the user is typing in another input', async () => {
+    // Ctrl+K is a live keystroke inside a text field (kill-to-end-of-line on
+    // macOS, and the admin editor has fields of its own). Stealing it there
+    // would eat the user's edit and open a search they did not ask for.
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+
+    const elsewhere = document.createElement('input');
+    elsewhere.type = 'text';
+    document.body.appendChild(elsewhere);
+    elsewhere.focus();
+
+    fireEvent.keyDown(elsewhere, { key: 'k', metaKey: true });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    elsewhere.remove();
+  });
+
+  it('preventDefaults the shortcut so the browser keeps its own Ctrl+K', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+
+    // fireEvent returns false once a listener has called preventDefault.
+    const notCancelled = fireEvent.keyDown(document.body, {
+      key: 'k',
+      ctrlKey: true,
+      cancelable: true,
+    });
+
+    expect(notCancelled).toBe(false);
+  });
+
+  it('labels the list 최근 아티클 while empty and 검색 결과 / 총 N개 once searched', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByText('최근 아티클')).toBeInTheDocument();
+    expect(dialog.queryByText('검색 결과')).not.toBeInTheDocument();
+
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond([ALL_POSTS[0]]));
+    await type('rank');
+    await waitFor(() => expect(resultTitles()).toEqual(['Ranking rewrite']));
+
+    expect(dialog.getByText('검색 결과')).toBeInTheDocument();
+    expect(dialog.getByText('총 1개')).toBeInTheDocument();
+    expect(dialog.queryByText('최근 아티클')).not.toBeInTheDocument();
+  });
+
+  it('keeps the visible count out of the a11y tree so it is not said twice', async () => {
+    // Both the label and the sr-only live region carry the count. The live
+    // region is the spoken one; the label must stay decorative or a reader
+    // hears the same number from two places.
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+    openSearch();
+
+    vi.mocked(fetchBlogPosts).mockResolvedValue(respond([ALL_POSTS[0]]));
+    await type('rank');
+    await waitFor(() => expect(resultTitles()).toEqual(['Ranking rewrite']));
+
+    expect(document.querySelector('.blog-search-section')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('검색 결과 1개');
+  });
+
+  it('advertises the shortcut on the trigger itself', async () => {
+    renderBlog();
+    await screen.findByText('Ranking rewrite');
+
+    const trigger = screen.getByLabelText('블로그 글 검색');
+    expect(trigger).toHaveTextContent('검색');
+    expect(trigger.querySelector('kbd')).toHaveTextContent('Ctrl K');
   });
 
   it('renders the no-results state when nothing matches', async () => {
