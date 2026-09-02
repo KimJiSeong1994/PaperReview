@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -322,6 +322,7 @@ const EMPTY_FORM: EditorForm = {
 
 function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState<BlogView>('list');
@@ -622,6 +623,16 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   }, [view, selectedPost]);
 
   // ── Detail view ────────────────────────────────────────────────────
+
+  // React Router does not act on a URL fragment, so /blog#series-index — the
+  // footer's 아티클 시리즈 link — landed at the top of the list with the shelf
+  // 2,000px below it. Scroll once the target exists: the list is fetched, so
+  // arriving from another page there is nothing to find on the first pass.
+  useEffect(() => {
+    const id = location.hash.slice(1);
+    if (!id || view !== 'list' || loading) return;
+    document.getElementById(id)?.scrollIntoView({ block: 'start' });
+  }, [location.hash, view, loading]);
 
   const openPost = async (post: BlogPost) => {
     setError(null);

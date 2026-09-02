@@ -96,15 +96,29 @@ GITHUB_PROFILE_URL = "https://github.com/KimJiSeong1994"
 LINKEDIN_PROFILE_URL = "https://www.linkedin.com/in/jiseong-kim-868218193/"
 
 # Pre-hydration footer appended inside #root on SSR pages so non-JS crawlers
-# and users see the same maintainer links the React SiteFooter renders.
+# and users see the same links the React SiteFooter renders. Only Korean
+# documents are built this way, hence the /ko/introduce/ href. Kept in sync
+# with web-ui/src/components/SiteFooter.tsx by tests/test_site_footer_sync.py.
 _SITE_FOOTER_HTML = (
-    '<footer class="site-footer">'
+    '<footer class="site-footer"><div class="site-footer-columns">'
+    '<nav class="site-footer-column" aria-label="집현전">'
+    '<p class="site-footer-heading">집현전</p><ul class="site-footer-list">'
+    '<li><a href="/">논문 검색</a></li>'
+    '<li><a href="/ko/introduce/">서비스 소개</a></li>'
+    "</ul></nav>"
+    '<nav class="site-footer-column" aria-label="블로그">'
+    '<p class="site-footer-heading">블로그</p><ul class="site-footer-list">'
+    '<li><a href="/blog">전체 아티클</a></li>'
+    '<li><a href="/blog#series-index">아티클 시리즈</a></li>'
+    '<li><a href="/blog/tags">태그 전체 보기</a></li>'
+    "</ul></nav>"
+    '<nav class="site-footer-column" aria-label="만든 사람">'
+    '<p class="site-footer-heading">만든 사람</p><ul class="site-footer-list">'
+    f'<li><a href="{GITHUB_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">GitHub</a></li>'
+    f'<li><a href="{LINKEDIN_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">LinkedIn</a></li>'
+    "</ul></nav></div>"
     '<span class="site-footer-brand">© Jiphyeonjeon (집현전)</span>'
-    '<nav class="site-footer-links" aria-label="Maintainer profiles">'
-    f'<a href="{GITHUB_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">GitHub</a>'
-    '<span class="site-footer-sep" aria-hidden="true">·</span>'
-    f'<a href="{LINKEDIN_PROFILE_URL}" target="_blank" rel="me noopener noreferrer">LinkedIn</a>'
-    "</nav></footer>"
+    "</footer>"
 )
 
 # Ordered blog series hubs (pillar pages). Keys are the /blog/series/{id}
