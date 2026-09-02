@@ -14,9 +14,13 @@
   margin: 0 auto;
 }
 
+/* 700, matching toss: their footer column headings are 700 against 400 links
+   at the same size, so the weight alone separates the heading from what it
+   heads. At 600 against our 400 the step was there but too quiet to read as a
+   divider. */
 .site-footer-heading {
   margin: 0 0 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
 }
 
