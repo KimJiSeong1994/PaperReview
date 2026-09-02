@@ -65,6 +65,11 @@ type CategoryKey = 'paper-review' | 'engineering';
 const PAGE_SIZE = 5;
 const PAGE_WINDOW = 5;
 
+/** Only one search overlay is ever mounted, so these ids stay unique. They are
+    what aria-activedescendant/aria-controls point at. */
+const SEARCH_LISTBOX_ID = 'blog-search-listbox';
+const searchOptionId = (index: number) => `blog-search-option-${index}`;
+
 /** The visible slice of page numbers, sliding to keep `page` in the middle. */
 function pageWindow(page: number, pageCount: number): number[] {
   const start = Math.max(1, Math.min(page - Math.floor(PAGE_WINDOW / 2), pageCount - PAGE_WINDOW + 1));
@@ -377,6 +382,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // underneath reads that param, so one shared value would page both at once
   // and a deep link to /blog?page=3 would open search already on page 3.
   const [searchPage, setSearchPage] = useState(1);
+  // Arrow-key selection over the rows on screen. -1 is "nothing active", the
+  // state every reset returns to: an index pointing at a row that a new query
+  // or a page change swapped out must never stay selectable.
+  const [activeIndex, setActiveIndex] = useState(-1);
   // The overlay scrolls its own results column, not the window.
   // The overlay, not the results list, is the scrolling box (overflow-y on
   // .blog-search-overlay), so paging has to reset that element's scrollTop.
@@ -421,6 +430,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     setSearchOpen(false);
     setSearchInput('');
     setQuery('');
+    // Reopening starts with nothing selected even when the query was already
+    // empty, which leaves the [query] reset below with nothing to fire on.
+    setActiveIndex(-1);
     setSearchParams({}, { replace: true });
     searchTriggerRef.current?.focus();
   }, [setSearchParams]);
@@ -503,6 +515,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // the clamp in the overlay itself.
   useEffect(() => {
     setSearchPage(1);
+    setActiveIndex(-1);
   }, [query]);
 
   // ── Category filtering ─────────────────────────────────────────────
@@ -796,15 +809,26 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   // ── Search overlay ─────────────────────────────────────────────────
 
-  const searchResultRow = (post: BlogPost) => (
+  // The one way a result opens — a click and Enter on the active row take it,
+  // so the two can never drift apart.
+  const openResult = (post: BlogPost) => {
+    closeSearch();
+    void openPost(post);
+  };
+
+  // `index` arrives free from .map(). role="option" on the anchor keeps the
+  // href, so middle-click and copy-link still work.
+  const searchResultRow = (post: BlogPost, index: number) => (
     <a
       key={post.id}
-      className="blog-search-result"
+      id={searchOptionId(index)}
+      role="option"
+      aria-selected={index === activeIndex}
+      className={`blog-search-result${index === activeIndex ? ' active' : ''}`}
       href={`/blog/${post.slug}`}
       onClick={(e) => {
         e.preventDefault();
-        closeSearch();
-        void openPost(post);
+        openResult(post);
       }}
     >
       <span className="blog-search-result-text">
@@ -831,6 +855,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     </a>
   );
 
+  // The rows and only the rows: the pager and the empty states are siblings of
+  // this box, not options inside a listbox.
+  const optionList = (rows: BlogPost[]) => (
+    <div className="blog-search-options" role="listbox" id={SEARCH_LISTBOX_ID} aria-label="검색 결과 목록">
+      {rows.map(searchResultRow)}
+    </div>
+  );
+
   const renderSearchOverlay = () => {
     const results = searchResults ?? [];
     // The render that publishes a new `query` runs before the effect that sets
@@ -842,8 +874,42 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     // otherwise slice past the end and render an empty results column.
     const currentPage = Math.min(searchPage, searchPageCount);
     const pageResults = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    // Exactly the rows on screen, in render order — the suggestions while the
+    // query is empty, this page's results otherwise, nothing on a failure.
+    const navRows = searchError ? [] : !query ? posts.slice(0, 3) : pageResults;
+
+    const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        // No active row means nothing to open — guessing the first result would
+        // send a reader somewhere they never selected.
+        const active = navRows[activeIndex];
+        if (!active) return;
+        e.preventDefault();
+        openResult(active);
+        return;
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      if (navRows.length === 0) return;
+      e.preventDefault();
+      // Clamped at both ends: no wrap, and no crossing into the next page. The
+      // pager is right there, and page-crossing would fight its scroll reset.
+      // ArrowLeft/ArrowRight stay unbound — the input is a focused text field
+      // and those move the caret.
+      const next = e.key === 'ArrowDown'
+        ? Math.min(activeIndex + 1, navRows.length - 1)
+        : Math.max(activeIndex - 1, 0);
+      setActiveIndex(next);
+      // block:'nearest' so it only scrolls when the row is actually off-screen.
+      // The scrolling box is .blog-search-overlay, which this finds on its own —
+      // and no smooth path moves that element at all (see goToSearchPage).
+      // jsdom has no scrollIntoView, hence the optional call.
+      document.getElementById(searchOptionId(next))?.scrollIntoView?.({ block: 'nearest' });
+    };
+
     const goToSearchPage = (next: number) => {
       setSearchPage(next);
+      // The rows under the selection are about to be replaced.
+      setActiveIndex(-1);
       // Put the reader back on row 1, not on the pager they clicked — the
       // overlay's equivalent of the list's scroll to #all-articles.
       //
@@ -896,6 +962,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
+            {/* Combobox, not roving focus: the input keeps focus at all times so
+                typing never breaks, and aria-activedescendant is what points a
+                screen reader at the row the arrow keys selected. */}
             <input
               className="blog-search-input"
               type="search"
@@ -903,7 +972,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
               value={searchInput}
               placeholder="주제, 시리즈 검색"
               aria-label="검색어"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={navRows.length > 0}
+              aria-controls={SEARCH_LISTBOX_ID}
+              aria-activedescendant={navRows[activeIndex] ? searchOptionId(activeIndex) : undefined}
               onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={onSearchKeyDown}
             />
           </div>
 
@@ -944,7 +1019,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
                 {/* The visible 최근 아티클 label above is aria-hidden, so the
                     suggestion list still needs a name of its own here. */}
                 <div className="blog-sr-only">최근 글</div>
-                {posts.slice(0, 3).map(searchResultRow)}
+                {optionList(navRows)}
               </>
             ) : settled && results.length === 0 ? (
               <div className="blog-search-empty">
@@ -956,7 +1031,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
               </div>
             ) : (
               <>
-                {pageResults.map(searchResultRow)}
+                {optionList(navRows)}
                 {renderPager(currentPage, searchPageCount, goToSearchPage)}
               </>
             )}
