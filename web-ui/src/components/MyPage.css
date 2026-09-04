@@ -67,6 +67,7 @@
   font-weight: 400;
   cursor: pointer;
   padding: 6px 12px;
+  min-height: 44px;
   border-radius: 6px;
   transition: all 0.2s;
   font-family: inherit;
@@ -355,6 +356,7 @@
   justify-content: center;
   width: 14px;
   height: 18px;
+  position: relative;
   background: transparent;
   border: none;
   color: transparent;
@@ -446,8 +448,8 @@
 }
 
 .mypage-bookmark-checkbox {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: rgba(99, 102, 241, 0.8);
   flex-shrink: 0;
@@ -503,7 +505,9 @@
   right: 4px;
   display: flex;
   gap: 2px;
-  opacity: 0;
+  /* Was hover-gated, which put delete out of reach on touch — the same widths
+     where the layout stacks. The title reserves 30px on the right for it. */
+  opacity: 1;
   transition: all 0.15s ease;
 }
 
@@ -517,7 +521,7 @@
   color: var(--text-faint);
   cursor: pointer;
   font-size: 11px;
-  padding: 2px 4px;
+  padding: 7px 9px;
   border-radius: 4px;
   transition: all 0.15s ease;
   display: flex;
@@ -2368,6 +2372,7 @@
   font-size: 12px;
   font-weight: 500;
   padding: 10px 16px;
+  min-height: 44px;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
@@ -3385,4 +3390,33 @@
   font-size: 14px;
   padding: 32px;
   min-height: 120px;
+}
+
+/* ===== Keyboard focus =====
+   Eleven controls set `outline: none` with only a border-color change on
+   :focus, which is not a visible focus indicator for a keyboard user.
+   Restoring the ring under :focus-visible keeps the pointer appearance the
+   designers chose while making the page traversable. The selector is one
+   class heavier than the rules it overrides, so it wins without !important.
+   Same ring as the blog's .theme-toggle:focus-visible. */
+.mypage-drag-handle::after {
+  content: '';
+  position: absolute;
+  /* Reaches a 44px target without taking column width from the title. */
+  inset: -13px -15px;
+}
+
+.mypage-search-input:focus-visible,
+.mypage-bulk-move-select:focus-visible,
+.mypage-add-topic-input:focus-visible,
+.mypage-report-title-input:focus-visible,
+.mypage-lightrag-input:focus-visible,
+.mypage-lightrag-mode:focus-visible,
+.mypage-chat-topic-select:focus-visible,
+.mypage-chat-input:focus-visible,
+.mypage-notes-textarea:focus-visible,
+.mypage-memo-input:focus-visible,
+.mypage-share-url-input:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
 }
