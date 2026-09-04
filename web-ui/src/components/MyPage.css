@@ -838,6 +838,8 @@
   font-size: 13px;
   color: var(--text-soft);
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .mypage-report-content h1,
@@ -878,7 +880,7 @@
 }
 
 .mypage-report-content pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--bg-elev2);
   border-radius: 6px;
   padding: 10px;
   overflow-x: auto;
@@ -1231,7 +1233,8 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-soft);
-  word-break: break-word;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .mypage-chat-markdown p {
@@ -1284,7 +1287,7 @@
 }
 
 .mypage-chat-markdown pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--bg-elev2);
   border-radius: 6px;
   padding: 10px;
   overflow-x: auto;
@@ -1493,7 +1496,7 @@
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid var(--wov-08);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-elev);
 }
 
 .mypage-chat-input {
@@ -1899,7 +1902,7 @@
   z-index: 110;
   max-width: 420px;
   min-width: 260px;
-  background: #1e1e2e;
+  background: var(--bg-elev);
   border: 1px solid var(--ibd-20);
   border-radius: 8px;
   padding: 12px 14px;
@@ -2677,7 +2680,7 @@
 
 .mypage-share-url-input {
   flex: 1;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--bg-elev2);
   border: 1px solid var(--wov-10);
   border-radius: 6px;
   padding: 6px 10px;
@@ -2841,7 +2844,7 @@
 .shared-view-brand-name {
   font-size: 1rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--text);
   letter-spacing: -0.3px;
 }
 .shared-view-badge {
