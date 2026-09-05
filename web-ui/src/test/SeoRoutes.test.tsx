@@ -103,7 +103,7 @@ describe('SEO-sensitive routes', () => {
       level: 1,
       name: /Jiphyeonjeon.*집현전/,
     })).toBeInTheDocument();
-    expect(screen.getByText('The AI Search Engine You Control')).toBeInTheDocument();
+    expect(screen.getByText('논문을 찾은 뒤, 근거까지 읽습니다.')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(screen.queryByRole('heading', {
       name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
