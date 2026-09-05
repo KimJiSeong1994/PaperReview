@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 /** Scroll-spy line, in px from the viewport top. Also the sticky offset. */
 const SPY_OFFSET = 80;
@@ -27,6 +28,27 @@ const SKIP_HEADINGS = new Set([
 interface TocItem {
   id: string;
   text: string;
+  /** 2 or 3 — drives the indent, and nothing else. */
+  level: number;
+}
+
+interface TableOfContentsProps {
+  /** Re-extracts when the reader moves to another post or report. */
+  postKey: string;
+  /** Where the rendered markdown lives. */
+  containerSelector?: string;
+  /** 2 collects h2 only (the blog is flat); 3 adds h3 (reports nest 1.1 under 1). */
+  depth?: 2 | 3;
+  /**
+   * Selector for the element that scrolls, when it is not the window. The blog
+   * scrolls the page; the report scrolls inside a div, which changes both what
+   * the observer watches and what offsets are measured against. A selector
+   * rather than a ref, because a ref is still null on the first render and the
+   * effect that needs this runs after mount, when the query just works.
+   */
+  scrollRootSelector?: string;
+  /** Class stem, so the two surfaces can look different without forking logic. */
+  classPrefix?: string;
 }
 
 /**
@@ -46,51 +68,99 @@ export function chooseActiveId(
 }
 
 /**
- * Sticky section index for the post detail view, built from the rendered
- * markdown rather than the source (rehype-slug has already assigned the ids we
- * link to). `postKey` re-extracts when the reader moves to another post.
+ * Sticky section index, built from the rendered markdown rather than the source
+ * (rehype-slug has already assigned the ids we link to). `postKey` re-extracts
+ * when the reader moves to another post or report.
  */
-function BlogTableOfContents({ postKey }: { postKey: string }) {
+function BlogTableOfContents({
+  postKey,
+  containerSelector = '.blog-detail-content',
+  depth = 2,
+  scrollRootSelector,
+  classPrefix = 'blog-toc',
+}: TableOfContentsProps) {
   const [items, setItems] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Inside a scroll container the line sits just below its top edge; on the page
+  // it clears the sticky header.
+  const spyOffset = scrollRootSelector ? 8 : SPY_OFFSET;
+  const findScroller = () =>
+    (scrollRootSelector ? document.querySelector<HTMLElement>(scrollRootSelector) : null);
 
   useEffect(() => {
     setActiveId(null);
 
+    const selector = depth >= 3
+      ? `${containerSelector} h2, ${containerSelector} h3`
+      : `${containerSelector} h2`;
     const headings = Array.from(
-      document.querySelectorAll<HTMLHeadingElement>('.blog-detail-content h2'),
+      document.querySelectorAll<HTMLHeadingElement>(selector),
     ).filter((heading) => heading.id && !SKIP_HEADINGS.has(heading.textContent?.trim() ?? ''));
 
-    setItems(headings.map((heading) => ({ id: heading.id, text: heading.textContent?.trim() ?? '' })));
+    setItems(headings.map((heading) => ({
+      id: heading.id,
+      text: heading.textContent?.trim() ?? '',
+      level: heading.tagName === 'H3' ? 3 : 2,
+    })));
     if (headings.length === 0) return undefined;
+
+    const scroller = findScroller();
+
+    // Positions are measured against whatever is scrolling: the viewport for the
+    // page, the container's own top edge for a panel.
+    const topsRelativeToScroller = () => {
+      const origin = scroller ? scroller.getBoundingClientRect().top : 0;
+      return headings.map((heading) => ({
+        id: heading.id,
+        top: heading.getBoundingClientRect().top - origin,
+      }));
+    };
 
     const observer = new IntersectionObserver(
       () => {
-        const next = chooseActiveId(
-          headings.map((heading) => ({ id: heading.id, top: heading.getBoundingClientRect().top })),
-          SPY_OFFSET,
-        );
+        const next = chooseActiveId(topsRelativeToScroller(), spyOffset);
         // Only ever replace: scrolling above the first heading should leave the
         // index highlighted where the reader last was, not blank.
         if (next) setActiveId(next);
       },
-      { rootMargin: `-${SPY_OFFSET}px 0px 0px 0px` },
+      { root: scroller, rootMargin: `-${spyOffset}px 0px 0px 0px` },
     );
     headings.forEach((heading) => observer.observe(heading));
     return () => observer.disconnect();
-  }, [postKey]);
+  }, [postKey, containerSelector, depth, scrollRootSelector, spyOffset]);
 
   if (items.length === 0) return null;
 
+  /**
+   * Inside a container, assign `scrollTop` directly. Neither the native hash
+   * jump nor `scrollIntoView({behavior:'smooth'})` can be relied on to move an
+   * `overflow-y` element — verified elsewhere in this codebase — and a hash
+   * would also write to a URL that carries state of its own. The page-scrolling
+   * blog keeps the native behaviour it has always had.
+   */
+  const handleClick = (event: ReactMouseEvent<HTMLAnchorElement>, id: string) => {
+    const scroller = findScroller();
+    if (!scroller) return;
+    event.preventDefault();
+    const heading = document.getElementById(id);
+    if (!heading) return;
+    const delta = heading.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTop += delta - spyOffset;
+    setActiveId(id);
+  };
+
   return (
-    <nav className="blog-toc" aria-label="목차">
-      <div className="blog-toc-label">목차</div>
-      <ul className="blog-toc-list">
+    <nav className={classPrefix} aria-label="목차">
+      <div className={`${classPrefix}-label`}>목차</div>
+      <ul className={`${classPrefix}-list`}>
         {items.map((item) => (
           <li key={item.id}>
             <a
-              className={`blog-toc-link${item.id === activeId ? ' is-active' : ''}`}
+              className={`${classPrefix}-link${item.id === activeId ? ' is-active' : ''}`}
               href={`#${item.id}`}
+              data-level={item.level}
+              onClick={(event) => handleClick(event, item.id)}
               aria-current={item.id === activeId ? 'location' : undefined}
             >
               {item.text}

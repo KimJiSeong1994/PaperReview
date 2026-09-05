@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSlug from 'rehype-slug';
 import type { HighlightItem, ShareInfo } from '../../api/client';
 import type { CitationTreeData } from './types';
 import ConsensusMeter from './ConsensusMeter';
+import TableOfContents from '../BlogTableOfContents';
 
 export interface ReportViewerProps {
   bookmarkDetail: any;
@@ -341,9 +343,17 @@ export default function ReportViewer({
           {bookmarkDetail.report_markdown && (
             <div className="mypage-report-section">
               <h3 className="mypage-report-section-title">Report</h3>
+              <TableOfContents
+                postKey={bookmarkDetail.id ?? bookmarkDetail.title ?? ''}
+                containerSelector=".mypage-report-content"
+                depth={3}
+                scrollRootSelector=".mypage-report-scroll"
+                classPrefix="mypage-toc"
+              />
               <div className="mypage-report-content prose-base">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSlug]}
                   components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
                     p: ({ children }) => {
                       let c: React.ReactNode = children;
