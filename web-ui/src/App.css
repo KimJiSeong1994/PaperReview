@@ -241,6 +241,28 @@ body {
 
 }
 
+/* Visually hidden until focused, then a real target at the top-left. Uses the
+   same indigo ring as the search field so the two read as one system. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -100px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--bg-elev);
+  color: var(--text-hi);
+  font-size: 14px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  top: 8px;
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
 .main-content {
   flex: 1;
   display: flex;

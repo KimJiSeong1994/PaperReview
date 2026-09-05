@@ -31,18 +31,23 @@ function SearchBar({ onSearch, loading, guidanceMessage, onQueryChange, initialQ
               setQuery(e.target.value);
               if (guidanceMessage) onQueryChange?.();
             }}
-            placeholder="Search papers..."
+            placeholder="논문 검색"
             className="search-input"
             disabled={loading}
           />
 
+          {/* The name comes from aria-label, not from the emoji and not from
+              a title. Which of those two the browser previously computed was
+              genuinely ambiguous — name-from-content precedes title in the
+              accname spec, so it may well have been announced as the emoji —
+              and one explicit source removes the question. */}
           <button
             type="submit"
             className="search-submit-button"
             disabled={loading || !query.trim()}
-            title="Search"
+            aria-label="논문 검색"
           >
-            <span className="search-icon">&#x1F50D;</span>
+            <span className="search-icon" aria-hidden="true">&#x1F50D;</span>
           </button>
         </div>
       </form>

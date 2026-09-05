@@ -45,8 +45,8 @@ function paper(docId: string, title: string, rank?: number) {
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('Search papers...'), { target: { value: query } });
-    fireEvent.click(screen.getByTitle('Search'));
+    fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: query } });
+    fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }
 
