@@ -238,6 +238,7 @@ body {
     height: 36px;
     flex-basis: 36px;
   }
+
 }
 
 .main-content {
@@ -353,6 +354,42 @@ body {
 
 :root[data-theme='light'] .centered-search {
   background-image: none;
+}
+
+/* Phone hero.
+
+   MUST stay below every other `.centered-search` rule. A media query adds no
+   specificity, so the same declaration placed in the @media block further up
+   this file loses to the plain `.centered-search { min-height: ... }` that
+   follows it — measured: the hero stayed 794px and only the ::after rule,
+   which nothing later contests, took effect.
+
+   The decorative hanok is a flex sibling with `flex: 1 1 auto`, so it inflates
+   to whatever the min-height leaves — 415px, 47% of a 402x874 viewport, before
+   the chips landed. It does not fill that: the artwork is 1344x382 against
+   `width: 90%` + `contain`, so it paints ~100px at the bottom and the rest is
+   blank. The dark asset it fetches to do that is 291KiB against ~163KiB for
+   all the JS, and dark is the unconditional default (theme.ts never reads
+   prefers-color-scheme), so every first visit pays it.
+
+   `display: none` suppresses box generation, so no base rule takes effect and
+   the background is never fetched. Alone it would not remove the void: the
+   base min-height still forces 794px and `justify-content: flex-start` pushes
+   the slack to the bottom — the same empty page, minus the artwork.
+
+   The base keeps `flex: 1`, which is what still pins the footer to the bottom
+   of a short page, so `min-height: auto` is safe rather than a regression.
+   Light mode is covered: the override above is more specific but declares only
+   background and opacity, never `display`, so it cannot re-enable the box. */
+@media (max-width: 760px) {
+  .centered-search {
+    min-height: auto;
+    padding-top: clamp(32px, 6vh, 64px);
+  }
+
+  .centered-search::after {
+    display: none;
+  }
 }
 
 
