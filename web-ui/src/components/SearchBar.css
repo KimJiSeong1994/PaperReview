@@ -17,14 +17,23 @@
   padding: 0 16px 0 20px;
   transition: all 0.2s ease;
   min-height: clamp(52px, 7vh, 64px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--card-shadow);
   gap: 4px;
 }
 
+/* `.search-input` sets `outline: none`, so this is the field's only focus
+   indicator. It used to be a border going from --wov-08 to --wov-15, which in
+   light mode is rgba(17,24,39,.11) to rgba(17,24,39,.16) on #f7f8fa — measured
+   1.11:1, against the 3:1 that WCAG 2.2 asks of one. The background shift is
+   1.07:1 and does not rescue it. --indigo carries the contrast instead; the
+   outline follows the 16px border-radius, so the ring is a pill, not a box
+   drawn over one. */
 .search-input-wrapper:focus-within {
-  border-color: var(--wov-15);
+  border-color: var(--indigo);
   background: var(--bg-elev2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  box-shadow: var(--card-shadow-hover);
 }
 
 /* Mode toggle */

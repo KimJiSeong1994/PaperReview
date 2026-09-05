@@ -58,11 +58,15 @@ function App() {
   const isKoreanIntroduce = location.pathname.startsWith('/ko/introduce');
   const isIntroduceRoute = isKoreanIntroduce || location.pathname.startsWith('/introduce');
   // The site is Korean-first everywhere except the separately-indexed English
-  // /introduce/ page, which keeps its own locale. Anywhere else — including
-  // "/" — this link is the Korean page. It used to key off isKoreanIntroduce,
-  // a path check that is false on "/", so the Korean intro was unreachable
-  // from the homepage: the label said About and the href went to /introduce/.
-  const aboutIsEnglish = isIntroduceRoute && !isKoreanIntroduce;
+  // /introduce/ page, which keeps its own locale — SEOHead sets
+  // documentElement.lang to match, so English chrome there is correct rather
+  // than untagged English inside lang="ko".
+  //
+  // Everywhere else, including "/" and /blog, the chrome is Korean. These
+  // labels used to key off isKoreanIntroduce, a path check that is false on
+  // "/", so the homepage of a Korean product greeted Korean readers with
+  // About / Blog / My Page / Logout.
+  const englishChrome = isIntroduceRoute && !isKoreanIntroduce;
 
   const handleMyPageClick = () => {
     if (isAuthenticated) {
@@ -76,7 +80,7 @@ function App() {
   // headers (BlogPage, AdminPage, ...), so this stays a plain element rather
   // than a component — no remount of RecommendationBell on App re-render.
   const header = (
-    <div className="app-header">
+    <header className="app-header">
       <div className="header-nav">
         <a
           className="logo"
@@ -105,7 +109,7 @@ function App() {
           <span className="brand-name">Jiphyeonjeon</span>
         </a>
         <div className="header-right">
-        <nav className="header-actions" aria-label={isKoreanIntroduce ? '주요 메뉴' : 'Main navigation'}>
+        <nav className="header-actions" aria-label={englishChrome ? 'Main navigation' : '주요 메뉴'}>
           {isAuthenticated && <RecommendationBell />}
           {isAuthenticated && userRole === 'admin' && (
             <button className="nav-btn" onClick={() => navigate('/admin')}>
@@ -116,13 +120,13 @@ function App() {
               Admin
             </button>
           )}
-          <Link className="nav-btn" to={aboutIsEnglish ? '/introduce/' : '/ko/introduce/'}>
+          <Link className="nav-btn" to={englishChrome ? '/introduce/' : '/ko/introduce/'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            {aboutIsEnglish ? 'About' : '소개'}
+            {englishChrome ? 'About' : '소개'}
           </Link>
           <Link className="nav-btn" to="/blog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -132,14 +136,14 @@ function App() {
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            {isKoreanIntroduce ? '블로그' : 'Blog'}
+            {englishChrome ? 'Blog' : '블로그'}
           </Link>
           <button className="nav-btn" onClick={handleMyPageClick}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            {isKoreanIntroduce ? '마이페이지' : 'My Page'}
+            {englishChrome ? 'My Page' : '마이페이지'}
           </button>
           {isAuthenticated && (
             <button className="nav-btn" onClick={logout}>
@@ -148,15 +152,15 @@ function App() {
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
               </svg>
-              {isKoreanIntroduce ? '로그아웃' : 'Logout'}
+              {englishChrome ? 'Logout' : '로그아웃'}
             </button>
           )}
         </nav>
-        <div className="header-utilities" role="group" aria-label={isKoreanIntroduce ? '화면 설정' : 'Display settings'}>
+        <div className="header-utilities" role="group" aria-label={englishChrome ? 'Display settings' : '화면 설정'}>
           {isIntroduceRoute && (
             <nav
               className="language-tabs"
-              aria-label={isKoreanIntroduce ? '소개 페이지 언어' : 'Introduction language'}
+              aria-label={englishChrome ? 'Introduction language' : '소개 페이지 언어'}
             >
               <Link
                 className={`language-tab${isKoreanIntroduce ? ' language-tab-active' : ''}`}
@@ -182,11 +186,16 @@ function App() {
         </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 
   return (
     <div className="app">
+      {/* First focusable thing on the page. Without it a keyboard or screen
+          reader user walks the consent banner, the logo and every nav button
+          before reaching the search field — the one control the page exists
+          for. Visually hidden until focused. */}
+      <a href="#main" className="skip-link">본문 바로가기</a>
       <AnalyticsConsentBanner />
       {/* Global login modal overlay */}
       {showLoginModal && !isAuthenticated && (

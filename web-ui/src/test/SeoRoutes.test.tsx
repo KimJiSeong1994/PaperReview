@@ -96,6 +96,27 @@ describe('SEO-sensitive routes', () => {
     },
   );
 
+  it('gives the page landmarks and a way past the header', async () => {
+    renderWithAuth('/', <App />);
+    await screen.findByRole('heading', { level: 1 });
+
+    // Exactly one <main>. IntroducePage renders its own, but never on "/".
+    expect(document.querySelectorAll('main')).toHaveLength(1);
+    expect(document.querySelector('main')?.id).toBe('main');
+    expect(document.querySelector('header.app-header')).toBeTruthy();
+    expect(screen.getByRole('banner')).toBeTruthy();
+    expect(screen.getByRole('main')).toBeTruthy();
+
+    // The skip link must be the first focusable element on the page — ahead of
+    // the consent banner, which used to hold that position — and it must point
+    // at the <main> that now exists.
+    const focusable = document.querySelectorAll<HTMLElement>(
+      'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    expect(focusable[0].getAttribute('href')).toBe('#main');
+    expect(focusable[0].textContent).toBe('본문 바로가기');
+  });
+
   it('keeps the existing search experience on the root route', async () => {
     renderWithAuth('/', <App />);
 
@@ -126,8 +147,10 @@ describe('SEO-sensitive routes', () => {
     );
 
     const themeToggle = screen.getByRole('button', { name: 'Switch to light mode' });
-    const mainNavigation = screen.getByRole('navigation', { name: 'Main navigation' });
-    const displaySettings = screen.getByRole('group', { name: 'Display settings' });
+    // "/" is a Korean route, so the chrome is Korean. Only the separately
+    // indexed English /introduce/ keeps English labels.
+    const mainNavigation = screen.getByRole('navigation', { name: '주요 메뉴' });
+    const displaySettings = screen.getByRole('group', { name: '화면 설정' });
     expect(within(mainNavigation).queryByRole('button', { name: 'Switch to light mode' })).not.toBeInTheDocument();
     expect(within(displaySettings).getByRole('button', { name: 'Switch to light mode' })).toBe(themeToggle);
     fireEvent.click(themeToggle);

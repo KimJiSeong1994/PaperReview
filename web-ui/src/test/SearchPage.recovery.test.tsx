@@ -73,10 +73,10 @@ function createDeferred<T>() {
 
 async function submit(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('Search papers...'), {
+    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
       target: { value: query },
     });
-    fireEvent.click(screen.getByTitle('Search'));
+    fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }
 

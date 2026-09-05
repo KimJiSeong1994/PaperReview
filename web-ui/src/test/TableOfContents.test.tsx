@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act } from 'react';
-import { render, within, fireEvent } from '@testing-library/react';
+import { render, within, fireEvent, waitFor } from '@testing-library/react';
 import TableOfContents from '../components/BlogTableOfContents';
 
 /**
@@ -130,16 +130,13 @@ describe('scroll-spy inside a container', () => {
       container.querySelector('.blog-toc-link.is-active')?.textContent?.trim() ?? null;
 
     scrollBy(150);   // first heading is now above the line
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeText()).toBe('1. 서론');
+    await waitFor(() => expect(activeText()).toBe('1. 서론'));
 
     scrollBy(700);   // second one crosses
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeText()).toBe('2. 방법론');
+    await waitFor(() => expect(activeText()).toBe('2. 방법론'));
 
     scrollBy(1200);  // third
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeText()).toBe('3. 결과');
+    await waitFor(() => expect(activeText()).toBe('3. 결과'));
   });
 
   it('keeps the last heading highlighted when the reader scrolls back above the first', async () => {
@@ -151,11 +148,9 @@ describe('scroll-spy inside a container', () => {
       container.querySelector('.blog-toc-link.is-active')?.textContent?.trim() ?? null;
 
     scrollBy(700);
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeText()).toBe('2. 방법론');
+    await waitFor(() => expect(activeText()).toBe('2. 방법론'));
 
     scrollBy(0);     // everything back below the line
-    await new Promise((r) => setTimeout(r, 30));
-    expect(activeText()).toBe('2. 방법론');
+    await waitFor(() => expect(activeText()).toBe('2. 방법론'));
   });
 });

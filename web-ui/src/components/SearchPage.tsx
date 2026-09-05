@@ -670,7 +670,7 @@ function SearchPage() {
   }, [showToolsMenu]);
 
   return (
-    <div className="main-content">
+    <main id="main" className="main-content">
       {!loading && papers.length === 0 && !query && (
         <div className="centered-search">
           <div className="brand-section">
@@ -1238,7 +1238,7 @@ function SearchPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
