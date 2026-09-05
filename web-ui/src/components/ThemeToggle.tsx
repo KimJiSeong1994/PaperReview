@@ -1,16 +1,26 @@
 import { useTheme } from '../theme';
 
+interface ThemeToggleProps {
+  /** English label, for the separately indexed English /introduce/ page only.
+   *  Defaults to Korean: every other route this sits on is Korean, and the
+   *  label reads next to the nav labels, which follow the same rule. */
+  english?: boolean;
+}
+
 /** Header button that flips between light and dark themes. */
-export default function ThemeToggle() {
+export default function ThemeToggle({ english = false }: ThemeToggleProps) {
   const { theme, toggle } = useTheme();
   const isDark = theme === 'dark';
+  const label = english
+    ? (isDark ? 'Switch to light mode' : 'Switch to dark mode')
+    : (isDark ? '라이트 모드로 전환' : '다크 모드로 전환');
   return (
     <button
       type="button"
       className="theme-toggle"
       onClick={toggle}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={label}
+      title={label}
     >
       {isDark ? (
         // Sun — tap to go light

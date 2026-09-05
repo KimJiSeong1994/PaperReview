@@ -182,7 +182,7 @@ function App() {
               </Link>
             </nav>
           )}
-          <ThemeToggle />
+          <ThemeToggle english={englishChrome} />
         </div>
         </div>
       </div>

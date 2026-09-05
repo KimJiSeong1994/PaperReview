@@ -24,7 +24,7 @@ describe('LoginModal', () => {
 
   it('opens with the caret in the first field', () => {
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
-    expect(document.activeElement).toBe(screen.getByPlaceholderText('Enter your ID'));
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('아이디를 입력하세요'));
   });
 
   // Without a trap, Tab walked straight out of the card into the page behind it.
@@ -66,32 +66,32 @@ describe('LoginModal', () => {
 
   it('renders sign-in form by default', () => {
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
-    expect(screen.getByPlaceholderText('Enter your ID')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter your password')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('아이디를 입력하세요')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('비밀번호를 입력하세요')).toBeInTheDocument();
   });
 
   it('switches to sign-up mode', async () => {
     const user = userEvent.setup();
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
-    await user.click(screen.getByText('Sign Up'));
-    expect(screen.getByPlaceholderText('Re-enter your password')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Letters, numbers, underscore')).toBeInTheDocument();
+    await user.click(screen.getByText('회원가입'));
+    expect(screen.getByPlaceholderText('비밀번호를 다시 입력하세요')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('영문, 숫자, 밑줄')).toBeInTheDocument();
   });
 
   it('shows error when sign-in fields are empty', async () => {
     const user = userEvent.setup();
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
     // "Sign In" appears as both tab button and submit button; pick the submit
-    const allSignInBtns = screen.getAllByRole('button', { name: /sign in/i });
+    const allSignInBtns = screen.getAllByRole('button', { name: '로그인' });
     const submitBtn = allSignInBtns.find(btn => btn.getAttribute('type') === 'submit')!;
     await user.click(submitBtn);
-    expect(screen.getByText('Please enter your ID and password.')).toBeInTheDocument();
+    expect(screen.getByText('아이디와 비밀번호를 입력해주세요.')).toBeInTheDocument();
   });
 
   it('closes on close button click', async () => {
     const user = userEvent.setup();
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
-    const closeBtn = screen.getByLabelText('Close');
+    const closeBtn = screen.getByLabelText('닫기');
     await user.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
