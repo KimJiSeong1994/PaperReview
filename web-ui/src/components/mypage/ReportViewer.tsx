@@ -8,6 +8,18 @@ import type { CitationTreeData } from './types';
 import ConsensusMeter from './ConsensusMeter';
 import TableOfContents from '../BlogTableOfContents';
 
+/**
+ * A share link that has passed its expiry still arrives on the bookmark, and
+ * `/share/<token>` answers "Link Expired" for it. Treated as live in the UI it
+ * does real harm: the owner copies it and sends someone a dead link. An
+ * unparseable date is treated as live rather than hiding a working link.
+ */
+export function isShareExpired(share: { expires_at?: string } | null): boolean {
+  if (!share?.expires_at) return false;
+  const at = new Date(share.expires_at).getTime();
+  return Number.isFinite(at) && at <= Date.now();
+}
+
 export interface ReportViewerProps {
   bookmarkDetail: any;
   loadingDetail: boolean;
@@ -86,6 +98,7 @@ export default function ReportViewer({
   onRenameBookmark,
   shareInfo, shareLoading, onCreateShare, onRevokeShare,
 }: ReportViewerProps) {
+  const shareExpired = isShareExpired(shareInfo);
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -249,46 +262,57 @@ export default function ReportViewer({
             </button>
           )}
           <button
-            className={`mypage-export-btn mypage-share-btn${shareInfo ? ' active' : ''}`}
-            onClick={shareInfo ? undefined : onCreateShare}
+            className={`mypage-export-btn mypage-share-btn${shareInfo && !shareExpired ? ' active' : ''}`}
+            onClick={shareInfo && !shareExpired ? undefined : onCreateShare}
             disabled={shareLoading}
-            title={shareInfo ? 'Share link active' : 'Create share link'}
+            title={shareInfo && !shareExpired ? '공유 링크 사용 중' : '공유 링크 만들기'}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
-            {shareLoading ? '...' : 'Share'}
+            {shareLoading ? '...' : '공유'}
           </button>
         </div>
       </div>
 
       {/* Share panel */}
       {shareInfo && (
-        <div className="mypage-share-panel">
+        <div className={`mypage-share-panel${shareExpired ? ' is-expired' : ''}`}>
           <div className="mypage-share-panel-row">
-            <input
-              className="mypage-share-url-input"
-              value={`${window.location.origin}/share/${shareInfo.token}`}
-              readOnly
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <button
-              className="mypage-share-copy-btn"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/share/${shareInfo.token}`);
-                setShareCopied(true);
-                setTimeout(() => setShareCopied(false), 2000);
-              }}
-            >
-              {shareCopied ? 'Copied!' : 'Copy'}
-            </button>
-            <button className="mypage-share-revoke-btn" onClick={onRevokeShare} title="Revoke share link">
-              Revoke
+            {shareExpired ? (
+              <span className="mypage-share-expired-note">
+                이 공유 링크는 만료되어 더 이상 열리지 않습니다.
+              </span>
+            ) : (
+              <>
+                <input
+                  className="mypage-share-url-input"
+                  value={`${window.location.origin}/share/${shareInfo.token}`}
+                  readOnly
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  className="mypage-share-copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/share/${shareInfo.token}`);
+                    setShareCopied(true);
+                    setTimeout(() => setShareCopied(false), 2000);
+                  }}
+                >
+                  {shareCopied ? '복사됨!' : '복사'}
+                </button>
+              </>
+            )}
+            <button className="mypage-share-revoke-btn" onClick={onRevokeShare}
+              title={shareExpired ? '만료된 링크 정리' : '공유 링크 해제'}>
+              {shareExpired ? '정리' : '해제'}
             </button>
           </div>
           <div className="mypage-share-panel-meta">
-            Expires {new Date(shareInfo.expires_at).toLocaleDateString()}
+            {shareExpired
+              ? `${new Date(shareInfo.expires_at).toLocaleDateString()} 만료됨 · 위 "공유"로 새 링크를 만들 수 있습니다`
+              : `${new Date(shareInfo.expires_at).toLocaleDateString()}까지 유효`}
           </div>
         </div>
       )}
