@@ -57,6 +57,12 @@ function App() {
   const { isAuthenticated, userRole, showLoginModal, setShowLoginModal, login, logout } = useAuth();
   const isKoreanIntroduce = location.pathname.startsWith('/ko/introduce');
   const isIntroduceRoute = isKoreanIntroduce || location.pathname.startsWith('/introduce');
+  // The site is Korean-first everywhere except the separately-indexed English
+  // /introduce/ page, which keeps its own locale. Anywhere else — including
+  // "/" — this link is the Korean page. It used to key off isKoreanIntroduce,
+  // a path check that is false on "/", so the Korean intro was unreachable
+  // from the homepage: the label said About and the href went to /introduce/.
+  const aboutIsEnglish = isIntroduceRoute && !isKoreanIntroduce;
 
   const handleMyPageClick = () => {
     if (isAuthenticated) {
@@ -110,13 +116,13 @@ function App() {
               Admin
             </button>
           )}
-          <Link className="nav-btn" to={isKoreanIntroduce ? '/ko/introduce/' : '/introduce/'}>
+          <Link className="nav-btn" to={aboutIsEnglish ? '/introduce/' : '/ko/introduce/'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            {isKoreanIntroduce ? '소개' : 'About'}
+            {aboutIsEnglish ? 'About' : '소개'}
           </Link>
           <Link className="nav-btn" to="/blog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>

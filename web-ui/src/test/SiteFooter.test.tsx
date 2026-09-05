@@ -50,13 +50,25 @@ describe('SiteFooter', () => {
     }
   });
 
-  it.each([
-    ['/ko/introduce/', '/ko/introduce/'],
-    ['/introduce/', '/introduce/'],
-    ['/blog', '/introduce/'],
-    ['/', '/introduce/'],
-  ])('on %s the 서비스 소개 link points at %s', (entry, expected) => {
-    renderFooter(entry);
-    expect(screen.getByRole('link', { name: '서비스 소개' }).getAttribute('href')).toBe(expected);
+  // Every label in this footer is Korean, so every destination is too. The
+  // link used to swap in the English /introduce/ on any route that was not
+  // /ko/introduce/ — which meant the Korean label 서비스 소개 sent readers to
+  // an English page from "/" and from /blog, the two routes it is seen on most.
+  it.each(['/ko/introduce/', '/introduce/', '/blog', '/'])(
+    'on %s the 서비스 소개 link points at the Korean page',
+    (entry) => {
+      renderFooter(entry);
+      expect(screen.getByRole('link', { name: '서비스 소개' }).getAttribute('href')).toBe(
+        '/ko/introduce/',
+      );
+    },
+  );
+
+  it('never links to the English introduce page', () => {
+    for (const entry of ['/', '/blog', '/introduce/', '/ko/introduce/']) {
+      const { container, unmount } = renderFooter(entry);
+      expect(container.querySelector('a[href="/introduce/"]')).toBeNull();
+      unmount();
+    }
   });
 });
