@@ -376,12 +376,38 @@ def test_ssr_pages_render_site_footer_with_profile_links(client: TestClient) -> 
         assert 'href="https://www.linkedin.com/in/jiseong-kim-868218193/"' in html, path
 
 
-def test_spa_shell_defaults_to_dark_before_paint() -> None:
-    """The Vite SPA shell mirrors SSR: no saved preference falls back to dark."""
+def test_spa_shell_follows_saved_choice_then_os_then_dark() -> None:
+    """A saved choice wins; with none, follow the OS; if that fails, dark."""
     html = Path("web-ui/index.html").read_text(encoding="utf-8")
     assert "localStorage.getItem('theme')" in html
-    assert "t = 'dark'" in html
-    assert "setAttribute('data-theme', 'dark')" in html
+    assert "prefers-color-scheme: light" in html
+    assert "t = 'dark'" in html, "dark must remain the fallback when matchMedia is unavailable"
+    # The saved value has to be consulted before the media query, or an explicit
+    # choice would be overridden by the OS on every load.
+    assert html.index("localStorage.getItem('theme')") < html.index("prefers-color-scheme")
+
+
+def test_ssr_and_spa_theme_scripts_agree() -> None:
+    """The two pre-paint theme scripts are a documented mirror pair.
+
+    routers/seo.py ships its own copy for SSR pages. If they drift, a reader
+    moving between a blog page and the SPA sees the theme change under them —
+    which is exactly what happened while only one of them read the OS
+    preference. Compare behaviour, not bytes: one is minified.
+    """
+    spa = Path("web-ui/index.html").read_text(encoding="utf-8")
+    ssr = Path("routers/seo.py").read_text(encoding="utf-8")
+    ssr_script = ssr[ssr.index("theme_script = ("):]
+    ssr_script = ssr_script[: ssr_script.index("\n    )")]
+
+    for needle in ("localStorage.getItem('theme')", "prefers-color-scheme: light", "'dark'"):
+        assert needle in spa, f"SPA shell lost {needle}"
+        assert needle in ssr_script, f"SSR theme script lost {needle}"
+
+    for source, name in ((spa, "SPA shell"), (ssr_script, "SSR theme script")):
+        assert source.index("localStorage.getItem('theme')") < source.index(
+            "prefers-color-scheme"
+        ), f"{name} consults the OS before the saved choice"
 
 
 def test_spa_shell_has_korean_search_metadata_and_feed_discovery() -> None:
@@ -397,7 +423,7 @@ def test_spa_shell_has_korean_search_metadata_and_feed_discovery() -> None:
 
 
 def test_ssr_sets_theme_before_paint(client: TestClient) -> None:
-    """SSR blog pages set data-theme early (default dark) so it isn't lost pre-hydration."""
+    """SSR blog pages set data-theme early so it isn't lost pre-hydration."""
     for path in ("/blog", f"/blog/{PUBLISHED_SLUG}", "/blog/category/engineering"):
         html = client.get(path).text
         assert "data-theme" in html, f"missing theme script on {path}"

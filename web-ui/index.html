@@ -2,18 +2,30 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <!-- Set the theme before first paint (no flash): saved choice, else dark. -->
+    <!--
+      Set the theme before first paint (no flash): an explicit saved choice
+      wins, otherwise follow the OS. Anyone who has used the toggle is pinned
+      to what they picked — setTheme writes localStorage — so this only
+      decides what a first visit looks like. It used to be dark for everyone,
+      including readers whose system had asked for light.
+      Dark stays the fallback when matchMedia is unavailable or throws.
+    -->
     <script>
       (function () {
+        var t = null;
         try {
-          var t = localStorage.getItem('theme');
-          if (t !== 'light' && t !== 'dark') {
+          t = localStorage.getItem('theme');
+        } catch (e) {
+          /* storage blocked — fall through to the OS preference */
+        }
+        if (t !== 'light' && t !== 'dark') {
+          try {
+            t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          } catch (e) {
             t = 'dark';
           }
-          document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
         }
+        document.documentElement.setAttribute('data-theme', t);
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
