@@ -24,7 +24,7 @@ const defaultProps = {
 describe('ChatPanel', () => {
   it('renders welcome message when no messages', () => {
     render(<ChatPanel {...defaultProps} />);
-    expect(screen.getByText('Ask about your bookmarked papers')).toBeInTheDocument();
+    expect(screen.getByText('북마크한 논문에 대해 물어보세요')).toBeInTheDocument();
   });
 
   it.skip('renders topic filter select with all options', () => {
@@ -60,11 +60,11 @@ describe('ChatPanel', () => {
 
   it('shows selected bookmark count in welcome when checkboxes checked', () => {
     render(<ChatPanel {...defaultProps} selectedCount={3} />);
-    expect(screen.getByText(/Chatting with 3 selected bookmarks/)).toBeInTheDocument();
+    expect(screen.getByText(/선택한 북마크 3개를 대상으로 답합니다/)).toBeInTheDocument();
   });
 
   it('shows "Selected (N)" in topic dropdown when bookmarks selected', () => {
     render(<ChatPanel {...defaultProps} selectedCount={2} />);
-    expect(screen.getByText('Selected (2)')).toBeInTheDocument();
+    expect(screen.getByText('선택됨 (2)')).toBeInTheDocument();
   });
 });

@@ -20,6 +20,16 @@ interface DraggableBookmarkItemProps {
   setSearchQuery: (q: string) => void;
 }
 
+/**
+ * The bookmark title often ends with the same date the meta row shows, because
+ * of how the record was named. Drop that suffix — and only that exact one, so a
+ * title that never carried a date is left alone.
+ */
+function titleWithoutDate(bm: { title: string; created_at: string }): string {
+  const suffix = ` - ${new Date(bm.created_at).toLocaleDateString()}`;
+  return bm.title.endsWith(suffix) ? bm.title.slice(0, -suffix.length) : bm.title;
+}
+
 function DraggableBookmarkItem({
   bookmark: bm, isActive, isChecked,
   onSelect, onToggleSelection, onDelete, currentTopic, setSearchQuery,
@@ -65,10 +75,10 @@ function DraggableBookmarkItem({
         <polyline points="14 2 14 8 20 8" />
       </svg>
       <div className="mypage-bookmark-info">
-        <div className="mypage-bookmark-title" title={bm.title}>{bm.title}</div>
+        <div className="mypage-bookmark-title" title={bm.title}>{titleWithoutDate(bm)}</div>
         <div className="mypage-bookmark-meta">
           <span>{new Date(bm.created_at).toLocaleDateString()}</span>
-          <span>{bm.num_papers} papers</span>
+          <span>논문 {bm.num_papers}편</span>
         </div>
         {bm.tags && bm.tags.length > 0 && (
           <div className="mypage-bookmark-tags">
@@ -86,7 +96,7 @@ function DraggableBookmarkItem({
         )}
         <button className="mypage-bookmark-delete"
           onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
-          title="Delete bookmark">✕</button>
+          title="북마크 삭제">✕</button>
       </div>
     </div>
   );
@@ -195,8 +205,8 @@ export default function BookmarkSidebar({
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mypage-search-icon">
           <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input type="text" className="mypage-search-input" placeholder="Search bookmarks..."
-          value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="Search bookmarks" />
+        <input type="text" className="mypage-search-input" placeholder="북마크 검색..."
+          value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="북마크 검색" />
         {searchQuery && (
           <button className="mypage-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">✕</button>
         )}
@@ -278,7 +288,7 @@ export default function BookmarkSidebar({
                   <div className="mypage-bookmark-title">{activeDragBookmark.title}</div>
                   <div className="mypage-bookmark-meta">
                     <span>{new Date(activeDragBookmark.created_at).toLocaleDateString()}</span>
-                    <span>{activeDragBookmark.num_papers} papers</span>
+                    <span>논문 {activeDragBookmark.num_papers}편</span>
                   </div>
                 </div>
               ) : null}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
@@ -28,10 +28,42 @@ interface MyPageProps {
 
 type MyPageTab = 'bookmarks' | 'curriculum' | 'papers';
 
+/**
+ * `bookmarks` is the default, so it is the absence of the parameter rather than
+ * a value — anything unrecognised lands there too.
+ */
+export function tabFromParams(raw: string | null): MyPageTab {
+  return raw === 'papers' || raw === 'curriculum' ? raw : 'bookmarks';
+}
+
+/** Carries the rest of the query string through; only touches its own key. */
+export function paramsWithTab(prev: URLSearchParams, tab: MyPageTab): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  if (tab === 'bookmarks') next.delete('tab');
+  else next.set('tab', tab);
+  return next;
+}
+
+/** Same, for the open bookmark. */
+export function paramsWithBookmark(prev: URLSearchParams, id: string): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  next.set('bookmark', id);
+  return next;
+}
+
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<MyPageTab>('bookmarks');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Read once, on mount: the URL seeds the tab, and after that the tab writes
+  // to the URL. Reading it on every render instead would fight the writes.
+  const [activeTab, setActiveTab] = useState<MyPageTab>(() => tabFromParams(searchParams.get('tab')));
+
+  /** Switch tabs and record it, so a reload or a shared link lands in the same place. */
+  const changeTab = useCallback((tab: MyPageTab) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
+  }, [setSearchParams]);
 
   // Direct paper view from search results (via router state)
   const [directPaper, setDirectPaper] = useState<any>(null);
@@ -91,8 +123,24 @@ function MyPage({ onBack }: MyPageProps) {
   // Direct bookmark selection (clears chat highlight terms)
   const handleSelectBookmarkDirect = useCallback(async (bookmark: Bookmark) => {
     chat.setHighlightTerms([]);
+    setSearchParams((prev) => paramsWithBookmark(prev, bookmark.id), { replace: true });
     await selectBookmarkAndInitHighlights(bookmark);
-  }, [selectBookmarkAndInitHighlights, chat.setHighlightTerms]);
+  }, [selectBookmarkAndInitHighlights, chat.setHighlightTerms, setSearchParams]);
+
+  /**
+   * Reopen whatever the URL names, once the list it has to be found in has
+   * arrived. Guarded so it runs a single time: this reads the params and must
+   * never react to its own writes, which is how a sync effect turns into a loop.
+   */
+  const restoredFromUrl = useRef(false);
+  useEffect(() => {
+    if (restoredFromUrl.current) return;
+    const wanted = searchParams.get('bookmark');
+    if (!wanted || bm.bookmarks.length === 0) return;
+    restoredFromUrl.current = true;
+    const found = bm.bookmarks.find((b: Bookmark) => b.id === wanted);
+    if (found) selectBookmarkAndInitHighlights(found);
+  }, [bm.bookmarks, searchParams, selectBookmarkAndInitHighlights]);
 
   // Sync share info when bookmark detail loads
   useEffect(() => {
@@ -165,6 +213,45 @@ function MyPage({ onBack }: MyPageProps) {
   // ── Curriculum hook ──
   const cur = useCurriculum();
 
+  // One element, rendered by whichever tab is active — they are mutually
+  // exclusive, so this only ever mounts once. Written twice it was 33 props
+  // of copy-paste that had to be kept in step by hand.
+  const bookmarkSidebar = (
+    <BookmarkSidebar
+    bookmarks={bm.bookmarks}
+    filteredBookmarks={bm.filteredBookmarks}
+    topicGroups={bm.topicGroups}
+    allTopics={bm.allTopics}
+    selectedBookmark={bm.selectedBookmark}
+    selectedIds={bm.selectedIds}
+    loadingBookmarks={bm.loadingBookmarks}
+    searchQuery={bm.searchQuery}
+    setSearchQuery={bm.setSearchQuery}
+    allNotesMode={bm.allNotesMode}
+    setAllNotesMode={bm.setAllNotesMode}
+    topicAccordionOpen={bm.topicAccordionOpen}
+    toggleTopicAccordion={bm.toggleTopicAccordion}
+    showNewTopicInput={bm.showNewTopicInput}
+    setShowNewTopicInput={bm.setShowNewTopicInput}
+    newTopicInput={bm.newTopicInput}
+    setNewTopicInput={bm.setNewTopicInput}
+    overTopicId={bm.overTopicId}
+    activeDragBookmark={bm.activeDragBookmark}
+    sensors={bm.sensors}
+    onDragStart={bm.handleDragStart}
+    onDragOver={bm.handleDragOver}
+    onDragEnd={bm.handleDragEnd}
+    onSelect={handleSelectBookmarkDirect}
+    onDelete={bm.handleDeleteBookmark}
+    onToggleSelection={bm.handleToggleSelection}
+    onSelectAll={bm.handleSelectAll}
+    onDeselectAll={bm.handleDeselectAll}
+    onBulkDelete={bm.handleBulkDelete}
+    onBulkMove={bm.handleBulkMove}
+    onAddTopic={bm.handleAddTopic}
+    />
+  );
+
   return (
     <div className="mypage">
       {/* Header */}
@@ -184,7 +271,7 @@ function MyPage({ onBack }: MyPageProps) {
             <AgentKeyButton />
             <button
               className={`mypage-nav-btn ${activeTab === 'papers' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => setActiveTab('papers')}
+              onClick={() => changeTab('papers')}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -195,7 +282,7 @@ function MyPage({ onBack }: MyPageProps) {
             </button>
             <button
               className={`mypage-nav-btn ${activeTab === 'curriculum' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => setActiveTab('curriculum')}
+              onClick={() => changeTab('curriculum')}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
@@ -205,7 +292,7 @@ function MyPage({ onBack }: MyPageProps) {
             </button>
             <button
               className={`mypage-nav-btn ${activeTab === 'bookmarks' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => setActiveTab('bookmarks')}
+              onClick={() => changeTab('bookmarks')}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
@@ -264,39 +351,7 @@ function MyPage({ onBack }: MyPageProps) {
             </>
           ) : (
             <>
-              <BookmarkSidebar
-                bookmarks={bm.bookmarks}
-                filteredBookmarks={bm.filteredBookmarks}
-                topicGroups={bm.topicGroups}
-                allTopics={bm.allTopics}
-                selectedBookmark={bm.selectedBookmark}
-                selectedIds={bm.selectedIds}
-                loadingBookmarks={bm.loadingBookmarks}
-                searchQuery={bm.searchQuery}
-                setSearchQuery={bm.setSearchQuery}
-                allNotesMode={bm.allNotesMode}
-                setAllNotesMode={bm.setAllNotesMode}
-                topicAccordionOpen={bm.topicAccordionOpen}
-                toggleTopicAccordion={bm.toggleTopicAccordion}
-                showNewTopicInput={bm.showNewTopicInput}
-                setShowNewTopicInput={bm.setShowNewTopicInput}
-                newTopicInput={bm.newTopicInput}
-                setNewTopicInput={bm.setNewTopicInput}
-                overTopicId={bm.overTopicId}
-                activeDragBookmark={bm.activeDragBookmark}
-                sensors={bm.sensors}
-                onDragStart={bm.handleDragStart}
-                onDragOver={bm.handleDragOver}
-                onDragEnd={bm.handleDragEnd}
-                onSelect={handleSelectBookmarkDirect}
-                onDelete={bm.handleDeleteBookmark}
-                onToggleSelection={bm.handleToggleSelection}
-                onSelectAll={bm.handleSelectAll}
-                onDeselectAll={bm.handleDeselectAll}
-                onBulkDelete={bm.handleBulkDelete}
-                onBulkMove={bm.handleBulkMove}
-                onAddTopic={bm.handleAddTopic}
-              />
+              {bookmarkSidebar}
               <LazyLoadErrorBoundary>
                 <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
                   <PaperViewerPanel
@@ -311,39 +366,7 @@ function MyPage({ onBack }: MyPageProps) {
         </div>
       ) : activeTab === 'bookmarks' ? (
         <div className="mypage-content">
-          <BookmarkSidebar
-            bookmarks={bm.bookmarks}
-            filteredBookmarks={bm.filteredBookmarks}
-            topicGroups={bm.topicGroups}
-            allTopics={bm.allTopics}
-            selectedBookmark={bm.selectedBookmark}
-            selectedIds={bm.selectedIds}
-            loadingBookmarks={bm.loadingBookmarks}
-            searchQuery={bm.searchQuery}
-            setSearchQuery={bm.setSearchQuery}
-            allNotesMode={bm.allNotesMode}
-            setAllNotesMode={bm.setAllNotesMode}
-            topicAccordionOpen={bm.topicAccordionOpen}
-            toggleTopicAccordion={bm.toggleTopicAccordion}
-            showNewTopicInput={bm.showNewTopicInput}
-            setShowNewTopicInput={bm.setShowNewTopicInput}
-            newTopicInput={bm.newTopicInput}
-            setNewTopicInput={bm.setNewTopicInput}
-            overTopicId={bm.overTopicId}
-            activeDragBookmark={bm.activeDragBookmark}
-            sensors={bm.sensors}
-            onDragStart={bm.handleDragStart}
-            onDragOver={bm.handleDragOver}
-            onDragEnd={bm.handleDragEnd}
-            onSelect={handleSelectBookmarkDirect}
-            onDelete={bm.handleDeleteBookmark}
-            onToggleSelection={bm.handleToggleSelection}
-            onSelectAll={bm.handleSelectAll}
-            onDeselectAll={bm.handleDeselectAll}
-            onBulkDelete={bm.handleBulkDelete}
-            onBulkMove={bm.handleBulkMove}
-            onAddTopic={bm.handleAddTopic}
-          />
+          {bookmarkSidebar}
 
           <ReportViewer
             bookmarkDetail={bm.bookmarkDetail}
