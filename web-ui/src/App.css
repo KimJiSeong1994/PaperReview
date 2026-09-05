@@ -201,8 +201,13 @@ body {
     display: none;
   }
 
+  /* At this width .nav-btn drops its label and becomes a 36px icon square, so
+     the only thing separating one destination from the next is the gap. It was
+     0, which put three unlabelled targets in a continuous 108px strip with no
+     boundary between them — .nav-btn:hover is the sole separation cue and it
+     never fires on touch. 4px matches .header-utilities; .header-right uses 6. */
   .header-actions {
-    gap: 0;
+    gap: 4px;
   }
 
   .header-right {
@@ -239,6 +244,19 @@ body {
     flex-basis: 36px;
   }
 
+}
+
+/* Below ~340px the six items an authenticated admin sees stop fitting once the
+   gap is there — measured against a preview build, the theme toggle clips at
+   330px and under, and is exactly flush at 320 without it. Give the space back
+   rather than trading a spacing fix for a clipping bug.
+
+   MUST stay after the 760px block: media queries add no specificity, so with
+   the order reversed this loses and the narrow case silently keeps the gap. */
+@media (max-width: 339px) {
+  .header-actions {
+    gap: 0;
+  }
 }
 
 /* Visually hidden until focused, then a real target at the top-left. Uses the

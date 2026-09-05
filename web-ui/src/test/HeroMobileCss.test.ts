@@ -40,3 +40,27 @@ describe('phone hero CSS', () => {
     expect(override).toBeGreaterThan(base);
   });
 });
+
+describe('phone header CSS', () => {
+  // .nav-btn loses its label below 760px and becomes a 36px icon square, so the
+  // gap is the only boundary between destinations. It was 0.
+  it('separates the icon-only nav buttons', () => {
+    const media = css.match(/@media \(max-width: 760px\) \{[\s\S]*?\n\}/g) ?? [];
+    const header = media.find((block) => block.includes('.header-actions'));
+    expect(header).toMatch(/\.header-actions\s*\{[^}]*gap:\s*4px/);
+  });
+
+  // Measured against a preview build: with six items (an authenticated admin)
+  // the gap pushes the theme toggle off-screen at 330px and under. The escape
+  // hatch must come AFTER the 760px block — media queries add no specificity,
+  // so reversed it loses and the narrow case silently keeps the gap.
+  it('gives the space back below 340px, after the rule it overrides', () => {
+    const narrow = css.indexOf('@media (max-width: 339px)');
+    const wide = css.indexOf('@media (max-width: 760px)');
+    expect(narrow).toBeGreaterThan(-1);
+    expect(narrow).toBeGreaterThan(wide);
+    const block = css.slice(narrow, css.indexOf('\n}', css.indexOf('.header-actions', narrow)) + 2);
+    expect(block).toMatch(/\.header-actions\s*\{[^}]*gap:\s*0/);
+  });
+});
+
