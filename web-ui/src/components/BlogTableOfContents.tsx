@@ -117,14 +117,42 @@ function BlogTableOfContents({
       }));
     };
 
+    // Only ever replace: scrolling above the first heading should leave the
+    // index highlighted where the reader last was, not blank.
+    const update = () => {
+      const next = chooseActiveId(topsRelativeToScroller(), spyOffset);
+      if (next) setActiveId(next);
+    };
+
+    if (scroller) {
+      /**
+       * A scroll listener rather than an IntersectionObserver, because the
+       * observer does not fire for elements inside this panel — measured in
+       * production: zero callbacks for a connected heading whose ancestor is
+       * the scroller, with `root` set to the scroller or to the viewport, with
+       * and without a rootMargin, while a plain div on the same page fired
+       * normally. The scroll event always fires, and the position maths is
+       * unchanged. Coalesced to one read per frame: `update` measures every
+       * heading, and a long report has dozens.
+       */
+      let frame = 0;
+      const onScroll = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => { frame = 0; update(); });
+      };
+      update();
+      scroller.addEventListener('scroll', onScroll, { passive: true });
+      return () => {
+        scroller.removeEventListener('scroll', onScroll);
+        if (frame) cancelAnimationFrame(frame);
+      };
+    }
+
+    // The page-scrolling blog keeps the observer, which works there and is
+    // cheaper than measuring on every scroll.
     const observer = new IntersectionObserver(
-      () => {
-        const next = chooseActiveId(topsRelativeToScroller(), spyOffset);
-        // Only ever replace: scrolling above the first heading should leave the
-        // index highlighted where the reader last was, not blank.
-        if (next) setActiveId(next);
-      },
-      { root: scroller, rootMargin: `-${spyOffset}px 0px 0px 0px` },
+      update,
+      { root: null, rootMargin: `-${spyOffset}px 0px 0px 0px` },
     );
     headings.forEach((heading) => observer.observe(heading));
     return () => observer.disconnect();
