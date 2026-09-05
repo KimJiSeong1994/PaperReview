@@ -467,6 +467,14 @@
   color: var(--text-soft);
   line-height: 1.4;
   padding-right: 30px;
+  /* Two lines, not one: these are paper titles, and a single line at 12px in a
+     240px rail cuts most of them mid-phrase. Untruncated they ran 3-4 lines,
+     which is why one bookmark filled the stacked panel. The full text stays
+     available through the element's `title`. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .mypage-bookmark-meta {
@@ -2561,51 +2569,68 @@
 /* ===== Responsive Breakpoints ===== */
 
 /* Tablet: sidebar shrinks, chat panel hidden */
+/* Chat was `display: none` here and reappeared at <=900px, so it vanished across
+   901-1200px and came back when the window got *narrower* — iPad landscape lost
+   the feature outright, with no toggle to bring it back.
+
+   Grid rather than a plain column stack, measured at 1199x723: stacking all
+   three made the report a 1175x318 letterbox for a 14k-character document, and
+   giving it `min-height` instead of a height cost it its inner scroll and grew
+   the panel to 5673px, putting chat that far down the page. Keeping the rail
+   beside the report and giving chat the row below fits everything in the
+   viewport with no outer scrolling at all (report 927x385 here, wider than the
+   828px it gets today). Each panel keeps its own scroll, so heights must be
+   definite — `flex: 1` in a non-row context collapses them. */
 @media (max-width: 1200px) {
+  .mypage-content {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 1fr 34vh;
+    overflow-y: auto;
+    padding: 0 12px 12px;
+    gap: 8px;
+  }
+
   .mypage-bookmarks-panel {
-    width: 240px;
-    min-width: 240px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .mypage-report-panel {
+    flex: none;
+    min-height: 0;
+  }
+
+  .mypage-chat-panel {
+    display: flex;
+    flex: none;
+    min-height: 0;
+    grid-column: 1 / -1;
   }
 
   .mypage-brand-name {
     font-size: 18px;
   }
-
-  .mypage-content {
-    padding: 0 12px 12px;
-    gap: 8px;
-  }
-
-  .mypage-chat-panel {
-    display: none;
-  }
 }
 
-/* Small tablet: vertical stack */
+/* Small tablet and below: one column, the rail no longer earns its width. */
 @media (max-width: 900px) {
   .mypage-content {
-    flex-direction: column;
-    overflow-y: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: 24vh 1fr 30vh;
     padding: 0 8px 8px;
   }
 
   .mypage-bookmarks-panel {
-    width: 100%;
-    min-width: unset;
-    max-height: 200px;
     border-radius: 8px;
   }
 
   .mypage-report-panel {
-    flex: unset;
-    min-height: 400px;
+    min-height: 45vh;
     border-radius: 8px;
   }
 
   .mypage-chat-panel {
-    display: flex;
-    flex: unset;
-    min-height: 300px;
     border-radius: 8px;
   }
 
@@ -2625,16 +2650,12 @@
     gap: 4px;
   }
 
-  .mypage-bookmarks-panel {
-    max-height: 160px;
+  .mypage-content {
+    grid-template-rows: 20vh 1fr 28vh;
   }
 
   .mypage-report-panel {
-    min-height: 300px;
-  }
-
-  .mypage-chat-panel {
-    min-height: 250px;
+    min-height: 40vh;
   }
 
   .mypage-panel-header {

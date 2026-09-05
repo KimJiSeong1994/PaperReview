@@ -65,7 +65,7 @@ function DraggableBookmarkItem({
         <polyline points="14 2 14 8 20 8" />
       </svg>
       <div className="mypage-bookmark-info">
-        <div className="mypage-bookmark-title">{bm.title}</div>
+        <div className="mypage-bookmark-title" title={bm.title}>{bm.title}</div>
         <div className="mypage-bookmark-meta">
           <span>{new Date(bm.created_at).toLocaleDateString()}</span>
           <span>{bm.num_papers} papers</span>
