@@ -31,18 +31,18 @@ export default function ChatPanel({
   processCitationChildren, handleCitationClick,
 }: ChatPanelProps) {
   return (
-    <div className="mypage-chat-panel" role="region" aria-label="Chat with papers">
+    <div className="mypage-chat-panel" role="region" aria-label="논문과 대화">
       {/* Chat header */}
       <div className="mypage-panel-header mypage-chat-header">
         <span>
           {chatTopicFilter === 'all' && selectedCount > 0
-            ? `Chat · ${selectedCount} Selected`
-            : 'Chat with Papers'}
+            ? `논문과 대화 · ${selectedCount}개 선택됨`
+            : '논문과 대화'}
         </span>
         <div className="mypage-chat-header-actions">
           <select className="mypage-chat-topic-select" value={chatTopicFilter}
             onChange={(e) => setChatTopicFilter(e.target.value)}>
-            <option value="all">{selectedCount > 0 ? `Selected (${selectedCount})` : 'All Topics'}</option>
+            <option value="all">{selectedCount > 0 ? `선택됨 (${selectedCount})` : '전체 주제'}</option>
             {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {messages.length > 0 && (
@@ -56,13 +56,13 @@ export default function ChatPanel({
       <div className="mypage-chat-messages" aria-live="polite">
         {messages.length === 0 && !isStreaming && (
           <div className="mypage-chat-welcome">
-            <p className="mypage-chat-welcome-title">Ask about your bookmarked papers</p>
+            <p className="mypage-chat-welcome-title">북마크한 논문에 대해 물어보세요</p>
             <p className="mypage-chat-welcome-subtitle">
               {chatTopicFilter !== 'all'
-                ? `Chatting with papers in "${chatTopicFilter}" topic.`
+                ? `"${chatTopicFilter}" 주제의 논문을 대상으로 답합니다.`
                 : selectedCount > 0
-                  ? `Chatting with ${selectedCount} selected bookmark${selectedCount > 1 ? 's' : ''}. Check/uncheck in the sidebar to change scope.`
-                  : 'The assistant has access to all your bookmarked research reports. Select specific bookmarks to narrow the scope.'}
+                  ? `선택한 북마크 ${selectedCount}개를 대상으로 답합니다. 목록의 체크박스로 대상을 바꿀 수 있습니다.`
+                  : '지금은 북마크한 리포트 전체를 대상으로 답합니다. 목록의 체크박스를 켜면 그 북마크들로 범위가 좁혀집니다.'}
             </p>
           </div>
         )}
@@ -94,7 +94,7 @@ export default function ChatPanel({
                             onClick={() => handleCitationClick(source, msg.content, source.ref)}>
                             <span className="mypage-source-ref">[{source.ref}]</span>
                             <span className="mypage-source-title">{source.title}</span>
-                            <span className="mypage-source-meta">{source.num_papers} papers</span>
+                            <span className="mypage-source-meta">논문 {source.num_papers}편</span>
                           </div>
                         ))}
                       </div>
@@ -136,7 +136,7 @@ export default function ChatPanel({
         <textarea className="mypage-chat-input" value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={chatTopicFilter !== 'all' ? `Ask about "${chatTopicFilter}" papers...` : selectedCount > 0 ? `Ask about ${selectedCount} selected paper${selectedCount > 1 ? 's' : ''}...` : 'Ask about your bookmarked papers...'}
+          placeholder={chatTopicFilter !== 'all' ? `"${chatTopicFilter}" 논문에 대해 물어보세요...` : selectedCount > 0 ? `선택한 논문 ${selectedCount}편에 대해 물어보세요...` : '북마크한 논문에 대해 물어보세요...'}
           rows={1} disabled={isStreaming} aria-label="Chat message input" />
         <button className="mypage-chat-send" onClick={onSendMessage}
           disabled={isStreaming || !inputValue.trim()} aria-label="Send message">

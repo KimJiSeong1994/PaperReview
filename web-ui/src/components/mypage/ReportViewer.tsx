@@ -160,8 +160,8 @@ export default function ReportViewer({
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ color: '#4b5563', marginBottom: '12px' }}>
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
           </svg>
-          <p className="mypage-report-empty-title">Select a Bookmark</p>
-          <p className="mypage-report-empty-subtitle">Choose a bookmark from the sidebar to view its report</p>
+          <p className="mypage-report-empty-title">북마크를 선택하세요</p>
+          <p className="mypage-report-empty-subtitle">왼쪽 목록에서 북마크를 고르면 리포트가 열립니다</p>
         </div>
       </div>
     );
