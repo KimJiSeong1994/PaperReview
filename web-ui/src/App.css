@@ -310,6 +310,7 @@ body {
       transparent 78%
     );
   background-image: image-set(
+      url('/introduce-hanok-night.avif') type('image/avif'),
       url('/introduce-hanok-night.webp') type('image/webp'),
       url('/introduce-hanok-night.png') type('image/png')
     ),
@@ -336,6 +337,7 @@ body {
 :root[data-theme='light'] .centered-search::after {
   background-image: url('/introduce-hanok-bg.png');
   background-image: image-set(
+      url('/introduce-hanok-bg.avif') type('image/avif'),
       url('/introduce-hanok-bg.webp') type('image/webp'),
       url('/introduce-hanok-bg.png') type('image/png')
     );
