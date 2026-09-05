@@ -978,13 +978,17 @@ def _build_document(
         f'{css}'
     )
 
-    # Set data-theme before first paint (mirrors web-ui/index.html): the saved
-    # choice, else dark by default; light is opt-in via the header toggle.
+    # Set data-theme before first paint (mirrors web-ui/index.html): an explicit
+    # saved choice wins, else the OS prefers-color-scheme, else dark. Keep this
+    # in step with the copy in web-ui/index.html — a reader moving between an
+    # SSR page and the SPA must not see the theme change under them.
     theme_script = (
-        "<script>(function(){try{var t=localStorage.getItem('theme');"
-        "if(t!=='light'&&t!=='dark'){t='dark';}"
-        "document.documentElement.setAttribute('data-theme',t);}"
-        "catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>"
+        "<script>(function(){var t=null;"
+        "try{t=localStorage.getItem('theme');}catch(e){}"
+        "if(t!=='light'&&t!=='dark'){"
+        "try{t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}"
+        "catch(e){t='dark';}}"
+        "document.documentElement.setAttribute('data-theme',t);})();</script>"
     )
 
     return (
