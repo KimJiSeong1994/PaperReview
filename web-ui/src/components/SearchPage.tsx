@@ -77,6 +77,12 @@ function SearchPage() {
   // Survives a failed search so the empty state can hand the query back
   // instead of dropping it (a chip click has no other copy of it).
   const [attemptedQuery, setAttemptedQuery] = useState('');
+  // What the backend actually searched, and which sources failed to answer.
+  // Both ship in every response and neither was read: the UI reported "no
+  // results" for a query it never showed, whether the sources came back empty
+  // or simply timed out.
+  const [improvedQuery, setImprovedQuery] = useState('');
+  const [timedOutSources, setTimedOutSources] = useState<string[]>([]);
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -246,6 +252,8 @@ function SearchPage() {
     setGuidanceMessage(null);
     setGuidanceSticky(false);
     setEnrichmentLoading(false);
+    setImprovedQuery('');
+    setTimedOutSources([]);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
     const loadingTimer = setTimeout(() => {
@@ -267,6 +275,21 @@ function SearchPage() {
       if (isStaleSearch(requestId, abortController)) return;
 
       setQueryHash(results.query_hash || '');
+
+      // `improved_query` is the string that was actually searched — the query
+      // analyzer rewrites what the user typed. Showing it is the only feedback
+      // loop a first-time user has for learning what this corpus wants.
+      const rewritten = results.query_analysis?.improved_query?.trim() ?? '';
+      setImprovedQuery(rewritten && rewritten !== searchQuery.trim() ? rewritten : '');
+
+      // A source that timed out is not a source that found nothing. Without
+      // this the zero-result copy blames the user's keywords for a backend
+      // that never answered.
+      setTimedOutSources(
+        Object.entries(results.source_timeouts ?? {})
+          .filter(([, timedOut]) => timedOut)
+          .map(([name]) => name),
+      );
       const variant = String(
         (results.stage_modes as Record<string, unknown> | undefined)?.ranking_variant ?? '',
       );
@@ -712,6 +735,27 @@ function SearchPage() {
 
       {loading && (
         <div className="loading-screen">
+          {/* A search can run for up to 100s (_SEARCH_TIMEOUT). Until now every
+              branch that renders a search box was gated on `!loading`, so for
+              that whole time there was no field on the page: a typo could not
+              be corrected and the run could not be abandoned.
+
+              `loading={false}` is deliberate, not a slip. SearchBar disables
+              its input and its button on that prop, so passing the real value
+              would render a box the user still cannot use — the trap this is
+              meant to remove. Submitting here calls handleSearch, which aborts
+              the in-flight request on its way in (searchAbortRef). */}
+          <div className="search-bar-fixed">
+            <SearchBar
+              key={attemptedQuery}
+              initialQuery={attemptedQuery}
+              onSearch={handleSearch}
+              loading={false}
+              guidanceMessage={guidanceMessage}
+              guidanceSticky={guidanceSticky}
+              onQueryChange={() => setGuidanceMessage(null)}
+            />
+          </div>
           <section
             className="search-loading-scene"
             role="status"
@@ -863,6 +907,23 @@ function SearchPage() {
               </div>
             </div>
           </div>
+
+          {/* H: the analyzer rewrites the query before searching, and the
+              rewrite is what actually ran. It was returned on every response
+              and never shown, so a user had no way to tell whether a
+              disappointing result set came from their wording or from the
+              rewrite. Only rendered when it differs from what was typed. */}
+          {improvedQuery && (
+            <p className="results-rewritten-query">
+              실제 검색어: <span>{improvedQuery}</span>
+            </p>
+          )}
+
+          {timedOutSources.length > 0 && (
+            <p className="results-degraded" role="status">
+              {timedOutSources.join(', ')} 출처가 제때 응답하지 않아 일부 결과가 빠졌을 수 있습니다.
+            </p>
+          )}
 
           <div className="results-workspace-toolbar" aria-label="검색 결과 보기 설정">
             <div className="results-context">
@@ -1179,8 +1240,23 @@ function SearchPage() {
               was the thing that failed. SearchBar keeps rendering either way;
               gating the whole branch would blank the page instead. */}
           {!guidanceSticky && (
-            <div className="empty-state">
-              <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+            /* role="status" because the loading branch's own live region
+               unmounts the moment loading ends, so a screen-reader user who
+               searched and got nothing was told nothing at all while focus
+               dropped to <body>. */
+            <div className="empty-state" role="status" aria-live="polite">
+              {timedOutSources.length > 0 ? (
+                <>
+                  <p>
+                    {timedOutSources.length}개 출처가 제때 응답하지 않아 결과를 가져오지 못했습니다.
+                  </p>
+                  <p className="empty-state-detail">
+                    응답하지 않은 출처: {timedOutSources.join(', ')} · 잠시 후 다시 시도해보세요.
+                  </p>
+                </>
+              ) : (
+                <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+              )}
             </div>
           )}
         </div>
