@@ -26,7 +26,7 @@ export default function AnalyticsConsentBanner() {
 
   return (
     <aside
-      aria-label="Analytics consent"
+      aria-label="사용 통계 수집 동의"
       style={{
         position: 'fixed',
         right: '16px',
@@ -44,11 +44,11 @@ export default function AnalyticsConsentBanner() {
       }}
     >
       <strong style={{ display: 'block', marginBottom: '6px', color: '#fff' }}>
-        Privacy-safe analytics
+        개인정보를 보내지 않는 사용 통계
       </strong>
       <span>
-        Help us improve Jiphyeonjeon with privacy-safe usage metrics. We do not send search text,
-        paper titles, private URLs, tokens, or account identifiers.
+        집현전을 개선하는 데 쓰이는 사용 통계를 수집합니다. 검색어, 논문 제목, 비공개 URL,
+        토큰, 계정 식별자는 보내지 않습니다.
       </span>
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
         <button
@@ -63,7 +63,7 @@ export default function AnalyticsConsentBanner() {
             cursor: 'pointer',
           }}
         >
-          Decline
+          동의 안 함
         </button>
         <button
           type="button"
@@ -77,7 +77,7 @@ export default function AnalyticsConsentBanner() {
             cursor: 'pointer',
           }}
         >
-          Allow analytics
+          수집 허용
         </button>
       </div>
     </aside>

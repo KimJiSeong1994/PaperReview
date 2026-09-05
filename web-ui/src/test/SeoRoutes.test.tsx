@@ -96,6 +96,14 @@ describe('SEO-sensitive routes', () => {
     },
   );
 
+  it('labels the theme toggle in the language of the route', async () => {
+    // ThemeToggle also serves the blog headers, so the English label is an
+    // opt-in prop rather than a default — every route but /introduce/ is Korean.
+    renderWithAuth('/', <App />);
+    expect(await screen.findByRole('button', { name: '라이트 모드로 전환' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Switch to/ })).toBeNull();
+  });
+
   it('gives the page landmarks and a way past the header', async () => {
     renderWithAuth('/', <App />);
     await screen.findByRole('heading', { level: 1 });
@@ -146,17 +154,17 @@ describe('SEO-sensitive routes', () => {
       'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     );
 
-    const themeToggle = screen.getByRole('button', { name: 'Switch to light mode' });
+    const themeToggle = screen.getByRole('button', { name: '라이트 모드로 전환' });
     // "/" is a Korean route, so the chrome is Korean. Only the separately
     // indexed English /introduce/ keeps English labels.
     const mainNavigation = screen.getByRole('navigation', { name: '주요 메뉴' });
     const displaySettings = screen.getByRole('group', { name: '화면 설정' });
-    expect(within(mainNavigation).queryByRole('button', { name: 'Switch to light mode' })).not.toBeInTheDocument();
-    expect(within(displaySettings).getByRole('button', { name: 'Switch to light mode' })).toBe(themeToggle);
+    expect(within(mainNavigation).queryByRole('button', { name: '라이트 모드로 전환' })).not.toBeInTheDocument();
+    expect(within(displaySettings).getByRole('button', { name: '라이트 모드로 전환' })).toBe(themeToggle);
     fireEvent.click(themeToggle);
     expect(document.documentElement).toHaveAttribute('data-theme', 'light');
     expect(localStorage.getItem('theme')).toBe('light');
-    expect(themeToggle).toHaveAccessibleName('Switch to dark mode');
+    expect(themeToggle).toHaveAccessibleName('다크 모드로 전환');
   });
 
   it('routes /blog/:slug directly to BlogPage and fetches the slug detail', async () => {

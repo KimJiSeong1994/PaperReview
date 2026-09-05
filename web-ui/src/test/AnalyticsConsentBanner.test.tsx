@@ -43,12 +43,12 @@ describe('AnalyticsConsentBanner', () => {
     const user = userEvent.setup();
 
     render(<AnalyticsConsentBanner />);
-    expect(screen.getByLabelText('Analytics consent')).toBeInTheDocument();
+    expect(screen.getByLabelText('사용 통계 수집 동의')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Allow analytics' }));
+    await user.click(screen.getByRole('button', { name: '수집 허용' }));
 
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe('granted');
-    expect(screen.queryByLabelText('Analytics consent')).toBeNull();
+    expect(screen.queryByLabelText('사용 통계 수집 동의')).toBeNull();
     expect(window.dataLayer).toContainEqual([
       'consent',
       'update',
@@ -60,7 +60,7 @@ describe('AnalyticsConsentBanner', () => {
     const user = userEvent.setup();
 
     render(<AnalyticsConsentBanner />);
-    await user.click(screen.getByRole('button', { name: 'Decline' }));
+    await user.click(screen.getByRole('button', { name: '동의 안 함' }));
 
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe('denied');
     expect(document.querySelector('script[data-ga4-measurement-id="G-TEST123"]')).toBeNull();
@@ -69,11 +69,11 @@ describe('AnalyticsConsentBanner', () => {
   it('stays hidden when analytics is disabled or a decision already exists', () => {
     setAnalyticsEnv(false);
     const { rerender } = render(<AnalyticsConsentBanner />);
-    expect(screen.queryByLabelText('Analytics consent')).toBeNull();
+    expect(screen.queryByLabelText('사용 통계 수집 동의')).toBeNull();
 
     setAnalyticsEnv(true);
     localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, 'denied');
     rerender(<AnalyticsConsentBanner />);
-    expect(screen.queryByLabelText('Analytics consent')).toBeNull();
+    expect(screen.queryByLabelText('사용 통계 수집 동의')).toBeNull();
   });
 });

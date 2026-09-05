@@ -97,7 +97,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Please enter your ID and password.');
+      setError('아이디와 비밀번호를 입력해주세요.');
       return;
     }
 
@@ -113,9 +113,9 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
       onLoginSuccess();
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
-        setError('Invalid ID or password.');
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
       } else {
-        setError('Unable to connect to the server. Please try again later.');
+        setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
       }
     } finally {
       setLoading(false);
@@ -125,19 +125,19 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Please fill in all fields.');
+      setError('모든 항목을 입력해주세요.');
       return;
     }
     if (username.trim().length < 3) {
-      setError('Username must be at least 3 characters.');
+      setError('아이디는 3자 이상이어야 합니다.');
       return;
     }
     if (password.length < 4) {
-      setError('Password must be at least 4 characters.');
+      setError('비밀번호는 4자 이상이어야 합니다.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('비밀번호가 일치하지 않습니다.');
       return;
     }
 
@@ -147,7 +147,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
     try {
       await register(username, password);
       trackSignUpEvent();
-      setSuccess('Account created! You can now sign in.');
+      setSuccess('계정이 만들어졌습니다. 이제 로그인할 수 있습니다.');
       setPassword('');
       setConfirmPassword('');
       // Auto-switch to sign in after a short delay
@@ -157,11 +157,11 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
       }, 1500);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
-        setError('Username already exists.');
+        setError('이미 사용 중인 아이디입니다.');
       } else if (axios.isAxiosError(err) && err.response?.status === 422) {
-        setError('Username: letters, numbers, underscore only (3+ chars).');
+        setError('아이디는 영문, 숫자, 밑줄만 쓸 수 있습니다 (3자 이상).');
       } else {
-        setError('Unable to connect to the server. Please try again later.');
+        setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
       }
     } finally {
       setLoading(false);
@@ -179,7 +179,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
-        <button className="login-close-btn" onClick={onClose} aria-label="Close">
+        <button className="login-close-btn" onClick={onClose} aria-label="닫기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
@@ -202,7 +202,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
           </picture>
           <div className="login-brand-text">
             <h2 id="login-dialog-title" className="login-brand-name">Jiphyeonjeon</h2>
-            <p className="login-brand-tagline">AI-Powered Research Assistant</p>
+            <p className="login-brand-tagline">AI 논문 검색·리뷰 도구</p>
           </div>
         </div>
 
@@ -213,14 +213,14 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
             onClick={() => switchMode('signin')}
             type="button"
           >
-            Sign In
+            로그인
           </button>
           <button
             className={`login-tab ${mode === 'signup' ? 'login-tab--active' : ''}`}
             onClick={() => switchMode('signup')}
             type="button"
           >
-            Sign Up
+            회원가입
           </button>
         </div>
 
@@ -228,12 +228,12 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         {mode === 'signin' && (
           <form className="login-form" onSubmit={handleSignIn}>
             <div className="login-input-group">
-              <label htmlFor="login-username" className="login-label">ID</label>
+              <label htmlFor="login-username" className="login-label">아이디</label>
               <input
                 id="login-username"
                 type="text"
                 className="login-input"
-                placeholder="Enter your ID"
+                placeholder="아이디를 입력하세요"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); clearForm(); }}
                 autoComplete="username"
@@ -243,12 +243,12 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
               />
             </div>
             <div className="login-input-group">
-              <label htmlFor="login-password" className="login-label">Password</label>
+              <label htmlFor="login-password" className="login-label">비밀번호</label>
               <input
                 id="login-password"
                 type="password"
                 className="login-input"
-                placeholder="Enter your password"
+                placeholder="비밀번호를 입력하세요"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); clearForm(); }}
                 autoComplete="current-password"
@@ -261,9 +261,9 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
               disabled={loading}
             >
               {loading ? (
-                <span className="login-spinner" aria-label="Signing in" />
+                <span className="login-spinner" aria-label="로그인 중" />
               ) : (
-                'Sign In'
+                '로그인'
               )}
             </button>
           </form>
@@ -273,12 +273,12 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         {mode === 'signup' && (
           <form className="login-form" onSubmit={handleSignUp}>
             <div className="login-input-group">
-              <label htmlFor="reg-username" className="login-label">Username</label>
+              <label htmlFor="reg-username" className="login-label">아이디</label>
               <input
                 id="reg-username"
                 type="text"
                 className="login-input"
-                placeholder="Letters, numbers, underscore"
+                placeholder="영문, 숫자, 밑줄"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); clearForm(); }}
                 autoComplete="username"
@@ -287,24 +287,24 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
               />
             </div>
             <div className="login-input-group">
-              <label htmlFor="reg-password" className="login-label">Password</label>
+              <label htmlFor="reg-password" className="login-label">비밀번호</label>
               <input
                 id="reg-password"
                 type="password"
                 className="login-input"
-                placeholder="At least 4 characters"
+                placeholder="4자 이상"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); clearForm(); }}
                 autoComplete="new-password"
               />
             </div>
             <div className="login-input-group">
-              <label htmlFor="reg-confirm" className="login-label">Confirm Password</label>
+              <label htmlFor="reg-confirm" className="login-label">비밀번호 확인</label>
               <input
                 id="reg-confirm"
                 type="password"
                 className="login-input"
-                placeholder="Re-enter your password"
+                placeholder="비밀번호를 다시 입력하세요"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); clearForm(); }}
                 autoComplete="new-password"
@@ -320,7 +320,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
               {loading ? (
                 <span className="login-spinner" aria-label="Creating account" />
               ) : (
-                'Create Account'
+                '계정 만들기'
               )}
             </button>
           </form>
