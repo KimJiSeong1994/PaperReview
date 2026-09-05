@@ -119,6 +119,7 @@
   background-image:
     linear-gradient(180deg, transparent 54%, rgba(8, 8, 8, 0.76) 100%),
     image-set(
+      url('/introduce-hanok-night.avif') type('image/avif'),
       url('/introduce-hanok-night.webp') type('image/webp'),
       url('/introduce-hanok-night.png') type('image/png')
     ),
@@ -245,6 +246,7 @@
 :root[data-theme='light'] .introduce-hero-art {
   background-color: var(--bg-elev);
   background-image: image-set(
+    url('/introduce-hanok-bg.avif') type('image/avif'),
     url('/introduce-hanok-bg.webp') type('image/webp'),
     url('/introduce-hanok-bg.png') type('image/png')
   );
