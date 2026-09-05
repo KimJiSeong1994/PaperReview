@@ -221,27 +221,6 @@ def save_bookmarks(data: dict) -> None:
         db.upsert(bm)
 
 
-def _save_bookmarks_replace(data: dict) -> None:
-    """Replace-all helper used inside modify_bookmarks context manager.
-
-    Deletes all bookmarks owned by users represented in *data*, then
-    re-upserts the supplied list.  This faithfully replicates the old
-    atomic-overwrite semantics while keeping deletions scoped.
-    """
-    db = _get_bookmark_db()
-    new_ids = {bm["id"] for bm in data.get("bookmarks", []) if bm.get("id")}
-
-    # Delete rows whose id is no longer present in the new list
-    existing = db.get_all()
-    for bm in existing:
-        if bm.get("id") and bm["id"] not in new_ids:
-            db.delete(bm["id"])
-
-    # Upsert remaining
-    for bm in data.get("bookmarks", []):
-        db.upsert(bm)
-
-
 @contextmanager
 def modify_bookmarks():
     """Atomically read-modify-write bookmarks backed by SQLite.
@@ -252,19 +231,29 @@ def modify_bookmarks():
             data["bookmarks"].append(new_bm)
             # auto-saved on exit
 
-    The in-memory *data* dict is built from the current DB state.  On clean
-    exit the full list is reconciled back into SQLite (upserts + deletes).
-    Exceptions abort the write.
+    The read and the write share one `BEGIN IMMEDIATE` transaction, so two of
+    these cannot interleave. They previously could: each read the whole list,
+    each wrote it back, and whichever committed second silently undid the other
+    — a deleted bookmark reappearing, or a new one vanishing. Two open tabs is
+    the ordinary case for a signed-in user, and production runs two uvicorn
+    workers, so the two writers are not even in the same process.
+
+    Raising from the block still aborts the write; callers depend on that to
+    reject a 404 without touching the store.
     """
     db = _get_bookmark_db()
-    bookmarks = db.get_all()
-    data: dict = {"bookmarks": bookmarks}
-    try:
+    with db.transaction() as tx:
+        data: dict = {"bookmarks": tx.get_all()}
         yield data
-    except Exception:
-        raise
-    else:
-        _save_bookmarks_replace(data)
+
+        # Reconcile against the state read inside this same transaction:
+        # anything the caller dropped from the list is deleted, the rest upserted.
+        new_ids = {bm["id"] for bm in data.get("bookmarks", []) if bm.get("id")}
+        for existing in tx.get_all():
+            if existing.get("id") and existing["id"] not in new_ids:
+                tx.delete(existing["id"])
+        for bm in data.get("bookmarks", []):
+            tx.upsert(bm)
 
 
 # ── Users public API ─────────────────────────────────────────────────

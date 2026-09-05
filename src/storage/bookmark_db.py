@@ -10,6 +10,7 @@ import logging
 import os
 import sqlite3
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,51 @@ from src.events.contracts import assert_valid_username
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB_PATH = Path("data/bookmarks.db")
+
+
+_UPSERT_SQL = """
+    INSERT INTO bookmarks
+        (id, username, topic, title, papers, report,
+         notes, highlights, share_token, citation_tree,
+         created_at, updated_at, metadata)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+        username      = COALESCE(excluded.username, bookmarks.username),
+        topic         = COALESCE(excluded.topic, bookmarks.topic),
+        title         = COALESCE(excluded.title, bookmarks.title),
+        papers        = COALESCE(excluded.papers, bookmarks.papers),
+        report        = COALESCE(excluded.report, bookmarks.report),
+        notes         = excluded.notes,
+        highlights    = excluded.highlights,
+        share_token   = excluded.share_token,
+        citation_tree = excluded.citation_tree,
+        updated_at    = excluded.updated_at,
+        metadata      = COALESCE(excluded.metadata, bookmarks.metadata)
+"""
+
+_SELECT_ALL_SQL = "SELECT * FROM bookmarks ORDER BY created_at DESC"
+
+
+class _BookmarkTransaction:
+    """Read/write handle bound to one open transaction.
+
+    Same three operations `modify_bookmarks` needs, but every one of them runs
+    on the caller's connection so they land in the same atomic unit.
+    """
+
+    def __init__(self, db: "BookmarkDB", conn: sqlite3.Connection) -> None:
+        self._db = db
+        self._conn = conn
+
+    def get_all(self) -> List[Dict[str, Any]]:
+        rows = self._conn.execute(_SELECT_ALL_SQL).fetchall()
+        return [self._db._row_to_dict(r) for r in rows]
+
+    def upsert(self, bm: Dict[str, Any]) -> None:
+        self._conn.execute(_UPSERT_SQL, self._db._dict_to_row(bm))
+
+    def delete(self, bookmark_id: str) -> None:
+        self._conn.execute("DELETE FROM bookmarks WHERE id = ?", (bookmark_id,))
 
 
 class BookmarkDB:
@@ -78,6 +124,10 @@ class BookmarkDB:
         conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        # Without this a writer that meets a held write lock fails immediately
+        # with "database is locked" instead of waiting. `transaction()` holds one
+        # for the length of a read-modify-write, so waiting is what we want.
+        conn.execute("PRAGMA busy_timeout = 10000")
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -232,9 +282,7 @@ class BookmarkDB:
         with self._lock:
             conn = self._connect()
             try:
-                rows = conn.execute(
-                    "SELECT * FROM bookmarks ORDER BY created_at DESC"
-                ).fetchall()
+                rows = conn.execute(_SELECT_ALL_SQL).fetchall()
                 return [self._row_to_dict(r) for r in rows]
             finally:
                 conn.close()
@@ -269,28 +317,7 @@ class BookmarkDB:
         with self._lock:
             conn = self._connect()
             try:
-                conn.execute(
-                    """
-                    INSERT INTO bookmarks
-                        (id, username, topic, title, papers, report,
-                         notes, highlights, share_token, citation_tree,
-                         created_at, updated_at, metadata)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        username      = COALESCE(excluded.username, bookmarks.username),
-                        topic         = COALESCE(excluded.topic, bookmarks.topic),
-                        title         = COALESCE(excluded.title, bookmarks.title),
-                        papers        = COALESCE(excluded.papers, bookmarks.papers),
-                        report        = COALESCE(excluded.report, bookmarks.report),
-                        notes         = excluded.notes,
-                        highlights    = excluded.highlights,
-                        share_token   = excluded.share_token,
-                        citation_tree = excluded.citation_tree,
-                        updated_at    = excluded.updated_at,
-                        metadata      = COALESCE(excluded.metadata, bookmarks.metadata)
-                    """,
-                    row,
-                )
+                conn.execute(_UPSERT_SQL, row)
                 conn.commit()
             finally:
                 conn.close()
@@ -306,6 +333,34 @@ class BookmarkDB:
                 return deleted > 0
             finally:
                 conn.close()
+
+    # ── Read-modify-write ─────────────────────────────────────────────
+
+    @contextmanager
+    def transaction(self):
+        """Hold a write lock for the whole of a read-modify-write.
+
+        `BEGIN IMMEDIATE` rather than a threading lock, because production runs
+        uvicorn with two workers: a lock inside one process would leave the two
+        free to interleave. The second writer blocks here until the first
+        commits, so it reads the state the first left behind instead of an
+        older snapshot it would then write back.
+
+        Commits when the block finishes, rolls back on any exception — callers
+        rely on raising to abort a write.
+        """
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield _BookmarkTransaction(self, conn)
+            except BaseException:
+                conn.rollback()
+                raise
+            else:
+                conn.commit()
+        finally:
+            conn.close()
 
     def delete_by_username(self, username: str) -> int:
         """Delete all bookmarks owned by *username*.
