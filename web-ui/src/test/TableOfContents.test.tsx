@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { act } from 'react';
 import { render, within, fireEvent } from '@testing-library/react';
 import TableOfContents from '../components/BlogTableOfContents';
 
@@ -98,5 +99,63 @@ describe('TableOfContents', () => {
       expect(event.defaultPrevented).toBe(false);
       expect(scroller.scrollTop).toBe(40);
     });
+  });
+});
+
+describe('scroll-spy inside a container', () => {
+  let scroller: HTMLElement;
+  let headings: HTMLElement[];
+
+  beforeEach(() => {
+    scroller = mountReport(
+      '<h2 id="one">1. 서론</h2><h2 id="two">2. 방법론</h2><h2 id="three">3. 결과</h2>',
+    );
+    stubRect(scroller, 0);
+    headings = ['one', 'two', 'three'].map((id) => document.getElementById(id)!);
+  });
+
+  /** Move every heading up by `by` px, as scrolling the container would. */
+  function scrollBy(by: number) {
+    const layout = [100, 600, 1100];
+    headings.forEach((h, i) => stubRect(h, layout[i] - by));
+    act(() => { scroller.dispatchEvent(new Event('scroll')); });
+  }
+
+  it('highlights the heading the reader has reached, and follows further scrolling', async () => {
+    const { container } = render(
+      <TableOfContents postKey="k" containerSelector=".report-content"
+        scrollRootSelector=".report-scroll" />,
+    );
+    const activeText = () =>
+      container.querySelector('.blog-toc-link.is-active')?.textContent?.trim() ?? null;
+
+    scrollBy(150);   // first heading is now above the line
+    await new Promise((r) => setTimeout(r, 30));
+    expect(activeText()).toBe('1. 서론');
+
+    scrollBy(700);   // second one crosses
+    await new Promise((r) => setTimeout(r, 30));
+    expect(activeText()).toBe('2. 방법론');
+
+    scrollBy(1200);  // third
+    await new Promise((r) => setTimeout(r, 30));
+    expect(activeText()).toBe('3. 결과');
+  });
+
+  it('keeps the last heading highlighted when the reader scrolls back above the first', async () => {
+    const { container } = render(
+      <TableOfContents postKey="k" containerSelector=".report-content"
+        scrollRootSelector=".report-scroll" />,
+    );
+    const activeText = () =>
+      container.querySelector('.blog-toc-link.is-active')?.textContent?.trim() ?? null;
+
+    scrollBy(700);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(activeText()).toBe('2. 방법론');
+
+    scrollBy(0);     // everything back below the line
+    await new Promise((r) => setTimeout(r, 30));
+    expect(activeText()).toBe('2. 방법론');
   });
 });
