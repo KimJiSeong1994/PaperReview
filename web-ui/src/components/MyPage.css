@@ -846,12 +846,87 @@
 }
 
 /* Report markdown content */
+/* ===== prose-base =====
+   Shared markdown rules for every surface that renders a report or a reply.
+   Only what genuinely drifted between them belongs here: table and code
+   chrome, list indent, blockquote, links, Korean line breaking.
+
+   `font-size` and `line-height` deliberately do NOT live here. The report is a
+   dense analytical surface at 500-930px, chat is a narrow reply column, and one
+   scale for both would be wrong for at least one of them.
+
+   This class is ADDITIVE — never a replacement. The public share page renders
+   `shared-view-report-content mypage-report-content prose-base`, so anything
+   added here ships to an unauthenticated, indexed page. */
+.prose-base {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.prose-base ul,
+.prose-base ol {
+  padding-left: 20px;
+}
+
+.prose-base code {
+  background: var(--wov-06);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.prose-base pre {
+  background: var(--bg-elev2);
+  border-radius: 6px;
+  padding: 10px;
+  overflow-x: auto;
+}
+
+/* Without this, inline-code chrome stacks on top of the block background.
+   Chat already had it; the report and the share page did not. */
+.prose-base pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.prose-base table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.prose-base th,
+.prose-base td {
+  border: 1px solid var(--wov-10);
+  text-align: left;
+}
+
+.prose-base th {
+  background: var(--wov-04);
+  color: var(--text-soft);
+}
+
+/* The report carried no blockquote or link rules at all, so quotes rendered
+   unstyled and links in browser-default blue — on the public share page too. */
+.prose-base blockquote {
+  border-left: 3px solid rgba(99, 102, 241, 0.4);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--text-muted);
+}
+
+.prose-base a {
+  color: var(--indigo);
+  text-decoration: none;
+}
+
+.prose-base a:hover {
+  text-decoration: underline;
+}
+
 .mypage-report-content {
   font-size: 13px;
   color: var(--text-soft);
   line-height: 1.6;
-  word-break: keep-all;
-  overflow-wrap: break-word;
 }
 
 .mypage-report-content h1,
@@ -880,41 +955,17 @@
 
 .mypage-report-content ul,
 .mypage-report-content ol {
-  padding-left: 20px;
   margin: 8px 0;
 }
 
 .mypage-report-content code {
-  background: var(--wov-06);
-  padding: 1px 4px;
-  border-radius: 3px;
   font-size: 12px;
-}
-
-.mypage-report-content pre {
-  background: var(--bg-elev2);
-  border-radius: 6px;
-  padding: 10px;
-  overflow-x: auto;
-}
-
-.mypage-report-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
 }
 
 .mypage-report-content th,
 .mypage-report-content td {
-  border: 1px solid var(--wov-10);
   padding: 6px 10px;
   font-size: 12px;
-  text-align: left;
-}
-
-.mypage-report-content th {
-  background: var(--wov-04);
-  color: var(--text-soft);
 }
 
 /* ===== LightRAG in report panel ===== */
@@ -1245,8 +1296,6 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-soft);
-  word-break: keep-all;
-  overflow-wrap: break-word;
 }
 
 .mypage-chat-markdown p {
@@ -1283,7 +1332,6 @@
 
 .mypage-chat-markdown ul,
 .mypage-chat-markdown ol {
-  padding-left: 20px;
   margin: 6px 0;
 }
 
@@ -1292,58 +1340,17 @@
 }
 
 .mypage-chat-markdown code {
-  background: var(--wov-08);
-  padding: 1px 4px;
-  border-radius: 3px;
   font-size: 13px;
 }
 
 .mypage-chat-markdown pre {
-  background: var(--bg-elev2);
-  border-radius: 6px;
-  padding: 10px;
-  overflow-x: auto;
-  margin: 8px 0;
-}
-
-.mypage-chat-markdown pre code {
-  background: transparent;
-  padding: 0;
-}
-
-.mypage-chat-markdown table {
-  width: 100%;
-  border-collapse: collapse;
   margin: 8px 0;
 }
 
 .mypage-chat-markdown th,
 .mypage-chat-markdown td {
-  border: 1px solid var(--wov-10);
   padding: 4px 8px;
   font-size: 13px;
-  text-align: left;
-}
-
-.mypage-chat-markdown th {
-  background: var(--wov-04);
-  color: var(--text-soft);
-}
-
-.mypage-chat-markdown blockquote {
-  border-left: 3px solid rgba(99, 102, 241, 0.4);
-  margin: 8px 0;
-  padding: 4px 12px;
-  color: var(--text-muted);
-}
-
-.mypage-chat-markdown a {
-  color: var(--indigo);
-  text-decoration: none;
-}
-
-.mypage-chat-markdown a:hover {
-  text-decoration: underline;
 }
 
 /* U-4: Citation badges */

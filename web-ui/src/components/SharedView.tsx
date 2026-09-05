@@ -266,7 +266,7 @@ export default function SharedView() {
                 </svg>
                 Report
               </h3>
-              <div className="shared-view-report-content mypage-report-content">
+              <div className="shared-view-report-content mypage-report-content prose-base">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                   {data.report_markdown}
                 </ReactMarkdown>
