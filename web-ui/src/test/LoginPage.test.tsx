@@ -11,6 +11,59 @@ describe('LoginModal', () => {
     vi.clearAllMocks();
   });
 
+  it('is a labelled modal dialog', () => {
+    render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName('Jiphyeonjeon');
+    // The card used to carry its own <h1>, which meant opening it put a second
+    // h1 on a page that already has one. Its visible title now names the dialog.
+    expect(dialog.querySelector('h1')).toBeNull();
+    expect(dialog.querySelector('h2')?.id).toBe('login-dialog-title');
+  });
+
+  it('opens with the caret in the first field', () => {
+    render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Enter your ID'));
+  });
+
+  // Without a trap, Tab walked straight out of the card into the page behind it.
+  it('keeps Tab inside the dialog', async () => {
+    const user = userEvent.setup();
+    render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog');
+    const items = dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    last.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  // Closing used to drop focus on <body>, leaving a keyboard user at the top of
+  // the document with no idea where they had been.
+  it('hands focus back to whatever opened it', () => {
+    const opener = document.createElement('button');
+    opener.textContent = '마이페이지';
+    document.body.appendChild(opener);
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    const view = render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
+    expect(document.activeElement).not.toBe(opener);
+
+    view.unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   it('renders sign-in form by default', () => {
     render(<LoginModal onLoginSuccess={onLoginSuccess} onClose={onClose} />);
     expect(screen.getByPlaceholderText('Enter your ID')).toBeInTheDocument();

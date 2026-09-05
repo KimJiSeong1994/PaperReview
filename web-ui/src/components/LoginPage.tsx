@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import axios from 'axios';
 import { login, register } from '../api/client';
 import { trackLoginEvent, trackSignUpEvent } from '../analytics/events';
@@ -33,6 +33,51 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Keep Tab inside the dialog, and hand focus back to whatever opened it.
+  //
+  // Initial focus is already handled: both forms autoFocus their first field.
+  // What was missing is the other half — Tab walked straight out of the card
+  // into the page behind it, and closing dropped focus on <body>, so a keyboard
+  // user landed at the top of the document with no idea where they were.
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Captured during the first render, not in the effect below: effects run
+  // after the DOM commit, by which point autoFocus has already moved focus
+  // into this dialog and document.activeElement is the ID field, not whatever
+  // the user was on. Lazy ref init is the standard shape for this and is
+  // idempotent, so it is safe during render.
+  const openerRef = useRef<HTMLElement | null>(null);
+  if (openerRef.current === null) {
+    openerRef.current = document.activeElement as HTMLElement | null;
+  }
+
+  useEffect(() => {
+    const opener = openerRef.current;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !cardRef.current) return;
+      const items = cardRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const inside = cardRef.current.contains(active);
+      if (event.shiftKey && (active === first || !inside)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !inside)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      opener?.focus?.();
+    };
   }, []);
 
   const clearForm = () => {
@@ -125,7 +170,14 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
 
   return (
     <div className="login-overlay" onClick={onClose}>
-      <div className="login-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="login-card"
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close button */}
         <button className="login-close-btn" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
@@ -149,7 +201,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
             />
           </picture>
           <div className="login-brand-text">
-            <h1 className="login-brand-name">Jiphyeonjeon</h1>
+            <h2 id="login-dialog-title" className="login-brand-name">Jiphyeonjeon</h2>
             <p className="login-brand-tagline">AI-Powered Research Assistant</p>
           </div>
         </div>
