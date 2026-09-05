@@ -341,7 +341,7 @@ export default function ReportViewer({
           {bookmarkDetail.report_markdown && (
             <div className="mypage-report-section">
               <h3 className="mypage-report-section-title">Report</h3>
-              <div className="mypage-report-content">
+              <div className="mypage-report-content prose-base">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {

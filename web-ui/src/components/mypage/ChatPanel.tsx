@@ -71,7 +71,7 @@ export default function ChatPanel({
           <div key={i} className={`mypage-chat-message mypage-chat-${msg.role}`}>
             <div className="mypage-chat-bubble">
               {msg.role === 'assistant' ? (
-                <div className="mypage-chat-markdown">
+                <div className="mypage-chat-markdown prose-base">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -111,7 +111,7 @@ export default function ChatPanel({
         {isStreaming && streamingContent && (
           <div className="mypage-chat-message mypage-chat-assistant">
             <div className="mypage-chat-bubble">
-              <div className="mypage-chat-markdown">
+              <div className="mypage-chat-markdown prose-base">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
               </div>
               <span className="mypage-streaming-cursor"></span>
