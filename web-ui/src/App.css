@@ -393,6 +393,74 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Example-query chips, the reassurance line and the route out, all sitting
+   under the search box in the hero.
+
+   .centered-search is `display:flex; flex-direction:column; align-items:center`
+   (see above), and align-items:center shrink-wraps every flex child to its
+   content width. A bare <ul> would therefore never reach a width at which
+   flex-wrap could act, and the chips would run off in a single line — hence the
+   explicit width/max-width, matching .search-bar-container in SearchBar.css. */
+.home-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: min(680px, 92vw);
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-chip {
+  padding: 7px 14px;
+  border: 1px solid var(--wov-10);
+  border-radius: 999px;
+  background: var(--wov-04);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.home-chip:hover {
+  border-color: var(--ibd-25);
+  background: var(--ibd-08);
+  color: var(--indigo);
+}
+
+.home-chip:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.home-note {
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.home-more {
+  margin-top: 6px;
+  color: var(--indigo);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.home-more:hover {
+  text-decoration: underline;
+}
+
+.home-more:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .search-bar-fixed {
   width: 100%;
   max-width: 900px;
