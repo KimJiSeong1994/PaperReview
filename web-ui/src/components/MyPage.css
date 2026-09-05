@@ -3448,3 +3448,66 @@
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
+
+/* ===== Report table of contents =====
+   A 16,000-character report with 28 headings had no navigation at all — only
+   linear scrolling. Sits above the prose inside the same scroll container, and
+   caps its own height so a long report's index does not push the text off
+   screen. Presentation is deliberately separate from the blog's sticky rail:
+   same component, different surface. */
+.mypage-toc {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--wov-02);
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.mypage-toc-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.mypage-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mypage-toc-link {
+  display: block;
+  padding: 3px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-decoration: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  transition: color 0.15s;
+}
+
+.mypage-toc-link[data-level='3'] {
+  padding-left: 14px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.mypage-toc-link:hover {
+  color: var(--text);
+}
+
+.mypage-toc-link.is-active {
+  color: var(--indigo);
+  font-weight: 500;
+}
+
+.mypage-toc-link:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
