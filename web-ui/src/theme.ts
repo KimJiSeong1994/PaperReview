@@ -1,8 +1,10 @@
 // Global light/dark theme control.
 //
 // The initial `data-theme` is set on <html> by an inline script in index.html
-// (before first paint, from localStorage or the dark default). This module
-// reads/updates it at runtime and persists the user's explicit choice.
+// (before first paint): an explicit saved choice, else the OS
+// prefers-color-scheme, else dark. This module reads/updates it at runtime
+// and persists the user's explicit choice — writing localStorage is what
+// pins a reader to their pick and stops the OS preference applying again.
 
 import { useCallback, useEffect, useState } from 'react';
 
