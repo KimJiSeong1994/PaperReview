@@ -97,12 +97,14 @@ function SearchPage() {
   const searchRequestIdRef = useRef(0);
   const trackedCompletedReviewRef = useRef(false);
 
-  // Auto-dismiss guidance message after 3 seconds. Hard failures opt out —
-  // a 3s window is a nudge for the non-academic hint, but it silently ate
-  // the search error and left the empty state looking like a blank result.
+  // Auto-dismiss guidance message. Hard failures opt out — the window is a
+  // nudge for the non-academic hint, but it silently ate the search error and
+  // left the empty state looking like a blank result. 8s rather than 3s: the
+  // non-academic hint is a 40-character instruction carrying two worked
+  // examples, and 3s is under the time it takes to read it once.
   useEffect(() => {
     if (!guidanceMessage || guidanceSticky) return;
-    const timer = setTimeout(() => setGuidanceMessage(null), 3000);
+    const timer = setTimeout(() => setGuidanceMessage(null), 8000);
     return () => clearTimeout(timer);
   }, [guidanceMessage]);
 
@@ -710,6 +712,8 @@ function SearchPage() {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', position: 'relative' }}>
               <div style={{ flex: 1 }}>
                 <SearchBar
+                  key={attemptedQuery}
+                  initialQuery={attemptedQuery}
                   onSearch={handleSearch}
                   loading={loading}
                   guidanceMessage={guidanceMessage}
@@ -1124,6 +1128,8 @@ function SearchPage() {
         <div className="centered-search">
           <div className="search-bar-fixed">
             <SearchBar
+              key={attemptedQuery}
+              initialQuery={attemptedQuery}
               onSearch={handleSearch}
               loading={loading}
               guidanceMessage={guidanceMessage}
@@ -1131,9 +1137,18 @@ function SearchPage() {
               onQueryChange={() => setGuidanceMessage(null)}
             />
           </div>
-          <div className="empty-state">
-            <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
-          </div>
+          {/* A sticky guidance message is a hard failure (a 4xx/5xx, or a
+              non-academic rejection), and SearchBar is already rendering it.
+              The 500ms loading timer sets `query` before the request settles,
+              so this branch matches on errors too — without this guard the
+              page tells the user their keywords were wrong when the server
+              was the thing that failed. SearchBar keeps rendering either way;
+              gating the whole branch would blank the page instead. */}
+          {!guidanceSticky && (
+            <div className="empty-state">
+              <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+            </div>
+          )}
         </div>
       )}
 

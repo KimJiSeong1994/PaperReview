@@ -74,6 +74,28 @@ describe('SEO-sensitive routes', () => {
     vi.restoreAllMocks();
   });
 
+  // Only the routes that use App's shared header. /blog and /admin ship their
+  // own headers and have no About link at all — from /blog the single route to
+  // the intro is the footer, which SiteFooter.test.tsx covers.
+  it.each([
+    ['/', '/ko/introduce/', '소개'],
+    ['/ko/introduce/', '/ko/introduce/', '소개'],
+    ['/introduce/', '/introduce/', 'About'],
+  ])(
+    'on %s the header About link points at %s labelled %s',
+    async (entry, href, label) => {
+      renderWithAuth(entry, <App />);
+
+      // The Korean intro used to be unreachable from anywhere but itself: the
+      // href keyed off a path check that is false on "/" and on /blog, so the
+      // only Korean landing page on the site sat behind an English one. The
+      // label and the destination now move together, so an English label can
+      // never point at a Korean page or the reverse.
+      const link = await screen.findByRole('link', { name: label });
+      expect(link).toHaveAttribute('href', href);
+    },
+  );
+
   it('keeps the existing search experience on the root route', async () => {
     renderWithAuth('/', <App />);
 

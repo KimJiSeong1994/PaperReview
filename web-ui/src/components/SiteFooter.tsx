@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import './SiteFooter.css';
 
 // Maintainer profile links shown site-wide for service credibility.
@@ -10,9 +10,11 @@ export const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/jiseong-kim-868
 export const SITE_FOOTER_BRAND = '© Jiphyeonjeon (집현전)';
 
 // The whole footer, mirrored byte-for-byte by _SITE_FOOTER_HTML in
-// routers/seo.py so crawlers on SSR pages see the same links. The Korean
-// /ko/introduce/ href is what SSR ships (it only serves Korean pages);
-// English routes swap it below. tests/test_site_footer_sync.py enforces this.
+// routers/seo.py so crawlers on SSR pages see the same links.
+// tests/test_site_footer_sync.py enforces that. Every label here is Korean,
+// so every href is too: /ko/introduce/ is served as-is. This used to swap in
+// the English /introduce/ off Korean routes, which meant the Korean label
+// 서비스 소개 sent readers to an English page from "/" and from /blog.
 export const SITE_FOOTER_COLUMNS: {
   heading: string;
   links: { href: string; label: string }[];
@@ -42,12 +44,6 @@ export const SITE_FOOTER_COLUMNS: {
 ];
 
 function SiteFooter() {
-  const location = useLocation();
-  // Mirrors App.tsx's isKoreanIntroduce so 서비스 소개 keeps the reader on the
-  // locale they are already reading; /introduce/ and /ko/introduce/ are
-  // separately indexed pages with their own canonicals.
-  const isKoreanIntroduce = location.pathname.startsWith('/ko/introduce');
-
   return (
     <footer className="site-footer">
       <div className="site-footer-columns">
@@ -62,15 +58,7 @@ function SiteFooter() {
                       {link.label}
                     </a>
                   ) : (
-                    <Link
-                      to={
-                        link.href === '/ko/introduce/' && !isKoreanIntroduce
-                          ? '/introduce/'
-                          : link.href
-                      }
-                    >
-                      {link.label}
-                    </Link>
+                    <Link to={link.href}>{link.label}</Link>
                   )}
                 </li>
               ))}
