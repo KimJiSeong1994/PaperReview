@@ -520,6 +520,36 @@ body {
   border-radius: 4px;
 }
 
+/* The loading screen stacks its search box above the scene, so the base rule's
+   centring row becomes a column. Every other base declaration — align-items,
+   justify-content, the 100vh/100dvh pair, background and padding — still
+   applies, and the bar reuses .search-bar-fixed's 900px so it matches the one
+   in the results view. */
+
+.results-rewritten-query {
+  max-width: 900px;
+  margin: 0 auto 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.results-rewritten-query span {
+  color: var(--text-soft);
+}
+
+.results-degraded {
+  max-width: 900px;
+  margin: 0 auto 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.empty-state-detail {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
 .search-bar-fixed {
   width: 100%;
   max-width: 900px;
@@ -539,6 +569,7 @@ body {
 
 .loading-screen {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - 80px);
