@@ -498,6 +498,84 @@ body {
   border-radius: 4px;
 }
 
+/* Proof-of-output, below the fold. Same width constraint as .home-chips and
+   for the same reason: .centered-search is `align-items: center`, which
+   shrink-wraps every flex child to its content width, so a section without an
+   explicit width would never lay out as a column of full-width cards. */
+.home-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: min(680px, 92vw);
+  margin-top: 40px;
+}
+
+.home-proof-heading {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.home-proof-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.home-output {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--wov-08);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  box-shadow: var(--card-shadow);
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-output:hover {
+  border-color: var(--ibd-25);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.home-output:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.home-output-kind {
+  color: var(--indigo);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.home-output-title {
+  color: var(--text-hi);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.home-output-body {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
 .search-bar-fixed {
   width: 100%;
   max-width: 900px;

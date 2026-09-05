@@ -54,6 +54,33 @@ const HOME_CHIPS = [
   'Attention Is All You Need 논문',
 ];
 
+// Three things the tool has actually produced, linked straight to the public
+// write-ups. Copied from LandingSections' PUBLIC_OUTPUTS rather than imported:
+// that module pulls in LandingSections.css, 900+ lines that belong to the lazy
+// IntroducePage chunk and must not reach "/". Korean strings are the same
+// KO_TRANSLATIONS values that page renders. The two paper titles stay English
+// because that is what the papers are called.
+const HOME_OUTPUTS = [
+  {
+    kind: '논문 리뷰',
+    title: 'CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG',
+    body: '방법과 실험 결과뿐 아니라 인과라는 표현을 어디까지 해석할 수 있는지 한계까지 검토합니다.',
+    to: '/blog/causalrag2-hugrag-hierarchical-causal-gating',
+  },
+  {
+    kind: '논문 리뷰',
+    title: 'HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models',
+    body: '지식 그래프와 Personalized PageRank의 역할, 성능 주장, 비용 구조를 함께 읽습니다.',
+    to: '/blog/hipporag-neurobiologically-inspired-long-term-memory',
+  },
+  {
+    kind: '엔지니어링 노트',
+    title: '집현전 검색 에이전트: 단일 쿼리의 한계를 넘어서',
+    body: '병렬 검색에서 멀티턴 보완 검색까지, 실제 제품이 어떤 판단을 하는지 설명합니다.',
+    to: '/blog/search-agent-beyond-single-query-65bcbe5c30fd',
+  },
+];
+
 function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -708,6 +735,36 @@ function SearchPage() {
             집현전 사용법 자세히 보기
           </Link>
         </div>
+      )}
+
+      {/* A sibling of .centered-search, not a child, and gated on the same
+          condition so it never appears over results or during a search.
+
+          Inside the hero it is a flex item competing with the ::after artwork,
+          which is `flex: 1 1 auto` and so gives up its space first — measured
+          at 1280x900, the artwork collapsed to 0px. Out here the hero keeps its
+          min-height and its artwork, and this extends the page below the fold.
+
+          Below the fold on purpose: above the search box it would push the box
+          to the bottom edge of a phone, on the surface whose job is that box. */}
+      {!loading && papers.length === 0 && !query && (
+        <section className="home-proof" aria-labelledby="home-proof-heading">
+          <h2 id="home-proof-heading" className="home-proof-heading">공개 리뷰</h2>
+          <ul className="home-proof-list">
+            {HOME_OUTPUTS.map((item) => (
+              <li key={item.to}>
+                <Link to={item.to} className="home-output">
+                  <span className="home-output-kind">{item.kind}</span>
+                  <span className="home-output-title">{item.title}</span>
+                  <span className="home-output-body">{item.body}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Link to="/blog/category/paper-review" className="home-more">
+            공개 리뷰 전체 보기
+          </Link>
+        </section>
       )}
 
       {loading && (
