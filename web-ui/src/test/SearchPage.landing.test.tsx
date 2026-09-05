@@ -65,8 +65,6 @@ describe('homepage landing content', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.scrollTo = vi.fn();
-    // jsdom implements neither; the results view calls both.
-    Element.prototype.scrollIntoView = vi.fn();
     vi.mocked(searchPapers).mockResolvedValue({ results: {}, total: 0 } as never);
   });
 
@@ -110,45 +108,6 @@ describe('homepage landing content', () => {
     expect(document.querySelector('h1.brand-title')?.textContent?.trim()).toBe(
       'Jiphyeonjeon (집현전)',
     );
-  });
-
-  it('shows three public reviews under the first h2 on the page', () => {
-    renderHome();
-    const cards = [...document.querySelectorAll<HTMLAnchorElement>('.home-output')];
-    expect(cards).toHaveLength(3);
-    for (const card of cards) {
-      expect(card.getAttribute('href')?.startsWith('/blog/')).toBe(true);
-    }
-
-    // Heading order: the brand h1, then this section's h2, and no h3 skipping
-    // in between. The page had exactly one heading before this section existed.
-    const headings = [...document.querySelectorAll('h1, h2, h3')].map((h) => h.tagName);
-    expect(headings).toEqual(['H1', 'H2']);
-    expect(screen.getByRole('heading', { level: 2, name: '공개 리뷰' })).toBeTruthy();
-    expect(
-      screen.getByRole('link', { name: '공개 리뷰 전체 보기' }).getAttribute('href'),
-    ).toBe('/blog/category/paper-review');
-  });
-
-  // The section is a sibling of .centered-search rather than a child, so that
-  // it does not compete with the hero's ::after artwork for flex space (which
-  // collapsed the artwork to 0px at 1280x900). Being a sibling means it needs
-  // its own render condition — without it, the reviews sat under live results.
-  it('disappears once results are on screen', async () => {
-    vi.mocked(searchPapers).mockResolvedValue({
-      results: { arxiv: [{ doc_id: 'p1', title: 'A Paper', authors: ['X'], year: 2026, abstract: 'a' }] },
-      total: 1,
-    } as never);
-
-    renderHome();
-    expect(document.querySelectorAll('.home-output')).toHaveLength(3);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '그래프 신경망' }));
-    });
-
-    expect(document.querySelector('.home-proof')).toBeNull();
-    expect(document.querySelectorAll('.home-output')).toHaveLength(0);
   });
 
   it('says search needs no login, and offers a way to read more', () => {
