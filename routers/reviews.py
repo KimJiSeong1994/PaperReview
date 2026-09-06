@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from src.utils.openai_responses_compat import create_chat_completion
+from src.analytics.mcp_context import record_job_started, record_job_finished
 from app.DeepAgent.skillopt_policy import (
     resolve_skillopt_deep_review_prompt_block,
 )
@@ -988,6 +989,7 @@ def run_deep_review_background(
     model: str,
     workspace: Any,
     fast_mode: bool = True,
+    mcp_measurement: tuple[dict[str, Any], float] | None = None,
 ):
     """Background task to run deep review."""
     try:
@@ -1113,6 +1115,11 @@ def run_deep_review_background(
             if session_id in review_sessions:
                 review_sessions[session_id]["status"] = "failed"
                 review_sessions[session_id]["error"] = str(e)
+    finally:
+        with review_sessions_lock:
+            outcome = review_sessions.get(session_id, {}).get("status")
+        status = {"completed": "succeeded", "failed": "failed"}.get(outcome, "unknown")
+        record_job_finished(mcp_measurement, "deep_review", session_id, status)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
@@ -1146,6 +1153,7 @@ async def start_deep_review(
                 "username": username,
             }
 
+        mcp_measurement = await record_job_started("deep_review", session_id)
         background_tasks.add_task(
             run_deep_review_background,
             session_id=session_id,
@@ -1155,6 +1163,7 @@ async def start_deep_review(
             model=review_request.model,
             workspace=workspace,
             fast_mode=review_request.fast_mode,
+            mcp_measurement=mcp_measurement,
         )
 
         return {

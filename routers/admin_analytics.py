@@ -8,6 +8,7 @@ parameter validation, and shaping the two sources into one response.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from routers.deps.auth import get_admin_user
 from src.analytics.crawler_logs import build_crawler_report
 from src.analytics.visits_report import build_visits_report
+from src.analytics.mcp_usage import build_mcp_usage_report, mcp_analytics_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -49,3 +51,20 @@ async def admin_visits_report(
         logger.exception("crawler report failed")
         report["ai"] = {"available": False, "reason": "internal error"}
     return report
+
+
+@router.get("/mcp")
+async def admin_mcp_usage_report(
+    days: int = Query(28, description="Window size in KST days: 7, 28, or 90"),
+    include_internal: bool = Query(False, description="Include admin/internal actors"),
+    admin: str = Depends(get_admin_user),
+) -> dict:
+    """Return independent MCP request, tool, and job operational usage."""
+    if days not in _ALLOWED_WINDOWS:
+        raise HTTPException(status_code=400, detail="days must be one of 7, 28, 90")
+    return await asyncio.to_thread(
+        build_mcp_usage_report,
+        mcp_analytics_db_path(),
+        days=days,
+        include_internal=include_internal,
+    )

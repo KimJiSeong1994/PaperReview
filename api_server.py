@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from middleware import TimingSecurityHeadersMiddleware
+from src.analytics.mcp_context import McpUsageMiddleware, drain_measurements
 
 # ── Logging setup ─────────────────────────────────────────────────────
 logging.basicConfig(
@@ -156,6 +157,8 @@ async def lifespan(app: FastAPI):
     SQLite before the ASGI server exits. This guarantees zero event
     loss on SIGTERM for the gunicorn/uvicorn graceful shutdown path.
     """
+    from src.analytics.mcp_usage import initialize_mcp_usage
+    await asyncio.to_thread(initialize_mcp_usage)
     _ensure_faiss_index()
 
     # Pre-warm cross-encoder model to avoid HF download on first /api/search.
@@ -189,6 +192,7 @@ async def lifespan(app: FastAPI):
         start_search_background_workers()
         yield
     finally:
+        await drain_measurements()
         try:
             if not stop_search_background_workers():
                 logger.warning("search background workers did not stop before timeout")
@@ -299,6 +303,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # streams are not buffered through anyio memory streams. Added AFTER CORS so
 # CORSMiddleware remains the outermost wrapper (Starlette middleware is LIFO).
 app.add_middleware(TimingSecurityHeadersMiddleware)
+app.add_middleware(McpUsageMiddleware)
 
 
 # ── Root & health endpoints ──────────────────────────────────────────
@@ -373,6 +378,8 @@ app.include_router(chat_router)
 app.include_router(lightrag_router)
 app.include_router(admin_router)
 app.include_router(admin_analytics_router)
+from routers.mcp_telemetry import router as mcp_telemetry_router
+app.include_router(mcp_telemetry_router)
 app.include_router(exploration_router)
 app.include_router(share_router)
 app.include_router(curriculum_router)

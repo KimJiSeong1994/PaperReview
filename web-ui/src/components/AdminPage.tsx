@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
+const AdminMcpReport = lazy(() => import('./AdminMcpReport'));
 const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
 const AdminMembersReport = lazy(() => import('./AdminMembersReport'));
 import {
@@ -19,11 +20,12 @@ import {
 } from '../api/client';
 import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse } from '../api/client';
 
-type Tab = 'dashboard' | 'visits' | 'members';
+type Tab = 'dashboard' | 'visits' | 'mcp' | 'members';
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: 'Dashboard',
   visits: 'Visitors',
+  mcp: 'MCP Usage',
   members: 'Members',
 };
 
@@ -349,6 +351,13 @@ export default function AdminPage() {
         {activeTab === 'visits' && (
           <Suspense fallback={<div className="admin-loading">Loading visitors...</div>}>
             <AdminVisitsReport />
+          </Suspense>
+        )}
+
+        {/* MCP usage is loaded independently from browser/GA4 analytics. */}
+        {activeTab === 'mcp' && (
+          <Suspense fallback={<div className="admin-loading">Loading MCP usage...</div>}>
+            <AdminMcpReport />
           </Suspense>
         )}
 
