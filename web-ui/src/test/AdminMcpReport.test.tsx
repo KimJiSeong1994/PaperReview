@@ -76,6 +76,7 @@ describe('AdminMcpReport', () => {
       expect.objectContaining({ name: '작업 실패', y: [0], visible: 'legendonly' }),
     ]));
     expect(props.layout.hovermode).toBe('x unified');
+    expect(props.layout.xaxis.range).toEqual(['2026-08-10', '2026-09-06T23:59:59']);
     expect(props.config.responsive).toBe(true);
     expect(screen.getByText('데이터 표로 보기').closest('details')).not.toHaveAttribute('open');
   });

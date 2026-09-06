@@ -178,7 +178,7 @@ export default function AdminMcpReport() {
                     hovermode: 'x unified',
                     hoverlabel: { bgcolor: 'rgba(255,255,255,0.98)', bordercolor: 'rgba(15,23,42,0.10)', font: { color: '#1e293b', size: 12 } },
                     legend: { orientation: 'h', y: -0.25, x: 0, yanchor: 'top' },
-                    xaxis: { type: 'date', tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
+                    xaxis: { type: 'date', range: [report.window.start, `${report.window.end}T23:59:59`], tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
                     yaxis: { gridcolor: 'rgba(128,128,128,0.10)', rangemode: 'nonnegative', zeroline: false },
                     uirevision: `${report.window.start}:${report.window.end}:${includeInternal}`,
                   }}
