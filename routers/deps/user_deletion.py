@@ -143,9 +143,11 @@ def _resolve_paths(override: Optional[Mapping[str, Path]]) -> Dict[str, Any]:
     lives here.
     """
     import routers.deps.user_deletion as _self  # re-read after patching
+    from src.analytics.mcp_usage import mcp_analytics_db_path
 
     paths: Dict[str, Any] = {
         "events_db": _self.EVENTS_DB_PATH,
+        "mcp_analytics_db": mcp_analytics_db_path(),
         "profile_db": _self.PROFILE_DB_PATH,
         "embeddings_users_dir": _self.EMBEDDINGS_USERS_DIR,
         "blog_posts_file": _self.BLOG_POSTS_FILE,
@@ -523,6 +525,14 @@ def delete_user_cascade(
             "cascade[review_sessions_memory] failed for hash_prefix=%s", hp
         )
         partial_failures.append("review_sessions_memory")
+
+    # Dedicated MCP measurements must follow account deletion as well.
+    try:
+        from src.analytics.mcp_usage import delete_actor_events
+        delete_actor_events(username, p["mcp_analytics_db"])
+    except Exception:
+        logger.exception("cascade[mcp_analytics] failed for hash_prefix=%s", hp)
+        partial_failures.append("mcp_analytics")
 
     # ── Stage 9: users_db (MUST run even after upstream failures) ─────
     try:

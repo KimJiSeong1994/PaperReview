@@ -8,6 +8,8 @@ import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
 
+from src.analytics.mcp_context import record_job_started, record_job_finished
+
 from .resource_policy import (
     DIRECT_NUM_PAPERS_MAX,
     DIRECT_REPORT_MAX_CHARS,
@@ -89,31 +91,42 @@ class PosterApplicationService:
         timings: Dict[str, float] = {}
         started = time.monotonic()
         loop = asyncio.get_running_loop()
+        try:
+            mcp_measurement = await record_job_started("poster", generation_id)
+        except BaseException:
+            release_once()
+            raise
 
         def _run_agent() -> Dict[str, Any]:
-            agent = agent_factory()
-            return agent.generate_poster(
-                report_content=report_content,
-                num_papers=num_papers,
-                output_dir=output_dir,
-                papers_data=papers_data,
-            )
+            outcome = "failed"
+            try:
+                agent = agent_factory()
+                raw_result = agent.generate_poster(
+                    report_content=report_content,
+                    num_papers=num_papers,
+                    output_dir=output_dir,
+                    papers_data=papers_data,
+                )
+                timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
+                result = self._normalize_result(
+                    raw_result or {}, generation_id=generation_id,
+                    session_id=session_id, timings=timings,
+                    provenance=provenance or {},
+                )
+                outcome = "succeeded" if result.get("success") is True else "failed"
+                return result
+            finally:
+                # Runs even after the HTTP caller timed out or disconnected.
+                # A response timeout must not erase the worker's actual result.
+                record_job_finished(mcp_measurement, "poster", generation_id, outcome)
 
         worker_future = loop.run_in_executor(None, _run_agent)
         worker_future.add_done_callback(lambda fut: self._consume_and_release(fut, release_once))
 
         try:
-            raw_result = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 asyncio.shield(worker_future),
                 timeout=timeout_seconds,
-            )
-            timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
-            return self._normalize_result(
-                raw_result or {},
-                generation_id=generation_id,
-                session_id=session_id,
-                timings=timings,
-                provenance=provenance or {},
             )
         except asyncio.TimeoutError as exc:
             raise PosterServiceError(

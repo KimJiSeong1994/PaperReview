@@ -30,6 +30,9 @@ vi.mock('../components/AdminDashboardReport', () => ({
 vi.mock('../components/AdminVisitsReport', () => ({
   default: () => <div data-testid="visits-report" />,
 }));
+vi.mock('../components/AdminMcpReport', () => ({
+  default: () => <div data-testid="mcp-report" />,
+}));
 
 // Mock the entire api/client module, keeping non-admin exports intact.
 vi.mock('../api/client', async () => {
@@ -101,11 +104,12 @@ function renderPage() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('AdminPage — Members tab wiring', () => {
-  it('shows only Dashboard, Visitors, Members tabs — Users/Bookmarks/Curricula/Papers are all folded in', () => {
+  it('shows the dashboard, visitor, MCP usage, and consolidated member tabs', () => {
     renderPage();
 
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Visitors' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'MCP Usage' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Members' })).toBeInTheDocument();
 
     expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
@@ -124,6 +128,17 @@ describe('AdminPage — Members tab wiring', () => {
     expect(getAdminBookmarks).toHaveBeenCalledTimes(1);
     expect(getAdminCurricula).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(getAdminPaperStats).toHaveBeenCalledTimes(1));
+  });
+
+  it('opens the MCP usage report without loading member data', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'MCP Usage' }));
+    expect(await screen.findByTestId('mcp-report')).toBeInTheDocument();
+    expect(getAdminUsers).not.toHaveBeenCalled();
+    expect(getAdminBookmarks).not.toHaveBeenCalled();
+    expect(getAdminCurricula).not.toHaveBeenCalled();
+    expect(getAdminPaperStats).not.toHaveBeenCalled();
   });
 
   it('re-fetches users, bookmarks, curricula, AND paper stats after user deletion (regression: stale orphan row bug)', async () => {

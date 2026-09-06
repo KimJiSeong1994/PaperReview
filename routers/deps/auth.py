@@ -17,6 +17,8 @@ import jwt as _pyjwt
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from src.analytics.mcp_context import identify_actor, is_mcp_request
+
 from .config import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
@@ -63,8 +65,10 @@ async def get_current_user(request: Request) -> str:
     username = payload["sub"]
     # Deferred import to avoid a circular dependency at module-load time.
     from .storage import _get_user_db
-    if _get_user_db().get(username) is None:
+    user = _get_user_db().get(username)
+    if user is None:
         raise HTTPException(status_code=401, detail="Account deleted or disabled")
+    identify_actor(username, user.get("role"))
     return username
 
 
@@ -86,6 +90,7 @@ async def get_admin_user(request: Request) -> str:
     # Re-verify role from DB to honour demotions between token issue and now.
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+    identify_actor(username, user.get("role"))
     return username
 
 
@@ -96,6 +101,10 @@ async def get_optional_user(request: Request) -> Optional[str]:
     - Missing / malformed / expired tokens (no auth).
     - Tokens for deleted accounts (treated as anonymous).
     """
+    # The configured MCP token must not silently become an anonymous review
+    # owner: subsequent status/report endpoints require that same account.
+    if is_mcp_request(request.headers):
+        return await get_current_user(request)
     try:
         payload = _decode_jwt(request)
     except HTTPException:

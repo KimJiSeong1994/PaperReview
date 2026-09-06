@@ -22,6 +22,12 @@ os.environ.setdefault("APP_USERNAME", "test-admin")
 _TEST_JWT_SECRET = os.environ["JWT_SECRET"]
 
 
+@pytest.fixture(autouse=True)
+def isolate_mcp_analytics_storage(tmp_path, monkeypatch):
+    """No test may persist measurements or deletion tombstones in app data."""
+    monkeypatch.setenv("MCP_ANALYTICS_DB_PATH", str(tmp_path / "mcp_analytics.db"))
+
+
 # Bound every socket operation so a slow/unreachable external API (OpenAlex,
 # arXiv, Semantic Scholar, Scholar, DBLP, GitHub, …) can never hang the suite —
 # this is what stalled CI for ~40 min. Unlike hard-blocking, a short default

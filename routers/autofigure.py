@@ -14,10 +14,12 @@ import asyncio
 import logging
 import time
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from starlette.requests import Request
+from src.analytics.mcp_context import record_job_started, record_job_finished_async
 
 from app.DeepAgent.poster.resource_policy import (
     AUTOFIGURE_IMAGE_B64_MAX_CHARS,
@@ -175,6 +177,9 @@ async def method_to_svg(
         body.optimize_iterations,
     )
 
+    job_id = f"figure_{uuid4().hex}"
+    mcp_measurement = await record_job_started("figure", job_id)
+    outcome = "unknown"
     try:
         client = get_autofigure_client()
         result = await client.method_to_svg(
@@ -184,12 +189,14 @@ async def method_to_svg(
         )
         elapsed = time.monotonic() - start
         logger.info("[AutoFigure] method-to-svg completed in %.2fs", elapsed)
-        return MethodToSvgResponse(
+        response = MethodToSvgResponse(
             success=result.success,
             svg_content=sanitize_poster_markup(result.final_svg),
             figure_png_b64=result.figure_png_b64,
             error=result.error,
         )
+        outcome = "succeeded" if response.success else "failed"
+        return response
     except HTTPException:
         raise
     except Exception as exc:
@@ -204,6 +211,10 @@ async def method_to_svg(
             status_code=503,
             detail=f"AutoFigure service error: {exc}",
         ) from exc
+    finally:
+        # A disconnected/timed-out upstream request cannot prove whether its
+        # remote generation finished. Only a received result establishes that.
+        await record_job_finished_async(mcp_measurement, "figure", job_id, outcome)
 
 
 @router.post("/figure-to-svg", response_model=MethodToSvgResponse)

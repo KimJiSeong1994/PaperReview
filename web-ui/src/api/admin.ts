@@ -146,6 +146,66 @@ export interface AdminVisitsReport {
 export const fetchAdminVisitsReport = (days: number) =>
   api.get<AdminVisitsReport>('/api/admin/analytics/visits', { params: { days } });
 
+export type AdminMcpWindowDays = 7 | 28 | 90;
+
+export interface AdminMcpReport {
+  available: boolean;
+  reason: string | null;
+  window: { start: string; end: string; days: AdminMcpWindowDays; timezone: string };
+  measurement: {
+    started_at: string | null;
+    last_event_at: string | null;
+    source_trust: string;
+    tool_telemetry_available: boolean;
+    claimed_adapter_requests: number;
+    requests_with_invocation_id: number;
+    legacy_or_unattributed_requests: number;
+    invocation_coverage: number | null;
+    limitations: string[];
+  };
+  totals: {
+    requests: number;
+    active_accounts: number;
+    tool_calls: number;
+    tool_successes: number;
+    tool_failures: number;
+    tool_unknown: number;
+    jobs_started: number;
+    jobs_completed: number;
+    jobs_failed: number;
+    jobs_pending: number;
+    request_error_rate: number | null;
+    request_p95_ms: number | null;
+    tool_p95_ms: number | null;
+    job_p95_ms: number | null;
+    repeat_accounts: number;
+  };
+  daily: {
+    date: string;
+    requests: number;
+    active_accounts: number;
+    tool_calls: number;
+    jobs_started: number;
+    jobs_completed: number;
+    jobs_failed: number;
+  }[];
+  tools: { name: string; calls: number; succeeded: number; failed: number; unknown: number; p95_ms: number | null }[];
+  routes: { name: string; requests: number; errors: number; p95_ms: number | null }[];
+  clients: { name: string; version: string | null; requests: number; tool_calls: number }[];
+  versions: { version: string; requests: number; tool_calls: number }[];
+  jobs: { name: string; started: number; completed: number; failed: number; pending: number; unknown: number }[];
+  errors: { kind: string; code: string; count: number }[];
+}
+
+export const fetchAdminMcpReport = (
+  days: AdminMcpWindowDays,
+  includeInternal: boolean,
+  signal?: AbortSignal,
+) => api.get<AdminMcpReport>('/api/admin/analytics/mcp', {
+  params: { days, include_internal: includeInternal },
+  signal,
+});
+
 export interface AdminUser {
   username: string;
   role: string;

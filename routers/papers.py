@@ -370,7 +370,7 @@ async def clear_papers(username: str = Depends(get_admin_user)):
 
 
 @router.get("/papers/{paper_id}")
-async def get_paper_by_id(paper_id: str):
+async def get_paper_by_id(paper_id: str, username: str | None = Depends(get_optional_user)):
     """Retrieve a single paper by its doc_id (arxiv_id, DOI, or internal id).
 
     Used by the MCP server to resolve paper metadata without listing all papers.
