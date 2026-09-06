@@ -1,14 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   fetchAdminMcpReport,
   type AdminMcpReport as McpReportData,
   type AdminMcpWindowDays,
 } from '../api/client';
+import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import './AdminMcpReport.css';
 
+const Plot = lazy(() => import('../PlotlyChart'));
 const WINDOWS: AdminMcpWindowDays[] = [7, 28, 90];
 const numberFormat = new Intl.NumberFormat('ko-KR');
+const DAILY_SERIES = [
+  { key: 'requests', name: '서버 요청', color: '#9b5cff', unit: '건', primary: true },
+  { key: 'tool_calls', name: '도구 실행', color: '#4f46e5', unit: '건', primary: true },
+  { key: 'active_accounts', name: '활성 계정', color: '#0d9488', unit: '계정', primary: true },
+  { key: 'jobs_started', name: '작업 시작', color: '#0284c7', unit: '건', primary: false },
+  { key: 'jobs_completed', name: '작업 완료', color: '#16a34a', unit: '건', primary: false },
+  { key: 'jobs_failed', name: '작업 실패', color: '#e05266', unit: '건', primary: false },
+] as const;
+
+const kstDate = (value: string | null) => {
+  const timestamp = value ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) ? new Date(timestamp + 9 * 60 * 60 * 1000).toISOString().slice(0, 10) : null;
+};
 
 const count = (value: number) => numberFormat.format(value);
 const duration = (value: number | null) => value === null ? '미집계' : `${numberFormat.format(Math.round(value))}ms`;
@@ -92,6 +107,12 @@ export default function AdminMcpReport() {
   }
 
   const { totals } = report;
+  const measurementStart = kstDate(report.measurement.started_at);
+  const dailyValue = (row: McpReportData['daily'][number], key: typeof DAILY_SERIES[number]['key']) => (
+    (measurementStart !== null && row.date < measurementStart)
+    || (key === 'tool_calls' && !report.measurement.tool_telemetry_available)
+      ? null : row[key]
+  );
   const unknownJobs = report.jobs.reduce((total, row) => total + row.unknown, 0);
   const measuredZero = totals.requests === 0 && totals.tool_calls === 0 && totals.jobs_started === 0;
 
@@ -127,12 +148,60 @@ export default function AdminMcpReport() {
 
       <section className="mcp-section">
         <h2>일별 사용</h2>
-        <p>작업 완료·실패는 종료된 날짜가 아니라 해당 작업의 시작일 코호트에 표시합니다.</p>
-        <Table className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
+        <p>범례를 눌러 지표를 표시하거나 숨길 수 있습니다. 작업 완료·실패는 해당 작업의 시작일 코호트에 표시합니다.</p>
+        {report.daily.length > 0 && (
+          <figure className="mcp-daily-chart" aria-label="일별 MCP 사용 추이">
+            <LazyLoadErrorBoundary fallback={<p role="alert">차트를 표시할 수 없습니다. 아래 데이터 표를 확인해 주세요.</p>}>
+              <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
+                <Plot
+                  data={DAILY_SERIES.map((series) => ({
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: series.name,
+                    x: report.daily.map((row) => row.date),
+                    y: report.daily.map((row) => dailyValue(row, series.key)),
+                    visible: series.primary ? true : 'legendonly',
+                    connectgaps: false,
+                    line: { color: series.color, width: 2 },
+                    marker: { color: series.color, size: 5 },
+                    fill: series.key === 'requests' ? 'tozeroy' : 'none',
+                    fillcolor: `${series.color}18`,
+                    hovertemplate: `%{x|%Y-%m-%d}<br>${series.name} %{y:,d}${series.unit}<extra></extra>`,
+                  }))}
+                  layout={{
+                    autosize: true,
+                    height: 320,
+                    paper_bgcolor: 'transparent',
+                    plot_bgcolor: 'transparent',
+                    font: { color: '#706d7d', size: 11, family: 'Pretendard, sans-serif' },
+                    margin: { t: 10, b: 100, l: 40, r: 12 },
+                    hovermode: 'x unified',
+                    hoverlabel: { bgcolor: 'rgba(255,255,255,0.98)', bordercolor: 'rgba(15,23,42,0.10)', font: { color: '#1e293b', size: 12 } },
+                    legend: { orientation: 'h', y: -0.25, x: 0, yanchor: 'top' },
+                    xaxis: { type: 'date', tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
+                    yaxis: { gridcolor: 'rgba(128,128,128,0.10)', rangemode: 'nonnegative', zeroline: false },
+                    uirevision: `${report.window.start}:${report.window.end}:${includeInternal}`,
+                  }}
+                  config={{ displayModeBar: false, responsive: true }}
+                  useResizeHandler
+                  style={{ width: '100%' }}
+                />
+              </Suspense>
+            </LazyLoadErrorBoundary>
+            <figcaption>계측 시작 전 기간과 미계측 도구는 빈 구간으로 표시합니다. 마지막 날짜는 아직 집계 중입니다.</figcaption>
+          </figure>
+        )}
+        <details className="mcp-daily-data">
+          <summary>데이터 표로 보기</summary>
+          <Table className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
           {report.daily.length === 0 ? <EmptyRows columns={7}>선택 기간의 일별 기록이 없습니다.</EmptyRows> : report.daily.map((row) => (
-            <tr key={row.date}><th scope="row">{row.date}</th><td>{count(row.requests)}</td><td>{count(row.active_accounts)}</td><td>{count(row.tool_calls)}</td><td>{count(row.jobs_started)}</td><td>{count(row.jobs_completed)}</td><td>{count(row.jobs_failed)}</td></tr>
+            <tr key={row.date}><th scope="row">{row.date}</th>{(['requests', 'active_accounts', 'tool_calls', 'jobs_started', 'jobs_completed', 'jobs_failed'] as const).map((key) => {
+              const value = dailyValue(row, key);
+              return <td key={key}>{value === null ? '미계측' : count(value)}</td>;
+            })}</tr>
           ))}
-        </Table>
+          </Table>
+        </details>
       </section>
 
       <div className="mcp-two-column">

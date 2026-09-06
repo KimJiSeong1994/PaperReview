@@ -57,6 +57,12 @@
 .mcp-table-scroll { width: 100%; overflow-x: auto; }
 .mcp-table { width: 100%; border-collapse: collapse; min-width: 440px; font-size: 12px; }
 .mcp-daily-table { min-width: 680px; }
+.mcp-daily-chart { min-width: 0; margin: 0; }
+.mcp-daily-chart figcaption { color: var(--text-faint); font-size: 11px; line-height: 1.5; }
+.mcp-daily-data { margin-top: 14px; }
+.mcp-daily-data summary { width: fit-content; cursor: pointer; color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.mcp-daily-data summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
+.mcp-daily-data .mcp-table-scroll { margin-top: 10px; }
 .mcp-table th, .mcp-table td { padding: 9px 10px; border-bottom: 1px solid var(--mcp-border); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mcp-table thead th { color: var(--text-faint); font-size: 10.5px; font-weight: 700; }
 .mcp-table th:first-child, .mcp-table td:first-child { text-align: left; }

@@ -3,6 +3,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AdminMcpReport from '../components/AdminMcpReport';
 import { fetchAdminMcpReport, type AdminMcpReport as McpReportData } from '../api/client';
 
+const plotSpy = vi.hoisted(() => vi.fn());
+vi.mock('../PlotlyChart', () => ({
+  default: (props: Record<string, unknown>) => {
+    plotSpy(props);
+    return <div data-testid="mcp-daily-plot" />;
+  },
+}));
+
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   return { ...actual, fetchAdminMcpReport: vi.fn() };
@@ -54,6 +62,42 @@ const response = (data: McpReportData) => Promise.resolve({ data } as Awaited<Re
 beforeEach(() => vi.clearAllMocks());
 
 describe('AdminMcpReport', () => {
+  it('plots daily usage with selectable job outcomes and a collapsed data table', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
+    render(<AdminMcpReport />);
+    await screen.findByTestId('mcp-daily-plot');
+    const props = plotSpy.mock.lastCall![0];
+    expect(props.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: '서버 요청', type: 'scatter', mode: 'lines+markers', x: ['2026-09-05'], y: [12], visible: true }),
+      expect.objectContaining({ name: '도구 실행', y: [4], visible: true }),
+      expect.objectContaining({ name: '활성 계정', y: [3], visible: true }),
+      expect.objectContaining({ name: '작업 시작', y: [2], visible: 'legendonly' }),
+      expect.objectContaining({ name: '작업 완료', y: [1], visible: 'legendonly' }),
+      expect.objectContaining({ name: '작업 실패', y: [0], visible: 'legendonly' }),
+    ]));
+    expect(props.layout.hovermode).toBe('x unified');
+    expect(props.config.responsive).toBe(true);
+    expect(screen.getByText('데이터 표로 보기').closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('distinguishes pre-measurement gaps, unmeasured tools and measured zero', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      measurement: { ...REPORT.measurement, started_at: '2026-09-05T16:00:00Z', tool_telemetry_available: false },
+      daily: [
+        { ...REPORT.daily[0], date: '2026-09-05', requests: 0 },
+        { ...REPORT.daily[0], date: '2026-09-06', requests: 0 },
+      ],
+    }));
+    render(<AdminMcpReport />);
+    await screen.findByTestId('mcp-daily-plot');
+    expect(plotSpy.mock.lastCall![0].data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: '서버 요청', y: [null, 0], connectgaps: false }),
+      expect.objectContaining({ name: '도구 실행', y: [null, null], connectgaps: false }),
+    ]));
+    expect(screen.getByText('데이터 표로 보기').closest('details')).toHaveTextContent('미계측');
+  });
+
   it('renders distinct request, observed tool, job, account, and repeat-account meanings', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
