@@ -60,6 +60,26 @@ describe('PWA manifest (Chrome installability)', () => {
     }
   });
 
+  it('names the app the same thing every other identity surface does', () => {
+    // The manifest name is the install dialog and launcher label — an identity
+    // field, not a page title. It shipped as "집현전 — AI 논문 검색·리뷰", a
+    // fourth string that matched neither the brand nor the title, and nothing
+    // caught it. These are the other surfaces that name the same app.
+    const siteName = indexHtml.match(
+      /<meta property="og:site_name" content="([^"]+)"/,
+    )?.[1];
+    expect(siteName, 'index.html must declare og:site_name').toBeTruthy();
+    expect(manifest.name).toBe(siteName);
+    expect(manifest.short_name).toBe(siteName);
+
+    // The JSON-LD WebApplication node describes the very app this manifest
+    // installs, so its name has to agree too.
+    const appNode = JSON.parse(
+      indexHtml.match(/<script type="application\/ld\+json" id="home-json-ld">([\s\S]*?)<\/script>/)![1],
+    )['@graph'].find((node: { '@type': string }) => node['@type'] === 'WebApplication');
+    expect(appNode.name).toBe(manifest.name);
+  });
+
   it('does not steer users to a native app that does not exist', () => {
     // github.com/manifest.json sets this true to push Android users to its Play
     // Store app. Copying it here would suppress the Android install prompt.
