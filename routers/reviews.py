@@ -6,25 +6,44 @@ Deep review endpoints:
   POST /api/deep-review/visualize/{session_id}
 """
 
+import asyncio
 import hashlib
 import json
 import logging
 import time
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from starlette.requests import Request
+from starlette.responses import Response
 
 from src.utils.openai_responses_compat import create_chat_completion
 from src.analytics.mcp_context import record_job_started, record_job_finished
 from app.DeepAgent.skillopt_policy import (
     resolve_skillopt_deep_review_prompt_block,
 )
-from app.DeepAgent.poster import PosterApplicationService, PosterServiceError
-from app.DeepAgent.poster.result_contract import CODE_SESSION_UNAVAILABLE, public_error_detail
+from app.DeepAgent.poster import (
+    PosterApplicationService,
+    PosterServiceError,
+    sanitize_poster_markup,
+)
+from app.DeepAgent.poster.resource_policy import (
+    POSTER_PDF_CONCURRENCY,
+    POSTER_PDF_HTML_MAX_CHARS,
+    POSTER_PDF_TIMEOUT_SECONDS,
+)
+from app.DeepAgent.poster.result_contract import (
+    CODE_ACTIVE_JOB,
+    CODE_INPUT_INVALID,
+    CODE_PDF_RENDER_FAILED,
+    CODE_SESSION_UNAVAILABLE,
+    public_error_detail,
+)
+from app.DeepAgent.utils.poster_exporter import render_poster_pdf
 
 from .deps import (
     DEFAULT_RESEARCH_MODEL,
@@ -55,6 +74,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["reviews"])
 _poster_service = PosterApplicationService()
+_poster_pdf_semaphore = asyncio.Semaphore(POSTER_PDF_CONCURRENCY)
 
 # ── Cache-stable system prompts ────────────────────────────────────────
 # Kept as module-level immutable strings so OpenAI automatic prompt caching
@@ -1540,3 +1560,88 @@ async def generate_poster_direct(
     except Exception as e:
         logger.exception("[Poster Direct] Failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class PosterPdfRequest(BaseModel):
+    """클라이언트가 보유한 포스터 HTML을 A3 PDF로 내보내는 요청."""
+    poster_html: str = Field(..., min_length=1, max_length=POSTER_PDF_HTML_MAX_CHARS)
+
+
+@router.post("/deep-review/poster-pdf")
+@limiter.limit("3/minute")
+async def export_poster_pdf(
+    request: Request,
+    body: PosterPdfRequest,
+    username: str = Depends(get_current_user),
+):
+    """포스터 HTML을 A3 가로 PDF로 렌더해 스트리밍한다.
+
+    포스터는 서버에 저장되지 않으므로 클라이언트가 가진 HTML이 유일본이다.
+    그 바이트를 그대로 받아 sanitize한 뒤 렌더하고, 어느 HTML에서 나온
+    PDF인지 sha256으로 묶어 응답한다. 서버 저장도 revision도 없다.
+    """
+    # 인증은 자원 보호 게이트로만 쓴다 (visualize-direct와 동일).
+    del request, username
+
+    sanitized = sanitize_poster_markup(body.poster_html)
+    if not sanitized.strip():
+        error = PosterServiceError(
+            422,
+            CODE_INPUT_INVALID,
+            "Poster HTML had no renderable content after sanitization",
+            retryable=False,
+        )
+        raise HTTPException(status_code=error.status_code, detail=public_error_detail(error))
+
+    html_sha256 = hashlib.sha256(sanitized.encode("utf-8")).hexdigest()
+    deadline = time.monotonic() + POSTER_PDF_TIMEOUT_SECONDS
+
+    try:
+        # Chromium은 무겁다. 생성 파이프라인과 별도 예산으로 묶는다.
+        await asyncio.wait_for(_poster_pdf_semaphore.acquire(), timeout=0.1)
+    except asyncio.TimeoutError as exc:
+        error = PosterServiceError(
+            429,
+            CODE_ACTIVE_JOB,
+            "Poster PDF export concurrency budget exhausted",
+            retryable=True,
+        )
+        raise HTTPException(
+            status_code=error.status_code, detail=public_error_detail(error)
+        ) from exc
+
+    try:
+        loop = asyncio.get_running_loop()
+        pdf_bytes = await loop.run_in_executor(
+            None, partial(render_poster_pdf, sanitized, deadline=deadline)
+        )
+    except PosterServiceError as e:
+        logger.warning("[Poster PDF] Export failed: %s (%s)", e.message, e.error_code)
+        raise HTTPException(
+            status_code=e.status_code, detail=public_error_detail(e)
+        ) from e
+    except Exception as e:
+        logger.exception("[Poster PDF] Unexpected export failure: %s", e)
+        error = PosterServiceError(
+            500, CODE_PDF_RENDER_FAILED, "Poster PDF export failed", retryable=True
+        )
+        raise HTTPException(
+            status_code=error.status_code, detail=public_error_detail(error)
+        ) from e
+    finally:
+        _poster_pdf_semaphore.release()
+
+    logger.info(
+        "[Poster PDF] Exported %d bytes from html_sha256=%s", len(pdf_bytes), html_sha256
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="poster-{html_sha256[:12]}.pdf"',
+            # artifacts.html_sha256과 같은 값. 어느 HTML 바이트에서 나온
+            # PDF인지 응답 자체에 묶어둔다.
+            "X-Poster-Html-Sha256": html_sha256,
+            "Cache-Control": "no-store",
+        },
+    )

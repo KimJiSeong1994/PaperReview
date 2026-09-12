@@ -1,15 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import {
+  downloadPosterPdf,
   fetchBatchReferences,
   generatePoster,
   getGraphData,
   searchPapers,
   startDeepReview,
 } from '../api/client';
+import { api } from '../api/base';
 import { useDeepReview } from '../hooks/useDeepReview';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,6 +21,7 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    downloadPosterPdf: vi.fn(),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
     generatePosterDirect: vi.fn(),
@@ -300,5 +303,204 @@ describe('Poster survives closing the modal', () => {
     await deauthenticate(rerender);
 
     expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).not.toBeChecked();
+  });
+});
+
+// The poster HTML the browser holds is the only copy, so the PDF export posts
+// it back rather than naming a server-side session.
+describe('Poster PDF download', () => {
+  let clickSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState.isAuthenticated = true;
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    vi.mocked(useDeepReview).mockReturnValue({
+      reviewSessionId: 'review-session-1',
+      reviewStatus: 'completed',
+      reviewProgress: '',
+      reviewReport: 'review report markdown',
+      verificationStats: null,
+      startReview: reviewMocks.startReview,
+      resetReview: reviewMocks.resetReview,
+    } as never);
+    vi.mocked(getGraphData).mockResolvedValue({ nodes: [], edges: [] });
+    vi.mocked(fetchBatchReferences).mockResolvedValue({ references: [] });
+    vi.mocked(generatePoster).mockResolvedValue({
+      success: true,
+      session_id: 'review-session-1',
+      poster_status: 'succeeded',
+      poster_html: '<html>poster</html>',
+      poster_path: '/poster.html',
+    });
+    // jsdom ships no object-URL support; the download path needs both.
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:poster'),
+      revokeObjectURL: vi.fn(),
+    }));
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    clickSpy.mockRestore();
+  });
+
+  it('posts the poster HTML and downloads under the server-supplied filename', async () => {
+    vi.mocked(downloadPosterPdf).mockResolvedValue({
+      blob: new Blob(['%PDF'], { type: 'application/pdf' }),
+      filename: 'poster-abc123def456.pdf',
+    });
+    await openPoster();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    });
+
+    expect(downloadPosterPdf).toHaveBeenCalledWith('<html>poster</html>', expect.any(AbortSignal));
+    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement;
+    expect(anchor.download).toBe('poster-abc123def456.pdf');
+  });
+
+  it('disables the button while rendering, so a second click costs nothing', async () => {
+    // PDF rendering runs Chromium and can take tens of seconds.
+    vi.mocked(downloadPosterPdf).mockReturnValue(new Promise(() => {}));
+    await openPoster();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    });
+
+    const busy = screen.getByRole('button', { name: 'Generating PDF...' });
+    expect(busy).toBeDisabled();
+    await act(async () => {
+      fireEvent.click(busy);
+    });
+    expect(downloadPosterPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the user not to retry when the server cannot render PDFs at all', async () => {
+    vi.mocked(downloadPosterPdf).mockRejectedValue({
+      response: {
+        status: 503,
+        data: {
+          detail: {
+            error_code: 'poster_pdf_unavailable',
+            retryable: false,
+            message: 'PDF export is unavailable: the Chromium runtime is not installed',
+          },
+        },
+      },
+    });
+    await openPoster();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    });
+
+    const alert = await screen.findByText(/PDF 내보내기를 지원하지 않는 서버입니다/);
+    expect(alert).toHaveTextContent('다시 시도해도 결과는 같으니');
+    // Re-enabled, but nothing about the copy invites another click.
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  });
+
+  it('does not deliver an in-flight PDF to whoever logs in next', async () => {
+    // The reset block on de-auth drops the poster, but the PDF request it
+    // already started would otherwise land as a download on the next user's
+    // device — the one thing the reset exists to prevent.
+    let settle: (value: { blob: Blob; filename: string }) => void = () => {};
+    const captured: (AbortSignal | undefined)[] = [];
+    vi.mocked(downloadPosterPdf).mockImplementation((_html, signal) => {
+      captured.push(signal);
+      return new Promise((resolve) => { settle = resolve; });
+    });
+    const { rerender } = await openPoster();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    });
+    expect(screen.getByRole('button', { name: 'Generating PDF...' })).toBeDisabled();
+
+    await deauthenticate(rerender);
+    expect(captured[0]?.aborted).toBe(true);
+
+    // The request the browser had already sent still comes back.
+    await act(async () => {
+      settle({ blob: new Blob(['%PDF'], { type: 'application/pdf' }), filename: 'poster-userA.pdf' });
+    });
+
+    expect(clickSpy).not.toHaveBeenCalled();
+  });
+
+  it('invites a retry when the failure is transient', async () => {
+    vi.mocked(downloadPosterPdf).mockRejectedValue({
+      response: {
+        status: 500,
+        data: { detail: { error_code: 'poster_pdf_render_failed', retryable: true, message: 'render crashed' } },
+      },
+    });
+    await openPoster();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    });
+
+    expect(await screen.findByText(/잠시 후 다시 시도해 주세요/)).toBeInTheDocument();
+  });
+});
+
+// responseType 'blob' delivers the error envelope as a Blob too, which would
+// otherwise reach classifyPosterError as an unreadable object.
+describe('downloadPosterPdf transport', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads the filename out of Content-Disposition', async () => {
+    const review = await vi.importActual<typeof import('../api/review')>('../api/review');
+    vi.spyOn(api, 'post').mockResolvedValue({
+      data: new Blob(['%PDF'], { type: 'application/pdf' }),
+      headers: { 'content-disposition': 'attachment; filename="poster-abc123def456.pdf"' },
+    });
+
+    await expect(review.downloadPosterPdf('<html>poster</html>')).resolves.toMatchObject({
+      filename: 'poster-abc123def456.pdf',
+    });
+  });
+
+  it('falls back to poster.pdf when the header is missing', async () => {
+    const review = await vi.importActual<typeof import('../api/review')>('../api/review');
+    vi.spyOn(api, 'post').mockResolvedValue({
+      data: new Blob(['%PDF'], { type: 'application/pdf' }),
+      headers: {},
+    });
+
+    await expect(review.downloadPosterPdf('<html>poster</html>')).resolves.toMatchObject({
+      filename: 'poster.pdf',
+    });
+  });
+
+  it('parses a blob error body back into the envelope classifyPosterError expects', async () => {
+    const review = await vi.importActual<typeof import('../api/review')>('../api/review');
+    vi.spyOn(api, 'post').mockRejectedValue({
+      message: 'Request failed with status code 503',
+      response: {
+        status: 503,
+        data: new Blob([JSON.stringify({
+          detail: {
+            error_code: 'poster_pdf_unavailable',
+            retryable: false,
+            message: 'PDF export is unavailable',
+          },
+        })]),
+      },
+    });
+
+    const err = await review.downloadPosterPdf('<html>poster</html>').catch((e) => e);
+
+    expect(review.classifyPosterError(err)).toMatchObject({
+      errorCode: 'poster_pdf_unavailable',
+      retryable: false,
+      error: 'PDF export is unavailable',
+    });
   });
 });

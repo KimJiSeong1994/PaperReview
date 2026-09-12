@@ -12,6 +12,7 @@ import {
   fetchBatchReferences,
   classifyPosterError,
   classifyPosterResponse,
+  downloadPosterPdf,
   generatePoster,
   generatePosterDirect,
 } from '../api/client';
@@ -34,6 +35,20 @@ import {
 } from '../analytics/events';
 
 const GraphViewComponent = lazy(() => import('./GraphView'));
+
+// PDF 실패는 다시 눌러 볼 값어치가 있는지로 갈린다. 서버에 Chromium 이 없으면
+// 재시도는 같은 503 을 되돌려 줄 뿐이므로, 그 경우엔 이미 손에 쥔 HTML 로 안내한다.
+const posterPdfErrorMessage = (
+  error: ReturnType<typeof classifyPosterError>,
+): string => {
+  if (error.errorCode === 'poster_pdf_unavailable') {
+    return 'PDF 내보내기를 지원하지 않는 서버입니다. 다시 시도해도 결과는 같으니 Download 로 HTML 을 받으세요.';
+  }
+  const reason = error.error || '알 수 없는 오류';
+  return error.retryable === false
+    ? `PDF 생성 실패: ${reason} — 다시 시도해도 같은 결과입니다.`
+    : `PDF 생성 실패: ${reason} — 잠시 후 다시 시도해 주세요.`;
+};
 
 // Four shapes of question this corpus answers, not four topics. A visitor
 // arriving at an empty box has no way to know whether it wants a keyword, a
@@ -106,6 +121,10 @@ function SearchPage() {
   // time, and a stray click on the overlay used to throw it away.
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterWarning, setPosterWarning] = useState<string | null>(null);
+  const [posterPdfLoading, setPosterPdfLoading] = useState(false);
+  const [posterPdfError, setPosterPdfError] = useState<string | null>(null);
+  // Declared above the de-auth reset because that block has to abort it.
+  const posterPdfAbortRef = useRef<AbortController | null>(null);
   // logout() clears tokens and navigates to '/', but a SearchPage already
   // mounted there is never unmounted, so everything a session produced would be
   // inherited by whoever logs in next on this device. Reset during render
@@ -123,6 +142,11 @@ function SearchPage() {
     setPrevAuthenticated(isAuthenticated);
     setPosterHtml(null);
     setPosterOpen(false);
+    // A PDF request already in flight would otherwise land as a download on
+    // the next user's device, which is exactly what this block exists to stop.
+    posterPdfAbortRef.current?.abort();
+    setPosterPdfLoading(false);
+    setPosterPdfError(null);
     resetReview();
     setShowReport(false);
     setSelectedPapersForReview(new Set());
@@ -534,6 +558,33 @@ function SearchPage() {
     });
   };
 
+  const handleDownloadPosterPdf = async () => {
+    if (!posterHtml || posterPdfLoading) return;
+    const abortController = new AbortController();
+    posterPdfAbortRef.current = abortController;
+    setPosterPdfLoading(true);
+    setPosterPdfError(null);
+    try {
+      const { blob, filename } = await downloadPosterPdf(posterHtml, abortController.signal);
+      // De-auth aborts this controller. A response that was already on the wire
+      // when that happened still resolves here, so re-check before delivering:
+      // the closed-over isAuthenticated is the value from the old session.
+      if (abortController.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // An abort is this component cancelling itself, not a failure to report.
+      if (abortController.signal.aborted) return;
+      setPosterPdfError(posterPdfErrorMessage(classifyPosterError(err)));
+    } finally {
+      setPosterPdfLoading(false);
+    }
+  };
+
   const handleGeneratePoster = async () => {
     if (posterHtml) {
       setPosterOpen(true);
@@ -733,6 +784,7 @@ function SearchPage() {
 
   const closePoster = useCallback(() => {
     setPosterOpen(false);
+    setPosterPdfError(null);
     posterTriggerRef.current?.focus();
   }, []);
 
@@ -1353,6 +1405,18 @@ function SearchPage() {
                 >
                   Download
                 </button>
+                <button
+                  className="poster-modal-btn"
+                  onClick={handleDownloadPosterPdf}
+                  disabled={posterPdfLoading}
+                  style={{
+                    cursor: posterPdfLoading ? 'wait' : 'pointer',
+                    opacity: posterPdfLoading ? 0.7 : 1,
+                  }}
+                  title="Download A3 PDF"
+                >
+                  {posterPdfLoading ? 'Generating PDF...' : 'Download PDF'}
+                </button>
                 <button className="poster-modal-close" aria-label="Close poster" onClick={closePoster}>
                   ✕
                 </button>
@@ -1372,6 +1436,22 @@ function SearchPage() {
                 }}
               >
                 {posterWarning}
+              </div>
+            )}
+            {posterPdfError && (
+              <div
+                role="alert"
+                style={{
+                  margin: '12px 16px 0',
+                  padding: '10px 12px',
+                  border: '1px solid rgba(234, 67, 53, 0.45)',
+                  borderRadius: '6px',
+                  background: 'rgba(234, 67, 53, 0.12)',
+                  color: '#991b1b',
+                  fontSize: '13px',
+                }}
+              >
+                {posterPdfError}
               </div>
             )}
             <iframe
