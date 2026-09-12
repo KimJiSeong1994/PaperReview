@@ -25,6 +25,31 @@ const indexHtml = Object.values(
 // in this record is the file actually existing on disk.
 const publicImages = import.meta.glob('../../public/*.png', { eager: true });
 
+// Inlined as data URIs so the declared `sizes` can be checked against the real
+// pixels. Only the files the manifest points at — globbing all of public/ would
+// pull the multi-megabyte hero art into the test bundle. The test below fails if
+// the manifest grows an image this list does not cover.
+const pwaImages = import.meta.glob(
+  '../../public/{icon-192,icon-512,screenshot-home,screenshot-introduce}.png',
+  { eager: true, import: 'default', query: '?inline' },
+) as Record<string, string>;
+
+/** Width/height from a PNG IHDR, read off the front of a base64 data URI. */
+function pngPixels(dataUri: string): [number, number] {
+  const head = atob(dataUri.slice(dataUri.indexOf(',') + 1, dataUri.indexOf(',') + 1 + 64));
+  const bytes = Uint8Array.from(head, (ch) => ch.charCodeAt(0));
+  const view = new DataView(bytes.buffer);
+  return [view.getUint32(16), view.getUint32(20)];
+}
+
+/** Fails loudly rather than silently skipping an image the glob above misses. */
+function declaredVsActual(src: string, sizes: string): void {
+  const key = `../../public/${src.replace(/^\//, '')}`;
+  expect(key in pwaImages, `${src} is not covered by the pwaImages glob`).toBe(true);
+  const [width, height] = pngPixels(pwaImages[key]);
+  expect(`${width}x${height}`, `${src} is not really ${sizes}`).toBe(sizes);
+}
+
 const manifest = JSON.parse(manifestSource) as {
   name?: string;
   short_name?: string;
@@ -57,7 +82,7 @@ describe('PWA manifest (Chrome installability)', () => {
       .toContain(manifest.display);
   });
 
-  it('ships 192px and 512px icons that exist in public/', () => {
+  it('ships 192px and 512px icons that exist and really are those sizes', () => {
     for (const size of ['192x192', '512x512']) {
       const icon = manifest.icons?.find((candidate) => candidate.sizes === size);
       expect(icon, `manifest needs a ${size} icon`).toBeDefined();
@@ -65,6 +90,7 @@ describe('PWA manifest (Chrome installability)', () => {
         `../../public/${icon!.src.replace(/^\//, '')}` in publicImages,
         `${icon!.src} is missing from web-ui/public/`,
       ).toBe(true);
+      declaredVsActual(icon!.src, size);
     }
   });
 
@@ -113,6 +139,7 @@ describe('PWA manifest (Chrome installability)', () => {
         `../../public/${shot.src.replace(/^\//, '')}` in publicImages,
         `${shot.src} is missing from web-ui/public/`,
       ).toBe(true);
+      declaredVsActual(shot.src, shot.sizes);
 
       const [width, height] = shot.sizes.split('x').map(Number);
       for (const side of [width, height]) {
