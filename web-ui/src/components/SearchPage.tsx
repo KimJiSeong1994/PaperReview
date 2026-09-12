@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PaperList from './PaperList';
 import DetailPanel from './DetailPanel';
@@ -101,7 +101,33 @@ function SearchPage() {
   // Poster states
   const [posterLoading, setPosterLoading] = useState(false);
   const [posterHtml, setPosterHtml] = useState<string | null>(null);
+  // Kept apart from posterHtml: closing must only hide the modal. The
+  // response HTML is the only copy of a run that costs up to 240s of LLM
+  // time, and a stray click on the overlay used to throw it away.
+  const [posterOpen, setPosterOpen] = useState(false);
   const [posterWarning, setPosterWarning] = useState<string | null>(null);
+  // logout() clears tokens and navigates to '/', but a SearchPage already
+  // mounted there is never unmounted, so everything a session produced would be
+  // inherited by whoever logs in next on this device. Reset during render
+  // (React's documented pattern) rather than in an effect, so nothing stale is
+  // ever painted for the new user.
+  //
+  // All three de-auth paths funnel through setIsAuthenticated(false) — the
+  // logout button, the auth:logout event an interceptor fires on an expired
+  // token, and a failed token check at startup — so this one block covers them.
+  // Trade-off: an expired token therefore also discards the report, and logging
+  // back in as the same user does not bring it back. That is deliberate; a
+  // server-derived report should not outlive the session it came from.
+  const [prevAuthenticated, setPrevAuthenticated] = useState(isAuthenticated);
+  if (prevAuthenticated !== isAuthenticated) {
+    setPrevAuthenticated(isAuthenticated);
+    setPosterHtml(null);
+    setPosterOpen(false);
+    resetReview();
+    setShowReport(false);
+    setSelectedPapersForReview(new Set());
+    setBookmarkSaved(false);
+  }
 
   // Query guidance (non-academic query feedback)
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
@@ -121,6 +147,11 @@ function SearchPage() {
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRequestIdRef = useRef(0);
   const trackedCompletedReviewRef = useRef(false);
+  const toolsButtonRef = useRef<HTMLButtonElement>(null);
+  const posterModalRef = useRef<HTMLDivElement>(null);
+  // The control that opened the poster, so closing hands focus back to it.
+  // The tools-menu item unmounts with its menu, so that path points at Tools.
+  const posterTriggerRef = useRef<HTMLElement | null>(null);
 
   // Auto-dismiss guidance message. Hard failures opt out — the window is a
   // nudge for the non-academic hint, but it silently ate the search error and
@@ -504,6 +535,10 @@ function SearchPage() {
   };
 
   const handleGeneratePoster = async () => {
+    if (posterHtml) {
+      setPosterOpen(true);
+      return;
+    }
     if (reviewSessionId && reviewStatus === 'completed' && reviewReport) {
       setPosterLoading(true);
       setPosterWarning(null);
@@ -523,6 +558,7 @@ function SearchPage() {
               ? poster.warning || '포스터가 일부 제한된 상태로 생성되었습니다. 내용을 확인한 뒤 사용하세요.'
               : null);
             setPosterHtml(poster.posterHtml);
+            setPosterOpen(true);
             return;
           }
           if (poster.canUseDirectFallback) {
@@ -559,6 +595,7 @@ function SearchPage() {
             ? poster.warning || '포스터가 일부 제한된 상태로 생성되었습니다. 내용을 확인한 뒤 사용하세요.'
             : null);
           setPosterHtml(poster.posterHtml);
+          setPosterOpen(true);
         } else {
           trackPosterGenerateFail(poster.status);
           setGuidanceMessage(`포스터 생성 실패: ${poster.error || '알 수 없는 오류'}`);
@@ -638,6 +675,8 @@ function SearchPage() {
 
     try {
       setShowReport(true);
+      setPosterHtml(null);
+      setPosterOpen(false);
       trackDeepReviewStart(selectedPapersForReview.size);
 
       const selectedPaperIds = Array.from(selectedPapersForReview);
@@ -691,6 +730,23 @@ function SearchPage() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showToolsMenu]);
+
+  const closePoster = useCallback(() => {
+    setPosterOpen(false);
+    posterTriggerRef.current?.focus();
+  }, []);
+
+  // Escape-to-close and initial focus into the dialog, the same shape as the
+  // other dialogs here (RecommendationBell.tsx, BlogPage.tsx).
+  useEffect(() => {
+    if (!posterOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePoster();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    posterModalRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [posterOpen, closePoster]);
 
   return (
     <main id="main" className="main-content">
@@ -801,6 +857,7 @@ function SearchPage() {
               </div>
               <div className="tools-dropdown-container">
                 <button
+                  ref={toolsButtonRef}
                   className="tools-button"
                   onClick={() => setShowToolsMenu(!showToolsMenu)}
                 >
@@ -854,6 +911,7 @@ function SearchPage() {
                       className="tools-menu-item"
                       disabled={posterLoading}
                       onClick={() => {
+                        posterTriggerRef.current = toolsButtonRef.current;
                         setShowToolsMenu(false);
                         handleGeneratePoster();
                       }}
@@ -871,7 +929,7 @@ function SearchPage() {
                         <line x1="9" y1="21" x2="9" y2="9"></line>
                       </svg>
                       <span className="menu-item-text">
-                        {posterLoading ? 'Generating...' : 'Generate Poster'}
+                        {posterLoading ? 'Generating...' : posterHtml ? 'View Poster' : 'Generate Poster'}
                       </span>
                     </button>
 
@@ -1187,7 +1245,10 @@ function SearchPage() {
                           Deep Research 완료 — 결과를 학회 포스터로 변환할 수 있습니다
                         </span>
                         <button
-                          onClick={handleGeneratePoster}
+                          onClick={(e) => {
+                            posterTriggerRef.current = e.currentTarget;
+                            handleGeneratePoster();
+                          }}
                           disabled={posterLoading}
                           style={{
                             padding: '6px 16px',
@@ -1201,7 +1262,7 @@ function SearchPage() {
                             opacity: posterLoading ? 0.7 : 1,
                           }}
                         >
-                          {posterLoading ? 'Generating...' : 'Generate Poster'}
+                          {posterLoading ? 'Generating...' : posterHtml ? 'View Poster' : 'Generate Poster'}
                         </button>
                       </div>
                     </div>
@@ -1263,11 +1324,19 @@ function SearchPage() {
       )}
 
       {/* Poster Viewer Modal */}
-      {posterHtml && (
-        <div className="poster-modal-overlay" onClick={() => setPosterHtml(null)}>
-          <div className="poster-modal" onClick={(e) => e.stopPropagation()}>
+      {posterOpen && posterHtml && (
+        <div className="poster-modal-overlay" onClick={closePoster}>
+          <div
+            ref={posterModalRef}
+            className="poster-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="poster-modal-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="poster-modal-header">
-              <span className="poster-modal-title">Conference Poster</span>
+              <span className="poster-modal-title" id="poster-modal-title">Conference Poster</span>
               <div className="poster-modal-actions">
                 <button
                   className="poster-modal-btn"
@@ -1284,7 +1353,7 @@ function SearchPage() {
                 >
                   Download
                 </button>
-                <button className="poster-modal-close" onClick={() => setPosterHtml(null)}>
+                <button className="poster-modal-close" aria-label="Close poster" onClick={closePoster}>
                   ✕
                 </button>
               </div>

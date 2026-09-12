@@ -10,6 +10,16 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 
+# 참고문헌 한 항목임을 가르는 최소 신호: 서지 연도. "(2020)"도 ", 2021."도 잡는다.
+_REFERENCE_YEAR_RE = re.compile(r'\b(?:19|20)\d{2}\b')
+
+# 필드 heading의 실제 형태는 두 가지다: 굵은 글씨 단독(`**필드**`, `**필드**:`)과
+# `#### 필드` 수준의 소제목. 불릿 항목("- **...**: 내용")이나 산문 한 줄에 필드
+# 키워드가 들어 있다고 heading으로 보면, 그 줄이 통째로 버려지고 뒤따르는 내용이
+# 엉뚱한 필드로 들어간다. heading 모양이 아니면 본문으로 흘려보낸다.
+_FIELD_HEADING_RE = re.compile(r'^(?:\*\*[^*]+\*\*[:：]?|#{3,6}\s+\S.*)$')
+
+
 @dataclass
 class ExtractedContent:
     """추출된 콘텐츠 구조"""
@@ -79,14 +89,17 @@ class PosterContentAgent:
             'flowchart': ['algorithm', 'method', 'steps', 'procedure', '알고리즘', '방법', '절차']
         }
 
-    def extract(self, report_content: str, num_papers: int = 0, figures: List[Dict] = None) -> ExtractedContent:
+    def extract(self, report_content: str, num_papers: int = 0, figures: List[Dict] = None,
+                verified_papers: int = 0) -> ExtractedContent:
         """
         리포트에서 구조화된 콘텐츠 추출
 
         Args:
             report_content: 마크다운 형식의 리포트
-            num_papers: 분석된 논문 수
+            num_papers: 호출자가 말한 논문 수. direct 경로에서는 클라이언트 입력이라
+                리포트 내용과 무관한 값이 들어올 수 있다.
             figures: 논문에서 추출한 삽도 데이터 리스트 (옵션)
+            verified_papers: 서버가 실제로 적재한 논문 수. 0이면 검증된 수가 없다는 뜻.
 
         Returns:
             ExtractedContent: 구조화된 콘텐츠
@@ -104,7 +117,7 @@ class PosterContentAgent:
         key_findings = self._extract_list_items(lines, ['핵심 발견', '주요 발견', 'Key Finding', 'Finding'])
         conclusion = self._extract_section(lines, ['결론', 'Conclusion', '종합', '시사점'])
         keywords = self._extract_keywords(report_content)
-        statistics = self._extract_statistics(report_content, num_papers)
+        statistics = self._extract_statistics(report_content, num_papers, verified_papers)
 
         # 참고문헌 추출
         references = self._extract_references(report_content)
@@ -112,9 +125,8 @@ class PosterContentAgent:
         # 논문별 핵심 구조 추출
         paper_analyses = self._extract_paper_analyses(report_content)
 
-        # 결론이 폴백이고 key_findings가 있으면 자동 결론 생성
-        _fallback_conclusion = "본 분석을 통해 해당 분야의 연구 동향을 파악하고"
-        if (not conclusion or _fallback_conclusion in conclusion) and key_findings:
+        # 결론 추출이 실패했고 key_findings가 있으면 발견에서 결론을 합성한다.
+        if not conclusion and key_findings:
             conclusion = "본 체계적 문헌 고찰의 주요 결론: " + "; ".join(
                 f.strip().rstrip('.') for f in key_findings[:5]
             ) + "."
@@ -222,15 +234,6 @@ class PosterContentAgent:
             if stripped:
                 content += stripped + " "
 
-        # 기본값 제공
-        if not content:
-            if '초록' in keywords or 'Abstract' in keywords:
-                content = "본 연구는 선정된 논문들을 체계적으로 분석하여 해당 분야의 연구 동향과 핵심 기여를 파악합니다."
-            elif '배경' in keywords or 'Motivation' in keywords:
-                content = "기존 연구의 한계를 분석하고, 새로운 접근법의 필요성을 파악하기 위해 체계적인 문헌 고찰을 수행하였습니다."
-            elif '결론' in keywords or 'Conclusion' in keywords:
-                content = "본 분석을 통해 해당 분야의 연구 동향을 파악하고, 향후 연구 방향에 대한 통찰을 얻었습니다."
-
         return content[:max_length].strip()
 
     def _extract_list_items(self, lines: List[str], keywords: List[str]) -> List[str]:
@@ -253,22 +256,6 @@ class PosterContentAgent:
                 item = re.sub(r'^\s*[•\-*]+\s*|\s*\d+[.)]\s*', '', line).strip()
                 if item and len(item) > 5:
                     items.append(item[:250])
-
-        # 기본값
-        if not items:
-            if '기여' in keywords or 'Contribution' in keywords:
-                items = [
-                    "선정 논문들의 방법론적 특징 분석",
-                    "연구 동향 및 패턴 식별",
-                    "향후 연구 방향 도출"
-                ]
-            elif '발견' in keywords or 'Finding' in keywords:
-                items = [
-                    "방법론적 다양성 확인",
-                    "공통 연구 트렌드 발견",
-                    "성능 개선 패턴 식별",
-                    "연구 공백 파악"
-                ]
 
         return items[:8]
 
@@ -316,13 +303,16 @@ class PosterContentAgent:
 
         return top_keywords[:10]
 
-    def _extract_statistics(self, content: str, num_papers: int) -> Dict[str, Any]:
+    def _extract_statistics(self, content: str, num_papers: int,
+                            verified_papers: int = 0) -> Dict[str, Any]:
         """통계 데이터 추출"""
         # 숫자 패턴 찾기
         numbers = re.findall(r'\b\d+(?:\.\d+)?%?\b', content)
 
         return {
             'total_papers': num_papers,
+            # 호출자 주장(total_papers)과 서버가 확인한 수를 분리해 둔다.
+            'verified_papers': verified_papers,
             'content_length': len(content),
             'sections_found': content.count('##'),
             'numeric_data': numbers[:5] if numbers else []
@@ -367,6 +357,15 @@ class PosterContentAgent:
         current_field = None
         current_text: List[str] = []
 
+        def flush_field(paper, field, text):
+            """수집한 텍스트를 필드에 누적한다 (같은 필드 재감지 시 유실 방지)."""
+            if not (paper and field and text):
+                return
+            value = ' '.join(text).strip()
+            if not value:
+                return
+            paper[field] = f"{paper[field]} {value}".strip() if paper[field] else value
+
         # ### N.M 패턴 (N=아무 숫자) 또는 ### 논문 N
         _paper_header = re.compile(r'^###\s+(\d+\.\d+)\s+')
         _paper_header_alt = re.compile(r'^###\s+논문\s*\d+')
@@ -376,11 +375,12 @@ class PosterContentAgent:
             is_paper_header = bool(m) or bool(_paper_header_alt.match(line))
 
             if line.startswith('### ') and is_paper_header:
-                # 이전 논문 저장
-                if current_paper and self._has_paper_data(current_paper):
-                    if current_field and current_text:
-                        current_paper[current_field] = ' '.join(current_text).strip()
-                    analyses.append(current_paper)
+                # 이전 논문 저장. 마지막 필드는 flush 전까지 current_text에만 있으므로
+                # flush보다 먼저 판정하면 키 필드가 마지막인 논문이 통째로 사라진다.
+                if current_paper:
+                    flush_field(current_paper, current_field, current_text)
+                    if self._has_paper_data(current_paper):
+                        analyses.append(current_paper)
 
                 title = line.replace('###', '').strip()
                 title = re.sub(r'^\d+\.\d+\s+', '', title)
@@ -402,8 +402,7 @@ class PosterContentAgent:
             stripped = line.strip()
             new_field = self._detect_paper_field(stripped)
             if new_field:
-                if current_field and current_text:
-                    current_paper[current_field] = ' '.join(current_text).strip()
+                flush_field(current_paper, current_field, current_text)
                 current_field = new_field
                 current_text = []
                 continue
@@ -411,20 +410,28 @@ class PosterContentAgent:
             if current_field and stripped:
                 current_text.append(stripped)
 
-        # 마지막 논문 저장
-        if current_paper and self._has_paper_data(current_paper):
-            if current_field and current_text:
-                current_paper[current_field] = ' '.join(current_text).strip()
-            analyses.append(current_paper)
+        # 마지막 논문 저장 (위와 같은 이유로 flush가 판정보다 먼저다)
+        if current_paper:
+            flush_field(current_paper, current_field, current_text)
+            if self._has_paper_data(current_paper):
+                analyses.append(current_paper)
 
         return analyses
 
     def _detect_paper_field(self, line: str) -> Optional[str]:
-        """논문 분석의 필드 타입 감지"""
+        """논문 분석의 필드 타입 감지. heading 모양이 아니면 본문으로 본다."""
+        line = line.strip()
+        if not _FIELD_HEADING_RE.match(line):
+            return None
+        # 한국어 복합어는 핵심어가 뒤에 온다: "방법론적 한계"는 한계지만
+        # "한계를 극복한 방법론"은 방법론이다. 포함이 아니라 꼬리 위치로 가른다.
+        head = line.rstrip('*: ').rstrip()
+        if head.endswith(('한계', 'Limitations', 'Limitation')):
+            return 'limitations'
         field_patterns = {
             'methodology': ['핵심 방법론', '방법론', 'Core Method', 'Methodology'],
             'contributions': ['주요 기여', 'Contribution', '핵심 기여'],
-            'results': ['실험 결과', '성능', 'Result', 'Performance', 'Experiment'],
+            'results': ['실험 결과', '주요 결과', '성능', 'Result', 'Performance', 'Experiment'],
             'strengths': ['강점', 'Strength'],
             'limitations': ['한계', 'Limitation', '개선'],
         }
@@ -442,8 +449,14 @@ class PosterContentAgent:
         )
 
     def _extract_references(self, report_content: str) -> List[str]:
-        """리포트 하단의 참고문헌 목록을 추출한다."""
-        refs: List[str] = []
+        """리포트 하단의 참고문헌 목록을 추출한다.
+
+        참고문헌 섹션에는 서지 표, 안내 산문, AI 생성 고지가 함께 들어오므로
+        줄 단위로 전부 받으면 한 편을 여러 건으로 세거나 산문을 참고문헌으로
+        계수한다. 표 행을 버리고 줄바꿈된 항목을 이어 붙인 뒤, 연도를 가진
+        줄만 참고문헌으로 인정한다.
+        """
+        candidates: List[str] = []
         lines = report_content.split('\n')
         in_refs = False
 
@@ -457,13 +470,22 @@ class PosterContentAgent:
                 break
             if in_refs:
                 stripped = line.strip()
-                if stripped and re.match(r'^\d+\.?\s', stripped):
-                    # "1. Author..." 형태
-                    ref = re.sub(r'^\d+\.?\s*', '', stripped).strip()
-                    if len(ref) > 10:
-                        refs.append(ref[:200])
+                if not stripped:
+                    continue
+                # 표 행과 구분선은 참고문헌 항목이 아니다.
+                if stripped.startswith('|'):
+                    continue
+                # 소문자나 여는 괄호로 시작하면 앞 항목이 줄바꿈된 것이다.
+                if candidates and re.match(r'^[a-z(]', stripped):
+                    candidates[-1] = f"{candidates[-1]} {stripped}"
+                    continue
+                # 번호("1. Author...")나 불릿("- Author...") 마커를 제거한다.
+                ref = re.sub(r'^(?:[-*•]\s+|\[\d+\]\s*|\d+\.?\s+)', '', stripped).strip()
+                if len(ref) > 10:
+                    candidates.append(ref)
 
-        return refs[:20]
+        # 연도가 없는 줄은 서지 항목이 아니라 안내 산문이나 고지문이다.
+        return [c[:200] for c in candidates if _REFERENCE_YEAR_RE.search(c)][:20]
 
     def _extract_comparison_tables(self, report_content: str) -> List[str]:
         """

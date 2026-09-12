@@ -1412,7 +1412,6 @@ async def generate_poster_visualization(
                 pattern_manager = None
 
             poster_agent = PosterGenerationAgent(
-                model="gemini-2.5-flash-preview-05-20",
                 design_pattern_manager=pattern_manager,
                 enable_critic=True,
                 max_critic_rounds=2,
@@ -1505,7 +1504,6 @@ async def generate_poster_direct(
                 pattern_manager = None
 
             poster_agent = PosterGenerationAgent(
-                model="gemini-2.5-flash-preview-05-20",
                 design_pattern_manager=pattern_manager,
                 enable_critic=True,
                 max_critic_rounds=1,  # 직접 생성은 1라운드로 빠르게

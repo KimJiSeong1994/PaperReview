@@ -65,8 +65,8 @@ class AutoFigureClient:
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         provider: Optional[str] = None,
-        image_model: str = "gemini-2.5-pro-preview-06-05",
-        svg_model: str = "gemini-2.5-pro-preview-06-05",
+        image_model: Optional[str] = None,
+        svg_model: Optional[str] = None,
     ) -> None:
         self.base_url: str = (
             base_url
@@ -88,8 +88,16 @@ class AutoFigureClient:
             or "gemini"
         )
 
-        self.image_model: str = image_model
-        self.svg_model: str = svg_model
+        self.image_model: str = (
+            image_model
+            or os.getenv("AUTOFIGURE_IMAGE_MODEL")
+            or "gemini-2.5-pro-preview-06-05"
+        )
+        self.svg_model: str = (
+            svg_model
+            or os.getenv("AUTOFIGURE_SVG_MODEL")
+            or "gemini-2.5-pro-preview-06-05"
+        )
 
         # 헬스체크 캐시
         self._health_cache: Optional[bool] = None
