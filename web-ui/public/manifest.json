@@ -2,6 +2,7 @@
   "id": "/",
   "name": "Jiphyeonjeon",
   "short_name": "Jiphyeonjeon",
+  "description": "집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f0f",
@@ -9,5 +10,9 @@
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/Jiphyeonjeon_llama.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "screenshots": [
+    { "src": "/screenshot-home.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "논문 검색 화면" },
+    { "src": "/screenshot-introduce.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "검색부터 근거 확인까지의 흐름 소개" }
   ]
 }
