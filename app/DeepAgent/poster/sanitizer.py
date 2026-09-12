@@ -40,18 +40,20 @@ _SAFE_IMAGE_DATA_RE = re.compile(
     r"^data:image/(?:png|jpeg|jpg|gif|webp);base64,[a-z0-9+/=\s]+$",
     re.IGNORECASE,
 )
-_CSS_URL_RE = re.compile(r"url\(\s*(['\"]?)(.*?)\1\s*\)", re.IGNORECASE | re.DOTALL)
-_CSS_IMPORT_RE = re.compile(r"@import\b[^;]*;?", re.IGNORECASE)
-_CSS_ACTIVE_RE = re.compile(
-    r"expression\s*\(|-moz-binding\s*:|behavior\s*:",
+_CSS_IMPORT_RE = re.compile(r"@import\b", re.IGNORECASE)
+_CSS_IMAGE_SET_RE = re.compile(
+    r"(?<![-\w])(?:-(?:webkit|moz|o|ms)-)?image-set\s*\(",
+    re.IGNORECASE,
+)
+_CSS_EXPRESSION_RE = re.compile(r"(?<![-\w])expression\s*\(", re.IGNORECASE)
+# scroll-behavior and overscroll-behavior are ordinary layout properties, so the
+# lookbehind keeps them out of the active-content rule.
+_CSS_ACTIVE_DECL_RE = re.compile(
+    r"(?<![-\w])(?:-moz-binding|behavior)\s*:",
     re.IGNORECASE,
 )
 _CSS_ESCAPE_RE = re.compile(r"\\([0-9a-fA-F]{1,6}\s?|.)", re.DOTALL)
-_CSS_NETWORK_CAPABLE_RE = re.compile(
-    r"@import\b|(?:-webkit-)?image-set\s*\(|url\s*\(|expression\s*\(|"
-    r"-moz-binding\s*:|behavior\s*:",
-    re.IGNORECASE | re.DOTALL,
-)
+_CSS_SANITIZE_PASSES = 5
 _URL_FUNC_RE = re.compile(r"u\s*r\s*l\s*\(", re.IGNORECASE)
 _LOCAL_URL_FUNC_RE = re.compile(
     r"^\s*u\s*r\s*l\s*\(\s*(['\"]?)#[A-Za-z_][\w:.-]*\1\s*\)\s*$",
@@ -95,17 +97,177 @@ def _decode_basic_css_escapes(css: str) -> str:
     return previous
 
 
+def _skip_css_comment(css: str, start: int) -> int:
+    """Return the index just past the ``/* ... */`` comment opening at ``start``."""
+    end = css.find("*/", start + 2)
+    return len(css) if end < 0 else end + 2
+
+
+def _skip_css_string(css: str, start: int) -> int:
+    """Return the index just past the string literal opening at ``start``.
+
+    A raw newline ends the token, matching the CSS bad-string rule. Running past
+    it would let an unterminated string hide a url() the browser still parses.
+    """
+    quote = css[start]
+    i = start + 1
+    while i < len(css):
+        ch = css[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == quote:
+            return i + 1
+        if ch in "\n\r\f":
+            return i
+        i += 1
+    return len(css)
+
+
+def _read_css_function_body(css: str, start: int) -> tuple[str, int, bool]:
+    """Read a function body that starts just past its ``(``.
+
+    Returns the body, the index just past the closing ``)``, and whether it
+    actually closed. An unclosed body is consumed to the end of the input so a
+    truncated function can never leave its arguments behind as live CSS.
+    """
+    depth = 1
+    i = start
+    while i < len(css):
+        ch = css[i]
+        if ch == "/" and css.startswith("/*", i):
+            i = _skip_css_comment(css, i)
+            continue
+        if ch in "\"'":
+            i = _skip_css_string(css, i)
+            continue
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return css[start:i], i + 1, True
+        i += 1
+    return css[start:], len(css), False
+
+
+def _skip_css_statement(css: str, start: int) -> int:
+    """Return the index just past the declaration or at-rule starting at ``start``.
+
+    Stops after a top-level ``;``, after a block-form at-rule's ``}``, or at the
+    ``}`` that closes the enclosing rule -- which is left in place so removing a
+    declaration cannot unbalance the stylesheet around it.
+    """
+    depth = 0
+    i = start
+    while i < len(css):
+        ch = css[i]
+        if ch == "/" and css.startswith("/*", i):
+            i = _skip_css_comment(css, i)
+            continue
+        if ch in "\"'":
+            i = _skip_css_string(css, i)
+            continue
+        if ch in "({":
+            depth += 1
+        elif ch == ")":
+            depth = max(depth - 1, 0)
+        elif ch == "}":
+            if depth == 0:
+                return i
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        elif ch == ";" and depth == 0:
+            return i + 1
+        i += 1
+    return len(css)
+
+
+def _is_safe_css_url(body: str) -> bool:
+    """Judge a url() body exactly the way the attribute path judges one.
+
+    Local fragments are checked with ``_LOCAL_URL_FUNC_RE``, the same predicate
+    behind ``_has_unsafe_url_reference``, so the two paths cannot rule
+    differently on the same string. Inline images are checked with
+    ``_SAFE_IMAGE_DATA_RE``, which admits raster types only -- an
+    ``image/svg+xml`` document can carry script, so it stays out.
+    """
+    value = body.strip()
+    if _LOCAL_URL_FUNC_RE.match(f"url({value})"):
+        return True
+    if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
+        value = value[1:-1]
+    return bool(_SAFE_IMAGE_DATA_RE.match(value.strip()))
+
+
+def _strip_css_threats(css: str) -> str:
+    """Remove network-capable and active constructs, keeping the rest of the CSS.
+
+    Comments and string literals are copied verbatim: to the browser their
+    contents are not url tokens either, so a comment mentioning url() or a
+    ``content:'url('`` literal must not cost the page its stylesheet.
+    """
+    out: list[str] = []
+    i = 0
+    length = len(css)
+    while i < length:
+        ch = css[i]
+        if ch == "/" and css.startswith("/*", i):
+            end = _skip_css_comment(css, i)
+            out.append(css[i:end])
+            i = end
+            continue
+        if ch in "\"'":
+            end = _skip_css_string(css, i)
+            out.append(css[i:end])
+            i = end
+            continue
+        if _CSS_IMPORT_RE.match(css, i) or _CSS_ACTIVE_DECL_RE.match(css, i):
+            # @import cannot be made safe, and -moz-binding/behavior bind script
+            # to an element even from a local fragment -- so the whole statement
+            # goes, not just the keyword that names it.
+            i = _skip_css_statement(css, i)
+            continue
+        call = _CSS_IMAGE_SET_RE.match(css, i) or _CSS_EXPRESSION_RE.match(css, i)
+        if call:
+            # image-set() holds URLs and expression() holds script. Neither has a
+            # safe form worth parsing out, so the call goes whole.
+            _, i, _ = _read_css_function_body(css, call.end())
+            continue
+        call = _URL_FUNC_RE.match(css, i)
+        if call:
+            body, end, closed = _read_css_function_body(css, call.end())
+            if closed and _is_safe_css_url(body):
+                out.append(f"url({body.strip()})")
+            i = end
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def sanitize_css(css: str) -> str:
-    """Drop CSS content that contains network-capable or active primitives."""
-    raw = str(css)
-    decoded = _decode_basic_css_escapes(raw)
-    compact = re.sub(r"\s+", "", decoded)
-    if _CSS_NETWORK_CAPABLE_RE.search(decoded) or _CSS_NETWORK_CAPABLE_RE.search(compact):
-        return ""
-    cleaned = _CSS_IMPORT_RE.sub("", raw)
-    cleaned = _CSS_URL_RE.sub("", cleaned)
-    cleaned = _CSS_ACTIVE_RE.sub("", cleaned)
-    return cleaned
+    """Remove network-capable and active CSS, leaving the stylesheet standing.
+
+    What gets inspected has to be what gets returned. Decoding first and
+    returning the decoded text closes the gap where an escaped ``u\\72 l(``
+    passes the check and the browser turns it back into a fetch; CSS escapes do
+    not change a stylesheet's meaning, so normalizing them loses nothing.
+
+    Removal can splice new tokens together (``ur`` + a dropped call + ``l(evil)``
+    reads as ``url(evil)`` once the call is gone), so decode-and-strip repeats
+    until it is a no-op. Neither step can lengthen its input, so that fixpoint
+    proves the returned text is unchanged by both. Input that keeps changing
+    past the pass limit is fighting the sanitizer, and its stylesheet is dropped.
+    """
+    current = str(css)
+    for _ in range(_CSS_SANITIZE_PASSES):
+        stripped = _strip_css_threats(_decode_basic_css_escapes(current))
+        if stripped == current:
+            return current
+        current = stripped
+    return ""
 
 
 def sanitize_poster_markup(markup: str) -> str:
@@ -215,6 +377,14 @@ class _PosterSanitizer(HTMLParser):
         attr_text = self._format_attrs(_safe_attrs(attrs, lower))
         out_tag = _CANONICAL_TAG_NAMES.get(lower, tag)
         self._parts.append(f"<{out_tag}{attr_text}>")
+        if lower not in VOID_TAGS:
+            # HTMLParser routes <style/> here without entering CDATA mode, while
+            # a browser reads it as an ordinary start tag. Emitting the open tag
+            # alone would hand the browser a stylesheet made of every byte that
+            # follows -- bytes this parser never passed to sanitize_css. Closing
+            # the element is what keeps what was inspected and what is emitted
+            # the same document; <title/> would swallow the poster the same way.
+            self._parts.append(f"</{out_tag}>")
 
     def handle_endtag(self, tag: str) -> None:
         lower = tag.lower()
