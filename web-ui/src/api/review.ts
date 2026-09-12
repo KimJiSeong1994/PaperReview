@@ -294,3 +294,53 @@ export const generatePosterDirect = async (
   );
   return response.data;
 };
+
+export interface PosterPdfDownload {
+  blob: Blob;
+  filename: string;
+}
+
+/** Server names the file after the HTML it rendered; fall back if the header is unreadable. */
+const posterPdfFilename = (disposition: unknown): string => {
+  const match = typeof disposition === 'string'
+    ? /filename="?([^";]+)"?/i.exec(disposition)
+    : null;
+  return match?.[1]?.trim() || 'poster.pdf';
+};
+
+/**
+ * responseType 'blob' turns the JSON error envelope into a Blob as well, and
+ * classifyPosterError reads that envelope as an object. Parse it back in place
+ * so this endpoint keeps using the one poster error classification.
+ */
+const revivePosterErrorBody = async (error: unknown): Promise<unknown> => {
+  if (!isPosterHttpError(error)) return error;
+  const response = error.response as { data?: unknown } | undefined;
+  if (!(response?.data instanceof Blob)) return error;
+  try {
+    response.data = JSON.parse(await response.data.text());
+  } catch {
+    // Not JSON (a proxy's error page, say) — classifyPosterError falls back to error.message.
+    response.data = undefined;
+  }
+  return error;
+};
+
+export const downloadPosterPdf = async (
+  posterHtml: string,
+  signal?: AbortSignal,
+): Promise<PosterPdfDownload> => {
+  try {
+    const response = await api.post(
+      '/api/deep-review/poster-pdf',
+      { poster_html: posterHtml },
+      { responseType: 'blob', timeout: 300_000, signal },
+    );
+    return {
+      blob: response.data as Blob,
+      filename: posterPdfFilename(response.headers?.['content-disposition']),
+    };
+  } catch (err) {
+    throw await revivePosterErrorBody(err);
+  }
+};

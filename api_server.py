@@ -234,6 +234,7 @@ def _is_poster_rate_limited_path(path: str) -> bool:
     return (
         path.startswith("/api/deep-review/visualize/")
         or path == "/api/deep-review/visualize-direct"
+        or path == "/api/deep-review/poster-pdf"
         or path == "/api/autofigure/generate-poster-figures"
     )
 
@@ -278,6 +279,11 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+    # 포스터 PDF 다운로드가 서버가 정한 파일명을 쓰려면 필요하다. safelist에
+    # 없는 헤더라 노출하지 않으면 교차 출처에서 조용히 'poster.pdf'로 폴백한다.
+    # X-Poster-Html-Sha256은 응답에 계속 실리지만 읽는 브라우저 코드가 없어
+    # 노출 목록에는 넣지 않는다 (같은 값의 앞 12자가 파일명에 들어 있다).
+    expose_headers=["Content-Disposition"],
 )
 
 

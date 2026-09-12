@@ -26,6 +26,12 @@ jobs:
           pip install ruff
           pip install -r requirements.txt
 
+      # The poster PDF tests skip themselves when no browser is installed, so
+      # without this every claim the feature rests on — scripting disabled in
+      # the render context, no egress, A3 geometry — passes CI by not running.
+      - name: Install Chromium for Playwright
+        run: playwright install --with-deps chromium
+
       - name: Lint with ruff
         run: ruff check .
 

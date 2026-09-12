@@ -21,6 +21,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Poster PDF export: Chromium + its shared libs, plus CJK fonts so Korean
+# poster text renders instead of falling back to tofu boxes.
+# --with-deps needs root for apt, so the install stays here; the browsers go to
+# a shared path instead of /root/.cache so the non-root runtime user below can
+# still find them. Getting this order wrong fails only at runtime.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install --with-deps chromium \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/* \
+    && chmod -R a+rX /ms-playwright
+
 # Copy backend source
 COPY api_server.py ./
 COPY routers/ ./routers/
@@ -32,6 +44,12 @@ COPY --from=frontend-builder /app/web-ui/dist ./web-ui/dist
 
 # Create data directories
 RUN mkdir -p data/raw data/graph data/embeddings data/cache data/workspace data/light_rag
+
+# Chromium parses client-supplied HTML, so it runs with its sandbox on
+# (chromium_sandbox=True in poster_exporter). That sandbox refuses to start as
+# root, so these two are one pair — dropping this USER silently disarms it.
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Expose port
 EXPOSE 8000

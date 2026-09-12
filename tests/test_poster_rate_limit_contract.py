@@ -145,6 +145,20 @@ async def test_poster_visualize_direct_rate_limit_uses_v2_error_detail(app) -> N
 
 
 @pytest.mark.asyncio
+async def test_poster_pdf_rate_limit_uses_v2_error_detail(app) -> None:
+    response = await _invoke_rate_limit_handler(app, "/api/deep-review/poster-pdf")
+    body = json.loads(response.body)
+
+    assert response.status_code == 429
+    assert body["detail"]["error_code"] == CODE_RATE_LIMITED
+    assert body["detail"]["status"] == "failed"
+    assert body["detail"]["poster_status"] == "failed"
+    assert body["detail"]["success"] is False
+    assert body["detail"]["retryable"] is True
+    assert body["detail"]["generation_id"].startswith("poster_")
+
+
+@pytest.mark.asyncio
 async def test_non_poster_rate_limit_keeps_generic_handler_shape(app) -> None:
     response = await _invoke_rate_limit_handler(app, "/api/search")
     body = json.loads(response.body)

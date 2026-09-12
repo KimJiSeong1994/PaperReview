@@ -19,6 +19,9 @@ CODE_INPUT_INVALID = "poster_input_invalid"
 CODE_GENERATION_FAILED = "poster_generation_failed"
 CODE_EMPTY_HTML = "poster_empty_html"
 CODE_FALLBACK_USED = "poster_fallback_used"
+CODE_PDF_UNAVAILABLE = "poster_pdf_unavailable"
+CODE_PDF_RENDER_FAILED = "poster_pdf_render_failed"
+CODE_PDF_GEOMETRY_INVALID = "poster_pdf_geometry_invalid"
 
 
 @dataclass
