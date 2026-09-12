@@ -82,15 +82,26 @@ function SearchPage() {
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterWarning, setPosterWarning] = useState<string | null>(null);
   // logout() clears tokens and navigates to '/', but a SearchPage already
-  // mounted there is never unmounted — so the poster HTML, which now outlives
-  // its modal, would otherwise be inherited by whoever logs in next on this
-  // device. Reset during render (React's documented pattern) rather than in an
-  // effect, so a stale poster is never painted for the new user.
+  // mounted there is never unmounted, so everything a session produced would be
+  // inherited by whoever logs in next on this device. Reset during render
+  // (React's documented pattern) rather than in an effect, so nothing stale is
+  // ever painted for the new user.
+  //
+  // All three de-auth paths funnel through setIsAuthenticated(false) — the
+  // logout button, the auth:logout event an interceptor fires on an expired
+  // token, and a failed token check at startup — so this one block covers them.
+  // Trade-off: an expired token therefore also discards the report, and logging
+  // back in as the same user does not bring it back. That is deliberate; a
+  // server-derived report should not outlive the session it came from.
   const [prevAuthenticated, setPrevAuthenticated] = useState(isAuthenticated);
   if (prevAuthenticated !== isAuthenticated) {
     setPrevAuthenticated(isAuthenticated);
     setPosterHtml(null);
     setPosterOpen(false);
+    resetReview();
+    setShowReport(false);
+    setSelectedPapersForReview(new Set());
+    setBookmarkSaved(false);
   }
 
   // Query guidance (non-academic query feedback)
