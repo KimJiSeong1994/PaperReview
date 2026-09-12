@@ -9,10 +9,10 @@
   "theme_color": "#0f0f0f",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/Jiphyeonjeon_llama.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ],
   "screenshots": [
-    { "src": "/screenshot-home.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "논문 검색 화면" },
-    { "src": "/screenshot-introduce.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "검색부터 근거 확인까지의 흐름 소개" }
+    { "src": "/screenshot-home.png", "sizes": "1600x720", "type": "image/png", "form_factor": "wide", "label": "논문 검색 화면" },
+    { "src": "/screenshot-introduce.png", "sizes": "1600x720", "type": "image/png", "form_factor": "wide", "label": "검색부터 근거 확인까지의 흐름 소개" }
   ]
 }
