@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "집현전 — AI 논문 검색·리뷰",
-  "short_name": "집현전",
+  "name": "Jiphyeonjeon",
+  "short_name": "Jiphyeonjeon",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f0f",
