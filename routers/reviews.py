@@ -29,6 +29,7 @@ from app.DeepAgent.skillopt_policy import (
 from app.DeepAgent.poster import (
     PosterApplicationService,
     PosterServiceError,
+    inject_poster_csp,
     sanitize_poster_markup,
 )
 from app.DeepAgent.poster.resource_policy import (
@@ -1593,6 +1594,10 @@ async def export_poster_pdf(
         )
         raise HTTPException(status_code=error.status_code, detail=public_error_detail(error))
 
+    # 클라이언트가 돌려보낸 HTML은 여기서 다시 sanitize되고, 그때 전달받았던
+    # http-equiv가 떨어져 나간다. 다시 심지 않으면 PDF 경로만 정책 없이
+    # 렌더되고, 아래 해시도 미리보기가 보고한 artifacts.html_sha256과 갈린다.
+    sanitized = inject_poster_csp(sanitized)
     html_sha256 = hashlib.sha256(sanitized.encode("utf-8")).hexdigest()
     deadline = time.monotonic() + POSTER_PDF_TIMEOUT_SECONDS
 

@@ -278,6 +278,117 @@ def sanitize_poster_markup(markup: str) -> str:
     return parser.output()
 
 
+# 정책은 렌더된 포스터 29건을 sanitize한 뒤 실측해서 뽑았다: 인라인 <style>
+# 29/29, style= 속성 23/29, data: <img> 5/29, url()은 전부 지역 조각(#id),
+# 외부 폰트·스타일시트·스크립트는 0건. 그래서 인라인 CSS와 data: 도판만
+# 열고 나머지 이그레스는 전부 닫는다. 목적은 인라인 CSS 금지가 아니라
+# 네트워크 차단이므로 'unsafe-inline'은 정책의 전제다.
+POSTER_CSP_POLICY = (
+    "default-src 'none'; img-src data:; style-src 'unsafe-inline'; "
+    "base-uri 'none'; form-action 'none'"
+)
+_POSTER_CSP_META = (
+    f'<meta http-equiv="Content-Security-Policy" content="{POSTER_CSP_POLICY}">'
+)
+# sanitize는 http-equiv만 떼어내고 <meta content="...">를 남긴다. PDF 내보내기는
+# 클라이언트가 쥔 HTML을 그대로 되돌려 보내므로, 그 잔해를 먼저 걷어내지 않으면
+# 왕복마다 하나씩 쌓이고 전달 바이트 해시가 미리보기와 갈린다.
+_CSP_META_RE = re.compile(r"<meta\b[^>]*default-src[^>]*>", re.IGNORECASE)
+
+
+class _DocumentAnchors(HTMLParser):
+    """meta CSP를 document.head 안에 넣으려면 어디를 잘라야 하는지 찾는다.
+
+    정규식으로는 못 한다. ``<head[^>]*>``는 ``<header>``에도 매치되고, 같은
+    글자가 주석 안에 있는 경우를 구분하지 못한다. 둘 다 meta를 head 밖에
+    떨어뜨리고, 브라우저는 head 밖의 CSP를 무시한다 -- 주석 쪽은 경고조차
+    없다. HTMLParser는 주석을 handle_comment로 따로 넘기고 태그 이름을 정확히
+    주므로 두 경우 모두 구조적으로 생기지 않는다.
+
+    body가 열린 뒤에 나오는 ``<head>``는 앵커로 쓰지 않는다. 브라우저는 그
+    시점의 ``<head>`` 태그를 버리므로, 거기에 넣은 meta도 body에 남는다.
+    """
+
+    def __init__(self, html: str) -> None:
+        super().__init__(convert_charrefs=False)
+        self._line_starts = [0] + [
+            index + 1 for index, char in enumerate(html) if char == "\n"
+        ]
+        self.head_end: int | None = None
+        self.html_end: int | None = None
+        self.doctype_end: int | None = None
+        self._body_open = False
+        self.feed(html)
+        self.close()
+
+    def _offset(self) -> int:
+        line, column = self.getpos()
+        return self._line_starts[line - 1] + column
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        end = self._offset() + len(self.get_starttag_text() or "")
+        if tag == "head":
+            if self.head_end is None and not self._body_open:
+                self.head_end = end
+            self._body_open = True
+        elif tag == "html":
+            if self.html_end is None and not self._body_open:
+                self.html_end = end
+        else:
+            self._body_open = True
+
+    def handle_decl(self, decl: str) -> None:
+        if self.doctype_end is None and decl.upper().startswith("DOCTYPE"):
+            # handle_decl은 <! 와 > 사이만 넘겨준다.
+            self.doctype_end = self._offset() + len(decl) + 3
+
+    def handle_data(self, data: str) -> None:
+        # BOM은 브라우저가 파싱 전에 걷어내므로 body를 열지 않는다. Python의
+        # strip()은 이것을 공백으로 보지 않아서, 직접 빼주지 않으면 문서 맨 앞의
+        # BOM 하나가 <html>을 "body가 열린 뒤의 태그"로 만들어 앵커를 DOCTYPE
+        # 뒤로 밀어낸다 -- <head>가 <html>보다 앞에 놓이는 비정상 출력이 된다.
+        if data.strip("﻿").strip():
+            self._body_open = True
+
+    def handle_entityref(self, name: str) -> None:
+        self._body_open = True
+
+    def handle_charref(self, name: str) -> None:
+        self._body_open = True
+
+
+def inject_poster_csp(html: str) -> str:
+    """전달되는 포스터 문서에 고정 CSP <meta>를 심는다.
+
+    sanitize 이후에만 부른다. sanitizer가 입력의 http-equiv를 지우는 것은
+    공격자가 정책을 심거나 무력화하지 못하게 하는 장치이므로, 순서가 뒤집히면
+    우리 정책도 함께 사라진다. 반대로 sanitize 다음에 붙이면 문서에 남는
+    CSP는 이 고정 리터럴 하나뿐이다.
+
+    meta CSP는 ``document.head`` 안에 있을 때만 적용되므로, ``<head>``가 없으면
+    브라우저가 만들어 줄 암묵 head에 기대지 않고 직접 만든다 -- ``<header>``나
+    다른 body 콘텐츠가 먼저 나오는 순간 파서가 meta를 body로 밀어내고, 정책은
+    조용히 무시된다. poster_agent가 조각을 감싸는 경로가 정확히 그 형태다.
+
+    빈 문서는 그대로 돌려준다. 주입이 내용을 만들어내면 렌더할 것이 없는
+    실패가 호출자에게 성공으로 보인다.
+    """
+    if not html.strip():
+        return html
+    html = _CSP_META_RE.sub("", html)
+    anchors = _DocumentAnchors(html)
+    if anchors.head_end is not None:
+        return html[: anchors.head_end] + _POSTER_CSP_META + html[anchors.head_end :]
+    # <html> 다음, 없으면 DOCTYPE 다음, 그것도 없으면 맨 앞. 어느 쪽이든
+    # 여는 <head>가 문서의 첫 요소가 되므로 meta는 head의 첫 자식이 된다.
+    position = anchors.html_end
+    if position is None:
+        position = anchors.doctype_end if anchors.doctype_end is not None else 0
+    return (
+        html[:position] + f"<head>{_POSTER_CSP_META}</head>" + html[position:]
+    )
+
+
 def _is_safe_url(value: str, attr_name: str, tag: str) -> bool:
     if attr_name in _ALWAYS_STRIP_URL_ATTRS:
         return False

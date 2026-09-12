@@ -5,9 +5,16 @@ from __future__ import annotations
 import hashlib
 import re
 
+import pytest
+
 from app.DeepAgent.agents.poster_agent import PosterGenerationAgent
 from app.DeepAgent.agents.poster_composition_agent import PosterCompositionAgent
-from app.DeepAgent.poster.sanitizer import sanitize_css, sanitize_poster_markup
+from app.DeepAgent.poster.sanitizer import (
+    inject_poster_csp,
+    sanitize_css,
+    sanitize_poster_markup,
+)
+from tests.test_poster_browser_security import _POSTER_SHAPES
 
 # Every stylesheet below carries this declaration so each case can assert both
 # halves of the contract: the dangerous part is gone AND the stylesheet is still
@@ -340,7 +347,8 @@ def test_agent_supplied_quality_keys_outside_the_allowlist_never_reach_the_respo
     """F4: quality is deny-by-default, like provenance."""
     from app.DeepAgent.poster.service import PosterApplicationService
 
-    scored_html = "<main>safe</main>"
+    # 생산자는 배달되는 바이트를 채점한다 -- CSP까지 심은 뒤의 바이트다.
+    scored_html = inject_poster_csp("<main>safe</main>")
     result = PosterApplicationService()._normalize_result(
         {
             "success": True,
@@ -575,3 +583,197 @@ def test_self_closing_svg_shapes_still_render() -> None:
     assert '<circle r="2"></circle>' in sanitized
     # Void elements must not grow a closing tag.
     assert "</img>" not in sanitize_poster_markup('<img src="data:image/png;base64,AAAA"/>')
+
+
+# --- Delivered-document CSP -------------------------------------------------
+#
+# sandbox="" stops scripts but not CSS fetches, and the app serves no CSP
+# response header (the SPA is served outside this repo). The poster document
+# therefore carries its own policy, so the next sanitizer hole does not become
+# an egress channel on its own.
+
+_CSP_META_RE = re.compile(r"<meta[^>]*Content-Security-Policy[^>]*>", re.IGNORECASE)
+_POSTER_DOC = (
+    "<!DOCTYPE html><html><head><title>P</title></head>"
+    "<body><h1>Poster</h1></body></html>"
+)
+
+
+def _delivered(poster_html: str) -> str:
+    """The exact poster bytes a caller receives from the generation route."""
+    from app.DeepAgent.poster.service import PosterApplicationService
+
+    return PosterApplicationService()._normalize_result(
+        {"success": True, "poster_html": poster_html},
+        generation_id="poster_test",
+        session_id="session-1",
+        timings={"total_ms": 1.0},
+        provenance={"route": "direct"},
+    )["poster_html"]
+
+
+def test_a_delivered_poster_declares_its_csp_first_inside_the_head() -> None:
+    """A meta CSP only applies from inside <head>, ahead of what it governs."""
+    delivered = _delivered(_POSTER_DOC)
+
+    assert re.search(
+        r'<head[^>]*><meta http-equiv="Content-Security-Policy"', delivered
+    ), delivered
+
+
+def test_the_poster_csp_allows_inline_css_and_data_figures_and_no_network() -> None:
+    """Derived from 29 rendered posters, measured after sanitization:
+    inline <style> 29/29, style= 23/29, data: <img> 5/29, url() local
+    fragments only, and zero fonts, links or scripts left to fetch.
+    """
+    delivered = _delivered(_POSTER_DOC)
+    policy = _CSP_META_RE.search(delivered).group(0)
+
+    assert "default-src 'none'" in policy
+    assert "style-src 'unsafe-inline'" in policy
+    assert "img-src data:" in policy
+    assert "base-uri 'none'" in policy
+    assert "form-action 'none'" in policy
+
+
+def test_an_attacker_supplied_csp_never_reaches_the_delivered_poster() -> None:
+    """The sanitizer drops http-equiv, so injecting afterwards leaves exactly
+    one policy in the document -- ours. A poster that arrives with its own
+    permissive policy must not weaken or duplicate it.
+    """
+    delivered = _delivered(
+        "<!DOCTYPE html><html><head>"
+        '<meta http-equiv="Content-Security-Policy" content="default-src *">'
+        "</head><body><h1>Poster</h1></body></html>"
+    )
+
+    assert "default-src *" not in delivered
+    assert len(_CSP_META_RE.findall(delivered)) == 1
+
+
+def test_a_poster_without_a_head_gets_one_after_its_doctype() -> None:
+    """A poster with no <head> needs one built for it. Relying on the implied
+    head puts the meta wherever the parser ends up -- in <body>, if any content
+    precedes it -- and a policy outside <head> is ignored. The DOCTYPE still
+    has to come first or the page renders in quirks mode and loses A3.
+    """
+    delivered = _delivered("<!DOCTYPE html><body><h1>Poster</h1></body>")
+
+    assert delivered.startswith('<!DOCTYPE html><head><meta http-equiv="Content-Sec')
+    assert delivered.count("<head>") == 1
+
+
+def test_the_poster_agent_wrap_shape_puts_the_csp_in_a_head_of_its_own() -> None:
+    """poster_agent.py:1024 wraps a fragment as DOCTYPE + <html> + <header>…,
+    with no <head> at all -- the structure its own prompt template asks for
+    (poster_agent.py:1416). Anchoring on a <head>-looking string lands the meta
+    inside <header>, where the browser ignores the policy.
+    tests/test_poster_browser_security.py measures that in a real browser; this
+    is the cheap guard next to it.
+    """
+    delivered = _delivered(
+        "<!DOCTYPE html>\n<html lang='ko'>\n<header>Title</header>\n</html>"
+    )
+
+    assert '<html lang="ko"><head><meta http-equiv="Content-Sec' in delivered
+    assert "</head>\n<header>" in delivered
+
+
+def test_a_head_inside_a_comment_is_not_an_injection_point() -> None:
+    """Poster prompts ask for literal comments (EMBED_SVG placeholders), so the
+    text is model-written. A commented-out <head> swallowing the policy is the
+    worst case: no policy, and no console warning either.
+    """
+    delivered = _delivered(
+        "<!DOCTYPE html><!--<head>--><html><head><title>t</title></head>"
+        "<body><h1>Poster</h1></body></html>"
+    )
+
+    assert "<!--<head>-->" in delivered
+    assert '<head><meta http-equiv="Content-Sec' in delivered
+    assert delivered.index("http-equiv") > delivered.index("<!--<head>-->") + len(
+        "<!--<head>-->"
+    )
+
+
+def test_csp_injection_never_gives_an_empty_poster_something_to_render() -> None:
+    """An injected literal must not make a failed generation look succeeded."""
+    from app.DeepAgent.poster.service import PosterApplicationService
+
+    result = PosterApplicationService()._normalize_result(
+        {"success": True, "poster_html": "<script>alert(1)</script>"},
+        generation_id="poster_test",
+        session_id="session-1",
+        timings={"total_ms": 1.0},
+        provenance={"route": "direct"},
+    )
+
+    assert result["poster_html"] == ""
+    assert result["poster_status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_a_pdf_round_trip_renders_the_bytes_the_preview_received(
+    app, client, auth_headers, monkeypatch
+) -> None:
+    """The PDF route re-sanitizes client-held HTML, which strips the http-equiv
+    it was delivered with. Without a second injection the PDF -- and only the
+    PDF -- would render with no policy at all, and its source hash would stop
+    matching the artifacts.html_sha256 the preview reported.
+    """
+    delivered = _delivered(_POSTER_DOC)
+    captured: dict[str, str] = {}
+
+    def _fake_render(html: str, *, deadline=None) -> bytes:
+        captured["html"] = html
+        return b"%PDF-1.4 stub"
+
+    monkeypatch.setattr("routers.reviews.render_poster_pdf", _fake_render)
+    # 이 라우트의 3/minute 예산을 나눠 쓰지 않는다 (test_auth의 관례).
+    monkeypatch.setattr(app.state.limiter, "enabled", False)
+
+    response = await client.post(
+        "/api/deep-review/poster-pdf",
+        headers=auth_headers,
+        json={"poster_html": delivered},
+    )
+
+    assert response.status_code == 200
+    assert captured["html"] == delivered
+    assert response.headers["x-poster-html-sha256"] == hashlib.sha256(
+        delivered.encode("utf-8")
+    ).hexdigest()
+
+
+# ``<html>``이 문서 루트인 형태 전부. late-html은 <html>이 body 콘텐츠 뒤에
+# 오는 비정상 형태라 의도적으로 제외하고 아래에서 따로 건다.
+_ROOT_HTML_SHAPES = sorted(set(_POSTER_SHAPES) - {"late-html"})
+
+
+@pytest.mark.parametrize("shape", _ROOT_HTML_SHAPES, ids=_ROOT_HTML_SHAPES)
+def test_the_injected_head_never_precedes_the_documents_own_html_tag(shape) -> None:
+    """A leading BOM must not move the anchor.
+
+    ``str.strip()`` does not treat U+FEFF as whitespace, so a BOM used to count
+    as content that had already opened the body -- which disqualified the real
+    ``<html>`` and pushed the injected ``<head>`` in front of it. The browser
+    hoists that head and still enforces the policy, so it was malformed output
+    rather than a hole, but the anchor must not depend on a BOM either way.
+    """
+    delivered = _delivered(_POSTER_SHAPES[shape])
+    lowered = delivered.lower()
+
+    assert '<head><meta http-equiv="content-sec' in lowered
+    if "<html" in lowered:
+        assert lowered.index("<html") < lowered.index("<head><meta")
+
+
+def test_an_html_tag_that_arrives_after_body_content_is_not_an_anchor() -> None:
+    """The tree builder does not promote an <html> that follows body content,
+    so a <head> placed after it stays in <body> and the policy is ignored --
+    measured at egress 5/5, against 0 when the head goes to the front instead.
+    That is why <html> is an anchor only while nothing has opened the body.
+    """
+    delivered = _delivered("<header>T</header><html><body>x</body></html>")
+
+    assert delivered.startswith('<head><meta http-equiv="Content-Sec')
