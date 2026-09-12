@@ -29,7 +29,7 @@ from .result_contract import (
     normalize_status,
     result_envelope,
 )
-from .sanitizer import sanitize_poster_markup
+from .sanitizer import inject_poster_csp, sanitize_poster_markup
 
 _poster_semaphore = asyncio.Semaphore(POSTER_CONCURRENCY)
 _active_jobs: dict[str, str] = {}
@@ -162,6 +162,10 @@ class PosterApplicationService:
         sanitized = sanitize_poster_markup(html)
         if sanitized != html:
             warnings.append("Poster markup was sanitized before delivery.")
+        # sanitize 다음에만 심을 수 있다 — sanitizer가 입력의 http-equiv를
+        # 지우므로 순서가 뒤집히면 우리 정책도 지워진다. 아래 해시는 이
+        # 주입까지 끝난 최종 전달 바이트를 가리킨다.
+        sanitized = inject_poster_csp(sanitized)
 
         # 점수는 실제로 전달되는 바이트에만 유효하다. sanitize 등으로 바이트가
         # 바뀌었으면 agent가 매긴 점수를 버린다.

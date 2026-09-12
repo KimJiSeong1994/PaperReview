@@ -19,7 +19,7 @@ from uuid import uuid4
 
 from app.DeepAgent.poster.resource_policy import remaining_budget
 from app.DeepAgent.poster.result_contract import CODE_FALLBACK_USED, success_for_status
-from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
+from app.DeepAgent.poster.sanitizer import inject_poster_csp, sanitize_poster_markup
 
 logger = logging.getLogger(__name__)
 
@@ -563,7 +563,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             sanitized_html = sanitize_poster_markup(poster_html)
             if sanitized_html != poster_html:
                 warnings.append("Poster markup was sanitized before saving.")
-            poster_html = sanitized_html
+            # 전달 바이트에는 서버가 심는 CSP도 포함된다. 그것까지 확정한 뒤에
+            # 채점해야 아래 해시가 배달되는 바이트를 가리킨다 — 여기서 빠뜨리면
+            # service가 심는 순간 모든 포스터의 점수가 해시 불일치로 폐기된다.
+            poster_html = inject_poster_csp(sanitized_html)
 
             # 점수는 전달되는 바이트에만 붙인다: 최종 sanitize 이후에 다시 매긴다.
             # round_idx=0 은 rule-based 경로라 API 호출·비용이 없다. 이 점수는
@@ -574,7 +577,10 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             if self.critic_agent:
                 validation_score = self.critic_agent.critique(poster_html, round_idx=0).score
                 evaluator = "rule_based"
-            elif vlm_score is not None and vlm_scored_html == poster_html:
+            # 비교 대상은 sanitize 결과다. 그 뒤에 붙는 것은 서버가 심는 CSP
+            # <meta> 하나뿐이고, head의 비렌더 요소라 VLM이 본 포스터를 바꾸지
+            # 않는다. poster_html과 비교하면 지불한 점수가 매번 폐기된다.
+            elif vlm_score is not None and vlm_scored_html == sanitized_html:
                 # 이미 지불한 VLM 점수가 전달 바이트를 그대로 설명하는 경우에만 쓴다.
                 validation_score = vlm_score
                 evaluator = "vlm"
