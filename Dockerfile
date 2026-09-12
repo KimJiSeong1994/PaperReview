@@ -33,6 +33,21 @@ RUN playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
 
+# Chromium runs with its sandbox on (chromium_sandbox=True in poster_exporter),
+# and a container cannot relax the host's AppArmor block on unprivileged user
+# namespaces — the sandbox CI hit. The SUID helper needs no namespaces: it ships
+# in the full chromium package `playwright install chromium` already fetched,
+# and the headless shell we launch reads CHROME_DEVEL_SANDBOX. Copied to a fixed
+# path because ENV cannot glob over Playwright's revision directory.
+# No fallback on purpose: a missing helper fails the build, not the sandbox.
+RUN set -eux; \
+    helper="$(find /ms-playwright -type f -name chrome_sandbox | head -n1)"; \
+    test -n "$helper"; \
+    cp "$helper" /usr/local/bin/chrome_sandbox; \
+    chown root:root /usr/local/bin/chrome_sandbox; \
+    chmod 4755 /usr/local/bin/chrome_sandbox
+ENV CHROME_DEVEL_SANDBOX=/usr/local/bin/chrome_sandbox
+
 # Copy backend source
 COPY api_server.py ./
 COPY routers/ ./routers/
