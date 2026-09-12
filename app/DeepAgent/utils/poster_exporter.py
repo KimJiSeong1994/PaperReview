@@ -37,9 +37,9 @@ _UNAVAILABLE_MARKERS = (
     "Looks like Playwright was just installed",
 )
 
-# sanitize_css는 CSS에 'url('이 하나라도 있으면 스타일시트 전체를 비운다.
-# url(#gradient) 같은 네트워크 능력 없는 로컬 프래그먼트나 주석 속 단어에도
-# 걸리므로, 클라이언트가 쥔 포스터는 이미 @page를 잃은 채로 도착할 수 있다.
+# @page는 LLM 출력이라 아예 없을 수 있고, sanitize_css도 수렴하지 못한
+# 스타일시트는 fail-closed로 통째로 비운다. 어느 쪽이든 클라이언트가 쥔
+# 포스터는 @page를 잃은 채로 도착할 수 있다.
 _A3_PAGE_FALLBACK = (
     "<style>@page{size:A3 landscape;margin:0}html,body{margin:0}"
     "@media print{html,body{width:420mm;height:297mm;overflow:hidden}}</style>"

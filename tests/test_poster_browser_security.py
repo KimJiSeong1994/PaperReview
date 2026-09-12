@@ -56,6 +56,11 @@ def test_sanitized_poster_is_inert_inside_empty_sandboxed_iframe() -> None:
           <style>
             body { background: url(https://attacker.example/bg.png); }
           </style>
+          <style/>
+          @import url(https://attacker.example/selfclosed-import.css);
+          #safe-poster-text { background: url(https://attacker.example/selfclosed-bg.png); }
+          <!-- *{ background: url(https://attacker.example/selfclosed-comment.png) } -->
+          <style>.concealer{}</style>
         </article>
         """
     )

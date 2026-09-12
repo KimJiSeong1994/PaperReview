@@ -282,11 +282,12 @@ def test_geometry_violation_is_not_returned_as_pdf(chromium) -> None:
 
 
 def test_page_rule_is_restored_when_the_stylesheet_was_emptied(chromium) -> None:
-    """sanitize_css blanks an entire stylesheet over any 'url(' — url(#gradient),
-    a data: URI, even the word inside a comment. The service sanitizes before
-    handing the poster over, so the HTML the client holds can already have lost
-    its @page, and that used to export as an unrecoverable 500 while the HTML
-    download of the very same poster still worked.
+    """A poster can reach the exporter with no @page at all: the model may never
+    have written one, and sanitize_css still drops a stylesheet whole when it
+    cannot converge. The service sanitizes before handing the poster over, so the
+    HTML the client holds can already have lost its @page, and that used to export
+    as an unrecoverable 500 while the HTML download of the very same poster still
+    worked.
     """
     expected_width, expected_height = A3_LANDSCAPE_MM
     for html in (
