@@ -1,0 +1,13 @@
+{
+  "id": "/",
+  "name": "집현전 — AI 논문 검색·리뷰",
+  "short_name": "집현전",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/Jiphyeonjeon_llama.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
