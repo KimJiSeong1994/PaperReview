@@ -270,7 +270,8 @@ def _poster_browser():
 
 @pytest.mark.parametrize("shape", sorted(_POSTER_SHAPES), ids=sorted(_POSTER_SHAPES))
 def test_the_poster_csp_reaches_document_head_and_stops_egress(
-    counting_server, shape
+    counting_server,  # noqa: F811 - pytest fixture imported above
+    shape,
 ) -> None:
     """Every poster shape this pipeline can produce, measured in a browser.
 
