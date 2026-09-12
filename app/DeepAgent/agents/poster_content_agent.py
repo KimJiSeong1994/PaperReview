@@ -13,6 +13,12 @@ from dataclasses import dataclass
 # 참고문헌 한 항목임을 가르는 최소 신호: 서지 연도. "(2020)"도 ", 2021."도 잡는다.
 _REFERENCE_YEAR_RE = re.compile(r'\b(?:19|20)\d{2}\b')
 
+# 필드 heading의 실제 형태는 두 가지다: 굵은 글씨 단독(`**필드**`, `**필드**:`)과
+# `#### 필드` 수준의 소제목. 불릿 항목("- **...**: 내용")이나 산문 한 줄에 필드
+# 키워드가 들어 있다고 heading으로 보면, 그 줄이 통째로 버려지고 뒤따르는 내용이
+# 엉뚱한 필드로 들어간다. heading 모양이 아니면 본문으로 흘려보낸다.
+_FIELD_HEADING_RE = re.compile(r'^(?:\*\*[^*]+\*\*[:：]?|#{3,6}\s+\S.*)$')
+
 
 @dataclass
 class ExtractedContent:
@@ -369,10 +375,12 @@ class PosterContentAgent:
             is_paper_header = bool(m) or bool(_paper_header_alt.match(line))
 
             if line.startswith('### ') and is_paper_header:
-                # 이전 논문 저장
-                if current_paper and self._has_paper_data(current_paper):
+                # 이전 논문 저장. 마지막 필드는 flush 전까지 current_text에만 있으므로
+                # flush보다 먼저 판정하면 키 필드가 마지막인 논문이 통째로 사라진다.
+                if current_paper:
                     flush_field(current_paper, current_field, current_text)
-                    analyses.append(current_paper)
+                    if self._has_paper_data(current_paper):
+                        analyses.append(current_paper)
 
                 title = line.replace('###', '').strip()
                 title = re.sub(r'^\d+\.\d+\s+', '', title)
@@ -402,15 +410,19 @@ class PosterContentAgent:
             if current_field and stripped:
                 current_text.append(stripped)
 
-        # 마지막 논문 저장
-        if current_paper and self._has_paper_data(current_paper):
+        # 마지막 논문 저장 (위와 같은 이유로 flush가 판정보다 먼저다)
+        if current_paper:
             flush_field(current_paper, current_field, current_text)
-            analyses.append(current_paper)
+            if self._has_paper_data(current_paper):
+                analyses.append(current_paper)
 
         return analyses
 
     def _detect_paper_field(self, line: str) -> Optional[str]:
-        """논문 분석의 필드 타입 감지"""
+        """논문 분석의 필드 타입 감지. heading 모양이 아니면 본문으로 본다."""
+        line = line.strip()
+        if not _FIELD_HEADING_RE.match(line):
+            return None
         # 한국어 복합어는 핵심어가 뒤에 온다: "방법론적 한계"는 한계지만
         # "한계를 극복한 방법론"은 방법론이다. 포함이 아니라 꼬리 위치로 가른다.
         head = line.rstrip('*: ').rstrip()
@@ -419,7 +431,7 @@ class PosterContentAgent:
         field_patterns = {
             'methodology': ['핵심 방법론', '방법론', 'Core Method', 'Methodology'],
             'contributions': ['주요 기여', 'Contribution', '핵심 기여'],
-            'results': ['실험 결과', '성능', 'Result', 'Performance', 'Experiment'],
+            'results': ['실험 결과', '주요 결과', '성능', 'Result', 'Performance', 'Experiment'],
             'strengths': ['강점', 'Strength'],
             'limitations': ['한계', 'Limitation', '개선'],
         }

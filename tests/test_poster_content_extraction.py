@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.DeepAgent.agents.poster_composition_agent import PosterCompositionAgent
 from app.DeepAgent.agents.poster_content_agent import PosterContentAgent
 
@@ -226,3 +228,116 @@ def test_methodological_limitation_is_classified_as_a_limitation() -> None:
     assert len(analyses) == 1
     assert "거리 임계값 선택이 임의적이다." in analyses[0]["limitations"]
     assert "거리 임계값 선택이 임의적이다." not in analyses[0]["methodology"]
+
+
+# ── G1/G2: heading 모양 판별 + flush 순서 ──────────────────────────────────
+
+_FIELD_BODY = {
+    '핵심 방법론': 'POI 공간 동시출현 패턴을 마이닝한다.',
+    '실험 결과': '25개 도시에서 검증하였다.',
+    '강점': '재현 가능한 코드를 공개하였다.',
+    '약점 및 한계': '표본이 단일 국가에 치우쳤다.',
+}
+
+
+def _paper_report(fields: list[str]) -> str:
+    out = ["# 리뷰", "", "## 2. 개별 논문 심층 분석", "", "### 2.1 Test Paper", ""]
+    for f in fields:
+        out += [f"**{f}**", "", _FIELD_BODY[f], ""]
+    return "\n".join(out)
+
+
+@pytest.mark.parametrize(
+    "fields, kept",
+    [
+        (['핵심 방법론'], True),
+        (['핵심 방법론', '실험 결과'], True),
+        (['강점', '핵심 방법론'], True),
+        (['핵심 방법론', '강점'], True),
+        (['약점 및 한계', '핵심 방법론'], True),
+        (['강점', '약점 및 한계'], False),   # 키 필드가 없으면 제외가 맞다
+        (['핵심 방법론', '강점', '약점 및 한계'], True),
+    ],
+)
+def test_paper_survives_regardless_of_which_field_comes_last(fields, kept) -> None:
+    """G2: 마지막 필드는 flush 전까지 버퍼에만 있다. 판정이 앞서면 논문이 사라진다."""
+    analyses = PosterContentAgent().extract(_paper_report(fields), num_papers=1).paper_analyses
+
+    assert bool(analyses) is kept
+
+
+def test_body_prose_with_a_field_keyword_is_not_treated_as_a_heading() -> None:
+    """G1: 산문 한 줄이 heading으로 오인되면 그 줄이 버려지고 뒤 내용이 밀린다."""
+    agent = PosterContentAgent()
+
+    # heading 모양 — 필드로 인정한다.
+    assert agent._detect_paper_field('**핵심 방법론**') == 'methodology'
+    assert agent._detect_paper_field('**핵심 기여**:') == 'contributions'
+    assert agent._detect_paper_field('#### 실험 결과의 비판적 검토') == 'results'
+    assert agent._detect_paper_field('### 숨겨진 가정과 한계') == 'limitations'
+
+    # heading 모양이 아니다 — 본문으로 흘려보낸다.
+    assert agent._detect_paper_field('4. 다양한 벤치마크에서 기존 GRAG 모델 대비 우수한 성능 입증') is None
+    assert agent._detect_paper_field('- BLEU, F1 등 주요 지표에서 기존 SOTA 대비 3~7%p 성능 향상') is None
+    assert agent._detect_paper_field('- 정렬 메커니즘이 없는 경우 대비 일관성 및 정확도 개선') is None
+    assert agent._detect_paper_field('- **일반화 및 전이 학습 성능 향상**: 적응력이 개선됨.') is None
+    assert agent._detect_paper_field('기존 연구의 한계를 극복한 접근을 제안한다.') is None
+
+
+def test_major_results_heading_is_classified_as_results() -> None:
+    """G3: 실제 리포트가 쓰는 '주요 결과' heading (코퍼스 19회)."""
+    agent = PosterContentAgent()
+
+    assert agent._detect_paper_field('**주요 결과**:') == 'results'
+    assert agent._detect_paper_field('#### 주요 결과') == 'results'
+    # 기존 분류는 그대로다.
+    assert agent._detect_paper_field('**주요 기여**') == 'contributions'
+    assert agent._detect_paper_field('**실험 결과의 비판적 검토**') == 'results'
+
+
+def test_results_under_a_major_results_heading_do_not_land_in_methodology() -> None:
+    """G3: 내용이 도달해도 엉뚱한 칸에 인쇄되면 틀린 포스터다."""
+    report = """# 리뷰
+
+## 2. 개별 논문 심층 분석
+
+### 2.1 Align-GRAG
+
+**방법론**:
+
+- PCST 기반 그래프 서브셋 추출 및 생성 모델 입력
+
+**주요 결과**:
+
+- BLEU, F1 등 주요 지표에서 기존 SOTA 대비 3~7%p 성능 향상
+"""
+    analyses = PosterContentAgent().extract(report, num_papers=1).paper_analyses
+
+    assert len(analyses) == 1
+    assert "3~7%p" in analyses[0]["results"]
+    assert "3~7%p" not in analyses[0]["methodology"]
+    assert "주요 결과" not in analyses[0]["methodology"]
+
+
+def test_numbered_contribution_mentioning_performance_stays_in_contributions() -> None:
+    """G1: 오인된 줄은 버려졌다. 이제 제 필드에 남는다."""
+    report = """# 리뷰
+
+## 2. 개별 논문 심층 분석
+
+### 2.1 Align-GRAG
+
+**핵심 기여**:
+
+1. 이중 정렬 프레임워크 제안
+4. 다양한 벤치마크에서 기존 GRAG 모델 대비 우수한 성능 입증
+
+**핵심 방법론**:
+
+- PCST 기반 그래프 서브셋 추출
+"""
+    analyses = PosterContentAgent().extract(report, num_papers=1).paper_analyses
+
+    assert len(analyses) == 1
+    assert "우수한 성능 입증" in analyses[0]["contributions"]
+    assert "PCST" in analyses[0]["methodology"]
