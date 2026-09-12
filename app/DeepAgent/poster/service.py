@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from pathlib import Path
 import threading
 import time
@@ -15,6 +16,7 @@ from .resource_policy import (
     DIRECT_REPORT_MAX_CHARS,
     POSTER_CONCURRENCY,
     POSTER_TIMEOUT_SECONDS,
+    PUBLIC_QUALITY_KEYS,
 )
 from .result_contract import (
     CODE_ACTIVE_JOB,
@@ -106,6 +108,7 @@ class PosterApplicationService:
                     num_papers=num_papers,
                     output_dir=output_dir,
                     papers_data=papers_data,
+                    deadline=started + timeout_seconds,
                 )
                 timings["total_ms"] = round((time.monotonic() - started) * 1000, 2)
                 result = self._normalize_result(
@@ -160,12 +163,44 @@ class PosterApplicationService:
         if sanitized != html:
             warnings.append("Poster markup was sanitized before delivery.")
 
+        # 점수는 실제로 전달되는 바이트에만 유효하다. sanitize 등으로 바이트가
+        # 바뀌었으면 agent가 매긴 점수를 버린다.
+        html_sha256 = hashlib.sha256(sanitized.encode("utf-8")).hexdigest()
+        quality = dict(
+            raw.get("quality") or {"validation_score": raw.get("validation_score")}
+        )
+        scored_sha256 = quality.get("scored_sha256")
+        if (
+            quality.get("validation_score") is not None
+            and scored_sha256 != html_sha256
+        ):
+            # 점수와 함께 그 점수를 설명하는 메타데이터도 버린다. 남겨두면
+            # "점수 없음 + evaluator=rule_based + 낡은 해시"라는 모순이 된다.
+            quality["validation_score"] = None
+            quality["evaluator"] = None
+            quality["scored_sha256"] = None
+            # 원인이 다르면 다르게 말한다. 채점 바이트를 기록하지 않은 생산자와
+            # 배달 바이트가 바뀐 경우를 같은 문구로 덮으면 진단이 틀어진다.
+            warnings.append(
+                "Poster quality score was dropped: delivered bytes differ from scored bytes."
+                if scored_sha256
+                else "Poster quality score was dropped: the scored bytes were not recorded."
+            )
+
         status = normalize_status(raw, sanitized)
         safe_provenance = self._safe_public_provenance(provenance)
         poster_path = raw.get("poster_path") or ""
         artifacts = {
             "html_bytes": len(sanitized.encode("utf-8")),
+            "html_sha256": html_sha256,
             "poster_saved": bool(poster_path),
+        }
+
+        # allowlist는 해시 비교 이후, result_envelope 직전 한 곳에서만 건다.
+        # 먼저 걸면 scored_sha256이 allowlist에서 빠지는 순간 모든 요청에서
+        # 점수가 조용히 폐기되고 거짓 경고가 붙는다.
+        public_quality = {
+            key: value for key, value in quality.items() if key in PUBLIC_QUALITY_KEYS
         }
 
         return result_envelope(
@@ -178,6 +213,7 @@ class PosterApplicationService:
             timings=timings,
             provenance=safe_provenance,
             artifacts=artifacts,
+            quality=public_quality,
         )
 
     @staticmethod

@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+import time
+from typing import Optional
+
+
+def remaining_budget(deadline: Optional[float], cap: float) -> float:
+    """외부 호출이 기다려도 되는 시간. 남은 예산과 자체 상한 중 작은 쪽.
+
+    deadline은 time.monotonic() 기준 마감 시각이다. 진입 시점에만 마감을
+    확인하고 상한은 고정으로 두면, 마지막 단계 하나가 예산을 통째로 넘긴다.
+    """
+    return cap if deadline is None else max(0.0, min(cap, deadline - time.monotonic()))
+
+
 POSTER_SECURITY_PHASE = "phase_1_strict"
 FEATURE_RESULT_V2 = True
 FEATURE_SAFE_PREVIEW = True
@@ -29,6 +42,11 @@ PUBLIC_PROVENANCE_KEYS = {
     "source_hash",
     "paper_count",
     "figure_count",
+}
+PUBLIC_QUALITY_KEYS = {
+    "validation_score",
+    "scored_sha256",
+    "evaluator",
 }
 
 HTML_ALLOWED_TAGS = {
