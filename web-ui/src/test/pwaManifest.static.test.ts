@@ -30,8 +30,16 @@ const manifest = JSON.parse(manifestSource) as {
   short_name?: string;
   start_url?: string;
   display?: string;
+  description?: string;
   prefer_related_applications?: boolean;
   icons?: Array<{ src: string; sizes: string; type?: string }>;
+  screenshots?: Array<{
+    src: string;
+    sizes: string;
+    type?: string;
+    form_factor?: string;
+    label?: string;
+  }>;
 };
 
 describe('PWA manifest (Chrome installability)', () => {
@@ -78,6 +86,47 @@ describe('PWA manifest (Chrome installability)', () => {
       indexHtml.match(/<script type="application\/ld\+json" id="home-json-ld">([\s\S]*?)<\/script>/)![1],
     )['@graph'].find((node: { '@type': string }) => node['@type'] === 'WebApplication');
     expect(appNode.name).toBe(manifest.name);
+  });
+
+  it('describes the app the same way the page description does', () => {
+    const pageDescription = indexHtml.match(
+      /<meta\s+name="description"\s*\n?\s*content="([^"]+)"/,
+    )?.[1];
+    expect(pageDescription, 'index.html must declare a meta description').toBeTruthy();
+    expect(manifest.description).toBe(pageDescription);
+  });
+
+  it('ships screenshots Chrome will actually accept for the rich install dialog', () => {
+    // Chrome silently falls back to the minimal "name + origin" dialog when any
+    // of these fail — no console error, no build error. The rules (Chrome 109+):
+    // desktop renders only form_factor "wide"; each side 320-3840px; the long
+    // side at most 2.3x the short one; every screenshot in a form_factor group
+    // must share one aspect ratio; PNG or JPEG only (WebP is not supported).
+    const shots = manifest.screenshots ?? [];
+    const wide = shots.filter((shot) => shot.form_factor === 'wide');
+    expect(wide.length, 'desktop needs at least one form_factor "wide" screenshot').toBeGreaterThan(0);
+
+    const ratios = new Set<number>();
+    for (const shot of shots) {
+      expect(shot.type, `${shot.src} must declare a type`).toMatch(/^image\/(png|jpeg)$/);
+      expect(
+        `../../public/${shot.src.replace(/^\//, '')}` in publicImages,
+        `${shot.src} is missing from web-ui/public/`,
+      ).toBe(true);
+
+      const [width, height] = shot.sizes.split('x').map(Number);
+      for (const side of [width, height]) {
+        expect(side, `${shot.src} side out of Chrome's 320-3840 range`).toBeGreaterThanOrEqual(320);
+        expect(side).toBeLessThanOrEqual(3840);
+      }
+      expect(
+        Math.max(width, height) / Math.min(width, height),
+        `${shot.src} is too elongated for Chrome (max 2.3x)`,
+      ).toBeLessThanOrEqual(2.3);
+
+      if (shot.form_factor === 'wide') ratios.add(width / height);
+    }
+    expect(ratios.size, 'every "wide" screenshot must share one aspect ratio').toBe(1);
   });
 
   it('does not steer users to a native app that does not exist', () => {
