@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
-import { fetchBatchReferences, generatePoster, getGraphData, searchPapers } from '../api/client';
+import {
+  fetchBatchReferences,
+  generatePoster,
+  getGraphData,
+  searchPapers,
+  startDeepReview,
+} from '../api/client';
 import { useDeepReview } from '../hooks/useDeepReview';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -23,6 +30,7 @@ vi.mock('../api/client', async () => {
   };
 });
 
+const reviewMocks = vi.hoisted(() => ({ startReview: vi.fn(), resetReview: vi.fn() }));
 vi.mock('../hooks/useDeepReview', () => ({ useDeepReview: vi.fn() }));
 const authState = vi.hoisted(() => ({ isAuthenticated: true, setShowLoginModal: vi.fn() }));
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => authState }));
@@ -46,8 +54,7 @@ async function submitSearch(query: string) {
   });
 }
 
-/** Search, then open the poster through the tools menu — the trigger the menu hands focus back to. */
-async function openPoster() {
+async function renderSearched() {
   vi.mocked(searchPapers).mockResolvedValue({
     results: {
       arxiv: [{
@@ -68,6 +75,42 @@ async function openPoster() {
   );
   await submitSearch('poster accessibility');
   await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(1));
+  return view;
+}
+
+/** Drops authentication the way logout() does: state flips, SearchPage stays mounted. */
+async function deauthenticate(rerender: (ui: ReactElement) => void) {
+  authState.isAuthenticated = false;
+  await act(async () => {
+    rerender(
+      <MemoryRouter initialEntries={['/']}>
+        <SearchPage />
+      </MemoryRouter>,
+    );
+  });
+}
+
+async function selectFirstPaper() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('checkbox', { name: /리뷰 선택/ }));
+  });
+}
+
+/** Select a paper and run Deep Research, so the report panel is on screen. */
+async function startReview() {
+  vi.mocked(startDeepReview).mockResolvedValue({ session_id: 'review-session-1' } as never);
+  await selectFirstPaper();
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
+  });
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /deep research/i }));
+  });
+}
+
+/** Search, then open the poster through the tools menu — the trigger the menu hands focus back to. */
+async function openPoster() {
+  const view = await renderSearched();
 
   await act(async () => {
     fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
@@ -90,8 +133,8 @@ describe('Poster modal accessibility', () => {
       reviewProgress: '',
       reviewReport: 'review report markdown',
       verificationStats: null,
-      startReview: vi.fn(),
-      resetReview: vi.fn(),
+      startReview: reviewMocks.startReview,
+      resetReview: reviewMocks.resetReview,
     } as never);
     vi.mocked(getGraphData).mockResolvedValue({ nodes: [], edges: [] });
     vi.mocked(fetchBatchReferences).mockResolvedValue({ references: [] });
@@ -150,8 +193,8 @@ describe('Poster survives closing the modal', () => {
       reviewProgress: '',
       reviewReport: 'review report markdown',
       verificationStats: null,
-      startReview: vi.fn(),
-      resetReview: vi.fn(),
+      startReview: reviewMocks.startReview,
+      resetReview: reviewMocks.resetReview,
     } as never);
     vi.mocked(getGraphData).mockResolvedValue({ nodes: [], edges: [] });
     vi.mocked(fetchBatchReferences).mockResolvedValue({ references: [] });
@@ -222,12 +265,7 @@ describe('Poster survives closing the modal', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Close poster' }));
     });
 
-    authState.isAuthenticated = false;
-    rerender(
-      <MemoryRouter initialEntries={['/']}>
-        <SearchPage />
-      </MemoryRouter>,
-    );
+    await deauthenticate(rerender);
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
@@ -235,5 +273,32 @@ describe('Poster survives closing the modal', () => {
     expect(screen.queryByRole('button', { name: 'View Poster' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Generate Poster' })).toBeInTheDocument();
     expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument();
+  });
+
+  it('drops the review report on logout, leaving no download button behind', async () => {
+    const { rerender } = await renderSearched();
+    await startReview();
+
+    // Present first, so its absence below means something.
+    expect(screen.getByText('Deep Research Report')).toBeInTheDocument();
+    expect(screen.getByTitle('Download as Markdown')).toBeInTheDocument();
+
+    await deauthenticate(rerender);
+
+    expect(screen.queryByText('Deep Research Report')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Download as Markdown')).not.toBeInTheDocument();
+    // The panel is gone because showReport was cleared; the report text itself
+    // is dropped by the hook's own reset, which SearchPage must ask for.
+    expect(reviewMocks.resetReview).toHaveBeenCalled();
+  });
+
+  it('clears the review selection on logout', async () => {
+    const { rerender } = await renderSearched();
+    await selectFirstPaper();
+    expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).toBeChecked();
+
+    await deauthenticate(rerender);
+
+    expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).not.toBeChecked();
   });
 });
