@@ -87,6 +87,42 @@ class PosterComposition:
 # ── 에이전트 ────────────────────────────────────────────────────────────────
 
 
+def _declared_paper_count(content: Any, parsed_count: int) -> int:
+    """서버가 검증한 논문 수를 돌려준다. 없으면 파싱된 수로 대체한다.
+
+    `statistics['total_papers']`는 direct 경로에서 클라이언트가 보낸 값이라
+    리포트 내용과 무관한 수가 들어올 수 있다. 권위값으로 승격시키지 않는다.
+    서버가 실제로 적재한 `statistics['verified_papers']`만 선언값으로 인정하고,
+    그것이 없으면 유일하게 검증 가능한 값인 파싱된 카드 수를 쓴다.
+    """
+    stats = getattr(content, 'statistics', None) or {}
+    try:
+        declared = int(stats.get('verified_papers') or 0)
+    except (TypeError, ValueError):
+        declared = 0
+    return declared or parsed_count
+
+
+def _paper_figure_caption(caption: str, fig: Any) -> str:
+    """원문 도판의 캡션 표기.
+
+    캡션 텍스트는 논문 원문에서 읽은 것이 아니라 모델이 이미지를 보고 기술한
+    것이므로, 인쇄물에서 원문 캡션으로 오독되지 않도록 출처와 생성 방식을 밝힌다.
+    """
+    page = fig.get('page_number') if isinstance(fig, dict) else getattr(fig, 'page_number', None)
+    source = f"원문 p.{page} 도판" if page else "원문 도판"
+    return f"{caption} · {source} · 캡션은 AI 자동 생성"
+
+
+def _autofigure_caption(caption: str) -> str:
+    """생성 다이어그램의 캡션 표기.
+
+    원문에서 오려낸 도판이 아니라 리뷰 내용으로부터 새로 그린 그림이므로,
+    인쇄물에서 원문 도판으로 오독되지 않도록 재구성임을 밝힌다.
+    """
+    return f"{caption} · 생성 다이어그램(재구성)"
+
+
 class PosterCompositionAgent:
     """심층 리뷰 콘텐츠와 생성된 figure를 통합하여 포스터 구성을 설계한다.
 
@@ -226,7 +262,7 @@ class PosterCompositionAgent:
         section_directives = self._build_section_directives(composition)
         comparison_tables_block = self._build_comparison_tables_block(content)
         keywords_str = ", ".join(composition.keywords)
-        paper_count = len(content.paper_analyses or [])
+        paper_count = _declared_paper_count(content, len(content.paper_analyses or []))
         ref_count = len(getattr(content, 'references', []) or [])
         figure_count = composition.total_figures
 
@@ -519,10 +555,10 @@ th {{ background: #eef2f7; }}
                     img_html = (
                         f'<figure class="embed-autofigure" style="margin:12px 0;">'
                         f'<img src="data:image/png;base64,{self._esc(b64)}" '
-                        f'alt="{self._esc(af.get("paper_title", ""))}" '
+                        f'alt="{self._esc(_autofigure_caption(af.get("paper_title") or "자동 생성 overview figure"))}" '
                         f'style="width:100%;height:auto;border-radius:8px;" />'
                         f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
-                        f'{self._esc(af.get("paper_title", "자동 생성 overview figure"))}'
+                        f'{self._esc(_autofigure_caption(af.get("paper_title") or "자동 생성 overview figure"))}'
                         f'</figcaption>'
                         f'</figure>'
                     )
@@ -539,7 +575,7 @@ th {{ background: #eef2f7; }}
                 f'<figure class="embed-autofigure" style="width:100%;margin:12px 0;">'
                 f'{svg_content}'
                 f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
-                f'{self._esc(af.get("paper_title", "자동 생성 연구 다이어그램"))}'
+                f'{self._esc(_autofigure_caption(af.get("paper_title") or "자동 생성 연구 다이어그램"))}'
                 f'</figcaption>'
                 f'</figure>'
             )
@@ -569,10 +605,10 @@ th {{ background: #eef2f7; }}
             img_html = (
                 f'<figure class="embed-figure" style="margin:12px 0;">'
                 f'<img src="data:{self._esc(mime)};base64,{self._esc(b64)}" '
-                f'alt="{self._esc(caption)}" '
+                f'alt="{self._esc(_paper_figure_caption(caption, fig))}" '
                 f'style="width:100%;height:auto;border-radius:8px;" />'
                 f'<figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">'
-                f'{self._esc(caption)}'
+                f'{self._esc(_paper_figure_caption(caption, fig))}'
                 f'</figcaption>'
                 f'</figure>'
             )
@@ -741,7 +777,7 @@ th {{ background: #eef2f7; }}
         return CompositionSection(
             role=SectionRole.FINDINGS,
             title="핵심 발견 및 기여",
-            text_content="\n\n".join(text_parts) or "핵심 발견 내용",
+            text_content="\n\n".join(text_parts),
             grid_span=2,
         )
 
@@ -773,7 +809,7 @@ th {{ background: #eef2f7; }}
         return CompositionSection(
             role=SectionRole.CONCLUSION,
             title="결론",
-            text_content=content.conclusion or "본 분석을 통해 해당 분야의 주요 연구 동향을 확인하였습니다.",
+            text_content=content.conclusion,
             figures=fig_placements,
             grid_span=2,
         )
@@ -1159,7 +1195,13 @@ th {{ background: #eef2f7; }}
             for k in composition.keywords[:8]
         )
 
-        paper_count = len(getattr(content, 'paper_analyses', []) or paper_sections)
+        parsed_paper_count = len(getattr(content, 'paper_analyses', []) or paper_sections)
+        declared_paper_count = _declared_paper_count(content, parsed_paper_count)
+        # 선언값과 카드 수가 어긋나면 양쪽 방향 모두 밝힌다. 카드보다 적게
+        # 인쇄하면 렌더된 증거를 숨기는 것이고, 많게 인쇄하면 없는 근거를 주장한다.
+        paper_count = max(declared_paper_count, parsed_paper_count)
+        unparsed_paper_count = max(0, declared_paper_count - parsed_paper_count)
+        extra_paper_count = max(0, parsed_paper_count - declared_paper_count)
         refs = getattr(content, 'references', []) if content else []
         ref_count = len(refs or [])
         source_figure_count = len(autofigure_svgs) + len(figures)
@@ -1180,12 +1222,25 @@ th {{ background: #eef2f7; }}
             first_finding = findings.text_content.split('\n')[0].strip('- *')
         thesis_html = esc(first_finding or "핵심 결론이 입력 리포트에서 추출되지 않았습니다.")
         generated_on = date.today().isoformat()
-        synthesis_status = 'synthesized' if content and paper_count else 'partial'
+        synthesis_status = (
+            'synthesized'
+            if content and parsed_paper_count
+            and not unparsed_paper_count and not extra_paper_count
+            else 'partial'
+        )
+        unparsed_note = (
+            f'<span>{unparsed_paper_count} papers not parsed into cards</span>'
+            if unparsed_paper_count else ''
+        )
+        extra_note = (
+            f'<span>리포트에 {extra_paper_count}편이 더 분석되어 있습니다</span>'
+            if extra_paper_count else ''
+        )
 
         visual_agent = PosterVisualAgent()
 
         def section_body(sec: Optional[CompositionSection], default_text: str = "") -> str:
-            if not sec:
+            if not sec or not sec.text_content.strip():
                 return self._text_to_html(default_text)
             if sec.role == SectionRole.COMPARISON:
                 return self._markdown_table_to_html(sec.text_content)
@@ -1843,6 +1898,8 @@ figcaption {{
       <span><strong>{paper_count}</strong> papers</span>
       <span><strong>{ref_count}</strong> refs</span>
       <span><strong>{figure_count}</strong> figures</span>
+      {unparsed_note}
+      {extra_note}
     </div>
   </header>
 
@@ -1917,7 +1974,7 @@ figcaption {{
                 svg = sanitize_poster_markup(svg)
                 return f'''<figure class="evidence-figure" style="margin:12px 0;">
                     {svg}
-                    <figcaption style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
+                    <figcaption style="font-size:0.8rem;color:#64748b;margin-top:6px;">{self._esc(_autofigure_caption(fp.caption))}</figcaption>
                 </figure>'''
         elif fp.source == 'paper_figure' and fp.figure_index < len(figures):
             fig = figures[fp.figure_index]
@@ -1926,9 +1983,10 @@ figcaption {{
                 mime = fig.get('mime_type', 'image/png') if isinstance(fig, dict) else getattr(fig, 'mime_type', 'image/png')
                 if mime not in {'image/png', 'image/jpeg', 'image/webp', 'image/gif'}:
                     mime = 'image/png'
+                figcaption = _paper_figure_caption(fp.caption, fig)
                 return f'''<figure class="embed-figure" style="margin:12px 0;">
-                    <img src="data:{self._esc(mime)};base64,{self._esc(b64)}" style="width:100%;border-radius:8px;" alt="{self._esc(fp.caption)}" />
-                    <figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">{self._esc(fp.caption)}</figcaption>
+                    <img src="data:{self._esc(mime)};base64,{self._esc(b64)}" style="width:100%;border-radius:8px;" alt="{self._esc(figcaption)}" />
+                    <figcaption style="font-size:0.78rem;color:#64748b;margin-top:6px;">{self._esc(figcaption)}</figcaption>
                 </figure>'''
         return ''
 

@@ -15,6 +15,11 @@ import requests
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 
+from app.DeepAgent.poster.resource_policy import remaining_budget
+
+# Vision 호출 1건의 자체 상한. 남은 예산이 더 적으면 예산 쪽을 쓴다.
+VISION_CALL_TIMEOUT_SECONDS = 60
+
 
 @dataclass
 class ExtractedFigure:
@@ -69,7 +74,9 @@ class FigureExtractor:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
-                self._llm = genai.GenerativeModel("gemini-2.0-flash")
+                self._llm = genai.GenerativeModel(
+                    os.getenv("POSTER_FIGURE_VISION_MODEL", "gemini-2.0-flash")
+                )
             except Exception as e:
                 logger.error(f"[FigureExtractor] Gemini 초기화 실패: {e}")
         return self._llm
@@ -77,7 +84,8 @@ class FigureExtractor:
     def extract_figures_from_papers(
         self,
         papers_data: List[Dict[str, Any]],
-        max_papers: int = 3
+        max_papers: int = 3,
+        deadline: Optional[float] = None,
     ) -> List[ExtractedFigure]:
         """
         여러 논문에서 핵심 Figure를 추출
@@ -85,6 +93,7 @@ class FigureExtractor:
         Args:
             papers_data: 논문 데이터 리스트 (pdf_url, arxiv_id 포함)
             max_papers: 최대 처리 논문 수
+            deadline: monotonic 마감 시각 (초). 초과하면 남은 논문을 건너뛴다.
 
         Returns:
             핵심 Figure 리스트 (relevance_score 기준 정렬)
@@ -104,8 +113,11 @@ class FigureExtractor:
         logger.info(f"[FigureExtractor] {len(papers_with_pdf)}편 논문에서 삽도 추출 시작")
 
         for paper in papers_with_pdf:
+            if remaining_budget(deadline, 1.0) <= 0:
+                logger.warning("[FigureExtractor] 예산 소진 — 남은 논문 삽도 추출 건너뜀")
+                break
             try:
-                figures = self._extract_from_single_paper(paper)
+                figures = self._extract_from_single_paper(paper, deadline=deadline)
                 all_figures.extend(figures)
                 logger.info(f"[FigureExtractor] '{paper.get('title', 'Unknown')[:40]}...' → {len(figures)}개 삽도 추출")
             except Exception as e:
@@ -123,7 +135,9 @@ class FigureExtractor:
         logger.info(f"[FigureExtractor] 총 {len(all_figures)}개 중 {len(selected)}개 핵심 삽도 선택")
         return selected
 
-    def _extract_from_single_paper(self, paper: Dict[str, Any]) -> List[ExtractedFigure]:
+    def _extract_from_single_paper(
+        self, paper: Dict[str, Any], deadline: Optional[float] = None
+    ) -> List[ExtractedFigure]:
         """단일 논문 PDF에서 Figure 추출"""
         pdf_bytes = self._download_pdf(paper)
         if not pdf_bytes:
@@ -138,7 +152,10 @@ class FigureExtractor:
         # Vision AI로 분석
         figures = []
         for img_data in raw_images[:self.MAX_FIGURES_PER_PAPER]:
-            figure = self._analyze_figure(img_data, paper_title)
+            if remaining_budget(deadline, 1.0) <= 0:
+                logger.warning("[FigureExtractor] 예산 소진 — 남은 삽도 분석 건너뜀")
+                break
+            figure = self._analyze_figure(img_data, paper_title, deadline=deadline)
             if figure:
                 figures.append(figure)
 
@@ -263,7 +280,8 @@ class FigureExtractor:
     def _analyze_figure(
         self,
         img_data: Dict[str, Any],
-        paper_title: str
+        paper_title: str,
+        deadline: Optional[float] = None,
     ) -> Optional[ExtractedFigure]:
         """Vision AI로 Figure 분석"""
         image_bytes = img_data["image_bytes"]
@@ -271,7 +289,7 @@ class FigureExtractor:
 
         # Gemini Vision 분석
         caption, description, relevance = self._analyze_with_vision(
-            image_bytes, img_data["mime_type"], paper_title
+            image_bytes, img_data["mime_type"], paper_title, deadline=deadline
         )
 
         return ExtractedFigure(
@@ -290,7 +308,8 @@ class FigureExtractor:
         self,
         image_bytes: bytes,
         mime_type: str,
-        paper_title: str
+        paper_title: str,
+        deadline: Optional[float] = None,
     ) -> tuple:
         """Gemini Vision으로 이미지 분석"""
         if not self.llm:
@@ -318,7 +337,12 @@ RELEVANCE: [0.0~1.0 사이 점수 - 논문 핵심 내용 전달에 얼마나 중
                 "data": base64.b64encode(image_bytes).decode("utf-8")
             }
 
-            response = self.llm.generate_content([prompt, image_part])
+            response = self.llm.generate_content(
+                [prompt, image_part],
+                request_options={
+                    "timeout": remaining_budget(deadline, VISION_CALL_TIMEOUT_SECONDS)
+                },
+            )
             return self._parse_vision_response(response.text, paper_title)
 
         except Exception as e:
@@ -368,7 +392,8 @@ RELEVANCE: [0.0~1.0 사이 점수 - 논문 핵심 내용 전달에 얼마나 중
 def extract_paper_figures(
     papers_data: List[Dict[str, Any]],
     api_key: Optional[str] = None,
-    max_papers: int = 3
+    max_papers: int = 3,
+    deadline: Optional[float] = None,
 ) -> List[ExtractedFigure]:
     """
     편의 함수: 논문 리스트에서 핵심 Figure 추출
@@ -377,9 +402,12 @@ def extract_paper_figures(
         papers_data: 논문 데이터 리스트
         api_key: Google API 키
         max_papers: 최대 처리 논문 수
+        deadline: monotonic 마감 시각 (초)
 
     Returns:
         핵심 Figure 리스트
     """
     extractor = FigureExtractor(api_key=api_key)
-    return extractor.extract_figures_from_papers(papers_data, max_papers=max_papers)
+    return extractor.extract_figures_from_papers(
+        papers_data, max_papers=max_papers, deadline=deadline
+    )

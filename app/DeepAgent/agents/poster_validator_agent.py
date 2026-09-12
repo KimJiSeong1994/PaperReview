@@ -33,13 +33,13 @@ class PosterValidatorAgent:
     - 개선 피드백 생성
     """
 
-    def __init__(self, model: str = "gpt-4o", api_key: Optional[str] = None):
+    def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None):
         """
         Args:
             model: VLM 모델 (gpt-4o, gpt-4-vision-preview)
             api_key: OpenAI API 키
         """
-        self.model = model
+        self.model = model or os.getenv("POSTER_VALIDATOR_MODEL", "gpt-4o")
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         self.client = None
 

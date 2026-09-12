@@ -5,20 +5,78 @@ Paper2Poster 방법론 기반의 멀티 에이전트 포스터 생성 시스템
 각 에이전트의 작업을 조율하고 통합하는 오케스트레이터
 """
 
+import hashlib
 import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from uuid import uuid4
 
+from app.DeepAgent.poster.resource_policy import remaining_budget
 from app.DeepAgent.poster.result_contract import CODE_FALLBACK_USED, success_for_status
 from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
 
 logger = logging.getLogger(__name__)
+
+# _refine_with_gemini 프롬프트에 넣을 수 있는 최대 HTML 길이.
+# 이 길이를 넘으면 잘린 문서로 "complete HTML"을 요구하게 되어 모델이 뒷부분을
+# 창작하므로, 자르지 않고 refine 자체를 건너뛴다.
+REFINE_INPUT_MAX_CHARS = 25000
+
+_SCRIPT_STYLE_RE = re.compile(r'<(script|style)\b[^>]*>.*?</\1>', re.DOTALL | re.IGNORECASE)
+_TAG_RE = re.compile(r'<[^>]+>')
+_NUMBER_RE = re.compile(r'\d+(?:\.\d+)?')
+
+# refine 프롬프트에서 인라인 도판의 base64 값을 빼내기 위한 패턴. 도판 픽셀은
+# 비평 대상이 아니므로 플레이스홀더로 보내고 응답에서 되돌린다.
+_DATA_URI_B64_RE = re.compile(r'(src="data:[^;"]+;base64,)([^"]{64,})(")')
+
+
+def _visible_numbers(html: str) -> set:
+    """HTML 가시 텍스트의 숫자 토큰 집합. CSS/스크립트 수치는 제외한다.
+
+    표기 정규화: "18.40"과 "18.4"를 같은 값으로 본다.
+
+    이 집합 비교가 잡지 못하는 축 — 넘겨짚지 말 것:
+    - 숫자 재귀속(A의 수치를 B에 붙이는 교환): 집합이 같으므로 원리상 탐지 불가
+    - 단위·척도 변환(0.95 → 95%), 섹션 번호 증감 등은 거짓양성으로 남는다
+    - 단위(초/분), 한정어("최대"→"평균"), 인과 주장 변형은 전혀 보지 않는다
+    비교 대상은 원본 리포트가 아니라 직전 라운드의 포스터 HTML이다. 즉 이미
+    포스터에 들어간 잘못된 수치는 이 검사를 그대로 통과한다.
+    """
+    text = _SCRIPT_STYLE_RE.sub(' ', html)
+    text = _TAG_RE.sub(' ', text)
+    return {
+        token.rstrip('0').rstrip('.') if '.' in token else token
+        for token in _NUMBER_RE.findall(text)
+    }
+
+
+def _mask_data_uris(html: str) -> tuple:
+    """인라인 base64 값을 플레이스홀더로 치환한다. (치환된 HTML, 복원표) 반환."""
+    store: Dict[str, str] = {}
+
+    def _swap(match: 're.Match') -> str:
+        token = f"POSTER_B64_{len(store)}"
+        store[token] = match.group(2)
+        return f"{match.group(1)}{token}{match.group(3)}"
+
+    return _DATA_URI_B64_RE.sub(_swap, html), store
+
+
+def _restore_data_uris(html: str, store: Dict[str, str]) -> Optional[str]:
+    """플레이스홀더를 원래 base64로 되돌린다. 하나라도 유실됐으면 None."""
+    for token, payload in store.items():
+        if token not in html:
+            return None
+        html = html.replace(token, payload)
+    return html
+
 
 # 하위 에이전트 임포트
 from .poster_content_agent import PosterContentAgent
@@ -60,7 +118,7 @@ class PosterGenerationAgent:
 
     def __init__(
         self,
-        model: str = "gemini-2.5-flash-preview-05-20",
+        model: Optional[str] = None,
         api_key: Optional[str] = None,
         max_workers: int = 4,
         enable_validation: bool = False,
@@ -71,7 +129,7 @@ class PosterGenerationAgent:
     ):
         """
         Args:
-            model: Gemini 모델 이름 (기본값: gemini-2.5-flash-preview-05-20)
+            model: Gemini 모델 이름 (기본값: POSTER_LLM_MODEL 환경변수)
             api_key: Google API 키
             max_workers: 병렬 처리 워커 수
             enable_validation: VLM 품질 검증 활성화
@@ -80,7 +138,7 @@ class PosterGenerationAgent:
             enable_critic: Critic 반복 루프 활성화
             max_critic_rounds: 최대 비평 라운드 수
         """
-        self.model = model
+        self.model = model or os.getenv("POSTER_LLM_MODEL", "gemini-2.5-flash-preview-05-20")
         self.api_key = api_key or os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         self.max_workers = max_workers
         self.enable_validation = enable_validation
@@ -172,7 +230,14 @@ class PosterGenerationAgent:
         except Exception:
             return ""
 
-    def _critic_loop(self, poster_html: str, style_guide: str, max_rounds: int = 2) -> tuple:
+    def _critic_loop(
+        self,
+        poster_html: str,
+        style_guide: str,
+        max_rounds: int = 2,
+        deadline: Optional[float] = None,
+        warnings: Optional[List[str]] = None,
+    ) -> tuple:
         """
         Critic 반복 루프: 비평 → 수정 사이클.
 
@@ -180,6 +245,8 @@ class PosterGenerationAgent:
             poster_html: 초기 포스터 HTML
             style_guide: 스타일 가이드 텍스트
             max_rounds: 최대 라운드 수
+            deadline: monotonic 마감 시각 (초). 초과하면 다음 라운드를 시작하지 않는다.
+            warnings: refine 건너뜀/폐기 사유를 기록할 리스트 (옵션).
 
         Returns:
             (최종 HTML, 최종 점수) 튜플
@@ -187,7 +254,15 @@ class PosterGenerationAgent:
         current_best = poster_html
         score = 0.0
 
+        def _note(message: str) -> None:
+            logger.warning(message)
+            if warnings is not None and message not in warnings:
+                warnings.append(message)
+
         for round_idx in range(max_rounds):
+            if deadline is not None and time.monotonic() > deadline:
+                logger.warning("Deadline exceeded — critic 루프 중단 (round %d)", round_idx + 1)
+                break
             logger.info("Critic loop round %d/%d", round_idx + 1, max_rounds)
             critique = self.critic_agent.critique(poster_html, style_guide, round_idx)
             score = critique.score
@@ -200,26 +275,72 @@ class PosterGenerationAgent:
                 logger.info("Score %.2f >= 0.85. Exiting loop.", score)
                 break
 
+            # 도판 바이트는 비평 대상이 아니다. 프롬프트 예산에서 빼고 센다.
+            masked_html, b64_store = _mask_data_uris(poster_html)
+            if len(masked_html) > REFINE_INPUT_MAX_CHARS:
+                _note(
+                    f"Refinement skipped: poster HTML is {len(masked_html)} chars "
+                    f"excluding inline figure bytes, over the "
+                    f"{REFINE_INPUT_MAX_CHARS}-char refinement prompt limit."
+                )
+                continue
+
             try:
-                refined = self._refine_with_gemini(poster_html, critique, style_guide)
-                poster_html = refined
-                current_best = refined
-                logger.info("Refinement applied (round %d)", round_idx + 1)
+                refined = self._refine_with_gemini(
+                    masked_html, critique, style_guide, deadline=deadline
+                )
             except Exception as e:
+                # 이 라운드의 수정본만 버린다. 비평 자체를 포기할 이유는 아니다.
                 logger.warning("Refinement failed: %s. Rolling back to previous best.", e)
                 poster_html = current_best
-                break
+                continue
+
+            restored = _restore_data_uris(refined, b64_store)
+            if restored is None:
+                _note("Refinement discarded: it dropped inline figure data.")
+                poster_html = current_best
+                continue
+            refined = restored
+
+            # 수정본이 숫자를 만들어내거나 없애면 채택하지 않는다. 근거 수치
+            # 소실은 날조와 같은 급이고 LLM 요약에서 더 흔하다.
+            before_numbers = _visible_numbers(poster_html)
+            after_numbers = _visible_numbers(refined)
+            invented = after_numbers - before_numbers
+            dropped = before_numbers - after_numbers
+            if invented or dropped:
+                _note(
+                    "Refinement discarded: visible numbers changed against the previous "
+                    f"poster (invented: {', '.join(sorted(invented)[:5]) or 'none'}; "
+                    f"dropped: {', '.join(sorted(dropped)[:5]) or 'none'}). "
+                    "This check compares number tokens only — it cannot see "
+                    "re-attribution, unit changes, qualifiers, or causal claims, "
+                    "and it compares against the previous poster, not the report."
+                )
+                poster_html = current_best
+                continue
+
+            poster_html = refined
+            current_best = refined
+            logger.info("Refinement applied (round %d)", round_idx + 1)
 
         return current_best, score
 
-    def _refine_with_gemini(self, poster_html: str, critique: 'CritiqueResult', style_guide: str) -> str:
+    def _refine_with_gemini(
+        self,
+        poster_html: str,
+        critique: 'CritiqueResult',
+        style_guide: str,
+        deadline: Optional[float] = None,
+    ) -> str:
         """
         Gemini에 원본 HTML + 비평 피드백 전송 → 수정된 HTML 반환.
 
         Args:
-            poster_html: 현재 포스터 HTML
+            poster_html: 현재 포스터 HTML (도판 base64는 플레이스홀더로 치환된 상태)
             critique: CritiqueResult 비평 결과
             style_guide: 스타일 가이드 텍스트
+            deadline: monotonic 마감 시각 (초). 남은 예산까지만 응답을 기다린다.
 
         Returns:
             수정된 HTML
@@ -240,7 +361,7 @@ class PosterGenerationAgent:
 
 ## Current Poster HTML
 ```html
-{poster_html[:25000]}
+{poster_html}
 ```
 
 ## Instructions
@@ -253,7 +374,9 @@ class PosterGenerationAgent:
 Output the refined HTML now:"""
 
 
-        response = self.llm.generate_content(prompt)
+        response = self.llm.generate_content(
+            prompt, request_options={"timeout": remaining_budget(deadline, 90)}
+        )
         refined_html = response.text
 
         # HTML 코드만 추출
@@ -318,7 +441,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
         report_content: str,
         num_papers: int = 0,
         output_dir: Optional[Path] = None,
-        papers_data: Optional[List[Dict[str, Any]]] = None
+        papers_data: Optional[List[Dict[str, Any]]] = None,
+        deadline: Optional[float] = None,
     ) -> dict:
         """
         멀티 에이전트 파이프라인으로 포스터 생성
@@ -337,29 +461,33 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             num_papers: 분석된 논문 수
             output_dir: 저장 디렉토리 (옵션)
             papers_data: 논문 데이터 리스트 (pdf_url, arxiv_id 포함, 삽도 추출용)
+            deadline: monotonic 마감 시각 (초). 초과하면 외부 호출 단계를 건너뛴다.
 
         Returns:
             dict: {
                 "success": bool,
                 "poster_html": str,
                 "poster_path": str,
-                "validation_score": float
+                "validation_score": float | None
             }
         """
         started = datetime.now()
         generation_id = f"poster_{uuid4().hex[:12]}"
         warnings: List[str] = []
+        vlm_score: Optional[float] = None
+        vlm_scored_html = ""
         try:
             # Phase 0.5: Figure Extraction (논문 삽도 추출)
             figures = []
             figure_data = []
             if papers_data:
-                figures = self._extract_paper_figures(papers_data)
+                figures = self._extract_paper_figures(papers_data, deadline=deadline)
                 if figures:
                     figure_data = [
                         {
                             "image_base64": f.image_base64,
                             "mime_type": f.mime_type,
+                            "page_number": f.page_number,
                             "caption": f.caption,
                             "description": f.description,
                             "relevance_score": f.relevance_score,
@@ -372,10 +500,15 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                     logger.info("%d개 핵심 삽도 추출 완료", len(figure_data))
 
             # Phase 1: Content Extraction (멀티 에이전트)
-            content = self.content_agent.extract(report_content, num_papers, figures=figure_data)
+            # papers_data는 세션의 paper_ids로 서버가 적재한 것이라 검증된 수다.
+            # direct 경로는 이 값을 주지 않으므로 0 → 파싱된 카드 수가 기준이 된다.
+            content = self.content_agent.extract(
+                report_content, num_papers, figures=figure_data,
+                verified_papers=len(papers_data or []),
+            )
 
             # Phase 1.5: 다이어그램 생성 (PaperBanana → AutoFigure fallback)
-            autofigure_svgs = self._generate_autofigure_svgs(content)
+            autofigure_svgs = self._generate_autofigure_svgs(content, deadline=deadline)
             if autofigure_svgs:
                 logger.info("다이어그램: %d개 생성 완료", len(autofigure_svgs))
 
@@ -399,6 +532,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 poster_html = self._generate_with_composition(
                     composition, content, layout, report_content, num_papers,
                     autofigure_svgs=autofigure_svgs, figures=figure_data,
+                    deadline=deadline,
                 )
             else:
                 poster_html = self.composition_agent.render_html(
@@ -406,26 +540,44 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 )
 
             # Phase 4: Critic Loop (반복 비평 → 수정)
-            validation_score = 0.8
             if self.enable_critic and self.critic_agent:
                 style_guide = self._get_style_guide(content)
-                poster_html, validation_score = self._critic_loop(
+                poster_html, _ = self._critic_loop(
                     poster_html,
                     style_guide=style_guide,
                     max_rounds=self.max_critic_rounds,
+                    deadline=deadline,
+                    warnings=warnings,
                 )
             elif self.enable_validation and self.validator_agent:
                 validation = self.validator_agent.validate(poster_html)
-                validation_score = validation.score
+                # VLM 채점은 유료 호출이다. 무엇을 채점했는지 기억해 두고,
+                # 최종 바이트가 그대로일 때만 그 점수를 보고한다 (두 번째 호출 없음).
+                vlm_score = validation.score
+                vlm_scored_html = poster_html
 
                 # Phase 5: Refinement (조건부)
-                if validation_score < 0.75:
+                if validation.score < 0.75:
                     poster_html = self._refine_poster(poster_html, validation.suggestions)
 
             sanitized_html = sanitize_poster_markup(poster_html)
             if sanitized_html != poster_html:
                 warnings.append("Poster markup was sanitized before saving.")
             poster_html = sanitized_html
+
+            # 점수는 전달되는 바이트에만 붙인다: 최종 sanitize 이후에 다시 매긴다.
+            # round_idx=0 은 rule-based 경로라 API 호출·비용이 없다. 이 점수는
+            # 디자인 휴리스틱 집계이지 사실성·정확성 검증이 아니다.
+            html_sha256 = hashlib.sha256(poster_html.encode("utf-8")).hexdigest()
+            validation_score = None
+            evaluator = None
+            if self.critic_agent:
+                validation_score = self.critic_agent.critique(poster_html, round_idx=0).score
+                evaluator = "rule_based"
+            elif vlm_score is not None and vlm_scored_html == poster_html:
+                # 이미 지불한 VLM 점수가 전달 바이트를 그대로 설명하는 경우에만 쓴다.
+                validation_score = vlm_score
+                evaluator = "vlm"
 
             # 결과 반환
             result = {
@@ -450,6 +602,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 },
                 "quality": {
                     "validation_score": validation_score,
+                    # 점수가 없으면 채점 해시도 없다. 둘을 어긋나게 두지 않는다.
+                    "scored_sha256": html_sha256 if validation_score is not None else None,
+                    "evaluator": evaluator,
                 },
                 "artifacts": {},
             }
@@ -481,7 +636,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 "success": success_for_status("degraded"),
                 "poster_html": fallback_html,
                 "poster_path": fallback_path,
-                "validation_score": 0.5,
+                "validation_score": None,
                 "error": str(e),
                 "warnings": ["Poster generation failed; safe fallback HTML was returned."],
                 "error_code": CODE_FALLBACK_USED,
@@ -497,7 +652,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                     "fallback": True,
                 },
                 "quality": {
-                    "validation_score": 0.5,
+                    "validation_score": None,
+                    "scored_sha256": None,
+                    "evaluator": None,
                 },
                 "artifacts": {
                     "poster_path": fallback_path or "",
@@ -505,7 +662,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 },
             }
 
-    def _generate_autofigure_svgs(self, content) -> List[Dict[str, Any]]:
+    def _generate_autofigure_svgs(
+        self, content, deadline: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
         """PaperBanana 또는 AutoFigure-Edit로 방법론 다이어그램을 생성한다.
 
         PaperBanana가 가용하면 우선 사용하고, 그렇지 않으면 AutoFigure-Edit로
@@ -513,14 +672,19 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         Args:
             content: ExtractedContent 객체
+            deadline: monotonic 마감 시각 (초). 초과하면 생성을 건너뛴다.
 
         Returns:
             [{"paper_title": str, "svg_content": str, "figure_png_b64": str}, ...]
         """
+        if deadline is not None and time.monotonic() > deadline:
+            logger.warning("Deadline exceeded — 다이어그램 생성 건너뜀")
+            return []
+
         # PaperBanana 우선 시도
         if self._paperbanana_client:
             logger.info("PaperBanana 다이어그램 생성 시도 중...")
-            results = self._generate_with_paperbanana(content)
+            results = self._generate_with_paperbanana(content, deadline=deadline)
             if results:
                 return results
             logger.info("PaperBanana 생성 실패 — AutoFigure fallback 시도")
@@ -590,7 +754,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, _run())
-                    return future.result(timeout=300)
+                    return future.result(timeout=remaining_budget(deadline, 300))
             except RuntimeError:
                 return asyncio.run(_run())
 
@@ -598,7 +762,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             logger.warning("AutoFigure SVG 생성 실패 (기존 방식으로 진행): %s", e)
             return []
 
-    def _generate_with_paperbanana(self, content) -> List[Dict[str, Any]]:
+    def _generate_with_paperbanana(
+        self, content, deadline: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
         """PaperBanana로 방법론 다이어그램을 생성한다.
 
         PaperBanana의 멀티에이전트 파이프라인(Retriever → Planner → Stylist →
@@ -606,6 +772,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
         Args:
             content: ExtractedContent 객체
+            deadline: monotonic 마감 시각 (초). 남은 예산까지만 기다린다.
 
         Returns:
             [{"paper_title": str, "svg_content": str, "figure_png_b64": str}, ...]
@@ -698,9 +865,9 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
             async def _run_with_overall_timeout() -> List[Dict[str, Any]]:
                 try:
-                    return await asyncio.wait_for(_run(), timeout=160)
+                    return await asyncio.wait_for(_run(), timeout=remaining_budget(deadline, 160))
                 except asyncio.TimeoutError:
-                    logger.warning("PaperBanana 전체 파이프라인 160초 초과 — 부분 결과 없이 반환")
+                    logger.warning("PaperBanana 전체 파이프라인 예산 초과 — 부분 결과 없이 반환")
                     return []
 
             try:
@@ -708,7 +875,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     fut = pool.submit(asyncio.run, _run_with_overall_timeout())
-                    return fut.result(timeout=170)
+                    return fut.result(timeout=remaining_budget(deadline, 170))
             except RuntimeError:
                 return asyncio.run(_run_with_overall_timeout())
 
@@ -716,14 +883,17 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             logger.warning("PaperBanana 다이어그램 생성 실패: %s", e)
             return []
 
-    def _extract_paper_figures(self, papers_data: List[Dict[str, Any]]) -> list:
+    def _extract_paper_figures(
+        self, papers_data: List[Dict[str, Any]], deadline: Optional[float] = None
+    ) -> list:
         """논문 PDF에서 핵심 삽도 추출"""
         try:
             from app.DeepAgent.tools.figure_extractor import extract_paper_figures
             figures = extract_paper_figures(
                 papers_data=papers_data,
                 api_key=self.api_key,
-                max_papers=3
+                max_papers=3,
+                deadline=deadline,
             )
             return figures
         except Exception as e:
@@ -822,7 +992,8 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
 
     def _generate_with_composition(self, composition, content, layout,
                                     report_content: str, num_papers: int,
-                                    autofigure_svgs: list = None, figures: list = None) -> str:
+                                    autofigure_svgs: list = None, figures: list = None,
+                                    deadline: Optional[float] = None) -> str:
         """Composition 기반 Gemini 포스터 생성 — figure가 제자리에 배치된다."""
         prompt = self.composition_agent.to_gemini_prompt(composition, content)
 
@@ -831,7 +1002,7 @@ Below is a high-quality poster HTML structure. Adapt the structure, NOT the cont
             # Gemini 호출에 90초 타임아웃 적용
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(self.llm.generate_content, [prompt])
-                response = future.result(timeout=90)
+                response = future.result(timeout=remaining_budget(deadline, 90))
 
             poster_html = response.text
 

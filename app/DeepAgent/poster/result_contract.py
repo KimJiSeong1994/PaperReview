@@ -88,10 +88,18 @@ def result_envelope(
     timings: Dict[str, float],
     provenance: Dict[str, Any],
     artifacts: Optional[Dict[str, Any]] = None,
+    quality: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     error_code = raw.get("error_code") or ""
     if status == "failed" and not error_code:
         error_code = CODE_EMPTY_HTML
+    # `or` 체인은 빈 dict를 falsy로 보고 필터되지 않은 raw["quality"]로 되돌아간다.
+    # allowlist가 모든 키를 걸러낸 경우가 정확히 그 경우이므로 None만 본다.
+    resolved_quality = (
+        quality
+        if quality is not None
+        else (raw.get("quality") or {"validation_score": raw.get("validation_score")})
+    )
     return {
         **raw,
         "poster_status": status,
@@ -104,15 +112,16 @@ def result_envelope(
         "warnings": warnings,
         "error_code": error_code,
         "retryable": bool(raw.get("retryable", False)),
-        "generation_id": raw.get("generation_id") or generation_id,
+        "generation_id": generation_id,
         "timings": {**(raw.get("timings") or {}), **timings},
         "provenance": sanitize_public_provenance(
             provenance,
             raw.get("provenance") if isinstance(raw.get("provenance"), dict) else None,
         ),
-        "quality": raw.get("quality") or {
-            "validation_score": raw.get("validation_score"),
-        },
+        # 최상위 점수는 quality를 그대로 따른다. raw를 그대로 흘리면 폐기된
+        # 점수가 최상위에만 살아남아 HTTP 응답 본문으로 새어 나간다.
+        "validation_score": resolved_quality.get("validation_score"),
+        "quality": resolved_quality,
         "artifacts": artifacts or {
             "html_bytes": len(poster_html.encode("utf-8")),
         },

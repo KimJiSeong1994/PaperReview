@@ -450,3 +450,117 @@ def test_critic_flags_missing_print_css_contract() -> None:
 
     assert any("Missing @page" in issue for issue in result.structural_issues)
     assert any("Missing @media print" in issue for issue in result.structural_issues)
+
+
+def test_header_paper_count_uses_the_server_verified_total() -> None:
+    """B4/F12: 선언값은 서버가 적재한 논문 수일 때만 권위를 갖는다."""
+    content = _content_fixture()
+    content.statistics = {**content.statistics, "verified_papers": 5}
+    agent = PosterCompositionAgent()
+    composition = agent.design(
+        content, autofigure_svgs=_autofigures_fixture(), figures=content.figures or []
+    )
+
+    html = agent.render_html(
+        composition,
+        autofigure_svgs=_autofigures_fixture(),
+        figures=content.figures or [],
+        content=content,
+    )
+
+    assert "<strong>5</strong> papers" in html
+    assert "5 source papers" in html
+    # 숫자만 맞추고 불일치를 감추면 그 자체가 또 다른 거짓이다.
+    assert "2 papers not parsed into cards" in html
+    assert "Status partial" in html
+
+
+def test_header_ignores_the_client_supplied_paper_count() -> None:
+    """F12: direct 경로의 num_papers는 클라이언트 입력이라 헤드라인이 될 수 없다."""
+    content = _content_fixture()
+    content.statistics = {**content.statistics, "total_papers": 50}
+    agent = PosterCompositionAgent()
+    figures = content.figures or []
+    composition = agent.design(
+        content, autofigure_svgs=_autofigures_fixture(), figures=figures
+    )
+
+    html = agent.render_html(
+        composition,
+        autofigure_svgs=_autofigures_fixture(),
+        figures=figures,
+        content=content,
+    )
+
+    assert "<strong>50</strong> papers" not in html
+    assert "<strong>3</strong> papers" in html
+    assert "papers not parsed into cards" not in html
+    assert "Status synthesized" in html
+
+
+def test_header_discloses_more_cards_than_the_verified_count() -> None:
+    """F12: 파싱된 카드가 선언값보다 많은 방향도 감추지 않는다."""
+    content = _content_fixture()
+    content.statistics = {**content.statistics, "verified_papers": 1}
+    agent = PosterCompositionAgent()
+    figures = content.figures or []
+    composition = agent.design(
+        content, autofigure_svgs=_autofigures_fixture(), figures=figures
+    )
+
+    html = agent.render_html(
+        composition,
+        autofigure_svgs=_autofigures_fixture(),
+        figures=figures,
+        content=content,
+    )
+
+    # 카드보다 적게 인쇄하지 않는다.
+    assert "<strong>3</strong> papers" in html
+    assert "리포트에 2편이 더 분석되어 있습니다" in html
+    assert "Status partial" in html
+
+
+def test_header_hides_no_omission_note_when_every_paper_parsed() -> None:
+    """B4: a fully parsed poster must not carry an omission note."""
+    html = _render_html()
+
+    assert "<strong>3</strong> papers" in html
+    assert "papers not parsed into cards" not in html
+    assert "Status synthesized" in html
+
+
+def test_source_figure_caption_is_marked_as_model_written() -> None:
+    """B5: a caption the vision model wrote must not read as the paper's own caption."""
+    content = _content_fixture()
+    figures = [{**(content.figures or [{}])[0], "page_number": 4}]
+    agent = PosterCompositionAgent()
+    composition = agent.design(
+        content, autofigure_svgs=_autofigures_fixture(), figures=figures
+    )
+
+    html = agent.render_html(
+        composition,
+        autofigure_svgs=_autofigures_fixture(),
+        figures=figures,
+        content=content,
+    )
+
+    assert "Figure 1. Claim graph neighborhood used for evidence retrieval." in html
+    assert "원문 p.4 도판 · 캡션은 AI 자동 생성" in html
+    # alt 속성도 같은 표기여야 한다. 스크린리더 사용자만 무표시 캡션을 받으면 안 된다.
+    assert 'alt="Figure 1. Claim graph neighborhood used for evidence retrieval."' not in html
+
+
+def test_generated_diagram_caption_is_marked_as_a_reconstruction() -> None:
+    """F6: 완전히 생성된 다이어그램이 원문 도판보다 무표시여서는 안 된다."""
+    content = _content_fixture()
+    autofigures = _autofigures_fixture()
+    agent = PosterCompositionAgent()
+    composition = agent.design(content, autofigure_svgs=autofigures, figures=[])
+
+    html = agent.render_html(
+        composition, autofigure_svgs=autofigures, figures=[], content=content
+    )
+
+    assert "· 생성 다이어그램(재구성)" in html

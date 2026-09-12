@@ -127,9 +127,14 @@ async function expectPosterMenuReady() {
   await act(async () => {
     fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
   });
-  const generateButton = await screen.findByRole('button', { name: /generate poster/i });
+  // The point is that the run left no spinner behind: the item is enabled and
+  // off 'Generating...'. Its label depends on whether a poster survived — a
+  // generated one is reopened rather than regenerated.
+  const generateButton = await screen.findByRole('button', {
+    name: /generate poster|view poster/i,
+  });
   expect(generateButton).toBeEnabled();
-  expect(generateButton).toHaveTextContent('Generate Poster');
+  expect(generateButton).not.toHaveTextContent('Generating...');
 }
 
 describe('SearchPage analytics instrumentation', () => {

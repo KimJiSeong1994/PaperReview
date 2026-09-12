@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from app.DeepAgent.agents.poster_agent import PosterGenerationAgent
 from app.DeepAgent.agents.poster_composition_agent import PosterCompositionAgent
 from app.DeepAgent.poster.sanitizer import sanitize_poster_markup
@@ -316,3 +318,31 @@ def test_markdown_table_cells_escape_html_payloads() -> None:
 
     assert "<svg" not in html
     assert "&lt;svg" in html
+
+
+def test_agent_supplied_quality_keys_outside_the_allowlist_never_reach_the_response() -> None:
+    """F4: quality is deny-by-default, like provenance."""
+    from app.DeepAgent.poster.service import PosterApplicationService
+
+    scored_html = "<main>safe</main>"
+    result = PosterApplicationService()._normalize_result(
+        {
+            "success": True,
+            "poster_html": scored_html,
+            "quality": {
+                "validation_score": 0.9,
+                "scored_sha256": hashlib.sha256(scored_html.encode("utf-8")).hexdigest(),
+                "evaluator": "rule_based",
+                "leaked_path": "/tmp/private/workspace/report.md",
+            },
+        },
+        generation_id="poster_test",
+        session_id="session-1",
+        timings={"total_ms": 1.0},
+        provenance={"route": "direct"},
+    )
+
+    assert "leaked_path" not in result["quality"]
+    assert "/tmp/private" not in str(result["quality"])
+    # 필터가 해시 비교를 앞지르면 안 된다: 바이트가 그대로면 점수는 살아남는다.
+    assert result["quality"]["validation_score"] == 0.9
