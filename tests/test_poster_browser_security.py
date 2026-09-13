@@ -423,6 +423,68 @@ def test_a_decoded_css_escape_cannot_become_markup_in_a_browser(
     assert protected["hits"] == []
 
 
+# A <style> inside <svg> is foreign content, so its text goes through the data
+# state and HTML character references are decoded there. sanitize_css decodes
+# CSS escapes only, so "&#x75;rl(" reads inert to it and "url(" to the browser.
+#
+# These are measured WITHOUT inject_poster_csp on purpose: routers/autofigure.py
+# returns sanitized svg_content straight to its caller with no policy wrapped
+# around it, so the sanitizer is the only thing standing there.
+_CHARREF_VECTORS = {
+    "hex": "&#x75;rl",
+    "hex-uppercase-x": "&#X75;rl",
+    "decimal": "&#117;rl",
+    "zero-padded": "&#x000075;rl",
+    "no-semicolon": "&#x75rl",
+    "split-across-the-token": "u&#x72;l",
+    "entity-spelled-paren": "url&#x28;",
+}
+
+
+@pytest.mark.parametrize("vector", sorted(_CHARREF_VECTORS), ids=sorted(_CHARREF_VECTORS))
+def test_a_character_reference_cannot_refetch_from_inside_an_svg_style(
+    counting_server,  # noqa: F811 - pytest fixture imported above
+    vector,
+) -> None:
+    """Egress is the verdict, and the control run is the same CSS unsanitized."""
+    base = f"http://127.0.0.1:{counting_server.server_address[1]}"
+    spelling = _CHARREF_VECTORS[vector]
+    paren = "" if spelling.endswith(";") and "(" not in spelling else "("
+    payload = (
+        f"<svg><style>*{{background:{spelling}{paren}{base}/{vector});"
+        "width:9px;height:9px}</style></svg><div>x</div>"
+    )
+
+    with _poster_browser() as (_page, load):
+        control = load(payload)
+        protected = load(sanitize_poster_markup(payload))
+
+    assert control["hits"], f"{vector} never fetched unsanitized, so it proves nothing"
+    assert protected["hits"] == []
+
+
+def test_an_svg_style_keeps_the_css_a_poster_is_actually_drawn_with() -> None:
+    """The entity escape must not cost a real SVG stylesheet its rules."""
+    sanitized = sanitize_poster_markup(
+        "<svg viewBox='0 0 40 40'><style>"
+        "#box{fill:rgb(0,128,0)}"
+        "@media (1px < width < 99999px){#box{fill:rgb(0,0,255)}}"
+        "</style><rect id='box' width='40' height='40'/></svg>"
+    )
+
+    with _poster_browser() as (page, load):
+        load(sanitized, sandbox="allow-same-origin")
+        fill = page.evaluate(
+            """() => {
+                 const d = document.querySelector('#poster-frame').contentDocument;
+                 return getComputedStyle(d.getElementById('box')).fill;
+               }"""
+        )
+
+    # the media query wins, which only happens if "<" kept its delimiter meaning
+    assert fill == "rgb(0, 0, 255)"
+
+
 def test_a_poster_under_the_csp_still_shows_its_inline_css_and_data_figure() -> None:
     """The policy exists to block egress, not to break the poster: inline CSS
     and base64 figures are what every measured poster is made of.

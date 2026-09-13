@@ -611,7 +611,7 @@ def test_a_css_escape_cannot_write_a_style_breakout() -> None:
     assert _CANARY in body.group(1)
 
 
-def test_every_less_than_in_style_text_is_escaped_not_just_closing_tags() -> None:
+def test_a_less_than_that_opens_a_tag_is_escaped_even_without_a_slash() -> None:
     """A lone ``<`` opens a tag wherever <style> content is parsed as markup --
     which is exactly what happens inside <svg>. Escaping only ``</`` leaves that
     open.
@@ -628,6 +628,60 @@ def test_style_text_that_never_had_a_less_than_is_left_alone() -> None:
 
     assert body == f".node{{fill:url(#gradient);{_CANARY}}}"
     assert "\\3c" not in body
+
+
+def test_a_less_than_that_cannot_open_a_tag_keeps_its_delimiter_meaning() -> None:
+    """``\\3c `` is an *ident* token, not a delimiter. Media Queries range syntax
+    needs the delimiter, so escaping every ``<`` would silently kill the rule
+    instead of preserving it. Only a ``<`` HTML5's tag open state would act on
+    -- ``!``, ``/``, ``?``, ASCII letter -- has to go.
+    """
+    body = _sanitized_stylesheet(
+        f"@media (1px < width < 99999px){{.node{{{_CANARY}}}}}"
+    )
+
+    assert "1px < width < 99999px" in body
+    assert "\\3c" not in body
+
+
+def test_a_character_reference_cannot_rebuild_a_url_inside_an_svg_style() -> None:
+    """A ``<style>`` inside ``<svg>`` is foreign content, not RAWTEXT, so its
+    text runs through the data state and HTML character references are decoded
+    there. sanitize_css decodes CSS escapes only, so it reads ``&#x75;rl(`` as
+    inert while the browser reads ``url(`` -- the entity-spelled twin of the
+    ``u\\72 l(`` case #282 closed.
+    """
+    sanitized = sanitize_poster_markup(
+        "<svg><style>*{background:&#x75;rl(http://evil.example/b.png);"
+        f"{_CANARY}}}</style></svg>"
+    )
+
+    assert "&#x75;" not in sanitized
+    assert "\\26 #x75;" in sanitized
+    assert _CANARY in sanitized
+
+
+@pytest.mark.parametrize(
+    "spelling",
+    ["&#x75;", "&#X75;", "&#117;", "&#x0075;", "&#x000075;", "&#x75", "&#117"],
+)
+def test_every_character_reference_spelling_of_u_is_defused(spelling: str) -> None:
+    """Semicolons are optional on numeric references and the browser decodes
+    them anyway, so the check cannot key on the terminator.
+    """
+    body = _sanitized_stylesheet(f"*{{background:{spelling}rl(http://evil.example/b.png)}}")
+
+    assert "&" not in body
+
+
+def test_an_ampersand_that_cannot_start_a_reference_keeps_css_nesting_working() -> None:
+    """``&:hover`` is the nesting selector. Escaping every ``&`` would break it,
+    and nothing is gained: a reference needs ``#`` or a letter after the ``&``.
+    """
+    body = _sanitized_stylesheet(f".node{{{_CANARY};&:hover{{color:#654321}}}}")
+
+    assert "&:hover" in body
+    assert "\\26" not in body
 
 
 def test_comments_are_dropped_because_their_end_is_parser_specific() -> None:
