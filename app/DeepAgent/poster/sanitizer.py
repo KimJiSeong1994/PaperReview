@@ -270,6 +270,28 @@ def sanitize_css(css: str) -> str:
     return ""
 
 
+def _escape_style_text(css: str) -> str:
+    """Make sanitized CSS unable to reopen markup in the ``<style>`` that holds it.
+
+    ``sanitize_css`` returns text with CSS escapes *decoded*, so what it
+    inspected is what ships. That is what makes an escaped ``u\\72 l(`` fail
+    instead of reviving in the browser -- but it also means an input that hid
+    ``\\3c /style>`` inside a string is handed back as a literal ``</style>``,
+    and the sanitizer writes the breakout the input could not. The pair the
+    decode needs is re-escaping on the way out.
+
+    ``\\3c `` (with its terminating space) is the CSS spelling of ``<`` and is
+    inert in both sinks a ``<style>`` can land in: the RAWTEXT of an HTML
+    ``<style>``, and the markup-parsed content of one inside ``<svg>``. Neither
+    parser sees a tag; the CSS parser decodes it back to ``<`` inside whatever
+    token it belongs to, so the stylesheet keeps its meaning.
+
+    Every ``<`` goes, not just ``</``. A lone ``<`` opens a tag wherever
+    ``<style>`` content is parsed as markup -- which is exactly the SVG case.
+    """
+    return css.replace("<", "\\3c ")
+
+
 def sanitize_poster_markup(markup: str) -> str:
     """Sanitize a complete poster HTML or SVG fragment."""
     parser = _PosterSanitizer()
@@ -509,7 +531,9 @@ class _PosterSanitizer(HTMLParser):
             return
         if lower == "style":
             if self._style_depth:
-                self._parts.append(sanitize_css("".join(self._style_buffer)))
+                self._parts.append(
+                    _escape_style_text(sanitize_css("".join(self._style_buffer)))
+                )
                 self._parts.append("</style>")
                 self._style_depth = 0
                 self._style_buffer = []
@@ -537,8 +561,24 @@ class _PosterSanitizer(HTMLParser):
             target.append(f"&#{name};")
 
     def handle_comment(self, data: str) -> None:
-        if not self._drop_depth:
-            self._parts.append(f"<!--{data}-->")
+        """Drop it. A comment cannot be re-serialized back to its own meaning.
+
+        ``html.parser`` runs a comment to the last ``-->``; HTML5 ends
+        ``<!-->`` and ``<!--->`` the moment it sees them ("abrupt closing of
+        empty comment"). So ``<!-->x<img onerror=...>-->`` is one inert comment
+        to this parser and a live ``<img>`` to the browser -- and writing the
+        data back out as ``<!--`` + data + ``-->`` reproduces the input that
+        made them disagree. There is no escaping that fixes it: a comment has
+        no escape syntax, and the divergence is in where it *ends*.
+
+        Nothing downstream reads comments. The placeholder substitutions that
+        use them -- ``<!-- EMBED_SVG_N -->``, ``<!-- FIGURES_PLACEHOLDER -->``
+        -- all run inside ``_generate_with_composition`` (poster_agent.py:532),
+        and sanitizing happens at poster_agent.py:563, after it. Nor does
+        ``_DocumentAnchors`` lose anything: it already ignores comments so that
+        a ``<head>`` inside one cannot anchor the CSP meta.
+        """
+        return
 
     @staticmethod
     def _format_attrs(attrs: list[tuple[str, str]]) -> str:

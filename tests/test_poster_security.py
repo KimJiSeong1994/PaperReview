@@ -585,6 +585,77 @@ def test_self_closing_svg_shapes_still_render() -> None:
     assert "</img>" not in sanitize_poster_markup('<img src="data:image/png;base64,AAAA"/>')
 
 
+# --- Parser-parity: what the sanitizer writes into a <style>, and comments ---
+#
+# These two close the gap between the parser the sanitizer uses (html.parser)
+# and the one the browser uses. Both are measured in a browser by
+# test_poster_browser_security.py; the assertions here pin the mechanism so a
+# refactor that silently removes it fails here first.
+
+
+def test_a_css_escape_cannot_write_a_style_breakout() -> None:
+    """sanitize_css returns escapes *decoded*, which is what makes an obfuscated
+    ``u\\72 l(`` fail instead of reviving in the browser. Undone, an input that
+    spelled ``</style>`` as ``\\3c /style>`` would come back out as the literal
+    tag -- the sanitizer writing a breakout the input could not.
+    """
+    sanitized = sanitize_poster_markup(
+        "<style>a{content:'\\3c /style>\\3cimg src=x onerror=alert(1)>';" + _CANARY + "}</style>"
+    )
+
+    body = _STYLE_BODY_RE.search(sanitized)
+    assert body is not None, "the stylesheet still has to be there"
+    assert "</style>" not in body.group(1)
+    assert "<img" not in body.group(1)
+    assert "\\3c " in body.group(1)
+    assert _CANARY in body.group(1)
+
+
+def test_every_less_than_in_style_text_is_escaped_not_just_closing_tags() -> None:
+    """A lone ``<`` opens a tag wherever <style> content is parsed as markup --
+    which is exactly what happens inside <svg>. Escaping only ``</`` leaves that
+    open.
+    """
+    body = _sanitized_stylesheet("a{content:'\\3c img src=x onerror=alert(1)>'}")
+
+    assert "<" not in body
+    assert "\\3c img" in body
+
+
+def test_style_text_that_never_had_a_less_than_is_left_alone() -> None:
+    """The escape must cost nothing to the CSS every real poster is made of."""
+    body = _sanitized_stylesheet(f".node{{fill:url(#gradient);{_CANARY}}}")
+
+    assert body == f".node{{fill:url(#gradient);{_CANARY}}}"
+    assert "\\3c" not in body
+
+
+def test_comments_are_dropped_because_their_end_is_parser_specific() -> None:
+    """html.parser runs a comment to the last ``-->``; HTML5 ends ``<!-->`` the
+    moment it sees it. So this input is one inert comment to the sanitizer and a
+    live <img> to the browser, and re-serializing the data as ``<!--`` + data +
+    ``-->`` hands the browser back the very bytes they disagree on.
+    """
+    sanitized = sanitize_poster_markup(
+        '<!-->x<img src=x onerror=alert(1)>--><h1 id="t">Poster</h1>'
+    )
+
+    assert "onerror" not in sanitized
+    assert "<!--" not in sanitized
+    assert '<h1 id="t">Poster</h1>' in sanitized
+
+
+def test_dropping_a_comment_leaves_the_poster_around_it_standing() -> None:
+    """Comments carry no poster content by the time markup is sanitized: the
+    placeholder substitutions that use them all run before this point.
+    """
+    sanitized = sanitize_poster_markup(
+        "<h1>Title</h1><!-- EMBED_SVG_1 --><p>Body</p>"
+    )
+
+    assert sanitized == "<h1>Title</h1><p>Body</p>"
+
+
 # --- Delivered-document CSP -------------------------------------------------
 #
 # sandbox="" stops scripts but not CSS fetches, and the app serves no CSP
@@ -683,17 +754,22 @@ def test_a_head_inside_a_comment_is_not_an_injection_point() -> None:
     """Poster prompts ask for literal comments (EMBED_SVG placeholders), so the
     text is model-written. A commented-out <head> swallowing the policy is the
     worst case: no policy, and no console warning either.
+
+    Two things now stand between that and the delivered bytes, and the anchor
+    search is still the load-bearing one: sanitizing runs first and drops the
+    comment outright, but _DocumentAnchors independently refuses to anchor on a
+    <head> it saw inside one. The assertion is on the property -- the policy
+    opens the real head -- so it holds whichever layer gets there first.
     """
     delivered = _delivered(
         "<!DOCTYPE html><!--<head>--><html><head><title>t</title></head>"
         "<body><h1>Poster</h1></body></html>"
     )
 
-    assert "<!--<head>-->" in delivered
+    assert "<!--" not in delivered
     assert '<head><meta http-equiv="Content-Sec' in delivered
-    assert delivered.index("http-equiv") > delivered.index("<!--<head>-->") + len(
-        "<!--<head>-->"
-    )
+    assert delivered.count("http-equiv") == 1
+    assert "<title>t</title>" in delivered
 
 
 def test_csp_injection_never_gives_an_empty_poster_something_to_render() -> None:
