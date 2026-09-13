@@ -656,7 +656,9 @@ def test_validator_path_drops_the_score_when_refinement_changes_the_bytes() -> N
     agent = _offline_agent(enable_critic=False, enable_validation=True)
     agent.llm = None
     agent.validator_agent, calls = _validator_agent(0.40)
-    agent._refine_poster = lambda html, suggestions: html + "<!-- refined -->"
+    # 표식은 sanitize를 통과해야 한다. 주석은 파서마다 끝나는 지점이 달라서
+    # 통째로 버려지므로, 주석으로 표시하면 "바이트가 변했다"가 성립하지 않는다.
+    agent._refine_poster = lambda html, suggestions: html + "<p>refined</p>"
 
     result = agent.generate_poster(_SAMPLE_REPORT, num_papers=1)
 

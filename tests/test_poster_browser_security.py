@@ -8,7 +8,11 @@ from html import escape
 
 import pytest
 
-from app.DeepAgent.poster.sanitizer import inject_poster_csp, sanitize_poster_markup
+from app.DeepAgent.poster.sanitizer import (
+    inject_poster_csp,
+    sanitize_css,
+    sanitize_poster_markup,
+)
 from tests.test_poster_export_contract import (  # noqa: F401 - counting_server is a fixture
     _CountingHandler,
     _one_pixel_png,
@@ -305,6 +309,180 @@ def test_the_poster_csp_reaches_document_head_and_stops_egress(
     assert protected["hits"] == []
     # 위반이 조용히 삼켜지면 다음 구멍도 조용히 열린다.
     assert protected["violations"]
+
+
+# --- Parser parity (mXSS) ---------------------------------------------------
+#
+# The sanitizer parses with html.parser; the browser parses with an HTML5 tree
+# builder. Where the two disagree, markup the sanitizer copied through as inert
+# text becomes live in the browser. A string assertion cannot settle this: it
+# can see that "</style>" is in the output without knowing whether the browser
+# ends the element there. So each vector is loaded twice with scripts ENABLED,
+# and the verdict is whether the payload's beacon actually reaches the network.
+#
+# The beacon nests quotes deliberately: CSS string with ', HTML attribute with
+# ", JS with backticks, so no layer terminates another and a silent run means
+# the sanitizer stopped it rather than the payload breaking itself.
+
+# The two classes need different controls, so they are two tests.
+#
+# PASSTHROUGH: live markup the sanitizer copied through as inert text. The
+# control is the raw input -- it fires on its own, and must not after sanitizing.
+_PASSTHROUGH_VECTORS = {
+    # <style> inside SVG is foreign content, where HTML5 does NOT switch to
+    # RAWTEXT -- html.parser does, and hides the <img> from the sanitizer.
+    "svg-style-is-not-rawtext-in-the-browser": (
+        '<svg><style><img src=x onerror="{js}"></style></svg>'
+    ),
+    "svg-style-nested-deeper": (
+        '<svg><g><svg><style><img src=x onerror="{js}"></style></svg></g></svg>'
+    ),
+    "svg-style-closing-its-own-svg": (
+        '<svg><style></svg><img src=x onerror="{js}"></style></svg>'
+    ),
+    # html.parser runs the comment to the last "-->"; HTML5 ends "<!-->" at once.
+    "abrupt-comment-the-browser-ends-early": '<!-->x<img src=x onerror="{js}">-->',
+    "abrupt-comment-with-a-dash": '<!--->x<img src=x onerror="{js}">-->',
+    "abrupt-comment-closed-with-a-bang": '<!-->-<img src=x onerror="{js}">--!>',
+}
+
+# SANITIZER-BUILT: the raw input is inert in a browser -- the escape stays inside
+# a CSS string and never becomes markup. It is sanitize_css *decoding* it that
+# spells out a real </style>. So the raw input is the wrong control: it proves
+# nothing by staying silent. The control is the same stylesheet emitted the way
+# it was before the fix -- sanitize_css's output with no re-escaping -- which
+# isolates the escape as the one thing standing between it and execution.
+_STYLE_BUILT_VECTORS = {
+    "css-escape-spelling-a-style-close": (
+        "<style>", "</style>",
+        "a{{content:'\\3c /style>\\3cimg src=x onerror=\"{js}\">'}}",
+    ),
+    "css-escape-in-a-selector": (
+        "<style>", "</style>",
+        "a[href='\\3c/style>\\3cimg src=x onerror=\"{js}\">']{{color:red}}",
+    ),
+    "css-escape-inside-a-css-comment": (
+        "<style>", "</style>",
+        "/* \\3c/style>\\3cimg src=x onerror=\"{js}\"> */a{{color:red}}",
+    ),
+    "css-escape-inside-svg-style": (
+        "<svg><style>", "</style></svg>",
+        "a{{content:'\\3c/style>\\3cimg src=x onerror=\"{js}\">'}}",
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "vector", sorted(_PASSTHROUGH_VECTORS), ids=sorted(_PASSTHROUGH_VECTORS)
+)
+def test_markup_the_sanitizer_read_as_text_is_inert_in_a_browser(
+    counting_server,  # noqa: F811 - pytest fixture imported above
+    vector,
+) -> None:
+    """Scripts on, network watched: the beacon is the verdict.
+
+    The control run pins the same vector unsanitized, so a zero is evidence that
+    the sanitizer stopped it and not that the payload never fired.
+    """
+    base = f"http://127.0.0.1:{counting_server.server_address[1]}"
+    payload = _PASSTHROUGH_VECTORS[vector].format(js=f"new Image().src=`{base}/{vector}`")
+
+    with _poster_browser() as (_page, load):
+        control = load(payload, sandbox="allow-scripts")
+        protected = load(sanitize_poster_markup(payload), sandbox="allow-scripts")
+
+    assert control["hits"], f"{vector} never fired unsanitized, so it proves nothing"
+    assert protected["hits"] == []
+
+
+@pytest.mark.parametrize(
+    "vector", sorted(_STYLE_BUILT_VECTORS), ids=sorted(_STYLE_BUILT_VECTORS)
+)
+def test_a_decoded_css_escape_cannot_become_markup_in_a_browser(
+    counting_server,  # noqa: F811 - pytest fixture imported above
+    vector,
+) -> None:
+    """The sanitizer must not be the thing that assembles the payload.
+
+    Decoding escapes is deliberate -- it is what stops an obfuscated ``u\\72 l(``
+    from reviving downstream -- so the control here is the decode *without* the
+    re-escaping that pairs with it. That control firing is what makes the
+    protected run mean something.
+    """
+    open_tag, close_tag, css = _STYLE_BUILT_VECTORS[vector]
+    css = css.format(js=f"new Image().src=`http://127.0.0.1:"
+                        f"{counting_server.server_address[1]}/{vector}`")
+
+    with _poster_browser() as (_page, load):
+        control = load(f"{open_tag}{sanitize_css(css)}{close_tag}", sandbox="allow-scripts")
+        protected = load(
+            sanitize_poster_markup(f"{open_tag}{css}{close_tag}"), sandbox="allow-scripts"
+        )
+
+    assert control["hits"], f"{vector} did not break out even unescaped"
+    assert protected["hits"] == []
+
+
+# A <style> inside <svg> is foreign content, so its text goes through the data
+# state and HTML character references are decoded there. sanitize_css decodes
+# CSS escapes only, so "&#x75;rl(" reads inert to it and "url(" to the browser.
+#
+# These are measured WITHOUT inject_poster_csp on purpose: routers/autofigure.py
+# returns sanitized svg_content straight to its caller with no policy wrapped
+# around it, so the sanitizer is the only thing standing there.
+_CHARREF_VECTORS = {
+    "hex": "&#x75;rl",
+    "hex-uppercase-x": "&#X75;rl",
+    "decimal": "&#117;rl",
+    "zero-padded": "&#x000075;rl",
+    "no-semicolon": "&#x75rl",
+    "split-across-the-token": "u&#x72;l",
+    "entity-spelled-paren": "url&#x28;",
+}
+
+
+@pytest.mark.parametrize("vector", sorted(_CHARREF_VECTORS), ids=sorted(_CHARREF_VECTORS))
+def test_a_character_reference_cannot_refetch_from_inside_an_svg_style(
+    counting_server,  # noqa: F811 - pytest fixture imported above
+    vector,
+) -> None:
+    """Egress is the verdict, and the control run is the same CSS unsanitized."""
+    base = f"http://127.0.0.1:{counting_server.server_address[1]}"
+    spelling = _CHARREF_VECTORS[vector]
+    paren = "" if spelling.endswith(";") and "(" not in spelling else "("
+    payload = (
+        f"<svg><style>*{{background:{spelling}{paren}{base}/{vector});"
+        "width:9px;height:9px}</style></svg><div>x</div>"
+    )
+
+    with _poster_browser() as (_page, load):
+        control = load(payload)
+        protected = load(sanitize_poster_markup(payload))
+
+    assert control["hits"], f"{vector} never fetched unsanitized, so it proves nothing"
+    assert protected["hits"] == []
+
+
+def test_an_svg_style_keeps_the_css_a_poster_is_actually_drawn_with() -> None:
+    """The entity escape must not cost a real SVG stylesheet its rules."""
+    sanitized = sanitize_poster_markup(
+        "<svg viewBox='0 0 40 40'><style>"
+        "#box{fill:rgb(0,128,0)}"
+        "@media (1px < width < 99999px){#box{fill:rgb(0,0,255)}}"
+        "</style><rect id='box' width='40' height='40'/></svg>"
+    )
+
+    with _poster_browser() as (page, load):
+        load(sanitized, sandbox="allow-same-origin")
+        fill = page.evaluate(
+            """() => {
+                 const d = document.querySelector('#poster-frame').contentDocument;
+                 return getComputedStyle(d.getElementById('box')).fill;
+               }"""
+        )
+
+    # the media query wins, which only happens if "<" kept its delimiter meaning
+    assert fill == "rgb(0, 0, 255)"
 
 
 def test_a_poster_under_the_csp_still_shows_its_inline_css_and_data_figure() -> None:

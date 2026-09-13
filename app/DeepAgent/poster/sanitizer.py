@@ -53,6 +53,11 @@ _CSS_ACTIVE_DECL_RE = re.compile(
     re.IGNORECASE,
 )
 _CSS_ESCAPE_RE = re.compile(r"\\([0-9a-fA-F]{1,6}\s?|.)", re.DOTALL)
+# What <style> text has to be re-escaped against on the way out. Both are the
+# exact character that starts the browser's decoding, so nothing wider is
+# needed and nothing narrower is safe -- see _escape_style_text.
+_STYLE_TEXT_TAG_OPEN_RE = re.compile(r"<(?=[!/?a-zA-Z])")
+_STYLE_TEXT_CHARREF_RE = re.compile(r"&(?=[#a-zA-Z])")
 _CSS_SANITIZE_PASSES = 5
 _URL_FUNC_RE = re.compile(r"u\s*r\s*l\s*\(", re.IGNORECASE)
 _LOCAL_URL_FUNC_RE = re.compile(
@@ -268,6 +273,41 @@ def sanitize_css(css: str) -> str:
             return current
         current = stripped
     return ""
+
+
+def _escape_style_text(css: str) -> str:
+    """Re-escape what the browser would otherwise decode back into CSS or markup.
+
+    ``sanitize_css`` inspects text after decoding CSS escapes and returns that
+    decoded text, so what was inspected is what ships. Two things can still turn
+    the shipped text into something else, and both are the browser decoding a
+    layer the sanitizer never modelled.
+
+    **Markup.** An input that hid ``\\3c /style>`` inside a string comes back as
+    a literal ``</style>``, so the sanitizer writes the breakout the input could
+    not. ``\\3c `` is the CSS spelling of ``<`` and no HTML parser reads it as a
+    tag. Only a ``<`` that can actually open one is escaped -- HTML5's tag open
+    state moves on markup for ``!``, ``/``, ``?`` and ASCII letters and treats
+    every other ``<`` as text -- which leaves Media Queries range syntax
+    (``@media (1px < width)``) working. That matters because ``\\3c `` is an
+    *ident* token, not the delimiter that syntax needs: escaping those would
+    silently kill the rule rather than preserve it.
+
+    **Character references.** A ``<style>`` inside ``<svg>`` is foreign content,
+    not RAWTEXT, so its text goes through the data state and HTML character
+    references are decoded there. ``sanitize_css`` decodes CSS escapes only, so
+    it reads ``&#x75;rl(`` as inert while the browser reads ``url(`` -- the
+    entity-spelled twin of the ``u\\72 l(`` case. ``\\26 `` is the CSS spelling
+    of ``&``, so the CSS keeps its meaning while the HTML parser has no ``&`` to
+    decode. Only a ``&`` that could begin a reference is escaped, which leaves
+    CSS nesting (``&:hover``) alone.
+
+    The cost is that entity spellings inside an SVG ``<style>`` now render the
+    way the identical HTML ``<style>`` already renders them -- as their literal
+    characters. That is the safe direction, and it makes the two consistent.
+    """
+    css = _STYLE_TEXT_CHARREF_RE.sub("\\\\26 ", css)
+    return _STYLE_TEXT_TAG_OPEN_RE.sub("\\\\3c ", css)
 
 
 def sanitize_poster_markup(markup: str) -> str:
@@ -509,7 +549,9 @@ class _PosterSanitizer(HTMLParser):
             return
         if lower == "style":
             if self._style_depth:
-                self._parts.append(sanitize_css("".join(self._style_buffer)))
+                self._parts.append(
+                    _escape_style_text(sanitize_css("".join(self._style_buffer)))
+                )
                 self._parts.append("</style>")
                 self._style_depth = 0
                 self._style_buffer = []
@@ -537,8 +579,24 @@ class _PosterSanitizer(HTMLParser):
             target.append(f"&#{name};")
 
     def handle_comment(self, data: str) -> None:
-        if not self._drop_depth:
-            self._parts.append(f"<!--{data}-->")
+        """Drop it. A comment cannot be re-serialized back to its own meaning.
+
+        ``html.parser`` runs a comment to the last ``-->``; HTML5 ends
+        ``<!-->`` and ``<!--->`` the moment it sees them ("abrupt closing of
+        empty comment"). So ``<!-->x<img onerror=...>-->`` is one inert comment
+        to this parser and a live ``<img>`` to the browser -- and writing the
+        data back out as ``<!--`` + data + ``-->`` reproduces the input that
+        made them disagree. There is no escaping that fixes it: a comment has
+        no escape syntax, and the divergence is in where it *ends*.
+
+        Nothing downstream reads comments. The placeholder substitutions that
+        use them -- ``<!-- EMBED_SVG_N -->``, ``<!-- FIGURES_PLACEHOLDER -->``
+        -- all run inside ``_generate_with_composition`` (poster_agent.py:532),
+        and sanitizing happens at poster_agent.py:563, after it. Nor does
+        ``_DocumentAnchors`` lose anything: it already ignores comments so that
+        a ``<head>`` inside one cannot anchor the CSP meta.
+        """
+        return
 
     @staticmethod
     def _format_attrs(attrs: list[tuple[str, str]]) -> str:
