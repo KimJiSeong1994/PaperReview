@@ -9,15 +9,16 @@ looks at it. Two defects have reached production this way.
   so ten names were presented as the whole list. Counting authors cannot catch
   this on its own -- the corpus has 32 genuine ten-author entries -- but the
   same work cited in another post with a longer list can.
-* The same work listed twice in one post, once as an arXiv preprint and once as
-  the published version, presented as two separate references.
+* The same work listed twice in one post as the same kind of record. A preprint
+  paired with its version of record is deliberate -- these reviews cite the
+  published record and list the arXiv copy they actually read -- so a pair counts
+  only when both entries are preprints, or neither is.
 
 Both are checked here against the corpus itself rather than against an external
 source, so the checks stay mechanical and need no network.
 
-``KNOWN_CONFLICTS`` and ``KNOWN_DUPLICATES`` are the defects that already exist.
-They are frozen so new drift fails while the backlog stays visible -- entries
-should be removed as the underlying bibliographies are corrected, not added to.
+There is no allowlist: every conflict the corpus had was a real truncation and
+was corrected against the arXiv record. A new entry here means a new defect.
 """
 
 from __future__ import annotations
@@ -39,21 +40,6 @@ AUTHOR = re.compile(r"[A-ZÀ-Ý][\w'’\-]+,\s*(?:[A-ZÀ-Ý]\.\s*)+(?:[A-ZÀ-Ý]
 # APA's ellipsis form and "et al." are both deliberate abbreviations.
 ABBREVIATED = ("et al.", "…", ". . .", "...")
 
-# Same work, different author counts, neither side abbreviated -- one is wrong.
-KNOWN_CONFLICTS = {
-    "fromlocaltoglobalagraphragapproachtoqueryfocusedsummari",  # Edge et al., 8 vs 10
-    "ragvsgraphragasystematicevaluationandkeyinsights",  # Han et al., 9 vs 12
-    "reflexionlanguageagentswithverbalreinforcementlearning",  # Shinn et al., 5 vs 6
-    "searchr1trainingllmstoreasonandleveragesearchengineswit",  # Jin et al., 6 vs 8
-}
-
-# One work, two entries in the same post (preprint and published version).
-KNOWN_DUPLICATES = {
-    ("hipporag-neurobiologically-inspired-long-term-memory", "hipporagneurobiologicallyinspiredlongtermmemoryforlarge"),
-    ("intent-propagation-contrastive-collaborative-filtering", "intentpropagationcontrastivecollaborativefiltering"),
-    ("rag-vs-graphrag-systematic-evaluation", "ragvsgraphragasystematicevaluationandkeyinsights"),
-}
-
 
 def _title_key(title: str) -> str:
     # APA puts the venue after the title as ". In <Proceedings...>". Same work,
@@ -62,8 +48,8 @@ def _title_key(title: str) -> str:
     return re.sub(r"[^a-z0-9]", "", title.lower())[:55]
 
 
-def _references() -> list[tuple[str, str, int, str]]:
-    """(slug, title_key, author_count, author_text) for every parsed reference."""
+def _references() -> list[tuple[str, str, bool, int, str]]:
+    """(slug, title_key, is_preprint, author_count, author_text) per reference."""
     posts = json.loads(POSTS_FILE.read_text(encoding="utf-8"))["posts"]
     out = []
     for post in posts:
@@ -76,7 +62,15 @@ def _references() -> list[tuple[str, str, int, str]]:
             authors = " ".join(match.group(1).split())
             count = len(AUTHOR.findall(authors))
             if count:
-                out.append((post["slug"], _title_key(match.group(3)), count, authors))
+                out.append(
+                    (
+                        post["slug"],
+                        _title_key(match.group(3)),
+                        "arxiv:" in line.lower(),
+                        count,
+                        authors,
+                    )
+                )
     return out
 
 
@@ -84,23 +78,27 @@ def test_the_parser_still_finds_the_bibliographies() -> None:
     """A regex that silently stops matching would make every check below vacuous."""
     refs = _references()
     assert len(refs) > 400, f"only {len(refs)} references parsed - has the format changed?"
-    assert len({slug for slug, _, _, _ in refs}) > 50
+    assert len({slug for slug, _, _, _, _ in refs}) > 50
 
 
-def test_one_work_is_not_listed_twice_in_the_same_post() -> None:
-    seen: dict[tuple[str, str], int] = defaultdict(int)
-    for slug, key, _, _ in _references():
-        seen[(slug, key)] += 1
-    duplicates = {pair for pair, n in seen.items() if n > 1} - KNOWN_DUPLICATES
+def test_one_work_is_not_listed_twice_as_the_same_kind_of_record() -> None:
+    """A preprint listed alongside its version of record is deliberate, not a repeat."""
+    seen: dict[tuple[str, str, bool], int] = defaultdict(int)
+    for slug, key, is_preprint, _, _ in _references():
+        seen[(slug, key, is_preprint)] += 1
+    duplicates = {
+        (slug, key, "preprint" if is_preprint else "published")
+        for (slug, key, is_preprint), n in seen.items()
+        if n > 1
+    }
     assert not duplicates, (
-        "the same work is listed more than once in one post "
-        f"(preprint and published version are one reference): {sorted(duplicates)}"
+        f"one post lists the same work twice as the same kind of record: {sorted(duplicates)}"
     )
 
 
 def test_a_work_cited_in_several_posts_keeps_one_author_list() -> None:
     by_work: dict[str, set[tuple[str, int]]] = defaultdict(set)
-    for slug, key, count, authors in _references():
+    for slug, key, _, count, authors in _references():
         if any(mark in authors for mark in ABBREVIATED):
             continue  # says it is abbreviated; a shorter list is expected
         by_work[key].add((slug, count))
@@ -108,7 +106,7 @@ def test_a_work_cited_in_several_posts_keeps_one_author_list() -> None:
     conflicts = {
         key: sorted(entries)
         for key, entries in by_work.items()
-        if len({count for _, count in entries}) > 1 and key not in KNOWN_CONFLICTS
+        if len({count for _, count in entries}) > 1
     }
     assert not conflicts, (
         "the same work carries different author counts across posts, and neither "
