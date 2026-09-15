@@ -216,8 +216,8 @@ describe('AdminPage — Members tab wiring', () => {
     fireEvent.click(screen.getByRole('button', { name: 'trigger-delete-bob' }));
 
     // The confirm dialog should appear
-    expect(screen.getByText('Delete User')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(screen.getByText('계정 삭제')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
 
     await waitFor(() => {
       expect(deleteUser).toHaveBeenCalledWith('bob');
@@ -227,6 +227,51 @@ describe('AdminPage — Members tab wiring', () => {
       expect(vi.mocked(getAdminCurricula).mock.calls.length).toBeGreaterThan(curCallsBefore);
       expect(vi.mocked(getAdminPaperStats).mock.calls.length).toBeGreaterThan(paperCallsBefore);
     });
+  });
+});
+
+describe('AdminPage — confirm dialog', () => {
+  async function openDialog() {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    await screen.findByTestId('members-report');
+    const trigger = screen.getByRole('button', { name: 'trigger-delete-bob' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    return trigger;
+  }
+
+  it('announces itself as a modal dialog labelled by its own title', async () => {
+    await openDialog();
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName('계정 삭제');
+  });
+
+  it('moves focus into the dialog when it opens', async () => {
+    await openDialog();
+
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+  });
+
+  it('closes on Escape and returns focus to the control that opened it', async () => {
+    const trigger = await openDialog();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('returns focus to the trigger after cancelling', async () => {
+    const trigger = await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: '취소' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
   });
 });
 
@@ -248,7 +293,7 @@ describe('AdminPage — paper deletion safety', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'select-BOB-0' }));
     fireEvent.click(screen.getByRole('button', { name: 'delete-selected' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
 
     await waitFor(() =>
       expect(deleteAdminPapers).toHaveBeenCalledWith([{ index: 1, fingerprint: 'fp-BOB-0' }]),
@@ -265,7 +310,7 @@ describe('AdminPage — paper deletion safety', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'select-BOB-0' }));
     fireEvent.click(screen.getByRole('button', { name: 'delete-selected' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
 
     expect(await screen.findByText(/아무것도 삭제하지 않았습니다/)).toBeInTheDocument();
     expect(vi.mocked(getAdminPapers).mock.calls.length).toBeGreaterThan(loadsBefore);

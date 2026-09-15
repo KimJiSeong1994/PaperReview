@@ -302,8 +302,9 @@
   background: rgba(251, 191, 36, 0.12);
 }
 
+/* --text-muted reads 4.32:1 against this badge's own tint, just under 4.5. */
 .admin-role-badge--user {
-  color: var(--text-muted);
+  color: var(--text-soft);
   background: var(--wov-06);
 }
 
@@ -320,6 +321,7 @@
   font-family: inherit;
   transition: all 0.15s ease;
   margin-right: 6px;
+  min-height: 24px;
 }
 
 .admin-action-btn:hover {
@@ -502,10 +504,22 @@
 
 /* ===== Checkbox ===== */
 .admin-checkbox {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: rgba(99, 102, 241, 0.8);
+}
+
+/* A 16px box stays legible in the dense tree; the label around it supplies the
+   24×24 target, and clicking it toggles the input natively. */
+.admin-checkbox-hit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 /* ===== Filter Bar ===== */
@@ -545,6 +559,101 @@
   font-size: 11px;
   color: var(--indigo);
   font-weight: 500;
+}
+
+/* ===== Members toolbar =====
+   Search, sort and scope replace the old "Members / N users" caption: with 500
+   rows the caption was decoration and finding someone was the whole job. */
+.admin-members-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-filter-search {
+  flex: 1 1 200px;
+  min-width: 0;
+  background: var(--wov-05);
+  border: 1px solid var(--wov-10);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-soft);
+  font-family: inherit;
+  outline: none;
+}
+
+.admin-filter-search::placeholder {
+  color: var(--text-faint);
+}
+
+.admin-members-toolbar .admin-filter-count {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* .visits-summary-copy normally carries this gap; the members report drops the
+   paragraph, so the grid has to hold the space itself. */
+.admin-members-insight-grid {
+  margin-top: 18px;
+}
+
+.admin-tree-empty-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 28px 4px;
+}
+
+.admin-tree-empty-result p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* The shared strip hardcodes #918e9d for its labels — 3.2:1 at 11px. Scoped,
+   for the same reason the token block above is scoped. */
+.admin-members-report .dashboard-context-strip span {
+  color: #6b687a;
+}
+
+/* Top-holder shortcut: reads as the plain <strong> it replaced, but filters. */
+.dashboard-context-jump {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--indigo);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dashboard-context-jump:hover {
+  color: var(--indigo-strong);
+}
+
+/* Matches the focus treatment App.css uses across the app. */
+.admin-tree-folder-toggle:focus-visible,
+.admin-action-btn:focus-visible,
+.admin-tree-expand-mini:focus-visible,
+.admin-checkbox:focus-visible,
+.admin-filter-search:focus-visible,
+.admin-filter-select:focus-visible,
+.admin-page-btn:focus-visible,
+.admin-bulk-delete-btn:focus-visible,
+.dashboard-context-jump:focus-visible,
+.admin-confirm-cancel:focus-visible,
+.admin-confirm-delete:focus-visible,
+.admin-tab:focus-visible,
+.admin-nav-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
 }
 
 /* ===== Papers Tree View ===== */
@@ -587,11 +696,35 @@
 .admin-tree-folder-row {
   display: flex;
   align-items: center;
+  /* Below ~420px the badges and the two action buttons no longer fit on one
+     line; without this they squeeze past the card edge and a badge renders one
+     letter per line. Wide screens never reach the wrap. */
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 10px;
+  /* Vertical padding lives on the toggle, not here, so the disclosure's hit
+     area is the row's full 36px rather than the 20px text line inside it. */
+  padding: 0 10px;
   border-radius: 8px;
-  cursor: pointer;
   transition: background 0.15s ease;
+}
+
+/* The disclosure. It carries the row's whole clickable area — the action
+   buttons are its siblings, not its children, so neither swallows the other. */
+.admin-tree-folder-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  margin: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   user-select: none;
 }
 
@@ -692,9 +825,8 @@
   background: var(--wov-03);
 }
 
-.admin-tree-file .admin-checkbox {
-  margin-top: 2px;
-  flex-shrink: 0;
+.admin-tree-file .admin-checkbox-hit {
+  margin-top: -2px;
 }
 
 .admin-tree-file-icon {
@@ -749,7 +881,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: 24px;
+  height: 24px;
+  margin-top: -3px;
   flex-shrink: 0;
 }
 
@@ -997,12 +1131,21 @@
   font-weight: 600;
 }
 
+/* This card is a light surface in both themes, so it re-declares the tokens it
+   paints with. Anything it leaves out keeps the *document* value — which in the
+   dark default is a dark-ground accent (#fbbf24 amber, #5eead4 teal, #f87171
+   red) landing on white at 1.4–2.8:1. Every accent used below this line has to
+   be pinned here, not just the greys. */
 .visits-report {
   --bg-input: #ffffff;
   --text-hi: #17161f;
   --text-soft: #35323f;
   --text-muted: #706d7d;
   --text-faint: #918e9d;
+  --amber: #92400e;
+  --teal: #0f766e;
+  --danger: #b91c1c;
+  --danger-strong: #991b1b;
   --wov-04: #f5f4f7;
   --wov-05: #f1f0f5;
   --wov-06: #eeedf2;
@@ -1020,6 +1163,23 @@
   border: 1px solid #ecebf0;
   border-radius: 24px;
   box-shadow: 0 1px 2px rgba(28, 25, 42, 0.03);
+}
+
+/* The member tree is mostly 10–12px secondary text, and .visits-report's greys
+   were picked for a three-tier look, not for AA: --text-faint reads 3.2:1 and
+   the hint lines under every bookmark and paper are unreadable. Darkening them
+   here collapses faint and muted into near-neutral twins — at this size the
+   hierarchy has to come from weight and position instead. Scoped to this report
+   because the visits and dashboard tabs share the same defect and the same
+   token, and fixing their tone is not this change's job.
+   --bg-elev is the <option> ground: .visits-report never re-declared it, so the
+   dropdown list painted dark ink on the dark default (1.4:1) wherever the
+   platform honours it. */
+.admin-members-report {
+  --text-faint: #6b687a;
+  --text-muted: #5f5c6d;
+  --indigo-mid: #4338ca;
+  --bg-elev: #ffffff;
 }
 
 .visits-report-header {
@@ -2064,6 +2224,9 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  /* Only shows once the row wraps at narrow widths; the toggle is taller than
+     this at every width, so it never changes the row's height. */
+  padding-block: 4px;
 }
 
 .admin-member-meta {
