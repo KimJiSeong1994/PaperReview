@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from .deps import DEFAULT_RESEARCH_MODEL, limiter, load_bookmarks, get_light_rag_agent, get_current_user, get_openai_client
+from .deps import DEFAULT_RESEARCH_MODEL, limiter, load_bookmarks_for_user, get_light_rag_agent, get_current_user, get_openai_client
 from src.utils.openai_responses_compat import create_chat_completion
 
 logger = logging.getLogger(__name__)
@@ -34,9 +34,10 @@ class ChatRequest(BaseModel):
 async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, username: str = Depends(get_current_user)):
     """Chat about bookmarked papers using their report content as context. Returns SSE stream."""
 
-    # Load bookmark context — filtered to current user only
-    data = load_bookmarks()
-    bookmarks = [bm for bm in data.get("bookmarks", []) if bm.get("username") == username]
+    # Load bookmark context — scoped to current user only.  Report bodies are
+    # needed here, so this is the one path that must read them; the indexed
+    # per-user query keeps other users' bodies out of memory.
+    bookmarks = load_bookmarks_for_user(username)
 
     if chat_request.bookmark_ids:
         bookmark_id_set = set(chat_request.bookmark_ids)

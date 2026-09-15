@@ -53,6 +53,39 @@ async def test_create_and_get_bookmark(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_shared_link_still_carries_the_report_body(client, auth_headers):
+    """GET /api/shared/{token} must return report_markdown.
+
+    The public endpoint scans bookmark summaries (no report bodies) to match
+    the token, then re-reads only the matched row in full — so the body has to
+    survive that second read.
+    """
+    report = "# Shared Report\nBody that the public page renders."
+    resp = await client.post("/api/bookmarks", json={
+        "session_id": "s-share",
+        "title": "Shared",
+        "query": "q",
+        "papers": [{"title": "Paper A"}],
+        "report_markdown": report,
+        "topic": "AI",
+    }, headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    bookmark_id = resp.json()["id"]
+
+    r_share = await client.post(
+        f"/api/bookmarks/{bookmark_id}/share",
+        json={"expires_in_days": 7},
+        headers=auth_headers,
+    )
+    assert r_share.status_code == 200, r_share.text
+    token = r_share.json()["token"]
+
+    r_pub = await client.get(f"/api/shared/{token}")
+    assert r_pub.status_code == 200, r_pub.text
+    assert r_pub.json()["report_markdown"] == report
+
+
+@pytest.mark.asyncio
 async def test_delete_bookmark(client, auth_headers):
     """DELETE /api/bookmarks/{id} removes a bookmark."""
     # Create

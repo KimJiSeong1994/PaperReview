@@ -240,7 +240,7 @@ async def create_bookmark_from_paper(
 @router.get("/bookmarks")
 async def list_bookmarks(username: str = Depends(get_current_user)):
     """List bookmarks for the current user (summary only)."""
-    user_bookmarks = load_bookmarks_for_user(username)
+    user_bookmarks = load_bookmarks_for_user(username, include_reports=False)
     return {
         "bookmarks": [
             {

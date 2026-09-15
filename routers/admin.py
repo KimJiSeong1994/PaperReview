@@ -222,7 +222,6 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
     users = _load_users()
     papers_data = _load_papers()
     papers = papers_data.get("papers", [])
-    bookmarks_data = load_bookmarks()
 
     # This is a volatile deep-review job registry, not a web-analytics session
     # count. Keep the legacy response key below for API compatibility, but
@@ -280,7 +279,7 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
     return {
         "total_users": len(users),
         "total_papers": len(papers),
-        "total_bookmarks": len(bookmarks_data.get("bookmarks", [])),
+        "total_bookmarks": _get_bookmark_db().count(),
         "recent_review_sessions": recent_review_session_count,
         # Deprecated compatibility alias. This has never represented visits.
         "total_sessions": recent_review_session_count,
@@ -318,7 +317,7 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
 async def list_users(admin: str = Depends(get_admin_user)):
     """List all registered users with their bookmark counts."""
     users = _load_users()
-    bookmarks_data = load_bookmarks()
+    bookmarks_data = load_bookmarks(include_reports=False)
 
     # Count bookmarks per user
     bm_counts: dict[str, int] = {}
@@ -592,7 +591,7 @@ async def list_all_bookmarks(
     admin: str = Depends(get_admin_user),
 ):
     """List all bookmarks. Optionally filter by username."""
-    data = load_bookmarks()
+    data = load_bookmarks(include_reports=False)
     all_bm = data.get("bookmarks", [])
     if username:
         all_bm = [bm for bm in all_bm if bm.get("username") == username]
