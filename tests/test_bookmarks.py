@@ -192,3 +192,76 @@ async def test_body_size_cap_rejects_large_report(client, auth_headers):
     assert resp.status_code in (413, 422), (
         f"Expected 413 or 422 for 1MB body, got {resp.status_code}: {resp.text[:200]}"
     )
+
+
+@pytest.mark.asyncio
+async def test_shared_lookup_reads_one_row_not_every_bookmark(client, auth_headers):
+    """The public share endpoint must find the token through the index.
+
+    It is unauthenticated, so its cost is whatever an anonymous caller can ask
+    for. Matching the token in Python means reading every bookmark in the
+    table on every request — assert on the statements SQLite actually ran so a
+    regression to the scan fails here.
+    """
+    resp = await client.post("/api/bookmarks", json={
+        "session_id": "s-scan",
+        "title": "Shared",
+        "report_markdown": "body",
+        "topic": "AI",
+    }, headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    bookmark_id = resp.json()["id"]
+
+    r_share = await client.post(
+        f"/api/bookmarks/{bookmark_id}/share", json={}, headers=auth_headers
+    )
+    assert r_share.status_code == 200, r_share.text
+    token = r_share.json()["token"]
+
+    from routers.deps.storage import _get_bookmark_db
+    db = _get_bookmark_db()
+    seen: list[str] = []
+    original = db._connect
+
+    def traced():
+        conn = original()
+        conn.set_trace_callback(seen.append)
+        return conn
+
+    with patch.object(db, "_connect", traced):
+        r_pub = await client.get(f"/api/shared/{token}")
+
+    assert r_pub.status_code == 200, r_pub.text
+
+    reads = [
+        s for s in seen
+        if s.lstrip().upper().startswith("SELECT") and "FROM bookmarks" in s
+    ]
+    assert len(reads) == 1, f"expected one indexed read, got {len(reads)}: {reads}"
+    assert "where share_token" in reads[0].lower(), (
+        f"share lookup still scans the table: {reads[0]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_revoked_share_link_stops_resolving(client, auth_headers):
+    """DELETE .../share must clear the token everywhere it is looked up."""
+    resp = await client.post("/api/bookmarks", json={
+        "session_id": "s-revoke",
+        "title": "Shared",
+        "report_markdown": "body",
+        "topic": "AI",
+    }, headers=auth_headers)
+    bookmark_id = resp.json()["id"]
+
+    token = (await client.post(
+        f"/api/bookmarks/{bookmark_id}/share", json={}, headers=auth_headers
+    )).json()["token"]
+    assert (await client.get(f"/api/shared/{token}")).status_code == 200
+
+    r_del = await client.delete(
+        f"/api/bookmarks/{bookmark_id}/share", headers=auth_headers
+    )
+    assert r_del.status_code == 200, r_del.text
+
+    assert (await client.get(f"/api/shared/{token}")).status_code == 404

@@ -126,9 +126,44 @@ class BookmarkDB:
                     """
                 )
                 conn.commit()
+                self._backfill_share_tokens(conn)
                 logger.info("[BookmarkDB] Initialised: %s", self._db_path)
             finally:
                 conn.close()
+
+    @staticmethod
+    def _backfill_share_tokens(conn: sqlite3.Connection) -> None:
+        """Copy tokens shared before the column was populated into the column.
+
+        Links handed out earlier carry a token that only ever reached the
+        metadata blob, so the index cannot find them. One statement, restricted
+        to rows whose column is still NULL: re-running it on the next start
+        matches nothing, and a row already holding a token is never rewritten.
+        The `share` object in the metadata is left alone — this adds the
+        derived copy, it does not move the original.
+        """
+        try:
+            cursor = conn.execute(
+                """
+                UPDATE bookmarks
+                   SET share_token = json_extract(metadata, '$.share.token')
+                 WHERE share_token IS NULL
+                   AND json_valid(metadata)
+                   AND json_extract(metadata, '$.share.token') IS NOT NULL
+                """
+            )
+            conn.commit()
+            if cursor.rowcount:
+                logger.info(
+                    "[BookmarkDB] Backfilled share_token for %d bookmark(s)",
+                    cursor.rowcount,
+                )
+        except sqlite3.Error as e:
+            # A single UPDATE either applies or it does not, so nothing is left
+            # half-written. Startup must survive it: the scan-free lookup is
+            # worth less than a server that boots.
+            conn.rollback()
+            logger.warning("[BookmarkDB] share_token backfill skipped: %s", e)
 
     def _connect(self) -> sqlite3.Connection:
         """Open a new SQLite connection with WAL mode."""
@@ -152,8 +187,12 @@ class BookmarkDB:
         # Scalar fields.  ``report`` is absent when the caller selected the
         # report-free projection, so only copy columns the row actually has.
         present = set(row.keys())
+        # ``share_token`` is deliberately absent: it is derived from the
+        # `share` metadata on the way in, and reading it back out would put a
+        # second copy of the token in the dict that a later write could
+        # disagree with. The metadata `share` object is the value callers read.
         for key in ("id", "username", "topic", "title", "report",
-                    "notes", "share_token", "created_at", "updated_at"):
+                    "notes", "created_at", "updated_at"):
             if key in present:
                 bm[key] = row[key]
 
@@ -216,7 +255,12 @@ class BookmarkDB:
         else:
             highlights_json = str(highlights_raw) if highlights_raw else None
 
-        share_token = bm.get("share_token") or None
+        # The indexed lookup column is derived from the `share` metadata — the
+        # only thing the share endpoints write. Every write goes through this
+        # function, so deriving it here is the one place the two can be kept
+        # from diverging: sharing fills the column, revoking nulls it.
+        share = bm.get("share")
+        share_token = (share.get("token") if isinstance(share, dict) else None) or None
 
         citation_tree_raw = bm.get("citation_tree")
         if citation_tree_raw is not None:

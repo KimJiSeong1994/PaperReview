@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 
-from .deps import load_bookmarks, modify_bookmarks, get_current_user, limiter
+from .deps import modify_bookmarks, get_current_user, limiter
 from .deps.storage import _get_bookmark_db
 
 logger = logging.getLogger(__name__)
@@ -93,29 +93,25 @@ async def revoke_share_link(
 @limiter.limit("30/minute")
 async def get_shared_bookmark(share_token: str, request: Request):
     """Public endpoint: retrieve a shared bookmark by token (no auth required)."""
-    # The token lives in the metadata blob, not an indexed column, so finding
-    # it still needs a scan — but the scan does not need the report bodies.
-    # Only the matched bookmark is re-read in full, below.
-    data = load_bookmarks(include_reports=False)
-    for summary in data["bookmarks"]:
-        share = summary.get("share")
-        if not share or share.get("token") != share_token:
-            continue
+    # Indexed lookup of the one row. This path is unauthenticated, so its cost
+    # is whatever an anonymous caller asks for — it must not grow with the
+    # number of bookmarks in the table.
+    bm = _get_bookmark_db().get_by_share_token(share_token)
+    if bm is None:
+        raise HTTPException(status_code=404, detail="Shared bookmark not found")
 
-        # Check expiration
-        expires_at = share.get("expires_at")
-        if expires_at:
-            try:
-                if datetime.fromisoformat(expires_at) < datetime.now():
-                    raise HTTPException(status_code=410, detail="Share link has expired")
-            except ValueError:
-                pass
+    # Check expiration
+    share = bm.get("share") or {}
+    expires_at = share.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.fromisoformat(expires_at) < datetime.now():
+                raise HTTPException(status_code=410, detail="Share link has expired")
+        except ValueError:
+            pass
 
-        # Build safe response: strip sensitive fields
-        bm = _get_bookmark_db().get_by_id(summary["id"]) or summary
-        safe = {k: v for k, v in bm.items() if k not in _STRIP_FIELDS}
-        # Remove the share metadata itself from the response
-        safe.pop("share", None)
-        return safe
-
-    raise HTTPException(status_code=404, detail="Shared bookmark not found")
+    # Build safe response: strip sensitive fields
+    safe = {k: v for k, v in bm.items() if k not in _STRIP_FIELDS}
+    # Remove the share metadata itself from the response
+    safe.pop("share", None)
+    return safe
