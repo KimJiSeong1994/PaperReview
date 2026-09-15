@@ -16,6 +16,7 @@ import json
 import logging
 import sqlite3
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional
 
@@ -48,27 +49,57 @@ _load_users = load_users
 _save_users = save_users
 
 
+def _load_papers_unlocked() -> dict:
+    """Read the corpus.  The caller must already hold _papers_lock."""
+    if not PAPERS_FILE.exists():
+        return {"metadata": {}, "papers": []}
+    try:
+        with open(PAPERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        backup = PAPERS_FILE.with_suffix(".json.corrupt")
+        PAPERS_FILE.rename(backup)
+        logger.error("Corrupt papers file backed up to %s: %s", backup, e)
+        return {"metadata": {}, "papers": []}
+
+
+def _save_papers_unlocked(data: dict) -> None:
+    """Write the corpus.  The caller must already hold _papers_lock."""
+    PAPERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp_file = PAPERS_FILE.with_suffix(".json.tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    tmp_file.replace(PAPERS_FILE)
+
+
 def _load_papers() -> dict:
     with _papers_lock:
-        if not PAPERS_FILE.exists():
-            return {"metadata": {}, "papers": []}
-        try:
-            with open(PAPERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            backup = PAPERS_FILE.with_suffix(".json.corrupt")
-            PAPERS_FILE.rename(backup)
-            logger.error("Corrupt papers file backed up to %s: %s", backup, e)
-            return {"metadata": {}, "papers": []}
+        return _load_papers_unlocked()
 
 
 def _save_papers(data: dict) -> None:
     with _papers_lock:
-        PAPERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp_file = PAPERS_FILE.with_suffix(".json.tmp")
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        tmp_file.replace(PAPERS_FILE)
+        _save_papers_unlocked(data)
+
+
+@contextmanager
+def _modify_papers():
+    """Hold _papers_lock across a whole read-modify-write of the corpus.
+
+    _load_papers and _save_papers each take the lock on their own, so a caller
+    that loads, edits and saves drops it in between; a writer slipping into that
+    gap has its change overwritten by the later save (lost update).  Holding the
+    lock for the whole transaction is what closes that gap.
+
+    The *_unlocked helpers exist for this: _papers_lock is a plain (non
+    reentrant) Lock, so calling the public helpers from in here would deadlock
+    on their own acquire.  Raising inside the block skips the save and releases
+    the lock.
+    """
+    with _papers_lock:
+        data = _load_papers_unlocked()
+        yield data
+        _save_papers_unlocked(data)
 
 
 # ── Pydantic models ─────────────────────────────────────────────────
@@ -475,38 +506,37 @@ async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_ad
     with; if any one has moved the whole request is refused and nothing is
     deleted, rather than silently removing the wrong records.
     """
-    papers_data = _load_papers()
-    papers = papers_data.get("papers", [])
+    with _modify_papers() as papers_data:
+        papers = papers_data.get("papers", [])
 
-    # Validate indices are within range
-    invalid = [it.index for it in request.papers if it.index < 0 or it.index >= len(papers)]
-    if invalid:
-        raise HTTPException(status_code=400, detail=f"Invalid paper indices: {invalid}")
+        # Validate indices are within range
+        invalid = [it.index for it in request.papers if it.index < 0 or it.index >= len(papers)]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"Invalid paper indices: {invalid}")
 
-    moved = [
-        it.index
-        for it in request.papers
-        if _paper_fingerprint(papers[it.index]) != it.fingerprint
-    ]
-    if moved:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Paper list changed since it was loaded (indices {moved}); "
-                "nothing was deleted. Reload the list and try again."
-            ),
-        )
+        moved = [
+            it.index
+            for it in request.papers
+            if _paper_fingerprint(papers[it.index]) != it.fingerprint
+        ]
+        if moved:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Paper list changed since it was loaded (indices {moved}); "
+                    "nothing was deleted. Reload the list and try again."
+                ),
+            )
 
-    indices_set = {it.index for it in request.papers}
-    papers_data["papers"] = [p for i, p in enumerate(papers) if i not in indices_set]
+        indices_set = {it.index for it in request.papers}
+        papers_data["papers"] = [p for i, p in enumerate(papers) if i not in indices_set]
 
-    deleted = len(papers) - len(papers_data["papers"])
-    if deleted == 0:
-        raise HTTPException(status_code=404, detail="No papers found at given indices")
+        deleted = len(papers) - len(papers_data["papers"])
+        if deleted == 0:
+            raise HTTPException(status_code=404, detail="No papers found at given indices")
 
-    # Update metadata
-    papers_data.setdefault("metadata", {})["total_papers"] = len(papers_data["papers"])
-    _save_papers(papers_data)
+        # Update metadata
+        papers_data.setdefault("metadata", {})["total_papers"] = len(papers_data["papers"])
 
     return {"success": True, "deleted_count": deleted}
 
@@ -526,27 +556,26 @@ async def delete_papers_by_arxiv(
     if not wanted:
         raise HTTPException(status_code=400, detail="No arxiv_ids provided")
 
-    papers_data = _load_papers()
-    papers = papers_data.get("papers", [])
+    with _modify_papers() as papers_data:
+        papers = papers_data.get("papers", [])
 
-    kept = []
-    deleted_titles = []
-    for p in papers:
-        if _norm_arxiv_id(p.get("arxiv_id") or "") in wanted:
-            deleted_titles.append(p.get("title", "Untitled"))
-        else:
-            kept.append(p)
+        kept = []
+        deleted_titles = []
+        for p in papers:
+            if _norm_arxiv_id(p.get("arxiv_id") or "") in wanted:
+                deleted_titles.append(p.get("title", "Untitled"))
+            else:
+                kept.append(p)
 
-    deleted = len(papers) - len(kept)
-    if deleted == 0:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No papers found for arxiv_ids: {sorted(wanted)}",
-        )
+        deleted = len(papers) - len(kept)
+        if deleted == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No papers found for arxiv_ids: {sorted(wanted)}",
+            )
 
-    papers_data["papers"] = kept
-    papers_data.setdefault("metadata", {})["total_papers"] = len(kept)
-    _save_papers(papers_data)
+        papers_data["papers"] = kept
+        papers_data.setdefault("metadata", {})["total_papers"] = len(kept)
 
     return {
         "success": True,

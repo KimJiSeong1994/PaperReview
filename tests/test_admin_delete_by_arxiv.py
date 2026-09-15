@@ -16,7 +16,10 @@ corpus and that it is verified against the record's fingerprint before deleting.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,6 +42,88 @@ def client():
     app.dependency_overrides.pop(get_admin_user, None)
 
 
+# ── The transaction itself ───────────────────────────────────────────────────
+#
+# These run first on purpose: they are timeout-guarded, so a broken
+# _modify_papers fails here in seconds instead of wedging the endpoint
+# tests below (which call through TestClient on the main thread and would
+# hang the whole suite).
+
+
+def _run_with_timeout(fn, seconds=5):
+    """Run *fn* in a daemon thread and fail — rather than hang — if it wedges.
+
+    _modify_papers holds a non-reentrant lock, so getting its internals wrong
+    blocks forever.  A daemon thread lets pytest still exit, and the assert
+    turns what would be an infinite hang into an ordinary test failure.
+    """
+    box = {}
+
+    def target():
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # re-raised on the calling thread below
+            box["error"] = exc
+
+    t = threading.Thread(target=target, daemon=True)
+    t.start()
+    t.join(seconds)
+    assert not t.is_alive(), f"_modify_papers deadlocked (no progress in {seconds}s)"
+    if "error" in box:
+        raise box["error"]
+    return box.get("value")
+
+
+@pytest.fixture
+def papers_on_disk(tmp_path, monkeypatch):
+    """A real papers.json — no helper is patched, so the lock is exercised."""
+    f = tmp_path / "papers.json"
+    f.write_text(
+        json.dumps(
+            {"papers": [{"title": "A"}, {"title": "B"}], "metadata": {"total_papers": 2}}
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(admin, "PAPERS_FILE", f)
+    return f
+
+
+def _titles(f):
+    return [p["title"] for p in json.loads(f.read_text(encoding="utf-8"))["papers"]]
+
+
+def test_modify_papers_saves_on_clean_exit(papers_on_disk):
+    def edit():
+        with admin._modify_papers() as data:
+            data["papers"] = [p for p in data["papers"] if p["title"] != "A"]
+
+    _run_with_timeout(edit)
+
+    assert _titles(papers_on_disk) == ["B"]
+
+
+def test_modify_papers_skips_the_save_and_frees_the_lock_on_error(papers_on_disk):
+    """An exception mid-transaction must write nothing and still release."""
+
+    def edit():
+        with admin._modify_papers() as data:
+            data["papers"] = []
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        _run_with_timeout(edit)
+
+    assert _titles(papers_on_disk) == ["A", "B"]  # nothing was written
+
+    def second():
+        with admin._modify_papers() as data:
+            data["metadata"]["total_papers"] = 99
+
+    _run_with_timeout(second)  # hangs if the failed block leaked the lock
+
+    assert json.loads(papers_on_disk.read_text(encoding="utf-8"))["metadata"]["total_papers"] == 99
+
+
 def _corpus():
     return {
         "papers": [
@@ -55,8 +140,8 @@ def _corpus():
 def test_delete_by_arxiv_identity_and_normalization(client, monkeypatch):
     corpus = _corpus()
     saved = {}
-    monkeypatch.setattr(admin, "_load_papers", lambda: corpus)
-    monkeypatch.setattr(admin, "_save_papers", lambda data: saved.update(data=data))
+    monkeypatch.setattr(admin, "_load_papers_unlocked", lambda: corpus)
+    monkeypatch.setattr(admin, "_save_papers_unlocked", lambda data: saved.update(data=data))
 
     resp = client.request(
         "DELETE",
@@ -74,8 +159,8 @@ def test_delete_by_arxiv_identity_and_normalization(client, monkeypatch):
 
 
 def test_delete_by_arxiv_no_match_returns_404(client, monkeypatch):
-    monkeypatch.setattr(admin, "_load_papers", _corpus)
-    monkeypatch.setattr(admin, "_save_papers", lambda data: None)
+    monkeypatch.setattr(admin, "_load_papers_unlocked", _corpus)
+    monkeypatch.setattr(admin, "_save_papers_unlocked", lambda data: None)
 
     resp = client.request(
         "DELETE", "/api/admin/papers/by-arxiv", json={"arxiv_ids": ["9999.99999"]}
@@ -84,8 +169,8 @@ def test_delete_by_arxiv_no_match_returns_404(client, monkeypatch):
 
 
 def test_delete_by_arxiv_empty_returns_400(client, monkeypatch):
-    monkeypatch.setattr(admin, "_load_papers", _corpus)
-    monkeypatch.setattr(admin, "_save_papers", lambda data: None)
+    monkeypatch.setattr(admin, "_load_papers_unlocked", _corpus)
+    monkeypatch.setattr(admin, "_save_papers_unlocked", lambda data: None)
 
     resp = client.request(
         "DELETE", "/api/admin/papers/by-arxiv", json={"arxiv_ids": []}
@@ -111,8 +196,8 @@ def corpus(monkeypatch):
         state["metadata"] = {"total_papers": len(papers)}
         return state
 
-    monkeypatch.setattr(admin, "_load_papers", lambda: state)
-    monkeypatch.setattr(admin, "_save_papers", lambda data: state.update(data))
+    monkeypatch.setattr(admin, "_load_papers_unlocked", lambda: state)
+    monkeypatch.setattr(admin, "_save_papers_unlocked", lambda data: state.update(data))
     install.titles = lambda: [p["title"] for p in state["papers"]]
     return install
 
@@ -224,3 +309,72 @@ def test_fingerprint_distinguishes_records_that_share_a_position(client, corpus)
     rows = client.get("/api/admin/papers").json()["papers"]
 
     assert rows[0]["fingerprint"] != rows[1]["fingerprint"]
+
+
+# ── Concurrency: the read-modify-write must be one transaction ────────────────
+
+
+def test_concurrent_deletes_do_not_lose_one_of_them(tmp_path, monkeypatch):
+    """Two admins deleting different papers at once: both deletions must land.
+
+    ``_load_papers`` and ``_save_papers`` each take ``_papers_lock`` on their
+    own, so a caller that loads, edits and saves drops the lock in between.  A
+    writer that slips into that gap is overwritten by the later save — a lost
+    update.  The hook below steps thread A into that exact gap, so the failure
+    is reproduced deterministically instead of being raced for.
+    """
+    papers_file = tmp_path / "papers.json"
+    papers_file.write_text(
+        json.dumps(
+            {
+                "papers": [
+                    {"title": "A", "arxiv_id": "1111.00001"},
+                    {"title": "B", "arxiv_id": "2222.00002"},
+                ],
+                "metadata": {"total_papers": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(admin, "PAPERS_FILE", papers_file)
+
+    a_loaded = threading.Event()
+    b_done = threading.Event()
+    real_load = admin._load_papers_unlocked
+
+    def hooked_load():
+        data = real_load()
+        if threading.current_thread().name == "A":
+            a_loaded.set()
+            # Unfixed: B runs in microseconds and wakes us immediately.
+            # Fixed: B is blocked on the lock A holds, so this always burns the
+            # whole timeout — slower, but the outcome never depends on timing.
+            b_done.wait(timeout=0.5)
+        return data
+
+    monkeypatch.setattr(admin, "_load_papers_unlocked", hooked_load)
+
+    def delete(arxiv_id):
+        asyncio.run(
+            admin.delete_papers_by_arxiv(
+                admin.PaperDeleteByArxivRequest(arxiv_ids=[arxiv_id])
+            )
+        )
+
+    def run_b():
+        assert a_loaded.wait(timeout=5), "thread A never reached the gap"
+        delete("2222.00002")
+        b_done.set()
+
+    # daemon: a regression that reintroduces a deadlock must fail the assert
+    # below, not wedge the whole suite on interpreter exit.
+    ta = threading.Thread(target=delete, args=("1111.00001",), name="A", daemon=True)
+    tb = threading.Thread(target=run_b, name="B", daemon=True)
+    ta.start()
+    tb.start()
+    ta.join(timeout=10)
+    tb.join(timeout=10)
+    assert not ta.is_alive() and not tb.is_alive(), "deletion deadlocked"
+
+    remaining = [p["title"] for p in json.loads(papers_file.read_text())["papers"]]
+    assert remaining == [], f"a concurrent delete was lost; {remaining} still there"
