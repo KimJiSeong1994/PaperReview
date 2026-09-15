@@ -164,6 +164,33 @@ async def test_bookmarks_post_rate_limited(client, auth_headers):
     )
 
 
+# ── RT3: the public curriculum share link must be rate-limited too ────
+
+@pytest.mark.asyncio
+async def test_shared_curriculum_rate_limited(client):
+    """GET /api/shared/curriculum/{token} needs the cap its sibling has.
+
+    Unauthenticated, and each call reads the whole user index off disk, so an
+    unmetered endpoint lets a token-guessing loop spend server I/O for free.
+    A miss returns 404; what this asserts is that the misses stop being served.
+    """
+    from routers.deps import limiter as real_limiter
+
+    real_limiter._storage.reset()
+
+    last_status = None
+    for _ in range(31):
+        resp = await client.get("/api/shared/curriculum/sh_does_not_exist")
+        last_status = resp.status_code
+        if resp.status_code == 429:
+            break
+
+    assert last_status == 429, (
+        "Expected 429 within 31 requests to /api/shared/curriculum/{token}, "
+        f"last status was {last_status}"
+    )
+
+
 # ── RT4: body-size cap rejects oversized report_markdown ───────────────
 
 @pytest.mark.asyncio
