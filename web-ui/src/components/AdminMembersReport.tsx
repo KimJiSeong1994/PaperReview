@@ -426,14 +426,6 @@ export default function AdminMembersReport({
                       )}
 
                       <div className="admin-member-subhead">Papers</div>
-                      {selectedPapers.size > 0 && (
-                        <div className="admin-bulk-bar" style={{ margin: '0 0 8px 0', borderRadius: 8 }}>
-                          <span className="admin-bulk-count">{selectedPapers.size} selected</span>
-                          <button className="admin-bulk-delete-btn" onClick={onDeletePapers}>
-                            Delete Selected
-                          </button>
-                        </div>
-                      )}
 
                       {folderLoading ? (
                         <div className="admin-tree-empty-hint">Loading papers...</div>
@@ -441,6 +433,18 @@ export default function AdminMembersReport({
                         <div className="admin-tree-empty-hint">No papers</div>
                       ) : (
                         <>
+                          {/* 벌크 바는 이 분기 안에서만 산다: 로딩 중이거나 빈
+                              폴더일 때 렌더되면, 화면에 없는(또는 다른 유저의)
+                              논문을 가리키는 개수와 삭제 버튼이 눌린다. */}
+                          {selectedPapers.size > 0 && (
+                            <div className="admin-bulk-bar" style={{ margin: '0 0 8px 0', borderRadius: 8 }}>
+                              <span className="admin-bulk-count">{selectedPapers.size} selected</span>
+                              <button className="admin-bulk-delete-btn" onClick={onDeletePapers}>
+                                Delete Selected
+                              </button>
+                            </div>
+                          )}
+
                           <div className="admin-tree-select-all">
                             <input
                               type="checkbox"

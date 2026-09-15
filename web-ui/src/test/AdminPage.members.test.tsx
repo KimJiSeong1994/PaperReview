@@ -8,19 +8,47 @@ import {
   getAdminCurricula,
   getAdminDashboard,
   getAdminPaperStats,
+  getAdminPapers,
+  deleteAdminPapers,
   deleteUser,
 } from '../api/client';
-import type { AdminDashboard } from '../api/client';
+import type { AdminDashboard, AdminPaper } from '../api/client';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 // Stub lazy-loaded report components so Suspense resolves synchronously.
 vi.mock('../components/AdminMembersReport', () => ({
-  // Expose a trigger button so tests can fire the delete flow without
+  // Expose trigger buttons so tests can fire the member/paper flows without
   // rendering the full member tree.
-  default: ({ onDeleteUser }: { onDeleteUser: (u: string) => void }) => (
+  default: ({
+    onDeleteUser,
+    onExpandMember,
+    onTogglePaperSelect,
+    onDeletePapers,
+    folderPapers,
+    folderLoading,
+    selectedPapers,
+  }: {
+    onDeleteUser: (u: string) => void;
+    onExpandMember: (u: string | null) => void;
+    onTogglePaperSelect: (index: number) => void;
+    onDeletePapers: () => void;
+    folderPapers: AdminPaper[];
+    folderLoading: boolean;
+    selectedPapers: Set<number>;
+  }) => (
     <div data-testid="members-report">
       <button onClick={() => onDeleteUser('bob')}>trigger-delete-bob</button>
+      <button onClick={() => onExpandMember('alice')}>expand-alice</button>
+      <button onClick={() => onExpandMember('bob')}>expand-bob</button>
+      <span data-testid="selected-count">{selectedPapers.size}</span>
+      <span data-testid="folder-loading">{String(folderLoading)}</span>
+      {folderPapers.map((p) => (
+        <button key={p.index} onClick={() => onTogglePaperSelect(p.index)}>
+          select-{p.title}
+        </button>
+      ))}
+      <button onClick={onDeletePapers}>delete-selected</button>
     </div>
   ),
 }));
@@ -44,6 +72,8 @@ vi.mock('../api/client', async () => {
     getAdminBookmarks: vi.fn(),
     getAdminCurricula: vi.fn(),
     getAdminPaperStats: vi.fn(),
+    getAdminPapers: vi.fn(),
+    deleteAdminPapers: vi.fn(),
     deleteUser: vi.fn(),
     updateUserRole: vi.fn(),
     deleteAdminBookmark: vi.fn(),
@@ -63,6 +93,29 @@ const MINIMAL_DASHBOARD: AdminDashboard = {
     paper_catalog: { source: 'raw_papers_json', relationship_to_users: 'none' },
   },
 };
+
+// Papers as the backend lists them: `index` is the row's position in the
+// unfiltered corpus (so a member folder's rows are not 0,1,2…) and
+// `fingerprint` is the identity token the delete call has to echo back.
+const papersPage = (papers: AdminPaper[]) => ({
+  papers,
+  total: papers.length,
+  page: 1,
+  page_size: 50,
+  total_pages: 1,
+  usernames: ['alice', 'bob'],
+});
+
+const paper = (index: number, title: string, searched_by: string): AdminPaper => ({
+  index,
+  fingerprint: `fp-${title}`,
+  title,
+  authors: [],
+  source: 'arxiv',
+  published_date: '',
+  search_query: '',
+  searched_by,
+});
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -84,6 +137,8 @@ beforeEach(() => {
   vi.mocked(getAdminCurricula).mockResolvedValue({ total_user_curricula: 0, total_users_with_curricula: 0, users: [] });
   vi.mocked(getAdminPaperStats).mockResolvedValue({ total: 0, users: [] });
   vi.mocked(deleteUser).mockResolvedValue({ success: true, partial_failures: [] });
+  vi.mocked(getAdminPapers).mockResolvedValue(papersPage([]));
+  vi.mocked(deleteAdminPapers).mockResolvedValue({ success: true, deleted_count: 1 });
 });
 
 afterEach(() => {
@@ -172,5 +227,71 @@ describe('AdminPage — Members tab wiring', () => {
       expect(vi.mocked(getAdminCurricula).mock.calls.length).toBeGreaterThan(curCallsBefore);
       expect(vi.mocked(getAdminPaperStats).mock.calls.length).toBeGreaterThan(paperCallsBefore);
     });
+  });
+});
+
+describe('AdminPage — paper deletion safety', () => {
+  async function openFolder(member: 'alice' | 'bob', rows: AdminPaper[]) {
+    vi.mocked(getAdminPapers).mockResolvedValue(papersPage(rows));
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    await screen.findByTestId('members-report');
+    fireEvent.click(screen.getByRole('button', { name: `expand-${member}` }));
+    await screen.findByRole('button', { name: `select-${rows[0].title}` });
+  }
+
+  it('deletes by index AND fingerprint, so a stale row cannot remove a neighbour', async () => {
+    // bob's papers sit at global positions 1 and 4 — the listing does not
+    // renumber them, and the delete call must carry them through untouched.
+    const rows = [paper(1, 'BOB-0', 'bob'), paper(4, 'BOB-2', 'bob')];
+    await openFolder('bob', rows);
+
+    fireEvent.click(screen.getByRole('button', { name: 'select-BOB-0' }));
+    fireEvent.click(screen.getByRole('button', { name: 'delete-selected' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() =>
+      expect(deleteAdminPapers).toHaveBeenCalledWith([{ index: 1, fingerprint: 'fp-BOB-0' }]),
+    );
+  });
+
+  it('surfaces a 409 instead of silently reporting success, and reloads the folder', async () => {
+    const rows = [paper(1, 'BOB-0', 'bob')];
+    await openFolder('bob', rows);
+    vi.mocked(deleteAdminPapers).mockRejectedValue({
+      response: { status: 409, data: { detail: 'Paper list changed since it was loaded' } },
+    });
+    const loadsBefore = vi.mocked(getAdminPapers).mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'select-BOB-0' }));
+    fireEvent.click(screen.getByRole('button', { name: 'delete-selected' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByText(/아무것도 삭제하지 않았습니다/)).toBeInTheDocument();
+    expect(vi.mocked(getAdminPapers).mock.calls.length).toBeGreaterThan(loadsBefore);
+  });
+
+  it('drops the previous selection immediately when switching straight to another member', async () => {
+    const aliceRows = [paper(0, 'ALICE-0', 'alice')];
+    await openFolder('alice', aliceRows);
+    fireEvent.click(screen.getByRole('button', { name: 'select-ALICE-0' }));
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('1');
+
+    // Switching members must not leave the old row indices selected while the
+    // new folder loads — that selection would delete by someone else's index.
+    let resolveLoad: (v: ReturnType<typeof papersPage>) => void = () => {};
+    vi.mocked(getAdminPapers).mockReturnValue(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'expand-alice' }));
+
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
+    // The real AdminMembersReport renders its bulk bar only inside the loaded
+    // branch, so folderLoading here means no "Delete Selected" over B's folder.
+    expect(screen.getByTestId('folder-loading')).toHaveTextContent('true');
+    resolveLoad(papersPage([]));
+    await waitFor(() => expect(screen.getByTestId('selected-count')).toHaveTextContent('0'));
   });
 });

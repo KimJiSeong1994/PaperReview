@@ -62,12 +62,12 @@ const PAPER_STATS: AdminPaperUserStats = {
 
 const FOLDER_PAPERS: AdminPaper[] = [
   {
-    index: 0, title: 'Attention Is All You Need',
+    index: 0, fingerprint: 'fp-attention', title: 'Attention Is All You Need',
     authors: ['Vaswani', 'Shazeer'], source: 'arxiv',
     published_date: '2017-06-12', search_query: 'attention', searched_by: 'bob',
   },
   {
-    index: 1, title: 'BERT',
+    index: 1, fingerprint: 'fp-bert', title: 'BERT',
     authors: ['Devlin'], source: 'semantic_scholar',
     published_date: '2018-10-11', search_query: 'bert', searched_by: 'bob',
   },
@@ -407,12 +407,34 @@ describe('AdminMembersReport', () => {
     // 7b. 벌크 바 — 선택 있음
     it('shows N selected and Delete Selected button when selectedPapers is non-empty, calls onDeletePapers on click', () => {
       const onDeletePapers = vi.fn();
-      renderReport({ selectedPapers: new Set([0, 1]), onDeletePapers });
+      renderReport({ folderPapers: FOLDER_PAPERS, selectedPapers: new Set([0, 1]), onDeletePapers });
       fireEvent.click(getFolderRow('bob'));
 
       expect(screen.getByText('2 selected')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Delete Selected' }));
       expect(onDeletePapers).toHaveBeenCalledTimes(1);
+    });
+
+    // 7c. 벌크 바 — 다른 유저의 논문을 불러오는 중
+    it('renders no bulk bar while a folder is loading, even with a live selection', () => {
+      // Switching member A -> B keeps the bar on screen unless it is gated on
+      // folderLoading: "2 selected" + Delete Selected would then be clickable
+      // over B's folder while A's row indices are still selected.
+      renderReport({ folderPapers: [], folderLoading: true, selectedPapers: new Set([0, 1]) });
+      fireEvent.click(getFolderRow('bob'));
+
+      expect(screen.getByText('Loading papers...')).toBeInTheDocument();
+      expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete Selected' })).not.toBeInTheDocument();
+    });
+
+    // 7d. 벌크 바 — 논문이 없는 폴더
+    it('renders no bulk bar for an empty folder, even with a live selection', () => {
+      renderReport({ folderPapers: [], folderLoading: false, selectedPapers: new Set([0]) });
+      fireEvent.click(getFolderRow('bob'));
+
+      expect(screen.getByText('No papers')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Delete Selected' })).not.toBeInTheDocument();
     });
 
     // 8a. 페이지네이션 — folderTotalPages=1 이면 숨김

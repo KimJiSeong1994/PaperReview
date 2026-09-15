@@ -11,6 +11,7 @@ Admin-only endpoints:
   GET    /api/admin/curricula
 """
 
+import hashlib
 import json
 import logging
 import sqlite3
@@ -76,8 +77,13 @@ class RoleUpdateRequest(BaseModel):
     role: str  # "admin" or "user"
 
 
+class PaperDeleteItem(BaseModel):
+    index: int  # position in the unfiltered corpus, as returned by GET /papers
+    fingerprint: str  # that record's fingerprint, as returned by GET /papers
+
+
 class PaperDeleteRequest(BaseModel):
-    indices: List[int]  # paper indices to delete
+    papers: List[PaperDeleteItem]  # papers to delete, each verified by fingerprint
 
 
 class PaperDeleteByArxivRequest(BaseModel):
@@ -96,6 +102,27 @@ def _norm_arxiv_id(value: str) -> str:
     if sep and base and ver.isdigit():
         value = base
     return value
+
+
+def _paper_fingerprint(p: dict) -> str:
+    """Opaque identity token for one stored paper record.
+
+    Index-based deletion needs it: the listing is filtered and paginated and
+    the corpus shifts on every delete, so an index alone can point at a
+    different paper by the time DELETE arrives.  The client echoes this token
+    back and the server re-checks it before removing anything.
+
+    Built from ``arxiv_id`` + ``title`` + ``searched_by``.  ``arxiv_id`` cannot
+    carry identity on its own — 38 of the 115 live records have none — while
+    title and searched_by are present on every record and are already part of
+    the listing payload.
+    """
+    raw = "\x1f".join([
+        _norm_arxiv_id(p.get("arxiv_id") or ""),
+        p.get("title", "Untitled"),
+        p.get("searched_by", ""),
+    ])
+    return hashlib.blake2s(raw.encode("utf-8"), digest_size=8).hexdigest()
 
 
 # ── Data Diagnostics ─────────────────────────────────────────────────
@@ -393,22 +420,27 @@ async def list_papers(
 ):
     """List papers with pagination. Optionally filter by searched_by username."""
     papers_data = _load_papers()
-    papers = papers_data.get("papers", [])
+    # Carry each record's position in the *unfiltered* corpus through the
+    # filter, because that is the index DELETE /papers addresses.  Numbering
+    # after the filter made every delete from a member folder hit whatever
+    # paper happened to sit at that position globally.
+    indexed = list(enumerate(papers_data.get("papers", [])))
 
     # Filter by username if provided
     if username == "(unknown)":
-        papers = [p for p in papers if not p.get("searched_by") or p.get("searched_by") == "(unknown)"]
+        indexed = [(i, p) for i, p in indexed if not p.get("searched_by") or p.get("searched_by") == "(unknown)"]
     elif username:
-        papers = [p for p in papers if p.get("searched_by") == username]
+        indexed = [(i, p) for i, p in indexed if p.get("searched_by") == username]
 
-    total = len(papers)
+    total = len(indexed)
 
     start = (page - 1) * page_size
     end = start + page_size
     page_papers = []
-    for idx, p in enumerate(papers[start:end], start=start):
+    for idx, p in indexed[start:end]:
         page_papers.append({
             "index": idx,
+            "fingerprint": _paper_fingerprint(p),
             "title": p.get("title", "Untitled"),
             "authors": p.get("authors", [])[:3],
             "source": p.get("source", ""),
@@ -435,16 +467,37 @@ async def list_papers(
 
 @router.delete("/papers")
 async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_admin_user)):
-    """Delete papers by their indices."""
+    """Delete papers by index, after verifying each record's identity.
+
+    An index is a position, not an identity: the corpus shifts on every delete,
+    so a stale index (a retried request, a concurrent write) addresses somebody
+    else's paper.  Each item must still carry the fingerprint it was listed
+    with; if any one has moved the whole request is refused and nothing is
+    deleted, rather than silently removing the wrong records.
+    """
     papers_data = _load_papers()
     papers = papers_data.get("papers", [])
 
     # Validate indices are within range
-    invalid = [i for i in request.indices if i < 0 or i >= len(papers)]
+    invalid = [it.index for it in request.papers if it.index < 0 or it.index >= len(papers)]
     if invalid:
         raise HTTPException(status_code=400, detail=f"Invalid paper indices: {invalid}")
 
-    indices_set = set(request.indices)
+    moved = [
+        it.index
+        for it in request.papers
+        if _paper_fingerprint(papers[it.index]) != it.fingerprint
+    ]
+    if moved:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Paper list changed since it was loaded (indices {moved}); "
+                "nothing was deleted. Reload the list and try again."
+            ),
+        )
+
+    indices_set = {it.index for it in request.papers}
     papers_data["papers"] = [p for i, p in enumerate(papers) if i not in indices_set]
 
     deleted = len(papers) - len(papers_data["papers"])
