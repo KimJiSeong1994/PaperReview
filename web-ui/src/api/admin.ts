@@ -215,6 +215,8 @@ export interface AdminUser {
 
 export interface AdminPaper {
   index: number;
+  /** Opaque identity token; echo it back to delete this exact record. */
+  fingerprint: string;
   title: string;
   authors: string[];
   source: string;
@@ -312,8 +314,10 @@ export const getAdminPapers = async (page: number = 1, pageSize: number = 50, us
   return response.data;
 };
 
-export const deleteAdminPapers = async (indices: number[]) => {
-  const response = await api.delete('/api/admin/papers', { data: { indices } });
+// The index alone is a position, not an identity — the backend re-checks the
+// fingerprint and refuses the whole request (409) if the list has moved.
+export const deleteAdminPapers = async (papers: { index: number; fingerprint: string }[]) => {
+  const response = await api.delete('/api/admin/papers', { data: { papers } });
   return response.data;
 };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 
@@ -63,8 +63,11 @@ export default function AdminPage() {
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
+  // Blocks a second click landing in the same tick as the first: the repeat
+  // would fire another delete with indices the first one is about to shift.
+  const confirmBusy = useRef(false);
 
   // Transient notice (success/error feedback for admin actions).
   const [notice, setNotice] = useState<{
@@ -186,6 +189,10 @@ export default function AdminPage() {
       setSelectedPapers(new Set());
     } else {
       setOpenPaperFolder(username);
+      // Clear here, not inside loadFolderPapers: that clear lands after the
+      // await, so switching straight from one member to another would leave
+      // the previous member's row indices selected while the new list loads.
+      setSelectedPapers(new Set());
       loadFolderPapers(username, 1);
     }
   };
@@ -270,19 +277,38 @@ export default function AdminPage() {
   };
 
   const handleDeletePapers = () => {
-    if (selectedPapers.size === 0) return;
+    // Send each row's fingerprint alongside its index: the index is only a
+    // position in the corpus, so the backend verifies the record is still the
+    // one that was listed and refuses (409) rather than deleting a neighbour.
+    const targets = folderPapers
+      .filter((p) => selectedPapers.has(p.index))
+      .map((p) => ({ index: p.index, fingerprint: p.fingerprint }));
+    if (targets.length === 0) return;
     setConfirm({
       title: 'Delete Papers',
-      message: `Are you sure you want to delete ${selectedPapers.size} paper(s)?`,
+      message: `Are you sure you want to delete ${targets.length} paper(s)?`,
       onConfirm: async () => {
         setConfirm(null);
         try {
-          await deleteAdminPapers(Array.from(selectedPapers));
+          await deleteAdminPapers(targets);
           if (openPaperFolder) loadFolderPapers(openPaperFolder, folderPage);
           loadPaperStats();
           loadDashboard();
-        } catch {
-          /* ignore */
+        } catch (err: unknown) {
+          // A 409 means the list moved under the admin and nothing was
+          // deleted — swallowing it would look like a successful delete.
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 409 && openPaperFolder) loadFolderPapers(openPaperFolder, folderPage);
+          const detail =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+            (err instanceof Error ? err.message : '삭제에 실패했습니다');
+          setNotice({
+            kind: status === 409 ? 'warn' : 'error',
+            text:
+              status === 409
+                ? '목록이 바뀌어 아무것도 삭제하지 않았습니다. 새로고침된 목록에서 다시 선택하세요.'
+                : `삭제 실패: ${detail}`,
+          });
         }
       },
     });
@@ -437,7 +463,18 @@ export default function AdminPage() {
               <button className="admin-confirm-cancel" onClick={() => setConfirm(null)}>
                 Cancel
               </button>
-              <button className="admin-confirm-delete" onClick={confirm.onConfirm}>
+              <button
+                className="admin-confirm-delete"
+                onClick={async () => {
+                  if (confirmBusy.current) return;
+                  confirmBusy.current = true;
+                  try {
+                    await confirm.onConfirm();
+                  } finally {
+                    confirmBusy.current = false;
+                  }
+                }}
+              >
                 Delete
               </button>
             </div>
