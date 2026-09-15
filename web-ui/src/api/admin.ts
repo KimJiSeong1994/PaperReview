@@ -192,7 +192,7 @@ export interface AdminMcpReport {
   tools: { name: string; calls: number; succeeded: number; failed: number; unknown: number; p95_ms: number | null }[];
   routes: { name: string; requests: number; errors: number; p95_ms: number | null }[];
   clients: { name: string; version: string | null; requests: number; tool_calls: number }[];
-  versions: { version: string; requests: number; tool_calls: number }[];
+  versions: { version: string; requests: number; tool_calls: number; errors: number; tool_failures: number }[];
   jobs: { name: string; started: number; completed: number; failed: number; pending: number; unknown: number }[];
   errors: { kind: string; code: string; count: number }[];
 }

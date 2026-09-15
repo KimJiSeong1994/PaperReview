@@ -180,6 +180,29 @@ def test_adapter_client_categories_are_bounded_and_unknown_is_not_mislabeled(led
     assert observed == set(labels.values())
 
 
+def test_versions_carry_their_own_error_counts(ledger: Path) -> None:
+    assert record_event(
+        kind="request", name="GET /api/papers/{paper_id}", status="succeeded", http_status=404,
+        actor_id="alice", actor_role="user", adapter_version="0.1.6", source="ua_claim",
+    )
+    assert record_event(
+        kind="request", name="POST /api/search", status="succeeded", http_status=200,
+        actor_id="alice", actor_role="user", adapter_version="0.1.7", source="ua_claim",
+    )
+    assert record_event(
+        kind="tool", name="get_paper", status="failed", invocation_id=str(uuid.uuid4()),
+        actor_id="alice", actor_role="user", adapter_version="0.1.6", source="adapter_report",
+    )
+    assert record_event(
+        kind="tool", name="search_papers", status="succeeded", invocation_id=str(uuid.uuid4()),
+        actor_id="alice", actor_role="user", adapter_version="0.1.7", source="adapter_report",
+    )
+    report = build_mcp_usage_report(ledger, days=7)
+    by_version = {row["version"]: row for row in report["versions"]}
+    assert by_version["0.1.6"] == {"version": "0.1.6", "requests": 1, "tool_calls": 1, "errors": 1, "tool_failures": 1}
+    assert by_version["0.1.7"] == {"version": "0.1.7", "requests": 1, "tool_calls": 1, "errors": 0, "tool_failures": 0}
+
+
 def test_only_completed_meaningful_actions_activate_accounts(ledger: Path) -> None:
     non_activating_requests = (
         ("reader", "GET /api/papers/{paper_id}", "succeeded", 200),

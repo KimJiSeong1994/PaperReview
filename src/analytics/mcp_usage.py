@@ -684,6 +684,11 @@ def build_mcp_usage_report(
             "version": version,
             "requests": sum((r["adapter_version"] or "Unknown") == version for r in requests),
             "tool_calls": sum((r["adapter_version"] or "Unknown") == version for r in tools),
+            # Without per-version failures the admin has to join this table against the
+            # error table by hand to answer "did the new adapter break?", and neither
+            # table carries the join key.
+            "errors": sum((r["adapter_version"] or "Unknown") == version for r in request_errors),
+            "tool_failures": sum((r["adapter_version"] or "Unknown") == version for r in tool_failed),
         })
     report["versions"].sort(key=lambda x: (-(x["requests"] + x["tool_calls"]), x["version"]))
 
