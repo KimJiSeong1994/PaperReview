@@ -68,6 +68,32 @@ export default function AdminPage() {
   // Blocks a second click landing in the same tick as the first: the repeat
   // would fire another delete with indices the first one is about to shift.
   const confirmBusy = useRef(false);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  // 다이얼로그를 연 버튼. 닫을 때 포커스를 그 자리로 돌려놔야 키보드 사용자가
+  // 목록 맨 위로 튕기지 않는다.
+  const confirmTriggerRef = useRef<HTMLElement | null>(null);
+
+  const askConfirm = useCallback((next: NonNullable<typeof confirm>) => {
+    confirmTriggerRef.current = document.activeElement as HTMLElement | null;
+    setConfirm(next);
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirm(null);
+    confirmTriggerRef.current?.focus();
+  }, []);
+
+  // Escape-to-close and initial focus into the dialog, the same shape as the
+  // other dialogs here (RecommendationBell.tsx, BlogPage.tsx, SearchPage.tsx).
+  useEffect(() => {
+    if (!confirm) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeConfirm();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    confirmDialogRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [confirm, closeConfirm]);
 
   // Transient notice (success/error feedback for admin actions).
   const [notice, setNotice] = useState<{
@@ -212,13 +238,13 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = (username: string) => {
-    setConfirm({
-      title: 'Delete User',
+    askConfirm({
+      title: '계정 삭제',
       message:
         `"${username}" 계정을 완전히 삭제합니다. 북마크, 리뷰 이벤트, ` +
         `임베딩, 프로필, 큐레이션 소유권까지 모두 제거되며 되돌릴 수 없습니다.`,
       onConfirm: async () => {
-        setConfirm(null);
+        closeConfirm();
         try {
           const result = await deleteUser(username);
           // Refresh from backend rather than optimistically splicing so
@@ -284,11 +310,11 @@ export default function AdminPage() {
       .filter((p) => selectedPapers.has(p.index))
       .map((p) => ({ index: p.index, fingerprint: p.fingerprint }));
     if (targets.length === 0) return;
-    setConfirm({
-      title: 'Delete Papers',
-      message: `Are you sure you want to delete ${targets.length} paper(s)?`,
+    askConfirm({
+      title: '논문 삭제',
+      message: `선택한 논문 ${targets.length}편을 삭제합니다. 되돌릴 수 없습니다.`,
       onConfirm: async () => {
-        setConfirm(null);
+        closeConfirm();
         try {
           await deleteAdminPapers(targets);
           if (openPaperFolder) loadFolderPapers(openPaperFolder, folderPage);
@@ -317,11 +343,11 @@ export default function AdminPage() {
   // ── Bookmark actions ─────────────────────────────────────────────
 
   const handleDeleteBookmark = (bookmarkId: string, title: string) => {
-    setConfirm({
-      title: 'Delete Bookmark',
-      message: `Are you sure you want to delete "${title}"?`,
+    askConfirm({
+      title: '북마크 삭제',
+      message: `북마크 "${title}"을(를) 삭제합니다. 되돌릴 수 없습니다.`,
       onConfirm: async () => {
-        setConfirm(null);
+        closeConfirm();
         try {
           await deleteAdminBookmark(bookmarkId);
           setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId));
@@ -404,7 +430,7 @@ export default function AdminPage() {
 
         {/* Members Tab — 계정 · 북마크 · 커리큘럼 · 논문 통합 */}
         {activeTab === 'members' && (
-          <Suspense fallback={<div className="admin-loading">Loading members...</div>}>
+          <Suspense fallback={<div className="admin-loading">회원 정보를 불러오는 중...</div>}>
             <AdminMembersReport
               users={users}
               bookmarks={bookmarks}
@@ -446,7 +472,7 @@ export default function AdminPage() {
               e.stopPropagation();
               setNotice(null);
             }}
-            aria-label="Close notice"
+            aria-label="알림 닫기"
           >
             ×
           </button>
@@ -455,13 +481,21 @@ export default function AdminPage() {
 
       {/* Confirm Dialog */}
       {confirm && (
-        <div className="admin-confirm-overlay" onClick={() => setConfirm(null)}>
-          <div className="admin-confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3 className="admin-confirm-title">{confirm.title}</h3>
+        <div className="admin-confirm-overlay" onClick={closeConfirm}>
+          <div
+            ref={confirmDialogRef}
+            className="admin-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-confirm-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="admin-confirm-title" id="admin-confirm-title">{confirm.title}</h3>
             <p className="admin-confirm-message">{confirm.message}</p>
             <div className="admin-confirm-actions">
-              <button className="admin-confirm-cancel" onClick={() => setConfirm(null)}>
-                Cancel
+              <button className="admin-confirm-cancel" onClick={closeConfirm}>
+                취소
               </button>
               <button
                 className="admin-confirm-delete"
@@ -475,7 +509,7 @@ export default function AdminPage() {
                   }
                 }}
               >
-                Delete
+                삭제
               </button>
             </div>
           </div>
