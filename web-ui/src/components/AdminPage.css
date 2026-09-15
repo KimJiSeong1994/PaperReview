@@ -1154,6 +1154,9 @@
   --indigo: #4f46e5;
   --indigo-mid: #5b4df5;
   --indigo-strong: #4037d7;
+  /* Cards inside inherit the document shadow otherwise — the dark one is an inset
+     highlight that vanishes on white. */
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
   max-width: 1216px;
   margin: 0 auto;
   padding: 50px 56px 72px;

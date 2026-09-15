@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import AdminMcpReport from '../components/AdminMcpReport';
 import { fetchAdminMcpReport, type AdminMcpReport as McpReportData } from '../api/client';
 
@@ -52,7 +52,7 @@ const REPORT: McpReportData = {
   tools: [{ name: 'deep_review', calls: 4, succeeded: 3, failed: 1, unknown: 0, p95_ms: null }],
   routes: [{ name: '/api/review/start', requests: 12, errors: 0, p95_ms: null }],
   clients: [{ name: 'Claude Desktop', version: null, requests: 10, tool_calls: 4 }],
-  versions: [{ version: '0.4.0', requests: 10, tool_calls: 4 }],
+  versions: [{ version: '0.4.0', requests: 10, tool_calls: 4, errors: 1, tool_failures: 1 }],
   jobs: [{ name: 'deep_review', started: 2, completed: 1, failed: 0, pending: 1, unknown: 0 }],
   errors: [],
 };
@@ -77,6 +77,7 @@ describe('AdminMcpReport', () => {
     ]));
     expect(props.layout.hovermode).toBe('x unified');
     expect(props.layout.xaxis.range).toEqual(['2026-08-10', '2026-09-06T23:59:59']);
+    expect(props.layout.shapes).toEqual([]);
     expect(props.config.responsive).toBe(true);
     expect(screen.getByText('데이터 표로 보기').closest('details')).not.toHaveAttribute('open');
   });
@@ -110,7 +111,8 @@ describe('AdminMcpReport', () => {
     expect(screen.getAllByText('활성 계정').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('2일 이상 사용 계정')).toBeInTheDocument();
     expect(screen.getByText(/리텐션 아님/)).toBeInTheDocument();
-    expect(screen.getByText(/요청 연결률 75.0% \(90\/120\)/)).toBeInTheDocument();
+    expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('75.0%');
+    expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('90/120 · invocation');
     expect(screen.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
     expect(screen.getByText(/실제 호스트나 사람 수를 증명하지 않습니다/)).toBeInTheDocument();
     expect(screen.getByText(/설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다/)).toBeInTheDocument();
@@ -137,9 +139,10 @@ describe('AdminMcpReport', () => {
 
     expect(await screen.findByText(/작업 시작이 0건입니다/)).toBeInTheDocument();
     expect(screen.getByText('오류율 0.0% · p95 미집계')).toBeInTheDocument();
-    expect(screen.getByText('측정 범위').parentElement).toHaveTextContent('도구 실행: 미계측');
+    expect(screen.getByText('어댑터 도구 보고 · 전체 기간').parentElement).toHaveTextContent('기록 없음');
     expect(screen.getByText('미계측')).toBeInTheDocument();
-    expect(screen.getByText(/요청 연결률 미집계/)).toBeInTheDocument();
+    expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('미집계');
+    expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('0/0');
     expect(screen.getByText('도구 실행은 미계측 상태입니다.')).toBeInTheDocument();
   });
 
@@ -198,5 +201,55 @@ describe('AdminMcpReport', () => {
     resolveOlder({ data: { ...REPORT, window: { ...REPORT.window, days: 7 }, daily: [{ ...REPORT.daily[0], date: '2026-08-10' }] } } as FetchResponse);
     await waitFor(() => expect(screen.queryByText('2026-08-10')).not.toBeInTheDocument());
     expect(screen.getByText('2026-09-06')).toBeInTheDocument();
+  });
+
+  it('names the active filter and the ledger-wide last event when the window is zero', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, requests: 0, tool_calls: 0, jobs_started: 0 },
+    }));
+    render(<AdminMcpReport />);
+
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent('선택한 기간(28일, 관리자 제외)');
+    expect(banner).toHaveTextContent('원장의 마지막 이벤트는 2026-09-06(전체 기간·관리자 포함 기준)');
+    expect(banner).toHaveTextContent('관리자 계정을 포함하면');
+    expect(screen.getByText('마지막 이벤트 · 전체 기간').parentElement).toHaveTextContent('(오늘)');
+  });
+
+  it('shades the span before measurement started and keeps count ticks on integers', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      measurement: { ...REPORT.measurement, started_at: '2026-08-20T00:00:00Z' },
+      daily: [{ ...REPORT.daily[0], requests: 3, tool_calls: 2, active_accounts: 1 }],
+    }));
+    render(<AdminMcpReport />);
+    await screen.findByTestId('mcp-daily-plot');
+
+    const { layout } = plotSpy.mock.lastCall![0];
+    expect(layout.shapes).toEqual([expect.objectContaining({ x0: '2026-08-10', x1: '2026-08-20', layer: 'below' })]);
+    expect(layout.annotations).toEqual([expect.objectContaining({ x: '2026-08-20', text: '계측 시작' })]);
+    expect(layout.yaxis).toEqual(expect.objectContaining({ rangemode: 'tozero', tickformat: ',d', dtick: 1 }));
+  });
+
+  it('shows per-version error counts next to the version claims', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
+    render(<AdminMcpReport />);
+
+    const row = await screen.findByRole('row', { name: /^0\.4\.0/ });
+    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '4', '1']);
+  });
+
+  it('groups the window buttons and marks the report busy while a new window loads', async () => {
+    vi.mocked(fetchAdminMcpReport)
+      .mockImplementationOnce(() => response(REPORT))
+      .mockReturnValueOnce(new Promise(() => {}) as ReturnType<typeof fetchAdminMcpReport>);
+    render(<AdminMcpReport />);
+
+    const region = await screen.findByRole('region', { name: 'MCP 사용 리포트' });
+    expect(region).toHaveAttribute('aria-busy', 'false');
+    expect(within(region).getByRole('group', { name: '조회 기간' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '7일' }));
+    await waitFor(() => expect(region).toHaveAttribute('aria-busy', 'true'));
   });
 });
