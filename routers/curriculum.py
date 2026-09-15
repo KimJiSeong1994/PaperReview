@@ -892,7 +892,11 @@ async def revoke_curriculum_share(
 
 
 @router.get("/shared/curriculum/{share_token}")
-async def get_shared_curriculum(share_token: str):
+# Unauthenticated, and every call reads the whole user index off disk, so a
+# token-guessing loop costs the server real work. Matches the shared-bookmark
+# endpoint, which is the same shape.
+@limiter.limit("30/minute")
+async def get_shared_curriculum(share_token: str, request: Request):
     """Public endpoint: retrieve a shared curriculum by token (no auth required)."""
     user_entries = _load_user_index()
     entry = None
