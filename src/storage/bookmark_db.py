@@ -43,6 +43,17 @@ _UPSERT_SQL = """
 
 _SELECT_ALL_SQL = "SELECT * FROM bookmarks ORDER BY created_at DESC"
 
+# Every column except ``report``, whose body is ~99% of the bytes a full scan
+# reads. Callers that never render the report body select these instead of "*".
+_SUMMARY_COLUMNS = (
+    "id, username, topic, title, papers, notes, highlights, "
+    "share_token, citation_tree, created_at, updated_at, metadata"
+)
+
+_SELECT_SUMMARY_SQL = (
+    f"SELECT {_SUMMARY_COLUMNS} FROM bookmarks ORDER BY created_at DESC"
+)
+
 
 class _BookmarkTransaction:
     """Read/write handle bound to one open transaction.
@@ -138,10 +149,13 @@ class BookmarkDB:
         """Convert a sqlite3.Row back to a bookmark dict."""
         bm: Dict[str, Any] = {}
 
-        # Scalar fields
+        # Scalar fields.  ``report`` is absent when the caller selected the
+        # report-free projection, so only copy columns the row actually has.
+        present = set(row.keys())
         for key in ("id", "username", "topic", "title", "report",
                     "notes", "share_token", "created_at", "updated_at"):
-            bm[key] = row[key]
+            if key in present:
+                bm[key] = row[key]
 
         # JSON fields
         for json_key in ("papers", "highlights", "citation_tree"):
@@ -244,7 +258,9 @@ class BookmarkDB:
             finally:
                 conn.close()
 
-    def get_by_username(self, username: str) -> List[Dict[str, Any]]:
+    def get_by_username(
+        self, username: str, include_reports: bool = True
+    ) -> List[Dict[str, Any]]:
         """Return all bookmarks for *username*, newest first.
 
         Parameters
@@ -253,6 +269,9 @@ class BookmarkDB:
             Owner of the bookmarks. Validated via
             :func:`~src.events.contracts.assert_valid_username` before any
             SQL is executed.
+        include_reports:
+            When ``False`` the ``report`` column is never read, so the returned
+            dicts carry neither ``report`` nor its ``report_markdown`` alias.
 
         Returns
         -------
@@ -266,23 +285,31 @@ class BookmarkDB:
             ``^[A-Za-z0-9_\\-]{1,64}$``.
         """
         assert_valid_username(username)
+        columns = "*" if include_reports else _SUMMARY_COLUMNS
         with self._lock:
             conn = self._connect()
             try:
                 rows = conn.execute(
-                    "SELECT * FROM bookmarks WHERE username = ? ORDER BY created_at DESC",
+                    f"SELECT {columns} FROM bookmarks "
+                    "WHERE username = ? ORDER BY created_at DESC",
                     (username,),
                 ).fetchall()
                 return [self._row_to_dict(r) for r in rows]
             finally:
                 conn.close()
 
-    def get_all(self) -> List[Dict[str, Any]]:
-        """Return all bookmarks across all users, newest first."""
+    def get_all(self, include_reports: bool = True) -> List[Dict[str, Any]]:
+        """Return all bookmarks across all users, newest first.
+
+        When *include_reports* is ``False`` the ``report`` column is never
+        read, so the returned dicts carry neither ``report`` nor its
+        ``report_markdown`` alias.
+        """
+        sql = _SELECT_ALL_SQL if include_reports else _SELECT_SUMMARY_SQL
         with self._lock:
             conn = self._connect()
             try:
-                rows = conn.execute(_SELECT_ALL_SQL).fetchall()
+                rows = conn.execute(sql).fetchall()
                 return [self._row_to_dict(r) for r in rows]
             finally:
                 conn.close()

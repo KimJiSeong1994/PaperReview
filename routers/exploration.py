@@ -49,7 +49,7 @@ def create_citation_tree(
     username: str = Depends(get_current_user),
 ):
     """Generate a citation tree for a bookmark's papers."""
-    data = load_bookmarks()
+    data = load_bookmarks(include_reports=False)
     bookmark = _find_bookmark(data, bookmark_id, username)
 
     papers = bookmark.get("papers", [])
@@ -94,7 +94,7 @@ def create_citation_tree(
 @router.get("/bookmarks/{bookmark_id}/citation-tree")
 async def get_citation_tree(bookmark_id: str, username: str = Depends(get_current_user)):
     """Retrieve the stored citation tree for a bookmark."""
-    data = load_bookmarks()
+    data = load_bookmarks(include_reports=False)
     bookmark = _find_bookmark(data, bookmark_id, username)
 
     tree = bookmark.get("citation_tree")

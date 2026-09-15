@@ -158,18 +158,23 @@ def _get_user_db():
 
 # ── Bookmarks public API ──────────────────────────────────────────────
 
-def load_bookmarks() -> dict:
+def load_bookmarks(include_reports: bool = True) -> dict:
     """Load bookmarks from SQLite (thread-safe).
 
     Returns the same ``{"bookmarks": [...]}`` structure as the former
     JSON-based implementation so all callers remain unchanged.
+
+    Pass ``include_reports=False`` when the caller never renders a report
+    body: the ``report`` column is then left unread, which is ~99% of the
+    bytes a full load pulls into memory.  The returned dicts carry neither
+    ``report`` nor its ``report_markdown`` alias.
     """
     db = _get_bookmark_db()
-    bookmarks = db.get_all()
+    bookmarks = db.get_all(include_reports=include_reports)
     return {"bookmarks": bookmarks}
 
 
-def load_bookmarks_for_user(username: str) -> list:
+def load_bookmarks_for_user(username: str, include_reports: bool = True) -> list:
     """Return all bookmarks for *username* using the indexed SQLite query.
 
     Replaces the O(N) ``load_bookmarks()`` full-scan + Python-filter
@@ -183,6 +188,10 @@ def load_bookmarks_for_user(username: str) -> list:
         Authenticated user whose bookmarks are requested.  Validated by
         ``BookmarkDB.get_by_username`` via
         :func:`~src.events.contracts.assert_valid_username`.
+    include_reports:
+        Pass ``False`` for summary views: the ``report`` column is left
+        unread, so the returned dicts carry neither ``report`` nor its
+        ``report_markdown`` alias.
 
     Returns
     -------
@@ -206,7 +215,9 @@ def load_bookmarks_for_user(username: str) -> list:
             user_hash_prefix,
         )
         return []
-    return _get_bookmark_db().get_by_username(username)
+    return _get_bookmark_db().get_by_username(
+        username, include_reports=include_reports
+    )
 
 
 def save_bookmarks(data: dict) -> None:
