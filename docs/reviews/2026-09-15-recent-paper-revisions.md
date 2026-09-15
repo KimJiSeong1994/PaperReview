@@ -5,7 +5,7 @@
 ## 범위
 
 - `data/blog/posts.json`의 기존 리뷰 10편에서 `content`, `excerpt`, `updated_at`, `reading_time_min`만 변경했다.
-- 기존 ID·제목·URL·최초 발행일·태그·카테고리·그림을 보존했다. 대상 외 76편과 기존 그림 62개는 변경하지 않았다.
+- 기존 ID·제목·URL·최초 발행일·태그·카테고리·그림을 보존했다. 병합 시점의 대상 외 77편과 기존 그림 62개는 변경하지 않았다. 동시 병합된 RLT 포스팅도 보존했다.
 - 작성 담당과 독립 사실·비판 검토 담당을 분리했다. 아래 설명은 논문 보고와 직접적인 해석을 구분하며, 실험을 독립 재현했다는 의미는 아니다.
 
 ## 글별 변경과 근거
@@ -71,7 +71,7 @@ CLAUSE는 지식 그래프의 편집·경로 탐색·근거 선택을 세 정책
 - 공개 API·상세 페이지 10곳의 본문과 메타데이터, 기존 그림 62개의 응답·파일 해시를 확인했다.
 - 최종 excerpt가 목록/상세 API, 상세 페이지 요약, 검색 설명·Open Graph·Twitter, JSON-LD, RSS에 일치함을 확인했다.
 - 검토 과정에서 수식 392개를 KaTeX 엄격 모드로 확인했다. Excerpt 수정 전후 본문은 동일하다.
-- 이 PR의 게시 JSON 전체가 발행된 게시 JSON과 일치함을 확인하고, 최신 main을 기준으로 블로그·검색·태그·논문 참조·시리즈·썸네일·SEO 테스트를 실행했다.
+- 이 PR의 대상 10편이 발행·검증한 레코드와 일치하고 대상 외 게시물이 최신 main과 일치함을 확인한 뒤, 최신 main을 기준으로 블로그·검색·태그·논문 참조·시리즈·썸네일·SEO 테스트를 실행했다.
 
 ```sh
 pytest -q tests/test_blog_slug.py tests/test_blog_search.py tests/test_blog_tags.py tests/test_blog_references.py tests/test_blog_series_sync.py tests/test_blog_thumbnails.py tests/test_seo.py
