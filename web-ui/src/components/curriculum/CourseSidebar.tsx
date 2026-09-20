@@ -309,7 +309,7 @@ export default function CourseSidebar({
             {loadingCourses ? (
               <div className="curriculum-loading">Loading...</div>
             ) : presetCourses.length === 0 ? (
-              <div className="cur-tree-empty">No featured courses</div>
+              <div className="cur-tree-empty">추천 코스가 없습니다</div>
             ) : (
               presetCourses.map((course) => renderCourseItem(course, true))
             )}
@@ -329,7 +329,7 @@ export default function CourseSidebar({
           <div className="cur-tree-children">
             {loadingCourses ? null : myCourses.length === 0 ? (
               <div className="cur-tree-empty">
-                Fork a course or generate a custom one
+                코스를 포크하거나 직접 만들어 보세요
               </div>
             ) : (
               myCourses.map((course) => renderCourseItem(course, false))

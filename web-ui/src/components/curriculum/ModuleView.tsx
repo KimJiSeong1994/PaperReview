@@ -78,7 +78,7 @@ export default function ModuleView({
   if (!module) {
     return (
       <div className="curriculum-main">
-        <div className="curriculum-empty">Select a course and module to view papers</div>
+        <div className="curriculum-empty">코스와 모듈을 고르면 논문이 나타납니다</div>
       </div>
     );
   }

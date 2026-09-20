@@ -897,7 +897,7 @@ export default function PaperViewerPanel({
           <span className="paper-viewer-placeholder-icon">
             <IconFileText />
           </span>
-          <span>Select a paper to view</span>
+          <span>{hasSelectedBookmark ? '논문을 선택하세요' : '왼쪽에서 북마크를 고르면 논문 PDF를 볼 수 있습니다'}</span>
         </div>
       );
     }
@@ -1087,7 +1087,7 @@ export default function PaperViewerPanel({
           {/* PDF overlay highlight button — works without bookmark */}
           <button
             className={`paper-viewer-fit-btn paper-viewer-pdf-hl-btn${pdfHighlights.length > 0 ? ' active' : ''}`}
-            title="Auto-highlight key findings on PDF"
+            title="PDF의 핵심 문장을 자동으로 표시합니다"
             onClick={handleAutoHighlightPdf}
             disabled={highlightingPdf || !pdfDocRef.current}
           >
@@ -1112,7 +1112,7 @@ export default function PaperViewerPanel({
       {/* ── Left: Paper list ── */}
       <div className="paper-viewer-list">
         <div className="paper-viewer-list-header">
-          <span>Papers</span>
+          <span>논문</span>
           {resolving && (
             <span className="paper-viewer-resolve-status">
               <span className="paper-viewer-resolve-spinner" />
@@ -1130,11 +1130,12 @@ export default function PaperViewerPanel({
 
         <div className="paper-viewer-list-scroll">
           {loadingDetail ? (
-            <div className="paper-viewer-list-loading">Loading papers...</div>
+            <div className="paper-viewer-list-loading">논문 불러오는 중...</div>
           ) : !hasSelectedBookmark ? (
-            <div className="paper-viewer-list-empty">No bookmark selected</div>
+            // The PDF area already says what to do; a second empty state here said it again.
+            null
           ) : papers.length === 0 ? (
-            <div className="paper-viewer-list-empty">No papers in this bookmark</div>
+            <div className="paper-viewer-list-empty">이 북마크에는 논문이 없습니다</div>
           ) : (
             papers.map((paper, index) => {
               const hasPdf = Boolean(getEffectivePdfUrl(paper));

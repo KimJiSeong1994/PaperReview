@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
+import { copyToClipboard } from '../../utils/clipboard';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -102,7 +103,7 @@ export default function ReportViewer({
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
-  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopy, setShareCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [expandedCitationId, setExpandedCitationId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleSavingRef = useRef(false);
@@ -154,6 +155,17 @@ export default function ReportViewer({
     }
   }, [editingTitle]);
 
+  // Enter/Escape unmount the input; without this a keyboard user is dropped on
+  // <body>. Only after a keyboard exit — a mouse click elsewhere chose its own target.
+  const titleButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreTitleFocus = useRef(false);
+  useEffect(() => {
+    if (!editingTitle && restoreTitleFocus.current) {
+      restoreTitleFocus.current = false;
+      titleButtonRef.current?.focus();
+    }
+  }, [editingTitle]);
+
   const handleTitleSave = () => {
     if (titleSavingRef.current) return;
     titleSavingRef.current = true;
@@ -198,13 +210,14 @@ export default function ReportViewer({
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <span>Evidence highlighted</span>
-          <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>Clear</button>
+          <span>인용 키워드 표시 중</span>
+          <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>지우기</button>
         </div>
       )}
 
       {/* Header */}
       <div className="mypage-report-header">
+        <div className="mypage-report-heading">
         {editingTitle ? (
           <input
             ref={titleInputRef}
@@ -213,8 +226,8 @@ export default function ReportViewer({
             onChange={(e) => setTitleDraft(e.target.value)}
             onBlur={handleTitleSave}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleTitleSave();
-              if (e.key === 'Escape') setEditingTitle(false);
+              if (e.key === 'Enter') { restoreTitleFocus.current = true; handleTitleSave(); }
+              if (e.key === 'Escape') { restoreTitleFocus.current = true; setEditingTitle(false); }
             }}
           />
         ) : (
@@ -224,36 +237,61 @@ export default function ReportViewer({
               setTitleDraft(bookmarkDetail.title);
               setEditingTitle(true);
             }}
-            title="Double-click to edit title"
+            title="더블클릭 또는 제목 수정 버튼으로 바꿀 수 있습니다"
           >
             {bookmarkDetail.title}
           </h2>
         )}
+        {/* Titles start out as "<query> - <date>", so the question is only worth
+            repeating once the title has been renamed away from it. */}
+        {bookmarkDetail.query && !bookmarkDetail.title?.startsWith(bookmarkDetail.query) && (
+          <p className="mypage-report-query" title={bookmarkDetail.query}>검색어 · {bookmarkDetail.query}</p>
+        )}
+        </div>
         <div className="mypage-detail-export-btns">
+          {!editingTitle && (
+            <button
+              ref={titleButtonRef}
+              type="button"
+              className="mypage-export-btn"
+              aria-label="제목 수정"
+              title="제목 수정"
+              onClick={() => {
+                setTitleDraft(bookmarkDetail.title);
+                setEditingTitle(true);
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" aria-hidden="true">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
+            </button>
+          )}
+          {/* It tags sentences of a report that is already written; "review" here
+              means the pipeline that produced the report, which this does not run. */}
           <button
             className="mypage-export-btn"
             onClick={onAutoHighlight}
             disabled={autoHighlighting || !bookmarkDetail?.report_markdown}
-            title="Auto-highlight key findings"
+            title="핵심 문장을 자동으로 표시합니다"
           >
             {autoHighlighting ? (
               <>
                 <svg className="mypage-auto-highlight-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                   <path d="M12 2v4m0 12v4m-7.07-2.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" />
                 </svg>
-                Analyzing...
+                분석 중...
               </>
             ) : (
               <>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                   <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                Auto Review
+                자동 하이라이트
               </>
             )}
           </button>
           {bookmarkDetail.report_markdown && (
-            <button className="mypage-export-btn" onClick={onExportReport} title="Export as Markdown">
+            <button className="mypage-export-btn" onClick={onExportReport} title="마크다운으로 내보내기">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
@@ -295,12 +333,17 @@ export default function ReportViewer({
                 <button
                   className="mypage-share-copy-btn"
                   onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/share/${shareInfo.token}`);
-                    setShareCopied(true);
-                    setTimeout(() => setShareCopied(false), 2000);
+                    const url = `${window.location.origin}/share/${shareInfo.token}`;
+                    const done = (state: 'copied' | 'failed') => {
+                      setShareCopy(state);
+                      setTimeout(() => setShareCopy('idle'), 2000);
+                    };
+                    // The helper falls back to execCommand on plain-http origins; either
+                    // path can still fail, and the button must not say it succeeded.
+                    copyToClipboard(url).then(() => done('copied'), () => done('failed'));
                   }}
                 >
-                  {shareCopied ? '복사됨!' : '복사'}
+                  {shareCopy === 'copied' ? '복사됨!' : shareCopy === 'failed' ? '복사 실패' : '복사'}
                 </button>
               </>
             )}

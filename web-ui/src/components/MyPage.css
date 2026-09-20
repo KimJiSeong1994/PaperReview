@@ -73,6 +73,7 @@
   font-family: inherit;
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .mypage-nav-btn:hover {
@@ -83,6 +84,13 @@
 .mypage-nav-btn-active {
   color: var(--indigo);
   background: rgba(99, 102, 241, 0.1);
+  /* A shape as well as a hue, for anyone who cannot tell the tint apart. */
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.mypage-tabs {
+  display: flex;
+  gap: 4px;
 }
 
 /* ===== 3-Panel Content ===== */
@@ -349,6 +357,81 @@
   font-size: 14px;
 }
 
+/* An empty list is a dead end unless it says where the first bookmark comes from. */
+.mypage-empty--start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.mypage-empty--start p {
+  margin: 0;
+}
+
+.mypage-empty-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mypage-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mypage-empty-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--wov-10);
+  border-radius: 6px;
+  background: var(--wov-04);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mypage-empty-btn:hover {
+  background: var(--wov-06);
+}
+
+.mypage-empty-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* States the notes-only filter in words; a tinted icon alone said nothing. */
+.mypage-filter-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 12px 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--indigo);
+  font-size: 12px;
+}
+
+.mypage-filter-chip button {
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mypage-filter-chip button:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
 /* ===== Drag Handle ===== */
 .mypage-drag-handle {
   display: flex;
@@ -479,7 +562,9 @@
 
 .mypage-bookmark-meta {
   display: flex;
-  gap: 12px;
+  /* Three flags plus date and count outgrow the 240px rail; let it wrap. */
+  flex-wrap: wrap;
+  gap: 2px 8px;
   font-size: 11px;
   color: var(--text-faint);
   margin-top: 2px;
@@ -725,6 +810,20 @@
   gap: 12px;
   padding: 16px 20px 12px;
   border-bottom: 1px solid var(--wov-06);
+}
+
+.mypage-report-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage-report-query {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mypage-report-title {
@@ -1632,11 +1731,18 @@
   background: rgba(99, 102, 241, 0.08);
 }
 
+.mypage-bookmark-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ===== Note Indicator Icon ===== */
 .mypage-note-indicator {
   color: var(--indigo);
   opacity: 0.6;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 /* ===== Notes & Highlights Section ===== */
