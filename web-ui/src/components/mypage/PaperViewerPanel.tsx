@@ -310,7 +310,8 @@ export default function PaperViewerPanel({
     if (!el) return;
     const obs = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) {
+      // A hidden (display:none) container reports 0; keep the last real width.
+      if (entry && entry.contentRect.width > 0) {
         // Subtract padding (2 * 16px)
         setContainerWidth(Math.max(300, entry.contentRect.width - 32));
       }
