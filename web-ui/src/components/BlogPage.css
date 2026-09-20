@@ -1620,6 +1620,8 @@
 
 .blog-detail-pdf-link {
   display: inline-flex;
+  min-height: 44px;
+  box-sizing: border-box;
   align-items: center;
   gap: 6px;
   margin-left: 4px;
@@ -1640,6 +1642,16 @@
   border-color: rgba(79, 70, 229, 0.36);
   color: var(--indigo);
   transform: translateY(-1px);
+}
+
+.blog-detail-pdf-link:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 3px;
+}
+
+.blog-detail-reading-mode {
+  color: var(--text-soft);
+  font-weight: 650;
 }
 
 /* ===== Markdown Rendered Content ===== */

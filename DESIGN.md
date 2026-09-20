@@ -2,7 +2,7 @@
 
 ## Source of truth
 - Status: Active
-- Last refreshed: 2026-08-14
+- Last refreshed: 2026-09-20
 - Primary product surfaces: public home/search, introduction page, blog/category/series pages, paper-review articles, authenticated research workspace, academic poster generation and preview/export.
 - Evidence reviewed:
   - `web-ui/src/App.tsx`, `web-ui/src/App.css`, `web-ui/src/index.css` — application shell, navigation, theme tokens, and hanok visual language.
@@ -54,6 +54,8 @@
   `AboutPage` JSON-LD so search and answer engines do not depend on client rendering.
 - Introduction hierarchy: product definition → access and scope → differentiators → four-stage workflow → visible claim/evidence example and public outputs → capability detail → optional Claude extension → final actions.
 - Blog hierarchy: category/series context → title and metadata → markdown article → related navigation/admin controls.
+- Paper-review reading levels: a post with a companion detailed body opens its easy/default text at `/blog/:slug`. `?view=deep` opens the detailed text on the same route, with the same canonical URL and post identity. Other posts retain their single-body behavior.
+- Reading navigation: show `상세 읽기` beside `PDF 보기` in the default article's metadata row; the detailed view offers `쉬운 읽기` in the same place. These are real links with copy/open-in-new-tab and browser-history behavior. Recompute displayed reading time and table of contents for the selected body.
 - Poster hierarchy: paper/review thesis → author/source context → primary evidence wall → metrics with real labels → method/figure/table support → limitations → provenance/review metadata → compact references. The poster is a primary generated artifact, not a decorative export of the search page.
 
 ## Design principles
@@ -61,6 +63,7 @@
 - One research story: describe discovery, review, verification, and learning as one continuous flow instead of disconnected features.
 - Reading rhythm over decoration: typography, spacing, and a few meaningful visual anchors carry the design.
 - Progressive disclosure: keep MCP tool catalogs and installation detail available without making them the first-time visitor's main path.
+- Easy before detailed: explain the paper's idea and evidence without requiring equations first; keep equations and full result analysis one explicit link away. A shorter version must preserve the original experiment's conditions.
 - Tradeoffs: favor an editorial research dossier over a dense dashboard or conventional card-heavy landing page.
 - Poster principle: evidence density beats ornament. Academic posters use a 4:3 A3 landscape Editorial Evidence Wall that keeps thesis, evidence, metrics, limitations, and metadata visible without relying on remote assets or placeholder claims.
 
@@ -87,6 +90,7 @@
 - Admin analytics trust contract: distinguish verified crawler identity, successful indexable-content fetches, content failures, discovery 404s, and suspected security scans. Danger styling is reserved for verified content failures; unverified identities and expected probes use neutral status treatments, and every selected period discloses the actual nginx log coverage.
 - Variants and states: dark/light themes, desktop/mobile workflow layout, collapsed/expanded MCP details, copy success feedback.
 - Token/component ownership: global tokens remain in `index.css`; intro-specific layout and variants stay in `IntroducePage.css` and `LandingSections.css`; blog article styling remains in `BlogPage.css`.
+- Reading-level links reuse the blog PDF link's quiet indigo pill treatment, with visible keyboard focus and 44px touch targets. Keep a short `쉬운 읽기`/`상세 읽기` mode label beside reading time; do not add a new tab framework or hide a second full article below the first.
 - Poster components: reuse the generated HTML preview/download modal, sanitized poster iframe flow, YAML theme tokens, and `StyleManager` CSS output. New poster sections should map to thesis, evidence, metrics, figure/table, limitations, metadata, and references rather than generic card grids.
 - Poster evidence contract: metric blocks must use actual labels and source context; thesis/evidence metadata must identify generation date/status and safe provenance; limitations must remain visible as scholarly content.
 
@@ -112,6 +116,7 @@
 - Loading: paper search uses the Jiphyeonjeon library scene as a narrative status surface: the canonical scholar hero is visually prominent through its round silhouette, expressive face, and `RESEARCH` headband while visibly finding books; concise Korean copy explains that titles and core content are being reviewed. Dark mode uses the warm lamplit ink scene; light mode switches to a separate neutral hanji-white and muted-indigo daylight asset rather than filtering the dark artwork or carrying its ochre cast across themes. Keep the status truthful (no invented percentage or time promise), expose it through a polite live region, treat the illustration as decorative, and limit motion to a subtle nonessential pulse/zoom that is removed under reduced-motion. Lazy routes keep the compact app loading state; copy buttons retain layout while feedback changes.
 - Empty: search and blog empty states remain explicit and actionable.
 - Error: failed search/review/API states preserve the user's query or task context.
+- Reading fallback: missing, empty, or unsupported detailed-view selection renders the default article. Without JavaScript, the server renders the same selected body and navigation; unpublished articles remain unavailable in either view.
 - Success: copied commands announce success; completed review/public links expose the resulting artifact.
 - Disabled: long-running research actions communicate unavailable/waiting state instead of silently ignoring input.
 - Offline/slow network, if applicable: introduction content and navigation remain useful without backend data; no timing promise is shown.
@@ -128,6 +133,7 @@
 - Design-token constraints: extend existing CSS variables; do not introduce Tailwind, a new token package, or a new runtime dependency.
 - Performance constraints: reuse optimized WebP/PNG assets, lazy-load the intro route, and avoid new client data fetching solely for decoration.
 - Compatibility constraints: preserve dark default, light overrides, production routing, canonical metadata, and static crawler discovery.
+- Reading data contract: `content` remains the default article. Optional `deep_content` holds the detailed article; detail responses include both while list responses include neither. Search covers both bodies. Canonical metadata, list excerpts, RSS and sitemap remain post-level/default; SSR and client article text, reading time and structured article body follow the selected view. Editing metadata/default text must preserve detailed text unless the editor explicitly replaces or clears it.
 - Test/screenshot expectations: targeted intro/SEO tests, full frontend tests, production build, `git diff --check`, and desktop/mobile dark/light screenshots.
 - Poster implementation constraints: default poster styling lives in `poster_styles.yaml` and generated CSS from `style_manager.py`; keep the 4:3 canvas, 1200-1600px flexible width, self-contained system font stack, print CSS, responsive CSS, and legacy `.grid-container` / `.col` compatibility. Do not add new runtime dependencies or remote font/image requirements.
 

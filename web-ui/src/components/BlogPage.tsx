@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -37,6 +37,8 @@ interface BlogPost {
   title: string;
   excerpt: string;
   content: string;
+  deep_content?: string | null;
+  deep_reading_time_min?: number | null;
   author: string;
   tags: string[];
   category?: string;
@@ -307,6 +309,7 @@ interface EditorForm {
   title: string;
   excerpt: string;
   content: string;
+  deep_content: string;
   author: string;
   tags: string;
   category: CategoryKey;
@@ -317,6 +320,7 @@ const EMPTY_FORM: EditorForm = {
   title: '',
   excerpt: '',
   content: '',
+  deep_content: '',
   author: '',
   tags: '',
   category: 'engineering',
@@ -333,6 +337,24 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const [view, setView] = useState<BlogView>('list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const editorRequestRef = useRef(0);
+  const hasDeepContent = Boolean(selectedPost?.deep_content?.trim());
+  const isDeepReading = searchParams.get('view') === 'deep' && hasDeepContent;
+  // Keep selectedPost as the stored/default document for editing. Only the
+  // reader-facing projection changes when the URL selects the detailed view.
+  const readingPost = useMemo(() => (
+    selectedPost && isDeepReading
+      ? {
+        ...selectedPost,
+        content: selectedPost.deep_content!,
+        // Old cached responses may not yet carry the server's derived time.
+        // Use the existing matching estimator for that transitional case.
+        reading_time_min: selectedPost.deep_reading_time_min
+          ?? estimateReadingTime(selectedPost.deep_content!),
+      }
+      : selectedPost
+  ), [selectedPost, isDeepReading]);
+  useEffect(() => () => { editorRequestRef.current += 1; }, [location.key]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // True only when the API definitively said the post is gone (404/410).
@@ -625,7 +647,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     document
       .querySelectorAll('.body-toc-heading, .body-toc-list')
       .forEach((node) => node.classList.remove('body-toc-heading', 'body-toc-list'));
-    if (view !== 'detail' || !selectedPost) return;
+    if (view !== 'detail' || !readingPost) return;
     const headings = document.querySelectorAll<HTMLElement>('.blog-detail-content h2');
     for (const heading of headings) {
       if (!BODY_TOC_HEADINGS.has(heading.textContent?.trim() ?? '')) continue;
@@ -633,7 +655,16 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       heading.nextElementSibling?.classList.add('body-toc-list');
       break;
     }
-  }, [view, selectedPost]);
+  }, [view, readingPost]);
+
+  useEffect(() => {
+    if (view !== 'detail' || !readingPost || !hasDeepContent) return;
+    let fragment = location.hash.slice(1);
+    try { fragment = decodeURIComponent(fragment); } catch { /* Preserve a malformed fragment verbatim. */ }
+    const target = fragment ? document.getElementById(fragment) : null;
+    if (target) target.scrollIntoView?.({ block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [view, readingPost, hasDeepContent, location.hash]);
 
   // ── Detail view ────────────────────────────────────────────────────
 
@@ -648,6 +679,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   }, [location.hash, view, loading]);
 
   const openPost = async (post: BlogPost) => {
+    editorRequestRef.current += 1;
     setError(null);
     try {
       const response = await fetchBlogPost(post.slug);
@@ -665,6 +697,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   };
 
   const closeDetail = () => {
+    editorRequestRef.current += 1;
     setView('list');
     setSelectedPost(null);
     if (slug) {
@@ -675,6 +708,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // ── Admin actions ──────────────────────────────────────────────────
 
   const openNewEditor = () => {
+    editorRequestRef.current += 1;
     setEditingPost(null);
     setForm(EMPTY_FORM);
     setSaveError(null);
@@ -682,17 +716,33 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openEditEditor = (post: BlogPost, e: React.MouseEvent) => {
+  const openEditEditor = async (post: BlogPost, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingPost(post);
+    const request = ++editorRequestRef.current;
+    // List responses intentionally omit both bodies. Fetch the complete
+    // document before opening an editor that could otherwise clear one.
+    let full = post;
+    if (typeof post.content !== 'string') {
+      try {
+        full = (await fetchBlogPost(post.slug)).data as BlogPost;
+      } catch (err: unknown) {
+        if (request === editorRequestRef.current) {
+          setError(getErrorMessage(err, '수정할 본문을 불러오지 못했습니다.'));
+        }
+        return;
+      }
+    }
+    if (request !== editorRequestRef.current) return;
+    setEditingPost(full);
     setForm({
-      title: post.title,
-      excerpt: post.excerpt,
-      content: post.content,
-      author: post.author,
-      tags: post.tags.join(', '),
-      category: normalizeCategory(post.category),
-      thumbnail_url: post.thumbnail_url ?? '',
+      title: full.title,
+      excerpt: full.excerpt,
+      content: full.content,
+      deep_content: full.deep_content ?? '',
+      author: full.author,
+      tags: full.tags.join(', '),
+      category: normalizeCategory(full.category),
+      thumbnail_url: full.thumbnail_url ?? '',
     });
     setSaveError(null);
     setView('editor');
@@ -723,9 +773,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
     const payload = {
       title: form.title.trim(),
-      slug: buildSlug(form.title),
+      slug: editingPost?.slug ?? buildSlug(form.title),
       excerpt: form.excerpt.trim() || form.content.trim().slice(0, 160),
       content: form.content.trim(),
+      deep_content: form.deep_content.trim() || null,
       author: form.author.trim() || '집현전 팀',
       tags: form.tags
         .split(',')
@@ -1381,7 +1432,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
                           className="blog-row"
                           href={`/blog/${post.slug}`}
                           aria-label={post.title}
-                          onClick={(e) => { e.preventDefault(); void openPost(post); }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            // This invalidates the pending editor only on a click, never during render.
+                            // eslint-disable-next-line react-hooks/refs
+                            void openPost(post);
+                          }}
                         >
                           <div className="blog-row-text">
                             <div className="blog-row-chips">
@@ -1475,11 +1531,12 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       );
     }
 
+    const displayedPost = readingPost!;
     const paperReference = extractPrimaryPaperReference(selectedPost);
     const paperViewerHref = paperReference ? buildPaperViewerHref(paperReference) : null;
 
     return (
-      <div className="blog-detail">
+      <div className="blog-detail" data-reading-view={isDeepReading ? 'deep' : 'default'}>
         <button className="blog-detail-back" onClick={closeDetail}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
             <line x1="19" y1="12" x2="5" y2="12" />
@@ -1495,7 +1552,25 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           <span className="blog-card-dot" aria-hidden="true" />
           <span>{formatDate(selectedPost.created_at)}</span>
           <span className="blog-card-dot" aria-hidden="true" />
-          <span>{selectedPost.reading_time_min} min read</span>
+          <span>{displayedPost.reading_time_min} min read</span>
+          {hasDeepContent && (
+            <>
+              <span className="blog-detail-reading-mode" aria-live="polite">
+                {isDeepReading ? '상세 읽기' : '쉬운 읽기'}
+              </span>
+              <Link
+                className="blog-detail-pdf-link blog-detail-reading-link"
+                to={`/blog/${selectedPost.slug}${isDeepReading ? '' : '?view=deep'}`}
+                aria-label={`${selectedPost.title} ${isDeepReading ? '쉬운 읽기' : '상세 읽기'}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
+                  <path d="M4 4h6a2 2 0 0 1 2 2v15a3 3 0 0 0-3-3H4z" />
+                  <path d="M20 4h-6a2 2 0 0 0-2 2v15a3 3 0 0 1 3-3h5z" />
+                </svg>
+                {isDeepReading ? '쉬운 읽기' : '상세 읽기'}
+              </Link>
+            </>
+          )}
           {paperViewerHref && (
             <a className="blog-detail-pdf-link" href={paperViewerHref} aria-label={`${paperReference?.title ?? selectedPost.title} PDF 보기`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden="true">
@@ -1512,7 +1587,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         <h1 className="blog-detail-title">{selectedPost.title}</h1>
 
         {(() => {
-          const dek = leadingH1Text(selectedPost.content);
+          const dek = leadingH1Text(displayedPost.content);
           return dek && dek !== selectedPost.title ? (
             <h2 className="blog-detail-dek">{dek}</h2>
           ) : null;
@@ -1552,7 +1627,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeSlug, rehypeKatex]}
           >
-            {normalizeBlogMarkdown(selectedPost.content)}
+            {normalizeBlogMarkdown(displayedPost.content)}
           </ReactMarkdown>
         </div>
 
@@ -1731,15 +1806,26 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             Supports: # headings, **bold**, *italic*, `code`, - lists, 1. ordered lists, {'>'} blockquote, ``` code blocks
           </span>
         </div>
+        <div className="blog-editor-field">
+          <label className="blog-editor-label" htmlFor="blog-field-deep-content">상세 본문 (Markdown, 선택)</label>
+          <textarea
+            id="blog-field-deep-content"
+            className="blog-editor-textarea"
+            value={form.deep_content}
+            onChange={(e) => setForm((f) => ({ ...f, deep_content: e.target.value }))}
+            placeholder="기본 본문에서 이어 읽을 상세 리뷰"
+          />
+          <span className="blog-editor-hint">내용이 있으면 글 상단에 ‘상세 읽기’ 링크가 표시됩니다.</span>
+        </div>
       </div>
     </div>
   );
 
   // ── Render ─────────────────────────────────────────────────────────
 
-  const seoPost = view === 'detail' ? selectedPost : null;
+  const seoPost = view === 'detail' ? readingPost : null;
   const categoryView = view === 'list';
-  const seoMeta = seoPost ? blogSeoMeta(seoPost) : null;
+  const seoMeta = seoPost && selectedPost ? blogSeoMeta(selectedPost) : null;
   const seoTitle = seoMeta
     ? seoMeta.title
     : initialCategory
@@ -1773,7 +1859,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         publishedTime={seoPost ? seoPost.created_at : undefined}
         modifiedTime={seoPost ? seoPost.updated_at || seoPost.created_at : undefined}
         locale={seoLocale}
-        jsonLd={seoPost ? blogPostingGraph(seoPost) : blogIndexGraph(posts)}
+        jsonLd={seoPost ? blogPostingGraph(seoPost, selectedPost ?? seoPost) : blogIndexGraph(posts)}
       />
       {renderHeader()}
       {searchOpen && renderSearchOverlay()}
@@ -1782,7 +1868,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         {view === 'detail' && (
           <div className="blog-detail-layout">
             {renderDetail()}
-            {isWideViewport && selectedPost && <BlogTableOfContents postKey={selectedPost.slug} />}
+            {isWideViewport && selectedPost && <BlogTableOfContents postKey={`${selectedPost.slug}:${isDeepReading ? 'deep' : 'default'}`} />}
           </div>
         )}
         {view === 'editor' && isAdmin && renderEditor()}
