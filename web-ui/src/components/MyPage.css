@@ -117,6 +117,17 @@
 }
 
 /* ===== 3-Panel Content ===== */
+/* A tab body is a box-less wrapper, so its panels lay out as the grid's own
+   children. The hidden attribute goes on the wrapper because the panels declare
+   display:flex, which outranks the UA's [hidden] rule. */
+.mypage-tab-body {
+  display: contents;
+}
+
+.mypage-tab-body[hidden] {
+  display: none;
+}
+
 .mypage-content {
   display: flex;
   flex: 1;
