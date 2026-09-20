@@ -39,6 +39,8 @@
 }
 
 .curriculum-header-title {
+  /* An h1 now; the UA margins would add 27px to the header row. */
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--text);
@@ -898,13 +900,6 @@
   box-sizing: border-box;
   resize: vertical;
   font-family: inherit;
-}
-
-/* ── Curriculum inside MyPage ─────────────────────────────────────── */
-.mypage-curriculum-content {
-  padding: 0 24px 16px;
-  flex: 1;
-  overflow: hidden;
 }
 
 /* ── Empty & Loading States ────────────────────────────────────────── */

@@ -2,9 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { tabFromParams, paramsWithTab, paramsWithBookmark } from '../components/MyPage';
 
 describe('tabFromParams', () => {
-  it('reads the two tabs that are not the default', () => {
+  it('reads the tab that is not the default', () => {
     expect(tabFromParams('papers')).toBe('papers');
-    expect(tabFromParams('curriculum')).toBe('curriculum');
   });
 
   it('falls back to bookmarks for absent or unrecognised values', () => {
@@ -12,6 +11,8 @@ describe('tabFromParams', () => {
     expect(tabFromParams('')).toBe('bookmarks');
     expect(tabFromParams('bookmarks')).toBe('bookmarks');
     expect(tabFromParams('nonsense')).toBe('bookmarks');
+    // The old tab value is handled by MyPage as a redirect, not as a tab.
+    expect(tabFromParams('curriculum')).toBe('bookmarks');
   });
 });
 
@@ -26,10 +27,10 @@ describe('paramsWithTab', () => {
   });
 
   it('leaves every other parameter alone', () => {
-    const next = paramsWithTab(new URLSearchParams('bookmark=bm_1&q=graph'), 'curriculum');
+    const next = paramsWithTab(new URLSearchParams('bookmark=bm_1&q=graph'), 'papers');
     expect(next.get('bookmark')).toBe('bm_1');
     expect(next.get('q')).toBe('graph');
-    expect(next.get('tab')).toBe('curriculum');
+    expect(next.get('tab')).toBe('papers');
   });
 });
 
@@ -47,7 +48,7 @@ describe('paramsWithBookmark', () => {
 
 describe('round trip', () => {
   it('a written URL reads back as the same tab', () => {
-    for (const tab of ['bookmarks', 'papers', 'curriculum'] as const) {
+    for (const tab of ['bookmarks', 'papers'] as const) {
       const written = paramsWithTab(new URLSearchParams(), tab);
       expect(tabFromParams(written.get('tab'))).toBe(tab);
     }
