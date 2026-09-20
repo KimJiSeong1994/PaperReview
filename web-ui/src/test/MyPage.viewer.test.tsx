@@ -26,7 +26,15 @@ vi.mock('../components/mypage/ReportViewer', () => ({
   default: (props: Record<string, unknown>) => { reportSpy(props); return <div data-testid="report" />; },
 }));
 vi.mock('../components/mypage/ChatPanel', () => ({ default: () => <div data-testid="chat" /> }));
-vi.mock('../components/mypage/PaperViewerPanel', () => ({ default: () => <div data-testid="viewer" /> }));
+const viewerMounts = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../components/mypage/PaperViewerPanel', async () => {
+  const { useEffect } = await import('react');
+  function ViewerStub() {
+    useEffect(() => { viewerMounts.count += 1; }, []);
+    return <div data-testid="viewer" />;
+  }
+  return { default: ViewerStub };
+});
 vi.mock('../components/curriculum/CourseSidebar', () => ({ default: () => <div data-testid="courses" /> }));
 vi.mock('../components/curriculum/ModuleView', () => ({ default: () => null }));
 vi.mock('../components/curriculum/CurriculumDetailPanel', () => ({
@@ -49,7 +57,7 @@ const renderAt = (entry: string | { pathname: string; state: unknown }) => rende
   </MemoryRouter>,
 );
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); viewerMounts.count = 0; });
 
 describe('MyPage tab wiring', () => {
   it("the curriculum's View Paper opens the standalone viewer in its own tab, leaving this page as it is", async () => {
@@ -85,7 +93,8 @@ describe('MyPage tab wiring', () => {
     expect(screen.getByRole('tabpanel', { name: '북마크' })).toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowRight' });
-    await screen.findByTestId('viewer');
+    expect(await screen.findByTestId('viewer')).toBeVisible();
+    expect(screen.getByTestId('report')).not.toBeVisible();
     expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveFocus();
     expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=papers|');
@@ -111,6 +120,34 @@ describe('MyPage tab wiring', () => {
     fireEvent.keyDown(screen.getByRole('tab', { name: '커리큘럼' }), { key: 'Home' });
     await screen.findByTestId('report');
     expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);
+  });
+
+  it('keeps the PDF viewer mounted across tab switches, and does not mount it for bookmark-only visits', async () => {
+    renderAt('/mypage');
+    await screen.findByTestId('report');
+    expect(screen.queryByTestId('viewer')).toBeNull();
+    expect(viewerMounts.count).toBe(0);
+
+    fireEvent.click(screen.getByRole('tab', { name: '논문 PDF' }));
+    expect(await screen.findByTestId('viewer')).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: '북마크' }));
+    expect(await screen.findByTestId('report')).toBeVisible();
+    expect(screen.getByTestId('viewer')).not.toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: '논문 PDF' }));
+    expect(await screen.findByTestId('viewer')).toBeVisible();
+    // Same instance throughout: a remount would have thrown away the document, zoom and highlights.
+    expect(viewerMounts.count).toBe(1);
+    expect(screen.getByRole('tabpanel', { name: '논문 PDF' })).toBeInTheDocument();
+    expect(screen.queryByRole('tabpanel', { name: '북마크' })).toBeNull();
+
+    // The curriculum tab unmounts the container; coming back must not resurrect
+    // the viewer hidden behind the bookmarks tab.
+    fireEvent.click(screen.getByRole('tab', { name: '커리큘럼' }));
+    await screen.findByTestId('courses');
+    fireEvent.click(screen.getByRole('tab', { name: '북마크' }));
+    await screen.findByTestId('report');
+    expect(screen.queryByTestId('viewer')).toBeNull();
+    expect(viewerMounts.count).toBe(1);
   });
 
   it('hands the report the real popover setter instead of a no-op', async () => {

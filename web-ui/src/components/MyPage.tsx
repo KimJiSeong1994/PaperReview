@@ -79,8 +79,18 @@ function MyPage({ onBack }: MyPageProps) {
   const [activeTab, setActiveTab] = useState<MyPageTab>(() => tabFromParams(searchParams.get('tab')));
 
   /** Switch tabs and record it, so a reload or a shared link lands in the same place. */
+  // The PDF viewer stays mounted across the bookmarks/PDF switch so its
+  // document, zoom, resolved URLs and highlights survive (scroll position does
+  // not — display:none drops the scroll box). It is not mounted until the tab
+  // is first shown, because pdf.js is a chunk bookmark-only visits should not
+  // pay for, and it is let go on the curriculum tab, which unmounts the whole
+  // container anyway — otherwise it would come back hidden and re-resolve PDFs.
+  const [viewerMounted, setViewerMounted] = useState(activeTab === 'papers');
+
   const changeTab = useCallback((tab: MyPageTab) => {
     setActiveTab(tab);
+    if (tab === 'papers') setViewerMounted(true);
+    if (tab === 'curriculum') setViewerMounted(false);
     setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
   }, [setSearchParams]);
 
@@ -213,9 +223,8 @@ function MyPage({ onBack }: MyPageProps) {
   // ── Curriculum hook ──
   const cur = useCurriculum();
 
-  // One element, rendered by whichever tab is active — they are mutually
-  // exclusive, so this only ever mounts once. Written twice it was 33 props
-  // of copy-paste that had to be kept in step by hand.
+  // One element, rendered once at the top of the shared container. Written
+  // twice it was 33 props of copy-paste that had to be kept in step by hand.
   const bookmarkSidebar = (
     <BookmarkSidebar
     bookmarks={bm.bookmarks}
@@ -295,10 +304,18 @@ function MyPage({ onBack }: MyPageProps) {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'papers' ? (
-        <div className="mypage-content mypage-content--viewer" role="tabpanel" id="mypage-panel-papers" aria-labelledby="mypage-tab-papers">
-          <>
-              {bookmarkSidebar}
+      {activeTab !== 'curriculum' ? (
+        <div
+          className={`mypage-content${activeTab === 'papers' ? ' mypage-content--viewer' : ''}`}
+          role="tabpanel"
+          id={`mypage-panel-${activeTab}`}
+          aria-labelledby={`mypage-tab-${activeTab}`}
+        >
+          {bookmarkSidebar}
+          {/* Both bodies are grid children through display:contents wrappers, so the
+              hidden one costs no track and the shown one lays out as before. */}
+          {viewerMounted && (
+            <div className="mypage-tab-body" hidden={activeTab !== 'papers'}>
               <LazyLoadErrorBoundary>
                 <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
                   <PaperViewerPanel
@@ -308,12 +325,9 @@ function MyPage({ onBack }: MyPageProps) {
                   />
                 </Suspense>
               </LazyLoadErrorBoundary>
-          </>
-        </div>
-      ) : activeTab === 'bookmarks' ? (
-        <div className="mypage-content" role="tabpanel" id="mypage-panel-bookmarks" aria-labelledby="mypage-tab-bookmarks">
-          {bookmarkSidebar}
-
+            </div>
+          )}
+          <div className="mypage-tab-body" hidden={activeTab !== 'bookmarks'}>
           <ReportViewer
             bookmarkDetail={bm.bookmarkDetail}
             loadingDetail={bm.loadingDetail}
@@ -390,6 +404,7 @@ function MyPage({ onBack }: MyPageProps) {
             processCitationChildren={chat.processCitationChildren}
             handleCitationClick={chat.handleCitationClick}
           />
+          </div>
         </div>
       ) : (
         <div className="curriculum-content mypage-curriculum-content" role="tabpanel" id="mypage-panel-curriculum" aria-labelledby="mypage-tab-curriculum">
