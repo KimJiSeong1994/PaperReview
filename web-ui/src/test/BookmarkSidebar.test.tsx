@@ -62,6 +62,26 @@ describe('BookmarkSidebar', () => {
     expect(within(plainRow).queryByRole('img')).toBeNull();
   });
 
+  it('opens a bookmark and folds a topic from the keyboard, with a named, focusable drag handle', () => {
+    const one = bookmark({});
+    render(<BookmarkSidebar {...base} bookmarks={[one]} filteredBookmarks={[one]}
+      topicGroups={{ RAG: [one] }} allTopics={['RAG']} topicAccordionOpen={{ RAG: true }} />);
+
+    const row = screen.getByRole('button', { name: 'Graph RAG 열기' });
+    expect(row).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(base.onSelect).toHaveBeenCalledWith(one);
+
+    const folder = screen.getByText('RAG').closest('[role="button"]') as HTMLElement;
+    expect(folder).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(folder, { key: ' ' });
+    expect(base.toggleTopicAccordion).toHaveBeenCalledWith('RAG');
+
+    const handle = screen.getByRole('button', { name: 'Graph RAG 주제 옮기기' });
+    expect(handle).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('region', { name: '북마크 목록' })).toBeInTheDocument();
+  });
+
   it('tells the user an empty topic is not saved', () => {
     render(<BookmarkSidebar {...base} bookmarks={[bookmark({})]} filteredBookmarks={[bookmark({})]}
       topicGroups={{ Empty: [] }} allTopics={['Empty']} topicAccordionOpen={{ Empty: true }} />);

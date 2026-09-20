@@ -1,11 +1,39 @@
+import type { ComponentProps, KeyboardEvent } from 'react';
 import {
-  DndContext, DragOverlay, pointerWithin,
+  DndContext, DragOverlay, pointerWithin, rectIntersection,
   useDraggable, useDroppable,
+  type Active, type CollisionDetection, type Over,
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
   type SensorDescriptor, type SensorOptions,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { Bookmark } from './types';
+
+/* Enter/Space on a row-like element does what a click does. */
+const activateOnKey = (action: () => void) => (e: KeyboardEvent<HTMLElement>) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); action(); }
+};
+
+// pointerWithin has no pointer to work with during a keyboard drag; fall back
+// to the item's own rectangle so a folder can still be hit with the arrow keys.
+const collision: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : rectIntersection(args);
+};
+
+const bookmarkName = (active: Active) => (active.data.current as { bookmark?: Bookmark } | undefined)?.bookmark?.title ?? '북마크';
+const topicName = (over: Over | null) => (over?.data.current as { topic?: string } | undefined)?.topic ?? '';
+const dndAccessibility: NonNullable<ComponentProps<typeof DndContext>['accessibility']> = {
+  screenReaderInstructions: {
+    draggable: '북마크를 옮기려면 스페이스로 집고, 화살표 키로 주제 폴더 위까지 이동한 뒤 다시 스페이스로 놓습니다. Esc로 취소합니다.',
+  },
+  announcements: {
+    onDragStart: ({ active }) => `${bookmarkName(active)} 북마크를 집었습니다.`,
+    onDragOver: ({ active, over }) => over ? `${bookmarkName(active)}, ${topicName(over)} 주제 위입니다.` : `${bookmarkName(active)}, 폴더 밖입니다.`,
+    onDragEnd: ({ active, over }) => over ? `${bookmarkName(active)}을(를) ${topicName(over)} 주제로 옮겼습니다.` : `${bookmarkName(active)} 이동을 취소했습니다.`,
+    onDragCancel: ({ active }) => `${bookmarkName(active)} 이동을 취소했습니다.`,
+  },
+};
 
 /* ===== Draggable Bookmark Item ===== */
 
@@ -55,7 +83,7 @@ function DraggableBookmarkItem({
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
-        tabIndex={-1}
+        aria-label={`${titleWithoutDate(bm)} 주제 옮기기`}
       >
         <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
           <circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/>
@@ -74,7 +102,14 @@ function DraggableBookmarkItem({
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
       </svg>
-      <div className="mypage-bookmark-info">
+      <div
+        className="mypage-bookmark-info"
+        role="button"
+        tabIndex={0}
+        aria-label={`${titleWithoutDate(bm)} 열기`}
+        aria-current={isActive ? 'true' : undefined}
+        onKeyDown={activateOnKey(() => onSelect(bm))}
+      >
         <div className="mypage-bookmark-title" title={bm.title}>{titleWithoutDate(bm)}</div>
         <div className="mypage-bookmark-meta">
           <span>{new Date(bm.created_at).toLocaleDateString()}</span>
@@ -139,7 +174,14 @@ function DroppableTopicGroup({ topic, isOpen, onToggle, bookmarkCount, isOver, i
 
   return (
     <div ref={setNodeRef} className={`mypage-tree-folder ${isOver ? 'drag-over' : ''} ${isLast ? 'last' : ''}`}>
-      <div className={`mypage-tree-folder-row ${isOpen ? 'open' : ''}`} onClick={onToggle}>
+      <div
+        className={`mypage-tree-folder-row ${isOpen ? 'open' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        onClick={onToggle}
+        onKeyDown={activateOnKey(onToggle)}
+      >
         <svg className="mypage-tree-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
           <path d="M6 4l4 4-4 4z" />
         </svg>
@@ -221,7 +263,7 @@ export default function BookmarkSidebar({
   onAddTopic, onStartSearch, onStartCurriculum,
 }: BookmarkSidebarProps) {
   return (
-    <div className="mypage-bookmarks-panel" role="region" aria-label="Bookmarks sidebar">
+    <div className="mypage-bookmarks-panel" role="region" aria-label="북마크 목록">
       {/* Search bar */}
       <div className="mypage-search-bar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" className="mypage-search-icon">
@@ -230,7 +272,7 @@ export default function BookmarkSidebar({
         <input type="text" className="mypage-search-input" placeholder="북마크 검색..."
           value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="북마크 검색" />
         {searchQuery && (
-          <button className="mypage-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">✕</button>
+          <button className="mypage-search-clear" onClick={() => setSearchQuery('')} aria-label="검색어 지우기">✕</button>
         )}
         <button
           type="button"
@@ -267,7 +309,7 @@ export default function BookmarkSidebar({
               <option value="" disabled>Move to...</option>
               {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <button className="mypage-bulk-delete-btn" onClick={onBulkDelete} aria-label="Delete selected bookmarks">Delete</button>
+            <button className="mypage-bulk-delete-btn" onClick={onBulkDelete} aria-label="선택한 북마크 삭제">Delete</button>
           </div>
         </div>
       )}
@@ -299,7 +341,8 @@ export default function BookmarkSidebar({
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={pointerWithin}
+            collisionDetection={collision}
+            accessibility={dndAccessibility}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragEnd={onDragEnd}

@@ -38,7 +38,11 @@ function PaperCard({
       className={`curriculum-paper-card ${isSelected ? 'selected' : ''} ${isRead ? 'read' : ''}`}
       onClick={onSelect}
     >
-      <div
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={isRead}
+        aria-label={`${paper.title} 읽음 표시`}
         className={`curriculum-paper-checkbox ${isRead ? 'checked' : ''}`}
         onClick={(e) => {
           e.stopPropagation();
@@ -46,8 +50,15 @@ function PaperCard({
         }}
       >
         {isRead && <CheckIcon />}
-      </div>
-      <div className="curriculum-paper-info">
+      </button>
+      <div
+        className="curriculum-paper-info"
+        role="button"
+        tabIndex={0}
+        aria-label={`${paper.title} 열기`}
+        aria-current={isSelected ? 'true' : undefined}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } }}
+      >
         <div className="curriculum-paper-title">{paper.title}</div>
         <div className="curriculum-paper-meta">
           {paper.authors.slice(0, 3).join(', ')}

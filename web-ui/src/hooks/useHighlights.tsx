@@ -304,17 +304,26 @@ export function useHighlights(
             if (idx === -1) { nextResult.push(part); continue; }
             if (idx > 0) nextResult.push(part.slice(0, idx));
             const hlRef = hl;
+            // Only a highlight with something behind it opens a popover, so only
+            // that one is a control; a plain mark stays plain text.
+            const hasDetails = Boolean(hl.memo || hl.implication || hl.question_for_authors);
+            const toggle = () => setHighlightPopover(prev => prev?.hl.id === hlRef.id ? null : { hl: hlRef });
             nextResult.push(
               <mark key={`hl-${hl.id}-${idx}`}
                 className={`mypage-user-highlight${hl.memo ? ' has-memo' : ''}`}
                 style={hl.color && hl.color !== '#a5b4fc' ? { background: `${hl.color}33`, borderBottomColor: `${hl.color}aa` } : undefined}
                 title={hl.memo || undefined}
                 data-hl-id={hl.id}
+                role={hasDetails ? 'button' : undefined}
+                tabIndex={hasDetails ? 0 : undefined}
+                onKeyDown={hasDetails ? (e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                } : undefined}
                 onMouseDown={(e: React.MouseEvent) => {
                   if (e.button !== 0) return;
                   e.preventDefault();
                   e.stopPropagation();
-                  setHighlightPopover(prev => prev?.hl.id === hlRef.id ? null : { hl: hlRef });
+                  toggle();
                 }}
               >{hl.text}</mark>
             );
