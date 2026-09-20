@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import type { HighlightItem } from '../../api/client';
 
 const CATEGORY_GROUPS: { key: string; label: string; color: string; categories: string[] }[] = [
-  { key: 'findings', label: 'Findings', color: '#a5b4fc', categories: ['finding', 'evidence', 'contribution'] },
-  { key: 'analysis', label: 'Analysis', color: '#93c5fd', categories: ['methodology', 'insight', 'reproducibility'] },
-  { key: 'critique', label: 'Critique', color: '#fda4af', categories: ['limitation', 'gap', 'assumption'] },
+  { key: 'findings', label: '발견', color: '#a5b4fc', categories: ['finding', 'evidence', 'contribution'] },
+  { key: 'analysis', label: '분석', color: '#93c5fd', categories: ['methodology', 'insight', 'reproducibility'] },
+  { key: 'critique', label: '비판', color: '#fda4af', categories: ['limitation', 'gap', 'assumption'] },
 ];
 
 interface ConsensusMeterProps {
@@ -59,7 +59,9 @@ export default function ConsensusMeter({ highlights }: ConsensusMeterProps) {
   return (
     <div className="mypage-consensus-meter">
       <div className="mypage-consensus-header">
-        <span className="mypage-consensus-title">Consensus</span>
+        {/* One report's strength-weighted share of its tagged sentences — nothing
+            agrees with anything here, so it is not called a consensus. */}
+        <span className="mypage-consensus-title">강점/약점 비중</span>
         <span className="mypage-consensus-score">{stats.score}</span>
       </div>
 
@@ -72,10 +74,10 @@ export default function ConsensusMeter({ highlights }: ConsensusMeterProps) {
       </div>
       <div className="mypage-consensus-labels">
         <span className="mypage-consensus-label-strength">
-          {stats.strengthCount} Strength{stats.strengthCount !== 1 ? 's' : ''}
+          강점 {stats.strengthCount}
         </span>
         <span className="mypage-consensus-label-weakness">
-          {stats.weaknessCount} Weakness{stats.weaknessCount !== 1 ? 'es' : ''}
+          약점 {stats.weaknessCount}
         </span>
       </div>
 
@@ -101,7 +103,7 @@ export default function ConsensusMeter({ highlights }: ConsensusMeterProps) {
               )}
             </div>
             <span className="mypage-consensus-group-count">
-              {g.strengthCount}S / {g.weaknessCount}W
+              강 {g.strengthCount} / 약 {g.weaknessCount}
             </span>
           </div>
         ))}

@@ -86,6 +86,44 @@ describe('MyPage tab wiring', () => {
     expect(screen.getByTestId('chat')).toBeInTheDocument();
   });
 
+  it('is a real tablist: Korean names, the default first, arrows move and open', async () => {
+    renderAt('/mypage');
+    await screen.findByTestId('report');
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['북마크', '논문 PDF', '커리큘럼']);
+    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('button', { name: 'My Page' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: '북마크' })).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowRight' });
+    await screen.findByTestId('viewer');
+    expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveFocus();
+    expect(screen.getByTestId('probe')).toHaveTextContent('?tab=papers|');
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'End' });
+    await screen.findByTestId('courses');
+    expect(screen.getByRole('tabpanel', { name: '커리큘럼' })).toBeInTheDocument();
+  });
+
+  it('seeds the roving tabindex from the URL and wraps at both ends', async () => {
+    renderAt('/mypage?tab=papers');
+    await screen.findByTestId('viewer');
+    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'ArrowLeft' });
+    await screen.findByTestId('report');
+    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('probe')).toHaveTextContent(/^\|/);
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowLeft' });
+    await screen.findByTestId('courses');
+    expect(screen.getByRole('tab', { name: '커리큘럼' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: '커리큘럼' }), { key: 'Home' });
+    await screen.findByTestId('report');
+    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);
+  });
+
   it('hands the report the real popover setter instead of a no-op', async () => {
     renderAt('/mypage');
     await screen.findByTestId('report');

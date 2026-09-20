@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
@@ -27,6 +28,24 @@ interface MyPageProps {
 }
 
 type MyPageTab = 'bookmarks' | 'curriculum' | 'papers';
+
+// The default tab comes first, so the first tab on screen is the one the page
+// opens on. "Papers" and "bookmarks" share a selection; the labels say what the
+// right-hand pane shows rather than pretending to be different places.
+const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
+  {
+    id: 'bookmarks', label: '북마크',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>,
+  },
+  {
+    id: 'papers', label: '논문 PDF',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
+  },
+  {
+    id: 'curriculum', label: '커리큘럼',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>,
+  },
+];
 
 /**
  * `bookmarks` is the default, so it is the absence of the parameter rather than
@@ -64,6 +83,21 @@ function MyPage({ onBack }: MyPageProps) {
     setActiveTab(tab);
     setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
   }, [setSearchParams]);
+
+  // Roving tabindex: arrows move between tabs and open them, Home/End jump.
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const order = MYPAGE_TABS.map((tab) => tab.id);
+    const index = order.indexOf(activeTab);
+    const next = event.key === 'ArrowRight' ? order[(index + 1) % order.length]
+      : event.key === 'ArrowLeft' ? order[(index - 1 + order.length) % order.length]
+        : event.key === 'Home' ? order[0]
+          : event.key === 'End' ? order[order.length - 1]
+            : null;
+    if (!next) return;
+    event.preventDefault();
+    changeTab(next);
+    document.getElementById(`mypage-tab-${next}`)?.focus();
+  };
 
   // Direct paper view from search results (via router state)
   const [directPaper, setDirectPaper] = useState<any>(null);
@@ -254,6 +288,8 @@ function MyPage({ onBack }: MyPageProps) {
     onBulkDelete={bm.handleBulkDelete}
     onBulkMove={bm.handleBulkMove}
     onAddTopic={bm.handleAddTopic}
+    onStartSearch={onBack}
+    onStartCurriculum={() => changeTab('curriculum')}
     />
   );
 
@@ -274,43 +310,32 @@ function MyPage({ onBack }: MyPageProps) {
           <div className="mypage-header-actions">
             <RecommendationBell />
             <AgentKeyButton />
-            <button
-              className={`mypage-nav-btn ${activeTab === 'papers' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => changeTab('papers')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              Papers
-            </button>
-            <button
-              className={`mypage-nav-btn ${activeTab === 'curriculum' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => changeTab('curriculum')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-              Curriculum
-            </button>
-            <button
-              className={`mypage-nav-btn ${activeTab === 'bookmarks' ? 'mypage-nav-btn-active' : ''}`}
-              onClick={() => changeTab('bookmarks')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px' }}>
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-              </svg>
-              My Page
-            </button>
+            <div className="mypage-tabs" role="tablist" aria-label="마이페이지">
+              {MYPAGE_TABS.map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`mypage-tab-${id}`}
+                  aria-selected={activeTab === id}
+                  aria-controls={activeTab === id ? `mypage-panel-${id}` : undefined}
+                  tabIndex={activeTab === id ? 0 : -1}
+                  className={`mypage-nav-btn ${activeTab === id ? 'mypage-nav-btn-active' : ''}`}
+                  onClick={() => changeTab(id)}
+                  onKeyDown={onTabKeyDown}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Tab content */}
       {activeTab === 'papers' ? (
-        <div className="mypage-content mypage-content--viewer">
+        <div className="mypage-content mypage-content--viewer" role="tabpanel" id="mypage-panel-papers" aria-labelledby="mypage-tab-papers">
           {directPaper ? (
             <>
               <div className="paper-viewer-direct-sidebar">
@@ -370,7 +395,7 @@ function MyPage({ onBack }: MyPageProps) {
           )}
         </div>
       ) : activeTab === 'bookmarks' ? (
-        <div className="mypage-content">
+        <div className="mypage-content" role="tabpanel" id="mypage-panel-bookmarks" aria-labelledby="mypage-tab-bookmarks">
           {bookmarkSidebar}
 
           <ReportViewer
@@ -451,7 +476,7 @@ function MyPage({ onBack }: MyPageProps) {
           />
         </div>
       ) : (
-        <div className="curriculum-content mypage-curriculum-content">
+        <div className="curriculum-content mypage-curriculum-content" role="tabpanel" id="mypage-panel-curriculum" aria-labelledby="mypage-tab-curriculum">
           <CourseSidebar
             presetCourses={cur.presetCourses}
             myCourses={cur.myCourses}

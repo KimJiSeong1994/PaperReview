@@ -79,6 +79,31 @@ function DraggableBookmarkItem({
         <div className="mypage-bookmark-meta">
           <span>{new Date(bm.created_at).toLocaleDateString()}</span>
           <span>논문 {bm.num_papers}편</span>
+          {/* Flags sit here rather than in the top-right action slot, which the
+              title only leaves 30px for. */}
+          {(bm.has_notes || bm.has_citation_tree || bm.has_share) && (
+          <span className="mypage-bookmark-flags">
+          {bm.has_notes && (
+            <svg className="mypage-note-indicator" role="img" aria-label="메모 있음" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+              <title>메모 있음</title>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          )}
+          {bm.has_citation_tree && (
+            <svg className="mypage-note-indicator" role="img" aria-label="관련 논문 분석 있음" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+              <title>관련 논문 분석 있음</title>
+              <path d="M12 3v6m0 0l-4 4m4-4l4 4m-8 0v4m8-4v4" /><circle cx="4" cy="21" r="2" /><circle cx="12" cy="21" r="2" /><circle cx="20" cy="21" r="2" />
+            </svg>
+          )}
+          {bm.has_share && (
+            <svg className="mypage-note-indicator" role="img" aria-label="공유 링크 활성" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+              <title>공유 링크 활성</title>
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+          )}
+          </span>
+          )}
         </div>
         {bm.tags && bm.tags.length > 0 && (
           <div className="mypage-bookmark-tags">
@@ -89,11 +114,6 @@ function DraggableBookmarkItem({
         )}
       </div>
       <div className="mypage-bookmark-actions">
-        {bm.has_notes && (
-          <svg className="mypage-note-indicator" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-        )}
         <button className="mypage-bookmark-delete"
           onClick={(e) => { e.stopPropagation(); onDelete(bm.id); }}
           title="북마크 삭제">✕</button>
@@ -141,7 +161,7 @@ function DroppableTopicGroup({ topic, isOpen, onToggle, bookmarkCount, isOver, i
           {bookmarkCount === 0 ? (
             <div className="mypage-tree-empty-hint">
               <span className="mypage-tree-guide-line" />
-              Drag bookmarks here
+              북마크를 끌어다 놓으세요 · 비어 있는 주제는 저장되지 않습니다
             </div>
           ) : children}
         </div>
@@ -184,6 +204,8 @@ export interface BookmarkSidebarProps {
   onBulkDelete: () => void;
   onBulkMove: (topic: string) => void;
   onAddTopic: () => void;
+  onStartSearch: () => void;
+  onStartCurriculum: () => void;
 }
 
 export default function BookmarkSidebar({
@@ -196,7 +218,7 @@ export default function BookmarkSidebar({
   onDragStart, onDragOver, onDragEnd,
   onSelect, onDelete, onToggleSelection,
   onSelectAll, onDeselectAll, onBulkDelete, onBulkMove,
-  onAddTopic,
+  onAddTopic, onStartSearch, onStartCurriculum,
 }: BookmarkSidebarProps) {
   return (
     <div className="mypage-bookmarks-panel" role="region" aria-label="Bookmarks sidebar">
@@ -211,15 +233,25 @@ export default function BookmarkSidebar({
           <button className="mypage-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">✕</button>
         )}
         <button
+          type="button"
           className={`mypage-notes-view-btn ${allNotesMode ? 'active' : ''}`}
           onClick={() => setAllNotesMode(!allNotesMode)}
-          title={allNotesMode ? 'Show all bookmarks' : 'Show bookmarks with notes only'}
+          aria-pressed={allNotesMode}
+          aria-label="메모 있는 북마크만 보기"
+          title={allNotesMode ? '전체 북마크 보기' : '메모 있는 북마크만 보기'}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
           </svg>
         </button>
       </div>
+
+      {allNotesMode && (
+        <div className="mypage-filter-chip">
+          <span>메모 있는 북마크만 표시 중</span>
+          <button type="button" onClick={() => setAllNotesMode(false)}>해제</button>
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
@@ -243,11 +275,27 @@ export default function BookmarkSidebar({
       {/* Bookmark list with DnD */}
       <div className="mypage-bookmarks-scroll">
         {loadingBookmarks ? (
-          <div className="mypage-loading">Loading...</div>
+          <div className="mypage-loading">불러오는 중...</div>
         ) : bookmarks.length === 0 ? (
-          <div className="mypage-empty">No bookmarks yet</div>
+          <div className="mypage-empty mypage-empty--start">
+            <p>아직 북마크가 없습니다</p>
+            <p className="mypage-empty-hint">논문을 검색해 딥리뷰를 저장하거나, 커리큘럼의 논문에서 시작할 수 있습니다.</p>
+            <div className="mypage-empty-actions">
+              <button type="button" className="mypage-empty-btn" onClick={onStartSearch}>논문 검색하기</button>
+              <button type="button" className="mypage-empty-btn" onClick={onStartCurriculum}>커리큘럼에서 시작</button>
+            </div>
+          </div>
         ) : filteredBookmarks.length === 0 ? (
-          <div className="mypage-empty">No results for "{searchQuery}"</div>
+          allNotesMode && !searchQuery.trim() ? (
+            <div className="mypage-empty mypage-empty--start">
+              <p>메모가 있는 북마크가 없습니다</p>
+              <div className="mypage-empty-actions">
+                <button type="button" className="mypage-empty-btn" onClick={() => setAllNotesMode(false)}>전체 보기</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mypage-empty">"{searchQuery}"에 맞는 북마크가 없습니다</div>
+          )
         ) : (
           <DndContext
             sensors={sensors}

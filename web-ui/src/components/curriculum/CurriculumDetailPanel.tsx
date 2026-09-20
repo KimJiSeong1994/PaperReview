@@ -73,7 +73,7 @@ export default function CurriculumDetailPanel({
       return (
         <div className="curriculum-detail">
           <div className="curriculum-detail-placeholder">
-            Select a course from the sidebar to get started
+            왼쪽에서 코스를 고르면 내용이 열립니다
           </div>
         </div>
       );
