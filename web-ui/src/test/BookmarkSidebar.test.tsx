@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import BookmarkSidebar from '../components/mypage/BookmarkSidebar';
 import type { Bookmark } from '../components/mypage/types';
@@ -55,10 +55,11 @@ describe('BookmarkSidebar', () => {
     const plain = bookmark({ id: 'bm_2', title: 'Plain' });
     render(<BookmarkSidebar {...base} bookmarks={[flagged, plain]} filteredBookmarks={[flagged, plain]}
       topicGroups={{ RAG: [flagged, plain] }} allTopics={['RAG']} topicAccordionOpen={{ RAG: true }} />);
-    expect(screen.getByRole('img', { name: '메모 있음' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: '관련 논문 분석 있음' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: '공유 링크 활성' })).toBeInTheDocument();
-    expect(screen.getAllByRole('img')).toHaveLength(3);
+    const flaggedRow = screen.getByText('Graph RAG').closest('.mypage-tree-file') as HTMLElement;
+    const plainRow = screen.getByText('Plain').closest('.mypage-tree-file') as HTMLElement;
+    expect(within(flaggedRow).getAllByRole('img').map((icon) => icon.getAttribute('aria-label')))
+      .toEqual(['메모 있음', '관련 논문 분석 있음', '공유 링크 활성']);
+    expect(within(plainRow).queryByRole('img')).toBeNull();
   });
 
   it('tells the user an empty topic is not saved', () => {

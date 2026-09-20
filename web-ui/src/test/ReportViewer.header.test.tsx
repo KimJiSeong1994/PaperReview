@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createRef, type ComponentProps, type ReactNode } from 'react';
 import ReportViewer from '../components/mypage/ReportViewer';
 
@@ -86,7 +86,15 @@ describe('ReportViewer header', () => {
     render(<ReportViewer {...base} shareInfo={share} />);
     fireEvent.click(screen.getByRole('button', { name: '복사' }));
     expect(await screen.findByRole('button', { name: '복사 실패' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: '복사' })).toBeInTheDocument(), { timeout: 3000 });
+
+    // The label resets after two seconds; step the clock rather than wait it out.
+    vi.useFakeTimers();
+    try {
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(screen.getByRole('button', { name: '복사' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
     fireEvent.click(screen.getByRole('button', { name: '복사' }));
     expect(await screen.findByRole('button', { name: '복사됨!' })).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/share/tok123`);
