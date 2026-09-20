@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  useSensor, useSensors, PointerSensor,
+  useSensor, useSensors, PointerSensor, KeyboardSensor,
   type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core';
 import {
@@ -49,6 +49,8 @@ export function useBookmarks() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Dragging was the only way to move a bookmark, and it was mouse-only.
+    useSensor(KeyboardSensor),
   );
 
   // ── Computed ──

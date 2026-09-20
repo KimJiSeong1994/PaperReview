@@ -180,9 +180,9 @@ export default function ReportViewer({
 
   if (!hasSelectedBookmark) {
     return (
-      <div className="mypage-report-panel" role="region" aria-label="Research report">
+      <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
         <div className="mypage-report-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ color: '#4b5563', marginBottom: '12px' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ color: 'var(--text-faint)', marginBottom: '12px' }}>
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
           </svg>
           <p className="mypage-report-empty-title">북마크를 선택하세요</p>
@@ -194,7 +194,7 @@ export default function ReportViewer({
 
   if (loadingDetail) {
     return (
-      <div className="mypage-report-panel" role="region" aria-label="Research report">
+      <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
         <div className="mypage-loading" style={{ padding: '40px' }}>Loading...</div>
       </div>
     );
@@ -203,7 +203,7 @@ export default function ReportViewer({
   if (!bookmarkDetail) return null;
 
   return (
-    <div className="mypage-report-panel" role="region" aria-label="Research report">
+    <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
       {/* Highlight indicator */}
       {highlightTerms.length > 0 && (
         <div className="mypage-highlight-bar">
@@ -385,7 +385,14 @@ export default function ReportViewer({
           {/* Papers list */}
           {bookmarkDetail.papers && bookmarkDetail.papers.length > 0 && (
             <div className={`mypage-papers-section ${papersCollapsed ? 'collapsed' : ''}`}>
-              <div className="mypage-papers-header" onClick={() => setPapersCollapsed(!papersCollapsed)}>
+              <div
+                className="mypage-papers-header"
+                role="button"
+                tabIndex={0}
+                aria-expanded={!papersCollapsed}
+                onClick={() => setPapersCollapsed(!papersCollapsed)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPapersCollapsed(!papersCollapsed); } }}
+              >
                 <svg className="mypage-papers-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
                   <path d="M6 4l4 4-4 4z" />
                 </svg>
@@ -484,7 +491,7 @@ export default function ReportViewer({
           )}
 
           {/* Notes & Highlights */}
-          <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`} role="region" aria-label="Notes and highlights">
+          <div className={`mypage-notes-section ${notesCollapsed ? 'collapsed' : ''}`} role="region" aria-label="메모와 하이라이트">
             <div className="mypage-notes-header" onClick={() => setNotesCollapsed(!notesCollapsed)} role="button" aria-expanded={!notesCollapsed} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNotesCollapsed(!notesCollapsed); } }}>
               <svg className="mypage-notes-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
                 <path d="M6 4l4 4-4 4z" />
@@ -585,7 +592,7 @@ export default function ReportViewer({
             )}
             {!citationTreeData && !citationTreeLoading && (
               <div className="mypage-citation-table-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: '#4b5563' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: 'var(--text-faint)' }}>
                   <path d="M12 3v6m0 0l-4 4m4-4l4 4m-8 0v4m8-4v4" /><circle cx="4" cy="21" r="2" /><circle cx="12" cy="21" r="2" /><circle cx="20" cy="21" r="2" />
                 </svg>
                 <p>Discover related papers through citation analysis</p>
@@ -600,7 +607,7 @@ export default function ReportViewer({
             )}
             {citationTreeData && citationTreeData.nodes.length === 0 && (
               <div className="mypage-citation-empty-result">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: '#6b7280' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: 'var(--text-faint)' }}>
                   <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <p>No papers found on Semantic Scholar</p>
@@ -738,14 +745,14 @@ export default function ReportViewer({
             </div>
           ) : (
             <>
-              <button className="mypage-selection-toolbar-btn" onClick={onAddHighlight} aria-label="Highlight selected text">
+              <button className="mypage-selection-toolbar-btn" onClick={onAddHighlight} aria-label="선택한 문장 하이라이트">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                 </svg>
                 Highlight
               </button>
               <div className="mypage-selection-toolbar-divider" />
-              <button className="mypage-selection-toolbar-btn" onClick={onStartMemo} aria-label="Add memo to selection">
+              <button className="mypage-selection-toolbar-btn" onClick={onStartMemo} aria-label="선택한 문장에 메모">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>

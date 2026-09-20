@@ -67,6 +67,17 @@ describe('ReportViewer header', () => {
     expect(screen.getByRole('button', { name: '제목 수정' })).toHaveFocus();
   });
 
+  it('folds the paper list from the keyboard and names its regions in Korean', () => {
+    const withPapers = { ...detail, papers: [{ title: 'Paper A', authors: ['A'], year: 2024 }] };
+    render(<ReportViewer {...base} bookmarkDetail={withPapers} />);
+    expect(screen.getByRole('region', { name: '리서치 리포트' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '메모와 하이라이트' })).toBeInTheDocument();
+    const header = screen.getByRole('button', { name: /논문 \(1\)|Papers \(1\)/ });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.keyDown(header, { key: 'Enter' });
+    expect(base.setPapersCollapsed).toHaveBeenCalledWith(false);
+  });
+
   it('labels the citation keyword bar honestly', () => {
     render(<ReportViewer {...base} highlightTerms={['retrieval']} />);
     expect(screen.getByText('인용 키워드 표시 중')).toBeInTheDocument();

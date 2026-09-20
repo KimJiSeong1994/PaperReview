@@ -1014,7 +1014,7 @@ export default function PaperViewerPanel({
           <div className="paper-viewer-toolbar-group">
             <button
               className="paper-viewer-icon-btn"
-              title="Previous page"
+              title="이전 페이지" aria-label="이전 페이지"
               onClick={goToPrevPage}
               disabled={currentPage <= 1}
             >
@@ -1029,7 +1029,7 @@ export default function PaperViewerPanel({
                 onChange={handlePageInputChange}
                 onBlur={handlePageInputCommit}
                 onKeyDown={handlePageInputKeyDown}
-                aria-label="Page number"
+                aria-label="페이지 번호"
               />
               <span className="paper-viewer-page-total">
                 / {numPages ?? '—'}
@@ -1037,7 +1037,7 @@ export default function PaperViewerPanel({
             </div>
             <button
               className="paper-viewer-icon-btn"
-              title="Next page"
+              title="다음 페이지" aria-label="다음 페이지"
               onClick={goToNextPage}
               disabled={numPages === null || currentPage >= numPages}
             >
@@ -1051,7 +1051,7 @@ export default function PaperViewerPanel({
           <div className="paper-viewer-toolbar-group">
             <button
               className="paper-viewer-icon-btn"
-              title="Zoom out"
+              title="축소" aria-label="축소"
               onClick={handleZoomOut}
               disabled={fitWidth || zoom <= ZOOM_MIN}
             >
@@ -1062,7 +1062,7 @@ export default function PaperViewerPanel({
             </span>
             <button
               className="paper-viewer-icon-btn"
-              title="Zoom in"
+              title="확대" aria-label="확대"
               onClick={handleZoomIn}
               disabled={fitWidth || zoom >= ZOOM_MAX}
             >
@@ -1075,7 +1075,7 @@ export default function PaperViewerPanel({
           {/* Fit width */}
           <button
             className={`paper-viewer-fit-btn${fitWidth ? ' active' : ''}`}
-            title="Fit to width"
+            title="너비 맞춤" aria-label="너비 맞춤"
             onClick={handleFitWidth}
           >
             <IconFitWidth />
@@ -1218,7 +1218,7 @@ export default function PaperViewerPanel({
             </span>
           </div>
           {mathPopover.loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9ca3af', fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-faint)', fontSize: 12 }}>
               <span className="paper-viewer-resolve-spinner" />
               Analyzing formula...
             </div>
