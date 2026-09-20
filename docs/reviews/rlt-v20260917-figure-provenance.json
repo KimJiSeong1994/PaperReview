@@ -1,0 +1,83 @@
+{
+  "source": {
+    "sha256": "c4a2c6f78a2b17c25d62747d5f67ed643da7426760d57f0534fcba2fbf6ce6ab",
+    "pages": 41,
+    "revision_evidence": "PDF footer: Revised: September 17, 2026; PDF metadata creation date: September 18, 2026 KST.",
+    "extraction_method": "Direct rasterization of clipped vector-PDF regions with PyMuPDF; no AI redraw or generative modification.",
+    "url": "https://yifanzhang-pro.github.io/recurrent-looped-tranformer/Recurrent_Looped_Transformer.pdf"
+  },
+  "figures": [
+    {
+      "file": "rlt-v20260917-fig1-recurrence-architecture.png",
+      "figure": "Figure 1",
+      "page": 1,
+      "bbox": [
+        66,
+        402,
+        548,
+        614
+      ],
+      "alt_ko": "RLT-1의 인과적 인코더와 순환 디코더를 나란히 보여 주는 구조도. 왼쪽은 토큰별 인코더 KV 메모리, 오른쪽은 이전 디코더 상태와 슬라이딩 윈도 어텐션가 현재 토큰 업데이트로 이어지는 경로를 표시한다.",
+      "caption_ko": "RLT-1은 인과적 인코더가 만든 KV 메모리를 현재 위치까지 읽고, 이전 디코더의 최종 상태를 병합해 다음 업데이트에 되먹인다. 그림은 마지막 두 프롬프트 업데이트와 첫 응답 업데이트를 그려, 프롬프트와 응답이 같은 순환 전이를 공유한다는 설계를 보여 준다.",
+      "citation": "Zhang, Feng, and Qin, Recurrent Looped Transformer, revised September 17, 2026, Figure 1, p. 1.",
+      "render": {
+        "engine": "PyMuPDF",
+        "scale": 4,
+        "dpi_approx": 288,
+        "pixel_size": [
+          1928,
+          848
+        ]
+      },
+      "sha256": "8e12de76c452befc1553db3829e3d5e052e2a98a749190c8209a88afc8debdc8"
+    },
+    {
+      "file": "rlt-v20260917-fig4-main-length-generalization.png",
+      "figure": "Figure 4",
+      "page": 10,
+      "bbox": [
+        62,
+        98,
+        553,
+        548
+      ],
+      "alt_ko": "8층 모델의 길이 일반화 6개 패널. 덧셈, 패리티, 두 mod-5 과제, 표준 S5, swaps S5에 대해 RLT-1 깊이 분할과 Transformer의 정확도를 길이별로 비교하며, 세 초기화 시드의 평균과 표준편차 막대를 함께 표시한다.",
+      "caption_ko": "본 그림은 8층 본 실험에서 각 실행의 최선 ID 검증-손실 체크포인트를 골라, 시드 42·43·44의 평균과 표준편차로 길이 밖(OOD) 변화를 그린다. 따라서 그래프의 OOD 하락과 오차막대는 선택된 체크포인트 기준의 초기화 변동성까지 포함하며, 부록의 16층 단일 시드 결과와 같은 수준의 반복 근거로 읽으면 안 된다.",
+      "citation": "Zhang, Feng, and Qin, Recurrent Looped Transformer, revised September 17, 2026, Figure 4, p. 10.",
+      "render": {
+        "engine": "PyMuPDF",
+        "scale": 4,
+        "dpi_approx": 288,
+        "pixel_size": [
+          1964,
+          1800
+        ]
+      },
+      "sha256": "6ef85cb04a51d61e213c148128be7caa4808f2d8a4545d34f4663ded43eaf9d8"
+    },
+    {
+      "file": "rlt-v20260917-fig17-appendix-depth16.png",
+      "figure": "Figure 17",
+      "page": 41,
+      "bbox": [
+        86,
+        24,
+        548,
+        258
+      ],
+      "alt_ko": "부록의 16층 덧셈 길이 일반화 그래프 두 개. 왼쪽은 greedy exact answer와 EOS 정확도를 0–5% 범위에서, 오른쪽은 teacher-forced answer token 정확도를 0–100% 범위에서, 시드 42의 아홉 RLT-1 분할과 16층 Transformer에 대해 비교한다.",
+      "caption_ko": "부록 16층 계열은 시드 42 하나와 최선 가용 ID 검증-손실 체크포인트를 사용해 아홉 RLT-1 분할 및 Transformer를 비교한다. 정확 응답+EOS 패널은 모든 RLT-1 점이 0/256임을, teacher-forced 토큰 정확도는 별도 척도임을 함께 보여 주므로, 이 결과는 본문의 8층·3시드 OOD 그림과 구분해서 해석해야 한다.",
+      "citation": "Zhang, Feng, and Qin, Recurrent Looped Transformer, revised September 17, 2026, Appendix J.7, Figure 17, p. 41.",
+      "render": {
+        "engine": "PyMuPDF",
+        "scale": 4,
+        "dpi_approx": 288,
+        "pixel_size": [
+          1848,
+          936
+        ]
+      },
+      "sha256": "b2c6060f48007ca3d8275a0097452853c47737bc48e83193709058c88b4bedc3"
+    }
+  ]
+}
