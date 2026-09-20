@@ -544,6 +544,9 @@ _PAPER_BLOCK_RE = re.compile(
 _ARXIV_RE = re.compile(r"arXiv:?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.IGNORECASE)
 _DOI_URL_RE = re.compile(r"https://doi\.org/([^\s)]+)", re.IGNORECASE)
 _DOI_TEXT_RE = re.compile(r"\b(?:doi|DOI):\s*(10\.\d{4,9}/[^\s)]+)", re.IGNORECASE)
+_DIRECT_PDF_LINK_RE = re.compile(
+    r"\[PDF\]\((https://[^\s)]+\.pdf(?:\?[^\s)]*)?)\)", re.IGNORECASE
+)
 _QUOTED_TITLE_RE = re.compile(r'"([^"]+)"')
 _YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
 
@@ -553,7 +556,7 @@ def _extract_primary_paper_reference(post: dict) -> dict | None:
 
     Mirrors ``extractPrimaryPaperReference`` in the frontend. Returns a dict
     with ``title``, ``authors`` and optional ``year``/``arxiv_id``/``doi``/
-    ``url``, or ``None`` when no citation can be recovered.
+    ``url``/``pdf_url``, or ``None`` when no citation can be recovered.
     """
     content = post.get("content", "") or ""
     match = _PAPER_BLOCK_RE.search(content)
@@ -568,6 +571,8 @@ def _extract_primary_paper_reference(post: dict) -> dict | None:
     arxiv_id = arxiv_match.group(1).strip().rstrip(".,;:") if arxiv_match else None
     doi_match = _DOI_URL_RE.search(block) or _DOI_TEXT_RE.search(block)
     doi = doi_match.group(1).rstrip(".,;:") if doi_match else None
+    direct_pdf_match = _DIRECT_PDF_LINK_RE.search(block)
+    direct_pdf_url = direct_pdf_match.group(1) if direct_pdf_match else None
     title_match = _QUOTED_TITLE_RE.search(block)
     title = (title_match.group(1).strip() if title_match else "") or post.get("title", "")
     title = re.sub(r"\.$", "", title)
@@ -584,10 +589,17 @@ def _extract_primary_paper_reference(post: dict) -> dict | None:
     if year_match:
         ref["year"] = int(year_match.group(1))
     if arxiv_id:
+        arxiv_base_id = re.sub(r"v\d+$", "", arxiv_id, flags=re.IGNORECASE)
         ref["arxiv_id"] = arxiv_id
         ref["url"] = f"https://arxiv.org/abs/{arxiv_id}"
+        ref["pdf_url"] = f"https://arxiv.org/pdf/{arxiv_base_id}.pdf"
     elif doi:
         ref["url"] = f"https://doi.org/{doi}"
+        if direct_pdf_url:
+            ref["pdf_url"] = direct_pdf_url
+    elif direct_pdf_url:
+        ref["url"] = direct_pdf_url
+        ref["pdf_url"] = direct_pdf_url
     if doi:
         ref["doi"] = doi
     return ref

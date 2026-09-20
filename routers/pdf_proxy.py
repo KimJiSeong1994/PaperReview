@@ -74,6 +74,12 @@ ALLOWED_DOMAINS: set[str] = {
     "cdn-lfs.huggingface.co",
 }
 
+# Personal hosting entries are scoped to the named host. Unlike the academic
+# domains above, their subdomains must not inherit proxy access.
+EXACT_ALLOWED_DOMAINS: set[str] = {
+    "yifanzhang-pro.github.io",
+}
+
 _ARXIV_ID_RE = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
 _HTTPX_TIMEOUT = 30.0
 _UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "paperreview@example.com")
@@ -240,8 +246,13 @@ def _is_allowed_url(url: str) -> bool:
         if parsed.scheme not in ("http", "https"):
             return False
         hostname = parsed.hostname or ""
-        all_allowed = ALLOWED_DOMAINS | _runtime_allowed_domains
-        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in all_allowed):
+        inherited_domains = (
+            ALLOWED_DOMAINS | _runtime_allowed_domains
+        ) - EXACT_ALLOWED_DOMAINS
+        if hostname not in EXACT_ALLOWED_DOMAINS and not any(
+            hostname == domain or hostname.endswith(f".{domain}")
+            for domain in inherited_domains
+        ):
             return False
         if _is_private_ip(hostname):
             return False

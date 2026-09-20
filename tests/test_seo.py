@@ -14,6 +14,7 @@ from api_server import app
 from routers.seo import (
     _blog_posting_graph,
     _blog_seo_meta,
+    _extract_primary_paper_reference,
     _normalize_blog_markdown,
     _normalize_latex_delimiters,
 )
@@ -90,6 +91,68 @@ def test_blog_seo_meta_enriches_paper_reviews_with_arxiv() -> None:
         "DeepWalk: Online Learning of Social Representations — arXiv:1403.6652 논문 리뷰 · 집현전"
     )
     assert desc == "arXiv:1403.6652 · 랜덤워크 임베딩 리뷰."
+
+
+def test_extract_primary_paper_reference_supports_explicit_https_pdf() -> None:
+    pdf_url = (
+        "https://yifanzhang-pro.github.io/recurrent-looped-tranformer/"
+        "Recurrent_Looped_Transformer.pdf?download=1"
+    )
+    ref = _extract_primary_paper_reference(
+        {
+            "category": "paper-review",
+            "title": "RLT review",
+            "content": (
+                '**Paper:** Yifan Zhang (2026). "Recurrent Looped Transformer". '
+                f"Technical report. [PDF]({pdf_url})\n\n**Abstract:** ..."
+            ),
+        }
+    )
+
+    assert ref == {
+        "title": "Recurrent Looped Transformer",
+        "authors": ["Yifan Zhang"],
+        "year": 2026,
+        "url": pdf_url,
+        "pdf_url": pdf_url,
+    }
+
+
+def test_extract_primary_paper_reference_keeps_arxiv_pdf_priority() -> None:
+    ref = _extract_primary_paper_reference(
+        {
+            "category": "paper-review",
+            "title": "Canonical Paper",
+            "content": (
+                '**Paper:** Alice Author (2024). "Canonical Paper". '
+                "arXiv:2401.12345v2. [PDF](https://example.com/other.pdf)\n\n"
+                "**Abstract:** ..."
+            ),
+        }
+    )
+
+    assert ref is not None
+    assert ref["url"] == "https://arxiv.org/abs/2401.12345v2"
+    assert ref["pdf_url"] == "https://arxiv.org/pdf/2401.12345.pdf"
+
+
+def test_extract_primary_paper_reference_rejects_non_https_and_later_pdf_links() -> None:
+    ref = _extract_primary_paper_reference(
+        {
+            "category": "paper-review",
+            "title": "Explicit link safety",
+            "content": (
+                '**Paper:** Alice Author (2025). "Explicit link safety". '
+                "[PDF](javascript:alert(1).pdf)\n\n"
+                "**Abstract:** [PDF](https://example.com/abstract-only.pdf)\n\n"
+                "## Sources\n\n[PDF](https://example.com/source-only.pdf)"
+            ),
+        }
+    )
+
+    assert ref is not None
+    assert "url" not in ref
+    assert "pdf_url" not in ref
 
 
 def test_blog_post_renders_excerpt_as_lead(client: TestClient) -> None:

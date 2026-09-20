@@ -18,6 +18,7 @@ const PAPER_BLOCK_RE = /\*\*Paper:\*\*\s*([\s\S]*?)(?=\n\s*\*\*Abstract:\*\*|\n\
 const ARXIV_RE = /arXiv:?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i;
 const DOI_URL_RE = /https:\/\/doi\.org\/([^\s)]+)/i;
 const DOI_TEXT_RE = /\b(?:doi|DOI):\s*(10\.\d{4,9}\/[^\s)]+)/i;
+const DIRECT_PDF_LINK_RE = /\[PDF\]\((https:\/\/[^\s)]+\.pdf(?:\?[^\s)]*)?)\)/i;
 const QUOTED_TITLE_RE = /"([^"]+)"/;
 const YEAR_RE = /\b((?:19|20)\d{2})\b/;
 
@@ -54,6 +55,7 @@ export function extractPrimaryPaperReference(post: BlogPaperPostLike): BlogPaper
   const arxivId = arxivMatch ? cleanArxivId(arxivMatch[1]) : undefined;
   const doiMatch = block.match(DOI_URL_RE) ?? block.match(DOI_TEXT_RE);
   const doi = doiMatch ? stripTrailingPunctuation(doiMatch[1]) : undefined;
+  const directPdfUrl = block.match(DIRECT_PDF_LINK_RE)?.[1];
   const title = (block.match(QUOTED_TITLE_RE)?.[1]?.trim() || post.title).replace(/\.$/, '');
   const yearText = block.match(YEAR_RE)?.[1];
   const year = yearText ? Number(yearText) : undefined;
@@ -69,6 +71,10 @@ export function extractPrimaryPaperReference(post: BlogPaperPostLike): BlogPaper
     ref.pdf_url = `https://arxiv.org/pdf/${arxivBaseId(arxivId)}.pdf`;
   } else if (doi) {
     ref.url = `https://doi.org/${doi}`;
+    if (directPdfUrl) ref.pdf_url = directPdfUrl;
+  } else if (directPdfUrl) {
+    ref.url = directPdfUrl;
+    ref.pdf_url = directPdfUrl;
   }
   if (doi) ref.doi = doi;
   return ref;

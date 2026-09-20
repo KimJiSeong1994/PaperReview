@@ -12,7 +12,7 @@ describe('blog paper reference extraction', () => {
       title: 'Inductive Representation Learning on Large Graphs',
       content:
         '# Inductive Representation Learning on Large Graphs\n\n' +
-        '**Paper:** Hamilton, William L.; Ying, Rex; Leskovec, Jure. (2017). "Inductive Representation Learning on Large Graphs." *NIPS 2017*, arXiv:1706.02216. DOI: https://doi.org/10.48550/arXiv.1706.02216.\n\n' +
+        '**Paper:** Hamilton, William L.; Ying, Rex; Leskovec, Jure. (2017). "Inductive Representation Learning on Large Graphs." *NIPS 2017*, arXiv:1706.02216. DOI: https://doi.org/10.48550/arXiv.1706.02216. [PDF](https://example.com/not-canonical.pdf)\n\n' +
         '**Abstract:** Later references include arXiv:1609.02907 and DOI: https://doi.org/10.1145/2623330.2623732.',
     });
 
@@ -24,6 +24,42 @@ describe('blog paper reference extraction', () => {
       pdf_url: 'https://arxiv.org/pdf/1706.02216.pdf',
       doi: '10.48550/arXiv.1706.02216',
     });
+  });
+
+  it('extracts the explicit HTTPS PDF for the non-arXiv RLT report', () => {
+    const pdfUrl = 'https://yifanzhang-pro.github.io/recurrent-looped-tranformer/Recurrent_Looped_Transformer.pdf?download=1';
+    const ref = extractPrimaryPaperReference({
+      category: 'paper-review',
+      title: 'RLT review',
+      content:
+        '**Paper:** Yifan Zhang (2026). "Recurrent Looped Transformer". Technical report. ' +
+        `[PDF](${pdfUrl})\n\n**Abstract:** ...`,
+    });
+
+    expect(ref).toEqual({
+      title: 'Recurrent Looped Transformer',
+      authors: ['Yifan Zhang'],
+      year: 2026,
+      url: pdfUrl,
+      pdf_url: pdfUrl,
+    });
+    expect(buildPaperViewerHref(ref!)).toContain(`pdf_url=${encodeURIComponent(pdfUrl)}`);
+  });
+
+  it('does not take PDF-like links from later sections or unsafe schemes', () => {
+    const ref = extractPrimaryPaperReference({
+      category: 'paper-review',
+      title: 'Explicit link safety',
+      content:
+        '**Paper:** Alice Author (2025). "Explicit link safety". ' +
+        '[PDF](javascript:alert(1).pdf)\n\n' +
+        '**Abstract:** [PDF](https://example.com/abstract-only.pdf)\n\n' +
+        '## Sources\n\n[PDF](https://example.com/source-only.pdf)',
+    });
+
+    expect(ref).toMatchObject({ title: 'Explicit link safety', authors: ['Alice Author'], year: 2025 });
+    expect(ref?.pdf_url).toBeUndefined();
+    expect(ref?.url).toBeUndefined();
   });
 
   it('builds a stable Paper Viewer href with PDF metadata', () => {
