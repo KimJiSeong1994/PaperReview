@@ -116,7 +116,8 @@ export function useBookmarks() {
 
   // ── Effects ──
 
-  useEffect(() => { loadBookmarks(); }, []);
+  // No load on mount here: MyPage's tab effect fires on mount and on every
+  // return to a bookmark tab, so a mount load in the hook doubled the first request.
 
   useEffect(() => {
     setTopicAccordionOpen(prev => {
@@ -130,14 +131,21 @@ export function useBookmarks() {
 
   // ── Handlers ──
 
+  // The tab effect can fire twice back to back (mount, then a programmatic
+  // switch to the PDF tab); two responses would race into setBookmarks.
+  const loadInFlight = useRef(false);
   const loadBookmarks = async () => {
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
     try {
-      setLoadingBookmarks(true);
+      // A refresh of a list already on screen must not swap it for "Loading...".
+      if (bookmarks.length === 0) setLoadingBookmarks(true);
       const data = await getBookmarks();
       setBookmarks(data.bookmarks || []);
     } catch (error: any) {
       console.error('Failed to load bookmarks:', error);
     } finally {
+      loadInFlight.current = false;
       setLoadingBookmarks(false);
     }
   };

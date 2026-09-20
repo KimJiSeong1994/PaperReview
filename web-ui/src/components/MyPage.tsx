@@ -68,13 +68,18 @@ function MyPage({ onBack }: MyPageProps) {
   // Direct paper view from search results (via router state)
   const [directPaper, setDirectPaper] = useState<any>(null);
 
+  // Latched on the state object, like restoredFromUrl below: this effect writes
+  // the URL it watches, so it must act once per arrival and never on its own
+  // re-run. A later arrival carries a new object and passes the latch again.
+  const openedFromState = useRef<unknown>(null);
   useEffect(() => {
     const state = location.state as { viewPaper?: any } | null;
-    if (state?.viewPaper) {
+    if (state?.viewPaper && openedFromState.current !== state.viewPaper) {
+      openedFromState.current = state.viewPaper;
       setDirectPaper(state.viewPaper);
-      setActiveTab('papers');
-      // Clear router state so refresh doesn't re-trigger
-      window.history.replaceState({}, '');
+      // Through changeTab so the address bar says tab=papers; its replace
+      // navigation carries no state, so a reload does not reopen the paper.
+      changeTab('papers');
       return;
     }
 
@@ -98,7 +103,7 @@ function MyPage({ onBack }: MyPageProps) {
       });
       setActiveTab('papers');
     }
-  }, [location.pathname, location.search, location.state]);
+  }, [location.pathname, location.search, location.state, changeTab]);
 
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
@@ -305,7 +310,7 @@ function MyPage({ onBack }: MyPageProps) {
 
       {/* Tab content */}
       {activeTab === 'papers' ? (
-        <div className="mypage-content">
+        <div className="mypage-content mypage-content--viewer">
           {directPaper ? (
             <>
               <div className="paper-viewer-direct-sidebar">
@@ -383,7 +388,7 @@ function MyPage({ onBack }: MyPageProps) {
             setExpandedHighlightId={hl.setExpandedHighlightId}
             highlightPopover={hl.highlightPopover}
             popoverPos={hl.popoverPos}
-            setHighlightPopover={() => {}}
+            setHighlightPopover={hl.setHighlightPopover}
             notesText={hl.notesText}
             setNotesText={hl.setNotesText}
             notesSaving={hl.notesSaving}
@@ -494,7 +499,7 @@ function MyPage({ onBack }: MyPageProps) {
             onSearchPaper={cur.handleSearchPaper}
             onViewPaper={(paper) => {
               setDirectPaper({ title: paper.title, authors: paper.authors, year: paper.year, doi: paper.doi, arxiv_id: paper.arxiv_id });
-              setActiveTab('papers');
+              changeTab('papers');
             }}
             onDeepReview={cur.handleDeepReviewPaper}
             reviewStatus={cur.reviewStatus}

@@ -58,10 +58,13 @@ export function useHighlights(
     const scrollEl = reportScrollRef.current;
     scrollEl?.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setHighlightPopover(null); };
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       cancelAnimationFrame(raf);
       scrollEl?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [highlightPopover, reportScrollRef]);
 
@@ -340,7 +343,7 @@ export function useHighlights(
     memoMode, memoInput, setMemoInput,
     saveStatus, autoHighlighting,
     expandedHighlightId, setExpandedHighlightId,
-    highlightPopover, popoverPos,
+    highlightPopover, setHighlightPopover, popoverPos,
     // Computed
     sortedHighlights,
     // Init
