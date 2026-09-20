@@ -11,6 +11,7 @@ import { useAuth } from './contexts/AuthContext';
 import { INTRODUCE_KO_URL, INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
 
 const MyPage = lazy(() => import('./components/MyPage'));
+const CurriculumPage = lazy(() => import('./components/CurriculumPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
@@ -228,6 +229,18 @@ function App() {
             isAuthenticated ? (
               <Suspense fallback={<div className="app-loading">Loading...</div>}>
                 <MyPage onBack={() => navigate('/')} />
+              </Suspense>
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
+          path="/curriculum"
+          element={
+            isAuthenticated ? (
+              <Suspense fallback={<div className="app-loading">Loading...</div>}>
+                <CurriculumPage />
               </Suspense>
             ) : (
               <Navigate to="/" />

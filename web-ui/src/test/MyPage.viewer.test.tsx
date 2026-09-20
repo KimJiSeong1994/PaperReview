@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import MyPage from '../components/MyPage';
 
 // MyPage is wiring; every panel and hook is replaced so the test sees only the
@@ -13,14 +13,12 @@ const bm = {
 };
 const hl = { initFromDetail: vi.fn(), setHighlightPopover: vi.fn(), userHighlights: [], sortedHighlights: [] };
 const chat = { highlightTerms: [], setHighlightTerms: vi.fn(), scrollToHighlight: false, setScrollToHighlight: vi.fn(), messages: [] };
-const cur = { loadingCourse: false, presetCourses: [], myCourses: [], readPapers: new Set<string>() };
 const reportSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('../hooks/useBookmarks', () => ({ useBookmarks: () => bm }));
 vi.mock('../hooks/useHighlights', () => ({ useHighlights: () => hl }));
 vi.mock('../hooks/useExploration', () => ({ useExploration: () => ({}) }));
 vi.mock('../hooks/useChat', () => ({ useChat: () => chat }));
-vi.mock('../hooks/useCurriculum', () => ({ useCurriculum: () => cur }));
 vi.mock('../components/mypage/BookmarkSidebar', () => ({ default: () => <div data-testid="sidebar" /> }));
 vi.mock('../components/mypage/ReportViewer', () => ({
   default: (props: Record<string, unknown>) => { reportSpy(props); return <div data-testid="report" />; },
@@ -35,13 +33,6 @@ vi.mock('../components/mypage/PaperViewerPanel', async () => {
   }
   return { default: ViewerStub };
 });
-vi.mock('../components/curriculum/CourseSidebar', () => ({ default: () => <div data-testid="courses" /> }));
-vi.mock('../components/curriculum/ModuleView', () => ({ default: () => null }));
-vi.mock('../components/curriculum/CurriculumDetailPanel', () => ({
-  default: ({ onViewPaper }: { onViewPaper: (paper: { title: string; authors: string[] }) => void }) => (
-    <button type="button" onClick={() => onViewPaper({ title: 'Attention Is All You Need', authors: ['Vaswani'] })}>View Paper</button>
-  ),
-}));
 vi.mock('../components/AgentKeyButton', () => ({ default: () => null }));
 vi.mock('../components/RecommendationBell', () => ({ default: () => null }));
 
@@ -60,14 +51,29 @@ const renderAt = (entry: string | { pathname: string; state: unknown }) => rende
 beforeEach(() => { vi.clearAllMocks(); viewerMounts.count = 0; });
 
 describe('MyPage tab wiring', () => {
-  it("the curriculum's View Paper opens the standalone viewer in its own tab, leaving this page as it is", async () => {
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-    renderAt('/mypage?tab=curriculum');
-    fireEvent.click(await screen.findByRole('button', { name: 'View Paper' }));
-    expect(open).toHaveBeenCalledWith('/paper-viewer?title=Attention+Is+All+You+Need&authors=Vaswani&source=curriculum', '_blank', 'noopener,noreferrer');
-    expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=curriculum|null');
-    expect(screen.getByTestId('courses')).toBeInTheDocument();
-    open.mockRestore();
+  it('sends the old ?tab=curriculum link on to the curriculum route without fetching first', async () => {
+    // Rendered through routes, as in the app: the redirect swaps the page out,
+    // so MyPage must not have asked for bookmarks on its way to the exit.
+    render(
+      <MemoryRouter initialEntries={['/mypage?tab=curriculum']}>
+        <Routes>
+          <Route path="/mypage" element={<MyPage onBack={() => {}} />} />
+          <Route path="/curriculum" element={<div data-testid="curriculum-route" />} />
+        </Routes>
+        <Probe />
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('curriculum-route');
+    expect(screen.getByTestId('probe')).toHaveTextContent('/curriculum|null');
+    expect(bm.loadBookmarks).not.toHaveBeenCalled();
+  });
+
+  it('keeps the curriculum link beside the tablist, not inside it', async () => {
+    renderAt('/mypage');
+    await screen.findByTestId('report');
+    const link = screen.getByRole('link', { name: '커리큘럼' });
+    expect(link.closest('[role="tablist"]')).toBeNull();
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
   });
 
   it('the PDF tab drops the chat row from the content grid; the bookmarks tab keeps it', async () => {
@@ -87,7 +93,8 @@ describe('MyPage tab wiring', () => {
     renderAt('/mypage');
     await screen.findByTestId('report');
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['북마크', '논문 PDF', '커리큘럼']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['북마크', '논문 PDF']);
+    expect(screen.getByRole('link', { name: '커리큘럼' })).toHaveAttribute('href', '/curriculum');
     expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('button', { name: 'My Page' })).not.toBeInTheDocument();
     expect(screen.getByRole('tabpanel', { name: '북마크' })).toBeInTheDocument();
@@ -100,14 +107,13 @@ describe('MyPage tab wiring', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=papers|');
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'End' });
-    await screen.findByTestId('courses');
-    expect(screen.getByRole('tabpanel', { name: '커리큘럼' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('seeds the roving tabindex from the URL and wraps at both ends', async () => {
     renderAt('/mypage?tab=papers');
     await screen.findByTestId('viewer');
-    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['-1', '0']);
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'ArrowLeft' });
     await screen.findByTestId('report');
@@ -115,11 +121,11 @@ describe('MyPage tab wiring', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent(/^\/mypage\|/);
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowLeft' });
-    await screen.findByTestId('courses');
-    expect(screen.getByRole('tab', { name: '커리큘럼' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(screen.getByRole('tab', { name: '커리큘럼' }), { key: 'Home' });
+    expect(await screen.findByTestId('viewer')).toBeVisible();
+    expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'Home' });
     await screen.findByTestId('report');
-    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);
+    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1']);
   });
 
   it('keeps the PDF viewer mounted across tab switches, and does not mount it for bookmark-only visits', async () => {
@@ -140,14 +146,6 @@ describe('MyPage tab wiring', () => {
     expect(screen.getByRole('tabpanel', { name: '논문 PDF' })).toBeInTheDocument();
     expect(screen.queryByRole('tabpanel', { name: '북마크' })).toBeNull();
 
-    // The curriculum tab unmounts the container; coming back must not resurrect
-    // the viewer hidden behind the bookmarks tab.
-    fireEvent.click(screen.getByRole('tab', { name: '커리큘럼' }));
-    await screen.findByTestId('courses');
-    fireEvent.click(screen.getByRole('tab', { name: '북마크' }));
-    await screen.findByTestId('report');
-    expect(screen.queryByTestId('viewer')).toBeNull();
-    expect(viewerMounts.count).toBe(1);
   });
 
   it('hands the report the real popover setter instead of a no-op', async () => {

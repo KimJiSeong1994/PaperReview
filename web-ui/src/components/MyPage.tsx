@@ -1,26 +1,20 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
-import { useCurriculum } from '../hooks/useCurriculum';
 import { createShareLink, revokeShareLink } from '../api/client';
 import type { ShareInfo } from '../api/client';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
 import ReportViewer from './mypage/ReportViewer';
 import ChatPanel from './mypage/ChatPanel';
-import CourseSidebar from './curriculum/CourseSidebar';
-import ModuleView from './curriculum/ModuleView';
-import CurriculumDetailPanel from './curriculum/CurriculumDetailPanel';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import AgentKeyButton from './AgentKeyButton';
 import RecommendationBell from './RecommendationBell';
-import './CurriculumPage.css';
 
 const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
@@ -28,7 +22,7 @@ interface MyPageProps {
   onBack: () => void;
 }
 
-type MyPageTab = 'bookmarks' | 'curriculum' | 'papers';
+type MyPageTab = 'bookmarks' | 'papers';
 
 // The default tab comes first, so the first tab on screen is the one the page
 // opens on. "Papers" and "bookmarks" share a selection; the labels say what the
@@ -42,18 +36,16 @@ const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
     id: 'papers', label: '논문 PDF',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
   },
-  {
-    id: 'curriculum', label: '커리큘럼',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>,
-  },
 ];
+
+const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
 
 /**
  * `bookmarks` is the default, so it is the absence of the parameter rather than
  * a value — anything unrecognised lands there too.
  */
 export function tabFromParams(raw: string | null): MyPageTab {
-  return raw === 'papers' || raw === 'curriculum' ? raw : 'bookmarks';
+  return raw === 'papers' ? raw : 'bookmarks';
 }
 
 /** Carries the rest of the query string through; only touches its own key. */
@@ -74,6 +66,7 @@ export function paramsWithBookmark(prev: URLSearchParams, id: string): URLSearch
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   // Read once, on mount: the URL seeds the tab, and after that the tab writes
   // to the URL. Reading it on every render instead would fight the writes.
   const [activeTab, setActiveTab] = useState<MyPageTab>(() => tabFromParams(searchParams.get('tab')));
@@ -83,14 +76,12 @@ function MyPage({ onBack }: MyPageProps) {
   // document, zoom, resolved URLs and highlights survive (scroll position does
   // not — display:none drops the scroll box). It is not mounted until the tab
   // is first shown, because pdf.js is a chunk bookmark-only visits should not
-  // pay for, and it is let go on the curriculum tab, which unmounts the whole
-  // container anyway — otherwise it would come back hidden and re-resolve PDFs.
+  // pay for.
   const [viewerMounted, setViewerMounted] = useState(activeTab === 'papers');
 
   const changeTab = useCallback((tab: MyPageTab) => {
     setActiveTab(tab);
     if (tab === 'papers') setViewerMounted(true);
-    if (tab === 'curriculum') setViewerMounted(false);
     setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
   }, [setSearchParams]);
 
@@ -213,15 +204,14 @@ function MyPage({ onBack }: MyPageProps) {
     }
   }, [chat.scrollToHighlight, chat.highlightTerms, bm.bookmarkDetail, bm.loadingDetail]);
 
+  // Old links still say ?tab=curriculum, which has its own route now; that
+  // render only redirects, so it must not fetch on the way out.
+  const redirectingToCurriculum = searchParams.get('tab') === 'curriculum';
+
   // Refresh bookmarks when switching to bookmarks or papers tab
   useEffect(() => {
-    if (activeTab === 'bookmarks' || activeTab === 'papers') {
-      bm.loadBookmarks();
-    }
-  }, [activeTab]);
-
-  // ── Curriculum hook ──
-  const cur = useCurriculum();
+    if (!redirectingToCurriculum) bm.loadBookmarks();
+  }, [activeTab, redirectingToCurriculum]);
 
   // One element, rendered once at the top of the shared container. Written
   // twice it was 33 props of copy-paste that had to be kept in step by hand.
@@ -259,9 +249,11 @@ function MyPage({ onBack }: MyPageProps) {
     onBulkMove={bm.handleBulkMove}
     onAddTopic={bm.handleAddTopic}
     onStartSearch={onBack}
-    onStartCurriculum={() => changeTab('curriculum')}
+    onStartCurriculum={() => navigate('/curriculum')}
     />
   );
+
+  if (redirectingToCurriculum) return <Navigate to="/curriculum" replace />;
 
   return (
     <div className="mypage">
@@ -299,12 +291,15 @@ function MyPage({ onBack }: MyPageProps) {
                 </button>
               ))}
             </div>
+            <Link className="mypage-nav-btn mypage-nav-link" to="/curriculum">
+              {CURRICULUM_ICON}
+              커리큘럼
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Tab content */}
-      {activeTab !== 'curriculum' ? (
         <div
           className={`mypage-content${activeTab === 'papers' ? ' mypage-content--viewer' : ''}`}
           role="tabpanel"
@@ -406,62 +401,6 @@ function MyPage({ onBack }: MyPageProps) {
           />
           </div>
         </div>
-      ) : (
-        <div className="curriculum-content mypage-curriculum-content" role="tabpanel" id="mypage-panel-curriculum" aria-labelledby="mypage-tab-curriculum">
-          <CourseSidebar
-            presetCourses={cur.presetCourses}
-            myCourses={cur.myCourses}
-            loadingCourses={cur.loadingCourses}
-            selectedCourseId={cur.selectedCourseId}
-            selectedModuleId={cur.selectedModuleId}
-            readPapers={cur.readPapers}
-            progressStats={cur.progressStats}
-            courseDetail={cur.courseDetail}
-            generating={cur.generating}
-            forking={cur.forking}
-            generateProgress={cur.generateProgress}
-            onSelectCourse={cur.handleSelectCourse}
-            onSelectModule={cur.setSelectedModuleId}
-            onGenerate={cur.handleGenerate}
-            onFork={cur.handleFork}
-            onDelete={cur.handleDelete}
-            onShare={cur.handleShare}
-            onRevokeShare={cur.handleRevokeShare}
-            shareMessage={cur.shareMessage}
-            getModuleProgress={cur.getModuleProgress}
-          />
-
-          {cur.loadingCourse ? (
-            <div className="curriculum-main">
-              <div className="curriculum-loading">Loading course...</div>
-            </div>
-          ) : (
-            <ModuleView
-              module={cur.selectedModule}
-              readPapers={cur.readPapers}
-              selectedPaperId={cur.selectedPaperId}
-              onSelectPaper={cur.setSelectedPaperId}
-              onToggleRead={cur.handleToggleRead}
-              getModuleProgress={cur.getModuleProgress}
-              onDeepReviewModule={cur.handleDeepReviewModule}
-              reviewStatus={cur.reviewStatus}
-              reviewingModuleId={cur.reviewingModuleId}
-            />
-          )}
-
-          <CurriculumDetailPanel
-            paper={cur.selectedPaper}
-            courseDetail={cur.courseDetail}
-            onSearchPaper={cur.handleSearchPaper}
-            onViewPaper={(paper) => openPaperViewer(viewerHrefForPaper(paper, 'curriculum'))}
-            onDeepReview={cur.handleDeepReviewPaper}
-            reviewStatus={cur.reviewStatus}
-            reviewProgress={cur.reviewProgress}
-            reviewingPaperIds={cur.reviewingPaperIds}
-            reviewingModuleId={cur.reviewingModuleId}
-          />
-        </div>
-      )}
     </div>
   );
 }

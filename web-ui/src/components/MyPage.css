@@ -99,6 +99,12 @@
   gap: 6px;
 }
 
+/* The curriculum lives on its own route; its entry in the bar is a link that
+   dresses like the tabs beside it. */
+.mypage-nav-link {
+  text-decoration: none;
+}
+
 .mypage-nav-btn:hover {
   background: var(--wov-05);
   color: var(--text);
