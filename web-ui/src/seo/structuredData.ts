@@ -34,6 +34,7 @@ export interface BlogPostLike {
   title: string;
   excerpt: string;
   content: string;
+  deep_content?: string | null;
   author: string;
   tags: string[];
   category?: string;
@@ -269,7 +270,7 @@ function faqNode(content: string, url: string): Record<string, unknown> | null {
   return mainEntity.length ? { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity } : null;
 }
 
-export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
+export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike = post): Record<string, unknown> {
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
   const posting: Record<string, unknown> = {
@@ -300,6 +301,10 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
     image: post.thumbnail_url || OG_DEFAULT_IMAGE,
   };
 
+  if (post.deep_content?.trim()) {
+    posting.articleBody = post.content;
+  }
+
   const seriesId = seriesOf(post.slug);
   if (seriesId) {
     posting.isPartOf = { '@id': `${SITE_URL}/blog/series/${seriesId}#collection` };
@@ -308,7 +313,7 @@ export function blogPostingGraph(post: BlogPostLike): Record<string, unknown> {
   const graph: Record<string, unknown>[] = [organizationNode(), posting];
   // Link the review to the paper it discusses so answer engines can connect
   // "what does <paper> propose?" queries to this post as a citable source.
-  const ref = extractPrimaryPaperReference(post);
+  const ref = extractPrimaryPaperReference(identityPost);
   if (ref?.url) {
     posting.about = { '@id': ref.url };
     posting.citation = { '@id': ref.url };

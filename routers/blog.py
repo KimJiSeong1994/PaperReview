@@ -221,6 +221,11 @@ def _estimate_reading_time(content: str) -> int:
     return minutes
 
 
+def _normalize_deep_content(content: Optional[str]) -> Optional[str]:
+    """Preserve a detailed body verbatim, while treating blank input as clear."""
+    return content if content and content.strip() else None
+
+
 # Search is a linear scan over every post: ``str.find`` first, then a
 # left-boundary regex only where the substring already hit (ASCII tokens only).
 # The prefilter matters — a bare lookbehind regex defeats CPython's literal
@@ -291,7 +296,12 @@ def _match_post(
     title = (post.get("title") or "").lower()
     tags = " ".join(post.get("tags") or []).lower()
     excerpt = (post.get("excerpt") or "").lower()
-    content = (post.get("content") or "").lower()
+    raw_content = post.get("content") or ""
+    deep_content = _normalize_deep_content(post.get("deep_content"))
+    searchable_content = (
+        f"{raw_content}\n\n{deep_content}" if deep_content else raw_content
+    )
+    content = searchable_content.lower()
 
     score = 0
     body_pos = -1
@@ -308,7 +318,7 @@ def _match_post(
         else:
             return None
 
-    snippet = _snippet_around(post.get("content") or "", body_pos) if body_pos >= 0 else None
+    snippet = _snippet_around(searchable_content, body_pos) if body_pos >= 0 else None
     return score, snippet
 
 
@@ -319,6 +329,7 @@ class PostCreateRequest(BaseModel):
     """Request body for creating a new blog post."""
     title: str = Field(..., min_length=1, max_length=300)
     content: str = Field(..., min_length=1)
+    deep_content: Optional[str] = None
     excerpt: str = Field("", max_length=500)
     tags: list[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
@@ -340,6 +351,7 @@ class PostUpdateRequest(BaseModel):
     """Request body for updating a blog post. All fields optional."""
     title: Optional[str] = Field(None, min_length=1, max_length=300)
     content: Optional[str] = Field(None, min_length=1)
+    deep_content: Optional[str] = None
     excerpt: Optional[str] = Field(None, max_length=500)
     tags: Optional[list[str]] = None
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
@@ -372,6 +384,8 @@ class PostSummary(BaseModel):
 class PostDetail(PostSummary):
     """Full post including markdown content and thumbnail."""
     content: str
+    deep_content: Optional[str] = None
+    deep_reading_time_min: Optional[int] = None
 
     @model_validator(mode="after")
     def _derive_has_thumbnail(self) -> "PostDetail":
@@ -383,6 +397,10 @@ class PostDetail(PostSummary):
         it here so every construction site agrees.
         """
         self.has_thumbnail = bool(self.thumbnail_url)
+        deep_content = (self.deep_content or "").strip()
+        self.deep_reading_time_min = (
+            _estimate_reading_time(deep_content) if deep_content else None
+        )
         return self
 
 
@@ -571,7 +589,11 @@ async def list_posts(
     # Strip content and heavy thumbnail from list responses
     summaries = []
     for p in page_posts:
-        summary = {k: v for k, v in p.items() if k not in ("content", "thumbnail_url")}
+        summary = {
+            k: v
+            for k, v in p.items()
+            if k not in ("content", "deep_content", "thumbnail_url")
+        }
         summary["has_thumbnail"] = bool(p.get("thumbnail_url"))
         summary["thumbnail_url"] = _effective_thumbnail(p)
         summary["snippet"] = snippets.get(p.get("id"))
@@ -624,6 +646,7 @@ async def create_post(
         "slug": base_slug,
         "excerpt": request.excerpt.strip() if request.excerpt else "",
         "content": request.content,
+        "deep_content": _normalize_deep_content(request.deep_content),
         "author": admin,
         "tags": tags,
         "category": request.category,
@@ -676,6 +699,8 @@ async def update_post(
             elif key == "content" and value is not None:
                 post["content"] = value
                 post["reading_time_min"] = _estimate_reading_time(value)
+            elif key == "deep_content":
+                post["deep_content"] = _normalize_deep_content(value)
             elif key == "tags" and value is not None:
                 post["tags"] = list(dict.fromkeys(t.strip() for t in value if t.strip()))
             elif key == "excerpt" and value is not None:

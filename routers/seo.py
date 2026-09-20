@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, Response
 from markdown_it import MarkdownIt
 
 from .blog import (
+    _estimate_reading_time,
     _load_deleted,
     _load_posts,
     _merged_tag_counts,
@@ -716,8 +717,14 @@ def _faq_node(pairs: list[tuple[str, str]], url: str) -> dict:
     }
 
 
-def _blog_posting_graph(post: dict) -> dict:
-    """Return the @graph for a single BlogPosting page."""
+def _blog_posting_graph(post: dict, identity_post: dict | None = None) -> dict:
+    """Return a BlogPosting graph for the displayed body and canonical paper.
+
+    ``post`` supplies view-specific content fields such as ``articleBody`` and
+    ``wordCount``. ``identity_post`` optionally supplies the stored default body
+    used to identify the reviewed paper, so switching reading modes cannot
+    change the article's ``about``/``citation`` target.
+    """
     title = post.get("title", "")
     slug = post.get("slug", "")
     excerpt = post.get("excerpt", "")
@@ -752,6 +759,8 @@ def _blog_posting_graph(post: dict) -> dict:
         "wordCount": len(content.split()),
         "image": image,
     }
+    if (post.get("deep_content") or "").strip():
+        posting["articleBody"] = content
 
     membership = _series_membership(slug)
     if membership:
@@ -763,7 +772,8 @@ def _blog_posting_graph(post: dict) -> dict:
     graph = [_organization_node(), posting]
     # Link the review to the paper it discusses so answer engines can connect
     # "what does <paper> propose?" queries to this post as a citable source.
-    ref = _extract_primary_paper_reference(post)
+    identity_source = identity_post if identity_post is not None else post
+    ref = _extract_primary_paper_reference(identity_source)
     if ref and ref.get("url"):
         posting["about"] = {"@id": ref["url"]}
         posting["citation"] = {"@id": ref["url"]}
@@ -1008,6 +1018,7 @@ def _render_article(
     prev_post: dict | None = None,
     next_post: dict | None = None,
     published_slugs: set[str] | None = None,
+    reading_view: str = "default",
 ) -> str:
     """Render the visible <article> body for a single blog post.
 
@@ -1018,6 +1029,21 @@ def _render_article(
     author = html.escape(post.get("author", ""), quote=True)
     created = html.escape(_format_date(post), quote=True)
     reading_time = post.get("reading_time_min", 1)
+    slug = html.escape(post.get("slug", ""), quote=True)
+    has_deep_content = bool((post.get("deep_content") or "").strip())
+    reading_view_link = ""
+    if reading_view == "deep":
+        reading_view_link = (
+            '<span class="blog-detail-reading-mode">상세 읽기</span>'
+            f'<a class="blog-detail-pdf-link blog-detail-reading-link" '
+            f'href="/blog/{slug}" aria-label="{title} 쉬운 읽기">쉬운 읽기</a>'
+        )
+    elif has_deep_content:
+        reading_view_link = (
+            '<span class="blog-detail-reading-mode">쉬운 읽기</span>'
+            f'<a class="blog-detail-pdf-link blog-detail-reading-link" '
+            f'href="/blog/{slug}?view=deep" aria-label="{title} 상세 읽기">상세 읽기</a>'
+        )
     # Surface the (usually Korean) excerpt as a visible lead paragraph under the
     # title. The reviews' <h1> is the English paper name, so this is the first
     # natural-language Korean text on the page — the on-page signal Korean
@@ -1114,6 +1140,7 @@ def _render_article(
         f'<span class="blog-detail-author">{author}</span>'
         f'<span class="blog-detail-date">{created}</span>'
         f'<span class="blog-detail-reading-time">{reading_time} min read</span>'
+        f"{reading_view_link}"
         "</div>"
         f'<div class="blog-detail-tags">{tags_html}</div>'
         f"{series_html}"
@@ -1189,7 +1216,10 @@ async def blog_tags_ssr() -> HTMLResponse:
 
 
 @router.api_route("/blog/{slug}", methods=["GET", "HEAD"], response_class=HTMLResponse)
-async def blog_post_ssr(slug: str) -> HTMLResponse:
+async def blog_post_ssr(
+    slug: str,
+    view: str | None = None,
+) -> HTMLResponse:
     """Server-render a single blog post.
 
     Returns a ``noindex`` page with status 410 when the slug was deleted
@@ -1241,7 +1271,14 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
     older = published[idx + 1] if idx is not None and idx + 1 < len(published) else None
     newer = published[idx - 1] if idx is not None and idx - 1 >= 0 else None
 
-    lang = _detect_lang(post["title"] + " " + post.get("content", ""))
+    displayed_post = dict(post)
+    deep_content = post.get("deep_content") or ""
+    reading_view = "deep" if view == "deep" and deep_content.strip() else "default"
+    if reading_view == "deep":
+        displayed_post["content"] = deep_content
+        displayed_post["reading_time_min"] = _estimate_reading_time(deep_content)
+
+    lang = _detect_lang(post["title"] + " " + displayed_post.get("content", ""))
     locale = _locale(lang)
     seo_title, seo_description = _blog_seo_meta(post)
     document = _build_document(
@@ -1250,13 +1287,14 @@ async def blog_post_ssr(slug: str) -> HTMLResponse:
         canonical=f"{SITE_URL}/blog/{slug}",
         og_type="article",
         image=_absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE,
-        json_ld=_blog_posting_graph(post),
+        json_ld=_blog_posting_graph(displayed_post, identity_post=post),
         article_html=_render_article(
-            post,
+            displayed_post,
             related=related,
             prev_post=older,
             next_post=newer,
             published_slugs={p.get("slug", "") for p in published},
+            reading_view=reading_view,
         ),
         lang=lang,
         locale=locale,
