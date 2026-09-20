@@ -2598,6 +2598,13 @@
     gap: 8px;
   }
 
+  /* The PDF tab renders two panels and no chat, so the chat row would sit
+     empty under the viewer — a third of the viewport blank on the tab whose
+     whole job is showing a page. */
+  .mypage-content--viewer {
+    grid-template-rows: 1fr;
+  }
+
   .mypage-bookmarks-panel {
     width: auto;
     min-width: 0;
@@ -2626,6 +2633,10 @@
     grid-template-columns: 1fr;
     grid-template-rows: 24vh 1fr 30vh;
     padding: 0 8px 8px;
+  }
+
+  .mypage-content--viewer {
+    grid-template-rows: 24vh 1fr;
   }
 
   .mypage-bookmarks-panel {
@@ -2659,6 +2670,10 @@
 
   .mypage-content {
     grid-template-rows: 20vh 1fr 28vh;
+  }
+
+  .mypage-content--viewer {
+    grid-template-rows: 20vh 1fr;
   }
 
   .mypage-report-panel {
