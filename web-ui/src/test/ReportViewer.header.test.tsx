@@ -83,20 +83,24 @@ describe('ReportViewer header', () => {
   it('reports a rejected clipboard write, and a successful one', async () => {
     const writeText = vi.fn().mockRejectedValueOnce(new Error('denied')).mockResolvedValueOnce(undefined);
     setClipboard(writeText);
-    render(<ReportViewer {...base} shareInfo={share} />);
-    fireEvent.click(screen.getByRole('button', { name: '복사' }));
-    expect(await screen.findByRole('button', { name: '복사 실패' })).toBeInTheDocument();
-
-    // The label resets after two seconds; step the clock rather than wait it out.
+    // The label resets on a two-second timer; fake the clock before it is set
+    // so the reset can be stepped instead of waited out.
     vi.useFakeTimers();
     try {
+      render(<ReportViewer {...base} shareInfo={share} />);
+      fireEvent.click(screen.getByRole('button', { name: '복사' }));
+      await act(async () => {});
+      expect(screen.getByRole('button', { name: '복사 실패' })).toBeInTheDocument();
+
       act(() => { vi.advanceTimersByTime(2000); });
       expect(screen.getByRole('button', { name: '복사' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: '복사' }));
+      await act(async () => {});
+      expect(screen.getByRole('button', { name: '복사됨!' })).toBeInTheDocument();
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/share/tok123`);
     } finally {
       vi.useRealTimers();
     }
-    fireEvent.click(screen.getByRole('button', { name: '복사' }));
-    expect(await screen.findByRole('button', { name: '복사됨!' })).toBeInTheDocument();
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/share/tok123`);
   });
 });
