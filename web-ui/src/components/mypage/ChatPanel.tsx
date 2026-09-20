@@ -32,6 +32,14 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   return (
     <div className="mypage-chat-panel" role="region" aria-label="논문과 대화">
+      {/* A live region over the whole transcript re-announced every streamed
+          token. This one changes twice per answer. */}
+      <div className="mypage-sr-only" role="status" aria-live="polite">
+        {isStreaming ? '답변 생성 중'
+          : messages[messages.length - 1]?.role !== 'assistant' ? ''
+            // useChat appends a failed request as an assistant message prefixed "Error:".
+            : messages[messages.length - 1].content.startsWith('Error:') ? '답변 실패' : '답변 완료'}
+      </div>
       {/* Chat header */}
       <div className="mypage-panel-header mypage-chat-header">
         <span>
@@ -48,12 +56,13 @@ export default function ChatPanel({
           {messages.length > 0 && (
             <button className="mypage-chat-clear-btn"
               onClick={onClearChat}
-              title="Clear chat">✕</button>
+              title="대화 지우기" aria-label="대화 지우기">✕</button>
           )}
         </div>
       </div>
 
-      <div className="mypage-chat-messages" aria-live="polite">
+      {/* No live role here: log would re-announce the streaming bubble on every token. */}
+      <div className="mypage-chat-messages">
         {messages.length === 0 && !isStreaming && (
           <div className="mypage-chat-welcome">
             <p className="mypage-chat-welcome-title">북마크한 논문에 대해 물어보세요</p>
@@ -87,7 +96,7 @@ export default function ChatPanel({
                   </ReactMarkdown>
                   {msg.sources && msg.sources.length > 0 && (
                     <details className="mypage-sources-section">
-                      <summary className="mypage-sources-header">Sources ({msg.sources.length})</summary>
+                      <summary className="mypage-sources-header">출처 ({msg.sources.length})</summary>
                       <div className="mypage-sources-list">
                         {msg.sources.map(source => (
                           <div key={source.ref} className="mypage-source-item"
@@ -137,9 +146,9 @@ export default function ChatPanel({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={chatTopicFilter !== 'all' ? `"${chatTopicFilter}" 논문에 대해 물어보세요...` : selectedCount > 0 ? `선택한 논문 ${selectedCount}편에 대해 물어보세요...` : '북마크한 논문에 대해 물어보세요...'}
-          rows={1} disabled={isStreaming} aria-label="Chat message input" />
+          rows={1} disabled={isStreaming} aria-label="질문 입력" />
         <button className="mypage-chat-send" onClick={onSendMessage}
-          disabled={isStreaming || !inputValue.trim()} aria-label="Send message">
+          disabled={isStreaming || !inputValue.trim()} aria-label="보내기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />

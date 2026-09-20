@@ -4,6 +4,29 @@
   flex-direction: column;
   height: 100vh;
   background: var(--bg);
+  /* --text-faint colours most 11–14px text on this page and reads 3.7:1 on the
+     dark ground, 2.5:1 on white. These reach 5.5:1 / 4.8:1 without changing
+     the rest of the site. */
+  --text-faint: #8a9099;
+  --text-dim: #8a9099;
+}
+
+:root[data-theme='light'] .mypage {
+  --text-faint: #6b7280;
+  --text-dim: #6b7280;
+}
+
+/* Announcements for screen readers that must not take space on screen. */
+.mypage-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Hide scrollbars globally within MyPage */
@@ -3564,9 +3587,26 @@
 .mypage-chat-input:focus-visible,
 .mypage-notes-textarea:focus-visible,
 .mypage-memo-input:focus-visible,
-.mypage-share-url-input:focus-visible {
+.mypage-share-url-input:focus-visible,
+.mypage-bookmark-info:focus-visible,
+.mypage-tree-folder-row:focus-visible,
+.mypage-drag-handle:focus-visible,
+.mypage-papers-header:focus-visible,
+.mypage-notes-header:focus-visible,
+.mypage-user-highlight:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
+}
+
+/* The row is the mouse target; its text block is the keyboard one. */
+.mypage-bookmark-info:focus-visible {
+  outline-offset: 0;
+  border-radius: 4px;
+}
+
+/* The handle is transparent until hover; a keyboard user landing on it must see the glyph. */
+.mypage-drag-handle:focus-visible {
+  color: var(--text-faint);
 }
 
 /* ===== Report table of contents =====

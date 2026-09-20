@@ -1603,3 +1603,22 @@
   font-size: 12px;
   padding: 8px 14px;
 }
+
+/* ===== Keyboard focus =====
+   Rows were div onClick with no tab stop; a keyboard user could not open a
+   course, a module or a paper. The text block of each row is the focusable
+   part, so the action buttons beside it are not nested inside a button. */
+.cur-tree-file-info:focus-visible,
+.cur-tree-file.cur-module-item:focus-visible,
+.curriculum-paper-info:focus-visible,
+.curriculum-paper-checkbox:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button.curriculum-paper-checkbox {
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}

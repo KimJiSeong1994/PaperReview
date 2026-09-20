@@ -189,7 +189,15 @@ export default function CourseSidebar({
         >
           <span className="cur-tree-guide-line" />
           <CourseFileIcon />
-          <div className="cur-tree-file-info">
+          {/* The text block is the keyboard target; the action buttons beside it stay siblings. */}
+          <div
+            className="cur-tree-file-info"
+            role="button"
+            tabIndex={0}
+            aria-label={`${course.name} 코스 열기`}
+            aria-current={isSelected ? 'true' : undefined}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCourse(course.id); } }}
+          >
             <div className="cur-tree-file-name">{course.name}</div>
             <div className="cur-tree-file-meta">
               <span className={`curriculum-badge ${course.difficulty}`}>
@@ -203,7 +211,7 @@ export default function CourseSidebar({
             {showFork && (
               <button
                 className="cur-tree-action-btn cur-fork-btn"
-                title="Fork to my curricula"
+                title="내 커리큘럼으로 포크" aria-label="내 커리큘럼으로 포크"
                 onClick={(e) => { e.stopPropagation(); onFork(course.id); }}
                 disabled={forking}
               >
@@ -214,7 +222,7 @@ export default function CourseSidebar({
               course.has_share ? (
                 <button
                   className="cur-tree-action-btn cur-share-btn active"
-                  title="Revoke share link"
+                  title="공유 링크 해제" aria-label="공유 링크 해제"
                   onClick={(e) => { e.stopPropagation(); onRevokeShare(course.id); }}
                 >
                   <UnshareIcon />
@@ -222,7 +230,7 @@ export default function CourseSidebar({
               ) : (
                 <button
                   className="cur-tree-action-btn cur-share-btn"
-                  title="Create share link"
+                  title="공유 링크 만들기" aria-label="공유 링크 만들기"
                   onClick={(e) => { e.stopPropagation(); onShare(course.id); }}
                 >
                   <ShareIcon />
@@ -232,7 +240,7 @@ export default function CourseSidebar({
             {!course.is_preset && (
               <button
                 className="cur-tree-action-btn cur-delete-btn"
-                title="Delete"
+                title="커리큘럼 삭제" aria-label="커리큘럼 삭제"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm('Delete this curriculum?')) onDelete(course.id);
@@ -253,7 +261,12 @@ export default function CourseSidebar({
                 <div
                   key={mod.id}
                   className={`cur-tree-file cur-module-item ${selectedModuleId === mod.id ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${mod.week}주차 ${mod.title} 모듈 열기`}
+                  aria-current={selectedModuleId === mod.id ? 'true' : undefined}
                   onClick={() => onSelectModule(mod.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectModule(mod.id); } }}
                 >
                   <span className="cur-tree-guide-line" />
                   <ModuleFileIcon />

@@ -48,8 +48,25 @@ describe('ChatPanel', () => {
 
   it('disables send button when input is empty', () => {
     render(<ChatPanel {...defaultProps} />);
-    const sendBtn = screen.getByLabelText('Send message');
+    const sendBtn = screen.getByLabelText('보내기');
     expect(sendBtn).toBeDisabled();
+  });
+
+  it('announces answer progress from a small status region, not the whole transcript', () => {
+    const { rerender } = render(<ChatPanel {...defaultProps} isStreaming={true} streamingContent="" />);
+    expect(screen.getByRole('status')).toHaveTextContent('답변 생성 중');
+    const transcript = document.querySelector('.mypage-chat-messages');
+    expect(transcript).not.toHaveAttribute('aria-live');
+    expect(transcript).not.toHaveAttribute('role');
+
+    rerender(<ChatPanel {...defaultProps} isStreaming={false}
+      messages={[{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }]} />);
+    expect(screen.getByRole('status')).toHaveTextContent('답변 완료');
+    expect(screen.getByLabelText('질문 입력')).toBeInTheDocument();
+
+    rerender(<ChatPanel {...defaultProps} isStreaming={false}
+      messages={[{ role: 'user', content: 'q' }, { role: 'assistant', content: 'Error: upstream timeout' }]} />);
+    expect(screen.getByRole('status')).toHaveTextContent('답변 실패');
   });
 
   it('shows typing indicator when streaming without content', () => {
