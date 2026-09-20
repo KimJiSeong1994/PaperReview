@@ -3503,54 +3503,6 @@
   margin-bottom: 12px;
 }
 
-/* ===== Direct Paper Viewer Sidebar ===== */
-.paper-viewer-direct-sidebar {
-  width: 280px;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-elev);
-  border-right: 1px solid var(--bg-elev);
-  border-radius: 12px 0 0 12px;
-}
-
-.paper-viewer-direct-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text-faint);
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.15s, color 0.15s;
-}
-
-.paper-viewer-direct-close:hover {
-  background: var(--wov-06);
-  color: var(--text-soft);
-}
-
-.paper-viewer-direct-info {
-  padding: 16px;
-}
-
-.paper-viewer-direct-info .paper-viewer-item-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-soft);
-  line-height: 1.5;
-  margin-bottom: 6px;
-}
-
-.paper-viewer-direct-info .paper-viewer-item-meta {
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
 /* Suspense fallback for lazy-loaded PaperViewerPanel */
 .paper-viewer-lazy-loading {
   flex: 1;

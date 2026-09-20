@@ -2,11 +2,20 @@ import { lazy, Suspense, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import SEOHead from './SEOHead';
+import { useAuth } from '../contexts/AuthContext';
 import './PaperViewerRoute.css';
 
 const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
 const SITE_URL = 'https://jiphyeonjeon.kr';
+
+// Where the reader came from; the viewer itself is the same for all of them.
+const SOURCE_KICKER: Record<string, string> = {
+  'blog-reference': '블로그 참고 논문',
+  search: '검색 결과',
+  recommendation: '추천 논문',
+  curriculum: '커리큘럼 논문',
+};
 
 function splitAuthors(value: string | null): string[] {
   return value
@@ -37,6 +46,9 @@ function normalizeUrl(value: string | null): string | undefined {
 export default function PaperViewerRoute() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  // Opened in a fresh tab there is nothing to go back to; closing is the honest control.
+  const hasHistory = window.history.length > 1;
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const paper = useMemo(() => {
@@ -70,20 +82,20 @@ export default function PaperViewerRoute() {
         robots="noindex,follow"
       />
       <header className="paper-viewer-route-header">
-        <button className="paper-viewer-route-back" onClick={() => navigate(-1)} type="button">
-          ← 돌아가기
+        <button className="paper-viewer-route-back" onClick={() => (hasHistory ? navigate(-1) : window.close())} type="button">
+          {hasHistory ? '← 돌아가기' : '✕ 닫기'}
         </button>
-        <Link className="paper-viewer-route-brand" to="/blog">
+        <Link className="paper-viewer-route-brand" to="/">
           <span className="paper-viewer-route-brand-mark">集</span>
           <span>Jiphyeonjeon Paper Viewer</span>
         </Link>
       </header>
 
       {paper ? (
-        <section className="paper-viewer-route-body" aria-label={`${paper.title} PDF viewer`}>
+        <section className="paper-viewer-route-body" aria-label={`${paper.title} PDF 뷰어`}>
           <div className="paper-viewer-route-titlebar">
             <div>
-              <p className="paper-viewer-route-kicker">Blog Reference PDF</p>
+              <p className="paper-viewer-route-kicker">{SOURCE_KICKER[paper.source] ?? '논문 PDF'}</p>
               <h1>{paper.title}</h1>
               {(paper.authors.length > 0 || paper.year) && (
                 <p className="paper-viewer-route-meta">
@@ -102,6 +114,7 @@ export default function PaperViewerRoute() {
                   loadingDetail={false}
                   hasSelectedBookmark={true}
                   autoSelectFirst={true}
+                  canAnnotate={isAuthenticated}
                 />
               </Suspense>
             </LazyLoadErrorBoundary>
@@ -110,8 +123,8 @@ export default function PaperViewerRoute() {
       ) : (
         <section className="paper-viewer-route-empty">
           <h1>논문 정보를 찾을 수 없습니다</h1>
-          <p>블로그의 PDF 보기 링크에 논문 제목 또는 PDF 정보가 포함되어 있는지 확인해 주세요.</p>
-          <Link to="/blog">블로그로 이동</Link>
+          <p>이 링크에 논문 제목이나 PDF 정보가 없습니다. 논문을 연 화면에서 다시 시도해 주세요.</p>
+          <Link to="/">홈으로</Link>
         </section>
       )}
     </main>

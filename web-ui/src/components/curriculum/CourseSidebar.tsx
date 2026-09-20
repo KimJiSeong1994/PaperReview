@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { DIFFICULTY_LABEL } from './labels';
 import type { CurriculumSummary } from './types';
 import type { CurriculumGenerateProgress } from '../../api/client';
 
@@ -201,10 +202,10 @@ export default function CourseSidebar({
             <div className="cur-tree-file-name">{course.name}</div>
             <div className="cur-tree-file-meta">
               <span className={`curriculum-badge ${course.difficulty}`}>
-                {course.difficulty}
+                {DIFFICULTY_LABEL[course.difficulty] ?? course.difficulty}
               </span>
-              <span>{course.total_modules} modules</span>
-              <span>{course.total_papers} papers</span>
+              <span>모듈 {course.total_modules}개</span>
+              <span>논문 {course.total_papers}편</span>
             </div>
           </div>
           <div className="cur-tree-file-actions">
@@ -243,7 +244,7 @@ export default function CourseSidebar({
                 title="커리큘럼 삭제" aria-label="커리큘럼 삭제"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('Delete this curriculum?')) onDelete(course.id);
+                  if (confirm('이 커리큘럼을 삭제할까요?')) onDelete(course.id);
                 }}
               >
                 <TrashIcon />
@@ -314,13 +315,13 @@ export default function CourseSidebar({
         <div className={`cur-tree-folder-row ${featuredOpen ? 'open' : ''}`} onClick={() => setFeaturedOpen(!featuredOpen)}>
           <ChevronIcon />
           <FolderIcon open={featuredOpen} />
-          <span className="cur-tree-folder-name">Featured Courses</span>
+          <span className="cur-tree-folder-name">추천 코스</span>
           <span className="cur-tree-folder-badge">{presetCourses.length}</span>
         </div>
         {featuredOpen && (
           <div className="cur-tree-children">
             {loadingCourses ? (
-              <div className="curriculum-loading">Loading...</div>
+              <div className="curriculum-loading">불러오는 중...</div>
             ) : presetCourses.length === 0 ? (
               <div className="cur-tree-empty">추천 코스가 없습니다</div>
             ) : (
@@ -335,7 +336,7 @@ export default function CourseSidebar({
         <div className={`cur-tree-folder-row ${myOpen ? 'open' : ''}`} onClick={() => setMyOpen(!myOpen)}>
           <ChevronIcon />
           <FolderIcon open={myOpen} />
-          <span className="cur-tree-folder-name">My Curricula</span>
+          <span className="cur-tree-folder-name">내 커리큘럼</span>
           <span className="cur-tree-folder-badge">{myCourses.length}</span>
         </div>
         {myOpen && (
@@ -358,7 +359,7 @@ export default function CourseSidebar({
           onClick={() => setShowGenerateModal(true)}
           disabled={generating}
         >
-          {generating ? 'Generating...' : '+ Custom Curriculum'}
+          {generating ? '생성 중...' : '+ 커리큘럼 만들기'}
         </button>
       </div>
 
@@ -371,7 +372,7 @@ export default function CourseSidebar({
       {showGenerateModal && (
         <div className="curriculum-generate-modal-overlay" onClick={() => !generating && setShowGenerateModal(false)}>
           <div className="curriculum-generate-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Generate Custom Curriculum</h3>
+            <h3>커리큘럼 만들기</h3>
 
             {(generating || (generateProgress && generateProgress.step === -1)) && generateProgress ? (
               <div className="curriculum-generate-progress-section">
@@ -382,19 +383,19 @@ export default function CourseSidebar({
                     </div>
                     <div className="curriculum-generate-modal-actions" style={{ marginTop: 12 }}>
                       <button className="curriculum-generate-cancel-btn" onClick={() => setShowGenerateModal(false)}>
-                        Close
+                        닫기
                       </button>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="curriculum-generate-step-label">
-                      Step {generateProgress.step}/4: {
-                        generateProgress.step_name === 'structure' ? 'Designing structure' :
-                        generateProgress.step_name === 'search' ? 'Searching papers' :
-                        generateProgress.step_name === 'assembly' ? 'Assembling curriculum' :
-                        generateProgress.step_name === 'review' ? 'Quality review & refinement' :
-                        'Preparing'
+                      {generateProgress.step}/4단계: {
+                        generateProgress.step_name === 'structure' ? '구조 설계' :
+                        generateProgress.step_name === 'search' ? '논문 검색' :
+                        generateProgress.step_name === 'assembly' ? '커리큘럼 구성' :
+                        generateProgress.step_name === 'review' ? '품질 검토와 다듬기' :
+                        '준비 중'
                       }
                     </div>
                     <div className="curriculum-progress-bar" style={{ marginTop: 8 }}>
@@ -415,7 +416,7 @@ export default function CourseSidebar({
                     )}
                     {generateProgress.detail?.reference_courses && (
                       <div className="curriculum-generate-progress-refs">
-                        <div className="curriculum-generate-progress-refs-label">Referenced courses:</div>
+                        <div className="curriculum-generate-progress-refs-label">참고한 강의:</div>
                         {generateProgress.detail.reference_courses.map((c: any, i: number) => (
                           <div key={i} className="curriculum-generate-progress-ref">
                             {c.university} {c.course_code}: {c.course_name}
@@ -428,21 +429,21 @@ export default function CourseSidebar({
               </div>
             ) : (
               <>
-                <label>Topic</label>
+                <label>주제</label>
                 <input
                   type="text"
-                  placeholder="e.g., Reinforcement Learning, Graph Neural Networks"
+                  placeholder="예: 강화학습, 그래프 신경망"
                   value={genTopic}
                   onChange={(e) => setGenTopic(e.target.value)}
                   autoFocus
                 />
-                <label>Difficulty</label>
+                <label>난이도</label>
                 <select value={genDifficulty} onChange={(e) => setGenDifficulty(e.target.value)}>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
+                  <option value="beginner">입문</option>
+                  <option value="intermediate">중급</option>
+                  <option value="advanced">고급</option>
                 </select>
-                <label>Number of Modules</label>
+                <label>모듈 수</label>
                 <input
                   type="number"
                   min={2}
@@ -459,36 +460,36 @@ export default function CourseSidebar({
                     style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                  Advanced Options
+                  고급 옵션
                 </div>
                 {showAdvanced && (
                   <div className="curriculum-generate-advanced-body">
-                    <label>Learning Goals (optional)</label>
+                    <label>학습 목표 (선택)</label>
                     <textarea
-                      placeholder="e.g., Understand GNN architectures and implement them in PyTorch"
+                      placeholder="예: GNN 구조를 이해하고 PyTorch로 구현하기"
                       value={genGoals}
                       onChange={(e) => setGenGoals(e.target.value)}
                       rows={2}
                     />
-                    <label>Paper Preference</label>
+                    <label>논문 선호</label>
                     <select value={genPaperPref} onChange={(e) => setGenPaperPref(e.target.value)}>
-                      <option value="balanced">Balanced (default)</option>
-                      <option value="survey_heavy">Survey / Tutorial focused</option>
-                      <option value="cutting_edge">Cutting-edge research (2022+)</option>
+                      <option value="balanced">균형 (기본)</option>
+                      <option value="survey_heavy">서베이·튜토리얼 위주</option>
+                      <option value="cutting_edge">최신 연구 (2022년 이후)</option>
                     </select>
                   </div>
                 )}
 
                 <div className="curriculum-generate-modal-actions">
                   <button className="curriculum-generate-cancel-btn" onClick={() => setShowGenerateModal(false)}>
-                    Cancel
+                    취소
                   </button>
                   <button
                     className="curriculum-generate-submit-btn"
                     onClick={handleSubmitGenerate}
                     disabled={!genTopic.trim() || generating}
                   >
-                    Generate
+                    만들기
                   </button>
                 </div>
               </>

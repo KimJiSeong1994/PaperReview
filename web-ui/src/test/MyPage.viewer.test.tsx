@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import MyPage from '../components/MyPage';
 
@@ -15,7 +15,6 @@ const hl = { initFromDetail: vi.fn(), setHighlightPopover: vi.fn(), userHighligh
 const chat = { highlightTerms: [], setHighlightTerms: vi.fn(), scrollToHighlight: false, setScrollToHighlight: vi.fn(), messages: [] };
 const cur = { loadingCourse: false, presetCourses: [], myCourses: [], readPapers: new Set<string>() };
 const reportSpy = vi.hoisted(() => vi.fn());
-const viewerSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('../hooks/useBookmarks', () => ({ useBookmarks: () => bm }));
 vi.mock('../hooks/useHighlights', () => ({ useHighlights: () => hl }));
@@ -27,9 +26,7 @@ vi.mock('../components/mypage/ReportViewer', () => ({
   default: (props: Record<string, unknown>) => { reportSpy(props); return <div data-testid="report" />; },
 }));
 vi.mock('../components/mypage/ChatPanel', () => ({ default: () => <div data-testid="chat" /> }));
-vi.mock('../components/mypage/PaperViewerPanel', () => ({
-  default: (props: Record<string, unknown>) => { viewerSpy(props); return <div data-testid="viewer" />; },
-}));
+vi.mock('../components/mypage/PaperViewerPanel', () => ({ default: () => <div data-testid="viewer" /> }));
 vi.mock('../components/curriculum/CourseSidebar', () => ({ default: () => <div data-testid="courses" /> }));
 vi.mock('../components/curriculum/ModuleView', () => ({ default: () => null }));
 vi.mock('../components/curriculum/CurriculumDetailPanel', () => ({
@@ -42,7 +39,7 @@ vi.mock('../components/RecommendationBell', () => ({ default: () => null }));
 
 function Probe() {
   const location = useLocation();
-  return <output data-testid="probe">{location.search}|{location.state === null ? 'null' : 'state'}</output>;
+  return <output data-testid="probe">{location.pathname}{location.search}|{location.state === null ? 'null' : 'state'}</output>;
 }
 
 const renderAt = (entry: string | { pathname: string; state: unknown }) => render(
@@ -55,22 +52,14 @@ const renderAt = (entry: string | { pathname: string; state: unknown }) => rende
 beforeEach(() => vi.clearAllMocks());
 
 describe('MyPage tab wiring', () => {
-  it('arriving with a paper in router state lands on the PDF tab, records it in the URL and drops the state', async () => {
-    renderAt({ pathname: '/mypage', state: { viewPaper: { title: 'T', authors: [] } } });
-    await screen.findByTestId('viewer');
-    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('?tab=papers|null'));
-    expect(screen.getByText('T')).toBeInTheDocument();
-    // Opened once: the effect re-runs after it writes the URL, and must not build a second paper.
-    const details = new Set(viewerSpy.mock.calls.map((call) => (call[0] as { bookmarkDetail: unknown }).bookmarkDetail));
-    expect(details.size).toBe(1);
-  });
-
-  it("the curriculum's View Paper goes through the URL too", async () => {
+  it("the curriculum's View Paper opens the standalone viewer in its own tab, leaving this page as it is", async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     renderAt('/mypage?tab=curriculum');
     fireEvent.click(await screen.findByRole('button', { name: 'View Paper' }));
-    await screen.findByTestId('viewer');
-    expect(screen.getByTestId('probe')).toHaveTextContent('?tab=papers|null');
-    expect(screen.getByText('Attention Is All You Need')).toBeInTheDocument();
+    expect(open).toHaveBeenCalledWith('/paper-viewer?title=Attention+Is+All+You+Need&authors=Vaswani&source=curriculum', '_blank', 'noopener,noreferrer');
+    expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=curriculum|null');
+    expect(screen.getByTestId('courses')).toBeInTheDocument();
+    open.mockRestore();
   });
 
   it('the PDF tab drops the chat row from the content grid; the bookmarks tab keeps it', async () => {
@@ -99,7 +88,7 @@ describe('MyPage tab wiring', () => {
     await screen.findByTestId('viewer');
     expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: '논문 PDF' })).toHaveFocus();
-    expect(screen.getByTestId('probe')).toHaveTextContent('?tab=papers|');
+    expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=papers|');
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'End' });
     await screen.findByTestId('courses');
@@ -114,7 +103,7 @@ describe('MyPage tab wiring', () => {
     fireEvent.keyDown(screen.getByRole('tab', { name: '논문 PDF' }), { key: 'ArrowLeft' });
     await screen.findByTestId('report');
     expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('probe')).toHaveTextContent(/^\|/);
+    expect(screen.getByTestId('probe')).toHaveTextContent(/^\/mypage\|/);
 
     fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowLeft' });
     await screen.findByTestId('courses');

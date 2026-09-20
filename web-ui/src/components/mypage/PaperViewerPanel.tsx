@@ -35,6 +35,8 @@ export interface PaperViewerPanelProps {
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   autoSelectFirst?: boolean;
+  /** Auto-highlight and formula explanations call endpoints that need a user. */
+  canAnnotate?: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -187,6 +189,7 @@ export default function PaperViewerPanel({
   loadingDetail,
   hasSelectedBookmark,
   autoSelectFirst = false,
+  canAnnotate = true,
 }: PaperViewerPanelProps) {
   const papers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
 
@@ -716,6 +719,18 @@ export default function PaperViewerPanel({
         const context = (contextBefore.trim() + ' ' + formulaText + ' ' + contextAfter.trim()).trim();
         const paperTitle = selectedPaper?.title || '';
 
+        // The explanation endpoint needs a user; say so instead of a silent 401.
+        if (!canAnnotate) {
+          setMathPopover({
+            x: rect.left + rect.width / 2,
+            y: rect.bottom + 8,
+            loading: false,
+            formulaText,
+            explanation: { explanation: '수식 설명은 로그인 후 볼 수 있습니다.', variables: [], formula_type: 'other' },
+          });
+          return;
+        }
+
         setMathPopover({
           x: rect.left + rect.width / 2,
           y: rect.bottom + 8,
@@ -733,7 +748,7 @@ export default function PaperViewerPanel({
               ...prev,
               loading: false,
               explanation: {
-                explanation: 'Failed to analyze formula. Please try again.',
+                explanation: '수식을 분석하지 못했습니다. 다시 시도해 주세요.',
                 variables: [],
                 formula_type: 'other',
               },
@@ -760,7 +775,7 @@ export default function PaperViewerPanel({
 
   const handleDocumentLoadError = useCallback((err: Error) => {
     setPdfLoading(false);
-    setPdfError(err.message || 'Failed to load PDF.');
+    setPdfError(err.message || 'PDF를 불러오지 못했습니다.');
   }, []);
 
   const scrollToPage = useCallback((page: number) => {
@@ -863,8 +878,8 @@ export default function PaperViewerPanel({
       <div className="paper-viewer-no-pdf">
         <span className="paper-viewer-no-pdf-icon"><IconAlertCircle /></span>
         <div>
-          <div className="paper-viewer-no-pdf-title">PDF not available</div>
-          <div className="paper-viewer-no-pdf-desc">Open access PDF could not be found for this paper.</div>
+          <div className="paper-viewer-no-pdf-title">PDF 없음</div>
+          <div className="paper-viewer-no-pdf-desc">이 논문의 오픈 액세스 PDF를 찾지 못했습니다.</div>
         </div>
         {readerUrl && (
           <a
@@ -873,7 +888,7 @@ export default function PaperViewerPanel({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <IconBookOpen /> Open in Semantic Reader
+            <IconBookOpen /> Semantic Reader에서 열기
           </a>
         )}
         {externalUrl && (
@@ -883,7 +898,7 @@ export default function PaperViewerPanel({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <IconExternalLink /> View Paper
+            <IconExternalLink /> 원문 보기
           </a>
         )}
       </div>
@@ -908,7 +923,7 @@ export default function PaperViewerPanel({
         return (
           <div className="paper-viewer-loading">
             <div className="paper-viewer-spinner" />
-            <span>Searching for PDF...</span>
+            <span>PDF 찾는 중...</span>
           </div>
         );
       }
@@ -931,7 +946,7 @@ export default function PaperViewerPanel({
             loading={
               <div className="paper-viewer-loading">
                 <div className="paper-viewer-spinner" />
-                <span>Loading PDF...</span>
+                <span>PDF 불러오는 중...</span>
               </div>
             }
             error={
@@ -939,7 +954,7 @@ export default function PaperViewerPanel({
                 <span className="paper-viewer-error-icon">
                   <IconAlertCircle />
                 </span>
-                <span>{pdfError ?? 'Failed to load PDF.'}</span>
+                <span>{pdfError ?? 'PDF를 불러오지 못했습니다.'}</span>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                   <button
                     className="paper-viewer-error-retry"
@@ -949,7 +964,7 @@ export default function PaperViewerPanel({
                       setDocumentKey(k => k + 1);
                     }}
                   >
-                    Retry
+                    다시 시도
                   </button>
                   {selectedPaper && paperExternalUrl(selectedPaper) && (
                     <a
@@ -959,7 +974,7 @@ export default function PaperViewerPanel({
                       rel="noopener noreferrer"
                       style={{ textDecoration: 'none' }}
                     >
-                      View Paper
+                      원문 보기
                     </a>
                   )}
                 </div>
@@ -1004,7 +1019,7 @@ export default function PaperViewerPanel({
           {pdfLoading && numPages === null && (
             <div className="paper-viewer-loading">
               <div className="paper-viewer-spinner" />
-              <span>Loading PDF...</span>
+              <span>PDF 불러오는 중...</span>
             </div>
           )}
         </div>
@@ -1079,27 +1094,27 @@ export default function PaperViewerPanel({
             onClick={handleFitWidth}
           >
             <IconFitWidth />
-            Fit width
+            너비 맞춤
           </button>
 
-          <div className="paper-viewer-toolbar-sep" />
+          {canAnnotate && <div className="paper-viewer-toolbar-sep" />}
 
-          {/* PDF overlay highlight button — works without bookmark */}
-          <button
+          {/* PDF overlay highlight button — works without bookmark, not without a user */}
+          {canAnnotate && <button
             className={`paper-viewer-fit-btn paper-viewer-pdf-hl-btn${pdfHighlights.length > 0 ? ' active' : ''}`}
             title="PDF의 핵심 문장을 자동으로 표시합니다"
             onClick={handleAutoHighlightPdf}
             disabled={highlightingPdf || !pdfDocRef.current}
           >
             {highlightingPdf ? (
-              <><span className="paper-viewer-resolve-spinner" /> Highlighting...</>
+              <><span className="paper-viewer-resolve-spinner" /> 하이라이트 중...</>
             ) : (
               <>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg>
-                {pdfHighlights.length > 0 ? `Highlights (${pdfHighlights.length})` : 'Auto Highlight'}
+                {pdfHighlights.length > 0 ? `하이라이트 (${pdfHighlights.length})` : '자동 하이라이트'}
               </>
             )}
-          </button>
+          </button>}
 
           <div className="paper-viewer-toolbar-spacer" />
         </div>
@@ -1116,12 +1131,12 @@ export default function PaperViewerPanel({
           {resolving && (
             <span className="paper-viewer-resolve-status">
               <span className="paper-viewer-resolve-spinner" />
-              Searching PDFs...
+              PDF 찾는 중...
             </span>
           )}
           {!resolving && resolveProgress && (
             <span className="paper-viewer-resolve-done">
-              {resolveProgress.done}/{resolveProgress.total} found
+              {resolveProgress.total}편 중 {resolveProgress.done}편 찾음
             </span>
           )}
         </div>
@@ -1148,7 +1163,7 @@ export default function PaperViewerPanel({
                   title={paper.title}
                 >
                   {hasPdf && (
-                    <span className="paper-viewer-item-pdf-icon" title="PDF available">
+                    <span className="paper-viewer-item-pdf-icon" title="PDF 있음">
                       <IconFilePdf />
                     </span>
                   )}
@@ -1182,12 +1197,12 @@ export default function PaperViewerPanel({
               )}
               {hlPopover.hl.strength_or_weakness && (
                 <span className={`mypage-hl-badge mypage-hl-badge-${hlPopover.hl.strength_or_weakness}`}>
-                  {hlPopover.hl.strength_or_weakness === 'strength' ? 'Strength' : 'Weakness'}
+                  {hlPopover.hl.strength_or_weakness === 'strength' ? '강점' : '약점'}
                 </span>
               )}
               {hlPopover.hl.confidence_level && (
                 <span className="mypage-hl-badge mypage-hl-badge-confidence">
-                  Confidence {hlPopover.hl.confidence_level}/5
+                  확신도 {hlPopover.hl.confidence_level}/5
                 </span>
               )}
             </div>
@@ -1195,13 +1210,13 @@ export default function PaperViewerPanel({
           {hlPopover.hl.memo && <div className="mypage-hl-popover-memo">{hlPopover.hl.memo}</div>}
           {hlPopover.hl.question_for_authors && (
             <div className="mypage-hl-popover-question">
-              <span className="mypage-hl-popover-question-label">Question for Authors</span>
+              <span className="mypage-hl-popover-question-label">저자에게 묻는 질문</span>
               {hlPopover.hl.question_for_authors}
             </div>
           )}
           {hlPopover.hl.implication && (
             <div className="mypage-hl-popover-implication">
-              <span className="mypage-hl-popover-implication-label">Implication</span>
+              <span className="mypage-hl-popover-implication-label">시사점</span>
               {hlPopover.hl.implication}
             </div>
           )}
@@ -1214,20 +1229,20 @@ export default function PaperViewerPanel({
           <button className="mypage-hl-popover-close" onClick={() => setMathPopover(null)}>&times;</button>
           <div className="mypage-hl-popover-badges">
             <span className="mypage-hl-badge mypage-hl-badge-strength">
-              {mathPopover.explanation?.formula_type || 'Formula'}
+              {mathPopover.explanation?.formula_type || '수식'}
             </span>
           </div>
           {mathPopover.loading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-faint)', fontSize: 12 }}>
               <span className="paper-viewer-resolve-spinner" />
-              Analyzing formula...
+              수식 분석 중...
             </div>
           ) : mathPopover.explanation ? (
             <>
               <div className="mypage-hl-popover-memo">{mathPopover.explanation.explanation}</div>
               {mathPopover.explanation.variables.length > 0 && (
                 <div className="mypage-hl-popover-question">
-                  <span className="mypage-hl-popover-question-label">Variables</span>
+                  <span className="mypage-hl-popover-question-label">변수</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {mathPopover.explanation.variables.map((v, i) => (
                       <span key={i} style={{ fontSize: 11 }}>

@@ -21,6 +21,7 @@ import { useDeepReview } from '../hooks/useDeepReview';
 import { useAuth } from '../contexts/AuthContext';
 import { generateApaCitation } from '../utils/citation';
 import { copyToClipboard } from '../utils/clipboard';
+import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
 import {
   trackBookmarkSave,
   trackDeepReviewComplete,
@@ -1108,13 +1109,9 @@ function SearchPage() {
                 {selectedPaper ? (
                   <DetailPanel
                     paper={selectedPaper}
-                    onViewPaper={(paper) => {
-                      if (!isAuthenticated) {
-                        setShowLoginModal(true);
-                        return;
-                      }
-                      navigate('/mypage', { state: { viewPaper: paper } });
-                    }}
+                    // The standalone viewer route is public (the blog links readers to it),
+                    // so opening a PDF no longer needs an account the way MyPage did.
+                    onViewPaper={(paper) => openPaperViewer(viewerHrefForPaper(paper, 'search'))}
                   />
                 ) : (
                   <div className="no-selection">논문을 선택하세요</div>

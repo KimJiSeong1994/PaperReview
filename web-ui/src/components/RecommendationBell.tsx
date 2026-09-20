@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
 import {
   fetchRecommendationNotifications,
   type RecommendationNotification,
@@ -157,7 +158,7 @@ export default function RecommendationBell() {
 
   const handleViewPdf = (item: RecommendationPaperNotification) => {
     setOpen(false);
-    navigate('/mypage', { state: { viewPaper: toViewerPaper(item) } });
+    openPaperViewer(viewerHrefForPaper(toViewerPaper(item), 'recommendation'));
   };
 
   const handleSearchPaper = (item: RecommendationPaperNotification) => {
