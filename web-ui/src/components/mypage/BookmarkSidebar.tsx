@@ -299,17 +299,17 @@ export default function BookmarkSidebar({
       {selectedIds.size > 0 && (
         <div className="mypage-bulk-bar">
           <div className="mypage-bulk-info">
-            <span className="mypage-bulk-count">{selectedIds.size} selected</span>
-            <button className="mypage-bulk-text-btn" onClick={onSelectAll}>All</button>
-            <button className="mypage-bulk-text-btn" onClick={onDeselectAll}>None</button>
+            <span className="mypage-bulk-count">{selectedIds.size}개 선택</span>
+            <button className="mypage-bulk-text-btn" onClick={onSelectAll}>전체</button>
+            <button className="mypage-bulk-text-btn" onClick={onDeselectAll}>해제</button>
           </div>
           <div className="mypage-bulk-actions">
             <select className="mypage-bulk-move-select" defaultValue=""
               onChange={(e) => { if (e.target.value) { onBulkMove(e.target.value); e.target.value = ''; } }}>
-              <option value="" disabled>Move to...</option>
+              <option value="" disabled>주제로 이동...</option>
               {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <button className="mypage-bulk-delete-btn" onClick={onBulkDelete} aria-label="선택한 북마크 삭제">Delete</button>
+            <button className="mypage-bulk-delete-btn" onClick={onBulkDelete} aria-label="선택한 북마크 삭제">삭제</button>
           </div>
         </div>
       )}
@@ -391,18 +391,18 @@ export default function BookmarkSidebar({
           <div className="mypage-add-topic-section">
             {showNewTopicInput ? (
               <div className="mypage-add-topic-form">
-                <input type="text" placeholder="Topic name..." value={newTopicInput}
+                <input type="text" placeholder="주제 이름..." value={newTopicInput}
                   onChange={(e) => setNewTopicInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') onAddTopic();
                     if (e.key === 'Escape') { setShowNewTopicInput(false); setNewTopicInput(''); }
                   }}
                   className="mypage-add-topic-input" autoFocus />
-                <button className="mypage-add-topic-confirm" onClick={onAddTopic} disabled={!newTopicInput.trim()}>Add</button>
-                <button className="mypage-add-topic-cancel" onClick={() => { setShowNewTopicInput(false); setNewTopicInput(''); }}>✕</button>
+                <button className="mypage-add-topic-confirm" onClick={onAddTopic} disabled={!newTopicInput.trim()}>추가</button>
+                <button className="mypage-add-topic-cancel" onClick={() => { setShowNewTopicInput(false); setNewTopicInput(''); }} aria-label="취소">✕</button>
               </div>
             ) : (
-              <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>New Topic</button>
+              <button className="mypage-add-topic-btn" onClick={() => setShowNewTopicInput(true)}>새 주제</button>
             )}
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
@@ -72,7 +73,6 @@ export function paramsWithBookmark(prev: URLSearchParams, id: string): URLSearch
 
 function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   // Read once, on mount: the URL seeds the tab, and after that the tab writes
   // to the URL. Reading it on every render instead would fight the writes.
@@ -99,45 +99,6 @@ function MyPage({ onBack }: MyPageProps) {
     document.getElementById(`mypage-tab-${next}`)?.focus();
   };
 
-  // Direct paper view from search results (via router state)
-  const [directPaper, setDirectPaper] = useState<any>(null);
-
-  // Latched on the state object, like restoredFromUrl below: this effect writes
-  // the URL it watches, so it must act once per arrival and never on its own
-  // re-run. A later arrival carries a new object and passes the latch again.
-  const openedFromState = useRef<unknown>(null);
-  useEffect(() => {
-    const state = location.state as { viewPaper?: any } | null;
-    if (state?.viewPaper && openedFromState.current !== state.viewPaper) {
-      openedFromState.current = state.viewPaper;
-      setDirectPaper(state.viewPaper);
-      // Through changeTab so the address bar says tab=papers; its replace
-      // navigation carries no state, so a reload does not reopen the paper.
-      changeTab('papers');
-      return;
-    }
-
-    if (location.pathname === '/paper-viewer') {
-      const params = new URLSearchParams(location.search);
-      const title = params.get('title')?.trim();
-      if (!title) return;
-      const authors = params.get('authors')
-        ?.split(';')
-        .map((author) => author.trim())
-        .filter(Boolean) ?? [];
-      const yearParam = params.get('year');
-      const year = yearParam ? Number(yearParam) : undefined;
-      setDirectPaper({
-        title,
-        authors,
-        year: Number.isFinite(year) ? year : undefined,
-        pdf_url: params.get('pdf_url') || undefined,
-        doi: params.get('doi') || undefined,
-        arxiv_id: params.get('arxiv_id') || undefined,
-      });
-      setActiveTab('papers');
-    }
-  }, [location.pathname, location.search, location.state, changeTab]);
 
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
@@ -336,51 +297,7 @@ function MyPage({ onBack }: MyPageProps) {
       {/* Tab content */}
       {activeTab === 'papers' ? (
         <div className="mypage-content mypage-content--viewer" role="tabpanel" id="mypage-panel-papers" aria-labelledby="mypage-tab-papers">
-          {directPaper ? (
-            <>
-              <div className="paper-viewer-direct-sidebar">
-                <div className="paper-viewer-list-header">
-                  <span>Search Result</span>
-                  <button
-                    className="paper-viewer-direct-close"
-                    onClick={() => setDirectPaper(null)}
-                    title="Close and return to bookmarks"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="paper-viewer-direct-info">
-                  <div className="paper-viewer-item-title">{directPaper.title}</div>
-                  <div className="paper-viewer-item-meta">
-                    {directPaper.authors?.slice(0, 2).join(', ')}{directPaper.authors?.length > 2 ? ' et al.' : ''}
-                    {directPaper.year ? ` · ${directPaper.year}` : ''}
-                  </div>
-                </div>
-              </div>
-              <LazyLoadErrorBoundary>
-                <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
-                  <PaperViewerPanel
-                    bookmarkDetail={{ papers: [{
-                      title: directPaper.title,
-                      authors: directPaper.authors || [],
-                      year: directPaper.year,
-                      pdf_url: directPaper.pdf_url || undefined,
-                      doi: directPaper.doi || undefined,
-                      arxiv_id: directPaper.arxiv_id || undefined,
-                      url: directPaper.url || undefined,
-                      source: directPaper.source || undefined,
-                    }]}}
-                    loadingDetail={false}
-                    hasSelectedBookmark={true}
-                    autoSelectFirst={true}
-                  />
-                </Suspense>
-              </LazyLoadErrorBoundary>
-            </>
-          ) : (
-            <>
+          <>
               {bookmarkSidebar}
               <LazyLoadErrorBoundary>
                 <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
@@ -391,8 +308,7 @@ function MyPage({ onBack }: MyPageProps) {
                   />
                 </Suspense>
               </LazyLoadErrorBoundary>
-            </>
-          )}
+          </>
         </div>
       ) : activeTab === 'bookmarks' ? (
         <div className="mypage-content" role="tabpanel" id="mypage-panel-bookmarks" aria-labelledby="mypage-tab-bookmarks">
@@ -522,10 +438,7 @@ function MyPage({ onBack }: MyPageProps) {
             paper={cur.selectedPaper}
             courseDetail={cur.courseDetail}
             onSearchPaper={cur.handleSearchPaper}
-            onViewPaper={(paper) => {
-              setDirectPaper({ title: paper.title, authors: paper.authors, year: paper.year, doi: paper.doi, arxiv_id: paper.arxiv_id });
-              changeTab('papers');
-            }}
+            onViewPaper={(paper) => openPaperViewer(viewerHrefForPaper(paper, 'curriculum'))}
             onDeepReview={cur.handleDeepReviewPaper}
             reviewStatus={cur.reviewStatus}
             reviewProgress={cur.reviewProgress}

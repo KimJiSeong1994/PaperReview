@@ -1,4 +1,5 @@
 import type { CurriculumPaper, CurriculumCourse } from './types';
+import { CATEGORY_LABEL } from './labels';
 
 interface CurriculumDetailPanelProps {
   paper: CurriculumPaper | null;
@@ -98,12 +99,12 @@ export default function CurriculumDetailPanel({
               className="curriculum-detail-action-btn"
               style={{ marginBottom: 16 }}
             >
-              Visit Course Website
+              강의 웹사이트 열기
             </a>
           )}
           {courseDetail.prerequisites.length > 0 && (
             <div className="curriculum-detail-prereqs">
-              <h4>Prerequisites</h4>
+              <h4>선수 지식</h4>
               <ul>
                 {courseDetail.prerequisites.map((p, i) => (
                   <li key={i}>{p}</li>
@@ -133,11 +134,11 @@ export default function CurriculumDetailPanel({
       </div>
 
       <span className={`curriculum-category-badge ${paper.category}`} style={{ marginBottom: 16, display: 'inline-block' }}>
-        {paper.category}
+        {CATEGORY_LABEL[paper.category] ?? paper.category}
       </span>
 
       <div className="curriculum-detail-context-box">
-        <div className="curriculum-detail-context-label">Why This Paper Matters</div>
+        <div className="curriculum-detail-context-label">이 논문이 중요한 이유</div>
         <div className="curriculum-detail-context-text">{paper.context}</div>
       </div>
 
@@ -147,7 +148,7 @@ export default function CurriculumDetailPanel({
           onClick={() => onSearchPaper(paper)}
         >
           <SearchIcon />
-          Search in Jiphyeonjeon
+          집현전에서 검색
         </button>
         {onViewPaper ? (
           <button
@@ -155,7 +156,7 @@ export default function CurriculumDetailPanel({
             onClick={() => onViewPaper(paper)}
           >
             {paper.arxiv_id ? <ArxivIcon /> : <DoiIcon />}
-            View Paper
+            논문 보기
           </button>
         ) : (paper.arxiv_id || paper.doi) && (
           <a
@@ -165,7 +166,7 @@ export default function CurriculumDetailPanel({
             className="curriculum-detail-action-btn"
           >
             {paper.arxiv_id ? <ArxivIcon /> : <DoiIcon />}
-            View Paper
+            논문 보기
           </a>
         )}
         {onDeepReview && (
@@ -179,19 +180,19 @@ export default function CurriculumDetailPanel({
             {isReviewingThis && !isModuleReview && reviewStatus === 'processing' ? (
               <>
                 <div className="curriculum-btn-spinner" />
-                Analyzing...
+                분석 중...
               </>
             ) : isReviewingThis && !isModuleReview && reviewStatus === 'completed' ? (
               <>
                 <CheckIcon />
-                Saved to Bookmarks!
+                북마크에 저장됨
               </>
             ) : isReviewingThis && !isModuleReview && reviewStatus === 'failed' ? (
-              'Failed'
+              '실패'
             ) : (
               <>
                 <DeepReviewIcon />
-                Deep Research &amp; Bookmark
+                딥리뷰 후 북마크
               </>
             )}
           </button>
@@ -216,7 +217,7 @@ export default function CurriculumDetailPanel({
       {isModuleReview && reviewStatus === 'completed' && (
         <div className="curriculum-review-progress" style={{ color: '#22c55e' }}>
           <CheckIcon />
-          <span>All papers saved to Bookmarks!</span>
+          <span>모든 논문을 북마크에 저장했습니다</span>
         </div>
       )}
     </div>

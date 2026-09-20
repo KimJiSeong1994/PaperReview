@@ -105,7 +105,9 @@ export function blogSeoMeta(
   return { title: `${base} | Jiphyeonjeon Blog`, description: excerpt };
 }
 
-export function buildPaperViewerHref(ref: BlogPaperReference): string {
+export type PaperViewerSource = 'blog-reference' | 'search' | 'recommendation' | 'curriculum';
+
+export function buildPaperViewerHref(ref: BlogPaperReference, source: PaperViewerSource = 'blog-reference'): string {
   const params = new URLSearchParams();
   params.set('title', ref.title);
   if (ref.authors.length > 0) params.set('authors', ref.authors.join(';'));
@@ -114,6 +116,35 @@ export function buildPaperViewerHref(ref: BlogPaperReference): string {
   if (ref.doi) params.set('doi', ref.doi);
   if (ref.arxiv_id) params.set('arxiv_id', ref.arxiv_id);
   if (ref.url) params.set('url', ref.url);
-  params.set('source', 'blog-reference');
+  params.set('source', source);
   return `/paper-viewer?${params.toString()}`;
+}
+
+/**
+ * The viewer route opens in its own tab: search results, a curriculum's open
+ * course and MyPage's selection all live in component state, and navigating
+ * away would throw them out.
+ */
+export function openPaperViewer(href: string): void {
+  window.open(href, '_blank', 'noopener,noreferrer');
+}
+
+/**
+ * Search results, recommendations and curriculum papers carry looser shapes
+ * (year as a string, optional authors); this narrows them to the viewer's.
+ */
+export function viewerHrefForPaper(
+  paper: { title: string; authors?: string[]; year?: number | string | null; arxiv_id?: string | null; doi?: string | null; url?: string | null; pdf_url?: string | null },
+  source: PaperViewerSource,
+): string {
+  const year = paper.year == null || paper.year === '' ? undefined : Number(paper.year);
+  return buildPaperViewerHref({
+    title: paper.title,
+    authors: paper.authors ?? [],
+    year: Number.isFinite(year) ? year : undefined,
+    arxiv_id: paper.arxiv_id || undefined,
+    doi: paper.doi || undefined,
+    url: paper.url || undefined,
+    pdf_url: paper.pdf_url || undefined,
+  }, source);
 }

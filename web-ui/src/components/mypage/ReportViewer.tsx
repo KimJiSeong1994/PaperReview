@@ -195,7 +195,7 @@ export default function ReportViewer({
   if (loadingDetail) {
     return (
       <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
-        <div className="mypage-loading" style={{ padding: '40px' }}>Loading...</div>
+        <div className="mypage-loading" style={{ padding: '40px' }}>불러오는 중...</div>
       </div>
     );
   }
@@ -366,13 +366,13 @@ export default function ReportViewer({
           className={`mypage-report-tab ${activeTab === 'report' ? 'active' : ''}`}
           onClick={() => setActiveTab('report')}
         >
-          Report
+          리포트
         </button>
         <button
           className={`mypage-report-tab ${activeTab === 'further-reading' ? 'active' : ''}`}
           onClick={() => setActiveTab('further-reading')}
         >
-          Further Reading
+          관련 논문
           {citationTreeData && (
             <span className="mypage-report-tab-badge">{citationTreeData.nodes.length}</span>
           )}
@@ -396,7 +396,7 @@ export default function ReportViewer({
                 <svg className="mypage-papers-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
                   <path d="M6 4l4 4-4 4z" />
                 </svg>
-                <span>Papers ({bookmarkDetail.papers.length})</span>
+                <span>논문 ({bookmarkDetail.papers.length})</span>
               </div>
               {!papersCollapsed && (
                 <div className="mypage-detail-papers">
@@ -416,7 +416,7 @@ export default function ReportViewer({
           {/* Report markdown */}
           {bookmarkDetail.report_markdown && (
             <div className="mypage-report-section">
-              <h3 className="mypage-report-section-title">Report</h3>
+              <h3 className="mypage-report-section-title">리포트</h3>
               <TableOfContents
                 postKey={bookmarkDetail.id ?? bookmarkDetail.title ?? ''}
                 containerSelector=".mypage-report-content"
@@ -464,12 +464,12 @@ export default function ReportViewer({
                 <div className="mypage-hl-popover-badges">
                   {highlightPopover.hl.strength_or_weakness && (
                     <span className={`mypage-hl-badge mypage-hl-badge-${highlightPopover.hl.strength_or_weakness}`}>
-                      {highlightPopover.hl.strength_or_weakness === 'strength' ? 'Strength' : 'Weakness'}
+                      {highlightPopover.hl.strength_or_weakness === 'strength' ? '강점' : '약점'}
                     </span>
                   )}
                   {highlightPopover.hl.confidence_level && (
-                    <span className="mypage-hl-badge mypage-hl-badge-confidence" title="Reviewer confidence level">
-                      Confidence {highlightPopover.hl.confidence_level}/5
+                    <span className="mypage-hl-badge mypage-hl-badge-confidence" title="리뷰어 확신도">
+                      확신도 {highlightPopover.hl.confidence_level}/5
                     </span>
                   )}
                 </div>
@@ -477,13 +477,13 @@ export default function ReportViewer({
               {highlightPopover.hl.memo && <div className="mypage-hl-popover-memo">{highlightPopover.hl.memo}</div>}
               {highlightPopover.hl.question_for_authors && (
                 <div className="mypage-hl-popover-question">
-                  <span className="mypage-hl-popover-question-label">Question for Authors</span>
+                  <span className="mypage-hl-popover-question-label">저자에게 묻는 질문</span>
                   {highlightPopover.hl.question_for_authors}
                 </div>
               )}
               {highlightPopover.hl.implication && (
                 <div className="mypage-hl-popover-implication">
-                  <span className="mypage-hl-popover-implication-label">Implication</span>
+                  <span className="mypage-hl-popover-implication-label">시사점</span>
                   {highlightPopover.hl.implication}
                 </div>
               )}
@@ -496,10 +496,10 @@ export default function ReportViewer({
               <svg className="mypage-notes-chevron" viewBox="0 0 16 16" fill="currentColor" width="10" height="10">
                 <path d="M6 4l4 4-4 4z" />
               </svg>
-              <span>Notes & Highlights</span>
-              {notesSaving && <span className="mypage-notes-saving">Saving...</span>}
-              {saveStatus === 'saved' && <span className="mypage-notes-saved">Saved!</span>}
-              {saveStatus === 'error' && <span className="mypage-notes-error">Failed to save</span>}
+              <span>메모와 하이라이트</span>
+              {notesSaving && <span className="mypage-notes-saving">저장 중...</span>}
+              {saveStatus === 'saved' && <span className="mypage-notes-saved">저장됨</span>}
+              {saveStatus === 'error' && <span className="mypage-notes-error">저장 실패</span>}
               {userHighlights.length > 0 && (
                 <span className="mypage-notes-badge">{userHighlights.length}</span>
               )}
@@ -507,8 +507,8 @@ export default function ReportViewer({
                 <button
                   className="mypage-clear-highlights-btn"
                   onClick={(e) => { e.stopPropagation(); onClearAllHighlights(); }}
-                  title="Remove all highlights"
-                >Clear All</button>
+                  title="하이라이트 모두 지우기"
+                >모두 지우기</button>
               )}
             </div>
             {!notesCollapsed && (
@@ -519,13 +519,13 @@ export default function ReportViewer({
                   value={notesText}
                   onChange={(e) => setNotesText(e.target.value)}
                   onBlur={onSaveNotes}
-                  placeholder="Add your notes here..."
+                  placeholder="메모를 남겨 보세요..."
                   rows={4}
                 />
                 {userHighlights.length > 0 && (
                   <div className="mypage-highlights-list">
                     <div className="mypage-highlights-title">
-                      Highlights ({userHighlights.length})
+                      하이라이트 ({userHighlights.length})
                     </div>
                     {sortedHighlights.map(hl => (
                       <div
@@ -546,7 +546,7 @@ export default function ReportViewer({
                               </span>
                             )}
                             {hl.confidence_level && (
-                              <span className="mypage-hl-badge-inline mypage-hl-badge-confidence" title={`Confidence ${hl.confidence_level}/5`}>
+                              <span className="mypage-hl-badge-inline mypage-hl-badge-confidence" title={`확신도 ${hl.confidence_level}/5`}>
                                 C{hl.confidence_level}
                               </span>
                             )}
@@ -562,14 +562,14 @@ export default function ReportViewer({
                               )}
                               {hl.implication && (
                                 <div className="mypage-highlight-implication">
-                                  <span className="mypage-highlight-implication-label">Implication</span>
+                                  <span className="mypage-highlight-implication-label">시사점</span>
                                   {hl.implication}
                                 </div>
                               )}
                             </>
                           )}
                         </div>
-                        <button className="mypage-highlight-remove" onClick={(e) => { e.stopPropagation(); onRemoveHighlight(hl.id); }} title="Remove">&#x2715;</button>
+                        <button className="mypage-highlight-remove" onClick={(e) => { e.stopPropagation(); onRemoveHighlight(hl.id); }} title="하이라이트 지우기" aria-label="하이라이트 지우기">&#x2715;</button>
                       </div>
                     ))}
                   </div>
@@ -585,7 +585,7 @@ export default function ReportViewer({
         <div className="mypage-report-scroll">
           <div className="mypage-citation-table-container">
             {citationTreeLoading && (
-              <div className="mypage-citation-table-loading">Analyzing citations...</div>
+              <div className="mypage-citation-table-loading">인용 관계 분석 중...</div>
             )}
             {citationTreeError && (
               <div className="mypage-citation-table-error">{citationTreeError}</div>
@@ -595,13 +595,13 @@ export default function ReportViewer({
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: 'var(--text-faint)' }}>
                   <path d="M12 3v6m0 0l-4 4m4-4l4 4m-8 0v4m8-4v4" /><circle cx="4" cy="21" r="2" /><circle cx="12" cy="21" r="2" /><circle cx="20" cy="21" r="2" />
                 </svg>
-                <p>Discover related papers through citation analysis</p>
+                <p>인용 관계로 이 리포트와 이어진 논문을 찾습니다</p>
                 <button
                   className="mypage-citation-generate-btn"
                   onClick={onGenerateCitationTree}
                   disabled={citationTreeLoading}
                 >
-                  Generate
+                  분석 시작
                 </button>
               </div>
             )}
@@ -610,14 +610,14 @@ export default function ReportViewer({
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ color: 'var(--text-faint)' }}>
                   <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <p>No papers found on Semantic Scholar</p>
-                <p className="mypage-citation-empty-hint">Papers with DOI or indexed in international journals are more likely to be found.</p>
+                <p>Semantic Scholar에서 찾은 논문이 없습니다</p>
+                <p className="mypage-citation-empty-hint">DOI가 있거나 국제 학술지에 색인된 논문일수록 찾을 가능성이 높습니다.</p>
                 <button
                   className="mypage-citation-generate-btn"
                   onClick={onGenerateCitationTree}
                   disabled={citationTreeLoading}
                 >
-                  Retry
+                  다시 시도
                 </button>
               </div>
             )}
@@ -627,22 +627,22 @@ export default function ReportViewer({
                   <div className="mypage-citation-warning">{citationTreeWarning}</div>
                 )}
                 <div className="mypage-citation-table-meta">
-                  <span>{citationTreeData.nodes.length} Papers</span>
-                  <span>{citationTreeData.edges.length} Citations</span>
+                  <span>논문 {citationTreeData.nodes.length}편</span>
+                  <span>인용 {citationTreeData.edges.length}건</span>
                   <span>{new Date(citationTreeData.generated_at).toLocaleDateString()}</span>
                   <button
                     className="mypage-citation-delete-btn"
                     onClick={onDeleteCitationTree}
-                    title="Remove all further reading data"
-                  >Delete</button>
+                    title="관련 논문 분석 결과 삭제"
+                  >삭제</button>
                 </div>
                 <table className="mypage-citation-table">
                   <thead>
                     <tr>
-                      <th>Title</th>
-                      <th>Authors</th>
-                      <th>Year</th>
-                      <th>Citations</th>
+                      <th>제목</th>
+                      <th>저자</th>
+                      <th>연도</th>
+                      <th>인용</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -675,7 +675,7 @@ export default function ReportViewer({
                             <td className="mypage-citation-meta-cell">{node.year || '—'}</td>
                             <td className="mypage-citation-meta-cell">
                               {node.citations ?? 0}
-                              {ctx?.is_influential && <span className="mypage-citation-influential-dot" title="Influential citation" />}
+                              {ctx?.is_influential && <span className="mypage-citation-influential-dot" title="영향력 있는 인용" />}
                             </td>
                           </tr>
                           {isExpanded && (
@@ -688,7 +688,7 @@ export default function ReportViewer({
                                         <span key={i} className="mypage-citation-intent-badge">{intent}</span>
                                       ))}
                                       {ctx.is_influential && (
-                                        <span className="mypage-citation-influential-badge">Influential</span>
+                                        <span className="mypage-citation-influential-badge">영향력 있음</span>
                                       )}
                                     </div>
                                   )}
@@ -698,7 +698,7 @@ export default function ReportViewer({
                                     ))
                                   ) : abstract ? (
                                     <p className="mypage-citation-context-abstract">
-                                      <span className="mypage-citation-context-label">Abstract: </span>{abstract}
+                                      <span className="mypage-citation-context-label">초록: </span>{abstract}
                                     </p>
                                   ) : null}
                                 </div>
@@ -735,12 +735,12 @@ export default function ReportViewer({
                   if (e.key === 'Enter') onSaveMemo();
                   if (e.key === 'Escape') onCancelMemo();
                 }}
-                placeholder="Write a memo..."
+                placeholder="메모 입력..."
                 autoFocus
               />
               <div className="mypage-memo-actions">
-                <button className="mypage-memo-save-btn" onClick={onSaveMemo}>Save</button>
-                <button className="mypage-memo-cancel-btn" onClick={onCancelMemo}>Cancel</button>
+                <button className="mypage-memo-save-btn" onClick={onSaveMemo}>저장</button>
+                <button className="mypage-memo-cancel-btn" onClick={onCancelMemo}>취소</button>
               </div>
             </div>
           ) : (
@@ -749,14 +749,14 @@ export default function ReportViewer({
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                 </svg>
-                Highlight
+                하이라이트
               </button>
               <div className="mypage-selection-toolbar-divider" />
               <button className="mypage-selection-toolbar-btn" onClick={onStartMemo} aria-label="선택한 문장에 메모">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                Memo
+                메모
               </button>
             </>
           )}

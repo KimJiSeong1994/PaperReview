@@ -1,4 +1,5 @@
 import type { CurriculumModule, CurriculumPaper } from './types';
+import { CATEGORY_LABEL } from './labels';
 
 interface ModuleViewProps {
   module: CurriculumModule | null;
@@ -69,7 +70,7 @@ function PaperCard({
         <div className="curriculum-paper-context">{paper.context}</div>
       </div>
       <span className={`curriculum-category-badge ${paper.category}`}>
-        {paper.category}
+        {CATEGORY_LABEL[paper.category] ?? paper.category}
       </span>
     </div>
   );
@@ -101,7 +102,7 @@ export default function ModuleView({
     <div className="curriculum-main">
       <div className="curriculum-module-header">
         <div className="curriculum-module-header-title">
-          Week {module.week}: {module.title}
+          {module.week}주차: {module.title}
         </div>
         <div className="curriculum-module-header-desc">{module.description}</div>
         <div className="curriculum-module-header-progress">
@@ -125,12 +126,12 @@ export default function ModuleView({
               disabled={reviewStatus === 'processing'}
             >
               {reviewingModuleId === module.id && reviewStatus === 'processing'
-                ? 'Analyzing...'
+                ? '분석 중...'
                 : reviewingModuleId === module.id && reviewStatus === 'completed'
-                  ? 'Saved to Bookmarks!'
+                  ? '북마크에 저장됨'
                   : reviewingModuleId === module.id && reviewStatus === 'failed'
-                    ? 'Failed'
-                    : `Analyze All Papers (${mp.total})`}
+                    ? '실패'
+                    : `논문 전체 분석 (${mp.total}편)`}
             </button>
           </div>
         )}
