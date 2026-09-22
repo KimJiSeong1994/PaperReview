@@ -348,14 +348,23 @@ Content after the formula.`,
     );
   });
 
-  it('does NOT noindex a blog slug when the fetch fails without a 404/410', async () => {
+  it.each(['', '?view=deep'])('preserves the SSR indexable head on a network failure (%s)', async suffix => {
     // Google's Web Rendering Service blocks robots-disallowed XHRs, which
     // surfaces as a network-style failure with no HTTP status. That must not
     // override the server-rendered "index, follow" for a real post.
+    // Seed the real SSR contract; the client must not guess a canonical when
+    // it has not loaded the post's reading-view indexing policy.
+    const canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    canonical.href = `https://jiphyeonjeon.kr/blog/real-post-slug${suffix}`;
+    const robots = document.createElement('meta');
+    robots.name = 'robots';
+    robots.content = 'index, follow';
+    document.head.append(canonical, robots);
     vi.mocked(fetchBlogPost).mockRejectedValue(new Error('Network Error'));
 
     renderWithAuth(
-      '/blog/real-post-slug',
+      `/blog/real-post-slug${suffix}`,
       <Routes>
         <Route path="/blog/:slug" element={<BlogPage isAdmin={false} slug="real-post-slug" />} />
       </Routes>,
@@ -368,8 +377,10 @@ Content after the formula.`,
     });
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
       'href',
-      'https://jiphyeonjeon.kr/blog/real-post-slug',
+      `https://jiphyeonjeon.kr/blog/real-post-slug${suffix}`,
     );
+    expect(document.head.querySelector('link[rel="canonical"]')).toBe(canonical);
+    expect(document.head.querySelector('meta[name="robots"]')).toBe(robots);
   });
 
   it('marks shared report token routes noindex,nofollow', async () => {

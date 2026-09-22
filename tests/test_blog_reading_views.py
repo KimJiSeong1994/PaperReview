@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,13 +13,17 @@ from api_server import app
 import routers.blog as blog
 import routers.seo as seo
 from routers.deps import get_admin_user
+from scripts import submit_indexnow
 
 
 EASY_BODY = "# Easy heading\n\nEASY-BODY-MARKER short explanation."
 DEEP_BODY = "# Detailed heading\n\nDEEP-BODY-MARKER " + "analysis " * 500
 
 
-def _post(*, published: bool = True, deep_content: str | None = DEEP_BODY) -> dict:
+def _post(
+    *, published: bool = True, deep_content: str | None = DEEP_BODY,
+    index_deep_view: bool = False,
+) -> dict:
     return {
         "id": "reading-post-id",
         "title": "Two Reading Levels",
@@ -26,6 +31,7 @@ def _post(*, published: bool = True, deep_content: str | None = DEEP_BODY) -> di
         "excerpt": "A shared summary.",
         "content": EASY_BODY,
         "deep_content": deep_content,
+        "index_deep_view": index_deep_view,
         "author": "test-admin",
         "tags": ["reading"],
         "category": "engineering",
@@ -237,3 +243,122 @@ def test_deep_view_keeps_default_body_paper_identity(monkeypatch) -> None:
             ("arXiv", "2401.12345"),
             ("DOI", "10.1000/canonical"),
         }
+
+
+def test_opted_in_views_have_distinct_index_identity(monkeypatch) -> None:
+    post = _post(index_deep_view=True) | {
+        "content": EASY_BODY + "\n\n## FAQ\n### What is it?\nAn easy answer.",
+        "deep_content": DEEP_BODY + "\n\n## FAQ\n### What is it?\nA detailed answer.",
+    }
+    monkeypatch.setattr(seo, "_load_posts", lambda: [post])
+    monkeypatch.setattr(seo, "_load_deleted", lambda: set())
+    client = TestClient(app)
+    easy = client.get("/blog/two-reading-levels")
+    deep = client.get("/blog/two-reading-levels?view=deep")
+    base = "https://jiphyeonjeon.kr/blog/two-reading-levels"
+    for response, url, suffix, body in (
+        (easy, base, "쉬운 읽기", post["content"]),
+        (deep, base + "?view=deep", "상세 읽기", post["deep_content"]),
+    ):
+        assert response.status_code == 200
+        assert f'<link rel="canonical" href="{url.replace("&", "&amp;")}">' in response.text
+        assert f" · {suffix}</title>" in response.text
+        assert 'content="index, follow' in response.text
+        graph = _json_ld_graph(response.text)
+        posting = next(n for n in graph if n.get("@type") == "BlogPosting")
+        faq = next(n for n in graph if n.get("@type") == "FAQPage")
+        assert posting["url"] == url
+        assert posting["mainEntityOfPage"]["@id"] == url
+        assert posting["articleBody"] == body
+        assert faq["@id"] == url + "#faq"
+    unknown = client.get("/blog/two-reading-levels?view=unknown")
+    assert f'<link rel="canonical" href="{base}">' in unknown.text
+    assert " · 쉬운 읽기</title>" in unknown.text
+
+    sitemap = client.get("/sitemap.xml")
+    locs = [node.text for node in ET.fromstring(sitemap.text).iter() if node.tag.endswith("}loc")]
+    assert base in locs
+    assert base + "?view=deep" in locs
+    assert sitemap.text.count(base + "?view=deep") == 1
+
+
+def test_deep_indexing_requires_published_nonblank_opt_in(monkeypatch) -> None:
+    posts = [
+        _post(index_deep_view=False),
+        _post(index_deep_view=True, deep_content="  ") | {"slug": "blank"},
+        _post(index_deep_view=True, published=False) | {"slug": "draft"},
+    ]
+    monkeypatch.setattr(seo, "_load_posts", lambda: posts)
+    monkeypatch.setattr(seo, "_load_deleted", lambda: set())
+    client = TestClient(app)
+    locs = [node.text for node in ET.fromstring(client.get("/sitemap.xml").text).iter()
+            if node.tag.endswith("}loc")]
+    assert not any("?view=deep" in loc for loc in locs)
+    assert not any("/draft" in loc for loc in locs)
+    default_deep = client.get("/blog/two-reading-levels?view=deep")
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/two-reading-levels">' in default_deep.text
+    blank = client.get("/blog/blank?view=deep")
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/blank">' in blank.text
+    assert client.get("/blog/draft?view=deep").status_code == 404
+
+
+def test_indexnow_sitemap_parser_keeps_query_without_image_loc(monkeypatch) -> None:
+    xml = b'''<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+        <url><loc>https://jiphyeonjeon.kr/blog/evo-ontology?view=deep&amp;ref=x</loc>
+        <image:image><image:loc>https://jiphyeonjeon.kr/image.png</image:loc></image:image></url>
+        <url><loc>https://jiphyeonjeon.kr.evil.example/blog/other</loc></url>
+        </urlset>'''
+    monkeypatch.setattr(submit_indexnow, "_get", lambda url: xml)
+    assert submit_indexnow.build_url_list() == [
+        "https://jiphyeonjeon.kr/blog/evo-ontology?view=deep&ref=x"
+    ]
+
+
+def test_indexnow_notifies_both_views_and_removed_deep(monkeypatch) -> None:
+    stored: list[dict] = []
+    notified: list[list[str]] = []
+    monkeypatch.setattr(blog, "_load_posts", lambda: stored)
+    monkeypatch.setattr(blog, "_save_posts", lambda posts: stored.__setitem__(slice(None), posts))
+    monkeypatch.setattr(blog, "_indexnow_submit_async", lambda urls: notified.append(urls))
+    monkeypatch.setattr(blog, "_record_deleted", lambda slug: None)
+    app.dependency_overrides[get_admin_user] = lambda: "test-admin"
+    try:
+        client = TestClient(app)
+        created = client.post("/api/blog/posts", json={
+            "title": "Index both views", "slug": "index-both-views",
+            "content": EASY_BODY, "deep_content": DEEP_BODY,
+            "index_deep_view": True,
+        })
+        assert created.status_code == 201
+        assert created.json()["index_deep_view"] is True
+        post_id = created.json()["id"]
+        base = blog._indexnow_post_url("index-both-views")
+        assert notified[-1] == [base, base + "?view=deep"]
+        updated = client.put(f"/api/blog/posts/{post_id}", json={"excerpt": "New excerpt"})
+        assert updated.status_code == 200
+        assert notified[-1] == [base, base + "?view=deep"]
+        cleared = client.put(f"/api/blog/posts/{post_id}", json={"deep_content": None})
+        assert cleared.status_code == 200
+        assert notified[-1] == [base, base + "?view=deep"]
+        assert cleared.json()["index_deep_view"] is True
+        restored = client.put(f"/api/blog/posts/{post_id}", json={"deep_content": DEEP_BODY})
+        assert restored.status_code == 200
+        assert notified[-1] == [base, base + "?view=deep"]
+        unpublished = client.put(f"/api/blog/posts/{post_id}", json={"published": False})
+        assert unpublished.status_code == 200
+        assert notified[-1] == [base, base + "?view=deep"]
+        republished = client.put(f"/api/blog/posts/{post_id}", json={"published": True})
+        assert republished.status_code == 200
+        assert notified[-1] == [base, base + "?view=deep"]
+        renamed = client.put(f"/api/blog/posts/{post_id}", json={"slug": "renamed-views"})
+        assert renamed.status_code == 200
+        renamed_base = blog._indexnow_post_url("renamed-views")
+        assert notified[-1] == [
+            renamed_base, renamed_base + "?view=deep", base, base + "?view=deep"
+        ]
+        deleted = client.delete(f"/api/blog/posts/{post_id}")
+        assert deleted.status_code == 200
+        assert notified[-1] == [renamed_base, renamed_base + "?view=deep"]
+    finally:
+        app.dependency_overrides.pop(get_admin_user, None)

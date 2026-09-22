@@ -733,7 +733,9 @@ def _faq_node(pairs: list[tuple[str, str]], url: str) -> dict:
     }
 
 
-def _blog_posting_graph(post: dict, identity_post: dict | None = None) -> dict:
+def _blog_posting_graph(
+    post: dict, identity_post: dict | None = None, *, deep_view: bool = False
+) -> dict:
     """Return a BlogPosting graph for the displayed body and canonical paper.
 
     ``post`` supplies view-specific content fields such as ``articleBody`` and
@@ -749,7 +751,9 @@ def _blog_posting_graph(post: dict, identity_post: dict | None = None) -> dict:
     updated_at = post.get("updated_at") or created_at
     tags = post.get("tags", [])
     content = post.get("content", "")
-    url = f"https://jiphyeonjeon.kr/blog/{slug}"
+    url = f"{SITE_URL}/blog/{slug}"
+    if deep_view:
+        url += "?view=deep"
     section = "Paper Reviews" if post.get("category") == "paper-review" else "Engineering"
 
     image = _absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE
@@ -1297,13 +1301,22 @@ async def blog_post_ssr(
     lang = _detect_lang(post["title"] + " " + displayed_post.get("content", ""))
     locale = _locale(lang)
     seo_title, seo_description = _blog_seo_meta(post)
+    index_deep_view = bool(post.get("index_deep_view") and deep_content.strip())
+    canonical = f"{SITE_URL}/blog/{slug}"
+    if index_deep_view:
+        seo_title += " · 상세 읽기" if reading_view == "deep" else " · 쉬운 읽기"
+        if reading_view == "deep":
+            canonical += "?view=deep"
     document = _build_document(
         title=seo_title,
         description=seo_description,
-        canonical=f"{SITE_URL}/blog/{slug}",
+        canonical=canonical,
         og_type="article",
         image=_absolute_url(post.get("thumbnail_url")) or OG_DEFAULT_IMAGE,
-        json_ld=_blog_posting_graph(displayed_post, identity_post=post),
+        json_ld=_blog_posting_graph(
+            displayed_post, identity_post=post,
+            deep_view=index_deep_view and reading_view == "deep",
+        ),
         article_html=_render_article(
             displayed_post,
             related=related,
@@ -1553,6 +1566,11 @@ async def sitemap() -> Response:
                 f"  <url><loc>{SITE_URL}/blog/{html.escape(slug)}</loc>"
                 f"<lastmod>{lastmod}</lastmod><priority>0.7</priority>{image_tag}</url>"
             )
+            if post.get("index_deep_view") and (post.get("deep_content") or "").strip():
+                rows.append(
+                    f"  <url><loc>{SITE_URL}/blog/{html.escape(slug)}?view=deep</loc>"
+                    f"<lastmod>{lastmod}</lastmod><priority>0.7</priority>{image_tag}</url>"
+                )
         except Exception:  # noqa: BLE001 - one bad post must not 500 the sitemap
             logger.warning("Skipping post in sitemap due to error", exc_info=True)
             continue

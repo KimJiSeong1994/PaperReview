@@ -37,6 +37,14 @@ def test_published_urls_lists_only_published_with_slug(monkeypatch, tmp_path) ->
             {"slug": "live-1", "published": True},
             {"slug": "draft-1", "published": False},
             {"slug": "live-2", "published": True},
+            {"slug": "both", "published": True, "index_deep_view": True,
+             "deep_content": "Detailed content"},
+            {"slug": "blank", "published": True, "index_deep_view": True,
+             "deep_content": "  "},
+            {"slug": "disabled", "published": True, "index_deep_view": False,
+             "deep_content": "Detailed content"},
+            {"slug": "draft-both", "published": False, "index_deep_view": True,
+             "deep_content": "Detailed content"},
             {"published": True},  # no slug -> skipped
         ]
     }
@@ -50,6 +58,10 @@ def test_published_urls_lists_only_published_with_slug(monkeypatch, tmp_path) ->
     assert f"{indexnow.SITE_URL}/blog/tags" in urls
     assert f"{indexnow.SITE_URL}/blog/live-1" in urls
     assert f"{indexnow.SITE_URL}/blog/live-2" in urls
+    assert f"{indexnow.SITE_URL}/blog/both?view=deep" in urls
+    assert f"{indexnow.SITE_URL}/blog/blank?view=deep" not in urls
+    assert f"{indexnow.SITE_URL}/blog/disabled?view=deep" not in urls
+    assert f"{indexnow.SITE_URL}/blog/draft-both?view=deep" not in urls
     assert f"{indexnow.SITE_URL}/blog/draft-1" not in urls
 
 

@@ -61,6 +61,75 @@ describe('blog reading levels', () => {
   });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+  it('preserves the SSR detailed head while fetching and after an API failure', async () => {
+    const canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    canonical.href = 'https://jiphyeonjeon.kr/blog/example-paper?view=deep';
+    const og = document.createElement('meta');
+    og.setAttribute('property', 'og:url');
+    og.content = canonical.href;
+    const script = document.createElement('script');
+    script.id = 'seo-json-ld';
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify({ '@type': 'BlogPosting', url: canonical.href });
+    document.head.append(canonical, og, script);
+    document.title = 'Server-rendered 상세 읽기';
+    let reject!: (error: unknown) => void;
+    vi.mocked(fetchBlogPost).mockReturnValue(new Promise((_, rejectPromise) => { reject = rejectPromise; }));
+    try {
+      mount('/blog/example-paper?view=deep');
+      await waitFor(() => expect(fetchBlogPost).toHaveBeenCalled());
+      expect(document.querySelector('link[rel="canonical"]')).toBe(canonical);
+      expect(document.querySelector('#seo-json-ld')).toBe(script);
+      expect(document.querySelector('meta[property="og:url"]')).toBe(og);
+      await act(async () => reject({ response: { status: 500 }, message: 'Temporary API failure' }));
+      await screen.findByText('Temporary API failure');
+      expect(document.title).toBe('Server-rendered 상세 읽기');
+      expect(document.querySelector('link[rel="canonical"]')).toBe(canonical);
+      expect(document.querySelector('#seo-json-ld')).toBe(script);
+      expect(document.querySelector('meta[property="og:url"]')).toBe(og);
+    } finally {
+      canonical.remove();
+      og.remove();
+      script.remove();
+    }
+  });
+
+  it('keeps opt-in canonical and structured URLs aligned on direct deep entry and reading switches', async () => {
+    const user = userEvent.setup();
+    mockPost({ index_deep_view: true });
+    mount('/blog/example-paper?view=deep&utm_source=test');
+    await screen.findByText('DEEP_ONLY');
+    const verify = (deep: boolean) => {
+      const url = `https://jiphyeonjeon.kr/blog/example-paper${deep ? '?view=deep' : ''}`;
+      expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', url);
+      expect(document.querySelector('meta[property="og:url"]')).toHaveAttribute('content', url);
+      expect(document.title).toContain(deep ? '상세 읽기' : '쉬운 읽기');
+      const graph = JSON.parse(document.querySelector('#seo-json-ld')!.textContent!);
+      const posting = graph['@graph'].find((node: Record<string, unknown>) => node['@type'] === 'BlogPosting');
+      expect(posting.url).toBe(url);
+      expect(posting.mainEntityOfPage['@id']).toBe(url);
+      expect(posting.articleBody).toBe(deep ? DEEP : EASY);
+      expect(posting.about['@id']).toBe('https://arxiv.org/abs/2404.19737v1');
+    };
+    await waitFor(() => verify(true));
+    await user.click(screen.getByRole('link', { name: /쉬운 읽기/ }));
+    await screen.findByText('EASY_ONLY');
+    await waitFor(() => verify(false));
+    await user.click(screen.getByRole('button', { name: 'Browser back' }));
+    await screen.findByText('DEEP_ONLY');
+    await waitFor(() => verify(true));
+  });
+
+  it.each([null, '', '  \n'])('does not index a missing detailed body (%s)', async deep => {
+    mockPost({ index_deep_view: true, deep_content: deep });
+    mount('/blog/example-paper?view=deep');
+    await screen.findByText('EASY_ONLY');
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://jiphyeonjeon.kr/blog/example-paper');
+    expect(document.title).not.toContain('상세 읽기');
+    expect(screen.queryByRole('link', { name: /상세 읽기/ })).not.toBeInTheDocument();
+  });
+
   it('keeps source collections free of a fabricated PDF link in both views', async () => {
     const user = userEvent.setup();
     mockPost({ content: '**Sources:** [Program](https://example.com/program)\n\nEASY_COLLECTION',
