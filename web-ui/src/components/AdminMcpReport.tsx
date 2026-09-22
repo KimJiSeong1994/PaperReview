@@ -21,7 +21,6 @@ const DAILY_SERIES = [
   { key: 'jobs_completed', name: '작업 완료', color: '#16a34a', symbol: 'cross', unit: '건', primary: false },
   { key: 'jobs_failed', name: '작업 실패', color: '#e05266', symbol: 'x', unit: '건', primary: false },
 ] as const;
-const ERROR_KIND: Partial<Record<string, string>> = { request: '요청', tool: '도구', job: '작업' };
 const ERROR_CODE: Partial<Record<string, string>> = { failed: '실패', tool_failed: '실패', job_failed: '실패', cancelled: '취소' };
 
 const kstDate = (value: string | null) => {
@@ -96,6 +95,7 @@ const isMissingInstrumentation = (reason: string | null) =>
 export default function AdminMcpReport() {
   const [days, setDays] = useState<AdminMcpWindowDays>(28);
   const [includeInternal, setIncludeInternal] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
   const [report, setReport] = useState<McpReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,6 +238,7 @@ export default function AdminMcpReport() {
               <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{rate(ratio(row.failed, row.calls))}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
             ))}
           </Table>
+          <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'tool')} />
         </section>
         <section className="mcp-section">
           <h2>서버 경로</h2>
@@ -246,32 +247,44 @@ export default function AdminMcpReport() {
               <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{ms(row.p95_ms)}</td></tr>
             ))}
           </Table>
-        </section>
-      </div>
-
-      <div className="mcp-two-column">
-        <section className="mcp-section">
-          <h2>작업 수명주기</h2>
-          <p>종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
-          <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
-            {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
-              <tr key={row.name}><th scope="row">{row.name}</th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
-            ))}
-          </Table>
-        </section>
-        <section className="mcp-section">
-          <h2>오류 분류</h2>
-          <Table label="오류 분류 표" headings={['종류', '코드', '건수']}>
-            {report.errors.length === 0 ? <EmptyRows columns={3}>집계된 오류가 없습니다.</EmptyRows> : report.errors.map((row) => (
-              <tr key={`${row.kind}:${row.code}`}><th scope="row">{ERROR_KIND[row.kind] ?? row.kind}</th><td>{ERROR_CODE[row.code] ?? <code>{row.code}</code>}</td><td>{count(row.count)}</td></tr>
-            ))}
-          </Table>
+          <ErrorLine label="오류 코드" rows={report.errors.filter((row) => row.kind === 'request')} />
         </section>
       </div>
 
       <section className="mcp-section">
-        <h2>일별 사용</h2>
-        {report.daily.length > 0 && (
+        <h2>작업 수명주기</h2>
+        <p>종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
+        <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
+          {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
+            <tr key={row.name}><th scope="row">{row.name}</th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
+          ))}
+        </Table>
+        <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'job')} />
+      </section>
+
+      <section className="mcp-section">
+        <h2>클라이언트 주장값</h2>
+        <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
+        <div className="mcp-two-column mcp-two-column--nested">
+          <Table label="클라이언트 주장값 표" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
+            {report.clients.length === 0 ? <EmptyRows columns={4}>클라이언트 주장값이 없습니다.</EmptyRows> : report.clients.map((row, index) => (
+              <tr key={`${row.name}:${row.version}:${index}`}><th scope="row">{claimedValue(row.name)}</th><td>{claimedValue(row.version)}</td><td>{count(row.requests)}</td><td>{count(row.tool_calls)}</td></tr>
+            ))}
+          </Table>
+          <Table label="어댑터 버전 표" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
+            {report.versions.length === 0 ? <EmptyRows columns={7}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
+              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rate(ratio(row.tool_failures, row.tool_calls))}</td></tr>
+            ))}
+          </Table>
+        </div>
+      </section>
+
+      {/* Mounting <Plot> inside a closed <details> lays it out at 0 width and `responsive`
+          only reacts to window resize, so the chart exists only while the section is open.
+          Plotly (~1.5MB) is fetched on the first open, not on every visit. */}
+      <details className="mcp-section mcp-daily" onToggle={(event) => setDailyOpen(event.currentTarget.open)}>
+        <summary><h2>일별 사용</h2><span>{report.window.days}일 추이 · 일별 표</span></summary>
+        {dailyOpen && report.daily.length > 0 && (
           <figure className="mcp-daily-chart" aria-label="일별 MCP 사용 추이">
             <LazyLoadErrorBoundary fallback={<p role="alert">차트를 표시할 수 없습니다. 아래 데이터 표를 확인해 주세요.</p>}>
               <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
@@ -329,24 +342,7 @@ export default function AdminMcpReport() {
           ))}
           </Table>
         </details>
-      </section>
-
-      <section className="mcp-section">
-        <h2>클라이언트 주장값</h2>
-        <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
-        <div className="mcp-two-column mcp-two-column--nested">
-          <Table label="클라이언트 주장값 표" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
-            {report.clients.length === 0 ? <EmptyRows columns={4}>클라이언트 주장값이 없습니다.</EmptyRows> : report.clients.map((row, index) => (
-              <tr key={`${row.name}:${row.version}:${index}`}><th scope="row">{claimedValue(row.name)}</th><td>{claimedValue(row.version)}</td><td>{count(row.requests)}</td><td>{count(row.tool_calls)}</td></tr>
-            ))}
-          </Table>
-          <Table label="어댑터 버전 표" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
-            {report.versions.length === 0 ? <EmptyRows columns={7}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
-              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rate(ratio(row.tool_failures, row.tool_calls))}</td></tr>
-            ))}
-          </Table>
-        </div>
-      </section>
+      </details>
 
       <details className="mcp-method">
         <summary>측정 한계와 출처</summary>
@@ -388,6 +384,16 @@ function Header({
         </label>
       </div>
     </header>
+  );
+}
+
+function ErrorLine({ label, rows }: { label: string; rows: McpReportData['errors'] }) {
+  if (rows.length === 0) return null;
+  return (
+    <p className="mcp-error-line">
+      <span>{label}</span>
+      {rows.map((row) => <span key={row.code}>{ERROR_CODE[row.code] ?? <code>{row.code}</code>} ×{count(row.count)}</span>)}
+    </p>
   );
 }
 
