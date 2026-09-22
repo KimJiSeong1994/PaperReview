@@ -1,0 +1,96 @@
+[
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "paper": "Montanelli and Periti, A Survey on Contextualised Semantic Shift Detection",
+    "version": "arXiv:2304.01666v2",
+    "pdf_sha256": "e59307ae92d8683f02869ab7e423561b8788a136dc1b84655c215280a2cd65d9",
+    "physical_pdf_page": 3,
+    "figure": "Figure 2",
+    "replacement_asset": "drafts/contextualised-semantic-shift-detection-survey-review-2026/assets/montanelli-arxiv-v2-figure-2-cluster-composition-complete-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/montanelli-arxiv-v2-figure-2-cluster-composition-complete-300dpi.png",
+    "asset_sha256": "27f35ccfe5acc368a50f27bda1f09c817b8717d82c44f32bfa7f0e2a44192a17"
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "paper": "Kulkarni et al., Statistically Significant Detection of Linguistic Change",
+    "version": "arXiv:1411.3315v1",
+    "pdf_sha256": "ad26b04e92a22e0cc5d91d3705d601e68148f86e52cc0f51c63381977164f021",
+    "physical_pdf_page": 5,
+    "figure": "Figure 6",
+    "replacement_asset": "drafts/statistically-significant-detection-linguistic-change-review-2026/assets/kulkarni-arxiv-v1-figure-6-change-point-complete-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/kulkarni-arxiv-v1-figure-6-change-point-complete-300dpi.png",
+    "asset_sha256": "37181dfab106bb90cbcb518d74a9d0ea809ab86ba8157c3f51dc02f8e46e4333"
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "paper": "Wang, Cui, & Zhu (2016), Structural Deep Network Embedding, KDD 2016",
+    "version": "KDD 2016 proceedings PDF",
+    "pdf_sha256": "66d479b4cb979099e6f6fd5881e497fe493ddc8f23641bd01b91ce404ede0af1",
+    "figures": [
+      {
+        "figure": "Figure 1",
+        "source_pdf_page": 2,
+        "printed_page": 1226,
+        "source_bbox_pdf_points": [
+          87,
+          53,
+          260,
+          153
+        ],
+        "render_dpi": 300,
+        "asset": ".omx/reports/remaining-easy-publication/drafts/structural-deep-network-embedding-sdne-review-2026/assets/sdne-kdd2016-figure1-proximity-pairs-300dpi.png",
+        "proposed_public_path": "/api/blog/figures/sdne-kdd2016-figure1-proximity-pairs-300dpi.png",
+        "sha256": "f0bb46c946a10c34f3cea283a2c99fe85d775e885111cb9f69f72b511538055d",
+        "pixels": [
+          722,
+          418
+        ],
+        "crop_scope": "complete figure panels, axes, ticks, labels and legend; printed caption and neighboring prose excluded"
+      },
+      {
+        "figure": "Figure 3",
+        "source_pdf_page": 7,
+        "printed_page": 1231,
+        "source_bbox_pdf_points": [
+          7,
+          131,
+          300,
+          238
+        ],
+        "render_dpi": 300,
+        "asset": ".omx/reports/remaining-easy-publication/drafts/structural-deep-network-embedding-sdne-review-2026/assets/sdne-kdd2016-figure3-reconstruction-precision-300dpi.png",
+        "proposed_public_path": "/api/blog/figures/sdne-kdd2016-figure3-reconstruction-precision-300dpi.png",
+        "sha256": "58c73b673968c9717f1c6b4d79a026ba32c70e2a6808caf3a93a53ff24e2eb60",
+        "pixels": [
+          1221,
+          447
+        ],
+        "crop_scope": "complete figure panels, axes, ticks, labels and legend; printed caption and neighboring prose excluded"
+      }
+    ]
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "paper": "Xu et al. (2019), How Powerful are Graph Neural Networks?",
+    "version": "retained arXiv:1810.00826 / ICLR 2019 PDF, 17 physical pages",
+    "pdf_sha256": "a6ebf80c2790b8bac1fa378902993eae26020cc6d0d95e3964eea42b0c66a974",
+    "physical_pdf_page": 3,
+    "figure": "Figure 1",
+    "source_bbox_pdf_points": [
+      98,
+      42,
+      510,
+      153
+    ],
+    "render_dpi": 300,
+    "replacement_asset": ".omx/reports/remaining-easy-publication/drafts/how-powerful-are-graph-neural-networks-gin-review-2026/assets/gin-arxiv-1810.00826-figure1-framework-complete-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/gin-arxiv-1810.00826-figure1-framework-complete-300dpi.png",
+    "asset_sha256": "8811121fcf36fbe1e585c80b87bbf53e3069d232e7829c47e33c830b8715727d",
+    "old_public_asset_sha256": "fc26f0ea8dae451461c72db6df709537df27a466dc523ccf81eee0859c59d2ae",
+    "pixels": [
+      1717,
+      463
+    ],
+    "crop_scope": "all three panels and labels; source printed caption and neighboring prose excluded"
+  }
+]
