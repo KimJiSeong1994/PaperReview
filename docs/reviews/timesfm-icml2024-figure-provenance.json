@@ -1,0 +1,45 @@
+{
+  "source": {
+    "canonical_landing_page": "https://proceedings.mlr.press/v235/das24c.html",
+    "pdf_url": "https://raw.githubusercontent.com/mlresearch/v235/main/assets/das24c/das24c.pdf",
+    "title": "A decoder-only foundation model for time-series forecasting",
+    "edition": "ICML 2024, PMLR 235, pp. 10148-10167",
+    "pdf_sha256": "1209844581f9d338db2ecd74b6dda26c4bd9ad5bb3da5962aa8dbc308cea4337",
+    "page_count": 20,
+    "render_dpi": 300,
+    "rendered_page_pixels": [2550, 3300],
+    "pdf_page_points": [612, 792]
+  },
+  "assets": [
+    {
+      "filename": "timesfm-icml2024-fig1-architecture-p4.png",
+      "original_figure": "Figure 1",
+      "page": 4,
+      "pixel_bbox_xywh": [500, 320, 1540, 900],
+      "pdf_point_bbox_xywh": [120.0, 76.8, 369.6, 216.0],
+      "asset_pixel_dimensions": [1540, 900],
+      "asset_sha256": "f51196c824d1cea8c249c6ae6f9246c096cfda1b05af053e115edef3c24379ba",
+      "inspection": "Diagram confirms 32-point input patches, causal self-attention, and 128-point output patch label."
+    },
+    {
+      "filename": "timesfm-icml2024-fig2-results-p6.png",
+      "original_figure": "Figure 2",
+      "page": 6,
+      "pixel_bbox_xywh": [240, 270, 2080, 600],
+      "pdf_point_bbox_xywh": [57.6, 64.8, 499.2, 144.0],
+      "asset_pixel_dimensions": [2080, 600],
+      "asset_sha256": "927618743db1c85fefae076981c815bd26618993e9fea4d51207fb0710d15b24",
+      "inspection": "Three panels are Monash scaled MAE (GM), Darts scaled MAE (GM), and ETT average MAE; lower is better and visible error bars are standard errors."
+    },
+    {
+      "filename": "timesfm-icml2024-fig3-scaling-p7.png",
+      "original_figure": "Figure 3",
+      "page": 7,
+      "pixel_bbox_xywh": [1250, 1760, 1050, 740],
+      "pdf_point_bbox_xywh": [300.0, 422.4, 252.0, 177.6],
+      "asset_pixel_dimensions": [1050, 740],
+      "asset_sha256": "a1a8858833b74f1731bbe0ab427319afbb679d962605674172d5a25bae99eb27",
+      "inspection": "Full Figure 3 plot and complete source caption confirm Monash scaled MAE (GM) versus TeraFLOPs on a log scale across 17M, 70M, and 200M checkpoints; no neighboring prose is included."
+    }
+  ]
+}
