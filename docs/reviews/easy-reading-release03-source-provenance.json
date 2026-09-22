@@ -1,0 +1,29 @@
+[
+  {
+    "slug": "ic2s2-2026-program-trends",
+    "kind": "program-count-correction",
+    "url": "https://ic2s2-2026.org/_app/immutable/chunks/D3HDgKN5.js",
+    "sha256": "db164c43d9cd1e73b80a03d5070d1e99c40fa3082d8ba74996127a7728f1df43",
+    "review": "reviews/batch07-factual.md",
+    "reason": "Withdraw unscoped percentages while preserving program interpretation and all other detailed text"
+  },
+  {
+    "slug": "ic2s2-2025-program-trends",
+    "kind": "program-count-correction",
+    "url": "https://ic2s2-2025.org/files/ic2s2_2025_schedule_v5.csv",
+    "sha256": "286d5a7070b9598efa0938ac1ae15fc68c22dc98ddc740ab06283d7d71320358",
+    "review": "reviews/batch07-factual.md",
+    "reason": "622 schedule slots excludes keynotes/tutorials and includes repeated titles; withdraw unscoped keyword share"
+  },
+  {
+    "slug": "lightgcn",
+    "paper": "He et al. (2020), LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation",
+    "version": "arXiv:2002.02126v4",
+    "pdf_sha256": "e48e4c27e4dc9ffd50f531b69682da0a500ae9a8190c629aeff223b40b555306",
+    "physical_pdf_page": 3,
+    "figure": "Figure 1",
+    "replacement_asset": "drafts/lightgcn/assets/lightgcn-arxiv-v4-figure-1-ngcf-ablation-complete-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/lightgcn-arxiv-v4-figure-1-ngcf-ablation-complete-300dpi.png",
+    "asset_sha256": "f86c3cc9d8c1648eac80729a9ac3c6f45028fda3fb1c7b7dbe907d2d75e2ef16"
+  }
+]

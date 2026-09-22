@@ -46,6 +46,8 @@ function parseAuthors(block: string): string[] {
 
 export function extractPrimaryPaperReference(post: BlogPaperPostLike): BlogPaperReference | null {
   const match = post.content.match(PAPER_BLOCK_RE);
+  // Match SSR: a program/source collection does not name one primary paper.
+  if (!match && /^\*\*Sources:\*\*/im.test(post.content)) return null;
   if (!match && post.category !== 'paper-review') return null;
 
   const block = (match?.[1] ?? post.content.slice(0, 1000)).trim();
