@@ -20,7 +20,7 @@ RLT는 2026년 9월 17일 개정판의 Figures 1·4를 쉬운 글에, Figures 1�
 
 POST/PUT에서 `deep_content`를 생략하면 기존 값을 유지한다. 명시적인 null·빈 문자열·공백 문자열은 상세 본문을 지운다. 관리자 편집은 두 본문을 별도 입력란으로 제공하며, 목록에서 편집할 때 전체 레코드를 가져온다. 늦게 끝난 이전 요청이 새 편집 대상을 바꾸지 않도록 요청 순서를 확인한다. 기존 글 편집은 slug를 보존한다.
 
-검색은 두 본문을 모두 대상으로 한다. 목록·excerpt·RSS·사이트맵·기본 전체 텍스트는 기존 기본 글 기준이다. 서버 렌더링도 view를 반영하므로 JavaScript 없이 두 버전을 오갈 수 있다. 양쪽의 canonical은 기존 `/blog/:slug`다.
+검색은 두 본문을 모두 대상으로 한다. 목록·excerpt·RSS·사이트맵·기본 전체 텍스트는 기존 기본 글 기준이다. 서버 렌더링도 view를 반영하므로 JavaScript 없이 두 버전을 오갈 수 있다. 기본 정책에서는 양쪽의 canonical이 기존 `/blog/:slug`다. `index_deep_view: true`를 지정하고 상세 본문이 있는 글은 두 버전을 별도로 색인하도록 알린다. 이때 쉬운 읽기는 `/blog/:slug`, 상세 읽기는 `/blog/:slug?view=deep`를 각각 canonical·Open Graph URL·구조화 데이터 URL로 사용하며, 두 주소를 사이트맵에 포함한다. 검색 제목에는 각각 `쉬운 읽기`와 `상세 읽기`를 덧붙인다. 알 수 없는 view 값이나 빈 상세 본문은 기본 URL로 돌아간다. 현재 EvoOntology 글에 적용했다.
 
 논문 제목·arXiv·DOI·PDF 링크는 기본 글에서 추출한다. 상세 글에 Paper 메타데이터가 없어도 같은 논문을 가리킨다. 구조화 데이터의 articleBody·wordCount는 현재 읽는 본문을 반영하고, articleBody는 상세 본문을 지원하는 글에만 추가한다.
 
@@ -46,3 +46,14 @@ npm --prefix web-ui test
 npm --prefix web-ui run build
 git diff --check
 ```
+
+## 별도 색인 요청과 확인
+
+`index_deep_view`는 기본값이 false인 선택적 필드다. 생성·수정 API가 보존하며, 상세 본문이나 발행 상태를 제거할 때 기존 상세 URL도 IndexNow에 갱신 통지한다. 두 읽기 버전은 서로 연결되는 실제 HTML 링크와 서버 렌더링 본문을 제공한다.
+
+배포 후 두 URL의 canonical, robots, Open Graph, JSON-LD, 사이트맵과 본문을 확인하고 IndexNow에 제출한다. HTTP 200/202는 요청 접수이지 색인 완료가 아니다. Google은 사이트맵으로 URL을 발견하며, Search Console URL 검사에서 별도 요청할 수 있다. Google Indexing API는 일반 블로그 글을 지원하지 않는다. 최종 색인과 대표 URL 선택은 검색엔진이 결정한다.
+
+- [Google canonical 안내](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls)
+- [Google 색인 요청 안내](https://support.google.com/webmasters/answer/12482179)
+- [Google Indexing API 적용 대상](https://developers.google.com/search/apis/indexing-api/v3/quickstart)
+- [IndexNow 요청과 응답](https://www.indexnow.org/documentation)

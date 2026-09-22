@@ -35,6 +35,7 @@ export interface BlogPostLike {
   excerpt: string;
   content: string;
   deep_content?: string | null;
+  index_deep_view?: boolean;
   author: string;
   tags: string[];
   category?: string;
@@ -189,6 +190,12 @@ export function blogCanonical(slug?: string): string {
   return slug ? `${SITE_URL}/blog/${slug}` : `${SITE_URL}/blog`;
 }
 
+/** Only separately indexed reading views get a distinct canonical URL. */
+export function blogReadingCanonical(post: BlogPostLike, deepView = false): string {
+  const suffix = deepView && post.index_deep_view && post.deep_content?.trim() ? '?view=deep' : '';
+  return `${blogCanonical(post.slug)}${suffix}`;
+}
+
 export function blogBreadcrumb(title?: string, slug?: string): Record<string, unknown> {
   const itemListElement: Record<string, unknown>[] = [
     {
@@ -270,7 +277,8 @@ function faqNode(content: string, url: string): Record<string, unknown> | null {
   return mainEntity.length ? { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity } : null;
 }
 
-export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike = post): Record<string, unknown> {
+export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike = post, deepView = false): Record<string, unknown> {
+  const url = blogReadingCanonical(identityPost, deepView);
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length;
 
   const posting: Record<string, unknown> = {
@@ -290,10 +298,10 @@ export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike 
     dateModified: post.updated_at || post.created_at,
     keywords: post.tags,
     articleSection: categorySection(post.category),
-    url: blogCanonical(post.slug),
+    url,
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': blogCanonical(post.slug),
+      '@id': url,
     },
     publisher: { '@id': ORG_ID },
     inLanguage: detectLang(`${post.title} ${post.content || post.excerpt || ''}`),
@@ -320,7 +328,7 @@ export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike 
     graph.push(scholarlyArticleNode(ref as BlogPaperReference & { url: string }));
   }
   graph.push(blogBreadcrumb(post.title, post.slug));
-  const faq = faqNode(post.content, blogCanonical(post.slug));
+  const faq = faqNode(post.content, url);
   if (faq) graph.push(faq);
 
   return { '@context': 'https://schema.org', '@graph': graph };

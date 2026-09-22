@@ -22,15 +22,15 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 import urllib.request
+import xml.etree.ElementTree as ET
+from urllib.parse import urlsplit
 
 SITE_URL = os.environ.get("SITE_URL", "https://jiphyeonjeon.kr").rstrip("/")
 INDEXNOW_KEY = os.environ.get("INDEXNOW_KEY", "8f3a1c07b94e2d65a0f8c3b12e6d47a9")
 HOST = SITE_URL.split("://", 1)[-1].split("/", 1)[0]
 INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow"
-_LOC_RE = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.IGNORECASE)
 
 
 def _get(url: str, timeout: int = 20) -> bytes:
@@ -41,8 +41,19 @@ def _get(url: str, timeout: int = 20) -> bytes:
 
 def build_url_list() -> list[str]:
     """Every <loc> in the live sitemap, restricted to this host."""
-    xml = _get(f"{SITE_URL}/sitemap.xml").decode("utf-8", "replace")
-    urls = [u for u in _LOC_RE.findall(xml) if u.startswith(SITE_URL)]
+    root = ET.fromstring(_get(f"{SITE_URL}/sitemap.xml"))
+    site = urlsplit(SITE_URL)
+    urls = []
+    for item in root:
+        if item.tag.rsplit("}", 1)[-1] != "url":
+            continue
+        loc = next((child for child in item if child.tag.rsplit("}", 1)[-1] == "loc"), None)
+        if loc is None or not loc.text:
+            continue
+        url = loc.text.strip()
+        parts = urlsplit(url)
+        if parts.scheme == site.scheme and parts.netloc == site.netloc:
+            urls.append(url)
     return list(dict.fromkeys(urls))  # dedup, preserve order
 
 

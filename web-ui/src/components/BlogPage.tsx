@@ -13,6 +13,7 @@ import ThemeToggle from './ThemeToggle';
 import {
   SITE_URL,
   blogCanonical,
+  blogReadingCanonical,
   blogPostingGraph,
   blogIndexGraph,
   detectLang,
@@ -38,6 +39,7 @@ interface BlogPost {
   excerpt: string;
   content: string;
   deep_content?: string | null;
+  index_deep_view?: boolean;
   deep_reading_time_min?: number | null;
   author: string;
   tags: string[];
@@ -1826,8 +1828,10 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const seoPost = view === 'detail' ? readingPost : null;
   const categoryView = view === 'list';
   const seoMeta = seoPost && selectedPost ? blogSeoMeta(selectedPost) : null;
+  const readingLabel = selectedPost?.index_deep_view && hasDeepContent
+    ? ` · ${isDeepReading ? '상세 읽기' : '쉬운 읽기'}` : '';
   const seoTitle = seoMeta
-    ? seoMeta.title
+    ? seoMeta.title + readingLabel
     : initialCategory
       ? `${CATEGORY_META[initialCategory].label} | Jiphyeonjeon Blog`
       : BLOG_TITLE;
@@ -1837,7 +1841,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     ? `${SITE_URL}/blog/category/${initialCategory}`
     : blogCanonical(hasSlugError ? undefined : slug);
   const seoCanonical = seoPost
-    ? blogCanonical(seoPost.slug)
+    ? blogReadingCanonical(selectedPost ?? seoPost, isDeepReading)
     // Each page lists a different slice, so collapsing them to page 1 would
     // drop pages 2..n from the index.
     : categoryView && page > 1
@@ -1847,9 +1851,11 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     ? localeFor(detectLang(`${seoPost.title} ${seoPost.content || seoPost.excerpt || ''}`))
     : undefined;
 
+  // Preserve the server-rendered head until a requested article is resolved.
+  // A pending/failed API call cannot determine a detailed URL's canonical.
   return (
     <div className="blog-container">
-      <SEOHead
+      {(!slug || seoPost?.slug === slug || hasSlugError) && <SEOHead
         title={seoTitle}
         description={seoDescription}
         canonical={seoCanonical}
@@ -1859,8 +1865,8 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         publishedTime={seoPost ? seoPost.created_at : undefined}
         modifiedTime={seoPost ? seoPost.updated_at || seoPost.created_at : undefined}
         locale={seoLocale}
-        jsonLd={seoPost ? blogPostingGraph(seoPost, selectedPost ?? seoPost) : blogIndexGraph(posts)}
-      />
+        jsonLd={seoPost ? blogPostingGraph(seoPost, selectedPost ?? seoPost, isDeepReading) : blogIndexGraph(posts)}
+      />}
       {renderHeader()}
       {searchOpen && renderSearchOverlay()}
       <div className={`blog-content${view === 'list' ? ' blog-content--list' : ''}`}>

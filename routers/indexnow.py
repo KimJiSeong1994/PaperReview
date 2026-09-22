@@ -86,7 +86,10 @@ def published_urls() -> list[str]:
         logger.warning("Could not add hub URLs to IndexNow batch", exc_info=True)
 
     for p in published:
-        urls.append(post_url(p["slug"]))
+        url = post_url(p["slug"])
+        urls.append(url)
+        if p.get("index_deep_view") and (p.get("deep_content") or "").strip():
+            urls.append(f"{url}?view=deep")
     return list(dict.fromkeys(urls))
 
 

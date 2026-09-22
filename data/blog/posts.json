@@ -2056,7 +2056,8 @@
       "thumbnail_url": "/api/blog/figures/evo-fig1-concept.png",
       "updated_at": "2026-09-22T13:52:06.074616+00:00",
       "published": true,
-      "reading_time_min": 11
+      "reading_time_min": 11,
+      "index_deep_view": true
     }
   ]
 }

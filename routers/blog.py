@@ -330,6 +330,7 @@ class PostCreateRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     content: str = Field(..., min_length=1)
     deep_content: Optional[str] = None
+    index_deep_view: bool = False
     excerpt: str = Field("", max_length=500)
     tags: list[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
@@ -352,6 +353,7 @@ class PostUpdateRequest(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=300)
     content: Optional[str] = Field(None, min_length=1)
     deep_content: Optional[str] = None
+    index_deep_view: Optional[bool] = None
     excerpt: Optional[str] = Field(None, max_length=500)
     tags: Optional[list[str]] = None
     thumbnail_url: Optional[str] = Field(None, max_length=2000)
@@ -376,6 +378,7 @@ class PostSummary(BaseModel):
     created_at: str
     updated_at: Optional[str]
     published: bool
+    index_deep_view: bool = False
     reading_time_min: int
     # Body excerpt around a search hit; None unless ?q= matched the body.
     snippet: Optional[str] = None
@@ -647,6 +650,7 @@ async def create_post(
         "excerpt": request.excerpt.strip() if request.excerpt else "",
         "content": request.content,
         "deep_content": _normalize_deep_content(request.deep_content),
+        "index_deep_view": request.index_deep_view,
         "author": admin,
         "tags": tags,
         "category": request.category,
@@ -665,7 +669,11 @@ async def create_post(
 
     logger.info("Blog post created: id=%s slug=%s author=%s", post_id, post["slug"], admin)
     if post["published"]:
-        _indexnow_submit_async([_indexnow_post_url(post["slug"])])
+        url = _indexnow_post_url(post["slug"])
+        urls = [url]
+        if post["index_deep_view"] and post["deep_content"]:
+            urls.append(f"{url}?view=deep")
+        _indexnow_submit_async(urls)
     return PostDetail(**post)
 
 
@@ -681,6 +689,12 @@ async def update_post(
         post = next((p for p in posts if p.get("id") == post_id), None)
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
+
+        old_slug = post["slug"]
+        old_deep_indexed = bool(
+            post.get("published") and post.get("index_deep_view")
+            and (post.get("deep_content") or "").strip()
+        )
 
         # Apply partial updates
         update_data = request.model_dump(exclude_unset=True)
@@ -701,6 +715,8 @@ async def update_post(
                 post["reading_time_min"] = _estimate_reading_time(value)
             elif key == "deep_content":
                 post["deep_content"] = _normalize_deep_content(value)
+            elif key == "index_deep_view":
+                post["index_deep_view"] = bool(value)
             elif key == "tags" and value is not None:
                 post["tags"] = list(dict.fromkeys(t.strip() for t in value if t.strip()))
             elif key == "excerpt" and value is not None:
@@ -712,8 +728,21 @@ async def update_post(
         _save_posts(posts)
 
     logger.info("Blog post updated: id=%s by=%s", post_id, admin)
+    urls = []
     if post.get("published"):
-        _indexnow_submit_async([_indexnow_post_url(post["slug"])])
+        url = _indexnow_post_url(post["slug"])
+        urls.append(url)
+        if post.get("index_deep_view") and (post.get("deep_content") or "").strip():
+            urls.append(f"{url}?view=deep")
+    if old_deep_indexed and (
+        not post.get("published") or not post.get("index_deep_view")
+        or not (post.get("deep_content") or "").strip() or old_slug != post["slug"]
+    ):
+        if not post.get("published") or old_slug != post["slug"]:
+            urls.append(_indexnow_post_url(old_slug))
+        urls.append(f"{_indexnow_post_url(old_slug)}?view=deep")
+    if urls:
+        _indexnow_submit_async(list(dict.fromkeys(urls)))
     return PostDetail(**post)
 
 
@@ -741,6 +770,12 @@ async def delete_post(
             _record_deleted(target_slug)
 
     logger.info("Blog post deleted: id=%s by=%s", post_id, admin)
+    if (
+        target_slug and target.get("published") and target.get("index_deep_view")
+        and (target.get("deep_content") or "").strip()
+    ):
+        url = _indexnow_post_url(target_slug)
+        _indexnow_submit_async([url, f"{url}?view=deep"])
     return {"success": True, "deleted": post_id}
 
 
