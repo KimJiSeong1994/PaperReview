@@ -58,6 +58,11 @@ const REPORT: McpReportData = {
 };
 
 const response = (data: McpReportData) => Promise.resolve({ data } as Awaited<ReturnType<typeof fetchAdminMcpReport>>);
+// 차트는 접힌 일별 사용 섹션이 열릴 때만 마운트된다.
+const openDaily = async () => {
+  fireEvent.click(await screen.findByRole('heading', { name: '일별 사용' }));
+  return screen.findByTestId('mcp-daily-plot');
+};
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -65,7 +70,7 @@ describe('AdminMcpReport', () => {
   it('plots daily usage with selectable job outcomes and a collapsed data table', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
-    await screen.findByTestId('mcp-daily-plot');
+    await openDaily();
     const props = plotSpy.mock.lastCall![0];
     expect(props.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: '서버 요청', type: 'scatter', mode: 'lines+markers', x: ['2026-09-05'], y: [12], visible: true }),
@@ -92,7 +97,7 @@ describe('AdminMcpReport', () => {
       ],
     }));
     render(<AdminMcpReport />);
-    await screen.findByTestId('mcp-daily-plot');
+    await openDaily();
     expect(plotSpy.mock.lastCall![0].data).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: '서버 요청', y: [null, 0], connectgaps: false }),
       expect.objectContaining({ name: '도구 실행', y: [null, null], connectgaps: false }),
@@ -116,6 +121,7 @@ describe('AdminMcpReport', () => {
     expect(screen.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
     expect(screen.getByText(/실제 호스트나 사람 수를 증명하지 않습니다/)).toBeInTheDocument();
     expect(screen.getByText(/설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다/)).toBeInTheDocument();
+    await openDaily();
     expect(screen.getByText(/시작일 코호트/)).toBeInTheDocument();
     expect(screen.getByText(/24시간 넘게 없거나/)).toBeInTheDocument();
   });
@@ -232,12 +238,40 @@ describe('AdminMcpReport', () => {
       daily: [{ ...REPORT.daily[0], requests: 3, tool_calls: 2, active_accounts: 1 }],
     }));
     render(<AdminMcpReport />);
-    await screen.findByTestId('mcp-daily-plot');
+    await openDaily();
 
     const { layout } = plotSpy.mock.lastCall![0];
     expect(layout.shapes).toEqual([expect.objectContaining({ x0: '2026-08-10', x1: '2026-08-20', layer: 'below' })]);
     expect(layout.annotations).toEqual([expect.objectContaining({ x: '2026-08-20', text: '계측 시작' })]);
     expect(layout.yaxis).toEqual(expect.objectContaining({ rangemode: 'tozero', tickformat: ',d', dtick: 1 }));
+  });
+
+  it('keeps the chart unmounted until the daily section is opened', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
+    render(<AdminMcpReport />);
+    await screen.findByRole('heading', { name: 'MCP 사용 리포트' });
+    expect(screen.queryByTestId('mcp-daily-plot')).toBeNull();
+    expect(plotSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: '일별 사용' }).closest('details')).not.toHaveAttribute('open');
+    await openDaily();
+    expect(plotSpy).toHaveBeenCalled();
+  });
+
+  it('lists error codes under the table that produced them instead of a shared taxonomy', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      errors: [{ kind: 'request', code: '404', count: 5 }, { kind: 'request', code: 'failed', count: 1 }, { kind: 'tool', code: 'cancelled', count: 1 }, { kind: 'job', code: 'job_failed', count: 1 }],
+    }));
+    render(<AdminMcpReport />);
+    await screen.findByRole('heading', { name: '서버 경로' });
+    const section = (name: string) => within(screen.getByRole('heading', { name }).closest('section')!);
+
+    expect(screen.queryByText('오류 분류')).toBeNull();
+    expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('404 ×5');
+    expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('실패 ×1');
+    expect(section('관측된 도구 실행').getByText('실패 사유').parentElement).toHaveTextContent('취소 ×1');
+    expect(section('관측된 도구 실행').getByText('실패 사유').parentElement).not.toHaveTextContent('404');
+    expect(section('작업 수명주기').getByText('실패 사유').parentElement).toHaveTextContent('실패 ×1');
   });
 
   it('shows per-version error counts next to the version claims', async () => {

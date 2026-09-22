@@ -59,7 +59,15 @@
 .mcp-section { min-width: 0; padding: 18px; border: 1px solid var(--mcp-border); border-radius: 14px; background: var(--bg-input); box-shadow: var(--card-shadow); }
 .mcp-section h2 { margin: 0; color: var(--text-hi); font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
 .mcp-section > p { margin: 6px 0 14px; max-width: 62ch; color: var(--text-faint); font-size: 12.5px; line-height: 1.6; }
-.mcp-section h2 + .mcp-table-scroll, .mcp-section h2 + .mcp-daily-chart { margin-top: 14px; }
+.mcp-section h2 + .mcp-table-scroll { margin-top: 14px; }
+.mcp-error-line { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; color: var(--text-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.mcp-error-line > span:first-child { color: var(--text-faint); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
+.mcp-error-line code { font-size: 12px; }
+.mcp-daily > summary { cursor: pointer; color: var(--text-hi); }
+.mcp-daily > summary h2 { display: inline; }
+.mcp-daily > summary span { margin-left: 10px; color: var(--text-faint); font-size: 12.5px; font-weight: 500; }
+.mcp-daily > summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
+.mcp-daily[open] > summary { margin-bottom: 14px; }
 .mcp-two-column--nested { margin-top: 14px; }
 .mcp-table-scroll { width: 100%; overflow-x: auto; }
 .mcp-table-scroll:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
