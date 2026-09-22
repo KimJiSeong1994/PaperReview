@@ -1,0 +1,135 @@
+{
+  "source_pdf": "https://arxiv.org/pdf/2609.15779v1",
+  "pdf_sha256": "33463806a2a201ad38960076414a8780f45133bc8bdb81d5f7339e9ae6780eef",
+  "render": "PyMuPDF get_pixmap at Matrix(6,6) = 432 DPI; crop from ink-boundary scan, padding 3pt clamped to the scan region",
+  "figures": [
+    {
+      "figure": 1,
+      "pdf_page": 1,
+      "file": "evo-fig1-concept.png",
+      "box_pt": [
+        319.5,
+        213.0,
+        558,
+        332.67
+      ],
+      "px": [
+        1431,
+        718
+      ],
+      "sha256": "9c2d98eca8de77f953a5fbdf01daf56f832e8758f9ba4b924a3e0285d2701ad9"
+    },
+    {
+      "figure": 2,
+      "pdf_page": 3,
+      "file": "evo-fig2-architecture.png",
+      "box_pt": [
+        54.0,
+        55,
+        558,
+        284.0
+      ],
+      "px": [
+        3024,
+        1374
+      ],
+      "sha256": "5e59545ae2033361073987c2bf4e2e08267aadecc620bb5f2631c6168a279ee9"
+    },
+    {
+      "figure": 3,
+      "pdf_page": 6,
+      "file": "evo-fig3-three-conditions.png",
+      "box_pt": [
+        319.5,
+        55,
+        558,
+        136.67
+      ],
+      "px": [
+        1431,
+        490
+      ],
+      "sha256": "d1d5e823e2e23960a5f9b0322f312bdc8d2384273b392a4db6b646d41bf1711e"
+    },
+    {
+      "figure": 4,
+      "pdf_page": 6,
+      "file": "evo-fig4-rounds.png",
+      "box_pt": [
+        319.5,
+        179.67,
+        558,
+        253.0
+      ],
+      "px": [
+        1431,
+        440
+      ],
+      "sha256": "facf63ae5f3ad5b7dc16596f7033fd6d48529ff1c2637a97833104fa590beb55"
+    },
+    {
+      "figure": 5,
+      "pdf_page": 7,
+      "file": "evo-fig5-transfer.png",
+      "box_pt": [
+        319.5,
+        178.67,
+        558,
+        271.67
+      ],
+      "px": [
+        1431,
+        558
+      ],
+      "sha256": "604d8da858f5f01943a1b8d3f450628568a3e5eb1519baca703f67ec7708b316"
+    },
+    {
+      "figure": 6,
+      "pdf_page": 10,
+      "file": "evo-fig6-growth.png",
+      "box_pt": [
+        54.0,
+        55,
+        293.33,
+        176.33
+      ],
+      "px": [
+        1436,
+        728
+      ],
+      "sha256": "2888bfc1f0a20dbc27667a59c766a9566b843708e9c3417b49be3f7e6fb46949"
+    },
+    {
+      "figure": 7,
+      "pdf_page": 10,
+      "file": "evo-fig7-attribution.png",
+      "box_pt": [
+        319.5,
+        168.33,
+        558,
+        267.33
+      ],
+      "px": [
+        1431,
+        594
+      ],
+      "sha256": "b30bdf1a03a4a3b9aef6d2b8e62c1a82bcf66c0c631d4551d943665c37420ddc"
+    },
+    {
+      "figure": 8,
+      "pdf_page": 11,
+      "file": "evo-fig8-case.png",
+      "box_pt": [
+        60.67,
+        56.67,
+        550.33,
+        243.33
+      ],
+      "px": [
+        2938,
+        1120
+      ],
+      "sha256": "875247db0bd191147e9ba38f15bd5be52be8927976209bae510d2bd4974b9717"
+    }
+  ]
+}
