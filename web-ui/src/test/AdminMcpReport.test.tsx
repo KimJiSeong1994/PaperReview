@@ -138,12 +138,16 @@ describe('AdminMcpReport', () => {
     render(<AdminMcpReport />);
 
     expect(await screen.findByText(/작업 시작이 0건입니다/)).toBeInTheDocument();
-    expect(screen.getByText('오류율 0.0% · p95 미집계')).toBeInTheDocument();
+    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('오류율');
+    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('0.0%');
+    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('미집계');
     expect(screen.getByText('어댑터 도구 보고 · 전체 기간').parentElement).toHaveTextContent('기록 없음');
     expect(screen.getByText('미계측')).toBeInTheDocument();
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('미집계');
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('0/0');
-    expect(screen.getByText('도구 실행은 미계측 상태입니다.')).toBeInTheDocument();
+    expect(screen.getByText('도구 실행은 미계측 상태입니다.').closest('td')).toHaveAttribute('colspan', '7');
+    expect(screen.getByText('측정된 서버 요청이 없습니다.').closest('td')).toHaveAttribute('colspan', '5');
+    expect(screen.getByText('어댑터 버전 주장값이 없습니다.').closest('td')).toHaveAttribute('colspan', '7');
   });
 
   it('renders absent instrumentation separately from a measured empty report', async () => {
@@ -214,7 +218,11 @@ describe('AdminMcpReport', () => {
     expect(banner).toHaveTextContent('선택한 기간(28일, 관리자 제외)');
     expect(banner).toHaveTextContent('원장의 마지막 이벤트는 2026-09-06(전체 기간·관리자 포함 기준)');
     expect(banner).toHaveTextContent('관리자 계정을 포함하면');
-    expect(screen.getByText('마지막 이벤트 · 전체 기간').parentElement).toHaveTextContent('(오늘)');
+    expect(screen.getByText('마지막 이벤트 · 전체 기간').parentElement).toHaveTextContent('오늘 · 2026-09-06');
+
+    expect(within(banner).queryByRole('button')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '관리자 계정 포함해서 보기' }));
+    await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(28, true, expect.any(AbortSignal)));
   });
 
   it('shades the span before measurement started and keeps count ticks on integers', async () => {
@@ -237,7 +245,28 @@ describe('AdminMcpReport', () => {
     render(<AdminMcpReport />);
 
     const row = await screen.findByRole('row', { name: /^0\.4\.0/ });
-    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '4', '1']);
+    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '10.0%', '4', '1', '25.0%']);
+  });
+
+  it('rates failures against every call, marks non-zero failures, and keeps table columns in raw ms', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, request_p95_ms: 1843, job_p95_ms: 187_500 },
+      tools: [{ name: 'deep_review', calls: 4, succeeded: 2, failed: 1, unknown: 1, p95_ms: 0.4 }],
+      routes: [{ name: '/api/review/start', requests: 12, errors: 0, p95_ms: 12_410 }],
+    }));
+    render(<AdminMcpReport />);
+
+    const tools = await screen.findByRole('region', { name: '관측된 도구 실행 표' });
+    const tool = within(within(tools).getByRole('row', { name: /^deep_review/ })).getAllByRole('cell');
+    expect(tool.map((cell) => cell.textContent)).toEqual(['4', '2', '1', '25.0%', '1', '<1']);
+    expect(tool[2]).toHaveClass('mcp-fail');
+    const route = within(screen.getByRole('row', { name: /review\/start/ })).getAllByRole('cell');
+    expect(route.map((cell) => cell.textContent)).toEqual(['12', '0', '0.0%', '12,410']);
+    expect(route[1]).not.toHaveClass('mcp-fail');
+    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('1.8초');
+    expect(screen.getByText('작업 시작', { selector: '.mcp-metric p' }).parentElement).toHaveTextContent('3분 8초');
+    expect(screen.getByRole('region', { name: '서버 경로 표' })).toHaveAttribute('tabindex', '0');
   });
 
   it('groups the window buttons and marks the report busy while a new window loads', async () => {

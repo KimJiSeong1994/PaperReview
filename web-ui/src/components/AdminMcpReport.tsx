@@ -30,9 +30,7 @@ const kstDate = (value: string | null) => {
 };
 const kstDateTime = (value: string | null) => {
   const timestamp = value ? Date.parse(value) : NaN;
-  return Number.isFinite(timestamp)
-    ? new Date(timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' })
-    : null;
+  return Number.isFinite(timestamp) ? new Date(timestamp + 9 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ') : null;
 };
 // 창의 끝 날짜(KST 오늘)를 기준으로 세어야 화면과 테스트가 같은 답을 낸다.
 const relativeDays = (from: string, to: string) => {
@@ -41,16 +39,41 @@ const relativeDays = (from: string, to: string) => {
 };
 
 const count = (value: number) => numberFormat.format(value);
-const duration = (value: number | null) => value === null ? '미집계' : `${numberFormat.format(Math.round(value))}ms`;
+const duration = (value: number | null) => {
+  if (value === null) return '미집계';
+  if (value < 1) return '<1ms';
+  if (Math.round(value) < 1000) return `${numberFormat.format(Math.round(value))}ms`;
+  if (value < 60_000) return `${(value / 1000).toFixed(1)}초`;
+  const seconds = Math.round(value / 1000);
+  return `${Math.floor(seconds / 60)}분 ${seconds % 60}초`;
+};
+const ms = (value: number | null) => (value === null ? '미집계' : value < 1 ? '<1' : numberFormat.format(Math.round(value)));
 const rate = (value: number | null) => value === null ? '미집계' : `${(value * 100).toFixed(1)}%`;
+// 미확인 stays in the denominator: a rate over succeeded+failed would hide it.
+const ratio = (part: number, whole: number) => (whole ? part / whole : null);
 const claimedValue = (value: string | null) => value || '미제공';
 
-function Metric({ label, value, note, unmeasured = false }: { label: string; value: string; note: string; unmeasured?: boolean }) {
+type MetricPart = { label: string; value: string; bad?: boolean };
+
+// A breakdown ("성공 49 · 실패 8") is what the admin scans for; as a sentence it
+// was the quietest text on the card. `parts` lays it out value-over-label, and
+// a non-zero failure is red and bold. Definitions and caveats stay prose.
+function Metric({ label, value, note, parts, unmeasured = false }: {
+  label: string; value: string; note?: string; parts?: MetricPart[]; unmeasured?: boolean;
+}) {
   return (
     <article className={unmeasured ? 'mcp-metric mcp-metric--unmeasured' : 'mcp-metric'}>
       <p>{label}</p>
       <strong>{value}</strong>
-      <span>{note}</span>
+      {parts ? (
+        <div className="mcp-metric-parts">
+          {parts.map((part) => (
+            <span key={part.label} className={part.bad ? 'bad' : undefined}><b>{part.value}</b><small>{part.label}</small></span>
+          ))}
+        </div>
+      ) : (
+        <span>{note}</span>
+      )}
     </article>
   );
 }
@@ -143,7 +166,7 @@ export default function AdminMcpReport() {
       <div className="dashboard-context-strip" role="group" aria-label="원장 전체 기준 측정 상태">
         <div>
           <span>마지막 이벤트 · 전체 기간</span>
-          <strong>{lastEventDate ? `${kstDateTime(measurement.last_event_at)} (${relativeDays(lastEventDate, report.window.end)})` : '기록 없음'}</strong>
+          <strong>{lastEventDate ? `${relativeDays(lastEventDate, report.window.end)} · ${kstDateTime(measurement.last_event_at)}` : '기록 없음'}</strong>
         </div>
         <div>
           <span>측정 시작</span>
@@ -156,24 +179,46 @@ export default function AdminMcpReport() {
       </div>
 
       {measuredZero && (
-        <div className="mcp-zero" role="status">
-          선택한 기간({report.window.days}일{includeInternal ? '' : ', 관리자 제외'})에 기록된 MCP 요청·도구 호출·작업 시작이 0건입니다.{' '}
-          {lastEventDate
-            ? `원장의 마지막 이벤트는 ${lastEventDate}(전체 기간·관리자 포함 기준)${includeInternal ? '입니다.' : '이며, 관리자 계정을 포함하면 내부 사용이 보일 수 있습니다.'}`
-            : '원장에 기록된 이벤트가 없습니다.'}
+        <div className="mcp-zero">
+          <div role="status">
+            <strong>선택한 기간({report.window.days}일{includeInternal ? '' : ', 관리자 제외'})에 기록된 MCP 요청·도구 호출·작업 시작이 0건입니다.</strong>
+            <p>
+              {lastEventDate
+                ? `원장의 마지막 이벤트는 ${lastEventDate}(전체 기간·관리자 포함 기준)${includeInternal ? '입니다.' : '이며, 관리자 계정을 포함하면 내부 사용이 보일 수 있습니다.'}`
+                : '원장에 기록된 이벤트가 없습니다.'}
+            </p>
+          </div>
+          {!includeInternal && lastEventDate && (
+            <button type="button" className="mcp-zero-action" onClick={() => setIncludeInternal(true)}>관리자 계정 포함해서 보기</button>
+          )}
         </div>
       )}
 
       <div className="mcp-metrics" role="group" aria-label="MCP 핵심 지표">
-        <Metric label="서버 요청" value={count(totals.requests)} note={`오류율 ${rate(totals.request_error_rate)} · p95 ${duration(totals.request_p95_ms)}`} />
+        <Metric label="서버 요청" value={count(totals.requests)} parts={[
+          { label: '오류율', value: rate(totals.request_error_rate) },
+          { label: 'p95', value: duration(totals.request_p95_ms) },
+        ]} />
         <Metric
           label="관측된 도구 실행"
           value={measurement.tool_telemetry_available ? count(totals.tool_calls) : '미계측'}
           unmeasured={!measurement.tool_telemetry_available}
-          note={measurement.tool_telemetry_available ? `성공 ${count(totals.tool_successes)} · 실패 ${count(totals.tool_failures)} · 미확인 ${count(totals.tool_unknown)} · p95 ${duration(totals.tool_p95_ms)}` : '업그레이드된 어댑터 텔레메트리 없음'}
+          note={measurement.tool_telemetry_available ? undefined : '업그레이드된 어댑터 텔레메트리 없음'}
+          parts={measurement.tool_telemetry_available ? [
+            { label: '실패율', value: rate(ratio(totals.tool_failures, totals.tool_calls)) },
+            { label: '성공', value: count(totals.tool_successes) },
+            { label: '실패', value: count(totals.tool_failures), bad: totals.tool_failures > 0 },
+            { label: '미확인', value: count(totals.tool_unknown) },
+            { label: 'p95', value: duration(totals.tool_p95_ms) },
+          ] : undefined}
         />
         {/* 미확인은 시작 기록 없는 종료도 세므로 시작 수와 더해지지 않는다 — 작업 표에서만 보인다. */}
-        <Metric label="작업 시작" value={count(totals.jobs_started)} note={`완료 ${count(totals.jobs_completed)} · 실패 ${count(totals.jobs_failed)} · 종료 대기 ${count(totals.jobs_pending)} · p95 ${duration(totals.job_p95_ms)}`} />
+        <Metric label="작업 시작" value={count(totals.jobs_started)} parts={[
+          { label: '완료', value: count(totals.jobs_completed) },
+          { label: '실패', value: count(totals.jobs_failed), bad: totals.jobs_failed > 0 },
+          { label: '종료 대기', value: count(totals.jobs_pending) },
+          { label: 'p95', value: duration(totals.job_p95_ms) },
+        ]} />
         <Metric label="활성 계정" value={count(totals.active_accounts)} note="조회성 호출을 제외한 성공 호출 또는 작업 시작 기준" />
         <Metric label="2일 이상 사용 계정" value={count(totals.repeat_accounts)} note="서로 다른 KST 날짜의 의미 있는 사용 · 리텐션 아님" />
         {/* 창·필터 기준 값이라 스트립이 아니라 여기에 있고, 100%가 "다 잡고 있다"로 읽히지 않도록 단서를 숫자 옆에 붙인다. */}
@@ -181,8 +226,47 @@ export default function AdminMcpReport() {
           label="요청 연결률"
           value={rate(measurement.invocation_coverage)}
           unmeasured={measurement.invocation_coverage === null}
-          note={`${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청의 비율이며 전체 MCP 수집률이 아닙니다`}
+          note={`${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다`}
         />
+      </div>
+
+      <div className="mcp-two-column">
+        <section className="mcp-section">
+          <h2>관측된 도구 실행</h2>
+          <Table label="관측된 도구 실행 표" headings={['도구', '호출', '성공', '실패', '실패율', '미확인', 'p95 (ms)']}>
+            {report.tools.length === 0 ? <EmptyRows columns={7}>{measurement.tool_telemetry_available ? '관측된 도구 실행이 없습니다.' : '도구 실행은 미계측 상태입니다.'}</EmptyRows> : report.tools.map((row) => (
+              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{rate(ratio(row.failed, row.calls))}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
+            ))}
+          </Table>
+        </section>
+        <section className="mcp-section">
+          <h2>서버 경로</h2>
+          <Table label="서버 경로 표" headings={['경로', '요청', '오류', '오류율', 'p95 (ms)']}>
+            {report.routes.length === 0 ? <EmptyRows columns={5}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
+              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{ms(row.p95_ms)}</td></tr>
+            ))}
+          </Table>
+        </section>
+      </div>
+
+      <div className="mcp-two-column">
+        <section className="mcp-section">
+          <h2>작업 수명주기</h2>
+          <p>종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
+          <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
+            {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
+              <tr key={row.name}><th scope="row">{row.name}</th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
+            ))}
+          </Table>
+        </section>
+        <section className="mcp-section">
+          <h2>오류 분류</h2>
+          <Table label="오류 분류 표" headings={['종류', '코드', '건수']}>
+            {report.errors.length === 0 ? <EmptyRows columns={3}>집계된 오류가 없습니다.</EmptyRows> : report.errors.map((row) => (
+              <tr key={`${row.kind}:${row.code}`}><th scope="row">{ERROR_KIND[row.kind] ?? row.kind}</th><td>{ERROR_CODE[row.code] ?? <code>{row.code}</code>}</td><td>{count(row.count)}</td></tr>
+            ))}
+          </Table>
+        </section>
       </div>
 
       <section className="mcp-section">
@@ -212,10 +296,10 @@ export default function AdminMcpReport() {
                     paper_bgcolor: 'transparent',
                     plot_bgcolor: 'transparent',
                     font: { color: '#706d7d', size: 11, family: 'Pretendard, sans-serif' },
-                    margin: { t: 20, b: 100, l: 40, r: 12 },
+                    margin: { t: 20, b: 68, l: 40, r: 12 },
                     hovermode: 'x unified',
                     hoverlabel: { bgcolor: 'rgba(255,255,255,0.98)', bordercolor: 'rgba(15,23,42,0.10)', font: { color: '#1e293b', size: 12 } },
-                    legend: { orientation: 'h', y: -0.25, x: 0, yanchor: 'top' },
+                    legend: { orientation: 'h', y: -0.18, x: 0, yanchor: 'top' },
                     xaxis: { type: 'date', range: [report.window.start, `${report.window.end}T23:59:59`], tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
                     // 건수 축은 0에서 시작하고 눈금은 정수여야 한다. 최대값이 작으면 Plotly가 0.2 간격을
                     // 고르므로 그 구간만 1로 고정한다. yMax는 숨긴 계열까지 본다 — 켰을 때 눈금 40개가 되는 쪽이 더 나쁘다.
@@ -231,73 +315,34 @@ export default function AdminMcpReport() {
                 />
               </Suspense>
             </LazyLoadErrorBoundary>
-            <figcaption>계측 시작 전 기간과 미계측 도구는 빈 구간으로 표시합니다. 작업 3개 지표는 범례에서 켤 수 있으며 완료·실패는 해당 작업의 시작일 코호트에 표시합니다. 마지막 날짜는 아직 집계 중입니다.</figcaption>
+            <figcaption>빈 구간은 계측 전이거나 미계측입니다. 완료·실패는 시작일 코호트에 표시합니다. 마지막 날짜는 집계 중입니다.</figcaption>
           </figure>
         )}
         <details className="mcp-daily-data">
           <summary>데이터 표로 보기</summary>
-          <Table className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
+          <Table label="일별 사용 표" className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
           {report.daily.length === 0 ? <EmptyRows columns={7}>선택 기간의 일별 기록이 없습니다.</EmptyRows> : report.daily.map((row) => (
             <tr key={row.date}><th scope="row">{row.date}</th>{(['requests', 'active_accounts', 'tool_calls', 'jobs_started', 'jobs_completed', 'jobs_failed'] as const).map((key) => {
               const value = dailyValue(row, key);
-              return <td key={key}>{value === null ? '미계측' : count(value)}</td>;
+              return <td key={key} className={key === 'jobs_failed' && value ? 'mcp-fail' : undefined}>{value === null ? '미계측' : count(value)}</td>;
             })}</tr>
           ))}
           </Table>
         </details>
       </section>
 
-      <div className="mcp-two-column">
-        <section className="mcp-section">
-          <h2>관측된 도구 실행</h2>
-          <Table headings={['도구', '호출', '성공', '실패', '미확인', 'p95']}>
-            {report.tools.length === 0 ? <EmptyRows columns={6}>{measurement.tool_telemetry_available ? '관측된 도구 실행이 없습니다.' : '도구 실행은 미계측 상태입니다.'}</EmptyRows> : report.tools.map((row) => (
-              <tr key={row.name}><th scope="row"><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td>{count(row.failed)}</td><td>{count(row.unknown)}</td><td>{duration(row.p95_ms)}</td></tr>
-            ))}
-          </Table>
-        </section>
-        <section className="mcp-section">
-          <h2>서버 경로</h2>
-          <Table headings={['경로', '요청', '오류', 'p95']}>
-            {report.routes.length === 0 ? <EmptyRows columns={4}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
-              <tr key={row.name}><th scope="row"><code>{row.name}</code></th><td>{count(row.requests)}</td><td>{count(row.errors)}</td><td>{duration(row.p95_ms)}</td></tr>
-            ))}
-          </Table>
-        </section>
-      </div>
-
-      <div className="mcp-two-column">
-        <section className="mcp-section">
-          <h2>작업 수명주기</h2>
-          <p>기간 안에 시작된 작업의 현재 상태입니다. 종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
-          <Table headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
-            {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
-              <tr key={row.name}><th scope="row">{row.name}</th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
-            ))}
-          </Table>
-        </section>
-        <section className="mcp-section">
-          <h2>오류 분류</h2>
-          <Table headings={['종류', '코드', '건수']}>
-            {report.errors.length === 0 ? <EmptyRows columns={3}>집계된 오류가 없습니다.</EmptyRows> : report.errors.map((row) => (
-              <tr key={`${row.kind}:${row.code}`}><th scope="row">{ERROR_KIND[row.kind] ?? row.kind}</th><td>{ERROR_CODE[row.code] ?? <code>{row.code}</code>}</td><td>{count(row.count)}</td></tr>
-            ))}
-          </Table>
-        </section>
-      </div>
-
       <section className="mcp-section">
         <h2>클라이언트 주장값</h2>
         <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
         <div className="mcp-two-column mcp-two-column--nested">
-          <Table headings={['클라이언트', '버전', '요청', '도구 호출']}>
+          <Table label="클라이언트 주장값 표" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
             {report.clients.length === 0 ? <EmptyRows columns={4}>클라이언트 주장값이 없습니다.</EmptyRows> : report.clients.map((row, index) => (
               <tr key={`${row.name}:${row.version}:${index}`}><th scope="row">{claimedValue(row.name)}</th><td>{claimedValue(row.version)}</td><td>{count(row.requests)}</td><td>{count(row.tool_calls)}</td></tr>
             ))}
           </Table>
-          <Table headings={['어댑터 버전', '요청', '오류', '도구 호출', '도구 실패']}>
-            {report.versions.length === 0 ? <EmptyRows columns={5}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
-              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td>{count(row.errors)}</td><td>{count(row.tool_calls)}</td><td>{count(row.tool_failures)}</td></tr>
+          <Table label="어댑터 버전 표" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
+            {report.versions.length === 0 ? <EmptyRows columns={7}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
+              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rate(ratio(row.tool_failures, row.tool_calls))}</td></tr>
             ))}
           </Table>
         </div>
@@ -305,7 +350,7 @@ export default function AdminMcpReport() {
 
       <details className="mcp-method">
         <summary>측정 한계와 출처</summary>
-        <p>도구 실행은 업그레이드된 어댑터가 보고한 것만 관측합니다. 기존 어댑터, 로컬 옵트아웃, 전송 유실의 도구 실행 총량은 알 수 없습니다.</p>
+        <p>브라우저 분석·GA4와 분리된 서버 관측 집계입니다. 도구 실행은 업그레이드된 어댑터가 보고한 것만 관측합니다. 기존 어댑터, 로컬 옵트아웃, 전송 유실의 도구 실행 총량은 알 수 없습니다.</p>
         <p>마지막 이벤트·측정 시작·어댑터 도구 보고는 선택 기간·관리자 필터와 무관한 원장 전체 기준입니다.</p>
         <p>클라이언트·버전·User-Agent는 클라이언트가 보낸 주장값이며 실제 호스트나 사람 수를 증명하지 않습니다. 서버가 받은 MCP 요청과 작업 수명주기만 집계합니다.</p>
       </details>
@@ -331,7 +376,7 @@ function Header({
       <div className="visits-report-heading">
         <span className="visits-report-kicker">MCP TELEMETRY</span>
         <h1 id="mcp-report-title">MCP 사용 리포트</h1>
-        <p>{report ? `브라우저 분석·GA4와 분리된 서버 관측 집계 · ${report.window.start} — ${report.window.end} · ${report.window.timezone}` : '브라우저 분석 및 GA4와 분리된 MCP 사용 집계'}</p>
+        <p>{report ? `${report.window.start} — ${report.window.end} · ${report.window.timezone}` : 'MCP 사용 집계'}</p>
       </div>
       <div className="mcp-controls">
         <div className="mcp-window" role="group" aria-label="조회 기간">
@@ -346,9 +391,13 @@ function Header({
   );
 }
 
-function Table({ headings, children, className = '' }: { headings: string[]; children: ReactNode; className?: string }) {
+/* A non-zero failure count is the thing being scanned for; grey 12px hid it. */
+const failClass = (value: number) => (value > 0 ? 'mcp-fail' : undefined);
+
+function Table({ label, headings, children, className = '' }: { label: string; headings: string[]; children: ReactNode; className?: string }) {
   return (
-    <div className="mcp-table-scroll">
+    // Every table overflows on a phone; without a tab stop the hidden columns are unreachable by keyboard.
+    <div className="mcp-table-scroll" tabIndex={0} role="region" aria-label={label}>
       <table className={`mcp-table ${className}`}>
         <thead><tr>{headings.map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead>
         <tbody>{children}</tbody>
