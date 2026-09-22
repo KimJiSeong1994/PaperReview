@@ -1,0 +1,25 @@
+[
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "paper": "Faysse et al. (2025), ColPali: Efficient Document Retrieval with Vision Language Models",
+    "version": "ICLR 2025 / arXiv:2407.01449v6",
+    "pdf_sha256": "852ec724f3d48316265611579f4c556a14fea24f29360b5929d02e4604662631",
+    "physical_pdf_page": 9,
+    "figure": "Figure 3",
+    "asset": "drafts/colpali-efficient-document-retrieval-vision-language-models/assets/colpali-v6-figure-3-token-pooling-interpretability-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/colpali-v6-figure-3-token-pooling-interpretability-300dpi.png",
+    "asset_sha256": "1a8a9f5bbaa179e593a878fbe03afcbde166a9707fb44dc96a285821ea93867a",
+    "render": "300 dpi PNG panels-only crop, bbox x=450–2100, y=270–930 on rendered page; printed caption and neighboring prose excluded"
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "paper": "Zhang et al. (2026), LoongReflect: Boosting Long-Horizon Reflection in Search Agents via Global Perspective Distillation",
+    "version": "arXiv:2608.11967v1",
+    "pdf_sha256": "398c0f30428b80b2c3d0fd965f3105ff5df84e023a2a6ca13915ebf834e95810",
+    "physical_pdf_page": 4,
+    "figure": "Figure 2",
+    "replacement_asset": "drafts/loongreflect-long-horizon-reflection-search-agents/assets/loongreflect-arxiv-v1-figure-2-framework-diagram-300dpi.png",
+    "proposed_public_path": "/api/blog/figures/loongreflect-arxiv-v1-figure-2-framework-diagram-300dpi.png",
+    "asset_sha256": "67429c65d2f48059162012e660bcc7002acd07166ef364f689a0f2d720c7731d"
+  }
+]
