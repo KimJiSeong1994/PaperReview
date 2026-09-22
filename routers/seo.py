@@ -560,6 +560,10 @@ def _extract_primary_paper_reference(post: dict) -> dict | None:
     """
     content = post.get("content", "") or ""
     match = _PAPER_BLOCK_RE.search(content)
+    # A conference/program collection has multiple sources, not one paper.
+    # Keep legacy paper-review fallback for articles without either header.
+    if not match and re.search(r"^\*\*Sources:\*\*", content, re.IGNORECASE | re.MULTILINE):
+        return None
     if not match and post.get("category") != "paper-review":
         return None
 

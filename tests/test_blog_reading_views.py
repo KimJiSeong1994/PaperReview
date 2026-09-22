@@ -60,6 +60,24 @@ def _posting_json_ld(document: str) -> dict:
     )
 
 
+def test_source_collection_has_no_primary_paper_in_either_view(monkeypatch) -> None:
+    post = _post() | {
+        "category": "paper-review",
+        "content": "**Sources:** [Program](https://example.com/program)\n\nEasy collection.",
+        "deep_content": '**Paper:** A. Author (2024). "A selected paper". arXiv:2404.19737\n\nDetailed collection.',
+    }
+    monkeypatch.setattr(seo, "_load_posts", lambda: [post])
+    client = TestClient(app)
+    for suffix in ("", "?view=deep"):
+        response = client.get("/blog/two-reading-levels" + suffix)
+        assert response.status_code == 200
+        assert "blog-detail-reading-link" in response.text
+        assert 'class="blog-detail-pdf-link"' not in response.text
+        graph = _json_ld_graph(response.text)
+        assert not any(node.get("@type") == "ScholarlyArticle" for node in graph)
+        assert "citation" not in _posting_json_ld(response.text)
+
+
 def test_detail_returns_both_bodies_and_list_search_never_leaks_them(
     posts_client: TestClient,
 ) -> None:

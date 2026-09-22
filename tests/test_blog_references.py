@@ -55,22 +55,28 @@ def _references() -> list[tuple[str, str, bool, int, str]]:
     for post in posts:
         if not post.get("published"):
             continue
-        for line in post["content"].split("\n"):
-            match = REFERENCE.match(line.strip())
-            if not match:
-                continue
-            authors = " ".join(match.group(1).split())
-            count = len(AUTHOR.findall(authors))
-            if count:
-                out.append(
-                    (
-                        post["slug"],
-                        _title_key(match.group(3)),
-                        "arxiv:" in line.lower(),
-                        count,
-                        authors,
+        # Easy and detailed views are separate bibliographies of one review.
+        # Check duplicates within each view and author consistency across both.
+        bodies = [(post["slug"], post["content"])]
+        if post.get("deep_content"):
+            bodies.append((post["slug"] + "?view=deep", post["deep_content"]))
+        for view_slug, body in bodies:
+            for line in body.split("\n"):
+                match = REFERENCE.match(line.strip())
+                if not match:
+                    continue
+                authors = " ".join(match.group(1).split())
+                count = len(AUTHOR.findall(authors))
+                if count:
+                    out.append(
+                        (
+                            view_slug,
+                            _title_key(match.group(3)),
+                            "arxiv:" in line.lower(),
+                            count,
+                            authors,
+                        )
                     )
-                )
     return out
 
 

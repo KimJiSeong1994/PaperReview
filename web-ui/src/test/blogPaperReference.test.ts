@@ -6,6 +6,15 @@ import {
 } from '../utils/blogPaperReference';
 
 describe('blog paper reference extraction', () => {
+  it('does not invent a primary paper for an explicit source collection', () => {
+    expect(extractPrimaryPaperReference({
+      category: 'paper-review',
+      title: 'Conference research trends',
+      content: '**Sources:** [Conference program](https://example.com/program)\n\n' +
+        '## Selected work\n\narXiv:2404.19737 describes one presentation.',
+    })).toBeNull();
+  });
+
   it('extracts the primary GraphSAGE arXiv paper from the Paper block only', () => {
     const ref = extractPrimaryPaperReference({
       category: 'paper-review',

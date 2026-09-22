@@ -61,6 +61,18 @@ describe('blog reading levels', () => {
   });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+  it('keeps source collections free of a fabricated PDF link in both views', async () => {
+    const user = userEvent.setup();
+    mockPost({ content: '**Sources:** [Program](https://example.com/program)\n\nEASY_COLLECTION',
+      deep_content: `${PAPER}\n\nDEEP_COLLECTION` });
+    mount();
+    await screen.findByText('EASY_COLLECTION');
+    expect(screen.queryByRole('link', { name: /PDF 보기/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /상세 읽기/ }));
+    await screen.findByText('DEEP_COLLECTION');
+    expect(screen.queryByRole('link', { name: /PDF 보기/ })).not.toBeInTheDocument();
+  });
+
   it('shows only the easy body by default with a detailed link beside PDF', async () => {
     mount();
     await screen.findByText('EASY_ONLY');
