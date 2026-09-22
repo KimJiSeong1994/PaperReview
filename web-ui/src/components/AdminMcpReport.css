@@ -43,7 +43,10 @@
 .mcp-state strong { font-size: 18px; color: var(--text-hi); }
 .mcp-state p { margin: 8px 0; color: var(--text-muted); }
 
-.mcp-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+/* Exactly five cards, none conditional: three across, then two wider ones. */
+.mcp-metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.mcp-metric:nth-child(-n+3) { grid-column: span 2; }
+.mcp-metric:nth-child(n+4) { grid-column: span 3; }
 .mcp-metric { min-width: 0; padding: 17px 18px; border: 1px solid var(--mcp-border); border-radius: 13px; background: var(--bg-input); box-shadow: var(--card-shadow); }
 .mcp-metric p { margin: 0 0 8px; color: var(--text-muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 .mcp-metric strong { display: block; color: var(--indigo-strong); font-size: 26px; font-variant-numeric: tabular-nums; }
@@ -92,13 +95,14 @@
 
 @media (max-width: 900px) {
   .mcp-controls { justify-content: flex-start; }
-  .mcp-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mcp-metric:nth-child(-n+4) { grid-column: span 3; }
+  .mcp-metric:nth-child(5) { grid-column: span 6; }
   .mcp-two-column { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
   .mcp-report.visits-report { gap: 12px; }
-  .mcp-metrics { grid-template-columns: 1fr; }
+  .mcp-metric:nth-child(n) { grid-column: span 6; }
   .mcp-section, .mcp-metric { padding: 14px; }
   .mcp-controls { align-items: flex-start; flex-direction: column; }
   .mcp-window button { min-height: 44px; }

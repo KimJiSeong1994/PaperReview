@@ -64,15 +64,14 @@ function Metric({ label, value, note, parts, unmeasured = false }: {
     <article className={unmeasured ? 'mcp-metric mcp-metric--unmeasured' : 'mcp-metric'}>
       <p>{label}</p>
       <strong>{value}</strong>
-      {parts ? (
+      {parts && (
         <div className="mcp-metric-parts">
           {parts.map((part) => (
             <span key={part.label} className={part.bad ? 'bad' : undefined}><b>{part.value}</b><small>{part.label}</small></span>
           ))}
         </div>
-      ) : (
-        <span>{note}</span>
       )}
+      {note && <span>{note}</span>}
     </article>
   );
 }
@@ -219,8 +218,12 @@ export default function AdminMcpReport() {
           { label: '종료 대기', value: count(totals.jobs_pending) },
           { label: 'p95', value: duration(totals.job_p95_ms) },
         ]} />
-        <Metric label="활성 계정" value={count(totals.active_accounts)} note="조회성 호출을 제외한 성공 호출 또는 작업 시작 기준" />
-        <Metric label="2일 이상 사용 계정" value={count(totals.repeat_accounts)} note="서로 다른 KST 날짜의 의미 있는 사용 · 리텐션 아님" />
+        <Metric
+          label="활성 계정"
+          value={count(totals.active_accounts)}
+          parts={[{ label: '2일 이상 사용 계정', value: count(totals.repeat_accounts) }]}
+          note="조회성 호출을 제외한 성공 호출 또는 작업 시작 기준 · 2일 이상은 서로 다른 KST 날짜의 의미 있는 사용이며 리텐션 아님"
+        />
         {/* 창·필터 기준 값이라 스트립이 아니라 여기에 있고, 100%가 "다 잡고 있다"로 읽히지 않도록 단서를 숫자 옆에 붙인다. */}
         <Metric
           label="요청 연결률"
