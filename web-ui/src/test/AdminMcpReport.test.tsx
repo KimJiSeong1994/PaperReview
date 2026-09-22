@@ -114,8 +114,11 @@ describe('AdminMcpReport', () => {
     expect(screen.getAllByText('관측된 도구 실행').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('작업 시작').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('활성 계정').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('2일 이상 사용 계정')).toBeInTheDocument();
-    expect(screen.getByText(/리텐션 아님/)).toBeInTheDocument();
+    const accounts = screen.getByText('활성 계정', { selector: '.mcp-metric p' }).parentElement!;
+    expect(within(accounts).getByText('2일 이상 사용 계정').previousElementSibling).toHaveTextContent('3');
+    expect(within(accounts).getByText(/리텐션 아님/)).toBeInTheDocument();
+    expect(within(accounts).getByText(/조회성 호출을 제외한/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'MCP 핵심 지표' }).children).toHaveLength(5);
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('75.0%');
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('90/120 · invocation');
     expect(screen.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
