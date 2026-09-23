@@ -48,8 +48,19 @@ const duration = (value: number | null) => {
 };
 const ms = (value: number | null) => (value === null ? '미집계' : value < 1 ? '<1' : numberFormat.format(Math.round(value)));
 const rate = (value: number | null) => value === null ? '미집계' : `${(value * 100).toFixed(1)}%`;
+// Below this many samples a single event moves a rate by 5%p or more, and the
+// backend's p95 is literally the observed maximum (mcp_usage.py:_percentile_95
+// indexes the last element for every n < 20). So under it we show the counts
+// themselves and call the latency what it is.
+const RATE_SAMPLE_FLOOR = 20;
 // 미확인 stays in the denominator: a rate over succeeded+failed would hide it.
-const ratio = (part: number, whole: number) => (whole ? part / whole : null);
+const rateOf = (part: number, whole: number) => {
+  if (whole === 0) return '미집계';
+  return whole < RATE_SAMPLE_FLOOR ? `${count(part)}/${count(whole)}` : rate(part / whole);
+};
+// 표본은 duration이 기록된 이벤트 수이지 요청·호출 건수가 아니다 — 종료 대기 중인
+// 작업이 많으면 작업 25건에도 지연 표본은 15건일 수 있다.
+const latencyLabel = (samples: number) => (samples < RATE_SAMPLE_FLOOR ? '최대' : 'p95');
 const claimedValue = (value: string | null) => value || '미제공';
 
 type MetricPart = { label: string; value: string; bad?: boolean };
@@ -151,7 +162,16 @@ export default function AdminMcpReport() {
     || (key === 'tool_calls' && !measurement.tool_telemetry_available)
       ? null : row[key]
   );
+  // 요청이 0건이면 셀 수 있는 분모가 없다 — 백엔드가 보낸 비율을 그대로 두어야
+  // 측정된 0(0.0%)과 미집계가 갈린다.
+  const requestErrors = totals.requests > 0 && totals.requests < RATE_SAMPLE_FLOOR && totals.request_error_rate !== null
+    ? Math.round(totals.request_error_rate * totals.requests)
+    : null;
   const measuredZero = totals.requests === 0 && totals.tool_calls === 0 && totals.jobs_started === 0;
+  // 0건과 "몇 건" 사이가 관리자에게 가장 헷갈리는 구간이다. 0건 배너는 여기서 뜨지
+  // 않는데 화면은 100.0% 같은 붉은 비율로 채워져 고장처럼 보인다.
+  const activity = totals.requests + totals.tool_calls + totals.jobs_started;
+  const sparseActivity = !measuredZero && activity < RATE_SAMPLE_FLOOR;
   const yMax = Math.max(0, ...report.daily.flatMap((row) => DAILY_SERIES.map((series) => dailyValue(row, series.key) ?? 0)));
   const preMeasured = measurementStart !== null && measurementStart > report.window.start;
 
@@ -177,6 +197,21 @@ export default function AdminMcpReport() {
         </div>
       </div>
 
+      {sparseActivity && (
+        <div className="mcp-zero mcp-zero--sparse">
+          <div role="status">
+            <strong>선택한 기간({report.window.days}일{includeInternal ? '' : ', 관리자 제외'})에 기록된 활동이 요청·도구 호출·작업 시작 합계 {count(activity)}건입니다.</strong>
+            <p>
+              표본이 {RATE_SAMPLE_FLOOR}건 미만이라 비율 대신 건수를 그대로 보여 주고, 지연은 p95가 아니라 관측된 최대값입니다.
+              {!includeInternal && ' 관리자 계정을 포함하면 내부 사용이 보일 수 있습니다.'}
+            </p>
+          </div>
+          {!includeInternal && (
+            <button type="button" className="mcp-zero-action" onClick={() => setIncludeInternal(true)}>관리자 계정 포함해서 보기</button>
+          )}
+        </div>
+      )}
+
       {measuredZero && (
         <div className="mcp-zero">
           <div role="status">
@@ -195,8 +230,10 @@ export default function AdminMcpReport() {
 
       <div className="mcp-metrics" role="group" aria-label="MCP 핵심 지표">
         <Metric label="서버 요청" value={count(totals.requests)} parts={[
-          { label: '오류율', value: rate(totals.request_error_rate) },
-          { label: 'p95', value: duration(totals.request_p95_ms) },
+          // 표본이 충분하면 백엔드가 준 비율을 그대로 쓴다(역산해 다시 나누면 8.6%가 8.7%로 흔들린다).
+          // 요청이 0건이면 셀 분모가 없으니 역시 백엔드 값 — 측정된 0과 미집계는 거기서 갈린다.
+          { label: '오류율', value: requestErrors === null ? rate(totals.request_error_rate) : `${count(requestErrors)}/${count(totals.requests)}` },
+          { label: latencyLabel(totals.request_duration_samples), value: duration(totals.request_p95_ms) },
         ]} />
         <Metric
           label="관측된 도구 실행"
@@ -204,11 +241,11 @@ export default function AdminMcpReport() {
           unmeasured={!measurement.tool_telemetry_available}
           note={measurement.tool_telemetry_available ? undefined : '업그레이드된 어댑터 텔레메트리 없음'}
           parts={measurement.tool_telemetry_available ? [
-            { label: '실패율', value: rate(ratio(totals.tool_failures, totals.tool_calls)) },
+            { label: '실패율', value: rateOf(totals.tool_failures, totals.tool_calls) },
             { label: '성공', value: count(totals.tool_successes) },
             { label: '실패', value: count(totals.tool_failures), bad: totals.tool_failures > 0 },
             { label: '미확인', value: count(totals.tool_unknown) },
-            { label: 'p95', value: duration(totals.tool_p95_ms) },
+            { label: latencyLabel(totals.tool_duration_samples), value: duration(totals.tool_p95_ms) },
           ] : undefined}
         />
         {/* 미확인은 시작 기록 없는 종료도 세므로 시작 수와 더해지지 않는다 — 작업 표에서만 보인다. */}
@@ -216,7 +253,7 @@ export default function AdminMcpReport() {
           { label: '완료', value: count(totals.jobs_completed) },
           { label: '실패', value: count(totals.jobs_failed), bad: totals.jobs_failed > 0 },
           { label: '종료 대기', value: count(totals.jobs_pending) },
-          { label: 'p95', value: duration(totals.job_p95_ms) },
+          { label: latencyLabel(totals.job_duration_samples), value: duration(totals.job_p95_ms) },
         ]} />
         <Metric
           label="활성 계정"
@@ -227,9 +264,15 @@ export default function AdminMcpReport() {
         {/* 창·필터 기준 값이라 스트립이 아니라 여기에 있고, 100%가 "다 잡고 있다"로 읽히지 않도록 단서를 숫자 옆에 붙인다. */}
         <Metric
           label="요청 연결률"
-          value={rate(measurement.invocation_coverage)}
+          // 주장 요청이 20건 미만이면 이 카드도 백분율 대신 건수를 낸다 — 헤드라인이
+          // 분수면 노트가 같은 분수를 되풀이할 필요는 없다.
+          value={measurement.invocation_coverage === null || measurement.claimed_adapter_requests >= RATE_SAMPLE_FLOOR
+            ? rate(measurement.invocation_coverage)
+            : `${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)}`}
           unmeasured={measurement.invocation_coverage === null}
-          note={`${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다`}
+          note={measurement.invocation_coverage !== null && measurement.claimed_adapter_requests < RATE_SAMPLE_FLOOR
+            ? 'invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다'
+            : `${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다`}
         />
       </div>
 
@@ -238,7 +281,7 @@ export default function AdminMcpReport() {
           <h2>관측된 도구 실행</h2>
           <Table label="관측된 도구 실행 표" headings={['도구', '호출', '성공', '실패', '실패율', '미확인', 'p95 (ms)']}>
             {report.tools.length === 0 ? <EmptyRows columns={7}>{measurement.tool_telemetry_available ? '관측된 도구 실행이 없습니다.' : '도구 실행은 미계측 상태입니다.'}</EmptyRows> : report.tools.map((row) => (
-              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{rate(ratio(row.failed, row.calls))}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
+              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{rateOf(row.failed, row.calls)}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
             ))}
           </Table>
           <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'tool')} />
@@ -247,19 +290,19 @@ export default function AdminMcpReport() {
           <h2>서버 경로</h2>
           <Table label="서버 경로 표" headings={['경로', '요청', '오류', '오류율', 'p95 (ms)']}>
             {report.routes.length === 0 ? <EmptyRows columns={5}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
-              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{ms(row.p95_ms)}</td></tr>
+              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{ms(row.p95_ms)}</td></tr>
             ))}
           </Table>
           <ErrorLine label="오류 코드" rows={report.errors.filter((row) => row.kind === 'request')} />
         </section>
       </div>
 
-      <section className="mcp-section">
+      <section className="mcp-section mcp-section--aside">
         <h2>작업 수명주기</h2>
         <p>종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
         <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
           {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
-            <tr key={row.name}><th scope="row">{row.name}</th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
+            <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
           ))}
         </Table>
         <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'job')} />
@@ -269,14 +312,14 @@ export default function AdminMcpReport() {
         <h2>클라이언트 주장값</h2>
         <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
         <div className="mcp-two-column mcp-two-column--nested">
-          <Table label="클라이언트 주장값 표" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
+          <Table label="클라이언트 주장값 표" caption="클라이언트" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
             {report.clients.length === 0 ? <EmptyRows columns={4}>클라이언트 주장값이 없습니다.</EmptyRows> : report.clients.map((row, index) => (
               <tr key={`${row.name}:${row.version}:${index}`}><th scope="row">{claimedValue(row.name)}</th><td>{claimedValue(row.version)}</td><td>{count(row.requests)}</td><td>{count(row.tool_calls)}</td></tr>
             ))}
           </Table>
-          <Table label="어댑터 버전 표" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
+          <Table label="어댑터 버전 표" caption="어댑터 버전" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
             {report.versions.length === 0 ? <EmptyRows columns={7}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
-              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rate(ratio(row.errors, row.requests))}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rate(ratio(row.tool_failures, row.tool_calls))}</td></tr>
+              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rateOf(row.tool_failures, row.tool_calls)}</td></tr>
             ))}
           </Table>
         </div>
@@ -351,6 +394,7 @@ export default function AdminMcpReport() {
         <summary>측정 한계와 출처</summary>
         <p>브라우저 분석·GA4와 분리된 서버 관측 집계입니다. 도구 실행은 업그레이드된 어댑터가 보고한 것만 관측합니다. 기존 어댑터, 로컬 옵트아웃, 전송 유실의 도구 실행 총량은 알 수 없습니다.</p>
         <p>마지막 이벤트·측정 시작·어댑터 도구 보고는 선택 기간·관리자 필터와 무관한 원장 전체 기준입니다.</p>
+        <p>지연 p95는 표본이 {RATE_SAMPLE_FLOOR}건 미만이면 관측된 최대값과 같습니다. 같은 구간에서 비율은 백분율 대신 건수로 표시합니다.</p>
         <p>클라이언트·버전·User-Agent는 클라이언트가 보낸 주장값이며 실제 호스트나 사람 수를 증명하지 않습니다. 서버가 받은 MCP 요청과 작업 수명주기만 집계합니다.</p>
       </details>
     </section>
@@ -403,11 +447,12 @@ function ErrorLine({ label, rows }: { label: string; rows: McpReportData['errors
 /* A non-zero failure count is the thing being scanned for; grey 12px hid it. */
 const failClass = (value: number) => (value > 0 ? 'mcp-fail' : undefined);
 
-function Table({ label, headings, children, className = '' }: { label: string; headings: string[]; children: ReactNode; className?: string }) {
+function Table({ label, caption, headings, children, className = '' }: { label: string; caption?: string; headings: string[]; children: ReactNode; className?: string }) {
   return (
     // Every table overflows on a phone; without a tab stop the hidden columns are unreachable by keyboard.
     <div className="mcp-table-scroll" tabIndex={0} role="region" aria-label={label}>
       <table className={`mcp-table ${className}`}>
+        {caption && <caption>{caption}</caption>}
         <thead><tr>{headings.map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead>
         <tbody>{children}</tbody>
       </table>

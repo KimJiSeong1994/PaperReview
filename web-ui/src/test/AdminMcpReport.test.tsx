@@ -47,6 +47,9 @@ const REPORT: McpReportData = {
     tool_p95_ms: 420,
     job_p95_ms: null,
     repeat_accounts: 3,
+    request_duration_samples: 120,
+    tool_duration_samples: 40,
+    job_duration_samples: 12,
   },
   daily: [{ date: '2026-09-05', requests: 12, active_accounts: 3, tool_calls: 4, jobs_started: 2, jobs_completed: 1, jobs_failed: 0 }],
   tools: [{ name: 'deep_review', calls: 4, succeeded: 3, failed: 1, unknown: 0, p95_ms: null }],
@@ -270,6 +273,8 @@ describe('AdminMcpReport', () => {
     const section = (name: string) => within(screen.getByRole('heading', { name }).closest('section')!);
 
     expect(screen.queryByText('오류 분류')).toBeNull();
+    expect(screen.getByRole('table', { name: '클라이언트' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: '어댑터 버전' })).toBeInTheDocument();
     expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('404 ×5');
     expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('실패 ×1');
     expect(section('관측된 도구 실행').getByText('실패 사유').parentElement).toHaveTextContent('취소 ×1');
@@ -277,12 +282,65 @@ describe('AdminMcpReport', () => {
     expect(section('작업 수명주기').getByText('실패 사유').parentElement).toHaveTextContent('실패 ×1');
   });
 
+  it('shows counts instead of percentages until the sample is large enough, and names the latency honestly', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, requests: 40, request_error_rate: 0.1, request_p95_ms: 1843, request_duration_samples: 40, tool_calls: 4, tool_failures: 1, tool_p95_ms: 420, tool_duration_samples: 4, jobs_started: 12, job_p95_ms: 9000, job_duration_samples: 12 },
+    }));
+    render(<AdminMcpReport />);
+
+    const requests = (await screen.findByText('서버 요청', { selector: '.mcp-metric p' })).parentElement!;
+    expect(within(requests).getByText('오류율').previousElementSibling).toHaveTextContent('10.0%');
+    expect(within(requests).getByText('p95')).toBeInTheDocument();
+    const tools = screen.getByText('관측된 도구 실행', { selector: '.mcp-metric p' }).parentElement!;
+    expect(within(tools).getByText('실패율').previousElementSibling).toHaveTextContent('1/4');
+    expect(within(tools).getByText('최대').previousElementSibling).toHaveTextContent('420ms');
+    const jobs = screen.getByText('작업 시작', { selector: '.mcp-metric p' }).parentElement!;
+    expect(within(jobs).getByText('최대').previousElementSibling).toHaveTextContent('9.0초');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('calls the latency a maximum when the duration samples are thin, not when the event count is high', async () => {
+    // 작업 25건이라도 종료 대기가 많으면 지연 표본은 15건뿐이다.
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, jobs_started: 25, jobs_pending: 10, jobs_completed: 12, jobs_failed: 3, job_p95_ms: 9000, job_duration_samples: 15 },
+    }));
+    render(<AdminMcpReport />);
+
+    const jobs = (await screen.findByText('작업 시작', { selector: '.mcp-metric p' })).parentElement!;
+    expect(within(jobs).getByText('최대')).toBeInTheDocument();
+    expect(within(jobs).queryByText('p95')).toBeNull();
+  });
+
+  it('explains a near-zero window instead of filling it with alarming rates', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      measurement: { ...REPORT.measurement, claimed_adapter_requests: 1, requests_with_invocation_id: 1, invocation_coverage: 1 },
+      totals: { ...REPORT.totals, requests: 1, request_error_rate: 1, tool_calls: 3, tool_failures: 2, jobs_started: 0 },
+    }));
+    render(<AdminMcpReport />);
+
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent('합계 4건입니다');
+    expect(banner).toHaveTextContent('관측된 최대값입니다');
+    const requests = screen.getByText('서버 요청', { selector: '.mcp-metric p' }).parentElement!;
+    expect(within(requests).getByText('오류율').previousElementSibling).toHaveTextContent('1/1');
+    expect(within(requests).queryByText('100.0%')).toBeNull();
+    const coverage = screen.getByText('요청 연결률', { selector: '.mcp-metric p' }).parentElement!;
+    expect(coverage).toHaveTextContent('1/1');
+    expect(coverage).not.toHaveTextContent('100.0%');
+
+    fireEvent.click(screen.getByRole('button', { name: '관리자 계정 포함해서 보기' }));
+    await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(28, true, expect.any(AbortSignal)));
+  });
+
   it('shows per-version error counts next to the version claims', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
 
     const row = await screen.findByRole('row', { name: /^0\.4\.0/ });
-    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '10.0%', '4', '1', '25.0%']);
+    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '1/10', '4', '1', '1/4']);
   });
 
   it('rates failures against every call, marks non-zero failures, and keeps table columns in raw ms', async () => {
@@ -296,10 +354,10 @@ describe('AdminMcpReport', () => {
 
     const tools = await screen.findByRole('region', { name: '관측된 도구 실행 표' });
     const tool = within(within(tools).getByRole('row', { name: /^deep_review/ })).getAllByRole('cell');
-    expect(tool.map((cell) => cell.textContent)).toEqual(['4', '2', '1', '25.0%', '1', '<1']);
+    expect(tool.map((cell) => cell.textContent)).toEqual(['4', '2', '1', '1/4', '1', '<1']);
     expect(tool[2]).toHaveClass('mcp-fail');
     const route = within(screen.getByRole('row', { name: /review\/start/ })).getAllByRole('cell');
-    expect(route.map((cell) => cell.textContent)).toEqual(['12', '0', '0.0%', '12,410']);
+    expect(route.map((cell) => cell.textContent)).toEqual(['12', '0', '0/12', '12,410']);
     expect(route[1]).not.toHaveClass('mcp-fail');
     expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('1.8초');
     expect(screen.getByText('작업 시작', { selector: '.mcp-metric p' }).parentElement).toHaveTextContent('3분 8초');

@@ -180,6 +180,25 @@ def test_adapter_client_categories_are_bounded_and_unknown_is_not_mislabeled(led
     assert observed == set(labels.values())
 
 
+def test_duration_samples_count_only_events_that_recorded_a_duration(ledger: Path) -> None:
+    """p95의 표본은 duration이 남은 이벤트뿐이라 요청 건수와 다르다 — UI가 p95/최대를 가르는 근거."""
+    assert record_event(
+        kind="request", name="POST /api/search", status="succeeded", http_status=200,
+        duration_ms=120.0, actor_id="alice", actor_role="user", source="ua_claim",
+    )
+    assert record_event(
+        kind="request", name="POST /api/search", status="succeeded", http_status=200,
+        actor_id="alice", actor_role="user", source="ua_claim",
+    )
+    report = build_mcp_usage_report(ledger, days=7)
+    totals = report["totals"]
+    assert totals["requests"] == 2
+    assert totals["request_duration_samples"] == 1
+    assert totals["request_p95_ms"] == 120.0
+    assert totals["tool_duration_samples"] == 0
+    assert totals["job_duration_samples"] == 0
+
+
 def test_versions_carry_their_own_error_counts(ledger: Path) -> None:
     assert record_event(
         kind="request", name="GET /api/papers/{paper_id}", status="succeeded", http_status=404,
