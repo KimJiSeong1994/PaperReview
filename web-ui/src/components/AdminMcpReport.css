@@ -142,3 +142,10 @@
   .mcp-route-compact code { display: block; overflow: hidden; text-overflow: ellipsis; }
   .mcp-route-method { display: block; color: var(--text-faint); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; }
 }
+
+@media (max-width: 360px) {
+  /* 48vw는 320px에서 154px뿐이라 축약한 경로도 17px 넘친다. 라벨에 폭을 더 주고
+     숫자는 가로 스크롤에 맡긴다. code를 줄바꿈으로 풀면 열이 51px로 무너지고
+     페이지가 3284→4491px가 된다(측정). */
+  .mcp-table tbody th { max-width: 58vw; }
+}
