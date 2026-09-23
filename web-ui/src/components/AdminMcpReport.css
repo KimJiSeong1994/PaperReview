@@ -108,6 +108,7 @@
 .mcp-table tbody tr:hover > * { background: var(--wov-04); }
 .mcp-table caption { margin-bottom: 8px; color: var(--text-muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; text-align: left; }
 .mcp-table code { color: inherit; font-size: 12px; }
+.mcp-route-compact { display: none; }
 .mcp-empty { padding: 22px !important; color: var(--text-faint); text-align: center !important; }
 .mcp-method { padding: 4px 2px; color: var(--text-faint); font-size: 12px; }
 .mcp-method p { margin: 8px 0 0; line-height: 1.6; }
@@ -134,5 +135,10 @@
   .mcp-table th:first-child, .mcp-table td:first-child { position: sticky; left: 0; min-width: 0; background: var(--bg-input); box-shadow: 1px 0 0 var(--mcp-border); }
   /* nowrap이 첫 칸을 콘텐츠 폭으로 잡아 주어야 sticky + 가로 스크롤이 성립한다.
      white-space:normal로 풀면 열이 좁아지며 모든 행이 늘어난다(400px에서 +324px). */
-  .mcp-table tbody th { max-width: 45vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mcp-table tbody th { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mcp-route-full { display: none; }
+  /* block 래퍼가 th의 말줄임을 가로채므로 경로 자체에 다시 달아 준다(320px에서 보인다). */
+  .mcp-route-compact { display: block; }
+  .mcp-route-compact code { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .mcp-route-method { display: block; color: var(--text-faint); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; }
 }

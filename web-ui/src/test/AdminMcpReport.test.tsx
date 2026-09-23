@@ -335,6 +335,31 @@ describe('AdminMcpReport', () => {
     await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(28, true, expect.any(AbortSignal)));
   });
 
+  it('keeps a shortened route label for narrow screens without losing the real one', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      routes: [
+        { name: 'GET /api/deep-review/{session_id}/status', requests: 14, errors: 0, p95_ms: 12 },
+        { name: '/api/review/start', requests: 12, errors: 0, p95_ms: null },
+        { name: 'GET (unmatched)', requests: 3, errors: 3, p95_ms: 2 },
+      ],
+    }));
+    render(<AdminMcpReport />);
+
+    const header = (match: RegExp) => within(screen.getByRole('region', { name: '서버 경로 표' })).getByRole('rowheader', { name: match });
+    const withMethod = await screen.findByRole('rowheader', { name: /deep-review/ });
+    expect(withMethod).toHaveAttribute('title', 'GET /api/deep-review/{session_id}/status');
+    expect(within(withMethod).getByText('GET /api/deep-review/{session_id}/status')).toHaveClass('mcp-route-full');
+    expect(within(withMethod).getByText('GET')).toHaveClass('mcp-route-method');
+    expect(within(withMethod).getByText('/deep-review/…/status')).toBeInTheDocument();
+    // 메서드가 없는 이름도 같은 축약을 받는다.
+    expect(within(header(/review\/start/)).getByText('/review/start')).toBeInTheDocument();
+    // 경로가 아닌 이름도 메서드를 분리해 보여 준다.
+    const unmatched = header(/unmatched/);
+    expect(within(unmatched).getByText('GET')).toHaveClass('mcp-route-method');
+    expect(within(unmatched).getByText('(unmatched)')).toBeInTheDocument();
+  });
+
   it('shows per-version error counts next to the version claims', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
