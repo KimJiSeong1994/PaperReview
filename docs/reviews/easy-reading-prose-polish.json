@@ -1,0 +1,1507 @@
+{
+  "reviewed": 81,
+  "changed": 66,
+  "body_changed": 53,
+  "excerpt_changed": 18,
+  "accepted_edits": 90,
+  "editorial_policy": "Conservative im-not-ai polish; preserve natural and protected source punctuation. Strict S1-zero requirement not met (self-assessment C, 5/6).",
+  "records": [
+    {
+      "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "8c0c797f01a889e519c2f49f5c5d54231a72d57cc2209b8363ff8dabffabd704",
+      "after_content_sha256": "1b30c6ebc8cb0c6d73ddbbc34bfc54975e77852fab50bc6ac64fa92dcc5fadf7",
+      "unchanged_deep_sha256": "7d805df4c9b99a29c823551141f1067ec0e5456a3f3e283949fc0b7838d0cc33",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자들은 같은 조건에서 네 인코더(BERT, mBERT, XLM-R, XL-LEXEME)와 네 변화 계산법을 비교하고, 문제를 세 층으로 나눈다.",
+          "after": "저자들은 같은 조건에서 네 인코더(BERT, mBERT, XLM-R, XL-LEXEME)와 네 변화 계산법을 비교하고 문제를 세 층으로 나눈다.",
+          "rule": "C-11",
+          "reason": "같은 주어가 이어서 수행하는 두 동작 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "기본 비교는 12층 base model의 마지막 층을 쓰고, 실험 중 추가 fine-tuning은 하지 않는다.",
+          "after": "기본 비교는 12층 base model의 마지막 층을 쓰고 실험 중 추가 fine-tuning은 하지 않는다.",
+          "rule": "C-11",
+          "reason": "짧게 이어지는 대조 서술의 연결어미 뒤 쉼표를 뺐다."
+        },
+        {
+          "before": "이 표는 모든 모델에서 라틴어를 제외하고, 러시아어 WSI에는 빈칸이 있는 별도 평가다.",
+          "after": "이 표는 모든 모델에서 라틴어를 제외하고 러시아어 WSI에는 빈칸이 있는 별도 평가다.",
+          "rule": "C-11",
+          "reason": "제외 조건과 평가 설명이 바로 이어져 쉼표 없이 더 자연스럽다."
+        }
+      ]
+    },
+    {
+      "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "611914d46be35d402abc302d77c3673a2729cf04767174ff592d62d1a63d7bbd",
+      "after_content_sha256": "611914d46be35d402abc302d77c3673a2729cf04767174ff592d62d1a63d7bbd",
+      "unchanged_deep_sha256": "8e1b709e2d6e486a6e2d5f7382adb8d0407d76c503adc625051afc5a2029360e",
+      "official_change_gate": "change_rate: 0.3%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "이 서베이의 핵심은 성능 순위보다 정답 데이터와 평가 설계가 먼저라는 진단이다.",
+          "after": "이 서베이는 성능 순위보다 정답 데이터와 평가 설계를 먼저 살펴야 한다고 진단한다.",
+          "rule": "D-8",
+          "reason": "분열문을 주어와 서술어가 직접 이어지는 문장으로 다듬었다."
+        }
+      ]
+    },
+    {
+      "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "c72c52cc91bcbd95056f73728c112b503b010ac535940ec46c0d1281e55fafc7",
+      "after_content_sha256": "393a15bbefa3155dc89a6d794f54c813f9548d05d41e99f20281d1eea22bb5ed",
+      "unchanged_deep_sha256": "201b0c80842c1340b9a6aaf7f7c7f53d931933f209ab04189835686ec909d080",
+      "official_change_gate": "change_rate: 0.1%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "이 논문은 COHA에서 같은 단어가 실제 문장 안에 쓰인 매 순간을 BERT로 표현하고, 비슷한 사용례를 **usage type**으로 묶는다.",
+          "after": "이 논문은 COHA에서 같은 단어가 실제 문장 안에 쓰인 각 사용례를 BERT로 표현하고 비슷한 사용례를 **usage type**으로 묶는다.",
+          "rule": "A-15/C-11",
+          "reason": "‘쓰인 매 순간’이라는 어색한 직역 표현을 구체적인 ‘각 사용례’로 바꾸고 연결어미 뒤 쉼표를 덜었다."
+        }
+      ]
+    },
+    {
+      "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "6a031e3348f152d85c1d07da5a87e22bca601a3538419e43484982261a1ceb90",
+      "after_content_sha256": "2b7b7107349766e5858e8e3196022546d2d6e3393faeaf17916d0d1a0249a55e",
+      "unchanged_deep_sha256": "c372cae33c3cc5fbd58d4a4143c9239ccf88cbd063e7d321dedf980a0f5d348e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "성능, 확장성, 해석성, 강건성을 따로 평가하고, 언어·코퍼스·모델 선택을 문서화해야 한다.",
+          "after": "성능, 확장성, 해석성, 강건성을 따로 평가하고 언어·코퍼스·모델 선택을 문서화해야 한다.",
+          "rule": "C-11",
+          "reason": "같은 당위 문장의 두 동작을 잇는 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "statistically-significant-detection-linguistic-change-review-2026",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "f52f953c70c031659b8ffe958dd3f7000f21b0c0be1a2adc4ebc70b1b1c363ca",
+      "after_content_sha256": "f52f953c70c031659b8ffe958dd3f7000f21b0c0be1a2adc4ebc70b1b1c363ca",
+      "unchanged_deep_sha256": "25e3e80a9b54200d803644640b61c183488c5f395d630a1a3d676c86d4758f99",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "p-value는 정해진 시계열 평균이 변했을 근거이며, 변화가 언어 의미 때문인지까지",
+          "after": "p-value는 정해진 시계열 평균이 변했을 근거이며 변화가 언어 의미 때문인지까지",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 덜어 문장을 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "dynamic-word-embeddings-dsg-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "1db5a5142ae7a2787d070ff94bd95a8ac93251b080161d99b5dfdc8b1392ec06",
+      "after_content_sha256": "8841ffa31c9f1c2098afdb09664b7d19a22b483e2392360ae019834192d07d73",
+      "unchanged_deep_sha256": "d3aa531bbe753a604c40d1a48e08b6aa83c68f1e8014af22042161af30f83b35",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "held-out 문서의 단어–문맥 통계를 얼마나 잘 예측하는지 예측 log-likelihood로 비교했고, 평가 대상 시점의 test data를 직접 쓰지는 않는다.",
+          "after": "held-out 문서의 단어–문맥 통계를 얼마나 잘 예측하는지 예측 log-likelihood로 비교했고 평가 대상 시점의 test data를 직접 쓰지는 않는다.",
+          "rule": "C-11",
+          "reason": "연결어미 ‘-했고’ 뒤의 불필요한 쉼표를 제거해 문장을 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "c52f8c4573c88481c068f64c8efe75d86419c84d228bbb28971597e5b2b4ddab",
+      "after_content_sha256": "3c12383c86587adb37a88a0227aa2453277f18d39a116df9f83a1b386de6745b",
+      "unchanged_deep_sha256": "96081d5a350e7e3fe3875025ea58846a4065743b85116d462a36d748f26052b1",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "한 단어의 여러 문맥 벡터에서 첫 주성분이 설명하는 분산 비율을 구하고, 무작위 출현 벡터의 기준값을 뺀 뒤 단어들에 걸쳐 평균낸 값이다.",
+          "after": "한 단어의 여러 문맥 벡터에서 첫 주성분이 설명하는 분산 비율을 구하고 무작위 출현 벡터의 기준값을 뺀 뒤 단어들에 걸쳐 평균낸 값이다.",
+          "rule": "C-11",
+          "reason": "연속된 계산 절차 사이의 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "68023381b20e8a15007f5e6b83bc17a8bcc8524cf78194a8af703071ae222fba",
+      "after_content_sha256": "d1d7091ab257472dc6e3d30c1e6405fac66030476175393ac826960110c9d218",
+      "unchanged_deep_sha256": "69fc5cd1674c707cffbfd0e4c82046009676f19a0e60245786d8011d1ad029b9",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "TWEC의 핵심은 복잡한 정렬 변환이 아니라 하나의 고정 target 공간이다.",
+          "after": "TWEC는 복잡한 정렬 변환 대신 하나의 고정 target 공간을 쓴다.",
+          "rule": "D-8",
+          "reason": "핵심은 구문을 직접 서술로 바꿨다."
+        }
+      ]
+    },
+    {
+      "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "c1157d4d2648bbc04a4b2a469648af419d5c660a6e2893857481596a1784027b",
+      "after_content_sha256": "c1157d4d2648bbc04a4b2a469648af419d5c660a6e2893857481596a1784027b",
+      "unchanged_deep_sha256": "f38b0b1163b5db207978e168953958d1ff055da56e9926fb74bd130c65b9e459",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "538337790660552764ed8d33c75efb3f85251ab2b18754548eb95191acc4c408",
+      "after_content_sha256": "6e83e090c341a7d1868258296d3bfc3539224075a2d3da5d3752b9e508b6b55e",
+      "unchanged_deep_sha256": "cecce1617775a599eb2e4b3ae1213540447dfd4e08ca6a787cd482b4be6a3257",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "DCWE의 목표는 단어의 시간과 사회적 위치에 따라 달라지는 입력 표현을 먼저 만들고, 그 뒤 문장 문맥화 모델에 넣는 것이다.",
+          "after": "DCWE의 목표는 단어의 시간과 사회적 위치에 따라 달라지는 입력 표현을 먼저 만들고 그 뒤 문장 문맥화 모델에 넣는 것이다.",
+          "rule": "C-11",
+          "reason": "순차 절차를 잇는 연결어미 뒤 쉼표를 뺐다."
+        },
+        {
+          "before": "서로 다른 결과표를 한 성능 수치로 합치지 않고, 과제·비교법·시험 분할을 함께 읽어야 한다.",
+          "after": "서로 다른 결과표를 한 성능 수치로 합치지 않고 과제·비교법·시험 분할을 함께 읽어야 한다.",
+          "rule": "C-11",
+          "reason": "부정 조건과 이어지는 당위 서술 사이의 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "structural-deep-network-embedding-sdne-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "0e89cfff2fa32b63d5edb05934d77889ba31b690231d2563c4c2615d012b4242",
+      "after_content_sha256": "0e89cfff2fa32b63d5edb05934d77889ba31b690231d2563c4c2615d012b4242",
+      "unchanged_deep_sha256": "4796181450bac02545a0e6c21a01bbf40e225e7797c98acf37202d1534d7113f",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "23a9a33ee2444faf78f3526f12b318524fd9bde626274ca7ade6d1130ddc3baf",
+      "after_content_sha256": "1f7a3ebda2e78c4813ee4256986cd9dbf591b0daadc70c8935932a1480ee91aa",
+      "unchanged_deep_sha256": "d348462b0758b1d595bb1acf02b8faf470f314c2ca762750e095702c05a8641e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "이 논문은 그 결론을 곧장 뒤집기보다 더 소박한 질문을 낸다.",
+          "after": "이 논문은 그 결론을 곧장 뒤집기보다 더 소박한 질문을 던진다.",
+          "rule": "A-15",
+          "reason": "추상 주어와 어색하게 결합한 ‘질문을 낸다’를 자연스러운 서술로 고쳤다."
+        }
+      ]
+    },
+    {
+      "slug": "llm-based-social-simulations-require-boundary-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "5cf74f700e34a49a3bca9ab5019e6b23c5b35ae2465b3e2f12433a640ba1aa70",
+      "after_content_sha256": "a411320a1bc38227b27a27c60cdb51388694900c5a3b72ec895c9d3574ce9737",
+      "unchanged_deep_sha256": "d67a5c8502737ee610e74428f42ad7932c04fc13703eddf76a2e8d8911867263",
+      "official_change_gate": "change_rate: 1.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자들이 지적하는 핵심 문제는 **average persona**, 즉 서로 다른 조건을 주어도 응답이 평균적이고 비슷한 방향으로 모이는 경향이다.",
+          "after": "저자들은 서로 다른 조건을 주어도 응답이 평균적이고 비슷한 방향으로 모이는 경향을 **average persona**라는 핵심 문제로 지적한다.",
+          "rule": "D-8",
+          "reason": "핵심은 ~이다 형태의 명사 강조문을 행위 주어가 드러나는 직접 서술로 바꿨다."
+        },
+        {
+          "before": "새로운 인간 실험이나 대규모 시뮬레이션 성능표를 제시하지 않고, 최근 LLM 사회시뮬레이션 21편을 표로 코딩한다(Table 1).",
+          "after": "새로운 인간 실험이나 대규모 시뮬레이션 성능표를 제시하지 않고 최근 LLM 사회시뮬레이션 21편을 표로 코딩한다(Table 1).",
+          "rule": "C-11",
+          "reason": "부정 서술 뒤 이어지는 본동작 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "반대로 탐색 단계라면 여러 조건에서 패턴이 견고한지 확인하고, 결과를 후속 인간 연구의 가설로 제시하는 방식이 정직하다.",
+          "after": "반대로 탐색 단계라면 여러 조건에서 패턴이 견고한지 확인하고 결과를 후속 인간 연구의 가설로 제시하는 방식이 정직하다.",
+          "rule": "C-11",
+          "reason": "연속된 확인·제시 동작 사이의 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "a83115405ca7ead2ddc6981e0dc896507f1377058c6a7e5bf2664ebbf2f06f9f",
+      "after_content_sha256": "a83115405ca7ead2ddc6981e0dc896507f1377058c6a7e5bf2664ebbf2f06f9f",
+      "unchanged_deep_sha256": "d2d2d3ece0f43354bad7abe6a9102cbcf9df09267296bef9cd46175698329c38",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "재표집과 최적수송으로 분포 오차를 낮췄지만, 그 결과는",
+          "after": "재표집과 최적수송으로 분포 오차를 낮췄지만 그 결과는",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거해 흐름을 정리했다."
+        }
+      ]
+    },
+    {
+      "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "67a07bc8963a1fa539e3a9a828f30cfd1ce4be7f23d9e6e3e3ece8b10b6ec2e2",
+      "after_content_sha256": "67a07bc8963a1fa539e3a9a828f30cfd1ce4be7f23d9e6e3e3ece8b10b6ec2e2",
+      "unchanged_deep_sha256": "9a24e7fd4213496f67673602a72fbc2b115394a968a26a4cb56c4479fb992b46",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "3b1fd55fd4e7a797a486ffbc2777f3b3f8072fe36ddec3e0b43c5e2267cc9a09",
+      "after_content_sha256": "543ad8c704e4212a43ea7572cb3536cece2c4d266907e2c4884fe0f272c70d6a",
+      "unchanged_deep_sha256": "be7f651018067cc4ec42917a6d16c107337392937f19b89da29c295052b72d6c",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "각 코퍼스에서 문맥 창 2와 8을 두고, 전체 기간을 하나로 학습한 정적 모델(s-emb), 시점별 독립 모델(t-emb), 동적 모델(d-emb)을 비교한다.",
+          "after": "각 코퍼스에서 문맥 창 2와 8을 두고 전체 기간을 하나로 학습한 정적 모델(s-emb), 시점별 독립 모델(t-emb), 동적 모델(d-emb)을 비교한다.",
+          "rule": "C-11",
+          "reason": "실험 조건과 비교 대상이 곧바로 이어져 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "heterogeneous-graph-attention-network-han-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "ed3fdcf89b21f97fd877b4cc59bc4955fd76c482b0aadee89658f78fe48c8070",
+      "after_content_sha256": "ed3fdcf89b21f97fd877b4cc59bc4955fd76c482b0aadee89658f78fe48c8070",
+      "unchanged_deep_sha256": "20f3c5739ca164cb514d0a7081fc0e080dcca032b33604c354dd829dc6505051",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "17739cddd927a806f1d0d8c3cbd1abc8bfabd8d0a6d4a323cc0dd6b479478938",
+      "after_content_sha256": "de618f58be0a941ab1e24b6fde4de98ffb3f060c6cde64c056cbb02358d33018",
+      "unchanged_deep_sha256": "78df622e947b54ac87f7c2cc9457ec178b34a2e1b4f38704add5511cf459b573",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "셋째, 저자·논문·학회처럼 타입이 다른 이웃 그룹을 어떻게 같은 비중으로 취급하지 않을까.",
+          "after": "셋째, 저자·논문·학회처럼 타입이 다른 이웃 그룹을 같은 비중으로 취급하지 않으려면 어떻게 해야 할까.",
+          "rule": "A-15",
+          "reason": "부정 의문문의 어순을 바로잡아 원래 질문의 의미와 용어를 그대로 전달했다."
+        }
+      ]
+    },
+    {
+      "slug": "deepwalk-online-learning-social-representations-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "0fc00387bb1410d37a48367e66e351b7406f43bbe31c052ca1797838e9e16475",
+      "after_content_sha256": "8190d902698cbdb4aa0604c3926c080a808176f1cfd2a065287f669026882d4f",
+      "unchanged_deep_sha256": "10a9361e8bb820b2afac95473aeb00a768fe5e24fee18a36eec8d263782cb507",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "DeepWalk는 지역 구조를 짧은 walk로 관측하고, 그 관측을 연속 벡터로 압축한다.",
+          "after": "DeepWalk는 지역 구조를 짧은 walk로 관측하고 그 관측을 연속 벡터로 압축한다.",
+          "rule": "C-11",
+          "reason": "같은 주어의 연속 동작 사이에 놓인 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "graph-attention-networks-gat-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "0b5ee95a42eb604098ac40567f4fec4443ebfed228ad17ce6b39eeafdbad2588",
+      "after_content_sha256": "0b5ee95a42eb604098ac40567f4fec4443ebfed228ad17ce6b39eeafdbad2588",
+      "unchanged_deep_sha256": "ebf3112bf97f2a6ca424c37e70c74e0401e9e74f547843651cb294d66c34b674",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "dc2e90575a05d642556e360cffd48c0fa8ad85403e14799fe331321bfadade62",
+      "after_content_sha256": "5ee0aa8f72a9f00a59a4e237dba88f61d9a2b0f6d6fb9d096b945cdef3b0f12b",
+      "unchanged_deep_sha256": "6d6b341b103137bd9a12461bc67a13b27c3136e228d97d4fd33f8d4eb30fb9ab",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "GIN의 한 층은 이웃 벡터를 **합산**하고, 자신의 벡터에는 별도의 계수를 곱해 더한 다음, 결과를 **MLP**라는 작은 신경망에 통과시킨다.",
+          "after": "GIN의 한 층은 이웃 벡터를 **합산**하고 자신의 벡터에는 별도의 계수를 곱해 더한 다음, 결과를 **MLP**라는 작은 신경망에 통과시킨다.",
+          "rule": "C-11",
+          "reason": "연결어미 ‘-하고’ 뒤의 쉼표를 제거해 한 동작의 흐름을 끊지 않게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "c9656b283e407988c586a9e7638cfe7a62c7acf2372c1181ac1e7e03e1568c2f",
+      "after_content_sha256": "680c68c2b80ab389642ab221e5017ad0fcb28886257b1311bb397d9c048d8c2e",
+      "unchanged_deep_sha256": "365a5a445f6f84735d12eab6b54a4cbdff38416514d9910340a04d4a0af423e5",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "입력의 의미가 학습 때와 호환되어야 하고, 새 데이터의 정확도는 별도로 검증해야 한다.",
+          "after": "입력의 의미가 학습 때와 호환되어야 하고 새 데이터의 정확도는 별도로 검증해야 한다.",
+          "rule": "C-11",
+          "reason": "두 적용 조건이 짧게 이어져 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "5a94140dd3b96281b20d319c0a99b4104ba0d7372ae70a4e2278ea4ffc0be1d0",
+      "after_content_sha256": "5a94140dd3b96281b20d319c0a99b4104ba0d7372ae70a4e2278ea4ffc0be1d0",
+      "unchanged_deep_sha256": "d7324f4f292b55282893b188e18ce60f0f4acf07cd0da28984f19bb1a7c1156e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "796189625325806f701d9f3c5f70c96d413cc16d2153d39398c1403dd7854216",
+      "after_content_sha256": "761d35b8c029a14d3e46509d2383893378e98e3d63d047c503ca8f5bb31d3ec6",
+      "unchanged_deep_sha256": "68bb86cac229d831cc90aa54a8d5e8d7ca521d44e857c4249b81d37ecc67dd22",
+      "official_change_gate": "change_rate: 0.1%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "**그 예측을 잘 남겨 두는 작은 부분그래프와 feature 일부**",
+          "after": "**그 예측을 잘 유지하는 작은 부분그래프와 feature 일부**",
+          "rule": "A-15",
+          "reason": "예측 보존을 설명하는 어색한 만능동사 구성을 ‘유지하는’으로 구체화했다."
+        }
+      ]
+    },
+    {
+      "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "5df6e30d7d07ae2e0591e29ee8c7ef00ce005e90c91ce40aab13369f7fad33f9",
+      "after_content_sha256": "c58397007133665d7dbd1b108cdd6d275270e741fb2d5f190cc1d4ca9dfc3b8a",
+      "unchanged_deep_sha256": "6746efc8b1d3b1923f220d1f5603843cd97bc965871c3de08eee3674daa7c988",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "ER은 이 흐름을 기준으로 event가 target prediction에 기여한 정도를 정하고, ER-feat·ER-msg 등 서로 다른 개입 위치의 정의를 비교한다.",
+          "after": "ER은 이 흐름을 기준으로 event가 target prediction에 기여한 정도를 정하고 ER-feat·ER-msg 등 서로 다른 개입 위치의 정의를 비교한다.",
+          "rule": "C-11",
+          "reason": "같은 주어의 두 설명 동작 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "Temporal GNN을 해석할 때 매우 유용한 관점이지만, 계산상 relevance와 현실 인과를 구분하고, 모델 구조·시간 전처리·평가의존성을 함께 기록해야 한다.",
+          "after": "Temporal GNN을 해석할 때 매우 유용한 관점이지만, 계산상 relevance와 현실 인과를 구분하고 모델 구조·시간 전처리·평가의존성을 함께 기록해야 한다.",
+          "rule": "C-11",
+          "reason": "대조를 표시하는 첫 쉼표는 두고, 연속된 구분·기록 동작 사이의 쉼표만 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "6cdee2e541bd56f3e8de1b967e807f0140107698a9e0d8e0552d61ade1b16043",
+      "after_content_sha256": "3a59afa9c12e7cea03e203bc6e039809b73856b40be2a5f843b91d23b49118c7",
+      "unchanged_deep_sha256": "b061b8aa00615ee92e0741ae88e51c2b52dbe1337802caae239549c637dfd6dd",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "가장 먼저 필요한 것은 신뢰할 수 있는 **자동 verifier**다.",
+          "after": "신뢰할 수 있는 **자동 verifier**가 가장 먼저 필요하다.",
+          "rule": "D-8",
+          "reason": "필요한 것은 구문을 주어와 서술어가 직접 이어지도록 바꿨다."
+        }
+      ]
+    },
+    {
+      "slug": "iclr-2026-gnn-research-trends",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "590f8921fa67c1eb972f200dac0153b51dd2b823fc8c0593fc025fb42723787f",
+      "after_content_sha256": "590f8921fa67c1eb972f200dac0153b51dd2b823fc8c0593fc025fb42723787f",
+      "unchanged_deep_sha256": "7b2a901b09c9bddafd397609d55c134a0f8d884543a7f0e96776ee5ce8317efb",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "iclr-2026-agent-research-trends",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "6e4567abdd83bd503949d6e975d21bbe2e7b847bef18196f142c6ae71d173248",
+      "after_content_sha256": "e11d3375fe0a0066808f01e6772f76787d86860850a2e5ec67053d84440d683f",
+      "unchanged_deep_sha256": "559346a98b1f2607a8710bc7acffe3a9d93fc8ff5cf3b6e6f76324c090f3e72d",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "검색하고, 도구를 호출하고, 결과를 확인하고, 계획을 고치는 일이 여러 차례 이어진다.",
+          "after": "검색하고 도구를 호출하고 결과를 확인하고 계획을 고치는 일이 여러 차례 이어진다.",
+          "rule": "C-11",
+          "reason": "짧은 연속 동작마다 찍힌 쉼표를 걷어 실행 흐름을 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "iclr-2026-xai-research-trends",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "f7ff275cac1263debd023c6e673a8b11866b536f7173f1a5a3663bfeab1c0dfa",
+      "after_content_sha256": "f7ff275cac1263debd023c6e673a8b11866b536f7173f1a5a3663bfeab1c0dfa",
+      "unchanged_deep_sha256": "ad070d10d4eef9fe94149a30571fb6d583933c14b4af7c032725b8c708eb576e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "seed-self-evolving-opd-agentic-rl",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "1c1114e9c680d060c43d604aede5c3b592970167ada3344f0639dc6032349f61",
+      "after_content_sha256": "7c9cb680c1c713f1dc732515170d6cb21214e848cd976681a884c977d0b6a431",
+      "unchanged_deep_sha256": "72333f6f0364d73e0ebab614878e5126f74c5f7555c2709e83b1ec288b187201",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "첫 단계에서는 base model이 만든 완료 궤적에 외부 GLM-5.2 분석기가 skill을 붙이고, 그 궤적–skill 쌍으로 모델을 3 epoch supervised fine-tuning(SFT)한다.",
+          "after": "첫 단계에서는 base model이 만든 완료 궤적에 외부 GLM-5.2 분석기가 skill을 붙이고 그 궤적–skill 쌍으로 모델을 3 epoch supervised fine-tuning(SFT)한다.",
+          "rule": "C-11",
+          "reason": "연결어미 ‘-이고’ 뒤 쉼표를 제거하되 모델명·수치·기술 용어는 그대로 뒀다."
+        }
+      ]
+    },
+    {
+      "slug": "rome-causal-tracing",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "eb39192a6236254828c27fd5143f8dc78af66dfb185876153a719ee3d598e937",
+      "after_content_sha256": "95d2302558fbb01ba3c823f0b09caa8bda5ce58bd7a54521b5c0dd24d54f8d9a",
+      "unchanged_deep_sha256": "66df823df776a16ee5798e8d8cccd9e88870fbe33c30ff847a79d4e0660edc92",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "기존 key들의 출력을 덜 바꾸도록 통계 보정을 넣고, 여러 접두문에서 같은 새 object가 나오도록 목표 value를 찾는다.",
+          "after": "기존 key들의 출력을 덜 바꾸도록 통계 보정을 넣고 여러 접두문에서 같은 새 object가 나오도록 목표 value를 찾는다.",
+          "rule": "C-11",
+          "reason": "같은 편집 절차의 연속 동작 사이 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "structural-probe",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "6c863b98258e395104c30778c4109ef06ed58926952f316f3a5529f1f1c06ab1",
+      "after_content_sha256": "6c863b98258e395104c30778c4109ef06ed58926952f316f3a5529f1f1c06ab1",
+      "unchanged_deep_sha256": "6da900f20d8ef1ed7e5a33648860030ecef0bcda1c3e7eba96070f10daddf34b",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "표현에 구문 정보를 읽어낼 수 있음을 보이지만, 모델이",
+          "after": "표현에 구문 정보를 읽어낼 수 있음을 보이지만 모델이",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "gqml-graphs",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "c4a8e6307ec2b14a43dcae7fb84f9e1496f15610a77c0ee02cab9852d544c5a3",
+      "after_content_sha256": "ef629b00b570d7f4ba60702d0e74a76b6267f2c6e48d99f7c7c65f149c15cea5",
+      "unchanged_deep_sha256": "2423306c322aeb224a6f80431cd5d914193ead819d5fe652db25b9f483a366e0",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "**노드가 `n`개인 그래프를 큐빗 `n`개의 상태로 인코딩**하고, 노드 번호 변경을 큐빗 순서 변경과 연결한다.",
+          "after": "**노드가 `n`개인 그래프를 큐빗 `n`개의 상태로 인코딩**하고 노드 번호 변경을 큐빗 순서 변경과 연결한다.",
+          "rule": "C-11",
+          "reason": "연결어미 ‘-하고’ 뒤의 쉼표만 제거하고 수학 표기와 내용 앵커를 보존했다."
+        }
+      ]
+    },
+    {
+      "slug": "is-attention-interpretable",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "1a42c4dd9f4f70e80c1a9505d4620b0b6fee74fefd3808dbc01a4784302457b0",
+      "after_content_sha256": "1a42c4dd9f4f70e80c1a9505d4620b0b6fee74fefd3808dbc01a4784302457b0",
+      "unchanged_deep_sha256": "56ed450eff44c728d9cd958ca7155a840f519cef713ef5d9a6149aa41cf38767",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "lgc-acf",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "62535013d1f400ef969e7bb80b576662bd00cd7b5615be51423a8e8fa4c364b1",
+      "after_content_sha256": "62535013d1f400ef969e7bb80b576662bd00cd7b5615be51423a8e8fa4c364b1",
+      "unchanged_deep_sha256": "baea25604eda32981183c4d564e3bb5e97d1073ee808c7c245b1b047316ee211",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "상호작용만 쓰는 기준선보다 높은 결과는 유망하지만, 같은 부가정보를",
+          "after": "상호작용만 쓰는 기준선보다 높은 결과는 유망하지만 같은 부가정보를",
+          "rule": "C-11",
+          "reason": "대조 관계가 짧아 쉼표 없이 읽는 편이 자연스럽다."
+        }
+      ]
+    },
+    {
+      "slug": "coevot",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "3cd31b5e7ecec17489d19e1f00fb993b9fe3f61370ec8ba3146862a5f1dfc45a",
+      "after_content_sha256": "3cd31b5e7ecec17489d19e1f00fb993b9fe3f61370ec8ba3146862a5f1dfc45a",
+      "unchanged_deep_sha256": "a934c9de04ce27449c0358203ddb8b37cdab3a80822c077902dbe9dfcc734e4e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "deep-graphrag",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "83b7e4f42edb85fdf40d75b2fb8a6c19cf91aa7d1c11dc450466da2382f739cd",
+      "after_content_sha256": "e2850b029dca1f0780d8eb6c5c9026a4876c220fef51a60255bd5fc5e32d3a79",
+      "unchanged_deep_sha256": "b7b2ccb9854e7e367b11ed174ac57d918b597fa74dc87738e94b6be0ee20b9b6",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "검색은 먼저 상위 커뮤니티에서 관련 없는 가지를 자르고, 남은 커뮤니티 안의 하위 그래프를 정제하며, 마지막으로 엔티티 수준에서 문맥을 재순위화한다.",
+          "after": "검색은 먼저 상위 커뮤니티에서 관련 없는 가지를 자르고 남은 커뮤니티 안의 하위 그래프를 정제하며 마지막으로 엔티티 수준에서 문맥을 재순위화한다.",
+          "rule": "C-11",
+          "reason": "세 단계 절차를 잇는 연결어미 뒤 쉼표를 걷어 순서를 매끄럽게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "lightgcn",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": true,
+      "before_content_sha256": "b5240e574e15b8bd55e25832c125535b497ed5118bb55a82c42307d469b35937",
+      "after_content_sha256": "1aca4f0b69464e57457649807bb5d59fd6c030b969552bd0833abd8e4711e8df",
+      "unchanged_deep_sha256": "dc711375062504f00ee9eea5e84fe258c9e12b6d9c2734690bffb247b623ad98",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "같은 평가 설정의 결과이며, 상호작용 희소성과",
+          "after": "같은 평가 설정의 결과이며 상호작용 희소성과",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 제거했다."
+        },
+        {
+          "before": "절제의 핵심은 두 구성요소를 함께 빼도 성능이 떨어지지 않았다는 것이다.",
+          "after": "절제 실험에서는 두 구성요소를 함께 빼도 성능이 떨어지지 않았다.",
+          "rule": "D-8",
+          "reason": "핵심은 구문을 직접 서술로 바꾸고 절제 실험이라는 대상을 명시했다."
+        }
+      ]
+    },
+    {
+      "slug": "ragu",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "3a6c7c1f5dac94d5b985920c0273a7f526a710d92e407a8e7f7c7010ab6f56eb",
+      "after_content_sha256": "d84717f077f88a3dcfd77571b98b776a57d86bd40b308c5250a7322c6d2d50e1",
+      "unchanged_deep_sha256": "fdb8043f3f20d5bb1767688f2634f6352b90886fe55d255fc86a47a64c9cf047",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자들은 문장에서 엔티티를 먼저 유형화해 뽑고, 그 검증된 이름 사이에서 관계를 뽑은 뒤, 중복을 통합하고 커뮤니티를 만든다.",
+          "after": "저자들은 문장에서 엔티티를 먼저 유형화해 뽑고 그 검증된 이름 사이에서 관계를 뽑은 뒤, 중복을 통합하고 커뮤니티를 만든다.",
+          "rule": "C-11",
+          "reason": "첫 연결어미 뒤 쉼표를 제거해 추출 절차의 순서를 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "goa",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "56fda902a642387fd63edee12e50e69232afb66327443e3b97ba471f30d987fe",
+      "after_content_sha256": "8dd120137b3ac7ad7c16ab94487b7312d5d3cf5f10f18608af98fa7471d967bd",
+      "unchanged_deep_sha256": "54651b6dd8294f12b85c3406905be76ef2dcd6479eb677a201dba985581adc63",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자 절제에서 메시지 방향을 뒤집으면 MMLU-Pro와 GPQA가 각각 2.60, 5.05 points 낮아지고, 한 방향을 제거하거나 간선 점수를 끄는 경우도 하락한다.",
+          "after": "저자 절제에서 메시지 방향을 뒤집으면 MMLU-Pro와 GPQA가 각각 2.60, 5.05 points 낮아지고 한 방향을 제거하거나 간선 점수를 끄는 경우도 하락한다.",
+          "rule": "C-11",
+          "reason": "두 절제 결과가 바로 이어져 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "hgnn",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "9d020175af8fde538a80ef06f8a422784f26f883d4acda1e41f82057971f8178",
+      "after_content_sha256": "9d020175af8fde538a80ef06f8a422784f26f883d4acda1e41f82057971f8178",
+      "unchanged_deep_sha256": "1ca1f576dc391616c12fb7612e9cae2ecc2bee0c1dea77972a371b9e13948d6e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "다중 모달 3D 인식의 큰 향상은 유망하지만, 하이퍼그래프 효과와",
+          "after": "다중 모달 3D 인식의 큰 향상은 유망하지만 하이퍼그래프 효과와",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "ic2s2-2025-program-trends",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "22007e4e4ccba5d74fdc5a7afd00bdf60318c9afeabc487c72362dabe5ce2aac",
+      "after_content_sha256": "ab94fd6a595c3d1a8cabd39ede720534b2ffe8ea4cda3c84fb3d19d161274f03",
+      "unchanged_deep_sha256": "bafd9fa8c20fb145da0068b40d1a645bf515cfc4715e1dad522b585bc7f25109",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "LLM이 불확실해하는 구간과 집단별로 틀리는 구간에 사람 라벨을 더 배정하고, 그 오차를 최종 추정에 반영해야 한다.",
+          "after": "LLM이 불확실해하는 구간과 집단별로 틀리는 구간에 사람 라벨을 더 배정하고 그 오차를 최종 추정에 반영해야 한다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거해 하나의 절차로 자연스럽게 읽히도록 했다."
+        }
+      ]
+    },
+    {
+      "slug": "ic2s2-2026-program-trends",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "5b6d3719494bafd60c109557152b42d466b70e9e1e666d2e85f5d772bbe773d7",
+      "after_content_sha256": "5b6d3719494bafd60c109557152b42d466b70e9e1e666d2e85f5d772bbe773d7",
+      "unchanged_deep_sha256": "409ce192e010febd53738fa0e5d46a8e9394eb6e582b28c43cab105868634d3b",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "causalrag-causal-graph-retrieval",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "e6e7b7208c69602a5acbc24885c457504f59105b75aecbc271d21756823ac142",
+      "after_content_sha256": "e6e7b7208c69602a5acbc24885c457504f59105b75aecbc271d21756823ac142",
+      "unchanged_deep_sha256": "21591adf2ad69f26b03128fa0b893252037af493a1156f9179c29c2a51bfd73d",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "OpenAlex 자동평가의 높은 점수는 유망하지만, 정식 인과 식별",
+          "after": "OpenAlex 자동평가의 높은 점수는 유망하지만 정식 인과 식별",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "af91fb7cb53205a5bf1ce885c4db977a9a7a1a950365db9bdf6f2f3d13282748",
+      "after_content_sha256": "1f670dbf29890e88f5f98d100e96f80e3f6c1027e1eeaaa575df07737ec62cdd",
+      "unchanged_deep_sha256": "e7a8c4f819cfa8a77e35dafc2b7256ddc6eaa6b2fd46b348d196d7af314045fd",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "논문은 1,000개 질의 기준으로 HippoRAG의 온라인 검색을 약 USD 0.1, 약 3분으로 보고하고, 비교한 IRCoT는 USD 1–3, 20–40분으로 제시한다.",
+          "after": "논문은 1,000개 질의 기준으로 HippoRAG의 온라인 검색을 약 USD 0.1, 약 3분으로 보고하고 비교한 IRCoT는 USD 1–3, 20–40분으로 제시한다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거하고 모든 수치와 비교 대상을 그대로 보존했다."
+        }
+      ]
+    },
+    {
+      "slug": "lightrag-dual-level-graph-rag",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "31047727b0fdb99d197b5bbc24f3606463cd67e3e5afc5fd375fed5219f1d875",
+      "after_content_sha256": "170fde9eb070e8feba0bb3889761e1127aba603be2e5595e48513a636de9cc06",
+      "unchanged_deep_sha256": "e2deb272d39d556665cefac5ae5e8c0c01c1b7f89ec70b032314ce8c3fb156d2",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "`Beekeeper` 같은 엔티티에는 이름을 key로 두고, 설명·원문 청크 ID를 value로 둔다.",
+          "after": "`Beekeeper` 같은 엔티티에는 이름을 key로 두고 설명·원문 청크 ID를 value로 둔다.",
+          "rule": "C-11",
+          "reason": "병렬된 key/value 설명 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "질문과 가까운 작은 그래프 요소를 먼저 찾고, 관련 원문도 함께 가져오는 방식이다.",
+          "after": "질문과 가까운 작은 그래프 요소를 먼저 찾고 관련 원문도 함께 가져오는 방식이다.",
+          "rule": "C-11",
+          "reason": "연속된 검색 동작 사이의 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "459ca131173e2247a088b9fe7358202ce5d30c6d82811ff7f93aa6135ba8e5f1",
+      "after_content_sha256": "459ca131173e2247a088b9fe7358202ce5d30c6d82811ff7f93aa6135ba8e5f1",
+      "unchanged_deep_sha256": "c38f1b75896581df1f0b100752a87f36bf01d0fffaa4456ae525f947fe22cb7c",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "비슷한 엔티티를 상위 개념으로 집약하고, 집약 개념 사이",
+          "after": "비슷한 엔티티를 상위 개념으로 집약하고 집약 개념 사이",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "0613173f252ec32a6c4e5c76fd1a502ad204d85f1871bf0838a8a82fddf2a614",
+      "after_content_sha256": "78bc76d5b1e382566a07c08e05ee8b490a2c2abe59f731ed6aebabc5ddac4d11",
+      "unchanged_deep_sha256": "5c79295548971b79379271bec67b82cf58dca127b62ad502224e69ed6aeafb14",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "현재 v2의 한계 절도 hierarchy 깊이는 downstream task에 맞춰 최적화하지 않았고, HolisQA의 다섯 학술 영역 밖 일반화가 더 필요하다고 적는다.",
+          "after": "현재 v2의 한계 절에서도 hierarchy 깊이는 downstream task에 맞춰 최적화하지 않았고, HolisQA의 다섯 학술 영역 밖 일반화가 더 필요하다고 적는다.",
+          "rule": "A-15",
+          "reason": "‘한계 절도’의 어색한 조사 결합을 풀어 문장 관계를 분명히 했다."
+        }
+      ]
+    },
+    {
+      "slug": "ms-graphrag-global-query-focused-summarization",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "e840a94db1e9a08e616037fd98d79cf550759523f95c835c71ff7650806af249",
+      "after_content_sha256": "49298114b2b84bebaa46f2d2713c69e2298dd75fd642647208ad8f081d885146",
+      "unchanged_deep_sha256": "46f7ed49f45dc322c6f5f4a8c907680e3f91faa7602b0368a7895cd5495dc5a6",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "대신 색인 시점에 문서를 지식 그래프와 여러 단계의 커뮤니티 보고서로 미리 압축하고, 질의 때는 보고서를 읽는다.",
+          "after": "대신 색인 시점에 문서를 지식 그래프와 여러 단계의 커뮤니티 보고서로 미리 압축하고 질의 때는 보고서를 읽는다.",
+          "rule": "C-11",
+          "reason": "색인과 질의의 순차 동작 사이 쉼표를 뺐다."
+        },
+        {
+          "before": "셋째, leaf community부터 보고서를 쓰고, 아래 보고서를 재료로 상위 community 보고서를 다시 쓴다.",
+          "after": "셋째, leaf community부터 보고서를 쓰고 아래 보고서를 재료로 상위 community 보고서를 다시 쓴다.",
+          "rule": "C-11",
+          "reason": "계층 보고서 생성 절차의 연결어미 뒤 쉼표를 뺐다."
+        },
+        {
+          "before": "보고서를 미리 만드는 색인 비용을 앞당기고, 질의에서는 보고서별 부분 답변과 최종 통합을 위한 LLM 호출을 수행한다.",
+          "after": "보고서를 미리 만드는 색인 비용을 앞당기고 질의에서는 보고서별 부분 답변과 최종 통합을 위한 LLM 호출을 수행한다.",
+          "rule": "C-11",
+          "reason": "색인 비용과 질의 비용 설명을 쉼표 없이 바로 이었다."
+        },
+        {
+          "before": "그래프의 모듈성을 이용해 **질의 이전에 계층 요약을 만들고, 질의 때 map-reduce로 전체 코퍼스의 질문에 답하는 방식**을 묶었다.",
+          "after": "그래프의 모듈성을 이용해 **질의 이전에 계층 요약을 만들고 질의 때 map-reduce로 전체 코퍼스의 질문에 답하는 방식**을 묶었다.",
+          "rule": "C-11",
+          "reason": "강조 구간 안의 연속 동작 사이 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "hipporag2-from-rag-to-memory",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "57fddd98bfe047c6994272854d4efaf4cc08d1bd875c181c2bb3dea075240e73",
+      "after_content_sha256": "57fddd98bfe047c6994272854d4efaf4cc08d1bd875c181c2bb3dea075240e73",
+      "unchanged_deep_sha256": "f55b89a5f38dfeffa12bb89848146e3a008c1432fa44c89074b7a913029b4b30",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "원문 passage와 개념 그래프를 한 검색 공간에 넣고, 질문마다",
+          "after": "원문 passage와 개념 그래프를 한 검색 공간에 넣고 질문마다",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "knowledge-graph-prompting-multi-document-qa",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "2bbdfdc8481b61b5ccf59e3a20cbe2e004ade3bc6417f40763ec37922cf21134",
+      "after_content_sha256": "a987a3fa05d01f4be7fb0ac821b29cb4a6053f8d752de7fb0f576b181e6f9811",
+      "unchanged_deep_sha256": "2f5b13654ee491099d92b658114cfe3675fda6599f755179a3bd3078725361fc",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "생성문을 “다음에 찾아야 할 근거”의 설명으로 제한하고, 실제 문서 이웃에서 근거를 회수한다.",
+          "after": "생성문을 “다음에 찾아야 할 근거”의 설명으로 제한하고 실제 문서 이웃에서 근거를 회수한다.",
+          "rule": "C-11",
+          "reason": "연결어미 ‘-하고’ 뒤의 쉼표를 제거하되 강조 인용은 그대로 보존했다."
+        }
+      ]
+    },
+    {
+      "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "62674740dcc354129432ffcd95f9f88382105630a26be5cf0f33019b9ef05ca9",
+      "after_content_sha256": "462ffe9ad047c5b9f5e4f6a6fb058f924cde173110642ada5630af8ca4a2fe50",
+      "unchanged_deep_sha256": "3cfcedb5e99268bba7bba6751fb8bc0d4da385da1308041f065cd032ca5ca592",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "이어 distance-aware GATv2가 OD edge 사이의 경쟁·대체 관계를 반영하고, edge MLP가 특정 방향의 흐름을 예측한다(Fig. 5–6).",
+          "after": "이어 distance-aware GATv2가 OD edge 사이의 경쟁·대체 관계를 반영하고 edge MLP가 특정 방향의 흐름을 예측한다(Fig. 5–6).",
+          "rule": "C-11",
+          "reason": "두 모듈 역할을 잇는 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": true,
+      "before_content_sha256": "381d633c0a5986ebe4abf7b0b390ee3c7b941ec105f72a1474fef77048c275b1",
+      "after_content_sha256": "6fe10feb162cd35c0c75999f9dd0a5bf0286702b23b6e88ab8cf2df5ea04079a",
+      "unchanged_deep_sha256": "6cffe6bf468a937a15aedda1478ff5739e725355f4f6f731c0eb73120af2077a",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "미국 도시 간 zero-shot 전이는 강하지만, 소득 분리와",
+          "after": "미국 도시 간 zero-shot 전이는 강하지만 소득 분리와",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        },
+        {
+          "before": "문제는 흐름 라벨이 일부 지역에서만 보일 때 나머지 연결의 **절대량**을 복원하는 것이다.",
+          "after": "이 연구는 흐름 라벨이 일부 지역에서만 보일 때 나머지 연결의 **절대량**을 복원하는 문제를 다룬다.",
+          "rule": "D-8",
+          "reason": "문제는 구문을 직접 서술로 바꾸되, 복원을 달성했다는 뜻이 되지 않도록 연구 과제의 범위를 보존했다."
+        }
+      ]
+    },
+    {
+      "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "9442a56399c4363cb4d4517f8c3bac11ec59f1d34e649512fab3e15820f698af",
+      "after_content_sha256": "0e767b2cdd0f174d92beb083f2014d219308df0fc469c857d9a0496d33e64748",
+      "unchanged_deep_sha256": "86996a6e6b7ce40b6c41e6d3ddd06bf1a77820bd033fddb5acc260aa7e3029ad",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "Tri-Graph는 엔티티와 원문 문단의 연결을 보존하고, 질의 시 의미 브리징과 전역 집계로 다중 홉 후보를 만든다.",
+          "after": "Tri-Graph는 엔티티와 원문 문단의 연결을 보존하고 질의 시 의미 브리징과 전역 집계로 다중 홉 후보를 만든다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거해 설명 흐름을 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "cdfdd49565f87316ab05efefa53d3e04d5fda5796f2863a59e1745e39af73720",
+      "after_content_sha256": "e5bf35c609269c5d8e8f2762ebcd982c658d24dbcf80571f2ff8259ce7cd713c",
+      "unchanged_deep_sha256": "fc01a77dab25232cc8b54c975c86cb255d3fc485e073518a37141b2c9b785846",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "SkillSmith는 K/V를 작은 MLP 어댑터로 언어모델의 표현 공간에 투영하고, `소스 텍스트 → 투영된 K/V`를 번갈아 입력열에 놓는다.",
+          "after": "SkillSmith는 K/V를 작은 MLP 어댑터로 언어모델의 표현 공간에 투영하고 `소스 텍스트 → 투영된 K/V`를 번갈아 입력열에 놓는다.",
+          "rule": "C-11",
+          "reason": "같은 입력 구성 절차의 연속 동작 사이 쉼표를 뺐다."
+        },
+        {
+          "before": "코프로세서 LLM을 한 번 통과한 뒤 placeholder 위치의 K/V를 추출해 위치 정보를 보정하고, 출력 어댑터를 거쳐 목표 과제의 새 prefix로 쓴다(§3, Fig. 1).",
+          "after": "코프로세서 LLM을 한 번 통과한 뒤 placeholder 위치의 K/V를 추출해 위치 정보를 보정하고 출력 어댑터를 거쳐 목표 과제의 새 prefix로 쓴다(§3, Fig. 1).",
+          "rule": "C-11",
+          "reason": "출력 생성 절차의 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "cic-dynamical-causality-under-invisible-confounders",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "48fcc8365a73686d21014f6d0304d2f96a5c4da674b6ec16458cf0667e772300",
+      "after_content_sha256": "d8768abb6ef5a4f7fd25525a7875e8feb84e7185311d067b3db78b441d30e71d",
+      "unchanged_deep_sha256": "8e753e6c2c34b90f77c1d2f7bd262c261b1ada1fc65172c781bd7e6d7101ff1d",
+      "official_change_gate": "change_rate: 0.1%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "논문의 핵심은 X와 Y에 공통으로 들어 있는 성분과 각 변수에만 남는 사적 성분을 직교적으로 분리하는 것이다.",
+          "after": "논문은 X와 Y에 공통으로 들어 있는 성분과 각 변수에만 남는 사적 성분을 직교적으로 분리한다.",
+          "rule": "D-8",
+          "reason": "핵심은 구문을 직접 서술로 바꿨다."
+        }
+      ]
+    },
+    {
+      "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "9f80f0f0599be33957d0334772709c4ce5d1b6144eabaedca0edad3491235bcf",
+      "after_content_sha256": "084e7ff3e45b0c1458e9a1f0b23500f7988f626b37a34e612af7ecdabe9d0e28",
+      "unchanged_deep_sha256": "91d6dae5e1bbd59ded2907f4156197e32f7c0e318fd82e01849ff9ce6e3273c4",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "먼저 비선형 동역학의 cross mapping으로 X와 Y의 연결 신호를 얻고, 그 신호에서 Z를 통해 전달된 부분을 partial correlation으로 조건화해 남은 직접 신호를 본다.",
+          "after": "먼저 비선형 동역학의 cross mapping으로 X와 Y의 연결 신호를 얻고 그 신호에서 Z를 통해 전달된 부분을 partial correlation으로 조건화해 남은 직접 신호를 본다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표만 제거하고 변수·영어 기술 용어·서법을 보존했다."
+        }
+      ]
+    },
+    {
+      "slug": "loongreflect-long-horizon-reflection-search-agents",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": true,
+      "before_content_sha256": "e7edaa6031bbb5939c804465365023d8d9f3f3214a77fcd5b547eeb40ee5d5b2",
+      "after_content_sha256": "9591aa86eb83ec7b981424bf6c49c431b1e948e457d07e648e3600f3b8d65312",
+      "unchanged_deep_sha256": "cfd6d3e43d9e2c5bc78e9f0e3b377c4e630ed8285104e2b32f84a6e9c90793f7",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "LoongReflect는 긴 탐색 에이전트의 reflect·backtrack을 기억 제어 행동으로 보고, 전역 관점을 가진 교사 증류와 결과 보상 학습을 결합한다.",
+          "after": "LoongReflect는 긴 탐색 에이전트의 reflect·backtrack을 기억 제어 행동으로 보고 전역 관점을 가진 교사 증류와 결과 보상 학습을 결합한다.",
+          "rule": "C-11",
+          "reason": "excerpt에서 정의와 학습 설명을 잇는 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "backtrack은 믿을 수 없는 분기 뒤쪽을 활성 문맥에서 제거하고, 다음 시도에 쓸 짧은 교정 교훈은 남긴다.",
+          "after": "backtrack은 믿을 수 없는 분기 뒤쪽을 활성 문맥에서 제거하고 다음 시도에 쓸 짧은 교정 교훈은 남긴다.",
+          "rule": "C-11",
+          "reason": "제거와 보존을 잇는 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "2b301c4fa243cf3f9d74dd156586054076a626762dd6743d97461068e6126ec5",
+      "after_content_sha256": "f5391e39d60c0ea3b72e7374a57048aea7ed8eafda3af964e3e24b1d55b71d98",
+      "unchanged_deep_sha256": "52e72dfaf41c024566f58d725e094d688d86104368c2f1fec0d04df0203d33e1",
+      "official_change_gate": "change_rate: 0.2%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "여기서 얻을 수 있는 것은 **어떤 실행 계약을 코드로 강제할지** 생각하는 언어다.",
+          "after": "여기서는 **어떤 실행 계약을 코드로 강제할지** 생각하는 언어를 얻을 수 있다.",
+          "rule": "D-8",
+          "reason": "것은 구문을 직접 서술로 바꿨다."
+        }
+      ]
+    },
+    {
+      "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "4627898f6bd7694f553b69bf1c0b0ddd9268a5607023675473b604edce77a18f",
+      "after_content_sha256": "e430935151d2c53838c1518c08a93dcec352b42d04f59983ee5c2c5755e75224",
+      "unchanged_deep_sha256": "d83352e25ec5b9081b85a9dda7d50e4704580ec578f88c6918a1d077dc62951e",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "PPE는 데이터 선택·정렬·임베딩 융합·모델 탐색을 분리된 단계로 만들고, 출처와 누출을 시스템 설계의 중심에 뒀다.",
+          "after": "PPE는 데이터 선택·정렬·임베딩 융합·모델 탐색을 분리된 단계로 만들고 출처와 누출을 시스템 설계의 중심에 뒀다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거해 두 서술을 자연스럽게 연결했다."
+        }
+      ]
+    },
+    {
+      "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "420d6802f60a2c0606ac055a51f40e668565fca5db0f649efa70b489eb2393fb",
+      "after_content_sha256": "b2d6008c2396a6e0acdf035589f7d78d47cbde9d32d04719b459ee8ae914741a",
+      "unchanged_deep_sha256": "cf48d33d9d25b2b99dc48af3486583daef282d343ebe2b859c14b0aef42baddb",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "질의가 들어오면 LLM이 초기 단서를 고르고, 현재 노드에서 다음 연결을 탐색하거나, 찾은 사실로 새 단서를 만들거나, 필요 없는 길을 버린다.",
+          "after": "질의가 들어오면 LLM이 초기 단서를 고르고 현재 노드에서 다음 연결을 탐색하거나, 찾은 사실로 새 단서를 만들거나, 필요 없는 길을 버린다.",
+          "rule": "C-11",
+          "reason": "첫 행동과 뒤의 선택 목록 사이 불필요한 쉼표만 뺐다."
+        },
+        {
+          "before": "MRAgent는 다음 행동을 선택해 가지를 자르고, 기존 검색 결과에서 나온 단어를 다시 질의 제약으로 쓴다.",
+          "after": "MRAgent는 다음 행동을 선택해 가지를 자르고 기존 검색 결과에서 나온 단어를 다시 질의 제약으로 쓴다.",
+          "rule": "C-11",
+          "reason": "같은 정책의 연속 동작 사이 쉼표를 뺐다."
+        },
+        {
+          "before": "그림 5에서는 추론이 없는 CE→CTE→CTC에서 Recall과 Judge 점수가 올라가고, 추론을 켠 변형이 더 높다.",
+          "after": "그림 5에서는 추론이 없는 CE→CTE→CTC에서 Recall과 Judge 점수가 올라가고 추론을 켠 변형이 더 높다.",
+          "rule": "C-11",
+          "reason": "두 결과 비교가 짧게 이어져 연결어미 뒤 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "colpali-efficient-document-retrieval-vision-language-models",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "c4d594e08ab0a02ce39455ab10bc32a7b6af91955e6b28ca93caefe760412417",
+      "after_content_sha256": "c4d594e08ab0a02ce39455ab10bc32a7b6af91955e6b28ca93caefe760412417",
+      "unchanged_deep_sha256": "5a761a6fc20b66f6db204d61e4e8f91ac9926881010bc0eda3b28e1d1aa72294",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "ViDoRe의 nDCG@5 차이는 크지만, 빠른 색인",
+          "after": "ViDoRe의 nDCG@5 차이는 크지만 빠른 색인",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "c10c01d39eea9b4718f58e0bf3dde29def81dd1582e7cf661908c6f5be964084",
+      "after_content_sha256": "4a74d4366b1b913c0aa4ac4cd1e0b7a63d74598c8dd43f4e91301a4457e8b06f",
+      "unchanged_deep_sha256": "87dd698f85b747c6d6c34bb39864b3a09eaf77d080eea3ff2b6e3d8511a279d3",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "재사용 가능한 지식, 실제 실행 규칙, 감사 가능한 이력을 분리하고, 수정은 검증을 거치게 한다.",
+          "after": "재사용 가능한 지식, 실제 실행 규칙, 감사 가능한 이력을 분리하고 수정은 검증을 거치게 한다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거해 병렬 설명의 흐름을 매끄럽게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "b810657138d9aaec08e2d5e52d0c5aa1eb62f6e3d5b04a0b6333784601f90ba1",
+      "after_content_sha256": "80d1170dbb18398b0e452ee1b38b0284faa66a95882343c7e13d2ccafaf14595",
+      "unchanged_deep_sha256": "20524a8c394bdce927d2a500f9009a4f0c955277a73da302e50ba7605f690406",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "흐름은 가설 후보를 만들고, 실험 프로그램을 실행·수정하고, 마지막으로 원고의 수치 주장을 실행 기록과 대조하는 세 단계다.",
+          "after": "흐름은 가설 후보를 만들고 실험 프로그램을 실행·수정하고 마지막으로 원고의 수치 주장을 실행 기록과 대조하는 세 단계다.",
+          "rule": "C-11",
+          "reason": "세 단계 절차의 연결어미 뒤 쉼표를 걷어 흐름을 자연스럽게 이었다."
+        }
+      ]
+    },
+    {
+      "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "bcd24ce68b8a8afd8be5ea8f2ca2126e5cec4396ffcd0ca5b03cb12eb6359ccf",
+      "after_content_sha256": "bcd24ce68b8a8afd8be5ea8f2ca2126e5cec4396ffcd0ca5b03cb12eb6359ccf",
+      "unchanged_deep_sha256": "5711a1da3dff3a0d63468712e68e159a25aaf089302f28327ba213cb860445c5",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "874d642ccd6645137cb381107630f8dce44df164f05b3ac9439c8a347c85e3b1",
+      "after_content_sha256": "590a7e58dcaa97798acc6837ace7fec16a510fd2f14d2d52fc77461dfd52eef4",
+      "unchanged_deep_sha256": "8ba60f54a1f093458406299521083cd9cdf9be3039d187e83269f81b5eefd548",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자들은 위치별 **정보이득**을 이용해 이 직관을 수치화하고, Information-Gain Budget Allocation(IBA)으로 사용자·토큰 위치마다 다른 refinement step 수를 고른다.",
+          "after": "저자들은 위치별 **정보이득**을 이용해 이 직관을 수치화하고 Information-Gain Budget Allocation(IBA)으로 사용자·토큰 위치마다 다른 refinement step 수를 고른다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거하고 영문 방법명과 기술 용어는 그대로 유지했다."
+        }
+      ]
+    },
+    {
+      "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "1e0ced66154d7de98c3674c39339cef6ef528ed413f90af42ad231563a4d4a37",
+      "after_content_sha256": "92a168544b9b091284231bd138c36b3023c59cba681860b0cb22ded1a41e0b70",
+      "unchanged_deep_sha256": "e577cfa0f536a59503b15f925a8febb78e7530feb4e48cfb47245d68b5346cc0",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "쉽게 말해 FPF는 학생에게 모범 답안만 보여 주지 않고, 자신이 여러 번 고친 초안도 보여 주며 고치는 법을 배우게 한다.",
+          "after": "쉽게 말해 FPF는 학생에게 모범 답안만 보여 주지 않고 자신이 여러 번 고친 초안도 보여 주며 고치는 법을 배우게 한다.",
+          "rule": "C-11",
+          "reason": "부정 조건과 이어지는 설명 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "FRM은 많은 변수가 서로 제약을 주고, 후보 답을 병렬로 고칠 수 있으며, 반복 중간 상태를 평가할 수 있는 문제에 특히 잘 맞는다.",
+          "after": "FRM은 많은 변수가 서로 제약을 주고 후보 답을 병렬로 고칠 수 있으며 반복 중간 상태를 평가할 수 있는 문제에 특히 잘 맞는다.",
+          "rule": "C-11",
+          "reason": "세 조건을 잇는 연결어미 뒤 쉼표를 걷어 문장을 매끄럽게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "intent-propagation-contrastive-collaborative-filtering",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "0a0680968a95088204890d975a903f55807187075de9fe1c0a9fb4347f18ef54",
+      "after_content_sha256": "0a0680968a95088204890d975a903f55807187075de9fe1c0a9fb4347f18ef54",
+      "unchanged_deep_sha256": "1adcefdd9023c294c0f86d411a5a35b3df2389ad0b8fd84494e4804420b16dd5",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "40e1d86a8aefce5ed0eb0cfaf3bfce594fdd468e041c82888e3acca0aeaee82a",
+      "after_content_sha256": "1d4d1df13033b4f674d831ff8e1e682aa39a191493987e734874e2abc46e339a",
+      "unchanged_deep_sha256": "15bc042b4da40429c7cf810f86b77efd530ae0e289be810303138faf37d85616",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "CLAUSE는 질문별로 작은 작업용 부분 그래프를 만들고, 필요한 경로와 텍스트 근거만 reader에 넘긴다.",
+          "after": "CLAUSE는 질문별로 작은 작업용 부분 그래프를 만들고 필요한 경로와 텍스트 근거만 reader에 넘긴다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거해 한 동작의 목적이 끊기지 않게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "f542ba306ba789cc325fb1835911e16c3d53a0c338da4d4d2d2c33714c1bf445",
+      "after_content_sha256": "ecc106a7e40b16ceaf1242c74026144ee10f48291405a64a8298270b612dacf7",
+      "unchanged_deep_sha256": "d887c8ced48c6652c63161fbcebc5c97def75ac3c356739e442ed13be8afbfda",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "저자들은 질문 하나당 8개 답을 생성하고, 정답 응답 비율이 0.5보다 **엄격히** 커야 통과로 본다.",
+          "after": "저자들은 질문 하나당 8개 답을 생성하고 정답 응답 비율이 0.5보다 **엄격히** 커야 통과로 본다.",
+          "rule": "C-11",
+          "reason": "생성과 판정 조건 사이의 불필요한 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "causal-foundation-models",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "07f19892e7ec819f3d9525796b0240e727f79e94f6cee76a4e2286cbd769a92d",
+      "after_content_sha256": "07f19892e7ec819f3d9525796b0240e727f79e94f6cee76a4e2286cbd769a92d",
+      "unchanged_deep_sha256": "a13904f2ff8d8db7b686c116d11729730cc9af99f4efca2ec5c01c37fd6fe0f1",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "과제별 학습 부담을 줄일 수 있지만, 효과를 식별하는",
+          "after": "과제별 학습 부담을 줄일 수 있지만 효과를 식별하는",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "20967ceab37ba47c856df015ff761407e7cbbca72d5908286779e8540aa4b41c",
+      "after_content_sha256": "fee779895fa4f49d09449ef438e448c3a06bb7d184223d0f917f932f7a6ea929",
+      "unchanged_deep_sha256": "06a78f7b2a925e94e118c6ae339741b09b4637d9486404dbfba188f2e0a3b7f3",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "논문은 작은 학생이 스스로 쌓은 실패·성공 기록만으로 메모리를 진화시키기 어렵고, 교사 기록을 통째로 옮기면 능력 차이 때문에 따라 하지 못할 수 있다고 본다.",
+          "after": "논문은 작은 학생이 스스로 쌓은 실패·성공 기록만으로 메모리를 진화시키기 어렵고 교사 기록을 통째로 옮기면 능력 차이 때문에 따라 하지 못할 수 있다고 본다.",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 쉼표를 제거하고 원문의 유보 강도는 유지했다."
+        }
+      ]
+    },
+    {
+      "slug": "procedural-graphs",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": true,
+      "before_content_sha256": "5562bd3c107ed448846236754684b5ca3b079f6464ff3a86fe9744d376bdd6cf",
+      "after_content_sha256": "1e9f6a4129710907d8f4a9d0286a6cfd5db0969f5a5b77423b745fd43386cf44",
+      "unchanged_deep_sha256": "3156634c54448ace621daa02b4af6655e24bf1ed8a809911d06688325639cf0d",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "Procedural Graphs는 절차 그래프로 행동을 안내하고, 별도 개선 단계에서 경험을 반영한 그래프 수정안을 검증한다.",
+          "after": "Procedural Graphs는 절차 그래프로 행동을 안내하고 별도 개선 단계에서 경험을 반영한 그래프 수정안을 검증한다.",
+          "rule": "C-11",
+          "reason": "excerpt의 두 동작 사이 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "refiner LLM은 성공 궤적과 실패 궤적을 비교해 노드·간선을 추가하거나 삭제하고, 간선의 조건·안내·pitfall을 바꾼다.",
+          "after": "refiner LLM은 성공 궤적과 실패 궤적을 비교해 노드·간선을 추가하거나 삭제하고 간선의 조건·안내·pitfall을 바꾼다.",
+          "rule": "C-11",
+          "reason": "그래프 수정 동작을 잇는 연결어미 뒤 쉼표를 뺐다."
+        },
+        {
+          "before": "우선 행동 vocabulary와 성공 판정을 정의하고, 실제 궤적에서 노드 일치 실패가 얼마나 자주 나는지 측정해야 한다.",
+          "after": "우선 행동 vocabulary와 성공 판정을 정의하고 실제 궤적에서 노드 일치 실패가 얼마나 자주 나는지 측정해야 한다.",
+          "rule": "C-11",
+          "reason": "정의와 측정의 순차 동작 사이 쉼표를 뺐다."
+        }
+      ]
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "a55218963d496e6c90bca81a3095baf3f93845e99df89237d0d993f4d5324bdb",
+      "after_content_sha256": "a55218963d496e6c90bca81a3095baf3f93845e99df89237d0d993f4d5324bdb",
+      "unchanged_deep_sha256": "18190bb99b47d6755d01aa13ae0c04d234d92b18e659914732ae3129e7a19c37",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "질문 유형과 근거 표현에 따라 달라지며, 입력 토큰량을",
+          "after": "질문 유형과 근거 표현에 따라 달라지며 입력 토큰량을",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "codenib",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "3e8fe768a232dc82f547b828134010c63df8bd626fd5016124164637ca291d69",
+      "after_content_sha256": "1c5ad9add9a203718463871df553e5859b3d8f1a71265367d713ca22a873be4e",
+      "unchanged_deep_sha256": "514ef991896f6556a06ea6aca8188e3d74354bf9217e1ca64469c312a524d55b",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "다만 논문은 이것이 이슈 해결률을 올린다고 보이지 않는다.",
+          "after": "다만 논문은 이것이 이슈 해결률을 올린다고 보여 주지 않는다.",
+          "rule": "A-15",
+          "reason": "주어와 인지 동사의 호응을 바로잡아 논문이 제시하지 않은 범위를 정확히 표현했다."
+        }
+      ]
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": true,
+      "before_content_sha256": "24eba770f98e02ff65edc92c9b7e5ec7ba735045d5bc359485a05beffb5e4996",
+      "after_content_sha256": "059260da28c2b3a9c2ced0eef22813097f99cda53510ea1177c0291e413351f3",
+      "unchanged_deep_sha256": "1f2f8e1f772b61198388ec7aa2bc8422245edf2da2823c2fb295252af0294c47",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "InCoder-32B-Thinking은 실제 실행 오류와 수정 기록으로 추론 데이터를 만들고, 실행 결과를 예측하는 모델로 그 과정을 늘린다.",
+          "after": "InCoder-32B-Thinking은 실제 실행 오류와 수정 기록으로 추론 데이터를 만들고 실행 결과를 예측하는 모델로 그 과정을 늘린다.",
+          "rule": "C-11",
+          "reason": "excerpt의 연속 설명 사이 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "과제와 실행 환경을 다시 실행할 수 있는 형태로 묶고, 예측 모델의 거짓 `PASS`를 실제 검증으로 어떻게 잡을지 정해야 한다.",
+          "after": "과제와 실행 환경을 다시 실행할 수 있는 형태로 묶고 예측 모델의 거짓 `PASS`를 실제 검증으로 어떻게 잡을지 정해야 한다.",
+          "rule": "C-11",
+          "reason": "준비와 검증 동작 사이의 불필요한 쉼표를 뺐다."
+        },
+        {
+          "before": "더 긴 방법·벤치마크 열별 비교·수치 불일치 검토는 [상세 읽기](/blog/incoder-32b-thinking?view=deep)에서 이어집니다.",
+          "after": "더 긴 방법·벤치마크 열별 비교·수치 불일치 검토는 [상세 읽기](/blog/incoder-32b-thinking?view=deep)에서 이어진다.",
+          "rule": "E-7",
+          "reason": "본문의 평서체와 섞인 합쇼체 종결을 평서체로 맞췄다."
+        }
+      ]
+    },
+    {
+      "slug": "ttpo",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "e74d53b469223ab3d329ef48b37c6e858b37890a2f79f54550ad50289b58d878",
+      "after_content_sha256": "e74d53b469223ab3d329ef48b37c6e858b37890a2f79f54550ad50289b58d878",
+      "unchanged_deep_sha256": "f7402abc30b07f5af8f4804b4c7a53ba77b63e28a5d238022924f8b3171fa918",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    },
+    {
+      "slug": "rsi-roadmap",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "4b4f64021501f557f92e3930e0c14ef9f666e70e2fd67ae58e10e4f204b2d215",
+      "after_content_sha256": "e311262f8048ca1511808bf73878bcff49358d5c0180f8aadaba06eb42cc3ede",
+      "unchanged_deep_sha256": "8945e74ec29d41e3cfe32b9ea4e9daf88aca90b572c7f7d01c76ffc0863d350a",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "시스템이 실패 사례를 모으고, 원인을 찾아 프롬프트를 바꾸고, 테스트를 통과하면 새 프롬프트를 저장해 다음 문제에서 다시 쓴다.",
+          "after": "시스템이 실패 사례를 모으고 원인을 찾아 프롬프트를 바꾸고 테스트를 통과하면 새 프롬프트를 저장해 다음 문제에서 다시 쓴다.",
+          "rule": "C-11",
+          "reason": "연속 동작 사이의 연결어미 뒤 쉼표 두 개를 덜어 문장 흐름을 자연스럽게 했다."
+        }
+      ]
+    },
+    {
+      "slug": "rlt",
+      "changed": true,
+      "body_changed": true,
+      "excerpt_changed": false,
+      "before_content_sha256": "fdb0bf2f0c29c5f1ec6be6b96c7486e03b6efa9efa8c483bffdcea69938dbceb",
+      "after_content_sha256": "0c21a965d92b3acb8e2611e72b643e607a758130b46abfeb7b1634a26e758cc3",
+      "unchanged_deep_sha256": "0f532e84f896e547471068b8fb28f8014278daa357e3cf281ea60b5f9a8ac646",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "그 뒤 디코더가 문맥 메모리와 최근 캐시를 읽어 새 상태를 만들고, 다음 토큰의 확률을 낸다.",
+          "after": "그 뒤 디코더가 문맥 메모리와 최근 캐시를 읽어 새 상태를 만들고 다음 토큰의 확률을 낸다.",
+          "rule": "C-11",
+          "reason": "같은 계산 단계의 연속 동작 사이 쉼표를 뺐다."
+        },
+        {
+          "before": "저자들도 길이 밖 덧셈이 약해지고, 표준 순열 추적은 어렵다고 보고한다.",
+          "after": "저자들도 길이 밖 덧셈이 약해지고 표준 순열 추적은 어렵다고 보고한다.",
+          "rule": "C-11",
+          "reason": "두 관찰이 짧게 이어져 연결어미 뒤 쉼표를 뺐다."
+        },
+        {
+          "before": "9월 17일 개정본의 구조·실험 설정·결과와 한계는 [상세 읽기](/blog/rlt?view=deep)에서 더 자세히 다룹니다.",
+          "after": "9월 17일 개정본의 구조·실험 설정·결과와 한계는 [상세 읽기](/blog/rlt?view=deep)에서 더 자세히 다룬다.",
+          "rule": "E-7",
+          "reason": "본문 평서체와 섞인 합쇼체 종결을 평서체로 맞췄다."
+        }
+      ]
+    },
+    {
+      "slug": "multi-token-prediction",
+      "changed": true,
+      "body_changed": false,
+      "excerpt_changed": true,
+      "before_content_sha256": "d206bb25cddbf60481578a959e246c67753bdeab25776426dd3f583fcd07e913",
+      "after_content_sha256": "d206bb25cddbf60481578a959e246c67753bdeab25776426dd3f583fcd07e913",
+      "unchanged_deep_sha256": "1e077cc8f19ab98d751b3c84e3941f0d13eeaefa30aedda88deac82796441b47",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": [
+        {
+          "before": "여러 미래 토큰을 함께 학습하고, 추가 예측기를",
+          "after": "여러 미래 토큰을 함께 학습하고 추가 예측기를",
+          "rule": "C-11",
+          "reason": "연결어미 뒤 불필요한 쉼표를 제거했다."
+        },
+        {
+          "before": "성능과 속도 개선을 보였지만, 모델 크기와",
+          "after": "성능과 속도 개선을 보였지만 모델 크기와",
+          "rule": "C-11",
+          "reason": "양보 연결어미 뒤 쉼표를 제거했다."
+        }
+      ]
+    },
+    {
+      "slug": "evo-ontology",
+      "changed": false,
+      "body_changed": false,
+      "excerpt_changed": false,
+      "before_content_sha256": "d3ddca28fd884f885bcedae3062cac3f9e08c2c8164d4d738aa9a3ce26964239",
+      "after_content_sha256": "d3ddca28fd884f885bcedae3062cac3f9e08c2c8164d4d738aa9a3ce26964239",
+      "unchanged_deep_sha256": "278f3849201acd24d6bf941baf6231590d70dc8c1a99a61f9b3f9c23a6643702",
+      "official_change_gate": "change_rate: 0.0%  [전문]\ngate: OK — 수렴  (경고 30% / 중단 50%)",
+      "edits": []
+    }
+  ]
+}
