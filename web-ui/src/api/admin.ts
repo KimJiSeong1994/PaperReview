@@ -179,6 +179,10 @@ export interface AdminMcpReport {
     tool_p95_ms: number | null;
     job_p95_ms: number | null;
     repeat_accounts: number;
+    // p95의 실제 표본 수 — duration이 기록된 이벤트만 세므로 요청·호출·작업 건수와 다르다.
+    request_duration_samples: number;
+    tool_duration_samples: number;
+    job_duration_samples: number;
   };
   daily: {
     date: string;

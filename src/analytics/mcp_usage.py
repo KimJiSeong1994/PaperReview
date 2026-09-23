@@ -471,6 +471,7 @@ def _empty_report(
             "jobs_started": 0, "jobs_completed": 0, "jobs_failed": 0,
             "jobs_pending": 0, "request_error_rate": None, "request_p95_ms": None,
             "tool_p95_ms": None, "job_p95_ms": None, "repeat_accounts": 0,
+            "request_duration_samples": 0, "tool_duration_samples": 0, "job_duration_samples": 0,
         },
         "daily": [],
         "tools": [],
@@ -626,6 +627,11 @@ def build_mcp_usage_report(
         "request_error_rate": round(len(request_errors) / len(requests), 4) if requests else None,
         "request_p95_ms": _percentile_95(request_durations), "tool_p95_ms": _percentile_95(tool_durations),
         "job_p95_ms": _percentile_95(job_durations),
+        # p95의 표본은 duration이 남은 이벤트뿐이라 요청·호출·작업 건수와 다르다.
+        # 20건 미만이면 _percentile_95는 사실상 최댓값이므로 UI가 라벨을 바꿀 수 있어야 한다.
+        "request_duration_samples": len(request_durations),
+        "tool_duration_samples": len(tool_durations),
+        "job_duration_samples": len(job_durations),
         "repeat_accounts": sum(1 for dates in meaningful.values() if len(dates) >= 2),
     }
 
