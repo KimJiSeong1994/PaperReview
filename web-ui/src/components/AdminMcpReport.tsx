@@ -290,7 +290,7 @@ export default function AdminMcpReport() {
           <h2>서버 경로</h2>
           <Table label="서버 경로 표" headings={['경로', '요청', '오류', '오류율', 'p95 (ms)']}>
             {report.routes.length === 0 ? <EmptyRows columns={5}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
-              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{ms(row.p95_ms)}</td></tr>
+              <tr key={row.name}><th scope="row" title={row.name}><RouteName name={row.name} /></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{ms(row.p95_ms)}</td></tr>
             ))}
           </Table>
           <ErrorLine label="오류 코드" rows={report.errors.filter((row) => row.kind === 'request')} />
@@ -441,6 +441,30 @@ function ErrorLine({ label, rows }: { label: string; rows: McpReportData['errors
       <span>{label}</span>
       {rows.map((row) => <span key={row.code}>{ERROR_CODE[row.code] ?? <code>{row.code}</code>} ×{count(row.count)}</span>)}
     </p>
+  );
+}
+
+// 백엔드는 매칭 실패 시 "GET (unmatched)"도 남기므로 경로가 /로 시작하지 않을 수 있다.
+const ROUTE_NAME = /^([A-Z]+) (.+)$/;
+
+// 모바일에서 첫 칸은 sticky라 가로로 스크롤해도 잘린 뒤가 드러나지 않고, title은
+// 터치에서 뜨지 않는다. 그래서 좁은 화면에서는 메서드를 윗줄로 빼고, 모든 경로가
+// 공유하는 /api 접두사와 파라미터 이름을 줄여 경로가 한 줄에 들어오게 한다.
+// 전체 문자열은 넓은 화면과 title에 그대로 남는다.
+const compactPath = (path: string) => path.replace('/api/', '/').replace(/\{[^}]+\}/g, '…');
+
+function RouteName({ name }: { name: string }) {
+  const parsed = ROUTE_NAME.exec(name);
+  const method = parsed?.[1];
+  const path = parsed?.[2] ?? name;
+  return (
+    <>
+      <code className="mcp-route-full">{name}</code>
+      <span className="mcp-route-compact">
+        {method && <span className="mcp-route-method">{method}</span>}
+        <code>{compactPath(path)}</code>
+      </span>
+    </>
   );
 }
 
