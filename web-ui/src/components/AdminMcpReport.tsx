@@ -311,18 +311,24 @@ export default function AdminMcpReport() {
       <section className="mcp-section">
         <h2>클라이언트 주장값</h2>
         <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
-        <div className="mcp-two-column mcp-two-column--nested">
-          <Table label="클라이언트 주장값 표" caption="클라이언트" headings={['클라이언트', '클라이언트 버전', '요청', '도구 호출']}>
-            {report.clients.length === 0 ? <EmptyRows columns={4}>클라이언트 주장값이 없습니다.</EmptyRows> : report.clients.map((row, index) => (
-              <tr key={`${row.name}:${row.version}:${index}`}><th scope="row">{claimedValue(row.name)}</th><td>{claimedValue(row.version)}</td><td>{count(row.requests)}</td><td>{count(row.tool_calls)}</td></tr>
-            ))}
-          </Table>
-          <Table label="어댑터 버전 표" caption="어댑터 버전" headings={['어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}>
-            {report.versions.length === 0 ? <EmptyRows columns={7}>어댑터 버전 주장값이 없습니다.</EmptyRows> : report.versions.map((row) => (
-              <tr key={row.version}><th scope="row">{claimedValue(row.version)}</th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{count(row.tool_calls)}</td><td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td><td>{rateOf(row.tool_failures, row.tool_calls)}</td></tr>
-            ))}
-          </Table>
-        </div>
+        <Table
+          label="클라이언트·어댑터 버전 표"
+          headings={['클라이언트', '클라이언트 버전', '어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}
+        >
+          {report.client_versions.length === 0 ? <EmptyRows columns={9}>클라이언트 주장값이 없습니다.</EmptyRows> : report.client_versions.map((row) => (
+            <tr key={`${row.client}:${row.client_version}:${row.adapter_version}`}>
+              <th scope="row">{claimedValue(row.client)}</th>
+              <td>{claimedValue(row.client_version)}</td>
+              <td>{claimedValue(row.adapter_version)}</td>
+              <td>{count(row.requests)}</td>
+              <td className={failClass(row.errors)}>{count(row.errors)}</td>
+              <td>{rateOf(row.errors, row.requests)}</td>
+              <td>{count(row.tool_calls)}</td>
+              <td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td>
+              <td>{rateOf(row.tool_failures, row.tool_calls)}</td>
+            </tr>
+          ))}
+        </Table>
       </section>
 
       {/* Mounting <Plot> inside a closed <details> lays it out at 0 width and `responsive`
@@ -471,12 +477,11 @@ function RouteName({ name }: { name: string }) {
 /* A non-zero failure count is the thing being scanned for; grey 12px hid it. */
 const failClass = (value: number) => (value > 0 ? 'mcp-fail' : undefined);
 
-function Table({ label, caption, headings, children, className = '' }: { label: string; caption?: string; headings: string[]; children: ReactNode; className?: string }) {
+function Table({ label, headings, children, className = '' }: { label: string; headings: string[]; children: ReactNode; className?: string }) {
   return (
     // Every table overflows on a phone; without a tab stop the hidden columns are unreachable by keyboard.
     <div className="mcp-table-scroll" tabIndex={0} role="region" aria-label={label}>
       <table className={`mcp-table ${className}`}>
-        {caption && <caption>{caption}</caption>}
         <thead><tr>{headings.map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead>
         <tbody>{children}</tbody>
       </table>

@@ -54,8 +54,7 @@ const REPORT: McpReportData = {
   daily: [{ date: '2026-09-05', requests: 12, active_accounts: 3, tool_calls: 4, jobs_started: 2, jobs_completed: 1, jobs_failed: 0 }],
   tools: [{ name: 'deep_review', calls: 4, succeeded: 3, failed: 1, unknown: 0, p95_ms: null }],
   routes: [{ name: '/api/review/start', requests: 12, errors: 0, p95_ms: null }],
-  clients: [{ name: 'Claude Desktop', version: null, requests: 10, tool_calls: 4 }],
-  versions: [{ version: '0.4.0', requests: 10, tool_calls: 4, errors: 1, tool_failures: 1 }],
+  client_versions: [{ client: 'Claude Desktop', client_version: 'Unknown', adapter_version: '0.4.0', requests: 10, errors: 1, tool_calls: 4, tool_failures: 1 }],
   jobs: [{ name: 'deep_review', started: 2, completed: 1, failed: 0, pending: 1, unknown: 0 }],
   errors: [],
 };
@@ -144,7 +143,7 @@ describe('AdminMcpReport', () => {
         invocation_coverage: null,
       },
       totals: Object.fromEntries(Object.entries(REPORT.totals).map(([key]) => [key, key.includes('p95') ? null : 0])) as unknown as McpReportData['totals'],
-      daily: [], tools: [], routes: [], clients: [], versions: [], jobs: [], errors: [],
+      daily: [], tools: [], routes: [], client_versions: [], jobs: [], errors: [],
     };
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(zero));
     render(<AdminMcpReport />);
@@ -159,7 +158,7 @@ describe('AdminMcpReport', () => {
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('0/0');
     expect(screen.getByText('도구 실행은 미계측 상태입니다.').closest('td')).toHaveAttribute('colspan', '7');
     expect(screen.getByText('측정된 서버 요청이 없습니다.').closest('td')).toHaveAttribute('colspan', '5');
-    expect(screen.getByText('어댑터 버전 주장값이 없습니다.').closest('td')).toHaveAttribute('colspan', '7');
+    expect(screen.getByText('클라이언트 주장값이 없습니다.').closest('td')).toHaveAttribute('colspan', '9');
   });
 
   it('renders absent instrumentation separately from a measured empty report', async () => {
@@ -273,8 +272,10 @@ describe('AdminMcpReport', () => {
     const section = (name: string) => within(screen.getByRole('heading', { name }).closest('section')!);
 
     expect(screen.queryByText('오류 분류')).toBeNull();
-    expect(screen.getByRole('table', { name: '클라이언트' })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: '어댑터 버전' })).toBeInTheDocument();
+    // 클라이언트와 어댑터 버전이 한 행에 있어야 "어떤 조합이 깨졌나"에 답할 수 있다.
+    const claim = within(screen.getByRole('region', { name: '클라이언트·어댑터 버전 표' }));
+    expect(claim.getByRole('columnheader', { name: '클라이언트 버전' })).toBeInTheDocument();
+    expect(claim.getByRole('columnheader', { name: '어댑터 버전' })).toBeInTheDocument();
     expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('404 ×5');
     expect(section('서버 경로').getByText('오류 코드').parentElement).toHaveTextContent('실패 ×1');
     expect(section('관측된 도구 실행').getByText('실패 사유').parentElement).toHaveTextContent('취소 ×1');
@@ -364,8 +365,8 @@ describe('AdminMcpReport', () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
 
-    const row = await screen.findByRole('row', { name: /^0\.4\.0/ });
-    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['10', '1', '1/10', '4', '1', '1/4']);
+    const row = await screen.findByRole('row', { name: /^Claude Desktop/ });
+    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['Unknown', '0.4.0', '10', '1', '1/10', '4', '1', '1/4']);
   });
 
   it('rates failures against every call, marks non-zero failures, and keeps table columns in raw ms', async () => {

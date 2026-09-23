@@ -146,7 +146,10 @@ def test_report_filters_internal_accounts_and_reports_invocation_coverage(ledger
     external = build_mcp_usage_report(ledger, days=7)
     assert external["totals"]["requests"] == 1
     assert external["measurement"]["invocation_coverage"] == 1.0
-    assert external["clients"] == [{"name": "Claude Desktop", "version": "1.2.3", "requests": 1, "tool_calls": 0}]
+    assert external["client_versions"] == [{
+        "client": "Claude Desktop", "client_version": "1.2.3", "adapter_version": "0.4.0",
+        "requests": 1, "errors": 0, "tool_calls": 0, "tool_failures": 0,
+    }]
 
     all_actors = build_mcp_usage_report(ledger, days=7, include_internal=True)
     assert all_actors["totals"]["requests"] == 2
@@ -176,7 +179,7 @@ def test_adapter_client_categories_are_bounded_and_unknown_is_not_mislabeled(led
             source="ua_claim",
         )
     report = build_mcp_usage_report(ledger, days=7)
-    observed = {row["name"] for row in report["clients"]}
+    observed = {row["client"] for row in report["client_versions"]}
     assert observed == set(labels.values())
 
 
@@ -199,6 +202,25 @@ def test_duration_samples_count_only_events_that_recorded_a_duration(ledger: Pat
     assert totals["job_duration_samples"] == 0
 
 
+def test_client_and_adapter_version_share_one_row(ledger: Path) -> None:
+    """같은 어댑터 버전이라도 클라이언트가 다르면 다른 행이다 — 조인 키가 한 표 안에 있다."""
+    assert record_event(
+        kind="request", name="POST /api/search", status="succeeded", http_status=200,
+        actor_id="alice", actor_role="user", client_name="codex", client_version="1.0",
+        adapter_version="0.1.6", source="ua_claim",
+    )
+    assert record_event(
+        kind="request", name="GET /api/papers/{paper_id}", status="succeeded", http_status=404,
+        actor_id="bob", actor_role="user", client_name="claude-code", client_version="2.0",
+        adapter_version="0.1.6", source="ua_claim",
+    )
+    report = build_mcp_usage_report(ledger, days=7)
+    rows = {(r["client"], r["client_version"], r["adapter_version"]): r for r in report["client_versions"]}
+    assert len(rows) == 2
+    assert rows[("Codex", "1.0", "0.1.6")]["errors"] == 0
+    assert rows[("Claude Code", "2.0", "0.1.6")]["errors"] == 1
+
+
 def test_versions_carry_their_own_error_counts(ledger: Path) -> None:
     assert record_event(
         kind="request", name="GET /api/papers/{paper_id}", status="succeeded", http_status=404,
@@ -217,9 +239,15 @@ def test_versions_carry_their_own_error_counts(ledger: Path) -> None:
         actor_id="alice", actor_role="user", adapter_version="0.1.7", source="adapter_report",
     )
     report = build_mcp_usage_report(ledger, days=7)
-    by_version = {row["version"]: row for row in report["versions"]}
-    assert by_version["0.1.6"] == {"version": "0.1.6", "requests": 1, "tool_calls": 1, "errors": 1, "tool_failures": 1}
-    assert by_version["0.1.7"] == {"version": "0.1.7", "requests": 1, "tool_calls": 1, "errors": 0, "tool_failures": 0}
+    by_version = {row["adapter_version"]: row for row in report["client_versions"]}
+    assert by_version["0.1.6"] == {
+        "client": "Unknown", "client_version": "Unknown", "adapter_version": "0.1.6",
+        "requests": 1, "errors": 1, "tool_calls": 1, "tool_failures": 1,
+    }
+    assert by_version["0.1.7"] == {
+        "client": "Unknown", "client_version": "Unknown", "adapter_version": "0.1.7",
+        "requests": 1, "errors": 0, "tool_calls": 1, "tool_failures": 0,
+    }
 
 
 def test_only_completed_meaningful_actions_activate_accounts(ledger: Path) -> None:
@@ -348,7 +376,7 @@ async def test_admin_endpoint_keeps_unavailable_shape(tmp_path: Path, monkeypatc
         body = response.json()
         assert body["available"] is False
         assert body["reason"] == "not_instrumented"
-        assert set(body) == {"available", "reason", "window", "measurement", "totals", "daily", "tools", "routes", "clients", "versions", "jobs", "errors"}
+        assert set(body) == {"available", "reason", "window", "measurement", "totals", "daily", "tools", "routes", "client_versions", "jobs", "errors"}
         assert (await client.get("/api/admin/analytics/mcp?days=8")).status_code == 400
 
 
