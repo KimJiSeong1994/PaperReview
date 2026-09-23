@@ -476,8 +476,7 @@ def _empty_report(
         "daily": [],
         "tools": [],
         "routes": [],
-        "clients": [],
-        "versions": [],
+        "client_versions": [],
         "jobs": [],
         "errors": [],
     }
@@ -676,27 +675,28 @@ def build_mcp_usage_report(
         })
     report["routes"].sort(key=lambda x: (-x["requests"], x["name"]))
 
-    client_keys = {(r["client_name"] or "Unknown", r["client_version"] or "Unknown") for r in requests + tools}
-    for client_name, client_version in client_keys:
-        report["clients"].append({
-            "name": client_name, "version": client_version,
-            "requests": sum((r["client_name"] or "Unknown", r["client_version"] or "Unknown") == (client_name, client_version) for r in requests),
-            "tool_calls": sum((r["client_name"] or "Unknown", r["client_version"] or "Unknown") == (client_name, client_version) for r in tools),
-        })
-    report["clients"].sort(key=lambda x: (-(x["requests"] + x["tool_calls"]), x["name"], x["version"]))
+    # 클라이언트와 어댑터 버전을 따로 세면 같은 요청 수를 두 번 나눠 보여 주면서도
+    # "어떤 클라이언트의 어떤 어댑터가 깨졌나"에는 어느 쪽도 답하지 못한다. 조인 키를
+    # 함께 묶어 한 번만 나눈다. 실제로 함께 나타나는 조합만 행이 되므로 곱이 아니다.
+    def claim_key(row: sqlite3.Row) -> tuple[str, str, str]:
+        return (
+            row["client_name"] or "Unknown",
+            row["client_version"] or "Unknown",
+            row["adapter_version"] or "Unknown",
+        )
 
-    for version in sorted({r["adapter_version"] or "Unknown" for r in requests + tools}):
-        report["versions"].append({
-            "version": version,
-            "requests": sum((r["adapter_version"] or "Unknown") == version for r in requests),
-            "tool_calls": sum((r["adapter_version"] or "Unknown") == version for r in tools),
-            # Without per-version failures the admin has to join this table against the
-            # error table by hand to answer "did the new adapter break?", and neither
-            # table carries the join key.
-            "errors": sum((r["adapter_version"] or "Unknown") == version for r in request_errors),
-            "tool_failures": sum((r["adapter_version"] or "Unknown") == version for r in tool_failed),
+    for key in {claim_key(r) for r in requests + tools}:
+        client, client_version, adapter_version = key
+        report["client_versions"].append({
+            "client": client, "client_version": client_version, "adapter_version": adapter_version,
+            "requests": sum(claim_key(r) == key for r in requests),
+            "errors": sum(claim_key(r) == key for r in request_errors),
+            "tool_calls": sum(claim_key(r) == key for r in tools),
+            "tool_failures": sum(claim_key(r) == key for r in tool_failed),
         })
-    report["versions"].sort(key=lambda x: (-(x["requests"] + x["tool_calls"]), x["version"]))
+    report["client_versions"].sort(
+        key=lambda x: (-(x["requests"] + x["tool_calls"]), x["client"], x["client_version"], x["adapter_version"])
+    )
 
     for job_name in sorted({r["name"] for r in jobs}):
         group = [r for r in jobs if r["name"] == job_name]

@@ -195,8 +195,12 @@ export interface AdminMcpReport {
   }[];
   tools: { name: string; calls: number; succeeded: number; failed: number; unknown: number; p95_ms: number | null }[];
   routes: { name: string; requests: number; errors: number; p95_ms: number | null }[];
-  clients: { name: string; version: string | null; requests: number; tool_calls: number }[];
-  versions: { version: string; requests: number; tool_calls: number; errors: number; tool_failures: number }[];
+  // 클라이언트와 어댑터 버전은 한 번만 나눈다 — 조인 키가 같은 행 안에 있어야
+  // "어떤 클라이언트의 어떤 어댑터가 깨졌나"에 답할 수 있다.
+  client_versions: {
+    client: string; client_version: string; adapter_version: string;
+    requests: number; errors: number; tool_calls: number; tool_failures: number;
+  }[];
   jobs: { name: string; started: number; completed: number; failed: number; pending: number; unknown: number }[];
   errors: { kind: string; code: string; count: number }[];
 }
