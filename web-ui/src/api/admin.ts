@@ -174,6 +174,8 @@ export interface AdminMcpReport {
     jobs_completed: number;
     jobs_failed: number;
     jobs_pending: number;
+    // 종료 대기 중 가장 오래된 작업의 시작 시각 — 건수만으로는 멈춘 작업을 못 가린다.
+    jobs_pending_oldest_started_at: string | null;
     request_error_rate: number | null;
     request_p95_ms: number | null;
     tool_p95_ms: number | null;

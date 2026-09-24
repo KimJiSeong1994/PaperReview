@@ -125,7 +125,7 @@ describe('blog reading levels', () => {
     mockPost({ index_deep_view: true, deep_content: deep });
     mount('/blog/example-paper?view=deep');
     await screen.findByText('EASY_ONLY');
-    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://jiphyeonjeon.kr/blog/example-paper');
+    await waitFor(() => expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://jiphyeonjeon.kr/blog/example-paper'));
     expect(document.title).not.toContain('상세 읽기');
     expect(screen.queryByRole('link', { name: /상세 읽기/ })).not.toBeInTheDocument();
   });
@@ -165,7 +165,7 @@ describe('blog reading levels', () => {
     const toc = await screen.findByRole('navigation', { name: '목차' });
     await waitFor(() => expect(within(toc).getByRole('link', { name: '상세 방법' })).toBeInTheDocument());
     expect(within(toc).queryByRole('link', { name: '쉬운 설명' })).not.toBeInTheDocument();
-    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://jiphyeonjeon.kr/blog/example-paper');
+    await waitFor(() => expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute('href', 'https://jiphyeonjeon.kr/blog/example-paper'));
     expect(document.querySelector('script[type="application/ld+json"]')?.textContent).toContain('DEEP_ONLY');
     await user.click(screen.getByRole('button', { name: 'Browser back' }));
     await screen.findByText('EASY_ONLY');
@@ -209,7 +209,8 @@ describe('blog reading levels', () => {
     mount('/blog/example-paper?view=deep');
     await screen.findByText('HEADERLESS_DEEP');
     expect(screen.getByRole('link', { name: /PDF 보기/ })).toHaveAttribute('href', expect.stringContaining('arxiv_id=2404.19737v1'));
-    expect(document.title).toContain('2404.19737v1');
+    await waitFor(() => expect(document.title).toContain('2404.19737v1'));
+    await waitFor(() => expect(document.querySelector('script[type="application/ld+json"]')).not.toBeNull());
     const graph = JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!);
     const posting = graph['@graph'].find((node: Record<string, unknown>) => node['@type'] === 'BlogPosting');
     expect(posting.articleBody).toContain('HEADERLESS_DEEP');

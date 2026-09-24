@@ -42,6 +42,7 @@ const REPORT: McpReportData = {
     jobs_completed: 8,
     jobs_failed: 2,
     jobs_pending: 2,
+    jobs_pending_oldest_started_at: null,
     request_error_rate: 0,
     request_p95_ms: null,
     tool_p95_ms: 420,
@@ -385,6 +386,42 @@ describe('AdminMcpReport', () => {
     const unmatched = header(/unmatched/);
     expect(within(unmatched).getByText('GET')).toHaveClass('mcp-route-method');
     expect(within(unmatched).getByText('(unmatched)')).toBeInTheDocument();
+  });
+
+  it('ages the oldest waiting job so a stuck one is distinguishable from a fresh one', async () => {
+    // 나이는 창 끝이 아니라 실제 시계 기준이어야 한다 — 자정 직후에 1분짜리 작업이
+    // 23시간 59분째로 보이면 기능이 없느니만 못하다.
+    const now = Date.parse('2026-09-06T09:00:00Z');
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, jobs_pending: 1, jobs_pending_oldest_started_at: new Date(now - 8.5 * 3600_000).toISOString() },
+      jobs: [{ name: 'deep_review', started: 3, completed: 2, failed: 0, pending: 1, unknown: 0 }],
+    }));
+    render(<AdminMcpReport />);
+
+    const jobs = (await screen.findByRole('heading', { name: '작업 수명주기' })).closest('section')!;
+    expect(within(jobs).getByText(/가장 오래된 작업 8시간 30분째/)).toBeInTheDocument();
+  });
+
+  it('says nothing about waiting jobs when none are waiting', async () => {
+    const now = Date.parse('2026-09-06T09:00:00Z');
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const waiting = { ...REPORT.totals, jobs_pending: 1, jobs_pending_oldest_started_at: new Date(now - 3600_000).toISOString() };
+    vi.mocked(fetchAdminMcpReport).mockImplementationOnce(() => response({ ...REPORT, totals: waiting }));
+    const { unmount } = render(<AdminMcpReport />);
+    // 같은 픽스처에서 줄이 나오는 것을 먼저 보여야 아래의 부재가 의미를 가진다.
+    expect(await screen.findByText(/가장 오래된 작업 1시간 0분째/)).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      totals: { ...REPORT.totals, jobs_pending: 0, jobs_pending_oldest_started_at: null },
+    }));
+    render(<AdminMcpReport />);
+
+    await screen.findByRole('heading', { name: '작업 수명주기' });
+    expect(screen.queryByText(/가장 오래된 작업/)).toBeNull();
   });
 
   it('shows per-version error counts next to the version claims', async () => {
