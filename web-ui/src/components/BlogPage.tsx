@@ -29,27 +29,18 @@ import {
 } from '../api/client';
 import { blogSeoMeta, buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
 import { BLOG_SERIES, seriesOf } from '../seo/series';
+import {
+  getBlogBootstrapPost,
+  invalidateBlogBootstrap,
+  isBlogPostDetail,
+  type BlogPostDetail,
+} from '../utils/blogBootstrap';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-interface BlogPost {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  deep_content?: string | null;
-  index_deep_view?: boolean;
-  deep_reading_time_min?: number | null;
-  author: string;
-  tags: string[];
-  category?: string;
-  thumbnail_url?: string | null;
+interface BlogPost extends BlogPostDetail {
   /** Body excerpt around the match — set by the API only for `?q=` body hits. */
   snippet?: string | null;
-  reading_time_min: number;
-  created_at: string;
-  updated_at: string;
 }
 
 interface BlogPageProps {
@@ -336,9 +327,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [view, setView] = useState<BlogView>('list');
+  const initialSeed = slug ? getBlogBootstrapPost(slug) as BlogPost | null : null;
+  const [view, setView] = useState<BlogView>(slug ? 'detail' : 'list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [storedSelectedPost, setSelectedPost] = useState<BlogPost | null>(initialSeed);
+  // Route props update during SPA navigation before effects run. Guarding the
+  // projection synchronously prevents article A from painting under URL B.
+  const selectedPost = !slug || storedSelectedPost?.slug === slug ? storedSelectedPost : null;
   const editorRequestRef = useRef(0);
   const hasDeepContent = Boolean(selectedPost?.deep_content?.trim());
   const isDeepReading = searchParams.get('view') === 'deep' && hasDeepContent;
@@ -357,7 +352,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       : selectedPost
   ), [selectedPost, isDeepReading]);
   useEffect(() => () => { editorRequestRef.current += 1; }, [location.key]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialSeed);
   const [error, setError] = useState<string | null>(null);
   // True only when the API definitively said the post is gone (404/410).
   const [postNotFound, setPostNotFound] = useState(false);
@@ -589,19 +584,23 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   useEffect(() => {
     if (!slug) return;
 
+    const controller = new AbortController();
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setLoading(true);
+      const seed = getBlogBootstrapPost(slug) as BlogPost | null;
+      setLoading(!seed);
       setError(null);
-      setSelectedPost(null);
+      setSelectedPost(seed);
       setPostNotFound(false);
       setView('detail');
 
-      fetchBlogPost(slug)
+      fetchBlogPost(slug, { signal: controller.signal })
         .then((response) => {
           if (cancelled) return;
+          if (!isBlogPostDetail(response.data, slug)) throw new Error('Failed to load post.');
           setSelectedPost(response.data as BlogPost);
+          setError(null);
         })
         .catch((err: unknown) => {
           if (cancelled) return;
@@ -610,8 +609,15 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           // (network failure, robots-blocked XHR in Google's renderer, 5xx)
           // must NOT flip the page to noindex — the server-rendered HTML is
           // the source of truth and already indexes real posts.
-          setPostNotFound(status === 404 || status === 410);
-          setError(getErrorMessage(err, 'Failed to load post.'));
+          const gone = status === 404 || status === 410;
+          setPostNotFound(gone);
+          if (gone) {
+            invalidateBlogBootstrap(slug);
+            setSelectedPost(null);
+          }
+          // A readable snapshot is the useful state during transient failures;
+          // exposing transport details above it only adds product-internal noise.
+          if (gone || !seed) setError(getErrorMessage(err, 'Failed to load post.'));
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -620,6 +626,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [slug]);
 
@@ -1826,8 +1833,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   const seoPost = view === 'detail' ? readingPost : null;
+  const seoStoredPost = selectedPost
+    ? { ...selectedPost, updated_at: selectedPost.updated_at ?? undefined }
+    : null;
+  const normalizedSeoPost = seoPost
+    ? { ...seoPost, updated_at: seoPost.updated_at ?? undefined }
+    : null;
   const categoryView = view === 'list';
-  const seoMeta = seoPost && selectedPost ? blogSeoMeta(selectedPost) : null;
+  const seoMeta = normalizedSeoPost && seoStoredPost ? blogSeoMeta(seoStoredPost) : null;
   const readingLabel = selectedPost?.index_deep_view && hasDeepContent
     ? ` · ${isDeepReading ? '상세 읽기' : '쉬운 읽기'}` : '';
   const seoTitle = seoMeta
@@ -1837,11 +1850,14 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       : BLOG_TITLE;
   const seoDescription = seoMeta ? seoMeta.description : BLOG_DESCRIPTION;
   const hasSlugError = Boolean(slug && view === 'detail' && !loading && !seoPost && postNotFound);
+  const seoRobots = hasSlugError || seoPost?.published === false || (categoryView && (query || tagFilter))
+    ? 'noindex,nofollow'
+    : seoPost ? 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' : undefined;
   const listCanonical = initialCategory
     ? `${SITE_URL}/blog/category/${initialCategory}`
     : blogCanonical(hasSlugError ? undefined : slug);
   const seoCanonical = seoPost
-    ? blogReadingCanonical(selectedPost ?? seoPost, isDeepReading)
+    ? blogReadingCanonical(seoStoredPost ?? normalizedSeoPost!, isDeepReading)
     // Each page lists a different slice, so collapsing them to page 1 would
     // drop pages 2..n from the index.
     : categoryView && page > 1
@@ -1859,13 +1875,13 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
         title={seoTitle}
         description={seoDescription}
         canonical={seoCanonical}
-        robots={hasSlugError || (categoryView && (query || tagFilter)) ? 'noindex,nofollow' : undefined}
+        robots={seoRobots}
         type={seoPost ? 'article' : 'website'}
         image={seoPost ? seoPost.thumbnail_url || OG_DEFAULT_IMAGE : undefined}
         publishedTime={seoPost ? seoPost.created_at : undefined}
         modifiedTime={seoPost ? seoPost.updated_at || seoPost.created_at : undefined}
         locale={seoLocale}
-        jsonLd={seoPost ? blogPostingGraph(seoPost, selectedPost ?? seoPost, isDeepReading) : blogIndexGraph(posts)}
+        jsonLd={normalizedSeoPost ? blogPostingGraph(normalizedSeoPost, seoStoredPost ?? normalizedSeoPost, isDeepReading) : blogIndexGraph(posts)}
       />}
       {renderHeader()}
       {searchOpen && renderSearchOverlay()}

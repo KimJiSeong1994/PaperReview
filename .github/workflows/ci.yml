@@ -137,10 +137,21 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend, skillopt-v020-exact-source, frontend-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      DEPLOY_SHA: ${{ github.sha }}
+      RELEASE_ID: deploy-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
       - uses: actions/download-artifact@v4
         with:
           name: frontend-dist
@@ -153,109 +164,241 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Save last good deploy SHA
+      - name: Skip a stale queued deployment
+        id: stale
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          cd ~/PaperReviewAgent
-          git rev-parse HEAD > /tmp/last_good_deploy.sha
-          echo "Saved last good deploy SHA: $(cat /tmp/last_good_deploy.sha)"
+          SKIP=$(ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          CURRENT_SHA=$(git -C "$APP_ROOT" rev-parse HEAD)
+          git -C "$APP_ROOT" fetch origin "$DEPLOY_SHA" --quiet
+          if test "$CURRENT_SHA" != "$DEPLOY_SHA" && \
+             git -C "$APP_ROOT" merge-base --is-ancestor "$DEPLOY_SHA" "$CURRENT_SHA"; then
+            echo true
+          else
+            echo false
+          fi
+          SCRIPT
+          )
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release bundle and deployment helpers
+        if: steps.stale.outputs.skip != 'true'
+        run: |
+          tar -C frontend-dist -czf /tmp/frontend-dist.tar.gz .
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "mkdir -m 700 '$REMOTE_RELEASE'"
+          scp -i ~/.ssh/deploy_key \
+            /tmp/frontend-dist.tar.gz \
+            scripts/frontend_release.py \
+            scripts/check_deploy_ready.py \
+            scripts/deployment_state.py \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:"$REMOTE_RELEASE/"
+
+      - name: Preflight release and save rollback state
+        if: steps.stale.outputs.skip != 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/deployment_state.py" ensure-clear \
+            --state-root "$APP_ROOT/.deploy-state"
+          test -x "$APP_ROOT/venv/bin/python"
+          test -f "$APP_ROOT/data/blog/posts.json"
+          sudo -n systemctl is-active --quiet paperreview
+          SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
+          test "$SERVICE_PID" -gt 0
+          test -r "/proc/$SERVICE_PID/cmdline"
+          PREVIOUS_SHA=$(git -C "$APP_ROOT" rev-parse HEAD)
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/check_deploy_ready.py" \
+            --posts "$APP_ROOT/data/blog/posts.json" --attempts 1 --service-pid "$SERVICE_PID" \
+            --expected-revision "$PREVIOUS_SHA" --expected-pid "$SERVICE_PID" \
+            --allow-legacy-attestation \
+            --record-health-metadata "$REMOTE_RELEASE/backend.previous.health.json"
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/frontend_release.py" preflight \
+            --archive "$REMOTE_RELEASE/frontend-dist.tar.gz" \
+            --active "$APP_ROOT/web-ui/dist" \
+            --release-id "$RELEASE_ID"
+          printf '%s\n' "$PREVIOUS_SHA" > "$REMOTE_RELEASE/backend.previous.sha"
           SCRIPT
 
-      # Step 1: Git pull + pip install
-      - name: Update code and dependencies
+      - name: Persist durable deployment recovery state
+        if: steps.stale.outputs.skip != 'true'
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          cd ~/PaperReviewAgent
-          git fetch origin main
-          git checkout -f main
-          git reset --hard origin/main
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/deployment_state.py" begin \
+            --state-root "$APP_ROOT/.deploy-state" \
+            --release-id "$RELEASE_ID" \
+            --target-sha "$DEPLOY_SHA" \
+            --previous-sha-file "$REMOTE_RELEASE/backend.previous.sha" \
+            --previous-health-file "$REMOTE_RELEASE/backend.previous.health.json" \
+            --frontend-active "$APP_ROOT/web-ui/dist" \
+            --helper "frontend_release.py=$REMOTE_RELEASE/frontend_release.py" \
+            --helper "check_deploy_ready.py=$REMOTE_RELEASE/check_deploy_ready.py" \
+            --helper "deployment_state.py=$REMOTE_RELEASE/deployment_state.py"
+          SCRIPT
+
+      - name: Install exact backend revision and dependencies
+        if: steps.stale.outputs.skip != 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          STATE_RELEASE="$APP_ROOT/.deploy-state/releases/$RELEASE_ID"
+          test -d "/tmp/paperreview-deploy-$RELEASE_ID"
+          "$APP_ROOT/venv/bin/python" "$STATE_RELEASE/deployment_state.py" owns \
+            --state-root "$APP_ROOT/.deploy-state" --release-id "$RELEASE_ID"
+          cd "$APP_ROOT"
+          git fetch origin "$DEPLOY_SHA"
+          git checkout --detach --force "$DEPLOY_SHA"
+          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
           source venv/bin/activate
           pip install -r requirements.txt --quiet
           SCRIPT
 
-      # Step 2: 프론트엔드 빌드 결과물을 tar로 압축하여 EC2에 전송
-      - name: Upload frontend build
+      - name: Atomically promote frontend
+        if: steps.stale.outputs.skip != 'true'
         run: |
-          cd frontend-dist
-          tar czf /tmp/frontend-dist.tar.gz .
-          scp -i ~/.ssh/deploy_key /tmp/frontend-dist.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/frontend-dist.tar.gz
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          rm -rf ~/PaperReviewAgent/web-ui/dist
-          mkdir -p ~/PaperReviewAgent/web-ui/dist
-          tar xzf /tmp/frontend-dist.tar.gz -C ~/PaperReviewAgent/web-ui/dist
-          rm /tmp/frontend-dist.tar.gz
-          echo "Frontend upload done: $(ls ~/PaperReviewAgent/web-ui/dist/index.html)"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          STATE_RELEASE="$APP_ROOT/.deploy-state/releases/$RELEASE_ID"
+          "$APP_ROOT/venv/bin/python" "$STATE_RELEASE/deployment_state.py" mark-frontend \
+            --state-root "$APP_ROOT/.deploy-state" --release-id "$RELEASE_ID"
+          JOURNAL="$APP_ROOT/web-ui/.frontend-releases/$RELEASE_ID.json"
+          printf '%s\n' "$JOURNAL" > "$REMOTE_RELEASE/frontend-journal.path"
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/frontend_release.py" promote \
+            --archive "$REMOTE_RELEASE/frontend-dist.tar.gz" \
+            --active "$APP_ROOT/web-ui/dist" \
+            --release-id "$RELEASE_ID" \
+            --source-sha "$DEPLOY_SHA"
           SCRIPT
 
-      # Step 2.5: Nginx 타임아웃 설정 (검색 파이프라인 120초+ 대응)
-      - name: Configure nginx timeouts
+      - name: Restart the managed service and verify readiness
+        if: steps.stale.outputs.skip != 'true'
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          # Add proxy timeout config if not already present
-          NGINX_CONF="/etc/nginx/conf.d/proxy_timeouts.conf"
-          if ! grep -q 'proxy_read_timeout' "$NGINX_CONF" 2>/dev/null; then
-            echo 'proxy_read_timeout 180;' | sudo tee "$NGINX_CONF" > /dev/null
-            echo 'proxy_send_timeout 180;' | sudo tee -a "$NGINX_CONF" > /dev/null
-            echo 'proxy_connect_timeout 10;' | sudo tee -a "$NGINX_CONF" > /dev/null
-            sudo nginx -t && sudo systemctl reload nginx
-            echo "Nginx timeouts configured (180s)"
-          else
-            echo "Nginx timeouts already configured"
-          fi
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -euo pipefail
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          APP_ROOT="$HOME/PaperReviewAgent"
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          sudo systemctl restart paperreview
+          SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
+          test "$SERVICE_PID" -gt 0
+          test -r "/proc/$SERVICE_PID/cmdline"
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/check_deploy_ready.py" \
+            --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+            --request-timeout 5 --attempts 30 --interval 2 --deadline 90 \
+            --expected-revision "$DEPLOY_SHA" --expected-pid "$SERVICE_PID"
+          JOURNAL=$(cat "$REMOTE_RELEASE/frontend-journal.path")
+          "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/frontend_release.py" finalize \
+            --active "$APP_ROOT/web-ui/dist" --journal "$JOURNAL"
+          STATE_RELEASE="$APP_ROOT/.deploy-state/releases/$RELEASE_ID"
+          "$APP_ROOT/venv/bin/python" "$STATE_RELEASE/deployment_state.py" clear \
+            --state-root "$APP_ROOT/.deploy-state" --release-id "$RELEASE_ID"
           SCRIPT
 
-      # Step 3: 서버 재시작 + 헬스체크
-      - name: Restart server
+      - name: Roll back frontend and backend on failure
+        if: (failure() || cancelled()) && steps.stale.outputs.skip != 'true'
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          sudo systemctl restart paperreview || {
-            cd ~/PaperReviewAgent
-            source venv/bin/activate
-            pkill -f "uvicorn api_server:app" || true
-            sleep 2
-            setsid venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 --workers 2 > uvicorn.log 2>&1 &
-            disown
-          }
-          HEALTHY=0
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-              HEALTHY=1
-              echo "Health check passed on attempt $i (after $((i*2))s)"
-              break
-            fi
-            sleep 2
-          done
-          if [ $HEALTHY -eq 1 ]; then
-            echo "Deploy successful!"
-          else
-            echo "Deploy failed: health check timed out after 60s"
-            exit 1
-          fi
-          SCRIPT
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'bash -s' -- "$DEPLOY_SHA" "$RELEASE_ID" <<'SCRIPT'
+          set -u
+          APP_ROOT="$HOME/PaperReviewAgent"
+          DEPLOY_SHA="$1"
+          RELEASE_ID="$2"
+          REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          STATE_ROOT="$APP_ROOT/.deploy-state"
+          STATE_RELEASE="$STATE_ROOT/releases/$RELEASE_ID"
+          ROLLBACK_FAILED=0
+          ATTESTATION_MODE=invalid
 
-      - name: Rollback on health check failure
-        if: failure()
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          cd ~/PaperReviewAgent
-          LAST_SHA=$(cat /tmp/last_good_deploy.sha 2>/dev/null || echo "")
-          if [ -z "$LAST_SHA" ]; then
-            echo "No rollback SHA found, skipping rollback"
+          if ! "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/deployment_state.py" owns \
+            --state-root "$STATE_ROOT" --release-id "$RELEASE_ID"; then
             exit 0
           fi
-          echo "Rolling back to $LAST_SHA"
-          git reset --hard "$LAST_SHA"
-          source venv/bin/activate
-          pip install -r requirements.txt --quiet
-          sudo systemctl restart paperreview || {
-            pkill -f "uvicorn api_server:app" || true
-            sleep 2
-            setsid venv/bin/uvicorn api_server:app --host 0.0.0.0 --port 8000 --workers 2 > uvicorn.log 2>&1 &
-            disown
-          }
-          echo "Rollback complete"
+          READINESS_HELPER="$STATE_RELEASE/check_deploy_ready.py"
+          STATE_HELPER="$STATE_RELEASE/deployment_state.py"
+
+          if test -s "$STATE_RELEASE/backend.previous.health.json"; then
+            ATTESTATION_MODE=$("$APP_ROOT/venv/bin/python" -c \
+              'import json,sys; mode=json.load(open(sys.argv[1], encoding="utf-8"))["attestation_mode"]; assert mode in {"supported", "legacy"}; print(mode)' \
+              "$STATE_RELEASE/backend.previous.health.json") || ROLLBACK_FAILED=1
+          else
+            ROLLBACK_FAILED=1
+          fi
+
+          if test -e "$STATE_RELEASE/frontend-promotion.intent"; then
+            JOURNAL="$APP_ROOT/web-ui/.frontend-releases/$RELEASE_ID.json"
+            if test -f "$JOURNAL"; then
+              "$APP_ROOT/venv/bin/python" "$STATE_RELEASE/frontend_release.py" rollback \
+                --active "$APP_ROOT/web-ui/dist" --journal "$JOURNAL" || ROLLBACK_FAILED=1
+            else
+              ROLLBACK_FAILED=1
+            fi
+          fi
+
+          if test -s "$STATE_RELEASE/previous.sha"; then
+            PREVIOUS_SHA=$(cat "$STATE_RELEASE/previous.sha")
+            git -C "$APP_ROOT" checkout --detach --force "$PREVIOUS_SHA" || ROLLBACK_FAILED=1
+            test "$(git -C "$APP_ROOT" rev-parse HEAD)" = "$PREVIOUS_SHA" || ROLLBACK_FAILED=1
+            "$APP_ROOT/venv/bin/pip" install -r "$APP_ROOT/requirements.txt" --quiet || ROLLBACK_FAILED=1
+            sudo systemctl restart paperreview || ROLLBACK_FAILED=1
+            SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
+            test "$SERVICE_PID" -gt 0 || ROLLBACK_FAILED=1
+            test -r "/proc/$SERVICE_PID/cmdline" || ROLLBACK_FAILED=1
+            if test "$ATTESTATION_MODE" = supported; then
+              "$APP_ROOT/venv/bin/python" "$READINESS_HELPER" \
+                --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+                --request-timeout 5 --attempts 30 --interval 2 --deadline 90 \
+                --expected-revision "$PREVIOUS_SHA" --expected-pid "$SERVICE_PID" || ROLLBACK_FAILED=1
+            elif test "$ATTESTATION_MODE" = legacy; then
+              "$APP_ROOT/venv/bin/python" "$READINESS_HELPER" \
+                --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+                --request-timeout 5 --attempts 30 --interval 2 --deadline 90 || ROLLBACK_FAILED=1
+            else
+              ROLLBACK_FAILED=1
+            fi
+          else
+            ROLLBACK_FAILED=1
+          fi
+          if test "$ROLLBACK_FAILED" -eq 0; then
+            "$APP_ROOT/venv/bin/python" "$STATE_HELPER" clear \
+              --state-root "$STATE_ROOT" --release-id "$RELEASE_ID" || ROLLBACK_FAILED=1
+          fi
+          exit "$ROLLBACK_FAILED"
           SCRIPT
 
-      - name: Cleanup
+      - name: Cleanup successful release bundle
+        if: success() && steps.stale.outputs.skip != 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "rm -r '/tmp/paperreview-deploy-$RELEASE_ID'" || true
+
+      - name: Cleanup SSH key
         if: always()
-        run: rm -f ~/.ssh/deploy_key
+        run: |
+          rm -f ~/.ssh/deploy_key /tmp/frontend-dist.tar.gz

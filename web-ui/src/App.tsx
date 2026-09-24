@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentProps, type ComponentType } from 'react';
 import { Link, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
@@ -9,13 +9,14 @@ import SiteFooter from './components/SiteFooter';
 import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './contexts/AuthContext';
 import { INTRODUCE_KO_URL, INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
+import { preloadBlogPage } from './utils/blogPageLoader';
 
 const MyPage = lazy(() => import('./components/MyPage'));
 const CurriculumPage = lazy(() => import('./components/CurriculumPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const SharedView = lazy(() => import('./components/SharedView'));
 const SharedCurriculumView = lazy(() => import('./components/SharedCurriculumView'));
-const BlogPage = lazy(() => import('./components/BlogPage'));
+const LazyBlogPage = lazy(preloadBlogPage);
 const BlogTagsPage = lazy(() => import('./components/BlogTagsPage'));
 const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
@@ -34,9 +35,11 @@ const INTRODUCE_KO_JSON_LD = introduceGraph('ko');
 const INTRODUCE_ALTERNATES = { en: INTRODUCE_URL, ko: INTRODUCE_KO_URL, 'x-default': INTRODUCE_URL };
 const INDEX_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
-function BlogPostRoute({ isAdmin }: { isAdmin: boolean }) {
+type BlogComponent = ComponentType<ComponentProps<typeof LazyBlogPage>>;
+
+function BlogPostRoute({ isAdmin, Page }: { isAdmin: boolean; Page: BlogComponent }) {
   const { slug } = useParams<{ slug: string }>();
-  return <BlogPage isAdmin={isAdmin} slug={slug} />;
+  return <Page isAdmin={isAdmin} slug={slug} />;
 }
 
 function BlogSeriesRoute() {
@@ -44,15 +47,15 @@ function BlogSeriesRoute() {
   return <SeriesPage seriesId={seriesId ?? ''} />;
 }
 
-function BlogCategoryRoute({ isAdmin }: { isAdmin: boolean }) {
+function BlogCategoryRoute({ isAdmin, Page }: { isAdmin: boolean; Page: BlogComponent }) {
   const { category } = useParams<{ category: string }>();
   if (category !== 'paper-review' && category !== 'engineering') {
     return <Navigate to="/blog" replace />;
   }
-  return <BlogPage isAdmin={isAdmin} initialCategory={category} />;
+  return <Page isAdmin={isAdmin} initialCategory={category} />;
 }
 
-function App() {
+function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: BlogComponent } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, userRole, showLoginModal, setShowLoginModal, login, logout } = useAuth();
@@ -279,7 +282,7 @@ function App() {
           path="/blog/category/:category"
           element={
             <Suspense fallback={<div className="app-loading">Loading...</div>}>
-              <BlogCategoryRoute isAdmin={userRole === 'admin'} />
+              <BlogCategoryRoute isAdmin={userRole === 'admin'} Page={BlogPage} />
             </Suspense>
           }
         />
@@ -304,7 +307,7 @@ function App() {
           path="/blog/:slug"
           element={
             <Suspense fallback={<div className="app-loading">Loading...</div>}>
-              <BlogPostRoute isAdmin={userRole === 'admin'} />
+              <BlogPostRoute isAdmin={userRole === 'admin'} Page={BlogPage} />
             </Suspense>
           }
         />

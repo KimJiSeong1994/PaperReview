@@ -54,7 +54,7 @@ def posts_client(monkeypatch) -> TestClient:
 
 def _json_ld_graph(document: str) -> list[dict]:
     match = re.search(
-        r'<script type="application/ld\+json">(.*?)</script>', document, re.S
+        r'<script type="application/ld\+json"[^>]*>(.*?)</script>', document, re.S
     )
     assert match is not None
     return json.loads(match.group(1))["@graph"]
@@ -153,8 +153,11 @@ def test_ssr_selects_view_with_stable_canonical_and_per_view_metadata(
 ) -> None:
     default = posts_client.get("/blog/two-reading-levels")
     assert default.status_code == 200
-    assert "EASY-BODY-MARKER" in default.text
-    assert "DEEP-BODY-MARKER" not in default.text
+    # Both bodies are available in inert bootstrap JSON; only the selected
+    # article is rendered as visible HTML.
+    visible_default = re.sub(r"<script\b[^>]*>.*?</script>", "", default.text, flags=re.S | re.I)
+    assert "EASY-BODY-MARKER" in visible_default
+    assert "DEEP-BODY-MARKER" not in visible_default
     assert 'class="blog-detail-reading-mode">쉬운 읽기</span>' in default.text
     assert 'class="blog-detail-pdf-link blog-detail-reading-link"' in default.text
     assert 'href="/blog/two-reading-levels?view=deep"' in default.text
@@ -163,8 +166,9 @@ def test_ssr_selects_view_with_stable_canonical_and_per_view_metadata(
 
     deep = posts_client.get("/blog/two-reading-levels", params={"view": "deep"})
     assert deep.status_code == 200
-    assert "DEEP-BODY-MARKER" in deep.text
-    assert "EASY-BODY-MARKER" not in deep.text
+    visible_deep = re.sub(r"<script\b[^>]*>.*?</script>", "", deep.text, flags=re.S | re.I)
+    assert "DEEP-BODY-MARKER" in visible_deep
+    assert "EASY-BODY-MARKER" not in visible_deep
     assert 'class="blog-detail-reading-mode">상세 읽기</span>' in deep.text
     assert 'class="blog-detail-pdf-link blog-detail-reading-link"' in deep.text
     assert 'href="/blog/two-reading-levels"' in deep.text

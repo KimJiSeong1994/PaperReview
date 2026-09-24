@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import type { ReactElement } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../App';
@@ -72,6 +72,23 @@ describe('SEO-sensitive routes', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('keeps the preloaded article mounted when switching reading views', async () => {
+    let mounts = 0;
+    function PreloadedBlog({ slug }: { isAdmin: boolean; slug?: string }) {
+      const location = useLocation();
+      useEffect(() => { mounts += 1; }, []);
+      return <>
+        <p>{slug}{location.search}</p>
+        <Link to={`/blog/${slug}?view=deep`}>Read details</Link>
+      </>;
+    }
+    renderWithAuth('/blog/direct-slug', <App initialBlogPage={PreloadedBlog} />);
+    expect(await screen.findByText('direct-slug')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Read details' }));
+    expect(await screen.findByText('direct-slug?view=deep')).toBeInTheDocument();
+    expect(mounts).toBe(1);
   });
 
   // Only the routes that use App's shared header. /blog and /admin ship their
@@ -173,7 +190,7 @@ describe('SEO-sensitive routes', () => {
     renderWithAuth('/blog/direct-slug', <App />);
 
     await waitFor(() => {
-      expect(fetchBlogPost).toHaveBeenCalledWith('direct-slug');
+      expect(fetchBlogPost).toHaveBeenCalledWith('direct-slug', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
     expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
     expect(screen.getByText('Loaded from the direct slug route.')).toBeInTheDocument();
@@ -319,7 +336,9 @@ Content after the formula.`,
       </Routes>,
     );
 
-    await waitFor(() => expect(fetchBlogPost).toHaveBeenCalledWith('direct-slug'));
+    await waitFor(() => expect(fetchBlogPost).toHaveBeenCalledWith(
+      'direct-slug', expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
     expect(fetchBlogPosts).not.toHaveBeenCalled();
     expect(await screen.findByRole('heading', { name: 'Direct Slug Post' })).toBeInTheDocument();
   });

@@ -28,6 +28,26 @@ def isolate_mcp_analytics_storage(tmp_path, monkeypatch):
     monkeypatch.setenv("MCP_ANALYTICS_DB_PATH", str(tmp_path / "mcp_analytics.db"))
 
 
+@pytest.fixture(autouse=True)
+def isolate_optional_model_warmup(monkeypatch, request):
+    """API test lifespans must not launch model loads across test boundaries.
+
+    Return the real wrapper so startup tests can opt into its thread behavior
+    with a controlled model loader. Direct model-loading tests remain real.
+    """
+    api_server = sys.modules.get("api_server")
+    if api_server is None:
+        # Standalone source-contract tests must keep their import boundary:
+        # only API fixtures may require the application to load here.
+        if not {"app", "client"}.intersection(request.fixturenames):
+            return None
+        import api_server
+
+    background_warmup = api_server._warm_cross_encoder_background
+    monkeypatch.setattr(api_server, "_warm_cross_encoder_background", lambda: None)
+    return background_warmup
+
+
 # Bound every socket operation so a slow/unreachable external API (OpenAlex,
 # arXiv, Semantic Scholar, Scholar, DBLP, GitHub, …) can never hang the suite —
 # this is what stalled CI for ~40 min. Unlike hard-blocking, a short default
