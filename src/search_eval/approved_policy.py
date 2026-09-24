@@ -31,6 +31,13 @@ from .skillopt_contract import (
     validate_execution_control,
 )
 from .query_analyzer_pilot import load_baseline_skill
+from .release_holdout import (
+    APPROVAL_AGGREGATE_AUTHORITY,
+    RELEASE_HOLDOUT_EVALUATION_VERSION,
+    ValidatedReleaseHoldoutEvaluation,
+    load_validated_release_holdout_evaluation,
+    verify_release_holdout_evaluation_authority_current,
+)
 from .skillopt_run_contract import (
     INPUT_ARTIFACT_NAMES,
     AuthorityContext,
@@ -40,13 +47,27 @@ from .skillopt_run_contract import (
     verify_authority_context_current,
 )
 
-APPROVED_POLICY_VERSION = "approved-skillopt-policy-v2"
+APPROVED_POLICY_VERSION = "approved-skillopt-policy-v3"
 MINIMUM_APPROVAL_NDCG_DELTA = 0.01
+
+_RELEASE_FORBIDDEN_KEYS = {
+    "per_query",
+    "query_id",
+    "query_ids",
+    "labels",
+    "rankings",
+    "documents",
+    "docs",
+    "prompts",
+    "policy",
+    "reflection",
+    "holdout_path",
+}
 
 
 @dataclass(frozen=True)
 class ValidatedApprovedSkillOptPolicy(Mapping[str, Any]):
-    """Immutable consumer capability for one fully revalidated v2 approval.
+    """Immutable consumer capability for one fully revalidated v3 approval.
 
     The mapping view is retained for read compatibility with reporting code, but
     authoritative consumers must require this concrete type. Nested values are
@@ -87,7 +108,9 @@ def export_approved_skillopt_policy(
     baseline_skill_path: str | Path,
     selection_baseline_eval: Mapping[str, Any],
     selection_candidate_eval: Mapping[str, Any],
-    holdout_eval_loader: Callable[[], tuple[Mapping[str, Any], Mapping[str, Any]]],
+    release_holdout_evaluation_loader: Callable[
+        [], ValidatedReleaseHoldoutEvaluation
+    ],
     minimum_ndcg_delta: float = MINIMUM_APPROVAL_NDCG_DELTA,
 ) -> ValidatedApprovedSkillOptPolicy:
     """Validate and export a SkillOpt best skill as a runtime-loadable policy."""
@@ -161,36 +184,24 @@ def export_approved_skillopt_policy(
         baseline_eval_hash=_mapping_hash(selection_baseline_eval),
         candidate_eval_hash=_mapping_hash(selection_candidate_eval),
     )
-    holdout_baseline_eval, holdout_candidate_eval = holdout_eval_loader()
-    test_ids = [
-        str(query["query_id"])
-        for query in dataset["queries"]
-        if query["split"] == "test"
-    ]
-    validate_retrieval_evaluation_record(holdout_baseline_eval)
-    validate_retrieval_evaluation_record(holdout_candidate_eval)
-    _validate_eval_record_matches_query_ids(holdout_baseline_eval, dataset, test_ids)
-    _validate_eval_record_matches_query_ids(holdout_candidate_eval, dataset, test_ids)
-    _validate_eval_matches_skill(
-        holdout_baseline_eval,
-        baseline_skill_hash,
-        label="baseline",
+    release_evaluation = release_holdout_evaluation_loader()
+    if not isinstance(release_evaluation, ValidatedReleaseHoldoutEvaluation):
+        raise ValidationError(
+            "release holdout loader must return ValidatedReleaseHoldoutEvaluation"
+        )
+    release_evaluation = load_validated_release_holdout_evaluation(
+        release_evaluation.capability_reference()
     )
-    _validate_eval_matches_skill(
-        holdout_candidate_eval,
-        best_skill_hash,
-        label="candidate",
+    release_record, release_precommit = _revalidate_release_holdout_capability(
+        release_evaluation,
+        baseline_skill_hash=baseline_skill_hash,
+        candidate_skill_hash=best_skill_hash,
+        selection_evidence_hash=selection_gate["evidence_hash"],
     )
-    assert_candidate_beats_baseline(
-        baseline_record=holdout_baseline_eval,
-        candidate_record=holdout_candidate_eval,
-    )
-    holdout_gate = _build_holdout_gate_evidence(
-        dataset=dataset,
-        baseline_eval=holdout_baseline_eval,
-        candidate_eval=holdout_candidate_eval,
-        baseline_eval_hash=_mapping_hash(holdout_baseline_eval),
-        candidate_eval_hash=_mapping_hash(holdout_candidate_eval),
+    release_record["_capability_reference"] = release_evaluation.capability_reference()
+    release_holdout_gate = _build_release_holdout_gate(
+        release_record=release_record,
+        release_precommit=release_precommit,
     )
 
     output = Path(output_dir)
@@ -215,8 +226,6 @@ def export_approved_skillopt_policy(
         "evaluation_evidence": _build_evaluation_evidence(
             selection_baseline_eval=selection_baseline_eval,
             selection_candidate_eval=selection_candidate_eval,
-            holdout_baseline_eval=holdout_baseline_eval,
-            holdout_candidate_eval=holdout_candidate_eval,
         ),
         "accepted_candidate": accepted_provenance,
         "runtime_env": {
@@ -239,7 +248,7 @@ def export_approved_skillopt_policy(
             },
         },
         "selection_gate": selection_gate,
-        "holdout_gate": holdout_gate,
+        "release_holdout_gate": release_holdout_gate,
         "rollback_to": {
             "version": "baseline-v0",
             "skill_hash": canonical_file_hash(baseline_skill_path),
@@ -336,14 +345,10 @@ def _build_evaluation_evidence(
     *,
     selection_baseline_eval: Mapping[str, Any],
     selection_candidate_eval: Mapping[str, Any],
-    holdout_baseline_eval: Mapping[str, Any],
-    holdout_candidate_eval: Mapping[str, Any],
 ) -> dict[str, Any]:
     records = {
         "selection_baseline": selection_baseline_eval,
         "selection_candidate": selection_candidate_eval,
-        "test_baseline": holdout_baseline_eval,
-        "test_candidate": holdout_candidate_eval,
     }
     lineage: dict[str, Any] = {}
     modes = set()
@@ -357,6 +362,200 @@ def _build_evaluation_evidence(
     if len(modes) != 1:
         raise ValidationError("approval evaluation evidence modes must match")
     return {"mode": modes.pop(), "records": lineage}
+
+
+def _revalidate_release_holdout_capability(
+    capability: ValidatedReleaseHoldoutEvaluation,
+    *,
+    baseline_skill_hash: str,
+    candidate_skill_hash: str,
+    selection_evidence_hash: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Reopen terminal release evidence and its durable precommit before approval."""
+    if not isinstance(capability, ValidatedReleaseHoldoutEvaluation):
+        raise ValidationError(
+            "release holdout loader must return ValidatedReleaseHoldoutEvaluation"
+        )
+    record = _read_canonical_release_json(capability.record_path, "evaluation")
+    if record != capability.persisted_record():
+        raise ValidationError("release holdout capability no longer matches persisted evaluation")
+    if record.get("evaluation_hash") != capability.evaluation_hash:
+        raise ValidationError("release holdout evaluation capability hash mismatch")
+    precommit = _read_canonical_release_json(
+        capability.record_path.parent / "precommit.json", "precommit"
+    )
+    status = _read_canonical_release_json(
+        capability.record_path.parent / "status.json", "status"
+    )
+    journal = _read_canonical_release_json(
+        capability.record_path.parent / "journal.json", "journal"
+    )
+    _validate_release_precommit(precommit)
+    _validate_release_terminal(record, precommit, status, journal)
+    if precommit.get("baseline_sha256") != baseline_skill_hash:
+        raise ValidationError("release holdout baseline skill hash mismatch")
+    if precommit.get("candidate_sha256") != candidate_skill_hash:
+        raise ValidationError("release holdout candidate skill hash mismatch")
+    selection = precommit.get("selection_evidence")
+    if not isinstance(selection, Mapping):
+        raise ValidationError("release holdout selection evidence is missing")
+    if selection.get("status") != "passed":
+        raise ValidationError("release holdout selection evidence must be passed")
+    if selection.get("evidence_hash") != selection_evidence_hash:
+        raise ValidationError("release holdout selection evidence hash mismatch")
+    for key, expected in (
+        ("baseline_skill_hash", baseline_skill_hash),
+        ("candidate_skill_hash", candidate_skill_hash),
+    ):
+        if selection.get(key) != expected:
+            raise ValidationError(f"release holdout selection evidence {key} mismatch")
+    _reject_release_detail(record)
+    return record, precommit
+
+
+def _read_canonical_release_json(path: str | Path, label: str) -> dict[str, Any]:
+    held = read_stable_file(path, max_bytes=128 * 1024)
+    value = _decode_json_object(held.payload, f"release holdout {label}")
+    if canonical_json_bytes(value) != held.payload:
+        raise ValidationError(f"release holdout {label} is not canonical JSON")
+    return value
+
+
+def _validate_release_precommit(precommit: Mapping[str, Any]) -> None:
+    required = {
+        "version", "generation_id", "manifest_hash", "manifest_path",
+        "authority_context_hash", "baseline_sha256",
+        "candidate_sha256", "thresholds", "evaluator_identity",
+        "contract_identity", "nonce", "selection_evidence", "request_hash",
+        "precommit_hash",
+    }
+    if set(precommit) != required or precommit.get("version") != "release_holdout_precommit_v1":
+        raise ValidationError("release holdout precommit schema mismatch")
+    payload = dict(precommit)
+    precommit_hash = payload.pop("precommit_hash", None)
+    if precommit_hash != _mapping_hash(payload):
+        raise ValidationError("release holdout precommit hash mismatch")
+    request_hash = payload.pop("request_hash", None)
+    if request_hash != _mapping_hash(payload):
+        raise ValidationError("release holdout request hash mismatch")
+
+
+def _validate_release_terminal(
+    record: Mapping[str, Any],
+    precommit: Mapping[str, Any],
+    status: Mapping[str, Any],
+    journal: Mapping[str, Any],
+) -> None:
+    required_record = {
+        "version", "evaluation_id", "generation_id", "manifest_hash",
+        "authority_context_hash", "request_hash", "precommit_hash", "authority_classification",
+        "baseline_sha256", "candidate_sha256", "evaluator_identity",
+        "contract_identity", "outcome", "sample_count", "metrics",
+        "threshold_results", "evaluation_hash",
+    }
+    if set(record) != required_record or record.get("version") != RELEASE_HOLDOUT_EVALUATION_VERSION:
+        raise ValidationError("release holdout evaluation schema mismatch")
+    for key in (
+        "generation_id", "manifest_hash", "authority_context_hash", "request_hash", "precommit_hash",
+        "baseline_sha256", "candidate_sha256", "evaluator_identity",
+        "contract_identity",
+    ):
+        if record.get(key) != precommit.get(key):
+            raise ValidationError(f"release holdout evaluation {key} mismatch")
+    if record.get("authority_classification") != APPROVAL_AGGREGATE_AUTHORITY:
+        raise ValidationError("release holdout evaluation authority mismatch")
+    sealed = dict(record)
+    evaluation_hash = sealed.pop("evaluation_hash", None)
+    if evaluation_hash != _mapping_hash(sealed):
+        raise ValidationError("release holdout evaluation hash mismatch")
+    thresholds = precommit.get("thresholds")
+    metrics = record.get("metrics")
+    results = record.get("threshold_results")
+    if not isinstance(thresholds, Mapping) or not thresholds:
+        raise ValidationError("release holdout thresholds are invalid")
+    if not isinstance(metrics, Mapping) or set(metrics) != set(thresholds):
+        raise ValidationError("release holdout aggregate metrics mismatch")
+    if not isinstance(results, Mapping) or set(results) != set(thresholds):
+        raise ValidationError("release holdout threshold results mismatch")
+    for group, label in ((thresholds, "threshold"), (metrics, "metric")):
+        for value in group.values():
+            _artifact_metric(value, f"release_holdout_gate.{label}")
+    if any(type(value) is not bool for value in results.values()):
+        raise ValidationError("release holdout threshold results must be booleans")
+    sample_count = record.get("sample_count")
+    if isinstance(sample_count, bool) or not isinstance(sample_count, int) or sample_count <= 0:
+        raise ValidationError("release holdout sample_count must be positive")
+    if record.get("outcome") != "accepted" or not all(results.values()):
+        raise ValidationError("release holdout terminal evaluation must be accepted")
+    required_status = {
+        "version", "generation_id", "request_hash", "state", "reason",
+        "precommit_hash", "evaluation_hash", "incident_hash",
+    }
+    if set(status) != required_status or status.get("version") != "release_holdout_status_v1":
+        raise ValidationError("release holdout status schema mismatch")
+    if status.get("state") != "spent" or status.get("reason") != "accepted":
+        raise ValidationError("release holdout terminal status is not accepted")
+    for key in ("generation_id", "request_hash", "precommit_hash"):
+        if status.get(key) != precommit.get(key):
+            raise ValidationError(f"release holdout status {key} mismatch")
+    if status.get("evaluation_hash") != evaluation_hash or status.get("incident_hash") is not None:
+        raise ValidationError("release holdout status evaluation identity mismatch")
+    if set(journal) != {"version", "generation_id", "request_hash", "events", "journal_hash"}:
+        raise ValidationError("release holdout journal schema mismatch")
+    journal_payload = dict(journal)
+    journal_hash = journal_payload.pop("journal_hash", None)
+    if journal.get("version") != "release_holdout_journal_v1" or journal_hash != _mapping_hash(journal_payload):
+        raise ValidationError("release holdout journal hash mismatch")
+    if journal.get("generation_id") != precommit.get("generation_id") or journal.get("request_hash") != precommit.get("request_hash"):
+        raise ValidationError("release holdout journal binding mismatch")
+    events = journal.get("events")
+    if not isinstance(events, list) or events != [
+        {"sequence": 1, "state": "precommitted", "reason": "fixed_pair_committed"},
+        {"sequence": 2, "state": "spent", "reason": "accepted"},
+    ]:
+        raise ValidationError("release holdout journal terminal event mismatch")
+
+
+def _build_release_holdout_gate(
+    *, release_record: Mapping[str, Any], release_precommit: Mapping[str, Any]
+) -> dict[str, Any]:
+    selection = release_precommit["selection_evidence"]
+    gate = {
+        "status": "passed",
+        "authority_classification": release_record["authority_classification"],
+        "generation_id": release_record["generation_id"],
+        "manifest_hash": release_record["manifest_hash"],
+        "request_hash": release_record["request_hash"],
+        "precommit_hash": release_record["precommit_hash"],
+        "evaluation_id": release_record["evaluation_id"],
+        "evaluation_hash": release_record["evaluation_hash"],
+        "baseline_skill_hash": release_record["baseline_sha256"],
+        "candidate_skill_hash": release_record["candidate_sha256"],
+        "selection_evidence_hash": selection["evidence_hash"],
+        "evaluator_identity": release_record["evaluator_identity"],
+        "contract_identity": release_record["contract_identity"],
+        "sample_count": release_record["sample_count"],
+        "metrics": dict(release_record["metrics"]),
+        "thresholds": dict(release_precommit["thresholds"]),
+        "threshold_results": dict(release_record["threshold_results"]),
+        "capability_reference": release_record.get("_capability_reference"),
+    }
+    _reject_release_detail(gate)
+    gate["evidence_hash"] = _mapping_hash(gate)
+    return gate
+
+
+def _reject_release_detail(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if str(key).lower() in _RELEASE_FORBIDDEN_KEYS:
+                raise ValidationError(
+                    f"release holdout aggregate contains forbidden key {key!r}"
+                )
+            _reject_release_detail(nested)
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            _reject_release_detail(nested)
 
 
 def _build_selection_gate_evidence(
@@ -523,7 +722,7 @@ def split_retrieval_evaluation_record(
 def load_validated_approved_skillopt_policy(
     path: str | Path,
 ) -> ValidatedApprovedSkillOptPolicy:
-    """Load a persisted approval only after replaying its accepted-v2 trust chain."""
+    """Load v3 approval after replaying acceptance and release trust chains."""
     authority_context: AuthorityContext = resolve_authority_context()
     held = read_stable_file(path)
     if held.path.name != "approved_policy_artifact.json":
@@ -532,6 +731,9 @@ def load_validated_approved_skillopt_policy(
         )
     artifact = _decode_json_object(held.payload, "approved policy artifact")
     validate_approved_policy_artifact(artifact)
+    release_capability = _revalidate_persisted_release_gate(
+        artifact["release_holdout_gate"]
+    )
     provenance = artifact["accepted_candidate"]
     accepted = load_accepted_skillopt_candidate(
         acceptance_manifest_path=provenance["acceptance_manifest_path"],
@@ -565,6 +767,7 @@ def load_validated_approved_skillopt_policy(
         raise ValidationError(
             "approved runtime environment template does not match artifact"
         )
+    verify_release_holdout_evaluation_authority_current(release_capability)
     verify_authority_context_current(authority_context)
     return ValidatedApprovedSkillOptPolicy(
         _artifact=deepcopy(artifact),
@@ -574,6 +777,34 @@ def load_validated_approved_skillopt_policy(
         runtime_env_path=runtime_env.path,
         accepted_candidate=accepted,
     )
+
+
+def _revalidate_persisted_release_gate(
+    gate: Mapping[str, Any],
+) -> ValidatedReleaseHoldoutEvaluation:
+    capability = load_validated_release_holdout_evaluation(
+        gate["capability_reference"]
+    )
+    expected = {
+        "generation_id": capability["generation_id"],
+        "manifest_hash": capability["manifest_hash"],
+        "evaluation_id": capability["evaluation_id"],
+        "evaluation_hash": capability.evaluation_hash,
+        "request_hash": capability["request_hash"],
+        "precommit_hash": capability["precommit_hash"],
+        "baseline_skill_hash": capability["baseline_sha256"],
+        "candidate_skill_hash": capability["candidate_sha256"],
+        "evaluator_identity": capability["evaluator_identity"],
+        "contract_identity": capability["contract_identity"],
+    }
+    for field, observed in expected.items():
+        if gate.get(field) != observed:
+            raise ValidationError(
+                f"approved release_holdout_gate persisted {field} mismatch"
+            )
+    if capability["outcome"] != "accepted":
+        raise ValidationError("approved release holdout capability is not accepted")
+    return capability
 
 
 def _build_accepted_candidate_provenance(
@@ -761,7 +992,7 @@ def validate_approved_policy_artifact(artifact: Mapping[str, Any]) -> None:
         "runtime_env",
         "metric_snapshot",
         "selection_gate",
-        "holdout_gate",
+        "release_holdout_gate",
         "rollback_to",
     }
     if set(artifact) != required:
@@ -841,7 +1072,12 @@ def validate_approved_policy_artifact(artifact: Mapping[str, Any]) -> None:
         )
     _validate_artifact_guardrails(metrics.get("guardrails"))
     _validate_selection_gate_artifact(artifact.get("selection_gate"))
-    _validate_holdout_gate_artifact(artifact.get("holdout_gate"))
+    _validate_release_holdout_gate_artifact(
+        artifact.get("release_holdout_gate"),
+        baseline_skill_hash=artifact.get("baseline_hash"),
+        candidate_skill_hash=artifact.get("skill_hash"),
+        selection_evidence_hash=artifact["selection_gate"]["evidence_hash"],
+    )
     rollback = artifact.get("rollback_to")
     if not isinstance(rollback, Mapping) or rollback.get("skill_hash") != artifact.get(
         "baseline_hash"
@@ -1013,12 +1249,7 @@ def _validate_evaluation_evidence_artifact(value: Any) -> None:
             "approved_policy_artifact evaluation_evidence mode is invalid"
         )
     records = value.get("records")
-    expected_records = {
-        "selection_baseline",
-        "selection_candidate",
-        "test_baseline",
-        "test_candidate",
-    }
+    expected_records = {"selection_baseline", "selection_candidate"}
     if not isinstance(records, Mapping) or set(records) != expected_records:
         raise ValidationError(
             "approved_policy_artifact evaluation_evidence records mismatch"
@@ -1182,6 +1413,90 @@ def _validate_selection_gate_artifact(selection_gate: Any) -> None:
         raise ValidationError(
             "approved_policy_artifact.selection_gate passed_query_ids must match passed per_query ids"
         )
+
+
+def _validate_release_holdout_gate_artifact(
+    gate: Any,
+    *,
+    baseline_skill_hash: Any,
+    candidate_skill_hash: Any,
+    selection_evidence_hash: Any,
+) -> None:
+    required = {
+        "status", "authority_classification", "generation_id", "manifest_hash",
+        "request_hash", "precommit_hash", "evaluation_id", "evaluation_hash",
+        "baseline_skill_hash", "candidate_skill_hash", "selection_evidence_hash",
+        "evaluator_identity", "contract_identity", "sample_count", "metrics",
+        "thresholds", "threshold_results", "evidence_hash",
+        "capability_reference",
+    }
+    if not isinstance(gate, Mapping) or set(gate) != required:
+        raise ValidationError(
+            "approved_policy_artifact.release_holdout_gate schema mismatch"
+        )
+    _reject_release_detail(gate)
+    reference = gate.get("capability_reference")
+    reference_keys = {
+        "version", "state_root", "record_path", "manifest_path", "generation_id",
+        "evaluation_hash", "authority_context_hash",
+    }
+    if not isinstance(reference, Mapping) or set(reference) != reference_keys:
+        raise ValidationError("release_holdout_gate capability reference schema mismatch")
+    if reference.get("version") != "release_holdout_capability_reference_v1":
+        raise ValidationError("release_holdout_gate capability reference version mismatch")
+    if reference.get("generation_id") != gate.get("generation_id"):
+        raise ValidationError("release_holdout_gate capability generation mismatch")
+    if reference.get("evaluation_hash") != gate.get("evaluation_hash"):
+        raise ValidationError("release_holdout_gate capability evaluation mismatch")
+    _require_sha256_text(
+        reference.get("authority_context_hash"),
+        "release_holdout_gate.capability_reference.authority_context_hash",
+    )
+    for field in ("state_root", "record_path", "manifest_path"):
+        raw = reference.get(field)
+        if not isinstance(raw, str) or not Path(raw).is_absolute():
+            raise ValidationError(f"release_holdout_gate capability {field} invalid")
+    if gate.get("status") != "passed":
+        raise ValidationError("approved release_holdout_gate must be passed")
+    if gate.get("authority_classification") != APPROVAL_AGGREGATE_AUTHORITY:
+        raise ValidationError("approved release_holdout_gate authority mismatch")
+    _validate_gate_evidence_hash(gate, "release_holdout_gate")
+    for field in (
+        "manifest_hash", "request_hash", "precommit_hash", "evaluation_hash",
+        "baseline_skill_hash", "candidate_skill_hash", "selection_evidence_hash",
+    ):
+        _require_sha256_text(gate.get(field), f"release_holdout_gate.{field}")
+    for field in (
+        "generation_id", "evaluation_id", "evaluator_identity", "contract_identity"
+    ):
+        value = gate.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"release_holdout_gate.{field} is required")
+    if gate.get("baseline_skill_hash") != baseline_skill_hash:
+        raise ValidationError("release_holdout_gate baseline skill hash mismatch")
+    if gate.get("candidate_skill_hash") != candidate_skill_hash:
+        raise ValidationError("release_holdout_gate candidate skill hash mismatch")
+    if gate.get("selection_evidence_hash") != selection_evidence_hash:
+        raise ValidationError("release_holdout_gate selection evidence hash mismatch")
+    sample_count = gate.get("sample_count")
+    if isinstance(sample_count, bool) or not isinstance(sample_count, int) or sample_count <= 0:
+        raise ValidationError("release_holdout_gate sample_count must be positive")
+    thresholds = gate.get("thresholds")
+    metrics = gate.get("metrics")
+    results = gate.get("threshold_results")
+    if not isinstance(thresholds, Mapping) or not thresholds:
+        raise ValidationError("release_holdout_gate thresholds must be nonempty")
+    if not isinstance(metrics, Mapping) or set(metrics) != set(thresholds):
+        raise ValidationError("release_holdout_gate metrics must match thresholds")
+    if not isinstance(results, Mapping) or set(results) != set(thresholds):
+        raise ValidationError("release_holdout_gate results must match thresholds")
+    for name in thresholds:
+        if not isinstance(name, str) or not name.strip():
+            raise ValidationError("release_holdout_gate metric name is invalid")
+        _artifact_metric(thresholds[name], f"release_holdout_gate.thresholds.{name}")
+        _artifact_metric(metrics[name], f"release_holdout_gate.metrics.{name}")
+        if results[name] is not True:
+            raise ValidationError("release_holdout_gate all thresholds must pass")
 
 
 def _validate_holdout_gate_artifact(holdout_gate: Any) -> None:
