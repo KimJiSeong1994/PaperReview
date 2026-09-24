@@ -1,9 +1,44 @@
-# G004 SkillOpt Authoritative v2 Operations Contract
+# G006 SkillOpt Approval v3 Operations Contract
+
+## G007 Phase 6 observability operator contract
+
+`src.search_eval.skillopt_observability` exposes a pure, deterministic evidence
+contract. `build_attempt_summary(...)` accepts concrete validated v2 run
+capabilities plus exact coordinator `status.json`, `stage_journal.json`, and
+`heartbeat.json` mappings. The resulting `skillopt-attempt-observability-v1`
+summary contains only bounded IDs, hashes, timestamps, counts, compatibility
+classification, recomputed freshness, privacy booleans, and default-off
+authorization facts.
+
+The active lifecycle remains `skillopt-run-request-v2` / `skillopt-run-result-v2`
+with `skillopt-orchestrator-status-v2`, `skillopt-orchestrator-journal-v2`, and
+`skillopt-orchestrator-heartbeat-v2`. `approved-skillopt-policy-v3` remains
+evaluation approval only and is not deployment authorization. Observability does
+not alter either boundary.
+
+The conceptual evidence ladder is
+`fixture < compatibility < measured_research < shadow < production`. This phase
+derives compatibility evidence only and rejects caller attempts to construct any
+other class. Production remains unsupported, and Wave 3 cannot begin without
+explicit external authority. Operators must treat any alert envelope as a no-go.
+
+The fixed alert vocabulary is `stale_heartbeat`,
+`repeated_compatibility_failure`, `revision_drift`, `budget_breach`,
+`privacy_finding`, `release_holdout_leak`, and `authorization_misuse`. Every alert
+has fixed severity, `owner=skillopt-operations`, bounded retention/deletion periods,
+a summary hash, and optional sanitized exception digest and quarantine reference.
+Exception text is never persisted. Label cardinality is capped at seven. The JSON
+operator envelope performs no network, provider, subprocess, runtime, production,
+or deployment action.
+
+```bash
+python -m pytest -q tests/test_skillopt_observability.py
+```
 
 ## Scope and hard safety boundary
 
-This is the operator contract for the implemented G004 authoritative v2
-SkillOpt search path. The scope is QueryAnalyzer standard-search evaluation on
+This is the operator contract for the implemented G006 approval-v3 SkillOpt
+search path. The scope is QueryAnalyzer standard-search evaluation on
 public or synthetic inputs. The repository coordinator validates and publishes
 sealed artifacts; it is not a SkillOpt training runner or a production
 deployment controller.
@@ -23,13 +58,13 @@ are inert bytes inside this boundary. Repository code must not execute a
 rendered command, import a generated module, call a provider, or source a
 generated environment.
 
-**External production deployment is a no-go.** No G004 request, result,
-acceptance manifest, `approved-skillopt-policy-v2` artifact, optimizer record,
+**External production deployment is a no-go.** No request, result,
+acceptance manifest, `approved-skillopt-policy-v3` artifact, optimizer record,
 shadow artifact, canary handoff, or reward entry authorizes production traffic
 or an external deployment. A separately controlled production authorization
 and deployment system is required outside this contract.
 
-## Authoritative v2 chain
+## Authoritative chain: v2 run evidence to v3 approval
 
 The only authoritative request/result schemas are
 `skillopt-run-request-v2` and `skillopt-run-result-v2`. Both are exact-key,
@@ -193,7 +228,7 @@ materialization manifest is an approval input. The selection threshold is at
 least `+0.01 nDCG@10`, with the implemented selection, holdout, guardrail, and
 evaluation-evidence checks.
 
-The persisted approval schema is exactly `approved-skillopt-policy-v2` in the
+The persisted approval schema is exactly `approved-skillopt-policy-v3` in the
 canonical `approved_policy_artifact.json`. Authoritative consumers must load it
 with `load_validated_approved_skillopt_policy(...)`, which fully replays the v2
 acceptance chain and verifies the canonical sibling `best_skill.md` and disabled
@@ -202,8 +237,41 @@ acceptance chain and verifies the canonical sibling `best_skill.md` and disabled
 raw dictionaries are not capabilities, and downstream optimizer/reward/canary
 consumers reload the persisted file before use.
 
-There is no v0 or v1 approval auto-upgrade, converter, shape inference, or
-version relabeling. Regenerate a v2 request, import, acceptance, and approval.
+Release evaluation has a separate deployment trust anchor:
+`SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH`. Its exact canonical
+`release_holdout_authority_context_v1` schema pins issuer/evaluator/verifier
+allowlists, immutable store root/ID/namespace/object prefix, required
+`governance-compliance` retention, store-receipt issuer, ACL issuer/hash, and
+`valid_from`/`expires_at`, sealed by `context_hash`. Callers cannot select these
+values in the evaluation request. Manifest sealing/loading, precommit, terminal
+publication, replay, and approval loading resolve or recheck the current
+context; rotation quarantines an in-flight generation and invalidates persisted
+approval capabilities. The v3 artifact stores only absolute state/manifest/
+record paths plus generation, evaluation, and context identities needed for
+full descriptor-held replay. Raw paths or decoded mappings are not release
+capabilities. These controls remain same-domain Wave1-2 integrity evidence;
+Wave3 signatures and independent cryptographic trust roots remain intentionally
+out of scope.
+
+There is no approval auto-upgrade, converter, shape inference, or version
+relabeling. Approval v2 and earlier files are audit-only and cannot enter v3
+consumers. Regenerate the v2 request/import/acceptance evidence and export a new
+v3 approval.
+
+The continuous optimizer receives only a narrow opaque receipt for that v3
+approval. The receipt carries the approved artifact file/schema hashes, skill,
+baseline, dataset, execution-control, rollback, and default-off anchors. It
+contains no release capability, holdout result, metrics, thresholds, evaluator,
+generation identity, labels, rankings, prompts, or per-query detail. The
+optimizer cannot rotate or observe a release generation and cannot use release
+feedback as reward. It atomically commits an idempotent reward-memory row before
+atomically publishing a terminal `complete` summary and manifest; an identical
+retry against the same output root and `run_id` resumes under a descriptor-held
+run-directory lease. Recovery accepts only the prepared transaction journal's
+exact request fingerprint, staged artifact bytes, and one matching committed
+reward row, then publishes any missing commit marker, summary, and manifest
+without appending again. Conflicting, duplicated, unexpected, symlinked, or
+inode-replaced recovery state fails closed without overwriting evidence.
 
 Every approval artifact remains
 `evaluation_status=qualified`, `authorization_status=not_authorized`, and
@@ -272,7 +340,7 @@ with the request/result hashes, run root, reason, and prior record reference.
 | External context, policy pins, ACL/custody/store evidence, and allowlists | Deployment authority owner | Search platform owner | Security/privacy reviewer |
 | Dataset provenance and public/synthetic classification | Search quality owner | Data/privacy owner | Evaluation tooling maintainer |
 | Import, quarantine, and replay incident handling | Evaluation tooling maintainer | Search platform maintainer | Deployment authority owner |
-| Offline evaluation and v2 approval export | Search quality evaluator | Search quality owner | Data/privacy owner |
+| Offline evaluation and v3 approval export | Search quality evaluator | Search quality owner | Data/privacy owner |
 
 Missing `SKILLOPT_AUTHORITY_CONTEXT_PATH`, an invalid or rotated authority pin,
 private input, credential requirement, network/provider/subprocess requirement,
@@ -302,7 +370,7 @@ After the action:
 - [ ] Only `candidate_ready` has a non-null acceptance manifest binding.
 - [ ] Journal, status, heartbeat, result, and consumption-record identities
       agree for the applicable state.
-- [ ] Approval, optimizer, reward, shadow, and canary consumers use the typed v2
+- [ ] Approval, optimizer, reward, shadow, and canary consumers use the typed v3
       loader and do not accept raw mappings or v0 materialization provenance.
 - [ ] `authorization_status=not_authorized` and
       `SKILLOPT_SEARCH_POLICY_ENABLED=false` remain unchanged.
@@ -316,7 +384,7 @@ every request evidence byte binding, external authority and allowlist pins,
 custody/ACL/store/usage/privacy identity-freshness-cross-binding checks, path and
 symlink rejection, all terminal import states, acceptance eligibility,
 idempotency and global locking, interruption/recovery, authority rotation
-rollback, consumed replay incident preservation, typed v2 approval reload,
+rollback, consumed replay incident preservation, typed v3 approval reload,
 legacy no-upgrade behavior, and default-off/no-production behavior.
 
 Verification is invalid if it accesses the network, invokes an external runner,

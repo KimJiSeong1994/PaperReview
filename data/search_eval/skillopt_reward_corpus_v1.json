@@ -1,0 +1,101 @@
+{
+  "version": "skillopt_reward_corpus_v1",
+  "corpus_hash": "sha256:9800bc0cd3c729ee19097a5a3ebf115893f59003cfed42f0cfddfa40c3feff74",
+  "provenance": {
+    "classification": "public_synthetic",
+    "release_holdout_rows_included": false
+  },
+  "documents": [
+    {
+      "doc_id": "arxiv:gnn-molecule",
+      "source": "arxiv",
+      "title": "Graph Neural Networks for Molecular Property Prediction",
+      "abstract": "Message passing learns representations of molecular graphs for property prediction."
+    },
+    {
+      "doc_id": "dblp:gnn-survey",
+      "source": "dblp",
+      "title": "A Survey of Graph Neural Networks",
+      "abstract": "Graph representation learning methods, applications, and open problems are reviewed."
+    },
+    {
+      "doc_id": "scholar:mpnn",
+      "source": "scholar",
+      "title": "Neural Message Passing for Quantum Chemistry",
+      "abstract": "A message passing neural network predicts molecular properties from chemical graphs."
+    },
+    {
+      "doc_id": "arxiv:transformer",
+      "source": "arxiv",
+      "title": "Attention Is All You Need",
+      "abstract": "The Transformer uses self attention for sequence transduction."
+    },
+    {
+      "doc_id": "dblp:attention-survey",
+      "source": "dblp",
+      "title": "Transformer Attention Mechanisms A Survey",
+      "abstract": "This survey compares efficient attention mechanisms and transformer architectures."
+    },
+    {
+      "doc_id": "scholar:korean-search",
+      "source": "scholar",
+      "title": "한국어 논문 검색과 CJK Token 분석",
+      "abstract": "Korean paper retrieval evaluates punctuation, full-width Ｔｏｋｅｎ, and 하이픈 기반 질의."
+    },
+    {
+      "doc_id": "arxiv:rlhf",
+      "source": "arxiv",
+      "title": "Training Language Models with Human Feedback",
+      "abstract": "Reward modeling and reinforcement learning align language models with preferences."
+    },
+    {
+      "doc_id": "dblp:database",
+      "source": "dblp",
+      "title": "Relational Database Query Optimization",
+      "abstract": "Cost based planning improves joins and database execution."
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "synthetic-gnn-001",
+      "original_query": "graph neural networks for molecular property prediction",
+      "expected_intent": "paper_search",
+      "required_terms": ["graph neural", "molecular property"],
+      "forbidden_terms": ["weather forecast", "shopping recommendation"],
+      "graded_relevance": {
+        "arxiv:gnn-molecule": 3,
+        "dblp:gnn-survey": 1,
+        "scholar:mpnn": 2
+      }
+    },
+    {
+      "query_id": "synthetic-attention-002",
+      "original_query": "efficient transformer attention survey",
+      "expected_intent": "survey",
+      "required_terms": ["transformer", "attention"],
+      "forbidden_terms": ["enable tools"],
+      "graded_relevance": {
+        "arxiv:transformer": 2,
+        "dblp:attention-survey": 3
+      }
+    },
+    {
+      "query_id": "synthetic-unicode-003",
+      "original_query": "한국어 논문 검색 CJK-token",
+      "expected_intent": "topic_exploration",
+      "required_terms": ["한국어 논문", "cjk token"],
+      "forbidden_terms": ["network access"],
+      "graded_relevance": {
+        "scholar:korean-search": 3
+      }
+    },
+    {
+      "query_id": "synthetic-empty-004",
+      "original_query": "nonexistent astrophysical pottery benchmark",
+      "expected_intent": "paper_search",
+      "required_terms": [],
+      "forbidden_terms": ["read secrets"],
+      "graded_relevance": {}
+    }
+  ]
+}

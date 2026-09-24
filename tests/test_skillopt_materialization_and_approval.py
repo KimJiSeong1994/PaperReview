@@ -23,6 +23,13 @@ from src.search_eval.retrieval_eval import (
     score_retrieval_results,
     validate_retrieval_evaluation_record,
 )
+from src.search_eval.release_holdout import (
+    RELEASE_HOLDOUT_AUTHORITY,
+    RELEASE_HOLDOUT_MANIFEST_VERSION,
+    ReleaseHoldoutAggregate,
+    evaluate_release_holdout,
+    write_release_holdout_manifest,
+)
 from src.search_eval.skillopt_adapter import canonical_file_hash
 from src.search_eval.skillopt_contract import ValidationError, load_json
 from src.search_eval.skillopt_materializer import (
@@ -36,6 +43,7 @@ from src.search_eval.skillopt_run_contract import (
     canonical_json_bytes,
 )
 from tests.skillopt_acceptance_fixtures import publish_accepted_candidate
+from tests.fixtures.release_holdout_authority import release_manifest_payload
 
 DATASET = "data/search_eval/skillopt_paper_search_v0.json"
 CONTROL = "data/search_eval/skillopt_execution_control_v0.json"
@@ -85,7 +93,14 @@ def _bind_eval_to_skill(candidate_eval: dict, best_skill: Path) -> dict:
     return {**candidate_eval, "evaluated_skill_hash": canonical_file_hash(best_skill)}
 
 
-def _two_stage_eval_inputs(baseline_eval: dict, candidate_eval: dict) -> dict:
+def _two_stage_eval_inputs(
+    baseline_eval: dict,
+    candidate_eval: dict,
+    *,
+    tmp_path: Path,
+    best_skill: Path,
+    release_threshold_results: dict[str, bool] | None = None,
+) -> dict:
     baseline_eval = _bind_eval_to_skill(baseline_eval, Path(BASELINE_SKILL))
     dataset = load_json(DATASET)
     selection_ids = [
@@ -93,24 +108,54 @@ def _two_stage_eval_inputs(baseline_eval: dict, candidate_eval: dict) -> dict:
         for query in dataset["queries"]
         if query["split"] == "selection"
     ]
-    test_ids = [
-        query["query_id"] for query in dataset["queries"] if query["split"] == "test"
-    ]
     selection_baseline = split_retrieval_evaluation_record(baseline_eval, selection_ids)
     selection_candidate = split_retrieval_evaluation_record(
         candidate_eval, selection_ids
     )
 
-    def load_holdout():
-        return (
-            split_retrieval_evaluation_record(baseline_eval, test_ids),
-            split_retrieval_evaluation_record(candidate_eval, test_ids),
+    def load_release_holdout():
+        selection_gate = approved_policy_module._build_selection_gate_evidence(
+            dataset=dataset,
+            candidate_eval=selection_candidate,
+            baseline_eval_hash=approved_policy_module._mapping_hash(selection_baseline),
+            candidate_eval_hash=approved_policy_module._mapping_hash(selection_candidate),
+        )
+        manifest = write_release_holdout_manifest(
+            tmp_path / "release_manifest.json",
+            release_manifest_payload(
+                tmp_path,
+                generation_id="approval:generation-1",
+                object_version="fixture-object:v1",
+                issuer_identity="fixture-release-authority:v1",
+                evaluator_identity="fixture-release-evaluator:v1",
+            ),
+        )
+        return evaluate_release_holdout(
+            manifest=manifest,
+            state_root=tmp_path / "release_state",
+            baseline_sha256=canonical_file_hash(BASELINE_SKILL),
+            candidate_sha256=canonical_file_hash(best_skill),
+            thresholds={"ndcg_delta": 0.01, "safety": 1.0},
+            evaluator_identity="fixture-release-evaluator:v1",
+            contract_identity="retrieval-eval:v1",
+            nonce="approval-fixture-nonce-1",
+            selection_evidence={
+                **selection_gate,
+                "baseline_skill_hash": canonical_file_hash(BASELINE_SKILL),
+                "candidate_skill_hash": canonical_file_hash(best_skill),
+            },
+            evaluator=lambda _: ReleaseHoldoutAggregate(
+                sample_count=12,
+                metrics={"ndcg_delta": 0.02, "safety": 1.0},
+                threshold_results=release_threshold_results
+                or {"ndcg_delta": True, "safety": True},
+            ),
         )
 
     return {
         "selection_baseline_eval": selection_baseline,
         "selection_candidate_eval": selection_candidate,
-        "holdout_eval_loader": load_holdout,
+        "release_holdout_evaluation_loader": load_release_holdout,
     }
 
 
@@ -135,7 +180,7 @@ def _approved_policy(tmp_path: Path) -> dict:
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
 
 
@@ -319,7 +364,7 @@ def test_export_approved_skillopt_policy_writes_runtime_artifacts(tmp_path: Path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
 
     validate_approved_policy_artifact(artifact)
@@ -343,13 +388,16 @@ def test_export_approved_skillopt_policy_writes_runtime_artifacts(tmp_path: Path
         "author_search",
         "method_search",
     }
-    assert artifact["holdout_gate"]["status"] == "passed"
-    assert artifact["holdout_gate"]["split"] == "test"
-    assert {row["query_id"] for row in artifact["holdout_gate"]["per_query"]} >= {
-        "q-test-ambiguous-agent",
-        "q-test-method-bert",
+    assert artifact["release_holdout_gate"]["status"] == "passed"
+    assert artifact["release_holdout_gate"]["authority_classification"] == (
+        "approval-plane-aggregate-only"
+    )
+    assert artifact["release_holdout_gate"]["threshold_results"] == {
+        "ndcg_delta": True,
+        "safety": True,
     }
-    assert artifact["version"] == "approved-skillopt-policy-v2"
+    assert "per_query" not in artifact["release_holdout_gate"]
+    assert artifact["version"] == "approved-skillopt-policy-v3"
     assert artifact["evaluation_status"] == "qualified"
     assert artifact["authorization_status"] == "not_authorized"
     assert artifact["evaluation_evidence"]["mode"] == "fixture"
@@ -361,6 +409,8 @@ def test_approval_api_has_no_arbitrary_best_skill_path_escape_hatch() -> None:
     parameters = inspect.signature(export_approved_skillopt_policy).parameters
 
     assert "best_skill_path" not in parameters
+    assert "holdout_eval_loader" not in parameters
+    assert "release_holdout_evaluation_loader" in parameters
     assert {"acceptance_manifest_path", "run_root"} <= set(parameters)
 
 
@@ -374,17 +424,19 @@ def test_legacy_v0_approval_artifact_fails_closed_and_requires_regeneration(
         validate_approved_policy_artifact(legacy)
 
 
-def test_relabelled_v0_shape_cannot_masquerade_as_v2(tmp_path: Path) -> None:
+def test_v2_approval_is_audit_only_and_requires_v3_regeneration(tmp_path: Path) -> None:
+    artifact = _approved_policy(tmp_path)
+    audit_only = {**artifact, "version": "approved-skillopt-policy-v2"}
+
+    with pytest.raises(ValidationError, match="version is invalid"):
+        validate_approved_policy_artifact(audit_only)
+
+
+def test_relabelled_v2_shape_cannot_masquerade_as_v3(tmp_path: Path) -> None:
     artifact = _approved_policy(tmp_path)
     relabelled = dict(artifact)
-    for field in (
-        "accepted_candidate",
-        "evaluation_status",
-        "authorization_status",
-        "evaluation_evidence",
-    ):
-        relabelled.pop(field)
-    relabelled["version"] = "approved-skillopt-policy-v2"
+    relabelled["holdout_gate"] = relabelled.pop("release_holdout_gate")
+    relabelled["version"] = "approved-skillopt-policy-v3"
 
     with pytest.raises(ValidationError, match="keys mismatch"):
         validate_approved_policy_artifact(relabelled)
@@ -413,7 +465,7 @@ def test_approval_threshold_cannot_be_weakened_below_one_percent(tmp_path: Path)
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
             minimum_ndcg_delta=0.009,
         )
 
@@ -441,7 +493,7 @@ def test_approval_rejects_import_inputs_that_differ_from_evaluation_inputs(
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     offered_v0 = artifact.persisted_artifact()
     offered_v0["materialization_manifest_hash"] = "sha256:" + "0" * 64
@@ -491,7 +543,7 @@ def test_approval_rejects_accepted_snapshot_change_after_loader_validation(
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
         )
 
 
@@ -634,7 +686,7 @@ def test_export_approved_policy_rejects_eval_skill_hash_mismatch(tmp_path: Path)
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
         )
 
 
@@ -655,7 +707,7 @@ def test_export_approved_policy_rejects_selection_baseline_skill_hash_drift(
     )
     best_skill = _candidate_best_skill(tmp_path)
     candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
-    inputs = _two_stage_eval_inputs(baseline_eval, candidate_eval)
+    inputs = _two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill)
     inputs["selection_baseline_eval"] = {
         **inputs["selection_baseline_eval"],
         "evaluated_skill_hash": "sha256:" + "0" * 64,
@@ -674,7 +726,7 @@ def test_export_approved_policy_rejects_selection_baseline_skill_hash_drift(
         )
 
 
-def test_export_approved_policy_rejects_test_baseline_skill_hash_drift(
+def test_export_approved_policy_rejects_raw_release_mapping(
     tmp_path: Path,
 ):
     baseline_eval = score_retrieval_results(
@@ -691,22 +743,13 @@ def test_export_approved_policy_rejects_test_baseline_skill_hash_drift(
     )
     best_skill = _candidate_best_skill(tmp_path)
     candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
-    inputs = _two_stage_eval_inputs(baseline_eval, candidate_eval)
-    original_holdout_loader = inputs["holdout_eval_loader"]
-
-    def load_tampered_holdout():
-        holdout_baseline, holdout_candidate = original_holdout_loader()
-        return (
-            {
-                **holdout_baseline,
-                "evaluated_skill_hash": "sha256:" + "0" * 64,
-            },
-            holdout_candidate,
-        )
-
-    inputs["holdout_eval_loader"] = load_tampered_holdout
+    inputs = _two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill)
+    original_loader = inputs["release_holdout_evaluation_loader"]
+    inputs["release_holdout_evaluation_loader"] = (
+        lambda: original_loader().persisted_record()
+    )
     with pytest.raises(
-        ValidationError, match="baseline evaluation evaluated_skill_hash"
+        ValidationError, match="ValidatedReleaseHoldoutEvaluation"
     ):
         export_approved_skillopt_policy(
             **_approval_candidate_args(tmp_path, best_skill),
@@ -716,6 +759,169 @@ def test_export_approved_policy_rejects_test_baseline_skill_hash_drift(
             baseline_skill_path=BASELINE_SKILL,
             **inputs,
         )
+
+
+def test_export_approved_policy_rejects_release_path_instead_of_capability(
+    tmp_path: Path,
+):
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="baseline"
+        ),
+    )
+    candidate_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="candidate"
+        ),
+    )
+    best_skill = _candidate_best_skill(tmp_path)
+    candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
+    inputs = _two_stage_eval_inputs(
+        baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill
+    )
+    capability = inputs["release_holdout_evaluation_loader"]()
+    inputs["release_holdout_evaluation_loader"] = lambda: capability.record_path
+
+    with pytest.raises(ValidationError, match="ValidatedReleaseHoldoutEvaluation"):
+        export_approved_skillopt_policy(
+            **_approval_candidate_args(tmp_path, best_skill),
+            output_dir=tmp_path / "approved",
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            **inputs,
+        )
+
+
+def test_export_reopens_release_evaluation_and_rejects_file_tamper(tmp_path: Path):
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="baseline"
+        ),
+    )
+    candidate_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="candidate"
+        ),
+    )
+    best_skill = _candidate_best_skill(tmp_path)
+    candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
+    inputs = _two_stage_eval_inputs(
+        baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill
+    )
+    capability = inputs["release_holdout_evaluation_loader"]()
+    capability.record_path.write_bytes(capability.record_path.read_bytes() + b" ")
+    inputs["release_holdout_evaluation_loader"] = lambda: capability
+
+    with pytest.raises(ValidationError, match="canonical JSON"):
+        export_approved_skillopt_policy(
+            **_approval_candidate_args(tmp_path, best_skill),
+            output_dir=tmp_path / "approved",
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            **inputs,
+        )
+
+
+def test_export_rejects_release_precommit_lineage_tamper(tmp_path: Path):
+    baseline_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="baseline"
+        ),
+    )
+    candidate_eval = score_retrieval_results(
+        dataset_path=DATASET,
+        results_by_query=build_fixture_retrieval_results(
+            dataset_path=DATASET, quality="candidate"
+        ),
+    )
+    best_skill = _candidate_best_skill(tmp_path)
+    candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
+    inputs = _two_stage_eval_inputs(
+        baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill
+    )
+    capability = inputs["release_holdout_evaluation_loader"]()
+    precommit_path = capability.record_path.parent / "precommit.json"
+    precommit = json.loads(precommit_path.read_bytes())
+    precommit["candidate_sha256"] = "sha256:" + "0" * 64
+    precommit_path.write_bytes(canonical_json_bytes(precommit))
+    inputs["release_holdout_evaluation_loader"] = lambda: capability
+
+    with pytest.raises(ValidationError, match="precommit hash mismatch"):
+        export_approved_skillopt_policy(
+            **_approval_candidate_args(tmp_path, best_skill),
+            output_dir=tmp_path / "approved",
+            dataset_path=DATASET,
+            control_path=CONTROL,
+            baseline_skill_path=BASELINE_SKILL,
+            **inputs,
+        )
+
+
+@pytest.mark.parametrize(
+    "target",
+    ("precommit", "status", "journal", "evaluation", "consumption", "manifest", "context", "store"),
+)
+def test_v3_approval_load_replays_release_chain_and_rejects_later_tamper(
+    tmp_path: Path, target: str
+) -> None:
+    approved = _approved_policy(tmp_path)
+    artifact_path = approved.artifact_path
+    gate = approved["release_holdout_gate"]
+    reference = gate["capability_reference"]
+    generation_root = Path(reference["record_path"]).parent
+
+    if target in {"precommit", "status", "journal", "evaluation", "consumption"}:
+        path = generation_root / f"{target}.json"
+        value = json.loads(path.read_bytes())
+        if target == "precommit":
+            value["candidate_sha256"] = "sha256:" + "0" * 64
+        elif target == "status":
+            value["reason"] = "rejected"
+        elif target == "journal":
+            value["events"][0]["reason"] = "attacker_recommitted"
+            unsigned = dict(value)
+            unsigned.pop("journal_hash")
+            value["journal_hash"] = approved_policy_module._mapping_hash(unsigned)
+        elif target == "consumption":
+            value["outcome"] = "rejected"
+        else:
+            value["sample_count"] += 1
+        path.write_bytes(canonical_json_bytes(value))
+    elif target == "manifest":
+        path = Path(reference["manifest_path"])
+        value = json.loads(path.read_bytes())
+        value["issuer_identity"] = "attacker:v1"
+        path.write_bytes(canonical_json_bytes(value))
+    elif target == "context":
+        path = Path(os.environ["SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH"])
+        value = json.loads(path.read_bytes())
+        value["allowed_manifest_issuers"].append("rotated-authority:v1")
+        value.pop("context_hash")
+        value["context_hash"] = approved_policy_module._mapping_hash(value)
+        path.write_bytes(canonical_json_bytes(value))
+    else:
+        context_path = Path(
+            os.environ["SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH"]
+        )
+        context = json.loads(context_path.read_bytes())
+        manifest = json.loads(Path(reference["manifest_path"]).read_bytes())
+        receipt = manifest["immutable_store_receipt"]
+        object_path = (
+            Path(context["immutable_store"]["root"])
+            / receipt["namespace"]
+            / receipt["object_key"]
+        )
+        object_path.write_bytes(b"tampered")
+
+    with pytest.raises(ValidationError):
+        load_validated_approved_skillopt_policy(artifact_path)
 
 
 def test_export_approved_policy_rejects_wrong_eval_query_binding(tmp_path: Path):
@@ -759,7 +965,7 @@ def test_export_approved_policy_rejects_wrong_eval_query_binding(tmp_path: Path)
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
         )
 
 
@@ -800,7 +1006,7 @@ def test_export_rejected_candidate_writes_no_runtime_artifacts_for_selection_gat
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
         )
 
     assert not (output_dir / "best_skill.md").exists()
@@ -808,7 +1014,7 @@ def test_export_rejected_candidate_writes_no_runtime_artifacts_for_selection_gat
     assert not (output_dir / "runtime_env.sh").exists()
 
 
-def test_export_rejected_candidate_writes_no_runtime_artifacts_for_holdout_gate_failure(
+def test_export_rejected_candidate_writes_no_runtime_artifacts_for_release_holdout_failure(
     tmp_path: Path,
 ):
     baseline_results = build_fixture_retrieval_results(
@@ -836,14 +1042,20 @@ def test_export_rejected_candidate_writes_no_runtime_artifacts_for_holdout_gate_
     best_skill = _candidate_best_skill(tmp_path)
     candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
 
-    with pytest.raises(ValidationError, match="holdout gate.*q-test-method-bert"):
+    with pytest.raises(ValidationError, match="terminal evaluation must be accepted"):
         export_approved_skillopt_policy(
             **_approval_candidate_args(tmp_path, best_skill),
             output_dir=output_dir,
             dataset_path=DATASET,
             control_path=CONTROL,
             baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+            **_two_stage_eval_inputs(
+                baseline_eval,
+                candidate_eval,
+                tmp_path=tmp_path,
+                best_skill=best_skill,
+                release_threshold_results={"ndcg_delta": False, "safety": True},
+            ),
         )
 
     assert not (output_dir / "best_skill.md").exists()
@@ -900,7 +1112,7 @@ def test_approved_policy_artifact_rejects_tampered_guardrail_regression(tmp_path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     tampered = dict(artifact)
     tampered["metric_snapshot"] = dict(artifact["metric_snapshot"])
@@ -937,7 +1149,7 @@ def test_approved_policy_artifact_rejects_tampered_selection_gate(tmp_path: Path
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     tampered = dict(artifact)
     tampered["selection_gate"] = dict(artifact["selection_gate"])
@@ -974,7 +1186,7 @@ def test_approved_policy_artifact_rejects_zero_ndcg_selection_gate(tmp_path: Pat
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     tampered = dict(artifact)
     tampered["selection_gate"] = dict(artifact["selection_gate"])
@@ -990,7 +1202,9 @@ def test_approved_policy_artifact_rejects_zero_ndcg_selection_gate(tmp_path: Pat
         validate_approved_policy_artifact(tampered)
 
 
-def test_approved_policy_artifact_rejects_tampered_holdout_gate(tmp_path: Path):
+def test_approved_policy_artifact_rejects_forbidden_release_holdout_detail_recursively(
+    tmp_path: Path,
+):
     baseline_eval = score_retrieval_results(
         dataset_path=DATASET,
         results_by_query=build_fixture_retrieval_results(
@@ -1011,21 +1225,56 @@ def test_approved_policy_artifact_rejects_tampered_holdout_gate(tmp_path: Path):
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     tampered = dict(artifact)
-    tampered["holdout_gate"] = dict(artifact["holdout_gate"])
-    tampered["holdout_gate"]["per_query"] = list(artifact["holdout_gate"]["per_query"])
-    tampered["holdout_gate"]["per_query"][0] = dict(
-        tampered["holdout_gate"]["per_query"][0]
-    )
-    tampered["holdout_gate"]["per_query"][0]["recall_at_10"] = 0.0
+    tampered["release_holdout_gate"] = dict(artifact["release_holdout_gate"])
+    tampered["release_holdout_gate"]["metrics"] = {
+        "nested": {"query_id": "secret-release-row"}
+    }
 
-    with pytest.raises(ValidationError, match="holdout_gate"):
+    with pytest.raises(ValidationError, match="forbidden key"):
         validate_approved_policy_artifact(tampered)
 
 
-def test_export_rejects_test_split_regression_hidden_by_global_improvement(
+def test_release_holdout_gate_rejects_all_forbidden_detail_key_classes(
+    tmp_path: Path,
+):
+    artifact = _approved_policy(tmp_path)
+    for forbidden in (
+        "per_query",
+        "query_id",
+        "labels",
+        "rankings",
+        "documents",
+        "prompts",
+        "policy",
+        "reflection",
+    ):
+        tampered = dict(artifact)
+        gate = dict(artifact["release_holdout_gate"])
+        gate["metrics"] = {"nested": {forbidden: "private"}}
+        tampered["release_holdout_gate"] = gate
+        with pytest.raises(ValidationError, match="forbidden key"):
+            validate_approved_policy_artifact(tampered)
+
+
+def test_release_holdout_gate_rejects_authority_tamper_even_when_resealed(
+    tmp_path: Path,
+):
+    artifact = _approved_policy(tmp_path)
+    tampered = dict(artifact)
+    gate = dict(artifact["release_holdout_gate"])
+    gate["authority_classification"] = "optimizer-visible"
+    gate.pop("evidence_hash")
+    gate["evidence_hash"] = approved_policy_module._mapping_hash(gate)
+    tampered["release_holdout_gate"] = gate
+
+    with pytest.raises(ValidationError, match="authority mismatch"):
+        validate_approved_policy_artifact(tampered)
+
+
+def test_export_uses_release_capability_instead_of_nominal_test_split_descriptors(
     tmp_path: Path,
 ):
     baseline_eval = score_retrieval_results(
@@ -1063,18 +1312,24 @@ def test_export_rejects_test_split_regression_hidden_by_global_improvement(
     best_skill = _candidate_best_skill(tmp_path)
     candidate_eval = _bind_eval_to_skill(candidate_eval, best_skill)
 
-    with pytest.raises(ValidationError, match="candidate nDCG@10|holdout gate"):
-        export_approved_skillopt_policy(
-            **_approval_candidate_args(tmp_path, best_skill),
-            output_dir=tmp_path / "approved",
-            dataset_path=DATASET,
-            control_path=CONTROL,
-            baseline_skill_path=BASELINE_SKILL,
-            **_two_stage_eval_inputs(baseline_eval, candidate_eval),
-        )
+    artifact = export_approved_skillopt_policy(
+        **_approval_candidate_args(tmp_path, best_skill),
+        output_dir=tmp_path / "approved",
+        dataset_path=DATASET,
+        control_path=CONTROL,
+        baseline_skill_path=BASELINE_SKILL,
+        **_two_stage_eval_inputs(
+            baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill
+        ),
+    )
+    assert set(artifact["evaluation_evidence"]["records"]) == {
+        "selection_baseline",
+        "selection_candidate",
+    }
+    assert "holdout_gate" not in artifact
 
 
-def test_selection_failure_never_opens_holdout_evaluation(tmp_path: Path):
+def test_selection_failure_never_opens_release_holdout_evaluation(tmp_path: Path):
     baseline_eval = score_retrieval_results(
         dataset_path=DATASET,
         results_by_query=build_fixture_retrieval_results(
@@ -1093,12 +1348,12 @@ def test_selection_failure_never_opens_holdout_evaluation(tmp_path: Path):
         **selection_baseline,
         "evaluated_skill_hash": canonical_file_hash(best_skill),
     }
-    holdout_opened = False
+    release_reads = 0
 
-    def forbidden_holdout_loader():
-        nonlocal holdout_opened
-        holdout_opened = True
-        raise AssertionError("holdout must remain sealed when selection fails")
+    def forbidden_release_loader():
+        nonlocal release_reads
+        release_reads += 1
+        raise AssertionError("release holdout must remain sealed when selection fails")
 
     with pytest.raises(ValidationError, match="candidate nDCG@10"):
         export_approved_skillopt_policy(
@@ -1109,14 +1364,14 @@ def test_selection_failure_never_opens_holdout_evaluation(tmp_path: Path):
             baseline_skill_path=BASELINE_SKILL,
             selection_baseline_eval=selection_baseline,
             selection_candidate_eval=selection_candidate,
-            holdout_eval_loader=forbidden_holdout_loader,
+            release_holdout_evaluation_loader=forbidden_release_loader,
             minimum_ndcg_delta=0.01,
         )
 
-    assert holdout_opened is False
+    assert release_reads == 0
 
 
-def test_selection_and_holdout_evidence_bind_distinct_records(tmp_path: Path):
+def test_selection_and_release_evidence_bind_distinct_hash_domains(tmp_path: Path):
     artifact = _approved_policy(tmp_path)
 
     assert artifact["metric_snapshot"]["split"] == "selection"
@@ -1126,7 +1381,7 @@ def test_selection_and_holdout_evidence_bind_distinct_records(tmp_path: Path):
     )
     assert (
         artifact["selection_gate"]["candidate_eval_hash"]
-        != artifact["holdout_gate"]["candidate_eval_hash"]
+        != artifact["release_holdout_gate"]["evaluation_hash"]
     )
 
 
@@ -1174,7 +1429,7 @@ def test_approved_policy_artifact_rejects_mixed_evidence_lineage(tmp_path: Path)
         "mode": "fixture",
         "records": {
             **artifact["evaluation_evidence"]["records"],
-            "test_candidate": {
+            "selection_candidate": {
                 "mode": "measured",
                 "capture_id": "capture-1",
                 "capture_hash": "sha256:" + "b" * 64,
@@ -1207,7 +1462,7 @@ def test_approved_policy_artifact_rejects_non_finite_primary_metric(tmp_path: Pa
         dataset_path=DATASET,
         control_path=CONTROL,
         baseline_skill_path=BASELINE_SKILL,
-        **_two_stage_eval_inputs(baseline_eval, candidate_eval),
+        **_two_stage_eval_inputs(baseline_eval, candidate_eval, tmp_path=tmp_path, best_skill=best_skill),
     )
     tampered = dict(artifact)
     tampered["metric_snapshot"] = dict(artifact["metric_snapshot"])
@@ -1314,5 +1569,64 @@ def test_approved_reload_rejects_authority_rotation_after_runtime_files(
         approved_policy_module, "read_stable_file", read_then_rotate
     )
     with pytest.raises(AuthorityContextRotationError, match="rotated|invalid"):
+        load_validated_approved_skillopt_policy(artifact.artifact_path)
+    assert rotated is True
+
+
+def test_approved_reload_rejects_release_rotation_after_runtime_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = _approved_policy(tmp_path)
+    context_path = Path(
+        os.environ["SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH"]
+    )
+    context = json.loads(context_path.read_bytes())
+    original_read = approved_policy_module.read_stable_file
+    rotated = False
+
+    def read_then_rotate(path, *args, **kwargs):
+        nonlocal rotated
+        held = original_read(path, *args, **kwargs)
+        if Path(path).name == "runtime_env.sh" and not rotated:
+            context["allowed_manifest_issuers"].append("rotated-authority:v1")
+            context.pop("context_hash")
+            context["context_hash"] = approved_policy_module._mapping_hash(context)
+            context_path.write_bytes(canonical_json_bytes(context))
+            rotated = True
+        return held
+
+    monkeypatch.setattr(approved_policy_module, "read_stable_file", read_then_rotate)
+    with pytest.raises(ValidationError, match="release holdout authority context"):
+        load_validated_approved_skillopt_policy(artifact.artifact_path)
+    assert rotated is True
+
+
+def test_approved_reload_rejects_release_rotation_immediately_after_replay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = _approved_policy(tmp_path)
+    context_path = Path(
+        os.environ["SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH"]
+    )
+    context = json.loads(context_path.read_bytes())
+    original_revalidate = approved_policy_module._revalidate_persisted_release_gate
+    rotated = False
+
+    def revalidate_then_rotate(gate):
+        nonlocal rotated
+        capability = original_revalidate(gate)
+        context["allowed_manifest_issuers"].append("post-replay-rotation:v1")
+        context.pop("context_hash")
+        context["context_hash"] = approved_policy_module._mapping_hash(context)
+        context_path.write_bytes(canonical_json_bytes(context))
+        rotated = True
+        return capability
+
+    monkeypatch.setattr(
+        approved_policy_module,
+        "_revalidate_persisted_release_gate",
+        revalidate_then_rotate,
+    )
+    with pytest.raises(ValidationError, match="release holdout authority context"):
         load_validated_approved_skillopt_policy(artifact.artifact_path)
     assert rotated is True

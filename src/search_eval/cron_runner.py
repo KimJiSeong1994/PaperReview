@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .continuous_optimizer import run_continuous_optimization_iteration
+from .continuous_optimizer import (
+    run_continuous_optimization_iteration,
+    validate_optimizer_run_id,
+)
 
 _REQUIRED_ENV = {
     "approved_policy_artifact_path": "SKILLOPT_APPROVED_POLICY_ARTIFACT",
@@ -63,10 +66,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--run-id", default=os.getenv("SKILLOPT_RUN_ID"))
     parser.add_argument(
-        "--next-holdout-generation-id",
-        default=os.getenv("SKILLOPT_NEXT_HOLDOUT_GENERATION_ID"),
-    )
-    parser.add_argument(
         "--strict",
         action="store_true",
         default=os.getenv("SKILLOPT_CRON_STRICT", "").lower() in {"1", "true", "yes"},
@@ -88,12 +87,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2 if args.strict else 0
 
     run_id = args.run_id or f"skillopt-cron-{_utc_stamp()}"
-    next_holdout = args.next_holdout_generation_id or f"holdout:{run_id}:next"
-    output_dir = Path(args.output_dir) / run_id
+    run_id = validate_optimizer_run_id(run_id)
 
     result = run_continuous_optimization_iteration(
         run_id=run_id,
-        output_dir=output_dir,
+        output_root=args.output_dir,
         approved_policy_artifact_path=args.approved_policy_artifact,
         baseline_eval=_load_json(args.baseline_eval),
         candidate_eval=_load_json(args.candidate_eval),
@@ -101,7 +99,6 @@ def main(argv: list[str] | None = None) -> int:
         control_path=args.control,
         baseline_skill_path=args.baseline_skill,
         reward_memory_path=args.reward_memory,
-        next_holdout_generation_id=next_holdout,
     )
     print(
         json.dumps(

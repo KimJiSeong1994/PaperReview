@@ -15,6 +15,8 @@ from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import Any, NoReturn
 
+from app.QueryAgent.query_analysis_contract import QUERY_ANALYSIS_CONTRACT
+
 from .skillopt_contract import ValidationError
 
 
@@ -197,7 +199,11 @@ OVERLAY_SCHEMA_PATH = "overlay/schema/generated_overlay_schema.json"
 REGISTRY_PATCH_CONTRACT_PATH = "overlay/contracts/registry_patch_contract.json"
 QUERY_ANALYZER_SOURCE_PATH = "app/QueryAgent/query_analyzer.py"
 QUERY_ANALYZER_SOURCE_SHA256 = (
-    "5a31c5d06d363558f1d74355168d90deb562840a5f1ba87566a7ffa64a755f59"
+    "5394c2c5506b57f26d5f3b1c206b13b1e98bc4a69e51d36e40cc93c1c087baa4"
+)
+QUERY_ANALYSIS_CONTRACT_SOURCE_PATH = "app/QueryAgent/query_analysis_contract.py"
+QUERY_ANALYSIS_CONTRACT_SOURCE_SHA256 = (
+    "a46d2e9c9f118105aecf4bb523658c84509b8c932cd570dae33f1120be3be456"
 )
 QUERY_ANALYZER_ALLOWED_INTENTS = (
     "author_search",
@@ -225,360 +231,31 @@ def _canonical_json_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
+# The strict raw/normalized schemas have one canonical production source. The
+# compatibility overlay projects those exact objects and adds only provenance,
+# fallback-boundary, and scope metadata.
 QUERY_ANALYZER_CONTRACT = {
     "artifact": QUERY_ANALYZER_CONTRACT_NAME,
-    "contract_version": "query_analyzer_contract_v1",
+    "contract_version": "query_analyzer_contract_v2",
     "production_source": {
         "path": QUERY_ANALYZER_SOURCE_PATH,
         "sha256": QUERY_ANALYZER_SOURCE_SHA256,
     },
-    "raw_model_output_v1": {
-        "additional_properties": False,
-        "fields": {
-            "analysis_details": {"max_length": 4096, "type": "string"},
-            "confidence": {"maximum": 1.0, "minimum": 0.0, "type": "number"},
-            "core_concepts": {
-                "items": {"max_length": 160, "type": "string"},
-                "max_items": 5,
-                "type": "array",
-            },
-            "improved_query": {"max_length": 1024, "type": "string"},
-            "is_academic": {
-                "default_when_missing": True,
-                "normalization": "bool",
-                "type": "any_json",
-            },
-            "intent": {
-                "allowed": list(QUERY_ANALYZER_ALLOWED_INTENTS[:-1]),
-                "type": "string",
-            },
-            "keywords": {
-                "items": {"max_length": 160, "type": "string"},
-                "max_items": 7,
-                "type": "array",
-            },
-            "research_area": {"max_length": 256, "type": "string"},
-            "search_filters": {
-                "additional_properties": False,
-                "fields": {
-                    "category": {"nullable": True, "type": "string"},
-                    "min_citations": {
-                        "minimum": 0,
-                        "nullable": True,
-                        "type": "integer",
-                    },
-                    "year_end": {"nullable": True, "type": "integer"},
-                    "year_start": {"nullable": True, "type": "integer"},
-                },
-                "type": "object",
-            },
-            "search_strategy": {"max_length": 2048, "type": "string"},
-            "source_queries": {
-                "additional_properties": True,
-                "default_when_missing": {},
-                "fields": {
-                    "arxiv": {
-                        "default_when_missing": "original_query",
-                        "normalization": "passthrough",
-                        "type": "any_json",
-                    },
-                    "dblp": {
-                        "default_when_missing": "original_query",
-                        "normalization": "passthrough",
-                        "type": "any_json",
-                    },
-                    "google_scholar": {
-                        "default_when_missing": "original_query",
-                        "type": "any_json",
-                    },
-                    "scholar_queries": {
-                        "alias_of": "google_scholar",
-                        "optional": True,
-                        "precedence": "when_present",
-                        "type": "any_json",
-                    },
-                },
-                "type": "object",
-            },
-        },
-        "type": "object",
+    "contract_source": {
+        "path": QUERY_ANALYSIS_CONTRACT_SOURCE_PATH,
+        "sha256": QUERY_ANALYSIS_CONTRACT_SOURCE_SHA256,
     },
-    "normalized_query_analysis_v1": {
-        "additional_properties": False,
-        "common_required_fields": [
-            "confidence",
-            "improved_query",
-            "intent",
-            "is_academic",
-            "keywords",
-            "original_query",
-            "search_filters",
-            "source_queries",
-        ],
-        "fields": {
-            "analysis_details": {
-                "max_length": 4096,
-                "optional": True,
-                "type": "string",
-            },
-            "confidence": {"maximum": 1.0, "minimum": 0.0, "type": "number"},
-            "core_concepts": {
-                "max_items": 5,
-                "optional": True,
-                "type": "array[string]",
-            },
-            "error": {"max_length": 512, "optional": True, "type": "string"},
-            "improved_query": {"max_length": 1024, "type": "string"},
-            "is_academic": {"type": "boolean"},
-            "intent": {
-                "allowed": list(QUERY_ANALYZER_ALLOWED_INTENTS),
-                "type": "string",
-            },
-            "keywords": {"max_items": 7, "type": "array[string]"},
-            "original_query": {"max_length": 1024, "type": "string"},
-            "research_area": {
-                "max_length": 256,
-                "optional": True,
-                "type": "string",
-            },
-            "search_filters": {
-                "fields": {
-                    "category": "string|null",
-                    "min_citations": "integer>=0|null",
-                    "year_end": "integer|null",
-                    "year_start": "integer|null",
-                },
-                "type": "object",
-            },
-            "search_strategy": {
-                "max_length": 2048,
-                "optional": True,
-                "type": "string",
-            },
-            "source_queries": {
-                "additional_properties": False,
-                "fields": {
-                    "arxiv": {
-                        "default_when_missing": "original_query",
-                        "type": "any_json",
-                    },
-                    "dblp": {
-                        "default_when_missing": "original_query",
-                        "type": "any_json",
-                    },
-                    "google_scholar": {"type": "any_json"},
-                    "scholar_queries": {
-                        "max_items": 3,
-                        "optional": True,
-                        "type": "array[string]",
-                    },
-                    "default": {
-                        "equals": "original_query",
-                        "type": "string",
-                    },
-                },
-                "type": "object",
-            },
-        },
-        "optional_fields": [
-            "analysis_details",
-            "core_concepts",
-            "error",
-            "research_area",
-            "search_strategy",
-        ],
-        "type": "object",
+    **QUERY_ANALYSIS_CONTRACT,
+    "strict_optimization_boundary": {
+        "activation": "validated_skillopt_policy_enabled",
+        "default_path": "existing_permissive_product_normalization",
+        "invalid_output": "existing_safe_fallback",
+        "partial_coercion": "forbidden",
     },
-    "production_normalization_v1": {
-        "branches": {
-            "empty_query": {
-                "absent_keys": [
-                    "analysis_details",
-                    "core_concepts",
-                    "error",
-                    "research_area",
-                    "search_strategy",
-                ],
-                "allowed_keys": [
-                    "confidence",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "search_filters",
-                    "source_queries",
-                ],
-                "is_academic": True,
-                "required_keys": [
-                    "confidence",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "search_filters",
-                    "source_queries",
-                ],
-                "scholar_queries": "omitted",
-                "source_query_absent_keys": ["scholar_queries"],
-                "source_query_allowed_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_query_required_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_query_values": "original_query",
-            },
-            "exception_fallback": {
-                "absent_keys": ["error"],
-                "allowed_keys": [
-                    "analysis_details",
-                    "confidence",
-                    "core_concepts",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "research_area",
-                    "search_filters",
-                    "search_strategy",
-                    "source_queries",
-                ],
-                "is_academic_default": True,
-                "required_keys": [
-                    "analysis_details",
-                    "confidence",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "search_filters",
-                    "source_queries",
-                ],
-                "scholar_queries": "omitted",
-                "source_query_absent_keys": ["scholar_queries"],
-                "source_query_allowed_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_query_required_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_queries": "generate_source_specific_queries",
-            },
-            "no_client_fallback": {
-                "absent_keys": [
-                    "core_concepts",
-                    "error",
-                    "research_area",
-                    "search_strategy",
-                ],
-                "allowed_keys": [
-                    "analysis_details",
-                    "confidence",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "search_filters",
-                    "source_queries",
-                ],
-                "is_academic": True,
-                "required_keys": [
-                    "analysis_details",
-                    "confidence",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "search_filters",
-                    "source_queries",
-                ],
-                "scholar_queries": "omitted",
-                "source_query_absent_keys": ["scholar_queries"],
-                "source_query_allowed_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_query_required_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                ],
-                "source_queries": "keyword_fallback",
-            },
-            "unified_llm_success": {
-                "absent_keys": ["analysis_details", "error"],
-                "allowed_keys": [
-                    "confidence",
-                    "core_concepts",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "research_area",
-                    "search_filters",
-                    "search_strategy",
-                    "source_queries",
-                ],
-                "is_academic": "bool(raw.is_academic default true)",
-                "required_keys": [
-                    "confidence",
-                    "core_concepts",
-                    "improved_query",
-                    "intent",
-                    "is_academic",
-                    "keywords",
-                    "original_query",
-                    "research_area",
-                    "search_filters",
-                    "search_strategy",
-                    "source_queries",
-                ],
-                "scholar_queries": "present",
-                "source_query_absent_keys": [],
-                "source_query_allowed_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                    "scholar_queries",
-                ],
-                "source_query_required_keys": [
-                    "arxiv",
-                    "dblp",
-                    "default",
-                    "google_scholar",
-                    "scholar_queries",
-                ],
-            },
-        },
-        "scholar_queries": {
-            "alias_precedence": "source_queries.scholar_queries_over_google_scholar",
-            "list": "truthy_items_stringified_stripped_first_3",
-            "string": "base_then_distinct_improved_query_then_first_5_keywords_first_3",
-            "unexpected": "google_scholar_string_else_original_query_singleton",
-        },
+    "production_fallback_v1": {
+        "branches": ["empty_query", "no_client_fallback", "exception_fallback"],
+        "unknown_intent": "allowed",
+        "preserve_existing_shapes": True,
     },
     "scope": {
         "allowed": "query_analyzer_standard_search",
@@ -1788,6 +1465,20 @@ def verify_query_analyzer_source(path: str | Path) -> None:
     )
 
 
+def verify_query_analysis_contract_source(path: str | Path) -> None:
+    source_path = Path(path)
+    _require_exact(
+        source_path.as_posix().endswith(QUERY_ANALYSIS_CONTRACT_SOURCE_PATH),
+        True,
+        "contract source path",
+    )
+    _require_exact(
+        hashlib.sha256(source_path.read_bytes()).hexdigest(),
+        QUERY_ANALYSIS_CONTRACT_SOURCE_SHA256,
+        "QueryAnalysis contract source sha256",
+    )
+
+
 def validate_pristine_source_manifest(value: Mapping[str, Any]) -> dict[str, Any]:
     _require_mapping(value, "pristine_source_manifest")
     _exact_keys(value, _PRISTINE_KEYS, "pristine_source_manifest")
@@ -2925,7 +2616,10 @@ def _load_strict_json_bytes(payload: bytes, field: str) -> Any:
 
 
 def validate_query_analyzer_contract_bytes(
-    payload: bytes, *, production_source: str | Path | None = None
+    payload: bytes,
+    *,
+    production_source: str | Path | None = None,
+    contract_source: str | Path | None = None,
 ) -> dict[str, Any]:
     if payload != QUERY_ANALYZER_CONTRACT_BYTES:
         raise ValidationError(
@@ -2933,186 +2627,25 @@ def validate_query_analyzer_contract_bytes(
         )
     decoded = _load_strict_json_bytes(payload, "QueryAnalyzer contract")
     _require_exact(decoded, QUERY_ANALYZER_CONTRACT, "QueryAnalyzer semantic contract")
-    raw_fields = decoded["raw_model_output_v1"]["fields"]
-    normalized = decoded["normalized_query_analysis_v1"]
-    normalized_fields = normalized["fields"]
-    required = {
-        "intent",
-        "keywords",
-        "core_concepts",
-        "research_area",
-        "improved_query",
-        "search_strategy",
-        "search_filters",
-        "confidence",
-        "analysis_details",
-        "is_academic",
-        "source_queries",
-    }
-    _require_exact(set(raw_fields), required, "raw_model_output_v1 fields")
-    if not required | {"original_query", "error"} == set(normalized_fields):
-        raise ValidationError("normalized_query_analysis_v1 fields drifted")
-    common_required_fields = {
-        "confidence",
-        "improved_query",
-        "intent",
-        "is_academic",
-        "keywords",
-        "original_query",
-        "search_filters",
-        "source_queries",
-    }
-    optional_fields = {
-        "analysis_details",
-        "core_concepts",
-        "error",
-        "research_area",
-        "search_strategy",
-    }
     _require_exact(
-        set(normalized["common_required_fields"]),
-        common_required_fields,
-        "normalized common required fields",
+        decoded["raw_model_output_v1"],
+        QUERY_ANALYSIS_CONTRACT["raw_model_output_v1"],
+        "canonical raw_model_output_v1",
     )
     _require_exact(
-        set(normalized["optional_fields"]),
-        optional_fields,
-        "normalized optional fields",
+        decoded["normalized_query_analysis_v1"],
+        QUERY_ANALYSIS_CONTRACT["normalized_query_analysis_v1"],
+        "canonical normalized_query_analysis_v1",
     )
     _require_exact(
-        common_required_fields | optional_fields,
-        set(normalized_fields),
-        "normalized declared field partition",
-    )
-    for field in optional_fields:
-        _require_exact(
-            normalized_fields[field].get("optional"),
-            True,
-            f"normalized optional field {field}",
-        )
-    _require_exact(
-        raw_fields["is_academic"],
+        decoded["strict_optimization_boundary"],
         {
-            "default_when_missing": True,
-            "normalization": "bool",
-            "type": "any_json",
+            "activation": "validated_skillopt_policy_enabled",
+            "default_path": "existing_permissive_product_normalization",
+            "invalid_output": "existing_safe_fallback",
+            "partial_coercion": "forbidden",
         },
-        "raw is_academic semantics",
-    )
-    raw_source_fields = raw_fields["source_queries"]["fields"]
-    _require_exact(
-        set(raw_source_fields),
-        {"arxiv", "dblp", "google_scholar", "scholar_queries"},
-        "raw source_queries fields",
-    )
-    _require_exact(
-        raw_source_fields["scholar_queries"]["alias_of"],
-        "google_scholar",
-        "raw scholar_queries alias",
-    )
-    _require_exact(
-        raw_source_fields["scholar_queries"]["precedence"],
-        "when_present",
-        "raw scholar_queries precedence",
-    )
-    normalized_source_fields = normalized_fields["source_queries"]["fields"]
-    _require_exact(
-        set(normalized_source_fields),
-        {"arxiv", "dblp", "google_scholar", "scholar_queries", "default"},
-        "normalized source_queries fields",
-    )
-    _require_exact(
-        normalized_source_fields["scholar_queries"],
-        {"max_items": 3, "optional": True, "type": "array[string]"},
-        "normalized scholar_queries semantics",
-    )
-    normalization = decoded["production_normalization_v1"]
-    branches = normalization["branches"]
-    _require_exact(
-        set(branches),
-        {
-            "empty_query",
-            "exception_fallback",
-            "no_client_fallback",
-            "unified_llm_success",
-        },
-        "QueryAnalyzer normalization branches",
-    )
-    expected_branch_keys = {
-        "empty_query": (
-            common_required_fields,
-            common_required_fields,
-            optional_fields,
-        ),
-        "exception_fallback": (
-            common_required_fields | optional_fields - {"error"},
-            common_required_fields | {"analysis_details"},
-            {"error"},
-        ),
-        "no_client_fallback": (
-            common_required_fields | {"analysis_details"},
-            common_required_fields | {"analysis_details"},
-            optional_fields - {"analysis_details"},
-        ),
-        "unified_llm_success": (
-            common_required_fields
-            | {"core_concepts", "research_area", "search_strategy"},
-            common_required_fields
-            | {"core_concepts", "research_area", "search_strategy"},
-            {"analysis_details", "error"},
-        ),
-    }
-    source_query_fields = set(normalized_source_fields)
-    for branch_name, (allowed, branch_required, absent) in expected_branch_keys.items():
-        branch = branches[branch_name]
-        _require_exact(
-            set(branch["allowed_keys"]), allowed, f"{branch_name} allowed keys"
-        )
-        _require_exact(
-            set(branch["required_keys"]),
-            branch_required,
-            f"{branch_name} required keys",
-        )
-        _require_exact(set(branch["absent_keys"]), absent, f"{branch_name} absent keys")
-        _require_exact(
-            allowed | absent,
-            set(normalized_fields),
-            f"{branch_name} complete key partition",
-        )
-        _require_exact(
-            branch_required <= allowed,
-            True,
-            f"{branch_name} required keys allowed",
-        )
-        expected_source_allowed = source_query_fields
-        expected_source_absent: set[str] = set()
-        if branch_name != "unified_llm_success":
-            expected_source_allowed = source_query_fields - {"scholar_queries"}
-            expected_source_absent = {"scholar_queries"}
-        _require_exact(
-            set(branch["source_query_allowed_keys"]),
-            expected_source_allowed,
-            f"{branch_name} source query allowed keys",
-        )
-        _require_exact(
-            set(branch["source_query_required_keys"]),
-            expected_source_allowed,
-            f"{branch_name} source query required keys",
-        )
-        _require_exact(
-            set(branch["source_query_absent_keys"]),
-            expected_source_absent,
-            f"{branch_name} source query absent keys",
-        )
-        _require_exact(
-            expected_source_allowed | expected_source_absent,
-            source_query_fields,
-            f"{branch_name} complete source query key partition",
-        )
-    _require_exact(
-        normalization["scholar_queries"]["alias_precedence"],
-        "source_queries.scholar_queries_over_google_scholar",
-        "scholar_queries alias precedence",
+        "strict optimization boundary",
     )
     _require_exact(
         decoded["scope"]["allowed"],
@@ -3121,6 +2654,8 @@ def validate_query_analyzer_contract_bytes(
     )
     if production_source is not None:
         verify_query_analyzer_source(production_source)
+    if contract_source is not None:
+        verify_query_analysis_contract_source(contract_source)
     return decoded
 
 

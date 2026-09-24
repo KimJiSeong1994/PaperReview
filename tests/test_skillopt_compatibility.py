@@ -168,25 +168,153 @@ def _sha(payload: bytes) -> str:
 def _assert_live_query_analysis_contract(
     result: dict, branch_name: str, *, expected_key_set: str = "allowed_keys"
 ) -> None:
-    contract = compat.QUERY_ANALYZER_CONTRACT
-    normalized = contract["normalized_query_analysis_v1"]
-    branch = contract["production_normalization_v1"]["branches"][branch_name]
+    branch_shapes = {
+        "empty_query": {
+            "allowed_keys": {
+                "confidence",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "search_filters",
+                "source_queries",
+            },
+            "required_keys": {
+                "confidence",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "search_filters",
+                "source_queries",
+            },
+            "source_query_allowed_keys": {"arxiv", "dblp", "default", "google_scholar"},
+            "source_query_required_keys": {
+                "arxiv",
+                "dblp",
+                "default",
+                "google_scholar",
+            },
+        },
+        "no_client_fallback": {
+            "allowed_keys": {
+                "analysis_details",
+                "confidence",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "search_filters",
+                "source_queries",
+            },
+            "required_keys": {
+                "analysis_details",
+                "confidence",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "search_filters",
+                "source_queries",
+            },
+            "source_query_allowed_keys": {"arxiv", "dblp", "default", "google_scholar"},
+            "source_query_required_keys": {
+                "arxiv",
+                "dblp",
+                "default",
+                "google_scholar",
+            },
+        },
+        "exception_fallback": {
+            "allowed_keys": {
+                "analysis_details",
+                "confidence",
+                "core_concepts",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "research_area",
+                "search_filters",
+                "search_strategy",
+                "source_queries",
+            },
+            "required_keys": {
+                "analysis_details",
+                "confidence",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "search_filters",
+                "source_queries",
+            },
+            "source_query_allowed_keys": {"arxiv", "dblp", "default", "google_scholar"},
+            "source_query_required_keys": {
+                "arxiv",
+                "dblp",
+                "default",
+                "google_scholar",
+            },
+        },
+        "unified_llm_success": {
+            "allowed_keys": {
+                "confidence",
+                "core_concepts",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "research_area",
+                "search_filters",
+                "search_strategy",
+                "source_queries",
+            },
+            "required_keys": {
+                "confidence",
+                "core_concepts",
+                "improved_query",
+                "intent",
+                "is_academic",
+                "keywords",
+                "original_query",
+                "research_area",
+                "search_filters",
+                "search_strategy",
+                "source_queries",
+            },
+            "source_query_allowed_keys": {
+                "arxiv",
+                "dblp",
+                "default",
+                "google_scholar",
+                "scholar_queries",
+            },
+            "source_query_required_keys": {
+                "arxiv",
+                "dblp",
+                "default",
+                "google_scholar",
+                "scholar_queries",
+            },
+        },
+    }
+    branch = branch_shapes[branch_name]
     result_keys = set(result)
     source_query_keys = set(result["source_queries"])
 
     assert expected_key_set in {"allowed_keys", "required_keys"}
-    assert result_keys == set(branch[expected_key_set])
-    assert set(branch["required_keys"]) <= result_keys
-    assert set(branch["absent_keys"]).isdisjoint(result_keys)
-    assert set(branch["allowed_keys"]) | set(branch["absent_keys"]) == set(
-        normalized["fields"]
-    )
-    assert source_query_keys == set(branch["source_query_allowed_keys"])
-    assert set(branch["source_query_required_keys"]) <= source_query_keys
-    assert set(branch["source_query_absent_keys"]).isdisjoint(source_query_keys)
-    assert set(branch["source_query_allowed_keys"]) | set(
-        branch["source_query_absent_keys"]
-    ) == set(normalized["fields"]["source_queries"]["fields"])
+    assert result_keys == branch[expected_key_set]
+    assert branch["required_keys"] <= result_keys
+    assert source_query_keys == branch["source_query_allowed_keys"]
+    assert branch["source_query_required_keys"] <= source_query_keys
 
     assert type(result["is_academic"]) is bool
     assert isinstance(result["intent"], str)
@@ -883,10 +1011,16 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
     tmp_path: Path,
 ) -> None:
     source = Path(__file__).resolve().parents[1] / QUERY_ANALYZER_SOURCE_PATH
+    contract_source = (
+        Path(__file__).resolve().parents[1] / compat.QUERY_ANALYSIS_CONTRACT_SOURCE_PATH
+    )
 
     contract = validate_query_analyzer_contract_bytes(
-        QUERY_ANALYZER_CONTRACT_BYTES, production_source=source
+        QUERY_ANALYZER_CONTRACT_BYTES,
+        production_source=source,
+        contract_source=contract_source,
     )
+    assert contract["contract_version"] == "query_analyzer_contract_v2"
     assert contract["raw_model_output_v1"]["fields"]["confidence"] == {
         "maximum": 1.0,
         "minimum": 0.0,
@@ -894,64 +1028,33 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
     }
     raw_fields = contract["raw_model_output_v1"]["fields"]
     normalized = contract["normalized_query_analysis_v1"]
-    normalized_fields = normalized["fields"]
-    assert raw_fields["is_academic"]["normalization"] == "bool"
-    assert raw_fields["source_queries"]["fields"]["scholar_queries"] == {
-        "alias_of": "google_scholar",
-        "optional": True,
-        "precedence": "when_present",
-        "type": "any_json",
-    }
-    assert normalized_fields["source_queries"]["fields"]["scholar_queries"] == {
-        "max_items": 3,
-        "optional": True,
-        "type": "array[string]",
-    }
-    assert set(normalized["common_required_fields"]) == {
-        "confidence",
-        "improved_query",
-        "intent",
-        "is_academic",
-        "keywords",
-        "original_query",
-        "search_filters",
-        "source_queries",
-    }
-    optional_fields = {
-        "analysis_details",
-        "core_concepts",
-        "error",
-        "research_area",
-        "search_strategy",
-    }
-    assert set(normalized["optional_fields"]) == optional_fields
-    assert all(
-        normalized_fields[field]["optional"] is True for field in optional_fields
+    assert raw_fields["is_academic"] == {"type": "boolean"}
+    assert (
+        raw_fields["source_queries"]["fields"]["scholar_queries"]["precedence"]
+        == "when_present_over_google_scholar"
     )
-    branches = contract["production_normalization_v1"]["branches"]
-    assert set(branches) == {
-        "empty_query",
-        "exception_fallback",
-        "no_client_fallback",
-        "unified_llm_success",
+    assert normalized["unknown_intent"] == "fallback_only"
+    assert normalized["defaults"] == {
+        "core_concepts": [],
+        "research_area": "",
+        "search_strategy": "",
+        "search_filters": {},
     }
-    for branch in branches.values():
-        assert set(branch["allowed_keys"]) | set(branch["absent_keys"]) == set(
-            normalized_fields
-        )
-        assert set(branch["required_keys"]) <= set(branch["allowed_keys"])
-        assert set(branch["source_query_allowed_keys"]) | set(
-            branch["source_query_absent_keys"]
-        ) == set(normalized_fields["source_queries"]["fields"])
-        assert set(branch["source_query_required_keys"]) <= set(
-            branch["source_query_allowed_keys"]
-        )
+    assert contract["strict_optimization_boundary"] == {
+        "activation": "validated_skillopt_policy_enabled",
+        "default_path": "existing_permissive_product_normalization",
+        "invalid_output": "existing_safe_fallback",
+        "partial_coercion": "forbidden",
+    }
     assert contract["scope"]["allowed"] == "query_analyzer_standard_search"
     assert "deep_review" in contract["scope"]["forbidden_production_expansion"]
     verify_query_analyzer_source(source)
+    compat.verify_query_analysis_contract_source(contract_source)
 
     drifted = json.loads(QUERY_ANALYZER_CONTRACT_BYTES)
-    drifted["normalized_query_analysis_v1"]["fields"]["confidence"]["maximum"] = 2.0
+    drifted["normalized_query_analysis_v1"]["unknown_intent"] = (
+        "allowed_for_model_output"
+    )
     with pytest.raises(ValidationError):
         validate_query_analyzer_contract_bytes(
             json.dumps(drifted, sort_keys=True, separators=(",", ":")).encode() + b"\n"
@@ -963,6 +1066,14 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
     with pytest.raises(ValidationError):
         validate_query_analyzer_contract_bytes(
             QUERY_ANALYZER_CONTRACT_BYTES, production_source=fake_source
+        )
+
+    fake_contract_source = tmp_path / compat.QUERY_ANALYSIS_CONTRACT_SOURCE_PATH
+    fake_contract_source.parent.mkdir(parents=True, exist_ok=True)
+    fake_contract_source.write_bytes(contract_source.read_bytes() + b"\n# drift\n")
+    with pytest.raises(ValidationError):
+        validate_query_analyzer_contract_bytes(
+            QUERY_ANALYZER_CONTRACT_BYTES, contract_source=fake_contract_source
         )
 
 

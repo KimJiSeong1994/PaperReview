@@ -1,0 +1,40 @@
+{
+  "version": "query_analysis_reward_evidence_v1",
+  "algorithm_version": "deterministic_retriever_v2",
+  "algorithm_identity": "sha256:690e24fdf487f221cac8e2ad0d6c757f5152b2ac8cdfd348488bbb3d83ea02c3",
+  "corpus_hash": "sha256:9800bc0cd3c729ee19097a5a3ebf115893f59003cfed42f0cfddfa40c3feff74",
+  "query_id": "synthetic-gnn-001",
+  "invalid_reason": null,
+  "ordered_variants": [
+    {"kind": "improved_query", "source": null, "tokens": ["graph", "neural", "networks", "molecular", "property", "prediction"], "text": "graph neural networks molecular property prediction"},
+    {"kind": "arxiv", "source": "arxiv", "tokens": ["graph", "neural", "molecular", "property"], "text": "graph neural molecular property"},
+    {"kind": "dblp", "source": "dblp", "tokens": ["graph", "neural", "networks", "survey"], "text": "graph neural networks survey"},
+    {"kind": "scholar_1", "source": "scholar", "tokens": ["message", "passing", "molecular", "graph"], "text": "message passing molecular graph"}
+  ],
+  "rankings": [
+    {"kind": "improved_query", "source": null, "variant": "graph neural networks molecular property prediction", "results": [{"doc_id": "arxiv:gnn-molecule", "score": 0.833333333333}, {"doc_id": "dblp:gnn-survey", "score": 0.388888888889}, {"doc_id": "scholar:mpnn", "score": 0.222222222222}]},
+    {"kind": "arxiv", "source": "arxiv", "variant": "graph neural molecular property", "results": [{"doc_id": "arxiv:gnn-molecule", "score": 0.833333333333}]},
+    {"kind": "dblp", "source": "dblp", "variant": "graph neural networks survey", "results": [{"doc_id": "dblp:gnn-survey", "score": 0.75}, {"doc_id": "dblp:attention-survey", "score": 0.25}]},
+    {"kind": "scholar_1", "source": "scholar", "variant": "message passing molecular graph", "results": [{"doc_id": "scholar:mpnn", "score": 0.583333333333}]}
+  ],
+  "merged_documents": [
+    {"doc_id": "arxiv:gnn-molecule", "rrf_score": 0.032786885246},
+    {"doc_id": "dblp:gnn-survey", "rrf_score": 0.032522474881},
+    {"doc_id": "scholar:mpnn", "rrf_score": 0.032266458496},
+    {"doc_id": "dblp:attention-survey", "rrf_score": 0.016129032258}
+  ],
+  "components": {
+    "ndcg_at_10": 0.972121219813,
+    "mrr_at_10": 1.0,
+    "recall_at_10": 1.0,
+    "intent_match": 1.0,
+    "required_term_coverage": 1.0,
+    "source_query_structure": 1.0,
+    "anchored_ratio": 1.0,
+    "unique_variant_ratio": 0.571428571429,
+    "schema_bound_field_ratio": 1.0,
+    "non_drift_compactness": 0.857142857143,
+    "query_constraint_score": 0.964285714286
+  },
+  "evidence_identity": "sha256:930f410f1a63712cf3a391a9cf8c9d8ae33d605ac7b81bd2418b707db8f61867"
+}
