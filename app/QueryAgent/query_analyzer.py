@@ -14,6 +14,7 @@ from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 from src.utils.model_defaults import DEFAULT_TOOL_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from app.QueryAgent.query_analysis_contract import parse_and_normalize_query_analysis
 from app.QueryAgent.skillopt_policy import (
     SkillOptPolicy,
     SkillOptPolicyError,
@@ -848,7 +849,23 @@ RULES:
                 response_format={"type": "json_object"},
             )
 
-            raw = json.loads(response.choices[0].message.content or "{}")
+            result_text = response.choices[0].message.content or "{}"
+            if skillopt_policy.enabled:
+                result = parse_and_normalize_query_analysis(
+                    result_text, original_query=query
+                )
+                _set_in_cache(key, result)
+                logger.info(
+                    "[QueryAnalyzer] analyze_and_prepare completed in %.2fs "
+                    "(academic=%s, intent=%s, confidence=%.2f)",
+                    _time.perf_counter() - started,
+                    result["is_academic"],
+                    result["intent"],
+                    result["confidence"],
+                )
+                return result
+
+            raw = json.loads(result_text)
 
             source_queries = raw.get("source_queries", {})
 
