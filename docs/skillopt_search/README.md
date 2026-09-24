@@ -1,5 +1,33 @@
 # SkillOpt Paper Search Scaffolding
 
+## Phase 6: default-off observability evidence
+
+Phase 6 adds a read-only evidence plane around sealed `skillopt-run-request-v2`
+and `skillopt-run-result-v2` capabilities and the exact active coordinator
+artifacts: `skillopt-orchestrator-status-v2`,
+`skillopt-orchestrator-journal-v2`, and
+`skillopt-orchestrator-heartbeat-v2`. Its canonical summary is
+`skillopt-attempt-observability-v1`. The separate
+`approved-skillopt-policy-v3` capability remains evaluation approval only and is
+not an observability input or deployment authorization. Summaries never carry raw
+prompts, policy content, queries, user/session data, credentials, URLs, or logs.
+
+The evidence ladder is strictly ordered:
+
+`fixture < compatibility < measured_research < shadow < production`
+
+A lower class cannot satisfy a higher gate. This phase constructs compatibility
+evidence only; caller labels cannot construct fixture, measured-research, shadow,
+or production evidence. In operational terms, production remains unsupported
+and activation is a no-go. Wave 3 cannot begin without explicit external authority.
+The observability module is not a promotion authority, never mutates runtime state,
+and always requires `authorization_status=not_authorized`, runtime default-off, and
+zero runtime traffic.
+
+```bash
+python -m pytest -q tests/test_skillopt_observability.py
+```
+
 ## Ranking sweep — the real ranker against the labelled benchmark
 
 `score_retrieval_results` had only ever been fed `build_fixture_retrieval_results`,
@@ -153,7 +181,7 @@ revalidates the sealed request/result, accepted snapshot, request/result IDs, an
 the dataset, execution-control, and baseline hashes used by the
 evaluation. There is no `best_skill_path` argument that can bypass this chain.
 
-The authoritative consumer schema is `approved-skillopt-policy-v2`. Operators
+The authoritative consumer schema is `approved-skillopt-policy-v3`. Operators
 must use its fully revalidating loader, which replays the canonical v2 acceptance
 manifest, sealed request/result, evidence and output snapshots,
 compatibility/custody identities, authority policy/store receipt, usage/privacy
@@ -174,7 +202,8 @@ RelevanceFilter, and `use_llm_search=true` paths do not receive the SkillOpt pol
 Production remains default-off. To apply an externally approved SkillOpt candidate policy, all of
 these environment gates must be present:
 
-G004 artifacts are not production authorization and require a separate external approval and deployment system.
+SkillOpt evaluation and approval artifacts are not production authorization and
+require a separate external approval and deployment system.
 
 - `SKILLOPT_SEARCH_POLICY_ENABLED=true`
 - `SKILLOPT_SEARCH_POLICY_PATH=/absolute/path/to/approved_skillopt_policy.md`
@@ -194,6 +223,12 @@ SkillOpt itself remains an optional external dependency; production does not imp
 The commands below are manual instructions for a separately controlled external
 environment. The PR0-PR2 repository coordinator treats rendered commands and
 generated modules as inert artifacts and never executes or imports them.
+
+For the v1 canonical-reward materializer, the generated directory is only a
+logical bundle. Never copy or symlink it into an upstream checkout. Create a new,
+hermetic executable tree exclusively through
+`stage_skillopt_search_benchmark_v1(...)`, then execute only the hash-bound
+`train_argv` and `eval_argv` returned by that staging API.
 
 1. Materialize the SkillOpt-compatible benchmark tree with
    `src.search_eval.skillopt_materializer.materialize_skillopt_search_benchmark(...)`.
@@ -224,7 +259,7 @@ generated modules as inert artifacts and never executes or imports them.
 PR2.5 verifies repository-local consistency, not external-runner authenticity.
 The attestation reference remains descriptive until PR3 verifies a signature or
 trusted statement against an approved runner identity. Do not treat
-v2 approval artifacts as deployment authorization; approver identity, expiry, shadow evidence,
+v3 approval artifacts as deployment authorization; approver identity, expiry, shadow evidence,
 canary routing, telemetry, and rollback automation remain later gates.
 
 ### Selection split coverage requirement
@@ -245,19 +280,30 @@ selection-critical canonical-title recall miss. Approved exports persist
 `selection_gate` evidence, including the required intent coverage and per-query
 `nDCG@10`/`Recall@10` pass status.
 
-Approved exports also persist nominal `holdout_gate` evidence for the `test` split.
-Selection and test-split evidence are separately hash-bound. The gate
-requires each public/synthetic test query to avoid baseline regressions in
-`nDCG@10` and `Recall@10`, so global improvements cannot mask a test-split
-collapse.
+The upstream-required physical `test/` directory is explicitly the logical
+`optimizer_test` split. It is visible to SkillOpt and can be used for optimizer
+diagnostics, so it must never be described as a release holdout or as production
+approval evidence. Generated item metadata and both materialization/staging
+manifests preserve the `optimizer_test -> test` mapping.
 
-This does not prove optimizer blindness to test data: the current materialized
-split tree is visible to the external runner. PR3 must validate an upstream
-invocation that cannot read the sealed test inputs, and PR4 must release and bind
-those inputs only after selection succeeds. Until then, `holdout_gate` is nominal
-test-split evidence, not an independent holdout or production approval claim.
+The independent release holdout belongs only to the post-optimization approval
+boundary. Its path, hash, generation, labels, manifest, and rows are not inputs to
+materialization or hermetic staging and must not appear in generated inventories,
+configuration, argv, mounts, reward evidence, reflection, or candidate output.
+Approval may bind and reveal that separate holdout only after optimizer selection
+has completed; optimizer-test results cannot substitute for that release gate.
+The release manifest is accepted only under the deployment-owned
+`SKILLOPT_RELEASE_HOLDOUT_AUTHORITY_CONTEXT_PATH`. That canonical context pins
+manifest issuer, evaluator and verifier allowlists; the immutable-store root,
+ID, namespace and object prefix; governance-compliance retention; receipt/ACL
+issuers and hashes; and a validity window. The manifest binds the context hash
+and the exact store receipt, while evaluation reopens the stored holdout bytes
+and rechecks the authority before and after terminal mutation. A v3 approval
+persists only a narrow capability reference and replays the complete release
+manifest/precommit/status/journal/evaluation/store chain on every load. This is
+same-domain Wave1-2 evidence and does not claim Wave3 cryptographic authenticity.
 
-Persisted v2 approval artifacts explicitly state `evaluation_status=qualified` and
+Persisted v3 approval artifacts explicitly state `evaluation_status=qualified` and
 `authorization_status=not_authorized`. Their `evaluation_evidence` marks CI/demo
 records as `fixture`; measured records require a capture ID/hash and positive
 latency measurement. Fixture evidence validates the pipeline only and cannot
@@ -275,7 +321,11 @@ requirements do not apply to credential-free PR0-PR2 dry runs or validation of
 synthetic imported fixtures. Production-like captures are a later privacy-reviewed
 evaluation input, not a coordinator precondition.
 
-## Canonical v2 post-approval bookkeeping loop
+Approval v2 files are audit-only historical evidence. They are not accepted by
+the v3 loader and must never be relabeled or upgraded in place; regenerate the
+acceptance and approval chain to obtain a canonical v3 artifact.
+
+## Canonical v3 post-approval bookkeeping loop
 
 After an approved `best_skill.md` has been exported, the continuous optimizer can
 record one safe post-approval iteration without changing production behavior:
@@ -349,9 +399,16 @@ and operator-friendly artifacts. In addition to the manifest, it emits
 - run id and reward delta;
 - candidate/baseline/approved artifact hashes;
 - reward-memory append status and entry hash;
-- next baseline hash and holdout generation rotation;
+- next baseline hash, without any release-holdout generation or feedback;
 - live canary state, approver, approval/expiry timestamps, rollback SLA, and
   `rollout_fraction=0.0` when a handoff is present.
 
 The summary remains hash-bound by the iteration manifest, so it is safe to use as
 an operator-facing packet without weakening the underlying JSON artifact checks.
+The optimizer retains only an opaque v3 approval receipt containing file/schema,
+skill, baseline, dataset, control, rollback, and default-off anchors. It does not
+retain or emit release-gate capability, holdout metrics, thresholds, evaluator
+identity, generation identity, labels, rankings, prompts, or per-query detail.
+Reward memory is committed atomically and idempotently before the terminal
+summary/manifest are atomically published; retry reconciles an identical prior
+commit instead of appending a second reward row.
