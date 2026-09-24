@@ -29,13 +29,19 @@ def isolate_mcp_analytics_storage(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def isolate_optional_model_warmup(monkeypatch):
+def isolate_optional_model_warmup(monkeypatch, request):
     """API test lifespans must not launch model loads across test boundaries.
 
     Return the real wrapper so startup tests can opt into its thread behavior
     with a controlled model loader. Direct model-loading tests remain real.
     """
-    import api_server
+    api_server = sys.modules.get("api_server")
+    if api_server is None:
+        # Standalone source-contract tests must keep their import boundary:
+        # only API fixtures may require the application to load here.
+        if not {"app", "client"}.intersection(request.fixturenames):
+            return None
+        import api_server
 
     background_warmup = api_server._warm_cross_encoder_background
     monkeypatch.setattr(api_server, "_warm_cross_encoder_background", lambda: None)
