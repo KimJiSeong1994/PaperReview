@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, Response
 from markdown_it import MarkdownIt
 
 from .blog import (
+    PostDetail,
     _estimate_reading_time,
     _load_deleted,
     _load_posts,
@@ -926,7 +927,7 @@ def _series_graph(series_id: str, title: str, description: str, posts: list[dict
 def _json_ld_script(obj: dict) -> str:
     """Serialize a JSON-LD object into a safe <script> tag."""
     payload = json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c")
-    return f'<script type="application/ld+json">{payload}</script>'
+    return f'<script type="application/ld+json" id="seo-json-ld">{payload}</script>'
 
 
 def _build_document(
@@ -943,6 +944,7 @@ def _build_document(
     locale: str = "en_US",
     published_time: str | None = None,
     modified_time: str | None = None,
+    blog_post: dict | None = None,
 ) -> str:
     """Assemble a full SSR HTML document with SEO head + SPA boot assets.
 
@@ -1021,6 +1023,22 @@ def _build_document(
         "document.documentElement.setAttribute('data-theme',t);})();</script>"
     )
 
+    bootstrap = ""
+    if blog_post is not None:
+        # Match the public API allowlist rather than serializing stored editor
+        # metadata. Both bodies let the reader switch views without another GET.
+        public_post = PostDetail(**blog_post).model_dump(mode="json")
+        payload = json.dumps(
+            {"version": 1, "route": {"slug": public_post["slug"]}, "post": public_post},
+            ensure_ascii=False,
+        )
+        for character in ("<", ">", "&", "\u2028", "\u2029"):
+            payload = payload.replace(character, f"\\u{ord(character):04x}")
+        bootstrap = (
+            '<script id="blog-bootstrap" type="application/json">'
+            f"{payload}</script>\n    "
+        )
+
     return (
         f'<!doctype html><html lang="{esc_lang}">\n  <head>\n    '
         '<meta charset="UTF-8">\n    '
@@ -1028,6 +1046,7 @@ def _build_document(
         f"{theme_script}\n    "
         f"{head}\n  </head>\n  <body>\n    "
         f'<div id="root">{article_html}{_SITE_FOOTER_HTML}</div>\n    '
+        f"{bootstrap}"
         f"{scripts}\n  </body>\n</html>"
     )
 
@@ -1269,7 +1288,7 @@ async def blog_post_ssr(
                 article_html=body,
                 noindex=True,
             )
-            return HTMLResponse(content=document, status_code=410)
+            return HTMLResponse(content=document, status_code=410, headers={"Cache-Control": "no-store"})
 
         body = '<div class="blog-container"><p>Post not found.</p></div>'
         document = _build_document(
@@ -1282,7 +1301,7 @@ async def blog_post_ssr(
             article_html=body,
             noindex=True,
         )
-        return HTMLResponse(content=document, status_code=404)
+        return HTMLResponse(content=document, status_code=404, headers={"Cache-Control": "no-store"})
 
     published = [p for p in posts if p.get("published")]
     published = _sort_posts_by_publication(published)
@@ -1329,8 +1348,9 @@ async def blog_post_ssr(
         locale=locale,
         published_time=post.get("created_at") or None,
         modified_time=post.get("updated_at") or post.get("created_at") or None,
+        blog_post=post,
     )
-    return HTMLResponse(content=document, status_code=200)
+    return HTMLResponse(content=document, status_code=200, headers={"Cache-Control": "no-store"})
 
 
 @router.api_route("/blog", methods=["GET", "HEAD"], response_class=HTMLResponse)

@@ -8,6 +8,9 @@ This file handles app creation, middleware, and router registration.
 
 import logging
 import os
+import re
+import subprocess
+import threading
 import traceback
 from pathlib import Path
 
@@ -71,6 +74,22 @@ from routers.search import (
 # ── App setup ──────────────────────────────────────────────────────────
 
 logger = logging.getLogger(__name__)
+
+
+def _deployment_revision() -> str:
+    """Capture code identity at import, not the mutable checkout on each probe."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True, timeout=2, check=True,
+        )
+        revision = result.stdout.strip()
+        return revision if re.fullmatch(r"[0-9a-f]{40}", revision) else "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+
+
+_DEPLOYMENT_REVISION = _deployment_revision()
 
 
 def _ensure_faiss_index():
@@ -148,6 +167,14 @@ from contextlib import asynccontextmanager
 import asyncio
 
 
+def _warm_cross_encoder_background() -> None:
+    """Warm optional search ranking without delaying public API readiness."""
+    try:
+        _warm_cross_encoder()
+    except Exception as exc:
+        logger.warning("Optional cross-encoder warmup failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle.
@@ -160,11 +187,6 @@ async def lifespan(app: FastAPI):
     from src.analytics.mcp_usage import initialize_mcp_usage
     await asyncio.to_thread(initialize_mcp_usage)
     _ensure_faiss_index()
-
-    # Pre-warm cross-encoder model to avoid HF download on first /api/search.
-    # Run in executor so a slow first-time download doesn't block the event loop.
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, _warm_cross_encoder)
 
     # Register the running event loop with the event bus so sync
     # endpoints running in the threadpool can emit events via
@@ -190,6 +212,16 @@ async def lifespan(app: FastAPI):
             indexnow_submit_async(indexnow_published_urls())
 
         start_search_background_workers()
+        # Public articles must not wait for optional model loading or a Hub
+        # download. get_model() already serializes concurrent lazy loads.
+        # A stuck optional model download must not hold executor shutdown open.
+        # This daemon owns no durable application state; required workers and
+        # analytics still drain below before the process may exit.
+        warmup_thread = threading.Thread(
+            target=_warm_cross_encoder_background, name="cross-encoder-warmup",
+            daemon=True,
+        )
+        warmup_thread.start()
         yield
     finally:
         await drain_measurements()
@@ -369,7 +401,10 @@ async def health_check():
     # "random-fallback" is acceptable in dev but should trigger warnings in prod monitoring
     _acceptable = ("ok", "configured", "random-fallback")
     status = "healthy" if all(v in _acceptable for v in checks.values()) else "degraded"
-    return {"status": status, "checks": checks}
+    return {
+        "status": status, "checks": checks,
+        "deployment_revision": _DEPLOYMENT_REVISION, "process_id": os.getpid(),
+    }
 
 
 # ── Register routers ──────────────────────────────────────────────────

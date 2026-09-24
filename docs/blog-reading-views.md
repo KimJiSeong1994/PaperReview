@@ -57,3 +57,11 @@ git diff --check
 - [Google 색인 요청 안내](https://support.google.com/webmasters/answer/12482179)
 - [Google Indexing API 적용 대상](https://developers.google.com/search/apis/indexing-api/v3/quickstart)
 - [IndexNow 요청과 응답](https://www.indexnow.org/documentation)
+
+## API 실패 시 본문 보존
+
+공개 글의 서버 HTML에는 두 본문을 담은 안전한 `blog-bootstrap` JSON이 포함된다.
+React는 이를 초기 상태로 사용하므로 글 조회가 지연되거나 일시적으로 실패해도
+현재 본문·그림·읽기 전환을 유지한다. 확정된 404/410은 본문과 초기 데이터,
+이전 글의 구조화 데이터를 제거한다. 자세한 검증 방법과 Google 실제 색인
+판정의 구분은 [Google 색인 운영 안내](google-blog-indexing.md)를 따른다.
