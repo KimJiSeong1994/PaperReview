@@ -1,0 +1,52 @@
+{
+  "corpus_hash": "sha256:9800bc0cd3c729ee19097a5a3ebf115893f59003cfed42f0cfddfa40c3feff74",
+  "algorithm_identity": "sha256:690e24fdf487f221cac8e2ad0d6c757f5152b2ac8cdfd348488bbb3d83ea02c3",
+  "cases": [
+    {
+      "name": "weighted_overlap_rrf_and_duplicate_variants",
+      "query_id": "synthetic-gnn-001",
+      "analysis": {
+        "is_academic": true, "intent": "paper_search", "keywords": ["graph neural", "molecular property"],
+        "core_concepts": ["graph learning"], "research_area": "machine learning",
+        "improved_query": "graph neural networks molecular property prediction", "search_strategy": "precise to broad",
+        "search_filters": {}, "confidence": 0.9, "original_query": "graph neural networks for molecular property prediction",
+        "source_queries": {"arxiv": "graph neural molecular property", "dblp": "graph neural networks survey", "google_scholar": "message passing molecular graph", "scholar_queries": ["message passing molecular graph", "graph neural networks molecular property prediction", "graph neural molecular property"], "default": "graph neural networks for molecular property prediction"}
+      },
+      "expected": {
+        "hard": 1.0, "soft": 0.982489181335,
+        "metrics": {"ndcg_at_10": 0.972121219813, "mrr_at_10": 1.0, "recall_at_10": 1.0, "intent_match": 1.0, "required_term_coverage": 1.0, "source_query_structure": 1.0, "anchored_ratio": 1.0, "unique_variant_ratio": 0.571428571429, "schema_bound_field_ratio": 1.0, "non_drift_compactness": 0.857142857143, "query_constraint_score": 0.964285714286},
+        "evidence": {"emitted_variant_count": 7, "unique_variant_count": 4, "ranking_count": 4, "merged_document_count_at_10": 4}
+      }
+    },
+    {
+      "name": "nfkc_cjk_punctuation_and_hyphens",
+      "query_id": "synthetic-unicode-003",
+      "analysis": {
+        "is_academic": true, "intent": "topic_exploration", "keywords": ["한국어 논문", "ＣＪＫ-token"],
+        "core_concepts": ["하이픈 기반"], "research_area": "", "improved_query": "한국어 논문 검색 CJK－token",
+        "search_strategy": "", "search_filters": {}, "confidence": 0.9, "original_query": "한국어 논문 검색 CJK-token",
+        "source_queries": {"arxiv": "한국어 논문 검색", "dblp": "cjk token 분석", "google_scholar": "한국어 논문 cjk token", "scholar_queries": ["한국어 논문 cjk token", "하이픈 기반 질의"], "default": "한국어 논문 검색 CJK-token"}
+      },
+      "expected": {
+        "hard": 1.0, "soft": 0.996944444444,
+        "metrics": {"ndcg_at_10": 1.0, "mrr_at_10": 1.0, "recall_at_10": 1.0, "intent_match": 1.0, "required_term_coverage": 1.0, "source_query_structure": 1.0, "anchored_ratio": 0.8, "unique_variant_ratio": 0.833333333333, "schema_bound_field_ratio": 1.0, "non_drift_compactness": 0.877777777778, "query_constraint_score": 0.969444444445},
+        "evidence": {"emitted_variant_count": 6, "unique_variant_count": 5, "ranking_count": 5, "merged_document_count_at_10": 1}
+      }
+    },
+    {
+      "name": "empty_no_relevant",
+      "query_id": "synthetic-empty-004",
+      "analysis": {
+        "is_academic": true, "intent": "paper_search", "keywords": [], "core_concepts": [], "research_area": "",
+        "improved_query": "nonexistent astrophysical pottery benchmark", "search_strategy": "", "search_filters": {}, "confidence": 0.9,
+        "original_query": "nonexistent astrophysical pottery benchmark",
+        "source_queries": {"arxiv": "nonexistent astrophysical", "dblp": "pottery benchmark", "google_scholar": "astrophysical pottery", "scholar_queries": ["astrophysical pottery"], "default": "nonexistent astrophysical pottery benchmark"}
+      },
+      "expected": {
+        "hard": 1.0, "soft": 0.1,
+        "metrics": {"ndcg_at_10": 0.0, "mrr_at_10": 0.0, "recall_at_10": 0.0, "intent_match": 1.0, "required_term_coverage": 1.0, "source_query_structure": 1.0, "anchored_ratio": 1.0, "unique_variant_ratio": 1.0, "schema_bound_field_ratio": 1.0, "non_drift_compactness": 1.0, "query_constraint_score": 1.0},
+        "evidence": {"emitted_variant_count": 4, "unique_variant_count": 4, "ranking_count": 4, "merged_document_count_at_10": 0}
+      }
+    }
+  ]
+}

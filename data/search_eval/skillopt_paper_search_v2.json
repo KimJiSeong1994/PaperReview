@@ -1,0 +1,1922 @@
+{
+  "version": "skillopt-paper-search-v2",
+  "dataset_hash": "sha256:18f6bfacd2d3e2382a55d62425e2fdbf1a02ad15c04f56e896e086f2ee5be17b",
+  "provenance": {
+    "type": "synthetic_and_public_seed",
+    "raw_user_logs_included": false,
+    "privacy_review": "synthetic public seeds only; sensitive source material excluded"
+  },
+  "splits": {
+    "train": 0.6,
+    "selection": 0.2,
+    "test": 0.2
+  },
+  "primary_metric": "nDCG@10",
+  "guardrail_metrics": [
+    "MRR@10",
+    "Recall@5",
+    "Recall@10",
+    "wrong_paper_handoff_rate",
+    "p95_latency_ms",
+    "token_estimate",
+    "cost_estimate"
+  ],
+  "queries": [
+    {
+      "query_id": "q-train-en-transformer-attention",
+      "query_text": "transformer attention mechanism",
+      "group_id": "transformer-attention",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Attention Is All You Need"
+        ],
+        "acceptable": [
+          "self-attention",
+          "multi-head attention"
+        ],
+        "must_exclude": [
+          "computer vision attention map only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-mixed-graph-rag",
+      "query_text": "GraphRAG 관련 논문 survey",
+      "group_id": "graphrag-survey",
+      "split": "train",
+      "locale": "mixed",
+      "intent": "survey",
+      "difficulty": "hard",
+      "downstream": "search_only",
+      "labels": {
+        "must_include": [
+          "From Local to Global: A Graph RAG Approach to Query-Focused Summarization"
+        ],
+        "acceptable": [
+          "graph retrieval augmented generation",
+          "knowledge graph RAG"
+        ],
+        "must_exclude": [
+          "graph neural network only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-author-hinton-capsules",
+      "query_text": "Geoffrey Hinton capsule networks papers",
+      "group_id": "author-hinton-capsules",
+      "split": "selection",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Dynamic Routing Between Capsules"
+        ],
+        "acceptable": [
+          "capsule networks",
+          "Geoffrey Hinton"
+        ],
+        "must_exclude": [
+          "pharmaceutical capsule"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-author-bengio",
+      "query_text": "Yoshua Bengio representation learning papers",
+      "group_id": "author-bengio-representation",
+      "split": "train",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Representation Learning: A Review and New Perspectives"
+        ],
+        "acceptable": [
+          "deep learning",
+          "Bengio representation learning"
+        ],
+        "must_exclude": [
+          "unrelated author with same surname"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-method-resnet",
+      "query_text": "residual networks skip connections paper",
+      "group_id": "method-resnet-skip-connections",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Deep Residual Learning for Image Recognition"
+        ],
+        "acceptable": [
+          "ResNet",
+          "skip connections"
+        ],
+        "must_exclude": [
+          "residual statistics only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-ambiguous-agent",
+      "query_text": "agent memory benchmark",
+      "group_id": "agent-memory-benchmark",
+      "split": "train",
+      "locale": "en",
+      "intent": "ambiguous",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "MemGPT: Towards LLMs as Operating Systems"
+        ],
+        "acceptable": [
+          "long-term memory for language agents",
+          "LLM agent benchmark"
+        ],
+        "must_exclude": [
+          "real estate agent memory",
+          "software agent unrelated to LLM"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-method-bert",
+      "query_text": "BERT contextual embeddings paper",
+      "group_id": "method-bert-contextual-embeddings",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+        ],
+        "acceptable": [
+          "contextual embeddings",
+          "bidirectional transformers"
+        ],
+        "must_exclude": [
+          "Sesame Street character"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-adam-optimizer",
+      "query_text": "adaptive per-parameter learning rate optimizer deep networks",
+      "group_id": "adam-optimizer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Adam: A Method for Stochastic Optimization"
+        ],
+        "acceptable": [
+          "adaptive learning rate",
+          "stochastic gradient descent"
+        ],
+        "must_exclude": [
+          "adam sandler filmography"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-gan-original",
+      "query_text": "generative adversarial networks original paper",
+      "group_id": "gan-original",
+      "split": "selection",
+      "locale": "en",
+      "intent": "paper_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Generative Adversarial Networks"
+        ],
+        "acceptable": [
+          "adversarial training",
+          "generator discriminator"
+        ],
+        "must_exclude": [
+          "adversarial attack robustness only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-ko-diffusion",
+      "query_text": "확산 모델 diffusion model 이미지 생성 연구",
+      "group_id": "diffusion-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "topic_exploration",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Denoising Diffusion Probabilistic Models"
+        ],
+        "acceptable": [
+          "score-based generative",
+          "latent diffusion"
+        ],
+        "must_exclude": [
+          "molecular diffusion in liquids"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-cot-prompting",
+      "query_text": "getting language models to reason step by step before answering",
+      "group_id": "cot-prompting",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"
+        ],
+        "acceptable": [
+          "step by step reasoning",
+          "prompting strategy"
+        ],
+        "must_exclude": [
+          "chain rule differentiation"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-vit",
+      "query_text": "vision transformer image classification patches",
+      "group_id": "vision-transformer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "An Image is Worth 16x16 Words"
+        ],
+        "acceptable": [
+          "vision transformer",
+          "image patches transformer"
+        ],
+        "must_exclude": [
+          "16x16 pixel art rendering"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-ko-rag",
+      "query_text": "검색 증강 생성 RAG retrieval augmented generation 논문",
+      "group_id": "rag-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "survey",
+      "difficulty": "easy",
+      "downstream": "search_only",
+      "labels": {
+        "must_include": [
+          "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"
+        ],
+        "acceptable": [
+          "retrieval augmented",
+          "knowledge intensive"
+        ],
+        "must_exclude": [
+          "rag rug textile manufacturing"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-ppo",
+      "query_text": "clipped surrogate objective stable policy gradient training",
+      "group_id": "ppo-rl",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Proximal Policy Optimization Algorithms"
+        ],
+        "acceptable": [
+          "policy gradient",
+          "trust region"
+        ],
+        "must_exclude": [
+          "proximal humeral fracture"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-unet-segmentation",
+      "query_text": "encoder decoder skip connections medical imaging cell boundaries",
+      "group_id": "unet-segmentation",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "U-Net: Convolutional Networks for Biomedical Image Segmentation"
+        ],
+        "acceptable": [
+          "encoder decoder segmentation",
+          "skip connections segmentation"
+        ],
+        "must_exclude": [
+          "road network segmentation only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-mixed-gnn",
+      "query_text": "graph neural network 그래프 신경망 node classification",
+      "group_id": "gnn-mixed",
+      "split": "train",
+      "locale": "mixed",
+      "intent": "topic_exploration",
+      "difficulty": "easy",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Semi-Supervised Classification with Graph Convolutional Networks"
+        ],
+        "acceptable": [
+          "graph attention network",
+          "message passing"
+        ],
+        "must_exclude": [
+          "social graph visualization tool"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-batchnorm",
+      "query_text": "batch normalization internal covariate shift training",
+      "group_id": "batch-normalization",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift"
+        ],
+        "acceptable": [
+          "layer normalization",
+          "training stabilization"
+        ],
+        "must_exclude": [
+          "batch processing job scheduler"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-author-he-ssl",
+      "query_text": "Kaiming He self-supervised vision pretraining papers",
+      "group_id": "he-self-supervised",
+      "split": "train",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Masked Autoencoders Are Scalable Vision Learners"
+        ],
+        "acceptable": [
+          "self-supervised",
+          "masked image modeling"
+        ],
+        "must_exclude": [
+          "supervised pretraining only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-method-lora",
+      "query_text": "low rank adaptation parameter efficient fine-tuning llm",
+      "group_id": "lora-peft",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "LoRA: Low-Rank Adaptation of Large Language Models"
+        ],
+        "acceptable": [
+          "parameter-efficient fine-tuning",
+          "adapter tuning"
+        ],
+        "must_exclude": [
+          "low rank matrix completion only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-ko-clip",
+      "query_text": "이미지 텍스트 대조 학습 contrastive language image pretraining",
+      "group_id": "clip-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Learning Transferable Visual Models From Natural Language Supervision"
+        ],
+        "acceptable": [
+          "contrastive language-image",
+          "zero-shot transfer"
+        ],
+        "must_exclude": [
+          "clip art library"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-dpo",
+      "query_text": "direct preference optimization language model alignment",
+      "group_id": "dpo-alignment",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Direct Preference Optimization"
+        ],
+        "acceptable": [
+          "preference learning",
+          "rlhf alternative"
+        ],
+        "must_exclude": [
+          "differential privacy optimization"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-ko-timeseries",
+      "query_text": "시계열 예측 transformer 장기 예측 모델",
+      "group_id": "timeseries-ko",
+      "split": "train",
+      "locale": "ko",
+      "intent": "latest_research",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting"
+        ],
+        "acceptable": [
+          "long sequence time-series forecasting",
+          "temporal fusion"
+        ],
+        "must_exclude": [
+          "time series database indexing"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-mamba-ssm",
+      "query_text": "state space model linear time sequence modeling",
+      "group_id": "mamba-ssm",
+      "split": "test",
+      "locale": "en",
+      "intent": "latest_research",
+      "difficulty": "easy",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Mamba: Linear-Time Sequence Modeling with Selective State Spaces"
+        ],
+        "acceptable": [
+          "structured state space",
+          "selective state space"
+        ],
+        "must_exclude": [
+          "mamba snake venom study"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-en-t5",
+      "query_text": "unified framework treating every nlp task as text to text",
+      "group_id": "t5-text-to-text",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer"
+        ],
+        "acceptable": [
+          "transfer learning",
+          "text-to-text"
+        ],
+        "must_exclude": [
+          "machine translation benchmark only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-author-goodfellow",
+      "query_text": "Ian Goodfellow adversarial examples papers",
+      "group_id": "goodfellow-adversarial",
+      "split": "train",
+      "locale": "en",
+      "intent": "author_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Explaining and Harnessing Adversarial Examples"
+        ],
+        "acceptable": [
+          "adversarial perturbation",
+          "fast gradient sign"
+        ],
+        "must_exclude": [
+          "adversarial training survey only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-selection-ko-ldm",
+      "query_text": "잠재 공간에서 동작하는 고해상도 이미지 생성 확산 모델",
+      "group_id": "latent-diffusion",
+      "split": "train",
+      "locale": "ko",
+      "intent": "topic_exploration",
+      "difficulty": "hard",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "High-Resolution Image Synthesis with Latent Diffusion Models"
+        ],
+        "acceptable": [
+          "latent diffusion",
+          "text-to-image"
+        ],
+        "must_exclude": [
+          "gan-based image synthesis only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-flashattention",
+      "query_text": "making attention computation memory efficient on gpus",
+      "group_id": "flashattention",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
+        ],
+        "acceptable": [
+          "io-aware",
+          "memory efficient attention"
+        ],
+        "must_exclude": [
+          "approximate attention only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-en-toolformer",
+      "query_text": "letting a language model call external tools by itself",
+      "group_id": "toolformer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Toolformer: Language Models Can Teach Themselves to Use Tools"
+        ],
+        "acceptable": [
+          "tool use",
+          "api calls"
+        ],
+        "must_exclude": [
+          "agent framework engineering only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-test-ko-whisper",
+      "query_text": "대규모 약한 지도학습으로 학습한 음성 인식 모델",
+      "group_id": "whisper-asr",
+      "split": "train",
+      "locale": "ko",
+      "intent": "latest_research",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Robust Speech Recognition via Large-Scale Weak Supervision"
+        ],
+        "acceptable": [
+          "speech recognition",
+          "weak supervision"
+        ],
+        "must_exclude": [
+          "speaker diarization only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-word2vec",
+      "query_text": "learning word vectors from surrounding context efficiently",
+      "group_id": "word2vec",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Efficient Estimation of Word Representations in Vector Space"
+        ],
+        "acceptable": [
+          "word embeddings",
+          "skip-gram"
+        ],
+        "must_exclude": [
+          "contextual embeddings only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-seq2seq",
+      "query_text": "mapping one sequence to another with recurrent networks",
+      "group_id": "seq2seq",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Sequence to Sequence Learning with Neural Networks"
+        ],
+        "acceptable": [
+          "encoder decoder",
+          "lstm"
+        ],
+        "must_exclude": [
+          "transformer architecture only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-bahdanau",
+      "query_text": "letting the decoder look back at source words while translating",
+      "group_id": "nmt-alignment",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Neural Machine Translation by Jointly Learning to Align and Translate"
+        ],
+        "acceptable": [
+          "soft alignment",
+          "attention mechanism"
+        ],
+        "must_exclude": [
+          "statistical machine translation only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-gpt3",
+      "query_text": "very large model that learns new tasks from a few prompt examples",
+      "group_id": "gpt3-fewshot",
+      "split": "train",
+      "locale": "en",
+      "intent": "latest_research",
+      "difficulty": "medium",
+      "downstream": "search_to_explore",
+      "labels": {
+        "must_include": [
+          "Language Models are Few-Shot Learners"
+        ],
+        "acceptable": [
+          "in-context learning",
+          "few-shot"
+        ],
+        "must_exclude": [
+          "fine-tuning based adaptation only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-instructgpt",
+      "query_text": "aligning model outputs with human preferences using feedback",
+      "group_id": "instructgpt-rlhf",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Training language models to follow instructions with human feedback"
+        ],
+        "acceptable": [
+          "rlhf",
+          "instruction following"
+        ],
+        "must_exclude": [
+          "supervised fine-tuning only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-yolo",
+      "query_text": "single pass real time object detection",
+      "group_id": "yolo-detection",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "easy",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "You Only Look Once: Unified, Real-Time Object Detection"
+        ],
+        "acceptable": [
+          "single stage detector",
+          "real-time detection"
+        ],
+        "must_exclude": [
+          "two-stage detector only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-distillation",
+      "query_text": "transferring what a large model knows into a smaller one",
+      "group_id": "knowledge-distillation",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Distilling the Knowledge in a Neural Network"
+        ],
+        "acceptable": [
+          "teacher student",
+          "model compression"
+        ],
+        "must_exclude": [
+          "pruning quantization only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-graphsage",
+      "query_text": "learning node embeddings that generalize to unseen nodes",
+      "group_id": "graphsage",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Inductive Representation Learning on Large Graphs"
+        ],
+        "acceptable": [
+          "inductive",
+          "node embeddings"
+        ],
+        "must_exclude": [
+          "transductive graph embedding only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-switch",
+      "query_text": "sparsely activating only some experts per token",
+      "group_id": "moe-switch",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity"
+        ],
+        "acceptable": [
+          "mixture of experts",
+          "sparse routing"
+        ],
+        "must_exclude": [
+          "dense scaling only"
+        ]
+      }
+    },
+    {
+      "query_id": "q-train-en-react",
+      "query_text": "interleaving reasoning traces with tool actions in an agent",
+      "group_id": "react-agent",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "ReAct: Synergizing Reasoning and Acting in Language Models"
+        ],
+        "acceptable": [
+          "reasoning and acting",
+          "agent"
+        ],
+        "must_exclude": [
+          "chain-of-thought without actions"
+        ]
+      }
+    },
+    {
+      "query_id": "q-gen-very-deep-convolutional-networks-for-large-scale",
+      "query_text": "deep learning architecture for improving image classification accuracy",
+      "group_id": "very-deep-convolutional-networks-for-large-scale",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Very Deep Convolutional Networks for Large-Scale Image Recognition"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-going-deeper-with-convolutions",
+      "query_text": "deep learning architecture for improving image classification",
+      "group_id": "going-deeper-with-convolutions",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Going Deeper with Convolutions"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-densely-connected-convolutional-networks",
+      "query_text": "deep learning architecture with improved feature propagation efficiency",
+      "group_id": "densely-connected-convolutional-networks",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Densely Connected Convolutional Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-focal-loss-for-dense-object-detection",
+      "query_text": "밀집한 객체 탐지를 위한 손실 함수 개선 방법",
+      "group_id": "focal-loss-for-dense-object-detection",
+      "split": "test",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Focal Loss for Dense Object Detection"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-fully-convolutional-networks-for-semantic-segmen",
+      "query_text": "deep learning architecture for pixel-wise image classification",
+      "group_id": "fully-convolutional-networks-for-semantic-segmen",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Fully Convolutional Networks for Semantic Segmentation"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-mobilenets-efficient-convolutional-neural-networ",
+      "query_text": "lightweight cnn architecture for resource-constrained devices vision tasks",
+      "group_id": "mobilenets-efficient-convolutional-neural-networ",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-efficientnet-rethinking-model-scaling-for-convol",
+      "query_text": "improving neural network performance with efficient scaling methods",
+      "group_id": "efficientnet-rethinking-model-scaling-for-convol",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-playing-atari-with-deep-reinforcement-learning",
+      "query_text": "딥러닝으로 아타리 게임 학습하는 강화학습 방법",
+      "group_id": "playing-atari-with-deep-reinforcement-learning",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Playing Atari with Deep Reinforcement Learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-continuous-control-with-deep-reinforcement-learn",
+      "query_text": "deep learning for robot motion and decision making",
+      "group_id": "continuous-control-with-deep-reinforcement-learn",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Continuous control with deep reinforcement learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-asynchronous-methods-for-deep-reinforcement-lear",
+      "query_text": "parallel learning techniques for improving reinforcement learning efficiency",
+      "group_id": "asynchronous-methods-for-deep-reinforcement-lear",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Asynchronous Methods for Deep Reinforcement Learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-trust-region-policy-optimization",
+      "query_text": "algorithm for improving stability in policy gradient methods",
+      "group_id": "trust-region-policy-optimization",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Trust Region Policy Optimization"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-auto-encoding-variational-bayes",
+      "query_text": "확률 모델을 위한 비지도 학습 방법론 연구",
+      "group_id": "auto-encoding-variational-bayes",
+      "split": "selection",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Auto-Encoding Variational Bayes"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-neural-discrete-representation-learning",
+      "query_text": "learning representations with discrete latent variables neural networks",
+      "group_id": "neural-discrete-representation-learning",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Neural Discrete Representation Learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-a-style-based-generator-architecture-for-generat",
+      "query_text": "generating images with adjustable and controllable visual styles",
+      "group_id": "a-style-based-generator-architecture-for-generat",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "A Style-Based Generator Architecture for Generative Adversarial Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-image-to-image-translation-with-conditional-adve",
+      "query_text": "transforming images with neural networks and adversarial training",
+      "group_id": "image-to-image-translation-with-conditional-adve",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Image-to-Image Translation with Conditional Adversarial Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-unpaired-image-to-image-translation-using-cycle-",
+      "query_text": "이미지 간 변환을 위한 적대적 신경망 사용 방법",
+      "group_id": "unpaired-image-to-image-translation-using-cycle-",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-neural-ordinary-differential-equations",
+      "query_text": "deep learning models with continuous transformation functions",
+      "group_id": "neural-ordinary-differential-equations",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Neural Ordinary Differential Equations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-the-lottery-ticket-hypothesis-finding-sparse-tra",
+      "query_text": "efficient training with reduced neural network parameters",
+      "group_id": "the-lottery-ticket-hypothesis-finding-sparse-tra",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-graph-attention-networks",
+      "query_text": "neural networks for learning on graph structured data",
+      "group_id": "graph-attention-networks",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Graph Attention Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-node2vec-scalable-feature-learning-for-networks",
+      "query_text": "네트워크에서 특성 학습을 위한 확장 가능한 방법",
+      "group_id": "node2vec-scalable-feature-learning-for-networks",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "node2vec: Scalable Feature Learning for Networks"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-deepwalk-online-learning-of-social-representatio",
+      "query_text": "unsupervised learning for network node representation using random walks",
+      "group_id": "deepwalk-online-learning-of-social-representatio",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "DeepWalk: Online Learning of Social Representations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-wav2vec-2-0-a-framework-for-self-supervised-lear",
+      "query_text": "transformer-based model for learning speech features without labels",
+      "group_id": "wav2vec-2-0-a-framework-for-self-supervised-lear",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-wavenet-a-generative-model-for-raw-audio",
+      "query_text": "deep learning model for generating realistic audio waveforms",
+      "group_id": "wavenet-a-generative-model-for-raw-audio",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "WaveNet: A Generative Model for Raw Audio"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-qlora-efficient-finetuning-of-quantized-llms",
+      "query_text": "양자화된 대형 언어 모델의 효율적인 미세 조정 방법",
+      "group_id": "qlora-efficient-finetuning-of-quantized-llms",
+      "split": "train",
+      "locale": "ko",
+      "intent": "latest_research",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "QLoRA: Efficient Finetuning of Quantized LLMs"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-the-power-of-scale-for-parameter-efficient-promp",
+      "query_text": "efficient methods for optimizing prompts in large models",
+      "group_id": "the-power-of-scale-for-parameter-efficient-promp",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "The Power of Scale for Parameter-Efficient Prompt Tuning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-self-instruct-aligning-language-models-with-self",
+      "query_text": "language models learning from their own created guidelines",
+      "group_id": "self-instruct-aligning-language-models-with-self",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Self-Instruct: Aligning Language Models with Self-Generated Instructions"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-megatron-lm-training-multi-billion-parameter-lan",
+      "query_text": "scaling large language models with efficient parallelization techniques",
+      "group_id": "megatron-lm-training-multi-billion-parameter-lan",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-zero-memory-optimizations-toward-training-trilli",
+      "query_text": "대규모 매개변수 모델을 위한 메모리 최적화 기법",
+      "group_id": "zero-memory-optimizations-toward-training-trilli",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-grad-cam-visual-explanations-from-deep-networks-",
+      "query_text": "interpretability tool for visualizing convolutional neural network decisions",
+      "group_id": "grad-cam-visual-explanations-from-deep-networks-",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-a-unified-approach-to-interpreting-model-predict",
+      "query_text": "explaining how models make decisions with a single framework",
+      "group_id": "a-unified-approach-to-interpreting-model-predict",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "A Unified Approach to Interpreting Model Predictions"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-darts-differentiable-architecture-search",
+      "query_text": "optimizing neural network design through continuous search methods",
+      "group_id": "darts-differentiable-architecture-search",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "DARTS: Differentiable Architecture Search"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-denoising-diffusion-implicit-models",
+      "query_text": "novel approach for image generation with reduced noise",
+      "group_id": "denoising-diffusion-implicit-models",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Denoising Diffusion Implicit Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-score-based-generative-modeling-through-stochast",
+      "query_text": "generating data using continuous-time probabilistic processes",
+      "group_id": "score-based-generative-modeling-through-stochast",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Score-Based Generative Modeling through Stochastic Differential Equations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-hierarchical-text-conditional-image-generation-w",
+      "query_text": "using language models for generating images from descriptions",
+      "group_id": "hierarchical-text-conditional-image-generation-w",
+      "split": "test",
+      "locale": "en",
+      "intent": "topic_exploration",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Hierarchical Text-Conditional Image Generation with CLIP Latents"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-zero-shot-text-to-image-generation",
+      "query_text": "generating images from descriptions without training samples",
+      "group_id": "zero-shot-text-to-image-generation",
+      "split": "train",
+      "locale": "en",
+      "intent": "topic_exploration",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Zero-Shot Text-to-Image Generation"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-end-to-end-object-detection-with-transformers",
+      "query_text": "object recognition using attention mechanisms in neural networks",
+      "group_id": "end-to-end-object-detection-with-transformers",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "End-to-End Object Detection with Transformers"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-swin-transformer-hierarchical-vision-transformer",
+      "query_text": "hierarchical transform attention model with sliding window approach",
+      "group_id": "swin-transformer-hierarchical-vision-transformer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-emerging-properties-in-self-supervised-vision-tr",
+      "query_text": "self-training mechanisms in visual transformer models",
+      "group_id": "emerging-properties-in-self-supervised-vision-tr",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Emerging Properties in Self-Supervised Vision Transformers"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-a-simple-framework-for-contrastive-learning-of-v",
+      "query_text": "unsupervised learning technique for improving image representations",
+      "group_id": "a-simple-framework-for-contrastive-learning-of-v",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "A Simple Framework for Contrastive Learning of Visual Representations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-momentum-contrast-for-unsupervised-visual-repres",
+      "query_text": "자기 지도 학습을 위한 시각 표현 학습 방법",
+      "group_id": "momentum-contrast-for-unsupervised-visual-repres",
+      "split": "test",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Momentum Contrast for Unsupervised Visual Representation Learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-roberta-a-robustly-optimized-bert-pretraining-ap",
+      "query_text": "improved language model training for better natural language understanding",
+      "group_id": "roberta-a-robustly-optimized-bert-pretraining-ap",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-albert-a-lite-bert-for-self-supervised-learning-",
+      "query_text": "lightweight transformer model for efficient language understanding",
+      "group_id": "albert-a-lite-bert-for-self-supervised-learning-",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "ALBERT: A Lite BERT for Self-supervised Learning of Language Representations"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-xlnet-generalized-autoregressive-pretraining-for",
+      "query_text": "deep learning model for improved language representation tasks",
+      "group_id": "xlnet-generalized-autoregressive-pretraining-for",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "XLNet: Generalized Autoregressive Pretraining for Language Understanding"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-transformer-xl-attentive-language-models-beyond-",
+      "query_text": "고정 길이 제한을 넘는 언어 모델 연구",
+      "group_id": "transformer-xl-attentive-language-models-beyond-",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-longformer-the-long-document-transformer",
+      "query_text": "efficient transformer model for processing lengthy text sequences",
+      "group_id": "longformer-the-long-document-transformer",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Longformer: The Long-Document Transformer"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-big-bird-transformers-for-longer-sequences",
+      "query_text": "efficient transformer model for processing long sequences",
+      "group_id": "big-bird-transformers-for-longer-sequences",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Big Bird: Transformers for Longer Sequences"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-reformer-the-efficient-transformer",
+      "query_text": "efficient attention mechanism for large sequence processing",
+      "group_id": "reformer-the-efficient-transformer",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Reformer: The Efficient Transformer"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-scaling-laws-for-neural-language-models",
+      "query_text": "understanding parameter growth impact on language model performance",
+      "group_id": "scaling-laws-for-neural-language-models",
+      "split": "train",
+      "locale": "en",
+      "intent": "survey",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Scaling Laws for Neural Language Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-training-compute-optimal-large-language-models",
+      "query_text": "efficient scaling laws for neural network training resources",
+      "group_id": "training-compute-optimal-large-language-models",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Training Compute-Optimal Large Language Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-emergent-abilities-of-large-language-models",
+      "query_text": "unforeseen capabilities in advanced neural language systems",
+      "group_id": "emergent-abilities-of-large-language-models",
+      "split": "test",
+      "locale": "en",
+      "intent": "survey",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Emergent Abilities of Large Language Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-self-consistency-improves-chain-of-thought-reaso",
+      "query_text": "improving logical reasoning in ai through iterative validation",
+      "group_id": "self-consistency-improves-chain-of-thought-reaso",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Self-Consistency Improves Chain of Thought Reasoning in Language Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-tree-of-thoughts-deliberate-problem-solving-with",
+      "query_text": "큰 언어 모델의 문제 해결 능력 강화 방법",
+      "group_id": "tree-of-thoughts-deliberate-problem-solving-with",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-constitutional-ai-harmlessness-from-ai-feedback",
+      "query_text": "machine learning safety through iterative human feedback",
+      "group_id": "constitutional-ai-harmlessness-from-ai-feedback",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Constitutional AI: Harmlessness from AI Feedback"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-deep-reinforcement-learning-from-human-preferenc",
+      "query_text": "leveraging human feedback to enhance machine learning models",
+      "group_id": "deep-reinforcement-learning-from-human-preferenc",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Deep reinforcement learning from human preferences"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-learning-to-summarize-from-human-feedback",
+      "query_text": "improving text summarization using feedback from people",
+      "group_id": "learning-to-summarize-from-human-feedback",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Learning to summarize from human feedback"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-realm-retrieval-augmented-language-model-pre-tra",
+      "query_text": "검색 증강을 통한 언어 모델 사전 학습 방법",
+      "group_id": "realm-retrieval-augmented-language-model-pre-tra",
+      "split": "train",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "REALM: Retrieval-Augmented Language Model Pre-Training"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-decision-transformer-reinforcement-learning-via-",
+      "query_text": "using language models for reinforcement learning tasks",
+      "group_id": "decision-transformer-reinforcement-learning-via-",
+      "split": "selection",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "medium",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Decision Transformer: Reinforcement Learning via Sequence Modeling"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-mixup-beyond-empirical-risk-minimization",
+      "query_text": "data augmentation technique for improved neural network generalization",
+      "group_id": "mixup-beyond-empirical-risk-minimization",
+      "split": "test",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "mixup: Beyond Empirical Risk Minimization"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-decoupled-weight-decay-regularization",
+      "query_text": "가중치 감소와 최적화 분리하는 정규화 방법",
+      "group_id": "decoupled-weight-decay-regularization",
+      "split": "selection",
+      "locale": "ko",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Decoupled Weight Decay Regularization"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-sgdr-stochastic-gradient-descent-with-warm-resta",
+      "query_text": "cyclical learning rate for improved neural network training",
+      "group_id": "sgdr-stochastic-gradient-descent-with-warm-resta",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "SGDR: Stochastic Gradient Descent with Warm Restarts"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    },
+    {
+      "query_id": "q-gen-neural-architecture-search-with-reinforcement-le",
+      "query_text": "using machine learning to design optimal neural networks",
+      "group_id": "neural-architecture-search-with-reinforcement-le",
+      "split": "train",
+      "locale": "en",
+      "intent": "method_search",
+      "difficulty": "hard",
+      "downstream": "search_to_review",
+      "labels": {
+        "must_include": [
+          "Neural Architecture Search with Reinforcement Learning"
+        ],
+        "acceptable": [],
+        "must_exclude": []
+      }
+    }
+  ]
+}
