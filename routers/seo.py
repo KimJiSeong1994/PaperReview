@@ -36,6 +36,7 @@ from .blog import (
     _posts_lock,
     _sort_posts_by_publication,
 )
+from .geo_comparisons import load_geo_comparisons
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,15 @@ LLMS_DESCRIPTION = (
 DIST_INDEX = Path("web-ui/dist/index.html")
 
 ORG_ID = "https://jiphyeonjeon.kr/#organization"
+
+_GEO_AXIS_LABELS = {
+    "retrieval_or_representation_unit": "검색·표현 단위",
+    "graph_construction": "그래프 구성",
+    "evaluation_context": "평가 조건",
+    "traceability": "근거 추적",
+    "cost": "비용",
+    "failure_conditions": "실패 조건",
+}
 
 # Maintainer profile links shown site-wide for service credibility. Keep in
 # sync with web-ui/src/components/SiteFooter.tsx and structuredData.ts.
@@ -619,7 +629,7 @@ def _organization_node() -> dict:
         "@type": "Organization",
         "@id": ORG_ID,
         "name": "Jiphyeonjeon",
-        "alternateName": "집현전",
+        "alternateName": ["집현전", "Jiphyeonjeon Team", "집현전 팀"],
         "url": "https://jiphyeonjeon.kr",
         "description": (
             "AI-powered academic paper search and multi-agent deep-review web app "
@@ -631,8 +641,6 @@ def _organization_node() -> dict:
         ),
         "sameAs": [
             "https://github.com/KimJiSeong1994/PaperReview",
-            GITHUB_PROFILE_URL,
-            LINKEDIN_PROFILE_URL,
         ],
         "logo": {
             "@type": "ImageObject",
@@ -690,6 +698,20 @@ def _scholarly_article_node(ref: dict) -> dict:
     if identifiers:
         node["identifier"] = identifiers
     return node
+
+
+def _blog_author_node(byline: str | None) -> dict | None:
+    """Map the displayed review byline without inventing an identity."""
+    name = (byline or "").strip()
+    if not name:
+        return None
+    if name.casefold() == "jiphyeonjeon team":
+        organization = _organization_node()
+        return {
+            key: organization[key]
+            for key in ("@type", "@id", "name", "alternateName", "url")
+        }
+    return {"@type": "Person", "name": name}
 
 
 _FAQ_SECTION_RE = re.compile(
@@ -763,12 +785,6 @@ def _blog_posting_graph(
         "@type": "BlogPosting",
         "headline": title,
         "description": excerpt,
-        "author": {
-            "@type": "Person",
-            "name": author,
-            "url": GITHUB_PROFILE_URL,
-            "sameAs": [GITHUB_PROFILE_URL, LINKEDIN_PROFILE_URL],
-        },
         "datePublished": created_at,
         "dateModified": updated_at,
         "keywords": tags,
@@ -780,6 +796,9 @@ def _blog_posting_graph(
         "wordCount": len(content.split()),
         "image": image,
     }
+    author_node = _blog_author_node(author)
+    if author_node:
+        posting["author"] = author_node
     if (post.get("deep_content") or "").strip():
         posting["articleBody"] = content
 
@@ -921,6 +940,55 @@ def _series_graph(series_id: str, title: str, description: str, posts: list[dict
     }
 
 
+def _series_comparison_html(comparison: dict, posts_by_slug: dict[str, dict]) -> str:
+    """Render a validated comparison as readable, escaped HTML."""
+    if not comparison:
+        return ""
+
+    entries = comparison["entries"]
+    column_headers = "".join(
+        '<th scope="col"><a href="/blog/'
+        f'{html.escape(entry["slug"], quote=True)}">'
+        f'{html.escape(posts_by_slug.get(entry["slug"], {}).get("title") or entry["slug"])}</a></th>'
+        for entry in entries
+    )
+    rows: list[str] = []
+    for axis in comparison["axes"]:
+        cells = []
+        for entry in entries:
+            cell = entry["values"][axis]
+            content = cell["value"] if cell["state"] == "known" else cell["reason"]
+            state_label = {
+                "known": "",
+                "unknown": "미확인: ",
+                "not_applicable": "해당 없음: ",
+            }[cell["state"]]
+            sources = "".join(
+                f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
+                f"출처 {index}</a>"
+                for index, source in enumerate(cell["sources"], start=1)
+            )
+            provenance = f'<span class="geo-comparison-sources">{sources}</span>' if sources else ""
+            cells.append(
+                f'<td data-state="{html.escape(cell["state"], quote=True)}">'
+                f"{html.escape(state_label + (content or ''))}{provenance}</td>"
+            )
+        rows.append(
+            f'<tr><th scope="row">{html.escape(_GEO_AXIS_LABELS[axis])}</th>{"".join(cells)}</tr>'
+        )
+
+    return (
+        '<section class="geo-comparison" aria-labelledby="geo-comparison-title">'
+        '<h2 id="geo-comparison-title">논문 선택 비교</h2>'
+        f'<p class="geo-comparison-question">{html.escape(comparison["question"])}</p>'
+        '<div class="geo-comparison-scroll" tabindex="0">'
+        '<table><caption>여섯 기준으로 비교한 논문 선택표</caption><thead><tr>'
+        f'<th scope="col">비교 기준</th>{column_headers}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table></div>'
+        f'<p class="geo-comparison-limits"><strong>해석 한계:</strong> {html.escape(comparison["limits"])}</p>'
+        f'<p class="geo-comparison-source-note">{html.escape(comparison["source_note"])}</p>'
+        "</section>"
+    )
 # ── HTML document builder ─────────────────────────────────────────────
 
 
@@ -1441,6 +1509,7 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
 
     by_slug = {p.get("slug"): p for p in posts if p.get("published")}
     ordered = [by_slug[s] for s in series["slugs"] if s in by_slug]
+    comparison = load_geo_comparisons().get(series_id, {})
 
     items = "".join(
         f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
@@ -1453,6 +1522,7 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
         '<nav aria-label="breadcrumb"><a href="/blog">Blog</a></nav>'
         f'<h1>{html.escape(series["title"], quote=True)}</h1>'
         f'<p>{html.escape(series["description"], quote=True)}</p>'
+        f"{_series_comparison_html(comparison, by_slug)}"
         f"<ol>{items}</ol>"
         "</div></div>"
     )

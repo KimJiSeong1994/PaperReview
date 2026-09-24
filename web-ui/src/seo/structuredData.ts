@@ -56,7 +56,7 @@ export function organizationNode(): Record<string, unknown> {
     '@type': 'Organization',
     '@id': ORG_ID,
     name: 'Jiphyeonjeon',
-    alternateName: '집현전',
+    alternateName: ['집현전', 'Jiphyeonjeon Team', '집현전 팀'],
     url: SITE_URL,
     description:
       'AI-powered academic paper search and multi-agent deep-review web app for '
@@ -67,8 +67,6 @@ export function organizationNode(): Record<string, unknown> {
       + 'research institute of the same name (the Hall of Worthies).',
     sameAs: [
       'https://github.com/KimJiSeong1994/PaperReview',
-      'https://github.com/KimJiSeong1994',
-      'https://www.linkedin.com/in/jiseong-kim-868218193/',
     ],
     logo: {
       '@type': 'ImageObject',
@@ -253,6 +251,22 @@ function scholarlyArticleNode(ref: BlogPaperReference & { url: string }): Record
   return node;
 }
 
+export function blogAuthorNode(byline?: string | null): Record<string, unknown> | null {
+  const name = byline?.trim() ?? '';
+  if (!name) return null;
+  if (name.toLocaleLowerCase('en-US') === 'jiphyeonjeon team') {
+    const organization = organizationNode();
+    return {
+      '@type': organization['@type'],
+      '@id': organization['@id'],
+      name: organization.name,
+      alternateName: organization.alternateName,
+      url: organization.url,
+    };
+  }
+  return { '@type': 'Person', name };
+}
+
 // Parse a '## 자주 묻는 질문' section into Q/A pairs -> FAQPage. Empty until a
 // post adds an FAQ section; mirrors routers/seo.py::_extract_faq.
 // No /m flag: $ must mean end-of-string (mirrors Python's \Z). Line starts are
@@ -285,15 +299,6 @@ export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike 
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
-    author: {
-      '@type': 'Person',
-      name: post.author,
-      url: 'https://github.com/KimJiSeong1994',
-      sameAs: [
-        'https://github.com/KimJiSeong1994',
-        'https://www.linkedin.com/in/jiseong-kim-868218193/',
-      ],
-    },
     datePublished: post.created_at,
     dateModified: post.updated_at || post.created_at,
     keywords: post.tags,
@@ -308,6 +313,8 @@ export function blogPostingGraph(post: BlogPostLike, identityPost: BlogPostLike 
     wordCount,
     image: post.thumbnail_url || OG_DEFAULT_IMAGE,
   };
+  const author = blogAuthorNode(post.author);
+  if (author) posting.author = author;
 
   if (post.deep_content?.trim()) {
     posting.articleBody = post.content;
