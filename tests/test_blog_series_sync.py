@@ -85,3 +85,8 @@ def test_parser_reads_the_real_file() -> None:
     assert len(parsed) == len(BLOG_SERIES) >= 5
     assert all(entry["slugs"] for entry in parsed.values())
     assert ast.literal_eval(repr(parsed)) == parsed
+
+
+def test_geo_comparison_generation_does_not_replace_legacy_series_contract() -> None:
+    """Comparison data is additive; the existing hand-maintained parity remains authoritative."""
+    assert _parse_ts_series() == BLOG_SERIES

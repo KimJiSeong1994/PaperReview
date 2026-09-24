@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "deployment_at": null,
+  "ceiling_at": null,
+  "decision_at": null,
+  "extension_count": 0,
+  "guardrails": {
+    "status": "unknown",
+    "evidence_ref": ".omx/reports/geo-implementation/content/observation-readiness.json"
+  },
+  "recrawls": [],
+  "sources": [
+    {
+      "id": "nginx_answer_fetches",
+      "baseline_status": "insufficient_data",
+      "baseline_window": null,
+      "baseline_measurements": null,
+      "baseline_scope": null,
+      "status": "insufficient_data",
+      "window": null,
+      "timezone": "UTC",
+      "report_lag_days": null,
+      "measurements": null,
+      "followup_scope": null,
+      "evidence_ref": ".omx/reports/geo-implementation/content/observation-readiness.json"
+    },
+    {
+      "id": "ai_referrers",
+      "baseline_status": "insufficient_data",
+      "baseline_window": null,
+      "baseline_measurements": null,
+      "baseline_scope": null,
+      "status": "insufficient_data",
+      "window": null,
+      "timezone": "UTC",
+      "report_lag_days": null,
+      "measurements": null,
+      "followup_scope": null,
+      "evidence_ref": ".omx/reports/geo-implementation/content/observation-readiness.json"
+    },
+    {
+      "id": "gsc_ai",
+      "baseline_status": "no_property_access",
+      "baseline_window": null,
+      "baseline_measurements": null,
+      "baseline_scope": null,
+      "status": "no_property_access",
+      "window": null,
+      "timezone": "America/Los_Angeles",
+      "report_lag_days": null,
+      "measurements": null,
+      "followup_scope": null,
+      "evidence_ref": ".omx/reports/geo-implementation/content/account-access-status.json"
+    },
+    {
+      "id": "bing_ai",
+      "baseline_status": "no_property_access",
+      "baseline_window": null,
+      "baseline_measurements": null,
+      "baseline_scope": null,
+      "status": "no_property_access",
+      "window": null,
+      "timezone": "UTC",
+      "report_lag_days": null,
+      "measurements": null,
+      "followup_scope": null,
+      "evidence_ref": ".omx/reports/geo-implementation/content/account-access-status.json"
+    }
+  ],
+  "nginx_weekly": [],
+  "reader_outcomes": [
+    {
+      "status": "insufficient_data",
+      "window": null,
+      "metrics": {
+        "page_views": null,
+        "sessions": null,
+        "pages_per_session": null,
+        "landing_sessions": null
+      },
+      "evidence_ref": ".omx/reports/geo-implementation/content/observation-readiness.json"
+    }
+  ],
+  "contaminated_units": [],
+  "disposition": null
+}

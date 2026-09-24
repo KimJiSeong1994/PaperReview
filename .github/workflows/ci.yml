@@ -48,6 +48,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      - name: Verify GEO generated projections and pilot records
+        run: |
+          python scripts/sync_geo_comparisons.py --check
+          python scripts/validate_geo_pilot.py data/blog/geo-pilot.json data/blog/geo-pilot-observation.json
+
       - name: Run tests
         # Placeholders deliberately do NOT match real key formats to avoid
         # triggering GitHub/GitGuardian/TruffleHog secret scanners.
