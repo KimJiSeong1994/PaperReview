@@ -261,3 +261,11 @@ docs/reviews/**/paperwiki-backups/
 docs/reviews/**/wiki-backups/
 docs/reviews/**/*.pdf
 docs/reviews/**/*.html
+# 발행 전/후 콘텐츠 스냅샷(각 2.5~4.1MB). 주석대로 제외하려면 규칙이 있어야 한다.
+docs/reviews/**/baseline-posts.json
+docs/reviews/**/production-before.json
+docs/reviews/**/production-before-publication.json
+docs/reviews/**/local-before.json
+docs/reviews/**/published-records.json
+docs/reviews/**/release-candidates.json
+docs/reviews/**/pdf-index.json
