@@ -202,6 +202,33 @@ def test_duration_samples_count_only_events_that_recorded_a_duration(ledger: Pat
     assert totals["job_duration_samples"] == 0
 
 
+def test_pending_jobs_report_the_oldest_start(ledger: Path) -> None:
+    """종료 대기 건수만으로는 방금 시작한 작업과 하루 가까이 매달린 작업을 가를 수 없다."""
+    for job_id in ("old", "new"):
+        assert record_event(
+            kind="job", name="deep_review", status="started", job_id=job_id,
+            actor_id="alice", actor_role="user", source="adapter_report",
+        )
+    with sqlite3.connect(ledger) as conn:
+        starts = [row[0] for row in conn.execute(
+            "SELECT started_at FROM mcp_usage_events WHERE kind='job' AND status='started'"
+        )]
+    assert len(starts) == 2
+    assert starts[0] != starts[1], "두 시각이 같으면 min/max 단언이 아무것도 가르지 못한다"
+    report = build_mcp_usage_report(ledger, days=7)
+    assert report["totals"]["jobs_pending"] == 2
+    assert report["totals"]["jobs_pending_oldest_started_at"] == min(starts)
+
+    # 종료된 작업은 대기 나이에 끼지 않는다.
+    assert record_event(
+        kind="job", name="deep_review", status="succeeded", job_id="old",
+        actor_id="alice", actor_role="user", source="adapter_report",
+    )
+    after = build_mcp_usage_report(ledger, days=7)
+    assert after["totals"]["jobs_pending"] == 1
+    assert after["totals"]["jobs_pending_oldest_started_at"] == max(starts)
+
+
 def test_client_and_adapter_version_share_one_row(ledger: Path) -> None:
     """같은 어댑터 버전이라도 클라이언트가 다르면 다른 행이다 — 조인 키가 한 표 안에 있다."""
     assert record_event(

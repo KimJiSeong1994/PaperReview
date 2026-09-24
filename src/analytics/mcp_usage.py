@@ -469,7 +469,8 @@ def _empty_report(
             "requests": 0, "active_accounts": 0, "tool_calls": 0,
             "tool_successes": 0, "tool_failures": 0, "tool_unknown": 0,
             "jobs_started": 0, "jobs_completed": 0, "jobs_failed": 0,
-            "jobs_pending": 0, "request_error_rate": None, "request_p95_ms": None,
+            "jobs_pending": 0, "jobs_pending_oldest_started_at": None,
+            "request_error_rate": None, "request_p95_ms": None,
             "tool_p95_ms": None, "job_p95_ms": None, "repeat_accounts": 0,
             "request_duration_samples": 0, "tool_duration_samples": 0, "job_duration_samples": 0,
         },
@@ -623,6 +624,8 @@ def build_mcp_usage_report(
         "tool_successes": len(tool_success), "tool_failures": len(tool_failed), "tool_unknown": len(tool_unknown),
         "jobs_started": len(started_jobs), "jobs_completed": len(completed_jobs), "jobs_failed": len(failed_jobs),
         "jobs_pending": len(pending_jobs),
+        # 종료 대기 건수만으로는 방금 시작한 작업과 23시간째 매달린 작업을 가를 수 없다.
+        "jobs_pending_oldest_started_at": min((r["started_at"] for r in pending_jobs), default=None),
         "request_error_rate": round(len(request_errors) / len(requests), 4) if requests else None,
         "request_p95_ms": _percentile_95(request_durations), "tool_p95_ms": _percentile_95(tool_durations),
         "job_p95_ms": _percentile_95(job_durations),

@@ -63,6 +63,13 @@ const thinRate = (whole: number) => (whole > 0 && whole < RATE_SAMPLE_FLOOR ? 'm
 // 작업이 많으면 작업 25건에도 지연 표본은 15건일 수 있다.
 const latencyLabel = (samples: number) => (samples < RATE_SAMPLE_FLOOR ? '최대' : 'p95');
 const claimedValue = (value: string | null) => value || '미제공';
+// 종료 대기는 24시간을 넘기면 미확인으로 넘어가므로 시간·분이면 충분하다.
+const waitingFor = (startedAt: string | null, now: number) => {
+  const started = startedAt ? Date.parse(startedAt) : NaN;
+  if (!Number.isFinite(started)) return null;
+  const minutes = Math.max(0, Math.round((now - started) / 60_000));
+  return minutes < 60 ? `${minutes}분째` : `${Math.floor(minutes / 60)}시간 ${minutes % 60}분째`;
+};
 
 type MetricPart = { label: string; value: string; bad?: boolean; thin?: boolean };
 
@@ -108,6 +115,9 @@ export default function AdminMcpReport() {
   const [includeInternal, setIncludeInternal] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const [report, setReport] = useState<McpReportData | null>(null);
+  // 대기 나이의 기준 시각. 렌더 중 Date.now()를 부르면 리렌더마다 값이 흔들린다 —
+  // 리포트를 받은 순간으로 고정한다.
+  const [fetchedAt, setFetchedAt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
@@ -122,7 +132,7 @@ export default function AdminMcpReport() {
 
       void fetchAdminMcpReport(days, includeInternal, controller.signal)
         .then(({ data }) => {
-          if (id === requestId.current) setReport(data);
+          if (id === requestId.current) { setReport(data); setFetchedAt(Date.now()); }
         })
         .catch((err: unknown) => {
           if (controller.signal.aborted || id !== requestId.current) return;
@@ -157,6 +167,7 @@ export default function AdminMcpReport() {
 
   const { totals, measurement } = report;
   const measurementStart = kstDate(measurement.started_at);
+  const oldestWait = waitingFor(totals.jobs_pending_oldest_started_at, fetchedAt);
   const lastEventDate = kstDate(measurement.last_event_at);
   const dailyValue = (row: McpReportData['daily'][number], key: typeof DAILY_SERIES[number]['key']) => (
     (measurementStart !== null && row.date < measurementStart)
@@ -187,7 +198,10 @@ export default function AdminMcpReport() {
         </div>
         <div>
           <span>측정 시작</span>
-          <strong>{kstDateTime(measurement.started_at) ?? '기록 없음'}</strong>
+          {/* 옆 칸과 같은 형식으로 둬야 "계측한 지 18일째"가 계산 없이 읽힌다. */}
+          <strong>{measurementStart
+            ? `${relativeDays(measurementStart, report.window.end)} · ${kstDateTime(measurement.started_at)}`
+            : '기록 없음'}</strong>
         </div>
         <div>
           <span>어댑터 도구 보고 · 전체 기간</span>
@@ -308,6 +322,10 @@ export default function AdminMcpReport() {
             ))}
           </Table>
           <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'job')} />
+          {/* 건수만으로는 방금 시작한 작업과 하루 가까이 매달린 작업을 가를 수 없다. */}
+          {oldestWait && (
+            <p className="mcp-error-line"><span>종료 대기</span><span>가장 오래된 작업 {oldestWait}</span></p>
+          )}
         </section>
         )}
 
