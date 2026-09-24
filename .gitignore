@@ -13,6 +13,9 @@ data/blog/*
 !data/blog/figures/
 !data/blog/thumbnails/
 !data/blog/posts.json
+!data/blog/geo-comparisons.json
+!data/blog/geo-pilot.json
+!data/blog/geo-pilot-observation.json
 !data/curricula/
 data/curricula/user_index.json
 data/curricula/custom_*.json

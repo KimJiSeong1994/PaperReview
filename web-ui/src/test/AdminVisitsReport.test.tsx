@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import AdminVisitsReport from '../components/AdminVisitsReport';
-import { fetchAdminVisitsReport } from '../api/client';
+import { fetchAdminVisitsReport, resolveEstimatedAnswerFetches } from '../api/client';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
@@ -127,6 +127,105 @@ const REPORT = {
 };
 
 describe('AdminVisitsReport', () => {
+  it('uses canonical nullish precedence and distinguishes missing from observed zero', () => {
+    expect(resolveEstimatedAnswerFetches({ estimated_answer_fetches: 0, citation_clicks: 5 })).toEqual({
+      value: 0,
+      mismatch: true,
+    });
+    expect(resolveEstimatedAnswerFetches({ citation_clicks: 5 })).toEqual({ value: 5, mismatch: false });
+    expect(resolveEstimatedAnswerFetches({ estimated_answer_fetches: 0 })).toEqual({ value: 0, mismatch: false });
+    expect(resolveEstimatedAnswerFetches({})).toEqual({ value: undefined, mismatch: false });
+    expect(resolveEstimatedAnswerFetches({ available: false, estimated_answer_fetches: 7, citation_clicks: 7 })).toEqual({
+      value: undefined,
+      mismatch: false,
+    });
+  });
+
+  it('keeps the canonical value on mismatch and reports a development diagnostic', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
+      data: { ...REPORT, ai: { ...REPORT.ai, estimated_answer_fetches: 0, citation_clicks: 5 } },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    render(<AdminVisitsReport />);
+    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining('estimated_answer_fetches'),
+      { canonical: 0, legacy: 5 },
+    );
+    warning.mockRestore();
+  });
+
+  it('renders an absent fetch metric as unavailable rather than observed zero', async () => {
+    const withoutLegacy = { ...REPORT.ai, citation_clicks: undefined };
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
+      data: { ...REPORT, ai: withoutLegacy },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    render(<AdminVisitsReport />);
+    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    expect(screen.getAllByText('확인 불가').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/답변 fetch 확인 불가/)).toBeInTheDocument();
+  });
+
+  it('keeps a missing referral unknown while preserving an observed zero', async () => {
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValueOnce({
+      data: {
+        ...REPORT,
+        ai: { ...REPORT.ai, ai_referral_hits: undefined },
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    const missing = render(<AdminVisitsReport />);
+    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    expect(screen.getByText(/실제 유입 확인 불가/)).toBeInTheDocument();
+    expect(screen.getByText('AI 클릭 유입').closest('.admin-stat-card')).toHaveTextContent('확인 불가');
+    missing.unmount();
+
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValueOnce({
+      data: {
+        ...REPORT,
+        ai: { ...REPORT.ai, ai_referral_hits: 0 },
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    render(<AdminVisitsReport />);
+    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    expect(screen.getByText(/실제 유입 0번/)).toBeInTheDocument();
+    expect(screen.getByText('AI 클릭 유입').closest('.admin-stat-card')).toHaveTextContent('0');
+  });
+
+  it('prefers canonical fetch paths and preserves the nginx unavailable state', async () => {
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValueOnce({
+      data: {
+        ...REPORT,
+        ai: {
+          ...REPORT.ai,
+          estimated_answer_fetch_paths: [{ path: '/blog/canonical-path', hits: 3 }],
+          citation_paths: [{ path: '/blog/legacy-path', hits: 9 }],
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    const first = render(<AdminVisitsReport />);
+    expect(await screen.findByText('/blog/canonical-path')).toBeInTheDocument();
+    expect(screen.queryByText('/blog/legacy-path')).not.toBeInTheDocument();
+    first.unmount();
+
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValueOnce({
+      data: {
+        ...REPORT,
+        ai: {
+          available: false,
+          reason: 'PermissionError',
+          estimated_answer_fetches: 7,
+          citation_clicks: 7,
+          ai_referral_hits: 2,
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+    render(<AdminVisitsReport />);
+    expect(await screen.findByText(/nginx 로그를 읽을 수 없어/)).toHaveTextContent('PermissionError');
+    expect(screen.getByText(/답변 fetch 확인 불가 · 실제 유입 확인 불가/)).toBeInTheDocument();
+    expect(screen.queryByText(/답변 fetch 7번/)).not.toBeInTheDocument();
+  });
+
   it('renders traffic tiles, tables, and the AI section', async () => {
     vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
       data: REPORT,

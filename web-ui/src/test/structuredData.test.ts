@@ -9,6 +9,7 @@ import {
   introduceGraph,
   blogCanonical,
   blogPostingGraph,
+  blogAuthorNode,
   blogIndexGraph,
   seriesGraph,
   detectLang,
@@ -53,8 +54,6 @@ describe('organizationNode', () => {
     const node = organizationNode();
     expect(node.sameAs).toEqual([
       'https://github.com/KimJiSeong1994/PaperReview',
-      'https://github.com/KimJiSeong1994',
-      'https://www.linkedin.com/in/jiseong-kim-868218193/',
     ]);
     expect(typeof node.description).toBe('string');
     // Must disambiguate from the historical Joseon-dynasty institute for AI engines.
@@ -142,6 +141,24 @@ describe('blogCanonical', () => {
 });
 
 describe('blogPostingGraph', () => {
+  it('maps team, named, and blank bylines without fabricated profiles', () => {
+    expect(blogAuthorNode(' Jiphyeonjeon Team ')).toEqual({
+      '@type': 'Organization',
+      '@id': 'https://jiphyeonjeon.kr/#organization',
+      name: 'Jiphyeonjeon',
+      alternateName: ['집현전', 'Jiphyeonjeon Team', '집현전 팀'],
+      url: SITE_URL,
+    });
+    const organization = organizationNode();
+    expect(blogAuthorNode('Jiphyeonjeon Team')).toMatchObject({
+      '@id': organization['@id'],
+      name: organization.name,
+      alternateName: organization.alternateName,
+    });
+    expect(blogAuthorNode('Ada Lovelace')).toEqual({ '@type': 'Person', name: 'Ada Lovelace' });
+    expect(blogAuthorNode('   ')).toBeNull();
+  });
+
   it('maps post fields onto the BlogPosting node', () => {
     const graph = blogPostingGraph(samplePost);
     const nodes = graph['@graph'] as Record<string, unknown>[];

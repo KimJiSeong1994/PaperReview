@@ -289,12 +289,49 @@ def test_sitemap_has_image_namespace_and_thumbnail(client: TestClient) -> None:
     assert "https://jiphyeonjeon.kr/api/blog/figures/hello-world.png" in body
 
 
-def test_blog_post_author_is_grounded_person(client: TestClient) -> None:
+def test_blog_post_named_author_is_name_only_person(client: TestClient) -> None:
     body = client.get(f"/blog/{PUBLISHED_SLUG}").text
-    assert "https://github.com/KimJiSeong1994" in body
-    assert "https://www.linkedin.com/in/jiseong-kim-868218193/" in body
+    graph = _blog_posting_graph(_FIXED_POSTS[0])["@graph"]
+    posting = next(node for node in graph if node.get("@type") == "BlogPosting")
+    assert posting["author"] == {"@type": "Person", "name": "test-admin"}
     assert 'property="article:published_time"' in body
     assert 'property="og:image:alt"' in body
+
+
+def test_blog_post_author_maps_team_person_and_blank_without_fabrication() -> None:
+    base = dict(_FIXED_POSTS[0])
+    team_posting = next(
+        node
+        for node in _blog_posting_graph(base | {"author": " Jiphyeonjeon Team "})["@graph"]
+        if node.get("@type") == "BlogPosting"
+    )
+    assert team_posting["author"] == {
+        "@type": "Organization",
+        "@id": "https://jiphyeonjeon.kr/#organization",
+        "name": "Jiphyeonjeon",
+        "alternateName": ["집현전", "Jiphyeonjeon Team", "집현전 팀"],
+        "url": "https://jiphyeonjeon.kr",
+    }
+    organization = next(
+        node for node in _blog_posting_graph(base | {"author": "Jiphyeonjeon Team"})["@graph"]
+        if node.get("@type") == "Organization" and node.get("@id") == team_posting["author"]["@id"]
+    )
+    assert organization["name"] == team_posting["author"]["name"]
+    assert organization["alternateName"] == team_posting["author"]["alternateName"]
+
+    named_posting = next(
+        node
+        for node in _blog_posting_graph(base | {"author": "Ada Lovelace"})["@graph"]
+        if node.get("@type") == "BlogPosting"
+    )
+    assert named_posting["author"] == {"@type": "Person", "name": "Ada Lovelace"}
+
+    blank_posting = next(
+        node
+        for node in _blog_posting_graph(base | {"author": "  "})["@graph"]
+        if node.get("@type") == "BlogPosting"
+    )
+    assert "author" not in blank_posting
 
 
 def test_korean_post_uses_ko_locale(client: TestClient) -> None:
@@ -426,7 +463,7 @@ def test_blog_ssr_organization_is_grounded(client: TestClient) -> None:
     """The Organization JSON-LD on an SSR blog page carries sameAs + disambiguation."""
     html = client.get(f"/blog/{PUBLISHED_SLUG}").text
     assert "github.com/KimJiSeong1994/PaperReview" in html
-    assert "linkedin.com/in/jiseong-kim-868218193" in html
+    assert '"sameAs": ["https://github.com/KimJiSeong1994/PaperReview"]' in html
     assert "disambiguatingDescription" in html
 
 
@@ -752,6 +789,78 @@ def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> No
     # Ordered: position 1 is the first series slug.
     assert html.index("Series Post 0") < html.index("Series Post 1")
     assert "noindex" not in html
+
+
+def _comparison_fixture(slug: str) -> dict:
+    axes = [
+        "retrieval_or_representation_unit",
+        "graph_construction",
+        "evaluation_context",
+        "traceability",
+        "cost",
+        "failure_conditions",
+    ]
+    values = {
+        axis: {
+            "state": "known",
+            "value": f"{axis} <script>alert(1)</script>",
+            "reason": None,
+            "sources": [f"https://example.org/{axis}"],
+        }
+        for axis in axes
+    }
+    values["cost"] = {
+        "state": "unknown",
+        "value": None,
+        "reason": "직접 비교 자료 없음",
+        "sources": [],
+    }
+    values["failure_conditions"] = {
+        "state": "not_applicable",
+        "value": None,
+        "reason": "이 조건에는 적용되지 않음",
+        "sources": [],
+    }
+    return {
+        "question": "어떤 논문을 먼저 읽어야 하나요?",
+        "axes": axes,
+        "entries": [{"slug": slug, "values": values}],
+        "limits": "서로 다른 평가 조건의 수치를 순위처럼 비교하지 않습니다.",
+        "source_note": "각 셀의 출처는 원 논문입니다.",
+    }
+
+
+def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
+    posts = _series_fixture_posts()
+    slug = posts[0]["slug"]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    monkeypatch.setattr(
+        "routers.seo.load_geo_comparisons",
+        lambda: {"gnn": _comparison_fixture(slug)},
+    )
+
+    html = TestClient(app).get("/blog/series/gnn").text
+    assert "어떤 논문을 먼저 읽어야 하나요?" in html
+    assert html.count('scope="row"') == 6
+    assert 'scope="col"' in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "<script>alert(1)</script>" not in html
+    assert 'href="https://example.org/traceability" rel="noopener noreferrer"' in html
+    assert "미확인: 직접 비교 자료 없음" in html
+    assert "해당 없음: 이 조건에는 적용되지 않음" in html
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
+
+
+def test_series_hub_keeps_original_shell_when_comparison_is_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    monkeypatch.setattr("routers.seo.load_geo_comparisons", lambda: {})
+    html = TestClient(app).get("/blog/series/gnn").text
+    assert "논문 선택 비교" not in html
+    assert "Series Post 0" in html
+    assert '"@type": "ItemList"' in html
+    assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
 
 
 def test_series_member_post_has_banner_and_is_part_of(monkeypatch) -> None:

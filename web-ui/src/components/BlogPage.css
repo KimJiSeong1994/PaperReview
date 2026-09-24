@@ -2237,6 +2237,56 @@
   color: var(--indigo);
 }
 
+.geo-comparison {
+  margin: 2rem 0;
+}
+
+.geo-comparison-question {
+  font-size: 1.05rem;
+}
+
+.geo-comparison-scroll {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.geo-comparison table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+}
+
+.geo-comparison caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.geo-comparison th,
+.geo-comparison td {
+  padding: 0.75rem;
+  border: 1px solid var(--wov-12);
+  text-align: left;
+  vertical-align: top;
+}
+
+.geo-comparison tbody th {
+  width: 10rem;
+}
+
+.geo-comparison-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.geo-comparison-limits,
+.geo-comparison-source-note {
+  color: var(--text-muted);
+}
+
 .blog-series-pos {
   flex: none;
   font-size: 13px;

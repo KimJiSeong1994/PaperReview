@@ -516,6 +516,7 @@ def build_crawler_report(
     observed_days = (
         (last_at.date() - first_at.date()).days + 1 if first_at and last_at else 0
     )
+    estimated_answer_fetch_paths = rank(citation_paths, "path")
     report = {
         "available": True,
         "bots": sorted(bot_hits.values(), key=lambda bot: -bot["hits"]),
@@ -525,8 +526,12 @@ def build_crawler_report(
         "suspected_scan_hits": suspected_scan_hits,
         "suspected_scan_errors": suspected_scan_errors,
         "unverified_hits": unverified_hits,
+        "estimated_answer_fetches": citation_clicks,
+        "estimated_answer_fetch_paths": estimated_answer_fetch_paths,
+        # Deprecated compatibility aliases. Keep these byte-for-byte equal to
+        # their canonical fields until every existing consumer has migrated.
         "citation_clicks": citation_clicks,
-        "citation_paths": rank(citation_paths, "path"),
+        "citation_paths": list(estimated_answer_fetch_paths),
         "ai_referral_hits": ai_referral_hits,
         "ai_referral_sources": rank(ai_referral_sources, "source"),
         "crawled_pages": rank(crawled_pages, "path"),

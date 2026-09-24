@@ -215,6 +215,7 @@ def test_deep_view_keeps_default_body_paper_identity(monkeypatch) -> None:
     )
     post = _post() | {
         "category": "paper-review",
+        "author": "Jiphyeonjeon Team",
         "content": easy_body,
         "deep_content": deep_body,
         "reading_time_min": blog._estimate_reading_time(easy_body),
@@ -239,6 +240,13 @@ def test_deep_view_keeps_default_body_paper_identity(monkeypatch) -> None:
     assert deep_posting["articleBody"] == deep_body
     assert easy_posting["wordCount"] == len(easy_body.split())
     assert deep_posting["wordCount"] == len(deep_body.split())
+    assert easy_posting["author"] == deep_posting["author"] == {
+        "@type": "Organization",
+        "@id": "https://jiphyeonjeon.kr/#organization",
+        "name": "Jiphyeonjeon",
+        "alternateName": ["집현전", "Jiphyeonjeon Team", "집현전 팀"],
+        "url": "https://jiphyeonjeon.kr",
+    }
 
     for graph in (easy_graph, deep_graph):
         paper = next(n for n in graph if n.get("@type") == "ScholarlyArticle")
