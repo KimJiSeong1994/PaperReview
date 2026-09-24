@@ -54,16 +54,17 @@ const rate = (value: number | null) => value === null ? '미집계' : `${(value 
 // themselves and call the latency what it is.
 const RATE_SAMPLE_FLOOR = 20;
 // 미확인 stays in the denominator: a rate over succeeded+failed would hide it.
-const rateOf = (part: number, whole: number) => {
-  if (whole === 0) return '미집계';
-  return whole < RATE_SAMPLE_FLOOR ? `${count(part)}/${count(whole)}` : rate(part / whole);
-};
+const rateOf = (part: number, whole: number) => (whole === 0 ? '미집계' : rate(part / whole));
+// 한 열에 4.5%와 2/7이 섞이면 비교할 때마다 암산이 필요하다. 분모는 바로 옆 열에
+// 이미 있으므로 값은 비율로 통일해 비교 가능하게 두고, 표본이 얇은 비율은 강조만 뺀다
+// — 1건의 404가 붉은 100%로 보이던 문제도 같이 풀린다.
+const thinRate = (whole: number) => (whole > 0 && whole < RATE_SAMPLE_FLOOR ? 'mcp-rate-thin' : undefined);
 // 표본은 duration이 기록된 이벤트 수이지 요청·호출 건수가 아니다 — 종료 대기 중인
 // 작업이 많으면 작업 25건에도 지연 표본은 15건일 수 있다.
 const latencyLabel = (samples: number) => (samples < RATE_SAMPLE_FLOOR ? '최대' : 'p95');
 const claimedValue = (value: string | null) => value || '미제공';
 
-type MetricPart = { label: string; value: string; bad?: boolean };
+type MetricPart = { label: string; value: string; bad?: boolean; thin?: boolean };
 
 // A breakdown ("성공 49 · 실패 8") is what the admin scans for; as a sentence it
 // was the quietest text on the card. `parts` lays it out value-over-label, and
@@ -78,7 +79,7 @@ function Metric({ label, value, note, parts, unmeasured = false }: {
       {parts && (
         <div className="mcp-metric-parts">
           {parts.map((part) => (
-            <span key={part.label} className={part.bad ? 'bad' : undefined}><b>{part.value}</b><small>{part.label}</small></span>
+            <span key={part.label} className={[part.bad && 'bad', part.thin && 'thin'].filter(Boolean).join(' ') || undefined}><b>{part.value}</b><small>{part.label}</small></span>
           ))}
         </div>
       )}
@@ -164,9 +165,6 @@ export default function AdminMcpReport() {
   );
   // 요청이 0건이면 셀 수 있는 분모가 없다 — 백엔드가 보낸 비율을 그대로 두어야
   // 측정된 0(0.0%)과 미집계가 갈린다.
-  const requestErrors = totals.requests > 0 && totals.requests < RATE_SAMPLE_FLOOR && totals.request_error_rate !== null
-    ? Math.round(totals.request_error_rate * totals.requests)
-    : null;
   const measuredZero = totals.requests === 0 && totals.tool_calls === 0 && totals.jobs_started === 0;
   // 0건과 "몇 건" 사이가 관리자에게 가장 헷갈리는 구간이다. 0건 배너는 여기서 뜨지
   // 않는데 화면은 100.0% 같은 붉은 비율로 채워져 고장처럼 보인다.
@@ -202,7 +200,7 @@ export default function AdminMcpReport() {
           <div role="status">
             <strong>선택한 기간({report.window.days}일{includeInternal ? '' : ', 관리자 제외'})에 기록된 활동이 요청·도구 호출·작업 시작 합계 {count(activity)}건입니다.</strong>
             <p>
-              표본이 {RATE_SAMPLE_FLOOR}건 미만이라 비율 대신 건수를 그대로 보여 주고, 지연은 p95가 아니라 관측된 최대값입니다.
+              표본이 {RATE_SAMPLE_FLOOR}건 미만이라 비율은 흐리게 표시하며 사건 하나에 크게 흔들립니다. 지연도 p95가 아니라 관측된 최대값입니다.
               {!includeInternal && ' 관리자 계정을 포함하면 내부 사용이 보일 수 있습니다.'}
             </p>
           </div>
@@ -220,6 +218,9 @@ export default function AdminMcpReport() {
               {lastEventDate
                 ? `원장의 마지막 이벤트는 ${lastEventDate}(전체 기간·관리자 포함 기준)${includeInternal ? '입니다.' : '이며, 관리자 계정을 포함하면 내부 사용이 보일 수 있습니다.'}`
                 : '원장에 기록된 이벤트가 없습니다.'}
+              {/* 셀 게 없어 카드와 표를 접었으므로, 카드에만 있던 구분은 여기서 지킨다. */}
+              {!measurement.tool_telemetry_available && ' 도구 실행은 어댑터 텔레메트리가 없어 미계측이며, 측정된 0건과 다릅니다.'}
+              {measurement.claimed_adapter_requests > 0 && ` 어댑터는 요청 ${count(measurement.claimed_adapter_requests)}건을 주장하는데 측정된 요청이 0건입니다 — 수집이 끊겼을 수 있습니다.`}
             </p>
           </div>
           {!includeInternal && lastEventDate && (
@@ -228,179 +229,186 @@ export default function AdminMcpReport() {
         </div>
       )}
 
-      <div className="mcp-metrics" role="group" aria-label="MCP 핵심 지표">
-        <Metric label="서버 요청" value={count(totals.requests)} parts={[
-          // 표본이 충분하면 백엔드가 준 비율을 그대로 쓴다(역산해 다시 나누면 8.6%가 8.7%로 흔들린다).
-          // 요청이 0건이면 셀 분모가 없으니 역시 백엔드 값 — 측정된 0과 미집계는 거기서 갈린다.
-          { label: '오류율', value: requestErrors === null ? rate(totals.request_error_rate) : `${count(requestErrors)}/${count(totals.requests)}` },
-          { label: latencyLabel(totals.request_duration_samples), value: duration(totals.request_p95_ms) },
-        ]} />
-        <Metric
-          label="관측된 도구 실행"
-          value={measurement.tool_telemetry_available ? count(totals.tool_calls) : '미계측'}
-          unmeasured={!measurement.tool_telemetry_available}
-          note={measurement.tool_telemetry_available ? undefined : '업그레이드된 어댑터 텔레메트리 없음'}
-          parts={measurement.tool_telemetry_available ? [
-            { label: '실패율', value: rateOf(totals.tool_failures, totals.tool_calls) },
-            { label: '성공', value: count(totals.tool_successes) },
-            { label: '실패', value: count(totals.tool_failures), bad: totals.tool_failures > 0 },
-            { label: '미확인', value: count(totals.tool_unknown) },
-            { label: latencyLabel(totals.tool_duration_samples), value: duration(totals.tool_p95_ms) },
-          ] : undefined}
-        />
-        {/* 미확인은 시작 기록 없는 종료도 세므로 시작 수와 더해지지 않는다 — 작업 표에서만 보인다. */}
-        <Metric label="작업 시작" value={count(totals.jobs_started)} parts={[
-          { label: '완료', value: count(totals.jobs_completed) },
-          { label: '실패', value: count(totals.jobs_failed), bad: totals.jobs_failed > 0 },
-          { label: '종료 대기', value: count(totals.jobs_pending) },
-          { label: latencyLabel(totals.job_duration_samples), value: duration(totals.job_p95_ms) },
-        ]} />
-        <Metric
-          label="활성 계정"
-          value={count(totals.active_accounts)}
-          parts={[{ label: '2일 이상 사용 계정', value: count(totals.repeat_accounts) }]}
-          note="조회성 호출을 제외한 성공 호출 또는 작업 시작 기준 · 2일 이상은 서로 다른 KST 날짜의 의미 있는 사용이며 리텐션 아님"
-        />
-        {/* 창·필터 기준 값이라 스트립이 아니라 여기에 있고, 100%가 "다 잡고 있다"로 읽히지 않도록 단서를 숫자 옆에 붙인다. */}
-        <Metric
-          label="요청 연결률"
-          // 주장 요청이 20건 미만이면 이 카드도 백분율 대신 건수를 낸다 — 헤드라인이
-          // 분수면 노트가 같은 분수를 되풀이할 필요는 없다.
-          value={measurement.invocation_coverage === null || measurement.claimed_adapter_requests >= RATE_SAMPLE_FLOOR
-            ? rate(measurement.invocation_coverage)
-            : `${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)}`}
-          unmeasured={measurement.invocation_coverage === null}
-          note={measurement.invocation_coverage !== null && measurement.claimed_adapter_requests < RATE_SAMPLE_FLOOR
-            ? 'invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다'
-            : `${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청 비율. 전체 MCP 수집률이 아닙니다`}
-        />
-      </div>
+      {!measuredZero && (
+        <>
+        <div className="mcp-metrics" role="group" aria-label="MCP 핵심 지표">
+          <Metric label="서버 요청" value={count(totals.requests)} parts={[
+            // 표본이 충분하면 백엔드가 준 비율을 그대로 쓴다(역산해 다시 나누면 8.6%가 8.7%로 흔들린다).
+            // 요청이 0건이면 셀 분모가 없으니 역시 백엔드 값 — 측정된 0과 미집계는 거기서 갈린다.
+            { label: '오류율', value: rate(totals.request_error_rate), thin: !!thinRate(totals.requests) },
+            { label: latencyLabel(totals.request_duration_samples), value: duration(totals.request_p95_ms) },
+          ]} />
+          <Metric
+            label="관측된 도구 실행"
+            value={measurement.tool_telemetry_available ? count(totals.tool_calls) : '미계측'}
+            unmeasured={!measurement.tool_telemetry_available}
+            note={measurement.tool_telemetry_available ? undefined : '업그레이드된 어댑터 텔레메트리 없음'}
+            parts={measurement.tool_telemetry_available ? [
+              { label: '실패율', value: rateOf(totals.tool_failures, totals.tool_calls), thin: !!thinRate(totals.tool_calls) },
+              { label: '성공', value: count(totals.tool_successes) },
+              { label: '실패', value: count(totals.tool_failures), bad: totals.tool_failures > 0 },
+              { label: '미확인', value: count(totals.tool_unknown) },
+              { label: latencyLabel(totals.tool_duration_samples), value: duration(totals.tool_p95_ms) },
+            ] : undefined}
+          />
+          {/* 미확인은 시작 기록 없는 종료도 세므로 시작 수와 더해지지 않는다 — 작업 표에서만 보인다. */}
+          <Metric label="작업 시작" value={count(totals.jobs_started)} parts={[
+            { label: '완료', value: count(totals.jobs_completed) },
+            { label: '실패', value: count(totals.jobs_failed), bad: totals.jobs_failed > 0 },
+            { label: '종료 대기', value: count(totals.jobs_pending) },
+            { label: latencyLabel(totals.job_duration_samples), value: duration(totals.job_p95_ms) },
+          ]} />
+          <Metric
+            label="활성 계정"
+            value={count(totals.active_accounts)}
+            parts={[{ label: '2일 이상 사용 계정', value: count(totals.repeat_accounts) }]}
+            />
+          {/* 창·필터 기준 값이라 스트립이 아니라 여기에 있고, 100%가 "다 잡고 있다"로 읽히지 않도록 단서를 숫자 옆에 붙인다. */}
+          <Metric
+            label="요청 연결률"
+            // 주장 요청이 20건 미만이면 이 카드도 백분율 대신 건수를 낸다 — 헤드라인이
+            // 분수면 노트가 같은 분수를 되풀이할 필요는 없다.
+            value={rate(measurement.invocation_coverage)}
+            unmeasured={measurement.invocation_coverage === null}
+            note={`${count(measurement.requests_with_invocation_id)}/${count(measurement.claimed_adapter_requests)} · invocation 헤더가 붙은 어댑터 주장 요청 비율`}
+          />
+        </div>
 
-      <div className="mcp-two-column">
+        <div className="mcp-two-column">
+          {(!sparseActivity || report.tools.length > 0) && (
+          <section className="mcp-section">
+            <h2>관측된 도구 실행</h2>
+            <Table label="관측된 도구 실행 표" headings={['도구', '호출', '성공', '실패', '실패율', '미확인', 'p95 (ms)']}>
+              {report.tools.length === 0 ? <EmptyRows columns={7}>{measurement.tool_telemetry_available ? '관측된 도구 실행이 없습니다.' : '도구 실행은 미계측 상태입니다.'}</EmptyRows> : report.tools.map((row) => (
+                <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td className={thinRate(row.calls)}>{rateOf(row.failed, row.calls)}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
+              ))}
+            </Table>
+            <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'tool')} />
+          </section>
+          )}
+          {(!sparseActivity || report.routes.length > 0) && (
+          <section className="mcp-section">
+            <h2>서버 경로</h2>
+            <Table label="서버 경로 표" headings={['경로', '요청', '오류', '오류율', 'p95 (ms)']}>
+              {report.routes.length === 0 ? <EmptyRows columns={5}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
+                <tr key={row.name}><th scope="row" title={row.name}><RouteName name={row.name} /></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td className={thinRate(row.requests)}>{rateOf(row.errors, row.requests)}</td><td>{ms(row.p95_ms)}</td></tr>
+              ))}
+            </Table>
+            <ErrorLine label="오류 코드" rows={report.errors.filter((row) => row.kind === 'request')} />
+          </section>
+          )}
+        </div>
+
+        {(!sparseActivity || report.jobs.length > 0) && (
         <section className="mcp-section">
-          <h2>관측된 도구 실행</h2>
-          <Table label="관측된 도구 실행 표" headings={['도구', '호출', '성공', '실패', '실패율', '미확인', 'p95 (ms)']}>
-            {report.tools.length === 0 ? <EmptyRows columns={7}>{measurement.tool_telemetry_available ? '관측된 도구 실행이 없습니다.' : '도구 실행은 미계측 상태입니다.'}</EmptyRows> : report.tools.map((row) => (
-              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.calls)}</td><td>{count(row.succeeded)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{rateOf(row.failed, row.calls)}</td><td>{count(row.unknown)}</td><td>{ms(row.p95_ms)}</td></tr>
+          <h2>작업 수명주기</h2>
+            <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
+            {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
+              <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
             ))}
           </Table>
-          <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'tool')} />
+          <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'job')} />
         </section>
-        <section className="mcp-section">
-          <h2>서버 경로</h2>
-          <Table label="서버 경로 표" headings={['경로', '요청', '오류', '오류율', 'p95 (ms)']}>
-            {report.routes.length === 0 ? <EmptyRows columns={5}>측정된 서버 요청이 없습니다.</EmptyRows> : report.routes.map((row) => (
-              <tr key={row.name}><th scope="row" title={row.name}><RouteName name={row.name} /></th><td>{count(row.requests)}</td><td className={failClass(row.errors)}>{count(row.errors)}</td><td>{rateOf(row.errors, row.requests)}</td><td>{ms(row.p95_ms)}</td></tr>
-            ))}
-          </Table>
-          <ErrorLine label="오류 코드" rows={report.errors.filter((row) => row.kind === 'request')} />
-        </section>
-      </div>
-
-      <section className="mcp-section mcp-section--aside">
-        <h2>작업 수명주기</h2>
-        <p>종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
-        <Table label="작업 수명주기 표" headings={['작업', '시작', '완료', '실패', '종료 대기', '미확인']}>
-          {report.jobs.length === 0 ? <EmptyRows columns={6}>시작된 작업이 없습니다.</EmptyRows> : report.jobs.map((row) => (
-            <tr key={row.name}><th scope="row" title={row.name}><code>{row.name}</code></th><td>{count(row.started)}</td><td>{count(row.completed)}</td><td className={failClass(row.failed)}>{count(row.failed)}</td><td>{count(row.pending)}</td><td>{count(row.unknown)}</td></tr>
-          ))}
-        </Table>
-        <ErrorLine label="실패 사유" rows={report.errors.filter((row) => row.kind === 'job')} />
-      </section>
-
-      <section className="mcp-section">
-        <h2>클라이언트 주장값</h2>
-        <p>어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
-        <Table
-          label="클라이언트·어댑터 버전 표"
-          headings={['클라이언트', '클라이언트 버전', '어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}
-        >
-          {report.client_versions.length === 0 ? <EmptyRows columns={9}>클라이언트 주장값이 없습니다.</EmptyRows> : report.client_versions.map((row) => (
-            <tr key={`${row.client}:${row.client_version}:${row.adapter_version}`}>
-              <th scope="row">{claimedValue(row.client)}</th>
-              <td>{claimedValue(row.client_version)}</td>
-              <td>{claimedValue(row.adapter_version)}</td>
-              <td>{count(row.requests)}</td>
-              <td className={failClass(row.errors)}>{count(row.errors)}</td>
-              <td>{rateOf(row.errors, row.requests)}</td>
-              <td>{count(row.tool_calls)}</td>
-              <td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td>
-              <td>{rateOf(row.tool_failures, row.tool_calls)}</td>
-            </tr>
-          ))}
-        </Table>
-      </section>
-
-      {/* Mounting <Plot> inside a closed <details> lays it out at 0 width and `responsive`
-          only reacts to window resize, so the chart exists only while the section is open.
-          Plotly (~1.5MB) is fetched on the first open, not on every visit. */}
-      <details className="mcp-section mcp-daily" onToggle={(event) => setDailyOpen(event.currentTarget.open)}>
-        <summary><h2>일별 사용</h2><span>{report.window.days}일 추이 · 일별 표</span></summary>
-        {dailyOpen && report.daily.length > 0 && (
-          <figure className="mcp-daily-chart" aria-label="일별 MCP 사용 추이">
-            <LazyLoadErrorBoundary fallback={<p role="alert">차트를 표시할 수 없습니다. 아래 데이터 표를 확인해 주세요.</p>}>
-              <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
-                <Plot
-                  data={DAILY_SERIES.map((series) => ({
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    name: series.name,
-                    x: report.daily.map((row) => row.date),
-                    y: report.daily.map((row) => dailyValue(row, series.key)),
-                    visible: series.primary ? true : 'legendonly',
-                    connectgaps: false,
-                    line: { color: series.color, width: 2 },
-                    marker: { color: series.color, size: 6, symbol: series.symbol },
-                    fill: series.key === 'requests' ? 'tozeroy' : 'none',
-                    fillcolor: `${series.color}18`,
-                    hovertemplate: `%{x|%Y-%m-%d}<br>${series.name} %{y:,d}${series.unit}<extra></extra>`,
-                  }))}
-                  layout={{
-                    autosize: true,
-                    height: 320,
-                    paper_bgcolor: 'transparent',
-                    plot_bgcolor: 'transparent',
-                    font: { color: '#706d7d', size: 11, family: 'Pretendard, sans-serif' },
-                    margin: { t: 20, b: 68, l: 40, r: 12 },
-                    hovermode: 'x unified',
-                    hoverlabel: { bgcolor: 'rgba(255,255,255,0.98)', bordercolor: 'rgba(15,23,42,0.10)', font: { color: '#1e293b', size: 12 } },
-                    legend: { orientation: 'h', y: -0.18, x: 0, yanchor: 'top' },
-                    xaxis: { type: 'date', range: [report.window.start, `${report.window.end}T23:59:59`], tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
-                    // 건수 축은 0에서 시작하고 눈금은 정수여야 한다. 최대값이 작으면 Plotly가 0.2 간격을
-                    // 고르므로 그 구간만 1로 고정한다. yMax는 숨긴 계열까지 본다 — 켰을 때 눈금 40개가 되는 쪽이 더 나쁘다.
-                    // ponytail: 숨긴 계열만 6을 넘고 보이는 계열이 작으면 소수 눈금이 남음. 완전 방어는 legend 토글마다 relayout 필요
-                    yaxis: { gridcolor: 'rgba(128,128,128,0.10)', rangemode: 'tozero', zeroline: false, tickformat: ',d', ...(yMax <= 6 ? { tick0: 0, dtick: 1 } : {}) },
-                    // 계측 시작 전 구간은 0이 아니라 "재지 않음"이다. 빈 선만으로는 그 차이가 안 보인다.
-                    shapes: preMeasured ? [{ type: 'rect', xref: 'x', yref: 'paper', layer: 'below', x0: report.window.start, x1: measurementStart, y0: 0, y1: 1, fillcolor: 'rgba(128,128,128,0.07)', line: { width: 0 } }] : [],
-                    annotations: preMeasured ? [{ x: measurementStart, xref: 'x', y: 1, yref: 'paper', yanchor: 'bottom', text: '계측 시작', showarrow: false, font: { size: 10 } }] : [],
-                    uirevision: `${report.window.start}:${report.window.end}:${includeInternal}`,
-                  }}
-                  config={{ displayModeBar: false, responsive: true }}
-                  style={{ width: '100%' }}
-                />
-              </Suspense>
-            </LazyLoadErrorBoundary>
-            <figcaption>빈 구간은 계측 전이거나 미계측입니다. 완료·실패는 시작일 코호트에 표시합니다. 마지막 날짜는 집계 중입니다.</figcaption>
-          </figure>
         )}
-        <details className="mcp-daily-data">
-          <summary>데이터 표로 보기</summary>
-          <Table label="일별 사용 표" className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
-          {report.daily.length === 0 ? <EmptyRows columns={7}>선택 기간의 일별 기록이 없습니다.</EmptyRows> : report.daily.map((row) => (
-            <tr key={row.date}><th scope="row">{row.date}</th>{(['requests', 'active_accounts', 'tool_calls', 'jobs_started', 'jobs_completed', 'jobs_failed'] as const).map((key) => {
-              const value = dailyValue(row, key);
-              return <td key={key} className={key === 'jobs_failed' && value ? 'mcp-fail' : undefined}>{value === null ? '미계측' : count(value)}</td>;
-            })}</tr>
-          ))}
+
+        {/* 온보딩·장애 조사 때 보는 참조 데이터다 — 일별 사용과 같은 대우. */}
+        <details className="mcp-section mcp-daily">
+          <summary><h2>클라이언트 주장값</h2><span>클라이언트·어댑터 버전별 요청과 실패</span></summary>
+            <Table
+            label="클라이언트·어댑터 버전 표"
+            headings={['클라이언트', '클라이언트 버전', '어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}
+          >
+            {report.client_versions.length === 0 ? <EmptyRows columns={9}>클라이언트 주장값이 없습니다.</EmptyRows> : report.client_versions.map((row) => (
+              <tr key={`${row.client}:${row.client_version}:${row.adapter_version}`}>
+                <th scope="row">{claimedValue(row.client)}</th>
+                <td>{claimedValue(row.client_version)}</td>
+                <td>{claimedValue(row.adapter_version)}</td>
+                <td>{count(row.requests)}</td>
+                <td className={failClass(row.errors)}>{count(row.errors)}</td>
+                <td className={thinRate(row.requests)}>{rateOf(row.errors, row.requests)}</td>
+                <td>{count(row.tool_calls)}</td>
+                <td className={failClass(row.tool_failures)}>{count(row.tool_failures)}</td>
+                <td className={thinRate(row.tool_calls)}>{rateOf(row.tool_failures, row.tool_calls)}</td>
+              </tr>
+            ))}
           </Table>
         </details>
-      </details>
+
+        {/* Mounting <Plot> inside a closed <details> lays it out at 0 width and `responsive`
+            only reacts to window resize, so the chart exists only while the section is open.
+            Plotly (~1.5MB) is fetched on the first open, not on every visit. */}
+        <details className="mcp-section mcp-daily" onToggle={(event) => setDailyOpen(event.currentTarget.open)}>
+          <summary><h2>일별 사용</h2><span>{report.window.days}일 추이 · 일별 표</span></summary>
+          {dailyOpen && report.daily.length > 0 && (
+            <figure className="mcp-daily-chart" aria-label="일별 MCP 사용 추이">
+              <LazyLoadErrorBoundary fallback={<p role="alert">차트를 표시할 수 없습니다. 아래 데이터 표를 확인해 주세요.</p>}>
+                <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
+                  <Plot
+                    data={DAILY_SERIES.map((series) => ({
+                      type: 'scatter',
+                      mode: 'lines+markers',
+                      name: series.name,
+                      x: report.daily.map((row) => row.date),
+                      y: report.daily.map((row) => dailyValue(row, series.key)),
+                      visible: series.primary ? true : 'legendonly',
+                      connectgaps: false,
+                      line: { color: series.color, width: 2 },
+                      marker: { color: series.color, size: 6, symbol: series.symbol },
+                      fill: series.key === 'requests' ? 'tozeroy' : 'none',
+                      fillcolor: `${series.color}18`,
+                      hovertemplate: `%{x|%Y-%m-%d}<br>${series.name} %{y:,d}${series.unit}<extra></extra>`,
+                    }))}
+                    layout={{
+                      autosize: true,
+                      height: 320,
+                      paper_bgcolor: 'transparent',
+                      plot_bgcolor: 'transparent',
+                      font: { color: '#706d7d', size: 11, family: 'Pretendard, sans-serif' },
+                      margin: { t: 20, b: 68, l: 40, r: 12 },
+                      hovermode: 'x unified',
+                      hoverlabel: { bgcolor: 'rgba(255,255,255,0.98)', bordercolor: 'rgba(15,23,42,0.10)', font: { color: '#1e293b', size: 12 } },
+                      legend: { orientation: 'h', y: -0.18, x: 0, yanchor: 'top' },
+                      xaxis: { type: 'date', range: [report.window.start, `${report.window.end}T23:59:59`], tickformat: '%m/%d', nticks: 7, gridcolor: 'rgba(128,128,128,0.08)', zeroline: false },
+                      // 건수 축은 0에서 시작하고 눈금은 정수여야 한다. 최대값이 작으면 Plotly가 0.2 간격을
+                      // 고르므로 그 구간만 1로 고정한다. yMax는 숨긴 계열까지 본다 — 켰을 때 눈금 40개가 되는 쪽이 더 나쁘다.
+                      // ponytail: 숨긴 계열만 6을 넘고 보이는 계열이 작으면 소수 눈금이 남음. 완전 방어는 legend 토글마다 relayout 필요
+                      yaxis: { gridcolor: 'rgba(128,128,128,0.10)', rangemode: 'tozero', zeroline: false, tickformat: ',d', ...(yMax <= 6 ? { tick0: 0, dtick: 1 } : {}) },
+                      // 계측 시작 전 구간은 0이 아니라 "재지 않음"이다. 빈 선만으로는 그 차이가 안 보인다.
+                      shapes: preMeasured ? [{ type: 'rect', xref: 'x', yref: 'paper', layer: 'below', x0: report.window.start, x1: measurementStart, y0: 0, y1: 1, fillcolor: 'rgba(128,128,128,0.07)', line: { width: 0 } }] : [],
+                      annotations: preMeasured ? [{ x: measurementStart, xref: 'x', y: 1, yref: 'paper', yanchor: 'bottom', text: '계측 시작', showarrow: false, font: { size: 10 } }] : [],
+                      uirevision: `${report.window.start}:${report.window.end}:${includeInternal}`,
+                    }}
+                    config={{ displayModeBar: false, responsive: true }}
+                    style={{ width: '100%' }}
+                  />
+                </Suspense>
+              </LazyLoadErrorBoundary>
+              <figcaption>빈 구간은 계측 전이거나 미계측입니다. 완료·실패는 시작일 코호트에 표시합니다. 마지막 날짜는 집계 중입니다.</figcaption>
+            </figure>
+          )}
+          <details className="mcp-daily-data">
+            <summary>데이터 표로 보기</summary>
+            <Table label="일별 사용 표" className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
+            {report.daily.length === 0 ? <EmptyRows columns={7}>선택 기간의 일별 기록이 없습니다.</EmptyRows> : report.daily.map((row) => (
+              <tr key={row.date}><th scope="row">{row.date}</th>{(['requests', 'active_accounts', 'tool_calls', 'jobs_started', 'jobs_completed', 'jobs_failed'] as const).map((key) => {
+                const value = dailyValue(row, key);
+                return <td key={key} className={key === 'jobs_failed' && value ? 'mcp-fail' : undefined}>{value === null ? '미계측' : count(value)}</td>;
+              })}</tr>
+            ))}
+            </Table>
+          </details>
+        </details>
+        </>
+      )}
 
       <details className="mcp-method">
         <summary>측정 한계와 출처</summary>
         <p>브라우저 분석·GA4와 분리된 서버 관측 집계입니다. 도구 실행은 업그레이드된 어댑터가 보고한 것만 관측합니다. 기존 어댑터, 로컬 옵트아웃, 전송 유실의 도구 실행 총량은 알 수 없습니다.</p>
         <p>마지막 이벤트·측정 시작·어댑터 도구 보고는 선택 기간·관리자 필터와 무관한 원장 전체 기준입니다.</p>
-        <p>지연 p95는 표본이 {RATE_SAMPLE_FLOOR}건 미만이면 관측된 최대값과 같습니다. 같은 구간에서 비율은 백분율 대신 건수로 표시합니다.</p>
+        <p>활성 계정은 조회성 호출을 제외한 성공 호출 또는 작업 시작 기준입니다. 2일 이상은 서로 다른 KST 날짜의 의미 있는 사용이며 리텐션 아님.</p>
+        <p>요청 연결률은 전체 MCP 수집률이 아닙니다. 클라이언트·어댑터 버전은 어댑터가 보낸 이름·버전이며 설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다.</p>
+        <p>작업은 종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
+        <p>지연 p95는 표본이 {RATE_SAMPLE_FLOOR}건 미만이면 관측된 최대값과 같습니다. 같은 구간의 비율은 흐리게 표시하며, 분모는 옆 열의 건수입니다.</p>
         <p>클라이언트·버전·User-Agent는 클라이언트가 보낸 주장값이며 실제 호스트나 사람 수를 증명하지 않습니다. 서버가 받은 MCP 요청과 작업 수명주기만 집계합니다.</p>
       </details>
     </section>
