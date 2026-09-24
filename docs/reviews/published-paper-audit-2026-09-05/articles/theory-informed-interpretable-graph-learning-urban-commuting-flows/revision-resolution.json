@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "changes": [
+    "Full-paper correction of GATv2 towers and KL prior.",
+    "Added nested CV, positive-edge regression scope, cross-city retraining, zero-flow/feature/build-up experiments.",
+    "Bounded oracle-baseline comparisons and figure12 sample counts."
+  ],
+  "figures_preserved": true
+}

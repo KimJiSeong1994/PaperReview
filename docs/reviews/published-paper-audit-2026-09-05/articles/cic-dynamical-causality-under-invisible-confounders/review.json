@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Dynamical Causality Under Invisible Confounders",
+    "authors": [
+      "Jinling Yan",
+      "Shao-Wu Zhang",
+      "Chihao Zhang",
+      "Weitian Huang",
+      "Jifan Shi",
+      "Luonan Chen"
+    ],
+    "year": 2024,
+    "primary_url": "https://arxiv.org/abs/2408.05584v1",
+    "arxiv_id": "2408.05584v1"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://arxiv.org/abs/2408.05584",
+    "https://doi.org/10.1109/TPAMI.2026.3658839",
+    "https://arxiv.org/pdf/2408.05584v1"
+  ],
+  "excerpt": "지연 임베딩과 공통·사적 부분공간 분해로 보이지 않는 교란자 아래의 동적 인과를 추정하고 교란자 복원까지 시도한 CIC 프리프린트를 설명한다.",
+  "changes": [
+    "실제 arXiv 논문명 H1 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "수치와 인용은 arXiv v1 기준이며 2026 저널판과의 차이는 미확인."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "fulltext_verification": "Full v1 text verified: DREAM4 AUROC .784–.932 Fig2A–E; plankton .875 Fig3C; CVD .934 Fig3G; circadian .743 Fig4E.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/cic-dynamical-causality-under-invisible-confounders",
+  "verified_content_sha256": "8e753e6c2c34b90f77c1d2f7bd262c261b1ada1fc65172c781bd7e6d7101ff1d"
+}

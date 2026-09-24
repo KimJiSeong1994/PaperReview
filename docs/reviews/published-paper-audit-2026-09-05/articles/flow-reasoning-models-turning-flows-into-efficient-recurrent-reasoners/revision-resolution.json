@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected FPF compute-confounded attribution with explicit extra Stage B iterations."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 21949,
+  "after_chars": 20770
+}

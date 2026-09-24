@@ -1,0 +1,45 @@
+{
+  "reviewed_at": "2026-09-15",
+  "scope": "Final bounded factual check of five revised excerpts against the prior factual-review feedback and corresponding revised articles. The other five excerpts were unchanged and retain their prior PASS verdicts.",
+  "verdict": "pass",
+  "changed_candidates": [
+    {
+      "slug": "procedural-graphs",
+      "verdict": "pass",
+      "check": "'별도 개선 단계' removes the prior implication of within-task mutation. It is consistent with the article's fixed-per-episode graph and between-episode/batch candidate-validation process.",
+      "anchor": "articles/procedural-graphs/revised.md Abstract, §§3.3–4.3"
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "verdict": "pass",
+      "check": "The revised wording correctly calls WikiProfile a behavioral evaluation and attributes only observed improvement when thinking is enabled; it does not select recall facilitation or inference as the mechanism.",
+      "anchor": "articles/wikiprofile-empty-shelves-lost-keys/revised.md §6.6, §§7–8"
+    },
+    {
+      "slug": "ttpo",
+      "verdict": "pass",
+      "check": "'유사라벨과 일치하는 답변의 생성 과정' accurately describes the positive answer-conditioned self-distillation branch, while the second sentence retains the false-penalty boundary.",
+      "anchor": "articles/ttpo/revised.md §§2–3; evidence.md Method map"
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "verdict": "pass",
+      "check": "The excerpt now precisely identifies evaluation-task teacher-memory inclusion as the distinction, matching the main within-benchmark setting versus cross-split/self-excluded checks.",
+      "anchor": "articles/agent-memory-distillation/revised.md §§5.3, 6.1–6.2"
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "verdict": "pass",
+      "check": "The shortened formulation retains method heterogeneity and the narrow token-matching lesson without turning it into a pure graph-effect conclusion.",
+      "anchor": "articles/rag-vs-graphrag-systematic-evaluation/revised.md §§1–2, §7.1"
+    }
+  ],
+  "unchanged_candidates": [
+    "rsi-roadmap",
+    "incoder-32b-thinking",
+    "codenib",
+    "causal-foundation-models",
+    "clause-budget-aware-kg-reasoning"
+  ],
+  "remaining_concrete_issues": []
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "slug": "rsi-roadmap",
+    "url": "https://jiphyeonjeon.kr/blog/rsi-roadmap",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "8945e74ec29d41e3cfe32b9ea4e9daf88aca90b572c7f7d01c76ffc0863d350a",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "ttpo",
+    "url": "https://jiphyeonjeon.kr/blog/ttpo",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "f7402abc30b07f5af8f4804b4c7a53ba77b63e28a5d238022924f8b3171fa918",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "incoder-32b-thinking",
+    "url": "https://jiphyeonjeon.kr/blog/incoder-32b-thinking",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "1f2f8e1f772b61198388ec7aa2bc8422245edf2da2823c2fb295252af0294c47",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "codenib",
+    "url": "https://jiphyeonjeon.kr/blog/codenib",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "514ef991896f6556a06ea6aca8188e3d74354bf9217e1ca64469c312a524d55b",
+    "record_matches": true,
+    "figures_in_html": 8
+  },
+  {
+    "slug": "rag-vs-graphrag-systematic-evaluation",
+    "url": "https://jiphyeonjeon.kr/blog/rag-vs-graphrag-systematic-evaluation",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "18190bb99b47d6755d01aa13ae0c04d234d92b18e659914732ae3129e7a19c37",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "procedural-graphs",
+    "url": "https://jiphyeonjeon.kr/blog/procedural-graphs",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "3156634c54448ace621daa02b4af6655e24bf1ed8a809911d06688325639cf0d",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "agent-memory-distillation",
+    "url": "https://jiphyeonjeon.kr/blog/agent-memory-distillation",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "06a78f7b2a925e94e118c6ae339741b09b4637d9486404dbfba188f2e0a3b7f3",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "causal-foundation-models",
+    "url": "https://jiphyeonjeon.kr/blog/causal-foundation-models",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "a13904f2ff8d8db7b686c116d11729730cc9af99f4efca2ec5c01c37fd6fe0f1",
+    "record_matches": true,
+    "figures_in_html": 6
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "url": "https://jiphyeonjeon.kr/blog/wikiprofile-empty-shelves-lost-keys",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "d887c8ced48c6652c63161fbcebc5c97def75ac3c356739e442ed13be8afbfda",
+    "record_matches": true,
+    "figures_in_html": 8
+  },
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "url": "https://jiphyeonjeon.kr/blog/clause-budget-aware-kg-reasoning",
+    "api_status": 200,
+    "page_status": 200,
+    "content_sha256": "15bc042b4da40429c7cf810f86b77efd530ae0e289be810303138faf37d85616",
+    "record_matches": true,
+    "figures_in_html": 4
+  }
+]

@@ -1,0 +1,374 @@
+[
+  {
+    "url": "/api/blog/figures/amd-fig1-motivation.png",
+    "status": 200,
+    "sha256": "b4e69c3cd6c1298773ddbfbde198b8bb2d21d9d60671eb886e2a3fb872ecadd5",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/amd-fig2-hierarchical-memory.png",
+    "status": 200,
+    "sha256": "6348d052a625d4c1697abebe8d0c8857771588ee671e2276143f7f192f5b71af",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/amd-fig3-interaction-steps.png",
+    "status": 200,
+    "sha256": "9be6e7c350db69355c8fc4c754c647a046af53bbc7d45802b18d735ac0189f99",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/amd-fig4-student-size.png",
+    "status": 200,
+    "sha256": "bb78a5032c46613f75ee98de917674b96e6c0ceee6f5ed4d9c8f5d8cc4a91e97",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/amd-fig5-retrieval-count.png",
+    "status": 200,
+    "sha256": "82b5b917a3122567d1a14b05e555d4b416cca8e4de492b2dd9925c4e24bf1aff",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/amd-fig6-cascading-case.png",
+    "status": 200,
+    "sha256": "5bc63eeffc3a46bdaef85e272e85e57cd249f0de7cadcba9fedbae4f4fddcf77",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig1-context-query.png",
+    "status": 200,
+    "sha256": "db0a76a69f6cd625cebc6162c4056cc277acb288004a74448c799fcc136cf728",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig2-structural-causal-model.png",
+    "status": 200,
+    "sha256": "3fa7dbb5afdec7929a05afe0290e79ca24c82d1cbe558442f061449db4a66526",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig3-workflow-comparison.png",
+    "status": 200,
+    "sha256": "45a09d0d0ed6a5c81c5de4441ac072565fbfe3c0abaa8ea268f06c127d2b6595",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig5-synthetic-prior-training.png",
+    "status": 200,
+    "sha256": "c9acb06e7808fa3f4abf2d1f4804f2ccb0eff236913664073f76dcc5e2cacfc7",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig6-observational-interventional.png",
+    "status": 200,
+    "sha256": "3484594ce7e1a2f1ba1e41217dfe8fa164a8d2893b138d5292f8bbde0dd82d6d",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cfm-fig7-accuracy-runtime.png",
+    "status": 200,
+    "sha256": "c6363c87818212cfac3e13964015add848323af1b9721bdd0a802321d93c2081",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/clause-fig1-workflow.png",
+    "status": 200,
+    "sha256": "fdbd143c34e8100e4564f4326f3bd151a540ac585e7bdac30b4d33f3fb3269a4",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/clause-fig2-token-consumption.png",
+    "status": 200,
+    "sha256": "1052e1756ade3732592719410a317e1acf3bd79b80d1ad2767e0c4c15d2cb126",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/clause-fig3-constraint-satisfaction.png",
+    "status": 200,
+    "sha256": "ff684e5266514d506824213084f798ff162ae637c9f8512f88f7a323a97b3131",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/clause-fig4-case-study.png",
+    "status": 200,
+    "sha256": "95f79711d4ee96ad8af7165b7bd8623f0fda01c400079e31a8dbafb6e3d8cb24",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig10-maintenance-lifecycle.png",
+    "status": 200,
+    "sha256": "e52469d9680f1c2c3ffe466e76088137c1c83231137e58b1cfd271e5b9250167",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig11-context-policy.png",
+    "status": 200,
+    "sha256": "08d180577cd05248a519981fbc55198a33ba2359f6be789a3cbc572e3d33f400",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig2-dataflow.png",
+    "status": 200,
+    "sha256": "14c919a0fe56899cf9c42c976ea69cdef1f7a417e3828b9154eda4462a353752",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig3-incremental-graph.png",
+    "status": 200,
+    "sha256": "0946f691be8d2f95e69fbf7f232ce4c2e365cb7cedbdc38a8e5de7d85a5796be",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig6-retrieval-pareto.png",
+    "status": 200,
+    "sha256": "6c750e307707d995f5744c1069892e714b95ce1ea6b42fbfd9bdad0530e1b98b",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig7a-graph-expansion.png",
+    "status": 200,
+    "sha256": "c07ff2826e0669db685abd6f55cb0fd5b953a483dfa55a158b2cceaa76e232aa",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig7bc-ann-frontier.png",
+    "status": 200,
+    "sha256": "fe36ff50356e7a9f140ce7842b8f8906ec29fd442f25651efe6ca1769f2f9fbe",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/cn-fig9-static-vs-live.png",
+    "status": 200,
+    "sha256": "74c34c5dbb7eaf95abeb671cec6a954356901f03b480263d6df4ab556ed515c9",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig2-benchmark-overview.png",
+    "status": 200,
+    "sha256": "2887e032445bf05870de25d13e9933807c650c0d79dea0df3b895b092dab3272",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig3-hinge-loss-case.png",
+    "status": 200,
+    "sha256": "4f81e5f42387b0c48562f539670eb7f2d4c05a7549cd98fd8c324b05557fcaa8",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig4-data-engine.png",
+    "status": 200,
+    "sha256": "f0c4b4ab21d380b8316d6d2b7cbfdb4b546356cbc3e217eec83bea1661c9090b",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig5-icwm-fidelity.png",
+    "status": 200,
+    "sha256": "84b9270e78da6a85f2abaa2935fcbb3cea2a49defec392e583e0872de5a100ad",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig6-thinking-depth.png",
+    "status": 200,
+    "sha256": "e3209e727af8992e2a5b146d0a5c3d98ff44e6faa982824642c37c95665cbea8",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ic-fig7-data-scaling.png",
+    "status": 200,
+    "sha256": "2c74d487c31b9c587b133c06dbf1f8111cb7f144e350870cc7d4994f70070ed4",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig1-knowledge-to-procedure.png",
+    "status": 200,
+    "sha256": "5a77908dd736de596900072a14d35ab10bc1a574d4d25ccdde6c9163c01210e2",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig2-framework.png",
+    "status": 200,
+    "sha256": "763a50ba9cd9d5651397f307d9f5023c84ad926991ba4f0d8d76d53dbcae0985",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig3-cash-survival.png",
+    "status": 200,
+    "sha256": "559f482793565ebc8a49e3b94e2f3386858acbdfe7b26ed0738f4eb492b1be5d",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig4-evolution-outcomes.png",
+    "status": 200,
+    "sha256": "ad746bc60185f00a7a256668ed9fc116f364f9e95938022d7e94fb08732cdfe9",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig5-topology-evolution.png",
+    "status": 200,
+    "sha256": "bcff5df2caaa187db4280bc7b090711e1593899045d0f1c3c3e8c5d3c309bb4d",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/pg-fig6-cross-task-evolution.png",
+    "status": 200,
+    "sha256": "7f1ecfa7cbcbd203b5fc1f4f26fbfa33df2d28d3235f57bbe3576c93180668d9",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig1-levels-overview.png",
+    "status": 200,
+    "sha256": "9c56c2611253423bd090c4183ee33a24ec773f4447156dd93fe52a028d7c5f13",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig16-landscape.png",
+    "status": 200,
+    "sha256": "3047b894177356c2e449bf9fa22072e7078c2bc0d83c0d1bd6a99eb0ba12861e",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig2-loop-patterns.png",
+    "status": 200,
+    "sha256": "f2be505a5f0b8245ddd8221b31d7d7830fb51a8f960526e265853ba9e73b1c03",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig3-hci-trajectories.png",
+    "status": 200,
+    "sha256": "3518ea66ec6f41666857d61c266e1d12ed8e29e88873b7335029384183156c9a",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig8-meta-improvement.png",
+    "status": 200,
+    "sha256": "7d68da4618a650c371d4ec14dfd46b0191b55ba6cdc03e861d78f30bcc163ba0",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rsi-fig9-application-regimes.png",
+    "status": 200,
+    "sha256": "3fb1750fba807606a67fde84dfe24ad1aeaf80d1bc0a0d6fb213ed515cb52dd3",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig1-retrieval-strategies.png",
+    "status": 200,
+    "sha256": "461ae14e39b999887065d43c54757db81701545730f15749274443d02e6816b1",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig2-complementary-errors.png",
+    "status": 200,
+    "sha256": "50a9dc8440e54e25f6fbae96cdaad945b2b44eeae8db7464e4cb023e6feeff5d",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig3-hybrid-comparison.png",
+    "status": 200,
+    "sha256": "24866d4f8f18af6641a54d53e1e2b5b52692a2f99f090aa9012c2570f8901188",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig4-judge-position-bias.png",
+    "status": 200,
+    "sha256": "7a6f0d5faef083770bb133bff13b84e7e76f54f9b521b4d1cb838b2e0ba5502e",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig5-qa-case1.png",
+    "status": 200,
+    "sha256": "d784c44a9a26aab3c5a1378a61857bdd9e474edff6e0a0c7855e6b0c5cf49f9a",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/rvg-fig6-qa-case2.png",
+    "status": 200,
+    "sha256": "e9eb92f38c8d51329873e9521086a3f93db29793c232f26dfc8e2a43335e3a91",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig1-motivation-overview.png",
+    "status": 200,
+    "sha256": "4bebc088629c45c6f310f8ca781e549ff79e43484e901d9801ff679a4433f96e",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig2-method-overview.png",
+    "status": 200,
+    "sha256": "accebfaba9313338d522631c49efec52ac9f39ba7d0a5f7eee9b76cf31359cb7",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig3-update-strategy.png",
+    "status": 200,
+    "sha256": "62c66460ba88a0f7eda410785d975b4d345595565ec6c88aa918a5cb4e129fb2",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig4-cross-benchmark.png",
+    "status": 200,
+    "sha256": "2a9b8bd16ea1cab66799de4669b73f6c3ff6f4ce44efc9abf798f6725c59f612",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig5-gt-vs-pseudo.png",
+    "status": 200,
+    "sha256": "fe2dd7d3b5fee6446c08ab7eb65ab8529479d6e9c817b171cd0d210c40333d3d",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/ttpo-fig6-self-evolution.png",
+    "status": 200,
+    "sha256": "934f65a37bb5d742232e354f95f25278358df25b44dc57c402a89d8ceb155e46",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig12-availability-robustness.png",
+    "status": 200,
+    "sha256": "78925cdd0c55ec3c76b3d9524cb36c1217ba8e1cf3fa49cd4d4ef8fbf48a231c",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig2-encoding-and-knowledge.png",
+    "status": 200,
+    "sha256": "6573599f40dec358680c27825ed51fb072c7cad44d45db85d00c70118d6ec470",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig3-creation-pipeline.png",
+    "status": 200,
+    "sha256": "56ae1b784a78b285e4be14b434b87e47bf6342c4c686bcda1ae84b138180739b",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig4-knowledge-profiles.png",
+    "status": 200,
+    "sha256": "7f55fb73bcc06ca95abc86f9dce97d653467eb972cf1bb8f91d65bd8b2259ac1",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig5-fact-popularity.png",
+    "status": 200,
+    "sha256": "8fa7bad80000f866a8c60f9d09af6ed667cd5b57a1154457088d1d55eca5f2d8",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig6-reversal-curse.png",
+    "status": 200,
+    "sha256": "8c1e683f1d3c197d60d955b4d24763a57ed83f4301508823f385bbc45c1ebf6b",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig7-thinking-gains.png",
+    "status": 200,
+    "sha256": "33e1f53df9ab1182916047e843d36c2de2698ca5cb8d4becfcb5d098983e7067",
+    "matches_local": true
+  },
+  {
+    "url": "/api/blog/figures/wikiprofile-fig8-thinking-recovery.png",
+    "status": 200,
+    "sha256": "c595fb931e1faae3b1c42a974115ada866537ec138be7ce041be2ecebebedb62",
+    "matches_local": true
+  }
+]

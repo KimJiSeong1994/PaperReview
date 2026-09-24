@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed caption workflow and conditioned inference variability on sampling policy."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 28917,
+  "after_chars": 28329
+}

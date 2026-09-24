@@ -1,0 +1,22 @@
+{
+  "title": "RAGU: A Multi-Step GraphRAG Engine with a Compact Domain-Adapted LLM",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ragu/ragu-deep-review.md",
+      "score": 1.3,
+      "title": "RAGU 심층 분석: \"RAGU: A Multi-Step GraphRAG Engine with a Compact Domain-Adapted LLM\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/sgh/sgh-deep-review.md",
+      "score": 0.236,
+      "title": "From Agent Loops to Structured Graphs: A Scheduler-Theoretic Framework for LLM Agent Execution"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md",
+      "score": 0.236,
+      "title": "Mei, Huang & Li 2021 심층 분석: \"Light Graph Convolutional Collaborative Filtering With Multi-Aspect Information\" 해설"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

@@ -1,0 +1,932 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/systematic-lsc/systematic-lsc-deep-review.md",
+    "score": 0.9244,
+    "second_score": 0.0018,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/05-shap/shap-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/03-stop-explaining-black-box/stop-explaining-black-box-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "1f856ea748fb53531a3bb9766b598833a6feb2a701724fd5c2cbb2f4e9591ad7",
+    "source_sha256": "140d4e8853dc5d62badb8642bd8b783a23ce4d556f6711b60dafacfe8771c6c6"
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/survey-computational-approaches-lexical-semantic-change-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/tahmasebi/tahmasebi-deep-review.md",
+    "score": 0.7825,
+    "second_score": 0.0053,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/montanelli/montanelli-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/bamler/bamler-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "014626d3667cc520273dff0b593f1fab6899ae27854ded85a5256f16a34aa344",
+    "source_sha256": "274eff291f21afb2ffbfac029888eb70c6796b4c79782d043393dad987c8881f"
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/analysing-lexical-semantic-change-contextualised-word-representations-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/giulianelli/giulianelli-deep-review.md",
+    "score": 0.8306,
+    "second_score": 0.0039,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/09-fresh-rationalization/fresh-rationalization-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/montanelli/montanelli-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "667b0748a58098700b216c003a29822e09146c80d706630151742babdc967ce2",
+    "source_sha256": "8091fcfd19933ceaa563116059497d9149d831bc5fa4a66ac8b37ec1b8b2c36a"
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/contextualised-semantic-shift-detection-survey-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/montanelli/montanelli-deep-review.md",
+    "score": 0.8212,
+    "second_score": 0.0055,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/tahmasebi/tahmasebi-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/giulianelli/giulianelli-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "ca637ec7f561dc9c05cc1ee5d2afa84d65b9d8262108886b23b60d065c0356ac",
+    "source_sha256": "a8f4d3a8f66824cc56e7aaf786034e95bc614c64eac04e5490d640a12070bd5f"
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/statistically-significant-detection-linguistic-change-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/kulkarni/kulkarni-deep-review.md",
+    "score": 0.8402,
+    "second_score": 0.0118,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/bamler/bamler-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/hamilton/hamilton-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "ac90fadcd17c07df49554315c7dccd883f106540f6e73640ce85ce87db184cf0",
+    "source_sha256": "409582afdfd38b53f6a48bb1cda6c537ba633b87b7ad62f5f45b8cb55cc38447"
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-word-embeddings-dsg-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/bamler/bamler-deep-review.md",
+    "score": 0.8404,
+    "second_score": 0.0122,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/kulkarni/kulkarni-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "ec9249f02e25b79f79ba1a958571e1d8bdfd612d0b0aeaac633eb1903b9f9944",
+    "source_sha256": "52ed7160a8d0b84b61893a4cadda7c2619fb6163b172c4f1982858195473a7fd"
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/how-contextual-are-contextualized-word-representations-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md",
+    "score": 0.8002,
+    "second_score": 0.0105,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/kulkarni/kulkarni-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/bamler/bamler-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "8ecbf174b978ed9dc0f678efb92bffb9034f5693096f368d8163c6f80746be7a",
+    "source_sha256": "5df6282a5006539d3c4fd55cd9e4011b821c50f7706fd1186c29e508fd85975e"
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/training-temporal-word-embeddings-compass-twec-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/twec/twec-deep-review.md",
+    "score": 0.846,
+    "second_score": 0.0099,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/hamilton/hamilton-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "7e4b45fa16bc7ecb4ba778b872d07f95d3bf7ad97db4d19ff18420f21be2ef7b",
+    "source_sha256": "346f84bf02cf8332802d7e3cd8195960c99b2a6ed5be3ee2886fcfb6b5537b84"
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/diachronic-word-embeddings-statistical-laws-semantic-change-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/hamilton/hamilton-deep-review.md",
+    "score": 0.8657,
+    "second_score": 0.0116,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/kulkarni/kulkarni-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "01da0639c2af45bf41cc13d110ed3092bb0367248ff8cae072ce4f29761c3f61",
+    "source_sha256": "7ebae9ca1e0b6c2ec3f774d08195d101ca7f8d51968d63aabf9b40170d1670a1"
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-contextualized-word-embeddings-dcwe-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dcwe/dcwe-deep-review.md",
+    "score": 0.8813,
+    "second_score": 0.01,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/bamler/bamler-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "229baf430eb8d50f31e04a0bdfecd8159ddfc44d4a85e52ccf2d1f32833e2a05",
+    "source_sha256": "9d8229875e95a7d6ecbfc26e6199abd6f9aa8a10b0009e85fe0233a0b1fad126"
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/structural-deep-network-embedding-sdne-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/sdne/sdne-deep-review.md",
+    "score": 1.0,
+    "second_score": 0.0117,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/papg/papg-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "112ff6f195297803b643036eb9a81f3b4983ddc8ee1905d35b4af8a5d8f4eb1f",
+    "source_sha256": "c949ff163ab9bac158416179828fc0c1d45a367bb3e8f987ffa4cf1935a1ba32"
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnplus/gnnplus-deep-review.md",
+    "score": 1.0,
+    "second_score": 0.0064,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/sdne/sdne-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/papg/papg-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "2f93e9ff60acbeb3877d7f92afdb91d3e03e1c7c8dabcaf931b569e859c62513",
+    "source_sha256": "156632ed7517137f837f03a3f73180e0e1e8ecc76b371fd455715a0832425f97"
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/llm-based-social-simulations-require-boundary-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/boundary/boundary-deep-review.md",
+    "score": 1.0,
+    "second_score": 0.005,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnplus/gnnplus-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dbe/dbe-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "8e75c83a5ef8ba2175eb134b3d64708c45d671abd3305dc8a9964d0e16dd846f",
+    "source_sha256": "2ffef5218ac8397bb19ebb6fd0c4f2000eec669f652c48662696f8f34b34d569"
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/population-aligned-persona-generation-llm-social-simulation-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/papg/papg-deep-review.md",
+    "score": 0.9975,
+    "second_score": 0.0117,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/sdne/sdne-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/ethayarajh/ethayarajh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "9e3e757ed2696d688f05808f6d7759dab101c4a6227ffdf1ffbb4ab5255e3d5f",
+    "source_sha256": "e3bb81180ac14f3ac6b15c4573b4e116fd597f3bde1f7635d8d520cc8b5c186e"
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-word-embeddings-evolving-semantic-discovery-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dw2v/dw2v-deep-review.md",
+    "score": 0.9929,
+    "second_score": 0.0102,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dbe/dbe-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/han/han-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "32ea70be58800ecdb9eba5654a85b304e3a44cc82e94c1749f7024c8dd2ceb72",
+    "source_sha256": "176b26bbc653f68b640ed57d5fac1642c449f8c3c59959899f6a9756dfe34609"
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-bernoulli-embeddings-language-evolution-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dbe/dbe-deep-review.md",
+    "score": 1.0,
+    "second_score": 0.0102,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dw2v/dw2v-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/hetgnn/hetgnn-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "0afad85099d4bbbf8118bc1078d4fabdd4d4f5f587797241f45ab91aa61d7cfa",
+    "source_sha256": "fbbe36551658219344f28b54967100f023f8b703f15e6391b9b239a56cffa1b6"
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-attention-network-han-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/han/han-deep-review.md",
+    "score": 0.9766,
+    "second_score": 0.0108,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/hetgnn/hetgnn-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dw2v/dw2v-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "812fe0c1cb6b5d42c3752a24263b86297809e484801116b3937b97adb96e590d",
+    "source_sha256": "f8e3517ef8f64c1e0b47255e0c8fa3c318fa204e29c52dee42d16df7cf1f7363"
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-neural-network-hetgnn-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/hetgnn/hetgnn-deep-review.md",
+    "score": 0.9808,
+    "second_score": 0.0108,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/han/han-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dbe/dbe-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "e1b89e1da52bb05e5395b172c5b5c07a82dd40b8daae9ed97ba456ab4cbec29a",
+    "source_sha256": "ddffa741c42c948319efb087833a81ee12248a1644eba8ec1062c1380aafc2ef"
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/deepwalk-online-learning-social-representations-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/deepwalk/deepwalk-deep-review.md",
+    "score": 0.9633,
+    "second_score": 0.0175,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/node2vec/node2vec-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gat/gat-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "af195c45b50500c111558017cd7edd1a5cae862a8cf47acbc38c5e54cce280e5",
+    "source_sha256": "674bf4f45e1cd5118efeb537a2db3db21f0b2bd8cb73b4f7e30c143af9605a66"
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/graph-attention-networks-gat-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gat/gat-deep-review.md",
+    "score": 0.9289,
+    "second_score": 0.013,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/deepwalk/deepwalk-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/node2vec/node2vec-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "2ec0b87ccc5a00d881cf301c08f0250eb9d932fdeb55fe883d73a87d8c8fcfe1",
+    "source_sha256": "5b329a9d87747877b527f312dff7ec8a21bbaf3efab1f86ba8231fb304ebc992"
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/how-powerful-are-graph-neural-networks-gin-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gin/gin-deep-review.md",
+    "score": 0.9657,
+    "second_score": 0.0113,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gat/gat-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/deepwalk/deepwalk-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "f84c183edc676d89d258bdeb64facd6b59eed4b160550df2544bf6195aa057a0",
+    "source_sha256": "360280c6986b0b6449e7d46e73bdd49568e31b7aed7133aca735afb4f9de7c27"
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/graphsage-inductive-representation-learning-large-graphs-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/graphsage/graphsage-deep-review.md",
+    "score": 0.8549,
+    "second_score": 0.0068,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gcn/gcn-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gin/gin-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "d0569546bb35406630fa219659c2dc895ad192b214341d02235bb38dd79ca03f",
+    "source_sha256": "be98b62c379887f775d95e1c2f94add9d457e45b9d2212d678a6a9a5efd6418b"
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/semi-supervised-classification-graph-convolutional-networks-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gcn/gcn-deep-review.md",
+    "score": 0.8893,
+    "second_score": 0.0092,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gat/gat-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gin/gin-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "8414207aedef98b5ea99fba4959566f99822fe50bb4e91a16928476be929d717",
+    "source_sha256": "9935c2f837fe0ff38fb5a1fe03203defbf4efdd6491c67cf7e0dfb58997fc598"
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/gnnexplainer-gnn-subgraph-feature-mask-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnexplainer/gnnexplainer-deep-review.md",
+    "score": 0.6857,
+    "second_score": 0.0094,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gcn/gcn-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gat/gat-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "0cf07c91a0e9cfe9b8d16054667c4697749aa96564f90b7612414072a24b1972",
+    "source_sha256": "2993a8cdac8a9ebdcde4a650758d15758ab8af05bf1fff3e61e3f0ab51b24267"
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/etgnn-infoflow/etgnn-infoflow-deep-review.md",
+    "score": 0.0069,
+    "second_score": 0.0053,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnexplainer/gnnexplainer-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/emulate-estimate/emulate-estimate-deep-review.md"
+    ],
+    "match_method": "new canonical note; no existing corresponding blog note found",
+    "target_sha256": null,
+    "source_sha256": "ea928936c12f8612f3b15d3e98152a5acbf641bacbd4095a356c9aa46928295d"
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/skillopt/skillopt-deep-review.md",
+    "score": 0.9248,
+    "second_score": 0.0063,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gcn/gcn-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnexplainer/gnnexplainer-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "62aa4422af732cca508fc914e2c94f207d9dcfdaf331a16284f0e586b06297d3",
+    "source_sha256": "edaa51993e1245d0a12263b63315317d1c97fc0cacfd1da7fe41afb7202d40f4"
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/seed-self-evolving-opd-agentic-rl/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/seed/seed-deep-review.md",
+    "score": 0.9783,
+    "second_score": 0.0021,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/14-counterfactual-explanations/counterfactual-explanations-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/09-roar/roar-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "666b400909754073dd51ecac13794bb7b536e365f604dc5b9583f60c9d421377",
+    "source_sha256": "c07c158ba7c8328345ef5313bf3c6a1896a186231ec8e35e9f802ffc4cb689f3"
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/rome-causal-tracing/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/18-rome-causal-tracing/rome-causal-tracing-deep-review.md",
+    "score": 0.932,
+    "second_score": 0.0036,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/coevot/coevot-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/10-causal-mediation-gender-bias/causal-mediation-gender-bias-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "692d75b417c095cc5bf8f73fc3908de386af6e0ea0af8a77cb7ab95bb2962c19",
+    "source_sha256": "18a59dc8b16134292d1fc9aaa119907e63d6045648ca118c25a0d9955241dd97"
+  },
+  {
+    "slug": "structural-probe",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/structural-probe/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/16-structural-probe/structural-probe-deep-review.md",
+    "score": 0.9343,
+    "second_score": 0.0049,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/17-inlp-nullspace-projection/inlp-nullspace-projection-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/15-probing-sentence-embeddings/probing-sentence-embeddings-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "a1cbbecd239840f101c9f1be57a1a05170a17adaa794678e574ff42b5177018a",
+    "source_sha256": "cc8c9edbf9da9856170f7cfa0b8e4098f7a92857d4068bdc982c54c49f16deaf"
+  },
+  {
+    "slug": "gqml-graphs",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/gqml-graphs/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/quantum/gqml-graphs/gqml-graphs-deep-review.md",
+    "score": 0.9854,
+    "second_score": 0.0024,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/sdne/sdne-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "b07b577d098d2c785d540563daaca4e325a01a661395283f9df7df0b626afb16",
+    "source_sha256": "2515ce7233f5b2b48b7ac5e22b3e73908010cc02890b1055a9459f052371f6f4"
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/is-attention-interpretable/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/14-is-attention-interpretable/is-attention-interpretable-deep-review.md",
+    "score": 0.9138,
+    "second_score": 0.0061,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/15-probing-sentence-embeddings/probing-sentence-embeddings-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/17-inlp-nullspace-projection/inlp-nullspace-projection-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "ff79db9645032c35893b4665f256abe04c589c394e30d656b732cbe8ad599840",
+    "source_sha256": "7d55dd4f5245fe8e913638aa99a3e49b6debe7ad7e4ccb3370d7f3c41dfd1957"
+  },
+  {
+    "slug": "lgc-acf",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lgc-acf/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md",
+    "score": 0.973,
+    "second_score": 0.0058,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/goa/goa-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ragu/ragu-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "25ca4ce008243a9e5eecf2ddb543ed27b1bb9d2d304176e4a042d9fa949a9bc5",
+    "source_sha256": "9d3a2928d1cd4cb6647212d097ea2662189b6cbc782157e5783593efd7611c8c"
+  },
+  {
+    "slug": "coevot",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/coevot/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/coevot/coevot-deep-review.md",
+    "score": 0.9717,
+    "second_score": 0.0036,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/18-rome-causal-tracing/rome-causal-tracing-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/pinsage/pinsage-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "29ad9a6d8f1f0dfaf1a4c6e849f181cd0f99e42a957a363e6223f7a6464b1ea1",
+    "source_sha256": "25648bb352c1421217510de0315eb8c411b970a4cf8a5db9d140cf3dee57e4a4"
+  },
+  {
+    "slug": "deep-graphrag",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/deep-graphrag/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/deep-graphrag/deep-graphrag-deep-review.md",
+    "score": 0.9655,
+    "second_score": 0.0037,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/deepinf/deepinf-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/linearrag/linearrag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "b1303d5b4d6b8aac9b8a8cb0a3e73de32fda6cc0c13e42ef89a6c1eef307c939",
+    "source_sha256": "f11b64ddc04d4ee96aa720c517a820b9b4f37379508a98fa8be0f264a2845c8c"
+  },
+  {
+    "slug": "lightgcn",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lightgcn/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lightgcn/lightgcn-deep-review.md",
+    "score": 0.9714,
+    "second_score": 0.0029,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/goa/goa-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "7538df597142d7ad8eb174616a0d084528fe7b736f0b19fdff97ff8fc660ee64",
+    "source_sha256": "99efcd4c8694fb266ad4c92c9008be44c160362532de86c4e6d999fb87bfe915"
+  },
+  {
+    "slug": "ragu",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/ragu/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ragu/ragu-deep-review.md",
+    "score": 0.9375,
+    "second_score": 0.0055,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/goa/goa-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "b18debfdb2e725f16e8f50683aab60674596d6d9e5bc6eeb3a3989d914d1e383",
+    "source_sha256": "4853af76ba56650850ccae240c84714f0329d54e1466135dcec15cfd3ea05067"
+  },
+  {
+    "slug": "goa",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/goa/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/goa/goa-deep-review.md",
+    "score": 0.9534,
+    "second_score": 0.0058,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lgc-acf/lgc-acf-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ragu/ragu-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "68f8ff55712ca1d6b21c5ca3680904dfc61f6cb6eb105388d8e498cd111a05e2",
+    "source_sha256": "20b59f4357fb18c5a0cbe97f9f66f02a91681de8c0a084c40c9068690d2191bc"
+  },
+  {
+    "slug": "hgnn",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/hgnn/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/hgnn/hgnn-deep-review.md",
+    "score": 0.9803,
+    "second_score": 0.0021,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/han/han-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/dbe/dbe-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "6f5afb89a4e44c33b6cea61e46bca28623cc9a7d57abeb073e9b149380edc68e",
+    "source_sha256": "a085669ee957f99e30715807a9dabbeede4725caefe48cdc29f270ecf6058e94"
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/causalrag-causal-graph-retrieval/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/causalrag/causalrag-deep-review.md",
+    "score": 0.946,
+    "second_score": 0.0069,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/lightrag/lightrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ms-graphrag/ms-graphrag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "bdf7e12ae29a1c4ec77d4791fcecf1afd29135b33e9fc451091146d28db1843c",
+    "source_sha256": "d6a9d49f0108b58bc61de8aedd626ce368af7f6e150871bf831d6ea8bfba6d6f"
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/hipporag-neurobiologically-inspired-long-term-memory/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hipporag/hipporag-deep-review.md",
+    "score": 0.9201,
+    "second_score": 0.0019,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/05-shap/shap-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/12-unfaithful-chain-of-thought/unfaithful-chain-of-thought-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "e7738dc7bac663f43aff9681f270af4ae2e040cc5ad7abddeaabe514eea37a78",
+    "source_sha256": "763b7fefbb3d6bd5a0bd5c1e71a4b0fdf9f638e6c95113c3e68b1a959eae6c79"
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lightrag-dual-level-graph-rag/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/lightrag/lightrag-deep-review.md",
+    "score": 0.9329,
+    "second_score": 0.0068,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/causalrag/causalrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/leanrag/leanrag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "03635ab40acb7ae07e5e066f728c22dd660762178ff41053cbb60f0909dab14b",
+    "source_sha256": "44f56f86c1e0b4f320ba53f16d17f2aaa852c1fd6509967362ff0908cf883cb6"
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/leanrag-semantic-aggregation-hierarchical-retrieval/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/leanrag/leanrag-deep-review.md",
+    "score": 0.9281,
+    "second_score": 0.005,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/lightrag/lightrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hugrag/hugrag-causalrag2-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "2defb9b8c6ad72e4377045301f2984e299a3f3ccdebdcf06c01d89c3ed47e991",
+    "source_sha256": "6183ca203a829b8bd73479f3fb3a087d6e006efccbe7d85b4e015cb956f5f68f"
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/causalrag2-hugrag-hierarchical-causal-gating/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hugrag/hugrag-causalrag2-deep-review.md",
+    "score": 0.9831,
+    "second_score": 0.0025,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/leanrag/leanrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/causalrag/causalrag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "04fa390b6dbf651e04ea70ca367f9c720c17703e7f4b6ec27922f5d51defd5e9",
+    "source_sha256": "b58b25c78ebbbb86da79db59431beac946854a486e38ecca395962a02781acbd"
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/ms-graphrag-global-query-focused-summarization/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/ms-graphrag/ms-graphrag-deep-review.md",
+    "score": 0.9733,
+    "second_score": 0.0021,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/lightrag/lightrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/causalrag/causalrag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "b1dc28180df133a2505a355d5db512a83f4bc12c35a32f7ac81269f31b6abbf3",
+    "source_sha256": "944c667d069208a1544c336cd03e3f282fdf14e3501dd5715d1709ab2cc4c967"
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/hipporag2-from-rag-to-memory/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hipporag2/hipporag2-deep-review.md",
+    "score": 0.9739,
+    "second_score": 0.0019,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/when-to-use-graphs-in-rag/when-to-use-graphs-in-rag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/kgp/kgp-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "3e5c97399a0c5b30f7c89e39154572f86e1e8928d1e9473b3d97af9a3c84839b",
+    "source_sha256": "b5c19b286ddb170655d5a08119bc1be1099091a78896f8c51dd74e7fa6cd0f05"
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/knowledge-graph-prompting-multi-document-qa/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/kgp/kgp-deep-review.md",
+    "score": 0.9679,
+    "second_score": 0.0019,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hipporag2/hipporag2-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/when-to-use-graphs-in-rag/when-to-use-graphs-in-rag-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "a03cb1be1436b3683bc708e73e45a8bb5a004eea76aee82607ed2217aeeff9ad",
+    "source_sha256": "e2c6beffb77486fc95de7f1665cb6d915d5b40e4932aae622572fa1d9100cd7c"
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/theory-informed-interpretable-graph-learning-urban-commuting-flows/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/urban/pig-gnn/pig-gnn-deep-review.md",
+    "score": 0.9809,
+    "second_score": 0.0021,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/ic2/ic2-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/urban/local-culture/local-culture-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "919bc57ec093a424f5b29cb8405d4e408b6ac50f1d6e98126be0985248c88162",
+    "source_sha256": "1aa328f95242c097c0ed45e5ae977d47ac9f97276d50fd7a7ee7bfc466e11a0a"
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/transferable-human-mobility-network-reconstruction-with-neurogravity/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/urban/neurogravity/neurogravity-deep-review.md",
+    "score": 0.989,
+    "second_score": 0.0013,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/iee/iee-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/ic2/ic2-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "13f1361cd59a535b56e85bf2f45f5981669246560ca23114727181246ac835a9",
+    "source_sha256": "600369a8c08942cdb4e29ac5bdcf2c7e044d4b03020eafc4c1abc0cdd84a00fd"
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/linearrag-linear-graph-retrieval-augmented-generation/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/linearrag/linearrag-deep-review.md",
+    "score": 0.9991,
+    "second_score": 0.0032,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/deep-graphrag/deep-graphrag-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/pinsage/pinsage-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "7ad7860d220e762645c05fc0b1b30cb743eab82af0247eee08395e7d969578b4",
+    "source_sha256": "274c60923a2f0f62a34c2c367741003fa4497f6f0eaca1de91efd4f1b869a1fb"
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/skillsmith-learning-to-compose-parametric-skills-textual-knowledge/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/skillsmith/skillsmith-deep-review.md",
+    "score": 0.9989,
+    "second_score": 0.0029,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/lopd/lopd-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/pinsage/pinsage-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "0c8e4671f88f36f885937e6869e46eb812ace73cf1ea2e42a46fae5548576c81",
+    "source_sha256": "d0ec75f7385f5644926841bdb2868acdbd9e47e0b82ba7c1f5cabddec415d984"
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/cic-dynamical-causality-under-invisible-confounders/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/cic/cic-deep-review.md",
+    "score": 0.9917,
+    "second_score": 0.0191,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/ic2/ic2-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/iee/iee-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "5b4d0f580f565713622b69e643da4c7f7c8302baf80dd4a24a50008399540910",
+    "source_sha256": "0bfb5fade5217f5054b48473c0f1432c7ffc920cb450aa881a491516a32be6ef"
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/pcm-partial-cross-mapping-eliminates-indirect-causal-influences/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/pcm/pcm-deep-review.md",
+    "score": 0.9911,
+    "second_score": 0.0037,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/ic2/ic2-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/cic/cic-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "174e960b867f733146465358207ea6c4fc74c8b1732690a55514819f73e7a524",
+    "source_sha256": "33252608c1e56fb1ff869a4238dca44bf26bcaa7c32e353b6508b8db687cac90"
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/loongreflect-long-horizon-reflection-search-agents/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/loongreflect/loongreflect-deep-review.md",
+    "score": 0.9822,
+    "second_score": 0.0029,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/urban/seoul-employment-centers/seoul-employment-centers-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/13-evaluating-xai-human/evaluating-xai-human-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "a9361af849a823034eb92645c84a2d31bf6ecc1e022836cec9512bd3fe4730fd",
+    "source_sha256": "b7106da2bf1198de5548b3ebb557a8bd46dfdd254a5159e9ff99bb24ca5fb979"
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/from-agent-loops-to-structured-graphs-scheduler-theoretic-framework/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/sgh/sgh-deep-review.md",
+    "score": 0.9221,
+    "second_score": 0.0028,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/envharness/envharness-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/distribution-first/distribution-first-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "b93f43f2d4459511dd969148081bf6a5e26949bf36ea9d551e50f970d5c5dd06",
+    "source_sha256": "47bea644794abfbd3864cacdc0e47d6d2aea44ce1466bab643afbea1170abe9b"
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/planetary-prediction-engine-autonomous-geospatial-prediction/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/ppe/ppe-deep-review.md",
+    "score": 0.8983,
+    "second_score": 0.003,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/envharness/envharness-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/sgh/sgh-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "d1c5652395457f254c966f98b012f98cafc3bfe3a992698717c908ed94cbdeed",
+    "source_sha256": "cafb9a4987a429e348ca8e792050233aeca3e300ad65ee92a8fe72c4f9c0623d"
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/memory-is-reconstructed-not-retrieved-graph-memory-llm-agents/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/mragent/mragent-deep-review.md",
+    "score": 0.9791,
+    "second_score": 0.0012,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/agent-lightning/agent-lightning-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/13-evaluating-xai-human/evaluating-xai-human-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "9f13577e95f1ff027b1dddf54117b2db2882688cc8be2daa7acb479a825ecb77",
+    "source_sha256": "9a6209fe14ca7f2ed8094fdd4e50902f7e1463480f6a67a313415e1e92dd4bf7"
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/colpali-efficient-document-retrieval-vision-language-models/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/colpali/colpali-deep-review.md",
+    "score": 0.8905,
+    "second_score": 0.004,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/agent-lightning/agent-lightning-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/mragent/mragent-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "48aadc651809ec51aae177dc206d734fcc02fe1a4135fec2eeaa8daddb36eb4c",
+    "source_sha256": "1aa68f744179f836fca7265bd958b1973ff66f963703b62a6e4804d1aef4005f"
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/wikiskill/wikiskill-deep-review.md",
+    "score": 0.9626,
+    "second_score": 0.0017,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/mragent/mragent-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/loongreflect/loongreflect-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "4adbdd3471e8fddd6f894df4844dfdc7d2e9d79ee03fd02d97b3fd66b6866be5",
+    "source_sha256": "d937392f91f8473c1dd043117c8caa8fceee38438c34c7461c5652f3266e11cf"
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/co-scientist-accelerating-scientific-research-gemini-real-world/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/co-scientist/co-scientist-deep-review.md",
+    "score": 0.9989,
+    "second_score": 0.0012,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/13-evaluating-xai-human/evaluating-xai-human-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/12-explanation-ai-social-sciences/explanation-ai-social-sciences-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "2e1ee2538f99c4c0af8194463e30215955c4a9cbaff7f4df88bd91c61a7b953b",
+    "source_sha256": "e3eee427a243ab6c4c30d85b9e2ada32101ed9f8e8581bc1ea7e900b8a3d9f64"
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/timesfm-decoder-only-foundation-model-time-series-forecasting/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/time-series/timesfm/timesfm-deep-review.md",
+    "score": 0.9992,
+    "second_score": 0.0046,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/frm/frm-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/iba/iba-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "f3f094f6a6bc1054887a9f0620e7bd2e9c8fbde9d64ba83a7955e48b253048a2",
+    "source_sha256": "fb9a4867d386939895caf7f3360540d3e2e51d6a06129e43deb32e7013393208"
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/iba/iba-deep-review.md",
+    "score": 0.9995,
+    "second_score": 0.0044,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/frm/frm-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/time-series/timesfm/timesfm-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "e5b647ecfee450d7fcb598e0272f1509dcf746c7a3d010603d612d727cf74b1e",
+    "source_sha256": "5c8975f4e22b9e520a545738e8d2a25be86dea7d9fc32b993c834a3c637a0b97"
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "source": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners/revised.md",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/frm/frm-deep-review.md",
+    "score": 0.996,
+    "second_score": 0.0046,
+    "matched": true,
+    "alternatives": [
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/time-series/timesfm/timesfm-deep-review.md",
+      "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/iba/iba-deep-review.md"
+    ],
+    "match_method": "original-body five-token-shingle identity",
+    "target_sha256": "c6a8fbc5e0eb1a5d8e15b1fc5805ed80a9e6310c531606339a3176fc0f79e325",
+    "source_sha256": "8e4838e2e47a5603a60224221f12a08beb3f7f2b2054a59daa46ee9714f7d095"
+  }
+]

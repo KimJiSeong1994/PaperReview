@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Residual beta vs squared-loss beta²; removed false YouTube discrepancy and single-run/power assertions."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 14408,
+  "after_chars": 14071
+}

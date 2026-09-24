@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Partial Cross Mapping Eliminates Indirect Causal Influences",
+    "authors": [
+      "S. Leng",
+      "H. Ma",
+      "J. Kurths",
+      "Y.-C. Lai",
+      "W. Lin",
+      "K. Aihara",
+      "L. Chen"
+    ],
+    "year": 2020,
+    "primary_url": "https://doi.org/10.1038/s41467-020-16238-0",
+    "doi": "10.1038/s41467-020-16238-0"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://doi.org/10.1038/s41467-020-16238-0",
+    "https://publications.pik-potsdam.de/pubman/item/item_24303_2/component/file_24313/24303oa.pdf"
+  ],
+  "excerpt": "교차사상이 직접·간접 인과를 함께 검출하는 문제를, 관측된 매개 경로를 조건으로 둔 편상관으로 줄이려는 Partial Cross Mapping의 원리와 평가를 설명한다.",
+  "changes": [
+    "실제 논문명 H1 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "로컬 PDF 후보가 없어 Nature primary record와 기존 원고 인용을 사용했다."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "fulltext_verification": "Full publication text verified: chain .8681/.1871 and loop .8052/.4467 Fig3b–c; DREAM4 AUC Fig4b.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+  "verified_content_sha256": "91d6dae5e1bbd59ded2907f4156197e32f7c0e318fd82e01849ff9ce6e3273c4"
+}

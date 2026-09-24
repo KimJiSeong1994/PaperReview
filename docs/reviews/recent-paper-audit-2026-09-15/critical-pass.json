@@ -1,0 +1,123 @@
+{
+  "reviewed_at": "2026-09-15",
+  "scope": "Independent skeptical pass over revised.md. Findings are restricted to factual overclaims, source mismatches, and interpretation that needs material repair; cosmetic edits are excluded.",
+  "articles": [
+    {
+      "slug": "rsi-roadmap",
+      "verdict": "revise",
+      "findings": [
+        {
+          "severity": "medium",
+          "finding": "The executive summary says that the remaining industry figures are all company reports. The paper's industry landscape mixes product/research examples and public-source descriptions; 'all company reports' is broader than the displayed source basis.",
+          "evidence_anchor": "arXiv:2609.11873v1, §5 and Appendix B/Table 12; revised.md Executive Summary",
+          "label": "paper-evidenced",
+          "required_revision": "Replace with '논문이 인용한 공개 산업 사례·조직 보고' and retain that their original evidence was not independently audited. Do not characterize every row as a company self-report."
+        },
+        {
+          "severity": "low",
+          "finding": "The claim that four of six industrial cases belong to author-affiliated organizations and that no conflict disclosure exists is a source-audit claim. It needs a visible derivation or should be softened; affiliation alone does not establish an undisclosed conflict.",
+          "evidence_anchor": "arXiv:2609.11873v1 author affiliations, §5/Table 12; revised.md Executive Summary and §9",
+          "label": "direct inference",
+          "required_revision": "State the count only if the six rows and affiliations are enumerated in the evidence record; otherwise say that several examples are associated with author-affiliated organizations and frame the point as provenance concentration, not an asserted disclosure failure."
+        }
+      ]
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "verdict": "pass",
+      "findings": [
+        {
+          "severity": "none",
+          "finding": "The new G-exe treatment is appropriately conditional: 100.0% is not presented as overall task success, and the absent denominator is explicitly left unresolved. The article also correctly confines 'all-domain' criticism to the paper's unsupported summary claims.",
+          "evidence_anchor": "arXiv:2604.03144v1, Table 5 and Appendix A.2.2; revised.md §§6, 8–9",
+          "label": "paper-evidenced",
+          "required_revision": "None."
+        }
+      ]
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "verdict": "revise",
+      "findings": [
+        {
+          "severity": "medium",
+          "finding": "The review's discussion of hard per-path budget guarantees is stronger than the paper's evidence supports. The algorithms describe remaining-budget checks and termination, while the reported constraint evaluation is aggregate; without the supplemental implementation, exact atomic enforcement/order of edits, token counting, and stop handling is not verified.",
+          "evidence_anchor": "arXiv source, Algorithms 1–4; §3 and Appendix C/H; revised.md §8.2",
+          "label": "direct inference",
+          "required_revision": "Use '의사코드가 예산 검사·종료를 기술한다' for the implementation claim. Reserve 'hard cap guarantee' for a formally demonstrated invariant or verified execution path; keep aggregate feasibility results separate."
+        },
+        {
+          "severity": "low",
+          "finding": "The dual-function sign/curvature critique is mathematically meaningful but relies on choosing one convention across Appendix H. It should not be phrased as a settled flaw in the implemented update until the authors' Lagrangian sign convention is reconciled.",
+          "evidence_anchor": "arXiv source, Appendix H.1–H.3; revised.md §8.4",
+          "label": "direct inference",
+          "required_revision": "Prefix the discrepancy with '원문의 정의를 그대로 연결하면' and say the appendix's sign conventions need reconciliation; avoid declaring convergence invalid."
+        }
+      ]
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "verdict": "revise",
+      "findings": [
+        {
+          "severity": "medium",
+          "finding": "The new claim that Knows(+Think) is not generally equal to the three-success-profile sum is directionally plausible but needs the paper's exact Selected-strategy table definition. The source says both Knows(+Think) and Knows are computed with Direct Inference handling; the profile categories also include Inference without Encoding. The present prose risks attributing a difference solely to thinking regression/rounding/exclusions without showing the table arithmetic.",
+          "evidence_anchor": "arXiv:2602.14080v2, §2.2, Figure 4 caption, Appendix D/Table 2; revised.md §6.2",
+          "label": "paper-evidenced plus direct inference",
+          "required_revision": "State the verified reason first: Knows(+Think) is a knowledge aggregate that includes Inference without Encoding and uses the table's Direct-Inference/exclusion treatment. Keep possible thinking regression as a conditional possibility unless a cell-level transition analysis is supplied."
+        },
+        {
+          "severity": "low",
+          "finding": "The Figure 3 caption calls the top-line Knows the sum of 'three success profiles' while the displayed review table omits Inference without Encoding. Readers can mistake the listed Direct Recall plus Recall with Thinking as the complete numerator.",
+          "evidence_anchor": "arXiv:2602.14080v2, Figure 4 caption and Table 2; revised.md §6.2",
+          "label": "paper-evidenced",
+          "required_revision": "Name Inference without Encoding in the caption or immediately adjacent table note and state that it is omitted from the compact table but included in the paper's Knows aggregate."
+        }
+      ]
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "verdict": "pass",
+      "findings": [
+        {
+          "severity": "none",
+          "finding": "The article preserves the main-versus-cross-split distinction, does not turn interaction-turn reductions into a total-cost claim, and correctly labels compatibility explanations as non-causal.",
+          "evidence_anchor": "arXiv:2608.07169v1, Tables 1–6 and Limitations; revised.md §§5–8",
+          "label": "paper-evidenced",
+          "required_revision": "None."
+        }
+      ]
+    },
+    {
+      "slug": "procedural-graphs",
+      "verdict": "pass",
+      "findings": [
+        {
+          "severity": "none",
+          "finding": "The revised article keeps soft guidance distinct from constrained execution, limits the sign test to aggregate direction, and treats repeated held-out selection as a validation boundary rather than proof of monotone generalization.",
+          "evidence_anchor": "arXiv:2609.09153v1, §§3–5, Tables 1–3 and Appendix B.6; revised.md §§6–9",
+          "label": "paper-evidenced",
+          "required_revision": "None."
+        }
+      ]
+    },
+    {
+      "slug": "ttpo",
+      "verdict": "pass",
+      "findings": [
+        {
+          "severity": "none",
+          "finding": "The article now correctly avoids 'every-cell' claims, preserves the source's Figure 1 denominator ambiguity, distinguishes checkpoint maxima from same-step comparisons, and identifies the think-teacher/non-think-student source inconsistency without inventing a mechanism.",
+          "evidence_anchor": "arXiv:2608.27448v1, Figure 1, Tables 1–2, Figure 3, §4.1 and Appendix A; revised.md §§2–6, 9",
+          "label": "paper-evidenced",
+          "required_revision": "None."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "pass": ["incoder-32b-thinking", "agent-memory-distillation", "procedural-graphs", "ttpo"],
+    "revise": ["rsi-roadmap", "clause-budget-aware-kg-reasoning", "wikiprofile-empty-shelves-lost-keys"],
+    "blocking_severity": "none"
+  }
+}

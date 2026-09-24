@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Survey of Computational Approaches to Lexical Semantic Change Detection",
+    "authors": [
+      "Nina Tahmasebi",
+      "Lars Borin",
+      "Adam Jatowt"
+    ],
+    "year": 2021,
+    "primary_url": "https://langsci-press.org/catalog/view/303/3027/2374-1",
+    "doi": "10.5281/zenodo.5040302",
+    "arxiv_id": "1811.06278"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-1811.06278.pdf",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/tahmasebi-2021.pdf"
+  ],
+  "source_urls": [
+    "https://langsci-press.org/catalog/view/303/3027/2374-1",
+    "https://arxiv.org/abs/1811.06278"
+  ],
+  "excerpt": "어휘 의미 변화와 어휘 대체를 구분하고, 단어 수준과 의미 구별 방법을 연결해 계산적 의미 변화 연구의 지형과 평가 문제를 정리한 서베이를 설명한다.",
+  "changes": [
+    "제목을 실제 장 제목으로 보정",
+    "논문 설명·분류·한계·APA References 보존",
+    "Published title Detection and ten evaluation recommendations corrected against 2021 full chapter."
+  ],
+  "uncertainties": [
+    "로컬 원문은 2019-03-13 arXiv v2이며, 2021 출판 장과의 절별·문헌목록 차이는 출판본 기준으로 추가 교차 확인이 필요하다."
+  ],
+  "figure_preservation": {
+    "expected": 1,
+    "preserved": 1,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/survey-computational-approaches-lexical-semantic-change-review-2026",
+  "verified_content_sha256": "8e1b709e2d6e486a6e2d5f7382adb8d0407d76c503adc625051afc5a2029360e"
+}

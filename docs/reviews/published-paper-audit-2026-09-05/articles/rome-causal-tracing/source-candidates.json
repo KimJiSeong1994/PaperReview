@@ -1,0 +1,22 @@
+{
+  "title": "Locating and Editing Factual Associations in GPT",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/18-rome-causal-tracing/rome-causal-tracing-deep-review.md",
+      "score": 0.443,
+      "title": "ROME와 Causal Tracing 심층 분석: GPT의 사실 연상을 어디에 저장하고 어떻게 바꾸는가"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/social-sim/distribution-first/distribution-first-deep-review.md",
+      "score": 0.371,
+      "title": "비서구 합성인구 시뮬레이션 심층 분석: \"Distribution-First Population Simulation: Collapse, Calibration, and Recall in Non-WEIRD LLM Persona Modeling\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/foundations/22-ioi-circuit/ioi-circuit-deep-review.md",
+      "score": 0.271,
+      "title": "IOI Circuit 심층 분석: GPT-2 small의 이름 복사 알고리즘을 역공학하다"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

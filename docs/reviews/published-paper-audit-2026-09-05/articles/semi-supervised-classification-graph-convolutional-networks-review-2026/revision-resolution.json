@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Separated original depth degradation observation from later oversmoothing interpretation."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 16429,
+  "after_chars": 16393
+}

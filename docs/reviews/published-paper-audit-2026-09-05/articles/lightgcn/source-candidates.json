@@ -1,0 +1,22 @@
+{
+  "title": "LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lightgcn/lightgcn-deep-review.md",
+      "score": 1.3,
+      "title": "He et al. 2020 심층 분석: \"LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation\" 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnexplainer/gnnexplainer-deep-review.md",
+      "score": 0.322,
+      "title": "GNNExplainer 심층 분석: \"GNNExplainer: Generating Explanations for Graph Neural Networks\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/coevot/coevot-deep-review.md",
+      "score": 0.322,
+      "title": "CoEvoT 심층 분석: \"Co-Evolving Chain-of-Thought Prompting for Graph–LLM Reasoning\" 논문 해설"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

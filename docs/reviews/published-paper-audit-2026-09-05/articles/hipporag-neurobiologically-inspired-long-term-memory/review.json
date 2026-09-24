@@ -1,0 +1,40 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-2405.14831.pdf (31 pp.; §§2–5; Table 2)",
+    "https://arxiv.org/html/2405.14831"
+  ],
+  "source_urls": [
+    "https://proceedings.neurips.cc/paper_files/paper/2024/hash/6ddc001d07ca4f319af96a3024f6dbd1-Abstract-Conference.html",
+    "https://arxiv.org/html/2405.14831"
+  ],
+  "paper_metadata": {
+    "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models",
+    "authors": [
+      "Bernal Jiménez Gutiérrez",
+      "Yiheng Shu",
+      "Yu Gu",
+      "Michihiro Yasunaga",
+      "Yu Su"
+    ],
+    "year": 2024,
+    "primary_url": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/6ddc001d07ca4f319af96a3024f6dbd1-Abstract-Conference.html",
+    "arxiv_id": "2405.14831"
+  },
+  "excerpt": "HippoRAG는 문서에서 만든 개방형 지식 그래프 위에 query entity 기반 Personalized PageRank를 실행해 여러 문서에 흩어진 근거를 한 번의 검색 단계에서 연결하려는 RAG 방법이다.",
+  "changes": [
+    "Added the actual title and parser-compatible Paper header; retained methods, numerically checked results, figures, and APA references.",
+    "Replaced writer-process cost narration with primary AppendixG values."
+  ],
+  "uncertainties": [
+    "The study uses 1,000-question development subsets and does not establish scaling behavior for arbitrary corpora."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/hipporag-neurobiologically-inspired-long-term-memory",
+  "verified_content_sha256": "e7a8c4f819cfa8a77e35dafc2b7256ddc6eaa6b2fd46b348d196d7af314045fd"
+}

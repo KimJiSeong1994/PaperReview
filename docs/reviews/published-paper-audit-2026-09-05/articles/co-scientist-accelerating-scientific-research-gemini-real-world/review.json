@@ -1,0 +1,69 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2608.26701 (§§1–6 and evaluations)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2608.26701",
+    "https://arxiv.org/html/2608.26701"
+  ],
+  "paper_metadata": {
+    "title": "Accelerating Scientific Research with Gemini in the Real-World",
+    "authors": [
+      "Samuel Schmidgall",
+      "Xiaokai Zhu",
+      "Marian Shaw",
+      "Lin Yang",
+      "Valentin Liévin",
+      "Jingyun Yang",
+      "Yuchen Zhuang",
+      "Tim Strother",
+      "Alex Bijamov",
+      "Min Woo Sun",
+      "Anil Palepu",
+      "Justin Chen",
+      "David Steiner",
+      "Jacqueline Shreibati",
+      "Wei-Hung Weng",
+      "Yilin Zhao",
+      "Xingjian Hu",
+      "Nicholas Zahn",
+      "Sadhya Garg",
+      "Julia Kirby",
+      "Yuxiang Gan",
+      "Jiaoli Li",
+      "Divy Thakkar",
+      "Shekoofeh Azizi",
+      "David Racz",
+      "Juraj Gottweis",
+      "Vivek Natarajan",
+      "Chenglin Wu",
+      "Tal Danino",
+      "Keran Rong",
+      "Haozhe Wang",
+      "Benoit Schillings",
+      "Yong Cheng",
+      "Quoc V. Le",
+      "Tao Tu"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2608.26701",
+    "arxiv_id": "2608.26701"
+  },
+  "excerpt": "이 논문은 가설 제안 중심의 Co-Scientist를 장비 연동·코드 실행·원고 생성까지 수행하는 과학 연구 agent로 확장하고, 여러 실제 연구 환경에서 작업 성과와 신뢰성 장치를 평가한다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Corrected complete35-author roster and source APA citation; no figures were originally present."
+  ],
+  "uncertainties": [
+    "Real-world results depend on environment integration, verifier design, and domain-specific evaluation choices."
+  ],
+  "figure_preservation": {
+    "expected": 0,
+    "preserved": 0,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/co-scientist-accelerating-scientific-research-gemini-real-world",
+  "verified_content_sha256": "20524a8c394bdce927d2a500f9009a4f0c955277a73da302e50ba7605f690406"
+}

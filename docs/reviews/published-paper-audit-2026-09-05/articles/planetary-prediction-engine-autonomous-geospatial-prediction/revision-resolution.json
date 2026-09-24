@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed retrieval/citation-count audit and unverified figure-box-count contradiction."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 31788,
+  "after_chars": 31346
+}

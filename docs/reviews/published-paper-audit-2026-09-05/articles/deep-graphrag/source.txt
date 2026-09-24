@@ -1,0 +1,317 @@
+=== PDF PAGE 1 ===
+    Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval
+                    and Adaptive Integration
+
+                      Yuejie Li                   Ke Yang                    Tao Wang
+                  liyuejie.lyj@antgroup.com           zhulang.yk@antgroup.com              wangtop@zju.edu.cn
+                     Ant Group                       Ant Group                       Zhejiang University
+                        China                             China                             China
+
+                    Bolin Chen                 Bowen Li                 Chengjun Mao
+                  bolin.cbl@antgroup.com            zhikong.lbw@antgroup.com          chengjun.mcj@antgroup.com
+                     Ant Group                       Ant Group                       Ant Group
+                        China                             China                             China
+
+        Abstract                                                     development of knowledge graph-based RAG (GraphRAG) [3]. How-
+                                                                                           ever, even advanced approaches—including GNN-enhanced frame-2026    Graph-based Retrieval-Augmented Generation (GraphRAG) frame-
+         works face a trade-offbetween the comprehensiveness of global     works [13], modular indexing systems [10], agent-based graph read-
+
+                                                                                      limitations in graph traversal.Jan    searchoften challengedand the efficiencyby navigatingof locallarge-scalesearch.hierarchicalExisting methodsgraphs, areop-      ers [9], and neurobiologically inspired retrieval [5]—exhibit notable
+           timizing retrieval paths, and balancing exploration-exploitation          Specifically, these methods inadequately resolve the exploration-
+          dynamics, frequently lacking robust multi-stage re-ranking. To      exploitation tradeoff. Coarse-grained community summarization29
+          overcome these deficits, we propose Deep GraphRAG, a framework        (e.g., Map-Reduce) often sacrifices fine-grained contextual rele-
+           designed for a balanced approach to hierarchical retrieval and adap-      vance. Concurrently, the absence of multi-stage re-ranking mecha-
+             tive integration. It introduces a hierarchical global-to-local retrieval      nisms can lead to local optima trapping and disconnection between
+           strategy that integrates macroscopic inter-community and micro-      different levels of graph abstraction [6, 15].
+            scopic intra-community contextual relations. This strategy employs       To address these limitations, we propose Deep GraphRAG, a
+           a three-stage process: (1) inter-community filtering, which prunes       hierarchical retrieval framework featuring a dynamic, beam-search-[cs.IR]
+           the search space using local context; (2) community-level refine-      inspired re-ranker. As depicted in Figure 1, this framework sys-
+          ment, which prioritizes relevant subgraphs via entity-interaction      tematically integrates: (1) Inter-community filtering to prune the
+            analysis; and (3) entity-level fine-grained search within target com-      search space via macroscopic topology; (2) Community-level refine-
+           munities. A beam search-optimized dynamic re-ranking module     ment utilizing entity-interaction graph analysis; (3) Fine-grained
+           guides this process, continuously filtering candidates to balance       entity retrieval coupled with contextual re-ranking. This tri-stage
+            efficiency and global comprehensiveness. Deep GraphRAG also fea-      architecture is designed to balance global structural awareness with
+            tures a Knowledge Integration Module leveraging a compact LLM,       local semantic precision, thereby addressing the limitations of prior
+            trained with Dynamic Weighting Reward GRPO (DW-GRPO). This      models.
+           novel reinforcement learning approach dynamically adjusts reward        Moreover, reinforcement learning algorithms such as TRPO [17],
+          weights to balance three key objectives: relevance, faithfulness,    DPO [14], PPO [18] and GRPO [19] employ fixed weights across
+         and conciseness. This training enables compact models (1.5B) to      multiple reward signals, failing to account for the dynamic trade-
+          approach the performance of large models (70B) in the integration       offs that may arise during optimization. To address this limitation,
+             task. Evaluations on Natural Questions and HotpotQA demonstrate    we propose Dynamic Weighting Reward GRPO (DW-GRPO), a
+            that Deep GraphRAG significantly outperforms baseline graph re-      novel framework that adaptively learns and updates reward coeffi-
+             trieval methods in both accuracy and efficiency.                         cients during policy optimization. Empirical results demonstrate
+                                                                                    that DW-GRPO significantly improves the performance of a com-arXiv:2601.11144v3                                                                                pact 1.5B LLM on knowledge integration tasks.
+       Keywords
+         GraphRAG, Reinforcement Learning, Large Language Models
+                                                       2  Methods
+                                                                  2.1  Deep GraphRAG
+                                                     We propose Deep GraphRAG, a retrieval framework using a graph’s
+                                                                                      hierarchical community structure to enhance accuracy via a multi-
+        1  Introduction                                                     stage, top-down search.
+          While Retrieval-Augmented Generation (RAG) effectively mitigates
+        common LLM challenges such as hallucination and knowledge cut-       2.1.1  Graph Construction and Hierarchy. We construct the base
+          off[8], conventional vector-based retrieval methods demonstrate     graph 𝐺= (𝑉, 𝐸) from the corpus 𝐾using a rigorous three-step
+            limitations in complex reasoning tasks that necessitate structural      pipeline designed to maximize structural integrity and semantic
+          comprehension [1, 4, 11, 12, 16, 21, 22]. This deficit has catalyzed the       retention:
+
+=== PDF PAGE 2 ===
+                                                                                                                                                                                   Li et al.
+
+
+
+
+
+Figure 1: Deep GraphRAG framework overview. The retrieval module uses Graph Beam Search and Context Aware Ranking on
+a hierarchical Knowledge Graph. The knowledge integration module employs Dynamic Weighting Reward GRPO (DW GRPO).
+
+
+  Text Chunking and Extraction: We segment the corpus 𝐾     Algorithm 1 Deep GraphRAG Process
+using a sliding window approach with a fixed size of𝑇= 600 tokens       Input: Query 𝑞, Community 𝐶, Beam width 𝑘, Top-𝑚entities 𝑚
+and an overlap of 𝑂= 100 tokens to mitigate boundary information        Output: Final result set 𝑅
+loss. For each chunk, we deploy Qwen2.5-72B-Instruct (temperature            1: Phase 1: Top-level Search (Coarse Filtering)
+set to 0 to ensure deterministic output) with a specialized prompt            2:    Score 𝐶𝑡𝑜𝑝via Re-ranker(𝑞, 𝐷(𝑐𝑡𝑜𝑝))
+to extract entities and directed relationships. Unlike standard triple-            3:   𝐶𝑚𝑖𝑑←Top-k results from 𝐶𝑡𝑜𝑝
+based extraction, we enforce the generation of concise natural            4: Phase 2: Middle-level Search (Fine-grained Re-ranking)
+language descriptions for every edge to capture complex semantic            5:   Expand 𝐶𝑚𝑖𝑑to sub-communities 𝐶′𝑚𝑖𝑑
+nuances.                                                                                                 6:    Score 𝐶′𝑚𝑖𝑑via Re-ranker(𝑞, 𝐷(𝑐𝑚𝑖𝑑) + 𝐷(𝑐′𝑚𝑖𝑑))
+  Entity Resolution: To maintain topological consistency, we            7:   𝐶𝑠𝑡𝑜𝑝,𝑉𝑐𝑎𝑛𝑑←Top-k results from 𝐶′𝑚𝑖𝑑
+implement a hybrid resolution strategy. Initial candidate pairs for            8: Phase 3: Entity-level Search (Context-Aware)
+merging are identified by computing cosine similarity on entity            9:   Expand 𝐶𝑠𝑡𝑜𝑝to candidate entities 𝑉𝑐𝑎𝑛𝑑
+descriptions embedded via the bge-m3[2] model. Pairs exceeding          10: for each entity 𝑣∈𝑉𝑐𝑎𝑛𝑑with parent 𝑐𝑝𝑎𝑟𝑒𝑛𝑡do
+a strict similarity threshold (𝜏> 0.95) undergo a secondary verifi-         11:      𝐷𝑐𝑡𝑥(𝑣) ←Concat(𝐷(𝑣), 𝐷(𝑐𝑝𝑎𝑟𝑒𝑛𝑡))
+cation step where an LLM acts as a discriminator to confirm if the          12:      𝑆𝑐𝑜𝑟𝑒(𝑣) ←simcos(𝑞, 𝐷𝑐𝑡𝑥(𝑣))
+nodes refer to the same real-world concept (e.g., merging "U.S." and          13: end for
+"United States").                                                                             14:   𝑅𝑝𝑟𝑒←Top-m results from 𝑉𝑐𝑎𝑛𝑑based on 𝑆𝑐𝑜𝑟𝑒(𝑣)
+  Hierarchy Generation: Upon the resolved base graph 𝐺, we          15: Phase 4: Knowledge Integration
+construct a multi-granular 3-level community hierarchy C. This is          16:    𝑅←Hierarchical-Integration(𝑅𝑝𝑟𝑒)
+achieved by recursively applying the weighted Louvain algorithm          17: return 𝑅
+with a standard resolution parameter 𝛾= 1.0. This bottom-up pro-
+cess partitions the graph into increasingly coarse semantic clusters,
+creating a tree structure where level 𝐿= 0 comprises individual
+entities and levels 𝐿> 0 represent abstract community summaries.       At the final entity level, we ensure topological awareness by
+  We then generate context-aware representations 𝐷(·) for all      constructing context-aware representations. Specifically, the
+nodes and communities using a pre-trained sentence-embedding      representation of a candidate entity 𝑣is dynamically formed by
+model. Community representations 𝐷(𝑐) are derived by mean pool-      concatenating its local embedding with its parent community’s
+ing their sub-community vectors (Eq. 1), while node representations      vector (i.e., 𝐷𝑐𝑡𝑥(𝑣) = [𝐷(𝑣); 𝐷(𝑐𝑝𝑎𝑟𝑒𝑛𝑡)]) before final scoring.
+𝐷(𝑣) concatenate local descriptions with their parent’s representa-
+tion 𝐷𝑝𝑎𝑟𝑒𝑛𝑡(·).                                                         2.2  Dynamic Weighting Reward GRPO
+                                           (DW-GRPO)
+                          1    ∑︁   𝐷(𝑐′)               (1)               𝐷sub(𝑐) =                             |𝐶sub(𝑐)|                                            2.2.1  DW-GRPO in Deep GraphRAG. In the Deep GraphRAG frame-                                         𝑐′∈𝐶sub (𝑐)                                                              work, knowledge integration generates distilled knowledge 𝐶. 𝐶
+                                                                                        is a critical input for subsequent knowledge extraction based on
+2.1.2   Retrieval Process. The retrieval (Algorithm 1) employs a
+                                                                     user queries 𝑄. The module aims to filter redundancy and suppresscoarse-to-fine beam search (𝑘= 3) to traverse C from top to bot-
+                                                                          hallucinations, emphasizing three core objectives. We define three
+tom. To balance efficiency and accuracy, we adopt a hybrid scoring
+                                                              rewards for optimizing the distilled knowledge 𝐶relative to the
+strategy: relevance at the top coarse level is quickly estimated
+                                                                          original text 𝐾and query 𝑄:
+using re-ranker, while the intermediate expansion utilizes a bge-
+reranker-v2-m3 to capture subtle semantic alignments between            (1) Relevance (𝑟rel): Measures how well 𝐶answers 𝑄. We use
+the query 𝑞and community summaries.                                   a pre-trained cross-encoder model (bge-reranker-v2-m3)
+
+=== PDF PAGE 3 ===
+Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration
+
+           𝑓cross to score the query-output pair:                      3.2  Question Categorization and Baselines
+                                                        To evaluate performance on problems of varying complexity, we
+                                 𝑟rel = 𝑓cross(𝑄,𝐶)                          (2)                                                                     categorized test questions into three types based on the structure
+     (2) Faithfulness (𝑟faith): Measures the semantic fidelity of 𝐶       of their ground-truth answer paths in the knowledge graph:
+        to the original knowledge 𝐾. We use the F1-score from          • Local Questions (LQ): Answerable by focusing on 1-2
+      BERTScore (bge-m3) 𝑓BERT:                                               directly connected entity nodes. Tests retrieval of specific
+                                                                                             facts.
+                                𝑟faith = 𝑓BERT(𝐶, 𝐾)                        (3)          • Global Questions (GQ): Require reasoning across more
+                                                                        than 2 entities, often spanning different communities. Tests
+     (3) Conciseness (𝑟conc): Penalizes verbosity to encourage suc-            summarization or comparison.
+        cinct summaries. We define this as a normalized length-         • Comprehensive Questions (CQ): Require a combination
+       based reward:                                                            of specific local facts (like LQ) and broader aggregated con-
+                      𝑟conc = max  0, 1 −len(𝐶)                     (4)               text (like GQ).                                   len(𝐾)                        This objective categorization allows for a fine-grained analysis of
+                                                               each method’s strengths.
+These three rewards (𝑟1,𝑟2,𝑟3) form the basis for the dynamic weight-     We compare Deep GraphRAG against three baseline retrieval
+ing mechanism.                                                 methods: Local Search (LS) (standard dense vector retrieval over
+                                                                                        all entity nodes), Microsoft’s Global Search (GS) (a map-reduce
+2.2.2  Dynamic Weighting Reward-GRPO. A limitation of GRPO                                                              summarization strategy), and DRIFT Search (DS) (a recursive
+in multi-reward settings is its use of static weights, which leads
+                                                                    search method) [15].
+to suboptimal performance (the seesaw effect [20]). We propose
+**Dynamic Weighting Reward GRPO (DW-GRPO)**, which replaces
+static weights with a policy-aware adaptive weighting mechanism.
+  We incorporate a dynamic parameter 𝑤to adjust rewards: e𝑟=
+Í 𝑗𝑤𝑗𝑟𝑗. The estimated advantage eˆ𝐴is computed as:
+
+              Í 𝑗𝑤𝑗𝑟𝑗−mean(Í 𝑗𝑤𝑗𝑟𝑗)
+            eˆ𝐴= ∑︁ 𝑤𝑗𝑟𝑗−                                          (5)                                  𝑗             std(Í 𝑗𝑤𝑗𝑟𝑗)
+
+  The core mechanism of DW-GRPO is to dynamically allocate
+higher weights to reward components that demonstrate slower
+growth rates, maximizing long-term returns. Let Δ𝑟𝑗= max(r(𝑡,𝜏)𝑗   )−
+min(r(𝑡,𝜏)𝑗    ) be the reward range over window𝜏. We fit a linear model
+                                                            Figure 2: Comparison of system processing time (latency)
+to estimate the reward’s rate of change slope𝑗.
+                                               among Local Search (LS), DRIFT Search (DS), and Deep
+  The normalized rate of change 𝛼𝑗(𝑡−1) is:
+                                               GraphRAG methods on the NQ dataset.
+
+                     ( 0,         if Δ𝑟𝑗= 0
+             𝛼𝑗(𝑡−1) =   slope𝑗                                 (6)
+                            Δ𝑟𝑗,  otherwise               4  Results
+                                                         4.1  Performance and Efficiency Analysis
+where the slope is determined by least-squares fitting:
+                                              We conducted a comprehensive evaluation of retrieval performance
+            slope𝑗= arg min                                                                 𝑗   −(𝑘x + 𝑏)∥2.                    (Table 1) and system latency (Figure 2). Our analysis yields three                            𝑘,𝑏∥r(𝑡,𝑤)
+                                                                                    critical observations.
+The dynamic weights 𝑤𝑗(𝑡) are then derived using the softmax        Superiority in Global Reasoning Drives Overall Perfor-
+function with temperature 𝑇, where 𝑊= Í 𝑗𝑤𝑗,0 maintains the     mance. Deep GraphRAG (with a 72B integrator) establishes new
+                                                                              state-of-the-art performance, achieving the highest EM-Total scores
+total scale:
+                                                       on both NQ (e.g., 44.69%) and HotpotQA (e.g., 45.44%). This over-
+               𝑊exp −1 · 𝛼𝑗(𝑡−1)/𝑇                             all superiority is primarily driven by a significant advantage in
+              𝑤𝑗(𝑡) =                                              (7)
+            Í 𝑗exp −1 · 𝛼𝑗(𝑡−1)/𝑇                    Global Questions (GQ). On HotpotQA, which demands multi-hop
+                                                                    reasoning, our method (e.g., 56.25%) drastically outperforms Lo-
+3  Experimental Setup                                           cal Search (10.00%) and the strong Drift Search baseline (38.75%).
+                                                                   This confirms that our hierarchical global-to-local search effectively
+3.1  Datasets                                                  balances exploration and exploitation to handle queries requiring
+We evaluated the system on two distinct datasets, Natural Questions      broad contextual aggregation.
+(NQ) [7] and HotpotQA [23], to assess its generalization ability and       Nuanced Trade-offs in Comprehensive Queries. Performance
+domain adaptability.                                         on Comprehensive Questions (CQ) is more nuanced. While Deep
+
+=== PDF PAGE 4 ===
+                                                                                                                                                                                   Li et al.
+
+
+            Table 1: Performance Comparison of Different Models (NQ and HotpotQA). Best total EM in bold.
+
+
+ Method          Knowledge Integration     Generation   EM-LQ (%)  EM-GQ (%)  EM-CQ (%)  EM-Total (%)
+
+ NQ Dataset
+
+ Local Search                            Qwen2.5 72B         41.32         16.58       16.10          30.13
+ Global Search     Qwen2.5 72B            Qwen2.5 72B         20.48         31.19          0.10          22.63
+ Drift Search      Qwen2.5 72B            Qwen2.5 72B         42.43         54.15         14.70          42.78
+ Deep GraphRAG  Qwen2.5 72B            Qwen2.5 72B       45.36        55.08         14.70         44.69
+ Deep GraphRAG  Qwen2.5 1.5B            Qwen2.5 72B         24.00         28.00          3.00          21.64
+ Deep GraphRAG  Qwen2.5 1.5B-DW GRPO  Qwen2.5 72B         44.80         54.00         13.00          42.36
+
+ Local Search                             DeepSeek-R1        41.09         18.04       23.20          31.36
+ Global Search     DeepSeek-R1            DeepSeek-R1        20.52         32.15         16.40          23.79
+ Drift Search      Qwen2.5 72B             DeepSeek-R1        45.23        53.42         11.00          43.61
+ Deep GraphRAG  Qwen2.5 72B             DeepSeek-R1       45.36         51.00         19.60         43.98
+ Deep GraphRAG  Qwen2.5 1.5B            DeepSeek-R1        24.40         29.00          3.50          22.27
+ Deep GraphRAG  Qwen2.5 1.5B-DW GRPO  DeepSeek-R1        45.00         50.50         18.00          42.09
+
+ HotpotQA Dataset
+
+ Local Search                            Qwen2.5 72B       59.25         10.63          6.19          38.22
+ Global Search     Qwen2.5 72B            Qwen2.5 72B         18.49         41.88          6.19          19.78
+ Drift Search      Qwen2.5 72B            Qwen2.5 72B         39.62         30.00         22.38          33.89
+ Deep GraphRAG  Qwen2.5 72B            Qwen2.5 72B         49.06         56.25       24.76         44.67
+ Deep GraphRAG  Qwen2.5 1.5B            Qwen2.5 72B         18.87         15.00          2.86          15.97
+ Deep GraphRAG  Qwen2.5 1.5B-DW GRPO  Qwen2.5 72B         39.62        57.50         20.95          38.44
+
+ Local Search                             DeepSeek-R1       60.94         10.00         14.76          41.11
+ Global Search     DeepSeek-R1            DeepSeek-R1        20.00         48.75          9.05          22.56
+ Drift Search      Qwen2.5 72B             DeepSeek-R1        39.62         38.75         22.86          35.56
+ Deep GraphRAG  Qwen2.5 72B             DeepSeek-R1        50.38         56.25       24.76         45.44
+ Deep GraphRAG  Qwen2.5 1.5B            DeepSeek-R1        20.00         18.13          3.81          17.48
+ Deep GraphRAG  Qwen2.5 1.5B-DW GRPO  DeepSeek-R1        39.62         58.13         20.95          38.56
+
+
+GraphRAG remains competitive and often wins (e.g., 24.76% on     4.2  Performance of DW-GRPO
+HotpotQA), it does not universally outperform all baselines. For     To rigorously evaluate the efficacy of the proposed Dynamic Weight-
+instance, on NQ with DeepSeek-R1, Local Search achieves a higher      ing Reward GRPO (DW-GRPO), we conducted a comparative anal-
+EM-CQ (23.20%) than Deep GraphRAG (19.60%). This suggests a       ysis against the standard GRPO baseline using the Qwen2.5-1.5B
+potential trade-off: our method’s strength in hierarchical summa-     model. The experimental protocol involved a two-stage training
+rization may, in some cases, obscure the fine-grained local facts      pipeline on the HotpotQA dataset: initial Supervised Fine-Tuning
+needed for certain CQ tasks, an area for future refinement.             (SFT) using distillations from the teacher model (Qwen2.5-72B), fol-
+  High-Efficiency Distillation via DW-GRPO. The compact      lowed by Reinforcement Learning (RL) optimization. We track both
+Qwen2.5 1.5B-DW GRPO achieves over 94% of the 72B model’s      the aggregated reward and the individual components: Conciseness,
+NQ performance (42.36%), overcoming the baseline’s “lost-in-the-       Faithfulness, and Relevance.
+middle” issue. By reinforcing information filtering and query align-         Figure 3 illustrates the reward trajectories. The baseline exhibits
+ment, our dynamic weighting strategy enhances contextual robust-     a marked optimization disparity: while the simple Conciseness re-
+ness, enabling lightweight models to handle complex reasoning.      ward is rapidly maximized, semantic objectives—Relevance and
+  Latency Reduction. Figure 2 shows Deep GraphRAG achieves      Faithfulness—stagnate. This exemplifies the “seesaw effect,” where
+an 86% and 81.6% reduction in latency over Drift Search on Local      the model over-optimizes easy metrics at the expense of complex
+and Global NQ questions.                                             reasoning.
+
+=== PDF PAGE 5 ===
+Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration
+
+
+
+                                                                                         Generation for Knowledge-Intensive NLP Tasks. In Advances in Neural Informa-
+                                                                                                         tion Processing Systems, H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, and
+                                                                                     H. Lin (Eds.), Vol. 33. Curran Associates, Inc., 9459–9474.
+                                                                                                  [9]  Shilong Li, Yancheng He, Hangyu Guo, Xingyuan Bu, Ge Bai, Jie Liu, Jiaheng
+                                                                                                         Liu, Xingwei Qu, Yangguang Li, Wanli Ouyang, Wenbo Su, and Bo Zheng. 2024.
+                                                                                      GraphReader: Building Graph-based Agent to Enhance Long-Context Abilities
+                                                                                                    of Large Language Models. arXiv:2406.14550 [cs.CL] https://arxiv.org/abs/2406.
+                                                                                       14550
+                                                                                            [10] Yuan Li, Jun Hu, Jiaxin Jiang, Zemin Liu, Bryan Hooi, and Bingsheng He. 2025.
+                                                                               RGL: A Graph-Centric, Modular Framework for Efficient Retrieval-Augmented
+                                                                                          Generation on Graphs. arXiv:2503.19314 [cs.IR] https://arxiv.org/abs/2503.19314
+                                                                                            [11]  Z. Li, X. Chen, H. Yu, H. Lin, Y. Lu, Q. Tang, F. Huang, X. Han, L. Sun, and Y. Li.
+                                                                                                 2024. Structrag: Boosting knowledge intensive reasoning of llms via inference-
+                                                                                          time hybrid information structurization. arXiv preprint arXiv:2410.08815 (2024).
+                                                                                            [12]  C. Ling, X. Zhao, J. Lu, C. Deng, C. Zheng, J. Wang, T. Chowdhury, Y. Li, H. Cui,
+                                                                                  and X. Zhang et al. 2023. Domain specialization as the key to make large language
+                                                                                  models disruptive: A comprehensive survey. arXiv preprint arXiv:2305.18703
+                                                                                                         (2023).
+                                                                                            [13] Linhao Luo, Zicheng Zhao, Gholamreza Haffari, Dinh Phung, Chen Gong, and
+                                                                                                    Shirui Pan. 2025. GFM-RAG: Graph Foundation Model for Retrieval Augmented
+                                                                                            Generation. arXiv:2502.01113 [cs.IR] https://arxiv.org/abs/2502.01113
+                                                                                            [14]  Rafael Rafailov, Archit Sharma, Eric Mitchell, Christopher D Manning, Stefano
+Figure 3: Comparison of smoothed reward learning curves            Ermon, and Chelsea Finn. 2023. Direct preference optimization: Your language
+between GRPO and DW-GRPO on the test dataset.                      model is secretly a reward model. Advances in neural information processing
+                                                                                            systems 36 (2023), 53728–53741.
+                                                                                            [15]  Microsoft Research. 2024.  Introducing Drift Search: Combining Global and
+                                                                                          Local Search Methods to Improve Quality and Efficiency. Microsoft Research
+   In contrast, DW-GRPO demonstrates sustained gains across all             Blog (2024). https://www.microsoft.com/en-us/research/blog/introducing-drift-
+                                                                                          search-combining-global-and-local-search-methods-to-improve-quality-and-
+metrics, validating the adaptive mechanism in Section 2.2.2. By               efficiency/
+monitoring the reward slope (slope𝑗), the algorithm detects stalling        [16]  P. Sarthi, S. Abdullah, A. Tuli, S. Khanna, A. Goldie, and C. D. Manning. 2024.
+in Relevance and Faithfulness and dynamically upweights these             Raptor: Recursive abstractive processing for tree-organized retrieval.  arXiv
+                                                                                                     preprint arXiv:2401.18059 (2024).
+lagging components (Eq. 7). This effectively prevents policy collapse        [17]  John Schulman, Sergey Levine, Pieter Abbeel, Michael Jordan, and Philipp Moritz.
+into trivial solutions, ensuring robust semantic alignment.                       2015. Trust region policy optimization. In International conference on machine
+                                                                                                       learning. PMLR, 1889–1897.
+                                                                                            [18]  John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov.
+5  Conclusion                                                                        2017. Proximal policy optimization algorithms. arXiv preprint arXiv:1707.06347
+                                                                                                         (2017).
+We introduced Deep GraphRAG, a framework addressing global        [19] Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei
+and complex queries via hierarchical global-to-local retrieval and            Zhang, Mingchuan Zhang, YK Li, Yang Wu, et al. 2024. Deepseekmath: Pushing
+beam-search re-ranking. Additionally, we proposed DW-GRPO, an             the limits of mathematical reasoning in open language models. arXiv preprint                                                                                                 arXiv:2402.03300 (2024).
+adaptive reinforcement learning strategy that enables compact 1.5B        [20] Hongyan Tang, Junning Liu, Ming Zhao, and Xudong Gong. 2020.  Progres-
+models to achieve performance competitive with 72B baselines.              sive Layered Extraction (PLE): A Novel Multi-Task Learning (MTL) Model for
+                                                                                            Personalized Recommendations. In Proceedings of the 14th ACM Conference on
+Experiments on NQ and HotpotQA demonstrate significant gains            Recommender Systems (Virtual Event, Brazil) (RecSys ’20). Association for Com-
+in both retrieval accuracy and efficiency. Future work will focus on             puting Machinery, New York, NY, USA, 269–278. doi:10.1145/3383313.3412236
+optimizing the trade-offbetween global summarization and local        [21]  X. Tang, Q. Gao, J. Li, N. Du, Q. Li, and S. Xie. 2024. Mba-rag: a bandit approach
+                                                                                                        for adaptive retrieval-augmented generation through question complexity. arXiv
+fact preservation.                                                                              preprint arXiv:2412.01572 (2024).
+                                                                                            [22]  F. Xu, W. Shi, and E. Choi. 2023. Recomp: Improving retrieval-augmented lms
+References                                                                     with(2023).compression and selective augmentation. arXiv preprint arXiv:2310.04408
+ [1]  T. Bruckhaus. 2024.  Rag does not work for enterprises.   arXiv preprint        [23]  Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William W. Cohen, Ruslan
+      arXiv:2406.04369 (2024).                                                                Salakhutdinov, and Christopher D. Manning. 2018. HotpotQA: A Dataset for
+ [2]  Jianlv Chen, Shitao Xiao, Peitian Zhang, Kun Luo, Defu Lian, and Zheng Liu. 2023.              Diverse, Explainable Multi-hop Question Answering. arXiv:1809.09600 [cs.CL]
+    BGE M3-Embedding: Multi-Lingual, Multi-Functionality, Multi-Granularity Text              https://arxiv.org/abs/1809.09600
+     Embeddings Through Self-Knowledge Distillation. arXiv:2309.07597 [cs.CL]
+ [3] Darren Edge et al. 2024. From Local to Global: A Graph RAG Approach to
+     Query-Focused Summarization. arXiv preprint arXiv:2404.16130 (2024).
+ [4] M. Glass, G. Rossiello, M. F. M. Chowdhury, A. R. Naik, P. Cai, and A. Gliozzo.
+      2022. Re2G: Retrieve, rerank, generate. arXiv preprint arXiv:2207.06300 (2022).
+ [5]  Bernal Jiménez Gutiérrez, Yiheng Shu, Yu Gu, Michihiro Yasunaga, and Yu Su.
+      2025. HippoRAG: Neurobiologically Inspired Long-Term Memory for Large
+     Language Models. arXiv:2405.14831 [cs.CL] https://arxiv.org/abs/2405.14831
+ [6] H. Han et al. 2024. Retrieval-augmented generation with graphs (graphrag).
+     arXiv preprint arXiv:2501.00309 (2024).
+ [7] Tom Kwiatkowski, Jennimaria Palomaki, Olivia Redfield, Michael Collins, Ankur
+      Parikh, Chris Alberti, Danielle Epstein, Illia Polosukhin, Jacob Devlin, Kenton Lee,
+      Kristina Toutanova, Llion Jones, Matthew Kelcey, Ming-Wei Chang, Andrew M.
+      Dai, Jakob Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natural Questions: A Bench-
+     mark for Question Answering Research. Transactions of the Association for Com-
+      putational Linguistics 7 (2019), 453–466. arXiv:https://direct.mit.edu/tacl/article-
+      pdf/doi/10.1162/tacl_a_00276/1923288/tacl_a_00276.pdf doi:10.1162/tacl_a_00276
+ [8]  Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir
+     Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim
+      Rocktäschel, Sebastian Riedel, and Douwe Kiela. 2020. Retrieval-Augmented

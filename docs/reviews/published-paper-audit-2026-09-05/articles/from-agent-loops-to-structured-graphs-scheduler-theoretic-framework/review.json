@@ -1,0 +1,35 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2604.11378 (framework sections and limitations)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2604.11378",
+    "https://arxiv.org/html/2604.11378"
+  ],
+  "paper_metadata": {
+    "title": "From Agent Loops to Structured Graphs: A Scheduler-Theoretic Framework for LLM Agent Execution",
+    "authors": [
+      "Hu Wei"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2604.11378",
+    "arxiv_id": "2604.11378"
+  },
+  "excerpt": "이 논문은 LLM agent loop를 제한된 준비 집합을 관리하는 스케줄러로 해석하고, 정적 DAG·계획 버전·회복 경계를 결합한 structured graph harness를 실행 설계 언어로 제안한다.",
+  "changes": [
+    "Preserved paper-focused explanation and references.",
+    "Corrected author Hu Wei and removed citation-count/reviewer process."
+  ],
+  "uncertainties": [
+    "The paper does not provide an implementation-backed comparative performance study."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+  "verified_content_sha256": "52e72dfaf41c024566f58d725e094d688d86104368c2f1fec0d04df0203d33e1"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed unsupported triviality claim for static analogy."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 16795,
+  "after_chars": 16766
+}

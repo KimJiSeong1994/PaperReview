@@ -253,3 +253,11 @@ _workspace/
 
 # Frontend development cache (LLM responses, search cache from dev sessions)
 web-ui/data/cache/
+
+# 리뷰 감사 산출물: 보고서와 구조화된 결과만 추적한다. 원문 미러(PDF/HTML),
+# 위키 백업, 1MB 넘는 콘텐츠 스냅샷은 저장소 밖에 둔다(합계 138MB).
+docs/reviews/**/sources/
+docs/reviews/**/paperwiki-backups/
+docs/reviews/**/wiki-backups/
+docs/reviews/**/*.pdf
+docs/reviews/**/*.html

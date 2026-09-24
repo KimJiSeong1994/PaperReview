@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "source.pdf (arXiv:2601.11144v3, 5 pp.; §§2–4; Tables 1–2)",
+    "source.txt (extracted full text)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2601.11144"
+  ],
+  "paper_metadata": {
+    "title": "Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration",
+    "authors": [
+      "Yuejie Li",
+      "Ke Yang",
+      "Tao Wang",
+      "Bolin Chen",
+      "Bowen Li",
+      "Chengjun Mao"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2601.11144",
+    "arxiv_id": "2601.11144"
+  },
+  "excerpt": "Deep GraphRAG는 커뮤니티 계층을 global에서 local로 좁혀 검색하고, 다목적 보상 가중을 조정한 소형 통합 모델로 검색된 지식을 답변 문맥으로 결합한다.",
+  "changes": [
+    "Added the actual paper title as the H1.",
+    "Cross-checked method, central result cells, latency, and CQ exception against source.pdf; retained paper-only method, results, references, and figures.",
+    "Separated SFT+RL combined effect and per-level beam width from constant total cost."
+  ],
+  "uncertainties": [
+    "Graph-size and question-type composition details are not reported sufficiently to extrapolate the latency or balance claims."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/deep-graphrag",
+  "verified_content_sha256": "11643e8823de88bbc7e77d4ab06505f3b46751c2d459cc3756ac6ceeff9c2844"
+}

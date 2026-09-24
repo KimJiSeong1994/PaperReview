@@ -1,0 +1,174 @@
+# SDNE 심층 분석: "Structural Deep Network Embedding" 논문 해설
+
+**Paper:** Wang, Daixin; Cui, Peng; Zhu, Wenwu. (2016). "Structural Deep Network Embedding." *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD '16)*, 1225–1234. https://doi.org/10.1145/2939672.2939753 ([PDF 보기](/paper-viewer?title=Structural+deep+network+embedding&authors=Wang%3BCui%3BZhu&year=2016&doi=10.1145%2F2939672.2939753&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2939672.2939753&source=blog-reference)). Tsinghua University.
+
+**Abstract:** 본 문서는 오토인코더(입력을 저차원으로 압축했다가 다시 복원하며 재구성 오차를 줄이는 비지도 신경망)로 네트워크 임베딩을 학습한 초기 방법 SDNE를 해설한다. 핵심은 인접행렬의 한 행(한 노드와 다른 모든 노드 사이 연결의 나열)을 입력으로 삼아, 이웃 구조를 복원하는 비지도 성분과 엣지로 연결된 노드쌍을 임베딩 공간에서 당기는 지도 성분을 하나의 목적함수 L_mix로 함께 최적화하는 것이다. 재구성·분류·링크예측·시각화 네 과제에서 당시 얕은 임베딩 기법들을 앞선다고 보고한다. 다만 그 결론은 몇 가지 테두리 안에서 읽어야 한다. 재구성 지표가 SDNE의 훈련 목적과 사실상 같다는 점, 링크예측이 시간 분할이 아니라 무작위 은닉이라는 점, 대부분 표가 단일 실행 점추정이라는 점, 그리고 입력을 인접행렬 행에 묶은 탓에 transductive(고정된 노드 집합 안에서만 작동)라는 점이다.
+
+---
+
+## Executive Summary
+
+| 항목 | 설명 |
+| --- | --- |
+| 연구 질문 | 얕은 임베딩이 놓치는 네트워크의 비선형 구조를, 깊은 신경망으로 더 잘 보존할 수 있는가? |
+| 핵심 기여 | 오토인코더에 1차 근접성(엣지로 직접 연결된 노드쌍의 국소 유사)과 2차 근접성(두 노드의 이웃 구조가 얼마나 닮았는가)을 함께 넣어 국소·전역 구조를 동시에 보존하는 SDNE를 제안. LINE처럼 따로 학습해 잇는 대신 하나의 목적함수로 함께 최적화한다. |
+| 방법적 결과 | \(L_{mix}=L_{2nd}+\alpha L_{1st}+\nu L_{reg}\)(식 5). \(L_{2nd}\)는 가중 재구성(실제 엣지에 β배 벌점)으로 2차 근접성을, \(L_{1st}\)는 Laplacian Eigenmaps식 벌점으로 1차 근접성을 보존한다. |
+| 실험 결과 | 저자 보고 기준 재구성 MAP은 ARXIV-GRQC 0.836·BLOGCATALOG 0.63(LINE 0.69·0.58), 링크예측 P@1000 0.91(LINE 0.79), 20-NEWSGROUP 시각화 KL 발산 0.68(2위 GraRep 0.73)로 얕은 기법들을 앞선다. |
+| 핵심 한계 | 재구성=훈련그래프 복원(일반화 아님)이고 SDNE 목적함수와 거의 같은 지표, 링크예측=무작위 15% 은닉, 대부분 단일 실행·오차막대 부재, 입력이 노드 수에 묶여 transductive·비확장. 고립 노드는 처리 불가(논문 인정). |
+
+## 목차
+
+1. 서론
+2. 방법: 오토인코더와 두 근접성
+3. 실험 설정
+4. 실험 결과
+5. 주의해서 읽을 점
+6. 방법적 한계와 확장
+7. 결론
+
+---
+
+## 1. 서론
+
+### 1.1 연구 배경
+
+네트워크 임베딩은 그래프의 각 노드를 저차원 벡터로 바꿔, 링크예측·분류·군집화·시각화 같은 후속 과제를 벡터 공간에서 수행하게 하는 문제다. 관건은 그 벡터가 원 네트워크의 구조를 얼마나 보존하느냐다.
+
+SDNE가 나온 2016년 무렵의 대표 기법들 — Laplacian Eigenmaps, DeepWalk, LINE, GraRep — 은 랜덤워크, 행렬분해, 근접성 보존 목적함수로 노드 표현을 학습했다. 논문의 진단은 이들이 대체로 **얕은(shallow) 모델**이라 네트워크의 복잡한 비선형 구조를 충분히 담지 못한다는 것이다(§1). 논문은 도전 세 가지를 든다: 고도의 비선형성, 국소·전역 구조의 동시 보존, 그리고 네트워크의 심한 희소성이다.
+
+답은 깊은 오토인코더다. 각 노드의 인접행렬 행을 입력으로 보고 이를 다층 비선형 인코더-디코더로 압축·복원한다. 단순 복원에 그치지 않고, 연결된 노드쌍이 임베딩 공간에서 멀어지지 않도록 Laplacian Eigenmaps식 벌점도 함께 건다.
+
+### 1.2 두 근접성을 함께 보는 이유
+
+논문이 보존하려는 구조는 두 겹이다. **1차 근접성**은 엣지로 직접 연결된 노드쌍의 국소 유사성이고(인용 관계가 있으면 주제가 겹친다), **2차 근접성**은 두 노드의 이웃 구조가 얼마나 겹치는가로 정의된다(공통 이웃이 많으면 닮았다). 두 개념 모두 LINE(Tang et al., 2015)이 먼저 명명했고, SDNE는 그 정의를 물려받아 깊은 모델에 실었다.
+
+![SDNE Figure 1: proximity pair counts](/api/blog/figures/sdne-fig1-proximity-counts.png)
+
+*그림 1 — 원논문 Figure 1: 네 네트워크(arxiv-GrQc·blogcatalog·Flickr·Youtube)에서 2차 근접성을 이루는 노드쌍 수가 1차 근접성 쌍 수보다 로그 척도로 훨씬 많다. 관측된 엣지만으로는 구조를 표현하기 부족하다는 동기.*
+
+Figure 1이 병용의 동기다. 실제 네트워크는 매우 희소해서 관측된 엣지(1차 근접성)만으로는 구조를 표현하기에 모자라고, 정당한 연결의 상당수가 누락되어 있다. 반면 2차 근접성은 엣지가 없어도 이웃 구조로 정의되므로, 이를 들여오면 노드 관계를 기술하는 정보가 크게 늘어 희소 네트워크에 강해진다. 요컨대 1차는 국소(관측 엣지), 2차는 전역(이웃 구조)이고 서로 보완적이라, 하나만으로는 불충분하다는 것이 논문의 출발점이다.
+
+### 1.3 학술적 위치
+
+SDNE는 깊은 학습을 네트워크 표현에 적용한 초기 방법의 하나로 볼 수 있다. 논문 스스로도 "among the first"라고 쓰며 RBM 기반 협업 필터링, 오토인코더 그래프 군집화 같은 선행 딥 모델을 인정한다. 같은 해 초의 DNGR(AAAI 2016)과 선행 이종 그래프 임베딩 HNE(2015)를 감안하면(논문 외 지식), 독점적 최초라기보다 동시대 병렬 시도군의 일원으로 보는 편이 정확하다. 따라서 신규성은 "오토인코더를 처음 썼다"가 아니라 **네트워크 임베딩에서 1차·2차 근접성을 하나의 깊은 준지도 목적함수로 결합했다**는 데 둔다.
+
+같은 KDD 2016에 node2vec(Grover & Leskovec, 2016)이 함께 발표됐다는 사실이 지형 이해에 유용하다(논문 외 지식). node2vec은 DeepWalk의 랜덤워크를 편향 파라미터로 정교화한 얕은 개선이고, SDNE는 반대로 아예 깊은 쪽으로 넘어간 시도다. 2016년 네트워크 임베딩이 "얕은 정교화"와 "깊은 전환"으로 갈라지던 분기를 두 KDD 논문이 각각 대표한다.
+
+## 2. 방법: 오토인코더와 두 근접성
+
+원논문 §3에 해당한다.
+
+### 프레임워크
+
+![SDNE Figure 2: framework](/api/blog/figures/sdne-fig2-framework.png)
+
+*그림 2 — 원논문 Figure 2: SDNE 준지도 프레임워크. 노드 i·j를 각각 오토인코더 탑에 통과시켜 이웃 구조를 재구성하고(비지도·2차 근접성), 두 임베딩을 Laplacian Eigenmaps 상자로 이어 연결된 노드를 당긴다(지도·1차 근접성). 두 탑은 같은 오토인코더 가중치를 공유한다.*
+
+입력은 인접행렬 S의 한 행이다. 노드 v_i에 대해 x_i = s_i, 즉 그 노드와 다른 모든 노드 사이 연결 가중치의 나열이며 길이는 노드 수 n이다. 이것이 그 노드의 이웃 구조를 그대로 기술한다. 얕은 계열(DeepWalk·node2vec의 랜덤워크 시퀀스)이 구조를 샘플링해 예측하는 반면, SDNE는 인접행렬 행을 통째로 신경망에 넣어 복원한다(논문 외 해석).
+
+인코더는 다층 비선형 사상(식 1, 활성함수는 시그모이드)으로 임베딩 y_i를 만들고, 디코더는 그 과정을 거울처럼 되풀어 재구성 출력 x̂_i를 낸다. 모든 노드가 같은 오토인코더를 통과하며, Figure 2의 쌍 구조는 연결된 두 노드의 임베딩을 이어 1차 근접성 벌점을 거는 모습을 보여주기 위한 것이다.
+
+Figure 2를 볼 때 한 가지 짚어 둘 점이 있다. 그림의 괄호 라벨이 본문과 뒤바뀌어 있다. 재구성 쪽에 "Local structure", Laplacian Eigenmaps 쪽에 "Global structure"로 적혀 있으나, 본문(Abstract·§3.2.1·§4.5.1)은 일관되게 비지도 재구성 = 2차 = **전역**, 지도 벌점 = 1차 = **국소**로 규정한다. 그림의 local/global 표기가 서로 바뀐 것으로, 대응은 본문 기준이 맞다.
+
+### 세 손실
+
+목적함수는 세 항의 합이다(식 5): \(L_{mix}=L_{2nd}+\alpha L_{1st}+\nu L_{reg}\).
+
+- **\(L_{2nd}\) — 가중 재구성, 2차 근접성(식 3):** \(\|(\hat{X}-X)\odot B\|_F^2\). 문제는 네트워크가 희소해서 인접행렬의 0 성분이 압도적으로 많다는 것이다. 일반 오토인코더는 0을 복원하는 쪽으로 치우친다. 그래서 가중 행렬 B를 둔다. 연결이 없는 성분(s=0)은 가중치 1, 실제 엣지가 있는 성분은 β>1을 주어, 실제 엣지의 복원 오차에 β배 큰 벌점을 건다. 그 결과 이웃 구조가 비슷한 노드는 임베딩 공간에서 가까이 사상된다. 이 항이 비지도 성분이며 전역 구조를 담당한다.
+- **\(L_{1st}\) — Laplacian Eigenmaps식 벌점, 1차 근접성(식 4):** \(\sum_{i,j} s_{i,j}\|y_i-y_j\|_2^2\). 연결 가중치로 가중된, 연결된 두 노드 임베딩 사이 거리 제곱의 합이다. 유사한(연결된) 노드가 임베딩 공간에서 멀어지면 벌점을 준다. 여기서 "지도"의 신호는 클래스 라벨이 아니라 엣지 가중치 s_{i,j} 자체다(논문 외 해석). 이 항은 대수적으로 그래프 라플라시안 이차형식 \(2\,\mathrm{tr}(Y^\top L Y)\)와 같고(식 9, L=D−S), 곧 Laplacian Eigenmaps를 깊은 모델의 임베딩 층에 얹은 것이다.
+- **\(L_{reg}\):** 인코더·디코더 가중치의 L2 정규화.
+
+α는 1차와 2차 근접성의 균형, ν는 정규화 강도다. 이 하나의 식을 함께 최적화하는 것이 준지도 구조의 핵심이다. LINE처럼 1차·2차 표현을 따로 학습해 이어붙이는(concatenate) 대신 통합 목적함수로 함께 풀어 국소 최적을 피한다고 주장한다.
+
+### 학습과 새 노드
+
+강한 비선형성 때문에 파라미터 공간에 국소 최적이 많아, 먼저 Deep Belief Network로 사전학습해 초기화한 뒤 경사하강으로 최적화한다(§3.2.3). 학습 복잡도는 O(ncdI)로 제시된다(n=노드 수, c=평균 차수, d=최대 은닉 차원, I=반복 수). c를 상수로 볼 수 있다는 가정 아래 노드 수에 선형이라는 주장인데, 이 가정은 5장에서 따져 본다.
+
+새 노드는 기존 노드와의 연결을 알면 그 인접 벡터를 학습된 모델에 한 번 통과시켜 임베딩을 얻는다(§3.3). 다만 어떤 기존 노드와도 연결이 없는 고립 노드는 인접 벡터가 전부 0이라 SDNE도 처리하지 못하고, 콘텐츠 특징 같은 부가 정보에 의존해야 한다며 향후 과제로 남긴다. 즉 조건은 "새 노드가 최소 한 개의 기존 노드와 관측된 연결이 있을 것"이고, 이 조건이 이 방법이 완전한 inductive가 아닌 이유다(논문 외 해석).
+
+## 3. 실험 설정
+
+원논문 §4에 해당한다.
+
+**데이터·과제(Table 2).** 다섯 네트워크를 쓴다. ARXIV GR-QC(공저 협업 네트워크, 5,242노드/28,980엣지)는 재구성·링크예측에, BLOGCATALOG(소셜망, 10,312/667,966)는 재구성·분류에, FLICKR(80,513/11,799,764)·YOUTUBE(1,138,499/5,980,886)는 분류에, 20-NEWSGROUP(1,720노드 완전연결 언어망)은 시각화에 쓴다. 가중/비가중, 희소/밀집, 소/대 그래프를 두루 포함한다.
+
+**비교 대상(§4.2).** 방법론 계열별로 배치된다 — DeepWalk(Perozzi et al., 2014; 랜덤워크+skip-gram), LINE(Tang et al., 2015; 1·2차 근접성 손실을 분리 최적화 후 연결), GraRep(Cao et al., 2015; 고차 근접성 행렬분해), Laplacian Eigenmaps(Belkin & Niyogi, 2003; 라플라시안 분해), Common Neighbor(링크예측 전용). 랜덤워크·행렬분해·라플라시안 계열을 모두 얕은 쪽으로 묶고 SDNE만 유일한 깊은 쪽으로 대비시킨 구도다.
+
+**지표·프로토콜.** 재구성은 MAP(mean average precision)와 precision@k, 분류는 Micro/Macro-F1(LIBLINEAR, 훈련비율별, 5회 반복 평균), 링크예측은 기존 엣지의 15%를 무작위로 숨기고 맞히는 P@k, 시각화는 t-SNE 투영과 KL 발산이다. α·β·ν는 검증셋 그리드 서치로 튜닝한다.
+
+## 4. 실험 결과
+
+**재구성(Table 4·Figure 3).** MAP에서 SDNE는 ARXIV-GRQC 0.836·BLOGCATALOG 0.63으로 2위 LINE(0.69·0.58)을 앞선다. 다만 우위폭은 데이터셋에 따라 갈린다. 희소한 ARXIV 공저망에서는 +0.146(상대 +21%)로 크지만, 밀집 소셜망 BLOGCATALOG에서는 +0.05(상대 +8.6%)로 좁아진다(논문 외 계산). GraRep은 ARXIV에서 0.05로 최하위인데(고차 근접성 방법인데도), 희소 공저망에서 SVD 기반 분해가 무너지는 현상이며 링크예측에서도 같은 패턴이 반복된다.
+
+![SDNE Figure 3: reconstruction precision@k](/api/blog/figures/sdne-fig3-reconstruction-precision.png)
+
+*그림 3 — 원논문 Figure 3: (a) ARXIV GR-QC, (b) BLOGCATALOG의 재구성 precision@k. SDNE(빨강)가 상단을 유지하며, ARXIV에서는 k=10,000까지 거의 1.0에 머문다.*
+
+**분류(Figure 4·5).** 논문은 정확한 F1 표 없이 곡선만 싣는다. BLOGCATALOG(훈련 10~90%)·FLICKR·YOUTUBE(1~10%) 모두에서 SDNE가 Micro·Macro-F1 최상단이고 DeepWalk가 대체로 최하위다. 훈련 표본이 적을수록 SDNE와 2위의 격차가 벌어져, 라벨이 희소할 때 이득이 커진다는 것이 논문의 주장이다.
+
+**링크예측(Table 5).** ARXIV GR-QC에서 엣지 15%를 무작위로 숨기고 맞힌다. SDNE는 P@300까지 1.0, 이후 0.99→0.97→0.91→0.257(P@10000)로 떨어진다. LINE은 같은 구간에서 0.79·0.2196으로, k=1000에서 SDNE만 0.9를 넘고 나머지는 0.8 아래로 급락한다.
+
+**시각화(Table 6).** 20-NEWSGROUP 3범주의 t-SNE 투영에서 SDNE가 군집 분리와 경계 모두 가장 깨끗하다. KL 발산(낮을수록 좋음)은 SDNE 0.68로 2위 GraRep(0.73)에 근소하게 앞서고, DeepWalk(2.6)·LE(2.95)는 SDNE의 약 4배로 사실상 무구조다.
+
+**희소성 강건성(Figure 6).** 엣지를 20~80% 제거해도 SDNE가 링크예측 MAP 최상단을 유지한다. 1차 근접성만 쓰는 LE는 엣지를 지울수록 정보가 곧장 소실되어 전 구간 최하위로 평탄한 반면, 2차 근접성을 쓰는 방법들은 이웃 구조로 정보를 우회 보전한다. 강건성의 메커니즘이 그림에서 뚜렷이 갈린다(논문 외 해석).
+
+**파라미터 민감도(Figure 8, §4.6).** 설계를 되짚는 소거 성격의 실험이다. α(1차와 2차의 균형)에서 α=0.1·0.2가 α=0(2차만)보다 우수하다 — 두 근접성을 함께 써야 한다는 앞의 주장을 직접 실증하는 유일한 결과다. β(실제 엣지 재구성 가중)는 β=1(0과 실제 엣지를 동등 복원)도, 지나치게 큰 β(0 성분을 거의 무시)도 나빠 중간 값이 최적으로, 가중 재구성 B의 설계 동기를 뒷받침한다. 임베딩 차원 d에 대한 민감도는 낮다. 다만 ν(정규화)는 개별 민감도 곡선 없이 그리드 서치로만 정해진다(§4.4).
+
+## 5. 주의해서 읽을 점
+
+### 5.1 재구성 지표는 SDNE의 훈련 목적과 거의 같다
+
+논문 스스로 재구성 성능이 곧 훈련집합 오차라고 밝힌다(§4.5.1). Table 4의 MAP는 학습에 쓴 그래프의 링크를 얼마나 되살리는지를 잴 뿐, 미관측 구조로의 일반화가 아니다. 더 근본적으로, SDNE의 \(L_{2nd}\)(식 3)는 인접행렬 행을 복원하도록 직접 학습되는데 재구성 평가가 재는 것도 바로 인접행렬 행 복원 능력이다(논문 외 비판). SDNE는 그것을 최소화하도록 훈련됐고 DeepWalk·LINE은 아니므로, 이 비교는 "각자 자기 목적함수를 얼마나 잘 최적화했나"에 가깝고 목적함수가 평가지표와 일치하는 SDNE가 거의 정의상 앞선다. 표현 용량이 가장 큰 모델이 훈련그래프를 외우기도 가장 쉽다는 점까지 겹쳐, 공정한 일반화 비교로 보기 어렵다.
+
+### 5.2 링크예측은 무작위 은닉이지 시간 분할이 아니다
+
+링크예측은 기존 엣지의 15%(약 4,000개)를 무작위로 숨기고 나머지로 학습해 맞힌다(§4.5.3). 그러나 ARXIV GR-QC는 시간에 따라 성장하는 공저 협업 네트워크다. 현실적 링크예측이라면 시간상 가장 나중의 엣지를 숨겨야 하는데, 무작위 은닉은 "미래" 구조가 훈련에 섞여 들어가 과제를 쉽고 비현실적으로 만든다(논문 외 비판). 논문 자신도 이 과제를 미래 링크 예측(future link prediction)이라 부르지만, 분할 방식이 미래성을 담보하지 못한다. 참고로 0.15×28,980=4,347이라 "약 4,000"은 느슨한 반올림이고, Table 5에서 LINE의 P@800(0.74)이 P@1000(0.79)보다 낮은 비단조 요동도 보여, 순위에 잡음이 섞여 있다.
+
+### 5.3 대부분 단일 실행에 오차막대가 없다
+
+반복을 명시한 것은 분류(5회 평균)뿐이고 그마저 오차막대가 없다. 재구성·링크예측·KL 발산은 모두 단일 점추정이다. 유의성 표기는 있으나 기준 baseline이 표마다 다르다. 재구성(Table 4)·KL(Table 6)은 "GraRep 대비 유의", 링크예측(Table 5)은 "LINE 대비 유의(paired t-test)"로 적혀 있다. KL 표에서는 GraRep이 실제 2위(0.73)라 그 각주가 맞지만, 재구성 표에서 GraRep은 ARXIV 0.05로 최약 baseline이고 실제 경쟁자는 LINE(0.69)이다. 최약자 대비 유의성은 검정력을 부풀린다. 다만 논문이 두 표 모두 "GraRep"으로 일관 표기하므로 이것이 오기인지 의도인지는 단정할 수 없다(논문 외 해석). 검정의 표본 단위(질의별 지표인지)도 명시되지 않았고 다중비교 보정도 없어, 근소 우위 구간(BLOGCATALOG 재구성 +0.05, KL −0.05)의 통계적 실질성은 분산 정보 없이는 판단하기 어렵다.
+
+## 6. 방법적 한계와 확장
+
+### 6.1 논문이 남긴 것
+
+논문이 인정하는 한계는 고립 노드 처리 하나다(§3.3, §5). 그 외 가정은 본문에 적혀 있으나 한계로 다루지는 않는다. 음의 링크가 없는 비가중/가중 그래프만 대상이고(부호 네트워크는 각주로 제외), 1차 근접성은 "연결된 노드는 유사하다", 2차 근접성은 "공통 이웃이 많으면 유사하다"는 동질성(homophily) 가정 위에 선다.
+
+### 6.2 확장성과 transductive 한계 (논문 외 비판)
+
+O(ncdI)가 노드 수에 선형이라는 주장에는 두 조건이 붙는다. 첫째, c(평균 차수)를 상수로 보는 것은 top-k 유사도 그래프처럼 차수를 인위로 고정한 경우에만 엄밀하다. 20-NEWSGROUP처럼 완전연결이면 c≈n이라 선형성이 깨진다. 둘째, 이 복잡도는 희소 입력만 반영하고 밀집 출력을 누락한다. 디코더의 마지막 층은 n차원 밀집 출력을 만들고, 가중 행렬 B가 0 성분에도 가중치 1을 주므로 출력을 희소화할 수 없다. n차원 출력을 만드는 비용까지 넣으면 실제는 O(n²dI)에 가깝다(논문 외 계산).
+
+이 병목의 정황 증거가 표 사이 불일치로 드러난다. Table 2는 YOUTUBE를 1,138,499노드로 적지만, Table 3의 신경망 입력층은 22,693이다. 입력 차원이 곧 노드 수여야 하는 오토인코더에서 입력이 2.3만이라는 것은, 백만 노드 원본이 아니라 라벨 있는 부분망만 학습했다는 뜻이다(§4.5.2의 "라벨 없는 노드 제거"로 일부 설명되나 1.1M→2.3만은 그 이상의 축소다). 첫 층 가중치가 n×d(≈1.1M×5,000이면 수십억 파라미터)라 전체를 돌리는 것 자체가 사실상 불가능하다. 노드 수에 선형이라는 주장과 달리, 최대 규모 그래프는 축소해서 실험한 것이다.
+
+더 근본적으로 SDNE는 transductive다. 입력 차원이 학습 시점의 n으로 고정되므로, 노드가 추가되면 인접 벡터의 차원이 갱신되지 않아 새 노드는 "기존 n개 노드에 대한 연결"로만 표현된다. 노드 어휘가 커지는 상황을 구조적으로 흡수하지 못한다.
+
+### 6.3 하이퍼파라미터 의존과 재현성
+
+성능은 세 하이퍼파라미터에 걸려 있고, 논문은 이를 검증셋 그리드 서치로만 정한다(§4.4). α·β의 내부 최적(4장의 민감도 결과)은 두 근접성을 함께 써야 한다는 설계를 실증하는 동시에, 재현이 이 튜닝에 민감하다는 뜻이기도 하다. 국소 최적 회피를 위해 Deep Belief Network 사전학습을 필수 초기화로 쓴다는 점(§3.2.3)도 당시 관행이지만 재현의 실무적 취약점이다. 이후 더 나은 초기화·정규화가 등장하며 이 절차는 대체·생략되는 쪽으로 갔다(논문 외 지식).
+
+## 7. 결론
+
+SDNE의 기여는 얕은 룩업 테이블을 깊은 오토인코더로 심화해 표현력과 비선형성을 얻고, 1차·2차 근접성을 하나의 목적함수로 함께 최적화한 것이다. 재구성·분류·링크예측·시각화 네 과제에서 당시 얕은 기법들을 앞선다. 다만 정직하게 읽으면 우위의 상당 부분은 평가 설계에서 온다. 재구성 지표가 SDNE의 훈련 목적과 거의 같고, 링크예측이 무작위 은닉이며, 대부분 단일 실행이다. 그리고 입력을 인접 행에 묶은 탓에 transductive·비확장이라는 구조적 한계가 남는다. 요컨대 이 논문은 "깊은 비선형 오토인코더로 두 근접성을 함께 보존한다"는 발상을 명확히 세웠고, 그 성능 주장은 평가 설계와 확장성 조건 안에서 읽어야 한다.
+
+읽는 법을 정리하면:
+
+| 목적 | 어디를 읽나 |
+|---|---|
+| 문제 설정과 동기 | §1과 Figure 1, 이 글 1장 |
+| 방법의 핵심 | §3.2의 두 손실(식 3·4·5), 이 글 2장 |
+| 성능 주장의 실제 구조 | Table 4·5와 §4.5.1의 훈련집합 오차 서술, 이 글 4·5장 |
+| 확장성·transductive 한계 | Table 2와 Table 3의 노드 수 불일치, 이 글 6.2절 |
+
+## References
+
+Belkin, M., & Niyogi, P. (2003). Laplacian eigenmaps for dimensionality reduction and data representation. *Neural Computation*, *15*(6), 1373–1396. https://doi.org/10.1162/089976603321780317 ([PDF 보기](/paper-viewer?title=Laplacian+eigenmaps+for+dimensionality+reduction+and+data+representation&authors=Belkin%3BNiyogi&year=2003&doi=10.1162%2F089976603321780317&url=https%3A%2F%2Fdoi.org%2F10.1162%2F089976603321780317&source=blog-reference))
+
+Cao, S., Lu, W., & Xu, Q. (2015). GraRep: Learning graph representations with global structural information. *Proceedings of the 24th ACM International Conference on Information and Knowledge Management*, 891–900. https://doi.org/10.1145/2806416.2806512 ([PDF 보기](/paper-viewer?title=GraRep%3A+Learning+graph+representations+with+global+structural+information&authors=Cao%3BLu%3BXu&year=2015&doi=10.1145%2F2806416.2806512&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2806416.2806512&source=blog-reference))
+
+Grover, A., & Leskovec, J. (2016). node2vec: Scalable feature learning for networks. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 855–864. https://doi.org/10.1145/2939672.2939754 ([PDF 보기](/paper-viewer?title=node2vec%3A+Scalable+feature+learning+for+networks&authors=Grover%3BLeskovec&year=2016&doi=10.1145%2F2939672.2939754&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2939672.2939754&source=blog-reference))
+
+Perozzi, B., Al-Rfou, R., & Skiena, S. (2014). DeepWalk: Online learning of social representations. *Proceedings of the 20th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 701–710. https://doi.org/10.1145/2623330.2623732 ([PDF 보기](/paper-viewer?title=DeepWalk%3A+Online+learning+of+social+representations&authors=Perozzi%3BAl-Rfou%3BSkiena&year=2014&arxiv_id=1403.6652&doi=10.1145%2F2623330.2623732&pdf_url=https%3A%2F%2Farxiv.org%2Fpdf%2F1403.6652.pdf&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2623330.2623732&source=blog-reference))
+
+Tang, J., Qu, M., Wang, M., Zhang, M., Yan, J., & Mei, Q. (2015). LINE: Large-scale information network embedding. *Proceedings of the 24th International Conference on World Wide Web*, 1067–1077. https://doi.org/10.1145/2736277.2741093 ([PDF 보기](/paper-viewer?title=LINE%3A+Large-scale+information+network+embedding&authors=Tang%3BQu%3BWang%3BZhang%3BYan%3BMei&year=2015&doi=10.1145%2F2736277.2741093&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2736277.2741093&source=blog-reference))
+
+Wang, D., Cui, P., & Zhu, W. (2016). Structural deep network embedding. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 1225–1234. https://doi.org/10.1145/2939672.2939753

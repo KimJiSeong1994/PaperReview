@@ -1,0 +1,15 @@
+{
+  "slug": "wikiprofile-empty-shelves-lost-keys",
+  "excerpt": "WikiProfile은 같은 사실의 문맥 속 복원, 정·역방향 질문 응답, 객관식 선택을 비교하는 행동 평가다. 일부 강한 모델도 문맥에서 복원한 사실에 안정적으로 답하지 못하며, thinking을 켜면 그중 일부가 개선된다.",
+  "changes": [
+    "존재 조건·전칭 조건·엄격한 문턱값을 수치 예시로 재구성",
+    "채점 가능한 응답이 0개인 경우와 Selected 제외 규칙 설명",
+    "Knows(+Think)와 성공 profile 합을 구분해 thinking 퇴행 가능성 반영",
+    "주요 표·채점 일치율·문턱 검증을 원문과 재대조"
+  ],
+  "uncertainties": [
+    "행동적 encoding이 내부 저장을 직접 측정하지 않음",
+    "모델별 thinking 비용 통제 및 실제 배포 라우팅 미검증",
+    "모델 실행 재현 없음"
+  ]
+}

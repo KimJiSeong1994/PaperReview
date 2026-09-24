@@ -1,0 +1,45 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Population-Aligned Persona Generation for LLM-based Social Simulation",
+    "authors": [
+      "Zhengyu Hu",
+      "Jianxun Lian",
+      "Zheyuan Xiao",
+      "Max Xiong",
+      "Yuxuan Lei",
+      "Tianfu Wang",
+      "Kaize Ding",
+      "Ziang Xiao",
+      "Nicholas Jing Yuan",
+      "Xing Xie"
+    ],
+    "year": 2025,
+    "primary_url": "https://arxiv.org/abs/2509.10127",
+    "arxiv_id": "2509.10127v2"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/90 Computational Social Science and LLM Social Simulation/papers/arxiv-2509.10127.pdf"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2509.10127"
+  ],
+  "excerpt": "LLM 사회시뮬레이션용 페르소나를 인간 설문 응답 분포에 맞춰 재표집하고, 대상 집단에 맞게 검색·재작성하는 PAPG 방법의 설계와 평가를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Removed inferred lineage/coauthor audit and wiki/KGSS transfer program."
+  ],
+  "uncertainties": [
+    "본문과 표의 일부 수치가 달라 표 수치를 우선했으며, 결과는 사용한 인간 응답 분포와 평가 설문 범위에 한정된다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/population-aligned-persona-generation-llm-social-simulation-review-2026",
+  "verified_content_sha256": "d2d2d3ece0f43354bad7abe6a9102cbcf9df09267296bef9cd46175698329c38"
+}

@@ -1,0 +1,22 @@
+{
+  "title": "IC2: interventional dynamical causality under latent confounders",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/cic/cic-deep-review.md",
+      "score": 0.786,
+      "title": "Dynamical causality under invisible confounders"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/ic2/ic2-deep-review.md",
+      "score": 0.443,
+      "title": "IC2 심층 분석: 개입하지 않은 데이터에서 개입 인과를 읽어낼 수 있는가"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/lopd/lopd-deep-review.md",
+      "score": 0.186,
+      "title": "LOPD 심층 분석: \"Latent On-Policy Self-Distillation\" 논문 해설"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

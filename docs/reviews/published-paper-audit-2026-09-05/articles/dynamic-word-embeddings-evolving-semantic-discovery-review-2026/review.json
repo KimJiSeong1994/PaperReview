@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Dynamic Word Embeddings for Evolving Semantic Discovery",
+    "authors": [
+      "Zijun Yao",
+      "Yifan Sun",
+      "Weicong Ding",
+      "Nikhil Rao",
+      "Hui Xiong"
+    ],
+    "year": 2018,
+    "primary_url": "https://doi.org/10.1145/3159652.3159703",
+    "doi": "10.1145/3159652.3159703",
+    "arxiv_id": "1703.00607"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-1703.00607.pdf"
+  ],
+  "source_urls": [
+    "https://doi.org/10.1145/3159652.3159703",
+    "https://arxiv.org/abs/1703.00607"
+  ],
+  "excerpt": "시점별 PPMI 행렬을 시간 평활 제약 아래 공동 분해해 사후 정렬 없이 동적 단어 임베딩을 학습하는 DW2V의 목적함수와 평가를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "외부 스포츠 순위 대조 문단은 논문 설명 범위를 벗어나 제거 필요로 표시",
+    "그림·APA References 보존",
+    "Removed citation-lineage and wiki/social-science extrapolation."
+  ],
+  "uncertainties": [
+    "저자 구성 평가셋의 일반화 범위는 제한적이다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+  "verified_content_sha256": "9a24e7fd4213496f67673602a72fbc2b115394a968a26a4cb56c4479fb992b46"
+}

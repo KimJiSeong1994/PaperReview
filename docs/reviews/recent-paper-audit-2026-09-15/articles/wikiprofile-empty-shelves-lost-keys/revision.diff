@@ -1,0 +1,33 @@
+--- wikiprofile-empty-shelves-lost-keys/original.md
++++ wikiprofile-empty-shelves-lost-keys/revised.md
+@@ -112,6 +112,10 @@
+ 
+ 동시에 지표의 비대칭도 기억해야 한다. 두 문맥 과제의 최댓값과 네 비문맥 과제의 최솟값을 비교하므로, 두 지표의 격차에는 문맥 효과뿐 아니라 과제 수와 판정 규칙의 차이도 반영된다. **이 격차 자체를 내부 메모리의 순수한 손실량으로 해석할 수는 없다.** 이는 평가 정의에서 직접 도출되는 주의점이다.
+ 
++판정 규칙을 한 사실에 적용해 보자. **설명용 가상 예시**에서 두 encoding 과제의 정답 수가 각각 8회 중 6회·3회이고, thinking 없는 네 QA의 정답 수가 7회·6회·5회·4회라면 $E=1$이지만 $K_0=0$이다. 마지막 질문의 정답률은 정확히 0.5여서 엄격한 부등호 $>0.5$를 통과하지 못하기 때문이다. Thinking 조건에서 네 질문이 모두 5회 이상 정답이면 $K_T=1$로 바뀐다. 이는 다음 표의 Recall with Thinking에 해당한다. 이 예시는 모든 응답을 채점할 수 있다고 놓은 정의 설명이며 실험에서 관찰한 개별 사례는 아니다.
++
++만약 한 질문의 모든 응답이 PARTIALLY 또는 OTHER라면 $c_q+i_q=0$이어서 위 비율은 정의되지 않는다. 이를 임의로 0점 처리하면 논문의 Selected 집계와 달라진다. 원문의 제외 규칙을 적용한 뒤 분모와 제외 사실 수를 함께 보고해야 한다. (논문 §2.1, Appendix D.1)
++
+ ### 3.3 다섯 가지 knowledge profile
+ 
+ | Profile | 관측 조건 | 해석 |
+@@ -205,7 +209,7 @@
+ 
+ ![13개 LLM에서 encoding 실패, recall 실패, 직접 회상, thinking 회상 등의 비중을 나눈 누적 막대그래프](/api/blog/figures/wikiprofile-fig4-knowledge-profiles.png)
+ 
+-*그림 3. Calderon et al. (2026), Figure 4 원도판 영역을 인용했다. 작은 Gemma3 모델에서 크게 보이는 노란 encoding 실패 영역이 강한 모델에서는 줄지만, 빨간 recall 실패 영역은 남는다. 진한 초록색은 직접 회상, 연한 초록색은 thinking으로 회복한 profile이다. 검은 선과 상단 Knows는 세 성공 profile의 합이며 encoding 비율이 아니다. 아래 표의 정확한 수치는 Table 2 Selected를 기준으로 한다. [arXiv:2602.14080v2](https://arxiv.org/abs/2602.14080v2) · [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).*
++*그림 3. Calderon et al. (2026), Figure 4 원도판 영역을 인용했다. 작은 Gemma3 모델에서 크게 보이는 노란 encoding 실패 영역이 강한 모델에서는 줄지만, 빨간 recall 실패 영역은 남는다. 진한 초록색은 직접 회상, 연한 초록색은 thinking으로 회복한 profile이다. 검은 선과 상단 Knows는 Direct Recall·Recall with Thinking·Inference without Encoding 세 성공 profile의 합이며 encoding 비율이 아니다. 마지막 profile은 아래의 간략 표에서는 생략했다. 아래 표의 정확한 수치는 Table 2 Selected를 기준으로 한다. [arXiv:2602.14080v2](https://arxiv.org/abs/2602.14080v2) · [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).*
+ 
+ 아래는 Appendix Table 2의 **Selected** 설정에서 필요한 열만 옮긴 것이다. 모든 수치는 백분율이며, Direct Recall과 Recall with Thinking, Recall Failure는 profile별 비중이다.
+ 
+@@ -225,6 +229,10 @@
+ 
+ 또한 GPT-5.2의 모든 지표가 GPT-5보다 높은 것은 아니다. 이 표를 모델 출시 순서에 따른 단조로운 발전의 증거로 읽어서는 안 된다. 저자들이 통제된 계열 내 크기 비교에 사용한 예시는 Gemma3다.
+ 
++여기서는 같은 이름의 **Knows**도 도표마다 집계 정의를 확인해야 한다. Figure 4·13의 Knows는 Direct Recall·Recall with Thinking·Inference without Encoding 세 profile을 합친 잠재적 knowledge다. Appendix C.1은 thinking을 켜면 오히려 unknown이 되는 사실도 있으므로, 이 합이 thinking 조건에서의 실제 성능을 조금 높게 나타낼 수 있다고 설명한다. 따라서 thinking으로 새로 회복한 사실과 기존 성공을 유지한 사실은 구분해야 한다.
++
++Table 2의 Knows(+Think)·Knows 열은 여기에 **Direct Inference** 사례의 처리도 다르다. 표 캡션은 두 knowledge 열을 Direct Inference를 포함해 계산한다고 명시하지만, 기본 profile 분포는 이 드문 사례를 제외한다. 따라서 위의 간략 표에서 일부 profile을 더해 Table 2의 knowledge 열을 역산하거나, 표와 도판의 차이를 전부 thinking의 퇴행으로 돌릴 수는 없다. 반올림, 분석 대상 집합, thinking 조건을 먼저 맞춰야 한다. (논문 Appendix C.1, D.1 및 Table 2 캡션)
++
+ ### 6.3 Scaling: 저장의 병목을 줄여도 회상의 병목은 남는다
+ 
+ Gemma3의 Encoding Failure 비중은 1B의 85.2%에서 27B의 23.1%로 줄어든다. 모델 크기가 커지면서 더 많은 사실이 복원 검사에 성공한다는 방향은 분명하다. 그러나 27B에서도 Recall Failure가 31.6%를 차지한다. (논문 Figure 4 및 Table 2)

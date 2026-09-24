@@ -1,0 +1,240 @@
+[
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "h1_count": 1,
+    "image_count": 4,
+    "primary_paper": {
+      "title": "CLAUSE: Agentic Neuro-Symbolic Knowledge Graph Reasoning via Dynamic Learnable Context Engineering",
+      "authors": [
+        "Yang Zhao",
+        "Chengxiao Dai",
+        "Wei Zhuo",
+        "Yue Xiu",
+        "Dusit Niyato"
+      ],
+      "year": 2026
+    },
+    "rendered_bytes": 54302,
+    "status": "pass"
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "h1_count": 1,
+    "image_count": 8,
+    "primary_paper": {
+      "title": "Empty Shelves or Lost Keys? Recall Is the Bottleneck for Parametric Factuality",
+      "authors": [
+        "Nitay Calderon",
+        "Eyal Ben-David",
+        "Zorik Gekhman",
+        "Eran Ofek",
+        "Gal Yona"
+      ],
+      "year": 2026,
+      "arxiv_id": "2602.14080v2",
+      "url": "https://arxiv.org/abs/2602.14080v2"
+    },
+    "rendered_bytes": 57753,
+    "status": "pass"
+  },
+  {
+    "slug": "causal-foundation-models",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "Causal Foundation Models",
+      "authors": [
+        "Christopher Stith",
+        "Hossein Rahmani",
+        "Jesse C. Cresswell"
+      ],
+      "year": 2026,
+      "arxiv_id": "2609.03003v1",
+      "url": "https://arxiv.org/abs/2609.03003v1"
+    },
+    "rendered_bytes": 59762,
+    "status": "pass"
+  },
+  {
+    "slug": "agent-memory-distillation",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory",
+      "authors": [
+        "Taeil Kim",
+        "Kangsan Kim",
+        "Sung Ju Hwang"
+      ],
+      "year": 2026,
+      "arxiv_id": "2608.07169v1",
+      "url": "https://arxiv.org/abs/2608.07169v1"
+    },
+    "rendered_bytes": 54642,
+    "status": "pass"
+  },
+  {
+    "slug": "procedural-graphs",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "Procedural Graphs: Self-Evolving Execution Structures for LLM Agents",
+      "authors": [
+        "Yuxing Lu",
+        "Yicheng Chen",
+        "Shanchan Wu",
+        "Sercan Ö. Arık"
+      ],
+      "year": 2026,
+      "arxiv_id": "2609.09153v1",
+      "url": "https://arxiv.org/abs/2609.09153v1"
+    },
+    "rendered_bytes": 58052,
+    "status": "pass"
+  },
+  {
+    "slug": "rag-vs-graphrag-systematic-evaluation",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "RAG vs. GraphRAG: A Systematic Evaluation and Key Insights",
+      "authors": [
+        "Haoyu Han",
+        "Li Ma",
+        "Yu Wang",
+        "Harry Shomer",
+        "Yongjia Lei",
+        "Zhisheng Qi",
+        "Kai Guo",
+        "Zhigang Hua",
+        "Bo Long",
+        "Hui Liu",
+        "Charu C. Aggarwal",
+        "Jiliang Tang"
+      ],
+      "year": 2026,
+      "arxiv_id": "2502.11371v3",
+      "url": "https://arxiv.org/abs/2502.11371v3",
+      "doi": "10.1145/3770855.3817575"
+    },
+    "rendered_bytes": 50415,
+    "status": "pass"
+  },
+  {
+    "slug": "codenib",
+    "h1_count": 1,
+    "image_count": 8,
+    "primary_paper": {
+      "title": "CodeNib: A Multi-View Data System for Serving Repository Context to Coding Agents",
+      "authors": [
+        "Zhongming Yu",
+        "Hengjia Yu",
+        "Boqin Yuan",
+        "Shuting Zhao",
+        "Yizhao Chen",
+        "Aryan Dokania",
+        "Mihir Jagtap",
+        "Jiayu Chang",
+        "Yitong Ma",
+        "Yash Jayswal",
+        "Wentao Ni",
+        "Hejia Zhang",
+        "Zhaoling Chen",
+        "Gangda Deng",
+        "Jishen Zhao"
+      ],
+      "year": 2026,
+      "arxiv_id": "2607.25431v1",
+      "url": "https://arxiv.org/abs/2607.25431v1"
+    },
+    "rendered_bytes": 76757,
+    "status": "pass"
+  },
+  {
+    "slug": "incoder-32b-thinking",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "InCoder-32B-Thinking: Industrial Code World Model for Thinking",
+      "authors": [
+        "Jian Yang",
+        "Wei Zhang",
+        "Jiajun Wu",
+        "Junhang Cheng",
+        "Tuney Zheng",
+        "Fanglin Xu",
+        "Weicheng Gu",
+        "Lin Jing",
+        "Yaxin Du",
+        "Joseph Li",
+        "Yizhi Li",
+        "Yan Xing",
+        "Chuan Hao",
+        "Ran Tao",
+        "Ruihao Gong",
+        "Aishan Liu",
+        "Zhoujun Li",
+        "Mingjie Tang",
+        "Chenghua Lin",
+        "Siheng Chen",
+        "Wayne Xin Zhao",
+        "Xianglong Liu",
+        "Ming Zhou",
+        "Bryan Dai",
+        "Weifeng Lv"
+      ],
+      "year": 2026,
+      "arxiv_id": "2604.03144v1",
+      "url": "https://arxiv.org/abs/2604.03144v1"
+    },
+    "rendered_bytes": 60984,
+    "status": "pass"
+  },
+  {
+    "slug": "ttpo",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "TTPO: Test-Time Policy Optimization",
+      "authors": [
+        "Aozhe Wang",
+        "Zhengxi Lu",
+        "Jianze Wang",
+        "Shangke Lv",
+        "Ying Liu",
+        "Weiming Lu",
+        "Jun Xiao",
+        "Yueting Zhuang",
+        "Hua Yang",
+        "Qianglong Chen",
+        "Yongliang Shen"
+      ],
+      "year": 2026,
+      "arxiv_id": "2608.27448v1",
+      "url": "https://arxiv.org/abs/2608.27448v1"
+    },
+    "rendered_bytes": 54072,
+    "status": "pass"
+  },
+  {
+    "slug": "rsi-roadmap",
+    "h1_count": 1,
+    "image_count": 6,
+    "primary_paper": {
+      "title": "The Last AI Built by Humans: Toward Genuine Recursive Self-Improvement",
+      "authors": [
+        "Yi Duan",
+        "Ying Liu",
+        "Zirui Tang",
+        "Haodong Chen",
+        "Jun Zhou",
+        "외 28인"
+      ],
+      "year": 2026,
+      "arxiv_id": "2609.11873v1",
+      "url": "https://arxiv.org/abs/2609.11873v1"
+    },
+    "rendered_bytes": 73644,
+    "status": "pass"
+  }
+]

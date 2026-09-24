@@ -1,0 +1,67 @@
+{
+  "status": "published_verified",
+  "title": "Planetary Prediction Engine: Autonomous Geospatial Prediction via Intelligent Data Selection and Foundation Model Embeddings",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/planetary-prediction-engine-autonomous-geospatial-prediction/original.json",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/planetary-prediction-engine-autonomous-geospatial-prediction/original.md",
+    "evidence.md"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2608.26088v1"
+  ],
+  "changes": [
+    "논문 설명 중심의 본문 유지",
+    "검토·코드 감사·출판 메타 서술을 편집 대상에서 제외",
+    "근거가 있는 실험 범위와 한계를 본문 설명으로 유지",
+    "초기 일괄 메타 초안은 증거가 불충분하여 pending으로 보류",
+    "Removed retrieval/citation-count audit and unverified figure-box-count contradiction."
+  ],
+  "uncertainties": [
+    "원문 논문 버전·표 번호는 각 본문 인용을 기준으로 확인; 후속 출판 판본과의 문장 차이는 별도 비교 대상이 아님"
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "Planetary Prediction Engine: Autonomous Geospatial Prediction via Intelligent Data Selection and Foundation Model Embeddings",
+    "authors": [
+      "Evelyn Ma",
+      "Rama Kumar Pasumarthi",
+      "Kishwar Shafin",
+      "Mandar Sharma",
+      "Mimi Sun",
+      "Hamed Sadeghi",
+      "Dav M. Ebengo",
+      "Mbulayi Onesime",
+      "Rouslan Solomakhin",
+      "John Wamburu",
+      "William Ogallo",
+      "Aisha Walcott-Bryant",
+      "Sanxing Chen",
+      "Arbaaz Muslim",
+      "Yael Mayer",
+      "Ronald Ho",
+      "Roy Lee",
+      "Ruth Alcantara",
+      "Abdoulaye Diack",
+      "Monica Bharel",
+      "Lambert Rosique",
+      "Jeremy Amez-Droz",
+      "Christopher Haire",
+      "James Manyika",
+      "Yossi Matias",
+      "Niv Efron",
+      "Gautam Prasad",
+      "Shravya Shetty"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2608.26088v1",
+    "arxiv_id": "2608.26088v1"
+  },
+  "excerpt": "Planetary Prediction Engine은 질의에 맞는 지리 데이터를 찾고 foundation-model 임베딩과 결합해 예측·분석 보고를 수행한다. 데이터 선택, Feature Gate, 여러 지리 예측 실험과 결과표의 비교 범위를 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/planetary-prediction-engine-autonomous-geospatial-prediction",
+  "verified_content_sha256": "d83352e25ec5b9081b85a9dda7d50e4704580ec578f88c6918a1d077dc62951e"
+}

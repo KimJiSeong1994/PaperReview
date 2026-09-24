@@ -1,0 +1,24 @@
+--- procedural-graphs/original.md
++++ procedural-graphs/revised.md
+@@ -142,6 +142,12 @@
+ 한 과제를 수행하는 동안 그래프는 고정된다. 바뀌는 것은 현재 위치, retrieved subgraph와 guidance다. 그래프 자체의 수정은 training batch를 실행한 뒤 별도 refiner가 수행한다.
+ 
+ 이후 등장하는 `Online Evolution`이라는 구성 모드 이름도 이 점을 염두에 두어야 한다. 학습 과제를 batch별로 처리하며 점진적으로 수정한다는 뜻이며, **하나의 평가 episode 안에서 solver가 그래프를 계속 고치는 방식은 아니다.** [논문 §§3, 3.3, Appendix D.2](https://arxiv.org/pdf/2609.09153v1#page=30)
++
++#### 같은 그래프를 읽는 시간과 그래프를 고치는 시간을 나누기
++
++한 episode에서는 첫 step이 `Start`에서 출발하고, 다음 step부터는 방금 수행한 procedure 이름을 노드에 exact match한다. 일치하면 그 노드에서 나가는 2-hop 전이와 최근 세 step을 guidance LLM에 주고, 그 LLM이 이번 **다음 행동**을 위한 문장을 만든다. 일치하지 않으면 full graph가 그 호출의 문맥이 된다. 어느 경우에도 이 호출이 간선을 추가·삭제하지는 않는다. 즉 guidance가 매 step 달라져도 graph topology는 해당 episode 전체에서 같은 상태다.
++
++수정은 별도의 batch 경계에서만 시작한다. 유지된 graph로 training batch를 끝낸 뒤 refiner가 candidate edit을 제안하고, 구조 검사와 held-out validation을 통과한 candidate만 다음 batch의 retained graph가 된다. 그래서 “현재 상황에 맞춘 guidance”와 “경험으로 고쳐진 절차”는 둘 다 PG의 일부이지만 시간 척도와 검증 단위가 다르다. 전자는 한 행동을 안내하는 생성 단계이고, 후자는 다음 여러 episode가 공유할 구조를 선택하는 offline loop다. [논문 §3.2–3.3, Algorithm 1, Appendix D.2](https://arxiv.org/pdf/2609.09153v1#page=30)
+ 
+ ## 4. 그래프를 진화시키는 검증 기반 수정 루프
+ 
+@@ -437,7 +443,7 @@
+ 
+ ### 9.2 공개 구현과 재현 조건
+ 
+-v1은 그래프 schema, solver·guidance·refiner prompt, 의사코드와 데이터 분할을 상당히 자세히 제공한다. 그러나 이 검토에서는 저자가 제공한 공식 구현 저장소, 각 표에 사용한 saved graph, 정확한 실행 configuration과 원시 평가 artifact의 공개 위치를 확인하지 못했다. 따라서 이 글의 재현성 검토는 **원문에 제시된 명세와 보고 결과를 확인한 범위**에 한정된다.
++v1은 그래프 schema, solver·guidance·refiner prompt, 의사코드와 데이터 분할을 상당히 자세히 제공한다. 그러나 이 검토에서는 저자가 제공한 공식 구현 저장소, 각 표에 사용한 saved graph, 정확한 실행 configuration과 원시 평가 artifact의 공개 위치를 확인하지 못했다. 이는 **공식 구현이 없다는 주장**이 아니라, 2026년 9월 15일 이 검토가 확인한 arXiv v1 자료에서 공개 위치를 검증하지 못했다는 뜻이다. 따라서 이 글의 재현성 검토는 **원문에 제시된 명세와 보고 결과를 확인한 범위**에 한정된다.
+ 
+ 재현 시에는 Table 1의 PG construction mode 매핑, 정확한 모델 snapshot, judgment와 CI 산출법, guidance 비용 집계, matching 실패 빈도, graph cycle policy와 validation score 정의가 필요하다. 특히 생성 temperature 0이라는 설정만으로 외부 API와 시뮬레이션을 포함한 전체 과정이 무변동이라고 가정할 수는 없다.
+ 

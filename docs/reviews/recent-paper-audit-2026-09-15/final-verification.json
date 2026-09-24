@@ -1,0 +1,33 @@
+{
+  "status": "pass",
+  "scope": 10,
+  "backend_tests": {
+    "passed": 78,
+    "warnings": 51
+  },
+  "frontend_tests": {
+    "passed": 31,
+    "files": 4
+  },
+  "typecheck_build": "pass",
+  "katex_expressions": 392,
+  "preserved_figures": 62,
+  "ssr_articles": 10,
+  "unchanged_other_posts": 76,
+  "independent_critical_pass": "pass",
+  "verification_minor_resolved": "CFM CEPO inline definition added",
+  "production_deployed": true,
+  "paperwiki_updated": true,
+  "model_experiments_reproduced": false,
+  "live_article_checks": 10,
+  "live_figure_checks": 62,
+  "production_receipt": "publication-receipt.json",
+  "wiki_receipt": "paperwiki-sync-receipt.json",
+  "excerpt_revision": {
+    "status": "published",
+    "articles": 10,
+    "tests_passed": 64,
+    "report": "excerpt-revision/REPORT.md",
+    "validation": "excerpt-revision/live-validation.json"
+  }
+}

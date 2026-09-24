@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-2404.16130.pdf (26 pp.; §§3–6 and result tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2404.16130"
+  ],
+  "paper_metadata": {
+    "title": "From Local to Global: A Graph RAG Approach to Query-Focused Summarization",
+    "authors": [
+      "Darren Edge",
+      "Ha Trinh",
+      "Newman Cheng",
+      "Joshua Bradley",
+      "Alex Chao",
+      "Apurva Mody",
+      "Steven Truitt",
+      "Dasha Metropolitansky",
+      "Robert Osazuwa Ness",
+      "Jonathan Larson"
+    ],
+    "year": 2024,
+    "primary_url": "https://arxiv.org/abs/2404.16130",
+    "arxiv_id": "2404.16130"
+  },
+  "excerpt": "Microsoft GraphRAG는 문서 집합을 계층형 커뮤니티 보고서로 미리 요약하고, 질의 시 여러 보고서에서 만든 부분 답변을 통합해 전체 코퍼스에 대한 global sensemaking 질문에 답하는 방법이다.",
+  "changes": [
+    "Retained paper-focused methods, experiments, scope limits, APA references, and existing figures.",
+    "Corrected full authors and RAG reference URL; removed repository evolution audit."
+  ],
+  "uncertainties": [
+    "The paper's global-question evaluation does not establish superiority for local QA."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/ms-graphrag-global-query-focused-summarization",
+  "verified_content_sha256": "46f7ed49f45dc322c6f5f4a8c907680e3f91faa7602b0368a7895cd5495dc5a6"
+}

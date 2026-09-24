@@ -1,0 +1,185 @@
+**Paper:** Niu, H., Yu, X., Liu, Y., Fang, J., Xie, X., Tan, J., Zhang, Z., Cheng, H., & Fang, Y. (2026). "CoEvoT: Co-Evolving Chain-of-Thought Prompting for Graph–LLM Reasoning." arXiv:2607.14114v1 [cs.CL] (under review).
+
+**Abstract:** 이 문서는 그래프–LLM 추론에서 Chain-of-Thought(CoT) 프롬프팅을 재설계한 CoEvoT를 해설한다. 기존 그래프–LLM 방법은 그래프를 토큰 열로 선형화해 LLM에 넣고, "step by step" 같은 지시로 다단계 추론을 유도한다. 그러나 이때 그래프 토큰은 추론 내내 고정된다. CoEvoT는 이 한계를 두 방향의 결합으로 푼다. 각 단계에서 LLM이 만든 중간 사고(thought)를 경량 조건망(condition network)에 통과시켜 그래프 토큰의 증거 상태를 갱신하고(text-to-graph token rewriting), 갱신된 토큰을 다음 단계 지시문에 다시 주입해 이어지는 LLM 추론을 이끈다(graph-to-text reasoning guidance). 이 폐루프에서 언어 추론과 구조 증거가 함께 진화한다. 인용망·전자상거래 두 도메인의 8개 데이터셋에서 교차 데이터셋 전이(cross-dataset transfer) 성능을 측정했고, 노드 분류와 링크 예측 모두에서 기존 방법을 웃돈다고 보고한다. 다만 개선폭은 데이터셋마다 편차가 크고, 추론 지연이 baseline 대비 여러 배 늘어난다.
+
+---
+
+## Executive Summary
+
+| 항목 | 설명 |
+| --- | --- |
+| 연구 질문 | 그래프–LLM의 CoT 추론에서 그래프 토큰을 고정된 스냅샷으로 두는 대신, 중간 사고로 그래프 증거를 단계마다 갱신하면 분포 이동 하의 교차 데이터셋 전이가 개선되는가? |
+| 핵심 기여 | 중간 텍스트 사고를 조건 신호로 삼아 그래프 토큰을 재작성하고(Eq 5–6), 갱신된 토큰을 다음 지시문에 되먹여 언어와 구조가 함께 진화하는 폐루프 CoT 프레임워크(CoEvoT)를 제안한다. |
+| 방법적 결과 | 동결된 그래프 인코더와 LLM 위에서 선형 사영기 $\phi$와 조건망 $\psi$만 학습한다. 각 단계 $k$에서 사고 표현으로 $\mathbf{p}_v^k$를 생성해 $\mathbf{h}_v^{k+1}=\mathbf{h}_v^k+\alpha\cdot\mathbf{p}_v^k$로 노드 임베딩을 잔차 갱신하고, 이를 다시 토큰 공간으로 사영해 재주입한다. |
+| 실험 결과 | 6개 target에서 노드 분류 정확도, 8개 데이터셋에서 링크 예측 AUC 모두 최고를 보고한다. 예: PubMed 정확도 0.902(차위 GOFA 0.859), History 0.641(차위 0.558). 다만 Photo 링크 예측은 0.549로 TEA-GLM 0.545 대비 +0.004에 그친다. |
+| 핵심 한계 | 다단계 그래프 토큰 갱신으로 추론 지연이 TEA-GLM 대비 약 2–4배, GOFA 대비 최대 8배 늘어난다(Table 6). 그래프 backbone(GraphSAGE) 하나, LLM 하나로만 평가했고, 링크 예측·절제(ablation) 결과에는 표준편차가 없다. |
+
+**TL;DR**
+
+- CoEvoT는 그래프–LLM의 Chain-of-Thought 추론에서 각 단계의 중간 텍스트 사고를 경량 조건망에 통과시켜 그래프 토큰을 잔차 갱신하고($\mathbf{h}\leftarrow\mathbf{h}+\alpha\cdot\mathbf{p}$), 갱신된 토큰을 다음 지시문에 되먹여 언어 추론과 구조 증거가 함께 진화하도록 하는 폐루프 프롬프팅 프레임워크다.
+- CoEvoT는 동결된 인코더·LLM 위에서 사영기와 조건망만 학습해, 인용·전자상거래 8개 데이터셋의 교차 데이터셋 전이에서 노드 분류(예: PubMed 정확도 0.902 vs 차위 0.859)와 링크 예측 AUC 모두 기존 방법을 앞선다고 보고한다.
+- CoEvoT는 정적 그래프 증거 위에서 추론하던 한계를 겨냥한 설계로 유용하지만, 이득은 TEA-GLM 표현 위에 얹은 증분이고 추론 지연이 baseline 대비 약 2–8배 늘며 링크 예측·절제 결과에 표준편차가 없고 backbone·LLM은 하나로만 검증됐다.
+
+## 목차
+
+1. 배경과 문제의식
+2. 예비 지식: 그래프 인코더와 그래프–텍스트 사전학습
+3. CoEvoT 방법
+4. 실험 설계
+5. 결과
+6. 논문의 주장과 근거 범위
+7. 학술적 한계와 비평
+8. 결론
+
+---
+
+## 1. 배경과 문제의식
+
+논문이 다루는 문제는 분포 이동(distribution shift) 하의 그래프 학습이다. 지도 GNN은 라벨이 충분하면 잘 작동하지만, 구조나 의미가 달라진 새 그래프로는 신뢰성 있게 전이되지 않는다. 자기지도 사전학습과 그래프 프롬프팅은 라벨 효율을 높이지만, 대개 소량의 라벨 피드백에 의존하고 데이터셋 사이의 무감독 일반화에는 약하다(§1, §2).
+
+LLM은 이 지점에 다른 경로를 연다. 최근 그래프–LLM 접근은 그래프를 토큰 열로 선형화해 텍스트 지시문과 결합하고, LLM이 직접 예측을 내도록 한다(§1). 여기에 CoT 프롬프팅을 얹으면 한 번에 답하지 않고 중간 사고를 거쳐 답에 이르는데, 이는 국소 패턴과 넓은 구조 맥락을 조율해야 하는 그래프 문제에 매력적이다(Fig 1(a)).
+
+그러나 논문이 지목하는 한계가 여기 있다. 기존 방법의 CoT는 사실상 언어 쪽에서만 일어난다. 중간 사고는 "think step by step" 같은 인위적 지시로 유발되지만, 지시문을 구성하는 그래프 토큰은 추론 내내 고정된다(§1, §2). 효과적 예측이 상태가 진화함에 따라 이웃과 경로의 상대적 중요도를 점진적으로 재조정할 것을 요구하는데도, 정적 토큰 설계는 이를 막는다. 한편 텍스트 없는 그래프를 위한 최근 CoT류 방법(GCoT, Yu et al. 2025)은 그래프 임베딩을 단계적으로 정련하지만(Fig 1(b)), 그 "사고"가 해석 가능한 추론 단계가 아니라 잠재 임베딩 상태이며, 많은 실제 그래프가 가진 풍부한 텍스트 속성을 활용하지 못한다(§1).
+
+논문의 주장은 그래프–LLM의 CoT가 언어와 구조 어느 한쪽도 정적 맥락으로 두지 말고 함께 진화해야 한다는 것이다. 중간 텍스트 사고가 구조 표현을 갱신하는 조건 신호로 작동해 그래프 토큰을 현재 상태에 맞게 재작성하고, 재작성된 토큰이 다음 LLM 추론을 상태 인식적 증거로 이끄는 폐루프. 이것이 CoEvoT(**Co**-**Evo**lving Co**T**)다(§1).
+
+![CoEvoT Figure 1: 기존 graph-LLM vs GCoT vs CoEvoT 비교](/api/blog/figures/coevot-fig1-comparison.png)
+*그림 1. 세 계열의 CoT 비교: (a) 기존 그래프–LLM은 고정 그래프 토큰 위에서 언어 사고만 전개하고, (b) GCoT는 텍스트 없이 잠재 임베딩을 단계적으로 정련하며, (c) CoEvoT는 텍스트 사고와 그래프 토큰을 폐루프로 함께 갱신한다. 원 논문 Figure 1에서 crop. 출처: Niu et al. (2026), arXiv:2607.14114.*
+
+---
+
+## 2. 예비 지식: 그래프 인코더와 그래프–텍스트 사전학습
+
+CoEvoT는 두 단계로 구성된다. 먼저 그래프–텍스트 대조 사전학습으로 인코더를 만들고, 그 위에서 폐루프 CoT 추론을 수행한다(§4.1).
+
+그래프 인코더는 메시지 전달 방식이다. $l$층 임베딩 행렬을 $\mathbf{H}^l=\mathrm{MP}(\mathbf{H}^{l-1},G;\boldsymbol{\theta}^l)$로 갱신하고($\mathbf{H}^0=\mathbf{X}$), $L$층을 쌓아 최종 임베딩 $\mathbf{H}=\mathbf{H}^L$를 얻는다(Eq 1–2). 사전학습은 다중모달 대조 방식으로, 논문은 Wang et al.(2024, TEA-GLM)을 따른다(§3). 입력 그래프에서 구조와 속성을 각각 마스킹해 두 증강 뷰 $G_1, G_2$를 만들고($\tilde{A}=A\odot\tilde{R}$, $\tilde{X}=[x_i\odot\tilde{m}]$; Eq 8–9), 공유 인코더로 인코딩한다. 같은 노드의 두 뷰 표현을 양성쌍, 배치 내 다른 노드를 음성으로 두는 노드 수준 일관성 손실 $\ell_{\text{ins}}$를 코사인 유사도와 온도 $\tau$로 정의하고 양방향 평균한다(Eq 11–12).
+
+여기에 언어 의미를 넣는 부분이 이 사전학습의 특징이다. LLM 토큰 임베딩에 주성분분석(PCA)을 적용해 상위 $P$개 주성분 $C\in\mathbb{R}^{P\times m}$을 얻고(Eq 13), 그래프 표현을 $\tilde{U}=UC^\top$로 이 LLM 유도 좌표계에 사영한 뒤(Eq 14), 두 뷰의 같은 의미 방향은 일치시키고 다른 방향과는 구별하는 특징 수준 손실 $\mathcal{L}_{\text{fea}}$를 건다(Eq 15). 최종 목적은 $\mathcal{L}_{\text{pre}}=\tfrac{1}{2}(\mathcal{L}_{\text{ins}}+\mathcal{L}_{\text{fea}})$다(Eq 16). 인코더 출력 차원 $m$은 LLM 토큰 임베딩 차원과 맞춘다.
+
+사전학습이 끝나면 그래프 임베딩 $\mathbf{H}$를 경량 선형 사영기로 LLM 임베딩 공간에 매핑한다. $\mathbf{H}_{\text{token}}=\mathrm{Linear}(\mathbf{H};\phi)$이며(Eq 4), 각 행이 한 노드의 토큰으로 LLM 토큰 차원과 일치한다. 이 노드 토큰은 그래프 구조를 담아 LLM이 바로 소비하는 soft prompt다. 문제 설정은 교차 데이터셋 전이다. 라벨된 source 그래프로만 학습하고, 추론 시 target 그래프에는 라벨 없이 그대로 적용한다. 노드 분류는 후보 라벨 집합에서 고르는 문제로, 링크 예측은 노드 분류로 적응된 모델을 추가 학습 없이 이전해 이진 판정하는 문제로 둔다(§3).
+
+---
+
+## 3. CoEvoT 방법
+
+### 3.1 전체 폐루프
+
+추론의 각 단계는 두 연산을 번갈아 수행한다(§4.1, Fig 2). 먼저 현재 그래프 토큰 상태를 경량 과제 지시문·누적 사고와 합쳐 LLM에 넣고 중간 사고 하나를 생성한다(graph-to-text). 그다음 그 사고를 조건망에 통과시켜 노드별 조건 신호를 만들고, 이를 그래프 토큰 상태에 반영한다(text-to-graph). 이 두 연산 사이클을 반복하면 그래프 토큰이 나르는 구조 증거와 LLM의 추론 궤적이 단계마다 함께 진화한다.
+
+![CoEvoT Figure 2: 전체 프레임워크](/api/blog/figures/coevot-fig2-framework.png)
+*그림 2. CoEvoT 전체 구조. (a) 그래프–텍스트 대조 사전학습, (b) 사고를 조건 신호로 그래프 토큰을 갱신하는 재작성 모듈, (c) 갱신된 토큰을 재주입해 단계별 추론을 이어가는 폐루프. 원 논문 Figure 2에서 crop. 출처: Niu et al. (2026), arXiv:2607.14114.*
+
+### 3.2 Graph-to-Text: 그래프 증거로 이끄는 LLM 추론
+
+지시문은 세 요소로 구성된다(§4.2). 첫째, 노드 토큰 주입이다. arXiv 노드 분류를 예로 들면 "Given a representation of a paper: \<Node token\>, with the following information: Abstract:... Title:..." 형태로 노드 토큰 자리표와 텍스트 속성을 함께 넣는다. 둘째, 과제 서술로 후보 라벨 집합을 제시한다. 셋째, 반복 프롬프팅이다. 단계 $k$의 전체 프롬프트는 그 단계 지시문에 이전까지의 사고들을 붙이고 질문을 잇는 형태이며, "Provide your reasoning step by step. Give only the next reasoning step, do NOT output the final answer."로 끝난다. LLM은 다음 중간 사고 하나만 생성한다. $K$단계를 마치면 모든 사고를 포함한 최종 프롬프트로 답을 낸다. 부록 D는 노드 분류·링크 예측 각각에 대해 첫 단계, 중간 단계, 최종 예측(사고 있음/없음) 네 가지 템플릿 전문을 제공한다.
+
+### 3.3 Text-to-Graph: 사고 조건형 토큰 재작성
+
+핵심 부품이다. 단계 $k$에서 LLM이 사고를 만들면, 그 사고를 LLM 임베딩 공간의 표현 $\mathbf{t}_v^k$로 얻는다. 노드 $v$에 대해 이전 단계까지의 사고 표현들을 모아 경량 조건망에 넣어 노드별 조건 프롬프트를 생성한다.
+
+$$\mathbf{p}_v^k=\mathrm{CondNet}(\mathbf{t}_v^1\oplus\cdots\oplus\mathbf{t}_v^k;\psi)$$
+
+여기서 $\oplus$는 결합(concatenation), $\psi$는 학습 파라미터다. $\mathrm{CondNet}$은 추론 상태를 그래프 임베딩 공간으로 매핑하는 경량 하이퍼네트워크(Ha et al. 2016)로, 구현에서는 2층 MLP다(§4.3). 생성된 조건 프롬프트로 그래프 임베딩을 잔차 방식으로 갱신한다.
+
+$$\mathbf{h}_v^{k+1}=\mathbf{h}_v^k+\alpha\cdot\mathbf{p}_v^k$$
+
+$\alpha$는 갱신 강도를 조절하는 하이퍼파라미터다. 다음 단계에서 갱신된 노드 임베딩은 다시 선형 사영기 $\phi$를 통해 노드 토큰으로 사영되어 지시문에 주입된다(Alg 1의 23행). 이렇게 중간 추론 상태가 구조 표현을 계속 재작성하는 폐루프가 성립하고, 그래프 증거가 단계마다 점진적으로 정련된다. 조건망의 은닉 차원 $s$는 내부 변환 용량만 조절하며, 출력 차원은 잔차 연산이 성립하도록 인코더 출력 차원에 고정한다(§5.4).
+
+### 3.4 적응과 교차 데이터셋 추론
+
+적응 단계에서 그래프 인코더와 LLM은 모두 동결하고, 선형 사영기 $\phi$와 조건망 $\psi$만 학습한다(§4.4). 라벨된 데이터 $\mathcal{D}=\{(v_i,y_i)\}$에 대해 노드별 지시문을 구성하고 정답 생성 확률을 최대화한다.
+
+$$\mathcal{L}_{\text{down}}(\phi,\psi)=-\sum_{(v_i,y_i)\in\mathcal{D}}\log p_{\text{LLM}}(y_i\mid \texttt{Instruction}_{v_i};\phi,\psi)$$
+
+교차 데이터셋 추론에서는 학습된 $\phi,\psi$를 미관측 데이터셋에 추가 학습 없이 그대로 적용한다. 부록 E의 Algorithm 1이 이 절차 전체를 명시하고, 반복당 비용을 $O(L_g|\mathcal{E}|+BKT^2 d_{\mathcal{M}})$로 분석한다($B$ 배치 크기, $K$ 추론 단계, $T$ 프롬프트 길이, $d_{\mathcal{M}}$ LLM 은닉 차원). 조건망·사영 연산은 LLM 추론에 비해 저차항이라, 실질 비용은 LLM 추론이 지배한다.
+
+---
+
+## 4. 실험 설계
+
+**데이터셋.** 두 도메인 8개 벤치마크다. 인용망은 Arxiv, PubMed, Cora(세분 라벨 확장판)이고, 전자상거래는 Computer, Photo, Children, History, Sports다(§5.1, Table 4). Table 4 기준 규모는 Arxiv 169,343노드·40클래스, PubMed 19,717·3, Cora 25,120·70, Computer 87,229·10, Photo 48,362·12, Children 76,875·24, History 41,551·12, Sports 173,055·13이다.
+
+**평가 설정.** TEA-GLM의 분할·평가 프로토콜을 따른다. Arxiv와 Computer를 각각 인용·전자상거래 도메인의 source로 삼아 사전학습·적응에 쓰고, 나머지를 미관측 target으로 평가한다. 인용 도메인 학습에는 Arxiv의 라벨 노드 90,941개, 전자상거래 학습에는 Computer의 62,748개를 쓴다. source 두 개가 노드 분류 target에서 빠지므로 Table 1(노드 분류)은 6개 열(PubMed·Cora·Children·History·Photo·Sports)이고, Table 2(링크 예측)는 Arxiv·Computer를 포함한 8개 열이다.
+
+**baseline.** 여러 계열을 망라한다(§5.1). 비그래프 MLP, 지도 GNN(GCN, GraphSAGE, GAT), 자기지도(DGI), 지식 증류(GKD, GLNN), 그래프 트랜스포머(NodeFormer, DIFFormer), 그래프 전용 CoT(GCoT), 그리고 LLM 기반 그래프 방법(Vicuna-7B-v1.5와 그 변형 Vicuna-7B-SPT, OFA, GraphGPT의 표준·CoT 변형, LLaGA, TEA-GLM, GOFA). baseline 수치는 동일 설정에서 TEA-GLM 논문이 보고한 값을 그대로 옮기고, TEA-GLM에 없는 GOFA만 같은 분할·지표로 재현해 튜닝 후 최고값을 보고한다. CoEvoT는 TEA-GLM이 공개한 사전학습 인코더 체크포인트를 그대로 쓴다.
+
+**하이퍼파라미터(부록 F).** 인코더는 2층 GraphSAGE(TEA-GLM 체크포인트 초기화). 60에폭, 배치 512, Adam, 학습률 $2\times10^{-2}$. 선형 사영기는 별도로 2에폭, 배치 2, 학습률 $1\times10^{-3}$. 추론 단계 $K=2$, 갱신 강도 $\alpha=0.4$, 조건망 은닉 차원 $s=512$. 실험 환경은 48GB 단일 NVIDIA vGPU다. 논문은 CoEvoT가 쓰는 LLM을 본문 설정에서 특정 모델명으로 부각하지 않고 "동결된 LLM"으로만 지칭하며(한계에서 "single foundation LLM"), TEA-GLM 프로토콜과 체크포인트를 승계한다는 점에서 그 계열의 7B급 모델(Vicuna-7B-v1.5)을 따르는 것으로 읽힌다.
+
+---
+
+## 5. 결과
+
+**노드 분류(Table 1, 정확도).** CoEvoT가 6개 target 전부에서 최고다. PubMed 0.902(차위 GOFA 0.859, TEA-GLM 0.848), Cora 0.265(차위 TEA-GLM 0.202), Children 0.295(차위 TEA-GLM 0.271), History 0.641(차위 GOFA 0.558), Photo 0.538(차위 GOFA 0.512), Sports 0.458(차위 GOFA 0.425). 전통 GNN은 전이력이 낮아 특히 의미 정합이 약하고 관계 패턴이 이질적인 전자상거래에서 크게 무너진다. 순수 LLM 방법은 의미 일반화 덕에 더 견고하나 명시적 구조 모델링이 없어 준최적이다. 논문은 개선폭이 도메인 이동이 큰 전자상거래에서 더 두드러진다고 정리하며, 그래프 정보를 LLM에 주입하는 것만으로는 부족하고 추론과 구조의 양방향 상호작용이 관건이라고 주장한다(§5.2).
+
+**링크 예측(Table 2, AUC).** 노드 분류로 적응된 모델을 과제별 추가 학습 없이 링크 예측에 이전한다. CoEvoT가 8개 전부 최고로, Arxiv 0.724·PubMed 0.762·Cora 0.645·Children 0.624·History 0.656·Computer 0.642·Photo 0.549·Sports 0.629다. 차위는 대체로 TEA-GLM이다. 다만 Photo에서는 CoEvoT 0.549 대 TEA-GLM 0.545로 +0.004에 그쳐 마진이 가장 좁고, Computer에서 CoEvoT 0.642 대 TEA-GLM 0.554로 +0.088에 이르러 가장 넓다.
+
+**절제 연구(Table 3).** 두 변형과 비교한다. Variant 1은 단일 단계 추론으로 TEA-GLM과 동등하고, Variant 2는 다단계 CoT는 넣되 text-to-graph 재작성을 빼 그래프 임베딩을 고정한 것이다. CoEvoT가 노드 분류·링크 예측 모든 열에서 최고다. 논문은 이를 "다단계 추론만으로는 유익하나 그래프 증거가 정적이면 전이력을 온전히 끌어내기에 부족하다"고 해석한다(§5.3). 다만 표를 보면 Variant 2는 Variant 1 대비 Children(0.271→0.251)과 Photo(0.497→0.493) 노드 분류에서 오히려 낮다. 즉 재작성 없는 다단계 CoT는 일부 데이터셋에서 이득이 아니라 손해이며, 최종 이득은 재작성이 그 손실을 되돌리고 넘어서는 데서 나온다.
+
+**하이퍼파라미터 분석(Fig 3–5).** 단계 수 $K$는 노드 분류에서 $K=1$→$2$로 오르지만 그 이상은 이득이 없거나 잡음이 되며, 링크 예측은 $K$에 둔감하다. 이에 $K=2$를 기본값으로 둔다. 갱신 강도 $\alpha$는 작으면 재작성 신호가 약하고 크면 구조 증거를 교란해 불안정해지며, 두 과제 모두 $\alpha=0.4$ 부근에서 최선이다. 조건망 은닉 차원 $s$는 512에서 포화하고 그 이상에서 소폭 저하해 $s=512$를 채택한다.
+
+![CoEvoT Figure 6: 단계별 노드 임베딩 진화 t-SNE](/api/blog/figures/coevot-fig6-tsne.png)
+*그림 6. Arxiv에서의 단계별 노드 표현 진화 t-SNE. 초기에는 클래스가 뒤엉켜 있고, 1단계 후 거친 군집이, 2단계 후 더 조밀하고 분리된 군집이 형성된다. 원 논문 Figure 6에서 crop. 출처: Niu et al. (2026), arXiv:2607.14114.*
+
+**시각화·보조 지표.** Arxiv t-SNE(Fig 6)는 초기의 엉킨 임베딩이 1단계 후 거친 군집, 2단계 후 조밀한 군집으로 바뀌는 과정을 보이며, 재작성이 임베딩 공간을 점진적으로 재편함을 예시한다(§6). History에서도 같은 경향이다(부록 J). 부록 I의 Macro-F1(Table 5)에서도 CoEvoT가 6개 전부 최고이나 마진은 정확도보다 좁아, Children은 0.255 대 TEA-GLM 0.252로 +0.003이다. 부록 K의 추론 시간(Table 6)에서 CoEvoT는 PubMed 6732.9초로 TEA-GLM 1749.4초·GOFA 946.1초를 크게 웃돈다. 논문은 이 지연이 단계 수에 대략 선형이며 $K=2$면 통제 가능하다고 본다.
+
+---
+
+## 6. 논문의 주장과 근거 범위
+
+논문의 중심 주장은 두 가지다. 첫째, 기존 그래프–LLM CoT의 한계는 정적 그래프 증거 위에서 추론한다는 데 있다. 둘째, 사고로 그래프 토큰을 단계마다 재작성하는 폐루프가 교차 데이터셋 전이를 개선한다. 첫 주장은 개념적 위치짓기이고, 둘째 주장의 근거는 Table 1·2의 전 열 우위와 Table 3의 절제다.
+
+근거 범위를 정확히 읽으면, CoEvoT의 이득은 사실상 "TEA-GLM 표현 위에 얹은 폐루프 CoT"의 이득이다. Variant 1이 TEA-GLM과 동등하고 그 링크 예측 수치가 Table 2의 TEA-GLM 행과 정확히 일치하며, CoEvoT가 TEA-GLM의 사전학습 인코더를 그대로 쓰기 때문이다. 이 설계는 인코더 품질 차이를 통제해 이득의 출처를 재작성 기제로 귀속시킨다는 점에서 깔끔하다. 동시에 전체 델타가 TEA-GLM 대비 증분이라는 사실도 분명하다. Table 3은 이 증분을 두 조각으로 분해한다. 다단계 CoT를 더하는 조각(Variant 2)과 재작성을 더하는 조각. 앞 조각은 데이터셋에 따라 음수일 수 있고, 뒤 조각이 일관된 양의 신호를 낸다.
+
+---
+
+## 7. 학술적 한계와 비평
+
+**추론 비용.** 논문 스스로 한계로 든 지연이 Table 6에서 구체 수치로 확인된다. CoEvoT는 TEA-GLM 대비 약 1.9–3.9배, GOFA 대비 최대 8배 느리다. 노드마다 $K$번의 LLM 생성과 재작성을 거치므로 구조적 비용이다. 정확도 이득이 상당한 데이터셋에서는 정당화되지만, Photo 링크 예측(+0.004)이나 Children Macro-F1(+0.003)처럼 마진이 좁은 곳에서는 비용 대비 이득이 분명치 않다.
+
+**통계적 근거의 비대칭.** Table 1 노드 분류에는 반복 실행의 평균±표준편차가 있으나, Table 2 링크 예측과 Table 3 절제는 단일 실행 또는 결정론적 값이다(체크리스트 Q7이 이를 명시한다). 따라서 "8개 전 열 우위" 같은 링크 예측 주장과 절제 결론에는 오차 막대가 없어, +0.004 수준의 좁은 마진이 유의한지 판단할 근거가 부족하다.
+
+**backbone·LLM 단일성.** 그래프 인코더는 2층 GraphSAGE 하나, LLM은 사실상 하나다. 논문은 이득이 약한 텍스트 신호나 상이한 모델 계열로 균일하게 전이되지 않을 수 있다고 인정한다(부록 A). 특히 사전학습(PCA 정렬)·토큰화·재작성이 모두 특정 LLM 임베딩 기하에 맞춰지므로, LLM을 바꿀 때 조건망과 사영기가 얼마나 재사용되는지는 검증되지 않았다.
+
+**"함께 진화한다"의 실질.** 재작성 기제(Eq 5–6)는 조건망·잔차 갱신이라는 형태에서 저자군의 선행 GCoT와 매우 가깝다. CoEvoT의 차별점은 잠재 상태 대신 실제 자연어 사고의 LLM 임베딩을 조건 신호로 쓴다는 데 있다. 이 설계에서 사고 텍스트가 어떻게 고정 벡터 $\mathbf{t}_v^k$로 요약되는지(예: 어느 토큰·풀링), 그리고 단계가 늘며 길이가 커지는 결합 입력 $\mathbf{t}_v^1\oplus\cdots\oplus\mathbf{t}_v^k$를 고정 구조의 2층 MLP가 어떻게 받는지는 본문에서 충분히 특정되지 않는다. $K=2$에서는 소규모라 실무 영향이 작지만, 기제의 정합성을 따지려면 남는 물음이다.
+
+**"zero-shot"의 조건.** 교차 데이터셋 전이를 zero-shot으로 부르지만, 모델은 source(Arxiv 또는 Computer)의 라벨로 적응된다. target 라벨을 쓰지 않는다는 의미의 zero-shot이지, 감독 자체가 없는 것은 아니다. 또 링크 예측은 파라미터 학습 없이 이전하되 지시 템플릿은 과제별로 따로 설계된다(부록 D.2). "과제별 학습 없음"은 파라미터 수준의 서술로 정확하다.
+
+**표기·참조의 소소한 불일치.** Eq 2의 층 수 $L$과 Eq 4의 LLM 토큰 차원 $L$이 같은 기호를 공유해 혼동 여지가 있다. §5.4 본문은 단계 수 $K$ 결과를 "Fig. 4"로 인용하지만 실제 $K$ 그림은 Figure 3이고 Figure 4는 $\alpha$ 그림이다. 논문 자체의 사소한 오기다.
+
+이런 유보에도, 논문의 절제 설계는 이득의 출처를 재작성 기제로 좁히려는 성의를 보인다. 자기 한계(추론 비용·텍스트 속성 의존·단일 backbone·평가 범위)를 부록 A에 명시한 점도 함께 읽을 만하다.
+
+---
+
+## 8. 결론
+
+CoEvoT는 그래프–LLM의 CoT에서 그래프 토큰을 정적 스냅샷이 아니라 단계마다 재작성되는 증거 상태로 다룬다. 중간 사고를 조건 신호로 삼아 노드 임베딩을 잔차 갱신하고(Eq 5–6), 갱신된 토큰을 다음 지시문에 되먹여 언어 추론과 구조 증거가 폐루프에서 함께 진화하도록 한다. 동결된 인코더·LLM 위에서 사영기와 조건망만 학습하는 경량 적응으로, 인용·전자상거래 8개 데이터셋의 교차 데이터셋 전이에서 노드 분류와 링크 예측 모두 기존 방법을 웃돈다고 보고한다.
+
+이 논문을 읽을 때 잡아야 할 균형은 이렇다. 이득의 출처는 TEA-GLM 표현 위에 얹은 재작성 기제로 잘 통제되어 귀속되며, 절제는 다단계 CoT만으로는 일부 데이터셋에서 오히려 손해임을 드러내 재작성의 역할을 부각한다. 동시에 그 이득은 TEA-GLM 대비 증분이고, 링크 예측·절제에는 오차 막대가 없으며, 추론 지연이 여러 배로 늘고, backbone·LLM은 하나로만 검증됐다. 정적 그래프 증거라는 한계를 겨냥한 설계 아이디어와, 그 아이디어를 특정 프로토콜 안에서 확인한 실증 사이의 간극을 함께 보는 것이 정확한 독해다.
+
+## References
+
+Chen, R., Zhao, T., Jaiswal, A., Shah, N., & Wang, Z. (2024). LLaGA: Large language and graph assistant. *International Conference on Machine Learning*.
+
+Ha, D., Dai, A., & Le, Q. V. (2016). *HyperNetworks*. arXiv:1609.09106.
+
+Hamilton, W. L., Ying, R., & Leskovec, J. (2017). Inductive representation learning on large graphs. *Advances in Neural Information Processing Systems, 30*.
+
+Kipf, T. N., & Welling, M. (2017). Semi-supervised classification with graph convolutional networks. *International Conference on Learning Representations*.
+
+Kong, L., Feng, J., Liu, H., Huang, C., Huang, J., Chen, Y., & Zhang, M. (2025). GOFA: A generative one-for-all model for joint graph language modeling. *International Conference on Learning Representations*.
+
+Liu, H., Feng, J., Kong, L., Liang, N., Tao, D., Chen, Y., & Zhang, M. (2024). One for all: Towards training one graph model for all classification tasks. *International Conference on Learning Representations*.
+
+Niu, H., Yu, X., Liu, Y., Fang, J., Xie, X., Tan, J., Zhang, Z., Cheng, H., & Fang, Y. (2026). *CoEvoT: Co-evolving chain-of-thought prompting for graph–LLM reasoning*. arXiv:2607.14114.
+
+Tang, J., Yang, Y., Wei, W., Shi, L., Su, L., Cheng, S., Yin, D., & Huang, C. (2024). GraphGPT: Graph instruction tuning for large language models. *Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Information Retrieval*, 491–500.
+
+Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y. (2018). Graph attention networks. *International Conference on Learning Representations*.
+
+Veličković, P., Fedus, W., Hamilton, W. L., Liò, P., Bengio, Y., & Hjelm, R. D. (2019). Deep graph infomax. *International Conference on Learning Representations*.
+
+Wang, D., Zuo, Y., Li, F., & Wu, J. (2024). LLMs as zero-shot graph learners: Alignment of GNN representations with LLM token embeddings. *Advances in Neural Information Processing Systems, 37*, 5950–5973.
+
+Wei, J., Wang, X., Schuurmans, D., Bosma, M., Xia, F., Chi, E., Le, Q. V., & Zhou, D. (2022). Chain-of-thought prompting elicits reasoning in large language models. *Advances in Neural Information Processing Systems, 35*, 24824–24837.
+
+Yu, X., Zhou, C., Kuai, Z., Zhang, X., & Fang, Y. (2025). GCoT: Chain-of-thought prompt learning for graphs. *Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining*, 3669–3679.

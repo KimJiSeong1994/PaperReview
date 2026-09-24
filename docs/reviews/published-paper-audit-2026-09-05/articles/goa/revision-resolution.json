@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Restored real graph execution semantics and bounded selection/accuracy attribution."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 16355,
+  "after_chars": 14813
+}

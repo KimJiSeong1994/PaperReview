@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected two-cutoff protocol and averaged NDCG improvements."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 15812,
+  "after_chars": 15521
+}

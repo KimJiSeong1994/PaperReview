@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "title": "DeepWalk: Online Learning of Social Representations",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/deepwalk-online-learning-social-representations-review-2026/original.md",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/deepwalk-online-learning-social-representations-review-2026/original.json",
+    "evidence.md"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/1403.6652"
+  ],
+  "changes": [
+    "논문 설명 중심의 본문 유지",
+    "검토·코드 감사·출판 메타 서술을 편집 대상에서 제외",
+    "근거가 있는 실험 범위와 한계를 본문 설명으로 유지",
+    "초기 일괄 메타 초안은 증거가 불충분하여 pending으로 보류",
+    "Distinguished online SGD from experimentally untested streaming variant."
+  ],
+  "uncertainties": [
+    "원문 논문 버전·표 번호는 각 본문 인용을 기준으로 확인; 후속 출판 판본과의 문장 차이는 별도 비교 대상이 아님"
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "DeepWalk: Online Learning of Social Representations",
+    "authors": [
+      "Bryan Perozzi",
+      "Rami Al-Rfou",
+      "Steven Skiena"
+    ],
+    "year": 2014,
+    "primary_url": "https://arxiv.org/abs/1403.6652",
+    "arxiv_id": "1403.6652",
+    "doi": "10.1145/2623330.2623732"
+  },
+  "excerpt": "DeepWalk는 그래프의 짧은 랜덤워크를 문장처럼 취급하고 Skip-Gram으로 노드 표현을 학습한다. 걷기·문맥 창·계층적 softmax의 역할과 희소 라벨 환경에서의 분류 결과를 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/deepwalk-online-learning-social-representations-review-2026",
+  "verified_content_sha256": "10a9361e8bb820b2afac95473aeb00a768fe5e24fee18a36eec8d263782cb507"
+}

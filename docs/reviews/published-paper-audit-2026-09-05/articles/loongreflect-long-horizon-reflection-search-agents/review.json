@@ -1,0 +1,42 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2608.11967 (§§1–5 and tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2608.11967",
+    "https://arxiv.org/html/2608.11967"
+  ],
+  "paper_metadata": {
+    "title": "LoongReflect: Boosting Long-Horizon Reflection in Search Agents via Global Perspective Distillation",
+    "authors": [
+      "Zhixin Zhang",
+      "Xinke Jiang",
+      "Zhibang Yang",
+      "Weixuan Xu",
+      "Guohong Qiu",
+      "Xu Chu",
+      "Junfeng Zhao",
+      "Yasha Wang"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2608.11967",
+    "arxiv_id": "2608.11967"
+  },
+  "excerpt": "LoongReflect는 검색 에이전트의 반성을 메모리 제어 정책으로 다루고, 국소 반성 기록과 전체 궤적 관점의 교사 신호를 결합해 긴 탐색 과정에서 다음 행동을 개선하려는 방법이다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Corrected all eight author names and removed reviewer-role labels."
+  ],
+  "uncertainties": [
+    "Results depend on the paper's teacher, task distribution, and reflection annotations."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/loongreflect-long-horizon-reflection-search-agents",
+  "verified_content_sha256": "5ac9b35d998c7f20b0f617271e6521ab9fb85b94b6f4d4f1b3933813f0f96aeb"
+}

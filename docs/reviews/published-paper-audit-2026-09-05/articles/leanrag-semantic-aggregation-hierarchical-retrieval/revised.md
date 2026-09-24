@@ -1,0 +1,371 @@
+# LeanRAG: Knowledge-Graph-Based Generation with Semantic Aggregation and Hierarchical Retrieval
+
+**Paper:** Yaoze Zhang; Rong Wu; Pinlong Cai; Xiaoman Wang; Guohang Yan; Song Mao; Ding Wang; Botian Shi (2026). "LeanRAG: Knowledge-Graph-Based Generation with Semantic Aggregation and Hierarchical Retrieval". https://ojs.aaai.org/index.php/AAAI/article/view/40789 · arXiv:2508.10391
+
+**Abstract:** 계층형 Graph RAG는 세부 엔티티를 상위 요약으로 묶어 넓은 질문에 대응하지만, 요약 노드 사이의 관계가 끊기거나 실제 검색이 그래프 구조를 무시한 채 평면적인 유사도 검색으로 돌아갈 수 있다. LeanRAG는 엔티티를 반복적으로 군집화해 상위 개념을 만들고, 서로 다른 군집 사이의 원래 관계를 요약 노드 사이의 새 간선으로 올린다. 질문이 들어오면 원본 엔티티에서 시작해 최소 공통 조상(Lowest Common Ancestor, LCA)까지 이어지는 경로만 검색한다. 저자 보고 기준 네 UltraDomain 데이터셋에서 종합 점수는 8.49–8.87이었고, 검색 문맥의 토큰 수는 비교 방법보다 평균 46% 적었다. 다만 주요 평가는 답변 생성에도 사용한 DeepSeek-V3가 맡았으며, 질문 수와 출처, 오차 항의 정의, 사람 평가, 검색 정답, 지연시간과 색인 비용은 보고하지 않았다. 따라서 이 논문의 강점은 모든 조건에서의 우월성보다 **요약 구조와 검색 경로를 함께 설계했다는 점**에서 찾는 편이 정확하다.
+
+---
+
+## 핵심 요약
+
+| 항목 | 설명 |
+| --- | --- |
+| 연구 질문 | 계층형 지식 그래프의 상위 요약을 서로 연결하고, 그 구조를 질의 시점 검색에 직접 사용하면 답변 품질을 유지하면서 중복 문맥을 줄일 수 있는가? |
+| 핵심 기여 | 군집별 집약 엔티티 생성, 군집 간 집약 관계 생성, 세부 엔티티에서 시작하는 LCA 기반 상향 검색을 하나의 Graph RAG 구조로 결합했다. |
+| 작동 방식 | 기본 그래프의 엔티티 설명을 임베딩하고 GMM으로 군집화한다. LLM이 군집을 대표하는 상위 엔티티와 군집 간 관계를 만든다. 질문에서는 기본 엔티티를 먼저 찾고, 이들의 최소 공통 조상까지 이어지는 경로와 원문 청크를 답변 문맥으로 사용한다. |
+| 대표 결과 | 저자 보고 종합 점수는 Mix 8.59, CS 8.82, Legal 8.49, Agriculture 8.87이다. 관계 제거 모델과의 종합 승률은 각각 53.8%, 58.5%, 56.5%, 58.0%였다. |
+| 핵심 한계 | DeepSeek-V3가 답변 생성과 자동평가를 모두 맡았다. 질문의 수와 구성, `±` 값의 의미, 사람 평가와 검색 정답 평가는 공개되지 않았으며, 46% 토큰 감소 실험은 별도의 Qwen3-14B 재현 조건에서 수행됐다. |
+
+**TL;DR**
+
+- LeanRAG는 엔티티 그래프를 GMM 군집화로 반복 집약해 상위 개념 노드를 만들고 군집 사이의 원래 관계를 요약 노드 간 새 간선으로 올린 뒤, 질문과 가까운 세부 엔티티에서 최소 공통 조상(LCA)까지의 경로만 검색하는 계층형 Graph RAG다(AAAI 2026).
+- LeanRAG는 네 UltraDomain 데이터셋에서 종합 점수 8.49–8.87로 GraphRAG·LightRAG·HiRAG 등 비교 방법과 같거나 앞섰고, 검색 문맥 토큰을 평균 46% 줄였으며, 집약 관계를 빼면 일대일 승률이 전 데이터셋에서 하락(종합 53.8–58.5%)해 요약 간 관계의 기여를 보였다.
+- LeanRAG의 평가는 그러나 답변 생성과 자동평가를 같은 DeepSeek-V3가 맡고 질문 수·오차 정의·사람 평가·검색 정답·색인 비용이 미보고이며 46% 토큰 실험은 별도 Qwen3-14B 재현 조건이라, 모든 조건의 우월성보다 요약 구조와 검색 경로를 함께 설계했다는 점에서 강점을 찾아야 한다.
+
+## 목차
+
+1. LeanRAG가 지적한 두 가지 단절
+2. 기본 그래프를 다층 의미 네트워크로 바꾸기
+3. 집약 엔티티와 집약 관계
+4. 세부 엔티티에서 공통 조상으로 올라가는 검색
+5. GraphRAG·LightRAG·HiRAG와 무엇이 다른가
+6. 실험 설정과 주요 결과
+7. 관계·원문 제거 실험과 검색 토큰
+8. 결론
+
+## 1. LeanRAG가 지적한 두 가지 단절
+
+![LeanRAG framework comparison](/api/blog/figures/leanrag-fig1-comparison.png)
+
+*그림 1. Naive LLM, Naive RAG, 기존 Graph RAG와 LeanRAG의 구조 비교. — 원논문 Figure 1의 내장 이미지를 추출했으며 내용은 수정하지 않았다. 출처: Zhang et al. (2026), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
+
+LeanRAG가 문제 삼는 것은 지식 그래프를 사용하느냐가 아니다. 그래프를 계층화한 뒤에도 **색인 구조와 검색 절차가 따로 움직이는 현상**이다.
+
+첫 번째 문제는 논문이 “의미 섬(semantic islands)”이라고 부르는 상위 요약의 단절이다. GraphRAG 계열은 엔티티를 커뮤니티로 묶고 요약을 만들 수 있다. HiRAG처럼 여러 추상화 수준을 두는 방법도 있다. 그러나 한 커뮤니티의 요약과 다른 커뮤니티의 요약 사이에 명시적인 관계가 없다면, 상위 노드는 주제를 설명하는 독립된 메모에 가깝다. 서로 다른 개념 묶음을 가로지르는 질문에서는 다시 하위 엔티티와 원문을 넓게 훑어야 한다.
+
+두 번째 문제는 구조–검색 불일치다. 색인할 때는 그래프와 계층을 만들었지만, 질의 시점에는 모든 노드를 하나의 목록처럼 놓고 임베딩 유사도를 계산할 수 있다. 그래프는 후보를 찾은 뒤 주변 정보를 보태는 데만 쓰이고, 어떤 경로를 따라 검색할지 결정하는 역할은 하지 못한다.
+
+LeanRAG의 해법은 두 부분으로 나뉜다.
+
+- 상위 요약 노드 사이에도 원래 그래프의 관계를 반영한 새 간선을 만든다.
+- 검색은 세부 엔티티에서 시작해 계층의 공통 조상까지 올라가는 경로로 제한한다.
+
+즉, **그래프를 더 많이 만드는 방법이 아니라 검색에 실제로 쓰일 수 있도록 계층을 다시 만드는 방법**이다.
+
+그림 1은 기존 그래프 검색을 $O(n^2)$, LeanRAG의 LCA 검색을 $O(\log n)$으로 표시한다. 그러나 본문에는 이 복잡도의 유도 과정이나 전처리 자료구조, 계층 균형에 대한 가정이 없다. 따라서 이 표기는 설계 직관을 설명하는 도식으로만 보고, 논문이 증명한 복잡도 보장으로 사용하지 않는 편이 타당하다.
+
+---
+
+## 2. 기본 그래프를 다층 의미 네트워크로 바꾸기
+
+![LeanRAG architecture](/api/blog/figures/leanrag-fig2-framework.png)
+
+*그림 2. 문서에서 기본 지식 그래프를 만들고, 엔티티를 반복적으로 집약한 뒤, 질문과 가까운 세부 엔티티에서 상향 검색하는 LeanRAG의 전체 흐름. — arXiv v4의 Figure 2를 주변 본문과 분리해 인용했으며 그림 내용은 수정하지 않았다. 출처: Zhang et al. (2026), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
+
+LeanRAG의 출발점은 엔티티와 관계뿐 아니라 각각의 설명을 가진 기본 지식 그래프다.
+
+$$
+G_0
+=
+\left(
+V_0,\,
+R_0,\,
+D^{(\mathrm{ver})}_0,\,
+D^{(\mathrm{rel})}_0
+\right)
+$$
+
+$V_0$와 $R_0$는 엔티티와 관계 집합이고, $D^{(\mathrm{ver})}_0$와 $D^{(\mathrm{rel})}_0$는 엔티티·관계 설명 모음이다. 공식 구현은 문서에서 지식 그래프를 만드는 방식으로 GraphRAG식 LLM 추출과 Wikipedia 엔티티를 활용하는 CommonKG 방식을 제공하지만, 논문의 핵심은 기본 그래프를 만든 다음 단계에 있다.
+
+LeanRAG는 $G_0$에서 출발해 더 추상적인 그래프를 층별로 만든다.
+
+$$
+\mathcal{H}
+=
+\left\{
+G_0,G_1,\ldots,G_k
+\right\}
+$$
+
+각 $G_i$는 아래층 $G_{i-1}$을 요약한 그래프다. 이 과정은 다음 순서를 반복한다.
+
+1. 아래층 엔티티의 설명을 임베딩한다.
+2. 임베딩을 Gaussian Mixture Model(GMM)로 군집화한다.
+3. 각 군집을 대표하는 상위 엔티티를 생성한다.
+4. 서로 다른 군집 사이의 관계를 상위 엔티티 사이의 관계로 집약한다.
+5. 만들어진 상위층에 같은 과정을 다시 적용한다.
+
+엔티티 설명 $d_v$를 임베딩 모델 $\Phi$로 변환한 집합은 다음과 같다.
+
+$$
+E_{i-1}
+=
+\left\{
+\Phi(d_v)
+\mid
+v\in V_{i-1}
+\right\}
+$$
+
+이 임베딩을 GMM으로 나눠 군집 $C_1,\ldots,C_m$을 얻는다. 저자들은 모든 데이터셋에서 군집 크기 제어값 `clustersize`를 20으로 고정했다. 다만 GMM의 군집 수와 다른 핵심 하이퍼파라미터는 별도의 검증 집합에서 조정했다고 설명한다.
+
+---
+
+## 3. 집약 엔티티와 집약 관계
+
+### 3.1 군집을 대표하는 상위 엔티티
+
+각 군집 $C_j$에는 엔티티만 있는 것이 아니라 군집 내부의 관계 $R_{C_j}$도 있다. LeanRAG는 두 정보를 LLM 함수 $F_{\mathrm{entity}}$에 전달해 집약 엔티티 $\alpha_j$와 설명 $d_{\alpha_j}$를 만든다.
+
+$$
+\left(
+\alpha_j,d_{\alpha_j}
+\right)
+=
+F_{\mathrm{entity}}
+\left(
+C_j,R_{C_j}
+\right)
+$$
+
+여기서 $\alpha_j$는 단순한 군집 번호가 아니다. LLM이 하위 엔티티와 관계를 함께 읽고 붙인 개념 이름이며, $d_{\alpha_j}$는 그 군집의 의미를 요약한 설명이다. 하위 엔티티는 $\alpha_j$와 부모–자식 관계로 연결된다.
+
+이 설계는 요약의 단위를 문서 청크나 커뮤니티 보고서에서 **관계를 포함한 엔티티 묶음**으로 바꾼다. 대신 상위 개념의 정확성은 LLM이 군집을 얼마나 충실하게 요약하는지에 의존한다. 잘못 합쳐진 군집이나 과도하게 일반화된 이름은 이후의 모든 상향 검색에 영향을 줄 수 있다.
+
+### 3.2 상위 개념 사이의 관계
+
+LeanRAG가 기존 계층형 방법과 가장 분명하게 갈라지는 지점은 집약 관계다. 두 군집 $C_j$와 $C_k$ 사이에 존재하는 하위 관계의 모음을 $R_{\langle C_j,C_k\rangle}$라고 하자. 논문은 그 관계 수를 연결 강도 $\lambda_{j,k}$로 정의한다.
+
+연결 강도가 임계값 $\tau$보다 크면 LLM이 관계를 요약한다. 그렇지 않으면 하위 관계의 텍스트를 이어 붙인다.
+
+$$
+r_{\langle\alpha_j,\alpha_k\rangle}
+=
+\begin{cases}
+F_{\mathrm{rel}}
+\left(
+\alpha_j,\alpha_k,R_{\langle C_j,C_k\rangle}
+\right),
+& \lambda_{j,k}>\tau \\
+\operatorname{Concat}
+\left(
+R_{\langle C_j,C_k\rangle}
+\right),
+& \text{otherwise}
+\end{cases}
+$$
+
+논문 실험에서 $\tau$는 3이다. 이 간선 덕분에 서로 다른 집약 엔티티는 같은 층에서 직접 연결될 수 있다. 상위 노드가 고립된 요약으로 남지 않는 이유다.
+
+다만 “관계가 적으면 이어 붙이고, 많으면 LLM으로 요약한다”는 규칙이 관계의 진실성을 검증하는 것은 아니다. $\lambda_{j,k}$는 관계의 수를 세는 값이지, 방향·모순·시간·출처의 신뢰도를 판단하는 값은 아니다. LeanRAG가 만드는 것은 탐색 가능한 의미 네트워크이며, 정답 지식 그래프가 자동으로 보장되는 것은 아니다.
+
+---
+
+## 4. 세부 엔티티에서 공통 조상으로 올라가는 검색
+
+### 4.1 기본층에서 시작점 찾기
+
+질문 $q$가 들어오면 LeanRAG는 모든 계층의 요약을 한꺼번에 검색하지 않는다. 먼저 가장 세부적인 기본층 $V_0$에서 질문과 설명이 가까운 상위 $n$개 엔티티를 찾는다.
+
+$$
+V_{\mathrm{seed}}
+=
+\operatorname{Top}\text{-}n_{v\in V_0}
+\operatorname{sim}
+\left(
+q,d_v
+\right)
+$$
+
+이 단계는 여전히 임베딩 검색이다. LeanRAG가 벡터 검색을 그래프 탐색으로 완전히 대체한 것은 아니다. 차이는 임베딩 검색으로 고른 엔티티를 최종 문맥으로 곧바로 쓰지 않고, 계층 탐색의 시작점으로 사용한다는 데 있다.
+
+### 4.2 최소 공통 조상까지의 경로
+
+여러 시작 엔티티가 선택되면 계층에서 이들을 함께 포함하는 최소 공통 조상 $v_{\mathrm{lca}}$를 찾는다. 검색 경로는 각 시작점에서 이 공통 조상까지의 최단 경로를 합친 것이다.
+
+$$
+P_{\mathrm{lca}}
+\left(
+V_{\mathrm{seed}},\mathcal{H}
+\right)
+=
+\bigcup_{v\in V_{\mathrm{seed}}}
+\operatorname{ShortestPath}_{\mathcal{H}}
+\left(
+v,v_{\mathrm{lca}}
+\right)
+$$
+
+계층의 부모–자식 연결만 보면 시작점에서 공통 조상까지의 길은 좁다. 평면 그래프에서 시작점 쌍 사이의 모든 경로를 찾는 방식보다 중간 노드가 덜 들어올 가능성이 크다.
+
+최종 검색 그래프는 경로에 포함된 노드와 두 종류의 관계로 구성된다.
+
+$$
+\widetilde{G}_{\mathrm{ret}}
+=
+\left(
+V_{\mathrm{ret}},R_{\mathrm{ret}}
+\right),
+\qquad
+V_{\mathrm{ret}}
+=
+\left\{
+v\mid v\in P_{\mathrm{lca}}
+\right\}
+$$
+
+$$
+R_{\mathrm{ret}}
+=
+R_{\mathrm{lca}}
+\cup
+R_{\mathrm{inter\text{-}cluster}}
+$$
+
+$R_{\mathrm{lca}}$는 부모–자식 경로의 관계이고, $R_{\mathrm{inter\text{-}cluster}}$는 같은 계층의 집약 엔티티 사이에 만든 관계다. 전자는 세부 사실을 상위 개념으로 연결하고, 후자는 서로 다른 개념 묶음 사이를 가로지른다.
+
+LeanRAG는 그래프 정보만 생성 모델에 보내지 않는다. 기본 엔티티가 나온 원문 청크도 함께 반환한다. 부록에 따르면 시작 엔티티가 많이 포함된 청크를 우선순위로 정해 상위 $C$개를 선택한다. 그래프는 **찾아갈 길을 정하는 색인**이고, 세부 설명과 근거는 원문이 담당한다.
+
+---
+
+## 5. GraphRAG·LightRAG·HiRAG와 무엇이 다른가
+
+| 방법 | 지식 구조 | 검색 시작점 | 상위 요약 사이 관계 | 원문 사용 |
+| --- | --- | --- | --- | --- |
+| Naive RAG | 텍스트 청크와 임베딩 | 질문과 가까운 청크 | 해당 없음 | 검색한 청크가 곧 문맥이다. |
+| GraphRAG | 엔티티–관계 그래프와 커뮤니티 보고서 | 논문 실험에서는 local search 사용 | 커뮤니티 보고서는 주로 독립된 요약 단위다. | 엔티티·관계·원문 정보를 함께 활용한다. |
+| LightRAG | 엔티티·관계 프로파일의 이중 검색 | 세부 키워드는 엔티티, 전역 키워드는 관계 | 별도의 계층형 집약 그래프는 만들지 않는다. | 검색한 그래프 프로파일과 원문을 사용한다. |
+| HiRAG | 엔티티를 묶은 다층 요약 | 여러 수준의 요약과 엔티티 검색 | LeanRAG가 지적한 기준에서는 요약 간 명시 관계가 제한적이다. | 계층 요약과 세부 문맥을 사용한다. |
+| LeanRAG | 기본 그래프와 관계가 연결된 다층 집약 그래프 | 기본층의 세부 엔티티 | 하위 군집 관계를 집약해 같은 층의 간선을 만든다. | LCA 경로와 시작 엔티티의 원문 청크를 함께 사용한다. |
+
+GraphRAG와 비교할 때 주의할 점이 하나 있다. 저자들은 계산 부담이 크고 local entity context를 활용하지 않는다는 이유로 GraphRAG의 global search를 제외하고 **local search만** 사용했다. LeanRAG가 해결하려는 문제가 넓은 주제와 상위 요약의 연결이라는 점을 고려하면, 이 선택은 비교 범위를 좁힌다. Table 1의 GraphRAG 결과를 GraphRAG 전체 검색 방식에 대한 판정으로 확대해서는 안 된다.
+
+LightRAG는 계층을 만들지 않고도 엔티티와 관계를 검색 단위로 삼아 세부·전역 문맥을 함께 가져온다. LeanRAG는 그보다 색인 비용이 큰 대신, 집약 수준의 개념과 경로를 명시적으로 만든다.
+
+HiRAG와의 차이는 더 가깝다. 두 방법 모두 계층형 요약을 만들지만, LeanRAG는 집약 노드 사이의 관계와 LCA 경로를 검색 절차의 중심에 둔다. 결국 LeanRAG의 주장은 “좋은 계층”만으로는 부족하고 **그 계층을 따라 움직이는 검색 규칙까지 필요하다**는 것이다.
+
+---
+
+## 6. 실험 설정과 주요 결과
+
+### 6.1 데이터와 평가 방식
+
+실험에는 UltraDomain의 네 데이터셋이 사용됐다.
+
+| 데이터셋 | 문서 수 | 토큰 수 |
+| --- | ---: | ---: |
+| Mix | 61 | 625,948 |
+| CS | 10 | 2,210,894 |
+| Legal | 94 | 5,279,400 |
+| Agriculture | 12 | 2,028,496 |
+
+주요 설정은 다음과 같다.
+
+| 축 | 설정 |
+| --- | --- |
+| 비교 방법 | NaiveRAG, GraphRAG local search, LightRAG, FastGraphRAG, KAG, HiRAG |
+| 답변 생성 | DeepSeek-V3 |
+| 자동평가 | DeepSeek-V3, 질문–답변마다 5회 채점 |
+| 임베딩 | BGE-M3 |
+| 절대 점수 | 포괄성, 유용성, 다양성, 종합을 1–10점으로 평가 |
+| 일대일 비교 | 같은 네 차원에서 두 답변의 승자를 선택 |
+| 기본 군집 크기 | 데이터셋 공통 20 |
+| 관계 생성 임계값 | $\tau=3$ |
+| 시작 엔티티 수 $N$ | Mix 10, CS 10, Legal 15, Agriculture 10 |
+| 원문 청크 수 $C$ | Mix 5, CS 10, Legal 10, Agriculture 5 |
+
+논문과 부록은 평가 질문의 수와 생성·선정 과정을 밝히지 않는다. 따라서 데이터셋의 문서와 토큰 규모는 확인할 수 있지만, 실제 평가 표본의 대표성은 판단하기 어렵다.
+
+### 6.2 절대 점수
+
+![LeanRAG Table 1 scores](/api/blog/figures/leanrag-table1-scores.png)
+
+*그림 3. 네 UltraDomain 데이터셋에서 DeepSeek-V3가 1–10점으로 판정한 LeanRAG와 비교 방법의 답변 품질. — arXiv v4의 Table 1을 주변 본문 없이 잘라 인용했으며 표 내용은 수정하지 않았다. 출처: Zhang et al. (2026), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
+
+종합 점수만 간추리면 다음과 같다.
+
+| 데이터셋 | LeanRAG | 가장 가까운 비교 결과 | 표에 나타난 관계 |
+| --- | ---: | ---: | --- |
+| Mix | **8.59±0.01** | HiRAG 8.08±0.02 | LeanRAG가 0.51 높다. |
+| CS | **8.82±0.02** | HiRAG 8.77±0.02, NaiveRAG 8.77±0.03 | LeanRAG가 0.05 높다. |
+| Legal | **8.49±0.04** | GraphRAG 8.44±0.01 | LeanRAG가 0.05 높다. |
+| Agriculture | **8.87±0.02** | HiRAG 8.87±0.03 | 표시된 평균은 같다. |
+
+Mix에서는 네 평가 차원 모두 LeanRAG가 가장 높다. 반면 모든 데이터셋과 지표에서 1위인 것은 아니다.
+
+- CS의 포괄성은 NaiveRAG가 8.94로 LeanRAG의 8.92보다 높다.
+- CS의 유용성도 NaiveRAG 8.69, LeanRAG 8.68이다.
+- Legal의 포괄성은 GraphRAG 8.95, LeanRAG 8.88이다.
+- Agriculture의 포괄성은 HiRAG 8.99, GraphRAG 8.97, LeanRAG 8.94 순이다.
+- Agriculture의 종합 점수는 LeanRAG와 HiRAG가 모두 8.87이다.
+
+따라서 초록의 “기존 방법을 유의하게 능가한다”는 문장은 전체 평균 경향을 요약한 표현으로 읽어야 한다. Table 1 자체는 LeanRAG가 다수의 셀에서 앞서지만, 일부 지표에서는 다른 방법이 높고 근소한 차이도 있음을 보여준다.
+
+---
+
+## 7. 관계·원문 제거 실험과 검색 토큰
+
+### 7.1 집약 관계를 제거하면 무엇이 달라지는가
+
+Table 2는 전체 LeanRAG와 집약 관계를 제거한 `LeanRAG w/o Relation`의 답변을 일대일로 비교한다.
+
+| 평가 차원 | Mix | CS | Legal | Agriculture |
+| --- | ---: | ---: | ---: | ---: |
+| 포괄성 | 51.5% | 54.5% | 55.5% | 54.0% |
+| 유용성 | 55.0% | 55.5% | 56.5% | 59.5% |
+| 다양성 | 59.6% | 66.0% | 57.0% | 63.0% |
+| 종합 | 53.8% | 58.5% | 56.5% | 58.0% |
+
+표의 값은 전체 LeanRAG가 선택된 비율이다. 네 데이터셋의 모든 평가 차원에서 50%를 넘지만, Mix 포괄성은 51.5%로 차이가 작다. 가장 큰 차이는 CS 다양성의 66.0%다. 집약 관계가 특히 답변의 관점과 정보 범위를 넓히는 데 기여했을 가능성과 맞닿는다.
+
+여기에는 편집상 주의할 지점이 있다. RQ3 본문은 관계 경로를 제거했을 때의 결과를 설명하면서 “Table 3”을 가리키지만, 실제 관계 제거 승률은 Table 2에 있다. Table 3은 원문을 제거한 별도의 실험이다.
+
+### 7.2 원문을 제거하면 점수가 낮아진다
+
+`LeanRAG w/o Context`는 그래프 엔티티의 이름과 설명만 생성 모델에 전달하고, 기본 엔티티와 연결된 원문 청크를 제외한다.
+
+| 데이터셋 | 전체 LeanRAG 종합 점수 | 원문 제거 | 차이 |
+| --- | ---: | ---: | ---: |
+| Mix | 8.59 | 7.93 | -0.66 |
+| CS | 8.82 | 8.34 | -0.48 |
+| Legal | 8.49 | 8.00 | -0.49 |
+| Agriculture | 8.87 | 8.53 | -0.34 |
+
+네 데이터셋의 포괄성·유용성·다양성·종합 점수가 모두 낮아진다. 이 결과는 LeanRAG의 그래프가 원문을 대체하는 압축 지식베이스라기보다, 필요한 원문을 찾는 탐색 구조라는 해석을 뒷받침한다.
+
+### 7.3 검색 문맥은 평균 46% 작았다
+
+![LeanRAG retrieval token comparison](/api/blog/figures/leanrag-fig3-retrieval-tokens.png)
+
+*그림 4. GraphRAG, LightRAG, HiRAG, LeanRAG가 네 데이터셋에서 검색한 문맥의 토큰 수. — arXiv v4의 Figure 3을 주변 본문 없이 잘라 인용했으며 차트 내용은 수정하지 않았다. 출처: Zhang et al. (2026), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
+
+저자들은 LeanRAG가 비교 방법보다 평균 46% 적은 검색 토큰을 사용했다고 보고한다. Mix에서는 LeanRAG 막대가 약 0.9M 토큰으로, LightRAG의 약 3.7M보다 눈에 띄게 작다. CS·Legal·Agriculture에서도 LeanRAG가 가장 낮다.
+
+그러나 Figure 3은 정확한 토큰 수를 표로 제공하지 않는다. 더 중요한 점은 이 실험이 주요 Table 1과 같은 조건이 아니라는 것이다. Table 1은 DeepSeek-V3를 모든 방법의 생성기로 사용하지만, 토큰 중복 실험은 비용을 줄이기 위해 Qwen3-14B-Instruct로 비교 방법을 다시 구현했다. 논문은 이 재현 조건에서 각 방법의 답변 품질을 함께 제시하지 않는다. 따라서 46%는 **검색 문맥 크기의 감소**를 보여주지만, 동일 품질에서의 비용 절감을 완전히 입증한 수치는 아니다.
+
+---
+## 8. 결론
+
+LeanRAG의 핵심은 상위 요약을 많이 만드는 데 있지 않다. 하위 엔티티를 집약한 개념 노드 사이에도 관계를 만들고, 질문과 가까운 세부 엔티티에서 공통 조상까지 올라가는 경로를 실제 검색 단위로 사용한다. 상위 요약이 고립되는 문제와 색인 구조를 검색이 활용하지 못하는 문제를 하나의 설계로 묶었다.
+
+저자 보고 결과에서 LeanRAG의 종합 점수는 네 데이터셋 모두 가장 높거나 표시된 평균에서 공동 1위였다. 집약 관계를 제거하면 일대일 승률이 네 데이터셋에서 낮아졌고, 원문을 제거하면 모든 종합 점수가 하락했다. 검색 문맥의 토큰 수도 비교 방법보다 평균 46% 적었다. 이 결과는 **관계가 연결된 계층은 검색 경로를 좁히고, 원문은 세부 근거를 보충한다**는 역할 분담과 일관된다.
+
+증거의 범위는 제한적이다. 답변 생성과 평가가 같은 모델에 묶여 있고, 평가 질문과 오차 항의 정의가 빠져 있으며, 검색 정답·사람 평가·색인 비용·지연시간은 보고하지 않았다. 일부 세부 지표에서는 다른 방법이 더 높았고, Agriculture 종합 점수는 HiRAG와 같았다.
+
+따라서 LeanRAG를 “모든 Graph RAG보다 정확하고 저렴한 방법”으로 요약하기보다는, **계층형 그래프의 구성과 질의 시점 탐색을 LCA 경로로 결합한 방법**으로 이해하는 편이 타당하다. 후속 연구에서 확인해야 할 것은 더 높은 자동평가 점수만이 아니다. 집약 관계의 정확도, 계층 민감도, 검색 근거의 재현율, 전체 색인 비용을 분리해 측정해야 이 설계의 효과를 더 분명하게 설명할 수 있다.
+
+## References
+
+Edge, D., Trinh, H., Cheng, N., Bradley, J., Chao, A., Mody, A., Truitt, S., Metropolitansky, D., Ness, R. O., & Larson, J. (2024). *From local to global: A graph RAG approach to query-focused summarization* [Preprint]. arXiv. https://doi.org/10.48550/arXiv.2404.16130
+
+Guo, Z., Xia, L., Yu, Y., Ao, T., & Huang, C. (2025). LightRAG: Simple and fast retrieval-augmented generation. In C. Christodoulopoulos, T. Chakraborty, C. Rose, & V. Peng (Eds.), *Findings of the Association for Computational Linguistics: EMNLP 2025* (pp. 10746–10761). Association for Computational Linguistics. https://doi.org/10.18653/v1/2025.findings-emnlp.568
+
+Huang, H., Huang, Y., Yang, J., Pan, Z., Chen, Y., Ma, K., Chen, H., & Cheng, J. (2025). Retrieval-augmented generation with hierarchical knowledge. In C. Christodoulopoulos, T. Chakraborty, C. Rose, & V. Peng (Eds.), *Findings of the Association for Computational Linguistics: EMNLP 2025* (pp. 6044–6060). Association for Computational Linguistics. https://doi.org/10.18653/v1/2025.findings-emnlp.321
+
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W.-T., Rocktäschel, T., Riedel, S., & Kiela, D. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *Advances in Neural Information Processing Systems, 33*, 9459–9474. https://proceedings.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html
+
+Qian, H., Liu, Z., Zhang, P., Mao, K., Lian, D., Dou, Z., & Huang, T. (2025). MemoRAG: Boosting long context processing with global memory-enhanced retrieval augmentation. In *Proceedings of the ACM Web Conference 2025* (pp. 2366–2377). Association for Computing Machinery. https://doi.org/10.1145/3696410.3714805
+
+Sarthi, P., Abdullah, S., Tuli, A., Khanna, S., Goldie, A., & Manning, C. D. (2024). RAPTOR: Recursive abstractive processing for tree-organized retrieval. In *The Twelfth International Conference on Learning Representations*. https://openreview.net/forum?id=GN921JHCRw
+
+Zhang, Y., Wu, R., Cai, P., Wang, X., Yan, G., Mao, S., Wang, D., & Shi, B. (2026). LeanRAG: Knowledge-graph-based generation with semantic aggregation and hierarchical retrieval. *Proceedings of the AAAI Conference on Artificial Intelligence, 40*(41), 34862–34869. https://doi.org/10.1609/aaai.v40i41.40789

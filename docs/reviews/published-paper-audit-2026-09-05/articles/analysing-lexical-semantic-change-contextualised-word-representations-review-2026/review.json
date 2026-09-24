@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Analysing Lexical Semantic Change with Contextualised Word Representations",
+    "authors": [
+      "Mario Giulianelli",
+      "Marco Del Tredici",
+      "Raquel Fernández"
+    ],
+    "year": 2020,
+    "primary_url": "https://aclanthology.org/2020.acl-main.365/",
+    "doi": "10.18653/v1/2020.acl-main.365",
+    "arxiv_id": "2004.14118"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/external/dynamic-word-embeddings-foundational/papers/analysing-lexical-semantic-change-with-contextualised-word-representations--10.18653-v1-2020.acl-main.365.pdf"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/2020.acl-main.365/",
+    "https://aclanthology.org/2020.acl-main.365.pdf"
+  ],
+  "excerpt": "BERT 사용례 벡터를 용법 유형으로 군집하고, 분포 변화와 쌍별 거리를 통해 의미 변화를 추적한 ACL 2020 접근의 방법·결과·해석 범위를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·출처 캡션·APA References 보존"
+  ],
+  "uncertainties": [
+    "문맥화 임베딩 이방성에 관한 논의는 논문 자체의 실험 결과가 아니라 방법 적용범위에 대한 해석이다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+  "verified_content_sha256": "201b0c80842c1340b9a6aaf7f7c7f53d931933f209ab04189835686ec909d080"
+}

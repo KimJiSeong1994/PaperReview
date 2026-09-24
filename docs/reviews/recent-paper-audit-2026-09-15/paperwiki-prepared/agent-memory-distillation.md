@@ -1,0 +1,467 @@
+---
+title: "Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory"
+slug: agent-memory-distillation
+excerpt: "AMD의 교사 궤적을 Workflow·Subtask·Function 메모리로 바꾸는 절차를 설명하고, 본평가와 과제 분리 평가, 구성요소·교사 ablation, 비용·재현성 경계를 원문 v1 기준으로 검토합니다."
+category: AI Agents
+tags:
+  - agent-memory
+  - memory-distillation
+  - tool-use
+  - small-language-models
+  - in-context-learning
+status: "published"
+published_at: "2026-09-10T15:32:22.482776+00:00"
+blog_url: "https://jiphyeonjeon.kr/blog/agent-memory-distillation"
+reviewed_at: "2026-09-15"
+date: "2026-09-10"
+paper_version: "arXiv:2608.07169v1, 2026-08-07"
+source_paper: "https://arxiv.org/pdf/2608.07169v1"
+project_url: "https://agent-memory-distillation.github.io/"
+official_code: "https://github.com/taeilkim2465/agentic_memory_distillation"
+code_snapshot: "2895d10c07105432325b088f4803dc94a10003c9"
+thumbnail: "figures/amd-fig2-hierarchical-memory.png"
+updated_at: "2026-09-15T13:51:19.265918+00:00"
+---
+
+# Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory
+
+**Paper:** Taeil Kim; Kangsan Kim; Sung Ju Hwang (2026). "Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory". https://arxiv.org/abs/2608.07169v1 · arXiv:2608.07169v1. 이 글은 2026년 8월 7일 공개된 25쪽의 v1을 기준으로 한다. arXiv에는 under review로 표시되어 있다. [PDF](https://arxiv.org/pdf/2608.07169v1) · [공식 프로젝트](https://agent-memory-distillation.github.io/) · [공식 코드](https://github.com/taeilkim2465/agentic_memory_distillation). 코드 인용은 commit `2895d10`에 고정한다.
+
+**Abstract:** 작은 LLM 에이전트는 성공 경험이 적어 자신의 실행 기록만으로 유용한 메모리를 만들기 어렵다. 강한 교사의 경험을 가져와도, 추상적인 조언만으로는 학생이 실제 API 호출을 수행하지 못할 수 있다. Agent Memory Distillation(AMD)은 교사의 성공 궤적을 세 수준으로 재구성한다. Workflow는 전체 계획을 자연어로 설명하고, Subtask는 실행 코드와 관측을 포함한 중간 단위의 예시를 제공하며, Function은 도구 오류가 발생했을 때 호출 규칙을 알려준다. 학생의 가중치는 업데이트하지 않는다. 네 학생 모델의 본평가 평균 향상은 AppWorld 27.2%p, BFCL V3 11.2%p, ToolSandbox 3.4%p다. 다만 이 결과는 같은 벤치마크에서 메모리를 만들고 사용하는 설정이며, 자기 과제에서 나온 교사 메모리의 활용을 배제한 수치는 별도 부록에 있다. 이 글은 메모리의 내용·표현·주입 시점을 연결해 설명하고, 과제 분리 평가와 ablation을 통해 어떤 기여가 확인되며 무엇이 아직 미확정인지 검토한다. [논문 §§3–5, Appendix B.3](https://arxiv.org/pdf/2608.07169v1#page=14)
+
+---
+
+## Executive Summary
+
+| 항목 | 설명 |
+| --- | --- |
+| 연구 질문 | 강한 교사의 경험을 작은 학생이 실제로 실행할 수 있는 메모리로 전달할 수 있는가? |
+| 핵심 구조 | Workflow: 계획, Subtask: 실행 예시, Function: 오류 시 호출 가이드. |
+| 주입 시점 | WF·ST는 과제 시작 전에 한 번, FN은 도구 오류가 발생한 뒤 해당 관측에 연결한다. |
+| 학습 여부 | 학생 모델의 파라미터 학습은 없다. 교사 실행·메모리 생성·embedding·추가 context는 필요하다. |
+| 대표 결과 | Qwen3-4B의 AppWorld 성공률이 본평가에서 14.88% → 49.40%. |
+| 과제 분리 결과 | Qwen3-4B의 AppWorld cross-split 평가에서는 16.07% → 41.07%. 별도 평가 집합의 결과다. |
+| 핵심 해석 | 긴 지식을 많이 주기보다, 학생의 실행 능력에 맞는 구체적 예시를 적절한 수준과 시점에 제공하는 설계다. |
+| 주요 한계 | 텍스트 도구 환경 중심, 고정된 메모리, 제한된 과제 분리 검증, 전체 비용과 완결된 재현 환경의 확인 부족. |
+
+대표 수치와 조건은 [논문 Tables 1·6](https://arxiv.org/pdf/2608.07169v1#page=15)을 따른다.
+
+## 목차
+
+1. 좋은 경험을 줘도 작은 모델이 활용하지 못하는 이유
+2. 가중치 대신 외부 메모리로 전달하는 distillation
+3. Workflow·Subtask·Function 메모리의 구성
+4. 시작 전 주입과 오류 후 검색을 분리한다
+5. 벤치마크와 비교 조건
+6. 결과: 성능 향상과 과제 간 전이를 구분하기
+7. 어떤 메모리와 교사가 효과적인가
+8. 사례·비용·재현성으로 보는 적용의 경계
+9. 설계 시사점과 결론
+
+---
+
+## 1. 좋은 경험을 줘도 작은 모델이 활용하지 못하는 이유
+
+에이전트가 외부 도구로 과제를 해결하려면, 무엇을 해야 하는지와 그것을 어떻게 실행하는지를 모두 알아야 한다. “로그인한 뒤 거래 내역을 집계하라”는 계획은 그럴듯하지만, 학생이 인증 정보를 어디서 얻는지, 로그인 인자에 무엇을 넣는지, 거래 목록이 여러 페이지로 나뉘는지를 모르면 실행이 멈춘다.
+
+작은 모델이 자신의 경험만 축적하는 경우에는 더 앞선 문제가 생긴다. 성공률이 낮으면 재사용할 만한 성공 궤적도 적다. 실패를 반성하는 능력이 유용하더라도, 실제로 과제를 끝낸 행동 예시가 부족하면 올바른 실행 패턴을 확보하기 어렵다. AMD는 이 부족분을 강한 교사의 성공 경험으로 채우려 한다. [논문 §1](https://arxiv.org/pdf/2608.07169v1#page=1)
+
+[![학생 자체 메모리의 부족, 단순 교사 메모리 전달의 한계, 세 수준 메모리와 Qwen3-4B 성능을 비교한 AMD 개요](figures/amd-fig1-motivation.png)](figures/amd-fig1-motivation.png)
+
+*원논문 Figure 1. (A)는 작은 학생의 부족한 성공 경험, (B)는 교사의 추상적 조언과 학생의 실행 능력 사이 간극, (C)는 세 수준 메모리, (D)는 Qwen3-4B의 본평가 결과다. 아래 그래프는 과제 분리 평가의 수치가 아니므로 §6.2의 별도 검증과 함께 읽어야 한다. Kim et al. (2026), [PDF p. 1](https://arxiv.org/pdf/2608.07169v1#page=1). 원본 도판 영역 직접 추출, CC BY 4.0.*
+
+그림을 누르면 원본 해상도로 볼 수 있다. 아래 도판도 같은 방식으로 확대할 수 있다.
+
+이 논문의 문제 제기는 “메모리가 많을수록 좋다”보다 구체적이다. **교사의 경험이 학생에게 유용하려면, 학생이 이해하고 실행할 수 있는 단위로 표현되어야 한다.** 계획만 요약한 메모리, 과제 전체를 통째로 저장한 궤적, API 문서 하나는 서로 다른 실패를 겨냥한다. AMD는 그 역할을 분리해 조합한다.
+
+## 2. 가중치 대신 외부 메모리로 전달하는 distillation
+
+### 2.1 여기서 전달하는 것은 실행 지식이다
+
+전통적인 knowledge distillation에서는 교사의 출력이나 내부 표현을 학습 신호로 삼아 학생 파라미터를 바꾼다. AMD의 학생은 그대로 두고, 교사의 행동을 외부 텍스트와 코드 예시로 바꿔 추론 시 제공한다. 이 논문의 distillation은 **외부 메모리를 통한 경험 전달**이라는 의미다. [논문 §§2.2–3.1](https://arxiv.org/pdf/2608.07169v1#page=3)
+
+교사 정책을 $\pi^T$, 학생 정책을 $\pi^S$라 하자. 한 과제에서 행동과 관측이 이어진 기록을 궤적 $\tau$라고 부른다. 교사의 전체 기록 $\mathcal D_T$ 중 최종 성공한 기록만 $\mathcal D_T^+$로 골라 메모리를 구성한다.
+
+$$
+\mathcal M
+=\mathcal M_{\mathrm{wf}}
+\cup\mathcal M_{\mathrm{st}}
+\cup\mathcal M_{\mathrm{fn}}.
+$$
+
+원문의 목표식은 메모리 $\mathcal M$을 통해 학생의 과제 성공 보상 $R$을 높이는 것이다.
+
+$$
+\max_{\mathcal M}\;
+\mathbb E_{s\sim\mathcal S}
+\left[R\bigl(\pi^S(s;\mathcal M)\bigr)\right].
+$$
+
+이 식은 문제의 목적을 나타낸다. 논문이 모든 가능한 메모리를 최적 탐색하거나, 이 목적에 대해 gradient descent를 수행한다는 뜻은 아니다. 실제 방법은 교사 LLM의 요약·분할, 예시 추출, 검색 및 주입 규칙으로 구현된다. [논문 Eq. 1 및 §3.2](https://arxiv.org/pdf/2608.07169v1#page=4)
+
+### 2.2 계층은 저장 내용과 사용 목적의 차이다
+
+| 수준 | 학생이 해결해야 할 문제 | 전달하는 정보 |
+| --- | --- | --- |
+| Workflow | 과제를 어떤 순서와 조건으로 풀 것인가? | 전체 전략, API 선택, 전제조건, 검증 기준 |
+| Subtask | 중간 목표를 어떤 행동 묶음으로 실행할 것인가? | 실제 코드·도구 호출과 그에 대응하는 관측 |
+| Function | 이 함수의 호출이나 반환값 처리가 왜 틀렸는가? | 함수별 성공 사용 예와 선택적인 schema |
+
+여기서 계층은 메모리가 반드시 트리 노드로 연결되어 있다는 뜻이 아니다. 논문은 서로 다른 수준의 memory bank를 두고, 각 bank의 정보 단위와 검색·주입 방식을 다르게 설계한다. “무엇을 할지”와 “어떻게 실행할지”를 같은 형태의 설명 하나로 압축하지 않는 것이 핵심이다.
+
+## 3. Workflow·Subtask·Function 메모리의 구성
+
+### 3.1 Workflow: 과제 전체의 전략을 자연어로 일반화한다
+
+교사의 성공 궤적 하나에서 다음 정보를 담은 insight를 만든다. 어떤 앱과 함수를 사용했는지, 먼저 충족해야 할 조건은 무엇인지, 어떤 분기 규칙을 따랐는지, 결과를 어떻게 확인하는지, 반복하기 쉬운 실수는 무엇인지다.
+
+Workflow 항목은 다음처럼 나타낼 수 있다.
+
+$$
+m_i^{\mathrm{wf}}=(q_i,\mathrm{insight}_i).
+$$
+
+$q_i$는 그 과제를 특징짓는 자연어 질의이며, insight는 전체 계획이다. 원문은 ID·인증정보·경로 같은 동적 값을 `<ID>`, `<EMAIL>`, `<FILE_PATH>`와 같은 typed placeholder로 바꾸도록 한다. 특정 과제의 값 자체를 반복하기보다 절차를 재사용하려는 조치다. [논문 §3.2, Appendix C·D](https://arxiv.org/pdf/2608.07169v1#page=14)
+
+부록의 생성 프롬프트도 방법의 일부다. 짧은 전략으로 요약하되 관련 API 이름, 검증 단서와 주의할 실패 패턴을 포함하도록 요구한다. 따라서 AMD의 효과를 단순히 “메모리 세 개를 붙인 효과”로 이해하면, 이러한 메모리 작성 규칙을 놓치게 된다.
+
+### 3.2 Subtask: 설명과 실행 예시를 함께 보존한다
+
+교사 궤적을 인증, 페이지를 순회하며 목록 수집, 결과 집계처럼 의미 있는 행동 단위로 나눈다. 항목은 label, 짧은 설명, 실제 행동 segment를 포함한다.
+
+$$
+m_{i,k}^{\mathrm{st}}=(\ell_{i,k},d_{i,k},e_{i,k}).
+$$
+
+$e_{i,k}$에는 단순한 조언만이 아니라 실행 코드 또는 tool call과 대응 관측이 들어간다. “페이지가 더 있으면 계속 조회하라”는 문장보다, 어떤 인자로 조회하고 어떤 조건에서 loop를 끝냈는지를 보여줄 수 있다.
+
+분할은 교사 LLM이 수행하며 API 경계에 기반한 breakpoint hint를 사용할 수 있다. 부록 프롬프트는 궤적의 step을 빠뜨리거나 겹치지 않게 나누고, segment 수를 대체로 여섯 개 이내로 유지하도록 권고한다. 이 상한은 학생이 새 과제를 최대 여섯 subtask label로 분해하는 추론 절차와 구분된다. [논문 §3.2, Appendix C, Figure 14](https://arxiv.org/pdf/2608.07169v1#page=24)
+
+### 3.3 Function: 성공 경험에서 만든 예시를 학생의 오류에 사용한다
+
+Function 항목은 함수명, 교사의 호출 예시, 선택적인 문서로 구성된다.
+
+$$
+m_{i,j}^{\mathrm{fn}}
+=\bigl(f_{i,j},E_{i,j},\operatorname{doc}(f_{i,j})\bigr).
+$$
+
+예시에는 호출 코드와 주변 맥락, 가능한 경우 반환 관측이 포함된다. AppWorld처럼 API 문서가 풍부하면 인자와 응답 schema를 덧붙인다. BFCL V3와 ToolSandbox에서는 주로 성공 궤적의 구체적 예시를 사용한다. [논문 §3.2 및 Appendix C](https://arxiv.org/pdf/2608.07169v1#page=15)
+
+여기서 **메모리를 얻는 시점과 사용하는 시점은 다르다.** 논문이 메모리의 원천으로 삼는 것은 최종 성공한 교사 궤적이다. 학생이 도구 오류를 냈을 때 그 예시를 검색해 교정에 사용한다. 학생의 실패를 계속 학습하거나, 실패한 교사 과제에서 recovery 정책을 별도로 학습하는 방법으로 설명하면 정확하지 않다.
+
+또한 최종 성공한 궤적이라는 표현만으로 그 안의 모든 중간 호출이 한 번에 성공했다고 가정할 필요는 없다. 중요한 것은 신뢰할 실행 예시를 추출해, 학생에게 필요한 순간 제공하는 구조다.
+
+## 4. 시작 전 주입과 오류 후 검색을 분리한다
+
+[![교사의 성공 궤적으로 세 메모리를 만들고 WF와 ST를 사전 주입하며 FN을 오류 후 제공하는 AMD 구조](figures/amd-fig2-hierarchical-memory.png)](figures/amd-fig2-hierarchical-memory.png)
+
+*원논문 Figure 2. 왼쪽은 교사 경험의 구조화, 오른쪽은 학생의 사용 절차다. 계획과 행동 예시는 실행 전에 제공하고, 함수 가이드는 오류를 관찰한 뒤 연결한다. 이 시점 분리는 정상 실행에 모든 함수 설명을 상시 넣는 것을 피하려는 설계다. Kim et al. (2026), [PDF p. 4](https://arxiv.org/pdf/2608.07169v1#page=4). 원본 도판 영역 직접 추출, CC BY 4.0.*
+
+### 4.1 Proactive injection: 실행 전에 계획과 예시를 준비한다
+
+Workflow는 현재 task instruction을 query로 삼아 검색한다. 학생은 도구를 호출하기 전에 과제를 최대 여섯 개의 순서 있는 subtask label로 분해한다. 각 label을 별도 query로 삼아 Subtask 예시를 찾고, 같은 segment가 여러 번 선택되면 중복을 제거한다.
+
+본 실험의 기본값은 $k=1$이다. 이는 **모든 메모리를 합쳐 하나만 제공한다는 뜻이 아니다.** Workflow 한 개, 분해된 subtask마다 Subtask 한 개, 오류 함수마다 Function 한 개를 선택한다. WF와 ST는 과제 시작 시 system prompt에 함께 주입한다. [논문 §§3.3–4.1](https://arxiv.org/pdf/2608.07169v1#page=5)
+
+### 4.2 Retrieval: 의미 검색과 함수명 조회를 구분한다
+
+Workflow와 Subtask는 embedding의 cosine similarity로 검색한다. 원문은 `text-embedding-3-small`을 사용하고, 최소 유사도 $\delta$ 아래의 후보는 제외한다고 설명한다. 단순화한 검색 규칙은 다음처럼 쓸 수 있다.
+
+$$
+\operatorname{Retrieve}(q,\mathcal M,k,\delta)
+=\operatorname{TopK}_{m\in\mathcal M,\;\cos(e_q,e_m)\ge\delta}
+\cos(e_q,e_m).
+$$
+
+이 식은 본문 검색 절차의 재구성이며 새 학습 목적이 아니다. 특히 낮은 관련성의 예시까지 무조건 정해진 개수만큼 채우는 것과, threshold를 통과한 후보만 쓰는 것은 다르다.
+
+Function은 함수명으로 먼저 후보를 제한한다. 같은 함수의 예시가 여럿이면 현재 과제 instruction과 저장된 예시의 reasoning 간 유사도로 순위를 정한다. 따라서 오류 메시지 전체를 query로 삼아 모든 메모리에서 의미 검색하는 방식과는 구별된다. [논문 §3.3, Appendix C](https://arxiv.org/pdf/2608.07169v1#page=14)
+
+### 4.3 Reactive injection: 함수 오류에 맞춰 필요한 설명을 추가한다
+
+도구 실행이 오류를 반환하면 실패한 함수명을 추출하고, 해당 Function memory를 hint block으로 만들어 오류 관측에 덧붙인다. 학생은 이 맥락을 보고 다음 행동을 생성한다. 여기서 `reactive`는 함수 메모리를 가져오는 trigger가 오류라는 뜻이다.
+
+이 설계에서 Function memory는 API 인자나 반환 구조를 잘못 다룬 실패에 특히 직접적으로 연결된다. 반면 도구 호출은 정상 종료됐지만 날짜 범위나 과제 의도를 잘못 이해한 경우에는, 오류 trigger만으로는 문제가 드러나지 않을 수 있다. 이 차이가 Workflow와 Subtask를 별도로 두는 이유이기도 하다.
+
+#### 한 과제 안에서 세 bank가 만나는 순서
+
+실행 흐름을 작게 그리면, 과제 지시 하나에서 Workflow 하나를 먼저 고르고 학생이 만든 두 subtask label에서 서로 다른 Subtask 예시를 각각 가져올 수 있다. 이 셋은 첫 도구 호출 전에 준비된다. 그 뒤 세 번째 도구 호출이 오류를 내면, Function bank 전체를 다시 의미 검색하는 대신 **실패한 함수명**의 항목으로 후보를 좁히고 현재 과제와의 관련성으로 예시 하나를 고른다. 다른 함수의 실행 예시가 아무리 비슷해 보여도 그 오류 hint의 후보가 되지는 않는다.
+
+따라서 AMD의 계층은 단순한 요약 길이의 차이가 아니다. Workflow와 Subtask는 아직 어떤 함수가 실패할지 모르는 상태에서 계획과 실행 형식을 제공하고, Function은 오류라는 관측이 생긴 뒤 함수별 호출 규칙을 제공한다. 이 순서 덕분에 모든 schema와 예시를 초기 prompt에 넣지 않지만, 정상 반환인데 과제 의도를 잘못 푼 경우를 Function hint만으로 고칠 수 없다는 경계도 생긴다. 이 문단은 논문의 retrieval·injection 규칙을 설명을 위해 한 과제에 적용한 예시다. [논문 §3.3, Algorithm 1, Appendix C](https://arxiv.org/pdf/2608.07169v1#page=14)
+
+### 4.4 학생 실행 절차 재구성
+
+아래는 논문 Algorithm 1의 흐름을 설명 목적으로 단순화한 의사코드다.
+
+```text
+입력: 과제 s, 고정된 학생 모델, WF/ST/FN memory banks
+
+WF ← 과제 instruction으로 workflow 검색
+labels ← 학생이 s를 최대 6개 subtask로 분해
+ST ← label별 subtask 검색 후 중복 제거
+context ← 원래 지시 + WF + ST
+
+while 과제가 끝나지 않았고 step 예산이 남아 있다:
+    if 직전 도구 관측이 오류라면:
+        functions ← 오류에서 관련 함수명 추출
+        FN ← 함수명별 예시 검색·선택
+        context에 오류와 연결된 FN hint 제공
+    action ← 학생이 context를 참고해 다음 행동 생성
+    observation ← 도구 실행
+    action과 observation을 context에 기록
+```
+
+[논문 Appendix A, Algorithm 1](https://arxiv.org/pdf/2608.07169v1#page=13)
+
+이 실행 동안 메모리 bank 자체를 학생의 새 경험으로 업데이트하지는 않는다. 학생의 현재 대화 기록이 늘어나는 것과, 다음 과제를 위한 memory bank가 학습·갱신되는 것은 다른 과정이다.
+
+## 5. 벤치마크와 비교 조건
+
+### 5.1 세 벤치마크의 성공 조건은 다르다
+
+| 벤치마크 | 평가한 부분집합 | 학생의 행동과 평가 |
+| --- | --- | --- |
+| AppWorld | `test_normal`, 168 tasks | 상태가 유지되는 Python 실행으로 여러 앱의 API를 사용하며 DB 상태의 unit test로 성공을 판단한다. |
+| BFCL V3 | Multi-turn base, 200 tasks | 구조화된 function call을 사용하며 여러 turn의 기대 API 상태와 호출 경로를 평가한다. |
+| ToolSandbox | Base, 129 scenarios | JSON tool call과 공유 상태, LLM user simulator를 사용하며 milestone·minefield 조건을 평가한다. |
+
+[논문 §4.1, Appendix C](https://arxiv.org/pdf/2608.07169v1#page=5)
+
+주 교사 모델은 GPT-5-mini이며, 학생은 Qwen3-4B, Gemma4-E4B, Qwen3-8B, Llama3.1-8B다. ToolSandbox의 user simulator도 GPT-5-mini를 사용한다. 학생의 최대 interaction step은 40이고, Qwen3 학생은 thinking mode를 끈다. 모델 이름과 설정은 이 논문에서 평가한 조건을 뜻하며, 글 작성 시점의 일반 모델 순위를 뜻하지 않는다. [논문 Appendix C](https://arxiv.org/pdf/2608.07169v1#page=15)
+
+### 5.2 기존 메모리 방법도 같은 교사 경험으로 비교한다
+
+ReasoningBank, MemP, SASM은 같은 교사 궤적 집합으로 메모리를 만들고 각 방식에 따라 학생에게 적용한다. 같은 경험 원천을 사용하는 것은 비교의 장점이다. 그러나 원래 방법들은 자기 경험의 지속적 갱신, procedural memory, 소프트웨어 과제의 구조 정렬처럼 서로 다른 목표를 가진다. AMD의 실험을 각 방법의 모든 원래 사용 방식에 대한 우열로 일반화하면 안 된다. [논문 §§2, 4.1](https://arxiv.org/pdf/2608.07169v1#page=3)
+
+원 연구와 연결하면 차이가 더 명확하다. ReasoningBank는 성공과 실패에서 일반적인 reasoning 전략을 만들고 새 경험으로 갱신한다. MemP는 step-level 지침과 script-level 절차를 저장·검색·업데이트하며, 공개 논문에서 강한 모델의 메모리를 약한 모델로 옮기는 효과도 보고한다. SASM은 소프트웨어 에이전트의 subtask 구조에 메모리 단위를 맞춘다. 따라서 AMD의 기여는 교사의 외부 경험을 전달한다는 발상 자체보다, **작은 학생에게 WF·ST·FN의 정보와 주입 시점을 맞춘 구체적인 구성 및 평가**에 놓는 편이 정확하다. [ReasoningBank](https://arxiv.org/abs/2509.25140v2), [MemP](https://arxiv.org/abs/2508.06433v4), [SASM](https://arxiv.org/abs/2602.21611)
+
+Table 1에서 세 memory baseline의 상세 값은 Qwen3-4B와 Gemma4-E4B에 대해 제시된다. Qwen3-8B와 Llama3.1-8B에는 zero-shot과 AMD만 있다. 따라서 “네 학생 모두에서 세 memory baseline보다 우수함을 표로 확인했다”는 표현은 공개된 비교 범위를 넘어선다.
+
+### 5.3 본평가와 과제 분리 평가를 구분해야 한다
+
+본평가에서는 같은 벤치마크의 과제로 교사 메모리를 만들고 학생을 평가한다. Appendix B.3도 한 과제가 자기 자신에서 만들어진 teacher memory를 활용했을 가능성을 검증해야 한다고 명시한다.
+
+본평가는 경험이 주어진 상태에서 학생이 그것을 얼마나 잘 활용하는지에 답한다. 다만 **이전에 본 과제의 교사 경험 활용**과 **다른 과제에서 얻은 경험의 전이**는 구분해서 평가해야 한다. 이 논문은 후자를 위해 cross-split과 self-excluded retrieval을 추가한다. 다음 절에서는 두 결과를 나란히 본다. [논문 Appendix B.3](https://arxiv.org/pdf/2608.07169v1#page=14)
+
+## 6. 결과: 성능 향상과 과제 간 전이를 구분하기
+
+### 6.1 본평가의 향상은 AppWorld에서 가장 크다
+
+아래는 Table 1의 teacher, 학생 zero-shot, AMD 결과다. 모든 값은 해당 벤치마크의 성공률 또는 정확도를 백분율로 나타낸 것이다. 본평가는 두 번 실행한 결과의 평균을 보고한다.
+
+| 모델·설정 | AppWorld | BFCL V3 | ToolSandbox |
+| --- | ---: | ---: | ---: |
+| GPT-5-mini teacher | 50.00 | 36.50 | 28.68 |
+| Qwen3-4B zero-shot | 14.88 | 15.50 | 16.28 |
+| Qwen3-4B AMD | 49.40 | 38.50 | 20.16 |
+| Gemma4-E4B zero-shot | 24.40 | 37.25 | 18.22 |
+| Gemma4-E4B AMD | 54.17 | 46.00 | 21.71 |
+| Qwen3-8B zero-shot | 25.60 | 38.00 | 20.16 |
+| Qwen3-8B AMD | 51.79 | 45.50 | 25.58 |
+| Llama3.1-8B zero-shot | 8.93 | 9.00 | 5.43 |
+| Llama3.1-8B AMD | 27.38 | 14.50 | 6.20 |
+
+[논문 Table 1](https://arxiv.org/pdf/2608.07169v1#page=6)
+
+네 학생의 AMD−zero-shot 차이를 각 benchmark에서 평균하면 27.2%p, 11.2%p, 3.4%p가 된다. 이는 성공률의 **절대 percentage-point 향상**이며 상대 증가율이 아니다. 예를 들어 Qwen3-4B의 AppWorld 변화는 $49.40-14.88=34.52\%p$다.
+
+Qwen3-4B의 AppWorld에서는 ReasoningBank 10.71, MemP 16.67, SASM 15.48에 비해 AMD의 49.40이 높다. 같은 학생의 BFCL V3에서는 가장 높은 memory baseline이 MemP 28.25이고 AMD는 38.50이다. 경험을 제공한다는 공통점만으로 같은 효과가 나타나지는 않는다. [논문 Table 1](https://arxiv.org/pdf/2608.07169v1#page=6)
+
+학생이 teacher를 넘는 셀도 있지만 해석은 제한해야 한다. 예를 들어 BFCL V3에서 Qwen3-4B AMD는 teacher의 36.50보다 높은 38.50이다. 학생은 교사의 성공 경험으로 만든 외부 정보를 추가로 받았으므로, 같은 정보와 자원을 사용한 모델 능력 비교가 아니다. 또한 Table 1에는 이러한 작은 차이에 대한 신뢰구간이 없다. **경험을 이용한 학생 시스템이 교사의 원래 실행 점수를 넘을 수 있다**는 관측으로 읽는 것이 정확하다.
+
+### 6.2 다른 과제에서 얻은 메모리만으로도 좋아지는가
+
+Cross-split은 각 benchmark를 메모리 구축용과 평가용으로 7:3 분리한다. Self-excluded retrieval은 전체 benchmark로 bank를 만들되, 각 평가 과제가 자기 자신에서 유래한 메모리는 검색하지 못하게 한다. 후자는 더 큰 bank를 유지한다. 두 실험 모두 학생은 Qwen3-4B다.
+
+| 평가 protocol·설정 | AppWorld | BFCL V3 | ToolSandbox |
+| --- | ---: | ---: | ---: |
+| Cross-split zero-shot | 16.07 | 16.13 | 16.67 |
+| Cross-split WF | 21.43 | 25.81 | 18.75 |
+| Cross-split WF + ST | 39.29 | 27.42 | 20.83 |
+| Cross-split WF + ST + FN | 41.07 | 30.65 | 22.92 |
+| Self-excluded zero-shot | 14.88 | 15.50 | 16.28 |
+| Self-excluded WF | 23.21 | 22.50 | 19.38 |
+| Self-excluded WF + ST | 40.48 | 30.50 | 20.16 |
+| Self-excluded WF + ST + FN | 46.43 | 31.00 | 23.26 |
+
+[논문 Table 6 및 Appendix B.3](https://arxiv.org/pdf/2608.07169v1#page=15)
+
+Cross-split에서도 전체 AMD는 각각의 zero-shot보다 25.00%p, 14.52%p, 6.25%p 높다. 따라서 직접적인 자기 과제의 교사 메모리를 배제해도 이득이 남는다는 근거가 있다. WF → WF+ST → 전체 구성의 상승도 이 protocol에서 유지된다.
+
+다만 AppWorld와 BFCL V3의 전체 점수는 본평가 Qwen3-4B의 49.40, 38.50보다 낮다. Cross-split은 평가 집합과 memory pool이 함께 바뀌므로, 그 차이를 전부 “자기 과제 메모리의 효과”라고 계산할 수는 없다. Self-excluded도 검색 가능한 pool이 바뀐다. ToolSandbox는 오히려 분리 protocol의 점수가 본평가보다 높으므로, 단순한 한 방향의 격차 설명도 충분하지 않다.
+
+이 결과는 과제 간 전이를 지지하지만, 다른 benchmark나 새로운 API로의 도메인 밖 일반화까지 보여주지는 않는다. 또한 Table 6에는 분산이 제시되지 않고 학생도 한 모델뿐이다. 본평가의 네 모델 평균 향상과 과제 분리 검증을 같은 통계로 섞지 않는 것이 중요하다.
+
+### 6.3 다섯 번 반복한 결과는 별도로 보고한다
+
+| Qwen3-4B 설정 | AppWorld | BFCL V3 | ToolSandbox |
+| --- | ---: | ---: | ---: |
+| Zero-shot | 14.48 ± 0.69 | 15.33 ± 0.76 | 16.54 ± 0.44 |
+| AMD | 49.60 ± 0.91 | 38.67 ± 0.58 | 20.16 ± 0.78 |
+
+[논문 Table 5](https://arxiv.org/pdf/2608.07169v1#page=15)
+
+이 표는 다섯 번 반복한 성공률의 **평균 ± 표준편차**다. Standard error나 confidence interval이 아니다. 보고된 변동은 향상 폭보다 작아 반복 실행에서 이득이 유지됐음을 뒷받침한다. 다만 이 검증을 Table 6의 과제 분리 결과나 다른 학생들의 오차 범위로 가져다 쓸 수는 없다.
+
+### 6.4 Interaction turn은 줄지만 총비용은 아직 모른다
+
+[![AppWorld와 BFCL V3에서 teacher, zero-shot, memory baseline과 AMD의 interaction step을 비교한 그래프](figures/amd-fig3-interaction-steps.png)](figures/amd-fig3-interaction-steps.png)
+
+*원논문 Figure 3. 세로축은 시간이나 토큰이 아니라 interaction step 수다. AppWorld에서는 학생의 많은 탐색 turn이 줄지만, BFCL에서는 원래 차이가 작다. 메모리 생성 및 추가 prompt 비용을 포함한 총비용 절감 그림으로 읽어서는 안 된다. Kim et al. (2026), [PDF p. 6](https://arxiv.org/pdf/2608.07169v1#page=6). 원본 도판 영역 직접 추출, CC BY 4.0.*
+
+AppWorld의 Qwen3-4B는 zero-shot 23.8 turn에서 AMD 14.9 turn으로 줄고 teacher는 10.1 turn이다. 논문은 불필요한 탐색과 오류 수정이 줄어드는 방향으로 해석한다. [논문 §4.2](https://arxiv.org/pdf/2608.07169v1#page=6)
+
+하지만 turn 하나가 같은 토큰 수나 시간을 뜻하지 않는다. 학생의 task decomposition, embedding query, 검색, 길어진 system prompt와 오류 hint의 비용이 추가된다. 오프라인 교사 실행과 메모리 생성 비용도 있다. 따라서 step 감소는 실행 경로 효율의 증거이며, 전체 API 요금·wall-clock 시간·에너지 절감을 곧바로 입증하지 않는다.
+
+## 7. 어떤 메모리와 교사가 효과적인가
+
+### 7.1 Subtask가 만드는 큰 이득과 Function의 예외
+
+다음은 Table 2에서 AppWorld 부분을 옮긴 것이다.
+
+| 메모리 구성 | Qwen3-4B | Qwen3-8B | Llama3.1-8B | Gemma4-E4B |
+| --- | ---: | ---: | ---: | ---: |
+| Zero-shot | 14.88 | 25.60 | 8.93 | 24.40 |
+| WF | 22.02 | 30.36 | 11.31 | 30.36 |
+| WF + FN | 24.11 | 33.93 | 14.88 | 40.48 |
+| WF + ST | 47.02 | 51.19 | 30.36 | 53.57 |
+| WF + ST + FN | 49.40 | 51.79 | 27.38 | 54.17 |
+| Student Memory | 16.07 | 29.76 | 8.93 | 25.60 |
+
+[논문 Table 2](https://arxiv.org/pdf/2608.07169v1#page=7)
+
+Qwen3-4B에서 WF에 ST를 추가하면 22.02에서 47.02로 25.00%p 오른다. 복잡한 AppWorld 과제에서는 중간 단위의 실행 예시가 특히 유용하다는 강한 신호다. 학생 자신의 경험으로 만든 메모리보다 teacher memory의 전체 구성이 높다는 점도 이 표에 나타난다.
+
+그러나 모든 메모리가 모든 학생에서 더해질 때마다 좋아지는 것은 아니다. Llama3.1-8B는 WF+ST 30.36에서 FN까지 넣으면 27.38로 낮아진다. BFCL의 Qwen3-8B는 WF+ST와 전체 AMD가 모두 45.50으로 같다. 원문의 큰 경향과 개별 셀의 예외를 함께 봐야 한다.
+
+ST가 항상 가장 큰 기여라는 일반화도 피해야 한다. BFCL Qwen3-4B는 zero-shot 15.50에서 WF만으로 35.50이 되고, ST를 추가하면 37.50이다. 이 조건에서는 Workflow의 초기 이득이 크다. 따라서 결과는 **과제 구조와 학생 능력에 따라 필요한 메모리 수준이 달라진다**는 관점에서 읽는 것이 더 유용하다.
+
+### 7.2 계획은 자연어, 실행 예시는 코드가 효과적이었다
+
+Qwen3-4B와 GPT-5-mini의 AppWorld 실험에서 메모리 표현을 바꾼 결과는 다음과 같다.
+
+| Workflow | Subtask | Function | 성공률 |
+| --- | --- | --- | ---: |
+| Code | Code | Code | 44.05 |
+| Text | Code | Code | 49.40 |
+| Text | Text | Code | 23.21 |
+| Text | Code | Text | 47.62 |
+| Text | Text | Text | 26.19 |
+
+[논문 Table 4](https://arxiv.org/pdf/2608.07169v1#page=8)
+
+기본값 Text/Code/Code가 가장 높다. 특히 Subtask를 텍스트 설명으로 바꾸면 큰 손실이 발생한다. API 이름, 인자, 반복 조건과 반환값 처리를 구체적으로 보여주는 것이 작은 학생에게 유용하다는 해석과 일치한다.
+
+다만 이 표는 한 학생·한 teacher·한 benchmark의 비교다. 텍스트와 코드가 같은 정보량과 토큰 수를 갖도록 통제된 실험이라는 근거도 제시되지 않는다. 따라서 “코드라는 형식 자체”의 순수한 인과 효과라기보다, 여기서 구성한 실행 예시와 자연어 설명 사이의 실험적 차이로 읽어야 한다.
+
+### 7.3 더 강한 teacher가 늘 더 좋은 teacher는 아니다
+
+| Teacher | Teacher AppWorld 점수 | Qwen3-4B + AMD | Qwen3-8B + AMD |
+| --- | ---: | ---: | ---: |
+| GPT-5.5 | 91.08 | 47.02 | 58.93 |
+| DeepSeek V4 Pro | 81.55 | 38.10 | 57.14 |
+| GPT-5-mini | 50.00 | 49.40 | 51.79 |
+| Qwen3-32B | 34.42 | 29.76 | 39.29 |
+
+[논문 Table 3](https://arxiv.org/pdf/2608.07169v1#page=7)
+
+Qwen3-8B에서는 teacher 점수가 높은 순서와 학생 성능의 순서가 맞는다. 그러나 Qwen3-4B는 GPT-5-mini의 메모리로 가장 높은 점수를 얻고, 더 강한 DeepSeek V4 Pro의 메모리로는 더 낮은 점수를 얻는다.
+
+이는 teacher의 원래 성공률만으로 학생에 대한 전이 효과를 예측하기 어렵다는 관측이다. 저자들은 teacher–student compatibility를 원인으로 제안한다. 다만 교사마다 성공 궤적의 수, 풀이 스타일, 길이, memory pool의 범위도 함께 달라진다. 이 비교는 compatibility 가설을 지지하지만, 그 원인을 분리하거나 새로운 teacher를 자동 선택하는 지표를 검증한 것은 아니다.
+
+### 7.4 4B는 이번 실험에서 절대 향상이 가장 컸다
+
+[![Qwen3의 1.7B, 4B, 8B, 14B 크기별 zero-shot과 AMD 성공률 및 percentage-point 향상](figures/amd-fig4-student-size.png)](figures/amd-fig4-student-size.png)
+
+*원논문 Figure 4. 막대는 성공률, 붉은 선은 zero-shot 대비 절대 %p 향상이다. 가장 큰 향상은 4B에서 관측되지만 최종 성공률이 가장 높은 모델 크기와는 다르다. Kim et al. (2026), [PDF p. 7](https://arxiv.org/pdf/2608.07169v1#page=7). 원본 도판 영역 직접 추출, CC BY 4.0.*
+
+같은 GPT-5-mini teacher의 메모리를 사용했을 때, Qwen3 1.7B·4B·8B·14B의 AMD 성공률은 각각 21.43, 49.40, 51.79, 52.68이다. 절대 향상은 4B에서 34.52%p로 가장 크다. 작은 1.7B는 예시를 실행할 능력이 충분하지 않을 수 있고, 큰 학생은 이미 zero-shot이 높아 개선 여지가 상대적으로 줄 수 있다는 해석이다. [논문 §5.3](https://arxiv.org/pdf/2608.07169v1#page=7)
+
+그러나 이 결과는 Qwen3 계열의 AppWorld 실험이다. 모든 작업에서 4B가 비용 대비 최적이라거나 메모리 활용에 보편적인 4B 문턱이 있다는 결론은 제시하지 않는다.
+
+### 7.5 검색 결과를 늘리면 성능이 떨어질 수도 있다
+
+[![검색 개수 k에 따라 Workflow, Subtask, Function memory의 AppWorld 성능이 달라지는 그래프](figures/amd-fig5-retrieval-count.png)](figures/amd-fig5-retrieval-count.png)
+
+*원논문 Figure 5. 각 메모리 유형의 검색 개수를 1에서 5로 바꾼 결과다. Subtask 곡선의 하락이 두드러지고 Function은 비교적 안정적이다. $k=1$이 유일하게 항상 최적이라는 의미보다, 적은 수의 관련성 높은 예시로도 충분했다는 관측으로 읽을 수 있다. Kim et al. (2026), [PDF p. 8](https://arxiv.org/pdf/2608.07169v1#page=8). 원본 도판 영역 직접 추출, CC BY 4.0.*
+
+Subtask 검색을 늘릴 때 성공률은 49.40에서 33.34로 낮아진다. 저자들은 낮은 순위의 예시가 불필요한 내용을 더하거나 작은 모델의 context 활용 능력을 넘을 수 있다고 해석한다. 이 실험은 검색의 양만 늘리는 접근에 경고를 준다. 다만 관련성, 길이, 예시 간 충돌의 영향을 각각 분리한 것은 아니므로 원인을 하나로 확정하지는 않는다. [논문 §5.4](https://arxiv.org/pdf/2608.07169v1#page=8)
+
+## 8. 사례·비용·재현성으로 보는 적용의 경계
+
+### 8.1 세 메모리가 서로 다른 실패를 다루는 사례
+
+[![월별 결제 요청 처리와 잔액 인출 과제에서 WF, ST, FN이 날짜 범위·파싱·반환 키 오류를 차례로 해결하는 상세 사례](figures/amd-fig6-cascading-case.png)](figures/amd-fig6-cascading-case.png)
+
+*원논문 Figure 6. 위쪽은 실제 메모리의 내용이고, 아래쪽은 각 구성을 추가했을 때 남거나 해결되는 실패를 보여준다. 긴 코드와 관측을 읽으려면 원본 해상도로 확대하는 편이 좋다. 이 그림은 한 사례의 비교이며 전체 과제에서 세 메모리가 모두 필수임을 증명하는 실험은 아니다. Kim et al. (2026), [PDF p. 16](https://arxiv.org/pdf/2608.07169v1#page=16). 도판 안의 Analysis를 포함한 원본 영역 직접 추출, CC BY 4.0.*
+
+과제는 이번 달에 받은 결제 요청을 승인한 뒤 남은 잔액을 지정 카드로 옮기는 것이다. WF가 없으면 시간 범위를 잘못 해석한다. WF를 넣으면 날짜 조건은 생기지만, datetime 처리 오류를 고치지 못해 step 예산을 소진한다. ST는 작동하는 날짜 파싱과 승인 loop를 제공한다. 마지막으로 잔액 응답의 dictionary key를 잘못 읽는 오류는 FN 예시로 수정한다. 전체 구성은 이 사례에서 7 step에 성공한다. [논문 §5.6 및 Figure 6](https://arxiv.org/pdf/2608.07169v1#page=16)
+
+이 사례는 세 수준의 메모리 구분을 실제 실행에서 나타나는 실패와 연결한다. 동시에 §7.1의 Llama 반례처럼, 사례에서 보인 상보성이 모든 셀에서 그대로 성립하지는 않는다. 정성적 사례와 전체 ablation을 함께 봐야 한다.
+
+### 8.2 Training-free는 총비용이 없다는 뜻이 아니다
+
+AMD가 피하는 것은 학생 파라미터의 재학습이다. 전체 과정에는 적어도 다음 비용이 남는다.
+
+| 단계 | 필요한 작업 |
+| --- | --- |
+| 교사 경험 확보 | 실제 benchmark 환경에서 teacher를 실행하고 성공 궤적을 선별한다. |
+| 메모리 생성 | Workflow 요약, Subtask 분할, Function 예시 추출과 문서 연결을 수행한다. |
+| 검색 준비 | 메모리를 embedding하고 저장한다. |
+| 학생 적용 | Task decomposition, query embedding, 검색, 추가 입력 토큰, 오류 후 재시도를 수행한다. |
+
+논문은 이러한 작업의 전체 token·API 비용이나 memory bank 규모를 체계적으로 보고하지 않는다. 교사 호출 수와 메모리 생성량, 같은 메모리 bank를 몇 번 재사용하는지까지 알아야 학습 기반 distillation과 비용을 비교할 수 있다.
+
+또한 40-step 상한이 있으므로, 실패 후 오래 반복하다 상한에 도달한 실행도 step 통계에 영향을 준다. Interaction count는 유용하지만 task 성공률 및 토큰·시간·비용과 함께 측정해야 한다. [논문 §4.2, Appendix C](https://arxiv.org/pdf/2608.07169v1#page=15)
+
+### 8.3 평가된 도구 환경 밖의 전이는 미확정이다
+
+논문이 인정한 한계는 텍스트 기반 Python API와 구조화된 function call에 평가가 집중되어 있다는 점이다. 시각 관측으로 행동을 결정해야 하는 환경이나, 정해진 API 집합을 넘어서는 개방형 코드 생성에서의 성능은 검증되지 않았다. 메모리도 오프라인에서 만든 뒤 고정하므로 학생의 새로운 성공·실패나 API 변화에 자동 적응하지 않는다. [논문 Limitations](https://arxiv.org/pdf/2608.07169v1#page=9)
+
+WF에서 런타임 값을 placeholder로 바꾸는 것은 재사용을 돕지만, 그것만으로 새로운 업무와 API에 대한 전이가 보장되는 것은 아니다. ST와 FN은 구체적인 호출·관측 예시를 포함하므로, 메모리가 생성된 도구 버전과 현재 환경의 호환성도 중요하다.
+
+### 8.4 공개 코드는 있지만 원문과의 일치 범위를 확인해야 한다
+
+공식 프로젝트가 연결한 저장소의 `2895d10` snapshot에는 BFCL·ToolSandbox의 WF/ST/FN 생성, 검색, 시작 전 주입과 오류 후 Function hint를 위한 핵심 모듈 및 실행 스크립트가 있다. [공식 저장소 snapshot](https://github.com/taeilkim2465/agentic_memory_distillation/tree/2895d10c07105432325b088f4803dc94a10003c9)
+
+다만 이 코드 스냅샷에서 AppWorld의 동일한 세 수준 AMD 실행 경로와 세 벤치마크의 표 전체를 재생성하는 완결된 설정까지는 확인되지 않는다. ToolSandbox는 원래 benchmark에 모듈을 덧씌우는 구조여서 agent variant의 등록을 포함한 실행 환경도 필요하다. **이는 공개 구현이 논문과 다르다는 판정이 아니라, 공개된 경로와 특정 표 셀을 연결하는 data·config·result provenance가 이 검토 범위에서 확인되지 않았다는 뜻이다.** 핵심 코드가 공개되어 있다는 사실만으로 논문의 전체 결과를 그대로 재현할 수 있다고 보장되지는 않는다.
+
+논문과 공개 구현의 세부 차이도 있다. BFCL의 memory builder는 score file을 받으면 성공한 과제만 선별하지만, 이를 주지 않으면 모든 결과를 읽는 경로가 있다. ToolSandbox의 Function 후보 순위에는 로컬 character n-gram 표현을 사용하는 코드가 있어, 모든 메모리에 같은 OpenAI embedding을 쓴다는 본문 설명과 동일하다고 단정하기 어렵다. [BFCL builder](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/bfcl/common/scripts/build_memory_from_results.py), [ToolSandbox memory store](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/toolsandbox/common/memory/store.py)
+
+주입 시점도 확인할 부분이다. 공개 BFCL full-memory 실행 예 중 `exp_6_st_dynamic_v2.sh`는 Workflow를 첫 turn에 고정하지만, Subtask는 각 turn의 user instruction으로 다시 검색해 system prompt의 해당 부분을 교체한다. 이는 본문 Algorithm 1의 “과제 시작 전 한 번의 decomposition과 ST 주입”과 다르다. 이 실행 예가 논문 표의 정확한 실행 경로인지는 매핑 정보가 없어 확인되지 않으므로, BFCL의 주입 시점과 결과 해석은 설정을 고정한 재현이 필요하다. [BFCL 실행 예](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/bfcl/common/scripts/exp_6_st_dynamic_v2.sh), [BFCL handler](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/bfcl/common/model_handler/base_handler.py)
+
+이 차이는 논문의 실험에 실패 궤적이 섞였다는 증거가 아니다. 실제 실험에 어떤 옵션과 코드 버전이 사용됐는지는 별도 확인이 필요하다. 재현하려면 메모리 생성에 사용한 task ID, 성공 필터, 자신의 과제 메모리 제외 여부, threshold, prompt와 모델 설정을 함께 고정해야 한다.
+
+## 9. 설계 시사점과 결론
+
+AMD에서 가져갈 만한 아이디어는 경험을 한 번 잘 요약하는 것보다 **받는 모델이 필요로 하는 행동 단위로 나누는 것**이다. 큰 교사에게는 자명한 전제조건이 작은 학생에게는 별도의 실행 지식일 수 있다. 메모리의 유용성은 정보의 정확성뿐 아니라 그 정보를 학생이 어떤 행동으로 바꿀 수 있는지에 달려 있다.
+
+이 관점에서 AMD는 기존 memory 방법의 몇 가지 축을 조합한다. ReasoningBank의 reasoning insight, MemP의 procedural knowledge, SASM의 subtask granularity와 접점이 있지만, 교사→작은 학생 전이에서 계획·실행 예시·오류 교정을 서로 다른 bank와 주입 시점으로 나누는 것이 주요 차이다. [논문 §2](https://arxiv.org/pdf/2608.07169v1#page=3)
+
+실제 적용에서는 아래 질문으로 설계를 점검할 수 있다. 논문의 실험에서 도출한 판단 틀이며, AMD가 자동으로 검증하는 배포 기능을 나열한 것은 아니다.
+
+| 설계 질문 | 확인할 대상 |
+| --- | --- |
+| 학생이 계획을 몰라 실패하는가, 실행 방법을 몰라 실패하는가? | WF와 ST의 기여를 따로 평가한다. |
+| 도구 오류를 관찰할 수 있고 함수명을 식별할 수 있는가? | FN을 검색할 trigger와 key가 충분한지 확인한다. |
+| 성공 경험이 실제로 성공한 실행만 포함하는가? | 결과 필터와 task provenance를 고정한다. |
+| 같은 과제의 해결 경험을 재사용하는가, 다른 과제로 전이하는가? | 본평가와 self-excluded·cross-split 결과를 분리한다. |
+| 더 많은 예시가 정말 도움이 되는가? | 검색 정확도, 길이와 충돌, 학생의 context 활용 능력을 평가한다. |
+| 큰 teacher의 풀이가 학생에게 실행 가능한가? | Teacher의 원래 점수와 별도로 학생 적용 성능을 검증한다. |
+
+논문의 가장 강한 증거는 AppWorld에서 구체적인 Subtask 실행 예시가 큰 이득을 만들고, 과제를 분리해도 향상이 남는다는 점이다. 동시에 ST와 FN의 기여는 조건별로 다르고, teacher의 원래 성능이 전이 효과를 단조롭게 설명하지 않으며, 전체 비용 우위는 아직 확인되지 않았다.
+
+AMD는 작은 모델이 큰 모델을 보편적으로 대체했다는 결론보다, **교사의 경험을 학생이 사용할 수 있는 형식과 시점으로 바꾸면 가중치 업데이트 없이도 도구 실행 능력을 개선할 수 있다**는 결과로 읽는 편이 정확하다. 다음 과제는 이 구조를 새 업무와 바뀌는 API에 연결하고, 메모리 갱신·과제 간 전이·총비용까지 같은 평가 안에서 검증하는 것이다.
+
+*원논문 Figures 1–6을 도판 영역만 추출해 인용했다. 한국어 해설을 덧붙였으며 원본 데이터·축·범례·도식은 유지했다. 논문의 arXiv 등록 라이선스는 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)이다. 수치는 원문과 대조했으며 이 리뷰에서 교사·학생 모델의 benchmark 실행을 새로 수행한 것은 아니다.*
+
+## References
+
+Fang, R., Liang, Y., Wang, X., Wu, J., Qiao, S., Xie, P., Huang, F., Chen, H., & Zhang, N. (2026). *MemP: Exploring agent procedural memory* (arXiv:2508.06433v4). arXiv. [arXiv 논문](https://arxiv.org/abs/2508.06433v4)
+
+Kim, T., Kim, K., & Hwang, S. J. (2026). *Agent memory distillation: Empowering small LLM agents with hierarchical teacher memory* (arXiv:2608.07169v1). arXiv. [arXiv 논문](https://arxiv.org/abs/2608.07169v1)
+
+Ouyang, S., Yan, J., Hsu, I.-H., Chen, Y., Jiang, K., Wang, Z., Han, R., Le, L. T., Daruki, S., Tang, X., Tirumalashetty, V., Lee, G., Rofouei, M., Lin, H., Han, J., Lee, C.-Y., & Pfister, T. (2026). *ReasoningBank: Scaling agent self-evolving with reasoning memory*. International Conference on Learning Representations. [arXiv:2509.25140v2](https://arxiv.org/abs/2509.25140v2)
+
+Shen, K., Zhang, J., Sun, C., Zeng, W., & Yue, Y. (2026). *Structurally aligned subtask-level memory for software engineering agents* (arXiv:2602.21611). arXiv. [arXiv 논문](https://arxiv.org/abs/2602.21611)

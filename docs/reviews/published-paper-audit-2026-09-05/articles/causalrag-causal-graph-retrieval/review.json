@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://aclanthology.org/2025.findings-acl.1165.pdf (§§1, 3–7; Figures 2–6)"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/2025.findings-acl.1165/",
+    "https://aclanthology.org/2025.findings-acl.1165.pdf"
+  ],
+  "paper_metadata": {
+    "title": "CausalRAG: Integrating Causal Graphs into Retrieval-Augmented Generation",
+    "authors": [
+      "Nengbo Wang",
+      "Xiaotian Han",
+      "Jagdip Singh",
+      "Jing Ma",
+      "Vipin Chaudhary"
+    ],
+    "year": 2025,
+    "primary_url": "https://aclanthology.org/2025.findings-acl.1165/",
+    "arxiv_id": "2503.19878",
+    "doi": "10.18653/v1/2025.findings-acl.1165"
+  },
+  "excerpt": "CausalRAG는 문서에서 추출한 원인·결과 관계 그래프를 따라 질문에 필요한 경로를 구성해, 단순 의미 유사도 검색보다 더 정제된 답변 문맥을 만들려는 RAG 방법이다.",
+  "changes": [
+    "Added the actual title and parser-compatible Paper header.",
+    "Retained paper explanation, numerical results, figure sequence, and evidence-grounded scope limits.",
+    "Separated unspecified question generator from retrieval/evaluation models; removed current-repo audit."
+  ],
+  "uncertainties": [
+    "The paper does not report the data volume or a component ablation sufficient to attribute gains to one module."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/causalrag-causal-graph-retrieval",
+  "verified_content_sha256": "affc0c2fbbaa426088c1caa4d4f690a5ff45ddcb0b68d9bf16825d6d5e74f7eb"
+}

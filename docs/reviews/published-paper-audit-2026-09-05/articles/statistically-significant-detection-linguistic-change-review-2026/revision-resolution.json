@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed false variance/std-dev criticism: original Eq.9 divides by sqrt(Var)."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 11904,
+  "after_chars": 11791
+}

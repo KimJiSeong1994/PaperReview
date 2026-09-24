@@ -1,0 +1,24 @@
+--- agent-memory-distillation/original.md
++++ agent-memory-distillation/revised.md
+@@ -156,6 +156,12 @@
+ 도구 실행이 오류를 반환하면 실패한 함수명을 추출하고, 해당 Function memory를 hint block으로 만들어 오류 관측에 덧붙인다. 학생은 이 맥락을 보고 다음 행동을 생성한다. 여기서 `reactive`는 함수 메모리를 가져오는 trigger가 오류라는 뜻이다.
+ 
+ 이 설계에서 Function memory는 API 인자나 반환 구조를 잘못 다룬 실패에 특히 직접적으로 연결된다. 반면 도구 호출은 정상 종료됐지만 날짜 범위나 과제 의도를 잘못 이해한 경우에는, 오류 trigger만으로는 문제가 드러나지 않을 수 있다. 이 차이가 Workflow와 Subtask를 별도로 두는 이유이기도 하다.
++
++#### 한 과제 안에서 세 bank가 만나는 순서
++
++실행 흐름을 작게 그리면, 과제 지시 하나에서 Workflow 하나를 먼저 고르고 학생이 만든 두 subtask label에서 서로 다른 Subtask 예시를 각각 가져올 수 있다. 이 셋은 첫 도구 호출 전에 준비된다. 그 뒤 세 번째 도구 호출이 오류를 내면, Function bank 전체를 다시 의미 검색하는 대신 **실패한 함수명**의 항목으로 후보를 좁히고 현재 과제와의 관련성으로 예시 하나를 고른다. 다른 함수의 실행 예시가 아무리 비슷해 보여도 그 오류 hint의 후보가 되지는 않는다.
++
++따라서 AMD의 계층은 단순한 요약 길이의 차이가 아니다. Workflow와 Subtask는 아직 어떤 함수가 실패할지 모르는 상태에서 계획과 실행 형식을 제공하고, Function은 오류라는 관측이 생긴 뒤 함수별 호출 규칙을 제공한다. 이 순서 덕분에 모든 schema와 예시를 초기 prompt에 넣지 않지만, 정상 반환인데 과제 의도를 잘못 푼 경우를 Function hint만으로 고칠 수 없다는 경계도 생긴다. 이 문단은 논문의 retrieval·injection 규칙을 설명을 위해 한 과제에 적용한 예시다. [논문 §3.3, Algorithm 1, Appendix C](https://arxiv.org/pdf/2608.07169v1#page=14)
+ 
+ ### 4.4 학생 실행 절차 재구성
+ 
+@@ -392,7 +398,7 @@
+ 
+ 공식 프로젝트가 연결한 저장소의 `2895d10` snapshot에는 BFCL·ToolSandbox의 WF/ST/FN 생성, 검색, 시작 전 주입과 오류 후 Function hint를 위한 핵심 모듈 및 실행 스크립트가 있다. [공식 저장소 snapshot](https://github.com/taeilkim2465/agentic_memory_distillation/tree/2895d10c07105432325b088f4803dc94a10003c9)
+ 
+-다만 이 코드 스냅샷에서 AppWorld의 동일한 세 수준 AMD 실행 경로와 세 벤치마크의 표 전체를 재생성하는 완결된 설정까지는 확인되지 않는다. ToolSandbox는 원래 benchmark에 모듈을 덧씌우는 구조여서 agent variant의 등록을 포함한 실행 환경도 필요하다. 핵심 코드가 공개되어 있다는 사실만으로 논문의 전체 결과를 그대로 재현할 수 있다고 보장되지는 않는다.
++다만 이 코드 스냅샷에서 AppWorld의 동일한 세 수준 AMD 실행 경로와 세 벤치마크의 표 전체를 재생성하는 완결된 설정까지는 확인되지 않는다. ToolSandbox는 원래 benchmark에 모듈을 덧씌우는 구조여서 agent variant의 등록을 포함한 실행 환경도 필요하다. **이는 공개 구현이 논문과 다르다는 판정이 아니라, 공개된 경로와 특정 표 셀을 연결하는 data·config·result provenance가 이 검토 범위에서 확인되지 않았다는 뜻이다.** 핵심 코드가 공개되어 있다는 사실만으로 논문의 전체 결과를 그대로 재현할 수 있다고 보장되지는 않는다.
+ 
+ 논문과 공개 구현의 세부 차이도 있다. BFCL의 memory builder는 score file을 받으면 성공한 과제만 선별하지만, 이를 주지 않으면 모든 결과를 읽는 경로가 있다. ToolSandbox의 Function 후보 순위에는 로컬 character n-gram 표현을 사용하는 코드가 있어, 모든 메모리에 같은 OpenAI embedding을 쓴다는 본문 설명과 동일하다고 단정하기 어렵다. [BFCL builder](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/bfcl/common/scripts/build_memory_from_results.py), [ToolSandbox memory store](https://github.com/taeilkim2465/agentic_memory_distillation/blob/2895d10c07105432325b088f4803dc94a10003c9/toolsandbox/common/memory/store.py)
+ 

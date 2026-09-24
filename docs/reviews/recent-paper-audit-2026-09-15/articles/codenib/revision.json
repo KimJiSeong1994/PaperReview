@@ -1,0 +1,26 @@
+{
+  "slug": "codenib",
+  "excerpt": "CodeNib은 저장소 커밋별로 문자열·의미·코드 구조 색인을 만들어 에이전트의 검색과 컨텍스트 구성을 지원한다. 검색·갱신·위치 파악의 품질과 비용을 나눠 평가하며, 보고된 속도 향상은 각 실험의 품질 조건을 통과한 범위에 한정된다.",
+  "changes": [
+    {
+      "section": "§1",
+      "change": "manifest 확인부터 ranked retrieval·symbol navigation·Eager/Compact context delivery까지 하나의 요청이 지나는 경로를 추가했다.",
+      "evidence": "§§4.1–4.2, 5.4, 7.1–7.4"
+    },
+    {
+      "section": "결론",
+      "change": "저장소 위치 파악 평가와 실제 패치 해결·종단 비용·HEAD 재현 주장을 분리했다.",
+      "evidence": "§§9–10; Appendix A"
+    }
+  ],
+  "uncertainties": [
+    "v1 preprint만 검토했다.",
+    "현재 공식 repository HEAD는 논문 실험 스냅샷과 동일하다고 확인되지 않았다.",
+    "패치 생성·이슈 해결, 동시 갱신, 다중 테넌시는 평가 범위 밖이다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2607.25431v1",
+    "https://arxiv.org/html/2607.25431v1",
+    "https://github.com/sysevol-ai/CodeNib"
+  ]
+}

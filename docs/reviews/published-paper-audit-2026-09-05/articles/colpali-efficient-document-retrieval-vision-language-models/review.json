@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2407.01449 (§§2–5 and result tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2407.01449",
+    "https://arxiv.org/html/2407.01449"
+  ],
+  "paper_metadata": {
+    "title": "ColPali: Efficient Document Retrieval with Vision Language Models",
+    "authors": [
+      "Manuel Faysse",
+      "Hugues Sibille",
+      "Tony Wu",
+      "Bilel Omrani",
+      "Gautier Viaud",
+      "Céline Hudelot",
+      "Pierre Colombo"
+    ],
+    "year": 2025,
+    "primary_url": "https://arxiv.org/abs/2407.01449",
+    "arxiv_id": "2407.01449"
+  },
+  "excerpt": "ColPali는 문서 페이지를 OCR 텍스트가 아닌 이미지로 인코딩하고, 질의 토큰과 페이지의 시각 토큰 사이 late interaction으로 복잡한 레이아웃 문서를 검색하는 모델과 벤치마크를 제안한다.",
+  "changes": [
+    "Preserved paper-focused methods, experiments, limits, figures, and APA references.",
+    "Corrected authors, removed editorial transcript, bounded Shift finding."
+  ],
+  "uncertainties": [
+    "Storage and latency depend on image resolution, page count, and late-interaction implementation."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/colpali-efficient-document-retrieval-vision-language-models",
+  "verified_content_sha256": "aa9710d48b7dc263e73a80d199f80bb489c08bb8919d3088bb3d5a6457ff15e3"
+}

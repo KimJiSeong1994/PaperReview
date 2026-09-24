@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "title": "Where Reasoning Matters: Rethinking Latent Reasoning in Semantic ID-based Generative Recommendation",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation/original.json",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation/original.md",
+    "evidence.md"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2607.12425v1"
+  ],
+  "changes": [
+    "논문 설명 중심의 본문 유지",
+    "검토·코드 감사·출판 메타 서술을 편집 대상에서 제외",
+    "근거가 있는 실험 범위와 한계를 본문 설명으로 유지",
+    "초기 일괄 메타 초안은 증거가 불충분하여 pending으로 보류",
+    "Removed repo/application audit and unobserved stale-target speculation."
+  ],
+  "uncertainties": [
+    "원문 논문 버전·표 번호는 각 본문 인용을 기준으로 확인; 후속 출판 판본과의 문장 차이는 별도 비교 대상이 아님"
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "Where Reasoning Matters: Rethinking Latent Reasoning in Semantic ID-based Generative Recommendation",
+    "authors": [
+      "Shangxin Yang",
+      "Min Gao",
+      "Zongwei Wang",
+      "Junliang Yu"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2607.12425v1",
+    "arxiv_id": "2607.12425v1"
+  },
+  "excerpt": "IBA는 semantic ID의 위치별 추론 이득을 추정해 잠재 추론 예산을 배분한다. 정보이득 목표, 두 단계 학습, 추천 성능과 계산 예산의 절충을 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+  "verified_content_sha256": "8ba60f54a1f093458406299521083cd9cdf9be3039d187e83269f81b5eefd548"
+}

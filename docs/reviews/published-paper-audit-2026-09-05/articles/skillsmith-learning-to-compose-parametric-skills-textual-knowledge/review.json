@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2607.27497 (§§1–4 and tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2607.27497",
+    "https://arxiv.org/html/2607.27497"
+  ],
+  "paper_metadata": {
+    "title": "SkillSmith: Learning to Compose Parametric Skills and Textual Knowledge",
+    "authors": [
+      "Lucio M. Dery",
+      "Benedict Aaron Tjandra",
+      "Siavash Samiei",
+      "Adhiguna Kuncoro",
+      "Zohar Yahav",
+      "Jiajun Shen",
+      "Arthur Szlam"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2607.27497",
+    "arxiv_id": "2607.27497"
+  },
+  "excerpt": "SkillSmith는 텍스트로 남은 지식과 prefix-tuning 형태의 파라메트릭 스킬을 한 입력 표현으로 결합해, 새 과제에 사용할 prefix K/V 스킬을 생성하는 방법이다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Corrected authors and restricted all-regime superiority claim; bounded ablation-description gap."
+  ],
+  "uncertainties": [
+    "Composition quality is evaluated for the paper's chosen skill format and source-task distributions."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+  "verified_content_sha256": "2533e78fd19dae27361bad3554475b978259a1a80dd799662e617107f753234c"
+}

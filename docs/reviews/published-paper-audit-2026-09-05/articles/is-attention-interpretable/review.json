@@ -1,0 +1,35 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Is Attention Interpretable?",
+    "authors": [
+      "Sofia Serrano",
+      "Noah A. Smith"
+    ],
+    "year": 2019,
+    "primary_url": "https://aclanthology.org/P19-1282/",
+    "doi": "10.18653/v1/P19-1282"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://aclanthology.org/P19-1282/",
+    "https://aclanthology.org/P19-1282.pdf"
+  ],
+  "excerpt": "텍스트 분류 모델의 attention 가중치를 직접 지우는 개입으로 attention이 실제 예측 중요도를 얼마나 반영하는지 검토한 ACL 2019 연구를 설명한다.",
+  "changes": [
+    "실제 논문명 H1 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "source-candidate PDF는 논문과 불일치해 ACL primary source로 확인했다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/is-attention-interpretable",
+  "verified_content_sha256": "56ed450eff44c728d9cd958ca7155a840f519cef713ef5d9a6149aa41cf38767"
+}

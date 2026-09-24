@@ -1,0 +1,24 @@
+{
+  "url": "https://jiphyeonjeon.kr/blog/intent-propagation-contrastive-collaborative-filtering",
+  "verified_at": "2026-09-05T10:45:44.654752+00:00",
+  "published": true,
+  "pull_request": "https://github.com/KimJiSeong1994/PaperReview/pull/256",
+  "merge_commit": "670eb9df687ca60f14efd922fb95480c3121e388",
+  "content_sha256": "1adcefdd9023c294c0f86d411a5a35b3df2389ad0b8fd84494e4804420b16dd5",
+  "checks": {
+    "live_api_matches_merged_source": true,
+    "paperwiki_matches_body": true,
+    "editorial_and_code_audit_removed": true,
+    "restored_figures": [
+      "https://jiphyeonjeon.kr/api/blog/figures/ipccf-fig1-framework.png",
+      "https://jiphyeonjeon.kr/api/blog/figures/ipccf-fig2-intent-propagation.png",
+      "https://jiphyeonjeon.kr/api/blog/figures/ipccf-fig5-epochs.png"
+    ],
+    "figure_png_http_valid": true,
+    "math_expressions": 61,
+    "local_blog_seo_tests": 56,
+    "required_PR_CI": "passed",
+    "canonical_and_paper_metadata": "passed"
+  },
+  "publication_method": "Targeted atomic post update after protected-branch merge; ordinary application deployment runs independently."
+}

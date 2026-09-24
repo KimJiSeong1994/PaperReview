@@ -1,0 +1,387 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.957,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.997,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.996,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 1.007,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.998,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.998,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.998,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.999,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "lane": "semantics_causality",
+    "status": "reviewed",
+    "length_ratio": 0.998,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "lane": "semantics_causality",
+    "status": "draft",
+    "length_ratio": 0.999,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 0.998,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "evidence_grounded",
+    "length_ratio": 0.999,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "lane": "semantics_causality",
+    "status": "draft",
+    "length_ratio": 0.999,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "lane": "semantics_causality",
+    "status": "draft",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "evidence_grounded",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "evidence_grounded",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "evidence_grounded",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "evidence_grounded",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [
+      "**GNNExplainer**는 훈련된 GNN을 수정하거나 재학습하지 않고, 특정 예측을 보존하는 compact computation subgraph와 node feature mask를 mutual information 최대화 문제로 찾는 post-hoc model-agnostic GNN explanation 프레임워크다(Ying et al., NeurIPS 2019). synthetic benchmark에서 GRAD·ATT baseline 대비 평균 17.1% 높은 explanation accuracy를 보고했다.",
+      "| 핵심 기여 | 훈련된 GNN을 수정하거나 재학습하지 않고, 예측을 설명하는 compact subgraph와 feature mask를 찾는 post-hoc, model-agnostic GNN explanation 프레임워크를 제안한다. |",
+      "| Q3 | 훈련된 GNN을 수정하거나 재학습하지 않고도 explanation을 만들 수 있는가? |"
+    ],
+    "has_references": true
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [
+      "**SkillOpt**는 대상 LLM의 가중치를 재학습하지 않고 외부 스킬 문서를 딥러닝식 텍스트 최적화 루프(rollout 증거 기반 편집, 유계 편집 예산, held-out gate, reject buffer)로 반복 개선하는 에이전트 스킬 자동 최적화 프레임워크다(Yang et al., Microsoft, arXiv:2605.23904, 2026). 평가된 52개 (모델,벤치마크,하네스) 셀 전부에서 동률 또는 최고를 달성했으며, GPT-5.5의 6개 벤치마크 평균을 no-skill 58.8에서 82.3으로 끌어올렸다.",
+      "| 연구 질문 | 대상 모델의 가중치를 재학습하지 않고, 에이전트의 외부 스킬 문서를 딥러닝식 최적화 루프로 \"훈련\"하여 검증 가능한 과제 성능을 체계적으로 끌어올릴 수 있는가? |"
+    ],
+    "has_references": true
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.953,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "gqml-graphs",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "lgc-acf",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 0.999,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "coevot",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "deep-graphrag",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 1.006,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "lightgcn",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "ragu",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.989,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "goa",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.996,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "hgnn",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.993,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.988,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "lane": "rag_agents",
+    "status": "complete",
+    "length_ratio": 0.983,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "lane": "rag_agents",
+    "status": "evidence_blocked",
+    "length_ratio": 0.99,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "lane": "graphs_recommendation",
+    "status": "pending_evidence",
+    "length_ratio": 1.0,
+    "figures_equal": true,
+    "process_flags": [],
+    "has_references": true
+  }
+]

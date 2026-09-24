@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Bounded cost comparison to four baselines and removed current-code audit."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 28083,
+  "after_chars": 27160
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected unspecified question generator and localized Table9 reporting mismatch."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 12898,
+  "after_chars": 12904
+}

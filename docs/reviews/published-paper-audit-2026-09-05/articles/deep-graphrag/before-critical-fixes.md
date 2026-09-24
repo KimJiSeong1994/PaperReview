@@ -1,0 +1,216 @@
+# Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration
+
+**Paper:** Li, Y., Yang, K., Wang, T., Chen, B., Li, B., & Mao, C. (2026). "Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration." arXiv:2601.11144 [cs.IR].
+
+**Abstract:** 이 글은 그래프 기반 검색증강생성(GraphRAG)의 두 축인 global 검색의 포괄성과 local 검색의 효율을 하나의 파이프라인 안에서 함께 잡으려는 Deep GraphRAG를 해설한다. 논문은 두 부분으로 나뉜다. 첫째는 커뮤니티 계층 위에서 global에서 local로 좁혀 가는 3단계 검색(커뮤니티 간 필터링 → 커뮤니티 수준 정제 → 엔티티 수준 세밀 검색)과 이를 이끄는 beam-search 기반 동적 재랭킹이다. 둘째는 검색된 지식을 요약·통합하는 소형 LLM을 Dynamic Weighting Reward GRPO(DW-GRPO)로 훈련하는 지식 통합 모듈이다. DW-GRPO는 relevance·faithfulness·conciseness 세 보상의 가중치를 학습 중 동적으로 조정한다. Natural Questions와 HotpotQA에서 저자들은 1.5B 통합 모델이 72B 모델의 통합 성능에 근접(NQ EM-Total 기준 94% 이상)하고, DRIFT Search 대비 지연시간을 크게 줄였다고 보고한다. 다만 계층 요약이 국소 사실을 가리는 CQ 유형의 약점, 훈련되지 않은 1.5B의 성능 붕괴, 데이터 규모 비보고 등은 함께 읽어야 한다.
+
+---
+
+## Executive Summary
+
+| 항목     | 설명                                                                                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 연구 질문  | GraphRAG의 global 검색 포괄성과 local 검색 효율 사이의 트레이드오프를, 계층 검색과 통합 단계의 경량화로 동시에 완화할 수 있는가?                                                                                                       |
+| 핵심 기여  | (1) 커뮤니티 계층을 global에서 local로 좁혀 내려가는 3단계 검색과 beam-search 동적 재랭킹, (2) relevance·faithfulness·conciseness 세 보상의 가중을 학습 중 조정하는 DW-GRPO로 소형 LLM 지식 통합 모듈을 훈련.                                 |
+| 방법적 결과 | bottom-up Louvain(해상도 $\gamma=1.0$) 계층 위에서 beam width $k=3$의 coarse-to-fine 탐색을 돌리고, 후보 엔티티를 부모 커뮤니티 벡터와 이어 붙여 문맥 인지 재랭킹한다. DW-GRPO는 빠르게 개선되는 목표의 가중을 낮추어 세 보상의 seesaw 최적화를 억제한다.         |
+| 실험 결과  | NQ에서 Deep GraphRAG(통합 72B) EM-Total 44.69%로 DRIFT(42.78%)를 앞서고, 1.5B-DW GRPO 통합은 42.36%로 72B의 94% 이상. DRIFT 대비 NQ 지연시간을 local 86%·global 81.6% 줄였다고 보고.                                   |
+| 핵심 한계  | CQ에서 계층 요약이 국소 사실을 가려 baseline에 지는 열이 있고(NQ+DeepSeek-R1에서 Local Search CQ 23.20% > Deep GraphRAG 19.60%), 훈련되지 않은 1.5B는 21.64%로 붕괴해 이득 전부가 DW-GRPO 훈련에서 나온다. 그래프·데이터 규모(엔티티·커뮤니티 수)는 미보고. |
+
+**TL;DR**
+
+- Deep GraphRAG는 커뮤니티 계층 위에서 global→local로 좁혀 내려가는 3단계 검색과 상수 폭(beam width $k=3$) beam search로 지식을 찾고, relevance·faithfulness·conciseness 세 보상의 가중을 개선 속도로 재분배하는 DW-GRPO로 훈련한 소형 LLM이 검색 결과를 통합하는 GraphRAG 파이프라인이다.
+- Deep GraphRAG는 Natural Questions·HotpotQA에서 EM-Total 기준 DRIFT 등 baseline을 앞서고(NQ 44.69% vs DRIFT 42.78%), DW-GRPO로 훈련한 1.5B 통합 모델이 72B의 94% 이상(NQ 42.36%)에 근접하며, DRIFT 대비 NQ 지연을 local 86%·global 81.6% 줄였다고 보고한다.
+- Deep GraphRAG는 그러나 계층 요약이 국소 사실을 가려 일부 CQ에서 baseline에 지고(NQ+DeepSeek-R1에서 Local Search CQ 23.20% > 19.60%), 이득의 대부분이 72B 증류·DW-GRPO 훈련에서 나오며(훈련 전 1.5B는 21.64%로 붕괴), 그래프·데이터 규모와 유형별 표본 수가 보고되지 않는다.
+
+## 목차
+
+1. 배경과 문제의식
+2. 계층 그래프 구성
+3. 계층적 global→local 3단계 검색
+4. beam-search 동적 재랭킹
+5. 지식 통합 모듈과 DW-GRPO
+6. 실험 설계
+7. 결과
+8. 논문의 주장과 근거 범위
+9. 학술적 한계와 비평
+10. 결론
+
+---
+
+## 1. 배경과 문제의식
+
+논문이 잡은 문제는 GraphRAG의 검색 전략이 두 극단 사이에서 갈린다는 점이다. Microsoft의 GraphRAG가 대표하는 global 검색은 커뮤니티 요약을 map-reduce로 모아 전역적 질의에 답하지만, 거친 커뮤니티 단위 요약이 세밀한 국소 관련성을 희생한다. 반대로 local 검색은 밀집 벡터 검색으로 특정 엔티티 주변의 사실을 빠르게 찾지만 여러 커뮤니티를 가로지르는 질의에는 약하다. 논문은 이 대립을 "global 검색의 포괄성과 local 검색의 효율 사이의 트레이드오프"로 요약한다.
+
+여기서 파생되는 결함을 논문은 세 가지로 짚는다. 대규모 계층 그래프를 탐색하는 항해 문제, 검색 경로 최적화 문제, 그리고 exploration-exploitation 균형이다. 특히 다단계 재랭킹이 없으면 국소 최적에 갇히고(local optima trapping), 서로 다른 그래프 추상화 수준 사이가 단절된다고 본다. Deep GraphRAG는 이 결함들을 두 축, 곧 계층 검색 쪽과 지식 통합 쪽에서 각각 겨냥한다.
+
+논문이 자신을 위치짓는 선행은 Microsoft GraphRAG의 global(map-reduce) 검색, 재귀적 검색인 DRIFT Search, 그리고 HippoRAG류의 그래프 메모리 RAG다. 이들 중 global 검색과 DRIFT는 실험의 baseline으로 직접 쓰인다.
+
+![Deep GraphRAG 프레임워크 개요](/api/blog/figures/deep-graphrag-fig1-framework.png)
+*그림 1. Deep GraphRAG 프레임워크 개요. 검색 모듈은 계층 지식 그래프 위에서 Graph Beam Search와 문맥 인지 재랭킹을 수행하고, 지식 통합 모듈은 DW-GRPO로 훈련된 소형 LLM을 쓴다. 원 논문 Figure 1에서 crop. 출처: Li et al. (2026), arXiv:2601.11144.*
+
+---
+
+## 2. 계층 그래프 구성
+
+검색이 올라탈 자료 구조부터 본다. 코퍼스는 크기 $T=600$ 토큰, 겹침 $O=100$ 토큰의 슬라이딩 윈도로 청크한다. 청크에서 추출한 엔티티는 bge-m3 임베딩으로 얻은 설명 벡터의 코사인 유사도로 정합하며, 유사도가 엄격한 임계 $\tau > 0.95$를 넘는 쌍만 2차 검증 단계를 거쳐 병합한다.
+
+계층은 가중 Louvain 알고리즘을 해상도 $\gamma=1.0$으로 재귀 적용해 만든다. 이 bottom-up 과정은 그래프를 점점 거친 의미 군집으로 나누어, 아래쪽 엔티티에서 위쪽 커뮤니티로 올라가는 트리를 형성한다. 상위 커뮤니티의 표현은 하위 커뮤니티 표현의 평균으로 정의한다.
+
+$$D_{sub}(c) = \frac{1}{|C_{sub}(c)|}\sum_{c' \in C_{sub}(c)} D(c')$$
+
+여기서 $C_{sub}(c)$는 커뮤니티 $c$의 하위 커뮤니티 집합이고 $D(\cdot)$는 그 서술 벡터다. 즉 상위 노드일수록 자식들의 요약을 평균한 거친 표현을 갖고, 잎에 가까울수록 개별 엔티티의 세밀한 표현을 갖는다. 이 계층이 3장의 global→local 탐색이 좁혀 내려갈 사다리가 된다.
+
+---
+
+## 3. 계층적 global→local 3단계 검색
+
+검색은 이 계층을 위에서 아래로 통과하는 세 단계로 짜여 있다.
+
+첫째, 커뮤니티 간 필터링(inter-community filtering)이다. 거시적 위상과 국소 문맥을 이용해 탐색 공간 자체를 먼저 쳐낸다. 질의와 무관한 상위 커뮤니티 가지를 잘라 이후 단계가 볼 후보를 줄이는 단계다.
+
+둘째, 커뮤니티 수준 정제(community-level refinement)다. 살아남은 커뮤니티들 안에서 엔티티 상호작용 그래프 분석으로 관련 하위 그래프의 우선순위를 매긴다. 커뮤니티를 통째 요약해 버리는 map-reduce와 달리, 커뮤니티 안 엔티티들이 어떻게 연결되는지를 보고 어느 부분그래프가 질의에 유효한지 가린다.
+
+셋째, 엔티티 수준 세밀 검색(entity-level fine-grained search)이다. 목표 커뮤니티 안에서 개별 엔티티를 검색하고 문맥 재랭킹을 붙인다. 여기서 비로소 local 검색이 잡던 국소 사실 수준으로 내려간다.
+
+세 단계의 설계 의도는 뚜렷하다. 1단계가 global 검색의 포괄성을(넓게 보되 가지치기로 비용을 줄임), 3단계가 local 검색의 정밀함을(좁게 보되 사실 수준으로) 각각 맡고, 2단계가 둘을 잇는다. 논문이 말하는 "balanced approach"의 골자가 이 위상 배치다.
+
+---
+
+## 4. beam-search 동적 재랭킹
+
+세 단계를 관통해 후보를 고르는 것은 beam width $k=3$의 coarse-to-fine beam search다(그림 1의 도해는 $k=2$ 예시로 그려져 있으나 본문과 실험 설정은 $k=3$이다). 탐색은 계층 $C$를 위에서 아래로 훑으며, 각 수준에서 상위 $k=3$개의 후보만 남겨 다음 수준으로 내려간다. 이 상수 폭의 빔이 exploration과 exploitation의 균형을 상수 비용으로 고정하는 장치다. 폭을 좁게 두어 효율을, 매 수준에서 여러 갈래를 유지해 국소 최적 회피를 노린다.
+
+엔티티 수준의 재랭킹에는 문맥 인지 표현을 쓴다. 후보 엔티티 $v$의 표현은 자신의 국소 임베딩에 부모 커뮤니티의 벡터를 이어 붙여 동적으로 만든다.
+
+$$D_{ctx}(v) = [\,D(v)\,;\,D(c_{parent})\,]$$
+
+같은 엔티티라도 어느 커뮤니티 맥락에서 소환됐는지에 따라 순위가 달라지도록 한 것이다. 이 결합 표현이 1장에서 지적한 "서로 다른 추상화 수준 사이의 단절"을 재랭킹 단계에서 메우는 장치에 해당한다. 국소 신호(엔티티)와 전역 신호(커뮤니티)를 한 벡터에 담아 함께 순위화한다.
+
+---
+
+## 5. 지식 통합 모듈과 DW-GRPO
+
+검색이 끝나면 뽑힌 지식을 최종 생성 모델에 넘기기 전에 요약·통합하는 단계가 있다. 이 지식 통합 모듈이 논문의 두 번째 기여이며, 소형 LLM(Qwen2.5 1.5B)을 DW-GRPO로 훈련해 이 요약을 맡긴다. 훈련은 교사 모델(Qwen2.5-72B)의 증류로 지도 미세조정(SFT)을 먼저 하고, 그 위에 강화학습을 얹는 순서다.
+
+DW-GRPO의 출발은 요약 결과 $C$를 평가하는 세 보상이다. relevance는 요약이 질의 $Q$에 얼마나 답하는지를 교차 인코더 $f_{cross}$(bge-reranker-v2-m3)로 잰다.
+
+$$r_{rel} = f_{cross}(Q, C)$$
+
+faithfulness는 요약이 원 지식 $K$에 얼마나 충실한지를 BERTScore(bge-m3 기반)의 F1으로 잰다. 정답이 아니라 검색된 지식과의 의미 일치를 보는, 요약 단계의 환각을 막는 축이다.
+
+$$r_{faith} = f_{BERT}(C, K)$$
+
+conciseness는 장황함에 벌점을 주어 간결한 요약을 유도한다.
+
+$$r_{conc} = \max\!\Big(0,\; 1 - \frac{\mathrm{len}(C)}{\mathrm{len}(K)}\Big)$$
+
+세 보상은 가중합으로 묶여 $\tilde{r} = \sum_j w_j r_j$가 되고, GRPO의 방식대로 그룹 내에서 평균·표준편차로 정규화되어 이점(advantage) 추정에 쓰인다. 여기까지는 보상이 여럿인 표준 GRPO와 다르지 않다.
+
+DW-GRPO의 고유한 부분은 가중치 $w_j$를 고정하지 않고 학습 중 갱신한다는 데 있다. 각 보상의 개선 속도를 정규화한 변화율로 잡는다. 스텝 구간에서 보상 $j$의 값 범위를 $\Delta r_j$라 할 때,
+
+$$\alpha_j(t-1) = \begin{cases} 0, & \Delta r_j = 0 \\[4pt] \dfrac{\mathrm{slope}_j}{\Delta r_j}, & \text{그 외} \end{cases}$$
+
+이 변화율을 온도 $T$의 softmax에 음의 부호로 넣어 가중치를 정한다.
+
+$$w_j(t) = \frac{W\,\exp\!\big(-\alpha_j(t-1)/T\big)}{\sum_j \exp\!\big(-\alpha_j(t-1)/T\big)},\qquad W = \sum_j w_{j,0}$$
+
+$W$는 초기 가중치들의 합으로 전체 스케일을 유지한다. 음의 부호가 핵심이다. 빠르게 개선되는(변화율이 큰) 목표는 가중이 낮아지고, 정체된 목표는 가중이 높아진다. 최적화의 압력을 뒤처지는(대개 더 어려운) 목표 쪽으로 돌리는 장치다.
+
+논문이 지목하는 표준 GRPO의 실패 양상은 "seesaw 효과"다. 여러 보상을 고정 가중으로 최적화하면 모델이 쉬운 지표를 과도하게 밀어붙이고 복잡한 추론 지표를 희생한다. DW-GRPO는 개선 속도에 따라 가중을 재분배해 이 시소를 억제하며, 저자들은 세 지표 모두에서 지속적 개선이 이어졌다고 보고한다.
+
+![GRPO와 DW-GRPO의 보상 학습 곡선 비교](/api/blog/figures/deep-graphrag-fig3-reward-curves.png)
+*그림 2. 테스트 데이터에서 GRPO와 DW-GRPO의 평활화된 보상 학습 곡선 비교. 표준 GRPO는 쉬운 지표에 치우치는 seesaw 양상을, DW-GRPO는 세 지표에 걸친 지속적 개선을 보인다. 원 논문 Figure 3에서 crop. 출처: Li et al. (2026), arXiv:2601.11144.*
+
+---
+
+## 6. 실험 설계
+
+평가는 Natural Questions(Kwiatkowski et al., 2019)와 HotpotQA(Yang et al., 2018) 두 데이터셋에서 이뤄진다. 논문은 질문을 세 유형으로 나눈다. LQ(Local Questions)는 직접 연결된 1–2개 엔티티 노드로 답할 수 있는 특정 사실 질의, GQ(Global Questions)는 둘 이상의 엔티티를 가로지르는(흔히 서로 다른 커뮤니티에 걸친) 추론 질의, CQ(Comprehensive Questions)는 국소 사실과 전역 집계 문맥을 함께 요구하는 복합 질의다. 이 삼분법이 결과 해석의 축이다. global·local 검색이 각각 어느 유형에서 무너지는지를 드러내려는 설계다.
+
+baseline은 세 가지다. Local Search(LS)는 모든 엔티티 노드에 대한 표준 밀집 벡터 검색, Global Search(GS)는 Microsoft GraphRAG의 map-reduce 요약 전략, DRIFT Search(DS)는 재귀적 검색이다. 지표는 세 유형별 Exact Match(EM-LQ, EM-GQ, EM-CQ)와 전체(EM-Total), 그리고 지연시간이다. 생성 모델은 Qwen2.5 72B와 DeepSeek-R1 두 가지를 각각 붙여 본다. 지식 통합 단계에는 Qwen2.5 72B, 훈련 전 Qwen2.5 1.5B, DW-GRPO로 훈련한 Qwen2.5 1.5B를 갈아 끼워 통합 모델의 영향을 분리한다.
+
+---
+
+## 7. 결과
+
+표 1은 NQ와 HotpotQA에서 생성 모델을 Qwen2.5 72B로 고정했을 때의 EM(%)이다.
+
+| 데이터셋 | Method (통합 모델) | EM-LQ | EM-GQ | EM-CQ | EM-Total |
+| --- | --- | ---: | ---: | ---: | ---: |
+| NQ | Local Search (72B) | 41.32 | 16.58 | 16.10 | 30.13 |
+| NQ | Global Search (72B) | 20.48 | 31.19 | 0.10 | 22.63 |
+| NQ | DRIFT Search (72B) | 42.43 | 54.15 | 14.70 | 42.78 |
+| NQ | **Deep GraphRAG (72B)** | **45.36** | **55.08** | 14.70 | **44.69** |
+| NQ | Deep GraphRAG (1.5B, 훈련 전) | 24.00 | 28.00 | 3.00 | 21.64 |
+| NQ | Deep GraphRAG (1.5B-DW GRPO) | 44.80 | 54.00 | 13.00 | 42.36 |
+| HotpotQA | Local Search (72B) | 59.25 | 10.63 | 6.19 | 38.22 |
+| HotpotQA | Global Search (72B) | 18.49 | 41.88 | 6.19 | 19.78 |
+| HotpotQA | DRIFT Search (72B) | 39.62 | 30.00 | 22.38 | 33.89 |
+| HotpotQA | **Deep GraphRAG (72B)** | **49.06** | **56.25** | **24.76** | **44.67** |
+| HotpotQA | Deep GraphRAG (1.5B, 훈련 전) | 18.87 | 15.00 | 2.86 | 15.97 |
+| HotpotQA | Deep GraphRAG (1.5B-DW GRPO) | 39.62 | 57.50 | 20.95 | 38.44 |
+
+먼저 baseline들의 편향이 삼분법에서 그대로 드러난다. Local Search는 LQ에 강하고(NQ 41.32, HotpotQA 59.25) GQ에서 무너진다(10–17%대). Global Search는 반대로 GQ가 상대적으로 낫고 CQ에서 거의 0에 가깝게 붕괴한다(NQ CQ 0.10, HotpotQA 6.19). Deep GraphRAG(통합 72B)는 두 극단 사이에서 유형별 편차가 작고 EM-Total에서 두 데이터셋 모두 최고다(NQ 44.69, HotpotQA 44.67). DRIFT를 EM-Total에서 앞서며(NQ 42.78 → 44.69), 특히 HotpotQA CQ에서 24.76으로 DRIFT(22.38)와 Local·Global 모두를 넘는다. 이것이 "균형"이라는 서술의 정량적 근거다.
+
+두 번째 축은 통합 모델의 경량화다. 훈련 전 1.5B는 NQ 21.64, HotpotQA 15.97로 사실상 붕괴한다. DW-GRPO 훈련 후 같은 1.5B가 NQ 42.36, HotpotQA 38.44로 올라선다. 논문은 이를 두고 1.5B-DW GRPO가 72B 성능의 94% 이상(NQ 42.36% 대 44.69%)에 이른다고 요약한다. 곧 통합이라는 하위 작업에 한해 1.5B가 72B를 대체할 수 있다는 주장이다. HotpotQA의 GQ 열은 더 나아가 1.5B-DW GRPO(57.50)가 통합 72B(56.25)를 근소하게 앞서고, 생성 모델을 DeepSeek-R1으로 바꾼 HotpotQA GQ에서도 1.5B-DW GRPO 58.13이 72B의 56.25를 앞선다.
+
+세 번째 축은 효율이다. 논문은 NQ에서 Deep GraphRAG가 DRIFT Search 대비 지연시간을 local 질문에서 86%, global 질문에서 81.6% 줄였다고 보고한다. beam width를 3으로 고정한 계층 탐색이 재귀적 DRIFT보다 방문 노드를 줄인 결과로 제시된다.
+
+![NQ에서의 시스템 지연시간 비교](/api/blog/figures/deep-graphrag-fig2-latency.png)
+*그림 3. NQ 데이터셋에서 Local Search(LS), DRIFT Search(DS), Deep GraphRAG의 시스템 처리시간(지연시간) 비교. 원 논문 Figure 2에서 crop. 출처: Li et al. (2026), arXiv:2601.11144.*
+
+---
+
+## 8. 논문의 주장과 근거 범위
+
+논문의 주장은 세 갈래이고, 각각의 근거 범위를 구분해 읽어야 한다.
+
+"검색이 global과 local의 균형을 이룬다"는 주장의 근거는 유형별 EM의 분산이다. baseline이 한 유형에서 붕괴할 때(GS의 CQ 0.10, LS의 GQ 10–17%) Deep GraphRAG는 세 유형에서 고르게 유지되고 EM-Total 최고를 찍는다. 이는 표 안에서 확인되는 실측이다. 다만 "균형"이 곧 "모든 유형 최고"를 뜻하지는 않는다. NQ CQ에서는 Deep GraphRAG(72B) 14.70이 Local Search(16.10)에 오히려 뒤진다.
+
+"1.5B가 72B에 근접한다"는 주장의 근거 범위는 좁다. 첫째, 이는 최종 답변 생성이 아니라 지식 통합이라는 하위 작업에 대한 것이다. 표의 생성 모델은 72B(또는 DeepSeek-R1)로 고정돼 있고, 갈아 끼운 것은 통합 모델뿐이다. 둘째, "94%"는 NQ 기준이다. HotpotQA에서는 1.5B-DW GRPO 38.44가 72B 44.67의 약 86%로 격차가 더 크다. 셋째, 초록은 이를 "1.5B가 70B 모델에 근접"으로 적지만 실제 대조군은 Qwen2.5 72B다. 70B는 72B를 어림한 표기로 보이며, 실험이 뒷받침하는 것은 72B 통합 모델과의 대조다.
+
+"효율 개선"의 근거는 NQ에서의 DRIFT 대비 지연 감소(86%, 81.6%)다. 감소 대상이 DRIFT라는 특정 baseline이고 데이터셋이 NQ라는 점, 그리고 절대 지연시간이 아니라 상대 감소율로 보고된다는 점을 함께 봐야 한다.
+
+---
+
+## 9. 학술적 한계와 비평
+
+논문 스스로 밝힌 한계부터 본다. CQ 유형에서 Deep GraphRAG가 모든 baseline을 이기지는 못한다. 논문은 NQ에 DeepSeek-R1을 붙였을 때 Local Search의 EM-CQ(23.20%)가 Deep GraphRAG(19.60%)보다 높은 사례를 직접 제시하고, 계층 요약이 특정 CQ 과제에 필요한 세밀한 국소 사실을 가릴 수 있다고 설명한다. global 요약과 국소 사실 보존 사이의 상충을 향후 과제로 남긴다. 이 자기 인정은 방법의 성격을 정직하게 드러낸다. 계층 요약은 넓은 맥락을 얻는 대신 세부를 뭉갠다.
+
+여기에 표 자체가 드러내는 대목을 몇 가지 덧붙일 수 있다.
+
+첫째, "1.5B ≈ 70B" 서사의 실제 주인공은 1.5B 모델이 아니라 DW-GRPO 훈련 절차다. 훈련 전 1.5B는 NQ 21.64, HotpotQA 15.97로 붕괴하며, baseline인 Local Search(NQ 30.13)에도 크게 못 미친다. 성능의 거의 전부가 SFT 증류와 DW-GRPO에서 나온다. 따라서 이 주장은 "소형 모델이 본래 충분하다"가 아니라 "72B 교사에서 증류·강화하면 통합 작업을 1.5B로 옮길 수 있다"로 읽는 것이 정확하다.
+
+둘째, 평가의 폭이 좁다. 데이터셋은 NQ와 HotpotQA 둘뿐이고, 논문은 구축된 그래프의 규모(엔티티 수, 커뮤니티 수, 계층 깊이)를 보고하지 않는다. Louvain 계층의 성패는 그래프 규모와 밀도에 민감한데, 그 규모가 명시되지 않아 방법이 어느 크기에서 이득을 내는지 가늠하기 어렵다. beam width $k=3$나 유사도 임계 $\tau>0.95$ 같은 값들도 절제(ablation) 없이 단일 설정으로 제시된다.
+
+셋째, 세 유형(LQ/GQ/CQ) 분류의 기준과 각 유형의 표본 수가 상세히 제시되지 않는다. EM-Total은 세 유형의 가중 합에 가까운데, 유형별 표본 비율에 따라 total이 크게 달라진다. 예컨대 Global Search가 GQ에서만 강하고 CQ에서 0.10으로 붕괴하는데도 NQ EM-Total이 22.63인 것은 표본 구성에 의존한다. 유형 분류가 모델의 강점을 드러내는 축인 만큼, 그 분류 자체의 신뢰도가 결과 해석의 전제가 된다.
+
+넷째, DW-GRPO의 이점은 Figure 3의 학습 곡선과 표 1의 통합 성능으로 제시되지만, 표준 GRPO로 훈련한 1.5B와 DW-GRPO로 훈련한 1.5B의 최종 EM을 나란히 놓은 정면 비교가 표 1에는 드러나지 않는다. seesaw 억제라는 메커니즘 주장은 학습 곡선(정성)에서 오고, 하류 성능 이득(정량)과의 연결은 독자가 이어 붙여야 한다.
+
+방법의 개념적 위치에서 보면, Deep GraphRAG는 계층 그래프·커뮤니티 탐색·재랭킹이라는 기성 부품을 조합하고, 여기에 DW-GRPO라는 다목적 보상 조정 기법을 얹은 시스템 논문에 가깝다. 개별 부품(Louvain 계층, beam search, 교차 인코더 재랭킹)은 새롭지 않으며, 새로움은 세 부품을 global→local 사다리로 배치한 구성과 보상 가중을 개선 속도로 재분배하는 DW-GRPO의 규칙에 있다.
+
+---
+
+## 10. 결론
+
+Deep GraphRAG는 GraphRAG의 오래된 대립, 곧 global 검색의 포괄성과 local 검색의 효율을 하나의 계층 탐색 안에서 함께 잡으려 한다. 커뮤니티 계층을 위에서 아래로 좁혀 내려가는 3단계 검색과 상수 폭 beam search가 검색 쪽을, 개선 속도로 보상 가중을 재분배하는 DW-GRPO로 훈련한 소형 통합 모델이 생성 쪽을 맡는다. NQ와 HotpotQA에서 EM-Total 기준 baseline을 앞서고, 1.5B 통합 모델이 72B에 근접하며, DRIFT 대비 지연을 크게 줄였다는 것이 저자들의 결론이다.
+
+읽을 때의 균형은 이렇다. "균형"은 세 유형에 걸친 EM의 고른 유지라는 뜻이며, 모든 유형에서의 우위는 아니다. CQ에서 계층 요약이 국소 사실을 가리는 약점은 논문 스스로 인정한다. "1.5B ≈ 72B"는 통합이라는 하위 작업에 한정된 NQ 기준 주장이고, 그 이득의 주인은 소형 모델 자체가 아니라 72B 증류와 DW-GRPO 훈련이다. 효율 개선은 특정 baseline(DRIFT)·특정 데이터셋(NQ)에서의 상대 감소율이다. 이 조건들을 붙여 읽으면, 논문의 기여는 계층 검색과 다목적 보상 조정을 결합해 GraphRAG의 트레이드오프를 완화하는 하나의 구체적 설계를 제시한 데 있다.
+
+## References
+
+Chen, J., Xiao, S., Zhang, P., Luo, K., Lian, D., & Liu, Z. (2024). *BGE M3-embedding: Multi-lingual, multi-functionality, multi-granularity text embeddings through self-knowledge distillation*. arXiv. https://arxiv.org/abs/2402.03216
+
+DeepSeek-AI. (2025). *DeepSeek-R1: Incentivizing reasoning capability in LLMs via reinforcement learning*. arXiv. https://arxiv.org/abs/2501.12948
+
+Edge, D., Trinh, H., Cheng, N., Bradley, J., Chao, A., Mody, A., Truitt, S., & Larson, J. (2024). *From local to global: A graph RAG approach to query-focused summarization*. arXiv. https://arxiv.org/abs/2404.16130
+
+Gutiérrez, B. J., Shu, Y., Gu, Y., Yasunaga, M., & Su, Y. (2024). HippoRAG: Neurobiologically inspired long-term memory for large language models. *Advances in Neural Information Processing Systems*, *37*. https://arxiv.org/abs/2405.14831
+
+Kwiatkowski, T., Palomaki, J., Redfield, O., Collins, M., Parikh, A., Alberti, C., Epstein, D., Polosukhin, I., Devlin, J., Lee, K., Toutanova, K., Jones, L., Kelcey, M., Chang, M.-W., Dai, A. M., Uszkoreit, J., Le, Q., & Petrov, S. (2019). Natural Questions: A benchmark for question answering research. *Transactions of the Association for Computational Linguistics*, *7*, 452–466. https://doi.org/10.1162/tacl_a_00276
+
+Li, Y., Yang, K., Wang, T., Chen, B., Li, B., & Mao, C. (2026). *Deep GraphRAG: A balanced approach to hierarchical retrieval and adaptive integration*. arXiv. https://arxiv.org/abs/2601.11144
+
+Shao, Z., Wang, P., Zhu, Q., Xu, R., Song, J., Bi, X., Zhang, H., Zhang, M., Li, Y. K., Wu, Y., & Guo, D. (2024). *DeepSeekMath: Pushing the limits of mathematical reasoning in open language models*. arXiv. https://arxiv.org/abs/2402.03300
+
+Yang, Z., Qi, P., Zhang, S., Bengio, Y., Cohen, W. W., Salakhutdinov, R., & Manning, C. D. (2018). HotpotQA: A dataset for diverse, explainable multi-hop question answering. *Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing*, 2369–2380. https://doi.org/10.18653/v1/D18-1259

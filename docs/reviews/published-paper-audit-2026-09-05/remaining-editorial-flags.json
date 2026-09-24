@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "ragu",
+    "findings": [
+      [
+        130,
+        "읽는 법을 정리하면:"
+      ]
+    ]
+  },
+  {
+    "slug": "goa",
+    "findings": [
+      [
+        114,
+        "읽는 법을 정리하면:"
+      ]
+    ]
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "findings": [
+      [
+        63,
+        "그러므로 이 글에서는 이 방법을 **LLM 매개 인과 경로 검색(LLM-mediated causal-path retrieval)**이라고 부르겠다. “인과 그래프를 사용한다”는 표현은 파이프라인의 목적과 프롬프트를 설명할 뿐, 그래프의 간선이 현실의 인과관계를 보증한다는 뜻은 아니다."
+      ],
+      [
+        235,
+        "특히 히트맵의 전체 최댓값은 **$k=5,s=3$의 0.842**다. 본문은 “가장 높은 값인 $k=5,s=5$가 최선의 결과”라고 서술하지만, Figure 6에서 $k=5,s=5$의 값은 0.824다. 이 글에서는 그림에 표시된 수치를 우선했다."
+      ]
+    ]
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "findings": [
+      [
+        60,
+        "포지션 페이퍼에 실험이 없다는 사실 자체는 흠이 아니다. 따라서 이 해설은 \"실험을 하지 않았다\"를 비판으로 삼지 않는다. 대신 두 가지를 본다. 형식화가 실제로 무엇을 말하게 해주는가, 그리고 형식적 주장과 조사 근거가 논문 자신의 다른 부분과 맞아떨어지는가이다."
+      ],
+      [
+        69,
+        "명칭에 관해 한 가지 짚어둔다. arXiv 초록 페이지는 제안 시스템을 \"SGH, Structured Graph Harness\"로 소개하지만, HTML 본문 초록은 \"We propose Graph Harness (Structured Graph Harness)\"로, §1은 \"we propose Graph Harness (Graph Harness)\"로 적는다. 마지막 것은 약어 치환이 깨진 흔적으로 보인다. 본문 전체에서 \"Graph Harness\"가 117회, \"SGH\"가 34회 쓰이며 둘을 같은 대상으로 혼용한다. 이 해설은 SGH로 통일한다."
+      ]
+    ]
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "findings": [
+      [
+        383,
+        "두 번째와 네 번째는 자기 결과를 스스로 좁히는 서술이고, 세 번째는 이 해설이 3.2절에서 짚은 지점을 저자들이 먼저 인정한 것이다."
+      ]
+    ]
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "findings": [
+      [
+        103,
+        "주 결과표를 좌표로 복원하면 이렇다(nDCG@5)."
+      ]
+    ]
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "findings": [
+      [
+        105,
+        "Table 1을 좌표로 복원했다. 평균 열은 다섯 벤치마크의 단순 평균으로 전 행이 맞는다."
+      ]
+    ]
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "findings": [
+      [
+        193,
+        "여기서부터는 논문이 직접 인정한 한계가 아니라 공개된 설정과 보고 방식에서 도출한 실험 설계에서 도출되는 해석이다. 83쪽 분량에 본문 표는 두 개뿐이라 주요 결과의 상당 부분이 도판과 부록에 흩어져 있다. 임상 위해의 \"though modest\"와 HealthBench의 길이보정 조건은 초록에서 빠지고, MXene 유사 물질은 §3.1.2 일부가 초록과 결론보다 더 강하게 표현한다."
+      ]
+    ]
+  }
+]

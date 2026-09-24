@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "title": "Light Graph Convolutional Collaborative Filtering With Multi-Aspect Information",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lgc-acf/original.json",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lgc-acf/original.md",
+    "evidence.md"
+  ],
+  "source_urls": [
+    "https://doi.org/10.1109/ACCESS.2021.3061915",
+    "https://www.researchgate.net/publication/349602863_Light_Graph_Convolutional_Collaborative_Filtering_With_Multi-Aspect_Information"
+  ],
+  "changes": [
+    "논문 설명 중심의 본문 유지",
+    "검토·코드 감사·출판 메타 서술을 편집 대상에서 제외",
+    "근거가 있는 실험 범위와 한계를 본문 설명으로 유지",
+    "초기 일괄 메타 초안은 증거가 불충분하여 pending으로 보류",
+    "Corrected two-cutoff protocol and averaged NDCG improvements."
+  ],
+  "uncertainties": [
+    "원문 논문 버전·표 번호는 각 본문 인용을 기준으로 확인; 후속 출판 판본과의 문장 차이는 별도 비교 대상이 아님"
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "Light Graph Convolutional Collaborative Filtering With Multi-Aspect Information",
+    "authors": [
+      "Denghua Mei",
+      "Niu Huang",
+      "Xin Li"
+    ],
+    "year": 2021,
+    "primary_url": "https://doi.org/10.1109/ACCESS.2021.3061915",
+    "doi": "10.1109/ACCESS.2021.3061915"
+  },
+  "excerpt": "LGC-ACF는 아이템 속성별 사용자–속성 그래프에서 LightGCN 표현을 학습하고 층·측면별 표현을 평균한다. 두 cutoff의 추천 결과와 속성 정보의 효과, 비교군·융합 방식의 한계를 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/lgc-acf",
+  "verified_content_sha256": "baea25604eda32981183c4d564e3bb5e97d1073ee808c7c245b1b047316ee211"
+}

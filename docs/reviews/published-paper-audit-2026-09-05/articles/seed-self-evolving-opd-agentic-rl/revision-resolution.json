@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected aggregate wins9/12 and added missing Qwen3B Search comparison."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 17272,
+  "after_chars": 17326
+}

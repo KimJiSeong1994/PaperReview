@@ -1,0 +1,38 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "How Contextual are Contextualized Word Representations? Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings",
+    "authors": [
+      "Kawin Ethayarajh"
+    ],
+    "year": 2019,
+    "primary_url": "https://aclanthology.org/D19-1006/",
+    "doi": "10.18653/v1/D19-1006",
+    "arxiv_id": "1909.00512"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-1909.00512.pdf"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/D19-1006/",
+    "https://arxiv.org/abs/1909.00512"
+  ],
+  "excerpt": "BERT·ELMo·GPT-2의 문맥 의존성과 이방성을 세 기하 측도로 분석한다. 층별 표현의 변화와 단일 정적 벡터가 설명할 수 있는 분산의 한계를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Restored title subtitle; narrowed MEV claim to a single static embedding."
+  ],
+  "uncertainties": [
+    "코사인 기반 보정의 해석은 극단적 이방성에서 제한된다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/how-contextual-are-contextualized-word-representations-review-2026",
+  "verified_content_sha256": "96081d5a350e7e3fe3875025ea58846a4065743b85116d462a36d748f26052b1"
+}

@@ -1,0 +1,20 @@
+{
+  "mode": "apply",
+  "articles": 10,
+  "total_posts": 86,
+  "other_posts_unchanged": 76,
+  "hashes": {
+    "clause-budget-aware-kg-reasoning": "15bc042b4da40429c7cf810f86b77efd530ae0e289be810303138faf37d85616",
+    "wikiprofile-empty-shelves-lost-keys": "d887c8ced48c6652c63161fbcebc5c97def75ac3c356739e442ed13be8afbfda",
+    "causal-foundation-models": "a13904f2ff8d8db7b686c116d11729730cc9af99f4efca2ec5c01c37fd6fe0f1",
+    "agent-memory-distillation": "06a78f7b2a925e94e118c6ae339741b09b4637d9486404dbfba188f2e0a3b7f3",
+    "procedural-graphs": "3156634c54448ace621daa02b4af6655e24bf1ed8a809911d06688325639cf0d",
+    "rag-vs-graphrag-systematic-evaluation": "18190bb99b47d6755d01aa13ae0c04d234d92b18e659914732ae3129e7a19c37",
+    "codenib": "514ef991896f6556a06ea6aca8188e3d74354bf9217e1ca64469c312a524d55b",
+    "incoder-32b-thinking": "1f2f8e1f772b61198388ec7aa2bc8422245edf2da2823c2fb295252af0294c47",
+    "ttpo": "f7402abc30b07f5af8f4804b4c7a53ba77b63e28a5d238022924f8b3171fa918",
+    "rsi-roadmap": "8945e74ec29d41e3cfe32b9ea4e9daf88aca90b572c7f7d01c76ffc0863d350a"
+  },
+  "backup": "/home/ubuntu/PaperReviewAgent/data/blog/backups/posts-before-recent-review-20260915T140124945725Z.json",
+  "applied_at": "2026-09-15T14:01:25.010611+00:00"
+}

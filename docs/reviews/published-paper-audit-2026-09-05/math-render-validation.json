@@ -1,0 +1,635 @@
+{
+  "articles": 62,
+  "math_count": 3236,
+  "results": [
+    {
+      "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+      "math_count": 3,
+      "figures": [
+        "/api/blog/figures/paper-figure1-dwug-eintagsfliege.png",
+        "/api/blog/figures/paper-figure2-layer-combinations-en-la-de-sv-es.png",
+        "/api/blog/figures/paper-figure3-layer-combinations-ru-no-zh.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/tahmasebi-fig1-replacement-types.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+      "math_count": 18,
+      "figures": [
+        "/api/blog/figures/giulianelli-fig1-usage-types-atom.png",
+        "/api/blog/figures/giulianelli-fig2-change-kinds.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+      "math_count": 6,
+      "figures": [
+        "/api/blog/figures/montanelli-fig1-workflow.png",
+        "/api/blog/figures/montanelli-fig2-cluster-composition.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "statistically-significant-detection-linguistic-change-review-2026",
+      "math_count": 23,
+      "figures": [
+        "/api/blog/figures/kulkarni-fig1-semantic-space.png",
+        "/api/blog/figures/kulkarni-fig6-change-point.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "dynamic-word-embeddings-dsg-review-2026",
+      "math_count": 44,
+      "figures": [
+        "/api/blog/figures/bamler-fig1-drifting-words.png",
+        "/api/blog/figures/bamler-fig6-predictive-likelihood.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+      "math_count": 11,
+      "figures": [
+        "/api/blog/figures/ethayarajh-fig1-anisotropy.png",
+        "/api/blog/figures/ethayarajh-fig2-self-similarity.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+      "math_count": 37,
+      "figures": [
+        "/api/blog/figures/twec-fig1-compass.png",
+        "/api/blog/figures/twec-fig3-accuracy-over-time.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+      "math_count": 10,
+      "figures": [
+        "/api/blog/figures/hamilton-fig1-semantic-change-trajectory.png",
+        "/api/blog/figures/hamilton-fig2-two-laws.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+      "math_count": 30,
+      "figures": [
+        "/api/blog/figures/dcwe-fig2-architecture.png",
+        "/api/blog/figures/dcwe-fig4-social-spread.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "structural-deep-network-embedding-sdne-review-2026",
+      "math_count": 11,
+      "figures": [
+        "/api/blog/figures/sdne-fig1-proximity-counts.png",
+        "/api/blog/figures/sdne-fig2-framework.png",
+        "/api/blog/figures/sdne-fig3-reconstruction-precision.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/gnnplus-fig1-tasks.png",
+        "/api/blog/figures/gnnplus-fig2-architecture.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "llm-based-social-simulations-require-boundary-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/boundary-fig1-claims.png",
+        "/api/blog/figures/boundary-tab1-review.png",
+        "/api/blog/figures/boundary-fig2-guessing.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+      "math_count": 11,
+      "figures": [
+        "/api/blog/figures/papg-fig1-distributions.png",
+        "/api/blog/figures/papg-fig2-framework.png",
+        "/api/blog/figures/papg-fig3-scatter.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+      "math_count": 20,
+      "figures": [
+        "/api/blog/figures/dw2v-fig1-trajectories.png",
+        "/api/blog/figures/dw2v-fig2-presidents.png",
+        "/api/blog/figures/dw2v-fig3-events.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+      "math_count": 52,
+      "figures": [
+        "/api/blog/figures/dbe-fig1-intelligence.png",
+        "/api/blog/figures/dbe-fig2-graphical-model.png",
+        "/api/blog/figures/dbe-fig3-iraq.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "heterogeneous-graph-attention-network-han-review-2026",
+      "math_count": 73,
+      "figures": [
+        "/api/blog/figures/han-fig1-metapath.png",
+        "/api/blog/figures/han-fig2-architecture.png",
+        "/api/blog/figures/han-fig3-aggregation.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+      "math_count": 62,
+      "figures": [
+        "/api/blog/figures/hetgnn-fig1-challenges.png",
+        "/api/blog/figures/hetgnn-fig2-architecture.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "deepwalk-online-learning-social-representations-review-2026",
+      "math_count": 41,
+      "figures": [
+        "/api/blog/figures/deepwalk-fig1-karate.png",
+        "/api/blog/figures/deepwalk-fig2-powerlaw.png",
+        "/api/blog/figures/deepwalk-fig3-overview.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "graph-attention-networks-gat-review-2026",
+      "math_count": 30,
+      "figures": [
+        "/api/blog/figures/gat-fig1-attention.png",
+        "/api/blog/figures/gat-fig2-tsne.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+      "math_count": 51,
+      "figures": [
+        "/api/blog/figures/gin-fig1-wl-framework.png",
+        "/api/blog/figures/gin-fig2-aggregator-ranking.png",
+        "/api/blog/figures/gin-fig3-failure-cases.png",
+        "/api/blog/figures/gin-fig4-training-accuracy.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+      "math_count": 50,
+      "figures": [
+        "/api/blog/figures/graphsage-sample-aggregate-paperbanana-v2.png",
+        "/api/blog/figures/graphsage-fig1-sample-aggregate-padded.png",
+        "/api/blog/figures/graphsage-timing-sampling-blog.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+      "math_count": 51,
+      "figures": [
+        "/api/blog/figures/gcn-full-training-flow-paperbanana-v3-white.png",
+        "/api/blog/figures/gcn-fig1-architecture-tsne.png",
+        "/api/blog/figures/gcn-fig2-training-time.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/gnnexplainer-fig1-overview.png",
+        "/api/blog/figures/gnnexplainer-fig2-computation-mask.png",
+        "/api/blog/figures/gnnexplainer-fig6-prototype.png",
+        "/api/blog/figures/gnnexplainer-table1-synthetic-results.png",
+        "/api/blog/figures/gnnexplainer-fig3-synthetic-explanations.png",
+        "/api/blog/figures/gnnexplainer-fig4-realworld-explanations.png",
+        "/api/blog/figures/gnnexplainer-fig5-feature-importance.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/tgnn-infoflow-fig1-overview.png",
+        "/api/blog/figures/tgnn-infoflow-fig4-etgnn.png",
+        "/api/blog/figures/tgnn-infoflow-fig6-er-definitions.png",
+        "/api/blog/figures/tgnn-infoflow-fig8-infection.png",
+        "/api/blog/figures/tgnn-infoflow-fig11-attacker.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+      "math_count": 0,
+      "figures": [
+        "/api/blog/figures/skillopt-fig1-overview.png",
+        "/api/blog/figures/skillopt-fig2-pipeline.png",
+        "/api/blog/figures/skillopt-fig3-epoch-trends.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "seed-self-evolving-opd-agentic-rl",
+      "math_count": 36,
+      "figures": [
+        "/api/blog/figures/seed-pipeline.png",
+        "/api/blog/figures/seed-results.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "rome-causal-tracing",
+      "math_count": 42,
+      "figures": [
+        "/api/blog/figures/rome-fig1-causal-trace.png",
+        "/api/blog/figures/rome-fig2-aie-two-sites.png",
+        "/api/blog/figures/rome-fig3-mlp-attention-severed.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "structural-probe",
+      "math_count": 66,
+      "figures": [
+        "/api/blog/figures/structural-probe-tab1-results.png",
+        "/api/blog/figures/structural-probe-fig2-min-spanning-trees.png",
+        "/api/blog/figures/structural-probe-fig5-rank.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "gqml-graphs",
+      "math_count": 267,
+      "figures": [
+        "/api/blog/figures/gqml-graphs-fig1-toolbox.png",
+        "/api/blog/figures/gqml-graphs-fig2-symmetric-group-action.png",
+        "/api/blog/figures/gqml-graphs-fig3-symmetrization.png",
+        "/api/blog/figures/gqml-graphs-fig4-pretraining.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "is-attention-interpretable",
+      "math_count": 29,
+      "figures": [
+        "/api/blog/figures/is-attention-interpretable-fig1-erasure-method.png",
+        "/api/blog/figures/is-attention-interpretable-fig3-deltajs-scatter.png",
+        "/api/blog/figures/is-attention-interpretable-fig5-fraction-removed.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "lgc-acf",
+      "math_count": 45,
+      "figures": [
+        "/api/blog/figures/lgc-acf-fig1-toy-example.png",
+        "/api/blog/figures/lgc-acf-fig2-architecture.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "coevot",
+      "math_count": 66,
+      "figures": [
+        "/api/blog/figures/coevot-fig1-comparison.png",
+        "/api/blog/figures/coevot-fig2-framework.png",
+        "/api/blog/figures/coevot-fig6-tsne.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "deep-graphrag",
+      "math_count": 35,
+      "figures": [
+        "/api/blog/figures/deep-graphrag-fig1-framework.png",
+        "/api/blog/figures/deep-graphrag-fig3-reward-curves.png",
+        "/api/blog/figures/deep-graphrag-fig2-latency.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "lightgcn",
+      "math_count": 87,
+      "figures": [
+        "/api/blog/figures/lightgcn-fig1-ngcf-ablation.png",
+        "/api/blog/figures/lightgcn-fig2-architecture.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "ragu",
+      "math_count": 4,
+      "figures": [
+        "/api/blog/figures/ragu-fig1-language-world-hypothesis.png",
+        "/api/blog/figures/ragu-fig2-pipeline.png",
+        "/api/blog/figures/ragu-fig3-crossover.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "goa",
+      "math_count": 24,
+      "figures": [
+        "/api/blog/figures/goa-fig1-moa-vs-goa.png",
+        "/api/blog/figures/goa-fig2-pipeline.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "hgnn",
+      "math_count": 136,
+      "figures": [
+        "/api/blog/figures/hgnn-fig2-graph-vs-hypergraph.png",
+        "/api/blog/figures/hgnn-fig4-hyperedge-conv.png",
+        "/api/blog/figures/hgnn-fig3-framework.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "causalrag-causal-graph-retrieval",
+      "math_count": 40,
+      "figures": [
+        "/api/blog/figures/causalrag-fig2-architecture.png",
+        "/api/blog/figures/causalrag-fig3-main-results.png",
+        "/api/blog/figures/causalrag-fig4-case-study.png",
+        "/api/blog/figures/causalrag-fig6-parameter-study.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+      "math_count": 21,
+      "figures": [
+        "/api/blog/figures/hipporag-fig1-knowledge-integration.png",
+        "/api/blog/figures/hipporag-fig2-methodology.png",
+        "/api/blog/figures/hipporag-fig4-indexing-subgraph.png",
+        "/api/blog/figures/hipporag-fig5-ppr-retrieval.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "lightrag-dual-level-graph-rag",
+      "math_count": 22,
+      "figures": [
+        "/api/blog/figures/lightrag-fig1-architecture.png",
+        "/api/blog/figures/lightrag-fig3-retrieval-example.png",
+        "/api/blog/figures/lightrag-table1-win-rates.png",
+        "/api/blog/figures/lightrag-fig2-cost.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+      "math_count": 46,
+      "figures": [
+        "/api/blog/figures/leanrag-fig1-comparison.png",
+        "/api/blog/figures/leanrag-fig2-framework.png",
+        "/api/blog/figures/leanrag-table1-scores.png",
+        "/api/blog/figures/leanrag-fig3-retrieval-tokens.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+      "math_count": 39,
+      "figures": [
+        "/api/blog/figures/hugrag-fig1-comparison.png",
+        "/api/blog/figures/hugrag-fig2-pipeline.png",
+        "/api/blog/figures/hugrag-table3-holisqa.png",
+        "/api/blog/figures/hugrag-fig3-ablation.png",
+        "/api/blog/figures/hugrag-fig4-scalability.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "ms-graphrag-global-query-focused-summarization",
+      "math_count": 23,
+      "figures": [
+        "/api/blog/figures/graphrag-fig1-pipeline.png",
+        "/api/blog/figures/graphrag-fig3-self-reflection.png",
+        "/api/blog/figures/graphrag-fig4-communities.png",
+        "/api/blog/figures/graphrag-fig2-head-to-head.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "hipporag2-from-rag-to-memory",
+      "math_count": 11,
+      "figures": [
+        "/api/blog/figures/paper-fig1-memory-dimensions.png",
+        "/api/blog/figures/paper-fig2-methodology.png",
+        "/api/blog/figures/paper-fig5-pipeline-example.png",
+        "/api/blog/figures/paper-fig3-corpus-expansion.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "knowledge-graph-prompting-multi-document-qa",
+      "math_count": 14,
+      "figures": [
+        "/api/blog/figures/kgp-fig2-question-types.png",
+        "/api/blog/figures/kgp-fig3-kg-construction.png",
+        "/api/blog/figures/kgp-fig5-kg-quality.png",
+        "/api/blog/figures/kgp-fig4-traversal-agent.png",
+        "/api/blog/figures/kgp-fig7-sensitivity-scale.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+      "math_count": 94,
+      "figures": [
+        "/api/blog/figures/pig-gnn-fig1-pipeline.jpg",
+        "/api/blog/figures/pig-gnn-fig5-dual-graph.jpg",
+        "/api/blog/figures/pig-gnn-fig6-architecture.jpg",
+        "/api/blog/figures/pig-gnn-fig8-physics-loss.jpg",
+        "/api/blog/figures/pig-gnn-fig7-prior-calibration.jpg",
+        "/api/blog/figures/pig-gnn-fig9-performance.jpg",
+        "/api/blog/figures/pig-gnn-fig12-regimes.jpg"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+      "math_count": 165,
+      "figures": [
+        "/api/blog/figures/neurogravity-fig2-architecture.png",
+        "/api/blog/figures/neurogravity-fig3-reconstruction.png",
+        "/api/blog/figures/neurogravity-fig4-embeddings.png",
+        "/api/blog/figures/neurogravity-fig5-transfer.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+      "math_count": 92,
+      "figures": [
+        "/api/blog/figures/linearrag-fig1-three-paradigms.png",
+        "/api/blog/figures/linearrag-fig2-graphrag-degradation.png",
+        "/api/blog/figures/linearrag-fig3-pipeline.png",
+        "/api/blog/figures/linearrag-fig4-ablation.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+      "math_count": 82,
+      "figures": [
+        "/api/blog/figures/skillsmith-fig1-pipeline-architecture.png",
+        "/api/blog/figures/skillsmith-fig3-csni-elo.png",
+        "/api/blog/figures/skillsmith-fig5-mmluprox-elo.png",
+        "/api/blog/figures/skillsmith-fig7-generalization-splits.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "cic-dynamical-causality-under-invisible-confounders",
+      "math_count": 229,
+      "figures": [
+        "/api/blog/figures/cic-fig5-framework.png",
+        "/api/blog/figures/cic-fig1-three-node-benchmark.png",
+        "/api/blog/figures/cic-fig3-real-world-networks.png",
+        "/api/blog/figures/cic-fig4-circadian-network.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+      "math_count": 317,
+      "figures": [
+        "/api/blog/figures/pcm-fig1-direct-vs-indirect.png",
+        "/api/blog/figures/pcm-fig2-pcm-principle.png",
+        "/api/blog/figures/pcm-fig3-benchmark-comparison.png",
+        "/api/blog/figures/pcm-fig4-real-world-networks.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "loongreflect-long-horizon-reflection-search-agents",
+      "math_count": 61,
+      "figures": [
+        "/api/blog/figures/loongreflect-fig1-motivation.png",
+        "/api/blog/figures/loongreflect-fig2-framework.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+      "math_count": 123,
+      "figures": [
+        "/api/blog/figures/sgh-fig2-scheduler-continuum.png",
+        "/api/blog/figures/sgh-fig1-bugfix-dag.png",
+        "/api/blog/figures/sgh-fig3-three-layer.png",
+        "/api/blog/figures/sgh-fig4-node-state-machine.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+      "math_count": 17,
+      "figures": [
+        "/api/blog/figures/ppe-fig1-workflow.png",
+        "/api/blog/figures/ppe-fig3-nigeria-foodsec.png",
+        "/api/blog/figures/ppe-fig2-ebola-5fold.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+      "math_count": 119,
+      "figures": [
+        "/api/blog/figures/mragent-fig2-passive-vs-active.png",
+        "/api/blog/figures/mragent-fig4-framework.png",
+        "/api/blog/figures/mragent-fig5-ablation.png",
+        "/api/blog/figures/mragent-fig6-multiturn.png",
+        "/api/blog/figures/mragent-fig9-depth-vs-budget.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "colpali-efficient-document-retrieval-vision-language-models",
+      "math_count": 11,
+      "figures": [
+        "/api/blog/figures/colpali-fig1-overview.png",
+        "/api/blog/figures/colpali-fig2-indexing.png",
+        "/api/blog/figures/colpali-fig3-ablation.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+      "math_count": 30,
+      "figures": [
+        "/api/blog/figures/wikiskill-fig2-framework.png",
+        "/api/blog/figures/wikiskill-fig3-case.png",
+        "/api/blog/figures/wikiskill-fig1-overview.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+      "math_count": 3,
+      "figures": [],
+      "errors": []
+    },
+    {
+      "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+      "math_count": 35,
+      "figures": [
+        "/api/blog/figures/timesfm-fig1-arch.png",
+        "/api/blog/figures/timesfm-fig3-ablation.png",
+        "/api/blog/figures/timesfm-fig2-results.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+      "math_count": 125,
+      "figures": [
+        "/api/blog/figures/iba-fig2-ig.png",
+        "/api/blog/figures/iba-fig3-overview.png",
+        "/api/blog/figures/iba-fig7-hit5.png"
+      ],
+      "errors": []
+    },
+    {
+      "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+      "math_count": 46,
+      "figures": [
+        "/api/blog/figures/frm-fig3-fpf.png",
+        "/api/blog/figures/frm-fig1-overview.png",
+        "/api/blog/figures/frm-fig5-frontier.png",
+        "/api/blog/figures/frm-fig6-convergence.png"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Partial cross mapping eliminates indirect causal influences",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/pcm/pcm-deep-review.md",
+      "score": 1.3,
+      "title": "Partial cross mapping eliminates indirect causal influences"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/10-causal-mediation-gender-bias/causal-mediation-gender-bias-deep-review.md",
+      "score": 0.229,
+      "title": "Causal Mediation for Gender Bias 심층 분석: GPT-2의 편향을 head와 neuron의 경로 효과로 분해하기"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/18-rome-causal-tracing/rome-causal-tracing-deep-review.md",
+      "score": 0.229,
+      "title": "ROME와 Causal Tracing 심층 분석: GPT의 사실 연상을 어디에 저장하고 어떻게 바꾸는가"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

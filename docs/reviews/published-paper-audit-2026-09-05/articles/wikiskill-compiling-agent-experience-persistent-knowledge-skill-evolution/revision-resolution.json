@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected authors and removed reviewer workflow; bounded acceptance-rate inference."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 24996,
+  "after_chars": 24661
+}

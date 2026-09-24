@@ -1,0 +1,37 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2606.06036 (§§2–5 and theorem appendix)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2606.06036",
+    "https://arxiv.org/html/2606.06036"
+  ],
+  "paper_metadata": {
+    "title": "Memory is Reconstructed, Not Retrieved: Graph Memory for LLM Agents",
+    "authors": [
+      "Shuo Ji",
+      "Yibo Li",
+      "Bryan Hooi"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2606.06036",
+    "arxiv_id": "2606.06036v1"
+  },
+  "excerpt": "MRAgent는 Cue–Tag–Content 기억 그래프에서 LLM이 중간 증거를 바탕으로 다음 탐색 행동을 고르는 능동적 memory reconstruction을 제안해, 고정 top-k 검색을 다단계 증거 수집으로 확장한다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Bounded cost comparison to four baselines and removed current-code audit."
+  ],
+  "uncertainties": [
+    "The active/passive theoretical separation is defined for the paper's memory access setting."
+  ],
+  "figure_preservation": {
+    "expected": 5,
+    "preserved": 5,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+  "verified_content_sha256": "452203631871f81ac74e3cd0d8ee29c577900641113483090b3eee3c91df0023"
+}

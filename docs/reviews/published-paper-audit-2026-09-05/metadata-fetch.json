@@ -1,0 +1,387 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "id": "2402.12011",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2402.12011.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "id": "1811.06278",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1811.06278.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "id": "2004.14118",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2004.14118.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "id": "2304.01666",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2304.01666.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "id": "1411.3315",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1411.3315.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "id": "1702.08359",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1702.08359.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "id": "1909.00512",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1909.00512.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "id": "1906.02376",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1906.02376.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "id": "1605.09096",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1605.09096.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "id": "2010.12684",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2010.12684.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "id": "2502.09263v3",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2502.09263v3.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "id": "2506.19806v3",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2506.19806v3.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "id": "2509.10127v2",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2509.10127v2.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "id": "1703.00607",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1703.00607.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "id": "1703.08052",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1703.08052.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "id": "1903.07293",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1903.07293.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "id": "1403.6652",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1403.6652.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "id": "1710.10903",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1710.10903.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "id": "1810.00826",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1810.00826.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "id": "1706.02216",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1706.02216.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "id": "1609.02907",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1609.02907.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "id": "1903.03894v4",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1903.03894v4.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "id": "2606.27201v2",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2606.27201v2.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "id": "2605.23904",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2605.23904.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "id": "2607.14777v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.14777v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "id": "2202.05262",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2202.05262.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gqml-graphs",
+    "id": "2607.00698",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.00698.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "coevot",
+    "id": "2607.14114v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.14114v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deep-graphrag",
+    "id": "2601.11144",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2601.11144.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightgcn",
+    "id": "2002.02126",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2002.02126.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ragu",
+    "id": "2607.11683",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.11683.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "goa",
+    "id": "2604.17148",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2604.17148.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hgnn",
+    "id": "1809.09401",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/1809.09401.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "id": "2503.19878",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2503.19878.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "id": "2405.14831",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2405.14831.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "id": "2410.05779",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2410.05779.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "id": "2508.10391",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2508.10391.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "id": "2602.05143v2",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2602.05143v2.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "id": "2404.16130",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2404.16130.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "id": "2502.14802",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2502.14802.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "id": "2308.11730",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2308.11730.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "id": "2604.23678",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2604.23678.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "id": "2510.10114v4",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2510.10114v4.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "id": "2607.27497",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.27497.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "id": "2408.05584v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2408.05584v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "id": "2608.11967",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2608.11967.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "id": "2604.11378",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2604.11378.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "id": "2608.26088v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2608.26088v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "id": "2606.06036v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2606.06036v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "id": "2407.01449",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2407.01449.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "id": "2608.27454",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2608.27454.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "id": "2608.26701",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2608.26701.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "id": "2310.10688v4",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2310.10688v4.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "id": "2607.12425v1",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2607.12425v1.abs.html",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "id": "2606.29150v3",
+    "path": "docs/reviews/published-paper-audit-2026-09-05/sources/2606.29150v3.abs.html",
+    "exit_code": 0,
+    "error": ""
+  }
+]

@@ -1,0 +1,271 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "title": "A Systematic Comparison of Contextualized Word Embeddings for Lexical Semantic Change",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "figures": [
+      "/api/blog/figures/paper-figure1-dwug-eintagsfliege.png",
+      "/api/blog/figures/paper-figure2-layer-combinations-en-la-de-sv-es.png",
+      "/api/blog/figures/paper-figure3-layer-combinations-ru-no-zh.png"
+    ],
+    "primary_header": "# A Systematic Comparison of Contextualized Word Embeddings for Lexical Semantic Change\n\n**Paper:** Periti, F., & Tahmasebi, N. (2024). *A Systematic Comparison of Contextualized Word Embeddings for Lexical Semantic Change*. NAACL 2024, 4262–4282. [ACL Anthology](https://aclanthology.org/2024.naacl-long.240/) · [DOI](https://doi.org/10.18653/v1/2024.naacl-long.240) · [arXiv:2402.12011](https://arxiv.org/abs/2402.12011) · [Official code](https://github.com/FrancescoPeriti/CSSDetection)\n\n**Abstract:** Periti와 Tahmasebi의 NAACL 2024 논문은 contextualized embedding 기반 lexical semantic change(LSC) 탐지법을 같은 조건에서 비교한다. `XL-LEXEME + APD`가 평균 GCD 상관에서 가장 높은 값을 냈지만, 이 순위만으로 논문의 의미가 끝나지는 않는다. 저자들은 사용례 수준 판단(WiC), 의미 군집(WSI), 단어별 변화량 순위(GCD)를 따로 채점해, 변화 순위를 잘 맞히는 모델이 의미 구조까지 제대로 복원한다고 볼 수 없음을 드러낸다. 이 글에서는 원논문의 절과 표를 따라 방법과 수치를 확인하고, GPT-4 비교·층 선택·다언어 전처리에 남은 한계까지 짚는다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n|---|---|\n| 연구 질문 | 서로 다른 contextualized embedding과 LSC 방법을 같은 조건에서 비교하면 무엇이 강하며, 그 모델은 사람의 사용례 판단과 의미 군집도 재현하는가? |\n| 핵심 기여 | 8개 언어 벤치마크의 표준 GCD를 통제된 절차로 비교하고, 별도의 계산 주석자(computational annotator) 실험에서 WiC·WSI·GCD를 분리 평가했다. |\n| 방법적 결과 | 이 실험 설정에서는 형태 기반(form-based) 방법인 APD가 표준 GCD에서 가장 높았고, WiC 지도 신호를 받은 XL-LEXEME가 비교한 네 인코더 중 가장 높은 보고값을 냈다. |\n| 대표 수치 | XL-LEXEME+APD의 표준 GCD `Avgw`는 **.751**이다. 이는 11개 벤치마크-시기 비교의 표적어 수로 가중한 점추정치다. 계산 주석자 평가에서 XL-LEXEME는 WiC **.568**, WSI **ARI .339 / PUR .810**, GCD **.754**를 기록했다(저자 보고, Tables 1–2). |\n| 핵심 한계 | 동일 처리와 언어별 최적 처리는 다르다. 토크나이저와 문맥 절단(truncation)의 영향은 평가되지 않았고, GPT-4 비교는 영어에만 수행됐으며 정확한 API 모델 식별자와 접근 시점이 논문에 고정돼 있지 않다. |\n\n---\n\n## 목차\n\n1. 왜 이 비교가 필요했나\n2. 예비 지식: WiC, WSI, GCD\n3. 논문의 비교 프레임워크\n4. 동일 조건이 통제한 것과 남겨 둔 것\n5. 실험 결과\n6. 결과를 할인해서 읽어야 하는 이유\n7. 실용적인 평가 체크리스트\n8. 함께 읽을 관련 연구 방향\n9. 결론\n\n---\n\n## 1. 왜 이 비교가 필요했나\n\nLexical semantic change detect",
+    "status": "pending"
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "title": "Survey of Computational Approaches to Lexical Semantic Change",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/survey-computational-approaches-lexical-semantic-change-review-2026",
+    "figures": [
+      "/api/blog/figures/tahmasebi-fig1-replacement-types.png"
+    ],
+    "primary_header": "# Tahmasebi 2019 서베이 심층 분석: \"Survey of Computational Approaches to Lexical Semantic Change\" 해설\n\n**Paper:** Tahmasebi, Nina; Borin, Lars; Jatowt, Adam. (2021). \"Survey of Computational Approaches to Lexical Semantic Change.\" In *Computational Approaches to Semantic Change* (Chapter 1, pp. 1–91). Language Science Press. 초기 판: arXiv:1811.06278 (v1 2018 → v2 2019).\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 단어 의미의 시간적 변화를 계산적으로 다루는 흩어진 연구를 어떤 축으로 조직할 수 있는가? \"어떤 단어가 변했는가\"(변화의 유무)와 \"그 단어의 무엇이 변했는가\"(변화의 종류)라는 두 물음에 방법들이 어떻게 답하는가? |\n| 핵심 기여 | 변화 현상을 통시적 개념 변화(의미 변화: 새 의미의 획득·상실, 확대·축소)와 어휘 변화(대체: 의미 기반 대체, 같은 개체의 이름 변화, 같은 유형의 다른 사례, 시간적 유사물의 4유형)로 가르고, 계산 방법을 단어 수준(시기당 벡터 하나, 변화의 유무만)과 의미 구별(의미별 분할 후 등장·소멸 추적, 변화의 내용까지) 두 계열로 조직했다. 계산 방법을 역사언어학의 변화 유형에 정박시킨다. |\n| 방법 지형 | 단어 수준은 공기 기반·신경 임베딩(연구가 가장 몰린 갈래)·동적 임베딩·변화의 법칙·관련 기술의 다섯 갈래, 의미 구별은 주제 기반·WSI 기반·정렬 코퍼스의 세 갈래. 필드 대다수가 단어 수준에 몰려, 이론이 가르는 변화 유형(확대·축소·새 의미)을 지배적 방법이 정작 구분하지 못하는 격차가 드러난다. |\n| 평가 처방 | 필드의 병목을 정답 데이터 부재로 진단하고, 연구들이 암묵적으로 전제하는 세 가정(적용가능성·대표성·반증가능성)을 짚으며, 여덟 항목의 평가 절차(사전 시험셋 비교, 원 텍스트 확인, 외부 자원 대조, 희소 증거 검토, 유형 구분 가능성, 변화 시점 탐지, 시점 수 확장성, 판단 근거 명시)를 권한다. |\n| 핵심 한계 | 2018~2019년의 스냅숏이라 대상 방법이 모두 문맥화 이전 표현에 기반하고(BERT·ELMo·SemEval-2020 부재), 공통 벤치마크가 없어 방법 비교가 성능 순위 없는 정성 대조에 머물며, 영어 편향이 표면에 드러나되 해소되지 않는다. |\n\n**TL;DR** — (1) **Tahmasebi et al.**(Language Science Press 2021)는 통시적 의미 변화 연구를 **의미 변화 대 어휘 대체**, **단어 수준 대 의미 구별**의 두 축으로 조직한 서베이로, \"그 단어가 변했다(that)\"와 \"무엇이 변했다(what)\"라는 두 물음이 조직을 관통한다. (2) 필드의 병목을 **정답 데이터 부재**로 진단하고, 세 가정(적용가능성·대표성·반증가능성)과 여덟 항목의 평가 절차를 처방한 것이 이 서베이가 오래 남기는 값이다. (3) 다만 2018~2019년 스냅숏이라 문맥화(**BERT**) 이후의 흐름과 SemEval-2020 표준 벤치마크를 담지 못하고, 방법 비교는 성능 순위 없는 정성 대조에 머문다.\n\n---\n\n## 목차\n\n1. 서론\n2. 개념 틀: 변화를 어떻게 나누나\n3. 두 방법 계열: 단어 수준과 의미 구별\n4. 평가라는 병목\n5. 주의해서 읽을 점\n6. 서베이의 사각지대와 확장\n7. ",
+    "status": "pending"
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "title": "Analysing Lexical Semantic Change with Contextualised Word Representations",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "figures": [
+      "/api/blog/figures/giulianelli-fig1-usage-types-atom.png",
+      "/api/blog/figures/giulianelli-fig2-change-kinds.png"
+    ],
+    "primary_header": "# Giulianelli, Del Tredici & Fernández 2020 심층 분석: \"Analysing Lexical Semantic Change with Contextualised Word Representations\" 해설\n\n**Paper:** Giulianelli, Mario; Del Tredici, Marco; Fernández, Raquel. (2020). \"Analysing Lexical Semantic Change with Contextualised Word Representations.\" *Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics (ACL 2020)*, pp. 3960–3973. arXiv:2004.14118.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 한 단어를 시대별 벡터 하나로 뭉개는 정적 임베딩의 전제를 버리고, 문맥에 따라 다른 벡터를 내주는 문맥화 임베딩으로 단어의 여러 용법을 갈라 의미 변화를 비지도로 추적할 수 있는가? |\n| 핵심 기여 | 문맥화 표현(BERT)을 쓴 첫 비지도 의미 변화 접근. 코퍼스에서 대상 단어의 모든 출현을 BERT로 벡터화하고, K-평균으로 군집해 자동으로 정해지는 수의 용법 유형(usage type)을 만든 뒤, 시대별 용법 유형 분포의 변화를 잰다. 3,285개 용법 쌍에 380명의 유사도 판단을 모은 새 평가 데이터셋도 함께 내놓는다. |\n| 방법적 결과 | 세 지표를 제안한다. 엔트로피 차이 ED(다의성 폭의 증감: 양이면 광의화, 음이면 협의화), 옌센-섀넌 발산 JSD(어느 유형이 커지고 줄었는지 반영), 평균 쌍별 거리 APD(군집 없이 두 시대 벡터의 쌍별 거리 평균). 파인튜닝 없는 BERT base의 전 층 합산 벡터를 쓰고, 군집 수 K는 실루엣 점수로 [2, 10]에서 자동 선택한다. |\n| 실험 결과 | COHA(1910–2009)·GEMS 99단어에서 세 지표 모두 사람 변화 점수와 유의한 양의 스피어만 상관(ED 0.278, JSD 0.276, APD 0.285; 빈도 baseline 0.068만 비유의). 용법 유형은 다의어·동음이의어·문자/은유 용법·통사 역할을 가르고, coach의 협의화·disk의 광의화·curtain의 은유화를 짚는다. |\n| 핵심 한계 | 상관값이 같은 스피어만 척도의 선행 두 편(0.386, 0.377)보다 낮고, 셋 중 최고인 APD가 정작 중심 장치인 용법 유형 군집을 쓰지 않는다. 평가가 영어·COHA·99단어에 좁고, 용법 유형은 사전적 의미와 어긋나기도 한다(저자 자인). 임베딩 공간의 이방성도 다뤄지지 않는다. |\n\n**TL;DR** — (1) **Giulianelli et al.**(ACL 2020)은 **BERT** 용법 벡터를 K-평균으로 군집한 **용법 유형(usage type)** 분포로 의미 변화를 재는 첫 비지도 문맥화 접근으로, ED(다의성 폭)·JSD(유형 분포 변화)·APD(군집 없는 쌍별 거리) 세 지표를 제안한다. (2) COHA·GEMS 99단어에서 세 지표 모두 사람 판단과 유의한 양의 상관(약 0.28)을 보이지만 같은 척도의 선행 두 편(0.386·0.377)보다 낮고, 최고 지표 APD는 군집을 쓰지도 않는다. (3) 이 논문의 실제 값어치는 리더보드 숫자보다 해석 도구에 있다 — 용법 유형을 보면 coach의 협의화, disk의 광의화, curtain의 은유화처럼 어느 의미가 어떻게 변했는지가 눈에 짚인다.\n\n---\n\n#",
+    "status": "pending"
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "title": "A Survey on Contextualised Semantic Shift Detection",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/contextualised-semantic-shift-detection-survey-review-2026",
+    "figures": [
+      "/api/blog/figures/montanelli-fig1-workflow.png",
+      "/api/blog/figures/montanelli-fig2-cluster-composition.png"
+    ],
+    "primary_header": "# Montanelli & Periti 서베이 심층 분석: \"A Survey on Contextualised Semantic Shift Detection\" 해설\n\n**Paper:** Montanelli, Stefano; Periti, Francesco. (2024). \"A Survey on Contextualised Semantic Shift Detection.\" *ACM Computing Surveys*. doi:10.1145/3672393. arXiv:2304.01666.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | BERT·RoBERTa·ELMo처럼 출현마다 다른 벡터를 내주는 문맥화 임베딩에 기반한 의미 변화 탐지 연구를 어떤 축으로 조직할 수 있는가? 어떤 계열이 성능이 좋고, 그 대가로 무엇을 잃는가? |\n| 핵심 기여 | 문맥화 임베딩 기반 연구만 따로 모아 CSSDetection(Contextualised Semantic Shift Detection)으로 명명·정의하고, 임베딩→집계(선택적)→평가의 3단계 워크플로와 의미 표현(형태 기반/의미 기반)·시간(time-oblivious/time-aware)·학습(supervised/unsupervised)의 3차원 분류 틀로 분야를 조직했다. 정적 임베딩을 다룬 선행 서베이가 놓친 지형을 채운다. |\n| 분류 틀 | 형태 기반은 한 단어의 출현들을 의미별로 나누지 않은 채(프로토타입 평균의 CD·PRT, 집계 없는 쌍별 거리 APD) 변화 크기를 재고, 의미 기반은 출현을 의미별로 군집해 의미 분포의 변화(Jensen-Shannon 발산 등)를 재서 어느 의미가 변했는지 설명한다. time-aware 계열은 시간 정보를 모델에 직접 주입한다(Time-diff 등). |\n| 종합 결과 | SemEval-2020 Task 1·RuShiftEval·LSCDiscovery 등 등급 변화 탐지 벤치마크 종합(Table 6)에서 형태 기반 측도(APD·CD·PRT)가 의미 기반·앙상블을 대체로 앞선다. 단, 표의 값은 논문별 자기 설정 최고치이고, 단어당 점수 하나로 채점하는 테스트셋 구조가 형태 기반에 유리하다고 서베이 스스로 단서를 단다. |\n| 핵심 한계 | 성능 우위(형태)와 해석성(의미)이 갈리는 역설이 방법의 본질인지 평가 방식의 산물인지 끝까지 가르지 않고, 코사인 측도를 직접 교란하는 임베딩 공간의 이방성을 다루지 않으며, 실험 대부분이 소수의 미리 고른 대상 단어와 라틴 문자권+러시아어에 머문다. |\n\n**TL;DR** — (1) **Montanelli & Periti**(ACM Computing Surveys 2024)는 **문맥화 임베딩** 기반 의미 변화 탐지(**CSSDetection**)를 임베딩→집계→평가 워크플로와 의미 표현·시간·학습의 3차원으로 조직한 서베이다. (2) 등급 변화 탐지 벤치마크 종합에서 **형태 기반** 측도(APD·CD·PRT)가 의미 기반을 대체로 이기지만, 어느 의미가 변했는지 설명하는 해석성은 **의미 기반**에만 있다 — 성능과 해석성이 갈리는 역설이 이 분야의 중심 긴장이다. (3) 서베이 스스로 그 순위가 논문별 최고치 취합과 단어당 점수 하나로 채점하는 벤치마크 구조에 좌우된다고 단서를 달아, \"형태 기반이 정말 더 나은가\"는 열린 물음으로 남는다.\n\n---\n\n## 목차\n\n1. 서론\n2. 개념 틀: 워크플로와 3차원 분류\n3. 세 접근 계열: 형태·의미·시간\n4. 성능 비교와 트레이드오프\n5. 서베이가 그리는 다음 연구\n6. 주의해서 읽을 점\n7. 결론\n\n---\n\n## 1. 서론\n\n#",
+    "status": "pending"
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "title": "Statistically Significant Detection of Linguistic Change",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/statistically-significant-detection-linguistic-change-review-2026",
+    "figures": [
+      "/api/blog/figures/kulkarni-fig1-semantic-space.png",
+      "/api/blog/figures/kulkarni-fig6-change-point.png"
+    ],
+    "primary_header": "# Kulkarni 2015 심층 분석: \"Statistically Significant Detection of Linguistic Change\" 논문 해설\n\n**Paper:** Kulkarni, Vivek; Al-Rfou, Rami; Perozzi, Bryan; Skiena, Steven. (2015). \"Statistically Significant Detection of Linguistic Change.\" *Proceedings of the 24th International Conference on World Wide Web (WWW 2015)*, pp. 625–635. arXiv:1411.3315.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 단어의 의미가 시간에 따라 변했다는 것을 어떻게 자동으로, 그리고 우연이 아니라 통계적으로 유의하게 말할 수 있는가? 어떤 단어가 언제 변했는지를 p-value와 함께 짚을 수 있는가? |\n| 핵심 기여 | 의미 변화 탐지를 통계 검정의 문제로 세웠다. 단어마다 사용 변화를 담은 시계열을 세 방식(빈도, 품사 분포의 Jensen-Shannon 발산, 임베딩 변위)으로 만들고, 그 시계열에 변화점 탐지와 유의성 검정을 붙여 변화 시점과 p-value를 함께 낸다. |\n| 방법적 결과 | 시계열을 전체 어휘 기준 Z-score로 정규화하고, 각 후보 시점 앞뒤 평균의 차이(평균 이동, Eq. 10)를 계산한 뒤, 시점 순서를 무작위로 섞은 순열 부트스트랩(보통 1,000개)으로 귀무분포를 세워 p-value를 얻는다(Algorithm 1). 임베딩 시계열은 시기별 skip-gram을 단어별 최근접 이웃 앵커의 조각별 선형 회귀로 정렬해(Eq. 7) 초기 시점 대비 코사인 거리(Eq. 8)로 만든다. |\n| 실험 결과 | 세 코퍼스(Google Books·Amazon 리뷰·Twitter)에서 임베딩 방법이 오탐과 미탐의 균형이 가장 좋고 언어 자원 없이 가장 폭넓은 변화를 잡는다. 빈도는 오탐이 많고(인기 상승이 의미 변화로 오인), 품사는 미탐이 많다. 합성 코퍼스 MRR 평가에서 치환 확률이 0.4를 넘으면 임베딩이 다른 방법을 능가한다. |\n| 핵심 한계 | p-value가 재는 것은 구성한 대리 시계열의 시간 구조이지 의미 변화 자체가 아니고(구성 타당도 간극), 5만~10만 어휘에 다중검정 보정이 없으며, 임베딩 변위에는 정렬 잔차와 학습 잡음이 섞인다. 실제 변화의 정답이 없어 정량 평가는 합성 코퍼스 하나에 기댄다. |\n\n**TL;DR** — (1) **Kulkarni et al.**(WWW 2015)은 의미 변화 탐지를 **통계 검정**의 문제로 세워, 단어별 시계열(빈도·품사 JSD·**임베딩 변위**)에 평균 이동 통계량과 **순열 부트스트랩**을 붙여 변화 시점과 p-value를 함께 내는 **변화점 탐지** 절차를 제시한다. (2) 세 코퍼스 비교에서 임베딩 방법이 오탐·미탐 균형이 가장 좋아 gay·tape·sandy 같은 의미 이동을 잡고, 허리케인 샌디 사례로 빈도 급증(hurricane)이 의미 변화가 아님을 가른다. (3) 다만 그 유의성은 대리 시계열에 대한 것이라 의미 변화 자체의 검정이 아니고, 다중검정 보정 부재와 정렬 잔차 혼입이라는 한계가 남는다.\n\n---\n\n## 목차\n\n1. 서론\n2. 방법: 세 시계열과 변화점 검정\n3. 실험 설정\n4. 실험 결과\n5. 주의해서 읽을 점\n6. 방법적 한계와 확장\n7. 결론\n\n---\n\n## 1. 서론\n\n### 1.1 연구 배경\n\n언어는 계속 변한다. \"gay\"는 20세기 초 \"쾌활",
+    "status": "pending"
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "title": "Dynamic Word Embeddings (DSG)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-word-embeddings-dsg-review-2026",
+    "figures": [
+      "/api/blog/figures/bamler-fig1-drifting-words.png",
+      "/api/blog/figures/bamler-fig6-predictive-likelihood.png"
+    ],
+    "primary_header": "# Bamler & Mandt 2017 심층 분석: \"Dynamic Word Embeddings\" 논문 해설\n\n**Paper:** Bamler, Robert; Mandt, Stephan. (2017). \"Dynamic Word Embeddings.\" *Proceedings of the 34th International Conference on Machine Learning (ICML 2017), PMLR 70*, pp. 380–389. arXiv:1702.08359.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 시기별로 임베딩을 따로 학습해 사후에 정렬로 잇는 대신, 모든 시기를 한 번에 공동 학습해 임베딩이 시간에 따라 매끄럽게 흐르게 할 수 있는가? 그러면서 각 시기가 서로의 데이터에서 통계적 강도를 나눠, 데이터가 적은 시기도 안정적으로 세울 수 있는가? |\n| 핵심 기여 | 베이지안 skip-gram의 임베딩을 잠재 시계열로 두고 Ornstein-Uhlenbeck 확산 prior로 이어, 시대별 임베딩을 사후 정렬 문제에서 하나의 확률적 상태공간 모델(동적 skip-gram, DSG)의 공동 학습 문제로 옮겼다. 시기별 개별 학습의 세 문제(비볼록 학습의 비재현성, 시기 분할로 인한 데이터 부족, 잡음과 진짜 의미 변화의 혼동)를 공동 학습으로 우회한다. |\n| 방법적 결과 | 추론은 두 갈래다. 과거 데이터만 조건으로 쓰는 온라인 필터링(DSG-F, 칼만 필터 방식의 가우시안 폐형 갱신)과, 전 시퀀스를 조건으로 쓰는 배치 스무딩(DSG-S, 삼중대각 정밀도행렬로 인접 시점 상관을 표현). 삼중대각 Λ=BᵀB 촐레스키 분해로 스무딩의 그래디언트 계산이 시퀀스 길이에 선형인 Θ(T)가 된다. |\n| 실험 결과 | 시간 규모가 다른 세 코퍼스(Google Books T=209, State of the Union T=230, Twitter 21개 날짜)의 held-out 문서 예측 로그우도에서 순서가 일관되게 DSG-S > DSG-F > SGP ≈ SGI(정적 baseline). 개선폭은 데이터가 적은 SoU·Twitter에서 가장 크고, 궤적도 사후 정렬 방식보다 매끄럽다. |\n| 핵심 한계 | 전역 확산 상수 하나가 모든 단어의 변화 속도를 정하고(논문 스스로 인정한 한계), 가우시안 확산 prior가 급변을 완만한 곡선으로 뭉갤 수 있으며, 스무딩은 미래 정보를 과거로 흘려 인공적 조기 변화를 만들 수 있다. 정량 평가는 수치 표 없이 그림으로만 제시된 held-out 예측 로그우도 하나에 의존한다. |\n\n**TL;DR** — (1) **Dynamic Word Embeddings**(Bamler & Mandt, ICML 2017)는 베이지안 **skip-gram** 임베딩을 잠재 시계열로 두고 **Ornstein-Uhlenbeck 확산 prior**로 이어, 시대별 임베딩을 사후 정렬 없이 하나의 확률적 상태공간 모델로 공동 학습하는 동적 skip-gram(**DSG**)이다. (2) 온라인 **필터링**과 삼중대각 정밀도행렬로 시퀀스 길이 선형 비용 Θ(T)를 얻는 배치 **스무딩** 두 추론을 제시하고, 세 코퍼스의 held-out 예측 로그우도에서 DSG-S > DSG-F > 정적 baseline 순서가 일관되며 이득은 데이터가 적을수록 크다. (3) 다만 매끄러운 궤적은 확산 prior가 만든 것이라 진짜 급변을 지우거나 정보를 과거로 흘릴 수 있고, 전역 확산 상수 하나와 단일 지표 의존이라는 한계가 남는다.\n\n---\n\n## 목차\n\n1. 서론\n2. 방법: 확률적 상태공간 모델\n",
+    "status": "pending"
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "title": "How Contextual are Contextualized Word Representations?",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/how-contextual-are-contextualized-word-representations-review-2026",
+    "figures": [
+      "/api/blog/figures/ethayarajh-fig1-anisotropy.png",
+      "/api/blog/figures/ethayarajh-fig2-self-similarity.png"
+    ],
+    "primary_header": "# Ethayarajh 2019 심층 분석: \"How Contextual are Contextualized Word Representations?\" 논문 해설\n\n**Paper:** Ethayarajh, Kawin. (2019). \"How Contextual are Contextualized Word Representations? Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings.\" *Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP 2019)*, pp. 55–65. arXiv:1909.00512.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | BERT·ELMo·GPT-2 같은 문맥화 모델은 각 단어에 무한히 많은 문맥특화 표현을 주는가, 아니면 유한한 몇 개의 단어 의미 표현 중 하나를 배정할 뿐인가? 후자라면 문맥화 임베딩은 \"정적 임베딩 + 의미 선택\"으로 환원된다. |\n| 핵심 기여 | 문맥화 임베딩의 기하를 처음으로 정량화하는 세 측도(self-similarity, intra-sentence similarity, maximum explainable variance)를 정의하고, 이방성 보정으로 코사인 오판을 교정해 \"문맥화 임베딩은 정적 벡터 몇 개로 환원되지 않는다\"를 보인다. |\n| 방법적 결과 | self-similarity는 한 단어가 서로 다른 문맥에서 받는 벡터 간 평균 코사인(Eq. 1), intra-sentence similarity는 문장 안 단어 벡터와 문장 평균 벡터의 평균 코사인, MEV는 문맥별 벡터 첫 주성분의 분산 비율(Eq. 3, 정적 벡터 대체의 상한)이다. 층별 이방성 기준선(코사인 측도는 무작위 단어쌍 평균 코사인, MEV는 무작위 벡터 첫 주성분 분산)을 빼서 보정하며(Eq. 4), 기준선·측도 모두 층마다 무작위 표본 1,000개로 추정한다. ELMo(2층)·BERT-base(12층)·GPT-2(12층)를 입력층(layer 0) 포함 층별로 비교한다. |\n| 실험 결과 | 이방성 보정 후 세 모델 모두 상위층일수록 self-similarity가 낮아져 문맥특화가 커지고, 어떤 모델의 어떤 층에서도 정적 벡터 하나가 문맥별 분산의 5%를 넘게 설명하지 못한다. self-similarity 최저(문맥 최민감) 단어는 다의어가 아니라 불용어다(ELMo에서 \"and\"·\"of\"·\"'s\"·\"the\"·\"to\"). intra-sentence similarity는 모델마다 갈린다(ELMo 상위층 수렴, BERT 발산하되 무작위보다 가까움, GPT-2 무작위 수준). |\n| 핵심 한계 | 코사인에 기대는 두 측도(self-/intra-sentence similarity)의 대상 공간이 극단적으로 이방적인데 보정은 스칼라 하나를 빼는 데 그쳐 공간 왜곡을 원리적으로 되돌리지 못한다(특히 GPT-2 마지막 층은 기준선이 거의 1). MEV 5%는 상한일 뿐 정적 임베딩의 무용 증명이 아니다(하위층에서 뽑은 정적 임베딩이 일부 벤치마크에서 GloVe·fastText를 이긴다). 구조가 다른 세 모델과 SemEval 한 종류 데이터라 아키텍처 영향 분리와 일반화가 열려 있다. |\n\n**TL;DR** — (1) **Ethayarajh (2019)**는 BERT·ELM",
+    "status": "pending"
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "title": "Training Temporal Word Embeddings with a Compass (TWEC)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/training-temporal-word-embeddings-compass-twec-review-2026",
+    "figures": [
+      "/api/blog/figures/twec-fig1-compass.png",
+      "/api/blog/figures/twec-fig3-accuracy-over-time.png"
+    ],
+    "primary_header": "# TWEC 심층 분석: \"Training Temporal Word Embeddings with a Compass\" 논문 해설\n\n**Paper:** Di Carlo, Valerio; Bianchi, Federico; Palmonari, Matteo. (2019). \"Training Temporal Word Embeddings with a Compass.\" *Proceedings of the AAAI Conference on Artificial Intelligence, 33(01)*, pp. 6326–6334. arXiv:1906.02376.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 사후 정렬 단계를 아예 없애고, 학습하는 순간부터 모든 시대의 임베딩이 같은 좌표계에 태어나게 할 수 있는가? 그것을 word2vec을 크게 바꾸지 않고 작은 코퍼스에서도 안정적으로 할 수 있는가? |\n| 핵심 기여 | 정렬을 사후 단계로 두지 않고 학습 안으로 넣는다. 시대 구분을 무시한 전체 코퍼스로 CBOW를 한 번 학습해 얻은 무시대 target 행렬 U를 나침반으로 고정하고, 각 시대 슬라이스에서는 U를 동결한 채 문맥 행렬만 재학습해 모든 시대 임베딩을 사후 정렬 없이 한 좌표계에 놓는다. |\n| 방법적 결과 | 1단계에서 전체 코퍼스에 표준 CBOW를 돌려 무시대 target 행렬 U를 얻어 나침반으로 삼고, 2단계에서 각 시대 슬라이스마다 U를 초기화·동결한 채 시대별 문맥 행렬만 최적화한다(Eq. 1, 소프트맥스는 negative sampling으로 근사). 최종 시대별 단어 벡터로 반환되는 것은 나침반 U가 아니라 시대별 문맥 행렬이며, Skip-gram이 아닌 CBOW 위에 구현된다. |\n| 실험 결과 | 작은 코퍼스 NAC-S(T1)에서 전 지표 최고(MRR 0.481, MP@10 0.636)로 당시 최강 경쟁자 DW2V(0.422/0.619)를 앞서고, 사후 정렬 계열(TW2V 0.143·OW2V 0.135)은 데이터 희소로 붕괴한다. 큰 코퍼스 NAC-L(T2)에서는 집계 최고(0.484)지만 OW2V(0.449)·TW2V(0.444)가 바짝 따라붙어 우위가 정적 유추에 국한된다(정적 0.948 대 동적 0.367). |\n| 핵심 한계 | 집계 우위가 좌표계 공유로 쉽게 풀리는 정적 유추에 편중돼, 동적 유추에서는 사후 정렬 방법에 밀리기도 한다(대통령 범주 TW2V·OW2V 0.9905 대 TWEC 0.8833). held-out 로그가능도로는 시대를 무시한 정적 SW2V와 사실상 동률(MLPC -2.68 대 -2.67)이라 우위가 저자가 새로 도입한 posterior 지표에서 주로 나오고, 작은 코퍼스 강건성이라는 강점은 큰 코퍼스에서 거의 사라진다. |\n\n**TL;DR** — (1) **TWEC**(Di Carlo et al., AAAI 2019)는 시대 구분을 무시한 전체 코퍼스로 학습한 무시대 target 행렬 U를 나침반으로 고정하고, 각 시대 슬라이스에서 U를 동결한 채 문맥 행렬만 재학습해 사후 정렬 없이 모든 시대 임베딩을 한 좌표계에 놓는 방법이다. (2) 작은 코퍼스 NAC-S에서 시대 유추 MRR 0.481로 당시 최강 경쟁자 DW2V(0.422)를 앞서고 사후 정렬 계열은 데이터 희소로 붕괴하지만, 큰 코퍼스 NAC-L에서는 OW2V·TW2V가 바짝 따라붙어 우위가 좁아진다. (3) 그 우위조차 좌표계 공유로 쉽게 풀리는 정적 유추에 편중되고, held-out 로그가능도로는 정적 모델과 동률이라 이득은 저자가 새로 도입한 posterior 지표에서 주로 드러난다.\n\n",
+    "status": "pending"
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "title": "Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change (HistWords)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "figures": [
+      "/api/blog/figures/hamilton-fig1-semantic-change-trajectory.png",
+      "/api/blog/figures/hamilton-fig2-two-laws.png"
+    ],
+    "primary_header": "# Hamilton 2016 심층 분석: \"Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change\" 논문 해설\n\n**Paper:** Hamilton, William L.; Leskovec, Jure; Jurafsky, Dan. (2016). \"Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change.\" *Proceedings of the 54th Annual Meeting of the ACL (ACL 2016, Vol. 1: Long Papers)*, pp. 1489–1501. arXiv:1605.09096.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 빈도가 의미 변화에서 어떤 역할을 하는가, 그리고 다의성과 의미 변화는 어떤 관계인가. 어떤 단어가 얼마나 변하는지를 대규모로 재고 그 변화에 규칙이 있는지를 묻는다. |\n| 핵심 기여 | 시대별 단어 임베딩을 정렬해 의미 변화를 재는 방법론을 세우고, 그 위에서 의미 변화의 두 통계 법칙(적합·혁신)을 제안한다. |\n| 방법적 결과 | 코퍼스를 10년 단위로 나눠 시대마다 임베딩(PPMI·SVD·SGNS)을 따로 학습하고, 저차원 임베딩은 직교 Procrustes로 인접 시대를 회전 정렬한다. 직교 변환은 코사인을 보존해 시대 내부의 단어 관계를 훼손하지 않으면서 시대 사이 비교를 가능하게 한다. 한 단어의 시대 간 코사인 거리가 그 단어의 변화량이 된다. |\n| 실험 결과 | 4개 언어 6개 코퍼스에 걸쳐 두 법칙이 나온다 — 적합의 법칙(빈발어일수록 느리게 변함, β_f ∈ [−1.24, −0.30], 전 언어 음수)과 혁신의 법칙(빈도 통제 후 다의어일수록 빠르게 변함, β_d ∈ [0.08, 0.53], 양수). 발견 과제에는 SGNS를 권한다(상위 10단어 진짜 변화 비율 SGNS 70%, SVD 40%, PPMI 10%). |\n| 핵심 한계 | 빈도가 거리 추정 자체를 교란하고, 다의성 지표가 기능어를 과대평정하며, 인과는 확인할 수 없다고 적으면서도 결과를 \"법칙\"이라 부른다. |\n\n**TL;DR** — (1) Hamilton et al.(2016)은 코퍼스를 10년 단위로 나눠 시대별 임베딩을 학습하고 저차원 임베딩(SVD·SGNS)을 직교 Procrustes로 정렬해, 한 단어의 시대 간 코사인 거리로 의미 변화를 재는 방법론을 세운다(발견 과제에는 SGNS 권장, 상위 10단어 진짜 변화 비율 70% vs SVD 40%, PPMI 10%). (2) 4개 언어 6개 코퍼스의 변화량을 회귀해 두 법칙을 제시한다 — 적합의 법칙(빈발어일수록 느리게 변함, β_f ∈ [−1.24, −0.30])과 혁신의 법칙(빈도 통제 후 다의어일수록 빠르게 변함, β_d ∈ [0.08, 0.53]). (3) 다만 빈도가 거리 추정을 교란하고, 다의성 지표가 기능어를 과대평정하며, 인과를 확인할 수 없다고 적으면서도 결과를 \"법칙\"이라 부르는 취약점이 있다.\n\n---\n\n## 목차\n\n1. 서론\n2. 방법: 시대별 학습과 직교 정렬\n3. 실험 설정\n4. 실험 결과\n5. 주의해서 읽을 점\n6. 방법적 한계와 확장\n7. 결론\n\n---\n\n## 1. 서론\n\n### 1.1 연구 배경\n\n**단어의 의미**는 시간에 따라 변한다. \"gay\"는 20세기 초 \"쾌활한\"에서 \"동성애의\"로 옮겨 갔고, \"broadcast\"는 \"씨를 흩뿌리다\"에서 \"방송하다\"로, \"awful\"은 \"경외로운\"에서 \"끔찍한\"으로 바뀌었다. 아래 그림이 그 변",
+    "status": "pending"
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "title": "Dynamic Contextualized Word Embeddings (DCWE)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "figures": [
+      "/api/blog/figures/dcwe-fig2-architecture.png",
+      "/api/blog/figures/dcwe-fig4-social-spread.png"
+    ],
+    "primary_header": "# DCWE 심층 분석: \"Dynamic Contextualized Word Embeddings\" 논문 해설\n\n**Paper:** Hofmann, Valentin; Pierrehumbert, Janet B.; Schütze, Hinrich. (2021). \"Dynamic Contextualized Word Embeddings.\" *Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (ACL-IJCNLP 2021, Long Papers)*, pp. 6970–6984. arXiv:2010.12684. https://aclanthology.org/2021.acl-long.542/\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 문맥은 보지만 시간·사회에는 고정된 문맥화 임베딩(BERT)과, 시간·사회에 따라 달라지지만 문맥은 못 보는 동적 워드 임베딩을, BERT의 문맥화 능력을 해치지 않으면서 하나의 표현으로 결합할 수 있는가? |\n| 핵심 기여 | BERT에 단어를 넣기 전, 그 단어의 정적 입력 임베딩에 (누가·언제 썼는가)에 따른 오프셋 벡터를 더해 문맥화와 동적성을 하나의 통합 표현으로 봉합하고, 거기에 사회 축까지 결합한다(§1.3). |\n| 방법적 결과 | 오프셋은 단어 타입·사회·시간만의 함수(type-level)이고, 문맥화는 그 뒤 BERT 층이 맡는다(token-level). 오프셋 생성기는 시간대마다 별도 파라미터를 갖는 그래프 어텐션 신경망(GAT)과 순방향 신경망(FFN)이며, 두 개의 가우시안 prior가 오프셋을 각각 0쪽(anchoring)과 직전 시점 쪽(random-walk)으로 당겨 안정성과 시간 평활을 부여한다. |\n| 실험 결과 | 마스크 언어모델 perplexity에서 DCWE가 비동적 BERT를 유의하게 이긴 것은 8개 열 중 2개(ArXiv-Test 3.513, Reddit-Dev 9.480)뿐이고 개선폭도 각각 0.017·0.10이며, 두 열(Reddit-Test·YELP-Dev)에서는 오히려 진다. 반면 감정 분류에서는 Ciao·YELP의 Dev/Test 네 셀 모두 유의하게 앞선다(Test F1 .896/.968). |\n| 핵심 한계 | 동적화가 상위 10만 빈발어에 제한돼 신조어·희귀어의 변화를 놓치고, 차별적 신규 요소인 사회 성분은 성긴 그래프(Ciao)에서 적합을 전혀 개선하지 못한다. 평활 prior가 관찰하려는 급변과 상충하며, 주 결과는 대부분 단일 실행 점추정치로 오차막대가 없다. |\n\n**TL;DR** — (1) DCWE(Hofmann et al., ACL 2021)는 BERT에 넣기 전 단어의 정적 입력 임베딩에 시간·사회 의존 오프셋을 더해, 문맥화 임베딩과 동적 단어 임베딩을 하나의 표현으로 결합한 모델이다. (2) 마스크 언어모델 perplexity 개선은 8개 열 중 2개(ArXiv-Test 3.513, Reddit-Dev 9.480)만 유의하고 개선폭도 0.017·0.10에 그치지만, 감정 분류에서는 Ciao·YELP 네 셀 모두에서 유의하게 앞선다(Test F1 .896/.968). (3) 성능보다 \"어떤 단어가 어느 집단에서 언제 흔들렸는가\"를 재는 표현·분석 도구로서 가치가 있으며, 동적화가 상위 10만 빈발어에 갇히고 사회 성분이 성긴 그래프에서 무력해지는 한계는 감수해야 한다.\n\n--",
+    "status": "pending"
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "title": "LLM-Based Social Simulations Require a Boundary",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/llm-based-social-simulations-require-boundary-review-2026",
+    "figures": [
+      "/api/blog/figures/boundary-fig1-claims.png",
+      "/api/blog/figures/boundary-tab1-review.png",
+      "/api/blog/figures/boundary-fig2-guessing.png"
+    ],
+    "primary_header": "# LLM-Based Social Simulations Require a Boundary 심층 분석: LLM 사회시뮬레이션의 경계 논문 해설\n\n**Paper:** Wu, Zengqing; Peng, Run; Ito, Takayuki; Onizuka, Makoto; Xiao, Chuan. (2025). \"Position: LLM-Based Social Simulations Require a Boundary.\" arXiv:2506.19806v3. University of Osaka·University of Michigan·Kyoto University·Nagoya University (ICML 포지션 트랙 형식의 프리프린트 — 게재 확정 문구 없음)\n\n**Abstract:** 본 문서는 \"LLM 사회시뮬레이션이 사회과학에 기여하려면 명확한 경계가 필요하다\"는 포지션 페이퍼를 해설한다. 논문의 진단은 하나의 개념으로 압축된다. LLM 에이전트는 \"average persona\"로 수렴한다 — 모집단의 전형적 행동은 재현하지만 실제 인간 모집단의 변이는 억압한다. 이 진단을 분산(행동의 산포)과 평균(중심경향의 정렬)의 2축으로 분해하고, 시뮬레이션 연구 21편의 검증 관행을 코딩한 표(Table 1)로 뒷받침한다. 분산을 점검한 연구는 절반이 안 되고, 점검한 연구의 다수가 인간보다 낮은 분산을 보고했으며, 분산 수준에서 인간 기준선과의 일치를 주장한 연구는 한 편도 없다. 처방은 세 항이다: 검증 깊이를 연구 질문의 이질성 요구에 맞추고, 평균 정렬과 함께 분산을 명시적으로 보고하고, 분산이 모자라면 주장을 집합 수준의 정성 패턴으로 제한하라. 판별 도구로는 \"모든 에이전트를 모집단 평균으로 대체해도 내 연구 질문에 답할 수 있는가\"라는 휴리스틱을 준다. 읽을 때 주의할 점은 판본이다. 초판(v1, 4저자)의 3대 경계 문제 구조가 v3(5저자)에서 alignment 단일 축으로 재편되면서 체계적 리뷰·반대 입장 절·부록 전부가 새로 들어왔다. 위키 관점에서 이 논문은 정렬 역설 트랙의 판정론(무엇이 얼마나 어긋났는지 재는 좌표계)이고, PAPG류 입력 교정 처방의 성패를 심사하는 평가 프로토콜로 읽힌다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 논문 유형·질문 | 포지션 페이퍼. 실험 논문이 아니다. 질문: 현재 LLM 능력에서 사회시뮬레이션이 신뢰할 수 있게 뒷받침하는 연구 주장의 한계(경계)는 어디인가? |\n| 핵심 주장 | LLM 에이전트는 average persona로 수렴해 행동 이질성이 부족하고, 이는 설계 교정으로 해소되지 않는 boundary problem이다(논문의 usage/boundary 구분). 따라서 검증 요구수준과 주장 수준의 경계를 세워야 한다(§1, §4). |\n| 증거 | (a) 21편 체계적 리뷰(Table 1): ground truth(GT, 인간 기준선) 비교 14/21, 분산 점검 9/21, 점검한 9편 중 7편이 인간보다 낮은 분산, 분산 일치 주장 0편. (b) 설계요인 교차 분석(Appendix C): 페르소나·모델·온도(0.0–1.2)·규모(2~약 100만) 어느 요인도 저분산을 일관되게 설명하지 못함. (c) 자기 선행 연구의 2/3 추측 게임에서 각색 수록한 그림 1장(Figure 2). 신규 실험은 없다. |\n| 처방 | 권고 3항(검증 깊이 매칭 / 분산 명시 보고 / 집합-정성 수준으로 주장 제한) + 판별 휴리스틱(Appendix E) + 향후 권고 5항(Appendix F, 모순 감사 포함). |\n| 핵심 한계 | \"systematic review\"라 ",
+    "status": "pending"
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "title": "Population-Aligned Persona Generation for LLM-based Social Simulation",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "figures": [
+      "/api/blog/figures/papg-fig1-distributions.png",
+      "/api/blog/figures/papg-fig2-framework.png",
+      "/api/blog/figures/papg-fig3-scatter.png"
+    ],
+    "primary_header": "# Population-Aligned Persona Generation 심층 분석: LLM 사회시뮬레이션의 페르소나 셋 정렬 논문 해설\n\n**Paper:** Hu, Zhengyu; Lian, Jianxun; Xiao, Zheyuan; Xiong, Max; Lei, Yuxuan; Wang, Tianfu; Ding, Kaize; Xiao, Ziang; Yuan, Nicholas Jing; Xie, Xing. (2025). \"Population-Aligned Persona Generation for LLM-based Social Simulation.\" arXiv:2509.10127v2. HKUST·Microsoft Research Asia·Duke·Northwestern·Johns Hopkins·Microsoft (프리프린트 — 게재처 미정)\n\n**Abstract:** 본 문서는 LLM 사회시뮬레이션의 입력이 되는 페르소나 집합을 \"인구 분포에 정렬해야 할 통계적 대상\"으로 정식화한 논문을 해설한다. 출발점은 간단한 관찰이다. 페르소나 없이 LLM에게 성격 설문(IPIP Big Five)을 시키면 응답 분포가 좁게 붕괴하고, 기존 공개 페르소나 셋 6종을 붙여도 실제 인간 100만 명의 분포와 크게 어긋난다(Figure 1). 해법은 3단계다. 블로그 코퍼스에서 서사형 시드 페르소나를 채굴하고, LLM이 그 페르소나로 낸 설문 응답 분포를 인간 분포에 맞추도록 importance sampling과 entropic optimal transport로 재표집하고, 그룹 특화 질의(예: \"홍콩 주민\")에는 임베딩 검색과 LLM 재작성으로 대응한다. in-domain·out-of-domain 심리측정과 그룹 정렬(YRBSS·지역 WVS) 전 표에서 기존 셋을 이긴다. 다만 이 논문은 수치 인용에 유난히 주의가 필요하다. 시드 풀 규모가 세 곳에서 다르게 적혀 있고(16만/10만/30,738), 본문 수치와 표 수치가 어긋나는 곳이 여럿이다. 그리고 \"population-aligned\"의 population이 실제로는 영어 온라인 설문 응답자 모집단이라는 것, 정렬이 잘 되어도 WVS류 가치관 분포에서는 절대 오차가 크게 남는다는 것이 위키의 관심사(비서구 LLM 사회시뮬 타당성)에서 가장 중요하다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | LLM 사회시뮬레이션의 페르소나 집합을, 그것이 유도하는 설문 응답의 분포가 실제 인간 모집단 분포와 일치하도록 만들 수 있는가? |\n| 핵심 기여 | 페르소나 셋 구성을 분포 정렬 문제로 정식화. 시드 채굴(블로그 코퍼스 + LLM 요약·품질 필터) → 전역 정렬(KDE importance sampling + entropic OT 재표집) → 그룹 특화(대조학습 임베딩 검색 + LLM 재작성)의 3모듈. |\n| 방법적 결과 | 문항별 응답 \\(x_{ik} = \\mathrm{LLM}(\\mathrm{concat}(p_i, q_k))\\)(식 1)을 모은 응답 벡터의 경험분포를 IPIP 인간 응답 분포에 맞추는 부분집합 \\(\\mathcal{P}'\\)을 뽑는다(식 1–12). 수렴 정리 2개(Appendix G)가 붙어 있으나, 하나는 실제 파라미터에서 공허하고 하나는 실제 방법과 가정이 다르다(5장). |\n| 실험 결과 | in-domain(Table 1) 12열·OOD(Table 2) 12열·상관 구조(Table 3) 4열·그룹(Table 4) 16열 전부에서 1위. 미정렬 시드 풀(Raw)조차 Table 1 전 열에서 기존 셋을 이기고, 정렬(Resample)이 평균 오차",
+    "status": "pending"
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "title": "Dynamic Word Embeddings for Evolving Semantic Discovery (DW2V)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "figures": [
+      "/api/blog/figures/dw2v-fig1-trajectories.png",
+      "/api/blog/figures/dw2v-fig2-presidents.png",
+      "/api/blog/figures/dw2v-fig3-events.png"
+    ],
+    "primary_header": "# DW2V 심층 분석: \"Dynamic Word Embeddings for Evolving Semantic Discovery\" 논문 해설\n\n**Paper:** Yao, Zijun; Sun, Yifan; Ding, Weicong; Rao, Nikhil; Xiong, Hui. (2018). \"Dynamic Word Embeddings for Evolving Semantic Discovery.\" *Proceedings of the Eleventh ACM International Conference on Web Search and Data Mining (WSDM '18)*, pp. 673–681. https://doi.org/10.1145/3159652.3159703. arXiv:1703.00607. Data & testsets: sites.google.com/site/zijunyaorutgers\n\n**Abstract:** 본 문서는 시간에 따른 단어 임베딩을 행렬 분해로 공동 학습하는 DW2V(Dynamic Word2Vec) 논문을 해설한다. Dynamic Bernoulli Embeddings 리뷰(blog/dbe)에서 본 것과 같은 문제의식이다: 시대별로 임베딩을 따로 학습하면 좌표계가 회전만큼 어긋나 시점 간 비교가 안 되고, 사후 정렬은 데이터가 얇은 시기에서 오차를 전파한다. 이 논문의 해법은 word2vec의 행렬 분해 해석(Levy & Goldberg, 2014) 위에서, 시점별 PPMI 행렬 분해 항에 인접 시점 임베딩의 차이를 벌점화하는 평활 항을 더해 전 시점을 한 번에 최적화하는 것이다. Kulkarni·Hamilton의 2단계(정렬) 방법은 이 목적함수의 준최적 해로 포섭된다. 뉴욕타임스 27년 코퍼스에서 정렬 품질과 데이터 희소 강건성을 보였고, \"2016년의 obama에 해당하는 1997년의 단어는?\" 같은 등가어 질의라는 평가 프레임을 만들었다. 같은 해에 독립적으로 나온 확률 모델 해법(Rudolph & Blei, 2018; Bamler & Mandt, 2017)과 함께 공동 학습 노선의 창립 논문으로 읽으면 된다. 다만 평가 테스트셋이 전부 저자 구성이고, 데이터가 없는 시기의 벡터가 정칙화만으로 만들어진다는 점은 DBE와 같은 방식으로 조심해서 읽어야 한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 시대별 임베딩의 정렬 문제(회전 불변성)를 사후 처리 없이, 학습 목적함수 안에서 풀 수 있는가? |\n| 핵심 기여 | 시점별 PPMI 행렬 분해 + 인접 시점 평활 벌점의 공동 최적화(식 5). 논문 표현으로 \"main novelty는 시점 전체를 공동 학습해 별도의 정렬 문제 자체를 없애는 것\". Kulkarni·Hamilton의 2단계 방법은 이 목적함수의 준최적 해로 재해석된다(§2.3). |\n| 방법적 결과 | 시점별 PPMI 재구성 오차, 임베딩 크기 정칙화, 인접 시점 차분 평활 벌점을 합친 목적함수(식 5)를 비대칭 완화(식 8)와 block coordinate descent로 푼다. 각 블록 갱신은 릿지 회귀 폐형식이다. |\n| 실험 결과 | NYT 27년(1990–2016) 코퍼스. 군집화(Tables 4–5)·정렬 질의(Tables 6–7) 전 칸 1위. 가장 큰 격차는 강건성(Table 8): 3년마다의 연도에서 공기 데이터를 0.1%만 남겨도 MRR 0.4427 유지, 정렬 기반 baseline은 0.0362로 붕괴(약 12배). |\n| 핵심 한계 | 정량 평가의 ground truth 3종이 전부 저자 구성(같은 코퍼스의 섹션 라벨 포함). 정렬",
+    "status": "pending"
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "title": "Dynamic Embeddings for Language Evolution (DBE)",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "figures": [
+      "/api/blog/figures/dbe-fig1-intelligence.png",
+      "/api/blog/figures/dbe-fig2-graphical-model.png",
+      "/api/blog/figures/dbe-fig3-iraq.png"
+    ],
+    "primary_header": "# Dynamic Bernoulli Embeddings 심층 분석: \"Dynamic Embeddings for Language Evolution\" 논문 해설\n\n**Paper:** Rudolph, Maja; Blei, David. (2018). \"Dynamic Embeddings for Language Evolution.\" *Proceedings of the 2018 World Wide Web Conference (WWW '18)*, pp. 1003–1011. https://doi.org/10.1145/3178876.3185999. arXiv:1703.08052 (arXiv 판 제목: \"Dynamic Bernoulli Embeddings for Language Evolution\"). Code: github.com/mariru/dynamic_bernoulli_embeddings\n\n**Abstract:** 본 문서는 단어 임베딩에 시간 축을 넣은 초기 확률 모델인 dynamic Bernoulli embeddings 논문을 해설한다. 출발점은 단어 임베딩의 정적 가정이다: 한 단어의 벡터가 코퍼스 전체에서 하나로 고정되면, intelligence가 정부 첩보의 용어에서 인공지능의 용어로(ACM 초록), 심리적 능력에서 정보기관의 용어로(상원 연설) 옮겨 가는 식의 의미 변화를 볼 수 없다. 이 논문은 exponential family embeddings의 Bernoulli 임베딩에서 임베딩 벡터만 시간 슬라이스별 잠재변수 \\(\\rho_v^{(t)}\\)로 풀고, 그 위에 Gaussian random walk 사전분포를 걸어 인접 시점의 벡터가 매끄럽게 이어지게 만든다. 시대별로 임베딩을 따로 학습하던 기존 접근의 두 난점(슬라이스마다 충분한 데이터가 필요하고, 독립 학습된 공간들을 사후 정렬해야 한다는 것)이 모델 구조 안에서 함께 풀린다는 것이 핵심 주장이다. 미 상원 연설 151년, ACM 초록 64년, arXiv 머신러닝 논문 9년 코퍼스에서 held-out 예측력으로 정적·시대별 임베딩을 이겼고, iraq·values·computer 같은 단어의 의미 궤적을 보였다. 다만 평가는 자기 계열 지표(held-out pseudo-likelihood)에 갇혀 있어 의미 변화 탐지 자체는 검증되지 않았고, 데이터가 없는 시기의 궤적은 사전분포가 만든 보간이다. 이 두 가지를 함께 읽어야 한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 단어 임베딩으로 언어의 시간적 변화를 측정하려 할 때, 시대별 독립 학습이 요구하는 \"슬라이스마다 충분한 데이터\"와 \"사후 정렬\" 없이 임베딩의 시계열을 얻을 수 있는가? |\n| 핵심 기여 | Bernoulli 임베딩(exponential family embeddings)의 임베딩 벡터를 시간 슬라이스별 잠재변수로 풀고 Gaussian random walk 사전분포로 묶은 dynamic embeddings. 문맥 벡터는 전 기간 공유되어 시점 간 좌표가 처음부터 연결된다. |\n| 방법적 결과 | \\(\\rho_v^{(t)} \\sim \\mathcal{N}(\\rho_v^{(t-1)}, \\lambda^{-1}I)\\)(Eq. 5)를 사전분포로 하는 pseudo MAP 목적함수(Eq. 6)를 negative sampling(Eq. 7)과 확률적 경사법으로 최적화한다. |\n| 실험 결과 | 세 코퍼스 × 문맥 크기 2종의 6개 조건 전부에서 held-out \\(\\mathcal{L}_{pos}\\) 최고(Table 2). 이득은 작은 코퍼스·작은 문맥(Arxiv ML, cs 2: 정적 대",
+    "status": "pending"
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "title": "Locating and Editing Factual Associations in GPT",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/rome-causal-tracing",
+    "figures": [
+      "/api/blog/figures/rome-fig1-causal-trace.png",
+      "/api/blog/figures/rome-fig2-aie-two-sites.png",
+      "/api/blog/figures/rome-fig3-mlp-attention-severed.png"
+    ],
+    "primary_header": "**Paper:** Meng, K., Bau, D., Andonian, A., & Belinkov, Y. (2022). *Locating and editing factual associations in GPT*. Advances in Neural Information Processing Systems, 35, 17359–17372.\n\n**Abstract:** 이 논문은 autoregressive transformer가 사실 연상(subject–relation–object)을 어디에 저장하고 어떻게 회상하는지를 두 축으로 다룬다. 첫째, causal tracing은 입력의 subject token embedding을 잡음으로 손상시킨 뒤 특정 hidden state만 깨끗한 값으로 되돌리는 개입으로, 어느 위치의 activation이 사실 예측을 매개하는지 indirect effect로 측정한다. 이 분석은 마지막 subject token의 중간 층 MLP 출력에 인과 효과가 집중되는 \"early site\"를 발견한다. 둘째, ROME(Rank-One Model Editing)은 그 MLP의 down-projection 가중치를 선형 연상기억으로 보고 rank-one 업데이트로 새 (key, value) 쌍을 삽입해 하나의 사실을 바꾼다. GPT-2 XL과 GPT-J에서 ROME은 편집한 사실의 일반화와 무관한 사실의 보존을 동시에 높게 유지했다. 다만 결과는 논문이 정의한 잡음 손상, subject token 개입, counterfactual 편집 설정에 조건부인 모델 내부 인과 효과다.\n\n---\n\n## Executive Summary\n\n- **연구 질문:** GPT가 \"Space Needle is located in ___\" 같은 사실을 예측할 때, 어느 hidden state가 그 예측을 인과적으로 매개하며 그 위치를 편집하면 사실을 바꿀 수 있는가?\n- **분석 도구:** causal tracing. 깨끗한 실행, subject token embedding을 손상시킨 실행, 손상 상태에서 특정 state만 복원한 실행 세 가지를 비교해 indirect effect를 계산한다.\n- **핵심 발견:** 마지막 subject token 위치의 중간 층 MLP 출력이 사실 회상을 매개하는 \"early site\"다. 개별 state의 평균 간접 효과(AIE)는 15층 부근에서 8.7%로 정점을 찍고, 이 효과의 대부분은 attention이 아니라 MLP가 담당한다(MLP 기여 정점 6.6% 대 attention 1.6%).\n- **편집 방법:** ROME은 지목된 MLP의 down-projection 행렬 $W_{proj}$를 key–value 저장소로 보고 rank-one 업데이트로 새 연상을 삽입한다.\n- **주요 결과:** CounterFact에서 ROME(GPT-2 XL) 종합 점수 89.2로, 일반화(96.4)와 특이성(75.4)을 동시에 확보한다. fine-tuning 계열은 둘 중 하나를 희생한다.\n- **핵심 한계:** 인과 효과는 잡음 손상 방식, subject token 개입, 단일 사실 편집 설정에 조건부다. localization은 \"어디서 회상이 매개되는가\"이지 \"사실이 오직 그곳에만 저장된다\"는 뜻이 아니다.\n\n**TL;DR**\n\n- ROME(Rank-One Model Editing)은 causal tracing으로 지목한 중간 층 MLP의 down-projection 가중치를 rank-one으로 갱신해 GPT의 단일 사실 연상을 편집하는 방법이다.\n- ROME은 CounterFact에서 GPT-2 XL 종합 점수 89.2(efficacy 1",
+    "status": "pending"
+  },
+  {
+    "slug": "structural-probe",
+    "title": "A Structural Probe for Finding Syntax in Word Representations",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/structural-probe",
+    "figures": [
+      "/api/blog/figures/structural-probe-tab1-results.png",
+      "/api/blog/figures/structural-probe-fig2-min-spanning-trees.png",
+      "/api/blog/figures/structural-probe-fig5-rank.png"
+    ],
+    "primary_header": "## Paper\n\n> Hewitt, J., & Manning, C. D. (2019). *A structural probe for finding syntax in word representations*. In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (NAACL-HLT 2019), Volume 1 (Long and Short Papers), 4129–4138. https://doi.org/10.18653/v1/N19-1419\n\n## Abstract\n\n기존 probing은 품사나 형태 같은 개별 언어 속성이 표현에 담겼는지 검사했지만, 구문 트리가 \"전체로서\" 표현에 담겼는지는 검사하지 않았다. 이 논문은 신경망의 단어 표현 공간에 선형 변환 하나를 학습해, 그 변환 공간에서 두 단어 벡터의 제곱 L2 거리가 parse tree에서 두 단어 사이의 거리(간선 수)를, 제곱 L2 노름이 트리에서의 깊이를 인코딩하는지를 검사하는 structural probe를 제안한다. 저자들은 ELMo와 BERT에서는 이런 변환이 존재하지만 여러 베이스라인에서는 존재하지 않음을 보이며, 깊은 모델의 벡터 기하 안에 구문 트리 전체가 암묵적으로 인코딩되어 있다는 증거로 제시한다.\n\n## Executive Summary\n\n- 개별 속성의 존재가 아니라 구문 트리 전체를 하나의 검사 대상으로 삼는다. 트리를 벡터 공간의 전역(global) 기하 성질로 정식화한다.\n- 단어 표현에 선형 변환 $B$ 하나를 학습해, 변환 공간의 제곱 거리가 트리 경로 거리를, 제곱 노름이 트리 깊이를 근사하도록 맞춘다.\n- 프로브는 선형(저용량)이고 트리를 입력·감독 신호로 받지 않는다. 표현이 이미 트리 거리를 선형으로 담고 있어야만 높은 점수가 나온다.\n- ELMo와 BERT에서 그런 변환이 존재한다(UUAS 최대 82.5, 거리 Spearman 최대 0.87). 위치·문맥 정보가 없거나 무작위인 베이스라인은 크게 뒤진다.\n- 구문을 인코딩하는 데 필요한 선형 변환의 rank는 낮다. $k \\approx 64$–$128$ 이후로는 이득이 사라지고, 세 모델이 대략 같은 rank를 요구한다.\n- 프로브는 표현에서 트리가 선형으로 \"읽힌다\"는 사실만 보인다. 모델이 그 정보를 실제로 계산·사용한다는 것까지 보이지는 않으며, 라벨·방향까지 복원하지도 않는다.\n\n**TL;DR**\n\n- Structural probe는 단어 표현에 선형 변환 $B$ 하나만 학습해, 변환 공간의 제곱 거리가 구문 트리의 단어 간 거리를, 제곱 노름이 트리 깊이를 근사하는지 검사하는 방법이다.\n- Structural probe는 PTB WSJ에서 BERT-large가 UUAS 82.5·거리 Spearman 0.87을 기록해 위치·문맥이 없는 베이스라인(ELMo0 UUAS 26.8)을 크게 앞서며, 구문 트리가 저차원(rank 약 64–128) 선형 부분공간에 인코딩됨을 보인다.\n- Structural probe는 표현이 구문 트리를 선형으로 담는지 엄격히 검사할 때 유리하지만, 이는 정보가 \"읽힌다\"는 존재·가독성 주장일 뿐 모델이 그 구문을 실제로 계산·사용하거나 라벨·방향까지 복원함을 보이지는 않는다.\n\n## Table of Contents\n\n1. 문제의식: 구문 트리 전체를 검사한다\n2. 방법: 구조적 프로브의 정의\n3. 실험 설계\n4. 결과\n5. 논문의 주장과 근거 범위\n6. 학술적 한계와 비평\n7. 연구적 위치와 ",
+    "status": "pending"
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "title": "Is Attention Interpretable?",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/is-attention-interpretable",
+    "figures": [
+      "/api/blog/figures/is-attention-interpretable-fig1-erasure-method.png",
+      "/api/blog/figures/is-attention-interpretable-fig3-deltajs-scatter.png",
+      "/api/blog/figures/is-attention-interpretable-fig5-fraction-removed.png"
+    ],
+    "primary_header": "## Paper\n\n> Serrano, S., & Smith, N. A. (2019). *Is attention interpretable?* In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (pp. 2931–2951). Association for Computational Linguistics. https://doi.org/10.18653/v1/P19-1282\n\n## Abstract\n\nAttention layer는 입력 성분의 표현에 명시적으로 가중치를 주기 때문에, 그 가중치가 곧 \"모델이 중요하게 본 정보\"를 가리킨다고 흔히 가정한다. 이 논문은 학습이 끝난 텍스트 분류 모델에서 attention weight를 직접 조작하고, 그로 인한 예측 변화를 관찰해 그 가정을 검증한다. 방법은 사후 상관이나 적대적 분포 탐색이 아니라, 중간 표현에서 특정 attention weight를 지우는(erasure) 개입이다. 저자들은 높은 attention이 모델 예측에 더 큰 영향을 주는 방향으로 어느 정도 상관하는 경우를 관찰하지만, 그 관계가 성립하지 않는 경우도 많이 발견한다. 특히 gradient 기반 순위가 magnitude 기반 순위보다 attention weight의 실제 효과를 더 잘 예측한다. 결론적으로 attention은 입력 성분의 전반적 중요도를 잡음 섞인 방식으로 예측할 뿐, 결코 신뢰할 만한 지표(fail-safe indicator)는 아니다.\n\n## Executive Summary\n\n- 가장 큰 attention을 받은 토큰 $i^*$를 지워도 대부분의 사례에서 예측(argmax)은 바뀌지 않는다.\n- 두 개입(최고 attention 토큰 vs 무작위 토큰)을 Jensen–Shannon divergence 차이 $\\Delta\\text{JS}$로 비교하면, 값은 대체로 양수지만 attention 차이가 큰데도 0에 가까운 경우가 흔하다.\n- 다중 weight를 순위대로 지워 decision flip까지 필요한 비율을 재면, 인코더가 있는 모든 모델에서 gradient 기반 순위가 attention 기반 순위보다 더 빨리 예측을 뒤집는다.\n- 문맥화 인코더(특히 biRNN)가 소수 토큰의 신호를 여러 표현에 분산시켜, 위치별 attention weight와 원 토큰의 대응을 흐트러뜨린다.\n- 논문의 최소 주장은 \"attention은 중요도 순위로서 모델 결정을 설명하지 못한다\"이며, attention이 다른 방식으로 해석 가능할 여지는 남긴다.\n\n**TL;DR**\n\n- Attention erasure 검증은 학습이 끝난 텍스트 분류 모델에서 attention weight를 중간 표현에서 0으로 지우고 출력 분포 변화(Jensen–Shannon divergence·decision flip)로 성분의 실제 중요도를 측정하는 개입 방법이다.\n- Attention erasure 검증에서 가장 큰 attention을 받은 토큰을 지워도 대부분(데이터셋별 약 84–90%) 예측이 유지됐고, 인코더가 있는 16개 모델 전부에서 gradient 기반 순위가 attention 순위보다 최소 1.6배 자주 더 적은 삭제로 예측을 뒤집었다.\n- Attention erasure 검증은 attention을 중요도 순위로 신뢰할 수 있는지 반증하는 데 유용하지만, 결과는 가법 softmax attention·텍스트 분류·argmax decision flip 설정에 한정되며 gradient가 참 중요도임을 보이거나 multi-head/self-attention으로 ",
+    "status": "pending"
+  },
+  {
+    "slug": "ic2-interventional-dynamical-causality-under-latent-confounders",
+    "title": "IC2: interventional dynamical causality under latent confounders",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/ic2-interventional-dynamical-causality-under-latent-confounders",
+    "figures": [
+      "/api/blog/figures/ic2-fig1-framework.png",
+      "/api/blog/figures/ic2-fig2-32-structures.png",
+      "/api/blog/figures/ic2-fig3-eight-species-henon.png",
+      "/api/blog/figures/ic2-fig4-knockout-validation.png",
+      "/api/blog/figures/ic2-fig5-time-varying.png",
+      "/api/blog/figures/ic2-fig6-real-world-networks.png",
+      "/api/blog/figures/ic2-fig7-cortical-perturbation.png"
+    ],
+    "primary_header": "**Paper:** Yan, J., Zhang, S.-W., Shi, J., Zhang, C., & Chen, L. (2026). *IC2: interventional dynamical causality under latent confounders*. Journal of the Royal Society Interface, 23(240), 20251289. [Publisher](https://doi.org/10.1098/rsif.2025.1289)\n\n**Abstract:** 인과 추론에서 관측(observational)과 개입(interventional)은 다른 층위다. 개입 효과를 알려면 보통 무작위 배정, 유전자 녹아웃, 약물 처치 같은 실제 조작이 필요한데, 임상이나 생태처럼 조작이 불가능하거나 비윤리적인 영역에서는 관측 시계열이 유일한 자료다. IC2는 이 상황에서 개입 수준의 인과를 추정하겠다고 주장한다. 핵심 장치는 두 가지다. 첫째, 원래 시계열 공간 대신 Takens 지연 임베딩 공간으로 문제를 옮겨 비선형 동역학의 비분리성을 우회한다. 둘째, 임베딩 다양체 위에서 한 상태의 이웃을 그 상태의 \"섭동된 상태\"로 간주하고, 교차사상(cross mapping)으로 대응 이웃을 찾아 개입 데이터를 구성한다. 그 위에서 관측 데이터와 구성된 개입 데이터 각각에 직교 분해 정리를 적용해 공통 부분공간과 사적 부분공간으로 나누고, 두 개의 인과 지표 $CIC$와 $iCIC$를 만든다. 저자 보고 기준으로 32개 인과 구조 벤치마크에서 AUC 0.91, 플랑크톤 먹이망 AUROC 0.938, 홍콩 대기오염–심혈관질환 AUROC 0.864, 단일세포 CRISPR 섭동 예측 AUC 0.843을 기록했다. 다만 이 논문에서 \"개입 데이터\"는 실제로 개입해서 얻은 자료가 아니라 관측 다양체의 이웃으로 만든 대리물이며, 그 대리가 언제 성립하는지가 이 방법의 성패를 가르는 지점이다.\n\n---\n\n## 핵심 요약\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 개입 실험 없이, 잠재 교란자가 있는 비선형 동역학계의 관측 시계열만으로 개입 수준의 인과와 그 크기를 추정할 수 있는가? |\n| 이론적 해법 | 지연 임베딩 공간에서 관측 데이터와 개입 데이터 각각에 직교 분해 정리를 적용하는 이중 직교 분해(dual orthogonal decomposition). 개입 데이터 쪽이 정리 1이다. |\n| 계산적 해법 | 교차사상 이웃으로 $\\delta X_{t-1}$, $\\delta Y_t$를 구성하고, 두 벌의 VAE로 공통·사적 잠재 부분공간을 분리해 $CIC_{x\\to y}$와 $iCIC_{x\\to y}$를 계산한다. |\n| 대표 결과 | 저자 보고 기준 32구조 AUC 0.91, Lorenz63 녹아웃 대비 상관 $r=0.975$(정답 라벨)·$r=0.925$(KLD), 플랑크톤 AUROC 0.938, 대기오염–CVD AUROC 0.864, 피질 발생 scPerturb-seq AUC 0.843, HAR scPerturb-seq AUC 0.783. |\n| 해석의 경계 | \"개입 데이터\"는 구성된 대리물이고, 검증에 쓰인 \"참 개입 효과\"는 노드 녹아웃 후 분포의 KL 발산이다. 둘 다 직접 효과가 아니라 계 전체를 통과한 효과를 담을 수 있다. |\n\n## 목차\n\n1. 이 논문이 주장하는 것과 주장하지 않는 것\n2. 문제 설정: 개입 동역학 인과의 정의와 가정\n3. 왜 지연 임베딩 공간으로 옮기는가\n4. 구성된 개입 데이터: 교차사상 이웃이라는 대리물\n5. 이중 직교 분해 정리\n6. 두 개의 인과 지표와 판정 규칙\n7. VAE 구현과 네 개의 손실항\n8. 합성계 ",
+    "status": "pending"
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "title": "Dynamical causality under invisible confounders",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/cic-dynamical-causality-under-invisible-confounders",
+    "figures": [
+      "/api/blog/figures/cic-fig5-framework.png",
+      "/api/blog/figures/cic-fig1-three-node-benchmark.png",
+      "/api/blog/figures/cic-fig3-real-world-networks.png",
+      "/api/blog/figures/cic-fig4-circadian-network.png"
+    ],
+    "primary_header": "**Paper:** Yan, J., Zhang, S.-W., Zhang, C., Huang, W., Shi, J., & Chen, L. (2024). *Dynamical causality under invisible confounders* [Preprint]. arXiv. https://doi.org/10.48550/arXiv.2408.05584\n\n이 리뷰가 다루는 판본에 대해 먼저 밝혀 둔다. 이 글의 모든 수치와 인용은 arXiv v1(2024년 8월 10일 제출, 본문 23쪽, 그림 5개)에서 확인한 것이다. 같은 연구는 이후 *Dynamical Causality Under Latent Confounders for Biological Network Reconstruction*이라는 제목으로 IEEE Transactions on Pattern Analysis and Machine Intelligence(DOI 10.1109/TPAMI.2026.3658839)에 실렸다. 제목이 다르고, 특히 arXiv 판본이 쓰는 invisible confounders가 학술지 판본에서 latent confounders로 바뀌었다. 학술지 최종본 본문은 확인하지 못했으므로 두 판본 사이에 실험이나 수치가 달라졌는지는 확인하지 못했다. 아래의 모든 \"저자 보고\"는 arXiv v1 기준이다.\n\n**Abstract:** 복잡계에서 두 변수가 함께 움직인다는 관측만으로는 인과를 말할 수 없다. 둘을 동시에 밀고 있는 제3의 변수가 있으면 허위 인과가 생기기 때문이다. 이 문제 자체는 오래된 것이고, 그 교란자가 관측되기만 하면 조건부 방법으로 처리할 수 있다. CIC가 겨냥하는 것은 교란자가 관측되지 않는 경우다. 논문의 해법은 두 단계다. 첫째, 원 상태공간 대신 Takens 지연 임베딩 공간으로 옮긴다. 여기서는 음함수 정리를 통해 결과 변수의 지연 벡터가 원인 변수의 지연 벡터를 역으로 재구성하는 관계가 성립한다. 둘째, 두 지연 벡터를 각각 공통 부분공간과 사적 부분공간으로 직교 분해하고, 사적 성분이 사라지는지 여부로 인과를 판정한다. 이 분해에서 공통 부분공간 $z_{xy}$는 판정 도구인 동시에, 논문이 보이지 않는 교란자 자체의 복원물이라고 주장하는 대상이다. 저자 보고 기준으로 DREAM4 10노드 네트워크 다섯 개에서 AUROC 0.784–0.932, 플랑크톤 먹이사슬 0.875, 홍콩 대기오염–심혈관질환 0.934, 쥐 일주기 리듬 18유전자 네트워크 0.743을 기록했고, 교란자 복원의 상관은 합성계에서 약 0.6–0.7, 실제 생물 자료에서 0.25–0.35다. 다만 교란자 복원이라는 주장은 정의상 관측되지 않는 대상을 복원했다는 것이어서, 검증 가능한 숨김 실험과 진짜 미관측 교란자에 대한 주장이 완전히 겹치지는 않는다. 이 구조가 이 논문을 읽는 데서 가장 중요한 지점이다.\n\n---\n\n## 핵심 요약\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 교란자가 관측되지 않는 비선형 동역학계에서, 두 변수의 관측 시계열만으로 인과를 판정하고 그 교란자를 복원할 수 있는가? |\n| 이론적 해법 | 지연 임베딩 공간에서의 직교 분해 정리. 두 임베딩 벡터를 공통 부분공간 $z_{xy}$와 사적 부분공간 $z_x$, $z_y$로 나누고 $\\|z_x\\|=0$ 여부로 인과를 판정한다. |\n| 계산적 해법 | 두 벌의 인코더·디코더로 이뤄진 VAE에 직교 손실과 등가 손실을 걸어 분해를 학습하고, $CIC_{x\\to y}=\\|z_{xy}\\|/(\\|z_x\\|+\\|z_{xy}\\|)$를 계산한다. |\n| 대표 결과 | 저자 보고 기준 DREAM4 10노드 AUR",
+    "status": "pending"
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "title": "Partial cross mapping eliminates indirect causal influences",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "figures": [
+      "/api/blog/figures/pcm-fig1-direct-vs-indirect.png",
+      "/api/blog/figures/pcm-fig2-pcm-principle.png",
+      "/api/blog/figures/pcm-fig3-benchmark-comparison.png",
+      "/api/blog/figures/pcm-fig4-real-world-networks.png"
+    ],
+    "primary_header": "**Paper:** Leng, S., Ma, H., Kurths, J., Lai, Y.-C., Lin, W., Aihara, K., & Chen, L. (2020). Partial cross mapping eliminates indirect causal influences. *Nature Communications, 11*, 2632. https://doi.org/10.1038/s41467-020-16238-0\n\n**Abstract:** 시계열에서 인과를 읽는 방법은 크게 세 계보로 나뉜다. Granger 인과, 엔트로피 기반 측도, 그리고 교차사상이다. 앞의 두 계보는 한 변수의 정보를 다른 변수에서 떼어낼 수 있다는 분리성을 전제하는데, 비선형 동역학계에서는 이 전제가 대체로 깨진다. Takens–Mañé 임베딩 정리에 따르면 계 전체의 정보가 단일 변수의 관측만으로 재구성될 수 있기 때문이다. 교차사상 계열은 바로 이 성질을 뒤집어 쓴다. $Y$의 재구성 다양체에서 $X$의 상태를 복원할 수 있다면 $X$의 정보가 $Y$에 들어가 있는 것이고, 따라서 $X$가 $Y$의 원인이라고 판정한다. 이 논문이 지적하는 문제는 그 판정이 직접과 간접을 구별하지 못한다는 것이다. $X \\to Z \\to Y$인 사슬에서 $X$의 정보는 $Z$를 거쳐 $Y$에 도달하므로 $X$와 $Y$ 사이에도 강한 교차사상이 성립하고, 기존 방법은 이를 직접 링크로 읽는다. 저자들은 세 가지 도구, 즉 위상공간 재구성과 mutual cross mapping(MCM), 그리고 편상관을 결합한 partial cross mapping(PCM)을 제안한다. 전체 정보를 담은 사상 $\\hat{X}^{Y}$와 매개변수를 거친 간접 정보만 담은 사상 $\\hat{X}^{\\hat{Z}^{Y}}$를 각각 만든 뒤, 후자를 조건으로 놓은 편상관 $\\varrho_D = |\\mathrm{Pcc}(X, \\hat{X}^{Y} \\mid \\hat{X}^{\\hat{Z}^{Y}})|$을 직접 인과의 지표로 삼는 것이다. 세 종 로지스틱 벤치마크에서 사슬 구조의 $X \\to Y$에 대해 MCM 지표는 0.8681이지만 PCM 지표는 0.1871로 떨어지고, 여덟 종 네트워크와 DREAM4 유전자 조절망, 플랑크톤 먹이망, 홍콩 대기오염 자료에도 적용된다. 다만 이 방법이 덜어내는 것은 관측된 매개변수를 거친 몫뿐이며, 편상관이라는 선형 조작을 비선형 재구성 위에 얹었을 때 무엇이 남는지는 논문이 완전히 답하지 않는다.\n\n---\n\n## 핵심 요약\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 변수들이 비분리적이고 결합이 약하거나 중간 정도인 비선형 동역학계에서, 시계열만으로 직접 인과 링크를 간접 인과 링크와 구별할 수 있는가? |\n| 진단 | 교차사상 계열은 비분리성 문제를 해결하지만 인과 이행성 때문에 간접 링크를 직접 링크로 오검출한다. 조건부 Granger 인과나 편전달 엔트로피는 직접·간접을 가르지만 분리성을 요구하므로 비선형계에 적용되지 않는다. |\n| 해법 | 위상공간 재구성 + MCM + 편상관의 결합. 전체 정보 사상 $\\hat{X}^{Y}$에서 매개 경로를 거친 사상 $\\hat{X}^{\\hat{Z}^{Y}}$의 몫을 편상관으로 덜어낸 $\\varrho_D$를 직접 인과 지표로 쓴다. |\n| 판정 규칙 | 문턱값 $1 > T \\gg 0$에 대해 $\\varrho_C \\ge \\varrho_D \\ge T$면 직접 링크, $\\varrho_C \\ge T \\gg \\varrho_D$면 간접 링크만 존재, $T > \\varrho_C \\ge \\varrho_D$면 링크 없음. 보조 지표 $\\gamma = \\v",
+    "status": "pending"
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "title": "A Decoder-Only Foundation Model for Time-Series Forecasting",
+    "lane": "semantics_causality",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "figures": [
+      "/api/blog/figures/timesfm-fig1-arch.png",
+      "/api/blog/figures/timesfm-fig3-ablation.png",
+      "/api/blog/figures/timesfm-fig2-results.png"
+    ],
+    "primary_header": "**Paper:** Das, A., Kong, W., Sen, R., & Zhou, Y. (2024). A decoder-only foundation model for time-series forecasting. In *Proceedings of the 41st International Conference on Machine Learning* (PMLR 235, pp. 10148–10167). https://proceedings.mlr.press/v235/das24c.html · arXiv:2310.10688v4 https://arxiv.org/abs/2310.10688v4\n\n**Abstract:** Das et al.은 대규모 시계열을 함께 사전학습한 뒤 처음 보는 데이터셋에서 가중치 미세조정 없이 예측하는 decoder-only foundation model TimesFM을 제안한다. 200M 모델은 시계열을 길이 32의 비중첩 입력 패치로 바꾸고, causal Transformer의 각 출력에서 다음 128개 시점을 MSE로 학습한다. 첫 패치 일부를 무작위로 가리는 방식으로 다양한 문맥 길이를 노출하며, 긴 예측 지평에서는 생성한 128시점 패치를 다시 입력에 붙여 필요한 만큼 자기회귀한다. 저자 보고에서는 Monash·Darts·ETT에서 데이터셋별 지도학습 모델과 경쟁하는 집계 성능을 보이지만, Monash 순위는 집계 방식에 따라 달라지고 Darts에서는 두 집계 모두 3위다. 이 글은 TimesFM의 문제 정의와 패치 아키텍처, 사전학습 데이터 혼합, 설계 절제를 먼저 재구성한 뒤 naive 기준선에 뒤지는 사례, 추론 시 문맥 길이 선택, 본문과 부록의 비교 조건이 zero-shot 성능 주장의 범위를 어떻게 제한하는지 살핀다. 범위는 ICML 2024 논문과 당시의 200M point-forecasting 모델이며, 후속 TimesFM 배포판의 사용 가이드는 아니다.\n\n---\n\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 서로 다른 도메인·시간 입도·예측 지평의 시계열을 함께 사전학습한 하나의 모델이, 처음 보는 데이터셋에서도 별도 학습 없이 데이터셋별 지도학습 모델과 경쟁할 수 있는가. |\n| 핵심 기여 | 시계열을 겹치지 않는 패치로 토큰화해 decoder-only Transformer에 넣고, 입력 패치보다 긴 출력 패치를 한 번에 생성하는 TimesFM을 제안했다. |\n| 방법적 결과 | 200M 모델은 길이 32의 입력 패치를 causal attention으로 처리해 다음 128시점을 MSE로 예측한다. 첫 패치의 부분 masking으로 다양한 문맥 길이를 학습하고, 128보다 긴 지평은 출력 패치를 이어 붙여 자기회귀한다. 사전학습 loader는 real 80%·synthetic 20%를 표집한다. |\n| 실험 결과 | Monash에서는 기하평균 기준 TimesFM 0.6846이 1위지만 산술평균에서는 0.8005로 2위다. Darts에서는 두 집계 모두 3위다. Monash·Darts 26개 데이터셋 중 5개에서는 naive 기준선보다 오차가 크고, ETT의 PatchTST(ZS) 평균 0.349는 TimesFM 0.364보다 낮다. |\n| 핵심 한계 | 순위가 집계 방식과 비교군 구성에 민감하며, 일부 Monash 데이터셋에서는 추론 시 문맥 길이를 선택했다. 사전학습 그룹 내부 표집, 평가 데이터와의 겉보기 중첩, 본문 도판과 부록 표의 방법 대응도 문서만으로 완전히 재구성되지 않는다. |\n\n---\n\n## 목차\n\n1. 데이터셋별 모델에서 범용 시계열 예측 모델로\n2. 예",
+    "status": "pending"
+  }
+]

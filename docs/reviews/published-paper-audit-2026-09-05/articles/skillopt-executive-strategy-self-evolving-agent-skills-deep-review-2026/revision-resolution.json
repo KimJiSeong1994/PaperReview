@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected train/selection/test optimization and actual52-cell design; bounded compute-comparison claims."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 25016,
+  "after_chars": 24876
+}

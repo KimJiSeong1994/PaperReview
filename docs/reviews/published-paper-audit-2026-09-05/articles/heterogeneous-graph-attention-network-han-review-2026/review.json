@@ -1,0 +1,47 @@
+{
+  "status": "published_verified",
+  "title": "Heterogeneous Graph Attention Network (HAN)",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-attention-network-han-review-2026/original.json",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-attention-network-han-review-2026/original.md",
+    "evidence.md"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/1903.07293"
+  ],
+  "changes": [
+    "논문 설명 중심의 본문 유지",
+    "검토·코드 감사·출판 메타 서술을 편집 대상에서 제외",
+    "근거가 있는 실험 범위와 한계를 본문 설명으로 유지",
+    "초기 일괄 메타 초안은 증거가 불충분하여 pending으로 보류",
+    "Bounded semantic-attention conditions and removed unsupported specific HGB accusation."
+  ],
+  "uncertainties": [
+    "원문 논문 버전·표 번호는 각 본문 인용을 기준으로 확인; 후속 출판 판본과의 문장 차이는 별도 비교 대상이 아님"
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "Heterogeneous Graph Attention Network",
+    "authors": [
+      "Xiao Wang",
+      "Houye Ji",
+      "Chuan Shi",
+      "Bai Wang",
+      "Yanfang Ye",
+      "Peng Cui",
+      "Philip S. Yu"
+    ],
+    "year": 2019,
+    "primary_url": "https://arxiv.org/abs/1903.07293",
+    "arxiv_id": "1903.07293",
+    "doi": "10.1145/3308558.3313562"
+  },
+  "excerpt": "HAN은 meta-path별 이웃의 중요도와 meta-path 자체의 중요도를 두 단계 attention으로 학습한다. 이종 그래프의 표현을 결합하는 방법과 노드 분류·군집화 결과, 사람이 지정한 meta-path와 평가 조건의 영향을 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/heterogeneous-graph-attention-network-han-review-2026",
+  "verified_content_sha256": "20f3c5739ca164cb514d0a7081fc0e080dcca032b33604c354dd829dc6505051"
+}

@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "../../sources/2502.14802.pdf (19 pp.; §§3–5; Tables 1–4)",
+    "../../sources/2502.14802.txt (page-labelled full text)"
+  ],
+  "source_urls": [
+    "https://proceedings.mlr.press/v267/gutierrez25a.html",
+    "https://arxiv.org/abs/2502.14802"
+  ],
+  "paper_metadata": {
+    "title": "From RAG to Memory: Non-Parametric Continual Learning for Large Language Models",
+    "authors": [
+      "Bernal Jiménez Gutiérrez",
+      "Yiheng Shu",
+      "Weijian Qi",
+      "Sizhe Zhou",
+      "Yu Su"
+    ],
+    "year": 2025,
+    "primary_url": "https://proceedings.mlr.press/v267/gutierrez25a.html",
+    "arxiv_id": "2502.14802"
+  },
+  "excerpt": "HippoRAG 2는 passage node와 graph association을 결합한 비모수 기억 인덱스로, 새 문서를 추가하면서 사실 검색과 다중 문서 연상을 함께 다루려는 RAG 확장이다.",
+  "changes": [
+    "Preserved the paper-only narrative, APA references, and existing figures."
+  ],
+  "uncertainties": [
+    "Continual-learning evaluation adds a fixed corpus in stages and does not measure parameter forgetting."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/hipporag2-from-rag-to-memory",
+  "verified_content_sha256": "f55b89a5f38dfeffa12bb89848146e3a008c1432fa44c89074b7a913029b4b30"
+}

@@ -1,0 +1,101 @@
+{
+  "reviewed_at": "2026-09-15",
+  "scope": "Sentence-level factual review of excerpt candidates against each revised article and its evidence record. No new paper research was used.",
+  "overall_verdict": "revise 2 of 10; the remaining 8 are faithful with their existing compact qualifiers.",
+  "articles": [
+    {
+      "slug": "rsi-roadmap",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Accurately compresses the five autonomy levels and keeps the object as an improvement process.", "anchor": "revised.md Executive Summary; §4"},
+        {"sentence": 2, "verdict": "pass", "reason": "Correctly preserves the article's structural-versus-effective recursion boundary.", "anchor": "revised.md Executive Summary; §§5, 9"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "ttpo",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Correctly states pseudo-label agreement for the positive distillation branch and selective negative treatment for disagreement; it does not claim verified labels.", "anchor": "revised.md §§2–3; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "Retains the central false-penalty limitation without converting it into a claim that every disagreement is wrong.", "anchor": "revised.md §§2.1–2.2; evidence.md Critique log"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Matches the ECoT real-execution plus ICWM-simulated feedback data path; '늘린다' does not claim exact simulator fidelity beyond the article's qualified result.", "anchor": "revised.md §§2–3; source/evidence discussion of ECoT and ICWM"},
+        {"sentence": 2, "verdict": "pass", "reason": "Correctly confines the favorable comparison to the same lineage's instruct/non-thinking checkpoint and preserves heterogeneous industrial outcomes.", "anchor": "revised.md §§5–6, §9.2"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "codenib",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "'문자열·의미·코드 구조 색인' is a readable rendering of lexical, dense, and structural commit views; it does not collapse their output contracts.", "anchor": "revised.md §§1–3; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "Correctly says quality and cost are separated and confines speedups to the corresponding validity subsets.", "anchor": "revised.md Executive Summary; evidence.md Exact result table"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Faithfully describes the study as a comparison across QA and summarization, not a pure graph-edge ablation.", "anchor": "revised.md §§1–2; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "Preserves query/evidence dependence and the limited lesson from token matching without implying that token matching settles all fairness questions.", "anchor": "revised.md §2.3, §7.1; evidence.md Exact result table"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "procedural-graphs",
+      "verdict": "revise",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "revise", "reason": "'다음 과제에 반영' can imply that the graph mutates during or immediately for each task. The paper revises candidate graphs between episodes/batches and retains them after structural and held-out validation.", "anchor": "revised.md §§3.3, 4.3; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "Correctly states aggregate performance direction while retaining soft-guidance and non-guarantee boundaries.", "anchor": "revised.md §§6, 9; evidence.md Critique log"}
+      ],
+      "suggested_replacement": "Procedural Graphs는 절차 지식을 그래프로 저장해 다음 행동을 안내하고, 실행 경험에서 얻은 수정안을 에피소드·배치 사이에 검증해 이후 실행에 반영한다. 여러 모델·벤치마크 조합에서 성능이 높았지만, 그래프의 안내가 행동을 강제하거나 이후 성능 향상을 보장하지는 않는다."
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Correctly describes WF/ST/FN teacher-memory banks and frozen student weights.", "anchor": "revised.md §§3–4; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "The excerpt preserves three evaluated tool benchmarks and the essential within-benchmark/self-task versus cross-split distinction.", "anchor": "revised.md §§5.3, 6.1–6.2; evidence.md Table 6 boundary"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "causal-foundation-models",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Accurately identifies CFM as a family pretrained over causal DGPs and notes the paper's three-model comparison.", "anchor": "revised.md Abstract, §§1, 5; evidence.md Method map"},
+        {"sentence": 2, "verdict": "pass", "reason": "The qualifier correctly leaves identification assumptions and prior support in place; it does not equate amortized inference with solved causality.", "anchor": "revised.md §§2–4, 7; evidence.md Evidence ledger"}
+      ],
+      "suggested_replacement": null
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "verdict": "revise",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Faithfully names the benchmark's contextual encoding, forward/reverse QA, and recognition-style probes.", "anchor": "revised.md §§2–3; source Appendix C.1"},
+        {"sentence": 2, "verdict": "revise", "reason": "'추가 추론' prematurely selects a mechanism. The article supports an improvement when thinking is enabled, but explicitly treats recall facilitation versus inference as unresolved behaviorally.", "anchor": "revised.md §6.6, §§7–8; evidence/source distinction"}
+      ],
+      "suggested_replacement": "WikiProfile은 같은 사실의 문맥 속 복원, 정·역방향 질문 응답, 객관식 재인을 비교해 LLM의 지식 접근 실패를 나눈다. 일부 강한 모델도 문맥에서 복원한 사실을 안정적으로 답하지 못하며, thinking을 사용하면 그 실패 일부가 회복되지만 순수한 회상 촉진과 추론의 기여는 분리되지 않는다."
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "verdict": "pass",
+      "sentence_reviews": [
+        {"sentence": 1, "verdict": "pass", "reason": "Accurately states the three jointly trained decision roles and their accuracy/cost objective without claiming a pure component ablation.", "anchor": "revised.md §§2–5; source Algorithm 1"},
+        {"sentence": 2, "verdict": "pass", "reason": "Correctly limits improvements to author experiments and distinguishes improved aggregate constraint behavior from per-query budget guarantees.", "anchor": "revised.md §6.4, §8.2; final-critical-pass.json"}
+      ],
+      "suggested_replacement": null
+    }
+  ],
+  "summary": {
+    "pass": ["rsi-roadmap", "ttpo", "incoder-32b-thinking", "codenib", "rag-vs-graphrag-systematic-evaluation", "agent-memory-distillation", "causal-foundation-models", "clause-budget-aware-kg-reasoning"],
+    "revise": ["procedural-graphs", "wikiprofile-empty-shelves-lost-keys"]
+  }
+}

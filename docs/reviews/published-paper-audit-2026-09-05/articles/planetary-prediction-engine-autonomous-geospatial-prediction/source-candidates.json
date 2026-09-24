@@ -1,0 +1,22 @@
+{
+  "title": "Planetary Prediction Engine: Autonomous Geospatial Prediction via Intelligent Data Selection and Foundation Model Embeddings",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/ppe/ppe-deep-review.md",
+      "score": 1.3,
+      "title": "Planetary Prediction Engine: Autonomous Geospatial Prediction via Intelligent Data Selection and Foundation Model Embeddings"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/time-series/timesfm/timesfm-deep-review.md",
+      "score": 0.2,
+      "title": "A Decoder-Only Foundation Model for Time-Series Forecasting"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/timme/timme-deep-review.md",
+      "score": 0.146,
+      "title": "TIMME 심층 분석: \"TIMME: Twitter Ideology-detection via Multi-task Multi-relational Embedding\" 논문 해설"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

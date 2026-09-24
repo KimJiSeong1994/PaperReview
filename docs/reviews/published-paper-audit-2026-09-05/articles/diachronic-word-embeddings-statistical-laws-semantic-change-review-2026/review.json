@@ -1,0 +1,40 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change",
+    "authors": [
+      "William L. Hamilton",
+      "Jure Leskovec",
+      "Dan Jurafsky"
+    ],
+    "year": 2016,
+    "primary_url": "https://aclanthology.org/P16-1141/",
+    "doi": "10.18653/v1/P16-1141",
+    "arxiv_id": "1605.09096"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-1605.09096.pdf"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/P16-1141/",
+    "https://arxiv.org/abs/1605.09096"
+  ],
+  "excerpt": "시기별 임베딩을 직교 정렬해 단어 의미의 이동을 재고, 빈도와 다의성의 통계적 연관을 네 언어 여섯 코퍼스에서 분석한 ACL 2016 연구를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Corrected 28 shift relations versus nine target-word rows."
+  ],
+  "uncertainties": [
+    "‘법칙’은 관찰적 회귀 결과이며 인과적 설명이 아니다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+  "verified_content_sha256": "f38b0b1163b5db207978e168953958d1ff055da56e9926fb74bd130c65b9e459"
+}

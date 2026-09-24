@@ -1,0 +1,76 @@
+[
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "id": "2304.01666",
+    "old": [
+      "Francesco Periti",
+      "Stefano Montanelli"
+    ],
+    "source_authors": [
+      "Stefano Montanelli",
+      "Francesco Periti"
+    ],
+    "source_title": "A Survey on Contextualised Semantic Shift Detection"
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "id": "1903.07293",
+    "old": [
+      "Xiao Wang",
+      "Houye Ji",
+      "Chuan Shi",
+      "Bai Wang",
+      "Yanfang Ye",
+      "Peng Cui",
+      "Philip S. Yu"
+    ],
+    "source_authors": [
+      "Xiao Wang",
+      "Houye Ji",
+      "Chuan Shi",
+      "Bai Wang",
+      "Peng Cui",
+      "P. Yu",
+      "Yanfang Ye"
+    ],
+    "source_title": "Heterogeneous Graph Attention Network"
+  },
+  {
+    "slug": "gqml-graphs",
+    "id": "2607.00698",
+    "old": [
+      "Frédéric Sauvage",
+      "Pranav Kalidindi",
+      "Frederic Rapp",
+      "Martín Larocca"
+    ],
+    "source_authors": [
+      "Frédéric Sauvage",
+      "Pranav Kalidindi",
+      "Frederic Rapp",
+      "Martın Larocca"
+    ],
+    "source_title": "Quantum machine learning models for graphs"
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "id": "2408.05584v1",
+    "old": [
+      "J. Yan",
+      "S.-W. Zhang",
+      "C. Zhang",
+      "W. Huang",
+      "J. Shi",
+      "L. Chen"
+    ],
+    "source_authors": [
+      "Jinling Yan",
+      "Shao-Wu Zhang",
+      "Chihao Zhang",
+      "Weitian Huang",
+      "Jifan Shi",
+      "Luonan Chen"
+    ],
+    "source_title": "Dynamical causality under invisible confounders"
+  }
+]

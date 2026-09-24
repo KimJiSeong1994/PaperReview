@@ -1,0 +1,284 @@
+[
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "title": "Structural Deep Network Embedding (SDNE)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/structural-deep-network-embedding-sdne-review-2026",
+    "figures": [
+      "/api/blog/figures/sdne-fig1-proximity-counts.png",
+      "/api/blog/figures/sdne-fig2-framework.png",
+      "/api/blog/figures/sdne-fig3-reconstruction-precision.png"
+    ],
+    "primary_header": "# SDNE 심층 분석: \"Structural Deep Network Embedding\" 논문 해설\n\n**Paper:** Wang, Daixin; Cui, Peng; Zhu, Wenwu. (2016). \"Structural Deep Network Embedding.\" *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD '16)*, 1225–1234. https://doi.org/10.1145/2939672.2939753 ([PDF 보기](/paper-viewer?title=Structural+deep+network+embedding&authors=Wang%3BCui%3BZhu&year=2016&doi=10.1145%2F2939672.2939753&url=https%3A%2F%2Fdoi.org%2F10.1145%2F2939672.2939753&source=blog-reference)). Tsinghua University.\n\n**Abstract:** 본 문서는 오토인코더(입력을 저차원으로 압축했다가 다시 복원하며 재구성 오차를 줄이는 비지도 신경망)로 네트워크 임베딩을 학습한 초기 방법 SDNE를 해설한다. 핵심은 인접행렬의 한 행(한 노드와 다른 모든 노드 사이 연결의 나열)을 입력으로 삼아, 이웃 구조를 복원하는 비지도 성분과 엣지로 연결된 노드쌍을 임베딩 공간에서 당기는 지도 성분을 하나의 목적함수 L_mix로 함께 최적화하는 것이다. 재구성·분류·링크예측·시각화 네 과제에서 당시 얕은 임베딩 기법들을 앞선다고 보고한다. 다만 그 결론은 몇 가지 테두리 안에서 읽어야 한다. 재구성 지표가 SDNE의 훈련 목적과 사실상 같다는 점, 링크예측이 시간 분할이 아니라 무작위 은닉이라는 점, 대부분 표가 단일 실행 점추정이라는 점, 그리고 입력을 인접행렬 행에 묶은 탓에 transductive(고정된 노드 집합 안에서만 작동)라는 점이다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 얕은 임베딩이 놓치는 네트워크의 비선형 구조를, 깊은 신경망으로 더 잘 보존할 수 있는가? |\n| 핵심 기여 | 오토인코더에 1차 근접성(엣지로 직접 연결된 노드쌍의 국소 유사)과 2차 근접성(두 노드의 이웃 구조가 얼마나 닮았는가)을 함께 넣어 국소·전역 구조를 동시에 보존하는 SDNE를 제안. LINE처럼 따로 학습해 잇는 대신 하나의 목적함수로 함께 최적화한다. |\n| 방법적 결과 | \\(L_{mix}=L_{2nd}+\\alpha L_{1st}+\\nu L_{reg}\\)(식 5). \\(L_{2nd}\\)는 가중 재구성(실제 엣지에 β배 벌점)으로 2차 근접성을, \\(L_{1st}\\)는 Laplacian Eigenmaps식 벌점으로 1차 근접성을 보존한다. |\n| 실험 결과 | 저자 보고 기준 재구성 MAP은 ARXIV-GRQC 0.836·BLOGCATALOG 0.63(LINE 0.69·0.58), 링크예측 P@1000 0.91(LINE 0.79), 20-NEWSGROUP 시각화 KL 발산 0.68(2위 GraRep 0.73)로 얕은 기법들을 앞선다. |\n| 핵심 한계 | 재구성=훈련그래프 복원(일반화 아님)이고 SDNE 목적함수와 거의 같은 지표, 링크예측=무작위 15% 은닉, 대부분 단일 실행·오차막대 부재, 입력이 노드 수에 묶여 transductive·비확장. 고립 노드는 처리 불가(논문 인정). |\n\n## 목차\n\n1. 서론\n2. 방법: 오토인코더와 두 근접성\n3. 실험 설정\n4. ",
+    "status": "pending"
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "title": "Can Classic GNNs Be Strong Baselines for Graph-level Tasks? (GNN+)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "figures": [
+      "/api/blog/figures/gnnplus-fig1-tasks.png",
+      "/api/blog/figures/gnnplus-fig2-architecture.png"
+    ],
+    "primary_header": "# Can Classic GNNs Be Strong Baselines for Graph-level Tasks? 심층 분석: GNN+ 논문 해설\n\n**Paper:** Luo, Yuankai; Shi, Lei; Wu, Xiao-Ming. (2025). \"Can Classic GNNs Be Strong Baselines for Graph-level Tasks? Simple Architectures Meet Excellence.\" *ICML 2025* (arXiv:2502.09263v3). Beihang University·The Hong Kong Polytechnic University.\n\n**Abstract:** 본 문서는 \"고전 GNN에 널리 쓰이는 여섯 기법을 얹으면 Graph Transformer(GT)를 그래프 수준 과제에서 이긴다\"는 재평가 논문을 해설한다. 메시지 전달 GNN은 표현력 한계, over-smoothing, 장거리 의존 포착의 어려움으로 비판받아 왔고, GT가 전역 어텐션으로 그 한계를 넘는다는 통념이 자리 잡았다. 이 논문은 GCN·GIN·GatedGCN 세 고전 모델에 여섯 기법(엣지 특징, 정규화, 드롭아웃, 잔차 연결, FFN, 위치 인코딩)을 통합한 GNN+ 프레임워크로 14개 벤치마크에서 GT와 다시 견줘, 전 데이터셋에서 상위 3위 안에 들고 8개에서 1위를 차지하면서 GT보다 수 배 빠르다고 보고한다. 다만 읽을 때 두 가지를 분리해야 한다. 결과 자체는 5-시드 표준편차까지 갖춰 견고하지만, \"고전 GNN의 승리\"라는 표제는 실제로 흡수한 부품(FFN·위치 인코딩은 Transformer에서 온 것)을 덮는다. 이 논문이 반박하는 대상은 GT의 이론적 이점이 아니라 \"GT가 필수\"라는 통념까지이고, 저자들도 §7에서 현 벤치마크가 GT의 능력을 요구하지 않을 뿐일 수 있다고 인정한다. 위키 GNN 시리즈 관점에서는 GIN의 표현력 이론(sum 집계가 이론상 최강)이 실무 성능을 예측하지 못한다는 것, 즉 최다 1위가 GatedGCN+라는 관찰이 GAT 리뷰에서 Const-GAT로 분리해 보인 이웃 차등 가중의 실전 이득과 같은 방향의 자료다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 노드 수준 과제에서 고전 GNN이 GT와 대등하다는 선행 결과(같은 팀, NeurIPS 2024)를 그래프 수준 과제에서도 재현할 수 있는가? |\n| 핵심 기여 | GNN+ 프레임워크: 고전 GNN 한 층을 \"메시지 전달(+엣지 특징) → 정규화 → 활성화·드롭아웃 → 잔차 → FFN\"로 재조립하고 입력에 위치 인코딩을 붙인다(식 6–12, Figure 2). 여섯 기법 전부 on/off 하이퍼파라미터. |\n| 실험 결과 | 14개 벤치마크(GNN Benchmark 5 + LRGB 표기 5 + OGB 4)에서 GNN+ 세 모델 중 최소 하나가 전부 상위 3위, 8개에서 1위(GatedGCN+ 6 + GCN+ 2). GraphGPS 대비 에폭당 최대 7.7배 빠름. 전 표 5-시드 평균±표준편차. |\n| 핵심 한계 | \"classic/simple GNN\" 명명이 흡수한 GT 부품(FFN·위치 인코딩)을 가림, 튜닝 노력과 OGB 파라미터 예산(6M~30M)의 비대칭, ablation의 \"전부 불가결\" 주장이 데이터셋별 on/off 서치와 모순, 통계 검정 부재. GT 이론을 반증하지 못하며 저자도 §7에서 벤치마크 한정임을 인정. |\n\n## 목차\n\n1. 서론\n2. 방법: GNN+ 프레임워크\n3. 실험 설정\n4. 실험 결과\n5. 무엇이 실제로 이겼나 (ablation)\n6. 주의해서",
+    "status": "pending"
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "title": "Heterogeneous Graph Attention Network (HAN)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-attention-network-han-review-2026",
+    "figures": [
+      "/api/blog/figures/han-fig1-metapath.png",
+      "/api/blog/figures/han-fig2-architecture.png",
+      "/api/blog/figures/han-fig3-aggregation.png"
+    ],
+    "primary_header": "# HAN 심층 분석: \"Heterogeneous Graph Attention Network\" 논문 해설\n\n**Paper:** Wang, Xiao; Ji, Houye; Shi, Chuan; Wang, Bai; Ye, Yanfang; Cui, Peng; Yu, Philip S. (2019). \"Heterogeneous Graph Attention Network.\" *The World Wide Web Conference (WWW '19)*, pp. 2022–2032. https://doi.org/10.1145/3308558.3313562. arXiv:1903.07293. Code: github.com/Jhy1993/HAN\n\n**HAN**은 이종 그래프에서 meta-path별 GAT식 node-level attention과 meta-path 간 semantic-level attention을 계층 구조로 결합해 노드 임베딩을 학습하는 GNN이다(Wang et al., WWW 2019). ACM 노드 분류에서 최강 baseline(GCN) 대비 최대 2.6%p를 앞서며, attention 기반 이종 그래프 신경망의 \"first attempt\"로 인용된다.\n\n**Abstract:** 본 문서는 이종 그래프에 attention을 가져온 초기 GNN인 HAN 논문을 해설한다. 설계는 두 층의 계층적 attention이다. node-level attention은 meta-path로 유도된 이웃들 사이의 중요도를 GAT식으로 학습하고, semantic-level attention은 meta-path들 자체의 중요도를 학습해 meta-path별 임베딩을 가중합한다. DBLP·ACM·IMDB 세 이종 그래프의 노드 분류·군집화에서 baseline 대비 우위를 보고했고, attention 값이 meta-path의 유효성을 해석하는 도구가 된다는 것을 함께 보였다. 다만 meta-path 집합 자체는 사람이 지정하는 입력이고, semantic 가중치는 노드 구분 없는 전역 스칼라이며, baseline 비교 방식(meta-path별 최고치 보고)은 이후 통일 벤치마크 HGB(Lv et al., 2021) 재평가에서 문제로 지적된다. 이 간극들이 이 글의 후반부 주제다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 노드·관계 타입이 여럿인 이종 그래프에서, \"어떤 이웃이 중요한가\"(노드 수준)와 \"어떤 의미 관계(meta-path)가 중요한가\"(의미 수준)를 attention으로 동시에 학습할 수 있는가? |\n| 핵심 기여 | meta-path별 GAT식 node-level attention 위에, meta-path들의 중요도를 학습하는 semantic-level attention을 얹은 2층 계층 구조. 논문 표현으로는 attention 기반 이종 그래프 신경망의 \"first attempt\". |\n| 방법적 결과 | 타입별 투영 \\(\\mathbf{h}'_i = \\mathbf{M}_{\\phi_i}\\mathbf{h}_i\\) → meta-path별 \\(\\mathbf{z}^\\Phi_i\\)(masked attention + multi-head) → \\(\\mathbf{Z} = \\sum_p \\beta_{\\Phi_p}\\mathbf{Z}_{\\Phi_p}\\)를 semi-supervised cross-entropy로 학습한다(Eq. 1–10). |\n| 실험 결과 | 저자 보고 기준 분류(Table 3)에서 ACM은 최강 baseline(GCN) 대비 +1.2~2.6점, DBLP는 1점 미만(2개 셀은 HERec과 동률), IMDB는 GAT ",
+    "status": "pending"
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "title": "Heterogeneous Graph Neural Network (HetGNN)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "figures": [
+      "/api/blog/figures/hetgnn-fig1-challenges.png",
+      "/api/blog/figures/hetgnn-fig2-architecture.png"
+    ],
+    "primary_header": "# HetGNN 심층 분석: \"Heterogeneous Graph Neural Network\" 논문 해설\n\n**Paper:** Zhang, Chuxu; Song, Dongjin; Huang, Chao; Swami, Ananthram; Chawla, Nitesh V. (2019). \"Heterogeneous Graph Neural Network.\" *Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (KDD '19)*, pp. 793–803. https://doi.org/10.1145/3292500.3330961. Code: github.com/chuxuzhang/KDD2019_HetGNN (arXiv 판 없음)\n\n**HetGNN**은 restart 랜덤워크 기반 타입별 이웃 샘플링, Bi-LSTM 콘텐츠 인코딩, 타입 단위 attention 결합으로 이종 그래프의 구조·콘텐츠 이질성을 동시에 인코딩하는 inductive 노드 임베딩 프레임워크다(Zhang et al., KDD 2019). meta-path 지정 없이 링크 예측에서 최강 baseline 대비 학술 데이터 최대 5.6% AUC·F1을 개선했다.\n\n**Abstract:** 본 문서는 이종 그래프(heterogeneous graph)를 위한 초기 GNN 모델인 HetGNN 논문을 해설한다. 논문의 문제 설정은 노드 타입·관계 타입이 여럿이고 노드마다 텍스트·이미지 같은 비정형 콘텐츠가 붙은 그래프에서, 구조 이질성과 콘텐츠 이질성을 동시에 인코딩하는 범용 임베딩을 학습하는 것이다. 해법은 세 부품의 결합이다: restart 랜덤워크로 타입별 고정 크기 이웃을 샘플링하고(C1), 노드별 이질 콘텐츠를 Bi-LSTM으로 인코딩하고(C2), 같은 타입 이웃을 Bi-LSTM으로 집계한 뒤 타입 단위 attention으로 결합한다(C3). 학술 그래프(AMiner) 2종과 리뷰 그래프(Amazon) 2종에서 링크 예측·추천·분류·군집화와 inductive 과제를 실험해 5개 baseline 대비 우위를 보고했다. 다만 transductive 군집화에서는 GraphSAGE에 뒤지고, \"end-to-end\" 주장과 사전학습 특징 고정 사이의 간극, 신규 노드의 특징 처리 미기재 등 읽을 때 주의할 서술 공백이 있다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 노드·관계 타입이 여럿이고 노드마다 이질적 비정형 콘텐츠가 붙은 그래프에서, 구조와 콘텐츠의 이질성을 동시에 담는 범용 노드 임베딩을 어떻게 학습하는가? |\n| 핵심 기여 | restart 랜덤워크 기반 타입별 이웃 샘플링 + 타입별 Bi-LSTM 콘텐츠 인코딩 + 타입 단위 attention 결합이라는 3모듈 구조로, meta-path 지정 없이 이종 그래프의 inductive 임베딩을 만든다. |\n| 방법적 결과 | \\(f_1(v)\\)(콘텐츠 인코딩) → \\(f_2^t(v)\\)(타입별 이웃 집계) → \\(\\mathcal{E}_v = \\alpha^{v,v}f_1(v) + \\sum_t \\alpha^{v,t}f_2^t(v)\\)(attention 결합)를 skip-gram형 graph context loss로 학습한다(Eq. 1–11). |\n| 실험 결과 | 저자 보고 기준 링크 예측 성능(AUC·F1)을 최강 baseline 대비 학술 데이터에서 1.5–5.6%, 리뷰 데이터에서 3.4–10.5% 개선, inductive 군집화에서 GraphSAGE 대비 평균 17.3% ",
+    "status": "pending"
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "title": "DeepWalk: Online Learning of Social Representations",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/deepwalk-online-learning-social-representations-review-2026",
+    "figures": [
+      "/api/blog/figures/deepwalk-fig1-karate.png",
+      "/api/blog/figures/deepwalk-fig2-powerlaw.png",
+      "/api/blog/figures/deepwalk-fig3-overview.png"
+    ],
+    "primary_header": "# DeepWalk 심층 분석: \"DeepWalk: Online Learning of Social Representations\" 논문 해설\n\n**Paper:** Perozzi, Bryan; Al-Rfou, Rami; Skiena, Steven. (2014). \"DeepWalk: Online Learning of Social Representations.\" *Proceedings of the 20th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD 2014)*, arXiv:1403.6652. https://doi.org/10.1145/2623330.2623732\n\n**DeepWalk**는 그래프의 짧은 random walk를 '문장', 정점을 '단어'로 취급해 SkipGram으로 정점 임베딩을 비지도 학습하는 방법이다(Perozzi et al., KDD 2014). 라벨이 1%뿐인 희소 조건에서 기존 기법 대비 Micro-F1을 최대 10%p 이상 앞선다.\n\n**Abstract:** 본 문서는 random walk 기반 node embedding의 출발점인 DeepWalk 논문을 해설한다. 논문의 아이디어는 하나의 유비다: scale-free 그래프 위 짧은 random walk에서 정점이 등장하는 빈도는 자연어의 단어 빈도와 같은 power law를 따르므로, walk를 문장으로, 정점을 단어로 취급하면 언어 모델(SkipGram)을 그대로 그래프에 이식할 수 있다. 학습된 표현은 라벨과 독립적인 비지도 산출물이라 여러 분류 과제에 재사용되고, 라벨이 희소한 구간에서 당시 baseline을 앞섰으며, spectral 방법이 실행되지 않는 규모(YouTube, 114만 정점)까지 확장됐다. 한계는 7장에서 정리한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 라벨이 희소한 소셜 네트워크에서, 라벨과 독립적인 정점 표현을 비지도로 학습해 분류에 쓸 수 있는가? |\n| 핵심 기여 | random walk의 정점 빈도가 단어 빈도와 같은 power law라는 관찰을 근거로, walk를 문장으로 취급해 SkipGram + hierarchical softmax를 그래프에 이식한다(§3.2, Algorithm 1·2). |\n| 방법적 결과 | 정점당 γ개, 길이 t의 uniform random walk를 코퍼스로 삼아 V×d 크기의 표현 행렬 \\(\\Phi\\)를 학습. hierarchical softmax로 갱신 비용 \\(O(V) \\to O(\\log V)\\). |\n| 실험 결과 | 저자 보고 기준 라벨 희소 구간에서 우위: Flickr에서 3% 라벨로 baseline의 10% 성능을 상회(micro-F1 35.9 vs 35.41), YouTube 1%에서 EdgeCluster 대비 micro +14.05%p(Table 3·4). |\n| 핵심 한계 | 라벨이 충분하면 SpectralClustering에 뒤진다(BlogCatalog micro \\(T_R\\ge70\\%\\); macro는 \\(T_R>20\\%\\)부터). transductive이고 node feature를 쓰지 않으며, streaming 변형은 미실험 스케치다. |\n\n**TL;DR** — (1) DeepWalk는 random walk 경로를 문장으로, 정점을 단어로 취급해 SkipGram으로 비지도 정점 임베딩을 학습하는 그래프 표현 학습 방법이다. (2) YouTube 1% 라벨 조건에서 EdgeCluster 대비 micro-F1 +14.05%p(37.95 ",
+    "status": "pending"
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "title": "Graph Attention Networks (GAT)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/graph-attention-networks-gat-review-2026",
+    "figures": [
+      "/api/blog/figures/gat-fig1-attention.png",
+      "/api/blog/figures/gat-fig2-tsne.png"
+    ],
+    "primary_header": "# GAT 심층 분석: \"Graph Attention Networks\" 논문 해설\n\n**Paper:** Veličković, Petar; Cucurull, Guillem; Casanova, Arantxa; Romero, Adriana; Liò, Pietro; Bengio, Yoshua. (2018). \"Graph Attention Networks.\" *International Conference on Learning Representations (ICLR 2018)*, arXiv:1710.10903. Code: https://github.com/PetarV-/GAT\n\n**GAT**는 GNN의 이웃 집계 가중치를 구조 기반 고정값 대신 노드 feature 쌍으로부터 학습하는 masked self-attention 층으로 계산하는 그래프 신경망이다(Veličković et al., ICLR 2018). 고유값분해 없이 GCN급 복잡도 O(VFF'+EF')를 유지하면서 inductive 설정에 바로 적용되며, PPI micro-F1 0.973으로 당시 최고를 달성했다.\n\n**Abstract:** 본 문서는 이웃 집계에 attention을 도입한 GAT(Graph Attention Networks) 논문을 해설한다. 논문의 제안은 이웃별 가중치를 그래프 구조(차수 기반 정규화)에서 가져오는 대신, 노드 feature 쌍으로부터 학습된 함수로 계산하는 masked self-attention 층이다. 고유값분해 같은 무거운 행렬 연산 없이 GCN과 같은 복잡도를 유지하면서, 같은 이웃 안의 노드들에 서로 다른 중요도를 부여하고, 전체 그래프 구조를 미리 알 필요가 없어 inductive 설정에 바로 적용된다. 네 벤치마크(Cora, Citeseer, Pubmed, PPI)에서 당시 최고 수준을 달성하거나 동률을 기록했고, 특히 PPI에서 상수 attention 대조군(Const-GAT) 대비 3.9%p 이득으로 attention 자체의 기여를 분리해 보였다. 다만 해석가능성 주장은 논문 안에서 검증되지 않았고, transductive 결과는 고정 분할 위의 수치이며, attention 형식의 표현력 한계는 이후 연구(GATv2)에서 지적됐다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 이웃 집계의 가중치를 구조 기반 고정값이 아니라 노드 feature로부터 학습하면, 성능·적용 범위에서 무엇이 달라지는가? |\n| 핵심 기여 | 이웃쌍별 attention 계수 \\(\\alpha_{ij}\\)를 학습하는 graph attentional layer(Eq 1–4)와 multi-head 안정화(Eq 5–6)를 제안하고, 고유값분해 없이 GCN급 복잡도 \\(O(VFF' + EF')\\)로 inductive 적용까지 확보한다. |\n| 방법적 결과 | \\(\\vec h'_i = \\sigma\\big(\\sum_{j\\in\\mathcal N_i} \\alpha_{ij} \\mathbf W \\vec h_j\\big)\\), \\(\\alpha_{ij}\\)는 LeakyReLU 단층 attention의 softmax(Eq 3). |\n| 실험 결과 | 저자 보고 기준(각 100 runs) Cora 83.0±0.7, Citeseer 72.5±0.7, Pubmed 79.0±0.3, PPI micro-F1 0.973±0.002(10 runs). PPI에서 Const-GAT(0.934) 대비 +3.9%p(Table 2·3). |\n| 핵심 한계 | 해석가능성은 전망 수준으로만 제시(future work). sparse 구현의 batch 제약과 receptiv",
+    "status": "pending"
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "title": "How Powerful are Graph Neural Networks? (GIN)",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/how-powerful-are-graph-neural-networks-gin-review-2026",
+    "figures": [
+      "/api/blog/figures/gin-fig1-wl-framework.png",
+      "/api/blog/figures/gin-fig2-aggregator-ranking.png",
+      "/api/blog/figures/gin-fig3-failure-cases.png",
+      "/api/blog/figures/gin-fig4-training-accuracy.png"
+    ],
+    "primary_header": "# GIN 심층 분석: \"How Powerful are Graph Neural Networks?\" 논문 해설\n\n**Paper:** Xu, Keyulu; Hu, Weihua; Leskovec, Jure; Jegelka, Stefanie. (2019). \"How Powerful are Graph Neural Networks?\" *International Conference on Learning Representations (ICLR 2019)*, arXiv:1810.00826.\n\n**GIN(Graph Isomorphism Network)**은 이웃 집계 기반 GNN의 판별력 상한이 Weisfeiler-Lehman(WL) test와 동등함을 이론적으로 증명하고, 그 상한에 도달하는 조건(단사적 집계·결합·readout)을 만족하는 sum-MLP 집계 아키텍처를 제안한다(Xu et al., ICLR 2019). feature가 없는 Reddit에서 mean 계열(GCN 포함)이 무작위 추측 수준(50.0/20.0)에 그칠 때 GIN-0는 Reddit-Binary 92.4±2.5를 달성했다.\n\n**Abstract:** 본 문서는 GNN 표현력 연구의 기준점이 된 GIN(Graph Isomorphism Network) 논문을 해설한다. 논문은 이웃 집계(message passing) 방식의 GNN이 그래프를 구별하는 능력이 Weisfeiler-Lehman(WL) test를 넘을 수 없음을 보이고, WL test와 같은 판별력에 도달하는 조건(집계·결합·readout 함수의 단사성)을 확립한 뒤, 그 조건을 만족하는 단순한 아키텍처 GIN을 제안한다. 같은 틀에서 GCN의 mean, GraphSAGE의 max aggregator가 구별하지 못하는 그래프 구조도 정밀하게 특성화한다. 다만 이론은 판별력에 관한 것이고 일반화는 별개라는 점을 논문 스스로 밝힌다. 평가 프로토콜(10-fold CV validation accuracy 보고)과, 단사성이 유한 정밀도로는 그대로 실현되지 않는다는 이론-구현 간극도 함께 봐야 한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 이웃 집계 기반 GNN은 서로 다른 그래프 구조를 어디까지 구별할 수 있으며, 그 상한에 도달하는 설계 조건은 무엇인가? |\n| 핵심 기여 | GNN 판별력의 상한이 WL test임을 보이고(Lemma 2), 상한 도달 조건을 단사성으로 특성화하며(Theorem 3), 이를 만족하는 GIN을 제안한다(Eq 4.1). |\n| 방법적 결과 | \\(h^{(k)}_v = \\mathrm{MLP}^{(k)}\\big((1+\\epsilon^{(k)})\\cdot h^{(k-1)}_v + \\sum_{u\\in\\mathcal N(v)} h^{(k-1)}_u\\big)\\). 비교된 세 aggregator 중 sum만 multiset 전체를 보존하고, mean은 분포, max는 집합만 남긴다(Figure 2, Corollary 8·9). |\n| 실험 결과 | 저자 보고 기준 GIN-0은 9개 그래프 분류 벤치마크에서 최고 수준이고, feature가 없는 Reddit에서 mean 계열(GCN 포함)은 random guessing 수준(50.0/20.0)에 그친다(Table 1). |\n| 핵심 한계 | 이론은 일반화를 직접 말하지 않는다(§7.1). 단사성 구성은 존재 논증이며, 이론상 더 강한 GIN-ε이 실험에서는 GIN-0에 진다. |\n\n**TL;DR** — (1) GIN은 이웃 집계 GNN의 표현력 상한이 WL test임을 이론으로 증명하고, 단사성 조건을 만족하는 s",
+    "status": "pending"
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "title": "Inductive Representation Learning on Large Graphs",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "figures": [
+      "/api/blog/figures/graphsage-sample-aggregate-paperbanana-v2.png",
+      "/api/blog/figures/graphsage-fig1-sample-aggregate-padded.png",
+      "/api/blog/figures/graphsage-timing-sampling-blog.png"
+    ],
+    "primary_header": "# Inductive Representation Learning on Large Graphs\n\n**Paper:** Hamilton, William L.; Ying, Rex; Leskovec, Jure. (2017). \"Inductive Representation Learning on Large Graphs.\" *Advances in Neural Information Processing Systems (NIPS 2017)*, arXiv:1706.02216. DOI: https://doi.org/10.48550/arXiv.1706.02216. Code & data: https://snap.stanford.edu/graphsage/\n\n**GraphSAGE**는 노드별 embedding lookup 대신 이웃 feature를 고정 크기로 샘플링해 aggregator 함수로 집계하는 것을 학습하는 inductive 그래프 표현 학습 프레임워크다(Hamilton et al., NeurIPS 2017). 훈련 시 보지 못한 노드와 그래프에도 재학습 없이 적용되며, feature 단독 대비 micro-F1을 평균 51% 개선했다.\n\n**Abstract:** 본 문서는 inductive node embedding의 표준 참조점이 된 GraphSAGE 논문을 해설한다. 논문의 핵심은 노드마다 embedding 벡터를 직접 최적화하는 대신, 이웃의 feature를 샘플링하고 집계하는 **aggregator 함수**를 학습하는 것이다. 학습된 함수는 같은 형태의 node feature와 관측 가능한 이웃 정보가 있을 때, 훈련 때 보지 못한 노드와 그래프에도 적용될 수 있다. Citation과 Reddit에서는 DeepWalk 계열 transductive baseline을, PPI에서는 feature/random baseline을 웃도는 micro-F1을 보고했다. 다만 uniform sampling에 따른 embedding 비결정성, feature 기반 과제 위주의 평가, pooling aggregator에 한정된 존재 증명(Theorem 1)을 함께 읽어야 한다.\n\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 훈련 시 존재하지 않던 노드(또는 완전히 새로운 그래프)의 embedding을 재학습 없이 생성할 수 있는가? |\n| 핵심 기여 | 노드별 embedding look-up 대신, 이웃 feature를 고정 크기로 샘플링해 집계하는 aggregator 함수 집합을 학습하는 프레임워크를 제안한다. |\n| 방법적 결과 | 각 depth k에서 \\(h^k_v \\leftarrow \\sigma(W^k\\cdot\\mathrm{CONCAT}(h^{k-1}_v, \\mathrm{AGG}_k(\\{h^{k-1}_u\\})))\\)를 수행하고, 이웃은 매 iteration 고정 크기 uniform sample로 대체해 배치당 복잡도를 \\(O(\\prod_i S_i)\\)로 고정한다. |\n| 실험 결과 | 저자 보고 기준 supervised GraphSAGE는 feature 단독 대비 micro-F1을 평균 51% 개선했고, 학습형 aggregator는 GCN 유래 aggregator 대비 평균 7.4% 이득을 보였다(§1). |\n| 핵심 한계 | uniform sampling과 K-hop 이웃 폭발은 논문 스스로 future work로 남겼다. Theorem 1은 학습 보장이 아닌 존재 증명이며 pooling aggregator에 의존한다. |\n\n**TL;DR** — (1) GraphSAGE는 이웃 feature를 고정 크기로 샘플링해 a",
+    "status": "pending"
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "title": "Semi-Supervised Classification with Graph Convolutional Networks",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "figures": [
+      "/api/blog/figures/gcn-full-training-flow-paperbanana-v3-white.png",
+      "/api/blog/figures/gcn-fig1-architecture-tsne.png",
+      "/api/blog/figures/gcn-fig2-training-time.png"
+    ],
+    "primary_header": "# Semi-Supervised Classification with Graph Convolutional Networks\n\n**Paper:** Kipf, Thomas N.; Welling, Max. (2017). \"Semi-Supervised Classification with Graph Convolutional Networks.\" *International Conference on Learning Representations (ICLR 2017)*, arXiv:1609.02907. DOI: https://doi.org/10.48550/arXiv.1609.02907. Code: https://github.com/tkipf/gcn.\n\n**GCN(Graph Convolutional Network)**은 spectral graph convolution을 1차 근사하고 self-loop가 포함된 symmetric normalization을 적용해 node feature와 graph structure를 함께 전파하는 layer-wise propagation rule을 제안한 반지도 학습 모델이다(Kipf & Welling, ICLR 2017). Citeseer 70.3%, Cora 81.5%, Pubmed 79.0%, NELL 66.0%를 기록하며 당시 주요 baseline을 상회했다.\n\n**Abstract:** 본 문서는 Graph Convolutional Network(GCN)의 표준 형태를 정립한 Kipf & Welling의 ICLR 2017 논문을 해설한다. 논문의 핵심은 spectral graph convolution을 1차 근사하고 self-loop 정규화를 적용해, node feature와 graph structure를 함께 전파하는 단순한 layer-wise propagation rule을 만드는 것이다. 이 방법은 citation network와 NELL 지식 그래프 변환 데이터에서 당시 주요 semi-supervised node classification baseline보다 높은 정확도를 보고했지만, full-batch transductive 설정, undirected graph 가정, edge feature 처리의 우회적 성격을 함께 읽어야 한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | label이 매우 적은 graph에서 node feature와 graph structure를 함께 사용해 node class를 예측할 수 있는가? |\n| 핵심 기여 | spectral graph convolution의 Chebyshev 근사를 1차로 단순화하고, self-loop가 포함된 symmetric normalization을 적용한 GCN layer를 제안한다. |\n| 방법적 결과 | 각 layer는 $\\tilde D^{-1/2}\\tilde A\\tilde D^{-1/2}H^{(l)}W^{(l)}$ 형태로 이웃 feature를 정규화 집계한 뒤 비선형 변환한다. |\n| 실험 결과 | 저자 보고 기준 GCN은 Citeseer 70.3%, Cora 81.5%, Pubmed 79.0%, NELL 66.0%를 기록했고, 같은 표의 Planetoid*보다 높은 정확도를 보였다. |\n| 핵심 한계 | 실험은 transductive full-batch 설정이다. layer 연산은 edge 수에 선형이지만, 학습 메모리와 mini-batch 확장은 논문에서 future work로 남겨졌다. |\n\n**TL;DR** — (1) GCN은 spectral graph convolution을 1차 근사해 $\\tilde",
+    "status": "pending"
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "title": "GNNExplainer: Generating Explanations for Graph Neural Networks",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "figures": [
+      "/api/blog/figures/gnnexplainer-fig1-overview.png",
+      "/api/blog/figures/gnnexplainer-fig2-computation-mask.png",
+      "/api/blog/figures/gnnexplainer-fig6-prototype.png",
+      "/api/blog/figures/gnnexplainer-table1-synthetic-results.png",
+      "/api/blog/figures/gnnexplainer-fig3-synthetic-explanations.png",
+      "/api/blog/figures/gnnexplainer-fig4-realworld-explanations.png",
+      "/api/blog/figures/gnnexplainer-fig5-feature-importance.png"
+    ],
+    "primary_header": "# GNNExplainer: Generating Explanations for Graph Neural Networks\n\n**Paper:** Ying, Rex; Bourgeois, Dylan; You, Jiaxuan; Zitnik, Marinka; Leskovec, Jure. \"GNNExplainer: Generating Explanations for Graph Neural Networks.\" *Advances in Neural Information Processing Systems 32 (NeurIPS 2019)*, arXiv:1903.03894v4, 2019-11-13. Code: https://github.com/RexYing/gnn-model-explainer.\n\n**GNNExplainer**는 훈련된 GNN을 수정하거나 재학습하지 않고, 특정 예측을 보존하는 compact computation subgraph와 node feature mask를 mutual information 최대화 문제로 찾는 post-hoc model-agnostic GNN explanation 프레임워크다(Ying et al., NeurIPS 2019). synthetic benchmark에서 GRAD·ATT baseline 대비 평균 17.1% 높은 explanation accuracy를 보고했다.\n\n**Abstract:** 본 문서에서는 GNN 설명가능성 연구의 대표적 기준점으로 자주 인용되는 GNNExplainer를 체계적으로 해설한다. GNNExplainer의 핵심은 훈련된 GNN의 예측을 가장 잘 보존하는 작은 computation subgraph와 node feature subset을 찾는 것이다. 논문은 이를 mutual information 최대화 문제로 정식화하고, 이산 subgraph 탐색을 연속 mask 최적화로 완화한다. 아울러 저자가 보고한 synthetic benchmark 성능과 real-world qualitative 사례를 분리해 읽고, 이 방법이 causal explanation이 아니라 prediction-preserving post-hoc explanation이라는 점을 비판적으로 정리한다.\n\n---\n\n> **논문 설명 요약**\n> 이 논문은 훈련된 Graph Neural Network의 특정 예측을 설명하기 위해, 예측을 보존하는 compact subgraph와 node feature mask를 찾는 GNNExplainer를 제안한다.\n> 방법적으로는 설명을 mutual information 최대화 문제로 정식화하고, 이산적인 부분 그래프 선택을 연속 adjacency/feature mask 최적화로 완화한다.\n> 실험은 synthetic benchmark에서 구조적 explanation을 정량 평가하고, MUTAG·REDDIT-BINARY에서는 정성 사례를 제시하지만, 설명은 causal explanation이 아니라 prediction-preserving post-hoc explanation으로 읽어야 한다.\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | GNN의 특정 예측은 어떤 graph structure와 node feature에 의해 만들어졌는가? |\n| 핵심 기여 | 훈련된 GNN을 수정하거나 재학습하지 않고, 예측을 설명하는 compact subgraph와 feature mask를 찾는 post-hoc, model-agnostic GNN explanation 프레임워크를 제안한다. |\n| 방법적 결과 | `MI(Y, (G_S, X_S))`를 최대화하는 설명을 찾되, 실제 최",
+    "status": "pending"
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "title": "Explaining Temporal Graph Neural Networks via Feature-induced Information Flow",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "figures": [
+      "/api/blog/figures/tgnn-infoflow-fig1-overview.png",
+      "/api/blog/figures/tgnn-infoflow-fig4-etgnn.png",
+      "/api/blog/figures/tgnn-infoflow-fig6-er-definitions.png",
+      "/api/blog/figures/tgnn-infoflow-fig8-infection.png",
+      "/api/blog/figures/tgnn-infoflow-fig11-attacker.png"
+    ],
+    "primary_header": "# Explaining Temporal Graph Neural Networks via Feature-induced Information Flow\n\n**Paper:** Xiong, Ping; Schnake, Thomas; Müller, Klaus-Robert; Nakajima, Shinichi. \"Explaining Temporal Graph Neural Networks via Feature-induced Information Flow.\" arXiv:2606.27201v1 [cs.LG], 2026-06-25.\n\n**Event Relevance(ER)**는 Event-based Temporal Graph Neural Network(ETGNN)의 EP·Embedding·Decoding 모듈별 정보 흐름을 분해해 event feature 경로와 event-induced message 경로를 모두 추적함으로써 각 이벤트의 최종 예측 기여도를 수치화하는 post-hoc 설명 방법이다(Xiong et al., arXiv:2606.27201, 2026). Infection Recall-chain에서 ER 0.844를 기록해 TGNNExplainer 0.055를 크게 앞섰다.\n\n**Abstract:** 이 논문은 Event-based Temporal Graph Neural Networks(ETGNNs)의 예측을 설명할 때, 기존 방법들이 주로 최종 embedding/decoder 쪽 정보 흐름만 추적하고, 시간 순서대로 누적되는 node memory evolution 경로를 충분히 보지 못한다는 문제에서 출발한다. 저자들은 Normalized Relevance Measure(NRM)를 기반으로, 이벤트 feature뿐 아니라 이벤트가 유도한 message 변수와 memory update 경로까지 포함하는 Event Relevance(ER)를 정의한다. 핵심은 \"어떤 이벤트가 최종 예측에 영향을 주었는가\"를 단순히 최근 event-subgraph로 찾는 것이 아니라, ETGNN 내부의 EP(Event Processing) → Embedding → Decoding 전체 정보 흐름 위에서 계산한다는 점이다. 실험에서는 Infection, Attacker 합성 데이터와 ICEWS18 정치 이벤트 데이터에서 기존 baseline보다 강한 설명 품질을 보이지만, 실제 데이터에는 ground-truth explanation이 없고, 일부 지표에서는 Grad×Input이 더 높으며, 대규모 그래프에서 계산비용이 작지 않다는 점을 함께 읽어야 한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 시간 순서의 이벤트가 node memory를 계속 바꾸는 ETGNN에서, 특정 이벤트가 최종 예측에 기여한 정도를 어떻게 더 충실하게 설명할 수 있는가? |\n| 핵심 기여 | ETGNN의 전체 정보 흐름을 대상으로 Event Relevance(ER)를 정의하고, NRM을 복잡한 temporal graph architecture에 적용하기 위한 modular decomposition 절차를 제안한다. |\n| 방법적 결과 | ETGNN을 EP, Emb, Dec 모듈로 나눈 뒤, event feature 경로(ER-feat), event-induced message 경로(ER-msg), Emb-only 경로(ER-Emb)를 구분한다. 최종 ER은 feature/message 관련 흐름을 함께 고려하며, Joint ER은 여러 이벤트의 상호작용을 설명한다. |\n| 실험 결과 | Infection Recall-chain에서 ER/ER-msg는 0",
+    "status": "pending"
+  },
+  {
+    "slug": "gqml-graphs",
+    "title": "Quantum Machine Learning Models for Graphs",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/gqml-graphs",
+    "figures": [
+      "/api/blog/figures/gqml-graphs-fig1-toolbox.png",
+      "/api/blog/figures/gqml-graphs-fig2-symmetric-group-action.png",
+      "/api/blog/figures/gqml-graphs-fig3-symmetrization.png",
+      "/api/blog/figures/gqml-graphs-fig4-pretraining.png"
+    ],
+    "primary_header": "**Paper:** Sauvage, F., Kalidindi, P., Rapp, F., & Larocca, M. (2026). *Quantum machine learning models for graphs* (arXiv:2607.00698). arXiv. https://arxiv.org/abs/2607.00698 · quant-ph 프리프린트, Larocca는 LANL LDRD 지원 명기(§VI).\n\n**Abstract:** 고전 기하 기계학습(GML)은 등변(equivariant) 층을 체계적으로 설계·연구하면서 성숙했지만, 그 양자 판본인 기하 양자 기계학습(GQML)은 개별 제안들만 흩어져 있고 설계를 묶는 관점이 없었다. 이 논문은 그 공백을 메우려는 **프레임워크(도구상자) 논문**이다. $n$-노드 그래프를 $n$-큐빗 상태로 인코딩하는 한 가지 설정에 초점을 맞춰, 대칭군 $S_n$ 아래 등변인 선형·비선형 사상 전체를 대칭화(twirling)의 궤도(orbit) 계산으로 특성화한다(Table 2). 이 특성화로 알려진 GQML 모델들(QAOA 포함)을 이 한 형식의 특수 사례로 되살리고, 같은 기계로 일반화하며, 고전 모델과의 자연스러운 결합과 고전 사전학습(pre-training) 전략까지 얻는다고 주장한다. 뒤의 두 이점은 두 개의 최소한의 수치 실험으로 예시된다. 이 글은 논문의 이론(도구상자)이 무엇을 어떻게 특성화하는지, 두 실험이 정확히 무엇을 보이는지, 그리고 초록의 표제 동사들(\"비용 없이 표현력 확장\", \"장벽 고원 완화\", \"알려진 모든 모델 통합\")이 실제로 어디까지 뒷받침되는지를 나눠 읽는다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | GQML 모델을 그래프 문제에서 원리적으로 설계할 방법이 없다. 흩어진 개별 제안들을 하나의 설계 이론으로 묶고, 서로 어떻게 관계되며 어떻게 일반화되는지 말할 수 있는가?(§I) |\n| 핵심 기여 | $n$-노드 그래프 = $n$-큐빗 인코딩 설정에서 $S_n$-등변 선형 사상 $\\mathrm{Hom}_{S_n}(V,W)$ 전체를 특성화한 도구상자(Table 2). 핵심 기법은 대칭화가 기저를 궤도로 나누는 조합 문제로 붕괴한다는 관찰(식 16–19). 이로 알려진 모델을 특수 사례로 복원(QAOA·graph state·기존 GQML)하고 일반화하며, 고전 통합(§IV.3)과 고전 사전학습(§IV.5)을 제안. |\n| 실험 결과 | (1) 비동형 그래프 구별(Table 3): 같은 측정 기저에서 관측가능량을 더 읽으면 QAOA 깊이가 $L\\in\\{2,3,4\\}$에서 최소 $L=1$로 줄고, 추가 비용은 고전 후처리뿐. (2) 사전학습(Fig 4): 파라미터 수가 그래프 크기와 무관하다는 성질을 이용해 작은 그래프($n\\in[8,12]$)에서 학습한 뒤 큰 그래프($n\\le 20$)에 이식, 출력 분산의 붕괴(집중)를 완화. |\n| 핵심 한계 | 이론·프레임워크 논문. 양자 이점 주장 없음, 하드웨어·엔드투엔드·실데이터 없음, 두 실험은 작은 $n$의 고전 시뮬레이션이고 shot noise를 끈 개념 증명. 표제 동사 셋은 각각 좁은 의미로만 실증되고 초록에서 부풀려진다. §V에서 저자들이 열린 문제를 정직하게 나열. |\n\n**TL;DR**\n\n- GQML 도구상자는 n-노드 그래프를 n-큐빗 상태로 인코딩하는 설정에서 대칭군 $S_n$ 아래 등변인 선형·비선형 사상 전체를 대칭화(twirling)의 궤도 계산으로 특성화하는 설계 프레임워크다.\n- GQML 도구상자는 QAOA·graph state 등 알려진 모델을 이 형식의 특",
+    "status": "pending"
+  },
+  {
+    "slug": "lgc-acf",
+    "title": "Light Graph Convolutional Collaborative Filtering With Multi-Aspect Information",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lgc-acf",
+    "figures": [
+      "/api/blog/figures/lgc-acf-fig1-toy-example.png",
+      "/api/blog/figures/lgc-acf-fig2-architecture.png"
+    ],
+    "primary_header": "**Paper:** Mei, D., Huang, N., & Li, X. (2021). Light graph convolutional collaborative filtering with multi-aspect information. *IEEE Access, 9*, 34433–34441. https://doi.org/10.1109/ACCESS.2021.3061915 · South China University of Technology · CC-BY. 모델명 **LGC-ACF**(Light GCN based Aspect-level Collaborative Filtering).\n\n**Abstract:** GCN 기반 협업 필터링(NGCF·LightGCN)은 사용자-아이템 상호작용 그래프 하나만 써서 선호의 한 단면만 본다. 이 논문은 아이템 속성(장르·감독·배우·브랜드 등)마다 사용자-속성 상호작용 그래프를 따로 만들고, 각 그래프에 LightGCN을 돌린 뒤, 층별·측면별 임베딩을 평균 내어 추천하는 LGC-ACF를 제안한다. 세 데이터셋(Movielens·Amazon·Taobao)에서 상호작용만 쓰는 베이스라인 대비 NDCG가 각각 5.31%·4.06%·14.9% 올랐다고 보고한다. 이 글은 방법을 정확히 재구성하고, 실험이 실제로 무엇을 보였는지를 나눠 읽는다. 핵심은 하나다. LGC-ACF는 베이스라인 7종이 갖지 못한 아이템 부가정보를 쓰는데, 정작 부가정보를 쓰는 경쟁 모델(KGCN·KGAT·NeuACF)과는 비교하지 않는다. 그래서 표의 우세는 \"더 나은 모델\"인지 \"더 많은 정보\"인지 분리되지 않는다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | GCN 기반 CF는 사용자-아이템 구매 이력 그래프 하나만 학습해 선호의 한 단면만 잡는다(§I). 아이템의 여러 속성을 함께 모델링하면 표현이 더 좋아지는가? |\n| 핵심 기여 | LGC-ACF. 아이템 속성별로 사용자-속성 이분 그래프를 만들고(간선 가중치=상호작용 횟수), 각 그래프에 LightGCN을 적용해 측면·층별 임베딩을 얻은 뒤, 균일 평균으로 융합해 내적으로 예측(식 1–13). LightGCN을 아이템 속성 수만큼 복제해 붙인 구조다. |\n| 실험 결과 | Movielens·Amazon·Taobao 세 데이터셋에서 7개 상호작용-only 베이스라인(MF·DMF·GCMC·NGCF·DGCF·LR-GCCF·LightGCN) 전부를 이김(Table 4). 최강 베이스라인 대비 recall 개선 4.975%·1.305%·14.35%, NDCG 개선(초록) 5.31%·4.06%·14.9%. 측면을 더할수록 이득은 있지만 체감(§IV.C). |\n| 핵심 한계 | 비교가 대등하지 않음: 베이스라인 7종은 부가정보를 못 쓰는데 LGC-ACF만 씀. 부가정보를 쓰는 경쟁군(KGCN·KGAT·NeuACF)은 인용만 하고 표에서 뺌. \"가중 평균\"은 실제로는 균일 평균(학습 가중치 없음). 단일 80/20 분할·분산/유의성 없음·@20만. LightGCN을 조금 확장한 점증 논문. |\n\n**TL;DR**\n\n- LGC-ACF는 아이템 속성(장르·감독·배우·브랜드)마다 간선 가중치가 상호작용 횟수인 사용자-속성 이분 그래프를 만들고, 각 그래프에 LightGCN을 돌려 얻은 층·측면 임베딩을 균일 평균으로 융합해 내적으로 추천하는 협업 필터링 모델이다.\n- LGC-ACF는 Movielens·Amazon·Taobao에서 상호작용만 쓰는 베이스라인 7종(MF·NGCF·LightGCN 등)을 모두 이겨 NDCG를 각각 5.31%·4.06%·14.9% 올렸다고",
+    "status": "pending"
+  },
+  {
+    "slug": "coevot",
+    "title": "CoEvoT: Co-Evolving Chain-of-Thought Prompting for Graph–LLM Reasoning",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/coevot",
+    "figures": [
+      "/api/blog/figures/coevot-fig1-comparison.png",
+      "/api/blog/figures/coevot-fig2-framework.png",
+      "/api/blog/figures/coevot-fig6-tsne.png"
+    ],
+    "primary_header": "**Paper:** Niu, H., Yu, X., Liu, Y., Fang, J., Xie, X., Tan, J., Zhang, Z., Cheng, H., & Fang, Y. (2026). \"CoEvoT: Co-Evolving Chain-of-Thought Prompting for Graph–LLM Reasoning.\" arXiv:2607.14114v1 [cs.CL] (under review).\n\n**Abstract:** 이 문서는 그래프–LLM 추론에서 Chain-of-Thought(CoT) 프롬프팅을 재설계한 CoEvoT를 해설한다. 기존 그래프–LLM 방법은 그래프를 토큰 열로 선형화해 LLM에 넣고, \"step by step\" 같은 지시로 다단계 추론을 유도한다. 그러나 이때 그래프 토큰은 추론 내내 고정된다. CoEvoT는 이 한계를 두 방향의 결합으로 푼다. 각 단계에서 LLM이 만든 중간 사고(thought)를 경량 조건망(condition network)에 통과시켜 그래프 토큰의 증거 상태를 갱신하고(text-to-graph token rewriting), 갱신된 토큰을 다음 단계 지시문에 다시 주입해 이어지는 LLM 추론을 이끈다(graph-to-text reasoning guidance). 이 폐루프에서 언어 추론과 구조 증거가 함께 진화한다. 인용망·전자상거래 두 도메인의 8개 데이터셋에서 교차 데이터셋 전이(cross-dataset transfer) 성능을 측정했고, 노드 분류와 링크 예측 모두에서 기존 방법을 웃돈다고 보고한다. 다만 개선폭은 데이터셋마다 편차가 크고, 추론 지연이 baseline 대비 여러 배 늘어난다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 그래프–LLM의 CoT 추론에서 그래프 토큰을 고정된 스냅샷으로 두는 대신, 중간 사고로 그래프 증거를 단계마다 갱신하면 분포 이동 하의 교차 데이터셋 전이가 개선되는가? |\n| 핵심 기여 | 중간 텍스트 사고를 조건 신호로 삼아 그래프 토큰을 재작성하고(Eq 5–6), 갱신된 토큰을 다음 지시문에 되먹여 언어와 구조가 함께 진화하는 폐루프 CoT 프레임워크(CoEvoT)를 제안한다. |\n| 방법적 결과 | 동결된 그래프 인코더와 LLM 위에서 선형 사영기 $\\phi$와 조건망 $\\psi$만 학습한다. 각 단계 $k$에서 사고 표현으로 $\\mathbf{p}_v^k$를 생성해 $\\mathbf{h}_v^{k+1}=\\mathbf{h}_v^k+\\alpha\\cdot\\mathbf{p}_v^k$로 노드 임베딩을 잔차 갱신하고, 이를 다시 토큰 공간으로 사영해 재주입한다. |\n| 실험 결과 | 6개 target에서 노드 분류 정확도, 8개 데이터셋에서 링크 예측 AUC 모두 최고를 보고한다. 예: PubMed 정확도 0.902(차위 GOFA 0.859), History 0.641(차위 0.558). 다만 Photo 링크 예측은 0.549로 TEA-GLM 0.545 대비 +0.004에 그친다. |\n| 핵심 한계 | 다단계 그래프 토큰 갱신으로 추론 지연이 TEA-GLM 대비 약 2–4배, GOFA 대비 최대 8배 늘어난다(Table 6). 그래프 backbone(GraphSAGE) 하나, LLM 하나로만 평가했고, 링크 예측·절제(ablation) 결과에는 표준편차가 없다. |\n\n**TL;DR**\n\n- CoEvoT는 그래프–LLM의 Chain-of-Thought 추론에서 각 단계의 중간 텍스트 사고를 경량 조건망에 통과시켜 그래프 토큰을 잔차 갱신하고($\\mathbf{h}\\leftarrow\\mathbf{h}+\\alpha\\cdo",
+    "status": "pending"
+  },
+  {
+    "slug": "lightgcn",
+    "title": "LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/lightgcn",
+    "figures": [
+      "/api/blog/figures/lightgcn-fig1-ngcf-ablation.png",
+      "/api/blog/figures/lightgcn-fig2-architecture.png"
+    ],
+    "primary_header": "**Paper:** He, X., Deng, K., Wang, X., Li, Y., Zhang, Y., & Wang, M. (2020). LightGCN: Simplifying and powering graph convolution network for recommendation. *SIGIR '20*, 639–648. arXiv:2002.02126. 코드: [TensorFlow](https://github.com/kuandeng/LightGCN)·[PyTorch](https://github.com/gusye1234/pytorch-light-gcn).\n\n**Abstract:** GCN이 협업 필터링의 새 최고 성능이 됐지만, 왜 잘 되는지는 검증되지 않은 채 GCN의 무거운 연산이 통째로 이식됐다. 이 논문은 GCN의 두 표준 연산—피처 변환(가중치 행렬)과 비선형 활성화—이 협업 필터링에는 도움이 안 되고 오히려 학습을 어렵게 한다는 것을 NGCF 절제 실험으로 보인 뒤, 이웃 집계만 남긴 LightGCN을 제안한다. 사용자·아이템 ID 임베딩을 상호작용 그래프에서 선형 전파하고, 모든 층의 임베딩을 가중합해 최종 표현으로 쓴다. 학습 파라미터는 0번째 층 임베딩뿐이라 행렬 분해(MF)와 같은 복잡도이면서, 같은 설정에서 NGCF 대비 평균 약 16% 개선한다. 이 글은 방법을 정확히 재구성하고 두 실험 축(NGCF 절제, LightGCN 검증)이 무엇을 보였는지, 그리고 SGCN·APPNP와의 이론적 연결이 실제 배포된 모델을 얼마나 정당화하는지를 나눠 읽는다. LightGCN은 잘 만든 모델 논문이고, 비판할 지점은 결과의 옳고 그름이 아니라 분석과 배포 모델 사이의 간극에 있다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | GCN이 CF의 최고 성능이 됐지만 GCN 연산이 검증 없이 이식됐다(§1). GCN의 어떤 연산이 CF에 실제로 필요한가? |\n| 핵심 기여 | (1) 피처 변환·비선형 활성화가 CF 효과에 기여하지 않음을 NGCF 절제로 실증(§2.2). (2) 이웃 집계만 남긴 **LightGCN**: 대칭 정규화 이웃 합(식 3) + 층 가중합(식 4, α 균일 1/(K+1)) + 내적(식 5). 학습 파라미터=0번째 층 임베딩뿐→MF와 같은 복잡도. (3) NGCF 대비 대폭 개선 + 분석. |\n| 실험 결과 | Gowalla·Yelp2018·Amazon-Book에서 NGCF 대비 평균 recall +16.52%·ndcg +16.87%(Gowalla 0.1570→0.1830, +16.56%). LightGCN이 NGCF-fn(둘 다 제거한 NGCF)보다도 나음. Mult-VAE·GRMF 등 최고 성능. λ=0에서도 NGCF보다 나음(§4.5). |\n| 핵심 한계 | 핵심 발견은 경험적(NGCF 1개 아키텍처·Table 1은 2개 데이터셋)이고 메커니즘(\"ID엔 의미 없음\")은 직관. **SGCN·APPNP 등가는 이항·기하 가중치를 요구하나 배포 모델은 균일 가중치—둘 다 아님**(설계공간의 가능성이지 배포 모델의 성질 아님). 층 결합 이득은 Gowalla만 깨끗하고 두 데이터셋에선 2층 단일이 더 나음. SOTA 비교는 상당수 NGCF 인용값·분산/유의성 없음. |\n\n**TL;DR**\n\n- LightGCN은 GCN의 피처 변환(가중치 행렬)과 비선형 활성화를 버리고, 사용자·아이템 ID 임베딩을 상호작용 그래프에서 대칭 정규화 이웃 합으로 선형 전파한 뒤 모든 층 임베딩을 균일 가중합($1/(K+1)$)해 내적으로 예측하는 협업 필터링 모델이다.\n- LightGCN은 학습",
+    "status": "pending"
+  },
+  {
+    "slug": "hgnn",
+    "title": "Hypergraph Neural Networks",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/hgnn",
+    "figures": [
+      "/api/blog/figures/hgnn-fig2-graph-vs-hypergraph.png",
+      "/api/blog/figures/hgnn-fig4-hyperedge-conv.png",
+      "/api/blog/figures/hgnn-fig3-framework.png"
+    ],
+    "primary_header": "**Paper:** Feng, Yifan; You, Haoxuan; Zhang, Zizhao; Ji, Rongrong; Gao, Yue (2019). \"Hypergraph Neural Networks.\" *Proceedings of the AAAI Conference on Artificial Intelligence, 33*(1), 3558–3565. https://doi.org/10.1609/aaai.v33i01.33013558. arXiv:1809.09401.\n\n**Abstract:** 본 문서는 GCN을 단순 그래프에서 하이퍼그래프로 일반화한 HGNN 논문을 해설한다. 단순 그래프의 간선은 정확히 두 정점을 잇지만(차수 2 고정), 하이퍼엣지는 정점을 둘 이상 묶을 수 있다(차수 자유). 논문은 이 성질로 두 가지를 얻는다고 말한다: 쌍(pairwise)을 넘는 고차 상관을 한 하이퍼엣지로 표현하고, 서로 다른 modality의 하이퍼엣지 그룹을 이어 붙여(concatenate) 다중 모달 데이터를 융합한다. 방법의 핵심은 Zhou et al.(2007)의 하이퍼그래프 라플라시안을 Kipf & Welling(2017)의 GCN 스펙트럴 유도에 그대로 대입한 하이퍼엣지 합성곱이며, 논문은 GCN이 HGNN의 특수 경우(하이퍼엣지가 정점 2개만 잇는 경우)임을 명시한다. 인용 네트워크 분류와 3D 객체 인식에서 검증했는데, 인용 실험의 이득은 저자 스스로 \"유의하지 않다\"고 인정하고, 다중 모달 시각 실험에서 GCN 대비 큰 이득(NTU 최대 +10.4%p)이 나온다. 다만 그 이득의 상당 부분은 하이퍼그래프 자체가 아니라 융합 방식(이어 붙이기 대 인접행렬 평균)의 차이라는 점이 이 글 후반부의 주제다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 쌍 연결만 담는 단순 그래프를 넘어, 고차(n-항) 상관과 다중 모달 구조를 함께 담는 그래프 신경망을 어떻게 만드는가? |\n| 핵심 기여 | 차수 자유 하이퍼엣지 위에서 도는 하이퍼엣지 합성곱(식 11)과, modality별 하이퍼엣지 그룹을 이어 붙여 융합하는 방법. 스펙트럴 유도상 GCN은 HGNN의 특수 경우다. |\n| 방법적 결과 | 관계 정규화 → 하이퍼그래프 라플라시안 $\\Delta = I - D_v^{-1/2} H W D_e^{-1} H^\\top D_v^{-1/2}$(식 4) → 스펙트럴 합성곱(식 5) → 체비셰프 절단·$K{=}1$·단일 파라미터(식 6–9) → 층 규칙(식 11). 연산자는 GCN 유도를 하이퍼그래프 라플라시안에 대입한 것이다. |\n| 실험 결과 | 인용(Table 2): HGNN Cora 81.6 / Pubmed 80.1 vs GCN 81.5 / 79.0 — 각각 +0.1 / +1.1, 저자가 \"유의하지 않다\"고 인정. 시각(Tables 4–6): 다중 모달 구조에서 GCN 대비 NTU +8.1–10.4%p, ModelNet40 최고 96.7%. |\n| 핵심 한계 | 스펙트럴 연산자는 GCN 유도를 그대로 따른 것(연산자 신규성은 얇음). 다중 모달 이득은 하이퍼그래프 대 그래프가 아니라 이어 붙이기 대 평균 융합과 뒤섞여 있다(단일 특징 이득은 +0.3–4.3%p로 작다). \"고차 상관\"은 실제로는 kNN 구성이고, 하이퍼엣지 가중치 $W$는 항등행렬로 고정돼 학습되지 않는다. |\n\n**TL;DR**\n\n- HGNN(Hypergraph Neural Networks)은 GCN을 하이퍼그래프로 일반화해, 정점 둘만 잇는 간선 대신 차수가 자유로운 하이퍼엣지 위에서 스펙트럴 하이퍼엣지 합성곱을 돌리고 modality별",
+    "status": "pending"
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "title": "Theory-informed and interpretable graph learning for urban commuting flows",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "figures": [
+      "/api/blog/figures/pig-gnn-fig1-pipeline.jpg",
+      "/api/blog/figures/pig-gnn-fig5-dual-graph.jpg",
+      "/api/blog/figures/pig-gnn-fig6-architecture.jpg",
+      "/api/blog/figures/pig-gnn-fig8-physics-loss.jpg",
+      "/api/blog/figures/pig-gnn-fig7-prior-calibration.jpg",
+      "/api/blog/figures/pig-gnn-fig9-performance.jpg",
+      "/api/blog/figures/pig-gnn-fig12-regimes.jpg"
+    ],
+    "primary_header": "\n# PIG-GNN 심층 분석: 통근 흐름 예측에 중력 법칙을 어떻게 넣을 것인가\n\n**Paper:** Zhao, M., Zhang, D., Shi, Z., & Wu, C. (2026). *Theory-informed and interpretable graph learning for urban commuting flows*. Sustainable Cities and Society, 148, 107575. [Publisher](https://doi.org/10.1016/j.scs.2026.107575)\n\n**Abstract:** 도시의 통근 흐름은 유연한 예측 모델만으로 설명하기 어렵다. 출발지는 통근자를 내보내는 생산 역할을, 도착지는 일자리를 끌어들이는 흡인 역할을 하며, 두 지역 사이의 흐름은 거리가 멀어질수록 감소하는 경향을 보인다. PIG-GNN은 이 비대칭을 두 개의 graph encoder로 분리하고, 거리 감쇠·Zipf scaling·흐름 분포를 soft constraint로 학습 목적에 넣는다. England MSOA 수준의 Home-to-Work 자료에서 저자 보고 기준 RMSE 0.297, CPC 0.791, $R^2$ 0.394를 기록했다. 중요한 점은 이 논문이 중력 모형을 신경망으로 대체했다는 데 있지 않다. **지리 이론을 입력 feature가 아니라 architecture와 loss의 제약으로 사용하면서도, 고정된 함수형을 강요하지 않는 절충안**을 제시했다는 데 있다. 다만 여기서 “physics-informed”는 보존 법칙이나 미분방정식을 만족시킨다는 뜻이 아니라, 여러 이동 자료에서 관찰된 통계적 scaling 범위를 정규화 항으로 사용한다는 뜻이다.\n\n---\n\n## 핵심 요약\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | GNN의 비선형 표현력을 유지하면서 origin–destination의 역할 비대칭과 이동의 거시적 scaling law를 어떻게 보존할 것인가? |\n| 구조적 해법 | 같은 공간 인접 graph를 사용하되 production tower와 attraction tower의 parameter를 분리하고, directed OD graph에서 거리 인지 message passing을 수행한다. |\n| 학습 해법 | Data loss에 거리 감쇠 기울기, Zipf exponent, 예측·이론 분포의 KL divergence를 soft penalty로 더한다. |\n| 대표 결과 | 저자 보고 기준 RMSE $0.297\\pm0.002$, MAE $0.187\\pm0.009$, $R^2$ $0.394\\pm0.014$, CPC $0.791\\pm0.004$다. |\n| 해석의 경계 | 단일 주 사례의 정적 통근 OD 예측이며, feature perturbation과 regime 분석은 모델 행동의 해석이지 정책 개입의 인과효과가 아니다. |\n\n## 목차\n\n1. 왜 통근 OD는 일반적인 edge prediction과 다른가\n2. 중력 모형에서 PIG-GNN으로\n3. 두 종류의 graph와 production–attraction dual tower\n4. 거리 인지 OD interaction GNN\n5. Scaling law를 soft constraint로 넣는 방법\n6. Empirical prior는 어떻게 정해졌는가\n7. 실험 결과를 어떻게 읽어야 하는가\n8. Bimodal regime이 의미하는 것\n9. “Interpretable”과 “physics-informed”의 범위\n10. 한계와 후속 과제\n11. 결론\n\n---\n\n## 1. 왜 통근 OD는 일반적인 edge prediction과 다른가\n\n통근 OD mat",
+    "status": "pending"
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "title": "Transferable human mobility network reconstruction with neuroGravity",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "figures": [
+      "/api/blog/figures/neurogravity-fig2-architecture.png",
+      "/api/blog/figures/neurogravity-fig3-reconstruction.png",
+      "/api/blog/figures/neurogravity-fig4-embeddings.png",
+      "/api/blog/figures/neurogravity-fig5-transfer.png"
+    ],
+    "primary_header": "**Paper:** Yang, J., Huang, S., Huang, Z., Jin, Y., Yang, X., González, M. C., & Xu, Y. (2026). Transferable human mobility network reconstruction with neuroGravity. *Nature Computational Science, 6*(6), 630–641. https://doi.org/10.1038/s43588-026-01003-y\n\n**Abstract:** 도시 이동 네트워크를 알려면 보통 통행 조사나 대규모 통신·위치 데이터가 필요하다. 두 자원이 모두 없는 지역에서는 흐름 자체를 관측할 수 없으므로, 공개 자료만으로 흐름을 추정하는 문제가 남는다. neuroGravity는 이 문제를 두 단계로 나눈다. 먼저 중력식의 함수형은 그대로 두되 중력 상수 $G$와 거리 감쇠 지수 $\\alpha$를 두 지역의 특성 벡터로부터 MLP가 생성하게 하고(meta-Gravity), 여기서 나온 기저 흐름을 거리와 함께 edge feature로 삼아 edge-enhanced Graph-BERT가 보정한다. 학습은 로그 공간의 Huber 손실로 이루어지며, 이는 중력식의 곱셈 구조를 덧셈으로 바꾸는 동시에 흐름 분포의 긴 꼬리를 완화한다. 저자 보고 기준 보스턴에서 전체 지역의 10%만 관측하는 조건, 즉 전체 51,786개 OD 쌍 중 496개(1%)만 흐름이 주어진 조건에서 $R^2$ 0.77, CPC 0.73을 얻었다. 보스턴에서 학습한 모델을 관측이 전혀 없는 도시에 그대로 적용했을 때 LA 0.69, SF Bay 0.61, 보고타 0.48, 리우데자네이루 0.42였다. 저자들은 이 전이 성능의 편차를 공간 소득 분리 지수 $SI$로 설명하고, 최종적으로 1,200개 이상 도시에 대해 흐름 대리치를 생성했다. 다만 이 논문에서 \"전이 가능\"이 입증된 범위는 5개 도시의 순서쌍 20개이며, 전이 성공 여부를 예측하는 지수는 목표 도시의 소득 자료를 필요로 한다.\n\n---\n\n## 핵심 요약\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 흐름 관측이 거의 없는 도시에서, 인구와 공개 지리 정보만으로 OD 흐름의 절대값을 복원하고 그 모델을 다른 도시로 옮길 수 있는가? |\n| 구조적 해법 | 중력식 $GP_iP_j/D_{ij}^{\\alpha}$의 형태를 유지하되 $G$와 $\\alpha$를 두 지역 특성의 concatenation을 입력으로 받는 MLP의 출력으로 만든다(meta-Gravity). |\n| 결합 방식 | meta-Gravity의 기저 흐름 $\\hat F^g_{ij}$를 거리 $D_{ij}$와 함께 edge feature 초기값으로 넣어, edge-enhanced Graph-BERT가 attention과 메시지 전달 양쪽에서 이를 참조하게 한다. |\n| 학습 해법 | 로그 공간에서 Huber 손실을 쓴다. meta-Gravity를 먼저 사전학습($\\mathcal{L}_g$)한 뒤 두 경로를 함께 학습($\\mathcal{L}$)한다. |\n| 대표 결과 | 저자 보고 기준 보스턴 10% 관측에서 $R^2$ 0.77·CPC 0.73(중력 모형 0.59·0.63), LA 0.70, SF Bay 0.60. 10% 시나리오 평균 $R^2$에서 최고 baseline 대비 38% 개선. |\n| 전이 결과 | 보스턴 학습 모델의 zero-shot 전이 $R^2$는 LA 0.694, SF Bay 0.608, 보고타 0.480, 리우 0.417. CDR 시험 평균에서 최고 baseline 대비 99% 개선. |\n| 해석의 경계 | 전이 실험은 ",
+    "status": "pending"
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "title": "Planetary Prediction Engine: Autonomous Geospatial Prediction via Intelligent Data Selection and Foundation Model Embeddings",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/planetary-prediction-engine-autonomous-geospatial-prediction",
+    "figures": [
+      "/api/blog/figures/ppe-fig1-workflow.png",
+      "/api/blog/figures/ppe-fig3-nigeria-foodsec.png",
+      "/api/blog/figures/ppe-fig2-ebola-5fold.png"
+    ],
+    "primary_header": "**Paper:** Ma, E., Pasumarthi, R. K., Shafin, K., Sharma, M., Sun, M., Sadeghi, H., Ebengo, D. M., Onesime, M., Solomakhin, R., Wamburu, J., Ogallo, W., Walcott-Bryant, A., Chen, S., Muslim, A., Mayer, Y., Ho, R., Lee, R., Alcantara, R., Diack, A., … Shetty, S. (2026). *Planetary Prediction Engine: Autonomous geospatial prediction via intelligent data selection and foundation model embeddings* (arXiv:2608.26088v1). arXiv. https://arxiv.org/abs/2608.26088\n\n**Abstract:** 지구 규모 예측 모형을 만드는 일은 데이터 생태계가 흩어져 있어 병목에 걸린다. 자료를 손으로 찾아오고, 다중 모달 자료를 큐레이션해 합치고, 모델을 반복해서 고르는 일이 사람 몫이기 때문이다. 이 논문은 그 전 과정을 자연어 질의 하나에서 끝까지 실행하는 자율 시스템 PPE를 제안한다. 열린 웹과 지구관측 플랫폼에서 시공간적으로 관련 있는 공변량을 끌어와 지리공간 파운데이션 모델 임베딩과 융합하고, 과제에 맞는 모델 계열을 과적합 방어 장치와 함께 탐색한다. 네 영역에 걸친 벤치마크에서 전문가가 손으로 맞춘 기준선을 넘어섰다고 보고한다. 이 글은 표 열일곱 개를 다시 읽어 각 헤드라인 수치의 **기준선이 실제로 무엇인지**, 자동 수집한 통계 공변량과 파운데이션 임베딩을 더할 때 관측값이 어떻게 달라지는지, 그리고 공간 자기상관·분할 설계·타깃 누출 방어가 어떤 범위까지 검증됐는지를 구분한다.\n\n---\n\n## Executive Summary\n\n| 항목                           | 설명                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |\n| ---------------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+    "status": "pending"
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "title": "Where Reasoning Matters: Rethinking Latent Reasoning in Semantic ID-based Generative Recommendation",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "figures": [
+      "/api/blog/figures/iba-fig2-ig.png",
+      "/api/blog/figures/iba-fig3-overview.png",
+      "/api/blog/figures/iba-fig7-hit5.png"
+    ],
+    "primary_header": "**Paper:** Yang, S., Gao, M., Wang, Z., & Yu, J. (2026). *Where reasoning matters: Rethinking latent reasoning in semantic ID-based generative recommendation* (arXiv:2607.12425v1, 2026-07-14). arXiv. https://arxiv.org/abs/2607.12425v1\n\n**Abstract:** Yang et al.은 시맨틱 ID 기반 생성 추천에서 모든 토큰 위치에 같은 잠재 추론 스텝을 주는 관행을 재검토한다. 앞쪽 코드는 아이템 후보를 크게 줄이고 뒤쪽 코드는 이미 좁아진 후보를 세분하므로, 제한된 계산도 위치별 가치에 따라 나누자는 문제의식이다. Information-Gain Budget Allocation(IBA)은 전역적인 위치별 정보이득을 사전값으로 삼고, Stage 1에서 관측한 토큰 손실 감소를 감독 신호로 사용해 사용자 조건부 예측기가 각 스텝의 이득을 추정하게 한다. 이후 총예산 제약 아래에서 사용자별 스텝 열을 고르고, semantic alignment·horizontal refinement·lookahead objective로 가변 깊이 계산을 안정화한다. 저자 보고에서 TIGER와 LETTER에 IBA를 적용한 12개 지표가 모두 개선됐으며, 앞쪽 중심 6스텝 설정은 균등 8스텝과 뒤쪽 중심 6스텝 설정을 앞섰다. 다만 실제 할당기가 학습하는 값은 이론의 정확도 증가가 아니라 clipped cross-entropy 감소량에 정보이득을 곱한 대리 신호다. 이 글은 생성 추천의 문제 설정부터 할당기의 수식과 학습 절차, 실험의 비교 가능성과 재현성 경계까지 순서대로 재구성한다.\n\n---\n\n## Executive Summary\n\n| 항목 | 설명 |\n| --- | --- |\n| 연구 질문 | 시맨틱 ID의 각 토큰 위치에 같은 수의 잠재 추론 스텝을 쓰는 대신, 위치와 사용자 열에 따라 계산 예산을 다르게 배분하면 생성 추천 성능을 높일 수 있는가. |\n| 핵심 기여 | 위치별 정보이득을 전역 사전값으로 두고, 사용자 문맥·토큰 위치·후보 스텝을 입력받는 gain predictor와 제약식 기반 탐색을 결합해 총 추론 예산을 사용자별로 배분한다. |\n| 방법적 결과 | 기본 사전값 $(3,2,1,0)$을 그대로 실행하지 않는다. Stage 1의 스텝별 cross-entropy 감소량에 $IG_i$를 곱한 목표값을 predictor가 근사하고, 예측 이득에서 사전값 이탈 비용을 뺀 목적을 최대화해 $\\sum_i k_i=B$인 할당을 고른다. Dual-Axis Refinement와 lookahead loss가 가변 깊이 계산을 보조한다. |\n| 실험 결과 | IBA를 TIGER와 LETTER에 적용하면 Beauty·Instruments·MicroLens의 12개 지표가 모두 오른다. 앞쪽에 집중한 6스텝 prior는 균등 8스텝과 뒤쪽에 집중한 6스텝 prior를 모두 앞선다. |\n| 핵심 한계 | 앞쪽 두 위치가 뒤쪽보다 중요하다는 근거는 일관되지만, 위치 1을 위치 2보다 우선하는 기본 스케줄의 세부 순서는 충분히 설명되지 않는다. 반복 통계와 튜닝 프로토콜이 보고되지 않고 $\\gamma_{rec}$ 민감도도 크다. |\n\n---\n\n## 목차\n\n1. 모든 위치에 같은 잠재 추론 예산을 써야 하는가\n2. 시맨틱 ID와 위치별 정보이득\n3. Dual-Axis Refinement: 가변 깊이 추론을 안정화하기\n4. 사용자별 예산 배분과 2단계 학습\n5. 기존 접근과의 차이와 설계 근거\n6. 평가 설계와 ",
+    "status": "pending"
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "title": "Flow Reasoning Models: Turning Flows Into Efficient Recurrent Reasoners",
+    "lane": "graphs_recommendation",
+    "article_dir": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/articles/flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "figures": [
+      "/api/blog/figures/frm-fig3-fpf.png",
+      "/api/blog/figures/frm-fig1-overview.png",
+      "/api/blog/figures/frm-fig5-frontier.png",
+      "/api/blog/figures/frm-fig6-convergence.png"
+    ],
+    "primary_header": "**Paper:** Helbling, A., Bryutkin, A., Martino, M., Chau, D. H., Dehmamy, N., & Strobelt, H. (2026). *Flow reasoning models: Turning flows into efficient recurrent reasoners* (arXiv:2606.29150v3, 2026-09-01). arXiv. https://arxiv.org/abs/2606.29150v3\n\n**Abstract:** Helbling et al.은 연속 flow 모델을 이산 구조 추론에 적용하고, denoiser의 노이즈 제거 예측(clean prediction)을 다시 조건으로 넣어 답을 반복 수정하는 Flow Reasoning Model(FRM)을 제안한다. 핵심 문제는 단순 self-conditioning을 깊게 반복할수록 모델이 학습에서 보지 못한 자기 생성 상태를 만나 틀린 고정점으로 수렴할 수 있다는 것이다. Fixed-Point Forcing(FPF)은 표준 flow 경로와 cross-entropy supervision은 유지한 채, carry의 출처만 한 번 통과한 예측에서 모델 자신의 다단계 rollout으로 바꾼다. 저자 보고에서 FPF는 3시드 평균 해결률을 Sudoku-Extreme 32.6%에서 99.2%, Zebra 36.9%에서 99.9%, Maze-Unique 96.2%에서 98.0%로 높인다. Sudoku에서는 EqR의 98.7%를 약 44배 적은 추론 FLOPs로 맞춘다고 보고한다. 다만 이 배수는 곡선 보간값과 EqR의 최고비용점을 비교한 FLOPs 기준 추정치이며, 고정점·끌개 설명은 형식적 수렴 보증이 아니다. 평가 범위도 세 가지 정답형 격자 퍼즐에 한정된다.\n\n---\n\n## Executive Summary\n\n| 항목            | 설명                                                                                                                                                  |\n| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |\n| 연구 질문         | 이산 구조 출력 위의 연속 flow 모델을, 결정을 만들고 되돌리는 반복 추론기로 바꿀 수 있는가.                                                                                             |\n| 핵심 기여         | (1) denoiser의 깨끗한 예측을 되먹여 flow 시간 $t$와 분리된 추론 깊이 $k$를 만드는 Flow Reasoning Model, (2) 그 되먹임을 모델 자신의 추론 궤적에서 얻은 상태로 학습시키는 Fixed-Point Forcing.         |\n| 방법적 결과        | denoiser의 clean prediction을 후보 해이자 flow update로 함께 사용하고, flow 시간 $t$와 recurrent depth $k$를 분리한다. FPF는 canonical flow path의 loss-bearing state를 유지하면서 rollout-derived carry만 조건으로 넣는다. |\n| 실험 결과 (저자 보고) ",
+    "status": "pending"
+  }
+]

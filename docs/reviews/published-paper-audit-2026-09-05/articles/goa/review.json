@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2604.17148 (§§1, 3–4; Tables 1–5)"
+  ],
+  "source_urls": [
+    "https://openreview.net/pdf?id=34cANdsHKV",
+    "https://arxiv.org/html/2604.17148"
+  ],
+  "paper_metadata": {
+    "title": "Graph-of-Agents: A Graph-based Framework for Multi-Agent LLM Collaboration",
+    "authors": [
+      "Sukwon Yun",
+      "Jie Peng",
+      "Pingzhi Li",
+      "Wendong Fan",
+      "Jie Chen",
+      "James Zou",
+      "Guohao Li",
+      "Tianlong Chen"
+    ],
+    "year": 2026,
+    "primary_url": "https://openreview.net/forum?id=34cANdsHKV",
+    "arxiv_id": "2604.17148"
+  },
+  "excerpt": "Graph-of-Agents는 질의에 맞는 LLM을 선택하고, 에이전트 간 메시지를 그래프 구조로 교환·통합해 다중 모델 협업의 호출 수와 문맥 비용을 줄이려는 test-time 프레임워크다.",
+  "changes": [
+    "Added the actual title and parser-compatible Paper header.",
+    "Renamed the interpretive section while retaining method, results, source-grounded limits, and figures.",
+    "Restored real graph execution semantics and bounded selection/accuracy attribution."
+  ],
+  "uncertainties": [
+    "Benchmark point estimates have no reported dispersion measures."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/goa",
+  "verified_content_sha256": "54651b6dd8294f12b85c3406905be76ef2dcd6479eb677a201dba985581adc63"
+}

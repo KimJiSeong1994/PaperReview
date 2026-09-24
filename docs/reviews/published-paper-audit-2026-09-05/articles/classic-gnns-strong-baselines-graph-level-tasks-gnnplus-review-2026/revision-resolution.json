@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Restored prior-GNN lineage/fixed-configuration evidence; corrected hyperparameter and budget framing."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 20643,
+  "after_chars": 18244
+}

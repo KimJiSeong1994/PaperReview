@@ -1,0 +1,62 @@
+[
+  {
+    "slug": "rsi-roadmap",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/rsi-roadmap/rsi-roadmap-deep-review.md",
+    "before_sha256": "b7b86f15a194d3acb4c5e81820172136381d0a5f10bd3535016fe8ec468c8386",
+    "after_sha256": "da1b4b09f5d53c9371ea92161cf8cd65443ad56646d9c98816da17a2e21d840d"
+  },
+  {
+    "slug": "ttpo",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/ttpo/ttpo-deep-review.md",
+    "before_sha256": "08fd3d9fcc95264e0d6eb4c85ac3a942582a3a34e04d6f7382787914602ea976",
+    "after_sha256": "ead08386af948c172fb292175e81eb9099fd399aa8dca980d11a8e3947546968"
+  },
+  {
+    "slug": "incoder-32b-thinking",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/incoder-thinking/incoder-thinking-deep-review.md",
+    "before_sha256": "591b05db179457bf7790e66d6ddfbbf70d803c58f6ca69c5bd04374140e8445e",
+    "after_sha256": "4ccd0b2d061fe28073d33d8b0d1ebe1dfacb04603331580808aa7c84f3933374"
+  },
+  {
+    "slug": "codenib",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/codenib/codenib-deep-review.md",
+    "before_sha256": "194b5bc378ff9f2f965a4e991c578536bdf5361f237d195f5bfac20b2dd27e7c",
+    "after_sha256": "3c9b730d987d85950cb0a9746e0678bb4c7efd68aebe80105f5d5eef30e55d1a"
+  },
+  {
+    "slug": "rag-vs-graphrag-systematic-evaluation",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/rag-vs-graphrag/rag-vs-graphrag-deep-review.md",
+    "before_sha256": "02b2dfb2561d752751a3b31a99734f9076f9218c0d4d21a79fdcada094ded1b5",
+    "after_sha256": "f5fb5d49e00acbcee4f78328b9d0e866f24055855c640dd0e54657c0515ba98f"
+  },
+  {
+    "slug": "procedural-graphs",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/procedural-graphs/procedural-graphs-deep-review.md",
+    "before_sha256": "7c1d55efee96208a961f23d62a3cd65f8505483a6452e7ea0acf12f8a8577fa5",
+    "after_sha256": "97c6862cf8d96956ffd144a57f31842434ceaea2b21770948cce35f0d98071c2"
+  },
+  {
+    "slug": "agent-memory-distillation",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/agent-memory-distillation/agent-memory-distillation-deep-review.md",
+    "before_sha256": "dccae1682c3634a4e33e73d7ecdfb1a689eaf2c956078446e288125cd53b3210",
+    "after_sha256": "8b94f79abb6e0ccd20d12611801efb89fb0e7c829b0109c7fc22b2ddeef7feac"
+  },
+  {
+    "slug": "causal-foundation-models",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/causal-foundation-models/causal-foundation-models-deep-review.md",
+    "before_sha256": "07d428affd14bb4a0008fe0bede31faf6931f067feb5656074d5509a4dc8a7f5",
+    "after_sha256": "32afd57aa3c12ca85691a62cab246058ba3ebf30c7ed06d2f26342bef906b14c"
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/wikiprofile/wikiprofile-deep-review.md",
+    "before_sha256": "b34f23e7750071742162758c2f43dda157eaf8675665fa2646d53cddd3b5dc75",
+    "after_sha256": "5d8fe28c29413201e92962561f5a2e74b18b333ca84d3f2b8537c504259fc3b7"
+  },
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/clause/clause-deep-review.md",
+    "before_sha256": "c35c58592a9f095b05c869146cc79297af7810f66356311cd0d7c91c0d052227",
+    "after_sha256": "06e56d94b8cb0075710d0bea28fa83e6ebcd645f39bef133633cf79c8380e0dc"
+  }
+]

@@ -1,0 +1,1677 @@
+
+--- PAGE 1 ---
+Published as a conference paper at ICLR 2026
+
+
+CLAUSE: AGENTIC NEURO-SYMBOLIC KNOWLEDGE
+GRAPH REASONING VIA DYNAMIC LEARNABLE CON-
+TEXT ENGINEERING
+
+
+  Yang Zhao1∗, Chengxiao Dai2∗, Wei Zhuo3, Yue Xiu1, Dusit Niyato3
+  1Independent Researcher.
+  2School of Computer Science, The University of Sydney, Australia.
+  3College of Computing & Data Science, Nanyang Technological University, Singapore.
+
+
+
+                         ABSTRACT
+
+       Knowledge graphs provide structured context for multi-hop question answering,
+         but deployed systems must balance answer accuracy with strict latency and cost
+          targets while preserving provenance. Static k-hop expansions and “think-longer”
+        prompting often over-retrieve, inflate context, and yield unpredictable runtime.
+        Thus, we introduce CLAUSE, an agentic three-agent neuro-symbolic framework
+          that treats context construction as a sequential decision process over knowledge
+         graphs, deciding what to expand, which paths to follow or backtrack, what evidence
+         to keep and when to stop. Latency (interaction steps) and prompt cost (selected
+         tokens) are exposed as user-specified budgets or prices, allowing per-query adapta-
+         tion to trade-offs among accuracy, latency, and cost without retraining. CLAUSE
+        employs the proposed Lagrangian-Constrained Multi-Agent Proximal Policy Opti-
+        mization (LC-MAPPO) algorithm to coordinate three agents: Subgraph Architect,
+        Path Navigator, and Context Curator, so that subgraph construction, reasoning path
+         discovery, and evidence selection are jointly optimized under per-query resource
+        budgets on edge edits, interaction steps, and selected tokens. Across HotpotQA,
+       MetaQA, and FactKG, CLAUSE yields higher EM@1 while reducing subgraph
+        growth and end-to-end latency at equal or lower token budgets. On MetaQA-2-hop,
+          relative to the strongest RAG baseline (GraphRAG), CLAUSE achieves +39.3
+     EM@1 with 18.6% lower latency, and 40.9% lower edge growth. The resulting
+         contexts are compact, provenance-preserving, and deliver predictable performance
+        under deployment constraints.
+
+
+1  INTRODUCTION
+
+Large language models (LLMs) benefit from external structure for knowledge graph question answer-
+ing (KGQA) that require multi-hop reasoning and provenance (Lewis et al., 2020; Yang et al., 2018;
+Pan et al., 2023). Knowledge graphs (KGs) are a natural substrate: they expose typed entities and
+relations, support symbolic traversals, and yield auditable context trails (Yasunaga et al., 2021; Das
+et al., 2018). A common design is to build a query-based local neighborhood in the KG, and then
+condition a reader language model to produce the answer (Sun et al., 2019; Ding et al., 2024).
+
+How the graph context is assembled often misaligns with both answer quality and runtime constraints.
+Fixed k-hop expansions serialize many triples, inflating token mass and latency (Zhou et al., 2024;
+Wan et al., 2024) and introducing distractors that depress accuracy (Jiang & Bansal, 2019). Extending
+chain-of-thought (Wei et al., 2022; Kojima et al., 2022) lengthens per-step reasoning without changing
+which evidence is visible and offers little control over end-to-end latency (Zhou et al., 2024). In
+practice, systems are constrained not only by prompt length but also by the number of interaction
+steps, how often we edit, traverse, and curate, yet most pipelines expose only heuristic knobs (hop
+depth, degree caps, top-k).
+
+Our view is to make context construction itself as the learning problem: decide which edges to add or
+delete, which paths to pursue or backtrack, which snippets to keep, and when to stop, all under explicit
+
+   ∗Equal contribution. Corresponding author: Yang Zhao (s180049@e.ntu.edu.sg).
+
+
+                                       1
+
+--- PAGE 2 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+caps or prices on interaction steps and selected tokens. This replaces brittle k-hop heuristics with a
+learned, budget-aware controller and makes accuracy–latency–cost trade-offs explicit and tunable.
+We then propose CLAUSE, an agentic neuro-symbolic framework with three agents—Subgraph
+Architect, Path Navigator, and Context Curator. Decisions unfold sequentially on a symbolic state
+(nodes, edges, paths) through discrete, auditable actions (edit, traverse, curate), while compact neural
+scorers prioritize entities, relations, and neighborhoods. In this design, step and token usage enter the
+training objective directly, so stopping rules and exploration depth are learned rather than hard-coded.
+
+Specifically,  three cooperative agents operate on the KG: Subgraph Architect constructs a
+question-anchored subgraph that preserves answer-supporting paths while avoiding over-expansion;
+the Path Navigator discovers and revises reasoning paths while respecting a step budget; and Context
+Curator assembles a minimal set of textualized snippets sufficient for accurate responses from LLMs
+under a token budget. We coordinate three agents with LC-MAPPO—a Lagrangian-constrained
+centralized training with decentralized execution (CTDE) variant of PPO that uses a centralized critic
+and Lagrangian dual variables to learn decentralized policies, which maximize task reward while
+enforcing per-query budgets on edge edits, interaction steps, and selected tokens (Foerster et al.,
+2018; Rashid et al., 2020; Schulman et al., 2017; Yu et al., 2022; Achiam et al., 2017; Stooke et al.,
+2020). During inference, a single checkpoint runs under hard budgets (caps) or fixed prices (soft
+trade-offs), adapting per query without retraining.
+
+Empirically, the CLAUSE framework produces compact, targeted contexts and predictable runtime.
+In HotpotQA, MetaQA, and FactKG, it reduces edge counts and end-to-end latency while improving
+exact match at the matched token mass, as shown in Section 5. Requirement sweeps reveal clear
+accuracy–latency–cost Pareto frontiers: shifting budget from per-step reasoning to interaction im-
+proves accuracy at fixed tokens, and tightening the step budget reduces latency with little or no loss
+in accuracy.
+
+Contributions. (1) Formulation. We cast multi-hop KGQA as requirements-conditioned context
+assembly with per-query budgets/prices on three deployment-relevant resources: (i) subgraph edits,
+(ii) interaction steps (latency proxy), and (iii) selected tokens (prompt cost). This makes accuracy–
+efficiency trade-offs explicit and tunable.
+(2) Framework. CLAUSE is an agentic neuro-symbolic controller that jointly decides what to edit,
+which paths to follow or backtrack, what textual evidence to keep, and when to STOP. Actions
+are symbolic (auditable) and priorities come from lightweight neural scorers, yielding compact,
+provenance-preserving context.
+(3) Training. We adapt constrained RL to this setting via LC-MAPPO: centralized training with
+decentralized execution, a multi-head critic that separates task value from edge/step/token costs, and
+per-budget dual variables that enforce episode-level requirements or enable price-based trade-offs at
+test time.
+(4) Evidence. In HotpotQA, MetaQA, and FactKG, CLAUSE achieves higher or matched EM at
+equal or lower budgets, with reduced subgraph growth and latency. Ablations show that removing
+any agent or constraint handling degrades accuracy and/or efficiency, supporting the need for joint
+control and explicit budgets.
+
+
+
+2  PRELIMINARIES AND RELATED WORK
+
+
+2.1  PRELIMINARIES
+
+
+Neuro-symbolic definition. We view neuro-symbolic inference as coupling an explicit symbolic
+calculus (Boolean, first-order, or soft/fuzzy) with a learned scoring/belief module; differentiable logic
+is unnecessary—only a principled linkage between symbols and learned scores is required (Smet
+& Raedt, 2025). KGQA as neuro-symbolic. KGQA operates on typed entity–relation graphs and
+commonly targets (i) single-relation queries, (ii) multi-hop path queries, and (iii) compositional-logic
+queries (e.g., conjunction/disjunction/negation) (Zhang et al., 2021). Surveys group approaches into
+(1) logic-informed embeddings, (2) embeddings trained with logical constraints, and (3) rule/path
+learning where a neural controller searches over symbolic paths/rules (DeLong et al., 2025). We
+adopt (3): a dynamic learnable agentic framework edits a KG for reasoning.
+
+
+                                       2
+
+--- PAGE 3 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+2.2  RELATED WORK
+
+Existing Multi-hop KGQA Solutions. Multi-hop KGQA must balance accuracy and provenance
+with strict constraints on latency and prompt cost. In practice, two resources dominate deployment
+behavior: the number of interaction steps taken while assembling context and the selected tokens
+ultimately shown to the reader LLM. Static k-hop expansions often over-retrieve, inflate prompts,
+and surface distractors (Zhou et al., 2024; Wan et al., 2024; Jiang & Bansal, 2019), while typi-
+cal pipelines expose only heuristic knobs rather than learned, per-query control. A long line of
+symbolic/neuro-symbolic KGQA operates directly on entity–relation structure. Path-following and
+rule-learning systems (e.g., MINERVA, NeuralLP, TensorLog, RNNLogic) traverse the graph to
+derive answers (Das et al., 2018; Yang et al., 2017; Cohen, 2016; Qu et al., 2021); graph-aware readers
+(e.g., QAGNN) inject KG signals into the encoder (Yasunaga et al., 2021). Question-conditioned sub-
+graph builders such as GraftNet and PullNet assemble local neighborhoods for a downstream reader
+(Sun et al., 2019). These approaches typically set expansion depth/degree and filtering thresholds a
+priori, which makes runtime behavior sensitive to manual tuning and obscures the accuracy–efficiency
+trade-off. Then, work on context engineering shows that prompt composition strongly affects both
+cost and accuracy (Zhou et al., 2024; Wan et al., 2024). Chain-of-thought prompting can help certain
+tasks (Wei et al., 2022; Kojima et al., 2022; Han et al., 2025), yet it primarily lengthens the reasoning
+text without changing which evidence is visible, offering limited leverage over end-to-end latency
+(Zhou et al., 2024). Moreover, Retrieval-augmented generation (RAG) conditions generation on
+external evidence (Lewis et al., 2020; Karpukhin et al., 2020; Izacard et al., 2023). Recent variants
+interleave reasoning and retrieval (ReAct) (Yao et al., 2023), incorporate self-feedback (SELF-RAG)
+(Asai et al., 2024), or adapt retrieval frequency to difficulty/confidence (Jeong et al., 2024; Zhang
+et al., 2024). Graph-guided pipelines (e.g., GraphRAG; Think-on-Graph 2.0) leverage entity–relation
+structure for multi-hop collection (Edge et al., 2025; Ma et al., 2025). These systems often rely on
+fixed hop limits or hand-tuned schedules; optimization of construction, traversal, and selection is
+rarely carried out jointly under explicit step/token costs. Finally, agentic LLMs plan, call tools, and
+decide when to act versus reflect (Press et al., 2023; Yao et al., 2023; Shinn et al., 2023; Schick et al.,
+2023; Shen et al., 2023; Liu et al., 2024; Wang et al., 2023). Their flexibility comes with multi-step
+deliberation that can raise interaction cost, and per-episode resource control is implicit.
+
+MARL and constrained optimization. Multi-agent reinforcement learning (MARL) addresses
+decentralized coordination under partial observability and non-stationarity, where multiple local-view
+actors must produce joint behavior that optimizes a global objective subject to deployment con-
+straints (e.g., latency, token budget, graph edits). A widely used recipe is centralized training with
+decentralized execution (CTDE), which stabilizes learning and credit assignment via a centralized
+value while keeping actors decentralized at test time; representative instances include COMA, which
+introduces a counterfactual baseline for per-agent credit, and QMIX, which learns a monotonic
+mixing network to factorize joint values into per-agent utilities (Foerster et al., 2018; Rashid et al.,
+2020). Building on PPO (Schulman et al., 2017), MAPPO shows that PPO-style updates with a
+centralized critic are strong, simple baselines on standard cooperative benchmarks (Yu et al., 2022).
+Existing methods largely fall into two families: value factorization (e.g., QMIX), which is efficient
+and scalable but restricted by the monotonic mixing constraint and can misattribute credit when joint
+action values are non-monotonic; and policy-gradient CTDE (e.g., COMA/MAPPO), which is flexible
+but higher-variance/sample-hungry and, in vanilla form, lacks principled mechanisms to enforce
+per-episode resource constraints. Single-penalty constrained RL such as Reward-Constrained Policy
+Optimization (RCPO) (Tessler et al., 2019) further conflates heterogeneous costs, making it difficult
+to independently control edge growth, interaction steps, and selected tokens. Preference-optimization
+methods (GRPO/DPO) instead learn from static pairwise/group preferences over complete responses
+in bandit-like, text-only settings without explicit environment state transitions (Rafailov et al., 2023;
+Shao et al., 2024); they neither decompose multi-agent credit nor estimate shaped values on graph
+states, and they provide no handle for enforcing per-episode constraints.
+
+Positioning.  In summary, we situate CLAUSE among four families:  (i) question-conditioned
+subgraph builders and graph-guided RAG (e.g., GraftNet, PullNet, GraphRAG; (Sun et al., 2019;
+Edge et al., 2025)), which rely on fixed hop/degree/top-k rules; (ii) path/rule learners (MINERVA,
+NeuralLP, RNNLogic; (Das et al., 2018; Yang et al., 2017; Qu et al., 2021)) that optimize task reward
+without explicit latency/token control; (iii) agentic LLMs (ReAct, Graph-of-Thoughts, AutoGen;
+(Yao et al., 2023; Besta et al., 2024; Wu et al., 2023)) that interleave tools but do not enforce per-
+episode resources; and (iv) constrained RL (RCPO or fixed-penalty PPO; MAPPO/COMA without
+
+
+                                       3
+
+--- PAGE 4 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+                   Table 1: Notation. See Appendix B for the extended table.
+Symbol                    Description
+
+K = (V, R, E)             Global knowledge graph; E ⊆V × R × V
+Gt = (Vt, Et); G∗          Evolving subgraph at step t; final subgraph
+Ft; Pt; At                   Frontier nodes; candidate pool at step t; typed outgoing candidates (navigator
+                               actions)
+q; y, ˆy                       Input question; gold / predicted answers
+pt; Π                       Path prefix at step t; set of discovered paths (provenance)
+πB, πT , πS; aBt , aTt , aSt       Policies and actions for EDIT/TRAVERSE/CURATE
+st = (q, Gt, Ft, Pt, bt)      State summary at step t; bt: remaining budgets (vector)
+β = (βedge, βlat, βtok)        Episode budgets: edges, latency (steps), selected tokens
+C = (Cedge, Clat, Ctok); c(k)t    Cumulative costs and per-step increments (k∈{edge, lat, tok}; Pt c(k)t = Ck)
+λ = (λedge, λlat, λtok)        Lagrange multipliers (resource prices)
+Racc(τ); racct   ; r′t            Episode reward; per-step task reward; shaped return r′t = racct −Pk λk c(k)t
+L(π, λ)                   Lagrangian E[ Racc(τ) −λ⊤C(τ) ]
+Qtask, Qedge, Qlat, Qtok         Centralized-critic action-values (task head + three cost heads)
+Ai,ht   , Ai,λt   ; i ∈{B, T, S}   Counterfactual and Lagrangian-shaped advantages; agent index
+D⋆; tok(·)                 Ordered curated evidence; token-count operator
+e = (u, r, v)          KG triple (head u, relation r, tail v)
+H,  ¯d, |Pt|, K           Hop cap; avg local branching factor; pool size; selected list length (K dynamic)
+
+
+constraints; (Tessler et al., 2019; Schulman et al., 2017; Yu et al., 2022; Foerster et al., 2018)). In
+contrast, we cast KGQA as a constrained decision process with three deployment-relevant costs
+(edges/steps/tokens), learn price-aware edit/traverse/curate policies with explicit STOP, and train with
+separate cost heads and dual variables so a single checkpoint supports both budget caps and price
+trade-offs.
+
+3  PROBLEM FORMULATION
+
+Problem. We study multi-hop KGQA over a typed knowledge graph K = (V, R, E) with entities
+V , relation types R, and triples E ⊆V × R × V . A query q is natural language; the gold answer
+y⋆⊆V can be a single entity or a set (surface strings, when provided, are canonicalized to IDs in V ).
+Given (K, q), the system outputs a prediction ˆy ⊆V and a compact, provenance-preserving context
+for the reader LLM. An episode corresponds to one question.
+
+State and observations. At round t, the controller maintains a working subgraph
+                      Gt = (Vt, Et),    Et ⊆Vt × R × Vt,
+a frontier Ft ⊆Vt of nodes eligible for expansion, a candidate pool Pt of textualized units
+(nodes/edges/paths and optional retrieval hits), and remaining budgets bt = (bedget    , blatt  , btokt  ). We
+write st =  q, Gt, Ft, Pt, bt  , and each agent acts on a compact observation oit = ϕi(st).
+
+Action space. We use three action families, at ∈{EDIT, TRAVERSE, CURATE}. Let the current path
+prefix be pt = (u0, r1, u1, . . . , ut) with tip ut. Define the typed outgoing options At := { (r, v′) ∈
+R × V   : (ut, r, v′) ∈E }. Then,
+              EDIT:  {ADD(e), DELETE(e), STOP},            e = (u, r, v) ∈Ecandt     ,
+       TRAVERSE:  {CONTINUE(r, v′), BACKTRACK, STOP},   (r, v′) ∈At,
+         CURATE:  {SELECT(d), STOP},                  d ∈Pt,
+where Ecandt    are frontier-adjacent edges (defined below).
+
+Costs and budgets. We track episode-level costs for subgraph edits, interaction steps (latency proxy),
+and selected tokens (prompt cost):
+                      Cedge = X cedget    ,   Clat = X clatt  ,   Ctok = X ctokt  ,
+                                           t                        t                       t
+with increments (at most one edit per round)
+        cedget  = 1{at ∈{ADD, DELETE}},    clatt = 1{at ̸= STOP},    ctokt = Pd∈∆Dt tok(d),
+
+
+                                       4
+
+--- PAGE 5 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+where ∆Dt are newly selected units at round t and tok(·) counts tokens. Per-episode budgets are
+β = (βedge, βlat, βtok). An episode ends when all three agents emit STOP or any budget is exhausted.
+
+Objective (CMDP). Let Racc(τ) be the episode reward. We solve
+      max Eτ∼π Racc(τ)   s.t. E[Cedge] ≤βedge,  E[Clat] ≤βlat, E[Ctok] ≤βtok.       (1)
+          π
+The Lagrangian is L(π, λ) = E Racc −λ⊤C  with prices λ = (λedge, λlat, λtok) ≥0.
+
+Frontierized subgraph. A subgraph Gt is frontierized if Ecandt   ⊆{(u, r, v) ∈E : u ∈Ft}, i.e., all
+candidate expansions originate from the frontier. After each accepted edit or traversal, Ft is updated
+by adding touched endpoints and removing saturated nodes.
+
+4  METHOD
+
+4.1  CLAUSE OVERVIEW
+
+We propose CLAUSE, an agentic neuro-symbolic framework for multi-hop KGQA that learns to
+edit, traverse, and curate compact, query-specific graph contexts under explicit per-episode budgets.
+An overview of the CLAUSE architecture is shown in Figure 1. CLAUSE operates over KG symbols
+(entities/relations/paths) with lightweight neural controllers, yielding auditable traces. Three agents
+act on the evolving subgraph Gt and are trained jointly with LC–MAPPO (centralized training with
+a constrained multi-head critic; §4.4): (i) Subgraph Architect for conservative, reversible edits to
+keep Gt compact; (ii) Path Navigator that decides CONTINUE/BACKTRACK/STOP along symbolic
+paths; and (iii) Context Curator that performs budget-aware evidence selection with an explicit
+STOP. CLAUSE exposes deployable controls via per-query budgets (βedge, βlat, βtok) or equivalent
+prices λ, enabling accuracy–efficiency trade-offs without retraining. The algorithms are given in the
+Appendix C.
+
+
+                                   LC-MAPPO (centralized critic + dual updates)                                                                                  DualAscent
+             Question q                                             Centralized                                                                      Critic:
+                                                   𝑸𝒕𝒂𝒔𝒌,                                                 𝑸𝒆𝒅𝒈𝒆, 𝑸𝒍𝒂𝒕,                                                              𝑸𝒕𝒐𝒌     𝒓𝒕′ = 𝒓𝒕𝒂𝒄𝒄−𝝀𝒆𝒅𝒈𝒆𝒄𝒕𝒆𝒅𝒈𝒆−𝝀𝒍𝒂𝒕𝒄𝒕𝒍𝒂𝒕−𝝀𝒕𝒐𝒌𝒄𝒕𝒕𝒐𝒌     Dualλ𝒆𝒅𝒈𝒆,Variables:λ𝒍𝒂𝒕, λ𝒕𝒐𝒌
+                                                       joint action & state summaries             advantages + cost-shaped returns
+
+                                      Edit                          Traverse                          Curate
+                     Subgraph
+                                                Path Navigator              Context Curator          Curated                         Architect
+                                                                                                        context
+                   {ADD,DELETE,STOP}          {CONTINUE,BACKTRACK,STOP}             {SELECT,STOP}           (budgeted)
+
+
+
+
+
+                                                                                               Reader
+                                                                                     LLM
+                         𝑮𝒕+𝟏, 𝔽𝒕+𝟏, 𝒄𝒕𝒆𝒅𝒈𝒆                  𝝅𝒕+𝟏, 𝜫𝒑𝒂𝒕𝒉𝒔, 𝒄𝒕𝒍𝒂𝒕         𝓢𝒕𝒔𝒆𝒍𝒆𝒄𝒕𝒆𝒅, 𝑿𝒕𝒕𝒆𝒙𝒕, 𝒄𝒕𝒕𝒐𝒌
+                     𝒂𝒅𝒅,𝒅𝒆𝒍𝒆𝒕𝒆,𝒔𝒕𝒐𝒑?            𝒄𝒐𝒏𝒕𝒊𝒏𝒖𝒆,𝒃𝒂𝒄𝒌𝒕𝒓𝒂𝒄𝒌,𝒔𝒕𝒐𝒑?               𝒔𝒆𝒍𝒆𝒄𝒕,𝒔𝒕𝒐𝒑?
+
+                   Budget: 𝜷𝒆𝒅𝒈𝒆, 𝜷𝒍𝒂𝒕, 𝜷𝒕𝒐𝒌                       Answer y
+
+
+Figure 1: The CLAUSE workflow. Three agents (Architect, Navigator, Curator) operate on a
+symbolic KG state under per-episode budgets; LC–MAPPO trains task and cost heads jointly and
+provides deployable dials at inference.
+
+
+4.2  DESIGN PRINCIPLES
+
+Per-episode budgets. Each query carries budgets (βedge, βlat, βtok) (or prices λ; see §3).
+Joint control. Editing, traversal, and curation are optimized together, replacing k-hop/degree/top-k
+heuristics.
+Learned stopping. The agents keep going only if another hop or another snippet is worth its cost;
+otherwise they stop.
+
+
+                                       5
+
+--- PAGE 6 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Neuro-symbolic transparency. Actions are discrete KG edits/moves; neural modules provide the
+scores; traces are auditable.
+
+
+4.3  AGENTIC WORKFLOW
+
+At each decision round, CLAUSE executes a three-stage loop—edit →traverse →cu-
+rate —conditioned on (βedge, βlat, βtok) or λ. After every action, counters (Cedge, Clat, Ctok) update,
+remaining budgets are recomputed, and any agent may issue STOP; the episode ends when all modules
+stop or a budget is exhausted. We train three agents jointly with LC–MAPPO (Section 4.4).
+
+(1) Subgraph Architect (anchoring & edit). From the question q, we extract mention candidates
+M(q) by matching to entity names/aliases (optionally aided by a simple tagger). For a mention m
+and entity v, we compute the anchor score sanch(m, v). We aggregate to an entity score sent(v |
+q) = maxm∈M(q) sanch(m, v), and form a seed set S0 by taking the top-k entities. If alias hits are
+weak or absent, we fall back to a frozen-encoder retrieval over entity textual fields and take the top-k
+as seeds. The initial frontier is F0 := S0; the initial subgraph G0 is built around F0 (within budget).
+
+Let (Gt, Ft) be the current subgraph and frontier Ft ⊆V (Gt). The architect considers frontier-
+adjacent candidates Ecandt   ⊆{(u, r, v) ∈E : u ∈Ft}. Each candidate e = (u, r, v) receives a fused
+score
+                                                                   i                 s(e | q, Gt) = w⊤h ϕent(u, q), ϕrel(r, q), ϕnbr(u, Gt), ϕdeg(u)  ,
+
+where ϕent and ϕrel combine lexical features and cosine similarities from a frozen encoder, and
+ϕnbr, ϕdeg encode neighborhood and degree priors (hub throttling). At step t the agent chooses
+at ∈{ADD, DELETE, STOP} and, if applicable, et ∈Ecandt    to maximize the price-shaped gain
+
+                       g(a, e | q, Gt) = s(e | q, Gt) −λedge cedge(a, e),
+
+subject to remaining edge/latency budgets. An edit is applied only if g(at, et) > 0 and budget
+remains; (Gt+1, Ft+1) are updated accordingly. All candidates originate from the frontier, avoiding
+uninformed k-hop expansions. Per round, scoring costs O(CBd) with CB = |Ecandt    | and encoder
+width d; applying accepted edits costs O(∆E).
+
+(2) Path Navigator (traverse). Given Gt, the navigator maintains a path prefix pt and observes
+(q, vt, At, summary(pt)), where At are typed outgoing candidates. A light encoder outputs (i)
+a termination head over {STOP, CONTINUE} and (ii) candidate logits over At when continuing;
+BACKTRACK is modeled as an explicit action. Each hop increments Clat, so continuation occurs
+only when expected shaped value exceeds the current step price. We cap the horizon by a small
+H and retain log-probabilities for credit assignment. Discovered paths Π = {p1, . . . , pm} serve as
+human-readable provenance.
+
+(3) Context Curator (curate). From a pool Pt (textualized nodes/edges/paths and optional retrieval
+hits), the curator performs listwise selection with an explicit STOP:
+
+           max Rtask(S)   s.t. X tok(c) ≤βtok,    S = Curate(Pt; πS).
+                πS
+                                  c∈S
+
+Beyond independent passage thresholds, we use listwise, redundancy-aware scoring with a learned
+STOP head conditioned on the token price (dual λtok), aligning selection with Ctok and producing
+compact, complementary evidence sets that are both efficient and auditable.
+
+Observations and cost attribution. Agents receive compact summaries of (Gt, Ft, Pt) and the
+remaining budgets. Costs are attributed at source, edits→Cedge, steps→Clat, curations→Ctok,
+which simplifies credit assignment and supplies the cost signals used by LC-MAPPO.
+
+
+4.4  LEARNING: LC-MAPPO
+
+To enforce per-episode budgets in edges, steps, and tokens while preserving accuracy, we propose
+LC–MAPPO, a Lagrangian-constrained CTDE variant of MAPPO that jointly learns task value and
+multiple cost processes with deployable test-time dials. A centralized critic estimates one task head
+Qtask and three cost heads (Qedge, Qlat, Qtok) over joint actions; a monotonic mixer aggregates
+per-agent utilities for each head (Rashid et al., 2020). Let c(k)t  denote instantaneous cost increments
+
+
+                                       6
+
+--- PAGE 7 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+whose episode sums yield Ck in Eq. 1, for k∈{edge, lat, tok}. The PPO surrogate uses COMA-style
+counterfactual advantages (Foerster et al., 2018; Schulman et al., 2017; Yu et al., 2022) on the shaped
+return
+                           r′t = racct  −λedge cedget   −λlat clatt  −λtok ctokt   ,                     (2)
+which instantiates the per-step Lagrangian of the CMDP in Eq. 1. At optimum, the duals λ⋆equal the
+partial derivatives of the optimal value w.r.t. budgets (shadow-price property), and therefore predict
+the local slope of the accuracy–latency-cost frontiers (Appendix G).
+
+Rather than fixing a single penalty, LC–MAPPO maintains separate dual variables λedge, λlat, λtok
+and updates them by projected ascent,
+                  λk ← λk + η bE[Ck] −βk  +,  k ∈{edge, lat, tok},
+
+optionally stabilized with PID control (Achiam et al., 2017; Stooke et al., 2020). This is stochastic
+dual ascent on the Lagrangian of Eq. 1, moving λ to enforce E[Ck] ≤βk while actors ascend
+the shaped objective. The separation of a task head from cost heads improves credit assignment
+and exposes explicit accuracy–efficiency trade-offs at test time (tune λ or β without retraining).
+Convergence is stated in Appendix H.
+
+
+4.5  INFERENCE AND DEPLOYMENT CONTROLS
+
+At test time, agents act greedily with learned STOP.  Operators may run in cap mode (set
+(βedge, βlat, βtok)) for hard guarantees or in price mode (fix λ) for smooth trade-offs—both from a
+single checkpoint. Symbolic decisions yield step-level traces (what was added, explored, selected,
+and where we stopped) for audit and ablation.
+
+5  EXPERIMENTS
+
+Dataset. We evaluate on three multi-hop KGQA datasets, including METAQA (Zhang et al., 2018),
+HOTPOTQA (Yang et al., 2018), and FACTKG (Kim et al., 2023).
+
+Baselines. We compare three families under a shared retriever/reader and decoding (except the
+no-retrieval group). Pretrained LLMs (no retrieval): GPT-OSS-120B; LLaMA3.3-70B; Qwen3-
+32B. RAG methods (Qwen3-32B): Vanilla RAG (Lewis et al., 2020); Hybrid RAG (Robertson
+& Zaragoza, 2009; Karpukhin et al., 2020; Nogueira & Cho, 2020); LightRAG (Guo et al., 2025);
+GraphRAG (Edge et al., 2025). Agent-based methods (Qwen3-32B): ReAct (Yao et al., 2023);
+Graph-of-Thoughts (GoT) (Besta et al., 2024); AutoGen (Wu et al., 2023); KG-Agent (Jiang et al.,
+2025). Additionally, LC-MAPPO is compared with MAPPO (Yu et al., 2022), fixed-penalty PPO
+(Schulman et al., 2017) and single-multiplier RCPO (Tessler et al., 2019).
+
+Metrics. Accuracy is reported as top-1 exact match (EM@1). Efficiency is measured by (i) Average
+latency, normalized so that Vanilla RAG = 1.0× per dataset/hop; and (ii) Average edge budget, i.e.,
+the mean number of graph edges explored, also normalized to Vanilla RAG = 1.0×.
+
+
+5.1  EXPERIMENTAL RESULTS AND ANALYSIS
+
+Exact Match. Table 2 reports EM@1 in HotpotQA (distractor), FactKG, and MetaQA. CLAUSE
+achieves the best accuracy on all datasets and hops (71.7 on HotpotQA, 84.2 on FactKG, and
+91.0/87.3/85.5 on MetaQA 1/2/3-hop), consistently surpassing both RAG baselines (e.g., Hybrid
+RAG 66.0 on HotpotQA) and agent baselines (e.g., KG-Agent 68.7 on HotpotQA, 87.3/78.0/75.4 on
+MetaQA). Pure pretrained LLMs perform markedly worse, highlighting the value of budget-aware,
+neuro-symbolic control over subgraph editing, traversal, and evidence curation.
+
+Latency. Table 3 shows average latency normalized to Vanilla RAG = 1.0×. Among RAG methods,
+LightRAG is the fastest but sacrifices accuracy; GraphRAG is slowest because of graph construction
+overheads. Agent baselines incur higher latency than RAG (e.g., AutoGen and GoT are the slowest)
+because of multi-step tool/use deliberations. CLAUSE achieves agent-level accuracy with competitive
+efficiency: its latency is close to or below Hybrid/GraphRAG and substantially lower than typical
+agent systems (e.g., 1.48× on HotpotQA vs. 2.43× for AutoGen), and even dips below Vanilla on
+MetaQA 1-hop (0.98×), reflecting effective learned stopping and budgeted context construction;
+
+
+                                       7
+
+--- PAGE 8 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+            Table 2: Main QA results: EM@1 on HotpotQA, FactKG, and MetaQA.
+     Family          Method           HotpotQA   FactKG       MetaQA
+                                                (Distractor)             1-hop   2-hop   3-hop
+                     GPT-OSS-120B          44.5         68.0      62.7     41.5     52.3
+      Pretrained-LLMs   LLaMA3.3-70B          41.0         66.7      57.2     29.0     44.2
+                    Qwen3-32B              37.9         60.1      52.5     22.8     39.0
+                           Vanilla RAG             62.1         77.0      60.2     37.6     33.0
+     RAG-based        Hybrid RAG             66.0         80.2      63.0     41.5     34.1
+     (Qwen3-32B)     LightRAG               44.3         64.5      54.0     35.0     32.0
+                   GraphRAG              50.1         72.0      63.5     48.0     44.4
+                      ReAct                   63.5         78.2      82.3     52.1     49.4
+      Agent-based       Graph-of-Thoughts       59.2         74.0      79.5     48.4     46.3
+     (Qwen3-32B)     AutoGen                64.0         76.5      85.2     55.7     53.5
+                     KG-Agent               68.7         82.1      87.3     78.0     75.4
+     Ours         CLAUSE               71.7         84.2      91.0     87.3     85.5
+
+
+the slight rise at 2/3-hop mirrors increased multi-hop exploration while remaining well under other
+agentic baselines.
+
+
+        Table 3: Efficiency results: Average latency (normalized to Vanilla RAG = 1.0×).
+       Family       Method           HotpotQA   FactKG       MetaQA
+                                              (Distractor)             1-hop   2-hop   3-hop
+                          Vanilla RAG             1.00         1.00      1.00     1.00     1.00
+       RAG-based     Hybrid RAG             1.18         1.15      1.12     1.20     1.28
+       (Qwen3-32B)   LightRAG               0.85         0.88      0.80     0.83     0.86
+                  GraphRAG              1.45         1.35      1.25     1.40     1.60
+                    ReAct                   1.62         1.40      1.25     1.45     1.70
+       Agent-based    Graph-of-Thoughts       2.10         1.78      1.65     1.90     2.32
+       (Qwen3-32B)   AutoGen                2.43         2.20      1.81     2.14     2.62
+                    KG-Agent               1.70         1.54      1.30     1.62     1.90
+      Ours       CLAUSE               1.48         1.36      0.98     1.14     1.27
+
+Average Edge Budget. Table 4 reports the average edge budget normalized to Vanilla RAG (1.0×),
+which reflects how much the working subgraph grows during context construction. Within RAG
+baselines, LightRAG is the most frugal (0.75–0.82) and GraphRAG the most expansive (1.18–1.55),
+while Hybrid RAG sits slightly above Vanilla due to dual-channel retrieval and re-ranking. Agent
+systems generally consume more edges than RAG (e.g., AutoGen up to 2.10× on MetaQA-3hop)
+because multi-step deliberation triggers additional expansions. In contrast, CLAUSE achieves the
+smallest edge budgets across all settings (0.74–0.90) while still delivering the best EM (cf. Table 2),
+indicating that its budget-aware subgraph editing and learned STOP decisions effectively suppress
+redundant growth. The modest increase from MetaQA 1-hop to 3-hop matches the expected need to
+explore deeper paths, yet remains well below other agentic approaches.
+
+
+     Table 4: Efficiency results: Average Edge Budget (normalized to Vanilla RAG = 1.0×).
+       Family       Method           HotpotQA   FactKG       MetaQA
+                                              (Distractor)             1-hop   2-hop   3-hop
+                          Vanilla RAG             1.00         1.00      1.00     1.00     1.00
+       RAG-based     Hybrid RAG             1.12         1.08      1.05     1.12     1.20
+       (Qwen3-32B)   LightRAG               0.78         0.80      0.75     0.78     0.82
+                  GraphRAG              1.35         1.30      1.18     1.32     1.55
+                    ReAct                   1.20         1.13      1.05     1.18     1.35
+       Agent-based    Graph-of-Thoughts       1.55         1.40      1.30     1.55     1.85
+       (Qwen3-32B)   AutoGen                1.84         1.72      1.45     1.75     2.10
+                    KG-Agent               1.30         1.22      1.10     1.32     1.58
+      Ours       CLAUSE               0.78         0.74      0.77     0.78     0.90
+
+Token Usage. As shown in Figure 2, across all three datasets, Qwen3-32B (no RAG) exhibits
+the lowest normalized token usage (because no retrieved context is concatenated), while CLAUSE,
+
+
+                                       8
+
+--- PAGE 9 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+without relying on multi-agent expansion, consistently uses fewer tokens than the family averages of
+RAG-based and Agent-based methods, indicating better token efficiency. (Note: the MetaQA panel
+reports the average over the 1/2/3-hop settings.)
+
+                                              Token Usage (normalized)  mean ± SD
+
+                HotpotQA                          FactKG                        MetaQA
+×  2.0
+Mass1.0)
+ = 1.5
+ TokenRAG
+      1.0
+ Normalized(Vanilla 0.5
+    Qwen3-32B RAG-based Agent-based    ours  Qwen3-32B RAG-based Agent-based    ours  Qwen3-32B RAG-based Agent-based    ours
+
+
+                Figure 2: Normalized Token Consumption (Vanilla RAG = 1.0×).
+
+Constraint Satisfaction Performance. We evaluate LC-MAPPO against MAPPO (Yu et al., 2022),
+Fixed-Penalty PPO (Schulman et al., 2017) and RCPO (Tessler et al., 2019) on the MetaQA KGQA
+task under constrained settings (edge budget = 0.5, latency budget = 0.7). Figure 3 demonstrates
+LC-MAPPO’s superior constraint satisfaction capabilities across multiple metrics. LC-MAPPO
+achieves a 191% improvement in feasibility rate compared to standard MAPPO (0.340 vs. 0.117),
+indicating significantly better constraint adherence.  Furthermore, LC-MAPPO reduces latency
+violations by 34% (0.577 vs. 0.880) and latency costs by 12% (0.738 vs. 0.838), demonstrating
+effective latency-aware optimization. LC-MAPPO demonstrates the strongest constraint learning
+with adaptive dual variables of 0.004, outperforming RCPO’s 0.001 and surpassing methods without
+constraint adaptation, confirming that our multi-head centralized critic successfully learns to balance
+task performance with constraint satisfaction.  These results validate LC-MAPPO’s design for
+constraint-aware MARL, where the algorithm substantially improved constraint compliance.
+
+
+             Constraint Feasibility                       Latency Violations                          Latency Cost                            Constraint Learning
+               (Higher = Better)                         (Lower = Better)                         (Lower = Better)                        (Higher = More Active)
+    0.35
+                                                                                                                      0.8                                             0.0040
+    0.30                                                     0.8                                                                                                                      0.7                                             0.0035
+    0.25
+ Rate    0.20                                                              Rate 0.6                                                              Cost 0.60.5                                                                        Value 0.00300.0025
+                                                                                                                                                           0.0020    0.15                                                     0.4                                                     0.4                                                                                                                    Variable  Feasibility                                                                                                                                                                   Violation                                                                                                                                                                      Normalized 0.3                                                          Dual 0.0015    0.10
+                                                             0.2                                                     0.2                                             0.0010
+    0.05                                                                                                              0.1                                             0.0005
+    0.00                                                     0.0                                                     0.0                                             0.0000
+          MAPPO       PPO RCPO    LC-MAPPO                 MAPPO       PPO RCPO    LC-MAPPO                 MAPPO       PPO RCPO    LC-MAPPO                 MAPPO       PPO RCPO    LC-MAPPO                           Fixed-Penalty                                                                  Fixed-Penalty                                                                  Fixed-Penalty                                                                  Fixed-Penalty
+
+Figure 3: Constraint satisfaction performance comparison. (a) Constraint Feasibility. (b) Latency
+Violations. (c) Latency Cost. (d) Constraint Learning.
+
+
+5.2  ABLATIONS
+
+As summarized in Table 5, removing any agent or disabling constraint handling hurts both accuracy
+and efficiency. The full CLAUSE attains the best EM@1 (87.3) at the reference latency and edge
+budget (both 1.00×). Without the Subgraph Architect (StaticRAG; no-KG), EM drops sharply to
+74.8 while latency and edge usage rise to 1.32× and 1.44×, indicating severe over-expansion without
+budget-aware graph editing. Removing the Path Navigator (Greedy-Hop) yields EM 82.1 with higher
+latency/edges (1.18 × /1.22×), showing that learned continue/backtrack/stop decisions are important
+for disciplined exploration. Omitting the Context Curator (Top-k Rerank) reduces EM to 80.6 and
+raises latency to 1.24× (edges 1.07×), reflecting longer, unpruned contexts when the learned stop is
+absent. Constraint ablations further confirm the role of LC-MAPPO: MAPPO without duals achieves
+EM 85.0 but overshoots edges (1.28×), and fixing λ (no updates) reaches EM 84.6 with milder but
+persistent budget violations (1.06× latency, 1.15× edges). Together, these results demonstrate that
+all three agents and adaptive dual updates are necessary to jointly optimize EM, latency, and edge
+growth under requirements.
+
+
+                                       9
+
+--- PAGE 10 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Table 5: Core ablations on MetaQA. All runs use the same reader and settings (normalized to
+CLAUSE = 1.0×).
+                                                                  Latency↓   Edge budget↓
+Variant                                  EM@1↑
+                                                                                (avg)           (avg)
+
+CLAUSE (full)                                                 87.3         1.00           1.00
+w/o Subgraph Architect  (StaticRAG; no-KG)                      74.8         1.32           1.44
+w/o Path Navigator (Greedy-Hop; no traversal policy)              82.1         1.18           1.22
+w/o Context Curator  (Top-k Rerank; no learned stop)              80.6         1.24           1.07
+MAPPO (no duals)                                               85.0         1.08           1.28
+Fixed λ (no updates)                                             84.6         1.06           1.15
+
+
+
+5.3  CASE STUDY
+
+  Question: Who co-starred with Brian Backer?
+
+   (1) Subgraph Architect. Anchors: Brian Backer (actor).
+           • Add (Moving Violations, starred_actors, Brian Backer)
+           • Add (...)
+           • Stop (edge budget nearly met)
+
+   (2) Path Navigator Path discovered:
+
+                           starred_actors            starred_actors
+          Actor_A ←−−−−−−−−−−−Movie −−−−−−−−−−−→Actor_B .
+
+  At hop 2, backtracking is not triggered; STOP fires with high confidence due to saturated utility.
+
+   (3) Context Curator. With βtok = 512, the curator selects two snippets: “Moving Violations —
+   starred_actors: Jennifer Tilly” and “Moving Violations — starred_actors: John Murray”. Token
+  mass is ≈36 (< βtok), so STOP triggers; latency is 238.6 ms. The reader returns Jennifer Tilly
+ & John Murray. (The complete process is illustrated in Figure 4)
+
+
+                                             Brian Backer                 Brian Backer                                   Brian Backer            ViolationsMoving
+
+                                                                                                               John
+                                                                                                              Murray
+
+                                                                                                                                                          Jennifer
+                                                                                                                                                                                           Tilly
+
+                       Anchor                                     Entity                                            Path Traversal                                     Relation：starred_actors                          Recognition
+
+                         Local
+                          Construction                           Subgraph                                              Policy-GuidedExploration                                      William                  DisturbDo Not
+                                                                                                                 Hurt
+
+                              (a)                                      (b)                                      (c)
+
+                         Figure 4: End-to-End Case Study Overview.
+
+
+6  CONCLUSION
+
+This work formulates KGQA as dynamic learnable context construction: instead of a fixed k-hop
+neighborhood, the system must decide what context to assemble, how to obtain it, and when to
+stop under per-query limits on edits, interaction steps, and tokens. CLAUSE instantiates this by
+decomposing context into three components: (i) subgraph structure, (ii) path traces, and (iii) textual
+evidence, and assigning them to three simple agents (Architect, Navigator, Curator) that make discrete,
+auditable choices. LC-MAPPO optimizes the overall workflow by pricing resources via a centralized
+multi-head critic with dual variables, so agents continue only when the predicted marginal utility
+exceeds the current price. This requirement-conditioned controller yields compact provenance and
+predictable latency/cost, and empirically traces stronger accuracy–efficiency frontiers than heuristic
+expansion or unconstrained agent loops.
+
+
+                                       10
+
+--- PAGE 11 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+ETHICS STATEMENT
+
+We comply with the ICLR Code of Ethics. This work uses only publicly available benchmark datasets
+and does not involve human-subject data or personally identifiable information; therefore, IRB
+approval was not required. The methods are intended for benign research uses and are not designed
+to facilitate privacy violations or discriminatory outcomes. The authors declare no conflict of interest.
+
+ACKNOWLEDGEMENTS
+
+This research is supported by Seatrium New Energy Laboratory, Singapore Ministry of Education
+(MOE) Tier 1 (RT5/23 and RG24/24), the Nanyang Technological University (NTU) Centre for Com-
+putational Technologies in Finance (NTU-CCTF), and the Research Innovation and Enterprise (RIE)
+2025 Industry Alignment Fund - Industry Collaboration Projects (IAF-ICP) (Award I2301E0026),
+administered by Agency for Science, Technology and Research (A*STAR).
+
+REPRODUCIBILITY STATEMENT
+
+We provide an anonymized code archive in the supplementary materials. The model and objective are
+specified in Section 4, and pseudocode in Appendix C. Datasets and preprocessing are described in
+Section 5 and Appendix D. Metrics, baseline settings, and normalization are defined in Section 5;
+seeds, environment details, and run scripts are included in the archive.
+
+REFERENCES
+
+Joshua Achiam, David Held, Aviv Tamar, and Pieter Abbeel. Constrained policy optimization. In
+  Proceedings of the 34th International Conference on Machine Learning - Volume 70, ICML’17, pp.
+  22–31. JMLR.org, 2017.
+
+Akari Asai, Zeqiu Wu, Yizhong Wang, Avi Sil, and Hannaneh Hajishirzi. Self-RAG: Learning to
+   Retrieve, Generate, and Critique through Self-Reflection. In International Conference on Learning
+  Representations, 2024.
+
+Maciej Besta, Nils Blach, Ales Kubicek, Robert Gerstenberger, Michał Podstawski, Lukas Gianinazzi,
+  Joanna Gajda, Tomasz Lehmann, Hubert Niewiadomski, Piotr Nyczyk, and Torsten Hoefler. Graph
+   of thoughts: solving elaborate problems with large language models. In Proceedings of the Thirty-
+  Eighth AAAI Conference on Artificial Intelligence and Thirty-Sixth Conference on Innovative
+  Applications of Artificial Intelligence and Fourteenth Symposium on Educational Advances in
+   Artificial Intelligence, AAAI’24/IAAI’24/EAAI’24. AAAI Press, 2024. ISBN 978-1-57735-887-
+   9. doi: 10.1609/aaai.v38i16.29720. URL https://doi.org/10.1609/aaai.v38i16.
+  29720.
+
+William W. Cohen. Tensorlog: A differentiable deductive database, 2016. URL https://arxiv.
+  org/abs/1605.06523.
+
+Rajarshi Das, Shehzaad Dhuliawala, Manzil Zaheer, Luke Vilnis, Ishan Durugkar, Akshay Krishna-
+  murthy, Alex Smola, and Andrew McCallum. Go for a walk and arrive at the answer: Reasoning
+  over paths in knowledge bases using reinforcement learning. In International Conference on
+  Learning Representations, 2018.
+
+Lauren Nicole DeLong, Ramon Fernández Mir, and Jacques D. Fleuriot. Neurosymbolic ai for
+  reasoning over knowledge graphs: A survey. IEEE Transactions on Neural Networks and Learning
+  Systems, 36(5):7822–7842, May 2025. ISSN 2162-2388. doi: 10.1109/tnnls.2024.3420218. URL
+  http://dx.doi.org/10.1109/TNNLS.2024.3420218.
+
+Wentao Ding, Jinmao Li, Liangchuan Luo, and Yuzhong Qu. Enhancing complex question answering
+  over knowledge graphs through evidence pattern retrieval.  In Proceedings of the ACM Web
+  Conference 2024, WWW ’24, pp. 2106–2115, New York, NY, USA, 2024. Association for
+  Computing Machinery. ISBN 9798400701719. doi: 10.1145/3589334.3645563. URL https:
+  //doi.org/10.1145/3589334.3645563.
+
+
+                                       11
+
+--- PAGE 12 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva Mody, Steven Truitt,
+  Dasha Metropolitansky, Robert Osazuwa Ness, and Jonathan Larson. From local to global: A
+  graph rag approach to query-focused summarization, 2025. URL https://arxiv.org/abs/
+  2404.16130.
+
+Jakob N. Foerster, Gregory Farquhar, Triantafyllos Afouras, Nantas Nardelli, and Shimon White-
+  son. Counterfactual multi-agent policy gradients. In Proceedings of the Thirty-Second AAAI
+  Conference on Artificial Intelligence and Thirtieth Innovative Applications of Artificial Intelli-
+  gence Conference and Eighth AAAI Symposium on Educational Advances in Artificial Intelligence,
+  AAAI’18/IAAI’18/EAAI’18. AAAI Press, 2018. ISBN 978-1-57735-800-8.
+
+Zirui Guo, Lianghao Xia, Yanhua Yu, Tu Ao, and Chao Huang.  LightRAG: Simple and fast
+  retrieval-augmented generation.  In Christos Christodoulopoulos, Tanmoy Chakraborty, Car-
+  olyn Rose, and Violet Peng (eds.), Findings of the Association for Computational Linguistics:
+ EMNLP 2025, pp. 10746–10761, Suzhou, China, November 2025. Association for Computa-
+   tional Linguistics. ISBN 979-8-89176-335-7. doi: 10.18653/v1/2025.findings-emnlp.568. URL
+  https://aclanthology.org/2025.findings-emnlp.568/.
+
+Feijiang Han, Hengtao Cui, Licheng Guo, Zelong Wang, and Zhiyuan Lyu. Read before you
+   think: Mitigating llm comprehension failures with step-by-step reading, 2025. URL https:
+  //arxiv.org/abs/2504.09402.
+
+Gautier Izacard, Patrick Lewis, Maria Lomeli, Lucas Hosseini, Fabio Petroni, Timo Schick, Jane
+  Dwivedi-Yu, Armand Joulin, Sebastian Riedel, and Edouard Grave. Atlas: Few-shot learning with
+   retrieval augmented language models. Journal of Machine Learning Research, 24(251):1–43, 2023.
+  URL http://jmlr.org/papers/v24/23-0037.html.
+
+Soyeong Jeong, Jinheon Baek, Sukmin Cho, Sung Ju Hwang, and Jong Park. Adaptive-RAG:
+  Learning to adapt retrieval-augmented large language models through question complexity. In
+  Kevin Duh, Helena Gomez, and Steven Bethard (eds.), Proceedings of the 2024 Conference of
+  the North American Chapter of the Association for Computational Linguistics: Human Lan-
+  guage Technologies (Volume 1: Long Papers), pp. 7036–7050, Mexico City, Mexico, June
+  2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.naacl-long.389. URL
+  https://aclanthology.org/2024.naacl-long.389/.
+
+Jinhao Jiang, Kun Zhou, Wayne Xin Zhao, Yang Song, Chen Zhu, Hengshu Zhu, and Ji-Rong Wen.
+  KG-agent: An efficient autonomous agent framework for complex reasoning over knowledge
+  graph. In Wanxiang Che, Joyce Nabende, Ekaterina Shutova, and Mohammad Taher Pilehvar (eds.),
+  Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume
+  1: Long Papers), pp. 9505–9523, Vienna, Austria, July 2025. Association for Computational
+   Linguistics. ISBN 979-8-89176-251-0.  doi: 10.18653/v1/2025.acl-long.468. URL https:
+  //aclanthology.org/2025.acl-long.468/.
+
+Yichen Jiang and Mohit Bansal. Avoiding reasoning shortcuts: Adversarial evaluation, training,
+  and model development for multi-hop QA. In Anna Korhonen, David Traum, and Lluís Màrquez
+   (eds.), Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics,
+  pp. 2726–2736, Florence, Italy, July 2019. Association for Computational Linguistics.  doi:
+  10.18653/v1/P19-1262. URL https://aclanthology.org/P19-1262/.
+
+Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi
+  Chen, and Wen-tau Yih. Dense passage retrieval for open-domain question answering. In Bonnie
+  Webber, Trevor Cohn, Yulan He, and Yang Liu (eds.), Proceedings of the 2020 Conference on
+  Empirical Methods in Natural Language Processing (EMNLP), pp. 6769–6781, Online, November
+  2020. Association for Computational Linguistics. doi: 10.18653/v1/2020.emnlp-main.550. URL
+  https://aclanthology.org/2020.emnlp-main.550/.
+
+Jiho Kim, Sungjin Park, Yeonsu Kwon, Yohan Jo, James Thorne, and Edward Choi. FactKG:
+  Fact verification via reasoning on knowledge graphs.  In Anna Rogers, Jordan Boyd-Graber,
+  and Naoaki Okazaki (eds.), Proceedings of the 61st Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers), pp. 16190–16206, Toronto, Canada, July
+  2023. Association for Computational Linguistics. doi: 10.18653/v1/2023.acl-long.895. URL
+  https://aclanthology.org/2023.acl-long.895/.
+
+
+                                       12
+
+--- PAGE 13 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Takeshi Kojima, Shixiang Shane Gu, Machel Reid, Yutaka Matsuo, and Yusuke Iwasawa. Large
+  language models are zero-shot reasoners. In Proceedings of the 36th International Conference on
+  Neural Information Processing Systems, NIPS ’22, Red Hook, NY, USA, 2022. Curran Associates
+   Inc. ISBN 9781713871088.
+
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal,
+  Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, and Douwe Kiela.
+  Retrieval-augmented generation for knowledge-intensive nlp tasks. In Proceedings of the 34th
+  International Conference on Neural Information Processing Systems, NIPS ’20, Red Hook, NY,
+  USA, 2020. Curran Associates Inc. ISBN 9781713829546.
+
+Xiao Liu, Hao Yu, Hanchen Zhang, Yifan Xu, Xuanyu Lei, Hanyu Lai, Yu Gu, Hangliang Ding,
+  Kaiwen Men, Kejuan Yang, Shudan Zhang, Xiang Deng, Aohan Zeng, Zhengxiao Du, Chenhui
+  Zhang, Sheng Shen, Tianjun Zhang, Yu Su, Huan Sun, Minlie Huang, Yuxiao Dong, and Jie Tang.
+  Agentbench: Evaluating llms as agents. In B. Kim, Y. Yue, S. Chaudhuri, K. Fragkiadaki, M. Khan,
+  and Y. Sun (eds.), International Conference on Learning Representations, volume 2024, pp. 52989–
+  53046, 2024. URL https://proceedings.iclr.cc/paper_files/paper/2024/
+  file/e9df36b21ff4ee211a8b71ee8b7e9f57-Paper-Conference.pdf.
+
+Shengjie Ma, Chengjin Xu, Xuhui Jiang, Muzhi Li, Huaren Qu, Cehao Yang, Jiaxin Mao, and Jian
+  Guo. Think-on-graph 2.0: Deep and faithful large language model reasoning with knowledge-
+  guided retrieval augmented generation.  In Y. Yue, A. Garg, N. Peng, F. Sha, and R. Yu
+   (eds.), International Conference on Learning Representations, volume 2025, pp. 52782–52806,
+  2025. URL https://proceedings.iclr.cc/paper_files/paper/2025/file/
+  830b1abc6d2da85f23d41169fa44d185-Paper-Conference.pdf.
+
+Rodrigo Nogueira and Kyunghyun Cho. Passage re-ranking with bert, 2020. URL https://
+  arxiv.org/abs/1901.04085.
+
+Jeff Z. Pan, Simon Razniewski, Jan-Christoph Kalo, Sneha Singhania, Jiaoyan Chen, Stefan Dietze,
+  Hajira Jabeen, Janna Omeliyanenko, Wen Zhang, Matteo Lissandrini, Russa Biswas, Gerard
+  de Melo, Angela Bonifati, Edlira Vakaj, Mauro Dragoni, and Damien Graux. Large language
+  models and knowledge graphs: Opportunities and challenges, 2023. URL https://arxiv.
+  org/abs/2308.06374.
+
+Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt, Noah Smith, and Mike Lewis. Measuring
+  and narrowing the compositionality gap in language models.  In Houda Bouamor, Juan Pino,
+  and Kalika Bali (eds.), Findings of the Association for Computational Linguistics: EMNLP
+  2023, pp. 5687–5711, Singapore, December 2023. Association for Computational Linguistics.
+   doi: 10.18653/v1/2023.findings-emnlp.378. URL https://aclanthology.org/2023.
+  findings-emnlp.378/.
+
+Meng Qu, Junkun Chen, Louis-Pascal Xhonneux, Yoshua Bengio, and Jian Tang. Rnnlogic: Learning
+  logic rules for reasoning on knowledge graphs, 2021. URL https://arxiv.org/abs/
+  2010.04029.
+
+Rafael Rafailov, Archit Sharma, Eric Mitchell, Christopher D Manning, Stefano Ermon, and
+  Chelsea Finn.  Direct preference optimization: Your language model is secretly a reward
+  model.  In A. Oh, T. Naumann, A. Globerson, K. Saenko, M. Hardt, and S. Levine (eds.),
+  Advances in Neural Information Processing Systems, volume 36, pp. 53728–53741. Curran Asso-
+   ciates, Inc., 2023. URL https://proceedings.neurips.cc/paper_files/paper/
+  2023/file/a85b405ed65c6477a4fe8302b5e06ce7-Paper-Conference.pdf.
+
+Tabish Rashid, Mikayel Samvelyan, Christian Schroeder De Witt, Gregory Farquhar, Jakob Foerster,
+  and Shimon Whiteson. Monotonic value function factorisation for deep multi-agent reinforcement
+   learning. J. Mach. Learn. Res., 21(1), January 2020. ISSN 1532-4435.
+
+Stephen Robertson and Hugo Zaragoza. The probabilistic relevance framework: Bm25 and beyond.
+  Found. Trends Inf. Retr., 3(4):333–389, April 2009. ISSN 1554-0669. doi: 10.1561/1500000019.
+  URL https://doi.org/10.1561/1500000019.
+
+
+                                       13
+
+--- PAGE 14 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Timo  Schick,  Jane Dwivedi-Yu,  Roberto  Dessi,  Roberta  Raileanu,  Maria Lomeli,  Eric
+  Hambro,  Luke  Zettlemoyer,  Nicola  Cancedda,  and Thomas  Scialom.     Toolformer:
+  Language  models  can  teach  themselves  to  use  tools.     In  A.  Oh,  T.  Naumann,
+  A. Globerson,  K. Saenko, M.  Hardt,  and  S. Levine  (eds.),  Advances  in Neural  In-
+  formation Processing Systems, volume  36,  pp. 68539–68551. Curran  Associates,  Inc.,
+  2023.  URL https://proceedings.neurips.cc/paper_files/paper/2023/
+  file/d842425e4bf79ba039352da0f658a906-Paper-Conference.pdf.
+
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov. Proximal policy
+  optimization algorithms. arXiv preprint arXiv:1707.06347, 2017.
+
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang,
+  Mingchuan Zhang, Y. K. Li, Y. Wu, and Daya Guo.  Deepseekmath: Pushing the limits of
+  mathematical reasoning in open language models, 2024. URL https://arxiv.org/abs/
+  2402.03300.
+
+Yongliang Shen, Kaitao Song, Xu Tan, Dongsheng Li, Weiming Lu, and Yueting Zhuang.
+  Hugginggpt:  Solving ai tasks with chatgpt and  its friends in hugging face.   In A. Oh,
+  T. Naumann, A. Globerson, K. Saenko, M. Hardt, and S. Levine (eds.), Advances in Neu-
+   ral Information Processing Systems, volume 36, pp. 38154–38180. Curran Associates, Inc.,
+  2023.  URL https://proceedings.neurips.cc/paper_files/paper/2023/
+  file/77c33e6a367922d003ff102ffb92b658-Paper-Conference.pdf.
+
+Noah Shinn, Federico Cassano, Ashwin Gopinath, Karthik Narasimhan, and Shunyu Yao.
+  Reflexion:  language agents with  verbal reinforcement  learning.    In A. Oh,  T. Nau-
+  mann, A. Globerson, K. Saenko, M. Hardt, and  S. Levine  (eds.), Advances  in Neu-
+   ral Information Processing Systems, volume 36, pp. 8634–8652. Curran Associates,  Inc.,
+  2023.  URL https://proceedings.neurips.cc/paper_files/paper/2023/
+  file/1b44b878bb782e6954cd888628510e90-Paper-Conference.pdf.
+
+Lennert De Smet and Luc De Raedt. Defining neurosymbolic ai, 2025. URL https://arxiv.
+  org/abs/2507.11127.
+
+Adam Stooke, Joshua Achiam, and Pieter Abbeel. Responsive Safety in Reinforcement Learning
+  by PID Lagrangian Methods. In International Conference on Machine Learning, pp. 9133–9143.
+  PMLR, 2020.
+
+Haitian Sun, Tania Bedrax-Weiss, and William Cohen. PullNet: Open domain question answering
+  with iterative retrieval on knowledge bases and text. In Kentaro Inui, Jing Jiang, Vincent Ng, and Xi-
+  aojun Wan (eds.), Proceedings of the 2019 Conference on Empirical Methods in Natural Language
+  Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-
+  IJCNLP), pp. 2380–2390, Hong Kong, China, November 2019. Association for Computational Lin-
+   guistics. doi: 10.18653/v1/D19-1242. URL https://aclanthology.org/D19-1242/.
+
+Chen Tessler, Daniel J. Mankowitz, and Shie Mannor.  Reward Constrained Policy Optimiza-
+   tion. In International Conference on Learning Representations (ICLR), 2019. URL https:
+  //openreview.net/forum?id=SkfrvsA9FX.
+
+Zhongwei Wan, Xin Wang, Che Liu, Samiul Alam, Yu Zheng, Jiachen Liu, Zhongnan Qu, Shen Yan,
+  Yi Zhu, Quanlu Zhang, Mosharaf Chowdhury, and Mi Zhang. Efficient large language models: A
+  survey, 2024. URL https://arxiv.org/abs/2312.03863.
+
+Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei Xiao, Yuke Zhu, Linxi Fan, and
+  Anima Anandkumar. Voyager: An open-ended embodied agent with large language models, 2023.
+  URL https://arxiv.org/abs/2305.16291.
+
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, brian ichter, Fei Xia, Ed Chi, Quoc V
+  Le, and Denny Zhou.  Chain-of-thought prompting elicits reasoning in large language mod-
+   els.  In S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, and A. Oh (eds.), Ad-
+  vances in Neural Information Processing Systems, volume 35, pp. 24824–24837. Curran Asso-
+   ciates, Inc., 2022. URL https://proceedings.neurips.cc/paper_files/paper/
+  2022/file/9d5609613524ecf4f15af0f7b31abca4-Paper-Conference.pdf.
+
+
+                                       14
+
+--- PAGE 15 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Qingyun Wu, Gagan Bansal, Jieyu Zhang, Yiran Wu, Beibin Li, Erkang Zhu, Li Jiang, Xiaoyun
+  Zhang, Shaokun Zhang, Jiale Liu, Ahmed Hassan Awadallah, Ryen W White, Doug Burger, and
+  Chi Wang. Autogen: Enabling next-gen llm applications via multi-agent conversation, 2023. URL
+  https://arxiv.org/abs/2308.08155.
+
+Fan Yang, Zhilin Yang, and William W Cohen. Differentiable learning of logical rules for knowledge
+  base reasoning. In I. Guyon, U. Von Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan,
+  and R. Garnett (eds.), Advances in Neural Information Processing Systems, volume 30. Cur-
+  ran Associates, Inc., 2017. URL https://proceedings.neurips.cc/paper_files/
+  paper/2017/file/0e55666a4ad822e0e34299df3591d979-Paper.pdf.
+
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William Cohen, Ruslan Salakhutdinov, and
+  Christopher D. Manning. HotpotQA: A dataset for diverse, explainable multi-hop question answer-
+   ing. In Ellen Riloff, David Chiang, Julia Hockenmaier, and Jun’ichi Tsujii (eds.), Proceedings
+   of the 2018 Conference on Empirical Methods in Natural Language Processing, pp. 2369–2380,
+  Brussels, Belgium, October-November 2018. Association for Computational Linguistics. doi:
+  10.18653/v1/D18-1259. URL https://aclanthology.org/D18-1259/.
+
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, and Yuan Cao.
+  React: Synergizing reasoning and acting in language models, 2023. URL https://arxiv.
+  org/abs/2210.03629.
+
+Michihiro Yasunaga, Hongyu Ren, Antoine Bosselut, Percy Liang, and Jure Leskovec. QA-GNN:
+  Reasoning with language models and knowledge graphs for question answering.  In Kristina
+  Toutanova, Anna Rumshisky, Luke Zettlemoyer, Dilek Hakkani-Tur, Iz Beltagy, Steven Bethard,
+  Ryan Cotterell, Tanmoy Chakraborty, and Yichao Zhou (eds.), Proceedings of the 2021 Conference
+   of the North American Chapter of the Association for Computational Linguistics: Human Language
+  Technologies, pp. 535–546, Online, June 2021. Association for Computational Linguistics. doi: 10.
+  18653/v1/2021.naacl-main.45. URL https://aclanthology.org/2021.naacl-main.
+  45/.
+
+Chao Yu, Akash Velu, Eugene Vinitsky, Jiaxuan Gao, Yu Wang, Alexandre Bayen, and Yi Wu. The
+   surprising effectiveness of PPO in cooperative multi-agent games. Advances in neural information
+  processing systems, 35:24611–24624, 2022.
+
+J. Zhang, L. Yao, X. Chen, X. Wang, J. Wang, and B. Benatallah. Neural, symbolic and neural-
+  symbolic reasoning on knowledge graphs. AI Open, 2:14–35, 2021.
+
+Yuyu Zhang, Hanjun Dai, Zornitsa Kozareva, Alexander J. Smola, and Le Song. Variational rea-
+  soning for question answering with knowledge graph. In Proceedings of the Thirty-Second AAAI
+  Conference on Artificial Intelligence and Thirtieth Innovative Applications of Artificial Intelli-
+  gence Conference and Eighth AAAI Symposium on Educational Advances in Artificial Intelligence,
+  AAAI’18/IAAI’18/EAAI’18. AAAI Press, 2018. ISBN 978-1-57735-800-8.
+
+Zihan Zhang, Meng Fang, and Ling Chen. RetrievalQA: Assessing adaptive retrieval-augmented
+  generation for short-form open-domain question answering.  In Lun-Wei Ku, Andre Martins,
+  and Vivek Srikumar (eds.), Findings of the Association for Computational Linguistics: ACL
+  2024, pp. 6963–6975, Bangkok, Thailand, August 2024. Association for Computational Linguis-
+   tics. doi: 10.18653/v1/2024.findings-acl.415. URL https://aclanthology.org/2024.
+  findings-acl.415/.
+
+Yining Zhou. Self-supervised transfer learning with shared encoders for cross-domain cloud op-
+   timization. In 2025 5th International Conference on Electronic Information Engineering and
+  Computer Science (EIECS), pp. 1435–1439. IEEE, 2025.
+
+Zixuan Zhou, Xuefei Ning, Ke Hong, Tianyu Fu, Jiaming Xu, Shiyao Li, Yuming Lou, Luning
+  Wang, Zhihang Yuan, Xiuhong Li, Shengen Yan, Guohao Dai, Xiao-Ping Zhang, Yuhan Dong,
+  and Yu Wang. A survey on efficient inference for large language models, 2024. URL https:
+  //arxiv.org/abs/2404.14294.
+
+
+
+
+
+                                       15
+
+--- PAGE 16 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+APPENDIX CONTENTS
+
+
+A  Large Language Models Usage Disclosure                                       17
+
+
+B  Notation Table                                                              18
+
+
+C  Algorithm                                                                  19
+
+
+D  Implementation Details & Supplementary Experiment                            21
+
+
+E  Complexity Analysis                                                         22
+
+   E.1  Time Complexity   .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   22
+
+   E.2  Space Complexity .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   23
+
+
+F  Training Cost and Scalability to Large and Noisy KGs                            24
+
+
+G  Trade-off Analysis                                                           25
+
+   G.1  Lagrangian shaping: costs as prices, duals as shadow values    .  .  .  .  .  .  .  .  .  .  .  .   25
+
+
+H  Proof of Convergence of LC-MAPPO                                           26
+
+   H.1  Assumptions .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   26
+
+   H.2  Primal (Actor) Convergence for Fixed Duals .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   26
+
+   H.3  Dual (Multiplier) Convergence and KKT .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   27
+
+   H.4  Proof Template Mirroring A Smoothness Step  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   27
+
+
+
+
+
+                                       16
+
+--- PAGE 17 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+A  LARGE LANGUAGE MODELS USAGE DISCLOSURE
+
+Scope of use. We used large language models in three defined roles:
+
+1. Writing assistance (polish/clarity only). Micro-edits for grammar, concision, tense/voice consis-
+   tency, LaTeX phrasing, section headings, figure/table captions, and title/abstract variants.
+2. Retrieval & discovery (related work support). Query about recommended papers related to my
+   idea.
+3. Research ideation (early brainstorming). Generating alternative task framings, evaluating
+   feasibility of this, naming options for modules.
+
+Author responsibility.  The authors are solely responsible for the methods, experiments, analyses,
+and claims. LLMs supported drafting, search query design, and ideation; they did not generate or
+select results.
+
+
+
+
+
+                                       17
+
+--- PAGE 18 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+B  NOTATION TABLE
+
+
+
+                   Table 6: Symbols and notation used throughout the paper.
+Symbol                  Description
+
+K = (V, R, E)            Global knowledge graph with entities V , relations R, and edges
+               E ⊆V × R × V
+Gt = (Vt, Et); G∗         Query-conditioned subgraph at step t; final subgraph at termination
+Ft                          Frontier node set at step t
+Pt                       Candidate pool (textualized nodes/edges/paths and optional retrieval
+                                hits) at step t
+At                     Typed outgoing candidates (actions) available to the navigator at step t
+q; y, ˆy                     Input question; gold / predicted answers
+pt; Π = {p1, . . . , pm}      Path prefix maintained by the navigator; set of discovered paths
+                          (provenance)
+πB, πT , πS                  Policies for EDIT (Subgraph Architect), TRAVERSE (Path Navigator),
+                    CURATE (Context Curator)
+aBt , aTt , aSt                Actions at step t for edit / traverse / curate modules
+st                           State summary at step t: (q, Gt, Ft, Pt, bt)
+bt                     Remaining budget vector at step t
+β = (βedge, βlat, βtok)       Episode budget vector for edge growth, latency (steps), and selected
+                          tokens
+C = (Cedge, Clat, Ctok)     Cumulative costs (accepted edits / interaction steps / selected tokens)
+c(k)t                         Instantaneous cost increment at step t for k ∈{edge, lat, tok};
+           Pt c(k)t = Ck
+λ = (λedge, λlat, λtok)      Lagrange multipliers (prices) for edge/step/token costs
+Racc(τ), racct   , r′t           Episode-level task reward, per-step (unshaped) task reward, and shaped
+                             return r′t = racct −Pk λk c(k)t
+L(π, λ)                  Lagrangian objective E[ Racc(τ) −λ⊤C(τ) ] for the CMDP
+Qtask, Qedge, Qlat, Qtok       Centralized-critic action-values (task head and three cost heads)
+Ai,ht   , Ai,λt   ; i ∈{B, T, S}   Counterfactual advantage for agent i and head h; Lagrangian-shaped
+                         advantage for PPO
+D⋆                       Ordered, curated evidence list passed to the reader
+tok(·)                  Token count operator for a textual unit
+e = (u, r, v)         KG edge (triple) with head entity u, relation r, tail entity v
+Ecandt                          Frontier-adjacent candidate edges considered by the Architect at step t
+s(e | q, Gt)              Fused edge-utility score used by the Architect for edit decisions
+H,  ¯d, |Pt|, K          Hop cap; average local branching factor; candidate pool size; selected
+                                     list length (K dynamic)
+
+
+
+
+
+                                       18
+
+--- PAGE 19 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+C  ALGORITHM
+
+
+
+Algorithm 1 CLAUSE: Training with a constrained centralized-critic PPO (LC-MAPPO)
+  1: Input: dataset D of (question, answer) pairs; budgets β = {βedge, βlat, βtok}; learning rates.
+  2: Initialize: actor params for EDIT/TRAVERSE/CURATE (θB, θT , θS); centralized critic ψ with
+    multi-head outputs {Qtask, Qedge, Qlat, Qtok}; duals λ = {λedge, λlat, λtok}≥0. epoch = 1, . . . , E
+  3: Rollout. Sample a minibatch B⊂D. For each question q∈B:
+  4:   Reset G0, F0, P0, budgets b0, buffer T ←∅; t←0. NOT_TERMINAL and t < Tmax
+  5:   aBt ∼πB(· | st); apply edit (add/delete/stop) to Gt; accrue cedget    .
+  6:   aTt ∼πT (· | st); continue or STOP exploration; accrue clatt  .
+  7:   aSt ∼πS(· | st); curate context or STOP; accrue ctokt   .
+  8:   Log (st, at, log πt, ct) to T ; update state st+1; t←t+1.
+  9:   Produce answer ˆy; compute terminal task reward racc; finalize episode T .
+10: Critic update. Compute targets with GAE/TD for each head using T ; update ψ (task & cost
+    heads).
+11: Advantages. Form shaped rewards r′t =racct  −λedgecedget   −λlatclatt  −λtokctokt  ; compute GAE; for
+    each agent i∈{B, T, S}, compute counterfactual advantages
+                       Ai(st, at) = Qtask(st, at) −Ea′i Qtask(st, (a−i, a′i))  .
+
+12: Actor update. Apply PPO to {θB, θT , θS} with clipped ratios, entropy bonus, and using the
+    agent-specific Ai.
+13: Dual update. For each k∈{edge, lat, tok}:
+                            λk ← λk + ρ bE[Ck] −βk  +.
+
+
+
+
+
+Algorithm 2 Budgeted Inference (CLAUSE, decentralized execution)
+  1: Input: question q; global budgets β = {βedge, βlat, βtok}; trained agents πB (Subgraph Architect),
+   πT (Path Navigator), πS (Context Curator).
+  2: Initialize G0 ←∅; frontier F0 ←anchors(q); pool P0 ←∅; counters e=0, ℓ=0, τ=0. ℓ< βlat
+   and not STOPPED
+  3: aB ∼πB(· | q, Gt, Ft, β−usage) {Add/Delete/Stop edits}
+  4: Apply aB; update Gt, Ft; e←e+edit_count(aB) e > βedge break
+  5: aT ∼πT (· | q, Gt, Ft, β−usage) {Next hop or STOP}
+  6: Apply aT ; update traversal traces; push touched edges/nodes into candidate pool Pt
+  7: aS ∼πS(· | q, Pt, β−usage) {Select or STOP}
+  8: Update selected set D⋆and token mass τ; if τ > βtok then prune last add or force STOP
+  9: ℓ←ℓ+1
+10: return reader answer ˆy ←Reader(q, D⋆) and the trace ⟨G∗, paths, D⋆⟩
+
+
+
+
+
+Algorithm 3 Counterfactual Advantage (per head) with Centralized Critic
+  1: Given: critic heads {Qh} for h ∈{task, edge, lat, tok}; joint action at; per-agent agents {πi}
+    agent i ∈{B, T, S} head h
+  2: bi,h(st, a−it  ) ←Eai∼πi(·|oit) Qh(st, (ai, a−it  ))
+  3: Ai,ht  ←Qh(st, at) −bi,h(st, a−it  )
+  4: Lagrangian advantage: Ai,lagt   ←Ai,taskt     −λedgeAi,edget     −λlatAi,latt   −λtokAi,tokt
+  5: return {Ai,lagt   }
+
+
+
+                                       19
+
+--- PAGE 20 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+Algorithm 4 Context Curator (list-wise, dynamic K) — one pass
+  1: Input: question q, candidate pool P with token counts tok(·), budget βtok
+  2: Initialize D⋆←⟨⟩, used_tokens T ←0, remaining R←P R ̸= ∅
+  3: Score all d∈R with list-wise scorer s(d | q, R, D⋆)
+  4: d⋆←arg maxd∈R s(d) T + tok(d⋆) > βtok break
+  5: Append d⋆to D⋆; T ←T + tok(d⋆); R←R \ {d⋆}
+  6: With probability πS(STOP | q, R, D⋆, β−usage) do break
+  7: return D⋆
+
+
+
+
+
+                                       20
+
+--- PAGE 21 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+D  IMPLEMENTATION DETAILS & SUPPLEMENTARY EXPERIMENT
+
+Hardware. All experiments are run on a single NVIDIA L20 (48 GB) GPU with 20 vCPU Intel
+Xeon Platinum 8457C, 100 GB RAM, and two SSD partitions (system: 128 GB; data: 1024 GB). The
+OS image is Ubuntu 22.04 with Miniconda (Python 3.10).
+
+Software & API. We use PyTorch (CUDA 11.8 build). Retrieval does not use a generative LLM:
+we produce dense embeddings with sentence-transformers (thenlper/gte-small) and perform
+lightweight NER with spaCy; sparse recall uses BM25. Vectors are L2-normalized and queried with
+FAISS IndexFlatIP (cosine-equivalent). Unless stated otherwise, the shared reader LLM for all
+RAG/agent baselines is Qwen3-32B. We also evaluate GPT-OSS-120B and LLaMA3.3-70B for
+ablations/comparisons and final answer generation, invoked via SiliconFlow / Groq APIs. Token
+budgets and token counting always use the reader’s tokenizer.
+
+Datasets & Knowledge Graphs (KGs). We test CLAUSE on three large-scale, real-world, noisy
+KGs, and provide construction details. We do not share a single KG across datasets; each bench-
+mark uses its own canonical KG (Table 7). Our graphs are cross-domain: METAQA relies on a
+movie/entertainment-domain KB, HOTPOTQA uses a Wikidata-derived subgraph built from general
+encyclopedic entities, and FACTKG is grounded in the DBpedia open-domain fact graph. Anchoring
+links surface mentions to KG entities via NER and an alias dictionary; ties or unresolved mentions
+fall back to dense nearest neighbors in the alias embedding space. For HOTPOTQA, we first run
+entity recognition and alias matching over the questions and supporting paragraphs, link mentions
+to Wikidata entities, and then extract a local neighborhood (within a fixed hop radius) for these
+entities from a frozen Wikidata dump, yielding a subgraph with roughly millions of nodes and tens of
+millions of edges. In Table 7, we report the scale of this subgraph using O(10·) notation because the
+exact node/edge counts can vary slightly with the chosen Wikidata version and neighborhood radius,
+while the order of magnitude is sufficient to convey that the setting is web-scale.
+
+
+Table 7: Benchmarks and knowledge graphs. We report the KG identity, scale, and the exact anchoring
+protocol. All RAG/agent baselines share the same reader and tokenizer.
+
+       Benchmark        KG source          #Nodes     #Edges     #Relations
+
+      METAQA (1/2/3-hop)     (Zhang et al., 2018)   4.3 × 104   1.35 × 105       9
+      HOTPOTQA (distractor)   (Yang et al., 2018)    O(106)     O(107)     O(103)
+      FACTKG              (Kim et al., 2023)   ∼4 × 106  ∼1 × 108    ∼103
+
+
+Default inference settings.  Unless stated otherwise, we adopt the following default configuration:
+the token budget is set to βtok = 512; the reranker runs for 15 steps with a minimum of Kmin = 2
+picks; the traversal is capped at 4 hops (with an earlier stop if the learned stopping policy fires); and
+the curator operates on a candidate pool of size 128 with a dense-fallback pool of 64 candidates.
+
+Supplementary experiments with alternative LLM backbones.  We further report results when
+using two alternative reader LLM backbones, LLaMA3.3-70B and GPT-OSS-120B, for all RAG/agent
+baselines and CLAUSE. The detailed numerical results are given in Tables 8 and 9. Across all three
+backbones (Qwen3-32B, LLaMA3.3-70B, and GPT-OSS-120B), CLAUSE consistently achieves the
+best EM on HotpotQA, FactKG, and MetaQA. At the same time, the absolute gap between different
+backbones becomes much smaller once they are coupled with our budget-aware neuro-symbolic
+controller: Qwen3-32B+CLAUSE already matches or nearly matches the performance of larger
+backbones, indicating that CLAUSE can largely close the performance gap between medium and
+large LLMs while keeping the reader size flexible.
+
+
+
+
+
+                                       21
+
+--- PAGE 22 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+  Table 8: Main QA results: EM@1 on HotpotQA, FactKG, and MetaQA using LLaMA3.3-70B.
+     Family          Method           HotpotQA   FactKG       MetaQA
+                                                (Distractor)             1-hop   2-hop   3-hop
+                            Vanilla RAG             63.8         78.3      62.0     38.6     45.4
+     RAG-based        Hybrid RAG             66.7         82.0      64.3     43.0     45.8
+     (LLaMA3.3-70B)   LightRAG               48.6         68.2      59.6     36.8     45.0
+                    GraphRAG              51.4         73.4      65.0     49.5     50.3
+                      ReAct                   65.0         79.5      83.0     53.3     50.6
+      Agent-based        Graph-of-Thoughts       60.3         75.2      81.0     49.0     47.6
+     (LLaMA3.3-70B)   AutoGen                65.2         77.3      86.2     56.5     55.1
+                     KG-Agent               69.3         83.3      88.0     78.8     76.3
+     Ours         CLAUSE               73.5         85.0      92.7     87.7     87.2
+
+
+  Table 9: Main QA results: EM@1 on HotpotQA, FactKG, and MetaQA using GPT-OSS-120B.
+     Family          Method           HotpotQA   FactKG       MetaQA
+                                                (Distractor)             1-hop   2-hop   3-hop
+                            Vanilla RAG             65.9         79.2      64.8     44.9     52.5
+     RAG-based        Hybrid RAG             68.9         82.9      67.0     49.2     52.8
+     (GPT-OSS-120B)   LightRAG               50.7         69.2      62.9     43.0     52.4
+                    GraphRAG              53.5         74.3      67.8     55.6     54.3
+                      ReAct                   65.5         80.6      84.1     65.5     53.5
+      Agent-based        Graph-of-Thoughts       61.0         76.0      81.7     49.3     52.6
+     (GPT-OSS-120B)   AutoGen                66.6         78.3      87.0     66.0     55.8
+                     KG-Agent               69.8         84.2      88.9     79.4     76.9
+     Ours         CLAUSE               75.0         85.8      92.2     88.0     87.5
+
+
+E  COMPLEXITY ANALYSIS
+
+E.1  TIME COMPLEXITY
+
+Let |V ∗|, |E∗| be the sizes of the constructed subgraph, b the average out-degree on active frontiers, H
+the hop cap, P the candidate-pool size, K the selected context length (dynamic), and d the embedding
+width of light encoders.
+
+Subgraph Architect (anchoring & edit).  Each edit round ranks at most CB candidate edges
+(retrieval + local expansion). With precomputed entity/relation embeddings and cached neighbor lists,
+scoring is O(CBd); applying batched edits is O(∆E) where ∆E is the number of accepted edits.
+Over TB rounds,
+                       Tedit = O(TB · CBd + X ∆Et) ⊆O(βlat · CBd + βedge).
+                                                            t
+
+Path Navigator (traverse).  At each hop, neighborhood scoring is O(bd) (or O(deg(v)) with
+simple degree-based features). For TT ≤H hops and small beam Bbeam:
+                                  Ttraverse = O(TT · Bbeam · bd) ⊆O(βlat · bd).
+
+Context Curator (curate). A single-pass pointer/list-wise scorer over P items costs O(Pd) per
+step; selecting K items without replacement:
+             Tcurate = O(K · Pd)   (naive),   O(Pd + K log P)  (with heap/top-K).
+Given a token budget βtok and average item length ¯t, K ≤βtok/¯t.
+
+Reader call.  The reader sees only the curated K items with token mass ≤βtok. Reader runtime is
+thus O(βtok) (with a fixed decoder).
+
+Training cost (LC-MAPPO).  Let S be steps per trajectory, M mini-batch size of trajectories, and
+#heads = 4 (task/edge/lat/tok). The critic’s forward/backward per update is O(MSd · #heads);
+actor updates add O(MS|Ai|) across the three agents. Because costs are attributed at source, the
+critic’s label construction is linear in S with negligible overhead.
+
+
+                                       22
+
+--- PAGE 23 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+
+E.2  SPACE COMPLEXITY
+
+The dominant terms are (i) subgraph cache O(|V ∗| + |E∗|), (ii) candidate pool O(P), and (iii) re-
+play/rollout buffers O(MS) during training. Budgets bound |E∗| and S by βedge and βlat respectively.
+
+End-to-end bound under budgets.  With explicit budgets,
+
+             Tend2end = O(βlatCBd + βedge) + O(βlatbd) + O(Pd + K log P) + O(βtok)
+                     |           edit{z       }  | traverse{z  }  |        curate{z      }  | reader{z }
+
+so latency scales linearly in βlat and βtok, allowing direct runtime control.
+
+
+
+
+
+                                       23
+
+--- PAGE 24 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+F  TRAINING COST AND SCALABILITY TO LARGE AND NOISY KGS
+
+Let m=3 agents (Architect, Navigator, Curator), Hheads=4, batch (M, S), and width d. One update
+decomposes as
+
+                     Tupdate = Tenv(M, S) + Tactor(M, S) + Tcritic(M, S) + Tio/cache.
+
+Tenv scales with edge scoring and neighbor expansions (counts Pt CB and Pt bt), alias ANN
+fallbacks, and accepted edits Cedge.  Tactor covers ≈MS forward passes per agent with candidate
+sizes (CB, b, P);  Tcritic uses MS samples with Hheads and a GAE horizon;  Tio/cache captures FAISS
+lookups and adjacency fetches. The three-agent CTDE design does not triple cost: encoders are
+shared for representation reuse across settings (small per-agent MLP heads) (Zhou, 2025), action sets
+are typed and small (Architect: CB ≪|E|; Navigator: b; Curator: pruned P), and a single centralized
+critic has Hheads heads. Thus, constants grow with m and Hheads, while dependence remains linear in
+S and tokens. A per-episode spend model is
+
+          Cost ≈csym· βlatCBd + βedge + βlatbd + Pd + K log P + cLLM·βtok,
+
+with βtok fixed/small and the symbolic term linear in the budgets, yielding bounded and predictable
+cost.
+
+For memory and indexing, entity/alias embeddings and FAISS live on CPU; GPU holds the active
+subgraph Gt and batched activations:
+         RAM ≈O(|V | d) + O(FAISS) + O(|V ∗|+|E∗|) + O(MS).
+
+Product quantization or 8-bit embeddings reduce ANN footprint by ×3–×8. For large KGs, frontier-
+ization and budgeted pricing make per-step work depend on local branching (b) and (βedge, βlat, βtok)
+rather than |E|: we use IVF+HNSW or IVF+PQ for alias lookup, degree/type-aware neighbor sam-
+pling to cap CB and b, partitioned/frontier caches, and hub pricing via a degree prior in s(e | q, Gt).
+Noise is mitigated via price-aware acceptance s(e) −λedgecedge>0, listwise de-duplication, and
+type/logic constraints. For reproducibility, report per epoch: (M, S) and total env steps; feasible rate
+under (βedge, βlat, βtok); seconds/update split (env/actor/critic/I/O); averages of CB, b, P, K; FAISS
+ms/query and cache hit rate; peak CPU/GPU RAM; index size; and average reader tokens.
+
+
+
+
+
+                                       24
+
+--- PAGE 25 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+G  TRADE-OFF ANALYSIS
+
+G.1  LAGRANGIAN SHAPING: COSTS AS PRICES, DUALS AS SHADOW VALUES
+
+Recall the constrained objective (Eq. 1) maxπ E[Racc(τ)] s.t. E[Ck(τ)] ≤βk, k∈{edge, lat, tok}.
+The Lagrangian is L(π, λ) = E Racc −Pk λk(Ck −βk) , and the actor updates optimize the shaped
+return R′ = Racc −Pk λkCk (Eq. 2) while dual ascent updates λ to enforce the constraints.
+Proposition 1 (Shadow-price interpretation). Let J⋆(β) be the optimal value of the CMDP as a
+function of the budget vector β. Under standard regularity, the optimal duals λ⋆satisfy the envelope
+         ∂J⋆(β)
+property         = λ⋆k. Hence, λ⋆k is the marginal EM gain per unit relaxation of budget k (edge,          ∂βk
+latency, or tokens).
+
+Sketch. This is a standard consequence of the envelope theorem for convex CMDPs and KKT
+conditions (Appendix H).
+
+Practical reading.   λlat quantifies the EM increase obtainable by allowing one more interaction step
+on average; λtok quantifies EM gain per additional token; λedge quantifies the benefit of expanding the
+subgraph. Increasing any λk acts like raising the price of that resource, biasing policies toward using
+less of it.
+
+
+
+
+
+                                       25
+
+--- PAGE 26 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+H  PROOF OF CONVERGENCE OF LC-MAPPO
+
+This appendix states conditions under which the proposed LC-MAPPO converges to a stationary
+point of the CMDP Lagrangian and satisfies the KKT conditions. We follow the two/three–time–scale
+view in the assumptions (A1)–(A6): the centralized critic tracks action-values (fast), the actor ascends
+the (penalized) objective (medium), and the dual variables perform projected ascent on constraint
+violation (slow).
+
+
+H.1  ASSUMPTIONS
+
+A1 (Bounded Rewards and Costs). There exists Cr > 0 such that
+
+                          |r(s, a)| ≤Cr,      |ck(s, a)| ≤Cr,   ∀(s, a), k.
+
+Thus Jr(θ) and Jck(θ) are finite and admit stochastic gradients with bounded second moments.
+
+A2 (Smoothness). For any fixed dual vector λ, the penalized objective
+
+                        F(θ; λ) = Jr(θ) − X λk (Jck(θ) −βk)
+                                               k
+
+is LF -smooth in θ:
+                     ∥∇θF(θ; λ) −∇θF(θ′; λ)∥≤LF ∥θ −θ′∥.
+
+A3 (Asymptotic Unbiasedness). The stochastic policy gradient estimator ˆgt satisfies
+                                E[ˆgt | Ft] = ∇θF(θt; λ) + εt,      εt →0.
+
+A4 (Bounded Variance). There exists Cg > 0 such that
+
+                                     E∥ˆgt∥2 ≤Cg,     ∀t.
+
+A5 (Step-Size and Time-Scale Separation). The actor step-size {αt} satisfies
+
+                 ∞        ∞
+         X αt = ∞, X α2t < ∞.
+                               t=0              t=0
+
+The dual step-size ρt is slower, i.e., ρt ≪αt.  All stochastic gradients admit bounded second
+moments.
+A6 (Small Trust-Region Bias). Let ˆθt+1 = θt −αtgt be the ideal gradient step. The actual
+PPO/COMA update θt+1 satisfies
+
+                             |F(θt+1; λ) −F(ˆθt+1; λ)| ≤Cbα2t.
+
+H.2  PRIMAL (ACTOR) CONVERGENCE FOR FIXED DUALS
+
+Fix λ and define the penalized objective L(θ, λ) = JR(θ) −Pk λk (JCk(θ) −βk), and its minimiza-
+tion surrogate
+                                F(θ; λ) ≜−L(θ, λ).                                     (3)
+
+Assume F(·; λ) is Lθ-smooth in θ (from (A2) and bounded rewards/costs (A1)). Denote by gt =
+∇θF(θt; λ) the exact gradient and by bgt the PPO/GAE/COMA-based stochastic gradient used byLC-MAPPO. The actor step is
+                                    θt+1 = θt −αt bgt,                                      (4)
+with {αt} satisfying (A5). Let the ideal step be bθt+1 ≜θt −αt gt. By the Lθ-smoothness (second-
+order Taylor bound),
+
+                                                     Lθ
+       F(θt+1; λ) ≤F(bθt+1; λ) +  θt+1 −bθt+1, ∇F(bθt+1; λ) + 2 ∥θt+1 −bθt+1∥2.      (5)
+
+
+                                       26
+
+--- PAGE 27 ---
+Published as a conference paper at ICLR 2026
+
+
+
+
+Taking expectations conditioned on the filtration Ft (all randomness up to t) and using the surrogate’s
+(asymptotic) unbiasedness (A3)–(A4) and small-trust-region bias (A6),
+
+                                                                        i                                     Eh                                                        ∥θt+1         Ft            E[F(θt+1; λ) | Ft] ≤Eh       λ) Ft i + Lθ                                     F(bθt+1;          2         −bθt+1∥2
+                                     (a)           Lθ
+                                                                          t                 = F(bθt+1; λ) + 2 α2                                  E ∥bgt −gt∥2 Ft  ,                    (6)
+where (a) uses θt+1 −bθt+1 = −αt(bgt −gt) and E[bgt | Ft] = gt + εt with ∥εt∥≤cTRϵ¯DKL + cQδQcapturing trust-region and critic-tracking biases (constants from (A3),(A6)). Next, smoothness around
+θt gives
+                                                    Lθ
+             F(bθt+1; λ) ≤F(θt; λ) +  bθt+1 −θt, ∇F(θt; λ) + 2  ∥bθt+1 −θt∥2,           (7)
+which, using bθt+1 −θt = −αtgt, yields
+                                                Lθ
+                        F(bθt+1; λ) ≤F(θt; λ) −αt∥gt∥2 + 2 α2t∥gt∥2.                      (8)
+Combining Eq. 6 and Eq. 8 and taking the total expectation,
+                                         Lθ            Lθ
+    E[F(θt+1; λ)] −E[F(θt; λ)] ≤−αt E ∥gt∥2 +   α2t E ∥gt∥2 +   α2t E    −gt∥2                                            2              2         ∥bgt
+                   ≤−αt E ∥gt∥2 + C1 α2t + C2 α2t  ϵ2 ¯D2KL + δ2Q  ,          (9)
+                                2
+for bounded second moments (A5) and small enough αt so that 1 −Lθ2 αt ≥12. Summing Eq. 9 over
+t and using Pt αt = ∞, Pt α2t < ∞(A5), Robbins–Siegmund implies
+         ∞
+     X αt E ∥gt∥2 < ∞  =⇒   limt→∞Einf   ∥∇θF(θt; λ)∥2 = 0.             (10)
+                t=0
+Hence any limit point θ⋆(λ) is stationary for F(·; λ), equivalently stationary for L(·, λ).
+
+H.3  DUAL (MULTIPLIER) CONVERGENCE AND KKT
+
+The dual update is
+                                  h                     i
+                           λk,t+1 =   λk,t + ρt bJCk(θt) −βk  +,                        (11)
+with ρt satisfying (A5) and ρt ≪αt (actor faster than duals). On the slower time scale, the actor
+tracks θ⋆(λt) from Part A, so the dual recursion behaves as a projected gradient ascent on the concave
+dual function D(λ) = maxθ L(θ, λ). Standard two–time–scale results then yield convergence of
+{λt} to the dual-optimal set Λ⋆and primal feasibility:
+
+
+              t→∞                   lim  JCk(θt) −βk + = 0,     t→∞dist(λt,lim       Λ⋆) = 0.                 (12)
+Finally, any limit point (θ⋆, λ⋆) satisfies the KKT conditions of the CMDP:
+        ∇θL(θ⋆, λ⋆) = 0,  JCk(θ⋆) ≤βk,  λ⋆k ≥0,  λ⋆k JCk(θ⋆) −βk = 0, ∀k.      (13)
+
+H.4  PROOF TEMPLATE MIRRORING A SMOOTHNESS STEP
+
+For completeness, we restate the key inequality in the style of the referenced lemma. Let F be as in
+Eq. 3, gt = ∇F(θt; λ), and define bθt+1 = θt −αtgt and θt+1 = θt −αtbgt. By Lθ-smoothness:
+           F(θt+1) ≤F(bθt+1) +  θt+1 −bθt+1, ∇F(bθt+1) + Lθ2 ∥θt+1 −bθt+1∥2.         (14)
+Taking expectations and using E[bgt | Ft] = gt + εt,
+                                          i                    E[F(θt+1)] ≤Eh                                       F(bθt+1)                           + Lθ2 α2t E ∥bgt −gt∥2  .                   (15)
+Also,
+ F(bθt+1) ≤F(θt)+⟨bθt+1−θt, ∇F(θt)⟩+ Lθ2 ∥bθt+1−θt∥2 = F(θt)−αt∥gt∥2+ Lθ2 α2t∥gt∥2. (16)
+Combining Eqs. 15–16 and adding/subtracting εt as in Eq. 9 gives
+     E[F(θt+1)] −E[F(θt)] ≤−αt E ∥gt∥2 + Lθ2 α2t E ∥gt∥2 + Lθ2 α2t E ∥bgt −gt∥2  .     (17)
+which is the LC–MAPPO analogue of the inequality chain in Eqs. 14–17; the rest follows by
+summability of {α2t} and two–time–scale analysis for {λt}.
+
+
+                                       27
