@@ -1,0 +1,40 @@
+{
+  "source_pdf": "https://arxiv.org/pdf/2307.12950v3",
+  "pdf_sha256": "3723ddbabbf34f84eece2dc97fd3bab6609889360a89d09a7a9561f8cfc0e46a",
+  "render": "Original PDF figures extracted with PyMuPDF at 432 DPI; Figure 1 crop excludes page running header.",
+  "figures": [
+    {
+      "figure": 1,
+      "pdf_page": 2,
+      "file": "rlcd-fig1-comparison.png",
+      "box_pt": [
+        105.0,
+        79.0,
+        507.0,
+        260.33
+      ],
+      "px": [
+        2412,
+        1088
+      ],
+      "sha256": "8318ae26c417c34a1f23b74e160a7f89983a746330f55155e8f4d0b61c38d47f",
+      "note": "Re-extracted from PDF to exclude running page header and excess whitespace; diagram intact."
+    },
+    {
+      "figure": 2,
+      "pdf_page": 20,
+      "file": "rlcd-fig2-annotation-ui.png",
+      "box_pt": [
+        107.33,
+        79.0,
+        509.33,
+        350.33
+      ],
+      "px": [
+        2412,
+        1628
+      ],
+      "sha256": "e34128953a5b6dcb1e58712ca26fc0add7ef78d9a5903597cbd410c0f9c76a45"
+    }
+  ]
+}

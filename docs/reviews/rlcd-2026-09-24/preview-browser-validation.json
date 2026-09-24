@@ -1,0 +1,100 @@
+[
+  {
+    "case": "preview-1440-easy",
+    "status": 200,
+    "title": "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment 논문 리뷰 · 집현전 · 쉬운 읽기",
+    "h1": [
+      "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment"
+    ],
+    "images": [
+      {
+        "src": "/api/blog/figures/rlcd-fig1-comparison.png",
+        "width": 2412,
+        "height": 1088
+      }
+    ],
+    "canonical": "https://jiphyeonjeon.kr/blog/rlcd",
+    "katexErrors": 0,
+    "katex": 0,
+    "missingAnchors": [],
+    "overflow": false,
+    "reading": null,
+    "page_errors": []
+  },
+  {
+    "case": "preview-1440-deep",
+    "status": 200,
+    "title": "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment 논문 리뷰 · 집현전 · 상세 읽기",
+    "h1": [
+      "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment"
+    ],
+    "images": [
+      {
+        "src": "/api/blog/figures/rlcd-fig1-comparison.png",
+        "width": 2412,
+        "height": 1088
+      },
+      {
+        "src": "/api/blog/figures/rlcd-fig2-annotation-ui.png",
+        "width": 2412,
+        "height": 1628
+      }
+    ],
+    "canonical": "https://jiphyeonjeon.kr/blog/rlcd?view=deep",
+    "katexErrors": 0,
+    "katex": 2,
+    "missingAnchors": [],
+    "overflow": false,
+    "reading": null,
+    "page_errors": []
+  },
+  {
+    "case": "preview-400-easy",
+    "status": 200,
+    "title": "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment 논문 리뷰 · 집현전 · 쉬운 읽기",
+    "h1": [
+      "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment"
+    ],
+    "images": [
+      {
+        "src": "/api/blog/figures/rlcd-fig1-comparison.png",
+        "width": 2412,
+        "height": 1088
+      }
+    ],
+    "canonical": "https://jiphyeonjeon.kr/blog/rlcd",
+    "katexErrors": 0,
+    "katex": 0,
+    "missingAnchors": [],
+    "overflow": false,
+    "reading": null,
+    "page_errors": []
+  },
+  {
+    "case": "preview-400-deep",
+    "status": 200,
+    "title": "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment 논문 리뷰 · 집현전 · 상세 읽기",
+    "h1": [
+      "RLCD: Reinforcement Learning from Contrastive Distillation for LM Alignment"
+    ],
+    "images": [
+      {
+        "src": "/api/blog/figures/rlcd-fig1-comparison.png",
+        "width": 2412,
+        "height": 1088
+      },
+      {
+        "src": "/api/blog/figures/rlcd-fig2-annotation-ui.png",
+        "width": 2412,
+        "height": 1628
+      }
+    ],
+    "canonical": "https://jiphyeonjeon.kr/blog/rlcd?view=deep",
+    "katexErrors": 0,
+    "katex": 2,
+    "missingAnchors": [],
+    "overflow": false,
+    "reading": null,
+    "page_errors": []
+  }
+]
