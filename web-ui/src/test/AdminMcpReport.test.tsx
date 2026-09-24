@@ -118,17 +118,20 @@ describe('AdminMcpReport', () => {
     expect(screen.getAllByText('활성 계정').length).toBeGreaterThanOrEqual(1);
     const accounts = screen.getByText('활성 계정', { selector: '.mcp-metric p' }).parentElement!;
     expect(within(accounts).getByText('2일 이상 사용 계정').previousElementSibling).toHaveTextContent('3');
-    expect(within(accounts).getByText(/리텐션 아님/)).toBeInTheDocument();
-    expect(within(accounts).getByText(/조회성 호출을 제외한/)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'MCP 핵심 지표' }).children).toHaveLength(5);
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('75.0%');
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('90/120 · invocation');
-    expect(screen.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
-    expect(screen.getByText(/실제 호스트나 사람 수를 증명하지 않습니다/)).toBeInTheDocument();
-    expect(screen.getByText(/설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다/)).toBeInTheDocument();
+
+    // 정의와 면책은 카드가 아니라 방법론에 산다 — 구분은 그대로, 위치만 옮겼다.
+    const method = within(screen.getByText('측정 한계와 출처').closest('details')!);
+    expect(method.getByText(/리텐션 아님/)).toBeInTheDocument();
+    expect(method.getByText(/조회성 호출을 제외한/)).toBeInTheDocument();
+    expect(method.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
+    expect(method.getByText(/실제 호스트나 사람 수를 증명하지 않습니다/)).toBeInTheDocument();
+    expect(method.getByText(/설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다/)).toBeInTheDocument();
+    expect(method.getByText(/24시간 넘게 없거나/)).toBeInTheDocument();
     await openDaily();
     expect(screen.getByText(/시작일 코호트/)).toBeInTheDocument();
-    expect(screen.getByText(/24시간 넘게 없거나/)).toBeInTheDocument();
   });
 
   it('keeps measured zero distinct from missing values and unmeasured tool telemetry', async () => {
@@ -148,12 +151,31 @@ describe('AdminMcpReport', () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(zero));
     render(<AdminMcpReport />);
 
-    expect(await screen.findByText(/작업 시작이 0건입니다/)).toBeInTheDocument();
-    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('오류율');
-    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('0.0%');
-    expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('미집계');
+    // 셀 게 없으면 그리지 않는다 — 배너가 이미 한 문장으로 답했다.
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent(/작업 시작이 0건입니다/);
+    expect(banner).toHaveTextContent('미계측이며, 측정된 0건과 다릅니다');
     expect(screen.getByText('어댑터 도구 보고 · 전체 기간').parentElement).toHaveTextContent('기록 없음');
-    expect(screen.getByText('미계측')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'MCP 핵심 지표' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '서버 경로 표' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '일별 사용' })).toBeNull();
+    // 방법론은 남는다 — 왜 0인지 확인할 곳이다.
+    expect(screen.getByText('측정 한계와 출처')).toBeInTheDocument();
+  });
+
+  it('still separates measured zero, no sample and unmeasured once anything was recorded', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
+      ...REPORT,
+      measurement: { ...REPORT.measurement, tool_telemetry_available: false, claimed_adapter_requests: 0, requests_with_invocation_id: 0, invocation_coverage: null },
+      totals: { ...REPORT.totals, requests: 40, request_error_rate: 0, request_p95_ms: null, request_duration_samples: 0, tool_calls: 0 },
+      tools: [], routes: [], client_versions: [],
+    }));
+    render(<AdminMcpReport />);
+
+    const requests = (await screen.findByText('서버 요청', { selector: '.mcp-metric p' })).parentElement!;
+    expect(requests).toHaveTextContent('0.0%');   // 측정된 0
+    expect(requests).toHaveTextContent('미집계');  // 표본 없음
+    expect(screen.getByText('미계측', { selector: '.mcp-metric strong' })).toBeInTheDocument();  // 계측 자체가 없음
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('미집계');
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('0/0');
     expect(screen.getByText('도구 실행은 미계측 상태입니다.').closest('td')).toHaveAttribute('colspan', '7');
@@ -283,7 +305,7 @@ describe('AdminMcpReport', () => {
     expect(section('작업 수명주기').getByText('실패 사유').parentElement).toHaveTextContent('실패 ×1');
   });
 
-  it('shows counts instead of percentages until the sample is large enough, and names the latency honestly', async () => {
+  it('keeps every rate column comparable and only mutes the ones with a thin sample', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response({
       ...REPORT,
       totals: { ...REPORT.totals, requests: 40, request_error_rate: 0.1, request_p95_ms: 1843, request_duration_samples: 40, tool_calls: 4, tool_failures: 1, tool_p95_ms: 420, tool_duration_samples: 4, jobs_started: 12, job_p95_ms: 9000, job_duration_samples: 12 },
@@ -294,7 +316,10 @@ describe('AdminMcpReport', () => {
     expect(within(requests).getByText('오류율').previousElementSibling).toHaveTextContent('10.0%');
     expect(within(requests).getByText('p95')).toBeInTheDocument();
     const tools = screen.getByText('관측된 도구 실행', { selector: '.mcp-metric p' }).parentElement!;
-    expect(within(tools).getByText('실패율').previousElementSibling).toHaveTextContent('1/4');
+    // 값은 비교 가능한 비율로 두고, 표본이 얇다는 사실은 강조를 빼서 알린다.
+    expect(within(tools).getByText('실패율').previousElementSibling).toHaveTextContent('25.0%');
+    expect(within(tools).getByText('실패율').closest('span')).toHaveClass('thin');
+    expect(within(requests).getByText('오류율').closest('span')).not.toHaveClass('thin');
     expect(within(tools).getByText('최대').previousElementSibling).toHaveTextContent('420ms');
     const jobs = screen.getByText('작업 시작', { selector: '.mcp-metric p' }).parentElement!;
     expect(within(jobs).getByText('최대').previousElementSibling).toHaveTextContent('9.0초');
@@ -324,13 +349,14 @@ describe('AdminMcpReport', () => {
 
     const banner = await screen.findByRole('status');
     expect(banner).toHaveTextContent('합계 4건입니다');
-    expect(banner).toHaveTextContent('관측된 최대값입니다');
+    expect(banner).toHaveTextContent('흐리게 표시하며');
     const requests = screen.getByText('서버 요청', { selector: '.mcp-metric p' }).parentElement!;
-    expect(within(requests).getByText('오류율').previousElementSibling).toHaveTextContent('1/1');
-    expect(within(requests).queryByText('100.0%')).toBeNull();
+    // 1건짜리 100%는 여전히 100%지만 붉지도 굵지도 않다.
+    expect(within(requests).getByText('오류율').previousElementSibling).toHaveTextContent('100.0%');
+    expect(within(requests).getByText('오류율').closest('span')).toHaveClass('thin');
     const coverage = screen.getByText('요청 연결률', { selector: '.mcp-metric p' }).parentElement!;
-    expect(coverage).toHaveTextContent('1/1');
-    expect(coverage).not.toHaveTextContent('100.0%');
+    expect(coverage).toHaveTextContent('100.0%');
+    expect(coverage).toHaveTextContent('1/1 · invocation');
 
     fireEvent.click(screen.getByRole('button', { name: '관리자 계정 포함해서 보기' }));
     await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(28, true, expect.any(AbortSignal)));
@@ -366,7 +392,9 @@ describe('AdminMcpReport', () => {
     render(<AdminMcpReport />);
 
     const row = await screen.findByRole('row', { name: /^Claude Desktop/ });
-    expect(within(row).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['Unknown', '0.4.0', '10', '1', '1/10', '4', '1', '1/4']);
+    const cells = within(row).getAllByRole('cell');
+    expect(cells.map((cell) => cell.textContent)).toEqual(['Unknown', '0.4.0', '10', '1', '10.0%', '4', '1', '25.0%']);
+    expect(cells[4]).toHaveClass('mcp-rate-thin');
   });
 
   it('rates failures against every call, marks non-zero failures, and keeps table columns in raw ms', async () => {
@@ -380,10 +408,12 @@ describe('AdminMcpReport', () => {
 
     const tools = await screen.findByRole('region', { name: '관측된 도구 실행 표' });
     const tool = within(within(tools).getByRole('row', { name: /^deep_review/ })).getAllByRole('cell');
-    expect(tool.map((cell) => cell.textContent)).toEqual(['4', '2', '1', '1/4', '1', '<1']);
+    expect(tool.map((cell) => cell.textContent)).toEqual(['4', '2', '1', '25.0%', '1', '<1']);
+    expect(tool[3]).toHaveClass('mcp-rate-thin');
     expect(tool[2]).toHaveClass('mcp-fail');
     const route = within(screen.getByRole('row', { name: /review\/start/ })).getAllByRole('cell');
-    expect(route.map((cell) => cell.textContent)).toEqual(['12', '0', '0/12', '12,410']);
+    expect(route.map((cell) => cell.textContent)).toEqual(['12', '0', '0.0%', '12,410']);
+    expect(route[2]).toHaveClass('mcp-rate-thin');
     expect(route[1]).not.toHaveClass('mcp-fail');
     expect(screen.getByText('서버 요청').parentElement).toHaveTextContent('1.8초');
     expect(screen.getByText('작업 시작', { selector: '.mcp-metric p' }).parentElement).toHaveTextContent('3분 8초');

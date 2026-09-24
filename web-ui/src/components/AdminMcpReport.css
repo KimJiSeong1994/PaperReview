@@ -4,7 +4,9 @@
   --mcp-border: color-mix(in srgb, var(--text-hi) 10%, transparent);
   /* Mostly 11–12px secondary text; .visits-report's #918e9d reads 3.2:1 on white.
      Same values .admin-members-report chose for the same reason (5.4:1 / 6.5:1). */
-  --text-faint: #6b687a;
+  /* 12.5px 본문에서 회색 두 단계는 같은 문자열 잉크량이 1.04배뿐이라 위계를 못 진다.
+     굵기(1.34배)와 크기(1.56배)에 맡기고 본문 회색은 하나로 둔다. */
+  --text-faint: #5f5c6d;
   --text-muted: #5f5c6d;
   word-break: keep-all;
   display: flex;
@@ -18,6 +20,7 @@
 .mcp-report .dashboard-context-strip { margin-top: 0; }
 .mcp-report .dashboard-context-strip strong { white-space: normal; word-break: keep-all; }
 .mcp-report .dashboard-context-strip > div { justify-content: flex-start; gap: 10px; }
+.mcp-report .dashboard-context-strip { padding: 0 0 14px; border: 0; border-bottom: 1px solid var(--mcp-border); border-radius: 0; background: transparent; box-shadow: none; }
 /* The strip hardcodes #918e9d for its labels (3.2:1 at 11px); route them through the card's token. */
 .mcp-report .dashboard-context-strip span { color: var(--text-faint); }
 
@@ -36,7 +39,7 @@
   background: var(--bg-input);
 }
 .mcp-zero { color: var(--teal); font-size: 12.5px; line-height: 1.55; }
-.mcp-zero--sparse { background: var(--wov-04); border-color: transparent; }
+.mcp-zero--sparse { border-left-color: var(--amber); }
 .mcp-zero strong { display: block; color: var(--text-hi); font-size: 14px; }
 .mcp-zero p { margin: 6px 0 0; max-width: 62ch; }
 .mcp-zero-action { margin-top: 10px; padding: 4px 10px; border: 1px solid var(--indigo); border-radius: 6px; background: transparent; color: var(--indigo); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
@@ -47,12 +50,15 @@
 .mcp-state p { margin: 8px 0; color: var(--text-muted); }
 
 /* Exactly five cards, none conditional: three across, then two wider ones. */
-.mcp-report > .mcp-two-column:first-of-type, .mcp-report > .mcp-daily { margin-top: 10px; }
+/* .mcp-two-column은 div이고 첫 div는 스트립이라 :first-of-type이 걸린 적이 없다. */
+.mcp-report > .mcp-daily { margin-top: 10px; }
 .mcp-metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .mcp-metric:nth-child(-n+3) { grid-column: span 2; }
 .mcp-metric:nth-child(n+4) { grid-column: span 3; }
-.mcp-metric { min-width: 0; padding: 17px 18px; border: 1px solid var(--mcp-border); border-radius: 13px; background: var(--bg-input); box-shadow: var(--card-shadow); }
-.mcp-metric p { margin: 0 0 8px; color: var(--text-muted); font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+/* 지표는 상자가 아니라 열이다 — 세로 구분선 하나면 충분하다. */
+.mcp-metric { min-width: 0; padding: 0 22px; border: 0; border-left: 1px solid var(--mcp-border); border-radius: 0; background: transparent; box-shadow: none; }
+.mcp-metric:nth-child(1), .mcp-metric:nth-child(4) { padding-left: 0; border-left: 0; }
+.mcp-metric p { margin: 0 0 8px; color: var(--text-muted); font-size: 12px; font-weight: 500; letter-spacing: .01em; }
 .mcp-metric strong { display: block; color: var(--indigo-strong); font-size: 26px; font-variant-numeric: tabular-nums; }
 /* A word in the number slot ("미계측") must not read like a large value. */
 .mcp-metric--unmeasured strong { font-size: 15px; line-height: 2.6; color: var(--text-muted); }
@@ -63,11 +69,13 @@
 .mcp-metric-parts > span:only-child { display: flex; align-items: baseline; gap: 7px; }
 .mcp-metric-parts > span:only-child b, .mcp-metric-parts > span:only-child small { display: inline; }
 .mcp-metric-parts .bad b, .mcp-fail { color: var(--danger-strong); font-weight: 700; }
+.mcp-rate-thin, .mcp-metric-parts .thin b { color: var(--text-faint); font-weight: 400; }
 
 /* auto 트랙은 콘텐츠 폭을 먼저 주고 남는 자리만 나눈다. 자리가 모자라면 minmax(0,…)
    하한으로 균등 분배로 되돌아간다. */
 .mcp-two-column { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 18px; align-items: start; }
-.mcp-section { min-width: 0; padding: 18px; border: 1px solid var(--mcp-border); border-radius: 14px; background: var(--bg-input); box-shadow: var(--card-shadow); }
+/* 흰 카드 위의 흰 카드 열둘은 헤어라인 하나로만 구분됐다 — 면은 톤으로 낸다. */
+.mcp-section { min-width: 0; padding: 20px; border: 0; border-radius: 14px; background: var(--wov-04); box-shadow: none; }
 .mcp-section h2 { margin: 0; color: var(--text-hi); font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
 .mcp-section > p { margin: 6px 0 14px; max-width: 62ch; color: var(--text-faint); font-size: 12.5px; line-height: 1.6; }
 .mcp-section h2 + .mcp-table-scroll { margin-top: 14px; }
@@ -83,13 +91,6 @@
 .mcp-daily > summary span { margin-left: 10px; color: var(--text-faint); font-size: 12.5px; font-weight: 500; }
 .mcp-daily > summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
 .mcp-daily[open] > summary { margin-bottom: 14px; }
-@media (min-width: 901px) {
-  .mcp-section--aside { display: grid; grid-template-columns: minmax(0, max-content) minmax(260px, 1fr); gap: 0 32px; align-items: start; }
-  .mcp-section--aside > h2, .mcp-section--aside > .mcp-table-scroll, .mcp-section--aside > .mcp-error-line { grid-column: 1; }
-  .mcp-section--aside > .mcp-table-scroll { margin-top: 14px; }
-  /* .mcp-error-line도 <p>다 — 여기서 제외하지 않으면 grid-row: 1에 걸려 제목 위로 올라간다. */
-  .mcp-section--aside > p:not(.mcp-error-line) { grid-column: 2; grid-row: 1; margin: 3px 0 0; max-width: 46ch; }
-}
 .mcp-table-scroll { width: 100%; overflow-x: auto; }
 .mcp-table-scroll:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 /* Content-width, not stretched: at 100% the count sat 300px from its label. */
@@ -101,16 +102,26 @@
 .mcp-daily-data summary:focus-visible, .mcp-method summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
 .mcp-daily-data .mcp-table-scroll { margin-top: 10px; }
 .mcp-table th, .mcp-table td { padding: 9px 10px; border-bottom: 1px solid var(--mcp-border); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 라벨이 자기가 설명하는 숫자보다 진했다 — 셀에 잉크를 돌려준다.
+   이 규칙은 (0,1,1)이라 (0,1,0)인 유틸리티 클래스를 눌러 버린다. 셀 안에서 다시
+   이기도록 같이 둔다 — 없으면 붉은 실패도 흐린 비율도 조용히 무효가 된다. */
+.mcp-table td { color: var(--text-hi); font-size: 13px; font-weight: 600; }
+.mcp-table td.mcp-fail { color: var(--danger-strong); font-weight: 700; }
+.mcp-table td.mcp-rate-thin { color: var(--text-faint); font-weight: 400; }
+.mcp-table td.mcp-empty { color: var(--text-muted); font-weight: 400; }
 /* 본문은 12.5 하나로 합쳤지만 헤더만 예외다 — 같은 크기에서는 굵기만 남고, 700은
    셀과 잉크량이 같아져(1.04) 첫 데이터 행처럼 읽힌다. 560px에서 표 2개가 더 스크롤된다. */
 .mcp-table thead th { color: var(--text-faint); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
 .mcp-table th:first-child, .mcp-table td:first-child { min-width: 150px; text-align: left; }
 .mcp-table tbody th { color: var(--text-muted); font-weight: 500; white-space: normal; }
 .mcp-table tbody tr:last-child > * { border-bottom: 0; }
-.mcp-table tbody tr:hover > * { background: var(--wov-04); }
+/* 카드가 wov-04가 되었으므로 hover는 반대로 밝혀야 보인다. */
+.mcp-table tbody tr:hover > * { background: var(--bg-input); }
 .mcp-table code { color: inherit; font-size: 12.5px; }
 .mcp-route-compact { display: none; }
-.mcp-empty { padding: 22px !important; color: var(--text-faint); text-align: center !important; }
+/* 행이 없는 표에 열 머리글은 필요 없다 — 머리글이 "없습니다"보다 2.4~5.3배 진했다. */
+.mcp-table:has(.mcp-empty) thead { display: none; }
+.mcp-empty { padding: 14px 0 !important; color: var(--text-muted); text-align: left !important; }
 .mcp-method { padding: 4px 2px; color: var(--text-faint); font-size: 12.5px; }
 .mcp-method p { margin: 8px 0 0; line-height: 1.6; }
 
@@ -133,7 +144,7 @@
   /* The label column stays put while the numbers scroll. Chromium ignores
      position:sticky on cells under border-collapse:collapse, hence separate. */
   .mcp-table { border-collapse: separate; border-spacing: 0; }
-  .mcp-table th:first-child, .mcp-table td:first-child { position: sticky; left: 0; min-width: 0; background: var(--bg-input); box-shadow: 1px 0 0 var(--mcp-border); }
+  .mcp-table th:first-child, .mcp-table td:first-child { position: sticky; left: 0; min-width: 0; background: var(--wov-04); box-shadow: 1px 0 0 var(--mcp-border); }
   /* nowrap이 첫 칸을 콘텐츠 폭으로 잡아 주어야 sticky + 가로 스크롤이 성립한다.
      white-space:normal로 풀면 열이 좁아지며 모든 행이 늘어난다(400px에서 +324px). */
   .mcp-table tbody th { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
