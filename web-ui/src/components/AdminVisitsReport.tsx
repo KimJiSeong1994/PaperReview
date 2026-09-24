@@ -1,6 +1,10 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { fetchAdminVisitsReport, type AdminVisitsReport as VisitsReportData } from '../api/client';
+import {
+  fetchAdminVisitsReport,
+  resolveEstimatedAnswerFetches,
+  type AdminVisitsReport as VisitsReportData,
+} from '../api/client';
 
 const Plot = lazy(() => import('../PlotlyChart'));
 
@@ -317,6 +321,21 @@ function AdminVisitsReport() {
   const { totals, daily } = report.traffic;
   const { timing } = report;
   const ai = report.ai;
+  const answerFetches = resolveEstimatedAnswerFetches(ai);
+  const answerFetchPaths = ai.available
+    ? ai.estimated_answer_fetch_paths ?? ai.citation_paths ?? []
+    : [];
+  if (answerFetches.mismatch && import.meta.env.DEV) {
+    console.warn(
+      'Admin visits report metric mismatch: estimated_answer_fetches differs from citation_clicks',
+      { canonical: ai.estimated_answer_fetches, legacy: ai.citation_clicks },
+    );
+  }
+  const answerFetchLabel = answerFetches.value == null ? '확인 불가' : fmt(answerFetches.value);
+  const answerFetchHeadline = answerFetches.value == null ? answerFetchLabel : `${answerFetchLabel}번`;
+  const referralHits = ai.available ? ai.ai_referral_hits : undefined;
+  const referralHitsLabel = referralHits == null ? '확인 불가' : fmt(referralHits);
+  const referralHitsHeadline = referralHits == null ? referralHitsLabel : `${referralHitsLabel}번`;
   const botRows = ai.bots ?? [];
   const legacyBotHits = botRows.reduce((sum, bot) => sum + bot.hits, 0);
   const verifiedIndexingHits = ai.verified_indexing_hits ?? legacyBotHits;
@@ -406,7 +425,7 @@ function AdminVisitsReport() {
           />
           <InsightCard
             eyebrow={`최근 ${days}일 AI 연결`}
-            headline={<>답변 fetch {fmt(ai.citation_clicks ?? 0)}번 · 실제 유입 {fmt(ai.ai_referral_hits ?? 0)}번</>}
+            headline={<>답변 fetch {answerFetchHeadline} · 실제 유입 {referralHitsHeadline}</>}
             body="AI가 콘텐츠를 가져간 횟수와 답변 링크를 통해 실제로 들어온 방문을 나눠 봅니다."
           />
         </div>
@@ -716,12 +735,12 @@ function AdminVisitsReport() {
               />
               <StatTile
                 label="AI 답변 fetch (추정)"
-                value={fmt(ai.citation_clicks ?? 0)}
+                value={answerFetchLabel}
                 hint="성공한 공개 콘텐츠 fetch만 포함"
               />
               <StatTile
                 label="AI 클릭 유입"
-                value={fmt(ai.ai_referral_hits ?? 0)}
+                value={referralHitsLabel}
                 hint="AI 답변 링크로 실제 방문"
               />
               <StatTile
@@ -824,7 +843,7 @@ function AdminVisitsReport() {
                     </details>
                   </Card>
                 )}
-                {(ai.citation_paths?.length ?? 0) > 0 && (
+                {answerFetchPaths.length > 0 && (
                   <Card>
                     <details className="visits-drill">
                       <summary className="visits-subhead">AI 답변이 가져간 페이지 (추정 fetch)</summary>
@@ -836,7 +855,7 @@ function AdminVisitsReport() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(ai.citation_paths ?? []).map((p) => (
+                          {answerFetchPaths.map((p) => (
                             <tr key={p.path}>
                               <td className="visits-path">{p.path}</td>
                               <td className="visits-num">{fmt(p.hits)}</td>

@@ -127,7 +127,11 @@ export interface AdminVisitsReport {
     suspected_scan_hits?: number;
     suspected_scan_errors?: number;
     unverified_hits?: number;
+    estimated_answer_fetches?: number;
+    estimated_answer_fetch_paths?: { path: string; hits: number }[];
+    /** @deprecated Use estimated_answer_fetches. */
     citation_clicks?: number;
+    /** @deprecated Use estimated_answer_fetch_paths. */
     citation_paths?: { path: string; hits: number }[];
     ai_referral_hits?: number;
     ai_referral_sources?: { source: string; hits: number }[];
@@ -140,6 +144,19 @@ export interface AdminVisitsReport {
       last_at: string | null;
     };
     verification_failures?: string[];
+  };
+}
+
+export function resolveEstimatedAnswerFetches(
+  ai: Pick<AdminVisitsReport['ai'], 'estimated_answer_fetches' | 'citation_clicks'>
+    & Partial<Pick<AdminVisitsReport['ai'], 'available'>>,
+): { value: number | undefined; mismatch: boolean } {
+  if (ai.available === false) return { value: undefined, mismatch: false };
+  const canonical = ai.estimated_answer_fetches;
+  const legacy = ai.citation_clicks;
+  return {
+    value: canonical ?? legacy,
+    mismatch: canonical != null && legacy != null && canonical !== legacy,
   };
 }
 

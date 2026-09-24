@@ -371,6 +371,8 @@ def test_crawler_report_classifies_bots_and_referrals(nginx_logs: Path) -> None:
     assert bots["Yeti(Naver)"]["errors"] == 1
     assert report["citation_clicks"] == 1
     assert report["citation_paths"] == [{"path": "/blog/post-a", "hits": 1}]
+    assert report["estimated_answer_fetches"] == report["citation_clicks"]
+    assert report["estimated_answer_fetch_paths"] == report["citation_paths"]
     assert report["ai_referral_hits"] == 1
     assert report["ai_referral_sources"] == [{"source": "chatgpt.com", "hits": 1}]
     # GPTBot fetched /blog/post-a with a 200 -> a crawled (indexed) blog page.
@@ -433,6 +435,8 @@ def test_crawler_report_separates_spoofed_scans_from_indexing_failures(
     assert report["verified_indexing_hits"] == 0
     assert report["citation_clicks"] == 1
     assert report["citation_paths"] == [{"path": "/blog/post-a", "hits": 1}]
+    assert report["estimated_answer_fetches"] == report["citation_clicks"]
+    assert report["estimated_answer_fetch_paths"] == report["citation_paths"]
     assert report["crawled_pages"] == []
     assert bots["Googlebot"]["content_errors"] == 1
     assert bots["Bingbot"]["discovery_errors"] == 1
@@ -475,6 +479,8 @@ def test_crawler_report_degrades_without_log_access(
     # Missing dir yields no matching files -> empty but available report.
     assert report["available"] is True
     assert report["bots"] == []
+    assert report["estimated_answer_fetches"] == report["citation_clicks"] == 0
+    assert report["estimated_answer_fetch_paths"] == report["citation_paths"] == []
 
 
 @pytest.fixture
