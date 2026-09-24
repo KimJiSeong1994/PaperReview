@@ -516,6 +516,7 @@ def test_stale_rollback_journal_cannot_replace_a_newer_release(
 @pytest.mark.skipif(platform.system() != "Linux", reason="renameat2 is Linux-specific")
 def test_linux_exchange_keeps_both_complete_directories(tmp_path: Path) -> None:
     active = _active(tmp_path)
+    old_html = (active / "index.html").read_bytes()
     stage = tmp_path / "stage"
     stage.mkdir()
     (stage / "index.html").write_text("new")
@@ -524,4 +525,4 @@ def test_linux_exchange_keeps_both_complete_directories(tmp_path: Path) -> None:
 
     assert active.is_dir() and stage.is_dir()
     assert (active / "index.html").read_text() == "new"
-    assert (stage / "index.html").read_text() == "old"
+    assert (stage / "index.html").read_bytes() == old_html

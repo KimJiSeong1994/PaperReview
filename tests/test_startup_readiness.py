@@ -12,8 +12,11 @@ import src.events.event_bus as event_bus
 
 
 @pytest.fixture
-def startup(monkeypatch):
+def startup(monkeypatch, isolate_optional_model_warmup):
     events = []
+    monkeypatch.setattr(
+        server, "_warm_cross_encoder_background", isolate_optional_model_warmup
+    )
 
     class Bus:
         def register_main_loop(self, loop):
