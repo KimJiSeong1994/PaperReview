@@ -1,0 +1,26 @@
+{
+  "slug": "rag-vs-graphrag-systematic-evaluation",
+  "excerpt": "RAG와 여러 GraphRAG를 질의응답·요약에서 비교한 연구다. 우열은 질문 유형과 근거 표현에 따라 달라지며, 입력 토큰량을 맞추면 일부 차이가 줄어 구조와 맥락 길이의 효과를 함께 봐야 한다.",
+  "changes": [
+    {
+      "section": "§2.3",
+      "change": "같은 k=10이 3,631 대 9,770 tokens가 되는 경로와 token-matched control의 남은 Temporal 격차를 단계적으로 설명했다.",
+      "evidence": "Tables 2, 31–33"
+    },
+    {
+      "section": "결론",
+      "change": "benchmark 내 전략 우열과 새 도메인 배포 검증을 명시적으로 분리했다.",
+      "evidence": "Tables 20–22, 31–33"
+    }
+  ],
+  "uncertainties": [
+    "기술 분석은 author-public arXiv v3 기준이며 ACM Version of Record와 직접 대조하지 못했다.",
+    "고정 코드 snapshot은 v3 이전 시점이므로 최종 표 재현을 증명하지 않는다.",
+    "token matching은 evidence 정보량·구축·검색 비용을 모두 통제하지 않는다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2502.11371v3",
+    "https://doi.org/10.1145/3770855.3817575",
+    "https://github.com/haoyuhan1/RAGvsGraphRAG/tree/d2a0c0c0deb0903d60338d3c416ccd6f9544267c"
+  ]
+}

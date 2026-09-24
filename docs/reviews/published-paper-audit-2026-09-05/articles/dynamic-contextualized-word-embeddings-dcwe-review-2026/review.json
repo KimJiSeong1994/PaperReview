@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Dynamic Contextualized Word Embeddings",
+    "authors": [
+      "Valentin Hofmann",
+      "Janet B. Pierrehumbert",
+      "Hinrich Schütze"
+    ],
+    "year": 2021,
+    "primary_url": "https://aclanthology.org/2021.acl-long.542/",
+    "doi": "10.18653/v1/2021.acl-long.542",
+    "arxiv_id": "2010.12684"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-2010.12684.pdf"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/2021.acl-long.542/",
+    "https://arxiv.org/abs/2010.12684"
+  ],
+  "excerpt": "시간·사회 조건의 오프셋을 BERT 입력 임베딩에 더해 문맥화 표현과 동적 어휘 표현을 결합한 DCWE의 구조, 평가, 적용 범위를 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "시간 변화 사례는 탐색적 분석이며 의미 변화 정답에 대한 직접 검증과 구별된다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/dynamic-contextualized-word-embeddings-dcwe-review-2026",
+  "verified_content_sha256": "cecce1617775a599eb2e4b3ae1213540447dfd4e08ca6a787cd482b4be6a3257"
+}

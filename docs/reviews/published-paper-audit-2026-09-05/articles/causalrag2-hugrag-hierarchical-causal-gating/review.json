@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "../../sources/2602.05143v2.pdf (25 pp.; §§3–5; Tables 2–5)",
+    "../../sources/2602.05143v2.txt (page-labelled full text)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2602.05143"
+  ],
+  "paper_metadata": {
+    "title": "CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG",
+    "authors": [
+      "Nengbo Wang",
+      "Tuo Liang",
+      "Vikash Singh",
+      "Chaoda Song",
+      "Van Yang",
+      "Yu Yin",
+      "Jing Ma",
+      "Jagdip Singh",
+      "Vipin Chaudhary"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2602.05143",
+    "arxiv_id": "2602.05143v2"
+  },
+  "excerpt": "CausalRAG2는 계층형 인과 지식 그래프와 질의별 게이팅을 이용해, 넓은 주제의 문맥과 세부 원인·결과 경로를 함께 검색하려는 RAG 설계다.",
+  "changes": [
+    "Preserved the existing paper-only narrative, APA references, and figures.",
+    "Removed user/version-selection process, retaining bibliographic rename fact."
+  ],
+  "uncertainties": [
+    "The study’s causal relations are evaluated in QA retrieval, not identified by interventions."
+  ],
+  "figure_preservation": {
+    "expected": 5,
+    "preserved": 5,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/causalrag2-hugrag-hierarchical-causal-gating",
+  "verified_content_sha256": "5c79295548971b79379271bec67b82cf58dca127b62ad502224e69ed6aeafb14"
+}

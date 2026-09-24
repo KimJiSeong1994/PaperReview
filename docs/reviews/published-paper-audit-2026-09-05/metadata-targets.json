@@ -1,0 +1,374 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "arxiv_id": "2402.12011",
+    "primary_url": "https://aclanthology.org/2024.naacl-long.240/",
+    "doi": "10.18653/v1/2024.naacl-long.240"
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "arxiv_id": "1811.06278",
+    "primary_url": "https://langsci-press.org/catalog/view/303/3027/2374-1",
+    "doi": "10.5281/zenodo.5040302"
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "arxiv_id": "2004.14118",
+    "primary_url": "https://aclanthology.org/2020.acl-main.365/",
+    "doi": "10.18653/v1/2020.acl-main.365"
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "arxiv_id": "2304.01666",
+    "primary_url": "https://doi.org/10.1145/3672393",
+    "doi": "10.1145/3672393"
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "arxiv_id": "1411.3315",
+    "primary_url": "https://doi.org/10.1145/2736277.2741627",
+    "doi": "10.1145/2736277.2741627"
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "arxiv_id": "1702.08359",
+    "primary_url": "https://proceedings.mlr.press/v70/bamler17a.html",
+    "doi": null
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "arxiv_id": "1909.00512",
+    "primary_url": "https://aclanthology.org/D19-1006/",
+    "doi": "10.18653/v1/D19-1006"
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "arxiv_id": "1906.02376",
+    "primary_url": "https://ojs.aaai.org/index.php/AAAI/article/view/4651",
+    "doi": "10.1609/aaai.v33i01.33016326"
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "arxiv_id": "1605.09096",
+    "primary_url": "https://aclanthology.org/P16-1141/",
+    "doi": "10.18653/v1/P16-1141"
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "arxiv_id": "2010.12684",
+    "primary_url": "https://aclanthology.org/2021.acl-long.542/",
+    "doi": "10.18653/v1/2021.acl-long.542"
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "arxiv_id": null,
+    "primary_url": "https://doi.org/10.1145/2939672.2939753",
+    "doi": "10.1145/2939672.2939753"
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "arxiv_id": "2502.09263v3",
+    "primary_url": "https://arxiv.org/abs/2502.09263v3",
+    "doi": null
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "arxiv_id": "2506.19806",
+    "primary_url": "https://arxiv.org/abs/2506.19806",
+    "doi": null
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "arxiv_id": "2509.10127",
+    "primary_url": "https://arxiv.org/abs/2509.10127",
+    "doi": null
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "arxiv_id": "1703.00607",
+    "primary_url": "https://doi.org/10.1145/3159652.3159703",
+    "doi": "10.1145/3159652.3159703"
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "arxiv_id": "1703.08052",
+    "primary_url": "https://doi.org/10.1145/3178876.3185999",
+    "doi": "10.1145/3178876.3185999"
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "arxiv_id": "1903.07293",
+    "primary_url": "https://arxiv.org/abs/1903.07293",
+    "doi": "10.1145/3308558.3313562"
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "arxiv_id": null,
+    "primary_url": "https://doi.org/10.1145/3292500.3330961",
+    "doi": "10.1145/3292500.3330961"
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "arxiv_id": "1403.6652",
+    "primary_url": "https://arxiv.org/abs/1403.6652",
+    "doi": "10.1145/2623330.2623732"
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "arxiv_id": "1710.10903",
+    "primary_url": "https://arxiv.org/abs/1710.10903",
+    "doi": null
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "arxiv_id": "1810.00826",
+    "primary_url": "https://arxiv.org/abs/1810.00826",
+    "doi": null
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "arxiv_id": "1706.02216",
+    "primary_url": "https://arxiv.org/abs/1706.02216",
+    "doi": null
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "arxiv_id": "1609.02907",
+    "primary_url": "https://arxiv.org/abs/1609.02907",
+    "doi": null
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "arxiv_id": "1903.03894v4",
+    "primary_url": "https://arxiv.org/abs/1903.03894v4",
+    "doi": null
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "arxiv_id": "2606.27201v2",
+    "primary_url": "https://arxiv.org/abs/2606.27201v2",
+    "doi": null
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "arxiv_id": "2605.23904",
+    "primary_url": "https://arxiv.org/abs/2605.23904",
+    "doi": null
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "arxiv_id": "2607.14777",
+    "primary_url": "https://arxiv.org/abs/2607.14777",
+    "doi": null
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "arxiv_id": "2202.05262",
+    "primary_url": "https://proceedings.neurips.cc/paper_files/paper/2022/hash/6f1d43d5a82a37a14eb4d39c1d1b4e0e-Abstract-Conference.html",
+    "doi": null
+  },
+  {
+    "slug": "structural-probe",
+    "arxiv_id": null,
+    "primary_url": "https://aclanthology.org/N19-1419/",
+    "doi": "10.18653/v1/N19-1419"
+  },
+  {
+    "slug": "gqml-graphs",
+    "arxiv_id": "2607.00698",
+    "primary_url": "https://arxiv.org/abs/2607.00698",
+    "doi": null
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "arxiv_id": null,
+    "primary_url": "https://aclanthology.org/P19-1282/",
+    "doi": "10.18653/v1/P19-1282"
+  },
+  {
+    "slug": "lgc-acf",
+    "arxiv_id": null,
+    "primary_url": "https://doi.org/10.1109/ACCESS.2021.3061915",
+    "doi": "10.1109/ACCESS.2021.3061915"
+  },
+  {
+    "slug": "coevot",
+    "arxiv_id": "2607.14114v1",
+    "primary_url": "https://arxiv.org/abs/2607.14114v1",
+    "doi": null
+  },
+  {
+    "slug": "deep-graphrag",
+    "arxiv_id": "2601.11144",
+    "primary_url": "https://arxiv.org/abs/2601.11144",
+    "doi": null
+  },
+  {
+    "slug": "lightgcn",
+    "arxiv_id": "2002.02126",
+    "primary_url": "https://arxiv.org/abs/2002.02126",
+    "doi": null
+  },
+  {
+    "slug": "ragu",
+    "arxiv_id": "2607.11683",
+    "primary_url": "https://arxiv.org/abs/2607.11683",
+    "doi": null
+  },
+  {
+    "slug": "goa",
+    "arxiv_id": "2604.17148",
+    "primary_url": "https://openreview.net/forum?id=34cANdsHKV",
+    "doi": null
+  },
+  {
+    "slug": "hgnn",
+    "arxiv_id": "1809.09401",
+    "primary_url": "https://arxiv.org/abs/1809.09401",
+    "doi": "10.1609/aaai.v33i01.33013558"
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "arxiv_id": "2503.19878",
+    "primary_url": "https://aclanthology.org/2025.findings-acl.1165/",
+    "doi": "10.18653/v1/2025.findings-acl.1165"
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "arxiv_id": "2405.14831",
+    "primary_url": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/6ddc001d07ca4f319af96a3024f6dbd1-Abstract-Conference.html",
+    "doi": null
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "arxiv_id": "2410.05779",
+    "primary_url": "https://aclanthology.org/2025.findings-emnlp.568/",
+    "doi": "10.18653/v1/2025.findings-emnlp.568"
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "arxiv_id": "2508.10391",
+    "primary_url": "https://ojs.aaai.org/index.php/AAAI/article/view/40789",
+    "doi": null
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "arxiv_id": "2602.05143",
+    "primary_url": "https://arxiv.org/abs/2602.05143",
+    "doi": null
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "arxiv_id": "2404.16130",
+    "primary_url": "https://arxiv.org/abs/2404.16130",
+    "doi": null
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "arxiv_id": "2502.14802",
+    "primary_url": "https://proceedings.mlr.press/v267/gutierrez25a.html",
+    "doi": null
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "arxiv_id": "2308.11730",
+    "primary_url": "https://doi.org/10.1609/aaai.v38i17.29889",
+    "doi": "10.1609/aaai.v38i17.29889"
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "arxiv_id": null,
+    "primary_url": "https://doi.org/10.1016/j.scs.2026.107575",
+    "doi": "10.1016/j.scs.2026.107575"
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "arxiv_id": "2604.23678",
+    "primary_url": "https://doi.org/10.1038/s43588-026-01003-y",
+    "doi": "10.1038/s43588-026-01003-y"
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "arxiv_id": "2510.10114",
+    "primary_url": "https://arxiv.org/abs/2510.10114",
+    "doi": null
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "arxiv_id": "2607.27497",
+    "primary_url": "https://arxiv.org/abs/2607.27497",
+    "doi": null
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "arxiv_id": "2408.05584",
+    "primary_url": "https://arxiv.org/abs/2408.05584",
+    "doi": null
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "arxiv_id": null,
+    "primary_url": "https://doi.org/10.1038/s41467-020-16238-0",
+    "doi": "10.1038/s41467-020-16238-0"
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "arxiv_id": "2608.11967",
+    "primary_url": "https://arxiv.org/abs/2608.11967",
+    "doi": null
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "arxiv_id": "2604.11378",
+    "primary_url": "https://arxiv.org/abs/2604.11378",
+    "doi": null
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "arxiv_id": "2608.26088v1",
+    "primary_url": "https://arxiv.org/abs/2608.26088v1",
+    "doi": null
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "arxiv_id": "2606.06036",
+    "primary_url": "https://arxiv.org/abs/2606.06036",
+    "doi": null
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "arxiv_id": "2407.01449",
+    "primary_url": "https://arxiv.org/abs/2407.01449",
+    "doi": null
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "arxiv_id": "2608.27454",
+    "primary_url": "https://arxiv.org/abs/2608.27454",
+    "doi": null
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "arxiv_id": "2608.26701",
+    "primary_url": "https://arxiv.org/abs/2608.26701",
+    "doi": null
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "arxiv_id": "2310.10688",
+    "primary_url": "https://proceedings.mlr.press/v235/das24c.html",
+    "doi": null
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "arxiv_id": "2607.12425v1",
+    "primary_url": "https://arxiv.org/abs/2607.12425v1",
+    "doi": null
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "arxiv_id": "2606.29150v3",
+    "primary_url": "https://arxiv.org/abs/2606.29150v3",
+    "doi": "10.48550/arXiv.2606.29150"
+  }
+]

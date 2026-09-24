@@ -1,0 +1,23 @@
+{
+  "pr": 298,
+  "url": "https://github.com/KimJiSeong1994/PaperReview/pull/298",
+  "status": "merged",
+  "head_commit": "a371c03545da06e4b73817af8106c6b7738844c7",
+  "merge_commit": "a7db6550112f9b5ea445d616a5df095f7fda26c2",
+  "merged_at": "2026-09-15T14:36:37Z",
+  "preserved_other_posts": 77,
+  "target_posts": 10,
+  "files": [
+    "data/blog/posts.json",
+    "docs/reviews/2026-09-15-recent-paper-revisions.md"
+  ],
+  "pr_ci_run": 34981847591,
+  "main_ci_run": 34982806120,
+  "main_ci_status": "success",
+  "worktree": "/private/tmp/paperreview-recent-reviews-pr",
+  "deployment_status": "success",
+  "production_commit": "a7db6550112f9b5ea445d616a5df095f7fda26c2",
+  "production_records_match_merged_tree": true,
+  "production_post_count": 87,
+  "public_content_and_excerpt_checks": 10
+}

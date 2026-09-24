@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Position: LLM-Based Social Simulations Require a Boundary",
+    "authors": [
+      "Zengqing Wu",
+      "Run Peng",
+      "Takayuki Ito",
+      "Makoto Onizuka",
+      "Chuan Xiao"
+    ],
+    "year": 2025,
+    "primary_url": "https://arxiv.org/abs/2506.19806",
+    "arxiv_id": "2506.19806v3"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/90 Computational Social Science and LLM Social Simulation/papers/arxiv-2506.19806.pdf"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2506.19806"
+  ],
+  "excerpt": "LLM 사회시뮬레이션이 평균적 행동을 재현하더라도 인구의 행동 이질성을 잃을 수 있다는 포지션 논문을, 분산·평균 정렬과 주장 범위의 관계로 설명한다.",
+  "changes": [
+    "제목을 실제 v3 논문명으로 보정",
+    "문서 외 워크플로 표현을 축소하고 논문 권고 중심으로 정리",
+    "본문·그림·APA References 보존",
+    "Removed wiki/Korean transfer/reviewer program; retained paper coding and limitations."
+  ],
+  "uncertainties": [
+    "v3의 주장과 표는 프리프린트 판본 및 코딩된 문헌 표본에 한정된다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/llm-based-social-simulations-require-boundary-review-2026",
+  "verified_content_sha256": "d67a5c8502737ee610e74428f42ad7932c04fc13703eddf76a2e8d8911867263"
+}

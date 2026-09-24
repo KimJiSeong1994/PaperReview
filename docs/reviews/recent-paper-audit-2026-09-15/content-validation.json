@@ -1,0 +1,77 @@
+{
+  "status": "pass",
+  "posts": [
+    {
+      "slug": "rsi-roadmap",
+      "equations": 0,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "ttpo",
+      "equations": 56,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "equations": 35,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "codenib",
+      "equations": 94,
+      "figures": 8,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "equations": 6,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "procedural-graphs",
+      "equations": 22,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "equations": 19,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "causal-foundation-models",
+      "equations": 84,
+      "figures": 6,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "equations": 31,
+      "figures": 8,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "equations": 45,
+      "figures": 4,
+      "metadata_preserved": true,
+      "artifact_matches": true
+    }
+  ],
+  "unchanged_posts": 76,
+  "total_posts": 86
+}

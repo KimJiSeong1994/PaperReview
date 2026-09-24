@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2308.11730 (§§3–5; Eq. 1 and result tables)"
+  ],
+  "source_urls": [
+    "https://ojs.aaai.org/index.php/AAAI/article/view/29889",
+    "https://arxiv.org/html/2308.11730"
+  ],
+  "paper_metadata": {
+    "title": "Knowledge Graph Prompting for Multi-Document Question Answering",
+    "authors": [
+      "Yu Wang",
+      "Nedim Lipka",
+      "Ryan A. Rossi",
+      "Alexa Siu",
+      "Ruiyi Zhang",
+      "Tyler Derr"
+    ],
+    "year": 2024,
+    "primary_url": "https://doi.org/10.1609/aaai.v38i17.29889",
+    "arxiv_id": "2308.11730",
+    "doi": "10.1609/aaai.v38i17.29889"
+  },
+  "excerpt": "Knowledge Graph Prompting은 여러 문서의 문단·페이지·표를 그래프로 연결하고, LLM 기반 traversal agent가 이미 찾은 근거를 바탕으로 다음 노드를 선택하도록 해 multi-document QA의 검색 문맥을 구성한다.",
+  "changes": [
+    "Preserved paper-focused methods, experiments, limits, figures, and APA references.",
+    "Preserved five source figures and removed review-purpose caption language."
+  ],
+  "uncertainties": [
+    "Graph construction and traversal quality vary with the document representation and retrieval budget."
+  ],
+  "figure_preservation": {
+    "expected": 5,
+    "preserved": 5,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/knowledge-graph-prompting-multi-document-qa",
+  "verified_content_sha256": "2f5b13654ee491099d92b658114cfe3675fda6599f755179a3bd3078725361fc"
+}

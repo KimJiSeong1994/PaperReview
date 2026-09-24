@@ -1,0 +1,115 @@
+{
+  "audit_date": "2026-09-15",
+  "scope": "Independent factual verification of revised.md against each primary paper/source bundle, the article evidence ledger where present, and original.md. No article text was edited in this pass.",
+  "result": "revise",
+  "articles": [
+    {
+      "slug": "causal-foundation-models",
+      "verdict": "revise",
+      "checked_numbers_claims": [
+        "Added boundary correctly keeps the RealCause-Lalonde result to the two semi-synthetic cohorts and does not turn conditional-ignorability construction into hidden-confounding robustness.",
+        "CausalPFN 18.4 s CPU median CATE runtime and the Table 3 CATE/ATE ranking caveat agree with the article evidence table.",
+        "The new claim that speed excludes CFM pretraining and cannot establish calibration/off-prior performance is accurately labeled as a scope boundary."
+      ],
+      "findings": [
+        {
+          "severity": "minor",
+          "source_anchor": "https://arxiv.org/html/2609.03003v1#S2.SS2",
+          "checked_claim": "The new CausalPFN walkthrough says the model returns a posterior over each treatment's conditional mean and then forms CATE from posterior means.",
+          "finding": "This is consistent with CausalPFN's CEPO-PPD target, but the walkthrough uses the abbreviation CEPO before the article defines it in §2.2.",
+          "required_revision": "At first use in the walkthrough, write '조건부 기대 잠재결과(CEPO)' or replace the phrase with '처치 t 아래의 조건부 평균 잠재결과'. Keep the posterior-mean-to-CATE explanation, which is source-faithful."
+        }
+      ]
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "Added three-layer framing preserves that v3, not the ACM version of record, is the primary technical source.",
+        "The claim that token matching does not isolate a pure graph effect is a direct consequence of the paper's differing representation, construction, context, and generator conditions.",
+        "The article's cited v3 values remain consistent: 8B MultiHop Integration 68.19 versus Local 69.01, and token-matched RAG 69.33 versus Local 69.01 with Temporal 36.71 versus 50.60."
+      ],
+      "findings": [],
+      "walkthrough_recheck": {
+        "verdict": "pass",
+        "checked": [
+          "Table 31 retrieved-token counts: RAG 3,631 and Community Local 9,770.",
+          "Tables 32–33: 8B overall RAG 67.02, token-matched RAG 69.33, Local 69.01; Temporal token-matched RAG 36.71 versus Local 50.60."
+        ],
+        "source_anchor": "https://arxiv.org/pdf/2502.11371v3#page=20"
+      }
+    },
+    {
+      "slug": "codenib",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "Added boundary correctly scopes 8.67× graph and 25.44× vector update medians to rebuild-matching transitions (15/33 and 28/31).",
+        "The distinction between static/live navigation compatibility and a full LSP replacement remains faithful to the reported 632/1,000 normalized location matches.",
+        "The new view-skew statement is correctly marked as direct inference from independently maintained views rather than a measured end-to-end failure."
+      ],
+      "findings": [],
+      "walkthrough_recheck": {
+        "verdict": "pass",
+        "checked": [
+          "Eager injects top-L2 context blocks up front.",
+          "Compact receives the same initial context and compresses history after its first successful read.",
+          "The walkthrough correctly treats Q5 token changes as a combined delivery-and-history-policy result."
+        ],
+        "source_anchor": "https://arxiv.org/html/2607.25431v1#S7.SS4"
+      }
+    },
+    {
+      "slug": "rsi-roadmap",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "The HCI translation is faithful: H=100×(score−entry-year frontier)/(100−entry-year frontier). The added 60→80=50 and 20→80=75 examples are correct illustrative arithmetic, explicitly not paper measurements.",
+        "The first-party translation is faithful to the source: first-party values receive an additional 0.75 factor; it does not say all primary sources do.",
+        "The added B0–L5 worked loop follows the stated boundaries: B0 has no persistent cross-task system state; L5 requires a revised improvement mechanism to govern later rounds.",
+        "The revised wording on HCI rounding discrepancies correctly leaves the cause unresolved without unrounded observations.",
+        "The added main APA entry identifies the v1 paper without introducing a venue claim."
+      ],
+      "findings": []
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "The revision correctly treats §4.1's 2,000-turn-per-domain holdout as the stated basis for the 96.7% fidelity result, while retaining that §2.3's 'every real execution turn' wording omits the split detail.",
+        "Replacing 'a single forward pass' with a bounded feedback-path explanation is faithful: the paper says the prediction is a single forward pass, but does not report a fixed cost or an acceleration multiplier.",
+        "The new ICWM data-flow explanation correctly separates trajectory/fidelity evidence from an unreported ablation of ICWM-generated data's downstream contribution.",
+        "The G-call/G-exe discussion is now properly conditional: Table 5 reports 15.2% and 100.0%; the paper source does not specify a denominator that permits asserting G-exe is definitely conditional on successful calls.",
+        "360M→540M is correctly described as a 1.5× increase, not a doubling."
+      ],
+      "findings": []
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "Added Algorithm 4 reading is exact: it scores remaining candidates, chooses argmax, and breaks when that candidate exceeds the token budget; it does not try a shorter alternative after that break.",
+        "The new joint execution/learning reconstruction is consistent with the Architect→Navigator→Curator workflow and delayed task reward described by Algorithms 1–3.",
+        "The article retains the paper's distinct cost dimensions rather than converting feasibility or token control into an answer-quality guarantee."
+      ],
+      "findings": []
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "verdict": "pass",
+      "checked_numbers_claims": [
+        "The added worked example applies the paper's strict g(q)>0.5 rule correctly: 4/8 fails while 5/8 passes; existential encoding and universal knowledge are kept distinct.",
+        "The PARTIALLY/OTHER warning is faithful: question grade uses only CORRECT and INCORRECT, and the Selected strategy does not treat every single non-gradable question as an automatic fact-level exclusion.",
+        "The Knows(+Think) clarification is correct. It is not the simple sum of the three profile columns: the source separately states that Knows is the sum of Direct Recall, Recall with Thinking, and Inference without Encoding, while Table 2 reports a distinct Knows(+Think) column. For example, Selected Gemini-3-Pro is 98.1 Knows(+Think) versus 72.2+14.9+0.3≈87.4 profile sum."
+      ],
+      "findings": []
+    }
+  ],
+  "source_anchors": {
+    "causal-foundation-models": "https://arxiv.org/html/2609.03003v1#S4.T3",
+    "rag-vs-graphrag-systematic-evaluation": "https://arxiv.org/pdf/2502.11371v3",
+    "codenib": "https://arxiv.org/html/2607.25431v1#S9",
+    "rsi-roadmap": "https://arxiv.org/pdf/2609.11873v1#page=8",
+    "incoder-32b-thinking": "https://arxiv.org/pdf/2604.03144v1#page=10",
+    "clause-budget-aware-kg-reasoning": "https://proceedings.iclr.cc/paper_files/paper/2026/file/8598c5d05e1d045919962e430b0bdf0d-Paper-Conference.pdf#page=20",
+    "wikiprofile-empty-shelves-lost-keys": "docs/reviews/recent-paper-audit-2026-09-15/articles/wikiprofile-empty-shelves-lost-keys/source.txt:180-285,1640-1675,1899-1945"
+  }
+}

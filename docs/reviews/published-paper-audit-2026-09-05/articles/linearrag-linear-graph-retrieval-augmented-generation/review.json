@@ -1,0 +1,42 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2510.10114 (§§2–4; Eqs. 1–5 and tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2510.10114",
+    "https://arxiv.org/html/2510.10114"
+  ],
+  "paper_metadata": {
+    "title": "LinearRAG: Linear Graph Retrieval Augmented Generation on Large-scale Corpora",
+    "authors": [
+      "Luyao Zhuang",
+      "Shengyuan Chen",
+      "Yilin Xiao",
+      "Huachi Zhou",
+      "Yujing Zhang",
+      "Hao Chen",
+      "Qinggang Zhang",
+      "Xiao Huang"
+    ],
+    "year": 2025,
+    "primary_url": "https://arxiv.org/abs/2510.10114",
+    "arxiv_id": "2510.10114v4"
+  },
+  "excerpt": "LinearRAG는 관계 삼중항을 추출하지 않고 엔티티·문장·문단으로 된 Tri-Graph를 만든 뒤, 의미적 bridging과 전역 중요도 집계를 통해 multi-hop 문맥을 찾는 GraphRAG 방법이다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Neutralized review-guide labels; preserved verified v4 method/results."
+  ],
+  "uncertainties": [
+    "Linear scalability is a claim for the specified sparse graph construction and evaluated datasets."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/linearrag-linear-graph-retrieval-augmented-generation",
+  "verified_content_sha256": "427cacc7acc9e55319e17c58382df35ce4c4e7e0e6a1c6e29ed368dc128987c0"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed repo/application audit and unobserved stale-target speculation."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 27482,
+  "after_chars": 26654
+}

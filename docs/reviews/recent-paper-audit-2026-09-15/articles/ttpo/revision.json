@@ -1,0 +1,31 @@
+{
+  "slug": "ttpo",
+  "excerpt": "TTPO는 다수결로 얻은 유사라벨과 일치하는 답변의 생성 과정에는 자기증류를, 불일치하는 과정에는 선택적 벌점을 적용한다. 정답 라벨 없이 수학 추론 성능을 높였지만, 틀린 다수결이 정답에 벌점을 주는 위험은 남는다.",
+  "changes": [
+    {
+      "location": "§3.3",
+      "change": "다수 답 A와 소수 답 B/C를 둔 vote-group 예시를 추가해, 양성 OPSD와 음성 GRPO가 무엇을 조건으로 쓰고 유사라벨이 틀릴 때 어떤 false penalty가 남는지 설명했다.",
+      "evidence": "https://arxiv.org/pdf/2608.27448v1#page=4"
+    },
+    {
+      "location": "기존 심층 분석 유지",
+      "change": "Table 2의 1.7B TTRL 마진을 논문 본문의 +5.4가 아니라 표의 45.2−40.2=+5.0으로 유지하고 source arithmetic discrepancy로 기록했다.",
+      "evidence": "https://arxiv.org/pdf/2608.27448v1#page=7"
+    },
+    {
+      "location": "§§2–3, 9",
+      "change": "Figure 1 비율 모순, prompt-only 교사 서술과 Appendix A LoRA 설정의 충돌, TTT 동률과 checkpoint-maximum 경계를 보존·근거화했다.",
+      "evidence": "https://arxiv.org/pdf/2608.27448v1"
+    }
+  ],
+  "uncertainties": [
+    "Figure 1(a)의 21%/79%와 shared-axis line plot은 거짓 벌점 비율을 21% 또는 약 9%로 다르게 읽게 하며 v1이 조정하지 않는다.",
+    "v1은 benchmark item count, seed repetition, dispersion, CI/significance test 및 plotted uncertainty-band 정의를 제공하지 않는다.",
+    "모델을 새로 학습하거나 benchmark를 재현하지 않았다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2608.27448v1",
+    "https://arxiv.org/pdf/2608.27448v1",
+    "https://github.com/ZJU-REAL/TTPO"
+  ]
+}

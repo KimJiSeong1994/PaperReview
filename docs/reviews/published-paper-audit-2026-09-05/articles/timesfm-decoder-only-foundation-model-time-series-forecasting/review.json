@@ -1,0 +1,40 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "A Decoder-Only Foundation Model for Time-Series Forecasting",
+    "authors": [
+      "Abhimanyu Das",
+      "Weihao Kong",
+      "Rajat Sen",
+      "Yichen Zhou"
+    ],
+    "year": 2024,
+    "primary_url": "https://proceedings.mlr.press/v235/das24c.html",
+    "arxiv_id": "2310.10688v4"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://proceedings.mlr.press/v235/das24c.html",
+    "https://arxiv.org/abs/2310.10688",
+    "https://raw.githubusercontent.com/mlresearch/v235/main/assets/das24c/das24c.pdf"
+  ],
+  "excerpt": "비중첩 시계열 패치와 decoder-only Transformer로 다양한 문맥 길이와 예측 지평을 처리하며, 새로운 데이터셋에서 zero-shot 예측을 시도한 TimesFM을 설명한다.",
+  "changes": [
+    "실제 논문명 H1 추가",
+    "본문·그림·APA References 보존",
+    "Removed deployment/fairness checklists and author-process abstract text."
+  ],
+  "uncertainties": [
+    "source-candidate PDF가 TimesFM과 불일치해 PMLR/arXiv primary source로 확인했다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "fulltext_verification": "Full text verified: data total381.36B Table1;200M patches32/128 Table6;Monash.6846 Table4;Darts.6829/.5767 Table3.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/timesfm-decoder-only-foundation-model-time-series-forecasting",
+  "verified_content_sha256": "5711a1da3dff3a0d63468712e68e159a25aaf089302f28327ba213cb860445c5"
+}

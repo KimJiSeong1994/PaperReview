@@ -1,0 +1,47 @@
+{
+  "title": "CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG",
+  "pdf_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-2506.05690.pdf",
+      "score": 0.625,
+      "pages": 34,
+      "opening": "Published as a conference paper at ICLR 2026\nWHEN TO USE GRAPHS IN RAG: A COMPREHENSIVE\nANALYSIS FOR GRAPH RETRIEVAL-AUGMENTED GEN-\nERATION\nZhishang Xiang1∗, Chuanjie Wu1∗, Qinggang Zhang2†, Shengyuan Chen2, Zijin Hong2\nXiao Huang2, Jinsong Su1†\n1Xiamen University\n2The Hong Kong Polytechnic University\nxiangzhishang@stu.xmu.edu.cn; wuchuanjie@stu.xmu.edu.cn;\nqinggangg.zhang@connect.polyu.hk; zijin.hong@connect.polyu.hk;\n{sheng-yuan.chen, xiao.huang}@polyu.edu.hk; jssu@xmu.edu.cn\nABSTRACT\nGraph retrieval-augmented generation (GraphRAG) has emerged as a powerful\nparadigm for enhancing large language models (LLMs) with external knowledge.\nIt leverages graphs to model the hierarchical structure between specific concepts,\nenabling more coherent and effective knowledge retrieval for accurate reasoning.\nDespite its conceptual promise, recent studies report that GraphRAG frequently un-\nderperforms vanilla RAG on many real-world tasks. This raises a critical question:\nIs GraphRAG really effective, and in which scenarios do graph structures provide\nmeasurable benefits for RAG systems? To address this, we propose GraphRAG-\nBench, a comprehensive benchmark designed to evaluate GraphRAG models on\nboth hierarchical knowledge retrieval and deep contextual reasoning. GraphRAG-\nBench features a comprehensive dataset with tasks of increasing difficulty, covering\nfact retrieval, complex reasoning, contextual summarize, and creative generation,\nand a systematic evaluation across the entire pipeline, from graph construction\nand knowledge retrieval to final generation. Leveraging this novel benchmark, we\nsystematically investigate the conditions when GraphRAG surpasses traditional\nRAG and the underlying reasons for its success, offering guidelines for its practical\napplication. All related re"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2506.05690.pdf",
+      "score": 0.625,
+      "pages": 34,
+      "opening": "Published as a conference paper at ICLR 2026\nWHEN TO USE GRAPHS IN RAG: A COMPREHENSIVE\nANALYSIS FOR GRAPH RETRIEVAL-AUGMENTED GEN-\nERATION\nZhishang Xiang1∗, Chuanjie Wu1∗, Qinggang Zhang2†, Shengyuan Chen2, Zijin Hong2\nXiao Huang2, Jinsong Su1†\n1Xiamen University\n2The Hong Kong Polytechnic University\nxiangzhishang@stu.xmu.edu.cn; wuchuanjie@stu.xmu.edu.cn;\nqinggangg.zhang@connect.polyu.hk; zijin.hong@connect.polyu.hk;\n{sheng-yuan.chen, xiao.huang}@polyu.edu.hk; jssu@xmu.edu.cn\nABSTRACT\nGraph retrieval-augmented generation (GraphRAG) has emerged as a powerful\nparadigm for enhancing large language models (LLMs) with external knowledge.\nIt leverages graphs to model the hierarchical structure between specific concepts,\nenabling more coherent and effective knowledge retrieval for accurate reasoning.\nDespite its conceptual promise, recent studies report that GraphRAG frequently un-\nderperforms vanilla RAG on many real-world tasks. This raises a critical question:\nIs GraphRAG really effective, and in which scenarios do graph structures provide\nmeasurable benefits for RAG systems? To address this, we propose GraphRAG-\nBench, a comprehensive benchmark designed to evaluate GraphRAG models on\nboth hierarchical knowledge retrieval and deep contextual reasoning. GraphRAG-\nBench features a comprehensive dataset with tasks of increasing difficulty, covering\nfact retrieval, complex reasoning, contextual summarize, and creative generation,\nand a systematic evaluation across the entire pipeline, from graph construction\nand knowledge retrieval to final generation. Leveraging this novel benchmark, we\nsystematically investigate the conditions when GraphRAG surpasses traditional\nRAG and the underlying reasons for its success, offering guidelines for its practical\napplication. All related re"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2501.00309.pdf",
+      "score": 0.625,
+      "pages": 88,
+      "opening": "Retrieval-Augmented Generation with Graphs\n(GraphRAG)\nHaoyu Han1∗, Yu Wang2∗, Harry Shomer1, Kai Guo1, Jiayuan Ding5, Yongjia Lei2,\nMahantesh Halappanavar3, Ryan A. Rossi4, Subhabrata Mukherjee5, Xianfeng Tang6, Qi He6,\nZhigang Hua7, Bo Long7, Tong Zhao8, Neil Shah8, Amin Javari9, Yinglong Xia7, Jiliang Tang1\n1Michigan State University, 2University of Oregon, 3Pacific Northwest National Laboratory\n4Adobe Research, 5Hippocratic AI, 6Amazon, 7Meta ,8Snap Inc., ,9The Home Depot,\n{hanhaoy1, shomerha, guokai1, tangjili}@msu.edu,\n{yuwang, yongjia}@uoregon.edu, hala@pnnl.gov, ryarossi@gmail.com,\n{jiayuan, subho}@hippocraticai.com, {xianft, qih}@amazon.com,\n{zhua, bolong, yxia}@meta.com, {tong, nshah}@snap.com, amin_javari@homedepot.com\nAbstract\nRetrieval-augmented generation (RAG) is a powerful technique that enhances down-\nstream task execution by retrieving additional information, such as knowledge,\nskills, and tools from external sources. Graph, by its intrinsic \"nodes connected by\nedges\" nature, encodes massive heterogeneous and relational information, making\nit a golden resource for RAG in tremendous real-world applications. As a result,\nwe have recently witnessed increasing attention on equipping RAG with Graph, i.e.,\nGraphRAG. However, unlike conventional RAG, where the retriever, generator, and\nexternal data sources can be uniformly designed in the neural-embedding space, the\nuniqueness of graph-structured data, such as diverse-formatted and domain-specific\nrelational knowledge, poses unique and significant challenges when designing\nGraphRAG for different domains. Given the broad applicability, the associated\ndesign challenges, and the recent surge in GraphRAG, a systematic and up-to-date\nsurvey of its key concepts and techniques is urgently desired. Following this mo-"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/30 Graph Representation Learning/papers/arxiv-2501.00309.pdf",
+      "score": 0.625,
+      "pages": 88,
+      "opening": "Retrieval-Augmented Generation with Graphs\n(GraphRAG)\nHaoyu Han1∗, Yu Wang2∗, Harry Shomer1, Kai Guo1, Jiayuan Ding5, Yongjia Lei2,\nMahantesh Halappanavar3, Ryan A. Rossi4, Subhabrata Mukherjee5, Xianfeng Tang6, Qi He6,\nZhigang Hua7, Bo Long7, Tong Zhao8, Neil Shah8, Amin Javari9, Yinglong Xia7, Jiliang Tang1\n1Michigan State University, 2University of Oregon, 3Pacific Northwest National Laboratory\n4Adobe Research, 5Hippocratic AI, 6Amazon, 7Meta ,8Snap Inc., ,9The Home Depot,\n{hanhaoy1, shomerha, guokai1, tangjili}@msu.edu,\n{yuwang, yongjia}@uoregon.edu, hala@pnnl.gov, ryarossi@gmail.com,\n{jiayuan, subho}@hippocraticai.com, {xianft, qih}@amazon.com,\n{zhua, bolong, yxia}@meta.com, {tong, nshah}@snap.com, amin_javari@homedepot.com\nAbstract\nRetrieval-augmented generation (RAG) is a powerful technique that enhances down-\nstream task execution by retrieving additional information, such as knowledge,\nskills, and tools from external sources. Graph, by its intrinsic \"nodes connected by\nedges\" nature, encodes massive heterogeneous and relational information, making\nit a golden resource for RAG in tremendous real-world applications. As a result,\nwe have recently witnessed increasing attention on equipping RAG with Graph, i.e.,\nGraphRAG. However, unlike conventional RAG, where the retriever, generator, and\nexternal data sources can be uniformly designed in the neural-embedding space, the\nuniqueness of graph-structured data, such as diverse-formatted and domain-specific\nrelational knowledge, poses unique and significant challenges when designing\nGraphRAG for different domains. Given the broad applicability, the associated\ndesign challenges, and the recent surge in GraphRAG, a systematic and up-to-date\nsurvey of its key concepts and techniques is urgently desired. Following this mo-"
+    }
+  ],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hugrag/hugrag-causalrag2-deep-review.md",
+      "score": 0.675,
+      "title": "CausalRAG2(HugRAG) 심층 분석: 계층 사이를 인과 게이트로 잇는 Graph RAG"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/kgp/kgp-deep-review.md",
+      "score": 0.525,
+      "title": "Knowledge Graph Prompting for Multi-Document Question Answering"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/lightrag/lightrag-deep-review.md",
+      "score": 0.4,
+      "title": "LightRAG 심층 분석: 엔티티와 관계를 가볍게 검색하는 Graph RAG"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

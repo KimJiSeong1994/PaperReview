@@ -1,0 +1,40 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2608.27454 (§§1–5 and tables)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2608.27454",
+    "https://arxiv.org/html/2608.27454"
+  ],
+  "paper_metadata": {
+    "title": "WikiSkill: Compiling Agent Experience into Persistent Knowledge for Skill Evolution",
+    "authors": [
+      "Liyan Tang",
+      "Cyrus Rashtchian",
+      "Chun-Sung Ferng",
+      "Andrew Tomkins",
+      "Da-Cheng Juan",
+      "Tu Vu"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2608.27454",
+    "arxiv_id": "2608.27454"
+  },
+  "excerpt": "WikiSkill은 에이전트 실행 경험을 일회성 반성으로 버리지 않고 지속 위키에 축적한 뒤, 이 지식과 실행 가능한 skill을 분리해 회차가 바뀌어도 skill evolution에 활용하는 구조를 제안한다.",
+  "changes": [
+    "Preserved paper-focused explanation, figures, and APA references.",
+    "Corrected authors and removed reviewer workflow; bounded acceptance-rate inference."
+  ],
+  "uncertainties": [
+    "Persistent knowledge quality depends on the experience-compilation and update policy."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+  "verified_content_sha256": "87dd698f85b747c6d6c34bb39864b3a09eaf77d080eea3ff2b6e3d8511a279d3"
+}

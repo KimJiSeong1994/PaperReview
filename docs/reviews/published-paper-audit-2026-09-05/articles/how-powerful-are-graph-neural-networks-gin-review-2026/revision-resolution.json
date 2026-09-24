@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected sufficient versus necessary irrational-epsilon condition."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 27613,
+  "after_chars": 26752
+}

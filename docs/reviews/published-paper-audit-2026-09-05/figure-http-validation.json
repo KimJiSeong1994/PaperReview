@@ -1,0 +1,1220 @@
+[
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/bamler-fig1-drifting-words.png",
+    "id": 0,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/bamler-fig6-predictive-likelihood.png",
+    "id": 1,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/boundary-fig1-claims.png",
+    "id": 2,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/boundary-fig2-guessing.png",
+    "id": 3,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/boundary-tab1-review.png",
+    "id": 4,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/causalrag-fig2-architecture.png",
+    "id": 5,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/causalrag-fig3-main-results.png",
+    "id": 6,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/causalrag-fig4-case-study.png",
+    "id": 7,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/causalrag-fig6-parameter-study.png",
+    "id": 8,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/cic-fig1-three-node-benchmark.png",
+    "id": 9,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/cic-fig3-real-world-networks.png",
+    "id": 10,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/cic-fig4-circadian-network.png",
+    "id": 11,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/cic-fig5-framework.png",
+    "id": 12,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/coevot-fig1-comparison.png",
+    "id": 13,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/coevot-fig2-framework.png",
+    "id": 14,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/coevot-fig6-tsne.png",
+    "id": 15,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/colpali-fig1-overview.png",
+    "id": 16,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/colpali-fig2-indexing.png",
+    "id": 17,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/colpali-fig3-ablation.png",
+    "id": 18,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dbe-fig1-intelligence.png",
+    "id": 19,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dbe-fig2-graphical-model.png",
+    "id": 20,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dbe-fig3-iraq.png",
+    "id": 21,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dcwe-fig2-architecture.png",
+    "id": 22,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dcwe-fig4-social-spread.png",
+    "id": 23,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deep-graphrag-fig1-framework.png",
+    "id": 24,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deep-graphrag-fig2-latency.png",
+    "id": 25,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deep-graphrag-fig3-reward-curves.png",
+    "id": 26,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deepwalk-fig1-karate.png",
+    "id": 27,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deepwalk-fig2-powerlaw.png",
+    "id": 28,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/deepwalk-fig3-overview.png",
+    "id": 29,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dw2v-fig1-trajectories.png",
+    "id": 30,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dw2v-fig2-presidents.png",
+    "id": 31,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/dw2v-fig3-events.png",
+    "id": 32,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ethayarajh-fig1-anisotropy.png",
+    "id": 33,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ethayarajh-fig2-self-similarity.png",
+    "id": 34,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/frm-fig1-overview.png",
+    "id": 35,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/frm-fig3-fpf.png",
+    "id": 36,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/frm-fig5-frontier.png",
+    "id": 37,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/frm-fig6-convergence.png",
+    "id": 38,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gat-fig1-attention.png",
+    "id": 39,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gat-fig2-tsne.png",
+    "id": 40,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gcn-fig1-architecture-tsne.png",
+    "id": 41,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gcn-fig2-training-time.png",
+    "id": 42,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gcn-full-training-flow-paperbanana-v3-white.png",
+    "id": 43,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gin-fig1-wl-framework.png",
+    "id": 44,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gin-fig2-aggregator-ranking.png",
+    "id": 45,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gin-fig3-failure-cases.png",
+    "id": 46,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gin-fig4-training-accuracy.png",
+    "id": 47,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/giulianelli-fig1-usage-types-atom.png",
+    "id": 48,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/giulianelli-fig2-change-kinds.png",
+    "id": 49,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig1-overview.png",
+    "id": 50,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig2-computation-mask.png",
+    "id": 51,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig3-synthetic-explanations.png",
+    "id": 52,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig4-realworld-explanations.png",
+    "id": 53,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig5-feature-importance.png",
+    "id": 54,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-fig6-prototype.png",
+    "id": 55,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnexplainer-table1-synthetic-results.png",
+    "id": 56,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnplus-fig1-tasks.png",
+    "id": 57,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gnnplus-fig2-architecture.png",
+    "id": 58,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/goa-fig1-moa-vs-goa.png",
+    "id": 59,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/goa-fig2-pipeline.png",
+    "id": 60,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gqml-graphs-fig1-toolbox.png",
+    "id": 61,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gqml-graphs-fig2-symmetric-group-action.png",
+    "id": 62,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gqml-graphs-fig3-symmetrization.png",
+    "id": 63,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/gqml-graphs-fig4-pretraining.png",
+    "id": 64,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphrag-fig1-pipeline.png",
+    "id": 65,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphrag-fig2-head-to-head.png",
+    "id": 66,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphrag-fig3-self-reflection.png",
+    "id": 67,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphrag-fig4-communities.png",
+    "id": 68,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphsage-fig1-sample-aggregate-padded.png",
+    "id": 69,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphsage-sample-aggregate-paperbanana-v2.png",
+    "id": 70,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/graphsage-timing-sampling-blog.png",
+    "id": 71,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hamilton-fig1-semantic-change-trajectory.png",
+    "id": 72,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hamilton-fig2-two-laws.png",
+    "id": 73,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/han-fig1-metapath.png",
+    "id": 74,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/han-fig2-architecture.png",
+    "id": 75,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/han-fig3-aggregation.png",
+    "id": 76,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hetgnn-fig1-challenges.png",
+    "id": 77,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hetgnn-fig2-architecture.png",
+    "id": 78,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hgnn-fig2-graph-vs-hypergraph.png",
+    "id": 79,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hgnn-fig3-framework.png",
+    "id": 80,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hgnn-fig4-hyperedge-conv.png",
+    "id": 81,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hipporag-fig1-knowledge-integration.png",
+    "id": 82,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hipporag-fig2-methodology.png",
+    "id": 83,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hipporag-fig4-indexing-subgraph.png",
+    "id": 84,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hipporag-fig5-ppr-retrieval.png",
+    "id": 85,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hugrag-fig1-comparison.png",
+    "id": 86,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hugrag-fig2-pipeline.png",
+    "id": 87,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hugrag-fig3-ablation.png",
+    "id": 88,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hugrag-fig4-scalability.png",
+    "id": 89,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/hugrag-table3-holisqa.png",
+    "id": 90,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/iba-fig2-ig.png",
+    "id": 91,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/iba-fig3-overview.png",
+    "id": 92,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/iba-fig7-hit5.png",
+    "id": 93,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig1-framework.png",
+    "id": 94,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig2-32-structures.png",
+    "id": 95,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig3-eight-species-henon.png",
+    "id": 96,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig4-knockout-validation.png",
+    "id": 97,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig5-time-varying.png",
+    "id": 98,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig6-real-world-networks.png",
+    "id": 99,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ic2-fig7-cortical-perturbation.png",
+    "id": 100,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/is-attention-interpretable-fig1-erasure-method.png",
+    "id": 101,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/is-attention-interpretable-fig3-deltajs-scatter.png",
+    "id": 102,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/is-attention-interpretable-fig5-fraction-removed.png",
+    "id": 103,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kgp-fig2-question-types.png",
+    "id": 104,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kgp-fig3-kg-construction.png",
+    "id": 105,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kgp-fig4-traversal-agent.png",
+    "id": 106,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kgp-fig5-kg-quality.png",
+    "id": 107,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kgp-fig7-sensitivity-scale.png",
+    "id": 108,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kulkarni-fig1-semantic-space.png",
+    "id": 109,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/kulkarni-fig6-change-point.png",
+    "id": 110,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/leanrag-fig1-comparison.png",
+    "id": 111,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/leanrag-fig2-framework.png",
+    "id": 112,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/leanrag-fig3-retrieval-tokens.png",
+    "id": 113,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/leanrag-table1-scores.png",
+    "id": 114,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lgc-acf-fig1-toy-example.png",
+    "id": 115,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lgc-acf-fig2-architecture.png",
+    "id": 116,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightgcn-fig1-ngcf-ablation.png",
+    "id": 117,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightgcn-fig2-architecture.png",
+    "id": 118,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightrag-fig1-architecture.png",
+    "id": 119,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightrag-fig2-cost.png",
+    "id": 120,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightrag-fig3-retrieval-example.png",
+    "id": 121,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/lightrag-table1-win-rates.png",
+    "id": 122,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/linearrag-fig1-three-paradigms.png",
+    "id": 123,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/linearrag-fig2-graphrag-degradation.png",
+    "id": 124,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/linearrag-fig3-pipeline.png",
+    "id": 125,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/linearrag-fig4-ablation.png",
+    "id": 126,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/loongreflect-fig1-motivation.png",
+    "id": 127,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/loongreflect-fig2-framework.png",
+    "id": 128,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/montanelli-fig1-workflow.png",
+    "id": 129,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/montanelli-fig2-cluster-composition.png",
+    "id": 130,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/mragent-fig2-passive-vs-active.png",
+    "id": 131,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/mragent-fig4-framework.png",
+    "id": 132,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/mragent-fig5-ablation.png",
+    "id": 133,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/mragent-fig6-multiturn.png",
+    "id": 134,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/mragent-fig9-depth-vs-budget.png",
+    "id": 135,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/neurogravity-fig2-architecture.png",
+    "id": 136,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/neurogravity-fig3-reconstruction.png",
+    "id": 137,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/neurogravity-fig4-embeddings.png",
+    "id": 138,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/neurogravity-fig5-transfer.png",
+    "id": 139,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-fig1-memory-dimensions.png",
+    "id": 140,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-fig2-methodology.png",
+    "id": 141,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-fig3-corpus-expansion.png",
+    "id": 142,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-fig5-pipeline-example.png",
+    "id": 143,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-figure1-dwug-eintagsfliege.png",
+    "id": 144,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-figure2-layer-combinations-en-la-de-sv-es.png",
+    "id": 145,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/paper-figure3-layer-combinations-ru-no-zh.png",
+    "id": 146,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/papg-fig1-distributions.png",
+    "id": 147,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/papg-fig2-framework.png",
+    "id": 148,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/papg-fig3-scatter.png",
+    "id": 149,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pcm-fig1-direct-vs-indirect.png",
+    "id": 150,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pcm-fig2-pcm-principle.png",
+    "id": 151,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pcm-fig3-benchmark-comparison.png",
+    "id": 152,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pcm-fig4-real-world-networks.png",
+    "id": 153,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig1-pipeline.jpg",
+    "id": 154,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig12-regimes.jpg",
+    "id": 155,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig5-dual-graph.jpg",
+    "id": 156,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig6-architecture.jpg",
+    "id": 157,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig7-prior-calibration.jpg",
+    "id": 158,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig8-physics-loss.jpg",
+    "id": 159,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/pig-gnn-fig9-performance.jpg",
+    "id": 160,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ppe-fig1-workflow.png",
+    "id": 161,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ppe-fig2-ebola-5fold.png",
+    "id": 162,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ppe-fig3-nigeria-foodsec.png",
+    "id": 163,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ragu-fig1-language-world-hypothesis.png",
+    "id": 164,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ragu-fig2-pipeline.png",
+    "id": 165,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/ragu-fig3-crossover.png",
+    "id": 166,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/rome-fig1-causal-trace.png",
+    "id": 167,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/rome-fig2-aie-two-sites.png",
+    "id": 168,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/rome-fig3-mlp-attention-severed.png",
+    "id": 169,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sdne-fig1-proximity-counts.png",
+    "id": 170,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sdne-fig2-framework.png",
+    "id": 171,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sdne-fig3-reconstruction-precision.png",
+    "id": 172,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/seed-pipeline.png",
+    "id": 173,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/seed-results.png",
+    "id": 174,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sgh-fig1-bugfix-dag.png",
+    "id": 175,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sgh-fig2-scheduler-continuum.png",
+    "id": 176,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sgh-fig3-three-layer.png",
+    "id": 177,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/sgh-fig4-node-state-machine.png",
+    "id": 178,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillopt-fig1-overview.png",
+    "id": 179,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillopt-fig2-pipeline.png",
+    "id": 180,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillopt-fig3-epoch-trends.png",
+    "id": 181,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillsmith-fig1-pipeline-architecture.png",
+    "id": 182,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillsmith-fig3-csni-elo.png",
+    "id": 183,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillsmith-fig5-mmluprox-elo.png",
+    "id": 184,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/skillsmith-fig7-generalization-splits.png",
+    "id": 185,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/structural-probe-fig2-min-spanning-trees.png",
+    "id": 186,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/structural-probe-fig5-rank.png",
+    "id": 187,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/structural-probe-tab1-results.png",
+    "id": 188,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tahmasebi-fig1-replacement-types.png",
+    "id": 189,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tgnn-infoflow-fig1-overview.png",
+    "id": 190,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tgnn-infoflow-fig11-attacker.png",
+    "id": 191,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tgnn-infoflow-fig4-etgnn.png",
+    "id": 192,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tgnn-infoflow-fig6-er-definitions.png",
+    "id": 193,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/tgnn-infoflow-fig8-infection.png",
+    "id": 194,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/timesfm-fig1-arch.png",
+    "id": 195,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/timesfm-fig2-results.png",
+    "id": 196,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/timesfm-fig3-ablation.png",
+    "id": 197,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/twec-fig1-compass.png",
+    "id": 198,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/twec-fig3-accuracy-over-time.png",
+    "id": 199,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/wikiskill-fig1-overview.png",
+    "id": 200,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/wikiskill-fig2-framework.png",
+    "id": 201,
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "url": "https://jiphyeonjeon.kr/api/blog/figures/wikiskill-fig3-case.png",
+    "id": 202,
+    "exit_code": 0,
+    "output": ""
+  }
+]

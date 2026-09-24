@@ -1,0 +1,86 @@
+{
+  "review_date": "2026-09-15",
+  "scope": "Independent Korean editorial review of candidates.json against article body and existing post excerpts. No candidate or post was edited.",
+  "card_constraints": {
+    "target_characters": "approximately 110-150 Korean characters",
+    "preferred_shape": "two sentences: distinct contribution first, then evidence boundary or reader-relevant caveat",
+    "register": "plain technical Korean for engineering readers"
+  },
+  "reviews": [
+    {
+      "slug": "rsi-roadmap",
+      "verdict": "pass",
+      "candidate_characters": 120,
+      "editorial_assessment": "다섯 수준이라는 서베이의 고유한 분석 단위를 첫 문장에서 제시하고, 자율성과 성능을 구분하는 핵심 경계를 둘째 문장에 남긴다.",
+      "concrete_suggestion": "현재 문구 유지. '세대를 거친 개선 능력'은 L5의 계승 개념을 독자가 이해할 수 있는 수준으로 압축한다."
+    },
+    {
+      "slug": "ttpo",
+      "verdict": "revise",
+      "candidate_characters": 114,
+      "editorial_assessment": "길이와 두 문장 구조는 적절하지만 '다른 답변'은 rollout 단위의 분기라는 핵심을 흐리고, 다수결 유사라벨이라는 방법의 입력을 이름으로 밝히지 않는다.",
+      "concrete_suggestion": "권장 문구(123자): TTPO는 정답 라벨 없이 다수결 유사라벨과 일치한 롤아웃에는 자기증류를, 불일치한 롤아웃에는 선택적 GRPO 벌점을 적용해 수학 추론 모델을 갱신한다. 성능은 개선됐지만 유사라벨이 틀리면 정답 롤아웃에도 벌점이 남는다."
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "verdict": "pass",
+      "candidate_characters": 129,
+      "editorial_assessment": "ECoT의 실제 실행 피드백과 ICWM의 예측 역할을 첫 문장에 압축했고, 둘째 문장이 코드 추론과 산업 지표를 구분해 과장을 막는다.",
+      "concrete_suggestion": "현재 문구 유지. '같은 계열의 비사고 모델'이라는 비교 기준도 본문의 해석과 일치한다."
+    },
+    {
+      "slug": "codenib",
+      "verdict": "pass",
+      "candidate_characters": 131,
+      "editorial_assessment": "커밋별 세 뷰라는 시스템 기여가 즉시 보이고, 속도 수치가 품질 조건을 통과한 부분집합에 한정된다는 가장 중요한 해석 경계를 둘째 문장에 둔다.",
+      "concrete_suggestion": "현재 문구 유지. '문자열·의미·코드 구조'는 lexical·dense·structural을 카드 독자에게 자연스럽게 풀어쓴다."
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "verdict": "revise",
+      "candidate_characters": 126,
+      "editorial_assessment": "기여와 토큰 통제의 핵심은 정확하지만, 둘째 문장이 길고 '입력 토큰량을 맞추면' 뒤의 인과 관계가 카드에서 한 번에 읽히지 않는다.",
+      "concrete_suggestion": "권장 문구(110자): RAG와 여러 GraphRAG를 질의응답·요약에서 비교한 연구다. 우열은 질문 유형과 근거 표현에 따라 달라지며, 입력 토큰량을 맞추면 일부 차이가 줄어 구조와 맥락 길이의 효과를 함께 봐야 한다."
+    },
+    {
+      "slug": "procedural-graphs",
+      "verdict": "pass",
+      "candidate_characters": 146,
+      "editorial_assessment": "그래프 저장·행동 안내·검증된 수정이라는 세 동작을 첫 문장에 묶고, soft guidance와 validation gate의 비보장성을 둘째 문장에 분명히 둔다.",
+      "concrete_suggestion": "현재 문구 유지. 상한에 가깝지만 카드 두 줄 범위 안이며, 결과와 해석 경계의 균형이 좋다."
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "verdict": "revise",
+      "candidate_characters": 135,
+      "editorial_assessment": "세 memory bank와 training-free 전달을 잘 제시하지만, '같은 과제의 교사 경험을 쓸 수 있는지'는 평가 protocol이라는 점이 덜 선명하다.",
+      "concrete_suggestion": "권장 문구(128자): AMD는 교사의 성공 경험을 전체 계획·하위 과제·함수 호출 메모리로 나눠, 작은 에이전트가 가중치 갱신 없이 활용하게 한다. 세 도구 사용 벤치마크에서 성능이 개선됐으며, 같은 과제 유래 메모리 접근 여부가 평가 해석을 바꾼다."
+    },
+    {
+      "slug": "causal-foundation-models",
+      "verdict": "pass",
+      "candidate_characters": 131,
+      "editorial_assessment": "사전학습된 CFM의 핵심과 세 모델 비교라는 논문 성격을 먼저 전달하며, 식별 가정과 prior 적합성이라는 인과추론의 필수 경계를 정확히 유지한다.",
+      "concrete_suggestion": "현재 문구 유지. '과제별 학습 부담'은 가중치 재학습을 줄인다는 뜻으로 충분히 자연스럽고, 무가정 추정으로 읽히지 않는다."
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "verdict": "pass",
+      "candidate_characters": 132,
+      "editorial_assessment": "문맥 복원·정역방향 회상·재인의 세 측정 축이 첫 문장에 들어가고, 강한 모델에서도 남는 recall bottleneck과 thinking의 제한적 회복을 둘째 문장에 정확히 담는다.",
+      "concrete_suggestion": "현재 문구 유지. '추가 추론'은 thinking을 과도한 용어 없이 설명하면서도 모든 실패를 해결한다는 인상을 피한다."
+    },
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "verdict": "pass",
+      "candidate_characters": 136,
+      "editorial_assessment": "세 정책의 공동 학습이라는 기여와 정확도·자원 비용의 이중 목표를 먼저 제시하고, learned constraint가 개별 질의의 hard guarantee가 아니라는 경계를 정확히 둔다.",
+      "concrete_suggestion": "현재 문구 유지. '일부 효율 지표'는 논문이 보고한 서로 다른 비용 축을 하나의 보편적 속도 주장으로 축소하지 않는다."
+    }
+  ],
+  "summary": {
+    "pass": 7,
+    "revise": 3,
+    "notes": "모든 후보가 110-150자 범위이며 두 문장으로 구성됐다. 수정 권고는 정확성보다 카드 독해성과 평가-protocol의 선명도를 높이는 편집 보완이다."
+  }
+}

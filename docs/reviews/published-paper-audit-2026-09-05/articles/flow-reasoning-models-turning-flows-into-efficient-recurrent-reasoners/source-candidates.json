@@ -1,0 +1,22 @@
+{
+  "title": "Flow Reasoning Models: Turning Flows Into Efficient Recurrent Reasoners",
+  "pdf_candidates": [],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/frm/frm-deep-review.md",
+      "score": 1.3,
+      "title": "Flow Reasoning Models: Turning Flows Into Efficient Recurrent Reasoners"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/colpali/colpali-deep-review.md",
+      "score": 0.289,
+      "title": "페이지를 그림으로 검색하기: \"ColPali: Efficient Document Retrieval with Vision Language Models\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/wikiskill/wikiskill-deep-review.md",
+      "score": 0.144,
+      "title": "스킬과 위키를 같이 키우기: \"WikiSkill: Compiling Agent Experience into Persistent Knowledge for Skill Evolution\" 논문 해설"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected full authors and RAG reference URL; removed repository evolution audit."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 16574,
+  "after_chars": 16371
+}

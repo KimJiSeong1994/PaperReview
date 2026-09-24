@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Dynamic Embeddings for Language Evolution",
+    "authors": [
+      "Maja Rudolph",
+      "David Blei"
+    ],
+    "year": 2018,
+    "primary_url": "https://doi.org/10.1145/3178876.3185999",
+    "doi": "10.1145/3178876.3185999",
+    "arxiv_id": "1703.08052"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/direct-23e652635f9c-RudolphBlei2018.pdf"
+  ],
+  "source_urls": [
+    "https://doi.org/10.1145/3178876.3185999",
+    "https://arxiv.org/abs/1703.08052"
+  ],
+  "excerpt": "Bernoulli 임베딩의 단어 벡터를 시간별 잠재변수로 두고 Gaussian random walk로 묶어, 시점 간 정렬을 모델 안에서 처리하는 동적 임베딩 방법을 설명한다.",
+  "changes": [
+    "제목을 출판 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Removed later-literature/wiki/Korean application program; retained sparse-data prior caveat."
+  ],
+  "uncertainties": [
+    "held-out pseudo-likelihood는 의미 변화 탐지 정확도와 직접 동치가 아니다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/dynamic-bernoulli-embeddings-language-evolution-review-2026",
+  "verified_content_sha256": "be7f651018067cc4ec42917a6d16c107337392937f19b89da29c295052b72d6c"
+}

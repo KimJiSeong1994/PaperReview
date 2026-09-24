@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Statistically Significant Detection of Linguistic Change",
+    "authors": [
+      "Vivek Kulkarni",
+      "Rami Al-Rfou",
+      "Bryan Perozzi",
+      "Steven Skiena"
+    ],
+    "year": 2015,
+    "primary_url": "https://doi.org/10.1145/2736277.2741627",
+    "doi": "10.1145/2736277.2741627",
+    "arxiv_id": "1411.3315"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://arxiv.org/abs/1411.3315",
+    "https://viveksck.github.io/langchangetrack/data/kulkarni.pdf"
+  ],
+  "excerpt": "빈도·품사·분포 표현에서 만든 단어 시계열에 변화점 검정과 순열 기반 유의성 평가를 결합해 언어 변화의 시점과 신호를 찾는 WWW 2015 방법을 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Removed false variance/std-dev criticism: original Eq.9 divides by sqrt(Var)."
+  ],
+  "uncertainties": [
+    "정확히 일치하는 로컬 PDF 후보가 없어, 공개 저자 PDF와 arXiv를 primary evidence로 사용했다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/statistically-significant-detection-linguistic-change-review-2026",
+  "verified_content_sha256": "736784063cfb5f4395d43ab47bf7b7067729f0383d8243f26c6946ca6fb38d5b"
+}

@@ -1,0 +1,15 @@
+--- rag-vs-graphrag-systematic-evaluation/original.md
++++ rag-vs-graphrag-systematic-evaluation/revised.md
+@@ -94,6 +94,12 @@
+ 
+ 같은 generator를 쓰는 것은 중요한 통제다. 그러나 GraphRAG는 그전에 구축 LLM으로 원문을 추출·요약한다. Generator가 같아도 evidence의 양과 표현, 상위 단계에서 사용한 계산은 다르다. 또한 같은 $k$는 검색 단위의 개수만 맞출 뿐, 같은 토큰이나 같은 정보량을 보장하지 않는다.
+ 
++### `k=10`이 두 시스템에서 다른 일을 하는 예
++
++MultiHop-RAG의 기본 설정에서 RAG의 상위 10개는 3,631 retrieved tokens였지만 Community Local의 상위 10개는 9,770 tokens였다. 전자는 대체로 독립 chunk 10개를 reader에 전달하고, 후자는 entity 주변 관계·설명·community 문맥을 함께 조립한 10개 단위를 전달한다. 그래서 두 결과가 모두 “top-10”이어도 reader가 읽는 근거 길이와 관계 정보의 밀도가 크게 다르다. [공개 v3 Table 31](https://arxiv.org/pdf/2502.11371v3#page=19)
++
++저자들의 token-matched control은 이 차이를 확인하는 좋은 역방향 실험이다. RAG의 chunk 수를 늘려 Local의 token 양에 맞추자 8B MultiHop overall은 67.02에서 69.33으로 올라 Local 69.01과 비슷해졌다. 하지만 Temporal은 36.71로 Local 50.60보다 낮다. 즉 이 control은 전체 점수 차이의 일부가 context 양과 연결됐음을 보이지만, 시간·관계 결합에 필요한 representation까지 같은 것으로 만들지는 않는다. [공개 v3 Tables 2, 32–33](https://arxiv.org/pdf/2502.11371v3#page=20)
++
+ 데이터 단위도 확인해야 한다. 이 공개본은 NQ를 single-document QA로 사용하며 문서마다 별도 RAG 시스템을 구성한다고 설명한다. NovelQA도 한 소설을 대상으로 검색하고, multi-document 과제는 여러 문서를 합친 index를 사용한다. 따라서 결과를 아무 corpus나 대상으로 하는 일반적인 open-domain retrieval 성능으로 확대해서는 안 된다. [공개 v3 Appendix A](https://arxiv.org/pdf/2502.11371v3#page=12)
+ 
+ ## 3. QA 결과: 평균보다 질문 유형을 본다

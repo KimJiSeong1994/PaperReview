@@ -1,0 +1,50 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/10 Research Automation and Agent Infrastructure/papers/arxiv-2605.23904.pdf (27 pp.; §§1, 3–4; Tables 1–3)",
+    "https://arxiv.org/html/2605.23904v2 (§§1, 3–4; Tables 1–3)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2605.23904",
+    "https://arxiv.org/html/2605.23904v2"
+  ],
+  "paper_metadata": {
+    "title": "SkillOpt: Executive Strategy for Self-Evolving Agent Skills",
+    "authors": [
+      "Yifan Yang",
+      "Ziyang Gong",
+      "Weiquan Huang",
+      "Qihao Yang",
+      "Ziwei Zhou",
+      "Zisu Huang",
+      "Yan Li",
+      "Xuemei Gao",
+      "Qi Dai",
+      "Bei Liu",
+      "Kai Qiu",
+      "Yuqing Yang",
+      "Dongdong Chen",
+      "Xue Yang",
+      "Chong Luo"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2605.23904",
+    "arxiv_id": "2605.23904"
+  },
+  "excerpt": "SkillOpt는 동결된 에이전트의 외부 스킬 문서를 rollout 증거와 held-out 선택으로 반복 편집해, 배포 시 추가 호출 없이 과제별 행동 규칙을 개선하는 방법을 제안한다.",
+  "changes": [
+    "Retained paper-focused explanation, equations, results, limitations, references, and all figures.",
+    "Corrected train/selection/test optimization and actual52-cell design; bounded compute-comparison claims."
+  ],
+  "uncertainties": [
+    "Reported 52-cell headline is a paper-reported aggregate; its exact set is defined by the paper's evaluation tables."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+  "verified_content_sha256": "b061b8aa00615ee92e0741ae88e51c2b52dbe1337802caae239549c637dfd6dd"
+}

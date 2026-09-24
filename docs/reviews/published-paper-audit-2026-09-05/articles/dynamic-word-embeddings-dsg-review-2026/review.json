@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Dynamic Word Embeddings",
+    "authors": [
+      "Robert Bamler",
+      "Stephan Mandt"
+    ],
+    "year": 2017,
+    "primary_url": "https://proceedings.mlr.press/v70/bamler17a.html",
+    "arxiv_id": "1702.08359"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-1702.08359.pdf"
+  ],
+  "source_urls": [
+    "https://proceedings.mlr.press/v70/bamler17a.html",
+    "https://proceedings.mlr.press/v70/bamler17a/bamler17a.pdf",
+    "https://arxiv.org/abs/1702.08359"
+  ],
+  "excerpt": "시간별 임베딩을 사후 정렬하는 대신 확산 prior와 공동 변분추론으로 단어·문맥 벡터의 궤적을 학습한 Dynamic Skip-Gram 모델을 설명한다.",
+  "changes": [
+    "제목을 실제 논문명으로 보정",
+    "본문·그림·APA References 보존",
+    "Distinguished shared prior volatility from data-dependent posterior trajectories."
+  ],
+  "uncertainties": [
+    "보고된 예측우도 개선은 의미 변화 정답과 직접 동치가 아니다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/dynamic-word-embeddings-dsg-review-2026",
+  "verified_content_sha256": "d3aa531bbe753a604c40d1a48e08b6aa83c68f1e8014af22042161af30f83b35"
+}

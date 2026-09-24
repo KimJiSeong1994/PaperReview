@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Preserved hyperedge/operator distinction; removed unsupported fixed-weight/noise certainty."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 22902,
+  "after_chars": 22770
+}

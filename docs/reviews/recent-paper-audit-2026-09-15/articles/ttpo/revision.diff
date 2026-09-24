@@ -1,0 +1,15 @@
+--- ttpo/original.md
++++ ttpo/revised.md
+@@ -122,6 +122,12 @@
+ $$
+ \mathcal L_{\mathrm{TTPO}}=\frac{1}{|B|}\left(\sum_{k\in\mathcal P}\mathcal L_{\mathrm{OPSD}}(k)+\lambda\sum_{k\in\mathcal N}\mathcal L_{\mathrm{GRPO}}(k)\right)
+ $$
++
++#### 유사라벨 하나가 두 갈래를 어떻게 나누는가
++
++한 문제에서 다수 답 $A$가 유사라벨이 되었다고 하자. 답이 $A$인 rollout은 $\mathcal P$에 들어가므로, 교사는 바로 그 $A$를 조건으로 한 분포를 주고 학생은 토큰별 forward KL을 받는다. 답이 $B$나 $C$인 rollout은 $\mathcal N$에 들어가며, 이 갈래는 $A$의 내용으로 교사를 만들지 않고 “다수 군집 밖”이라는 reward 신호로 GRPO 벌점을 준다. 토큰 마스킹은 그 벌점을 해당 rollout의 모든 토큰에 똑같이 뿌리지 않도록 한다.
++
++여기서 $A$가 실제 정답이 아니어도 양성 rollout은 자신이 이미 낸 $A$에 조건화된 teacher와 비교되므로, TTPO가 피하려는 것은 **서로 다른 답을 낸 음성 rollout까지 틀린 $A$로 증류하는 일**이다. 하지만 정답 $B$가 소수라면 $B$도 음성 갈래의 벌점을 받는다. 즉 비대칭은 잡음의 영향을 줄이는 routing 규칙이지, 유사라벨 오류를 없애거나 음성 표본을 모두 틀렸다고 판정하는 규칙이 아니다. 이 예시는 논문의 $\mathcal P/\mathcal N$ 정의와 두 손실을 한 vote group에 적용한 설명이다. [논문 §§3.1–3.4, Appendix E.2](https://arxiv.org/pdf/2608.27448v1#page=16)
+ 
+ ## 4. 실험 설계에서 먼저 확인할 것들
+ 

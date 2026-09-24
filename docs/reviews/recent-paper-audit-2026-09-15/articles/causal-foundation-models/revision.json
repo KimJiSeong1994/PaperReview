@@ -1,0 +1,26 @@
+{
+  "slug": "causal-foundation-models",
+  "excerpt": "다양한 인과적 데이터 생성 과정을 미리 학습해 새 관측 데이터에서 처치 효과를 추정하는 CFM을 설명하고 세 모델을 비교한 연구다. 과제별 학습 부담을 줄일 수 있지만, 효과를 식별하는 가정과 사전학습 분포의 적합성은 여전히 필요하다.",
+  "changes": [
+    {
+      "section": "§1",
+      "change": "새 observational context에서 두 CEPO query를 거쳐 CATE를 만드는 CausalPFN 추정 흐름을 추가했다.",
+      "evidence": "Figure 1; §§3.1–3.2"
+    },
+    {
+      "section": "결론",
+      "change": "CausalPFN의 benchmark 성과와 숨은 교란·prior mismatch·calibration에 대한 미검증 범위를 분리했다.",
+      "evidence": "Table 3; §4.1; §5.2.4"
+    }
+  ],
+  "uncertainties": [
+    "v1 preprint만 검토했다.",
+    "직접 추출한 논문 도판의 공개 재사용 권한은 이 감사에서 확인하지 못했다.",
+    "interval calibration과 prior mismatch에 대한 현장 검증은 Table 3의 범위 밖이다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2609.03003v1",
+    "https://arxiv.org/html/2609.03003v1",
+    "https://github.com/layer6ai-labs/cfms/tree/549bcb72ac7ab5820843b889866913afe56c08dd"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected run counts and sum-versus-average display interpretation."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 23451,
+  "after_chars": 22200
+}

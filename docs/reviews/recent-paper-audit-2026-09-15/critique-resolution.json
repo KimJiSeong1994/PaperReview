@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "rsi-roadmap",
+    "issue": "industry source scope",
+    "action": "accepted",
+    "reason": "보고값의 범위를 논문이 서술한 산업 사례로 한정하고 개별 원자료 독립 검증 부재를 명시"
+  },
+  {
+    "slug": "rsi-roadmap",
+    "issue": "affiliation count/disclosure",
+    "action": "softened",
+    "reason": "PDF p1 affiliations 2/5/7/8 and sections5.1/5.4/5.3/5.6 identify Theseus/ModelBest/Humanlaya/Agent-Native (4 of6). Count retained; inference of undisclosed conflict removed"
+  },
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "issue": "hard-cap claim",
+    "action": "rejected",
+    "reason": "Existing §8.2 already explicitly limits observation to pseudocode and states actual enforcement unverified; retains precise Algorithm2 after-edit vs Algorithm4 before-add distinction. No implementation guarantee asserted"
+  },
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "issue": "dual convention",
+    "action": "softened",
+    "reason": "Prefix added linking source definitions; max of affine is convex under displayed definition, so mathematical observation retained. Existing text does not claim implemented update fails"
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "issue": "Knows accounting",
+    "action": "accepted",
+    "reason": "Foregrounded Figure4/13 potential knowledge, AppendixC1 regression note, and Table2 caption including Direct Inference. No numerical differences attributed solely to regression"
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "issue": "caption profile sum",
+    "action": "accepted",
+    "reason": "Named all three profiles and noted omission of Inference without Encoding in compact table"
+  },
+  {
+    "slug": "causal-foundation-models",
+    "issue": "CEPO undefined on first use",
+    "action": "accepted",
+    "reason": "첫 등장에 한영 정의를 추가하고 환자 데이터는 설명용 가상 상황으로 명시"
+  }
+]

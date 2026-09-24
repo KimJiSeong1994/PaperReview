@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected total population dependence and bounded transfer/predictor-count inference."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 28591,
+  "after_chars": 28599
+}

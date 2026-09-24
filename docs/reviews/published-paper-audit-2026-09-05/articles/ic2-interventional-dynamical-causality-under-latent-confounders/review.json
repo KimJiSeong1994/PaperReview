@@ -1,0 +1,34 @@
+{
+  "status": "critical_fixes_applied_pending_verification",
+  "paper_metadata": {
+    "title": "IC2: Interventional Dynamical Causality under Latent Confounders",
+    "authors": [
+      "J. Yan",
+      "S.-W. Zhang",
+      "J. Shi",
+      "C. Zhang",
+      "L. Chen"
+    ],
+    "year": 2026,
+    "primary_url": "https://doi.org/10.1098/rsif.2025.1289",
+    "doi": "10.1098/rsif.2025.1289"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://doi.org/10.1098/rsif.2025.1289"
+  ],
+  "excerpt": "관측 시계열의 지연 임베딩과 교차사상 이웃으로 개입 대리 자료를 만들고, 잠재 교란 아래 동적 인과를 추정하려는 IC2의 구성과 실험을 설명한다.",
+  "changes": [
+    "실제 논문명 H1 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "로컬 PDF 후보가 없어 출판 DOI와 기존 원고 인용을 primary evidence로 사용했다."
+  ],
+  "figure_preservation": {
+    "preserved": true,
+    "count": 7,
+    "order_verified": true
+  },
+  "critical_fix_status": "pending_independent_verification"
+}

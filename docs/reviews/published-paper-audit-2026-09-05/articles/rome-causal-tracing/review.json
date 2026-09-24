@@ -1,0 +1,38 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Locating and Editing Factual Associations in GPT",
+    "authors": [
+      "Kevin Meng",
+      "David Bau",
+      "Alex Andonian",
+      "Yonatan Belinkov"
+    ],
+    "year": 2022,
+    "primary_url": "https://proceedings.neurips.cc/paper_files/paper/2022/hash/6f1d43d5a82a37e89b0665b33bf3a182-Abstract-Conference.html",
+    "arxiv_id": "2202.05262"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://arxiv.org/abs/2202.05262",
+    "https://proceedings.neurips.cc/paper_files/paper/2022/file/6f1d43d5a82a37e89b0665b33bf3a182-Paper-Conference.pdf"
+  ],
+  "excerpt": "subject 표현을 손상·복원하는 causal tracing으로 사실 회상 경로를 찾고, 지목한 MLP에 rank-one 갱신을 적용해 단일 사실 연상을 편집하는 ROME을 설명한다.",
+  "changes": [
+    "실제 논문명 H1을 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "원문과 정확히 일치하는 로컬 PDF 후보는 source-candidates에 없어 공식 NeurIPS/arXiv를 primary source로 기록했다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "fulltext_verification": "Full text verified: AIE §2.2/Fig2; rank-one update §3.1 Eq2; GPT2XL89.2/GPTJ91.5 Table4.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/rome-causal-tracing",
+  "verified_content_sha256": "66df823df776a16ee5798e8d8cccd9e88870fbe33c30ff847a79d4e0660edc92"
+}

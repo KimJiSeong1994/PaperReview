@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected 28 shift relations versus nine target-word rows."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 13720,
+  "after_chars": 13632
+}

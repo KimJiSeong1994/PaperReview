@@ -1,0 +1,35 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "A Structural Probe for Finding Syntax in Word Representations",
+    "authors": [
+      "John Hewitt",
+      "Christopher D. Manning"
+    ],
+    "year": 2019,
+    "primary_url": "https://aclanthology.org/N19-1419/",
+    "doi": "10.18653/v1/N19-1419"
+  },
+  "source_paths": [],
+  "source_urls": [
+    "https://aclanthology.org/N19-1419/",
+    "https://aclanthology.org/N19-1419.pdf"
+  ],
+  "excerpt": "선형 변환 뒤의 거리와 노름이 의존구문 트리의 거리·깊이를 복원하는지로, 단어 표현 속 전역 구문 기하를 시험하는 structural probe를 설명한다.",
+  "changes": [
+    "실제 논문명 H1 추가",
+    "본문·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "source-candidates의 PDF는 제목과 불일치해 ACL primary source로 확인했다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/structural-probe",
+  "verified_content_sha256": "6da900f20d8ef1ed7e5a33648860030ecef0bcda1c3e7eba96070f10daddf34b"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Restored title subtitle; narrowed MEV claim to a single static embedding."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 14427,
+  "after_chars": 14420
+}

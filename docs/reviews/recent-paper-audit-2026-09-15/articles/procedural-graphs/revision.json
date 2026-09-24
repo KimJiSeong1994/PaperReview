@@ -1,0 +1,30 @@
+{
+  "slug": "procedural-graphs",
+  "excerpt": "Procedural Graphs는 절차 그래프로 행동을 안내하고, 별도 개선 단계에서 경험을 반영한 그래프 수정안을 검증한다. 여러 모델·벤치마크 조합에서 우세했지만, 안내가 행동을 강제하거나 이후 성능 향상을 보장하지는 않는다.",
+  "changes": [
+    {
+      "location": "§3.4",
+      "change": "한 episode의 dynamic guidance와 batch 경계의 graph evolution을 나란히 설명해, 매 step의 context 생성이 graph topology 수정은 아니라는 시간적 분리를 명확히 했다.",
+      "evidence": "https://arxiv.org/pdf/2609.09153v1#page=5"
+    },
+    {
+      "location": "§6.1 sign test",
+      "change": "p=4.3×10^-4를 aggregate directional result에 관한 저자 보고값으로 한정하고 개별 셀 유의성으로 해석하지 않도록 보강했다.",
+      "evidence": "https://arxiv.org/pdf/2609.09153v1#page=7"
+    },
+    {
+      "location": "§9.2 재현 조건",
+      "change": "공식 구현 부재를 주장하지 않고, 검토 범위의 arXiv v1 자료에서 공식 구현/artifact 공개 위치를 검증하지 못했다고 고쳤다.",
+      "evidence": "https://arxiv.org/abs/2609.09153v1"
+    }
+  ],
+  "uncertainties": [
+    "공식 구현, saved graph, 원시 평가 artifact의 공개 위치를 이 검토 범위에서 확인하지 못했다.",
+    "반복 held-out selection은 cached validation score의 비감소만 보이며 일반화의 단조 개선을 보장하지 않는다.",
+    "Figure 5 내부 round 표기는 Appendix E.3/Table 11 서술과 충돌한다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2609.09153v1",
+    "https://arxiv.org/pdf/2609.09153v1"
+  ]
+}

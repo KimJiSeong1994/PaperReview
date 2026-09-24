@@ -1,0 +1,31 @@
+{
+  "url": "https://jiphyeonjeon.kr/blog/intent-propagation-contrastive-collaborative-filtering",
+  "verified_at": "2026-09-05T10:17:43.942535+00:00",
+  "published": true,
+  "updated_at": "2026-09-05T07:50:32.139918+00:00",
+  "created_at_preserved": true,
+  "other_production_posts_unchanged_by_revision": true,
+  "content_sha256": "3ae5bd56c7e40c9efc342d089aba0e86f10063e4f373eda3a05f2586e4c4b1ad",
+  "pull_request": "https://github.com/KimJiSeong1994/PaperReview/pull/254",
+  "merge_commit": "53befd6219708a50fac7593a23bead1ce1c7d30f",
+  "production_backup": "/home/ubuntu/PaperReviewAgent/data/blog/backups/posts-before-ipccf-revision-20260905T074540942812Z.json",
+  "paperwiki": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/recsys-ir/ipccf/ipccf-deep-review.md",
+  "checks": {
+    "api_exact_match": true,
+    "SSR_body": true,
+    "one_h1": true,
+    "canonical": true,
+    "meta_description": true,
+    "json_ld_dates": true,
+    "paper_title_and_six_authors": true,
+    "thumbnail_http_200": true,
+    "katex_formulas": 67,
+    "local_blog_seo_tests_passed": 56,
+    "local_frontend_build_and_typecheck": "passed",
+    "required_pull_request_CI": "passed",
+    "sitemap_entry": true,
+    "sitemap_lastmod": "2026-09-05",
+    "production_CI_and_deploy": "passed"
+  },
+  "deployment_run": "https://github.com/KimJiSeong1994/PaperReview/actions/runs/33959959779"
+}

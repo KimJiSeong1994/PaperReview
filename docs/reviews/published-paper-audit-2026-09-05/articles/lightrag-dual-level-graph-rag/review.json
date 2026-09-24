@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://aclanthology.org/2025.findings-emnlp.568.pdf (16 pp.; §§3–7 and result tables)"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/2025.findings-emnlp.568/",
+    "https://aclanthology.org/2025.findings-emnlp.568.pdf"
+  ],
+  "paper_metadata": {
+    "title": "LightRAG: Simple and Fast Retrieval-Augmented Generation",
+    "authors": [
+      "Zirui Guo",
+      "Lianghao Xia",
+      "Yanhua Yu",
+      "Tu Ao",
+      "Chao Huang"
+    ],
+    "year": 2025,
+    "primary_url": "https://aclanthology.org/2025.findings-emnlp.568/",
+    "arxiv_id": "2410.05779",
+    "doi": "10.18653/v1/2025.findings-emnlp.568"
+  },
+  "excerpt": "LightRAG는 문서를 엔티티·관계 그래프로 색인하고, 구체적 질문과 전역 질문에 각각 다른 수준의 키워드와 문맥을 사용해 GraphRAG 검색을 가볍게 구성한다.",
+  "changes": [
+    "Added actual title and parser-compatible Paper header.",
+    "Removed publication-process wording and retained paper explanation, results, limits, figures, and APA references.",
+    "Corrected unspecified question generator and localized Table9 reporting mismatch."
+  ],
+  "uncertainties": [
+    "Reported efficiency is corpus- and implementation-dependent."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/lightrag-dual-level-graph-rag",
+  "verified_content_sha256": "f98001f181279915f6fd80a648cf2040b8a0f9cd372b05ded561f0907db290f7"
+}

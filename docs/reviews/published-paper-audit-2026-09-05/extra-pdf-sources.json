@@ -1,0 +1,86 @@
+[
+  {
+    "id": "2407.01449v6",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2407.01449v6.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2407.01449v6.txt",
+    "pages": 26,
+    "first_text": "=== PDF PAGE 1 ===\n                      Published as a conference paper at ICLR 2025\n\n\n             ColPali: EFFICIENT DOCUMENT RETRIEVAL WITH\n           VISION LANGUAGE MODELS\n\n\n                   Manuel Faysse∗1,3  Hugues Sibille∗1,4  Tony Wu∗1   Bilel Omrani1\n                      Gautier Viaud1   C´eline Hudelot3   Pierre Colombo2,3\n                            1Illuin Technology   2Equall.ai   3CentraleSup´elec, Paris-Saclay  4ETH Z¨urich\n                       manuel.faysse@centralesupelec.fr\n\n\n\n                                       ABSTRACT\n\n                          Documents are visu"
+  },
+  {
+    "id": "2508.10391",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2508.10391.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2508.10391.txt",
+    "pages": 16,
+    "first_text": "=== PDF PAGE 1 ===\n      LeanRAG: Knowledge-Graph-Based Generation with Semantic Aggregation and\n                                   Hierarchical Retrieval\n\n                Yaoze Zhang1,2*, Rong Wu1,3*, Pinlong Cai1†, Xiaoman Wang4, Guohang Yan1\n                                Song Mao1, Ding Wang1, Botian Shi1\n                                             1Shanghai Artificial Intelligence Laboratory\n                                              2University of Shanghai for Science and Technology\n                                                          3Zhejiang University\n                      "
+  },
+  {
+    "id": "2602.05143v2",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2602.05143v2.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2602.05143v2.txt",
+    "pages": 25,
+    "first_text": "=== PDF PAGE 1 ===\n         CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG\n\n\n\n                        Nengbo Wang 1 2 Tuo Liang 1 Vikash Singh 1 Chaoda Song 1 Van Yang 1\n                             Yu Yin 1 Jing Ma 1 Jagdip Singh 2 Vipin Chaudhary 1\n\n\n                         Abstract                       knowledge (Lewis et al., 2020), traditional pipelines pre-\n                                                                 dominantly rely on text chunking and semantic embedding                Retrieval augmented generation (RAG) has en-\n                                   "
+  },
+  {
+    "id": "2607.27497",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2607.27497.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2607.27497.txt",
+    "pages": 36,
+    "first_text": "=== PDF PAGE 1 ===\n                                                                                                                    2026-07-31\n\n     SkillSmith: Learning to Compose Parametric\n      Skills and Textual Knowledge\n\n\n           Lucio M. Dery*,1, Benedict Aaron Tjandra*,1, Siavash Samiei1, Adhiguna Kuncoro1, Zohar Yahav1, Jiajun Shen1\n         and Arthur Szlam1\n            1Google DeepMind, *Equal contributions\n\n\n\n         Agentic systems driven by large language models (LLMs) regularly feature two key mechanisms to\n         autonomously solve complex problems: synthesizing text-"
+  },
+  {
+    "id": "2502.14802",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2502.14802.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2502.14802.txt",
+    "pages": 19,
+    "first_text": "=== PDF PAGE 1 ===\n           From RAG to Memory: Non-Parametric Continual Learning for\n                             Large Language Models\n\n\n\n                        Bernal Jim´enez Guti´errez * 1 Yiheng Shu * 1 Weijian Qi 1 Sizhe Zhou 2 Yu Su 1\n\n\n                         Abstract                         1. Introduction\n\n             Our ability to continuously acquire, organize, and         In an ever-evolving world, the ability to continuously ab-\n               leverage knowledge is a key feature of human          sorb, integrate, and leverage knowledge is one of the most\n                in"
+  },
+  {
+    "id": "2608.27454v1",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.27454v1.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.27454v1.txt",
+    "pages": 28,
+    "first_text": "=== PDF PAGE 1 ===\n                                                                                                                  2026-08-28\n\n    WikiSkill: Compiling Agent Experience into\n    Persistent Knowledge for Skill Evolution\n\n\n        Liyan Tang1, Cyrus Rashtchian1, Chun-Sung Ferng1, Andrew Tomkins1, Da-Cheng Juan1 and Tu Vu1,2\n         1Google Research, 2Virginia Tech\n\n\n\n       Agent skills package specialized knowledge and workflows into reusable resources that extend AI agent\n         capabilities. Recent work automatically discovers such skills from agent experience, which enab"
+  },
+  {
+    "id": "2606.06036v1",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2606.06036v1.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2606.06036v1.txt",
+    "pages": 22,
+    "first_text": "=== PDF PAGE 1 ===\n       Memory is Reconstructed, Not Retrieved: Graph Memory for LLM Agents\n\n\n\n                                        Shuo Ji 1 Yibo Li 1 Bryan Hooi 1\n\n\n                         Abstract\n\n               Despite recent progress, LLM agents still strug-\n                gle with reasoning over long interaction histories.\n             While current memory-augmented agents rely on\n               a static “retrieve-then-reason” paradigm, this rigid\n                pipeline design prevents them from dynamically\n               adapting memory access to intermediate evidence2026\n    "
+  },
+  {
+    "id": "2604.11378v1",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2604.11378v1.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2604.11378v1.txt",
+    "pages": 50,
+    "first_text": "=== PDF PAGE 1 ===\n                 From Agent Loops to Structured Graphs:\n       A Scheduler-Theoretic Framework for LLM Agent Execution\n\n\n\n                              Hu Wei\n\n                                       1990huwei@sina.com\n2026                                                  Abstract\n\n                  The dominant paradigm for building LLM-based agents is the Agent Loop—an iterative cycle\n                 where a single language model decides what to do next by reading an ever-growing contextApr\n                 window. This paradigm has three structural weaknesses: implicit de"
+  },
+  {
+    "id": "2308.11730",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2308.11730.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2308.11730.txt",
+    "pages": 22,
+    "first_text": "=== PDF PAGE 1 ===\n          Knowledge Graph Prompting for Multi-Document Question Answering\n\n             Yu Wang,1 Nedim Lipka,2 Ryan A. Rossi,2 Alexa Siu,2 Ruiyi Zhang,2 Tyler Derr1\n                                                              1 Vanderbilt University, Nashville, USA\n                                                                 2 Adobe Research, San Jose, USA\n                      yu.wang.1@vanderbilt.edu, {lipka, ryrossi, asiu, ruizhang}@adobe.com, tyler.derr@vanderbilt.edu\n\n\n\n\n                               Abstract\n\n           The ‘pre-train, prompt, predict’ paradigm "
+  },
+  {
+    "id": "2608.26701v1",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.26701v1.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.26701v1.txt",
+    "pages": 83,
+    "first_text": "=== PDF PAGE 1 ===\n                                                                                                                  2026-08-28\n\n    Accelerating Scientific Research with Gemini\n    in the Real-World\n\n\n        Samuel Schmidgall1,*, Xiaokai Zhu2,*, Marian Shaw3, Lin Yang1, Valentin Liévin1, Jingyun Yang2, Yuchen\n        Zhuang1, Tim Strother1, Alex Bijamov1, Min Woo Sun1, Anil Palepu4, Justin Chen1, David Steiner1, Jacqueline\n          Shreibati1, Wei-Hung Weng1, Yilin Zhao2, Xingjian Hu2, Nicholas Zahn2, Sadhya Garg3, Julia Kirby3, Yuxiang\n        Gan5, Jiaoli Li5, Divy Thakkar"
+  },
+  {
+    "id": "2510.10114v4",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2510.10114v4.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2510.10114v4.txt",
+    "pages": 20,
+    "first_text": "=== PDF PAGE 1 ===\n          LINEARRAG:  LINEAR GRAPH  RETRIEVAL  AUG-\n         MENTED GENERATION ON LARGE-SCALE CORPORA\n\n\n                   Luyao Zhuang1∗, Shengyuan Chen1∗, Yilin Xiao1, Huachi Zhou1†, Yujing Zhang1\n                  Hao Chen1, Qinggang Zhang1†, Xiao Huang1\n                     1The Department of Computing, Hong Kong Polytechnic University, Hong Kong SAR\n                  {luyao.zhuang,yilin.xiao,yu-jing.zhang}@connect.polyu.hk;\n                  huachi666.zhou@connect.polyu.hk; sundaychenhao@gmail.com;\n                 {sheng-yuan.chen,qinggang.zhang,xiao.huang}@polyu.edu.h"
+  },
+  {
+    "id": "2608.11967v1",
+    "path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.11967v1.pdf",
+    "text_path": "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/2608.11967v1.txt",
+    "pages": 15,
+    "first_text": "=== PDF PAGE 1 ===\n      LoongReflect: Boosting Long-Horizon Reflection in Search Agents via Global\n                                   Perspective Distillation\n\n                    Zhixin Zhang∗1,2,3, Xinke Jiang∗1,2,3, Zhibang Yang∗1,2, Weixuan Xu1,2,3,\n                   Guohong Qiu1,2,3, Xu Chu†1,3,4, Junfeng Zhao†1,3, Yasha Wang†2,5\n                                    1School of Computer Science, Peking University, Beijing, China\n                      2National Engineering Research Center for Software Engineering, Peking University, Beijing, China\n                  3Key Laboratory of High "
+  }
+]

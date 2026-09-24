@@ -1,0 +1,28 @@
+{
+  "slug": "agent-memory-distillation",
+  "excerpt": "AMD는 교사의 성공 경험을 전체 계획·하위 과제·함수 호출 메모리로 나눠, 작은 에이전트가 가중치 갱신 없이 활용하게 한다. 세 도구 사용 벤치마크에서 성능이 개선됐으며, 평가 과제의 교사 경험이 메모리에 포함됐는지에 따라 결과를 구분해야 한다.",
+  "changes": [
+    {
+      "location": "§4.3",
+      "change": "한 과제에서 WF·ST의 사전 주입과 오류 함수명 기반 FN의 사후 주입이 어떤 순서로 만나는지 설명 예시를 추가했다. k=1이 하나의 총 메모리가 아니라 retrieval locus별 선택임을 실행 흐름으로 연결했다.",
+      "evidence": "https://arxiv.org/html/2608.07169v1#S3.SS3"
+    },
+    {
+      "location": "§8.4 공개 코드",
+      "change": "공개 스냅샷이 특정 논문 표 셀을 재현한다고 단정하지 않도록 data/config/result provenance의 확인 범위를 명확히 했다.",
+      "evidence": "https://github.com/taeilkim2465/agentic_memory_distillation/tree/2895d10c07105432325b088f4803dc94a10003c9"
+    }
+  ],
+  "uncertainties": [
+    "논문 표를 재실행하지 않았다.",
+    "공개 코드 스냅샷만으로 특정 Table 1·2·5·6 셀의 정확한 data/configuration provenance를 확인할 수 없다.",
+    "전체 lifecycle token·API·latency 비용과 memory-bank 재사용률은 v1에 체계적으로 보고되지 않았다."
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2608.07169v1",
+    "https://arxiv.org/html/2608.07169v1",
+    "https://arxiv.org/pdf/2608.07169v1",
+    "https://agent-memory-distillation.github.io/",
+    "https://github.com/taeilkim2465/agentic_memory_distillation/tree/2895d10c07105432325b088f4803dc94a10003c9"
+  ]
+}

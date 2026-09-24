@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "A Systematic Comparison of Contextualized Word Embeddings for Lexical Semantic Change",
+    "authors": [
+      "Francesco Periti",
+      "Nina Tahmasebi"
+    ],
+    "year": 2024,
+    "primary_url": "https://aclanthology.org/2024.naacl-long.240/",
+    "doi": "10.18653/v1/2024.naacl-long.240",
+    "arxiv_id": "2402.12011"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/.omx/context/sources/periti-tahmasebi-2024-systematic.pdf"
+  ],
+  "source_urls": [
+    "https://aclanthology.org/2024.naacl-long.240/",
+    "https://aclanthology.org/2024.naacl-long.240.pdf"
+  ],
+  "excerpt": "문맥화 임베딩 기반 의미 변화 탐지를 같은 조건에서 비교하고, 변화량 순위뿐 아니라 사용례 유사도와 의미 군집을 분리해 평가한 NAACL 2024 연구를 설명한다.",
+  "changes": [
+    "논문 밖의 실용 평가 체크리스트를 제거",
+    "본문·그림·출처 캡션·APA References 보존",
+    "Removed externally proposed reading program while preserving verified results."
+  ],
+  "uncertainties": [
+    "GPT-4 비교는 논문이 고정한 영어 평가 범위와 당시 접근 조건에 한정된다."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+  "verified_content_sha256": "7d805df4c9b99a29c823551141f1067ec0e5456a3f3e283949fc0b7838d0cc33"
+}

@@ -1,0 +1,498 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 1,
+    "ssr_rendered": true,
+    "reading_time_min": 12
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 14
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 15
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 19
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 20
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 23
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 24
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 20
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 26
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 26
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 7,
+    "ssr_rendered": true,
+    "reading_time_min": 19
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 5,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 27
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 15
+  },
+  {
+    "slug": "structural-probe",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "gqml-graphs",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 34
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 13
+  },
+  {
+    "slug": "lgc-acf",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "coevot",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "deep-graphrag",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "lightgcn",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "ragu",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 22
+  },
+  {
+    "slug": "goa",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 16
+  },
+  {
+    "slug": "hgnn",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 28
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 17
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 5,
+    "ssr_rendered": true,
+    "reading_time_min": 22
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 19
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 20
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 5,
+    "ssr_rendered": true,
+    "reading_time_min": 19
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 7,
+    "ssr_rendered": true,
+    "reading_time_min": 21
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 37
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 39
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 40
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 47
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 37
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 2,
+    "ssr_rendered": true,
+    "reading_time_min": 22
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 53
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 35
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 5,
+    "ssr_rendered": true,
+    "reading_time_min": 29
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 28
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 29
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 0,
+    "ssr_rendered": true,
+    "reading_time_min": 18
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 23
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 3,
+    "ssr_rendered": true,
+    "reading_time_min": 31
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "valid_schema": true,
+    "valid_primary_metadata": true,
+    "figures": 4,
+    "ssr_rendered": true,
+    "reading_time_min": 22
+  }
+]

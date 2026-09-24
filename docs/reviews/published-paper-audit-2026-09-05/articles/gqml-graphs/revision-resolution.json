@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Restricted characterization to linear maps and size independence to evaluated generator family."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 30133,
+  "after_chars": 29716
+}

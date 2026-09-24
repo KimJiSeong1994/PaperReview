@@ -1,0 +1,23 @@
+{
+  "content_sha256": "1adcefdd9023c294c0f86d411a5a35b3df2389ad0b8fd84494e4804420b16dd5",
+  "math_expressions": 61,
+  "math_errors": 0,
+  "tests_passed": 56,
+  "figure_filenames": [
+    "ipccf-fig1-framework.png",
+    "ipccf-fig2-intent-propagation.png",
+    "ipccf-fig5-epochs.png"
+  ],
+  "figure_http_and_png_valid": true,
+  "editorial_audit_content_removed": true,
+  "source_figure_numbers": [
+    1,
+    2,
+    5
+  ],
+  "article_figure_numbers": [
+    1,
+    2,
+    3
+  ]
+}

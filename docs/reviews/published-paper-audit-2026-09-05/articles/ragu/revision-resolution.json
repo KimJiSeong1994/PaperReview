@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Corrected multi-hop winners; removed zero-effect/free-cost and unsupported scaling/causal claims."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 19654,
+  "after_chars": 18557
+}

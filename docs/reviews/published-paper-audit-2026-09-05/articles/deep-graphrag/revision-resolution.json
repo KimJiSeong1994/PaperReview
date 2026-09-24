@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Separated SFT+RL combined effect and per-level beam width from constant total cost."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 15706,
+  "after_chars": 15779
+}

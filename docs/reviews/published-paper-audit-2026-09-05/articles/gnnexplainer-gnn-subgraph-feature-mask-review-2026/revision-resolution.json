@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Removed minimum/complete-faithfulness guarantees, corrected ATT comparison, removed code audit."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 22288,
+  "after_chars": 21307
+}

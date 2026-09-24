@@ -1,0 +1,46 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "source.pdf (arXiv:2607.14777v1, 37 pp.; §§2–4; Tables 1–3, 8)",
+    "source.txt (extracted full text)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2607.14777"
+  ],
+  "paper_metadata": {
+    "title": "SEED: Self-Evolving On-Policy Distillation for Agentic Reinforcement Learning",
+    "authors": [
+      "Jinyang Wu",
+      "Shuo Yang",
+      "Zhengxi Lu",
+      "Fan Zhang",
+      "Yuhao Shen",
+      "Lang Feng",
+      "Haoran Luo",
+      "Zheng Lian",
+      "Shuai Zhang",
+      "Zhengqi Wen",
+      "Jianhua Tao"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2607.14777",
+    "arxiv_id": "2607.14777v1"
+  },
+  "excerpt": "SEED는 완료된 on-policy 궤적을 hindsight skill로 해석하고, 그 skill이 같은 행동 토큰의 확률에 주는 변화를 조밀한 distillation 신호로 바꿔 agent RL에 결합한다.",
+  "changes": [
+    "Changed the post heading to the actual paper title.",
+    "Cross-checked trajectory, GLM-5.2 initialization, central scores, ablation, and vision claims against source.pdf; removed the code-configuration audit.",
+    "Corrected aggregate wins9/12 and added missing Qwen3B Search comparison."
+  ],
+  "uncertainties": [
+    "The paper reports point estimates without multi-seed uncertainty for the discussed comparisons."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/seed-self-evolving-opd-agentic-rl",
+  "verified_content_sha256": "72333f6f0364d73e0ebab614878e5126f74c5f7555c2709e83b1ec288b187201"
+}

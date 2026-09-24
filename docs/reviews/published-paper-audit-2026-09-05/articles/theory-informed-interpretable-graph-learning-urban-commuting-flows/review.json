@@ -1,0 +1,41 @@
+{
+  "status": "published_verified",
+  "title": "Theory-informed and interpretable graph learning for urban commuting flows",
+  "source_paths": [
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/pig-gnn.pdf",
+    "/Users/jiseong/git/PaperReviewAgent/docs/reviews/published-paper-audit-2026-09-05/sources/pig-gnn.txt"
+  ],
+  "source_urls": [
+    "https://urbanmorphology.studio/pdfs/zhao-et-al-2026-pig-gnn-commuting-flows.pdf",
+    "https://doi.org/10.1016/j.scs.2026.107575"
+  ],
+  "changes": [
+    "Full-paper correction of GATv2 towers and KL prior.",
+    "Added nested CV, positive-edge regression scope, cross-city retraining, zero-flow/feature/build-up experiments.",
+    "Bounded oracle-baseline comparisons and figure12 sample counts."
+  ],
+  "uncertainties": [
+    "Main/appendix KL direction and distance definition are inconsistent in the printed paper."
+  ],
+  "figure_preservation": {
+    "expected": 7,
+    "preserved": 7,
+    "order_preserved": true
+  },
+  "paper_metadata": {
+    "title": "Theory-informed and interpretable graph learning for urban commuting flows",
+    "authors": [
+      "Minwei Zhao",
+      "Dailuo Zhang",
+      "Zhecheng Shi",
+      "Cai Wu"
+    ],
+    "year": 2026,
+    "primary_url": "https://doi.org/10.1016/j.scs.2026.107575",
+    "doi": "10.1016/j.scs.2026.107575"
+  },
+  "excerpt": "PIG-GNN은 production·attraction GATv2 encoder와 OD interaction graph, 거리·Zipf·분포 제약으로 관측된 통근 흐름의 세기를 예측한다. England·ALLOD·Xi’an·Guangzhou 실험과 재학습·전이의 차이, 본문과 부록의 수식 불일치를 설명한다.",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/theory-informed-interpretable-graph-learning-urban-commuting-flows",
+  "verified_content_sha256": "3cfcedb5e99268bba7bba6751fb8bc0d4da385da1308041f065cd032ca5ca592"
+}

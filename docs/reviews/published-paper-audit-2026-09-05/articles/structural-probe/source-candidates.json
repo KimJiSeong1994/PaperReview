@@ -1,0 +1,35 @@
+{
+  "title": "A Structural Probe for Finding Syntax in Word Representations",
+  "pdf_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2506.02568.pdf",
+      "score": 0.667,
+      "pages": 12,
+      "opening": "MLaGA: Multimodal Large Language and Graph Assistant\nDongzhe Fan\nNew York University Shanghai\nShanghai, China\ndf2362@nyu.edu\nJiajin Liu\nNew York University\nBrooklyn, NY, USA\njiajinliu@nyu.edu\nYi Fang\nVirginia Polytechnic Institute and\nState University\nBlacksburg, VA, USA\nyif@vt.edu\nDjellel Difallah\nNew York University Abu Dhabi\nAbu Dhabi, United Arab Emirates\ndjellel@nyu.edu\nQiaoyu Tan∗\nNew York University Shanghai\nShanghai, China\nqiaoyu.tan@nyu.edu\nAbstract\nLarge language models (LLMs) have shown strong potential in\ngraph learning by enabling powerful reasoning and broad general-\nization. However, existing Graph LLMs remain confined to textual\ngraphs, where node features are represented solely by textual de-\nscriptions. This narrow focus overlooks a growing class of multi-\nmodal graphs (MMGs), where nodes are associated with multimodal\nattributes, such as text and images, commonly seen in real-world\napplications like e-commerce, social networks, and digital artworks.\nEffectively modeling MMGs presents two key challenges: (i) cap-\nturing fine-grained cross-modal interactions—e.g., between visual\npatches and word tokens—while preserving structural dependen-\ncies, and (ii) achieving unified generalization across diverse tasks\nand domains within a single model. To address these challenges, we\npropose MLaGA, a novel Multimodal Large Language and Graph\nAssistant that serves as the LLM-based foundation model for mul-\ntimodal graphs. MLaGA comprises two key innovations: (1) the\nStructure-Aware Multimodal Aligner (SMA), which performs token-\nlevel fusion of visual and textual representations via query-driven\ncross-attention while explicitly maintaining graph topology, deliv-\nering high-quality multimodal node representations; and (2) the\nMulti-Task Multimodal Graph Instruction "
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/30 Graph Representation Learning/papers/arxiv-2506.02568.pdf",
+      "score": 0.667,
+      "pages": 12,
+      "opening": "MLaGA: Multimodal Large Language and Graph Assistant\nDongzhe Fan\nNew York University Shanghai\nShanghai, China\ndf2362@nyu.edu\nJiajin Liu\nNew York University\nBrooklyn, NY, USA\njiajinliu@nyu.edu\nYi Fang\nVirginia Polytechnic Institute and\nState University\nBlacksburg, VA, USA\nyif@vt.edu\nDjellel Difallah\nNew York University Abu Dhabi\nAbu Dhabi, United Arab Emirates\ndjellel@nyu.edu\nQiaoyu Tan∗\nNew York University Shanghai\nShanghai, China\nqiaoyu.tan@nyu.edu\nAbstract\nLarge language models (LLMs) have shown strong potential in\ngraph learning by enabling powerful reasoning and broad general-\nization. However, existing Graph LLMs remain confined to textual\ngraphs, where node features are represented solely by textual de-\nscriptions. This narrow focus overlooks a growing class of multi-\nmodal graphs (MMGs), where nodes are associated with multimodal\nattributes, such as text and images, commonly seen in real-world\napplications like e-commerce, social networks, and digital artworks.\nEffectively modeling MMGs presents two key challenges: (i) cap-\nturing fine-grained cross-modal interactions—e.g., between visual\npatches and word tokens—while preserving structural dependen-\ncies, and (ii) achieving unified generalization across diverse tasks\nand domains within a single model. To address these challenges, we\npropose MLaGA, a novel Multimodal Large Language and Graph\nAssistant that serves as the LLM-based foundation model for mul-\ntimodal graphs. MLaGA comprises two key innovations: (1) the\nStructure-Aware Multimodal Aligner (SMA), which performs token-\nlevel fusion of visual and textual representations via query-driven\ncross-attention while explicitly maintaining graph topology, deliv-\nering high-quality multimodal node representations; and (2) the\nMulti-Task Multimodal Graph Instruction "
+    }
+  ],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/xai/nlp-xai-foundations/16-structural-probe/structural-probe-deep-review.md",
+      "score": 0.522,
+      "title": "Structural Probe: 단어 표현 공간이 구문 트리 전체를 선형으로 인코딩하는가"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/dwe/systematic-lsc/systematic-lsc-deep-review.md",
+      "score": 0.433,
+      "title": "A Systematic Comparison of Contextualized Word Embeddings for Lexical Semantic Change"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/time-series/timesfm/timesfm-deep-review.md",
+      "score": 0.322,
+      "title": "A Decoder-Only Foundation Model for Time-Series Forecasting"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

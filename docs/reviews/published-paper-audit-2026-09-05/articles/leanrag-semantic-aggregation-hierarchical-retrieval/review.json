@@ -1,0 +1,42 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "../../sources/2508.10391.pdf (16 pp.; method section; Tables 1–4)",
+    "../../sources/2508.10391.txt (page-labelled full text)"
+  ],
+  "source_urls": [
+    "https://ojs.aaai.org/index.php/AAAI/article/view/40789",
+    "https://arxiv.org/abs/2508.10391"
+  ],
+  "paper_metadata": {
+    "title": "LeanRAG: Knowledge-Graph-Based Generation with Semantic Aggregation and Hierarchical Retrieval",
+    "authors": [
+      "Yaoze Zhang",
+      "Rong Wu",
+      "Pinlong Cai",
+      "Xiaoman Wang",
+      "Guohang Yan",
+      "Song Mao",
+      "Ding Wang",
+      "Botian Shi"
+    ],
+    "year": 2026,
+    "primary_url": "https://ojs.aaai.org/index.php/AAAI/article/view/40789",
+    "arxiv_id": "2508.10391"
+  },
+  "excerpt": "LeanRAG는 지식 그래프의 엔티티와 관계를 의미적으로 집약하고, 세부 노드에서 공통 상위 구조로 이어지는 계층 검색으로 복합 질문의 근거를 구성하려는 방법이다.",
+  "changes": [
+    "Added actual title and parser-compatible Paper header; removed publication-process wording."
+  ],
+  "uncertainties": [
+    "LLM-judged results are specific to the paper’s benchmark and evaluator protocol."
+  ],
+  "figure_preservation": {
+    "expected": 4,
+    "preserved": 4,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/leanrag-semantic-aggregation-hierarchical-retrieval",
+  "verified_content_sha256": "c38f1b75896581df1f0b100752a87f36bf01d0fffaa4456ae525f947fe22cb7c"
+}

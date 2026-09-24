@@ -1,0 +1,47 @@
+{
+  "title": "Memory is Reconstructed, Not Retrieved: Graph Memory for LLM Agents",
+  "pdf_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/90 Computational Social Science and LLM Social Simulation/papers/arxiv-2505.07457.pdf",
+      "score": 0.667,
+      "pages": 22,
+      "opening": "arXiv:2505.07457v1  [econ.GN]  12 May 2025\nCan Generative AI agents behave like humans?\nEvidence from laboratory market experiments\nR. Maria del Rio-Chanona*1,2,3, Marco Pangallo*4, and Cars Hommes5,6\n1Computer Science Department, University College London\n2Complexity Science Hub\n3Bennett Institute for Public Policy, University of Cambridge\n4CENTAI Institute\n5Canadian Economic Analysis Department, Bank of Canada\n6Faculty of Economics and Business, University of Amsterdam\n*Equal contribution\nJune 8, 2025\nAbstract\nWe explore the potential of Large Language Models (LLMs) to replicate human behavior in eco-\nnomic market experiments. Compared to previous studies, we focus on dynamic feedback between\nLLM agents: the decisions of each LLM impact the market price at the current step, and so affect\nthe decisions of the other LLMs at the next step. We compare LLM behavior to market dynamics\nobserved in laboratory settings and assess their alignment with human participants’ behavior. Our\nfindings indicate that LLMs do not adhere strictly to rational expectations, displaying instead bounded\nrationality, similarly to human participants. Providing a minimal context window i.e. memory of three\nprevious time steps, combined with a high variability setting capturing response heterogeneity, allows\nLLMs to replicate broad trends seen in human experiments, such as the distinction between positive\nand negative feedback markets. However, differences remain at a granular level–LLMs exhibit less\nheterogeneity in behavior than humans. These results suggest that LLMs hold promise as tools for\nsimulating realistic human behavior in economic contexts, though further research is needed to refine\ntheir accuracy and increase behavioral diversity.\n1\nIntroduction\nDuring the 21st century, the academic l"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2502.13562.pdf",
+      "score": 0.667,
+      "pages": 17,
+      "opening": "Are Large Language Models In-Context Graph Learners?\nJintang Li 1 Ruofan Wu 2 Yuchang Zhu 1 Huizhe Zhang 1 Liang Chen 1 Zibin Zheng 1\nAbstract\nLarge language models (LLMs) have demon-\nstrated remarkable in-context reasoning capabili-\nties across a wide range of tasks, particularly with\nunstructured inputs such as language or images.\nHowever, LLMs struggle to handle structured\ndata, such as graphs, due to their lack of under-\nstanding of non-Euclidean structures. As a result,\nwithout additional fine-tuning, their performance\nsignificantly lags behind that of graph neural net-\nworks (GNNs) in graph learning tasks. In this\npaper, we show that learning on graph data can be\nconceptualized as a retrieval-augmented genera-\ntion (RAG) process, where specific instances (e.g.,\nnodes or edges) act as queries, and the graph itself\nserves as the retrieved context. Building on this\ninsight, we propose a series of RAG frameworks\nto enhance the in-context learning capabilities\nof LLMs for graph learning tasks. Comprehen-\nsive evaluations demonstrate that our proposed\nRAG frameworks significantly improve LLM per-\nformance on graph-based tasks, particularly in\nscenarios where a pretrained LLM must be used\nwithout modification or accessed via an API.\n1. Introduction\nLarge language models (LLMs) exhibit astonishing reason-\ning capabilities across a wide variety of real-world tasks,\nincluding text generation (Yang et al., 2024), code com-\npletion (Guo et al., 2024), and question answering (Lewis\net al., 2020). The widespread success of LLMs is often\nattributed to their in-context learning capabilities (Luo et al.,\n2024). Building on top of just raw reasoning abilities, LLMs\ncan solve a new task for which they have not been explic-\nitly trained, by being provided with a few examples (few-\nsh"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2505.07457.pdf",
+      "score": 0.667,
+      "pages": 22,
+      "opening": "arXiv:2505.07457v1  [econ.GN]  12 May 2025\nCan Generative AI agents behave like humans?\nEvidence from laboratory market experiments\nR. Maria del Rio-Chanona*1,2,3, Marco Pangallo*4, and Cars Hommes5,6\n1Computer Science Department, University College London\n2Complexity Science Hub\n3Bennett Institute for Public Policy, University of Cambridge\n4CENTAI Institute\n5Canadian Economic Analysis Department, Bank of Canada\n6Faculty of Economics and Business, University of Amsterdam\n*Equal contribution\nJune 8, 2025\nAbstract\nWe explore the potential of Large Language Models (LLMs) to replicate human behavior in eco-\nnomic market experiments. Compared to previous studies, we focus on dynamic feedback between\nLLM agents: the decisions of each LLM impact the market price at the current step, and so affect\nthe decisions of the other LLMs at the next step. We compare LLM behavior to market dynamics\nobserved in laboratory settings and assess their alignment with human participants’ behavior. Our\nfindings indicate that LLMs do not adhere strictly to rational expectations, displaying instead bounded\nrationality, similarly to human participants. Providing a minimal context window i.e. memory of three\nprevious time steps, combined with a high variability setting capturing response heterogeneity, allows\nLLMs to replicate broad trends seen in human experiments, such as the distinction between positive\nand negative feedback markets. However, differences remain at a granular level–LLMs exhibit less\nheterogeneity in behavior than humans. These results suggest that LLMs hold promise as tools for\nsimulating realistic human behavior in economic contexts, though further research is needed to refine\ntheir accuracy and increase behavioral diversity.\n1\nIntroduction\nDuring the 21st century, the academic l"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/30 Graph Representation Learning/papers/arxiv-2502.13562.pdf",
+      "score": 0.667,
+      "pages": 17,
+      "opening": "Are Large Language Models In-Context Graph Learners?\nJintang Li 1 Ruofan Wu 2 Yuchang Zhu 1 Huizhe Zhang 1 Liang Chen 1 Zibin Zheng 1\nAbstract\nLarge language models (LLMs) have demon-\nstrated remarkable in-context reasoning capabili-\nties across a wide range of tasks, particularly with\nunstructured inputs such as language or images.\nHowever, LLMs struggle to handle structured\ndata, such as graphs, due to their lack of under-\nstanding of non-Euclidean structures. As a result,\nwithout additional fine-tuning, their performance\nsignificantly lags behind that of graph neural net-\nworks (GNNs) in graph learning tasks. In this\npaper, we show that learning on graph data can be\nconceptualized as a retrieval-augmented genera-\ntion (RAG) process, where specific instances (e.g.,\nnodes or edges) act as queries, and the graph itself\nserves as the retrieved context. Building on this\ninsight, we propose a series of RAG frameworks\nto enhance the in-context learning capabilities\nof LLMs for graph learning tasks. Comprehen-\nsive evaluations demonstrate that our proposed\nRAG frameworks significantly improve LLM per-\nformance on graph-based tasks, particularly in\nscenarios where a pretrained LLM must be used\nwithout modification or accessed via an API.\n1. Introduction\nLarge language models (LLMs) exhibit astonishing reason-\ning capabilities across a wide variety of real-world tasks,\nincluding text generation (Yang et al., 2024), code com-\npletion (Guo et al., 2024), and question answering (Lewis\net al., 2020). The widespread success of LLMs is often\nattributed to their in-context learning capabilities (Luo et al.,\n2024). Building on top of just raw reasoning abilities, LLMs\ncan solve a new task for which they have not been explic-\nitly trained, by being provided with a few examples (few-\nsh"
+    }
+  ],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/mragent/mragent-deep-review.md",
+      "score": 1.3,
+      "title": "Memory is Reconstructed, Not Retrieved: Graph Memory for LLM Agents"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/coevot/coevot-deep-review.md",
+      "score": 0.433,
+      "title": "CoEvoT 심층 분석: \"Co-Evolving Chain-of-Thought Prompting for Graph–LLM Reasoning\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/hipporag2/hipporag2-deep-review.md",
+      "score": 0.389,
+      "title": "From RAG to Memory: Non-Parametric Continual Learning for Large Language Models"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

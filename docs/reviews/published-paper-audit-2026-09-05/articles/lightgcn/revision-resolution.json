@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Separated parameter count from compute and exact filter equivalence from self-information retention."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 19076,
+  "after_chars": 18855
+}

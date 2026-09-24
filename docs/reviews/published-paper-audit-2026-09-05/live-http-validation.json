@@ -1,0 +1,870 @@
+[
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/survey-computational-approaches-lexical-semantic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "survey-computational-approaches-lexical-semantic-change-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/survey-computational-approaches-lexical-semantic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/analysing-lexical-semantic-change-contextualised-word-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/contextualised-semantic-shift-detection-survey-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "contextualised-semantic-shift-detection-survey-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/contextualised-semantic-shift-detection-survey-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/statistically-significant-detection-linguistic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "statistically-significant-detection-linguistic-change-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/statistically-significant-detection-linguistic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/dynamic-word-embeddings-dsg-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-dsg-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/dynamic-word-embeddings-dsg-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/how-contextual-are-contextualized-word-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-contextual-are-contextualized-word-representations-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/how-contextual-are-contextualized-word-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/training-temporal-word-embeddings-compass-twec-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "training-temporal-word-embeddings-compass-twec-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/training-temporal-word-embeddings-compass-twec-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/diachronic-word-embeddings-statistical-laws-semantic-change-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/dynamic-contextualized-word-embeddings-dcwe-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/structural-deep-network-embedding-sdne-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "structural-deep-network-embedding-sdne-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/structural-deep-network-embedding-sdne-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/llm-based-social-simulations-require-boundary-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "llm-based-social-simulations-require-boundary-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/llm-based-social-simulations-require-boundary-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/population-aligned-persona-generation-llm-social-simulation-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/dynamic-word-embeddings-evolving-semantic-discovery-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/dynamic-bernoulli-embeddings-language-evolution-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/heterogeneous-graph-attention-network-han-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "heterogeneous-graph-attention-network-han-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/heterogeneous-graph-attention-network-han-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/heterogeneous-graph-neural-network-hetgnn-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/deepwalk-online-learning-social-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deepwalk-online-learning-social-representations-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/deepwalk-online-learning-social-representations-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/graph-attention-networks-gat-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graph-attention-networks-gat-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/graph-attention-networks-gat-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/how-powerful-are-graph-neural-networks-gin-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "how-powerful-are-graph-neural-networks-gin-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/how-powerful-are-graph-neural-networks-gin-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/graphsage-inductive-representation-learning-large-graphs-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/semi-supervised-classification-graph-convolutional-networks-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/skillopt-executive-strategy-self-evolving-agent-skills-deep-review-2026",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/seed-self-evolving-opd-agentic-rl",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "seed-self-evolving-opd-agentic-rl",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/seed-self-evolving-opd-agentic-rl",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/rome-causal-tracing",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "rome-causal-tracing",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/rome-causal-tracing",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "structural-probe",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/structural-probe",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "structural-probe",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/structural-probe",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gqml-graphs",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/gqml-graphs",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "gqml-graphs",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/gqml-graphs",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/is-attention-interpretable",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "is-attention-interpretable",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/is-attention-interpretable",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lgc-acf",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/lgc-acf",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lgc-acf",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/lgc-acf",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "coevot",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/coevot",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "coevot",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/coevot",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deep-graphrag",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/deep-graphrag",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "deep-graphrag",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/deep-graphrag",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightgcn",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/lightgcn",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightgcn",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/lightgcn",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ragu",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/ragu",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ragu",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/ragu",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "goa",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/goa",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "goa",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/goa",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hgnn",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/hgnn",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hgnn",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/hgnn",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/causalrag-causal-graph-retrieval",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag-causal-graph-retrieval",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/causalrag-causal-graph-retrieval",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/hipporag-neurobiologically-inspired-long-term-memory",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag-neurobiologically-inspired-long-term-memory",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/hipporag-neurobiologically-inspired-long-term-memory",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/lightrag-dual-level-graph-rag",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "lightrag-dual-level-graph-rag",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/lightrag-dual-level-graph-rag",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/leanrag-semantic-aggregation-hierarchical-retrieval",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "leanrag-semantic-aggregation-hierarchical-retrieval",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/leanrag-semantic-aggregation-hierarchical-retrieval",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/causalrag2-hugrag-hierarchical-causal-gating",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "causalrag2-hugrag-hierarchical-causal-gating",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/causalrag2-hugrag-hierarchical-causal-gating",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/ms-graphrag-global-query-focused-summarization",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "ms-graphrag-global-query-focused-summarization",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/ms-graphrag-global-query-focused-summarization",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/hipporag2-from-rag-to-memory",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "hipporag2-from-rag-to-memory",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/hipporag2-from-rag-to-memory",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/knowledge-graph-prompting-multi-document-qa",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "knowledge-graph-prompting-multi-document-qa",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/knowledge-graph-prompting-multi-document-qa",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/theory-informed-interpretable-graph-learning-urban-commuting-flows",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/transferable-human-mobility-network-reconstruction-with-neurogravity",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/linearrag-linear-graph-retrieval-augmented-generation",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "linearrag-linear-graph-retrieval-augmented-generation",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/linearrag-linear-graph-retrieval-augmented-generation",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/skillsmith-learning-to-compose-parametric-skills-textual-knowledge",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/cic-dynamical-causality-under-invisible-confounders",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "cic-dynamical-causality-under-invisible-confounders",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/cic-dynamical-causality-under-invisible-confounders",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/loongreflect-long-horizon-reflection-search-agents",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "loongreflect-long-horizon-reflection-search-agents",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/loongreflect-long-horizon-reflection-search-agents",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/from-agent-loops-to-structured-graphs-scheduler-theoretic-framework",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/planetary-prediction-engine-autonomous-geospatial-prediction",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "planetary-prediction-engine-autonomous-geospatial-prediction",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/planetary-prediction-engine-autonomous-geospatial-prediction",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/memory-is-reconstructed-not-retrieved-graph-memory-llm-agents",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/colpali-efficient-document-retrieval-vision-language-models",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "colpali-efficient-document-retrieval-vision-language-models",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/colpali-efficient-document-retrieval-vision-language-models",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/wikiskill-compiling-agent-experience-persistent-knowledge-skill-evolution",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/co-scientist-accelerating-scientific-research-gemini-real-world",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "co-scientist-accelerating-scientific-research-gemini-real-world",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/co-scientist-accelerating-scientific-research-gemini-real-world",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/timesfm-decoder-only-foundation-model-time-series-forecasting",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/where-reasoning-matters-latent-reasoning-semantic-id-generative-recommendation",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "type": "json",
+    "url": "https://jiphyeonjeon.kr/api/blog/posts/flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "exit_code": 0,
+    "error": ""
+  },
+  {
+    "slug": "flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "type": "html",
+    "url": "https://jiphyeonjeon.kr/blog/flow-reasoning-models-turning-flows-into-efficient-recurrent-reasoners",
+    "exit_code": 0,
+    "error": ""
+  }
+]

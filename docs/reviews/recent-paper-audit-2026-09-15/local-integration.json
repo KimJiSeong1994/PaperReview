@@ -1,0 +1,69 @@
+{
+  "time": "2026-09-15T13:51:19.265918+00:00",
+  "target_posts": [
+    {
+      "slug": "clause-budget-aware-kg-reasoning",
+      "id": "clause-budget-aware-kg-reasoning",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 31
+    },
+    {
+      "slug": "wikiprofile-empty-shelves-lost-keys",
+      "id": "wikiprofile-empty-shelves-lost-keys",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 34
+    },
+    {
+      "slug": "causal-foundation-models",
+      "id": "27e6cd12d25a4cd7bbe29cc56fbd0905",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 32
+    },
+    {
+      "slug": "agent-memory-distillation",
+      "id": "ac941af889c34edca2e262acd0df2893",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 30
+    },
+    {
+      "slug": "procedural-graphs",
+      "id": "f17097a7ac214988bdaec09cad7c9adc",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 32
+    },
+    {
+      "slug": "rag-vs-graphrag-systematic-evaluation",
+      "id": "807f42c84a0a487ea955d63f5019ae72",
+      "mirrored_existing_live_post": false,
+      "reading_time_min": 28
+    },
+    {
+      "slug": "codenib",
+      "id": "72fc1514304c441796b10fb7cb39c812",
+      "mirrored_existing_live_post": true,
+      "reading_time_min": 43
+    },
+    {
+      "slug": "incoder-32b-thinking",
+      "id": "f6da9ee98ff14f77bd3e3d304cfb87b2",
+      "mirrored_existing_live_post": true,
+      "reading_time_min": 33
+    },
+    {
+      "slug": "ttpo",
+      "id": "7dcbce47a82540ddaafdb1d0d9448797",
+      "mirrored_existing_live_post": true,
+      "reading_time_min": 30
+    },
+    {
+      "slug": "rsi-roadmap",
+      "id": "2609bcda5c9549cea2a4429d1e6d5ac1",
+      "mirrored_existing_live_post": true,
+      "reading_time_min": 46
+    }
+  ],
+  "total_posts": 86,
+  "untouched_posts": 76,
+  "production_deployed": false,
+  "paperwiki_updated": false
+}

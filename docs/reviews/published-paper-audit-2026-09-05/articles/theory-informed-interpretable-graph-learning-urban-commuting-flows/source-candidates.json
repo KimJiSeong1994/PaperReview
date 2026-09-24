@@ -1,0 +1,35 @@
+{
+  "title": "Theory-informed and interpretable graph learning for urban commuting flows",
+  "pdf_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/wiki-node-pdf-backfill/2026-06-13/papers/arxiv-2411.12972.pdf",
+      "score": 0.6,
+      "pages": 14,
+      "opening": "1\nUniFlow: A Foundation Model for Unified Urban\nSpatio-Temporal Flow Prediction\nYuan Yuan, Jingtao Ding, Chonghua Han, Zhi Sheng, Depeng Jin, Member, IEEE and Yong Li Senior\nMember, IEEE\nAbstract—Urban spatio-temporal flow prediction, encompass-\ning traffic flows and crowd flows, is crucial for optimizing city\ninfrastructure and managing traffic and emergency responses.\nTraditional approaches have relied on separate models tailored\nto either grid-based data, representing cities as uniform cells, or\ngraph-based data, modeling cities as networks of nodes and edges.\nIn this paper, we build UniFlow, a foundational model for general\nurban flow prediction that unifies both grid-based and graph-\nbased data. We first design a multi-view spatio-temporal patching\nmechanism to standardize different data into a consistent sequen-\ntial format and then introduce a spatio-temporal transformer\narchitecture to capture complex correlations and dynamics. To\nleverage shared spatio-temporal patterns across different data\ntypes and facilitate effective cross-learning, we propose Spatio-\nTemporal Memory Retrieval Augmentation (ST-MRA). By creat-\ning structured memory modules to store shared spatio-temporal\npatterns, ST-MRA enhances predictions through adaptive mem-\nory retrieval. Extensive experiments demonstrate that UniFlow\noutperforms existing models in both grid-based and graph-based\nflow prediction, excelling particularly in scenarios with limited\ndata availability, showcasing its superior performance and broad\napplicability. The datasets and code implementation have been\nreleased on https://github.com/YuanYuan98/UniFlow.\nIndex Terms—Spatio-temporal prediction, prompt learning,\nuniversal model.\nI. INTRODUCTION\nUrban flows refer to the dynamic movement patterns within\na city, such as crow"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/30 Urban Spatial Function and Co-location Mining/papers/arxiv-2411.12972.pdf",
+      "score": 0.6,
+      "pages": 14,
+      "opening": "1\nUniFlow: A Foundation Model for Unified Urban\nSpatio-Temporal Flow Prediction\nYuan Yuan, Jingtao Ding, Chonghua Han, Zhi Sheng, Depeng Jin, Member, IEEE and Yong Li Senior\nMember, IEEE\nAbstract—Urban spatio-temporal flow prediction, encompass-\ning traffic flows and crowd flows, is crucial for optimizing city\ninfrastructure and managing traffic and emergency responses.\nTraditional approaches have relied on separate models tailored\nto either grid-based data, representing cities as uniform cells, or\ngraph-based data, modeling cities as networks of nodes and edges.\nIn this paper, we build UniFlow, a foundational model for general\nurban flow prediction that unifies both grid-based and graph-\nbased data. We first design a multi-view spatio-temporal patching\nmechanism to standardize different data into a consistent sequen-\ntial format and then introduce a spatio-temporal transformer\narchitecture to capture complex correlations and dynamics. To\nleverage shared spatio-temporal patterns across different data\ntypes and facilitate effective cross-learning, we propose Spatio-\nTemporal Memory Retrieval Augmentation (ST-MRA). By creat-\ning structured memory modules to store shared spatio-temporal\npatterns, ST-MRA enhances predictions through adaptive mem-\nory retrieval. Extensive experiments demonstrate that UniFlow\noutperforms existing models in both grid-based and graph-based\nflow prediction, excelling particularly in scenarios with limited\ndata availability, showcasing its superior performance and broad\napplicability. The datasets and code implementation have been\nreleased on https://github.com/YuanYuan98/UniFlow.\nIndex Terms—Spatio-temporal prediction, prompt learning,\nuniversal model.\nI. INTRODUCTION\nUrban flows refer to the dynamic movement patterns within\na city, such as crow"
+    }
+  ],
+  "paperwiki_candidates": [
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/lightgcn/lightgcn-deep-review.md",
+      "score": 0.39,
+      "title": "He et al. 2020 심층 분석: \"LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation\" 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/gnn/gnnexplainer/gnnexplainer-deep-review.md",
+      "score": 0.32,
+      "title": "GNNExplainer 심층 분석: \"GNNExplainer: Generating Explanations for Graph Neural Networks\" 논문 해설"
+    },
+    {
+      "path": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/urban/pig-gnn/pig-gnn-deep-review.md",
+      "score": 0.3,
+      "title": "PIG-GNN 심층 분석: 통근 흐름 예측에 중력 법칙을 어떻게 넣을 것인가"
+    }
+  ],
+  "warning": "Candidate ranking is lexical only. Verify actual paper title, authors, version, and source before use."
+}

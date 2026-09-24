@@ -1,0 +1,43 @@
+{
+  "status": "published_verified",
+  "source_paths": [
+    "https://arxiv.org/html/2607.11683 (§§1, 3–6; Tables 1–4)"
+  ],
+  "source_urls": [
+    "https://arxiv.org/abs/2607.11683",
+    "https://arxiv.org/html/2607.11683"
+  ],
+  "paper_metadata": {
+    "title": "RAGU: A Multi-Step GraphRAG Engine with a Compact Domain-Adapted LLM",
+    "authors": [
+      "Mikhail Komarov",
+      "Ivan Bondarenko",
+      "Stanislav Shtuka",
+      "Oleg Sedukhin",
+      "Roman Shuvalov",
+      "Yana Dementyeva",
+      "Matvey Solovyov",
+      "Nikolay O. Nikitin"
+    ],
+    "year": 2026,
+    "primary_url": "https://arxiv.org/abs/2607.11683",
+    "arxiv_id": "2607.11683"
+  },
+  "excerpt": "RAGU는 추출과 통합을 분리한 다단계 GraphRAG 엔진으로, 지식 그래프 구성과 검색에 필요한 언어 능력을 작은 도메인 적응 모델에 집중시키는 설계를 제안한다.",
+  "changes": [
+    "Added the actual paper title and parser-compatible Paper header.",
+    "Retained paper method, reported results, figures, limits, and APA references.",
+    "Corrected multi-hop winners; removed zero-effect/free-cost and unsupported scaling/causal claims."
+  ],
+  "uncertainties": [
+    "The reported scaling interpretation is evaluated only for the paper's task and model comparisons."
+  ],
+  "figure_preservation": {
+    "expected": 3,
+    "preserved": 3,
+    "order_preserved": true
+  },
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/ragu",
+  "verified_content_sha256": "4f09ffee0645baacdfd3d674cc3e16c2baf55cb6729258d2c9dc58c6c40e6a84"
+}

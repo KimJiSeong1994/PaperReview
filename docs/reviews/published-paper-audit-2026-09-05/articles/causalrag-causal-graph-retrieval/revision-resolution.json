@@ -1,0 +1,9 @@
+{
+  "status": "pending_verification",
+  "notes": [
+    "Separated unspecified question generator from retrieval/evaluation models; removed current-repo audit."
+  ],
+  "figure_order_preserved": true,
+  "before_chars": 14149,
+  "after_chars": 13328
+}

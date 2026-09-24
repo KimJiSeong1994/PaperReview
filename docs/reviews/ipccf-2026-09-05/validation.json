@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-05",
+  "paper": "2604.15704v1",
+  "code_commit": "132bb839329a2e8cf6c9e0e599d5f19c691591d6",
+  "scope": "Static source audit, table arithmetic, independent algebra examples, markdown integrity; no model training or live deployment.",
+  "all_18_reported_cells_higher_than_BIGCF": true,
+  "average_relative_improvement_percent": {
+    "Precision": 6.37,
+    "Recall": 6.14,
+    "NDCG": 9.36
+  },
+  "epoch_overhead_percent": [
+    37.5,
+    57.03,
+    51.18
+  ],
+  "target_time_ratio_mean_percent": 25.29,
+  "batch_arithmetic": {
+    "paper_timing": 1024,
+    "code_defaults": 409600
+  },
+  "algebra": {
+    "normalized_then_pooled_edge_weights": [
+      0.46464646464646464,
+      0.5353535353535354
+    ],
+    "linear_propagation_lhs": 3.6060606060606064,
+    "linear_propagation_rhs": 3.6060606060606064,
+    "antipodal_gram_mean": 0.0,
+    "raw_dot_intensity_example_d32_w09": 13.46,
+    "sum_mean_score_multiplier_L2": 9
+  },
+  "markdown": {
+    "sections": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "missing_arxiv_fragments": [],
+    "display_math_delimiters_balanced": true,
+    "references_present": true,
+    "placeholder_present": false
+  },
+  "review_passes": [
+    "independent evidence extraction",
+    "method reconstruction",
+    "code audit with false-positive rejection",
+    "post-draft evidence verification",
+    "post-draft skeptical methodology review"
+  ],
+  "not_verified": [
+    "training reproduction",
+    "actual data edge ordering",
+    "paper result generating commit/seeds/model selection",
+    "production rendering and deployment"
+  ]
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "rsi-roadmap",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/rsi-roadmap/rsi-roadmap-deep-review.md",
+    "original_sha256": "0fa0a7b511ba1fe4e130f77c0056d96620dfec34c5e9be572b08fb1c01306b45",
+    "merge_exit": 0,
+    "frontmatter": "title: \"The Last AI Built by Humans: Toward Genuine Recursive Self-Improvement\"\nslug: rsi-roadmap\nexcerpt: \"재귀적 자기개선을 능력이 아니라 개선 루프의 책임 이전으로 정의하고 다섯 수준으로 나눈 75쪽 서베이를 검토한다. 헤드룸 지표가 실제로 보여 주는 것, 구조적 재귀와 실효적 재귀의 구분, 그리고 491편이라는 조사 규모가 논문 안에서 어디까지 확인되는지를 따진다.\"\ncategory: AI Agents\ntags:\n  - recursive-self-improvement\n  - self-improving-agents\n  - autonomy-levels\n  - survey\n  - agent-infrastructure\n  - benchmark-saturation\ndate: \"2026-09-15\"\nreviewed_at: \"2026-09-15\"\npaper_version: \"arXiv:2609.11873v1, 2026-09-10\"\nsource_paper: \"https://arxiv.org/pdf/2609.11873v1\"\nproject_page: \"https://theseus-labs-rsi.github.io/\"\nthumbnail: \"figures/rsi-fig1-levels-overview.png\"\n",
+    "heading": "# The Last AI Built by Humans: Toward Genuine Recursive Self-Improvement\n\n"
+  },
+  {
+    "slug": "ttpo",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/reasoning/ttpo/ttpo-deep-review.md",
+    "original_sha256": "b5cb245bcea18adef4b77580b483851486cc7c1bf11270ab5a5522c12da1c818",
+    "merge_exit": 0,
+    "frontmatter": "title: \"TTPO: Test-Time Policy Optimization\"\nslug: ttpo\nexcerpt: \"다수결 유사라벨이 자주 틀려도 '반대하는 롤아웃을 벌하는 일'은 대체로 옳다는 비대칭 관찰에서 출발하는 TTPO의 설계를 설명하고, 절제 실험을 따라가며 이득의 주인이 유사라벨인지 사고모드 증류인지 검토합니다.\"\ncategory: LLM Reasoning\ntags:\n  - ttpo\n  - test-time-training\n  - self-distillation\n  - grpo\n  - pseudo-label\n  - math-reasoning\ndate: \"2026-09-14\"\nreviewed_at: \"2026-09-14\"\npaper_version: \"arXiv:2608.27448v1, 2026-08-27\"\nsource_paper: \"https://arxiv.org/pdf/2608.27448v1\"\nofficial_code: \"https://github.com/ZJU-REAL/TTPO\"\nthumbnail: \"figures/ttpo-fig2-method-overview.png\"\n",
+    "heading": "# TTPO: Test-Time Policy Optimization\n\n"
+  },
+  {
+    "slug": "incoder-32b-thinking",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/incoder-thinking/incoder-thinking-deep-review.md",
+    "original_sha256": "f7458f13bf93c45cb148f3150d7bcb0c1441462fdf388fe0ed7dea742fa7a11f",
+    "merge_exit": 0,
+    "frontmatter": "title: \"InCoder-32B-Thinking: Industrial Code World Model for Thinking\"\nslug: incoder-32b-thinking\nexcerpt: \"실행 오류에서 추론 사슬을 합성하는 ECoT와 툴체인 피드백을 대신 예측하는 산업용 코드 월드 모델의 설계를 설명하고, 일반·산업 벤치마크 결과를 자기 instruct 판본과 대조해 '모든 도메인 최고'라는 서술이 어디까지 성립하는지 검토합니다.\"\ncategory: AI Agents\ntags:\n  - incoder\n  - industrial-code\n  - code-world-model\n  - chain-of-thought\n  - execution-feedback\n  - verilog\n  - gpu-kernel\ndate: \"2026-09-12\"\nreviewed_at: \"2026-09-12\"\npaper_version: \"arXiv:2604.03144v1, 2026-04-03\"\nsource_paper: \"https://arxiv.org/pdf/2604.03144v1\"\nofficial_code: \"https://github.com/CSJianYang/Industrial-Coder\"\nmodel_weights: \"https://huggingface.co/Multilingual-Multimodal-NLP/IndustrialCoder-Thinking\"\nthumbnail: \"figures/ic-fig4-data-engine.png\"\n",
+    "heading": "# InCoder-32B-Thinking: Industrial Code World Model for Thinking\n\n"
+  },
+  {
+    "slug": "codenib",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/codenib/codenib-deep-review.md",
+    "original_sha256": "65b829730eef55a96d05abd7f3dc390242e1cfacef28f370f1ee247b99e539d3",
+    "merge_exit": 0,
+    "frontmatter": "title: \"CodeNib: A Multi-View Data System for Serving Repository Context to Coding Agents\"\nslug: codenib\nexcerpt: \"저장소 컨텍스트를 커밋 단위 lexical·dense·structural 뷰로 미리 만들어 제공하는 CodeNib의 설계를 설명하고, 검색 계획·벡터 색인·정적 내비게이션·증분 갱신·컨텍스트 전달의 다섯 실험과 각 수치가 성립하는 조건부 경계를 검토합니다.\"\ncategory: AI Agents\ntags:\n  - codenib\n  - coding-agent\n  - repository-context\n  - code-retrieval\n  - incremental-indexing\n  - language-server\n  - context-engineering\ndate: \"2026-09-12\"\nreviewed_at: \"2026-09-12\"\npaper_version: \"arXiv:2607.25431v1, 2026-07-28\"\nsource_paper: \"https://arxiv.org/pdf/2607.25431v1\"\nofficial_code: \"https://github.com/sysevol-ai/CodeNib\"\ncode_snapshot: \"61a9ab2fd2cc\"\nthumbnail: \"figures/cn-fig2-dataflow.png\"\n",
+    "heading": "# CodeNib: A Multi-View Data System for Serving Repository Context to Coding Agents\n\n"
+  },
+  {
+    "slug": "rag-vs-graphrag-systematic-evaluation",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/rag/rag-vs-graphrag/rag-vs-graphrag-deep-review.md",
+    "original_sha256": "784240c88a3c7386f246caad3f4e8985899760960af21a973c8a2df5510243f3",
+    "merge_exit": 0,
+    "frontmatter": "title: \"RAG vs. GraphRAG: A Systematic Evaluation and Key Insights\"\nslug: rag-vs-graphrag-systematic-evaluation\nexcerpt: \"RAG와 네 계열 GraphRAG의 QA·요약 성능을 비교하고, 입력 토큰 통제, 평가자 순서 편향, 혼합 검색의 예외와 구축 비용을 분석합니다. 저자 공개 arXiv v3를 기준으로 한 심층 리뷰입니다.\"\ncategory: Agents / RAG\ntags:\n  - rag\n  - graphrag\n  - retrieval-evaluation\n  - query-based-summarization\n  - llm-as-a-judge\n  - hybrid-retrieval\nstatus: published\npublished_at: \"2026-09-11T12:23:45.767870+00:00\"\nblog_url: \"https://jiphyeonjeon.kr/blog/rag-vs-graphrag-systematic-evaluation\"\nreviewed_at: \"2026-09-11\"\ndate: \"2026-09-11\"\npublication_doi: \"10.1145/3770855.3817575\"\npublication_url: \"https://dl.acm.org/doi/10.1145/3770855.3817575\"\nvenue: \"KDD 2026 (출판 메타데이터 확인)\"\nsource_paper: \"https://arxiv.org/pdf/2502.11371v3\"\npaper_version: \"저자 공개 arXiv:2502.11371v3, 2026-03-04; ACM 최종 PDF 직접 대조 불가\"\nofficial_code: \"https://github.com/haoyuhan1/RAGvsGraphRAG\"\ncode_snapshot: \"d2a0c0c0deb0903d60338d3c416ccd6f9544267c\"\nthumbnail: \"figures/rvg-fig2-complementary-errors.png\"\n",
+    "heading": "# RAG vs. GraphRAG: A Systematic Evaluation and Key Insights\n\n"
+  },
+  {
+    "slug": "procedural-graphs",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/procedural-graphs/procedural-graphs-deep-review.md",
+    "original_sha256": "b652181674970cb8b13e9418506e392d6906ee28fe9fed64fa72e4de99d3aa8a",
+    "merge_exit": 0,
+    "frontmatter": "title: \"Procedural Graphs: Self-Evolving Execution Structures for LLM Agents\"\nslug: procedural-graphs\nexcerpt: \"Procedural Graph의 절차 표현, step별 guidance, 검증 기반 그래프 진화 과정을 설명하고, 본평가·구성 모드·토큰 비용·장기 시뮬레이션의 결과와 해석 범위를 검토합니다.\"\ncategory: AI Agents\ntags:\n  - procedural-graphs\n  - agent-memory\n  - self-evolution\n  - tool-use\n  - context-engineering\nstatus: published\npublished_at: \"2026-09-11T09:30:00.424776+00:00\"\nblog_url: \"https://jiphyeonjeon.kr/blog/procedural-graphs\"\ndate: \"2026-09-11\"\nreviewed_at: \"2026-09-11\"\npaper_version: \"arXiv:2609.09153v1, 2026-09-08\"\nsource_paper: \"https://arxiv.org/pdf/2609.09153v1\"\nthumbnail: \"figures/pg-fig2-framework.png\"\n",
+    "heading": "# Procedural Graphs: Self-Evolving Execution Structures for LLM Agents\n\n"
+  },
+  {
+    "slug": "agent-memory-distillation",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/agent-memory-distillation/agent-memory-distillation-deep-review.md",
+    "original_sha256": "9ebba3c5e825a167587cfc4e5290e8465b64f20ca955ef4c1e1d495c1ad88549",
+    "merge_exit": 0,
+    "frontmatter": "title: \"Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory\"\nslug: agent-memory-distillation\nexcerpt: \"AMD가 교사의 성공 궤적을 Workflow·Subtask·Function 메모리로 바꾸는 원리와 검색·주입 절차를 설명하고, 성능·과제 분리 평가·표현 방식·교사 선택·비용과 재현성의 한계를 분석합니다.\"\ncategory: AI Agents\ntags:\n  - agent-memory\n  - memory-distillation\n  - tool-use\n  - small-language-models\n  - in-context-learning\nstatus: published\npublished_at: \"2026-09-10T15:32:22.482776+00:00\"\nblog_url: \"https://jiphyeonjeon.kr/blog/agent-memory-distillation\"\nreviewed_at: \"2026-09-10T15:37:42.885340+00:00\"\ndate: \"2026-09-10\"\npaper_version: \"arXiv:2608.07169v1, 2026-08-07\"\nsource_paper: \"https://arxiv.org/pdf/2608.07169v1\"\nproject_url: \"https://agent-memory-distillation.github.io/\"\nofficial_code: \"https://github.com/taeilkim2465/agentic_memory_distillation\"\ncode_snapshot: \"2895d10c07105432325b088f4803dc94a10003c9\"\nthumbnail: \"figures/amd-fig2-hierarchical-memory.png\"\n",
+    "heading": "# Agent Memory Distillation: Empowering Small LLM Agents with Hierarchical Teacher Memory\n\n"
+  },
+  {
+    "slug": "causal-foundation-models",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/causality/causal-foundation-models/causal-foundation-models-deep-review.md",
+    "original_sha256": "79bd8727d9f693028be17856c13c89ecd50ad556f57bbac233d756d400131c18",
+    "merge_exit": 0,
+    "frontmatter": "title: \"Causal Foundation Models\"\nslug: causal-foundation-models\nexcerpt: \"관측 데이터에서 인과효과를 추정하도록 사전학습한 CFM의 원리, 세 모델의 prior와 예측 분포 차이, RealCause-Lalonde 실험과 속도 비교를 분석하고 식별가능성·불확실성·일반화의 한계를 검토합니다.\"\ncategory: Causal Inference\ntags:\n  - causal-inference\n  - causal-foundation-models\n  - prior-data-fitted-networks\n  - in-context-learning\n  - treatment-effects\n  - bayesian-inference\nstatus: published\npublished_at: \"2026-09-08T15:01:57.990406+00:00\"\nblog_url: \"https://jiphyeonjeon.kr/blog/causal-foundation-models\"\nreviewed_at: \"2026-09-08T15:01:57.990406+00:00\"\ndate: \"2026-09-08\"\npaper_version: \"arXiv:2609.03003v1, 2026-09-02\"\nsource_paper: \"https://arxiv.org/pdf/2609.03003v1\"\nofficial_code: \"https://github.com/layer6ai-labs/cfms\"\ncode_snapshot: \"549bcb72ac7ab5820843b889866913afe56c08dd\"\nthumbnail: \"figures/cfm-fig5-synthetic-prior-training.png\"\n",
+    "heading": "# Causal Foundation Models\n\n"
+  },
+  {
+    "slug": "wikiprofile-empty-shelves-lost-keys",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/wikiprofile/wikiprofile-deep-review.md",
+    "original_sha256": "5cf4b3a98f7c5292f4828c3753d3cae17cc675eeaba63229b0f18c0023089a7b",
+    "merge_exit": 1,
+    "frontmatter": "title: \"Empty Shelves or Lost Keys? — LLM은 모르는가, 알고도 떠올리지 못하는가\"\nslug: wikiprofile-empty-shelves-lost-keys\nexcerpt: \"WikiProfile이 LLM의 사실 지식을 저장·회상·재인으로 나누는 방법과 주요 실험을 분석하고, 행동적 지표로 내부 기억을 해석할 때의 한계, thinking과 RAG에 주는 시사점을 검토합니다.\"\ncategory: AI Agents\ntags:\n  - wikiprofile\n  - llm-memory\n  - factuality\n  - knowledge-profiling\n  - inference-time-compute\n  - reversal-curse\nstatus: published\ndate: \"2026-09-06\"\nsource_paper: \"https://arxiv.org/pdf/2602.14080v2\"\narxiv_url: \"https://arxiv.org/abs/2602.14080v2\"\npaper_version: \"v2, 2026-06-19\"\nvenue: \"ICML 2026 (원문 표기)\"\ndataset: \"https://huggingface.co/datasets/google/WikiProfile\"\nlicense: \"CC BY-SA 4.0\"\nthumbnail: \"figures/wikiprofile-fig2-encoding-and-knowledge.png\"\n",
+    "heading": "# Empty Shelves or Lost Keys? — LLM은 모르는가, 알고도 떠올리지 못하는가\n\n"
+  },
+  {
+    "slug": "clause-budget-aware-kg-reasoning",
+    "target": "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/blog/agents/clause/clause-deep-review.md",
+    "original_sha256": "8cedf6408801cd041323df3e002f76142824573320bf3a86e66ded4496135238",
+    "merge_exit": 1,
+    "frontmatter": "title: \"CLAUSE — 지식 그래프의 맥락 구성을 학습해 정확도와 비용을 함께 조절하다\"\nslug: clause-budget-aware-kg-reasoning\nexcerpt: \"CLAUSE의 세 에이전트와 LC-MAPPO가 그래프 확장·경로 탐색·근거 선택을 예산 아래 공동 학습하는 원리를 설명하고, 정확도·효율 실험과 제약 보장·이론·재현성의 경계를 분석합니다.\"\ncategory: AI Agents\ntags:\n  - clause\n  - knowledge-graph\n  - context-engineering\n  - multi-agent-rl\n  - constrained-rl\n  - graphrag\nstatus: published\ndate: \"2026-09-06\"\nvenue: \"ICLR 2026\"\npaper_version: \"ICLR 2026 conference proceedings PDF, 27 pages\"\nsource_paper: \"https://proceedings.iclr.cc/paper_files/paper/2026/file/8598c5d05e1d045919962e430b0bdf0d-Paper-Conference.pdf\"\nthumbnail: \"figures/clause-fig1-workflow.png\"\n",
+    "heading": "# CLAUSE — 지식 그래프의 맥락 구성을 학습해 정확도와 비용을 함께 조절하다\n\n"
+  }
+]

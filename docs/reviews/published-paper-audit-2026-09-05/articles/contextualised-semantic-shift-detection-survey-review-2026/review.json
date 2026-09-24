@@ -1,0 +1,39 @@
+{
+  "status": "published_verified",
+  "paper_metadata": {
+    "title": "Lexical Semantic Change through Large Language Models: a Survey",
+    "authors": [
+      "Francesco Periti",
+      "Stefano Montanelli"
+    ],
+    "year": 2024,
+    "primary_url": "https://doi.org/10.1145/3672393",
+    "doi": "10.1145/3672393",
+    "arxiv_id": "2304.01666"
+  },
+  "source_paths": [
+    "/Users/jiseong/Library/Mobile Documents/com~apple~CloudDocs/PaperWiki/PaperWiki/raw/20 Dynamic Semantics and Representation Learning/papers/arxiv-2304.01666.pdf"
+  ],
+  "source_urls": [
+    "https://doi.org/10.1145/3672393",
+    "https://arxiv.org/abs/2304.01666",
+    "https://air.unimi.it/retrieve/a4c91cfe-a51a-427b-8628-66b269247ce9/3672393.pdf"
+  ],
+  "excerpt": "문맥화 임베딩과 LLM으로 어휘 의미 변화를 탐지하는 방법을 표현·시간·학습 방식으로 분류하고, 성능·해석성·확장성의 긴장을 정리한 ACM 서베이를 설명한다.",
+  "changes": [
+    "출판본 실제 제목과 저자 순서로 보정",
+    "논문 설명·그림·APA References 보존"
+  ],
+  "uncertainties": [
+    "로컬 PDF는 arXiv preprint라 출판본의 편집상 차이는 DOI PDF로만 최종 확인 가능하다."
+  ],
+  "figure_preservation": {
+    "expected": 2,
+    "preserved": 2,
+    "order_preserved": true
+  },
+  "critical_fix_status": "pending_independent_verification",
+  "leader_resolution": "Independent critic findings resolved; source, figures, metadata and rendering validated. Publication tracked separately.",
+  "publication_url": "https://jiphyeonjeon.kr/blog/contextualised-semantic-shift-detection-survey-review-2026",
+  "verified_content_sha256": "6a889b7cf2e5671960b55c834075f32977380b4c6e12852539d54c638822803a"
+}
