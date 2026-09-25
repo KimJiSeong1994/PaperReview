@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -134,4 +134,6 @@ def test_openalex_korean_search_prefers_original_korean_query():
     )
 
     assert result == [{"title": "Korean Paper"}]
-    agent.openalex_searcher.search_korean.assert_called_once_with("거대 언어 모델", 5)
+    agent.openalex_searcher.search_korean.assert_called_once_with(
+        "거대 언어 모델", 5, deadline=None, stop_event=None, attempts=ANY
+    )

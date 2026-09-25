@@ -1,0 +1,830 @@
+{
+  "version": "search-review-matrix-v1",
+  "queries": [
+    {
+      "query_id": "c01-en",
+      "pair_id": "c01",
+      "split": "development",
+      "query": "10.48550/arXiv.1706.03762",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "exact",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.48550/arxiv.1706.03762",
+          "evidence_refs": [
+            "https://doi.org/10.48550/arxiv.1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c01-ko",
+      "pair_id": "c01",
+      "split": "development",
+      "query": "10.48550/arXiv.1706.03762 논문",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "exact",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.48550/arxiv.1706.03762",
+          "evidence_refs": [
+            "https://doi.org/10.48550/arxiv.1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c02-en",
+      "pair_id": "c02",
+      "split": "holdout",
+      "query": "arXiv:1706.03762",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "exact",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c02-ko",
+      "pair_id": "c02",
+      "split": "holdout",
+      "query": "arXiv:1706.03762 논문",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "exact",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c03-en",
+      "pair_id": "c03",
+      "split": "holdout",
+      "query": "\"Attention Is All You Need\"",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "title",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c03-ko",
+      "pair_id": "c03",
+      "split": "holdout",
+      "query": "\"Attention Is All You Need\" 논문",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "title",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c04-en",
+      "pair_id": "c04",
+      "split": "development",
+      "query": "graph neural networks",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "topic",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1812.08434",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1812.08434"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c04-ko",
+      "pair_id": "c04",
+      "split": "development",
+      "query": "그래프 신경망",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "topic",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1812.08434",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1812.08434"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c05-en",
+      "pair_id": "c05",
+      "split": "holdout",
+      "query": "survey of graph neural networks",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "survey",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1901.00596",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1901.00596"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c05-ko",
+      "pair_id": "c05",
+      "split": "holdout",
+      "query": "그래프 신경망 서베이",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "survey",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1901.00596",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1901.00596"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c06-en",
+      "pair_id": "c06",
+      "split": "holdout",
+      "query": "transformers versus recurrent neural networks",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "comparison",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c06-ko",
+      "pair_id": "c06",
+      "split": "holdout",
+      "query": "트랜스포머와 순환 신경망 비교",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "comparison",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c07-en",
+      "pair_id": "c07",
+      "split": "development",
+      "query": "ImageNet image classification",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "author": "Fei-Fei Li"
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "author",
+        "filter": "author"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.1109/cvpr.2009.5206848",
+          "evidence_refs": [
+            "https://doi.org/10.1109/cvpr.2009.5206848"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c07-ko",
+      "pair_id": "c07",
+      "split": "development",
+      "query": "ImageNet 이미지 분류",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "author": "Fei-Fei Li"
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "author",
+        "filter": "author"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.1109/cvpr.2009.5206848",
+          "evidence_refs": [
+            "https://doi.org/10.1109/cvpr.2009.5206848"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c08-en",
+      "pair_id": "c08",
+      "split": "holdout",
+      "query": "retrieval augmented generation",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "year_start": 2020,
+          "year_end": 2023
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "topic",
+        "filter": "year"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:2005.11401",
+          "evidence_refs": [
+            "https://arxiv.org/abs/2005.11401"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c08-ko",
+      "pair_id": "c08",
+      "split": "holdout",
+      "query": "검색 증강 생성",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "year_start": 2020,
+          "year_end": 2023
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "topic",
+        "filter": "year"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:2005.11401",
+          "evidence_refs": [
+            "https://arxiv.org/abs/2005.11401"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c09-en",
+      "pair_id": "c09",
+      "split": "holdout",
+      "query": "neural machine translation",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "category": "cs.CL"
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "topic",
+        "filter": "category"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c09-ko",
+      "pair_id": "c09",
+      "split": "holdout",
+      "query": "신경망 기계 번역",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "category": "cs.CL"
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "topic",
+        "filter": "category"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1706.03762",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1706.03762"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c10-en",
+      "pair_id": "c10",
+      "split": "holdout",
+      "query": "ImageNet visual recognition",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "author": "Fei-Fei Li",
+          "year_start": 2009,
+          "year_end": 2010
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "author",
+        "filter": "combined"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.1109/cvpr.2009.5206848",
+          "evidence_refs": [
+            "https://doi.org/10.1109/cvpr.2009.5206848"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c10-ko",
+      "pair_id": "c10",
+      "split": "holdout",
+      "query": "ImageNet 시각 인식",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {
+          "author": "Fei-Fei Li",
+          "year_start": 2009,
+          "year_end": 2010
+        },
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "author",
+        "filter": "combined"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "doi:10.1109/cvpr.2009.5206848",
+          "evidence_refs": [
+            "https://doi.org/10.1109/cvpr.2009.5206848"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c11-en",
+      "pair_id": "c11",
+      "split": "development",
+      "query": "graph neural networks NOT molecular",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "topic",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1812.08434",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1812.08434"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c11-ko",
+      "pair_id": "c11",
+      "split": "development",
+      "query": "그래프 신경망 NOT 분자",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "topic",
+        "filter": "none"
+      },
+      "required_candidates": [
+        {
+          "paper_key": "arxiv:1812.08434",
+          "evidence_refs": [
+            "https://arxiv.org/abs/1812.08434"
+          ]
+        }
+      ]
+    },
+    {
+      "query_id": "c12-en",
+      "pair_id": "c12",
+      "split": "holdout",
+      "query": "order a pepperoni pizza for dinner",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "en",
+        "intent": "negative",
+        "filter": "none"
+      },
+      "required_candidates": []
+    },
+    {
+      "query_id": "c12-ko",
+      "pair_id": "c12",
+      "split": "holdout",
+      "query": "저녁으로 페퍼로니 피자 주문해 줘",
+      "request": {
+        "sources": [
+          "arxiv",
+          "google_scholar",
+          "openalex",
+          "dblp",
+          "connected_papers",
+          "openalex_korean"
+        ],
+        "max_results": 50,
+        "sort_by": "relevance",
+        "filters": {},
+        "use_llm_search": false,
+        "fast_mode": false
+      },
+      "slices": {
+        "language": "ko",
+        "intent": "negative",
+        "filter": "none"
+      },
+      "required_candidates": []
+    }
+  ],
+  "matrix_hash": "sha256:228ebf9479b304bda8564a4c64165200b34597e68c2c0ede65f89072820c8301"
+}

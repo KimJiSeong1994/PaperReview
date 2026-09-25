@@ -57,6 +57,37 @@ def test_same_version_same_key():
     assert key1 == key2
 
 
+@pytest.mark.parametrize("left,right", [
+    ("graph NOT retrieval", "graph retrieval"),
+    ("graph AND retrieval", "graph OR retrieval"),
+    ('"graph retrieval"', "graph retrieval"),
+    ("C++ methods", "C methods"),
+])
+def test_cache_preserves_query_meaning(left, right):
+    rs = _get_module()
+    assert rs._compute_cache_key(left, ["arxiv"], {}) != rs._compute_cache_key(right, ["arxiv"], {})
+
+
+def test_cache_context_and_canonical_sources():
+    rs = _get_module()
+    assert rs._compute_cache_key("논문", ["arxiv", "openalex"], {}) == rs._compute_cache_key(
+        "  논문  ", ["openalex", "arxiv", "arxiv"], {},
+    )
+    assert rs._compute_cache_key("query", ["arxiv"], {"search_context": "biology"}) != rs._compute_cache_key(
+        "query", ["arxiv"], {"search_context": "physics"},
+    )
+
+
+def test_cache_returns_private_nested_papers(monkeypatch, tmp_path):
+    rs = _get_module()
+    monkeypatch.setattr(rs, "SEARCH_CACHE_DIR", tmp_path)
+    rs._set_cache("private", {"arxiv": [{"title": "P", "authors": ["A"]}]})
+    first = rs._get_cached_result("private")
+    first["arxiv"][0]["authors"].append("B")
+    first["arxiv"][0]["searched_by"] = "user"
+    assert rs._get_cached_result("private") == {"arxiv": [{"title": "P", "authors": ["A"]}]}
+
+
 def test_cache_version_change_invalidates_file_cache(monkeypatch, tmp_path):
     """Old cache files (wrong version key) must not be read after version bump."""
     import routers.search as rs

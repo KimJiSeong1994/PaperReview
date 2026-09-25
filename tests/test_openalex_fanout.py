@@ -15,7 +15,7 @@ def _agent(basic_hits: int):
     agent = SearchAgent.__new__(SearchAgent)
     searcher = MagicMock()
     papers = [{"title": f"paper {i}", "abstract": ""} for i in range(basic_hits)]
-    searcher.enhanced_search.return_value = list(papers)
+    searcher.search.return_value = list(papers)
     searcher.search_by_title.return_value = []
     searcher.search_korean.return_value = []
     agent.openalex_searcher = searcher
@@ -35,18 +35,24 @@ def test_optimized_query_that_fills_results_skips_the_title_fallback():
     _run(agent, "openalex", "graph neural networks",
          source_queries={"openalex": "graph representation learning"})
 
-    searcher.enhanced_search.assert_called_once()
+    searcher.search.assert_called_once()
+    assert searcher.search.call_args.args == ("graph representation learning", 10)
+    searcher.enhanced_search.assert_not_called()
     searcher.search_by_title.assert_not_called()
 
 
-def test_short_result_set_still_falls_back_to_the_original_query():
-    """The fallback is a recall guard; it must survive when results are thin."""
+def test_short_topic_result_set_does_not_invent_title_lookup():
+    """Only explicitly quoted titles may enter the title-search route."""
     agent, searcher = _agent(basic_hits=2)
 
-    _run(agent, "openalex", "graph neural networks",
-         source_queries={"openalex": "graph representation learning"})
+    result = _run(agent, "openalex", "graph neural networks",
+                  source_queries={"openalex": "graph representation learning"})
 
-    searcher.search_by_title.assert_called_once()
+    assert len(result) == 2
+    searcher.search.assert_called_once()
+    assert searcher.search.call_args.args == ("graph representation learning", 10)
+    searcher.search_by_title.assert_not_called()
+    searcher.enhanced_search.assert_not_called()
 
 
 def test_english_query_makes_no_korean_request():

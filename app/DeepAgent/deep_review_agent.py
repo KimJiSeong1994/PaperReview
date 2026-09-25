@@ -7,6 +7,7 @@ import json
 import logging
 import threading
 import contextvars
+import copy
 from typing import List, Dict, Any, Optional
 
 # 경로 추가
@@ -1145,7 +1146,8 @@ class DeepReviewAgent:
     def review_papers(
         self,
         paper_ids: List[str],
-        verbose: bool = True
+        verbose: bool = True,
+        papers_data: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Review papers using deep agent system
@@ -1153,6 +1155,7 @@ class DeepReviewAgent:
         Args:
             paper_ids: List of paper IDs to review
             verbose: Print progress
+            papers_data: Exact selected records; when supplied, never reload ambiguous storage IDs.
 
         Returns:
             Review result with report path
@@ -1178,7 +1181,7 @@ class DeepReviewAgent:
 
         try:
             ids = [str(pid) for pid in paper_ids if pid]
-            papers = load_papers_from_ids(ids)
+            papers = copy.deepcopy(papers_data) if papers_data is not None else load_papers_from_ids(ids)
 
             if not papers:
                 return {
@@ -1196,7 +1199,7 @@ class DeepReviewAgent:
             saved = 0
             for idx, paper in enumerate(papers, 1):
                 paper_id = str(
-                    paper.get("id") or paper.get("arxiv_id") or f"paper_{idx}"
+                    paper.get("result_key") or paper.get("id") or paper.get("arxiv_id") or f"paper_{idx}"
                 )
                 # Round-robin researcher label (provenance only — analysis is
                 # produced deterministically by the LLM tool, not a subagent).

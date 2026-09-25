@@ -10,7 +10,7 @@ import threading
 import time as _time
 
 logger = logging.getLogger(__name__)
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TypedDict
 from dotenv import load_dotenv
 from src.utils.model_defaults import DEFAULT_TOOL_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
@@ -27,6 +27,39 @@ _analysis_cache: Dict[str, Dict[str, Any]] = {}
 _analysis_cache_lock = threading.Lock()
 _CACHE_TTL = 86400  # 24 hours
 _CACHE_MAX_SIZE = 500
+
+
+class SourceQueries(TypedDict):
+    default: str
+    arxiv: str
+    dblp: str
+    openalex: str
+    google_scholar: str
+    scholar_queries: List[str]
+    openalex_korean: str
+
+
+def normalize_source_queries(query: str, raw: Any = None) -> SourceQueries:
+    """Validate bounded provider queries without inventing translation or variants."""
+    raw = raw if isinstance(raw, dict) else {}
+    def text(value, default):
+        return value.strip() if isinstance(value, str) and value.strip() and len(value) <= 2000 else default
+    default = text(raw.get("default"), text(raw.get("openalex"), text(raw.get("dblp"), query)))
+    variants = raw.get("scholar_queries", raw.get("google_scholar", default))
+    if isinstance(variants, str):
+        variants = [variants]
+    if not isinstance(variants, list):
+        variants = []
+    variants = list(dict.fromkeys(v.strip() for v in variants if isinstance(v, str) and v.strip() and len(v) <= 2000))[:3] or [default]
+    return {
+        "default": default,
+        "arxiv": text(raw.get("arxiv"), default),
+        "dblp": text(raw.get("dblp"), default),
+        "openalex": text(raw.get("openalex"), default),
+        "google_scholar": variants[0],
+        "scholar_queries": variants,
+        "openalex_korean": query,
+    }
 
 
 def _cache_key(prefix: str, query: str) -> str:
@@ -646,7 +679,7 @@ Return JSON: {{"queries": ["variant1", "variant2", ...]}}"""
     @log_data_processing("Source-Specific Query Generation")
     def generate_source_specific_queries(
         self, query: str, keywords: List[str] = None
-    ) -> Dict[str, str]:
+    ) -> SourceQueries:
         """
         소스별 최적화 쿼리 생성.
 
@@ -676,6 +709,8 @@ Return a JSON object with exactly these keys:
 {{
     "arxiv": "arXiv-optimized query",
     "dblp": "DBLP-optimized query",
+    "default": "faithful English translation, or original English query",
+    "openalex": "faithful English query",
     "google_scholar": "Google Scholar-optimized query"
 }}
 
@@ -702,12 +737,7 @@ CRITICAL RULES:
             )
 
             result = json.loads(response.choices[0].message.content or "{}")
-            source_result = {
-                "arxiv": result.get("arxiv", query),
-                "dblp": result.get("dblp", query),
-                "google_scholar": result.get("google_scholar", query),
-                "default": query,
-            }
+            source_result = normalize_source_queries(query, result)
             _set_in_cache(key, source_result)
             return source_result
 
@@ -717,18 +747,9 @@ CRITICAL RULES:
 
     def _fallback_source_queries(
         self, query: str, keywords: List[str] = None
-    ) -> Dict[str, str]:
+    ) -> SourceQueries:
         """LLM 실패 시 keywords 기반 간단 분배"""
-        kw = keywords or [w for w in query.split() if len(w) > 2]
-        kw = kw[:6]
-        arxiv_q = " AND ".join([f"ti:{k}" for k in kw[:3]]) if kw else query
-        dblp_q = " ".join(kw[:6]) if kw else query
-        return {
-            "arxiv": arxiv_q,
-            "dblp": dblp_q,
-            "google_scholar": query,
-            "default": query,
-        }
+        return normalize_source_queries(query)
 
     @log_data_processing("Unified Query Analysis")
     def analyze_and_prepare(
@@ -791,6 +812,7 @@ CRITICAL RULES:
             fallback = self._fallback_analysis(query)
             fallback["is_academic"] = True
             fallback["source_queries"] = self._fallback_source_queries(query, fallback.get("keywords"))
+            fallback["analysis_status"] = "unavailable_original_query"
             return fallback
 
         started = _time.perf_counter()
@@ -832,6 +854,8 @@ Return JSON:
     "source_queries": {{
         "arxiv": "arXiv query using (ti:X OR ti:Y) OR (abs:X AND abs:Y)",
         "dblp": "2-4 core keywords",
+        "default": "faithful English translation, or the original English query",
+        "openalex": "faithful English query",
         "google_scholar": ["specific query with quoted phrases", "broader rephrased query", "alternative angle query"]
     }}
 }}
@@ -854,6 +878,10 @@ RULES:
                 result = parse_and_normalize_query_analysis(
                     result_text, original_query=query
                 )
+                result["source_queries"] = normalize_source_queries(query, result.get("source_queries"))
+                if result.get("confidence", 0) < 0.7:
+                    result["source_queries"] = normalize_source_queries(query)
+                    result["analysis_status"] = "low_confidence_original_query"
                 _set_in_cache(key, result)
                 logger.info(
                     "[QueryAnalyzer] analyze_and_prepare completed in %.2fs "
@@ -867,35 +895,8 @@ RULES:
 
             raw = json.loads(result_text)
 
-            source_queries = raw.get("source_queries", {})
+            source_queries = normalize_source_queries(query, raw.get("source_queries"))
 
-            # Normalize google_scholar / scholar_queries: LLM may return list or string
-            scholar_raw = source_queries.get("google_scholar", query)
-            sq = source_queries.get("scholar_queries", scholar_raw)
-            if isinstance(sq, str):
-                # LLM non-compliance: fabricate variants to preserve Scholar recall
-                base = sq.strip()
-                improved = raw.get("improved_query") or query
-                keywords: List[str] = raw.get("keywords") or []
-                variants: List[str] = [base]
-                if improved and improved != base:
-                    variants.append(improved)
-                if keywords:
-                    variants.append(" ".join(keywords[:5]))
-                scholar_queries = [v for v in variants if v][:3]
-                logger.warning(
-                    "[QueryAnalyzer] scholar_queries was a string (LLM non-compliance);"
-                    " fabricated %d variants from base=%r query=%r",
-                    len(scholar_queries),
-                    base,
-                    query,
-                )
-            elif isinstance(sq, list):
-                scholar_queries = [str(v).strip() for v in sq if v][:3]
-            else:
-                # None or unexpected type — fall back to google_scholar single string
-                gs = scholar_raw if isinstance(scholar_raw, str) else query
-                scholar_queries = [gs]
 
             result = {
                 "is_academic": bool(raw.get("is_academic", True)),
@@ -908,14 +909,11 @@ RULES:
                 "search_filters": raw.get("search_filters", {}),
                 "confidence": float(raw.get("confidence", 0.8)),
                 "original_query": query,
-                "source_queries": {
-                    "arxiv": source_queries.get("arxiv", query),
-                    "dblp": source_queries.get("dblp", query),
-                    "google_scholar": scholar_queries[0] if scholar_queries else query,
-                    "scholar_queries": scholar_queries,
-                    "default": query,
-                },
+                "source_queries": source_queries,
             }
+            if result["confidence"] < 0.7:
+                result["source_queries"] = normalize_source_queries(query)
+                result["analysis_status"] = "low_confidence_original_query"
             _set_in_cache(key, result)
             logger.info(
                 "[QueryAnalyzer] analyze_and_prepare completed in %.2fs (academic=%s, intent=%s, confidence=%.2f)",
@@ -928,19 +926,15 @@ RULES:
 
         except Exception as e:
             logger.warning(
-                "[QueryAnalyzer] analyze_and_prepare failed after %.2fs, falling back to individual calls: %s",
+                "[QueryAnalyzer] analyze_and_prepare failed after %.2fs, using original-query fallback without additional LLM calls: %s",
                 _time.perf_counter() - started,
                 e,
                 exc_info=True,
             )
-            # Fallback: 개별 메서드 호출
-            analysis = self.analyze_query(query)
-            topic = self.classify_topic(query)
-            source_queries = self.generate_source_specific_queries(
-                query, keywords=analysis.get("keywords")
-            )
-            analysis["is_academic"] = topic.get("is_academic", True)
-            analysis["source_queries"] = source_queries
+            analysis = self._fallback_analysis(query)
+            analysis["is_academic"] = True
+            analysis["analysis_status"] = "unavailable_original_query"
+            analysis["source_queries"] = normalize_source_queries(query)
             return analysis
 
     @log_data_processing("LLM Context Search")

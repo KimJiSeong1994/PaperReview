@@ -10,6 +10,7 @@ QueryAnalyzer의 intent에 따라 가중치를 자동 조절한다.
 """
 
 import atexit
+import copy
 import hashlib
 import json
 import logging
@@ -24,6 +25,7 @@ import numpy as np
 
 from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOOL_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from src.utils.paper_utils import generate_result_key
 
 try:
     from rank_bm25 import BM25Okapi
@@ -32,6 +34,14 @@ except ImportError:
     BM25_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+def _cutoff_reason(deadline=None, stop_event=None):
+    if stop_event is not None and stop_event.is_set():
+        return "stopped"
+    if deadline is not None and time.monotonic() >= deadline:
+        return "deadline"
+    return None
 
 # ── 모듈 레벨 HyDE 전용 ThreadPoolExecutor (재사용) ────────────────
 _HYDE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hyde")
@@ -196,6 +206,9 @@ class HybridRanker:
         use_rrf: bool = True,
         research_area: str = "",
         cross_encoder_weight: Optional[float] = None,
+        fast_mode: bool = False,
+        deadline=None,
+        stop_event=None,
     ) -> List[Dict[str, Any]]:
         """
         논문 리스트를 하이브리드 점수로 랭킹.
@@ -208,6 +221,9 @@ class HybridRanker:
             top_k: 상위 K개만 반환 (None이면 전부)
             openai_client: OpenAI 클라이언트 (HyDE 활성화용, 선택)
             use_rrf: True면 RRF 방식, False면 weighted-sum 방식 (기존 동작)
+            fast_mode: Skip all dense, HyDE and cross-encoder work.
+            deadline: Absolute monotonic admission cutoff for expensive calls.
+            stop_event: Cooperative stop; running calls are not forcibly killed.
 
         Returns:
             랭킹된 논문 리스트 (_hybrid_score, _score_breakdown 포함)
@@ -224,13 +240,21 @@ class HybridRanker:
                 openai_client=openai_client,
                 research_area=research_area,
                 cross_encoder_weight=cross_encoder_weight,
+                fast_mode=fast_mode,
+                deadline=deadline,
+                stop_event=stop_event,
             )
 
         # ── Weighted-sum fallback (기존 동작 유지) ──────────────────
+        papers = copy.deepcopy(papers)
         w = dict(weights or INTENT_WEIGHT_PRESETS.get(intent, DEFAULT_WEIGHTS))
 
         bm25_scores = self._compute_bm25_scores(query, papers)
-        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area)
+        semantic_scores = ([0.0] * len(papers) if fast_mode or _cutoff_reason(deadline, stop_event) else
+                           self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area, deadline=deadline, stop_event=stop_event))
+        cutoff = _cutoff_reason(deadline, stop_event)
+        if cutoff:
+            semantic_scores = [0.0] * len(papers)
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
 
@@ -266,10 +290,14 @@ class HybridRanker:
                 hybrid += boost
                 breakdown["source_boost"] = boost
 
-            paper["_hybrid_score"] = round(hybrid, 4)
+            paper["_hybrid_score"] = hybrid
             paper["_score_breakdown"] = breakdown
+            if fast_mode:
+                breakdown["excluded_signals"] = {"semantic": "fast_capability", "cross_encoder": "fast_capability"}
+            elif cutoff:
+                breakdown["excluded_signals"] = {"semantic": cutoff, "cross_encoder": cutoff}
 
-        papers.sort(key=lambda p: p.get("_hybrid_score", 0), reverse=True)
+        papers.sort(key=lambda p: (-p["_hybrid_score"], generate_result_key(p)))
 
         if top_k is not None:
             papers = papers[:top_k]
@@ -285,6 +313,9 @@ class HybridRanker:
         openai_client=None,
         research_area: str = "",
         cross_encoder_weight: Optional[float] = None,
+        fast_mode: bool = False,
+        deadline=None,
+        stop_event=None,
     ) -> List[Dict[str, Any]]:
         """
         RRF (Reciprocal Rank Fusion) 방식으로 논문 랭킹.
@@ -313,70 +344,109 @@ class HybridRanker:
         ce_weight = (
             CROSS_ENCODER_RRF_WEIGHT if cross_encoder_weight is None else float(cross_encoder_weight)
         )
+        if not math.isfinite(ce_weight) or ce_weight < 0:
+            raise ValueError("cross_encoder_weight must be finite and nonnegative")
+        papers = copy.deepcopy(papers)
         n = len(papers)
 
         bm25_scores = self._compute_bm25_scores(query, papers)
-        semantic_scores = self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area)
+        semantic_scores = ([] if fast_mode or _cutoff_reason(deadline, stop_event) else
+                           self._compute_semantic_scores(query, papers, openai_client=openai_client, research_area=research_area, deadline=deadline, stop_event=stop_event))
+        semantic_cutoff = _cutoff_reason(deadline, stop_event)
+        if semantic_cutoff:
+            semantic_scores = []
         citation_scores = self._compute_citation_scores(papers)
         recency_scores = self._compute_recency_scores(papers)
 
-        # 각 신호별로 내림차순 순위 계산 (rank: 1-based)
-        def _ranks_from_scores(scores: List[float]) -> List[int]:
-            """점수 리스트를 받아 각 원소의 1-based 순위 반환 (높을수록 rank=1)."""
+        excluded_signals = {}
+
+        def _ranks_from_scores(name, scores):
+            reason = None
+            if len(scores) != n:
+                reason = "unavailable"
+            elif any(not isinstance(s, (int, float, np.number)) or not math.isfinite(s) for s in scores):
+                reason = "nonfinite"
+            elif len(set(scores)) <= 1:
+                reason = "constant"
+            if reason:
+                excluded_signals[name] = reason
+                logger.info("[HybridRanker] RRF: excluding %s (%s)", name, reason)
+                return [0] * n
             indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
             ranks = [0] * n
-            for rank, (idx, _) in enumerate(indexed, start=1):
+            previous = None
+            rank = 0
+            for position, (idx, score) in enumerate(indexed, start=1):
+                if previous is None or score != previous:
+                    rank = position
                 ranks[idx] = rank
+                previous = score
             return ranks
 
-        bm25_ranks = _ranks_from_scores(bm25_scores)
-        semantic_ranks = _ranks_from_scores(semantic_scores)
-        citation_ranks = _ranks_from_scores(citation_scores)
-        recency_ranks = _ranks_from_scores(recency_scores)
+        bm25_ranks = _ranks_from_scores("bm25", bm25_scores)
+        semantic_ranks = _ranks_from_scores("semantic", semantic_scores)
+        citation_ranks = _ranks_from_scores("citations", citation_scores)
+        recency_ranks = _ranks_from_scores("recency", recency_scores)
 
         # Cross-encoder (5번째 신호) — 미설치 시 빈 리스트 → RRF에서 제외.
         # 가중치가 0이면 융합에 한 톨도 기여하지 않으므로 추론을 아예 돌리지
         # 않는다. 후보 수십 건에 대한 모델 추론은 검색당 수백 ms짜리 비용이라
         # "계산해두고 0을 곱하는" 형태로 남겨둘 만한 것이 아니다.
         cross_encoder_scores = (
-            self._compute_cross_encoder_scores(query, papers) if ce_weight > 0 else []
+            self._compute_cross_encoder_scores(query, papers, deadline=deadline, stop_event=stop_event)
+            if ce_weight > 0 and not fast_mode and not _cutoff_reason(deadline, stop_event) else []
         )
         cross_encoder_available = len(cross_encoder_scores) == n
         if cross_encoder_available:
-            cross_encoder_ranks = _ranks_from_scores(cross_encoder_scores)
-            logger.info("[HybridRanker] RRF: Cross-encoder signal active (%d papers)", n)
+            cross_encoder_ranks = _ranks_from_scores("cross_encoder", cross_encoder_scores)
+            logger.info("[HybridRanker] RRF: Cross-encoder signal evaluated (%d papers)", n)
         else:
             cross_encoder_ranks = [0] * n
+            excluded_signals["cross_encoder"] = "disabled_weight" if ce_weight == 0 else "unavailable"
             logger.info("[HybridRanker] RRF: Cross-encoder unavailable, excluding from fusion")
 
         # semantic 전부 0이면 해당 신호 제외 (rank 기여 없음 처리)
-        semantic_zero = all(s == 0.0 for s in semantic_scores)
+        semantic_zero = not any(semantic_ranks)
         if semantic_zero:
             logger.info("[HybridRanker] RRF: Semantic unavailable, excluding from fusion")
 
+        if fast_mode:
+            excluded_signals.update(semantic="fast_capability", cross_encoder="fast_capability")
+        else:
+            if semantic_cutoff:
+                excluded_signals["semantic"] = semantic_cutoff
+            if _cutoff_reason(deadline, stop_event):
+                excluded_signals["cross_encoder"] = _cutoff_reason(deadline, stop_event)
+
+        def display(scores, index):
+            if len(scores) != n or not isinstance(scores[index], (int, float, np.number)) or not math.isfinite(scores[index]):
+                return None
+            return round(float(scores[index]), 4)
+
         for i, paper in enumerate(papers):
-            rrf_bm25 = 1.0 / (RRF_K + bm25_ranks[i])
+            rrf_bm25 = 1.0 / (RRF_K + bm25_ranks[i]) if bm25_ranks[i] else 0.0
             rrf_semantic = 0.0 if semantic_zero else 1.0 / (RRF_K + semantic_ranks[i])
-            rrf_citations = 1.0 / (RRF_K + citation_ranks[i])
-            rrf_recency = 1.0 / (RRF_K + recency_ranks[i])
+            rrf_citations = 1.0 / (RRF_K + citation_ranks[i]) if citation_ranks[i] else 0.0
+            rrf_recency = 1.0 / (RRF_K + recency_ranks[i]) if recency_ranks[i] else 0.0
             rrf_cross_encoder = (
-                ce_weight / (RRF_K + cross_encoder_ranks[i]) if cross_encoder_available else 0.0
+                ce_weight / (RRF_K + cross_encoder_ranks[i]) if cross_encoder_ranks[i] else 0.0
             )
 
             rrf_score = rrf_bm25 + rrf_semantic + rrf_citations + rrf_recency + rrf_cross_encoder
 
             breakdown = {
-                "bm25": round(bm25_scores[i], 4),
-                "semantic": round(semantic_scores[i], 4),
-                "citations": round(citation_scores[i], 4),
-                "recency": round(recency_scores[i], 4),
-                "cross_encoder": round(cross_encoder_scores[i], 4) if cross_encoder_available else 0.0,
+                "bm25": display(bm25_scores, i),
+                "semantic": display(semantic_scores, i),
+                "citations": display(citation_scores, i),
+                "recency": display(recency_scores, i),
+                "cross_encoder": display(cross_encoder_scores, i),
+                "excluded_signals": dict(excluded_signals),
                 "rrf_bm25": round(rrf_bm25, 6),
                 "rrf_semantic": round(rrf_semantic, 6),
                 "rrf_citations": round(rrf_citations, 6),
                 "rrf_recency": round(rrf_recency, 6),
                 "rrf_cross_encoder": round(rrf_cross_encoder, 6),
-                "cross_encoder_weight": ce_weight if cross_encoder_available else 0.0,
+                "cross_encoder_weight": ce_weight if any(cross_encoder_ranks) else 0.0,
                 "rrf_mode": True,
             }
 
@@ -387,10 +457,10 @@ class HybridRanker:
                 rrf_score += boost
                 breakdown["source_boost"] = boost
 
-            paper["_hybrid_score"] = round(rrf_score, 6)
+            paper["_hybrid_score"] = rrf_score
             paper["_score_breakdown"] = breakdown
 
-        papers.sort(key=lambda p: p.get("_hybrid_score", 0), reverse=True)
+        papers.sort(key=lambda p: (-p["_hybrid_score"], generate_result_key(p)))
 
         if top_k is not None:
             papers = papers[:top_k]
@@ -399,12 +469,14 @@ class HybridRanker:
 
     # ── Cross-encoder ──────────────────────────────────────────────
 
-    def _compute_cross_encoder_scores(self, query: str, papers: List[Dict[str, Any]]) -> List[float]:
+    def _compute_cross_encoder_scores(self, query: str, papers: List[Dict[str, Any]], deadline=None, stop_event=None) -> List[float]:
         """Cross-encoder 기반 relevance score. LocalRelevanceScorer 싱글턴 재사용.
 
         (query_hash, paper_id) 단위 TTL 1h LRU 캐시로 반복 호출 시 재계산을 회피.
         paper_id 부재 시 title 해시로 대체하여 캐시 키의 일관성을 확보한다.
         """
+        if _cutoff_reason(deadline, stop_event):
+            return []
         try:
             from app.QueryAgent.relevance_filter import LocalRelevanceScorer
 
@@ -421,20 +493,7 @@ class HybridRanker:
             # Stable query hash (16 chars) for cache key
             query_hash = _ce_query_hash(query)
 
-            # Paper identifier fallback: paper_id → id → arxiv_id → doi → hash(title)
-            def _paper_key(p: Dict[str, Any]) -> str:
-                pid = (
-                    p.get("paper_id")
-                    or p.get("id")
-                    or p.get("arxiv_id")
-                    or p.get("doi")
-                )
-                if pid:
-                    return str(pid)
-                title = str(p.get("title", "") or "")
-                return "t:" + hashlib.sha256(title.encode("utf-8")).hexdigest()[:16]
-
-            paper_keys = [_paper_key(p) for p in papers]
+            paper_keys = [generate_result_key(p) for p in papers]
 
             # 1) Cache lookup
             scores: List[Optional[float]] = [None] * n
@@ -457,7 +516,15 @@ class HybridRanker:
             # 2) Compute only misses through score_papers (batch_size=32 inside)
             if miss_indices:
                 miss_papers = [papers[i] for i in miss_indices]
-                fresh_scores = LocalRelevanceScorer.score_papers(query, miss_papers)
+                fresh_scores = []
+                for start in range(0, len(miss_papers), 32):
+                    if _cutoff_reason(deadline, stop_event):
+                        return []
+                    batch = miss_papers[start:start + 32]
+                    batch_scores = LocalRelevanceScorer.score_papers(query, batch)
+                    if _cutoff_reason(deadline, stop_event) or len(batch_scores or []) != len(batch):
+                        return []
+                    fresh_scores.extend(batch_scores)
                 if fresh_scores and len(fresh_scores) == len(miss_papers):
                     for local_idx, orig_idx in enumerate(miss_indices):
                         s = float(fresh_scores[local_idx])
@@ -531,8 +598,12 @@ class HybridRanker:
         query: str,
         openai_client,
         research_area: str = "",
+        deadline=None,
+        stop_event=None,
     ) -> str:
         """HyDE fallback: 가상 초록만 단독 생성 (개별 LLM 호출)."""
+        if _cutoff_reason(deadline, stop_event):
+            return ""
         local_started = time.perf_counter()
         domain_spec = (
             f"specializing in {research_area} research"
@@ -576,8 +647,12 @@ class HybridRanker:
         self,
         query: str,
         openai_client,
+        deadline=None,
+        stop_event=None,
     ) -> List[str]:
         """HyDE fallback: 대안 검색 쿼리 2개만 단독 생성 (개별 LLM 호출)."""
+        if _cutoff_reason(deadline, stop_event):
+            return []
         local_started = time.perf_counter()
         alt_response = create_chat_completion(openai_client,
             model=DEFAULT_TOOL_MODEL,
@@ -611,6 +686,8 @@ class HybridRanker:
         query: str,
         openai_client,
         research_area: str = "",
+        deadline=None,
+        stop_event=None,
     ) -> Tuple[str, List[str]]:
         """통합 HyDE 호출: 1회의 DEFAULT_TOOL_MODEL JSON 응답으로 (abstract, alt_queries[2]) 획득.
 
@@ -644,6 +721,8 @@ class HybridRanker:
             "Do not add any commentary."
         )
         try:
+            if _cutoff_reason(deadline, stop_event):
+                return "", []
             response = create_chat_completion(openai_client,
                 model=DEFAULT_TOOL_MODEL,
                 messages=[
@@ -679,6 +758,8 @@ class HybridRanker:
             return abstract, alt_queries
 
         except Exception as e:
+            if _cutoff_reason(deadline, stop_event):
+                return "", []
             logger.warning(
                 "hyde_unified_fallback_triggered: unified HyDE call failed (%s); falling back to individual calls",
                 e,
@@ -692,10 +773,14 @@ class HybridRanker:
                     query,
                     openai_client,
                     research_area,
+                    deadline=deadline,
+                    stop_event=stop_event,
                 )
                 fallback_alts = self._generate_alt_queries(
                     query,
                     openai_client,
+                    deadline=deadline,
+                    stop_event=stop_event,
                 )
                 return fallback_abstract, fallback_alts
             except Exception as inner:
@@ -710,6 +795,8 @@ class HybridRanker:
         query: str,
         openai_client,
         research_area: str = "",
+        deadline=None,
+        stop_event=None,
     ) -> Optional[np.ndarray]:
         """
         HyDE (Hypothetical Document Embedding) + Multi-Query 평균 임베딩 생성.
@@ -726,6 +813,8 @@ class HybridRanker:
         Returns:
             L2-정규화된 평균 임베딩 벡터, 실패 시 None
         """
+        if _cutoff_reason(deadline, stop_event):
+            return None
         # 캐시 조회
         cached = _hyde_cache_get(query)
         if cached is not None:
@@ -739,8 +828,12 @@ class HybridRanker:
                 query=query,
                 openai_client=openai_client,
                 research_area=research_area,
+                deadline=deadline,
+                stop_event=stop_event,
             )
 
+            if _cutoff_reason(deadline, stop_event):
+                return None
             # 3. 배치 임베딩: [원본 쿼리, 가상 초록] + 대안들
             texts_to_embed = [query]
             if hypothetical_abstract:
@@ -757,6 +850,8 @@ class HybridRanker:
                 self.similarity_calculator, "get_embeddings_batch"
             ):
                 truncated = [t[:8000] for t in texts_to_embed]
+                if _cutoff_reason(deadline, stop_event):
+                    return None
                 emb_batch = self.similarity_calculator.get_embeddings_batch(truncated)
                 vectors = [np.asarray(v) for v in emb_batch if v is not None]
                 logger.info(
@@ -772,6 +867,8 @@ class HybridRanker:
                     "[HybridRanker] HyDE falling back to DEFAULT_EMBEDDING_MODEL "
                     "(no SimilarityCalculator injected) — dim parity with paper embeddings NOT guaranteed"
                 )
+                if _cutoff_reason(deadline, stop_event):
+                    return None
                 embed_response = openai_client.embeddings.create(
                     model=DEFAULT_EMBEDDING_MODEL,
                     input=[t[:8000] for t in texts_to_embed],
@@ -846,6 +943,8 @@ class HybridRanker:
         papers: List[Dict[str, Any]],
         openai_client=None,
         research_area: str = "",
+        deadline=None,
+        stop_event=None,
     ) -> List[float]:
         """
         Field-Weighted Semantic 점수 (title 0.6 + abstract 0.4 코사인 유사도).
@@ -864,14 +963,17 @@ class HybridRanker:
         Returns:
             0~1 범위 semantic 점수 리스트
         """
-        if not self.similarity_calculator:
+        if not self.similarity_calculator or _cutoff_reason(deadline, stop_event):
             return [0.0] * len(papers)
 
         try:
             # HyDE 임베딩 시도 (openai_client 있을 때)
             hyde_query_emb: Optional[np.ndarray] = None
             if openai_client is not None:
-                hyde_query_emb = self._generate_hyde_embedding(query, openai_client, research_area=research_area)
+                hyde_query_emb = self._generate_hyde_embedding(
+                    query, openai_client, research_area=research_area,
+                    deadline=deadline, stop_event=stop_event,
+                )
                 if hyde_query_emb is not None:
                     logger.info("[HybridRanker] HyDE embedding active for semantic scoring")
 
@@ -884,12 +986,20 @@ class HybridRanker:
                 texts.append(abstract if abstract else title)
 
             # 배치 임베딩
+            if _cutoff_reason(deadline, stop_event):
+                return [0.0] * len(papers)
             if hasattr(self.similarity_calculator, "get_embeddings_batch"):
-                embeddings = self.similarity_calculator.get_embeddings_batch(texts)
+                embeddings = []
+                for start in range(0, len(texts), 32):
+                    if _cutoff_reason(deadline, stop_event):
+                        return [0.0] * len(papers)
+                    embeddings.extend(self.similarity_calculator.get_embeddings_batch(texts[start:start + 32]))
             else:
-                embeddings = [
-                    self.similarity_calculator._get_embedding(t[:8000]) for t in texts
-                ]
+                embeddings = []
+                for text in texts:
+                    if _cutoff_reason(deadline, stop_event):
+                        return [0.0] * len(papers)
+                    embeddings.append(self.similarity_calculator._get_embedding(text[:8000]))
 
             # 쿼리 임베딩 결정: HyDE 우선, 없으면 raw query 임베딩
             raw_query_emb = embeddings[0]
@@ -953,7 +1063,15 @@ class HybridRanker:
     @staticmethod
     def _compute_citation_scores(papers: List[Dict[str, Any]]) -> List[float]:
         """log 정규화 인용수: log(1+c) / log(1+max_c)"""
-        raw = [max(0, int(p.get("citations", 0) or 0)) for p in papers]
+        raw = []
+        for paper in papers:
+            try:
+                value = float(paper.get("citations", 0) or 0)
+                raw.append(max(0, value) if math.isfinite(value) else float("nan"))
+            except (TypeError, ValueError, OverflowError):
+                raw.append(float("nan"))
+        if any(not math.isfinite(value) for value in raw):
+            return [float("nan")] * len(papers)
         max_c = max(raw) if raw else 0
         if max_c == 0:
             return [0.0] * len(papers)
@@ -970,7 +1088,7 @@ class HybridRanker:
         for p in papers:
             try:
                 year = int(p.get("year", 0) or 0)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, OverflowError):
                 year = 0
             if year == 0:
                 scores.append(0.3)  # 연도 불명 → 중간값

@@ -1,13 +1,16 @@
-from typing import Callable, Dict, List, Any, Optional, Set, TypeVar
+from typing import Callable, Dict, List, Any, Optional, TypeVar
 import asyncio
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import threading
 import time
+import copy
+import re
+import unicodedata
 
 from src.collector.paper.arxiv_searcher import ArxivSearcher
 from src.collector.paper.connected_papers_searcher import ConnectedPapersSearcher
@@ -54,6 +57,65 @@ _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS = 30.0
 MAX_ACTIVE_GENERATIONS_PER_OPERATION = 2
 _OPERATION_STATE_INIT_LOCK = threading.Lock()
 _T = TypeVar("_T")
+
+def classify_search_route(query: str) -> Dict[str, str]:
+    value = query.strip()
+    doi = re.fullmatch(r"(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)", value, re.I)
+    if doi:
+        return {"kind": "doi", "value": doi.group(1).casefold()}
+    aid = re.fullmatch(r"(?:https?://arxiv\.org/(?:abs|pdf)/|arxiv:\s*)?((?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?/\d{7}))(?:v\d+)?(?:\.pdf)?", value, re.I)
+    if aid:
+        return {"kind": "arxiv", "value": aid.group(1).casefold()}
+    if len(value) > 2 and value[0] == value[-1] == '"':
+        return {"kind": "title", "value": value[1:-1]}
+    return {"kind": "topic", "value": value}
+
+
+def apply_search_filters(papers: List[Dict[str, Any]], filters: Dict[str, Any]):
+    """Hard filters shared by retrieval and post-expansion publication."""
+    from src.utils.paper_utils import generate_result_key
+    def tokens(value):
+        return re.findall(r"[^\W_]+", unicodedata.normalize("NFKC", str(value)).casefold())
+    drops: Dict[str, int] = {}
+    kept = []
+    for paper in papers:
+        reason = None
+        if filters.get("year_start") is not None or filters.get("year_end") is not None:
+            year = str(paper.get("year") or paper.get("published_date") or paper.get("published") or paper.get("publication_date") or "")[:4]
+            if not year.isdigit():
+                reason = "unknown_year"
+            elif not (filters.get("year_start") or 0) <= int(year) <= (filters.get("year_end") or 9999):
+                reason = "year"
+        if not reason and filters.get("author"):
+            authors = paper.get("authors") or []
+            if isinstance(authors, str):
+                authors = [authors]
+            wanted = tokens(filters["author"])
+            names = [tokens(a.get("name", "") if isinstance(a, dict) else a) for a in authors]
+            if not any(any(name[i:i + len(wanted)] == wanted for i in range(len(name))) for name in names):
+                reason = "author" if names else "unknown_author"
+        if not reason and filters.get("category"):
+            categories = paper.get("categories") or paper.get("primary_category") or []
+            if isinstance(categories, str):
+                categories = [categories]
+            categories = [c for c in categories if isinstance(c, str) and re.fullmatch(r"[a-z-]+(?:\.[A-Z]{2}|\.[a-z-]+)?", c)]
+            if filters["category"] not in categories:
+                reason = "category" if categories else "unknown_category"
+        if reason:
+            drops[reason] = drops.get(reason, 0) + 1
+        else:
+            kept.append(copy.deepcopy(paper))
+    sort = filters.get("sort_by", "relevance")
+    if sort in ("submittedDate", "lastUpdatedDate"):
+        def date_value(paper):
+            value = (paper.get("updated_date") or paper.get("updated") or paper.get("last_updated")) if sort == "lastUpdatedDate" else (paper.get("published_date") or paper.get("published") or paper.get("publication_date"))
+            try:
+                date = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                return (date if date.tzinfo else date.replace(tzinfo=timezone.utc)).timestamp()
+            except (ValueError, TypeError, OverflowError):
+                return float("-inf")
+        kept.sort(key=lambda p: (-date_value(p), generate_result_key(p)))
+    return kept, drops
 
 
 def _new_search_executor() -> ThreadPoolExecutor:
@@ -493,303 +555,164 @@ class SearchAgent:
         return " ".join(top_keywords)
 
     @log_search_operation("LLM Context Search")
-    def llm_context_search(self, query: str, max_results_per_source: int = 10, context: str = "") -> Dict[str, List[Dict[str, Any]]]:
+    def llm_context_search(self, query: str, max_results_per_source: int = 10, context: str = "", *, deadline=None, stop_event=None, snapshot_callback=None) -> Dict[str, Any]:
+        """Bound analysis and retrieval by one deadline; publish private completed buckets.
+
+        snapshot_callback runs on the collecting thread, never a provider worker.
+        Async callers must marshal snapshots to their event loop before publishing.
         """
-        LLM 컨텍스트 기반 검색
+        from app.QueryAgent.query_analyzer import normalize_source_queries
+        from src.utils.paper_utils import generate_result_key
 
-        LLM이 사용자 쿼리를 분석하고 최적화된 검색 쿼리를 생성하여
-        arXiv와 Google Scholar에서 검색합니다.
-
-        Args:
-            query: 사용자 검색 쿼리 (한글/영어)
-            max_results_per_source: 소스당 최대 결과 수
-            context: 추가 컨텍스트 (선택)
-
-        Returns:
-            소스별 검색 결과
-        """
-        results = {
-            "arxiv": [],
-            "connected_papers": [],
-            "google_scholar": [],
-            "openalex": [],
-            "dblp": [],
-            "openalex_korean": []
-        }
-
+        deadline = deadline if deadline is not None else time.monotonic() + _LLM_CONTEXT_SEARCH_TIMEOUT_SECONDS
+        stop_event = stop_event if stop_event is not None else threading.Event()
+        sources = ["arxiv", "google_scholar", "connected_papers", "openalex", "dblp"]
+        if _contains_korean(query):
+            sources.append("openalex_korean")
+        results = {source: [] for source in self._SOURCE_SEARCHER_ATTRS}
+        metadata = {"original_query": query, "timings": {}, "timeouts": {}, "modes": {}, "executed_queries": {}, "routing": classify_search_route(query)}
+        results["_metadata"] = metadata
+        source_queries = normalize_source_queries(query)
         self._add_to_history(query, "llm_context_search")
-
-        # LLM 쿼리 분석기가 없으면 기본 검색으로 대체
-        if not self.query_analyzer:
-            logger.info("[SearchAgent] LLM Query Analyzer not available, using enhanced search")
-            return self.enhanced_search_all_sources(query, max_results_per_source)
-
         generation = self._begin_operation_generation("llm_context_search")
-        try:
-            # 1. LLM으로 최적화된 검색 쿼리 생성
-            logger.info("[SearchAgent] Generating LLM search queries for: %s...", query[:50])
 
-            # context가 있으면 컨텍스트 기반 경로(search_with_context)를 유지하고,
-            # context가 없으면 통합 경로(analyze_and_prepare)를 사용해 LLM 호출을 1회로 통합한다.
-            # 통합 호출 실패 시 기존 개별 호출(generate_search_queries) 경로로 graceful fallback.
-            search_context: str = ""
-            translated_query: str = query
+        def active():
+            return not stop_event.is_set() and time.monotonic() < deadline
+
+        def publish():
+            if snapshot_callback is not None:
+                try:
+                    snapshot_callback(copy.deepcopy(results))
+                except Exception as error:
+                    logger.warning("[SearchAgent] Snapshot delivery failed: %s", error)
+
+        def analyze():
             if context:
-                search_queries = self.query_analyzer.search_with_context(query, context)
-                arxiv_queries = search_queries.get("arxiv_queries", [query])
-                scholar_queries = search_queries.get("scholar_queries", [query])
-                keywords = search_queries.get("keywords", [])
-                search_context = search_queries.get("search_context", "")
-                translated_query = search_queries.get("translated_query", query)
+                raw = self.query_analyzer.search_with_context(query, context)
+                arxiv_queries = raw.get("arxiv_queries", [])
+                return {"source_queries": normalize_source_queries(query, {
+                    "arxiv": arxiv_queries[0] if isinstance(arxiv_queries, list) and arxiv_queries else query,
+                    "scholar_queries": raw.get("scholar_queries"),
+                    "default": raw.get("translated_query", query),
+                }), "keywords": raw.get("keywords", []), "search_strategy": raw.get("search_context", "")}
+            return self.query_analyzer.analyze_and_prepare(query)
+
+        futures = {}
+        try:
+            if active() and self.query_analyzer and metadata["routing"]["kind"] == "topic":
+                future = generation.submit(analyze)
+                try:
+                    # Poll stop as well as deadline without detaching admission ownership.
+                    while active() and not future.done():
+                        concurrent.futures.wait([future], timeout=min(0.05, max(0.0, deadline - time.monotonic())))
+                    if future.done():
+                        analysis = future.result()
+                        source_queries = normalize_source_queries(query, analysis.get("source_queries"))
+                        metadata["keywords"] = analysis.get("keywords", [])
+                        metadata["search_context"] = analysis.get("search_strategy", "")
+                        metadata["analysis_status"] = analysis.get("analysis_status", "completed")
+                        metadata["analysis"] = copy.deepcopy({key: analysis.get(key) for key in ("intent", "keywords", "improved_query", "confidence")})
+                    else:
+                        metadata["analysis_status"] = "timeout"
+                except SearchCapacityExceeded:
+                    raise
+                except Exception as error:
+                    logger.warning("[SearchAgent] Analysis failed: %s", error)
+                    metadata["analysis_status"] = "unavailable_original_query"
             else:
+                metadata["analysis_status"] = "unavailable_original_query" if metadata["routing"]["kind"] == "topic" else "skipped_exact_route"
+            metadata.update(arxiv_queries=[source_queries["arxiv"]], scholar_queries=source_queries["scholar_queries"], translated_query=source_queries["default"])
+            for source in sources:
+                route = metadata["routing"]
+                if (route["kind"] == "arxiv" and source != "arxiv") or (route["kind"] != "topic" and source == "openalex_korean") or (route["kind"] == "title" and source == "connected_papers"):
+                    metadata["modes"][source] = "skipped_unsupported_route"
+                    continue
+                if not active():
+                    metadata["modes"][source] = "timeout"
+                    metadata["timeouts"][source] = True
+                    continue
+                worker_filters = {"_deadline": deadline, "_stop_event": stop_event, "original_query": query, "_attempts": []}
+                started = time.monotonic()
+                future = generation.submit(self._search_single_source, source, query, worker_filters, copy.deepcopy(source_queries), max_results_per_source)
+                futures[future] = (source, started, worker_filters)
+                metadata["modes"][source] = "dispatched"
+                metadata["executed_queries"][source] = source_queries["scholar_queries"] if source == "google_scholar" else [source_queries.get(source, source_queries["default"])]
+                if route["kind"] != "topic":
+                    metadata["executed_queries"][source] = [route["value"]]
+
+            def collect(future):
+                source, started, worker_filters = futures[future]
+                metadata["timings"][source] = round(time.monotonic() - started, 3)
+                metadata["timeouts"][source] = False
                 try:
-                    unified = self.query_analyzer.analyze_and_prepare(query)
-                    source_queries = unified.get("source_queries", {}) or {}
-                    # analyze_and_prepare는 arxiv/dblp/google_scholar를 단일 문자열로 반환하고
-                    # scholar_queries(list[str])에 Google Scholar 멀티 쿼리를 담는다.
-                    arxiv_queries = [source_queries.get("arxiv", query)]
-                    scholar_queries = source_queries.get("scholar_queries") or [
-                        source_queries.get("google_scholar", query)
-                    ]
-                    keywords = unified.get("keywords", [])
-                    translated_query = unified.get("improved_query", query)
-                    search_context = unified.get("search_strategy", "")
-                except SearchCapacityExceeded:
-                    raise
-                except Exception:
-                    logger.warning(
-                        "[SearchAgent] analyze_and_prepare failed; falling back to individual calls",
-                        exc_info=True,
-                    )
-                    search_queries = self.query_analyzer.generate_search_queries(query)
-                    arxiv_queries = search_queries.get("arxiv_queries", [query])
-                    scholar_queries = search_queries.get("scholar_queries", [query])
-                    keywords = search_queries.get("keywords", [])
-                    search_context = search_queries.get("search_context", "")
-                    translated_query = search_queries.get("translated_query", query)
-
-            logger.info("[SearchAgent] Generated %d arXiv queries, %d Scholar queries", len(arxiv_queries), len(scholar_queries))
-            logger.info("[SearchAgent] Keywords: %s", keywords[:5])
-
-            # 2. 병렬 검색 수행
-            seen_titles: Dict[str, Set[str]] = {
-                "arxiv": set(),
-                "google_scholar": set(),
-                "connected_papers": set(),
-                "openalex": set(),
-                "dblp": set(),
-                "openalex_korean": set()
-            }
-
-            futures = []
-
-            # arXiv 검색 (rate limit 방지: 쿼리 1개만)
-            for arxiv_query in arxiv_queries[:1]:
-                futures.append(
-                    (generation.submit(self.arxiv_searcher.search, arxiv_query, max_results_per_source),
-                     "arxiv", arxiv_query)
-                )
-
-            # Google Scholar 검색 (여러 쿼리)
-            for scholar_query in scholar_queries[:3]:
-                futures.append(
-                    (generation.submit(self.google_scholar_searcher.search, scholar_query, max_results_per_source // 2),
-                     "google_scholar", scholar_query)
-                )
-
-            # Connected Papers 검색 (키워드 기반)
-            keyword_query = " ".join(keywords[:4]) if keywords else query
-            futures.append(
-                (generation.submit(self.connected_papers_searcher.search, keyword_query, max_results_per_source),
-                 "connected_papers", keyword_query)
-            )
-
-            # OpenAlex 검색
-            futures.append(
-                (generation.submit(self.openalex_searcher.search, keyword_query, max_results_per_source),
-                 "openalex", keyword_query)
-            )
-
-            # DBLP 검색
-            futures.append(
-                (generation.submit(self.dblp_searcher.search, keyword_query, max_results_per_source),
-                 "dblp", keyword_query)
-            )
-
-            # OpenAlex Korean 검색
-            futures.append(
-                (generation.submit(self.openalex_searcher.search_korean, keyword_query, max_results_per_source),
-                 "openalex_korean", keyword_query)
-            )
-
-            # 결과 수집 (전체 60초 타임아웃)
-            deadline = time.monotonic() + _LLM_CONTEXT_SEARCH_TIMEOUT_SECONDS
-            for future_tuple in futures:
-                future, source, q = future_tuple
-                remaining = max(0.0, deadline - time.monotonic())
-                try:
-                    papers = future.result(timeout=remaining)
+                    papers = future.result()
+                    seen = set()
                     for paper in papers:
-                        title_lower = paper.get('title', '').lower().strip()
-                        if title_lower and title_lower not in seen_titles[source]:
-                            seen_titles[source].add(title_lower)
-                            # 검색 쿼리 정보 추가
-                            paper['_search_query'] = q
-                            results[source].append(paper)
-                except concurrent.futures.TimeoutError:
-                    logger.warning("[SearchAgent] Timeout for %s: %s...", source, q[:30])
-                    break
+                        key = generate_result_key(paper)
+                        if key not in seen:
+                            seen.add(key)
+                            private = copy.deepcopy(paper)
+                            private["_search_query"] = metadata["executed_queries"][source][0]
+                            results[source].append(private)
+                    results[source] = results[source][:max_results_per_source]
+                    metadata["modes"][source] = self._source_outcome_mode(source, results[source], worker_filters["_attempts"])
+                    metadata["timeouts"][source] = metadata["modes"][source] in ("timeout", "partial_timeout")
+                    if worker_filters["_attempts"]:
+                        metadata.setdefault("provider_attempts", {})[source] = copy.deepcopy(worker_filters["_attempts"])
+                        metadata["executed_queries"][source] = list(dict.fromkeys(attempt["query"] for attempt in worker_filters["_attempts"]))
                 except SearchCapacityExceeded:
                     raise
-                except Exception as e:
-                    logger.warning("[SearchAgent] Error in %s search: %s", source, e)
+                except Exception as error:
+                    metadata["modes"][source] = "error"
+                    logger.warning("[SearchAgent] %s search failed: %s", source, error)
+                publish()
 
-            # 결과 수 제한
-            for source in results:
-                results[source] = results[source][:max_results_per_source]
-
-            total = sum(len(papers) for papers in results.values())
-            logger.info("[SearchAgent] LLM Context Search completed: %d papers found", total)
-
-            # 검색 메타데이터 추가
-            results['_metadata'] = {
-                'original_query': query,
-                'arxiv_queries': arxiv_queries,
-                'scholar_queries': scholar_queries,
-                'keywords': keywords,
-                'search_context': search_context,
-                'translated_query': translated_query,
-            }
-
+            pending = set(futures)
+            while pending and active():
+                done, pending = concurrent.futures.wait(pending, timeout=min(0.05, max(0.0, deadline - time.monotonic())), return_when=concurrent.futures.FIRST_COMPLETED)
+                for future in done:
+                    collect(future)
+            # Preserve every completion already available at the cutoff, even if
+            # another provider consumed the budget or the caller stopped waiting.
+            for future in list(pending):
+                if future.done() and not future.cancelled():
+                    collect(future)
+                    pending.remove(future)
+            for future in pending:
+                source = futures[future][0]
+                metadata["modes"][source] = "timeout"
+                metadata["timeouts"][source] = True
+            publish()
             return results
-
-        except SearchCapacityExceeded:
-            raise
-        except Exception as e:
-            logger.error("[SearchAgent] LLM Context Search failed: %s", e, exc_info=True)
-            # 실패 시 기본 검색으로 대체
-            return self.enhanced_search_all_sources(query, max_results_per_source)
         finally:
             generation.close()
 
     @log_search_operation("Smart Search")
-    def smart_search(self, query: str, max_results: int = 20) -> Dict[str, Any]:
-        """
-        스마트 검색 - LLM 분석 + 다중 검색 전략 조합
-
-        1. LLM이 쿼리를 분석하고 검색 전략 결정
-        2. 최적화된 쿼리로 다중 소스 검색
-        3. 결과 병합 및 중복 제거
-        4. 관련성 순 정렬
-        """
-        self._add_to_history(query, "smart_search")
-
-        result = {
-            "papers": [],
-            "metadata": {
-                "query": query,
-                "total_found": 0,
-                "sources_searched": []
-            }
-        }
-
-        try:
-            # 1. LLM 쿼리 분석 — 통합 호출(analyze_and_prepare) 1회로 intent/keywords/source_queries까지 획득.
-            #    실패 시 기존 analyze_query로 graceful fallback해 검색 자체가 무너지지 않도록 한다.
-            analysis = None
-            if self.query_analyzer:
-                try:
-                    analysis = self.query_analyzer.analyze_and_prepare(query)
-                    logger.info(
-                        "[SmartSearch] Intent: %s, Confidence: %s",
-                        analysis.get('intent'),
-                        analysis.get('confidence'),
-                    )
-                except SearchCapacityExceeded:
-                    raise
-                except Exception as e:
-                    logger.warning(
-                        "[SmartSearch] analyze_and_prepare failed, falling back to analyze_query: %s",
-                        e,
-                    )
-                    try:
-                        analysis = self.query_analyzer.analyze_query(query)
-                        logger.info(
-                            "[SmartSearch] (fallback) Intent: %s, Confidence: %s",
-                            analysis.get('intent'),
-                            analysis.get('confidence'),
-                        )
-                    except SearchCapacityExceeded:
-                        raise
-                    except Exception as e2:
-                        logger.warning("[SmartSearch] Query analysis failed: %s", e2)
-
-            # 2. 검색 전략 결정
-            if analysis and analysis.get('confidence', 0) >= 0.7:
-                # LLM 분석 결과 기반 검색
-                search_results = self.llm_context_search(query, max_results // 2)
-            else:
-                # 기본 enhanced 검색
-                search_results = self.enhanced_search_all_sources(query, max_results // 2)
-
-            # 3. 결과 병합 및 중복 제거 (PaperDeduplicator)
-            all_papers = self.deduplicator.deduplicate_cross_source(search_results)
-
-            # 4. 하이브리드 랭킹
-            intent = analysis.get('intent', 'paper_search') if analysis else 'paper_search'
-            if self.hybrid_ranker:
-                all_papers = self.hybrid_ranker.rank_papers(
-                    query=query,
-                    papers=all_papers,
-                    intent=intent,
-                )
-            elif analysis and analysis.get('keywords'):
-                # fallback: 키워드 매칭
-                keywords = set(kw.lower() for kw in analysis['keywords'])
-
-                def relevance_score(paper):
-                    title = paper.get('title', '').lower()
-                    abstract = paper.get('abstract', '').lower()
-                    score = 0
-                    for kw in keywords:
-                        if kw in title:
-                            score += 3
-                        if kw in abstract:
-                            score += 1
-                    return score
-
-                all_papers.sort(key=relevance_score, reverse=True)
-
-            result["papers"] = all_papers[:max_results]
-            result["metadata"]["total_found"] = len(all_papers)
-            result["metadata"]["sources_searched"] = list(search_results.keys())
-
-            if analysis:
-                result["metadata"]["analysis"] = {
-                    "intent": analysis.get('intent'),
-                    "keywords": analysis.get('keywords', []),
-                    "improved_query": analysis.get('improved_query'),
-                    "confidence": analysis.get('confidence'),
-                    "ranking_intent": intent,
-                }
-
-            if '_metadata' in search_results:
-                result["metadata"]["llm_queries"] = search_results['_metadata']
-
-            return result
-
-        except SearchCapacityExceeded:
-            raise
-        except Exception as e:
-            logger.error("[SmartSearch] Error: %s", e)
-            # 실패 시 기본 검색
-            basic_results = self.search_all_sources(query, max_results // 3)
-            for source, papers in basic_results.items():
-                for paper in papers:
-                    paper['_source'] = source
-                    result["papers"].append(paper)
-            result["metadata"]["total_found"] = len(result["papers"])
-            return result
+    def smart_search(self, query: str, max_results: int = 20, *, deadline=None, stop_event=None, snapshot_callback=None) -> Dict[str, Any]:
+        """Use the same request budget for analysis, retrieval and optional ranking."""
+        deadline = deadline if deadline is not None else time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS
+        stop_event = stop_event if stop_event is not None else threading.Event()
+        search_results = self.llm_context_search(query, max(1, max_results // 2), deadline=deadline, stop_event=stop_event, snapshot_callback=snapshot_callback)
+        metadata = search_results.get("_metadata", {})
+        all_papers = self.deduplicator.deduplicate_cross_source({source: papers for source, papers in search_results.items() if not source.startswith("_")})
+        if self.hybrid_ranker and metadata["routing"]["kind"] == "topic" and not stop_event.is_set() and time.monotonic() < deadline:
+            generation = self._begin_operation_generation("smart_search")
+            try:
+                future = generation.submit(self.hybrid_ranker.rank_papers, query=query, papers=copy.deepcopy(all_papers), intent=metadata.get("analysis", {}).get("intent") or "paper_search", deadline=deadline, stop_event=stop_event)
+                while not future.done() and not stop_event.is_set() and time.monotonic() < deadline:
+                    concurrent.futures.wait([future], timeout=min(0.05, max(0.0, deadline - time.monotonic())))
+                if future.done():
+                    all_papers = future.result()
+                else:
+                    metadata["ranking_mode"] = "timeout_retrieval_order"
+            except SearchCapacityExceeded:
+                raise
+            except Exception as error:
+                logger.warning("[SmartSearch] Ranking failed: %s", error)
+                metadata["ranking_mode"] = "error_retrieval_order"
+            finally:
+                generation.close()
+        return {"papers": all_papers[:max_results], "metadata": {"query": query, "total_found": len(all_papers), "sources_searched": [source for source in search_results if not source.startswith("_")], "analysis": metadata.get("analysis", {}), "llm_queries": metadata}}
 
     def search_arxiv(self, query: str, max_results: int = 10, sort_by: str = "relevance", category: str = None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "arxiv")
@@ -805,13 +728,13 @@ class SearchAgent:
         self._add_to_history(query, "connected_papers")
         return self.connected_papers_searcher.search(query, max_results)
 
-    def search_google_scholar(self, query: str, max_results: int = 10, sort_by: str = "relevance", year_start: int = None, year_end: int = None, author: str = None) -> List[Dict[str, Any]]:
+    def search_google_scholar(self, query: str, max_results: int = 10, sort_by: str = "relevance", year_start: int = None, year_end: int = None, author: str = None, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "google_scholar")
 
         if year_start or year_end or author:
-            return self.google_scholar_searcher.search_with_filters(query, year_start, year_end, author, max_results)
+            return self.google_scholar_searcher.search_with_filters(query, year_start, year_end, author, max_results, deadline=deadline, stop_event=stop_event, attempts=attempts)
         else:
-            return self.google_scholar_searcher.search(query, max_results, sort_by)
+            return self.google_scholar_searcher.search(query, max_results, sort_by, deadline=deadline, stop_event=stop_event, attempts=attempts)
 
     def search_by_author(self, author: str, max_results: int = 10) -> Dict[str, List[Dict[str, Any]]]:
         results = {
@@ -875,13 +798,18 @@ class SearchAgent:
     def get_categories(self) -> Dict[str, List[Dict[str, str]]]:
         return {"arxiv": self.arxiv_searcher.get_categories()}
 
-    def _source_outcome_mode(self, source_name: str, papers: List[Dict[str, Any]]) -> str:
+    def _source_outcome_mode(self, source_name: str, papers: List[Dict[str, Any]], attempts=None) -> str:
         """Describe what a completed source search actually did.
 
         Reporting a bare "searched" for a source that returned nothing makes a
         degraded source indistinguishable from a healthy one that simply had no
         matches — and hides a circuit breaker that never issued a request.
         """
+        statuses = {a.get("status") for a in (attempts or [])}
+        if "timeout" in statuses:
+            return "partial_timeout" if papers else "timeout"
+        if statuses & {"error", "circuit_open"}:
+            return "partial_error" if papers else ("circuit_open" if statuses == {"circuit_open"} else "error")
         if papers:
             return "searched"
         searcher = self._SOURCE_SEARCHER_ATTRS.get(source_name)
@@ -911,25 +839,49 @@ class SearchAgent:
             List of paper dicts from the given source.
         """
         try:
+            attempts = filters.setdefault("_attempts", [])
+            budget = {"deadline": filters.get("_deadline"), "stop_event": filters.get("_stop_event"), "attempts": attempts}
+            if filters.get("_stop_event", threading.Event()).is_set() or time.monotonic() >= filters.get("_deadline", float("inf")):
+                attempts.append({"query": query, "status": "timeout"})
+                return []
+            route = classify_search_route(filters.get("original_query", query))
+            if route["kind"] in ("doi", "arxiv", "title"):
+                searcher = getattr(self, self._SOURCE_SEARCHER_ATTRS.get(source_name, ""), None)
+                if source_name == "openalex_korean" or searcher is None:
+                    return []
+                if route["kind"] == "arxiv":
+                    papers = self.arxiv_searcher.search_by_id(route["value"], **budget) if source_name == "arxiv" else []
+                elif route["kind"] == "title":
+                    method = getattr(searcher, "search_by_title", None)
+                    if source_name in ("arxiv", "google_scholar", "openalex"):
+                        papers = method(route["value"], max_results, **budget)
+                    else:
+                        papers = method(route["value"], max_results) if method else []
+                else:
+                    if source_name == "arxiv":
+                        papers = searcher.search(f'doi:"{route["value"]}"', max_results, deadline=filters.get("_deadline"), stop_event=filters.get("_stop_event"), attempts=filters.get("_attempts"))
+                    elif source_name in ("google_scholar", "openalex"):
+                        papers = searcher.search(route["value"], max_results, **budget)
+                    else:
+                        papers = searcher.search(route["value"], max_results)
+                if route["kind"] in ("doi", "arxiv"):
+                    def matches(p):
+                        values = [p.get("doi", "")] if route["kind"] == "doi" else [p.get("arxiv_id", ""), p.get("url", ""), p.get("id", "")]
+                        return any(classify_search_route(str(v)) == route for v in values)
+                    verified = [p for p in papers if matches(p)]
+                    filters["_identity_rejections"] = len(papers) - len(verified)
+                    papers = verified
+                return papers
             if source_name == "arxiv":
                 category = filters.get("category")
                 sort_by = filters.get("sort_by", "relevance")
                 arxiv_q = source_queries.get("arxiv", query)
-                results_optimized = self.search_arxiv(arxiv_q, max_results, sort_by, category)
-                # Only do 2nd search if optimized query differs AND first search
-                # returned fewer than half the requested results — avoids wasting
-                # a rate-limited arXiv API slot when results are already sufficient.
-                if arxiv_q != query and len(results_optimized) < max_results // 2:
-                    results_original = self.search_arxiv(query, max_results // 2, sort_by, category)
-                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
-                    for p in results_original:
-                        if p.get("title", "").lower() not in seen_titles:
-                            results_optimized.append(p)
-                            seen_titles.add(p.get("title", "").lower())
+                effective_query = f"cat:{category} AND ({arxiv_q})" if category else arxiv_q
+                results_optimized = self.arxiv_searcher.search(effective_query, max_results, sort_by, deadline=filters.get("_deadline"), stop_event=filters.get("_stop_event"), attempts=filters.get("_attempts"))
                 return results_optimized[:max_results]
 
             elif source_name == "connected_papers":
-                return self.search_connected_papers(query, max_results)
+                return self.search_connected_papers(source_queries.get("default", query), max_results)
 
             elif source_name == "google_scholar":
                 year_start = filters.get("year_start")
@@ -942,15 +894,13 @@ class SearchAgent:
                 if not scholar_queries:
                     scholar_queries = [source_queries.get("google_scholar", query)]
 
-                # First query: run normally (existing behavior)
-                first_results = self.search_google_scholar(
-                    scholar_queries[0], max_results, sort_by, year_start, year_end, author
-                )
-
-                # Additional queries (2nd, 3rd): submit as parallel futures
-                extra_queries = scholar_queries[1:3]
-                if not extra_queries:
-                    return first_results[:max_results]
+                if isinstance(scholar_queries, str):
+                    scholar_queries = [scholar_queries]
+                if not isinstance(scholar_queries, list):
+                    scholar_queries = []
+                scholar_queries = list(dict.fromkeys(q.strip() for q in scholar_queries if isinstance(q, str) and q.strip()))[:3]
+                if not scholar_queries:
+                    scholar_queries = [query]
 
                 generation = self._begin_operation_generation(
                     "google_scholar_extra_queries"
@@ -958,50 +908,50 @@ class SearchAgent:
 
                 try:
                     extra_futures = []
-                    for sq in extra_queries:
+                    for sq in scholar_queries:
+                        if time.monotonic() >= filters.get("_deadline", float("inf")) or filters.get("_stop_event", threading.Event()).is_set():
+                            break
+                        bucket_attempts = []
                         fut = generation.submit(
                             self.search_google_scholar,
                             sq, max_results, sort_by, year_start, year_end, author,
+                            deadline=filters.get("_deadline"), stop_event=filters.get("_stop_event"), attempts=bucket_attempts,
                         )
-                        extra_futures.append(fut)
+                        extra_futures.append((fut, sq, bucket_attempts))
 
                     # Merge and deduplicate by title
-                    all_results = list(first_results)
-                    seen_titles = {p.get("title", "").lower().strip() for p in all_results}
-
-                    deadline = time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS
-                    for fut in extra_futures:
+                    buckets = []
+                    deadline = min(filters.get("_deadline", float("inf")), time.monotonic() + _SEARCH_SHORT_OPERATION_TIMEOUT_SECONDS)
+                    for fut, sq, bucket_attempts in extra_futures:
                         try:
                             extra_papers = fut.result(
                                 timeout=max(0.0, deadline - time.monotonic())
                             )
-                            for p in extra_papers:
-                                t = p.get("title", "").lower().strip()
-                                if t and t not in seen_titles:
-                                    seen_titles.add(t)
-                                    all_results.append(p)
+                            buckets.append(extra_papers)
+                            attempts.extend(copy.deepcopy(bucket_attempts))
                         except Exception as e:
+                            attempts.append({"query": sq, "status": "timeout" if isinstance(e, TimeoutError) else "error"})
                             logger.warning("[SearchAgent] Extra scholar query failed: %s", e)
                 finally:
                     generation.close()
 
-                return all_results[:max_results]
+                from src.utils.paper_utils import generate_result_key
+                all_results, seen = [], set()
+                for index in range(max((len(b) for b in buckets), default=0)):
+                    for bucket in buckets:
+                        if index < len(bucket):
+                            paper = bucket[index]
+                            key = generate_result_key(paper)
+                            if key not in seen:
+                                seen.add(key)
+                                all_results.append(paper)
+                                if len(all_results) == max_results:
+                                    return all_results
+                return all_results
 
             elif source_name == "openalex":
                 openalex_q = source_queries.get("openalex", query)
-                results_optimized = self.openalex_searcher.enhanced_search(openalex_q, max_results)
-                # Only fall back to the original query when the optimized one
-                # came up short. enhanced_search already runs its own title
-                # search internally, so firing this unconditionally spent a
-                # third OpenAlex request per search to re-cover ground the
-                # first two usually covered.
-                if openalex_q != query and len(results_optimized) < max_results:
-                    results_original = self.openalex_searcher.search_by_title(query, max_results // 2)
-                    seen_titles = {p.get("title", "").lower() for p in results_optimized}
-                    for p in results_original:
-                        if p.get("title", "").lower() not in seen_titles:
-                            results_optimized.append(p)
-                            seen_titles.add(p.get("title", "").lower())
+                results_optimized = self.openalex_searcher.search(openalex_q, max_results, **budget)
                 return results_optimized[:max_results]
 
             elif source_name == "dblp":
@@ -1026,7 +976,7 @@ class SearchAgent:
                     korean_q = original_query
                 elif not korean_q:
                     korean_q = query
-                return self.openalex_searcher.search_korean(korean_q, max_results)
+                return self.openalex_searcher.search_korean(korean_q, max_results, **budget)
 
             else:
                 logger.warning("Unknown search source: %s", source_name)
@@ -1036,7 +986,7 @@ class SearchAgent:
             raise
         except Exception as e:
             logger.warning("Source %s search failed: %s", source_name, e)
-            return []
+            raise
 
     def search_with_filters(self, query: str, filters: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -1057,32 +1007,46 @@ class SearchAgent:
         """
         sources = filters.get("sources", ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"])
         max_results = filters.get("max_results", 5)
-        source_queries = filters.get("source_queries", {})
+        from app.QueryAgent.query_analyzer import normalize_source_queries
+        source_queries = normalize_source_queries(query, filters.get("source_queries"))
+        metadata = filters.setdefault("_metadata", {})
+        filters = dict(filters)
+        filters.setdefault("_deadline", time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS)
+        filters.setdefault("_stop_event", threading.Event())
 
         results: Dict[str, List[Dict[str, Any]]] = {}
         futures: Dict[concurrent.futures.Future, str] = {}
+        worker_receipts = {}
 
         generation = self._begin_operation_generation("search_with_filters")
 
         try:
             for source in sources:
+                worker_filters = dict(filters)
+                worker_filters["_attempts"] = []
+                worker_receipts[source] = worker_filters["_attempts"]
                 fut = generation.submit(
                     self._search_single_source,
-                    source, query, filters, source_queries, max_results,
+                    source, query, worker_filters, source_queries, max_results,
                 )
                 futures[fut] = source
 
-            deadline = time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS
+            deadline = filters["_deadline"]
             try:
                 for future in concurrent.futures.as_completed(
                     futures, timeout=max(0.0, deadline - time.monotonic())
                 ):
                     source = futures[future]
                     try:
-                        results[source] = future.result(timeout=5)
+                        results[source], _ = apply_search_filters(future.result(timeout=5), filters)
+                        metadata.setdefault("provider_attempts", {})[source] = copy.deepcopy(worker_receipts[source])
+                        mode = self._source_outcome_mode(source, results[source], worker_receipts[source])
+                        metadata.setdefault("modes", {})[source] = mode
+                        metadata.setdefault("timeouts", {})[source] = mode in ("timeout", "partial_timeout")
                     except Exception as e:
                         logger.warning("[SearchAgent] %s search failed: %s", source, e)
                         results[source] = []
+                        metadata.setdefault("modes", {})[source] = "error"
             except concurrent.futures.TimeoutError:
                 logger.warning(
                     "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
@@ -1092,6 +1056,8 @@ class SearchAgent:
                         if not future.done():
                             future.cancel()  # best-effort; ThreadPool 작업 중단은 보장 안 됨
                         results[source] = []
+                        metadata.setdefault("modes", {})[source] = "timeout"
+                        metadata.setdefault("timeouts", {})[source] = True
         finally:
             generation.close()
 
@@ -1119,14 +1085,21 @@ class SearchAgent:
             ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp"],
         )
         max_results = filters.get("max_results", 5)
-        source_queries: Dict[str, str] = filters.get("source_queries", {})
+        from app.QueryAgent.query_analyzer import normalize_source_queries
+        source_queries = normalize_source_queries(query, filters.get("source_queries"))
         original_query = filters.get("original_query", query)
         metadata: Dict[str, Any] = filters.setdefault("_metadata", {})
         source_timings: Dict[str, float] = metadata.setdefault("timings", {})
         source_timeouts: Dict[str, bool] = metadata.setdefault("timeouts", {})
         source_modes: Dict[str, str] = metadata.setdefault("modes", {})
 
-        loop = asyncio.get_running_loop()
+        generation = self._begin_operation_generation("search_with_filters")
+        deadline = filters.setdefault("_deadline", time.monotonic() + _SEARCH_OPERATION_TIMEOUT_SECONDS)
+        stop = filters.setdefault("_stop_event", threading.Event())
+        partial = filters.setdefault("_partial_results", {})
+        metadata["routing"] = classify_search_route(original_query)
+        executed = metadata.setdefault("executed_queries", {})
+        filter_drops = metadata.setdefault("filter_drops", {})
 
         # Per-source timeout: arXiv/Scholar get shorter budget due to rate limits
         _SOURCE_TIMEOUTS = {
@@ -1138,7 +1111,7 @@ class SearchAgent:
         async def _run_source(source_name: str) -> tuple:
             """Run a single source search in the thread-pool executor with per-source timeout."""
             timeout = _SOURCE_TIMEOUTS.get(source_name, _DEFAULT_SOURCE_TIMEOUT)
-            started_at = time.time()
+            started_at = time.monotonic()
             source_timeouts[source_name] = False
             source_query = source_queries.get(source_name, query)
             if (
@@ -1151,19 +1124,57 @@ class SearchAgent:
                 source_modes[source_name] = "skipped_non_korean_query"
                 return source_name, []
 
+            if stop.is_set() or time.monotonic() >= deadline:
+                source_modes[source_name] = "timeout"
+                source_timeouts[source_name] = True
+                return source_name, []
+            route = metadata["routing"]
+            if (
+                (route["kind"] == "arxiv" and source_name != "arxiv")
+                or (route["kind"] != "topic" and source_name == "openalex_korean")
+                or (route["kind"] == "title" and source_name == "connected_papers")
+            ):
+                source_modes[source_name] = "skipped_unsupported_route"
+                source_timings[source_name] = 0.0
+                return source_name, []
+            effective = route["value"] if route["kind"] != "topic" else source_query
+            if source_name == "openalex_korean":
+                effective = original_query
+            if source_name == "connected_papers" and route["kind"] == "topic":
+                effective = source_queries.get("default", query)
+            executed[source_name] = [effective]
+            if source_name == "google_scholar" and route["kind"] == "topic":
+                variants = source_queries.get("scholar_queries", [effective])
+                executed[source_name] = list(dict.fromkeys(q.strip() for q in variants if isinstance(q, str) and q.strip()))[:3]
             source_modes[source_name] = "dispatched"
-            fut = loop.run_in_executor(
-                None,
+            worker_filters = {k: copy.deepcopy(v) for k, v in filters.items() if not k.startswith("_")}
+            worker_filters.update(_deadline=min(deadline, started_at + timeout), _stop_event=stop, _attempts=[])
+            underlying = generation.submit(
                 self._search_single_source,
-                source_name, query, filters, source_queries, max_results,
+                source_name, query, worker_filters, copy.deepcopy(source_queries), max_results,
             )
+            fut = asyncio.wrap_future(underlying)
             try:
-                papers = await asyncio.wait_for(asyncio.shield(fut), timeout=timeout)
-                source_timings[source_name] = round(time.time() - started_at, 3)
-                source_modes[source_name] = self._source_outcome_mode(source_name, papers)
+                papers = await asyncio.wait_for(asyncio.shield(fut), timeout=min(timeout, max(0.0, deadline - time.monotonic())))
+                papers, drops = apply_search_filters(papers, filters)
+                if worker_filters["_attempts"]:
+                    metadata.setdefault("provider_attempts", {})[source_name] = copy.deepcopy(worker_filters["_attempts"])
+                    executed[source_name] = list(dict.fromkeys(a["query"] for a in worker_filters["_attempts"]))
+                filter_drops[source_name] = drops
+                rejected = worker_filters.get("_identity_rejections", 0)
+                if rejected:
+                    filter_drops[source_name]["identity_mismatch"] = rejected
+                partial[source_name] = copy.deepcopy(papers)
+                source_timings[source_name] = round(time.monotonic() - started_at, 3)
+                source_modes[source_name] = self._source_outcome_mode(source_name, papers, worker_filters["_attempts"])
+                source_timeouts[source_name] = source_modes[source_name] in ("timeout", "partial_timeout")
+                if papers and route["kind"] in ("doi", "arxiv") and source_modes[source_name] == "searched":
+                    source_modes[source_name] = "identity_verified"
+                elif rejected and not papers and source_modes[source_name] == "searched_empty":
+                    source_modes[source_name] = "identity_rejected"
                 return source_name, papers
             except asyncio.TimeoutError:
-                source_timings[source_name] = round(time.time() - started_at, 3)
+                source_timings[source_name] = round(time.monotonic() - started_at, 3)
                 source_timeouts[source_name] = True
                 source_modes[source_name] = "timeout"
                 if not fut.done():
@@ -1171,8 +1182,18 @@ class SearchAgent:
                 logger.warning("[SearchAgent] source %s timed out after %ds", source_name, timeout)
                 return source_name, []
 
-        tasks = [_run_source(s) for s in sources]
-        completed = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [asyncio.create_task(_run_source(s)) for s in dict.fromkeys(sources)]
+        sources = list(dict.fromkeys(sources))
+        try:
+            completed = await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            stop.set()
+            raise
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            generation.close()
 
         results: Dict[str, List[Dict[str, Any]]] = {}
         for source, outcome in zip(sources, completed):

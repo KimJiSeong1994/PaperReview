@@ -10,7 +10,9 @@ Search-R1의 <search>→<result>→<think>→<search> 루프를
 import asyncio
 import json
 import logging
+import threading
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -21,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 # ── 전역 타임아웃 ───────────────────────────────────────────────────────────
 _TOTAL_TIMEOUT_SECONDS = 120
+# Task-local state keeps concurrent calls on the same agent isolated.
+_operation: ContextVar[Any] = ContextVar("react_search_operation")
 
 
 # ── 데이터클래스 ────────────────────────────────────────────────────────────
@@ -73,6 +77,32 @@ class ReActSearchAgent:
         query: str,
         analysis: Optional[Dict[str, Any]] = None,
         max_results: int = 20,
+        *,
+        deadline: Optional[float] = None,
+        stop_event: Optional[threading.Event] = None,
+    ) -> Dict[str, Any]:
+        """Run all turns within one finite, retained operation generation."""
+        deadline = min(
+            deadline if deadline is not None else float("inf"),
+            time.monotonic() + _TOTAL_TIMEOUT_SECONDS,
+        )
+        stop_event = stop_event if stop_event is not None else threading.Event()
+        generation = self._search_agent._begin_operation_generation("react_search")
+        token = _operation.set((generation, deadline, stop_event))
+        try:
+            return await self._search(query, analysis, max_results)
+        except asyncio.CancelledError:
+            stop_event.set()
+            raise
+        finally:
+            generation.close()
+            _operation.reset(token)
+
+    async def _search(
+        self,
+        query: str,
+        analysis: Optional[Dict[str, Any]],
+        max_results: int,
     ) -> Dict[str, Any]:
         """
         ReAct 루프를 실행하여 관련 논문을 수집한다.
@@ -93,6 +123,7 @@ class ReActSearchAgent:
             }
         """
         start = time.monotonic()
+        _, deadline, stop_event = _operation.get()
         intent: str = (analysis or {}).get("intent", "paper_search")
 
         # ── 1단계: 다양한 초기 쿼리 생성 ─────────────────────────────────
@@ -109,11 +140,11 @@ class ReActSearchAgent:
         for turn_idx in range(1, self._max_turns + 1):
             # 전체 타임아웃 체크
             elapsed = time.monotonic() - start
-            if elapsed >= _TOTAL_TIMEOUT_SECONDS:
+            if stop_event.is_set() or time.monotonic() >= deadline:
                 logger.warning("[ReAct] 전체 타임아웃 도달 (%.1fs). 조기 종료.", elapsed)
                 break
 
-            remaining = _TOTAL_TIMEOUT_SECONDS - elapsed
+            remaining = deadline - time.monotonic()
             logger.info("[ReAct] Turn %d: query=%r (remaining=%.1fs)", turn_idx, current_query[:60], remaining)
 
             turn = SearchTurn(turn=turn_idx, query=current_query)
@@ -121,20 +152,14 @@ class ReActSearchAgent:
             # ── 2단계: 턴 내 병렬 검색 ─────────────────────────────────
             # Turn 1 — arXiv(keyword) + OpenAlex(semantic)
             # Turn 2+ — OpenAlex + DBLP (arXiv rate-limit 방지)
-            try:
-                if turn_idx == 1:
-                    papers, tool_calls = await asyncio.wait_for(
-                        self._turn1_search(current_query, initial_queries, max_results),
-                        timeout=min(remaining, 40),
-                    )
-                else:
-                    papers, tool_calls = await asyncio.wait_for(
-                        self._turn_n_search(current_query, max_results // 2),
-                        timeout=min(remaining, 30),
-                    )
-            except asyncio.TimeoutError:
-                logger.warning("[ReAct] Turn %d 검색 타임아웃", turn_idx)
-                papers, tool_calls = [], []
+            if turn_idx == 1:
+                papers, tool_calls = await self._turn1_search(
+                    current_query, initial_queries, max_results,
+                )
+            else:
+                papers, tool_calls = await self._turn_n_search(
+                    current_query, max_results // 2,
+                )
 
             turn.tool_calls = tool_calls
             turn.papers_found = papers
@@ -153,9 +178,8 @@ class ReActSearchAgent:
                 break
 
             # ── 3단계: 갭 분석 → 다음 쿼리 결정 ──────────────────────
-            elapsed = time.monotonic() - start
-            remaining_for_llm = _TOTAL_TIMEOUT_SECONDS - elapsed
-            if remaining_for_llm < 10:
+            remaining_for_llm = deadline - time.monotonic()
+            if stop_event.is_set() or remaining_for_llm < 10:
                 logger.warning("[ReAct] LLM 갭 분석 시간 부족 (%.1fs 남음). 종료.", remaining_for_llm)
                 break
 
@@ -170,8 +194,9 @@ class ReActSearchAgent:
                     timeout=min(remaining_for_llm, 20),
                 )
             except asyncio.TimeoutError:
-                logger.warning("[ReAct] 갭 분석 LLM 타임아웃. 다음 다양화 쿼리 사용.")
-                plan = self._fallback_plan(query, initial_queries, turn_idx)
+                stop_event.set()
+                logger.warning("[ReAct] 갭 분석 LLM 타임아웃. 완료된 결과 반환.")
+                break
 
             turn.gap_analysis = plan.get("missing_str", "")
             turn.next_query_rationale = plan.get("rationale", "")
@@ -208,6 +233,34 @@ class ReActSearchAgent:
         }
 
     # ── 내부 검색 도구 ────────────────────────────────────────────────────────
+
+    async def _run_owned(self, function, *args, provider: bool = False):
+        generation, deadline, stop_event = _operation.get()
+
+        def invoke():
+            if stop_event.is_set() or time.monotonic() >= deadline:
+                return None
+            if provider:
+                return function(
+                    *args, deadline=deadline, stop_event=stop_event,
+                )
+            return function(*args)
+
+        if stop_event.is_set() or time.monotonic() >= deadline:
+            return None
+        future = generation.submit(invoke)
+        try:
+            while not future.done():
+                if stop_event.is_set() or time.monotonic() >= deadline:
+                    stop_event.set()
+                    future.cancel()
+                    return None
+                await asyncio.sleep(min(0.01, max(0, deadline - time.monotonic())))
+            return future.result()
+        except asyncio.CancelledError:
+            stop_event.set()
+            future.cancel()
+            raise
 
     async def _turn1_search(
         self,
@@ -311,15 +364,14 @@ class ReActSearchAgent:
 
         arXiv 3.5 s rate limit 준수는 ArxivSearcher._rate_limit() 내부에서 처리.
         """
-        loop = asyncio.get_running_loop()
         try:
-            results = await loop.run_in_executor(
-                None,
+            results = await self._run_owned(
                 self._search_agent.arxiv_searcher.search,
                 query,
                 max_results,
+                provider=True,
             )
-            logger.debug("[ReAct] keyword_search: query=%r, found=%d", query[:50], len(results))
+            logger.debug("[ReAct] keyword_search: query=%r, found=%d", query[:50], len(results or []))
             return results or []
         except Exception as exc:
             logger.warning("[ReAct] keyword_search 실패: %s", exc)
@@ -335,15 +387,14 @@ class ReActSearchAgent:
 
         OpenAlex는 free-text search로 임베딩 유사도와 유사한 관련성 검색을 제공.
         """
-        loop = asyncio.get_running_loop()
         try:
-            results = await loop.run_in_executor(
-                None,
+            results = await self._run_owned(
                 self._search_agent.openalex_searcher.search,
                 query,
                 max_results,
+                provider=True,
             )
-            logger.debug("[ReAct] semantic_search: query=%r, found=%d", query[:50], len(results))
+            logger.debug("[ReAct] semantic_search: query=%r, found=%d", query[:50], len(results or []))
             return results or []
         except Exception as exc:
             logger.warning("[ReAct] semantic_search 실패: %s", exc)
@@ -355,15 +406,14 @@ class ReActSearchAgent:
         max_results: int = 10,
     ) -> List[Dict[str, Any]]:
         """DBLP 검색 (DBLPSearcher 래퍼)."""
-        loop = asyncio.get_running_loop()
         try:
-            results = await loop.run_in_executor(
-                None,
+            results = await self._run_owned(
                 self._search_agent.dblp_searcher.search,
                 query,
                 max_results,
+                provider=True,
             )
-            logger.debug("[ReAct] dblp_search: query=%r, found=%d", query[:50], len(results))
+            logger.debug("[ReAct] dblp_search: query=%r, found=%d", query[:50], len(results or []))
             return results or []
         except Exception as exc:
             logger.warning("[ReAct] dblp_search 실패: %s", exc)
@@ -383,20 +433,19 @@ class ReActSearchAgent:
         Returns:
             논문 정보 딕셔너리 또는 None.
         """
-        loop = asyncio.get_running_loop()
         try:
             import arxiv
 
             def _fetch() -> Optional[Dict[str, Any]]:
                 search = arxiv.Search(id_list=[paper_id], max_results=1)
-                client = arxiv.Client(delay_seconds=3.5, num_retries=3)
+                client = arxiv.Client(delay_seconds=3.5, num_retries=0)
                 results = list(client.results(search))
                 if not results:
                     return None
                 return self._search_agent.arxiv_searcher._extract_paper_info(results[0])
 
             return await asyncio.wait_for(
-                loop.run_in_executor(None, _fetch),
+                self._run_owned(_fetch),
                 timeout=15,
             )
         except asyncio.TimeoutError:
@@ -485,10 +534,12 @@ Respond in JSON:
 """
 
         try:
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: create_chat_completion(self._client,
+            _, deadline, _ = _operation.get()
+            response = await self._run_owned(
+                lambda: create_chat_completion(
+                    self._client.with_options(
+                        timeout=max(0.001, deadline - time.monotonic()), max_retries=0,
+                    ),
                     model=self._model,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -500,6 +551,8 @@ Respond in JSON:
                 ),
             )
 
+            if response is None:
+                return {"is_sufficient": True, "next_query": ""}
             content = response.choices[0].message.content
             if not content or not content.strip():
                 logger.warning("[ReAct] LLM 빈 응답. fallback 계획 사용.")

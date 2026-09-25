@@ -13,7 +13,6 @@ Paper management endpoints:
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -603,35 +602,22 @@ async def enrich_papers(
 
 def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Synchronous graph building — runs in a thread to avoid blocking the event loop."""
-    from src.utils.paper_utils import generate_doc_id
+    from src.utils.paper_utils import generate_result_key
 
-    for paper in papers_data:
-        if "doc_id" not in paper:
-            title = paper.get("title", "")
-            doc_id = (
-                str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
-                if title
-                else ""
-            )
-            paper["doc_id"] = doc_id
+    # Existing edge/layout helpers operate on doc_id. Give them private graph
+    # records whose IDs are selection identities, never mutate stored records.
+    papers_data = [
+        {
+            **paper,
+            "doc_id": str(paper.get("result_key") or paper.get("doc_id") or generate_result_key(paper)),
+        }
+        for paper in papers_data
+    ]
 
     graph = nx.Graph()
 
-    # Ensure all papers have doc_id
-    for paper in papers_data:
-        if "doc_id" not in paper:
-            paper["doc_id"] = generate_doc_id(paper.get("title", ""))
-
     for paper in papers_data:
         doc_id = paper.get("doc_id")
-        if not doc_id:
-            title = paper.get("title", "")
-            doc_id = (
-                str(int(hashlib.md5(title.encode("utf-8")).hexdigest()[:15], 16))
-                if title
-                else ""
-            )
-            paper["doc_id"] = doc_id
 
         node_attrs = {
             "weight": max(paper.get("citations", 1), 1),

@@ -115,20 +115,23 @@ describe('SearchPage honest states', () => {
     expect(empty?.getAttribute('aria-live')).toBe('polite');
   });
 
-  it('shows what was actually searched when the analyzer rewrote it', async () => {
+  it('shows the executed query rather than an analyzer suggestion', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper] }, total: 1,
-      query_analysis: { improved_query: 'graph neural network representation learning' },
+      query_analysis: { improved_query: 'unexecuted suggestion' },
+      metadata: { executed_query: 'graph neural network representation learning' },
     } as never);
     renderPage();
     await submit('GNN');
     expect(screen.getByText('graph neural network representation learning')).toBeTruthy();
+    expect(screen.queryByText('unexecuted suggestion')).toBeNull();
   });
 
   it('stays quiet when the rewrite is the query', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper] }, total: 1,
       query_analysis: { improved_query: 'graph neural networks' },
+      metadata: { executed_query: 'graph neural networks' },
     } as never);
     renderPage();
     await submit('graph neural networks');

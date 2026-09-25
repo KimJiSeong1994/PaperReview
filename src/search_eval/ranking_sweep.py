@@ -35,11 +35,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import time
 from pathlib import Path
 from typing import Any, Sequence
 
 from src.graph_rag.hybrid_ranker import CROSS_ENCODER_RRF_WEIGHT, HybridRanker
+from src.utils.paper_utils import generate_result_key
 
 from .retrieval_eval import score_retrieval_results
 from .skillopt_contract import ValidationError, load_json, validate_dataset_contract
@@ -101,7 +103,7 @@ def capture_candidate_pool(
                 continue
             for hit in hits:
                 title = (hit.get("title") or "").strip()
-                key = title.lower()
+                key = generate_result_key({**hit, "source": source})
                 if not title or key in seen:
                     continue
                 seen.add(key)
@@ -112,6 +114,12 @@ def capture_candidate_pool(
                         "year": hit.get("year"),
                         "citations": hit.get("citations") or 0,
                         "source": source,
+                        "result_key": key,
+                        **{
+                            field: hit[field]
+                            for field in ("doi", "arxiv_id", "paper_id", "id", "url", "authors")
+                            if hit.get(field)
+                        },
                     }
                 )
         candidates[query_id] = pool
@@ -156,11 +164,15 @@ def score_pool_at_weight(
     similarity_calculator: Any = None,
 ) -> dict[str, Any]:
     """Rank every query's pool at *cross_encoder_weight* and score the result."""
+    dataset = load_json(str(dataset_path))
+    validate_dataset_contract(dataset)
+    if pool.get("dataset_hash") != dataset["dataset_hash"]:
+        raise ValidationError("candidate pool dataset hash mismatch")
     ranker = HybridRanker(similarity_calculator=similarity_calculator)
     ranked_by_query: dict[str, list[dict[str, Any]]] = {}
     latencies_ms: list[float] = []
 
-    for query in load_json(str(dataset_path))["queries"]:
+    for query in dataset["queries"]:
         query_id = str(query["query_id"])
         # Fresh dicts per weight: rank_papers annotates and sorts in place, so a
         # shared list would leak one weight's scores into the next run.
@@ -177,9 +189,9 @@ def score_pool_at_weight(
         ranked_by_query[query_id] = ranked[:10]
 
     latencies_ms.sort()
-    p95 = latencies_ms[max(0, int(len(latencies_ms) * 0.95) - 1)] if latencies_ms else 0.0
+    p95 = latencies_ms[max(0, math.ceil(len(latencies_ms) * 0.95) - 1)] if latencies_ms else 0.0
 
-    return score_retrieval_results(
+    record = score_retrieval_results(
         dataset_path=str(dataset_path),
         results_by_query=ranked_by_query,
         p95_latency_ms=max(p95, 1e-6),
@@ -187,6 +199,10 @@ def score_pool_at_weight(
         capture_id=f"{pool['version']}@ce_w={cross_encoder_weight}",
         capture_hash=pool["pool_hash"],
     )
+    record["comparison_scope"] = "fixed_pool"
+    record["timing_scope"] = "ranker_only"
+    record["promotion_eligible"] = False
+    return record
 
 
 def sweep(

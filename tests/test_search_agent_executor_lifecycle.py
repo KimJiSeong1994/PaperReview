@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
@@ -9,6 +10,81 @@ import pytest
 
 from app.SearchAgent import search_agent as search_agent_module
 from app.SearchAgent.search_agent import SearchAgent, SearchCapacityExceeded
+
+
+def test_async_cancel_preserves_completed_snapshot_and_charges_running_work():
+    agent = _make_agent()
+    release = threading.Event()
+    started = threading.Event()
+
+    def blocked(*args):
+        started.set()
+        release.wait(2)
+        return [{"title": "late"}]
+
+    agent.dblp_searcher.search.side_effect = blocked
+    agent.openalex_searcher.search.return_value = [{"title": "completed"}]
+
+    async def scenario():
+        filters = {"sources": ["openalex", "dblp"], "_partial_results": {}}
+        task = asyncio.create_task(agent.async_search_with_filters("topic", filters))
+        for _ in range(1000):
+            if started.is_set() and filters["_partial_results"].get("openalex"):
+                break
+            await asyncio.sleep(0.001)
+        assert filters["_partial_results"]["openalex"] == [{"title": "completed"}]
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        lock, generations = agent._operation_generation_state()
+        with lock:
+            assert len(generations["search_with_filters"]) == 1
+        assert "dblp" not in filters["_partial_results"]
+        return filters
+
+    try:
+        filters = asyncio.run(scenario())
+    finally:
+        release.set()
+        _wait_for_operation_generation_release(agent, "search_with_filters")
+        _wait_for_search_threads_to_stop()
+    assert "dblp" not in filters["_partial_results"]
+
+
+def test_async_saturation_retains_two_generations_until_workers_drain():
+    agent = _make_agent()
+    release = threading.Event()
+    started = threading.Barrier(3)
+
+    def blocked(*args):
+        started.wait(timeout=2)
+        release.wait(2)
+        return []
+
+    agent.dblp_searcher.search.side_effect = blocked
+
+    async def scenario():
+        tasks = [asyncio.create_task(agent.async_search_with_filters("topic", {"sources": ["dblp"]})) for _ in range(2)]
+        for _ in range(1000):
+            if started.n_waiting == 2:
+                break
+            await asyncio.sleep(0.001)
+        started.wait(timeout=1)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        with pytest.raises(SearchCapacityExceeded):
+            await agent.async_search_with_filters("topic", {"sources": ["dblp"]})
+        lock, generations = agent._operation_generation_state()
+        with lock:
+            assert len(generations["search_with_filters"]) == 2
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        release.set()
+        _wait_for_operation_generation_release(agent, "search_with_filters")
+        _wait_for_search_threads_to_stop()
 
 
 def _search_threads() -> list[threading.Thread]:
@@ -102,7 +178,7 @@ def test_llm_context_search_joins_workers_after_worker_exception(
     assert agent.google_scholar_searcher.search.call_count == 1
     assert agent.connected_papers_searcher.search.call_count == 1
     assert agent.openalex_searcher.search.call_count == 1
-    assert agent.openalex_searcher.search_korean.call_count == 1
+    assert agent.openalex_searcher.search_korean.call_count == 0
     assert agent.dblp_searcher.search.call_count == 1
     assert _search_threads() == []
 
@@ -123,7 +199,7 @@ def test_same_operation_concurrent_calls_use_independent_generations() -> None:
             },
         }
 
-    def arxiv_search(query: str, _max_results: int) -> list[dict[str, object]]:
+    def arxiv_search(query: str, _max_results: int, *args, **kwargs) -> list[dict[str, object]]:
         providers_started.wait(timeout=1)
         return [{"title": query}]
 
@@ -179,6 +255,112 @@ def test_operation_capacity_raises_before_query_analysis() -> None:
     _wait_for_search_threads_to_stop()
 
 
+def test_llm_completed_later_source_survives_slow_first_and_external_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _make_agent()
+    release = threading.Event()
+    slow_started = threading.Event()
+    clock = [100.0]
+    snapshots = []
+    monkeypatch.setattr(search_agent_module.time, "monotonic", lambda: clock[0])
+
+    def slow(*args, **kwargs):
+        assert kwargs["deadline"] == 101.0
+        slow_started.set()
+        release.wait(2)
+        return [{"title": "too late"}]
+
+    def fast(*args, **kwargs):
+        assert slow_started.wait(1)
+        return [
+            {"title": "same title", "doi": "10.1234/one"},
+            {"title": "same title", "doi": "10.1234/two"},
+            {"title": "duplicate DOI", "doi": "https://doi.org/10.1234/one"},
+        ]
+
+    def snapshot(value):
+        snapshots.append(value)
+        if value["openalex"]:
+            # Deterministically expire the shared budget once useful results
+            # are observed, without allowing the first submitted call to finish.
+            clock[0] = 101.0
+            value["openalex"][0]["title"] = "callback-owned mutation"
+
+    agent.arxiv_searcher.search.side_effect = slow
+    agent.openalex_searcher.search.side_effect = fast
+    try:
+        result = agent.llm_context_search(
+            "topic", deadline=101.0, snapshot_callback=snapshot
+        )
+        assert len(result["openalex"]) == 2
+        assert {p["doi"] for p in result["openalex"]} == {"10.1234/one", "10.1234/two"}
+        assert result["openalex"][0]["title"] == "same title"
+        assert result["arxiv"] == []
+        assert result["_metadata"]["timeouts"]["arxiv"] is True
+        published_count = len(snapshots)
+    finally:
+        release.set()
+        # Restore the real clock before lifecycle polling helpers.
+        monkeypatch.undo()
+        _wait_for_operation_generation_release(agent, "llm_context_search")
+        _wait_for_search_threads_to_stop()
+    assert len(snapshots) == published_count
+    assert result["arxiv"] == []
+
+
+def test_llm_analysis_consumes_external_budget_without_provider_admission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _make_agent()
+    clock = [100.0]
+    monkeypatch.setattr(search_agent_module.time, "monotonic", lambda: clock[0])
+
+    def analyze(query):
+        clock[0] = 101.0
+        return {"source_queries": {"default": query}}
+
+    agent.query_analyzer.analyze_and_prepare.side_effect = analyze
+    result = agent.llm_context_search("topic", deadline=101.0)
+    assert result["arxiv"] == []
+    assert result["_metadata"]["timeouts"]["arxiv"] is True
+    agent.arxiv_searcher.search.assert_not_called()
+    agent.openalex_searcher.search.assert_not_called()
+    assert _search_threads() == []
+
+
+def test_llm_stop_during_analysis_retains_ownership_and_does_not_start_sources():
+    agent = _make_agent()
+    started = threading.Event()
+    release = threading.Event()
+    stop = threading.Event()
+
+    def analyze(query):
+        started.set()
+        release.wait(2)
+        return {"source_queries": {"default": query}}
+
+    agent.query_analyzer.analyze_and_prepare.side_effect = analyze
+    try:
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="caller") as callers:
+            future = callers.submit(
+                agent.llm_context_search, "topic",
+                deadline=time.monotonic() + 30, stop_event=stop,
+            )
+            assert started.wait(1)
+            stop.set()
+            result = future.result(timeout=1)
+        assert result["_metadata"]["analysis_status"] == "timeout"
+        agent.arxiv_searcher.search.assert_not_called()
+        lock, generations = agent._operation_generation_state()
+        with lock:
+            assert len(generations["llm_context_search"]) == 1
+    finally:
+        release.set()
+        _wait_for_operation_generation_release(agent, "llm_context_search")
+        _wait_for_search_threads_to_stop()
+
+
 def test_llm_context_search_timeout_is_nonblocking_and_generation_is_reusable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -188,7 +370,7 @@ def test_llm_context_search_timeout_is_nonblocking_and_generation_is_reusable(
     call_lock = threading.Lock()
     call_count = 0
 
-    def first_search_blocks(query: str, _max_results: int) -> list[dict[str, object]]:
+    def first_search_blocks(query: str, _max_results: int, *args, **kwargs) -> list[dict[str, object]]:
         nonlocal call_count
         with call_lock:
             call_count += 1
@@ -240,7 +422,7 @@ def test_llm_context_search_timeout_is_nonblocking_and_generation_is_reusable(
         assert agent.google_scholar_searcher.search.call_count == 2
         assert agent.connected_papers_searcher.search.call_count == 2
         assert agent.openalex_searcher.search.call_count == 2
-        assert agent.openalex_searcher.search_korean.call_count == 2
+        assert agent.openalex_searcher.search_korean.call_count == 0
         assert agent.dblp_searcher.search.call_count == 2
         assert _search_threads() == []
     finally:

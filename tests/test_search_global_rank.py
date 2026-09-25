@@ -11,6 +11,7 @@ another, and the cross-encoder weight that replaced the second reranking pass.
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -153,20 +154,25 @@ def test_cross_encoder_does_not_dominate_the_fusion():
     )
 
     papers = _rankable(4)
+    for i, paper in enumerate(papers):
+        paper["year"] = datetime.now().year - (12, 7, 4, 0)[i]
     # Cross-encoder ranks the papers in exactly reverse order of the
     # citation/recency heuristics, so a dominant weight is unmistakable.
     with patch(
         "app.QueryAgent.relevance_filter.LocalRelevanceScorer.score_papers",
-        side_effect=lambda q, ps: [0.1 * (i + 1) for i in range(len(ps))],
+        side_effect=lambda q, ps: [0.4 - 0.1 * int(p["paper_id"][1:]) for p in ps],
     ):
         ranked = HybridRanker().rank_papers(
-            query="attention parity", papers=list(papers), use_rrf=True
+            query="attention parity", papers=list(papers), use_rrf=True,
+            cross_encoder_weight=1.0,
         )
 
-    assert ranked[0]["title"] != "paper 3", (
-        "the cross-encoder's pick won outright against every other signal — "
-        f"it is dominating the fusion at weight {CROSS_ENCODER_RRF_WEIGHT}"
-    )
+    assert ranked[0]["title"] == "paper 3"
+    for paper in ranked:
+        i = int(paper["paper_id"][1:])
+        assert paper["_hybrid_score"] == pytest.approx(
+            2 / (RRF_K + 4 - i) + 1 / (RRF_K + i + 1)
+        )
 
 
 def test_zero_weight_skips_cross_encoder_inference():
@@ -197,7 +203,11 @@ def test_zero_weight_skips_cross_encoder_inference():
     breakdown = ranked[0]["_score_breakdown"]
     assert breakdown["rrf_cross_encoder"] == 0.0
     assert breakdown["cross_encoder_weight"] == 0.0
-    assert breakdown["rrf_bm25"] > 0.0, "the remaining signals must still fuse"
+    assert breakdown["excluded_signals"]["bm25"] == "constant"
+    assert breakdown["rrf_bm25"] == 0.0
+    assert ranked[0]["title"] == "paper 4"
+    for rank, paper in enumerate(ranked, 1):
+        assert paper["_hybrid_score"] == pytest.approx(1 / (RRF_K + rank))
 
 
 def test_cross_encoder_weight_can_be_overridden_per_call():
@@ -206,12 +216,10 @@ def test_cross_encoder_weight_can_be_overridden_per_call():
     Sweeping by monkeypatching the module constant would race any concurrent
     search, so the ranker takes the weight as an argument.
     """
-    scores = [0.1 * (i + 1) for i in range(4)]
-
     def _ranked_titles(weight):
         with patch(
             "app.QueryAgent.relevance_filter.LocalRelevanceScorer.score_papers",
-            side_effect=lambda q, ps: scores[: len(ps)],
+            side_effect=lambda q, ps: [0.4 - 0.1 * int(p["paper_id"][1:]) for p in ps],
         ):
             _ce_cache_clear()
             ranked = HybridRanker().rank_papers(
@@ -220,11 +228,15 @@ def test_cross_encoder_weight_can_be_overridden_per_call():
                 use_rrf=True,
                 cross_encoder_weight=weight,
             )
+        for paper in ranked:
+            i = int(paper["paper_id"][1:])
+            assert paper["_hybrid_score"] == pytest.approx(
+                1 / (RRF_K + 4 - i) + weight / (RRF_K + i + 1)
+            )
         return [p["title"] for p in ranked]
 
-    assert _ranked_titles(0.0) != _ranked_titles(50.0), (
-        "cross_encoder_weight had no effect — the sweep would compare identical rankings"
-    )
+    assert _ranked_titles(0.0) == ["paper 3", "paper 2", "paper 1", "paper 0"]
+    assert _ranked_titles(50.0) == ["paper 0", "paper 1", "paper 2", "paper 3"]
     assert CROSS_ENCODER_RRF_WEIGHT == 0.0, "override must not change the default"
 
 
@@ -236,14 +248,15 @@ def test_cross_encoder_weight_matches_the_rrf_contribution():
         side_effect=lambda q, ps: [0.9, 0.5, 0.1],
     ):
         ranked = HybridRanker().rank_papers(
-            query="attention", papers=list(papers), use_rrf=True
+            query="attention", papers=list(papers), use_rrf=True,
+            cross_encoder_weight=0.5,
         )
 
     top = next(p for p in ranked if p["title"] == "paper 0")
     # The breakdown is rounded to 6 decimals, so compare with that absolute
     # tolerance rather than a relative one.
     assert top["_score_breakdown"]["rrf_cross_encoder"] == pytest.approx(
-        CROSS_ENCODER_RRF_WEIGHT / (RRF_K + 1), abs=1e-6
+        0.5 / (RRF_K + 1), abs=1e-6
     )
 
 
@@ -253,15 +266,21 @@ def test_unavailable_cross_encoder_leaves_the_other_signals_alone():
     with patch(
         "app.QueryAgent.relevance_filter.LocalRelevanceScorer.score_papers",
         side_effect=lambda q, ps: [],
-    ):
+    ) as scorer:
         ranked = HybridRanker().rank_papers(
-            query="attention", papers=list(papers), use_rrf=True
+            query="attention", papers=list(papers), use_rrf=True,
+            cross_encoder_weight=1.0,
         )
 
+    scorer.assert_called_once()
     breakdown = ranked[0]["_score_breakdown"]
     assert breakdown["rrf_cross_encoder"] == 0.0
     assert breakdown["cross_encoder_weight"] == 0.0
-    assert breakdown["rrf_bm25"] > 0.0, "other signals must still fuse"
+    assert breakdown["excluded_signals"]["cross_encoder"] == "unavailable"
+    assert breakdown["excluded_signals"]["bm25"] == "constant"
+    assert ranked[0]["title"] == "paper 2"
+    for rank, paper in enumerate(ranked, 1):
+        assert paper["_hybrid_score"] == pytest.approx(1 / (RRF_K + rank))
 
 
 def test_cross_encoder_scored_once_per_ranking_pass():

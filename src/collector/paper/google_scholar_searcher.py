@@ -12,7 +12,7 @@ Google Scholar 검색 클라이언트 (Enhanced)
 import requests
 from bs4 import BeautifulSoup
 from src.collector.paper.rate_limiter import RateLimiter
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional
 import time
 import re
 import urllib.parse
@@ -23,30 +23,31 @@ import threading
 from pathlib import Path
 from src.utils.logger import log_search_operation, logger
 
-def _get_free_proxy(timeout: int = 5) -> Optional[str]:
-    """free-proxy 라이브러리로 무료 프록시 획득 (시간 제한 포함)"""
-    import threading
-
-    result = [None]
-
-    def _fetch():
-        try:
-            from fp.fp import FreeProxy
-            proxy = FreeProxy(timeout=3, rand=True, https=True).get()
-            if proxy:
-                result[0] = proxy
-        except Exception:
-            pass
-
-    t = threading.Thread(target=_fetch, daemon=True)
-    t.start()
-    t.join(timeout=timeout)
-
-    if result[0]:
-        logger.info(f"Free proxy acquired: {result[0]}")
-    else:
-        logger.debug("Free proxy acquisition timed out or failed")
-    return result[0]
+def _get_free_proxy(timeout: int = 5, *, deadline=None, stop_event=None) -> Optional[str]:
+    """Bound proxy discovery and validation synchronously in the owning worker."""
+    deadline = min(deadline or float('inf'), time.monotonic() + timeout)
+    try:
+        if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
+            return None
+        response = requests.get('https://www.sslproxies.org/', timeout=max(0.01, deadline - time.monotonic()))
+        response.raise_for_status()
+        rows = BeautifulSoup(response.text, 'html.parser').select('#list tbody tr')[:2]
+        for row in rows:
+            if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
+                break
+            cells = row.find_all('td')
+            if len(cells) < 7 or cells[6].get_text(strip=True).lower() != 'yes':
+                continue
+            proxy = 'http://' + cells[0].get_text(strip=True) + ':' + cells[1].get_text(strip=True)
+            try:
+                check = requests.get('https://www.google.com', proxies={'https': proxy}, timeout=min(2, deadline - time.monotonic()))
+                check.raise_for_status()
+                return proxy
+            except requests.RequestException:
+                continue
+    except requests.RequestException as error:
+        logger.debug('Proxy discovery failed: %s', error)
+    return None
 
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
@@ -103,17 +104,17 @@ class GoogleScholarSearcher:
         self._circuit_breaker_threshold = 8  # 연속 실패 횟수 임계값 (5→8)
         self._circuit_breaker_cooldown = 300  # 비활성화 시간 (2분→5분)
 
-    def _ensure_proxy(self):
+    def _ensure_proxy(self, *, deadline=None, stop_event=None):
         """첫 요청 시 프록시 설정 (lazy init)"""
         with self._state_lock:
             if self._proxy_initialized:
                 return
             self._proxy_initialized = True
-        self._try_set_proxy()
+        self._try_set_proxy(deadline=deadline, stop_event=stop_event)
 
-    def _try_set_proxy(self):
+    def _try_set_proxy(self, *, deadline=None, stop_event=None):
         """무료 프록시 획득 및 설정"""
-        proxy_url = _get_free_proxy()
+        proxy_url = _get_free_proxy(deadline=deadline, stop_event=stop_event)
         if proxy_url:
             self._proxy = {"http": proxy_url, "https": proxy_url}
             self.session.proxies.update(self._proxy)
@@ -206,60 +207,32 @@ class GoogleScholarSearcher:
                     f"after {self._consecutive_failures} consecutive failures"
                 )
 
-    def _request_with_backoff(self, url: str, params: dict) -> Optional[requests.Response]:
-        """Exponential backoff을 적용한 HTTP 요청 (프록시 로테이션 포함)"""
-        self._ensure_proxy()
-
-        for attempt in range(self.max_retries):
+    def _request_with_backoff(self, url: str, params: dict, *, deadline=None, stop_event=None) -> requests.Response:
+        deadline = deadline if deadline is not None else time.monotonic() + 30
+        def check():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or (stop_event is not None and stop_event.is_set()):
+                raise TimeoutError('Scholar request budget exhausted')
+            return remaining
+        check()
+        self._ensure_proxy(deadline=deadline, stop_event=stop_event)
+        for attempt in range(max(1, self.max_retries)):
+            check()
+            self._rate_limit()
+            remaining = check()
             try:
-                self._rate_limit()
-                # 랜덤 User-Agent 로테이션
-                self.session.headers['User-Agent'] = random.choice(self.user_agents)
-                response = self.session.get(url, params=params, timeout=10)
-
-                # CAPTCHA는 호출자가 처리
-                if self._is_captcha_response(response):
-                    return response
-
-                # 403 차단 시 프록시 교체 후 재시도 (exponential backoff)
-                if response.status_code == 403:
-                    logger.warning(f"Google Scholar 403 blocked (attempt {attempt + 1})")
-                    self._rotate_proxy()
-                    if attempt < self.max_retries - 1:
-                        delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
-                        logger.info(f"Retrying in {delay:.1f}s...")
-                        time.sleep(delay)
-                        continue
-                    self._record_failure()
-                    return None
-
+                response = self.session.get(url, params=params, timeout=min(10, remaining))
                 response.raise_for_status()
-                with self._state_lock:
-                    self._proxy_failures = 0
-                self._record_success()
                 return response
-
-            except requests.exceptions.HTTPError as e:
-                logger.warning(f"Google Scholar HTTP error (attempt {attempt + 1}): {e}")
-                self._rotate_proxy()
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
-                    time.sleep(delay)
+            except requests.RequestException:
+                if attempt + 1 >= max(1, self.max_retries):
+                    raise
+                delay = min(self.retry_delay_base * (2 ** attempt), check())
+                if stop_event is not None:
+                    stop_event.wait(delay)
                 else:
-                    self._record_failure()
-                    return None
-
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Google Scholar request error (attempt {attempt + 1}): {e}")
-                self._rotate_proxy()
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay_base * (2 ** attempt) + random.uniform(0, 2)
                     time.sleep(delay)
-                else:
-                    self._record_failure()
-                    return None
-
-        return None
+        raise RuntimeError('Scholar retry budget exhausted')
 
     def _is_captcha_response(self, response) -> bool:
         """응답이 CAPTCHA인지 확인"""
@@ -411,203 +384,53 @@ class GoogleScholarSearcher:
             return query
 
     @log_search_operation("Google Scholar")
-    def search(self, query: str, max_results: int = 10, sort_by: str = "relevance") -> List[Dict[str, Any]]:
-        """
-        Google Scholar에서 논문 검색 (Enhanced)
-
-        Args:
-            query: 검색 쿼리
-            max_results: 최대 결과 수
-            sort_by: 정렬 기준 (relevance, date)
-
-        Returns:
-            논문 정보 리스트
-        """
+    def search(self, query: str, max_results: int = 10, sort_by: str = "relevance", *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        """Finite HTML retrieval; interactive CAPTCHA and scholarly retries are not request-safe."""
+        deadline = deadline if deadline is not None else time.monotonic() + 30
         if not self._is_available():
+            if attempts is not None:
+                attempts.append({'query': query, 'status': 'circuit_open'})
             return []
-
+        receipt = {'query': query, 'status': 'dispatched'}
+        if attempts is not None:
+            attempts.append(receipt)
         try:
-            # 검색 URL 구성
-            search_url = f"{self.base_url}/scholar"
-            params = {
-                'q': query,
-                'hl': 'en',
-                'as_sdt': '0,5'
-            }
-
-            # 정렬 기준 추가
-            if sort_by == "date":
-                params['scisbd'] = '1'  # 날짜순 정렬
-
-            response = self._request_with_backoff(search_url, params)
-            if response is None:
-                self._record_failure()
-                return []
-
-            # CAPTCHA 확인 및 처리
+            response = self._request_with_backoff(self.base_url + '/scholar', {'q': query, 'hl': 'en', 'as_sdt': '0,5', **({'scisbd': '1'} if sort_by == 'date' else {})}, deadline=deadline, stop_event=stop_event)
             if self._is_captcha_response(response):
-                logger.warning("CAPTCHA detected, attempting manual solve...")
-                if self.enable_manual_captcha and self._solve_captcha_manually(response.url):
-                    # CAPTCHA 해결 후 충분한 대기 (20초)
-                    logger.info("✅ CAPTCHA solved! Waiting 20s for cookies to be fully recognized...")
-                    time.sleep(20)  # Google 서버가 쿠키를 완전히 인식하도록 충분한 대기
-
-                    # 새로운 세션으로 재시도 (쿠키는 유지)
-                    logger.info("Retrying request with authenticated session...")
-
-                    # User-Agent를 변경하지 않고 그대로 유지
-                    response = self.session.get(search_url, params=params, timeout=15)
-
-                    # 재시도 후에도 CAPTCHA면 두 번째 시도
-                    if self._is_captcha_response(response):
-                        logger.warning("CAPTCHA still detected. Waiting additional 30s and retrying once more...")
-                        time.sleep(30)  # 추가 30초 대기
-                        response = self.session.get(search_url, params=params, timeout=15)
-
-                        # 그래도 실패하면 포기
-                        if self._is_captcha_response(response):
-                            logger.error("⚠️ CAPTCHA persists after multiple retries. Skipping Google Scholar for this search.")
-                            logger.info("💡 Tip: Try again in a few minutes. Google Scholar may have temporary restrictions.")
-                            return []
-                else:
-                    logger.error("CAPTCHA not solved, skipping Google Scholar search")
-                    return []
-
-            response.raise_for_status()
-
-            # 검색 결과 파싱
+                raise requests.HTTPError('Scholar CAPTCHA requires independent manual recovery')
             papers = self._parse_search_results(response.text, max_results)
-
-            # HTML 파싱 0건이면 scholarly fallback 시도
-            if not papers:
-                logger.info("HTML scraping returned 0 results, trying scholarly fallback...")
-                papers = self._search_via_scholarly(query, max_results)
-                if papers:
-                    logger.info("scholarly fallback returned %d results", len(papers))
-                    self._record_success()
-                    return papers[:max_results]
-
-            # 결과가 부족하면 추가 검색 시도
-            if len(papers) < max_results // 2:
-                additional = self.enhanced_search(query, max_results=max_results - len(papers))
-                # 중복 제거 후 병합
-                seen_titles = {p['title'].lower() for p in papers}
-                for paper in additional:
-                    if paper['title'].lower() not in seen_titles:
-                        papers.append(paper)
-                        seen_titles.add(paper['title'].lower())
-
-            return papers[:max_results]
-
-        except Exception as e:
+            self._record_success()
+            receipt['status'] = 'searched' if papers else 'searched_empty'
+            return papers
+        except Exception as error:
+            receipt['status'] = 'timeout' if isinstance(error, (TimeoutError, requests.Timeout)) else 'error'
             self._record_failure()
-            logger.error(f"Google Scholar 검색 중 오류 발생: {e}")
-            import traceback
-            logger.debug(traceback.format_exc())
+            if attempts is None:
+                raise
             return []
 
     @log_search_operation("Google Scholar Enhanced")
-    def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """
-        향상된 다중 전략 검색
-
-        여러 검색 전략을 조합하여 더 포괄적인 결과 제공
-        """
-        if not self._is_available():
-            return []
-
-        all_results: List[Dict[str, Any]] = []
-        seen_titles: Set[str] = set()
-
-        try:
-            # 다양한 검색 전략
-            strategies = [
-                ("keywords", max_results // 2),  # 키워드 기반
-                ("title", max_results // 2),     # 제목 검색
-            ]
-
-            for strategy, limit in strategies:
-                try:
-                    self._rate_limit()
-
-                    optimized_query = self._build_optimized_query(query, strategy)
-                    search_url = f"{self.base_url}/scholar"
-                    params = {
-                        'q': optimized_query,
-                        'hl': 'en',
-                        'as_sdt': '0,5'
-                    }
-
-                    response = self.session.get(search_url, params=params, timeout=15)
-                    response.raise_for_status()
-
-                    papers = self._parse_search_results(response.text, limit)
-
-                    for paper in papers:
-                        title_lower = paper['title'].lower()
-                        if title_lower not in seen_titles:
-                            seen_titles.add(title_lower)
-                            all_results.append(paper)
-
-                except Exception as e:
-                    logger.warning(f"Strategy '{strategy}' failed: {e}")
-                    continue
-
-                # 충분한 결과가 있으면 조기 종료
-                if len(all_results) >= max_results:
-                    break
-
-            return all_results[:max_results]
-
-        except Exception as e:
-            logger.error(f"Enhanced search error: {e}")
-            return []
+    def enhanced_search(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        from src.utils.paper_utils import generate_result_key
+        deadline = deadline if deadline is not None else time.monotonic() + 30
+        papers, seen = [], set()
+        for strategy in ('keywords', 'title'):
+            if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
+                if attempts is not None:
+                    attempts.append({'query': query, 'status': 'timeout'})
+                break
+            for paper in self.search(self._build_optimized_query(query, strategy), max_results, deadline=deadline, stop_event=stop_event, attempts=attempts):
+                key = generate_result_key(paper)
+                if key not in seen:
+                    seen.add(key)
+                    papers.append(paper)
+            if len(papers) >= max_results:
+                break
+        return papers[:max_results]
 
     @log_search_operation("Google Scholar Title")
-    def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """
-        논문 제목으로 정확한 검색
-
-        Args:
-            title: 논문 제목
-            max_results: 최대 결과 수
-
-        Returns:
-            논문 정보 리스트
-        """
-        if not self._is_available():
-            return []
-
-        try:
-            results = []
-
-            # 1. 정확한 제목 검색
-            self._rate_limit()
-            exact_query = f'allintitle: "{title}"'
-            search_url = f"{self.base_url}/scholar"
-            params = {'q': exact_query, 'hl': 'en', 'as_sdt': '0,5'}
-
-            response = self.session.get(search_url, params=params, timeout=15)
-            response.raise_for_status()
-            results.extend(self._parse_search_results(response.text, max_results))
-
-            # 2. 결과가 없으면 키워드 기반 검색
-            if not results:
-                self._rate_limit()
-                keywords = self._extract_keywords(title)
-                if keywords:
-                    keyword_query = " ".join(keywords[:4])
-                    params = {'q': keyword_query, 'hl': 'en', 'as_sdt': '0,5'}
-
-                    response = self.session.get(search_url, params=params, timeout=15)
-                    response.raise_for_status()
-                    results.extend(self._parse_search_results(response.text, max_results))
-
-            return results[:max_results]
-
-        except Exception as e:
-            logger.error(f"Title search error: {e}")
-            return []
+    def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        return self.search(f'allintitle: "{title}"', max_results, deadline=deadline, stop_event=stop_event, attempts=attempts)
 
     def search_by_author(self, author: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
@@ -883,7 +706,7 @@ class GoogleScholarSearcher:
             return None
 
     def search_with_filters(self, query: str, year_start: int = None, year_end: int = None,
-                          author: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
+                          author: str = None, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
         """
         필터를 적용한 검색
 
@@ -911,11 +734,11 @@ class GoogleScholarSearcher:
             elif year_end:
                 search_query += f' before:{year_end+1}'
 
-            return self.search(search_query, max_results)
+            return self.search(search_query, max_results, deadline=deadline, stop_event=stop_event, attempts=attempts)
 
         except Exception as e:
             logger.error(f"필터 검색 중 오류 발생: {e}")
-            return []
+            raise
 
     def get_author_profile(self, author_name: str) -> Optional[Dict[str, Any]]:
         """

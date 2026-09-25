@@ -7,6 +7,7 @@ DBLP REST API를 통한 컴퓨터 과학 논문 검색 (무료, API 키 불필�
 """
 
 import requests
+import time
 from typing import List, Dict, Any, Optional
 
 from src.collector.paper.rate_limiter import RateLimiter
@@ -98,7 +99,7 @@ class DBLPSearcher:
         }
 
     @log_search_operation("DBLP")
-    def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    def search(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
         """
         DBLP API를 통한 논문 검색
 
@@ -110,7 +111,11 @@ class DBLPSearcher:
             논문 정보 리스트
         """
         try:
+            if (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline):
+                raise TimeoutError("DBLP search budget expired")
             self._rate_limit()
+            if (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline):
+                raise TimeoutError("DBLP search budget expired during rate limiting")
 
             # DBLP는 긴 쿼리에서 500 에러 발생 → stopword 제거 후 핵심 키워드 추출
             _stopwords = {
@@ -133,7 +138,10 @@ class DBLPSearcher:
                 'format': 'json',
             }
 
-            response = self.session.get(self.base_url, params=params, timeout=15)
+            timeout = min(15.0, deadline - time.monotonic()) if deadline is not None else 15.0
+            if timeout <= 0:
+                raise TimeoutError("DBLP search budget expired before transport")
+            response = self.session.get(self.base_url, params=params, timeout=timeout)
             response.raise_for_status()
 
             data = response.json()
@@ -149,10 +157,10 @@ class DBLPSearcher:
 
         except Exception as e:
             logger.error(f"[DBLP] Search error: {e}")
-            return []
+            raise
 
     @log_search_operation("DBLP Title")
-    def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
+    def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
         """
         논문 제목으로 검색
 
@@ -165,7 +173,7 @@ class DBLPSearcher:
         """
         # DBLP에서 정확한 제목 검색은 $ 구분자 사용
         exact_query = f"${title}$"
-        return self.search(exact_query, max_results)
+        return self.search(exact_query, max_results, deadline=deadline, stop_event=stop_event)
 
     @log_search_operation("DBLP Author")
     def search_by_author(self, author: str, max_results: int = 10) -> List[Dict[str, Any]]:

@@ -6,6 +6,7 @@ doc_id 생성, 제목 정규화, paper_id 생성 등
 """
 
 import hashlib
+import json
 import re
 import unicodedata
 from typing import Any, Dict
@@ -34,16 +35,11 @@ def generate_md5_doc_id(title: str) -> str:
 
 
 def normalize_title(title: str) -> str:
-    """제목 정규화: 소문자 + NFKD→ASCII + 구두점 제거 + 공백 정규화.
-
-    PaperDeduplicator.normalize_title 의 canonical 구현을 그대로 사용.
-    exploration_service.py 등에서 NFKD 없이 구현되어 불일치가 발생하던 문제를 해결.
-    """
+    """NFKC/casefold title tokens, retaining Unicode and punctuation boundaries."""
     if not title:
         return ""
-    t = title.lower().strip()
-    t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
-    t = re.sub(r"[^\w\s]", "", t)
+    t = unicodedata.normalize("NFKC", title).casefold()
+    t = "".join(c if c.isalnum() or unicodedata.category(c).startswith("M") else " " for c in t)
     t = re.sub(r"\s+", " ", t).strip()
     return t
 
@@ -52,11 +48,51 @@ def normalize_doi(doi: str) -> str:
     """DOI 정규화: prefix 제거 + 소문자."""
     if not doi:
         return ""
-    d = doi.strip().lower()
-    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
-        if d.startswith(prefix):
-            d = d[len(prefix):]
+    d = unicodedata.normalize("NFKC", str(doi)).strip().casefold()
+    d = re.sub(r"^(?:doi:\s*)?(?:https?://(?:dx\.)?doi\.org/)?", "", d)
     return d.strip()
+
+
+def generate_result_key(paper: Dict[str, Any]) -> str:
+    """Stable selection identity; never uses historical title-derived doc_id.
+
+    Empty metadata yields the same explicitly unidentified fingerprint, not a
+    claim that two empty records identify different known papers.
+    """
+    doi = normalize_doi(paper.get("doi", ""))
+    if doi:
+        return f"doi:{doi}"
+    for value in (paper.get("arxiv_id"), paper.get("url"), paper.get("id")):
+        match = re.fullmatch(
+            r"(?:https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/|arxiv:\s*)?"
+            r"(\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z-]+)?/\d{7})(?:v\d+)?(?:\.pdf)?/?",
+            str(value or "").strip(), re.IGNORECASE,
+        )
+        if match:
+            return f"arxiv:{match.group(1).casefold()}"
+    for field, namespace in (
+        ("openalex_id", "openalex"), ("semantic_scholar_id", "semantic_scholar"),
+        ("paperId", "semantic_scholar"), ("pmid", "pubmed"),
+    ):
+        if paper.get(field):
+            return f"provider:{namespace}:{str(paper[field]).strip()}"
+    source = str(paper.get("source") or paper.get("_source") or paper.get("_source_tag") or "").strip().casefold()
+    provider_id = paper.get("id") or paper.get("paper_id")
+    if source and provider_id:
+        return f"provider:{source}:{str(provider_id).strip()}"
+    authors = paper.get("authors") or []
+    if isinstance(authors, str):
+        authors = [authors]
+    metadata = {
+        "title": normalize_title(paper.get("title") or ""),
+        "authors": sorted(normalize_title(a.get("name", "") if isinstance(a, dict) else str(a)) for a in authors),
+        "year": str(paper.get("year") or ""),
+        "source": source,
+        "url": str(paper.get("url") or "").strip(),
+        "pdf_url": str(paper.get("pdf_url") or "").strip(),
+    }
+    digest = hashlib.sha256(json.dumps(metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return f"metadata:{digest}"
 
 
 def generate_paper_id(paper: Dict[str, Any]) -> str:

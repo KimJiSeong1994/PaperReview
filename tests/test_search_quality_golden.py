@@ -19,7 +19,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.QueryAgent.query_analyzer import QueryAnalyzer
+from app.QueryAgent.query_analyzer import QueryAnalyzer, _analysis_cache
+
+
+@pytest.fixture(autouse=True)
+def isolate_query_analysis_cache():
+    _analysis_cache.clear()
+    yield
+    _analysis_cache.clear()
 
 # ---------------------------------------------------------------------------
 # Representative query fixture (English + Korean mix)
@@ -84,10 +91,7 @@ class TestScholarQueriesStringGuard:
     def test_scholar_queries_string_input_triggers_guard(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """When the LLM returns scholar_queries as a plain string, the guard must:
-        - Convert it into a list of >=2 variants
-        - Log a WARNING mentioning 'LLM non-compliance'
-        """
+        """A genuine string query is preserved without invented recall variants."""
         query = "transformer attention mechanism"
         # LLM returns google_scholar as a string (non-compliant — should be list)
         llm_json = _make_llm_response(query, scholar_queries_value="transformers attention")
@@ -100,15 +104,8 @@ class TestScholarQueriesStringGuard:
 
         sq = result["source_queries"]["scholar_queries"]
         assert isinstance(sq, list), "scholar_queries must be a list after guard"
-        assert len(sq) >= 2, (
-            f"Guard must fabricate >=2 variants, got {len(sq)}: {sq}"
-        )
-        # Warning must have fired
-        warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
-        assert any(
-            "LLM non-compliance" in msg or "non-compliance" in str(msg)
-            for msg in warning_messages
-        ), f"Expected 'LLM non-compliance' warning, got: {warning_messages}"
+        assert sq == ["transformers attention"]
+        assert result["source_queries"]["google_scholar"] == sq[0]
 
     def test_scholar_queries_list_input_passes_through(self) -> None:
         """When the LLM returns scholar_queries as a list, values pass through unchanged."""
@@ -153,7 +150,7 @@ class TestScholarQueriesStringGuard:
 
         sq = result["source_queries"]["scholar_queries"]
         assert isinstance(sq, list)
-        assert len(sq) >= 1
+        assert sq == ["drug discovery"]
 
     @pytest.mark.parametrize("q", GOLDEN_QUERIES)
     def test_scholar_queries_list_capped_at_three(self, q: str) -> None:
@@ -167,7 +164,20 @@ class TestScholarQueriesStringGuard:
         result = analyzer.analyze_and_prepare(q)
 
         sq = result["source_queries"]["scholar_queries"]
-        assert len(sq) <= 3, f"scholar_queries should be capped at 3, got {len(sq)}"
+        assert sq == oversized_list[:3]
+
+    def test_typed_normalization_rejects_nonqueries_and_deduplicates(self) -> None:
+        from app.QueryAgent.query_analyzer import normalize_source_queries
+
+        result = normalize_source_queries("한국어 질의", {
+            "default": "English translation",
+            "scholar_queries": [None, 42, {}, "", " genuine ", "genuine", "second", "third", "fourth"],
+            "arxiv": ["not a string"],
+        })
+        assert result["scholar_queries"] == ["genuine", "second", "third"]
+        assert result["arxiv"] == result["openalex"] == "English translation"
+        assert result["openalex_korean"] == "한국어 질의"
+        assert all(isinstance(value, str) for key, value in result.items() if key != "scholar_queries")
 
 
 # ---------------------------------------------------------------------------

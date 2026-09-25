@@ -1,4 +1,5 @@
 from routers.papers import _build_graph_sync
+from copy import deepcopy
 
 
 def test_small_graph_exposes_human_readable_relationship_metadata():
@@ -37,3 +38,25 @@ def test_small_graph_exposes_human_readable_relationship_metadata():
         "graph",
     ]
     assert {node["community_id"] for node in graph["nodes"]} == {0}
+
+
+def test_graph_result_keys_preserve_same_title_different_doi_and_input_records():
+    papers = [
+        {
+            "doc_id": "legacy-collision",
+            "result_key": f"doi:10.1000/{suffix}",
+            "doi": f"10.1000/{suffix}",
+            "title": "Knowledge Graph Learning",
+            "keywords": ["knowledge graph"],
+        }
+        for suffix in ("one", "two")
+    ]
+    original = deepcopy(papers)
+    graph = _build_graph_sync(papers)
+    identities = {"doi:10.1000/one", "doi:10.1000/two"}
+    assert papers == original
+    assert {node["id"] for node in graph["nodes"]} == identities
+    assert all(node["doc_id"] == node["id"] for node in graph["nodes"])
+    assert len(graph["edges"]) == 1
+    assert {graph["edges"][0]["source"], graph["edges"][0]["target"]} == identities
+    assert set(graph["meta"]["communities"][0]["nodes"]) == identities

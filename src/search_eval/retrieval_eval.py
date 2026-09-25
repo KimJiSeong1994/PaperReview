@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from decimal import Decimal
 import time
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +24,7 @@ class RetrievalDocument:
     title: str
     abstract: str = ""
     source: str = "offline_fixture"
+    paper_key: str = ""
 
     @property
     def searchable_text(self) -> str:
@@ -263,8 +265,14 @@ def assert_candidate_beats_baseline(
 def _ranked_label_gains(docs: Sequence[RetrievalDocument], labels: Mapping[str, Any]) -> list[int]:
     label_specs = _label_specs(labels)
     matched: set[int] = set()
+    identities: set[str] = set()
     gains: list[int] = []
     for doc in docs:
+        identity = _diagnostic_identity(doc)
+        if identity in identities or _contains_any(doc, labels.get("must_exclude", [])):
+            gains.append(0)
+            continue
+        identities.add(identity)
         matches = [
             (idx, gain, len(phrase))
             for idx, phrase, gain in label_specs
@@ -305,9 +313,18 @@ def _score_query(*, query_id: str, labels: Mapping[str, Any], docs: Sequence[Ret
     ndcg = _dcg(relevance) / _dcg(ideal) if _dcg(ideal) else 0.0
     first_rel = next((idx + 1 for idx, rel in enumerate(relevance) if rel > 0), None)
     mrr = 1.0 / first_rel if first_rel else 0.0
-    must_include = [str(v).lower() for v in labels.get("must_include", [])]
-    recall5 = _recall_at(docs, must_include, 5)
-    recall10 = _recall_at(docs, must_include, 10)
+    must_include = list(dict.fromkeys(str(v).lower() for v in labels.get("must_include", [])))
+    eligible = []
+    seen = set()
+    for doc in docs:
+        identity = _diagnostic_identity(doc)
+        if identity in seen or _contains_any(doc, labels.get("must_exclude", [])):
+            eligible.append(RetrievalDocument(""))
+        else:
+            eligible.append(doc)
+            seen.add(identity)
+    recall5 = _recall_at(eligible, must_include, 5)
+    recall10 = _recall_at(eligible, must_include, 10)
     wrong = 1.0 if any(_contains_any(doc, labels.get("must_exclude", [])) for doc in docs[:10]) else 0.0
     return QueryRetrievalScore(query_id, round(ndcg, 6), round(mrr, 6), round(recall5, 6), round(recall10, 6), wrong)
 
@@ -327,7 +344,15 @@ def _coerce_document(item: Mapping[str, Any]) -> RetrievalDocument:
     title = str(item.get("title") or item.get("name") or "")
     abstract = str(item.get("abstract") or item.get("summary") or "")
     source = str(item.get("source") or "offline_fixture")
-    return RetrievalDocument(title=title, abstract=abstract, source=source)
+    from src.utils.paper_utils import generate_result_key
+
+    return RetrievalDocument(title=title, abstract=abstract, source=source, paper_key=generate_result_key(dict(item)))
+
+
+def _diagnostic_identity(doc: RetrievalDocument) -> str:
+    if doc.paper_key.startswith(("doi:", "arxiv:", "provider:")):
+        return doc.paper_key
+    return unicodedata.normalize("NFKC", doc.title or doc.searchable_text).casefold().strip()
 
 
 def _relevance(doc: RetrievalDocument, labels: Mapping[str, Any]) -> int:

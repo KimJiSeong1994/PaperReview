@@ -20,6 +20,7 @@ Strategy:
 from __future__ import annotations
 
 import zlib
+from datetime import datetime
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -45,7 +46,11 @@ def _fake_papers(n: int = 10) -> List[Dict[str, Any]]:
                 "transformers, and their scaling properties on benchmarks."
             ),
             "authors": [f"Author {i}"],
-            "year": 2023 - (i % 5),
+            # Pair adjacent sources in each recency tier. The top OpenAlex
+            # candidate beats low-ranked arXiv candidates on both cheap
+            # citation and recency signals, overcoming the explicit boost.
+            # Thus bucket order cannot accidentally equal fast fused order.
+            "year": datetime.now().year - (0, 2, 4, 7, 12)[(i // 2) % 5],
             "citations": max(0, 100 - i * 5),
             "venue": "Conf",
             "url": f"https://example.org/p{i}",

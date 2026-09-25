@@ -113,8 +113,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  const selectedPaperId = selectedPaper?.doc_id ? String(selectedPaper.doc_id) : null;
-  const originPaperId = papers[0]?.doc_id ? String(papers[0].doc_id) : null;
+  const selectedPaperId = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
+  const originPaperId = papers[0] ? String(papers[0].result_key ?? papers[0].doc_id) : null;
 
   const relationshipSummary = useMemo(() => {
     if (!selectedPaperId) return { count: 0, strongest: 0, sharedTerms: [] as string[] };
@@ -300,7 +300,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       color: readonly [number, number, number];
     }
     
-    const selectedPaperIdForEdges = selectedPaper?.doc_id ? String(selectedPaper.doc_id) : null;
+    const selectedPaperIdForEdges = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
     
     // Weight 범위 계산 (투명도 매핑용)
     const weights = edges.map(e => e.weight || 0.1).filter(w => w > 0);
@@ -465,7 +465,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     } : null;
 
     // Separate nodes into three groups for z-ordering
-    const activeSelectedPaperId = selectedPaper ? String(selectedPaper.doc_id) : null;
+    const activeSelectedPaperId = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
     const normalNodes: typeof nodes = [];
     const originNodes: typeof nodes = [];
     const highlightedNodes: typeof nodes = [];
@@ -519,7 +519,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       
       // Calculate opacity for normal nodes based on whether there are selected/highlighted nodes
       const hasHighlightedNodes = Boolean(
-        (selectedPaper && String(selectedPaper.doc_id) !== originPaperId) ||
+        (selectedPaper && String(selectedPaper.result_key ?? selectedPaper.doc_id) !== originPaperId) ||
         effectiveHighlightedPapers.size > 0
       );
       
@@ -851,12 +851,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const papersMap = useMemo(() => {
     const map = new Map<string, Paper>();
     papers.forEach(paper => {
-      const docId = String(paper.doc_id);
+      const docId = String(paper.result_key ?? paper.doc_id);
       map.set(docId, paper);
-      // 여러 키로 저장하여 빠른 조회
-      if (paper.title) {
-        map.set(paper.title, paper);
-      }
     });
     return map;
   }, [papers]);
@@ -876,20 +872,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       return;
     }
 
-    // Fallback: graph node에서 찾기
-    const node = graphData.nodes.find(n => {
-      const nodeDocIdValue = (n as unknown as { doc_id?: unknown }).doc_id;
-      const nId = String(nodeDocIdValue || n.id);
-      return nId === nodeDocId;
-    });
-
-    if (node && node.title) {
-      const paperByTitle = papersMap.get(node.title);
-      if (paperByTitle) {
-        onNodeClick(paperByTitle);
-      }
-    }
-  }, [graphData.nodes, onNodeClick, papersMap]);
+    // Unknown graph identities must not resolve to an arbitrary same-title hit.
+  }, [onNodeClick, papersMap]);
 
   const plotClickBindingRef = useRef<{ graphDiv: PlotlyGraphDiv; handler: typeof handlePlotClick } | null>(null);
   const bindPlotClick = useCallback((_figure: unknown, graphDivElement: Readonly<HTMLElement>) => {

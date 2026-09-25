@@ -23,6 +23,7 @@ async def test_search_cache_hit_bypasses_query_analysis(client):
 
     search_agent = MagicMock()
     search_agent.async_search_with_filters.side_effect = AssertionError("source search should be skipped")
+    search_agent.deduplicator.deduplicate.side_effect = lambda papers: papers
 
     with (
         patch.object(rs, "query_analyzer", analyzer),
@@ -38,14 +39,14 @@ async def test_search_cache_hit_bypasses_query_analysis(client):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["cache_hit"] is True
-    assert body["quality_mode"] == "cache_fast_path"
+    assert body["quality_mode"] == "fast"
     assert body["query_analysis"] is None
     assert body["total"] == 1
     assert body["stage_modes"]["query_analysis_mode"] == "skipped_cache_hit"
     assert body["stage_modes"]["source_search_mode"] == "skipped_cache_hit"
-    assert "cache_lookup" in body["stage_timings"]
+    assert "search_cache_io" in body["stage_timings"]
     assert body["metadata"]["cache_hit"] is True
-    assert body["metadata"]["quality_mode"] == "cache_fast_path"
+    assert body["metadata"]["quality_mode"] == "fast"
     assert body["metadata"]["stage_modes"]["cache_fast_path"] is True
     assert get_cached.call_args.kwargs["require_academic_guard"] is True
     analyzer.analyze_and_prepare.assert_not_called()
@@ -170,9 +171,9 @@ async def test_query_analysis_fallback_cache_is_not_pre_analysis_guarded(client)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["total"] == 1
-    assert body["stage_modes"]["query_analysis_mode"] == "unified_error_fallback"
+    assert body["stage_modes"]["query_analysis_mode"] == "original_query_fallback_error"
     assert body["stage_modes"]["academic_guard_passed"] is False
-    assert set_cache.call_args.kwargs["academic_guard_passed"] is False
+    set_cache.assert_not_called()
 
 
 @pytest.mark.asyncio
