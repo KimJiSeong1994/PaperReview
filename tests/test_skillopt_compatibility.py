@@ -201,6 +201,7 @@ def _assert_live_query_analysis_contract(
         "no_client_fallback": {
             "allowed_keys": {
                 "analysis_details",
+                "analysis_status",
                 "confidence",
                 "improved_query",
                 "intent",
@@ -212,6 +213,7 @@ def _assert_live_query_analysis_contract(
             },
             "required_keys": {
                 "analysis_details",
+                "analysis_status",
                 "confidence",
                 "improved_query",
                 "intent",
@@ -221,31 +223,36 @@ def _assert_live_query_analysis_contract(
                 "search_filters",
                 "source_queries",
             },
-            "source_query_allowed_keys": {"arxiv", "dblp", "default", "google_scholar"},
+            "source_query_allowed_keys": {
+                "arxiv", "dblp", "default", "google_scholar",
+                "openalex", "openalex_korean", "scholar_queries",
+            },
             "source_query_required_keys": {
                 "arxiv",
                 "dblp",
                 "default",
                 "google_scholar",
+                "openalex",
+                "openalex_korean",
+                "scholar_queries",
             },
         },
         "exception_fallback": {
             "allowed_keys": {
                 "analysis_details",
+                "analysis_status",
                 "confidence",
-                "core_concepts",
                 "improved_query",
                 "intent",
                 "is_academic",
                 "keywords",
                 "original_query",
-                "research_area",
                 "search_filters",
-                "search_strategy",
                 "source_queries",
             },
             "required_keys": {
                 "analysis_details",
+                "analysis_status",
                 "confidence",
                 "improved_query",
                 "intent",
@@ -255,12 +262,18 @@ def _assert_live_query_analysis_contract(
                 "search_filters",
                 "source_queries",
             },
-            "source_query_allowed_keys": {"arxiv", "dblp", "default", "google_scholar"},
+            "source_query_allowed_keys": {
+                "arxiv", "dblp", "default", "google_scholar",
+                "openalex", "openalex_korean", "scholar_queries",
+            },
             "source_query_required_keys": {
                 "arxiv",
                 "dblp",
                 "default",
                 "google_scholar",
+                "openalex",
+                "openalex_korean",
+                "scholar_queries",
             },
         },
         "unified_llm_success": {
@@ -296,6 +309,8 @@ def _assert_live_query_analysis_contract(
                 "default",
                 "google_scholar",
                 "scholar_queries",
+                "openalex",
+                "openalex_korean",
             },
             "source_query_required_keys": {
                 "arxiv",
@@ -303,6 +318,8 @@ def _assert_live_query_analysis_contract(
                 "default",
                 "google_scholar",
                 "scholar_queries",
+                "openalex",
+                "openalex_korean",
             },
         },
     }
@@ -1020,7 +1037,7 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
         production_source=source,
         contract_source=contract_source,
     )
-    assert contract["contract_version"] == "query_analyzer_contract_v2"
+    assert contract["contract_version"] == "query_analyzer_contract_v3"
     assert contract["raw_model_output_v1"]["fields"]["confidence"] == {
         "maximum": 1.0,
         "minimum": 0.0,
@@ -1034,6 +1051,19 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
         == "when_present_over_google_scholar"
     )
     assert normalized["unknown_intent"] == "fallback_only"
+    assert normalized["source_queries"]["required"] == [
+        "arxiv", "dblp", "google_scholar", "scholar_queries", "default",
+    ]
+    assert contract["production_source_queries_v1"]["upstream_parity_claim"] is False
+    assert contract["production_source_queries_v1"]["required"] == [
+        "arxiv", "dblp", "default", "google_scholar",
+        "openalex", "openalex_korean", "scholar_queries",
+    ]
+    assert contract["production_fallback_v2"]["low_confidence"] == {
+        "threshold_exclusive": 0.7,
+        "analysis_status": "low_confidence_original_query",
+        "source_queries": "original_query_only",
+    }
     assert normalized["defaults"] == {
         "core_concepts": [],
         "research_area": "",
@@ -1055,6 +1085,20 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
     drifted["normalized_query_analysis_v1"]["unknown_intent"] = (
         "allowed_for_model_output"
     )
+    with pytest.raises(ValidationError):
+        validate_query_analyzer_contract_bytes(
+            json.dumps(drifted, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+        )
+
+    drifted = json.loads(QUERY_ANALYZER_CONTRACT_BYTES)
+    drifted["production_source_queries_v1"]["openalex_korean"] = "translated_query"
+    with pytest.raises(ValidationError):
+        validate_query_analyzer_contract_bytes(
+            json.dumps(drifted, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+        )
+
+    drifted = json.loads(QUERY_ANALYZER_CONTRACT_BYTES)
+    drifted["production_fallback_v2"]["low_confidence"]["threshold_exclusive"] = 0.5
     with pytest.raises(ValidationError):
         validate_query_analyzer_contract_bytes(
             json.dumps(drifted, sort_keys=True, separators=(",", ":")).encode() + b"\n"
@@ -1093,10 +1137,11 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
             },
             {
                 "is_academic": False,
-                "arxiv": ["raw", "arxiv"],
-                "dblp": None,
+                "arxiv": "fixture query",
+                "dblp": "fixture query",
                 "google_scholar": "first",
-                "scholar_queries": ["first", "7", "third"],
+                "scholar_queries": ["first", "third"],
+                "default": "fixture query",
             },
         ),
         (
@@ -1115,7 +1160,8 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
                 "arxiv": "arxiv",
                 "dblp": "dblp",
                 "google_scholar": "alias",
-                "scholar_queries": ["alias", "improved", "alpha beta"],
+                "scholar_queries": ["alias"],
+                "default": "dblp",
             },
         ),
         (
@@ -1129,8 +1175,9 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
                 "is_academic": True,
                 "arxiv": "fixture query",
                 "dblp": "fixture query",
-                "google_scholar": "google fallback",
-                "scholar_queries": ["google fallback"],
+                "google_scholar": "fixture query",
+                "scholar_queries": ["fixture query"],
+                "default": "fixture query",
             },
         ),
         (
@@ -1141,6 +1188,7 @@ def test_query_analyzer_contract_is_semantic_source_bound_and_drift_closed(
                 "dblp": "fixture query",
                 "google_scholar": "fixture query",
                 "scholar_queries": ["fixture query"],
+                "default": "fixture query",
             },
         ),
     ],
@@ -1174,8 +1222,81 @@ def test_query_analyzer_contract_matches_production_success_normalization(
         "dblp": expected["dblp"],
         "google_scholar": expected["google_scholar"],
         "scholar_queries": expected["scholar_queries"],
-        "default": "fixture query",
+        "default": expected["default"],
+        "openalex": expected["default"],
+        "openalex_korean": "fixture query",
     }
+
+
+@pytest.mark.parametrize("confidence", [0.69, 0.7])
+@pytest.mark.parametrize("strict", [False, True])
+def test_query_analyzer_contract_bilingual_and_confidence_boundary(
+    monkeypatch: pytest.MonkeyPatch, confidence: float, strict: bool
+) -> None:
+    from app.QueryAgent import query_analyzer as production
+
+    production._analysis_cache.clear()
+    query = "그래프 검색"
+    raw = {
+        "is_academic": True,
+        "intent": "paper_search",
+        "keywords": ["graph", "retrieval"],
+        "improved_query": "graph retrieval",
+        "confidence": confidence,
+        "source_queries": {
+            "arxiv": "graph retrieval",
+            "dblp": "graph retrieval",
+            "google_scholar": ["graph retrieval"],
+        },
+    }
+    if not strict:
+        raw["source_queries"].update(
+            {"default": "graph retrieval", "openalex": "graph retrieval"}
+        )
+    response = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(raw)))]
+    )
+    monkeypatch.setattr(
+        production, "create_chat_completion", lambda *args, **kwargs: response
+    )
+    monkeypatch.setattr(production, "build_skillopt_policy_prompt_block", lambda _: "")
+    analyzer = object.__new__(production.QueryAnalyzer)
+    analyzer.client = object()
+    analyzer.model = "fixture-model"
+    monkeypatch.setattr(
+        analyzer,
+        "_load_skillopt_policy",
+        lambda: SimpleNamespace(enabled=True, content_hash="fixture"),
+    )
+
+    result = analyzer.analyze_and_prepare(query, apply_skillopt_policy=strict)
+    sources = result["source_queries"]
+    assert sources["openalex_korean"] == query
+    if confidence < 0.7:
+        assert result["analysis_status"] == "low_confidence_original_query"
+        assert sources == {
+            "arxiv": query,
+            "dblp": query,
+            "default": query,
+            "openalex": query,
+            "openalex_korean": query,
+            "google_scholar": query,
+            "scholar_queries": [query],
+        }
+        result = dict(result)
+        del result["analysis_status"]
+    else:
+        assert "analysis_status" not in result
+        assert sources == {
+            "arxiv": "graph retrieval",
+            "dblp": "graph retrieval",
+            "default": query if strict else "graph retrieval",
+            "openalex": query if strict else "graph retrieval",
+            "openalex_korean": query,
+            "google_scholar": "graph retrieval",
+            "scholar_queries": ["graph retrieval"],
+        }
+    _assert_live_query_analysis_contract(result, "unified_llm_success")
 
 
 def test_query_analyzer_contract_matches_production_default_and_fallback_branches(
@@ -1183,6 +1304,7 @@ def test_query_analyzer_contract_matches_production_default_and_fallback_branche
 ) -> None:
     from app.QueryAgent import query_analyzer as production
 
+    production._analysis_cache.clear()
     analyzer = object.__new__(production.QueryAnalyzer)
     analyzer.client = object()
     analyzer.model = "fixture-model"
@@ -1200,83 +1322,44 @@ def test_query_analyzer_contract_matches_production_default_and_fallback_branche
     no_client = analyzer.analyze_and_prepare("graph retrieval")
     _assert_live_query_analysis_contract(no_client, "no_client_fallback")
     assert no_client["is_academic"] is True
+    assert no_client["analysis_status"] == "unavailable_original_query"
     assert no_client["source_queries"] == {
-        "arxiv": "ti:graph AND ti:retrieval",
+        "arxiv": "graph retrieval",
         "dblp": "graph retrieval",
         "google_scholar": "graph retrieval",
         "default": "graph retrieval",
+        "openalex": "graph retrieval",
+        "openalex_korean": "graph retrieval",
+        "scholar_queries": ["graph retrieval"],
     }
 
     analyzer.client = object()
 
-    analysis_response = SimpleNamespace(
-        choices=[
-            SimpleNamespace(
-                message=SimpleNamespace(
-                    content=json.dumps(
-                        {
-                            "intent": "paper_search",
-                            "keywords": ["failed", "query"],
-                            "core_concepts": ["retrieval"],
-                            "research_area": "Information Retrieval",
-                            "improved_query": "failed query retrieval",
-                            "search_strategy": "Search exact terms",
-                            "search_filters": {},
-                            "confidence": 0.75,
-                            "analysis_details": "Recovered through analyze_query",
-                        }
-                    )
-                )
-            )
-        ]
-    )
-    topic_response = SimpleNamespace(
-        choices=[
-            SimpleNamespace(
-                message=SimpleNamespace(content=json.dumps({"is_academic": True}))
-            )
-        ]
-    )
-    source_response = SimpleNamespace(
-        choices=[
-            SimpleNamespace(
-                message=SimpleNamespace(
-                    content=json.dumps(
-                        {
-                            "arxiv": "fallback arxiv",
-                            "dblp": "fallback dblp",
-                            "google_scholar": "failed query",
-                        }
-                    )
-                )
-            )
-        ]
-    )
+    calls = []
 
-    def exception_then_live_fallback(*args, **kwargs):
-        system_prompt = kwargs["messages"][0]["content"]
-        if "perform THREE tasks" in system_prompt:
-            raise RuntimeError("fixture failure")
-        if "You classify whether" in system_prompt:
-            return topic_response
-        if "source-specific academic search queries" in system_prompt:
-            return source_response
-        return analysis_response
+    def unavailable_model(*args, **kwargs):
+        calls.append(kwargs)
+        raise RuntimeError("fixture failure")
 
     monkeypatch.setattr(
         production,
         "create_chat_completion",
-        exception_then_live_fallback,
+        unavailable_model,
     )
 
     failed = analyzer.analyze_and_prepare("failed query")
     _assert_live_query_analysis_contract(failed, "exception_fallback")
     assert failed["is_academic"] is True
+    assert failed["analysis_status"] == "unavailable_original_query"
+    assert len(calls) == 1
     assert failed["source_queries"] == {
-        "arxiv": "fallback arxiv",
-        "dblp": "fallback dblp",
+        "arxiv": "failed query",
+        "dblp": "failed query",
         "google_scholar": "failed query",
         "default": "failed query",
+        "openalex": "failed query",
+        "openalex_korean": "failed query",
+        "scholar_queries": ["failed query"],
     }
 
     production._analysis_cache.clear()

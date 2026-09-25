@@ -3,6 +3,7 @@
 import os
 import socket
 import sys
+import threading
 from pathlib import Path
 
 import jwt
@@ -46,6 +47,19 @@ def isolate_optional_model_warmup(monkeypatch, request):
     background_warmup = api_server._warm_cross_encoder_background
     monkeypatch.setattr(api_server, "_warm_cross_encoder_background", lambda: None)
     return background_warmup
+
+
+@pytest.fixture(autouse=True)
+def isolate_search_shutdown_signal(monkeypatch, isolate_optional_model_warmup):
+    """A TestClient shutdown must not shut down another test's ASGI app.
+
+    Keep operation owners and their real worker accounting intact. Only the
+    application-lifetime signal is fresh; shutdown remains effective for every
+    request and worker within the test that triggers it.
+    """
+    search = sys.modules.get("routers.search")
+    if search is not None:
+        monkeypatch.setattr(search, "_router_shutdown", threading.Event())
 
 
 # Bound every socket operation so a slow/unreachable external API (OpenAlex,

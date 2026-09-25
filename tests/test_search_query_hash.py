@@ -62,13 +62,18 @@ async def test_non_academic_guard_returns_query_hash(client):
 
 def test_every_search_response_constructor_sets_query_hash():
     """Guard against a new return branch forgetting the field."""
+    import ast
     import inspect
-    import re
+    import textwrap
 
     from routers import search as rs
 
-    src = inspect.getsource(rs.search_papers)
-    constructors = re.findall(r"SearchResponse\((.*?)\n\s*\)", src, re.S)
+    tree = ast.parse(textwrap.dedent(inspect.getsource(rs.search_papers)))
+    constructors = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        and node.func.id == "SearchResponse"
+    ]
     assert constructors, "no SearchResponse(...) found — update this test"
-    missing = [c for c in constructors if "query_hash=" not in c]
+    missing = [node for node in constructors if not any(keyword.arg == "query_hash" for keyword in node.keywords)]
     assert not missing, f"{len(missing)} SearchResponse branch(es) omit query_hash"

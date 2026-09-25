@@ -199,11 +199,11 @@ OVERLAY_SCHEMA_PATH = "overlay/schema/generated_overlay_schema.json"
 REGISTRY_PATCH_CONTRACT_PATH = "overlay/contracts/registry_patch_contract.json"
 QUERY_ANALYZER_SOURCE_PATH = "app/QueryAgent/query_analyzer.py"
 QUERY_ANALYZER_SOURCE_SHA256 = (
-    "5394c2c5506b57f26d5f3b1c206b13b1e98bc4a69e51d36e40cc93c1c087baa4"
+    "a1bdaeccceb652f403eabbf7d96912b08886bd411253e7d7b6ee3fe33304edb3"
 )
 QUERY_ANALYSIS_CONTRACT_SOURCE_PATH = "app/QueryAgent/query_analysis_contract.py"
 QUERY_ANALYSIS_CONTRACT_SOURCE_SHA256 = (
-    "a46d2e9c9f118105aecf4bb523658c84509b8c932cd570dae33f1120be3be456"
+    "28bcc95658519f2ff8142a56784aee1b9704ccd8633095b1f97aa9c64f8d7319"
 )
 QUERY_ANALYZER_ALLOWED_INTENTS = (
     "author_search",
@@ -232,11 +232,12 @@ def _canonical_json_bytes(value: Any) -> bytes:
 
 
 # The strict raw/normalized schemas have one canonical production source. The
-# compatibility overlay projects those exact objects and adds only provenance,
-# fallback-boundary, and scope metadata.
+# compatibility overlay projects those exact objects. Production then applies
+# a separate provider-query adaptation; that is not upstream SkillOpt parity or
+# a change to the pinned optimization schema.
 QUERY_ANALYZER_CONTRACT = {
     "artifact": QUERY_ANALYZER_CONTRACT_NAME,
-    "contract_version": "query_analyzer_contract_v2",
+    "contract_version": "query_analyzer_contract_v3",
     "production_source": {
         "path": QUERY_ANALYZER_SOURCE_PATH,
         "sha256": QUERY_ANALYZER_SOURCE_SHA256,
@@ -252,10 +253,41 @@ QUERY_ANALYZER_CONTRACT = {
         "invalid_output": "existing_safe_fallback",
         "partial_coercion": "forbidden",
     },
-    "production_fallback_v1": {
+    "production_source_queries_v1": {
+        "stage": "after_strict_or_permissive_normalization",
+        "upstream_parity_claim": False,
+        "required": [
+            "arxiv", "dblp", "default", "google_scholar",
+            "openalex", "openalex_korean", "scholar_queries",
+        ],
+        "default_precedence": ["default", "openalex", "dblp", "original_query"],
+        "provider_default": "resolved_default",
+        "openalex_korean": "original_query",
+        "text": {"max_length": 2000, "strip": True, "invalid": "use_default"},
+        "scholar_queries": {
+            "precedence": "scholar_queries_when_present_else_google_scholar",
+            "invalid_items": "discard_without_coercion",
+            "duplicates": "deduplicate_after_strip",
+            "max_items": 3,
+            "empty": "resolved_default",
+            "invent_variants": False,
+        },
+        "google_scholar": "first_scholar_query",
+    },
+    "production_fallback_v2": {
         "branches": ["empty_query", "no_client_fallback", "exception_fallback"],
         "unknown_intent": "allowed",
-        "preserve_existing_shapes": True,
+        "empty_query": "legacy_empty_shape_without_analysis_status",
+        "unavailable": {
+            "analysis_status": "unavailable_original_query",
+            "source_queries": "original_query_only",
+            "additional_model_calls": 0,
+        },
+        "low_confidence": {
+            "threshold_exclusive": 0.7,
+            "analysis_status": "low_confidence_original_query",
+            "source_queries": "original_query_only",
+        },
     },
     "scope": {
         "allowed": "query_analyzer_standard_search",

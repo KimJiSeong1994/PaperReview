@@ -1531,7 +1531,10 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
         metadata["stage_timings"] = timings
         modes["source_modes"] = source_modes
         if username:
-            emit_or_warn(UserEvent(user_id=username, event_type=EventType.QUERY_SUBMIT, payload={"query_hash": _query_hash(request.query), "normalized_terms": _recommendation_normalized_terms(request.query), "results_count": total, "ranking_applied": modes.get("ranking_mode") in {"cheap_rrf", "hybrid_rrf"}, "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}", "source_counts": {source: len(papers) for source, papers in results.items()}, "elapsed_ms": int(timings["total"] * 1000), "cache_hit": cache_hit}))
+            try:
+                emit_or_warn(UserEvent(user_id=username, event_type=EventType.QUERY_SUBMIT, payload={"query_hash": _query_hash(request.query), "normalized_terms": _recommendation_normalized_terms(request.query), "results_count": total, "ranking_applied": modes.get("ranking_mode") in {"cheap_rrf", "hybrid_rrf"}, "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}", "source_counts": {source: len(papers) for source, papers in results.items()}, "elapsed_ms": int(timings["total"] * 1000), "cache_hit": cache_hit}))
+            except Exception as exc:
+                logger.warning("[Search analytics] Query event failed: %s", type(exc).__name__)
         return SearchResponse(results=results, total=total, query_hash=_query_hash(request.query), query_analysis=analysis, stage_timings=timings, stage_modes=modes, source_timings=metadata["source_timings"], source_timeouts=metadata["source_timeouts"], cache_hit=cache_hit, quality_mode=metadata["quality_mode"], metadata=metadata, degraded=degradation or None)
     except SearchCapacityExceeded as exc:
         raise _search_capacity_unavailable(exc)

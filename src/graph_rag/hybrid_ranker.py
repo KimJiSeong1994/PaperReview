@@ -472,8 +472,8 @@ class HybridRanker:
     def _compute_cross_encoder_scores(self, query: str, papers: List[Dict[str, Any]], deadline=None, stop_event=None) -> List[float]:
         """Cross-encoder 기반 relevance score. LocalRelevanceScorer 싱글턴 재사용.
 
-        (query_hash, paper_id) 단위 TTL 1h LRU 캐시로 반복 호출 시 재계산을 회피.
-        paper_id 부재 시 title 해시로 대체하여 캐시 키의 일관성을 확보한다.
+        (query_hash, canonical result key) 단위 TTL 1h LRU 캐시로 재계산을 회피.
+        식별자 부재 시 정규화된 메타데이터 해시를 캐시 키로 사용한다.
         """
         if _cutoff_reason(deadline, stop_event):
             return []
