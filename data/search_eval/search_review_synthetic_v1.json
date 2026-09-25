@@ -1,0 +1,418 @@
+{
+  "version": "search-review-synthetic-v1",
+  "notice": "NONHUMAN arithmetic fixture. Synthetic HTTP response only; no provider receipts, independent relevance judgments, baseline dependencies, browser evidence, or live performance claim. Uncaptured requests intentionally exercise explicit replay misses. Proposed matrix citations are authoring candidates, not accepted labels.",
+  "capture": {
+    "version": "search-review-capture-v1",
+    "matrix_hash": "sha256:228ebf9479b304bda8564a4c64165200b34597e68c2c0ede65f89072820c8301",
+    "baseline": null,
+    "candidate": null,
+    "evidence_kind": "synthetic",
+    "entries": [
+      {
+        "request_key": "sha256:065f5d3921c78aadfa0a0cf351269bbde4cf6b6cd00a4ce88235a11769ca7b58",
+        "request": {
+          "provider": "api.openalex.org",
+          "operation": "GET /works",
+          "effective_query": "graph neural networks",
+          "filters": {
+            "parameters": [
+              [
+                "per-page",
+                "50"
+              ],
+              [
+                "search",
+                "graph neural networks"
+              ]
+            ],
+            "body": ""
+          },
+          "sort": null,
+          "limit": "50",
+          "cursor": null,
+          "api_version": "unversioned"
+        },
+        "response": {
+          "status_code": 200,
+          "body": "eyJtZXRhIjp7ImNvdW50IjoxfSwicmVzdWx0cyI6W3siYWJzdHJhY3RfaW52ZXJ0ZWRfaW5kZXgiOnsiU3ludGhldGljIjpbMF0sImZpeHR1cmUiOlsxXX0sImF1dGhvcnNoaXBzIjpbXSwiY2l0ZWRfYnlfY291bnQiOjAsImRvaSI6bnVsbCwiaWQiOiJodHRwczovL29wZW5hbGV4Lm9yZy9Xc3ludGhldGljIiwicHJpbWFyeV9sb2NhdGlvbiI6eyJsYW5kaW5nX3BhZ2VfdXJsIjoiaHR0cHM6Ly9hcnhpdi5vcmcvYWJzLzE4MTIuMDg0MzQifSwicHVibGljYXRpb25feWVhciI6MjAyMCwidGl0bGUiOiJTeW50aGV0aWMgZ3JhcGggbmV1cmFsIG5ldHdvcmsgZml4dHVyZSAobm90IGh1bWFuIGV2aWRlbmNlKSJ9XX0=",
+          "content_type": "application/json"
+        },
+        "status": "ok",
+        "origin": {
+          "kind": "synthetic",
+          "generator": "search-review-synthetic-v1; illustrative exact HTTP boundary only"
+        }
+      }
+    ],
+    "boundaries": [],
+    "pools": {
+      "c01-en": [
+        "doi:10.48550/arxiv.1706.03762"
+      ],
+      "c01-ko": [
+        "doi:10.48550/arxiv.1706.03762"
+      ],
+      "c02-en": [
+        "arxiv:1706.03762"
+      ],
+      "c02-ko": [
+        "arxiv:1706.03762"
+      ],
+      "c03-en": [
+        "arxiv:1706.03762"
+      ],
+      "c03-ko": [
+        "arxiv:1706.03762"
+      ],
+      "c04-en": [
+        "arxiv:1812.08434"
+      ],
+      "c04-ko": [
+        "arxiv:1812.08434"
+      ],
+      "c05-en": [
+        "arxiv:1901.00596"
+      ],
+      "c05-ko": [
+        "arxiv:1901.00596"
+      ],
+      "c06-en": [
+        "arxiv:1706.03762"
+      ],
+      "c06-ko": [
+        "arxiv:1706.03762"
+      ],
+      "c07-en": [
+        "doi:10.1109/cvpr.2009.5206848"
+      ],
+      "c07-ko": [
+        "doi:10.1109/cvpr.2009.5206848"
+      ],
+      "c08-en": [
+        "arxiv:2005.11401"
+      ],
+      "c08-ko": [
+        "arxiv:2005.11401"
+      ],
+      "c09-en": [
+        "arxiv:1706.03762"
+      ],
+      "c09-ko": [
+        "arxiv:1706.03762"
+      ],
+      "c10-en": [
+        "doi:10.1109/cvpr.2009.5206848"
+      ],
+      "c10-ko": [
+        "doi:10.1109/cvpr.2009.5206848"
+      ],
+      "c11-en": [
+        "arxiv:1812.08434"
+      ],
+      "c11-ko": [
+        "arxiv:1812.08434"
+      ],
+      "c12-en": [],
+      "c12-ko": []
+    },
+    "browser_evidence": [],
+    "capture_hash": "sha256:88c6877165149a046b4f42182d58db8bd5036284e6f5a4ee4428e0542304dd14"
+  },
+  "judgments": {
+    "version": "search-review-judgments-v1",
+    "matrix_hash": "sha256:228ebf9479b304bda8564a4c64165200b34597e68c2c0ede65f89072820c8301",
+    "capture_hash": "sha256:88c6877165149a046b4f42182d58db8bd5036284e6f5a4ee4428e0542304dd14",
+    "evidence_kind": "synthetic",
+    "frozen_at": "2026-01-01T00:00:00+00:00",
+    "rows": [
+      {
+        "query_id": "c01-en",
+        "paper_key": "doi:10.48550/arxiv.1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c01-ko",
+        "paper_key": "doi:10.48550/arxiv.1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c02-en",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c02-ko",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c03-en",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c03-ko",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c04-en",
+        "paper_key": "arxiv:1812.08434",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c04-ko",
+        "paper_key": "arxiv:1812.08434",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c05-en",
+        "paper_key": "arxiv:1901.00596",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c05-ko",
+        "paper_key": "arxiv:1901.00596",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c06-en",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c06-ko",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c07-en",
+        "paper_key": "doi:10.1109/cvpr.2009.5206848",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c07-ko",
+        "paper_key": "doi:10.1109/cvpr.2009.5206848",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c08-en",
+        "paper_key": "arxiv:2005.11401",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c08-ko",
+        "paper_key": "arxiv:2005.11401",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c09-en",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c09-ko",
+        "paper_key": "arxiv:1706.03762",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c10-en",
+        "paper_key": "doi:10.1109/cvpr.2009.5206848",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c10-ko",
+        "paper_key": "doi:10.1109/cvpr.2009.5206848",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c11-en",
+        "paper_key": "arxiv:1812.08434",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      },
+      {
+        "query_id": "c11-ko",
+        "paper_key": "arxiv:1812.08434",
+        "grade": 3,
+        "required": true,
+        "excluded": false,
+        "evidence_refs": [
+          "synthetic arithmetic label only; not a bibliographic relevance judgment"
+        ],
+        "author_id": null,
+        "reviewer_id": null,
+        "review_status": "synthetic"
+      }
+    ],
+    "judgment_hash": "sha256:120e4d10671141bb6c01312926603c7fd15d741ccff63603144ec5a0e7354992"
+  },
+  "fixture_hash": "sha256:7ea44eac74f5475505e041c1ce9df9b0554e9f9dc42c6749944a0fbaba3c87c0"
+}

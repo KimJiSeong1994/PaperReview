@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -89,7 +90,7 @@ def test_normalized_contract_adds_original_defaults_and_unknown_is_fallback_only
         parse_raw_model_output(_raw(intent="unknown"))
 
 
-def test_scholar_alias_has_precedence_and_string_fabricates_bounded_variants() -> None:
+def test_scholar_alias_has_precedence_and_string_preserves_genuine_variant() -> None:
     aliased = _raw()
     aliased["source_queries"] = {
         "arxiv": "arxiv query",
@@ -119,7 +120,7 @@ def test_scholar_alias_has_precedence_and_string_fabricates_bounded_variants() -
     variants = normalize_query_analysis(string_value, original_query="query")[
         "source_queries"
     ]["scholar_queries"]
-    assert variants == ["scholar query", "improved graph query", "graph retrieval"]
+    assert variants == ["scholar query"]
 
     long_keywords = _raw(
         keywords=[str(index) + "x" * 126 for index in range(16)],
@@ -132,7 +133,7 @@ def test_scholar_alias_has_precedence_and_string_fabricates_bounded_variants() -
     bounded = normalize_query_analysis(long_keywords, original_query="query")[
         "source_queries"
     ]["scholar_queries"]
-    assert all(1 <= len(value) <= 512 for value in bounded)
+    assert bounded == ["scholar query"]
 
 
 @pytest.mark.parametrize(
@@ -232,46 +233,30 @@ def test_enabled_policy_uses_strict_contract_and_returns_normalized_shape(
 
 def test_malformed_enabled_policy_output_enters_existing_safe_fallback(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     query_analyzer_module._analysis_cache.clear()
     analyzer = object.__new__(QueryAnalyzer)
     analyzer.client = object()
     analyzer.model = "fixture-model"
     monkeypatch.setattr(analyzer, "_load_skillopt_policy", _enabled_policy)
-    monkeypatch.setattr(
-        query_analyzer_module,
-        "create_chat_completion",
-        lambda *args, **kwargs: _completion('{"is_academic":1,"tool":"shell"}'),
-    )
-    monkeypatch.setattr(
-        analyzer,
-        "analyze_query",
-        lambda query: {
-            "intent": "paper_search",
-            "keywords": ["safe"],
-            "improved_query": query,
-            "search_filters": {},
-            "confidence": 0.5,
-            "original_query": query,
-            "analysis_details": "safe fallback",
-        },
-    )
-    monkeypatch.setattr(analyzer, "classify_topic", lambda query: {"is_academic": True})
-    monkeypatch.setattr(
-        analyzer,
-        "generate_source_specific_queries",
-        lambda query, keywords=None: {
-            "arxiv": query,
-            "dblp": query,
-            "google_scholar": query,
-            "default": query,
-        },
-    )
+    completion = MagicMock(return_value=_completion('{"is_academic":1,"tool":"shell"}'))
+    monkeypatch.setattr(query_analyzer_module, "create_chat_completion", completion)
+    retry_calls = {}
+    for name in ("analyze_query", "classify_topic", "generate_source_specific_queries"):
+        retry_calls[name] = MagicMock(side_effect=AssertionError("Unexpected extra LLM stage"))
+        monkeypatch.setattr(analyzer, name, retry_calls[name])
 
     result = analyzer.analyze_and_prepare("safe query", apply_skillopt_policy=True)
 
-    assert result["analysis_details"] == "safe fallback"
-    assert result["keywords"] == ["safe"]
+    assert result["analysis_status"] == "unavailable_original_query"
+    assert result["improved_query"] == "safe query"
+    assert result["search_filters"] == {}
+    assert result["source_queries"] == query_analyzer_module.normalize_source_queries("safe query")
+    completion.assert_called_once()
+    for retry in retry_calls.values():
+        retry.assert_not_called()
+    assert "analyze_and_prepare failed" in caplog.text
     assert "tool" not in result
 
 
@@ -309,11 +294,15 @@ def test_default_path_remains_permissive_and_empty_no_client_fallbacks_are_faith
         == "Fallback analysis using simple keyword extraction"
     )
     assert no_client["source_queries"] == {
-        "arxiv": "ti:graph AND ti:retrieval",
+        "arxiv": "graph retrieval",
         "dblp": "graph retrieval",
         "google_scholar": "graph retrieval",
         "default": "graph retrieval",
+        "openalex": "graph retrieval",
+        "openalex_korean": "graph retrieval",
+        "scholar_queries": ["graph retrieval"],
     }
+    assert no_client["analysis_status"] == "unavailable_original_query"
 
 
 def test_parse_and_normalize_api_matches_two_step_api() -> None:

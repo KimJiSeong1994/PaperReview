@@ -50,7 +50,7 @@ class ConnectedPapersSearcher:
 
         except Exception as e:
             logger.warning("Connected Papers search failed: %s", e)
-            return []
+            raise
 
     def get_paper_details(self, paper_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -151,7 +151,7 @@ class ConnectedPapersSearcher:
             params = {
                 'query': query,
                 'limit': max_results,
-                'fields': 'title,authors,year,citationCount,abstract,url'
+                'fields': 'title,authors,year,citationCount,abstract,url,externalIds'
             }
 
             response = self.session.get(api_url, params=params, timeout=10)
@@ -167,7 +167,9 @@ class ConnectedPapersSearcher:
                     "year": str(paper_data.get('year', '')),
                     "citations": paper_data.get('citationCount', 0),
                     "abstract": paper_data.get('abstract', ''),
-                    "doi": paper_data.get('doi', ''),
+                    "doi": (paper_data.get('externalIds') or {}).get('DOI', ''),
+                    "arxiv_id": (paper_data.get('externalIds') or {}).get('ArXiv', ''),
+                    "semantic_scholar_id": paper_data.get('paperId', ''),
                     "url": paper_data.get('url', ''),
                     "source": "Connected Papers (via Semantic Scholar)",
                     "connected_papers_id": f"ss_{paper_data.get('paperId', '')}"
@@ -178,7 +180,7 @@ class ConnectedPapersSearcher:
 
         except Exception as e:
             logger.warning("Semantic Scholar search failed: %s", e)
-            return []
+            raise
 
     def search_by_topic(self, topic: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """

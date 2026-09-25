@@ -286,7 +286,7 @@ def run_fast_review(
 
     logger.info("[Fast Review] Starting: %s papers", len(paper_ids))
 
-    if papers_data and len(papers_data) > 0:
+    if papers_data is not None:
         papers = papers_data
         logger.info("[Fast Review] %s papers (from frontend)", len(papers))
     else:
@@ -1038,7 +1038,9 @@ def run_deep_review_background(
             from app.DeepAgent.deep_review_agent import DeepReviewAgent
 
             agent = DeepReviewAgent(model=model or DEFAULT_TOOL_MODEL, num_researchers=num_researchers, workspace=workspace)
-            result = agent.review_papers(paper_ids=paper_ids, verbose=True)
+            result = agent.review_papers(
+                paper_ids=paper_ids, verbose=True, papers_data=papers_data
+            )
 
         workspace_path = result.get("workspace_path", str(workspace.session_path))
 

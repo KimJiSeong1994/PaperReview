@@ -4,6 +4,7 @@ OpenAlex REST API를 통한 학술 논문 검색 (무료, API 키 불필요)
 """
 
 import logging
+import time
 import requests
 from typing import List, Dict, Any, Optional
 
@@ -108,153 +109,63 @@ class OpenAlexSearcher:
             "venue": venue,
         }
 
+    def _search_requests(self, query, max_results, filters, *, deadline=None, stop_event=None, attempts=None):
+        from src.utils.paper_utils import generate_result_key
+        deadline = deadline if deadline is not None else time.monotonic() + 30
+        papers, seen = [], set()
+        for source_filter in filters:
+            receipt = {"query": query, "filter": source_filter, "status": "dispatched"}
+            if attempts is not None:
+                attempts.append(receipt)
+            try:
+                if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
+                    raise TimeoutError("OpenAlex budget exhausted")
+                self._rate_limit()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or (stop_event is not None and stop_event.is_set()):
+                    raise TimeoutError("OpenAlex budget exhausted")
+                params = {"per_page": min(max_results * 2, 50)}
+                if not source_filter or not source_filter.startswith("title.search:"):
+                    params["search"] = query
+                if source_filter:
+                    params["filter"] = source_filter
+                response = self.session.get(self.base_url, params=params, timeout=min(15, remaining))
+                response.raise_for_status()
+                works = response.json().get("results", [])
+                receipt["status"] = "searched" if works else "searched_empty"
+                for work in works:
+                    paper = self._parse_paper(work)
+                    if source_filter in ("language:ko", "institutions.country_code:KR"):
+                        paper["source"] = "OpenAlex Korean"
+                    key = generate_result_key(paper)
+                    if paper.get("title") and key not in seen:
+                        seen.add(key)
+                        papers.append(paper)
+            except Exception as error:
+                receipt["status"] = "timeout" if isinstance(error, (TimeoutError, requests.Timeout)) else "error"
+                if attempts is None:
+                    raise
+                if receipt["status"] == "timeout":
+                    break
+            if len(papers) >= max_results:
+                break
+        if filters == [None] and papers and papers[0].get("relevance_score"):
+            top_score = papers[0]["relevance_score"]
+            if top_score > 0:
+                papers = [p for p in papers if not p.get("relevance_score") or p["relevance_score"] >= top_score * 0.3]
+        return papers[:max_results]
+
     @log_search_operation("OpenAlex")
-    def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """
-        OpenAlex API를 통한 논문 검색
-
-        Args:
-            query: 검색 쿼리
-            max_results: 최대 결과 수
-
-        Returns:
-            논문 정보 리스트
-        """
-        try:
-            self._rate_limit()
-
-            params = {
-                'search': query,
-                'per_page': min(max_results * 2, 50),  # 필터링 후 충분한 결과 확보
-            }
-
-            response = self.session.get(self.base_url, params=params, timeout=15)
-            response.raise_for_status()
-
-            data = response.json()
-            papers = []
-
-            for work in data.get("results", []):
-                paper = self._parse_paper(work)
-                if paper.get("title"):
-                    papers.append(paper)
-
-            # relevance_score 기반 노이즈 필터링:
-            # 상위 결과 대비 점수가 크게 떨어지는 결과 제거
-            if papers and papers[0].get("relevance_score"):
-                top_score = papers[0]["relevance_score"]
-                if top_score > 0:
-                    papers = [
-                        p for p in papers
-                        if not p.get("relevance_score") or p["relevance_score"] >= top_score * 0.3
-                    ]
-
-            return papers[:max_results]
-
-        except Exception as e:
-            logger.error("OpenAlex search error: %s", e)
-            return []
+    def search(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        return self._search_requests(query, max_results, [None], deadline=deadline, stop_event=stop_event, attempts=attempts)
 
     @log_search_operation("OpenAlex Title")
-    def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """
-        논문 제목으로 검색
-
-        Args:
-            title: 논문 제목
-            max_results: 최대 결과 수
-
-        Returns:
-            논문 정보 리스트
-        """
-        try:
-            self._rate_limit()
-
-            params = {
-                'filter': f'title.search:{title}',
-                'per_page': min(max_results, 50),
-            }
-
-            response = self.session.get(self.base_url, params=params, timeout=15)
-            response.raise_for_status()
-
-            data = response.json()
-            papers = []
-
-            for work in data.get("results", []):
-                paper = self._parse_paper(work)
-                if paper.get("title"):
-                    papers.append(paper)
-
-            return papers[:max_results]
-
-        except Exception as e:
-            logger.error("OpenAlex title search error: %s", e)
-            # Fallback to general search
-            return self.search(title, max_results)
+    def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        return self._search_requests(title, max_results, [f'title.search:{title}'], deadline=deadline, stop_event=stop_event, attempts=attempts)
 
     @log_search_operation("OpenAlex Korean")
-    def search_korean(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """
-        한국 학술 논문 검색 — 한국어 논문 + 한국 기관 논문 병합
-
-        Args:
-            query: 검색 쿼리
-            max_results: 최대 결과 수
-
-        Returns:
-            논문 정보 리스트
-        """
-        try:
-            seen_titles: set = set()
-            all_papers: List[Dict[str, Any]] = []
-
-            # 1. 한국어 논문 검색 (language:ko)
-            self._rate_limit()
-            params_ko = {
-                'search': query,
-                'filter': 'language:ko',
-                'per_page': min(max_results * 2, 50),
-            }
-            try:
-                response = self.session.get(self.base_url, params=params_ko, timeout=15)
-                response.raise_for_status()
-                for work in response.json().get("results", []):
-                    paper = self._parse_paper(work)
-                    paper["source"] = "OpenAlex Korean"
-                    title_lower = paper.get("title", "").lower().strip()
-                    if title_lower and title_lower not in seen_titles:
-                        seen_titles.add(title_lower)
-                        all_papers.append(paper)
-            except Exception as e:
-                logger.warning("OpenAlex Korean language search failed: %s", e)
-
-            # 2. 한국 기관 논문 검색 (institutions.country_code:KR)
-            if len(all_papers) < max_results:
-                self._rate_limit()
-                params_kr = {
-                    'search': query,
-                    'filter': 'institutions.country_code:KR',
-                    'per_page': min(max_results * 2, 50),
-                }
-                try:
-                    response = self.session.get(self.base_url, params=params_kr, timeout=15)
-                    response.raise_for_status()
-                    for work in response.json().get("results", []):
-                        paper = self._parse_paper(work)
-                        paper["source"] = "OpenAlex Korean"
-                        title_lower = paper.get("title", "").lower().strip()
-                        if title_lower and title_lower not in seen_titles:
-                            seen_titles.add(title_lower)
-                            all_papers.append(paper)
-                except Exception as e:
-                    logger.warning("OpenAlex Korean institution search failed: %s", e)
-
-            return all_papers[:max_results]
-
-        except Exception as e:
-            logger.error("OpenAlex Korean search error: %s", e)
-            return []
+    def search_korean(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
+        return self._search_requests(query, max_results, ['language:ko', 'institutions.country_code:KR'], deadline=deadline, stop_event=stop_event, attempts=attempts)
 
     @log_search_operation("OpenAlex Enhanced")
     def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:

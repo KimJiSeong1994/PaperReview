@@ -1,16 +1,13 @@
 """US-003: SearchAgent의 통합 쿼리 분석 경로 검증.
 
-smart_search / llm_context_search가 QueryAnalyzer.analyze_and_prepare를
-단일 진입점으로 사용하고, 실패 시 기존 개별 호출(analyze_query +
-generate_search_queries)로 graceful fallback되는지 검증한다.
-
-Phase 1 목표: search LLM 호출 3회 → 1회(happy path) / 2회+(fallback).
+smart_search / llm_context_search use one analysis call, then original-query
+retrieval on failure without extra LLM calls or a reset request deadline.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -124,7 +121,7 @@ class TestSmartSearchUsesUnifiedPath:
 
         analyzer = agent.query_analyzer
         # 통합 호출은 반드시 1회 이상 수행
-        assert analyzer.analyze_and_prepare.call_count >= 1
+        analyzer.analyze_and_prepare.assert_called_once_with("graph neural networks")
         # 개별 LLM 호출은 happy path에서 발생하면 안 됨
         analyzer.analyze_query.assert_not_called()
         # classify_topic/generate_source_specific_queries도 SearchAgent 경로에서는 미사용
@@ -133,7 +130,7 @@ class TestSmartSearchUsesUnifiedPath:
 
 
 class TestSmartSearchFallbackOnFailure:
-    """analyze_and_prepare 실패 시 기존 개별 호출 경로로 graceful fallback."""
+    """Analysis failures retain original-query retrieval without extra LLM work."""
 
     def test_smart_search_falls_back_when_unified_raises(
         self, search_agent_with_mock_analyzer: SearchAgent
@@ -146,9 +143,12 @@ class TestSmartSearchFallbackOnFailure:
         result = agent.smart_search("graph neural networks", max_results=10)
 
         analyzer = agent.query_analyzer
-        analyzer.analyze_and_prepare.assert_called()
-        # Fallback: 개별 analyze_query 호출이 발생해야 검색 quality가 유지된다
-        analyzer.analyze_query.assert_called_once_with("graph neural networks")
+        analyzer.analyze_and_prepare.assert_called_once_with("graph neural networks")
+        analyzer.analyze_query.assert_not_called()
+        analyzer.generate_search_queries.assert_not_called()
+        analyzer.classify_topic.assert_not_called()
+        assert result["metadata"]["llm_queries"]["analysis_status"] == "unavailable_original_query"
+        assert result["metadata"]["llm_queries"]["scholar_queries"] == ["graph neural networks"]
         # 결과 구조는 여전히 유효해야 한다 (empty papers지만 metadata 존재)
         assert isinstance(result, dict)
         assert "papers" in result
@@ -179,7 +179,7 @@ class TestLLMContextSearchUsesUnifiedPath:
         # scholar_queries 리스트가 source_queries로부터 정상 추출되었는지
         assert len(md["scholar_queries"]) == 3
 
-    def test_llm_context_search_fallback_to_generate_search_queries(
+    def test_llm_context_search_failure_preserves_original_query_and_deadline(
         self, search_agent_with_mock_analyzer: SearchAgent
     ) -> None:
         agent = search_agent_with_mock_analyzer
@@ -187,12 +187,24 @@ class TestLLMContextSearchUsesUnifiedPath:
             "unified LLM call exploded"
         )
 
-        agent.llm_context_search("graph neural networks", max_results_per_source=5)
+        import time
+        deadline = time.monotonic() + 10
+        result = agent.llm_context_search(
+            "graph neural networks", max_results_per_source=5, deadline=deadline
+        )
 
         analyzer = agent.query_analyzer
         analyzer.analyze_and_prepare.assert_called_once()
-        # Fallback으로 개별 generate_search_queries가 호출되어야 한다
-        analyzer.generate_search_queries.assert_called_once_with("graph neural networks")
+        analyzer.generate_search_queries.assert_not_called()
+        analyzer.analyze_query.assert_not_called()
+        analyzer.classify_topic.assert_not_called()
+        assert result["_metadata"]["analysis_status"] == "unavailable_original_query"
+        assert result["_metadata"]["arxiv_queries"] == ["graph neural networks"]
+        assert result["_metadata"]["scholar_queries"] == ["graph neural networks"]
+        assert agent.arxiv_searcher.search.call_args.kwargs["deadline"] == deadline
+        agent.openalex_searcher.search.assert_called_once_with(
+            "graph neural networks", 5, deadline=deadline, stop_event=ANY, attempts=ANY
+        )
 
     def test_llm_context_search_with_context_uses_search_with_context(
         self, search_agent_with_mock_analyzer: SearchAgent
@@ -221,6 +233,7 @@ class TestAnalyzeAndPrepareReturnShape:
         from app.QueryAgent.query_analyzer import QueryAnalyzer
 
         analyzer = QueryAnalyzer(api_key=None)  # client=None → fallback 경로
+        analyzer.client = None
         result = analyzer.analyze_and_prepare("graph neural networks")
 
         # fallback 경로에서도 SearchAgent가 참조하는 키가 전부 존재해야 한다
@@ -232,6 +245,13 @@ class TestAnalyzeAndPrepareReturnShape:
         assert "source_queries" in result
 
         source_queries = result["source_queries"]
-        assert "arxiv" in source_queries
-        assert "dblp" in source_queries
-        assert "google_scholar" in source_queries
+        assert source_queries == {
+            "arxiv": "graph neural networks",
+            "dblp": "graph neural networks",
+            "google_scholar": "graph neural networks",
+            "scholar_queries": ["graph neural networks"],
+            "default": "graph neural networks",
+            "openalex": "graph neural networks",
+            "openalex_korean": "graph neural networks",
+        }
+        assert result["analysis_status"] == "unavailable_original_query"

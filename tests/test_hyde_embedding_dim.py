@@ -45,7 +45,7 @@ def _clear_hyde_cache() -> None:
 
 def _stub_hyde_unified(ranker: HybridRanker) -> None:
     """Bypass the LLM call — return fixed abstract and alternative queries."""
-    ranker._generate_hyde_unified = lambda query, openai_client, research_area="": (  # type: ignore[assignment]
+    ranker._generate_hyde_unified = lambda query, openai_client, research_area="", deadline=None, stop_event=None: (  # type: ignore[assignment]
         "hypothetical abstract body",
         ["alt-query-one", "alt-query-two"],
     )
@@ -255,7 +255,7 @@ def test_hyde_truncates_input_to_8000_chars() -> None:
 
     ranker = HybridRanker(similarity_calculator=sim_calc)
     huge_query = "x" * 50_000
-    ranker._generate_hyde_unified = lambda query, openai_client, research_area="": (  # type: ignore[assignment]
+    ranker._generate_hyde_unified = lambda query, openai_client, research_area="", deadline=None, stop_event=None: (  # type: ignore[assignment]
         "y" * 50_000,
         ["z" * 50_000, "w" * 50_000],
     )

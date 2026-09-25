@@ -14,12 +14,27 @@ import random
 import threading
 import time
 import arxiv
+import requests
 from typing import List, Dict, Any, Set
 from datetime import datetime
 import re
 from src.utils.logger import log_arxiv_search
 
 logger = logging.getLogger(__name__)
+
+class _BoundedSession(requests.Session):
+    def __init__(self):
+        super().__init__()
+        self.budget = threading.local()
+
+    def request(self, method, url, **kwargs):
+        deadline = getattr(self.budget, "deadline", time.monotonic() + 15)
+        stop = getattr(self.budget, "stop_event", None)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or (stop is not None and stop.is_set()):
+            raise TimeoutError("arXiv transport budget exhausted")
+        kwargs["timeout"] = (min(5, remaining), min(10, remaining))
+        return super().request(method, url, **kwargs)
 
 class ArxivSearcher:
     """arXiv 직접 검색 클라이언트 (Enhanced)"""
@@ -33,8 +48,9 @@ class ArxivSearcher:
         self.client = arxiv.Client(
             page_size=50,
             delay_seconds=3.5,
-            num_retries=1,
+            num_retries=0,
         )
+        self.client._session = _BoundedSession()
 
         # 검색어 확장을 위한 동의어 사전
         self.synonyms = {
@@ -70,26 +86,53 @@ class ArxivSearcher:
             for fullname in fullnames:
                 self._reverse_synonyms[fullname] = abbr
 
-    def _rate_limit(self):
+    def _rate_limit(self, deadline=None, stop_event=None):
         """글로벌 rate limiting — Semaphore 기반 공정한 스케줄링"""
-        ArxivSearcher._global_semaphore.acquire()
+        remaining = max(0, deadline - time.monotonic()) if deadline is not None else 30
+        if not ArxivSearcher._global_semaphore.acquire(timeout=remaining):
+            raise TimeoutError("arXiv rate-limit budget exhausted")
         try:
             now = time.time()
             elapsed = now - ArxivSearcher._last_request_time
             if elapsed < ArxivSearcher._min_delay:
-                time.sleep(ArxivSearcher._min_delay - elapsed)
+                delay = ArxivSearcher._min_delay - elapsed
+                if deadline is not None and time.monotonic() + delay >= deadline:
+                    raise TimeoutError("arXiv deadline")
+                if stop_event is not None:
+                    if stop_event.wait(delay):
+                        raise TimeoutError("arXiv stopped")
+                else:
+                    time.sleep(delay)
             ArxivSearcher._last_request_time = time.time()
         finally:
             ArxivSearcher._global_semaphore.release()
 
-    def _safe_results(self, search: arxiv.Search) -> list:
+    def _safe_results(self, search: arxiv.Search, *, deadline=None, stop_event=None, attempts=None) -> list:
         """arXiv 검색 실행 — rate limiting + HTTP 429 fast-fail"""
+        deadline = deadline if deadline is not None else time.monotonic() + 30
         max_retries = 2
         for attempt in range(max_retries):
+            receipt = None
             try:
-                self._rate_limit()
-                return list(self.client.results(search))
+                if (deadline is not None and time.monotonic() >= deadline) or (stop_event is not None and stop_event.is_set()):
+                    raise TimeoutError("arXiv budget exhausted")
+                self._rate_limit(deadline, stop_event)
+                if attempts is not None:
+                    receipt = {"query": search.query, "ids": list(search.id_list), "sort": str(search.sort_by), "limit": search.max_results, "attempt": attempt + 1, "status": "dispatched"}
+                    attempts.append(receipt)
+                if isinstance(self.client._session, _BoundedSession):
+                    self.client._session.budget.deadline = deadline
+                    self.client._session.budget.stop_event = stop_event
+                results = list(self.client.results(search))
+                if receipt is not None:
+                    receipt["status"] = "searched" if results else "searched_empty"
+                return results
             except Exception as e:
+                if receipt is None and attempts is not None:
+                    receipt = {"query": search.query, "status": "dispatched"}
+                    attempts.append(receipt)
+                if receipt is not None:
+                    receipt["status"] = "timeout" if isinstance(e, (TimeoutError, requests.Timeout)) else "error"
                 error_str = str(e)
                 if '429' in error_str:
                     if attempt == 0:
@@ -98,11 +141,21 @@ class ArxivSearcher:
                             "arXiv rate limited (attempt %d/%d), waiting %.1fs",
                             attempt + 1, max_retries, wait,
                         )
-                        time.sleep(wait)
+                        if deadline is not None and time.monotonic() + wait >= deadline:
+                            if receipt is not None:
+                                receipt["status"] = "timeout"
+                            raise TimeoutError("arXiv retry budget exhausted") from e
+                        if stop_event is not None:
+                            if stop_event.wait(wait):
+                                if receipt is not None:
+                                    receipt["status"] = "timeout"
+                                raise TimeoutError("arXiv stopped") from e
+                        else:
+                            time.sleep(wait)
                         continue
                     # 2nd attempt failed — give up fast, don't block other sources
-                    logger.warning("arXiv rate limit persists, returning empty")
-                    return []
+                    logger.warning("arXiv rate limit persists")
+                    raise
                 raise
         logger.error("arXiv rate limit retries exhausted")
         return []
@@ -179,7 +232,7 @@ class ArxivSearcher:
             return f"({title_query}) OR ({abstract_query})"
 
     @log_arxiv_search
-    def search(self, query: str, max_results: int = 10, sort_by: str = "relevance") -> List[Dict[str, Any]]:
+    def search(self, query: str, max_results: int = 10, sort_by: str = "relevance", *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
         """
         arXiv에서 논문 검색 (Enhanced)
 
@@ -191,6 +244,8 @@ class ArxivSearcher:
         Returns:
             논문 정보 리스트
         """
+        results = []
+        deadline = deadline if deadline is not None else time.monotonic() + 30
         try:
             # 정렬 기준 설정
             sort_criterion = arxiv.SortCriterion.SubmittedDate
@@ -201,29 +256,43 @@ class ArxivSearcher:
 
             # 1차: 고급 쿼리 검색 (제목+초록 필드 지정)
             # 이미 arXiv 구문(ti:, abs:, AND, OR)이 포함된 쿼리면 그대로 사용
-            if any(prefix in query for prefix in ("ti:", "abs:", "au:", "cat:")):
+            if any(prefix in query for prefix in ("ti:", "abs:", "au:", "cat:", "doi:")):
                 advanced_query = query
             else:
                 advanced_query = self._build_advanced_query(query, search_type="all")
             search = arxiv.Search(query=advanced_query, max_results=max_results, sort_by=sort_criterion)
-            results = [self._extract_paper_info(result) for result in self._safe_results(search)]
+            results = [self._extract_paper_info(result) for result in self._safe_results(search, deadline=deadline, stop_event=stop_event, attempts=attempts)]
 
             # 결과가 부족하면 추가 검색 시도
-            if len(results) < max_results // 2:
-                additional = self.enhanced_search(query, max_results=max_results - len(results))
+            fallback_query = query.strip()
+            if len(results) < max_results // 2 and fallback_query != advanced_query and not any(prefix in query for prefix in ("ti:", "abs:", "au:", "cat:", "doi:")):
+                fallback = arxiv.Search(query=fallback_query, max_results=max_results, sort_by=sort_criterion)
+                additional = [self._extract_paper_info(r) for r in self._safe_results(fallback, deadline=deadline, stop_event=stop_event, attempts=attempts)]
                 # 중복 제거 후 병합
-                seen_titles = {r['title'].lower() for r in results}
+                from src.utils.paper_utils import generate_result_key
+                seen_titles = {generate_result_key(r) for r in results}
                 for paper in additional:
-                    if paper['title'].lower() not in seen_titles:
+                    if generate_result_key(paper) not in seen_titles:
                         results.append(paper)
-                        seen_titles.add(paper['title'].lower())
+                        seen_titles.add(generate_result_key(paper))
 
             return results[:max_results]
 
         except Exception as e:
             logger.error(f"[arXiv] Error searching: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
+            if attempts is None:
+                raise
+            if not attempts or attempts[-1].get("status") not in ("error", "timeout"):
+                attempts.append({"query": query, "status": "timeout" if isinstance(e, (TimeoutError, requests.Timeout)) else "error"})
+            return results
+
+    def search_by_id(self, arxiv_id: str, *, deadline=None, stop_event=None, attempts=None):
+        search = arxiv.Search(id_list=[arxiv_id], max_results=1)
+        try:
+            return [self._extract_paper_info(r) for r in self._safe_results(search, deadline=deadline, stop_event=stop_event, attempts=attempts)]
+        except Exception:
+            if attempts is None:
+                raise
             return []
 
     @log_arxiv_search
@@ -275,7 +344,7 @@ class ArxivSearcher:
             return []
 
     @log_arxiv_search
-    def search_by_title(self, title: str, max_results: int = 5) -> List[Dict[str, Any]]:
+    def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
         """
         논문 제목으로 정확한 검색
 
@@ -286,13 +355,14 @@ class ArxivSearcher:
         Returns:
             논문 정보 리스트
         """
+        deadline = deadline if deadline is not None else time.monotonic() + 30
         try:
             results = []
 
             # 1. 정확한 제목 검색
             exact_query = f'ti:"{title}"'
             search = arxiv.Search(query=exact_query, max_results=max_results)
-            results.extend([self._extract_paper_info(r) for r in self._safe_results(search)])
+            results.extend([self._extract_paper_info(r) for r in self._safe_results(search, deadline=deadline, stop_event=stop_event, attempts=attempts)])
 
             # 2. 결과가 없으면 키워드 기반 검색
             if not results:
@@ -300,13 +370,15 @@ class ArxivSearcher:
                 if keywords:
                     keyword_query = " AND ".join([f"ti:{kw}" for kw in keywords[:5]])
                     search = arxiv.Search(query=keyword_query, max_results=max_results)
-                    results.extend([self._extract_paper_info(r) for r in self._safe_results(search)])
+                    results.extend([self._extract_paper_info(r) for r in self._safe_results(search, deadline=deadline, stop_event=stop_event, attempts=attempts)])
 
             return results[:max_results]
 
         except Exception as e:
             logger.error(f"[arXiv] Title search error: {e}")
-            return []
+            if attempts is None:
+                raise
+            return results
 
     @log_arxiv_search
     def search_similar_papers(self, paper_title: str, paper_abstract: str = "", max_results: int = 10) -> List[Dict[str, Any]]:

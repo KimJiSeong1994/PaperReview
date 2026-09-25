@@ -82,29 +82,29 @@ function PaperList({ papers, selectedPaper, onSelect, highlightedPapers, communi
     <div className="paper-list" role="list" aria-label="검색된 논문">
       {papers.length > 0 && (
         <div
-          key={papers[0].doc_id}
-          ref={selectedPaper?.doc_id === papers[0].doc_id ? selectedRef : null}
-          className={`paper-card ${papers[0].doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(papers[0].doc_id) ? 'selected-for-review' : ''} origin`}
+          key={papers[0].result_key ?? papers[0].doc_id}
+          ref={(selectedPaper?.result_key ?? selectedPaper?.doc_id) === (papers[0].result_key ?? papers[0].doc_id) ? selectedRef : null}
+          className={`paper-card ${(papers[0].result_key ?? papers[0].doc_id) === (selectedPaper?.result_key ?? selectedPaper?.doc_id) ? 'selected' : ''} ${selectedForReview?.has(papers[0].result_key ?? papers[0].doc_id) ? 'selected-for-review' : ''} origin`}
           onClick={() => onSelect(papers[0])}
           onKeyDown={(e) => handleCardKeyDown(e, papers[0])}
           role="listitem"
           tabIndex={0}
-          aria-current={papers[0].doc_id === selectedPaper?.doc_id ? 'true' : undefined}
+          aria-current={(papers[0].result_key ?? papers[0].doc_id) === (selectedPaper?.result_key ?? selectedPaper?.doc_id) ? 'true' : undefined}
         >
           {onToggleForReview && (
             <input
               type="checkbox"
               className="paper-checkbox"
               aria-label={`${papers[0].title} 리뷰 선택`}
-              checked={selectedForReview?.has(papers[0].doc_id) || false}
+              checked={selectedForReview?.has(papers[0].result_key ?? papers[0].doc_id) || false}
               onChange={() => {}}
-              onClick={(e) => handleCheckboxClick(e, papers[0].doc_id)}
+              onClick={(e) => handleCheckboxClick(e, papers[0].result_key ?? papers[0].doc_id)}
             />
           )}
           <div className="paper-content">
           <div className="paper-role-row">
             <div className="origin-badge">Origin</div>
-            {communityMarker(papers[0].doc_id)}
+            {communityMarker(papers[0].result_key ?? papers[0].doc_id)}
           </div>
           <div className="paper-title">{papers[0].title}</div>
           <div className="paper-meta">{formatSummary(papers[0])}</div>
@@ -114,34 +114,34 @@ function PaperList({ papers, selectedPaper, onSelect, highlightedPapers, communi
       
       {papers.slice(1).map((paper) => (
         <div
-          key={paper.doc_id}
-          ref={selectedPaper?.doc_id === paper.doc_id ? selectedRef : null}
-          className={`paper-card ${paper.doc_id === selectedPaper?.doc_id ? 'selected' : ''} ${selectedForReview?.has(paper.doc_id) ? 'selected-for-review' : ''} ${highlightedPapers?.has(String(paper.doc_id)) ? 'graph-related' : ''}`}
+          key={paper.result_key ?? paper.doc_id}
+          ref={(selectedPaper?.result_key ?? selectedPaper?.doc_id) === (paper.result_key ?? paper.doc_id) ? selectedRef : null}
+          className={`paper-card ${(paper.result_key ?? paper.doc_id) === (selectedPaper?.result_key ?? selectedPaper?.doc_id) ? 'selected' : ''} ${selectedForReview?.has(paper.result_key ?? paper.doc_id) ? 'selected-for-review' : ''} ${highlightedPapers?.has(String(paper.result_key ?? paper.doc_id)) ? 'graph-related' : ''}`}
           onClick={() => onSelect(paper)}
           onKeyDown={(e) => handleCardKeyDown(e, paper)}
           role="listitem"
           tabIndex={0}
-          aria-current={paper.doc_id === selectedPaper?.doc_id ? 'true' : undefined}
+          aria-current={(paper.result_key ?? paper.doc_id) === (selectedPaper?.result_key ?? selectedPaper?.doc_id) ? 'true' : undefined}
         >
           {onToggleForReview && (
             <input
               type="checkbox"
               className="paper-checkbox"
               aria-label={`${paper.title} 리뷰 선택`}
-              checked={selectedForReview?.has(paper.doc_id) || false}
+              checked={selectedForReview?.has(paper.result_key ?? paper.doc_id) || false}
               onChange={() => {}}
-              onClick={(e) => handleCheckboxClick(e, paper.doc_id)}
+              onClick={(e) => handleCheckboxClick(e, paper.result_key ?? paper.doc_id)}
             />
           )}
           <div className="paper-content">
           <div className="paper-role-row">
             <span>
               {paper.source === 'reference' && <span className="ref-badge">Reference</span>}
-              {relatedRank(paper.doc_id) && (
-                <span className="related-rank-badge">유사 {relatedRank(paper.doc_id)}</span>
+              {relatedRank(paper.result_key ?? paper.doc_id) && (
+                <span className="related-rank-badge">유사 {relatedRank(paper.result_key ?? paper.doc_id)}</span>
               )}
             </span>
-            {communityMarker(paper.doc_id)}
+            {communityMarker(paper.result_key ?? paper.doc_id)}
           </div>
           <div className="paper-title">{paper.title}</div>
           <div className="paper-meta">{formatSummary(paper)}</div>

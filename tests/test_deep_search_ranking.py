@@ -8,6 +8,8 @@ disagreed about what "best" means while looking equally authoritative.
 
 from __future__ import annotations
 
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -88,3 +90,19 @@ async def test_missing_ranker_does_not_break_the_path():
 @pytest.mark.asyncio
 async def test_empty_result_is_passed_through():
     assert await rs._dedup_and_rank_deep_search("attention", [], "paper_search") == []
+
+
+@pytest.mark.asyncio
+async def test_deep_rank_uses_foreground_deadline_and_stop_signal():
+    deadline = time.monotonic() + 10
+    stop = threading.Event()
+    ranker = MagicMock()
+    ranker.rank_papers.side_effect = lambda **kwargs: kwargs["papers"]
+    with patch.object(rs, "_hybrid_ranker", ranker):
+        ranked = await rs._dedup_and_rank_deep_search(
+            "attention", _papers(), "paper_search", deadline=deadline, stop_event=stop,
+        )
+    assert len(ranked) == 3
+    kwargs = ranker.rank_papers.call_args.kwargs
+    assert kwargs["deadline"] == deadline
+    assert kwargs["stop_event"] is stop

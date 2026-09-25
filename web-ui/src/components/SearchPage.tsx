@@ -99,6 +99,7 @@ function SearchPage() {
   // or simply timed out.
   const [improvedQuery, setImprovedQuery] = useState('');
   const [timedOutSources, setTimedOutSources] = useState<string[]>([]);
+  const [searchNotices, setSearchNotices] = useState<string[]>([]);
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -247,14 +248,18 @@ function SearchPage() {
         const { references } = await fetchBatchReferences(topPapers);
         if (isStaleSearch(requestId, abortController) || references.length === 0) return;
 
-        const existingTitles = new Set(basePapers.map(p => p.title.trim().toLowerCase()));
+        const existingKeys = new Set(basePapers.map(p => p.result_key ?? p.doc_id));
         const refPapers: Paper[] = [];
         for (const ref of references) {
-          const normTitle = (ref.title || '').trim().toLowerCase();
-          if (!normTitle || existingTitles.has(normTitle)) continue;
-          existingTitles.add(normTitle);
+          if (!ref.title?.trim()) continue;
+          const resultKey = ref.paper_id
+            ? `reference:${ref.source}:${ref.paper_id}`
+            : `reference:${JSON.stringify([ref.title, ref.authors, ref.year, ref.url, ref.source])}`;
+          if (existingKeys.has(resultKey)) continue;
+          existingKeys.add(resultKey);
           refPapers.push({
             doc_id: hashString(ref.title),
+            result_key: resultKey,
             title: ref.title,
             authors: ref.authors || [],
             year: ref.year,
@@ -310,6 +315,7 @@ function SearchPage() {
     setEnrichmentLoading(false);
     setImprovedQuery('');
     setTimedOutSources([]);
+    setSearchNotices([]);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
     const loadingTimer = setTimeout(() => {
@@ -332,11 +338,50 @@ function SearchPage() {
 
       setQueryHash(results.query_hash || '');
 
-      // `improved_query` is the string that was actually searched — the query
-      // analyzer rewrites what the user typed. Showing it is the only feedback
-      // loop a first-time user has for learning what this corpus wants.
-      const rewritten = results.query_analysis?.improved_query?.trim() ?? '';
-      setImprovedQuery(rewritten && rewritten !== searchQuery.trim() ? rewritten : '');
+      // Analyzer suggestions do not establish which queries actually ran.
+      const executed = Object.entries(results.metadata?.executed_queries ?? {})
+        .filter(([, queries]) => (Array.isArray(queries) ? queries : [queries])
+          .some(value => value.trim() !== searchQuery.trim()))
+        .map(([provider, queries]) => `${provider}: ${Array.isArray(queries) ? queries.join(' / ') : queries}`);
+      const executedQuery = results.metadata?.executed_query?.trim() || '';
+      setImprovedQuery(executed.join(' · ') || (executedQuery !== searchQuery.trim() ? executedQuery : ''));
+      // Only fixed user-facing messages: backend markers may include exception
+      // names or diagnostics and are not safe presentation text.
+      const notices: string[] = [];
+      const degradation = [...(results.degraded ?? []), ...(results.metadata?.degraded ?? [])];
+      if (degradation.length) notices.push('일부 검색 기능이 제한되었습니다.');
+      if (results.metadata?.partial) notices.push('일부 검색만 완료되었습니다.');
+      const stageModes = results.stage_modes ?? results.metadata?.stage_modes ?? {};
+      const isDegraded = (mode: unknown) => typeof mode === 'string'
+        && /fallback|error|timeout|capacity|circuit|reject|unavailable|disabled_no_api_key/i.test(mode);
+      if (isDegraded(stageModes.query_analysis_mode) || isDegraded(stageModes.analyze)
+        || degradation.some(marker => /^(query_analysis_mode|analyze):/.test(marker))) {
+        notices.push('질의 분석이 제한되어 원래 검색어로 대체 검색했습니다.');
+      }
+      if (isDegraded(stageModes.ranking_mode) || isDegraded(stageModes.rank)
+        || degradation.some(marker => /^(ranking_mode|rank):/.test(marker))) {
+        notices.push('결과 순위 계산이 제한되어 대체 순서를 표시합니다.');
+      }
+      const sourceModes = stageModes.source_modes as Record<string, string> | undefined;
+      for (const [provider, mode] of Object.entries(sourceModes ?? {})) {
+        if (isDegraded(mode)) {
+          const sourceName = ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'].includes(provider)
+            ? provider : '일부 출처';
+          notices.push(`${sourceName}: 검색 응답이 제한되었습니다.`);
+        }
+      }
+      const saveMessages = {
+        accepted: '저장 요청이 접수되었습니다. 비동기 최선 노력 작업이며 저장 완료를 보장하지 않습니다.',
+        not_admitted_capacity: '저장 작업 용량이 부족하여 자동 저장 요청이 접수되지 않았습니다.',
+        not_requested: '자동 저장을 요청하지 않았습니다.',
+        skipped_cache: '캐시 결과에 새 자동 저장 작업을 요청하지 않았습니다.',
+        no_results: '저장할 검색 결과가 없어 자동 저장하지 않았습니다.',
+        not_admitted_shutdown: '서버 종료 중이어서 자동 저장 요청이 접수되지 않았습니다.',
+        not_admitted_disconnect: '연결이 종료되어 자동 저장 요청이 접수되지 않았습니다.',
+      };
+      const saveStatus = results.metadata?.save_status;
+      if (saveStatus) notices.push(saveMessages[saveStatus]);
+      setSearchNotices([...new Set(notices)]);
 
       // A source that timed out is not a source that found nothing. Without
       // this the zero-result copy blames the user's keywords for a backend
@@ -434,7 +479,9 @@ function SearchPage() {
 
       if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
         errorMessage = '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.';
-      } else if (error.response?.data?.detail) {
+      } else if (error.response?.status === 503) {
+        errorMessage = '검색 서비스가 현재 요청을 처리할 수 없습니다(503). 잠시 후 다시 시도해주세요.';
+      } else if (typeof error.response?.data?.detail === 'string') {
         errorMessage = error.response.data.detail;
       } else if (error.message) {
         errorMessage = error.message;
@@ -479,8 +526,7 @@ function SearchPage() {
     try {
       const selectedPaperIds = Array.from(selectedPapersForReview);
       const selectedPapersData = papers.filter(paper =>
-        selectedPaperIds.includes(paper.doc_id || '') ||
-        selectedPaperIds.includes(String(paper.doc_id || ''))
+        selectedPaperIds.includes(paper.result_key ?? paper.doc_id)
       );
       const title = query
         ? `${query} - ${new Date().toLocaleDateString()}`
@@ -530,7 +576,7 @@ function SearchPage() {
     setSelectedPaper(paper);
 
     if (graphData && graphData.edges) {
-      const paperId = paper.doc_id;
+      const paperId = paper.result_key ?? paper.doc_id;
       const connectedPapers: Array<{ docId: string; weight: number }> = [];
 
       graphData.edges.forEach(edge => {
@@ -689,8 +735,7 @@ function SearchPage() {
 
     const selectedPaperIds = Array.from(selectedPapersForReview);
     const selectedPapersData = papers.filter(paper =>
-      selectedPaperIds.includes(paper.doc_id || '') ||
-      selectedPaperIds.includes(String(paper.doc_id || ''))
+      selectedPaperIds.includes(paper.result_key ?? paper.doc_id)
     );
 
     const papersWithPDF = selectedPapersData.filter(paper => paper.pdf_url);
@@ -733,12 +778,11 @@ function SearchPage() {
 
       const selectedPaperIds = Array.from(selectedPapersForReview);
       const selectedPapersData = papers.filter(paper =>
-        selectedPaperIds.includes(paper.doc_id || '') ||
-        selectedPaperIds.includes(String(paper.doc_id || ''))
+        selectedPaperIds.includes(paper.result_key ?? paper.doc_id)
       );
 
       const response = await startDeepReview({
-        paper_ids: selectedPaperIds,
+        paper_ids: selectedPapersData.map(paper => paper.doc_id),
         papers: selectedPapersData,
         num_researchers: Math.min(selectedPapersForReview.size, 5),
       });
@@ -1019,11 +1063,7 @@ function SearchPage() {
             </div>
           </div>
 
-          {/* H: the analyzer rewrites the query before searching, and the
-              rewrite is what actually ran. It was returned on every response
-              and never shown, so a user had no way to tell whether a
-              disappointing result set came from their wording or from the
-              rewrite. Only rendered when it differs from what was typed. */}
+          {/* Only provider execution metadata establishes actual queries. */}
           {improvedQuery && (
             <p className="results-rewritten-query">
               실제 검색어: <span>{improvedQuery}</span>
@@ -1034,6 +1074,10 @@ function SearchPage() {
             <p className="results-degraded" role="status">
               {timedOutSources.join(', ')} 출처가 제때 응답하지 않아 일부 결과가 빠졌을 수 있습니다.
             </p>
+          )}
+
+          {searchNotices.length > 0 && (
+            <p className="results-degraded" role="status">{searchNotices.join(' · ')}</p>
           )}
 
           <div className="results-workspace-toolbar" aria-label="검색 결과 보기 설정">
@@ -1131,8 +1175,7 @@ function SearchPage() {
                           onClick={() => {
                             const selectedPaperIds = Array.from(selectedPapersForReview);
                             const selectedPapersData = papers.filter(paper =>
-                              selectedPaperIds.includes(paper.doc_id || '') ||
-                              selectedPaperIds.includes(String(paper.doc_id || ''))
+                              selectedPaperIds.includes(paper.result_key ?? paper.doc_id)
                             );
                             const apaCitations = selectedPapersData
                               .map(paper => generateApaCitation(paper))
@@ -1355,6 +1398,8 @@ function SearchPage() {
                searched and got nothing was told nothing at all while focus
                dropped to <body>. */
             <div className="empty-state" role="status" aria-live="polite">
+              {improvedQuery && <p>실제 검색어: <span>{improvedQuery}</span></p>}
+              {searchNotices.length > 0 && <p>{searchNotices.join(' · ')}</p>}
               {timedOutSources.length > 0 ? (
                 <>
                   <p>
@@ -1365,7 +1410,9 @@ function SearchPage() {
                   </p>
                 </>
               ) : (
-                <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
+                <p>{searchNotices.length > 0
+                  ? '반환된 검색 결과가 없습니다. 위 검색 상태를 확인해주세요.'
+                  : '검색 결과가 없습니다. 다른 키워드로 시도해보세요.'}</p>
               )}
             </div>
           )}

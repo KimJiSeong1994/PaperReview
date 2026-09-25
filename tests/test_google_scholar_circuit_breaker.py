@@ -1,7 +1,21 @@
 """Circuit-breaker state reporting for the Google Scholar searcher."""
 import time
+from types import SimpleNamespace
 
 from src.collector.paper.google_scholar_searcher import GoogleScholarSearcher
+
+
+def test_successful_empty_request_resets_consecutive_failures(monkeypatch):
+    searcher = GoogleScholarSearcher()
+    searcher._record_failure()
+    monkeypatch.setattr(searcher, "_request_with_backoff", lambda *args, **kwargs: SimpleNamespace(text="no results"))
+    monkeypatch.setattr(searcher, "_is_captcha_response", lambda response: False)
+    monkeypatch.setattr(searcher, "_parse_search_results", lambda text, limit: [])
+    assert searcher.search("no matches") == []
+    assert searcher._consecutive_failures == 0
+    searcher._record_failure()
+    assert searcher._consecutive_failures == 1
+    assert searcher.is_circuit_open() is False
 
 
 def test_is_circuit_open_reports_state_without_resetting_it():

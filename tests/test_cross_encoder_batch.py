@@ -121,18 +121,25 @@ def test_cache_hit_avoids_score_papers_recompute() -> None:
 def test_cache_partial_hit_only_computes_misses() -> None:
     """Pre-populated cache for 2 of 3 papers → score_papers called with 1 paper."""
     query = "partial-hit-query"
-    q_hash = _ce_query_hash(query)
-    # Pre-populate cache for pA and pC
-    _ce_cache_set(q_hash, "pA", 0.11)
-    _ce_cache_set(q_hash, "pC", 0.33)
+    ranker = HybridRanker()
+    # Populate through the ranker so writes and reads use canonical result keys,
+    # not raw paper IDs (which are not globally unique across providers).
+    initial_papers = _ce_papers()
+    with patch.object(
+        LocalRelevanceScorer, "score_papers", return_value=[0.11, 0.33]
+    ) as warm_score:
+        assert ranker._compute_cross_encoder_scores(
+            query, [initial_papers[0], initial_papers[2]]
+        ) == [0.11, 0.33]
+    warm_score.assert_called_once_with(query, [initial_papers[0], initial_papers[2]])
 
+    # Fresh dicts ensure the partial hit exercises the module cache.
     papers = _ce_papers()  # pA, pB, pC — only pB is a miss
 
     # score_papers should be called only with the miss (pB) and return 1 score
     with patch.object(
         LocalRelevanceScorer, "score_papers", return_value=[0.22]
     ) as mock_score:
-        ranker = HybridRanker()
         scores = ranker._compute_cross_encoder_scores(query, papers)
 
     assert mock_score.call_count == 1

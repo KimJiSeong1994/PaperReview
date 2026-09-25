@@ -1,5 +1,138 @@
 # SkillOpt Paper Search Scaffolding
 
+## Search runtime and evidence contract
+
+Normal SearchPage submission remains **standard**, with `use_llm_search=false`,
+six sources (`arxiv`, `connected_papers`, `google_scholar`, `openalex`, `dblp`,
+`openalex_korean`) and `max_results=50` per source. Opt-in API `fast_mode=true`
+is not a promoted frontend default. Fast capabilities prohibit backend search
+GraphRAG, HyDE, cross-encoder, embedding API and embedding precomputation,
+including optional work after saving. Later independent frontend graph/reference
+requests remain nonblocking and are outside backend search-call cost.
+
+Explicit filters override suggestions: inclusive year bounds, token-boundary
+Unicode author matching, and verified arXiv taxonomy categories are hard filters.
+Missing metadata fails an active filter rather than silently relaxing it.
+Invalid ranges/counts/sources/sorts return 422. Relevance uses fusion;
+date sorts put missing dates last, and publication year is not an updated date.
+The candidate ranking cap is 80. Exact DOI/arXiv and quoted-title routing must
+preserve identity; translated provider queries must be disclosed as executed,
+not inferred from analyzer suggestions.
+
+`metadata.executed_query` / `metadata.executed_queries` describe actual execution.
+The UI also displays `metadata.partial`, `degraded`, `source_timeouts`,
+`stage_modes.source_modes`, and `metadata.save_status`. `result_key` identifies
+the rendered/selected result, including same-title papers with different DOIs.
+`doc_id` remains a storage reference; review and download resolve the exact
+selected record rather than all records sharing a storage ID.
+
+Saving is asynchronous best effort, not durability promised by HTTP 200.
+`accepted` means admission, **not saved**; `not_admitted_capacity` means the
+save/enrichment slot was unavailable and search results still return;
+`not_requested` means no save was requested. `skipped_cache` means no new
+save job for cached results; `no_results` means there was nothing to save.
+`not_admitted_shutdown` and `not_admitted_disconnect` mean shutdown or
+disconnection prevented admission. None of these statuses means saved.
+Per-request `query_analysis_mode` fallback and `ranking_mode` failure are
+disclosed separately from source failures and startup degradation, using fixed
+user-facing messages rather than raw backend diagnostics.
+Clients requiring persistence use the explicit save endpoint and its result.
+The approved resource contract bounds `search_save_enrichment` to two
+outstanding jobs without a waiting queue, with a 30-second monotonic callback
+budget. Saving precedes optional work with embeddings disabled. Running blocking
+work remains charged until completion; a deadline does not kill a Python thread.
+No detached per-request fallback or unbounded retry is permitted. Foreground
+partial results are not cached as complete healthy results.
+
+### Finite operation ownership
+
+The bounded labels below are per process/owner, not per request. All reuse
+SearchAgent's `_OperationGeneration` accounting: at most two retained
+generations per label, each configured with an eight-worker executor.
+
+| Owner / work | Stable labels | Bound |
+|---|---|---|
+| SearchAgent source operations | `search_all_sources`, `enhanced_search_all_sources`, `search_by_paper_title`, `find_similar_papers`, `llm_context_search`, `search_with_filters` | 6 × 2 × 8 = 96 configured workers |
+| SearchAgent nested Scholar | `google_scholar_extra_queries` | 2 × 8 = 16 configured workers; at most 3 submitted variants per generation |
+| SearchAgent smart ranking/model work | `smart_search` | 2 × 8 = 16 configured workers; one ranking submission per generation |
+| ReAct provider and gap-model work, shared by deep/SSE | `react_search` | 2 × 8 = 16 configured workers; at most 2 simultaneous provider submissions, gap calls sequential |
+| Router blocking stages | `search_analysis`, `search_rank`, `search_graph`, `search_cache_io`, `search_llm`, `search_legacy` | 6 × 2 = 12 callbacks; exactly one submission per generation |
+| Router save/enrichment callback | `search_save_enrichment` | 2 callbacks; exactly one submission per generation |
+
+There are 16 labels and at most 32 retained generations: **256 configured
+executor worker slots**, not 256 necessarily started threads. Applying the
+router's one-submission rule gives a conservative **158 simultaneously running
+owned-callback upper bound** (144 source/nested/ReAct slots + 14 router callbacks);
+the narrower Scholar/smart/ReAct submission limits reduce attainable occupancy.
+Nested ownership can occupy both a waiting router callback and source workers,
+so they are included in the sum, not mistaken for independent request capacity.
+Deep/SSE reuse `react_search`; do not count it again per endpoint or turn.
+Model calls run in their owning analysis/rank/LLM/smart/ReAct stage rather than
+receiving unbounded per-request labels. These are code admission bounds, not a
+measured concurrency or latency guarantee, and exclude library-internal threads.
+
+Cleanup stops new admission/stages and cancels queued work where possible.
+Timed-out, disconnected or shutting-down callers do not release ownership of
+still-running underlying futures. Router shutdown accounting includes both
+router and source owners; retained generations drain only after their futures
+finish. Callback admission has no waiting queue or detached-thread fallback.
+An admitted save may outlive the client; optional stages still observe the
+stop/deadline. Shutdown/drain does not promise forcible thread cancellation.
+
+### Identity-judged replay
+
+The 24-query `data/search_eval/search_review_matrix_v1.json` pairs 12 English/
+Korean cases, with 16 holdout queries. The checked-in
+`search_review_synthetic_v1.json` is explicitly synthetic, not human judgment.
+Commands below are evaluator entry points, not a receipt of successful execution:
+
+```bash
+python -m src.search_eval.judged_replay validate --matrix M --capture C --judgments J
+python -m src.search_eval.judged_replay replay --matrix M --capture C --mode standard --out B
+python -m src.search_eval.judged_replay replay --matrix M --capture C --mode fast --out K
+python -m src.search_eval.judged_replay compare --matrix M --capture C --judgments J --baseline B --candidate K --scope routed_replay --out REPORT
+python -m src.search_eval.judged_replay capture --matrix M --mode standard --out-dir D --max-candidates-per-query 80
+```
+
+`M`, `C`, `J`, `B`, `K`, and `REPORT` are caller-supplied JSON paths; `D` is an
+output directory. Capture is explicitly network-enabled, never a unit-test
+prerequisite. Repeat capture with `--mode fast` to assemble the other mode;
+conflicting responses for one request key must be resolved into one documented
+frozen snapshot, not mode-specific answers. Replay is offline and uses exact
+effective provider requests: provider, operation, effective query, filters, sort,
+limit, cursor and API version. Unsupported requests are explicit replay misses,
+never an original-query or live-network fallback.
+
+Schemas use `search-review-{matrix,capture,judgments,run,comparison}-v1`.
+Canonical compact sorted-key JSON hashes bind matrix, capture, judgments and
+runs, excluding each artifact's own hash. Judgments bind query ID to canonical
+paper identity with integer grade 0..3, required/excluded booleans and evidence,
+author/reviewer provenance. Excluded papers have zero gain and cannot be required;
+duplicate/conflicting identities cannot earn repeated credit. Unjudged is unknown,
+not a verified negative. At most 80 union identities per query are eligible.
+
+Promotion requires independently authored and separately human-reviewed frozen
+judgments covering every compared top-10 identity and declared required positive,
+complete effective-request replay, and pinned baseline revision
+`99c77237d8a8d2adb6e6e73419cc79213aa1357d` with its actual tree/dependencies/model/
+policy configuration. Baseline and candidate need isolated source environments;
+current code plus an old revision label is not the baseline. Compare standard
+baseline against opt-in fast candidate with otherwise identical requests.
+Zero unrounded regression is required in nDCG@10, MRR@10, Recall@5/10 across
+aggregate and all language/intent/filter slices, for both matrix and holdout.
+Every baseline required top-10 hit must remain; excluded-paper handoff cannot
+increase per query or aggregate. Browser evidence must establish nonblocking
+optional enrichment independently.
+
+Compare exit codes: 0 structurally completed (inspect `promotion_decision`),
+2 invalid schema/binding, 3 inconclusive evidence, 4 qualifying regression.
+Synthetic, fixed-pool, missing baseline, incomplete judgments/replay or missing
+independent evidence cannot qualify promotion. Neither replay nor ranker-only
+timing measures live provider latency or browser paint; declared-positive recall
+is not global live-corpus recall. No CLI automatically changes defaults.
+No real-human qualification or live-speed evidence is asserted here; the normal
+standard default remains unchanged.
+
 ## Phase 6: default-off observability evidence
 
 Phase 6 adds a read-only evidence plane around sealed `skillopt-run-request-v2`

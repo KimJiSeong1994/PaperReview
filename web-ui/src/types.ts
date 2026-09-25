@@ -1,5 +1,7 @@
 export interface Paper {
   doc_id: string;
+  /** Server identity for selection; doc_id remains the storage reference. */
+  result_key?: string;
   title: string;
   authors: string[];
   year?: string | number;
@@ -94,7 +96,15 @@ export interface SearchResponse {
   cache_hit?: boolean;
   quality_mode?: 'standard' | 'fast' | 'cache_fast_path' | string;
   degraded?: string[] | null;
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    executed_query?: string | null;
+    executed_queries?: Record<string, string | string[]>;
+    partial?: boolean;
+    degraded?: string[];
+    stage_modes?: Record<string, unknown>;
+    save_status?: 'accepted' | 'not_admitted_capacity' | 'not_requested' | 'skipped_cache' | 'no_results' | 'not_admitted_shutdown' | 'not_admitted_disconnect';
+    [key: string]: unknown;
+  };
   /** Echoed back on POST /api/search/click to join a click to its search. */
   query_hash?: string;
 }

@@ -87,11 +87,8 @@ function GraphEvents({
   const papersMap = useMemo(() => {
     const map = new Map<string, Paper>();
     papers.forEach(paper => {
-      const docId = String(paper.doc_id);
+      const docId = String(paper.result_key ?? paper.doc_id);
       map.set(docId, paper);
-      if (paper.title) {
-        map.set(paper.title, paper);
-      }
     });
     return map;
   }, [papers]);
@@ -106,15 +103,7 @@ function GraphEvents({
           onNodeClick(paper);
           return;
         }
-        // Fallback: try to find via node label (title)
-        const graph = sigma.getGraph();
-        if (graph.hasNode(nodeId)) {
-          const attrs = graph.getNodeAttributes(nodeId);
-          const paperByTitle = papersMap.get(attrs.label as string);
-          if (paperByTitle) {
-            onNodeClick(paperByTitle);
-          }
-        }
+        // Unknown identities never resolve through an ambiguous title.
       },
       enterNode: (event) => {
         setHoveredNode(event.node);
@@ -128,7 +117,7 @@ function GraphEvents({
   }, [registerEvents, sigma, papersMap, onNodeClick]);
 
   // Determine selected node ID
-  const selectedNodeId = selectedPaper ? String(selectedPaper.doc_id) : null;
+  const selectedNodeId = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
 
   // Compute set of neighbors for highlighting
   const highlightedNeighbors = useMemo(() => {

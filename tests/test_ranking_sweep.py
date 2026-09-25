@@ -19,6 +19,7 @@ from src.search_eval.ranking_sweep import (
     DEFAULT_DATASET,
     POOL_VERSION,
     _pool_hash,
+    capture_candidate_pool,
     load_candidate_pool,
     score_pool_at_weight,
     sweep,
@@ -90,6 +91,28 @@ def test_pool_version_is_enforced(fake_pool):
         load_candidate_pool(fake_pool)
 
 
+def test_capture_preserves_same_title_distinct_paper_identities(tmp_path, monkeypatch):
+    class Source:
+        def search(self, _query, max_results):
+            return [
+                {"title": "Shared title", "doi": "10.1234/first", "authors": ["A"]},
+                {"title": "Shared title", "doi": "10.1234/second", "authors": ["B"]},
+            ]
+
+    for module, name in (
+        ("src.collector.paper.arxiv_searcher", "ArxivSearcher"),
+        ("src.collector.paper.dblp_searcher", "DBLPSearcher"),
+        ("src.collector.paper.openalex_searcher", "OpenAlexSearcher"),
+    ):
+        monkeypatch.setattr(f"{module}.{name}", Source)
+    pool = capture_candidate_pool(out_path=tmp_path / "captured.json")
+    for papers in pool["candidates"].values():
+        assert {paper["doi"] for paper in papers} == {"10.1234/first", "10.1234/second"}
+        assert len(papers) == 2
+        assert len({paper["result_key"] for paper in papers}) == 2
+        assert all(paper["authors"] for paper in papers)
+
+
 # ── sweep behaviour ───────────────────────────────────────────────────
 
 
@@ -146,7 +169,17 @@ def test_sweep_output_is_measured_evidence(fake_pool):
     assert record["evidence"]["mode"] == "measured"
     assert record["evidence"]["capture_hash"] == pool["pool_hash"]
     assert record["p95_latency_ms"] > 0.0
+    assert record["timing_scope"] == "ranker_only"
+    assert record["comparison_scope"] == "fixed_pool"
+    assert record["promotion_eligible"] is False
     assert record["query_count"] == len(load_json(str(DEFAULT_DATASET))["queries"])
+
+
+def test_sweep_rejects_pool_from_different_dataset(fake_pool):
+    pool = load_candidate_pool(fake_pool)
+    pool["dataset_hash"] = "sha256:" + "0" * 64
+    with pytest.raises(ValidationError, match="dataset hash mismatch"):
+        score_pool_at_weight(pool=pool, cross_encoder_weight=0.0)
 
 
 def test_sweep_record_passes_the_repos_own_validator(fake_pool):

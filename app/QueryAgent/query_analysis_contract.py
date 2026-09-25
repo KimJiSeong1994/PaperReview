@@ -444,17 +444,6 @@ def parse_raw_model_output(
     return result
 
 
-def _deduplicate_variants(values: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        identity = unicodedata.normalize("NFKC", value).casefold()
-        if identity not in seen:
-            seen.add(identity)
-            result.append(value)
-    return result
-
-
 def normalize_query_analysis(
     raw: Mapping[str, Any], *, original_query: str
 ) -> dict[str, Any]:
@@ -467,13 +456,7 @@ def normalize_query_analysis(
     if isinstance(scholar_source, list):
         scholar_queries = list(scholar_source)
     else:
-        candidates = [scholar_source, validated["improved_query"]]
-        keywords = validated["keywords"]
-        if keywords:
-            keyword_variant = " ".join(keywords[:5])
-            if len(keyword_variant) <= MAX_QUERY_SCALARS:
-                candidates.append(keyword_variant)
-        scholar_queries = _deduplicate_variants(candidates)[:MAX_SCHOLAR_VARIANTS]
+        scholar_queries = [scholar_source]
 
     normalized = {
         "is_academic": validated["is_academic"],
