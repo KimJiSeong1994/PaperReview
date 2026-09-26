@@ -718,6 +718,27 @@ def _series_fixture_posts() -> list[dict]:
     return [*_FIXED_POSTS, *members]
 
 
+def test_blog_index_pins_development_series_first(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
+    posts = _series_fixture_posts()
+    posts.append(
+        {
+            **posts[-1],
+            "id": "development-series",
+            "slug": BLOG_SERIES["jiphyeonjeon-build"]["slugs"][0],
+            "category": "engineering",
+        }
+    )
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    response = TestClient(app).get("/blog")
+    assert response.status_code == 200
+    assert response.text.index('href="/blog/series/jiphyeonjeon-build"') < response.text.index(
+        'href="/blog/series/gnn"'
+    )
+
+
 def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -> None:
     from routers.seo import BLOG_SERIES
 
