@@ -7,8 +7,10 @@ first /api/search call is not slowed by a HuggingFace model download.
 
 from __future__ import annotations
 
+import sys
 import threading
-import time
+from types import ModuleType
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -28,28 +30,26 @@ def transformers_progress_bars():
             transformers_logging.disable_progress_bar()
 
 
-def test_warm_cross_encoder_loads_model() -> None:
+def test_warm_cross_encoder_loads_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lifespan startup pre-loads cross-encoder to avoid cold-start timeout."""
+    model = object()
+    cross_encoder = MagicMock(return_value=model)
+    module = ModuleType("sentence_transformers")
+    module.CrossEncoder = cross_encoder  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "sentence_transformers", module)
+
     from api_server import _warm_cross_encoder
-
-    # Should not raise even if model is already loaded
-    _warm_cross_encoder()
-
-    # After warmup the singleton must be populated
     from app.QueryAgent.relevance_filter import LocalRelevanceScorer
 
-    # Accessing get_model() after warmup must be fast (cached, no HF download)
-    start = time.perf_counter()
-    model = LocalRelevanceScorer.get_model()
-    elapsed = time.perf_counter() - start
+    monkeypatch.setattr(LocalRelevanceScorer, "_model", None)
+    _warm_cross_encoder()
 
-    assert model is not None, (
-        "LocalRelevanceScorer.get_model() returned None after warmup"
-    )
-    assert elapsed < 1.0, (
-        f"Cross-encoder still loading after warmup ({elapsed:.2f}s); "
-        "expected <1s for cached singleton access"
-    )
+    # Check population before get_model() could conceal a warmup failure.
+    assert LocalRelevanceScorer._model is model
+    assert LocalRelevanceScorer.get_model() is model
+    _warm_cross_encoder()
+    assert LocalRelevanceScorer._model is model
+    cross_encoder.assert_called_once()
 
 
 def test_warm_cross_encoder_graceful_on_import_failure(monkeypatch) -> None:

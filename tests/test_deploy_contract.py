@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import shlex
 
 import pytest
 
@@ -74,21 +73,39 @@ def test_backend_retains_full_suite_and_coverage_gate() -> None:
     backend = workflow[
         workflow.index("  backend:") : workflow.index("  skillopt-v020-exact-source:")
     ]
-    command = next(
-        line.strip().removeprefix("run: ")
-        for line in backend.splitlines()
-        if line.strip().startswith("run: pytest ")
-    )
-    arguments = shlex.split(command)
-    assert arguments[:2] == ["pytest", "tests/"]
-    assert "\n    if:" not in backend
-    assert "\n    needs:" not in backend
-    assert {"--cov=routers", "--cov=app", "--cov=src", "--cov-fail-under=15"} <= set(
-        arguments
-    )
-    assert not any(arg.startswith(("--ignore", "--deselect")) for arg in arguments)
-    assert "playwright install --with-deps chromium" in backend
-    assert "CHROME_DEVEL_SANDBOX" in backend
+    assert "needs: [backend-core, offline-optimizer, poster-browser]" in backend
+    assert "if: always()" in backend
+    assert "SHARD_NEEDS: ${{ toJSON(needs) }}" in backend
+    assert "python scripts/ci_shards.py --aggregate ci-results" in backend
+    for shard, following in (
+        ("backend-core", "offline-optimizer"),
+        ("offline-optimizer", "poster-browser"),
+        ("poster-browser", "backend"),
+    ):
+        job = workflow[
+            workflow.index(f"  {shard}:") : workflow.index(f"  {following}:")
+        ]
+        assert "\n    if:" not in job
+        assert "\n    needs:" not in job
+        assert f"pytest tests/ -p scripts.ci_shards --ci-shard={shard}" in job
+        assert (
+            "--cov=routers --cov=app --cov=src --cov-report= --cov-fail-under=0" in job
+        )
+        assert "--ignore" not in job and "--deselect" not in job
+        assert "include-hidden-files: true" in job
+        assert "if-no-files-found: error" in job
+        upload = job[job.index("      - uses: actions/upload-artifact@v4") :]
+        assert f"name: {shard}" in upload
+        assert "overwrite: true" in upload
+        assert "if:" not in upload
+        assert "--torch-backend=cpu" in job
+        assert f"name: {shard}" in backend
+        if shard == "poster-browser":
+            assert "playwright install --with-deps chromium" in job
+            assert "CHROME_DEVEL_SANDBOX" in job
+        else:
+            assert "playwright install" not in job
+    assert workflow.count("overwrite: true") == 3
 
 
 def _post() -> dict[str, object]:
