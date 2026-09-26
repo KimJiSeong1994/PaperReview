@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import RecommendationBell from '../components/RecommendationBell';
 import type { RecommendationNotification, RecommendationNotificationResponse } from '../api/recommendations';
 
@@ -33,11 +33,14 @@ async function open() {
 }
 const card = (key: string) => within(document.querySelector(`[data-canonical-key="${key}"]`)! as HTMLElement);
 const feedbackCard = (key: string) => {
-  const details = document.querySelector(`[data-canonical-key="${key}"] .recommendation-feedback`) as HTMLDetailsElement;
-  if (!details.open) fireEvent.click(within(details).getByText('추천 조정', { selector: 'summary' }));
+  const toggle = card(key).getByRole('button', { name: '추천 조정' });
+  if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
   return card(key);
 };
 const observer = () => Observer.instances[Observer.instances.length - 1];
+function LocationProbe() {
+  return <output data-testid="location">{useLocation().search}</output>;
+}
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -67,13 +70,23 @@ describe('RecommendationBell durable recommendation contract', () => {
       degraded_reasons: ['limited_coverage'],
     });
     await open();
-    expect(card('a').getByRole('button', { name: 'PDF 보기' })).toBeVisible();
-    expect(card('a').getByRole('button', { name: '숨기기' })).not.toBeVisible();
+    expect(card('a').getByRole('button', { name: 'Paper a' })).toBeVisible();
+    expect(card('a').queryByRole('button', { name: '숨기기' })).not.toBeInTheDocument();
+    expect(card('a').getByRole('button', { name: '관련 검색' })).toBeVisible();
+    expect(card('a').getAllByRole('button').map(button => button.textContent)).toEqual(['Paper a', '관련 검색', '관심 있어요', '추천 조정']);
+    expect(card('a').queryByRole('button', { name: 'PDF 보기' })).not.toBeInTheDocument();
+    expect(card('a').queryByRole('button', { name: '읽음 표시' })).not.toBeInTheDocument();
     expect(screen.getByText('진단 코드: limited_coverage')).not.toBeVisible();
     fireEvent.click(screen.getByText('추천 기준 및 수집 상태', { selector: 'summary' }));
     expect(screen.getByText('공개 논문: 일부 수집')).toBeVisible();
     expect(screen.getByText('OpenClaw: 사용 안 함')).toBeVisible();
     expect(feedbackCard('a').getByRole('button', { name: '숨기기' })).toBeVisible();
+    expect(card('a').getByRole('button', { name: '관련 검색' })).toBeVisible();
+    const more = card('a').getByRole('button', { name: '추천 조정' });
+    expect(document.getElementById(more.getAttribute('aria-controls')!)).toHaveAttribute('role', 'group');
+    expect(within(document.getElementById(more.getAttribute('aria-controls')!)!).getAllByRole('button').map(button => button.textContent)).toEqual(['숨기기', '이미 읽은 논문', '이 주제 덜 보기']);
+    fireEvent.click(more);
+    expect(card('a').queryByRole('button', { name: '숨기기' })).not.toBeInTheDocument();
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
 
@@ -84,6 +97,34 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open();
     expect(screen.getByText('아직 추천이 생성되지 않았습니다.')).toBeVisible();
     expect(screen.queryByText('표시할 추천 논문이 없습니다.')).not.toBeInTheDocument();
+  });
+
+  it('resets expanded card actions when the panel is closed', async () => {
+    await open();
+    feedbackCard('a');
+    expect(card('a').getByRole('button', { name: '추천 조정' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    fireEvent.click(screen.getByRole('button', { name: '추천 논문 열기' })); await flush();
+    expect(card('a').getByRole('button', { name: '추천 조정' })).toHaveAttribute('aria-expanded', 'false');
+    expect(card('a').getByRole('button', { name: '관련 검색' })).toBeVisible();
+  });
+
+  it('opens related search directly without recording feedback', async () => {
+    render(<MemoryRouter><RecommendationBell /><LocationProbe /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '추천 논문 열기' })); await flush();
+    fireEvent.click(card('a').getByRole('button', { name: '관련 검색' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(new URLSearchParams(screen.getByTestId('location').textContent!).get('q')).toBe('Paper a');
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale-session title and interest clicks before the identity poll', async () => {
+    await open();
+    localStorage.setItem('access_token', 'owner-b');
+    fireEvent.click(card('a').getByRole('button', { name: '관심 있어요' }));
+    fireEvent.click(card('a').getByRole('button', { name: 'Paper a' }));
+    expect(mocks.mutate).not.toHaveBeenCalled();
+    expect(mocks.viewer).not.toHaveBeenCalled();
   });
 
   it('keeps older changes undoable without filling the reading area', async () => {
@@ -112,7 +153,7 @@ describe('RecommendationBell durable recommendation contract', () => {
   it.each([undefined, null, '', ' \n '])('does not invent a description when the abstract is %s', async abstract => {
     mocks.fetch.mockResolvedValue(response([{ ...paper('a', 1), abstract }]));
     await open();
-    expect(card('a').getByText('이 논문은 초록이 제공되지 않아 설명을 표시할 수 없습니다.')).toBeInTheDocument();
+    expect(card('a').getByText('초록 없음')).toBeInTheDocument();
     expect(screen.queryByText('추천 이유')).not.toBeInTheDocument();
   });
 
@@ -128,10 +169,10 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open();
     expect(screen.getAllByRole('article').map(element => element.getAttribute('data-canonical-key'))).toEqual(['a', 'b']);
     expect(screen.getByText('#3')).toBeInTheDocument();
-    expect(screen.getByText('읽지 않음 7편')).toBeInTheDocument();
+    expect(screen.getByText('아직 안 열어봄 7편')).toBeInTheDocument();
     expect(screen.getByText('전체 12편')).toBeInTheDocument();
     expect(screen.getByText(/추천 생성:/)).toBeInTheDocument();
-    expect(screen.getByText(/논문 발표:/)).toBeInTheDocument();
+    expect(card('b').getByText('Author · 2020-01-01')).toBeInTheDocument();
     expect(mocks.exposure).not.toHaveBeenCalled();
   });
 
@@ -152,9 +193,73 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open(); mocks.mutate.mockRejectedValue(new Error('offline'));
     fireEvent.click(feedbackCard('a').getByRole('button', { name: '숨기기' })); await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('변경을 저장하지 못했습니다');
-    expect(card('a').getByText('읽지 않음')).toBeInTheDocument();
+    expect(card('a').getByText('새 추천')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '실행 취소' })).not.toBeInTheDocument();
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps failed feedback visible through refresh and retries the same command identity', async () => {
+    await open();
+    mocks.mutate.mockRejectedValueOnce(new Error('response lost'));
+    fireEvent.click(card('a').getByRole('button', { name: '관심 있어요' })); await flush();
+    const original = mocks.mutate.mock.calls[0][0];
+    fireEvent.focus(window); await flush();
+    fireEvent.click(card('b').getByRole('button', { name: 'Paper b' })); await flush();
+    expect(mocks.mutate.mock.calls[1][0].action).toBe('seen');
+    expect(screen.getByRole('alert')).toHaveTextContent('변경을 저장하지 못했습니다');
+    expect(within(screen.getByLabelText('최근 변경')).queryByRole('button', { name: '실행 취소' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '변경 다시 저장' })); await flush();
+    expect(mocks.mutate.mock.calls[2][0]).toEqual(original);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('관심 있어요 · Paper a')).toBeVisible();
+  });
+
+  it('recovers failed commands independently without discarding another pending recovery', async () => {
+    await open(); mocks.mutate.mockRejectedValue(new Error('offline'));
+    fireEvent.click(card('a').getByRole('button', { name: '관심 있어요' })); await flush();
+    fireEvent.click(card('b').getByRole('button', { name: '관심 있어요' })); await flush();
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
+    const original = mocks.mutate.mock.calls[0][0];
+    mocks.mutate.mockResolvedValueOnce({ tracked: true, request_id: original.request_id });
+    fireEvent.click(screen.getAllByRole('button', { name: '변경 다시 저장' })[0]); await flush();
+    expect(mocks.mutate.mock.calls[2][0]).toEqual(original);
+    expect(screen.getByRole('alert')).toHaveTextContent('Paper b');
+    expect(screen.getByText('관심 있어요 · Paper a')).toBeVisible();
+  });
+
+  it('opens one exclusion chooser and gives Escape back to its trigger before closing the panel', async () => {
+    await open();
+    feedbackCard('a');
+    expect(card('a').getByRole('button', { name: '숨기기' })).toHaveFocus();
+    feedbackCard('b');
+    expect(card('a').getByRole('button', { name: '추천 조정' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.keyDown(card('b').getByRole('button', { name: '숨기기' }), { key: 'Escape' });
+    expect(card('b').getByRole('button', { name: '추천 조정' })).toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.keyDown(card('b').getByRole('button', { name: '추천 조정' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '추천 논문 열기' })).toHaveFocus();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it.each([['hide', '숨기기'], ['already_seen', '이미 읽은 논문']])('keeps focus stable after %s acknowledgment before refill completes', async (_action, label) => {
+    await open();
+    let refill!: (value: RecommendationNotificationResponse) => void;
+    mocks.fetch.mockReturnValueOnce(new Promise(resolve => { refill = resolve; }));
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: label })); await flush();
+    expect(document.querySelector('[data-canonical-key="a"]')).toBeNull();
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    await act(async () => { refill(response([paper('b', 3)])); });
+    await tick(20);
+    expect(card('b').getByRole('button', { name: 'Paper b' })).toHaveFocus();
+  });
+
+  it('retains a panel focus target when the final row is excluded', async () => {
+    mocks.fetch.mockResolvedValueOnce(response([paper('a', 1)]));
+    await open(); mocks.fetch.mockResolvedValue(response([]));
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '숨기기' })); await flush(); await tick(20);
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    expect(screen.getByRole('button', { name: '실행 취소' })).toBeVisible();
   });
 
   it('clears previously valid cards when a current-owner refresh returns 503', async () => {
@@ -191,18 +296,20 @@ describe('RecommendationBell durable recommendation contract', () => {
   it('marks read only after durable ack/refetch and hands canonical metadata to the viewer', async () => {
     let acknowledge!: (value: unknown) => void;
     await open(); mocks.mutate.mockReturnValue(new Promise(resolve => { acknowledge = resolve; }));
-    fireEvent.click(card('a').getByRole('button', { name: 'PDF 보기' }));
+    fireEvent.click(card('a').getByRole('button', { name: 'Paper a' }));
     expect(mocks.viewer).toHaveBeenCalledWith('/paper-viewer?source=recommendation&result_key=a');
-    expect(card('a').getByText('읽지 않음')).toBeInTheDocument();
+    expect(card('a').getByText('새 추천')).toBeInTheDocument();
     mocks.fetch.mockResolvedValue(response([{ ...paper('a', 1), seen: true }]));
     await act(async () => { acknowledge({ tracked: true, request_id: 'ack' }); });
     expect(mocks.mutate.mock.calls[0][0].action).toBe('seen');
-    expect(card('a').getByText('읽음')).toBeInTheDocument();
+    expect(card('a').getByText('열어봄')).toBeInTheDocument();
   });
 
   it.each(['already_seen', 'topic_less', 'interested'] as const)('persists %s independently of read state', async action => {
     const labels = { already_seen: '이미 읽은 논문', topic_less: '이 주제 덜 보기', interested: '관심 있어요' };
-    await open(); fireEvent.click(feedbackCard('a').getByRole('button', { name: labels[action] })); await flush();
+    await open();
+    const controls = action === 'interested' ? card('a') : feedbackCard('a');
+    fireEvent.click(controls.getByRole('button', { name: labels[action] })); await flush();
     expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ action, canonical_key: 'a' });
     expect(mocks.mutate.mock.calls[0][0].request_id).toMatch(/^[0-9a-f-]{36}$/i);
   });
@@ -230,7 +337,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     observer().emit(0.1); await tick(1); expect(mocks.exposure).not.toHaveBeenCalled();
     observer().emit(0.5); await tick(1000); expect(mocks.exposure).toHaveBeenCalledTimes(2);
     expect(mocks.exposure.mock.calls[0][0]).toMatchObject({ visible_fraction: 0.5, visible_ms: 1000, run_id: 'run-1' });
-    expect(card('a').getByText('읽지 않음')).toBeInTheDocument();
+    expect(card('a').getByText('새 추천')).toBeInTheDocument();
     observer().emit(0.5); await tick(1000); expect(mocks.exposure).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByRole('button', { name: '닫기' }));
     fireEvent.click(screen.getByRole('button', { name: '추천 논문 열기' })); await flush();
@@ -319,7 +426,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open();
     expect(screen.getByRole('alert')).toHaveTextContent('추천을 불러오지 못했습니다');
     expect(screen.queryByText('추천 준비 완료')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '다시 시도' })); await flush();
+    fireEvent.click(screen.getByRole('button', { name: '목록 다시 불러오기' })); await flush();
     expect(screen.getByRole('button', { name: 'Paper a' })).toBeInTheDocument();
   });
 
@@ -336,7 +443,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     observer().emit(0.5); await tick(1000);
     expect(mocks.exposure).toHaveBeenCalledTimes(4);
     expect(mocks.mutate).not.toHaveBeenCalled();
-    expect(card('a').getByText('읽지 않음')).toBeInTheDocument();
+    expect(card('a').getByText('새 추천')).toBeInTheDocument();
   });
 
   it('discards late mutation receipts and cancels exposure when authentication changes', async () => {
