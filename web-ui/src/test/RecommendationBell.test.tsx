@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import RecommendationBell from '../components/RecommendationBell';
 import type { RecommendationNotification, RecommendationNotificationResponse } from '../api/recommendations';
 
@@ -33,11 +33,14 @@ async function open() {
 }
 const card = (key: string) => within(document.querySelector(`[data-canonical-key="${key}"]`)! as HTMLElement);
 const feedbackCard = (key: string) => {
-  const details = document.querySelector(`[data-canonical-key="${key}"] .recommendation-feedback`) as HTMLDetailsElement;
-  if (!details.open) fireEvent.click(within(details).getByText('추천 조정', { selector: 'summary' }));
+  const toggle = card(key).getByRole('button', { name: '더보기' });
+  if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
   return card(key);
 };
 const observer = () => Observer.instances[Observer.instances.length - 1];
+function LocationProbe() {
+  return <output data-testid="location">{useLocation().search}</output>;
+}
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -68,12 +71,19 @@ describe('RecommendationBell durable recommendation contract', () => {
     });
     await open();
     expect(card('a').getByRole('button', { name: 'PDF 보기' })).toBeVisible();
-    expect(card('a').getByRole('button', { name: '숨기기' })).not.toBeVisible();
+    expect(card('a').queryByRole('button', { name: '숨기기' })).not.toBeInTheDocument();
+    expect(card('a').queryByRole('button', { name: '관련 검색' })).not.toBeInTheDocument();
+    expect(card('a').getAllByRole('button').map(button => button.textContent)).toEqual(['Paper a', 'PDF 보기', '더보기']);
     expect(screen.getByText('진단 코드: limited_coverage')).not.toBeVisible();
     fireEvent.click(screen.getByText('추천 기준 및 수집 상태', { selector: 'summary' }));
     expect(screen.getByText('공개 논문: 일부 수집')).toBeVisible();
     expect(screen.getByText('OpenClaw: 사용 안 함')).toBeVisible();
     expect(feedbackCard('a').getByRole('button', { name: '숨기기' })).toBeVisible();
+    expect(card('a').getByRole('button', { name: '관련 검색' })).toBeVisible();
+    const more = card('a').getByRole('button', { name: '더보기' });
+    expect(document.getElementById(more.getAttribute('aria-controls')!)).toHaveAttribute('role', 'group');
+    fireEvent.click(more);
+    expect(card('a').queryByRole('button', { name: '숨기기' })).not.toBeInTheDocument();
     expect(mocks.mutate).not.toHaveBeenCalled();
   });
 
@@ -84,6 +94,25 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open();
     expect(screen.getByText('아직 추천이 생성되지 않았습니다.')).toBeVisible();
     expect(screen.queryByText('표시할 추천 논문이 없습니다.')).not.toBeInTheDocument();
+  });
+
+  it('resets expanded card actions when the panel is closed', async () => {
+    await open();
+    feedbackCard('a');
+    expect(card('a').getByRole('button', { name: '더보기' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    fireEvent.click(screen.getByRole('button', { name: '추천 논문 열기' })); await flush();
+    expect(card('a').getByRole('button', { name: '더보기' })).toHaveAttribute('aria-expanded', 'false');
+    expect(card('a').queryByRole('button', { name: '관련 검색' })).not.toBeInTheDocument();
+  });
+
+  it('keeps related search reachable through More without recording feedback', async () => {
+    render(<MemoryRouter><RecommendationBell /><LocationProbe /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '추천 논문 열기' })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '관련 검색' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(new URLSearchParams(screen.getByTestId('location').textContent!).get('q')).toBe('Paper a');
+    expect(mocks.mutate).not.toHaveBeenCalled();
   });
 
   it('keeps older changes undoable without filling the reading area', async () => {
@@ -131,7 +160,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     expect(screen.getByText('읽지 않음 7편')).toBeInTheDocument();
     expect(screen.getByText('전체 12편')).toBeInTheDocument();
     expect(screen.getByText(/추천 생성:/)).toBeInTheDocument();
-    expect(screen.getByText(/논문 발표:/)).toBeInTheDocument();
+    expect(card('b').getByText('Author · 2020-01-01')).toBeInTheDocument();
     expect(mocks.exposure).not.toHaveBeenCalled();
   });
 

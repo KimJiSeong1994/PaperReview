@@ -112,12 +112,12 @@
 .recommendation-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .recommendation-item {
   min-width: 0;
-  padding: 18px;
+  padding: 14px;
   border-radius: 14px;
   border: 1px solid var(--wov-10);
   background: var(--wov-03);
@@ -176,18 +176,18 @@
   color: var(--text);
   font-size: 14px;
   line-height: 1.75;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
-.recommendation-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.recommendation-card-toolbar {
+  display: flex;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
-.recommendation-actions button,
+.recommendation-card-toolbar button,
+.recommendation-secondary-actions button,
 .recommendation-receipts button,
 .recommendation-panel-header button,
 .recommendation-error button {
@@ -204,16 +204,46 @@
   cursor: pointer;
 }
 
-.recommendation-actions button:hover,
+.recommendation-card-toolbar button:hover,
+.recommendation-secondary-actions button:hover,
 .recommendation-details summary:hover {
   background: var(--wov-10);
 }
 
-.recommendation-actions .recommendation-action-primary {
-  border-color: var(--ibd-38);
-  background: rgba(129, 140, 248, 0.18);
+.recommendation-card-toolbar button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.recommendation-card-toolbar .recommendation-action-primary {
   color: var(--indigo-strong);
   font-weight: 650;
+}
+
+.recommendation-secondary-actions {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--wov-10);
+}
+
+.recommendation-secondary-actions button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.recommendation-summary span {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.recommendation-summary span + span::before {
+  content: '·';
+  margin-right: 6px;
 }
 
 .recommendation-panel button:focus-visible,
@@ -259,15 +289,6 @@
   padding: 11px 2px;
   border-radius: 6px;
   cursor: pointer;
-}
-
-.recommendation-feedback {
-  margin: 12px 0 0;
-  border-top: 1px solid var(--wov-10);
-}
-
-.recommendation-feedback[open] summary {
-  font-weight: 650;
 }
 
 .recommendation-receipts {

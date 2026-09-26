@@ -415,7 +415,9 @@ async def main():
                     quality=95,
                     full_page=True,
                 )
-                await cards.first.locator("summary").click()
+                await cards.first.get_by_role(
+                    "button", name="더보기", exact=True
+                ).click()
                 await cards.first.get_by_role(
                     "button", name="숨기기", exact=True
                 ).click()
@@ -447,7 +449,7 @@ async def main():
                     has=page.get_by_text("읽지 않음", exact=True)
                 ).first.get_attribute("data-canonical-key")
                 read_card = page.locator(f'article[data-canonical-key="{read_key}"]')
-                await read_card.locator("summary").click()
+                await read_card.get_by_role("button", name="더보기", exact=True).click()
                 await read_card.get_by_role(
                     "button", name="읽음 표시", exact=True
                 ).click()
@@ -523,7 +525,8 @@ async def main():
                               overflow: panel.scrollWidth > panel.clientWidth + 1,
                               titleSize: parseFloat(getComputedStyle(panel.querySelector('h3')).fontSize),
                               descriptionSize: parseFloat(getComputedStyle(panel.querySelector('.recommendation-description')).fontSize),
-                              feedbackCollapsed: [...panel.querySelectorAll('.recommendation-feedback')].every(el => !el.open),
+                              feedbackCollapsed: panel.querySelectorAll('.recommendation-secondary-actions').length === 0,
+                              toolbarButtonCounts: [...panel.querySelectorAll('.recommendation-card-toolbar')].map(el => el.querySelectorAll('button').length),
                               smallControls: [...panel.querySelectorAll('button, summary')].filter(el => el.getClientRects().length && el.getBoundingClientRect().height < 44).length
                             }}"""
                         )
@@ -536,6 +539,7 @@ async def main():
                         assert (
                             layout["feedbackCollapsed"] and layout["smallControls"] == 0
                         ), layout
+                        assert layout["toolbarButtonCounts"] == [2] * 5, layout
                         await page.screenshot(
                             path=str(OUT / f"readability-{theme}-{width}.jpg"),
                             type="jpeg",
@@ -549,8 +553,10 @@ async def main():
                             **layout,
                         )
                 await page.evaluate("document.documentElement.dataset.theme = 'light'")
-                first_summary = cards.first.locator("summary")
-                await first_summary.focus()
+                more_button = cards.first.get_by_role(
+                    "button", name="더보기", exact=True
+                )
+                await more_button.focus()
                 await page.keyboard.press("Enter")
                 await expect(
                     cards.first.get_by_role("button", name="숨기기", exact=True)

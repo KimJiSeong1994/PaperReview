@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEffect, useId, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
@@ -38,6 +38,32 @@ function date(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('ko-KR');
 }
 interface UndoReceipt { owner: string; run: string; key: string; title: string; action: RecommendationAction; id: string }
+
+function PaperActionControls({ item, pending, canMutate, onView, onSearch, onAction }: {
+  item: RecommendationNotification;
+  pending: boolean;
+  canMutate: boolean;
+  onView: () => void;
+  onSearch: () => void;
+  onAction: (action: RecommendationAction) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const controlsId = useId();
+  return <>
+    <div className="recommendation-card-toolbar" aria-label={`${item.title} 작업`}>
+      <button type="button" className="recommendation-action-primary" disabled={pending} onClick={onView}>PDF 보기</button>
+      <button type="button" aria-expanded={expanded} aria-controls={controlsId} onClick={() => setExpanded(value => !value)}>더보기</button>
+    </div>
+    {expanded && <div id={controlsId} className="recommendation-secondary-actions" role="group" aria-label={`${item.title} 추가 작업`}>
+      <button type="button" onClick={onSearch}>관련 검색</button>
+      {(['interested', 'seen', 'already_seen', 'topic_less', 'hide'] as const).map(action => (
+        <button type="button" key={action} disabled={pending || !canMutate || (action === 'seen' && item.seen)} onClick={() => onAction(action)}>{labels[action]}</button>
+      ))}
+      <p className="recommendation-meta">변경 후 실행 취소할 수 있습니다.</p>
+      <p className="recommendation-meta" aria-label="논문 수집 경로">출처: {item.candidate_sources.map(source => sourceLabels[source] ?? source).join(', ')}</p>
+    </div>}
+  </>;
+}
 
 export default function RecommendationBell() {
   const { isAuthenticated } = useAuth();
@@ -309,21 +335,13 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
           <div className="recommendation-list">{data?.items.slice(0, 5).map(item => <article className="recommendation-item" key={item.canonical_key} data-canonical-key={item.canonical_key}>
             <div className="recommendation-item-topline"><strong>#{item.final_rank}</strong><span>{item.seen ? '읽음' : '읽지 않음'}</span></div>
             <h3><button className="recommendation-title" type="button" disabled={pending} onClick={() => view(item)}>{item.title}</button></h3>
-            <p className="recommendation-meta">{[item.authors.slice(0, 2).join(', '), item.year, item.venue].filter(Boolean).join(' · ')}</p>
-            {item.publication_date && <p className="recommendation-meta">논문 발표: {date(item.publication_date)}</p>}
+            <p className="recommendation-meta">{[item.authors.slice(0, 2).join(', '), item.publication_date || item.year, item.venue].filter(Boolean).join(' · ')}</p>
             <p className="recommendation-description">{paperDescription(item.abstract)}</p>
-            <div className="recommendation-actions" aria-label={`${item.title} 작업`}>
-              <button type="button" className="recommendation-action-primary" disabled={pending} onClick={() => view(item)}>PDF 보기</button>
-              <button type="button" onClick={() => { setOpen(false); navigate(`/?q=${encodeURIComponent(item.title)}`); }}>관련 검색</button>
-            </div>
-            <details className="recommendation-details recommendation-feedback">
-              <summary>추천 조정</summary>
-              <p className="recommendation-meta">관심을 표시하거나 원치 않는 추천을 줄일 수 있습니다. 변경 후 실행 취소가 가능합니다.</p>
-              <div className="recommendation-signals" aria-label="논문 수집 경로">{item.candidate_sources.map(source => <span key={source}>{sourceLabels[source] ?? source}</span>)}</div>
-              <div className="recommendation-actions" aria-label={`${item.title} 추천 조정`}>
-              {(Object.keys(labels) as RecommendationAction[]).map(action => <button type="button" key={action} disabled={pending || !data?.run_id || (action === 'seen' && item.seen)} onClick={() => void act(item, action)}>{labels[action]}</button>)}
-              </div>
-            </details>
+            <PaperActionControls item={item} pending={pending} canMutate={!!data?.run_id}
+              onView={() => view(item)}
+              onSearch={() => { setOpen(false); navigate(`/?q=${encodeURIComponent(item.title)}`); }}
+              onAction={action => void act(item, action)}
+            />
           </article>)}</div>
         </>}
       </section>}
