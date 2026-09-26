@@ -90,12 +90,21 @@ def validate_comparisons(
         path = f"comparisons.{hub_id}"
         if not isinstance(hub, Mapping):
             raise GeoComparisonError(f"{path} must be an object")
-        required = {"question", "axes", "entries", "limits", "source_note"}
+        required = {"question", "reading_guide", "axes", "entries", "limits", "source_note"}
         if set(hub) != required:
             raise GeoComparisonError(f"{path} has unknown or missing fields")
         _nonempty_string(hub["question"], f"{path}.question")
         _nonempty_string(hub["limits"], f"{path}.limits")
         _nonempty_string(hub["source_note"], f"{path}.source_note")
+        reading_guide = hub["reading_guide"]
+        if not isinstance(reading_guide, list) or not 1 <= len(reading_guide) <= 6:
+            raise GeoComparisonError(f"{path}.reading_guide must contain one to six steps")
+        for step_index, step in enumerate(reading_guide):
+            step_path = f"{path}.reading_guide[{step_index}]"
+            if not isinstance(step, Mapping) or set(step) != {"title", "description"}:
+                raise GeoComparisonError(f"{step_path} has unknown or missing fields")
+            _nonempty_string(step["title"], f"{step_path}.title")
+            _nonempty_string(step["description"], f"{step_path}.description")
         axes = hub["axes"]
         if not isinstance(axes, list) or tuple(axes) != AXES:
             raise GeoComparisonError(f"{path}.axes must contain the six axes in canonical order")
@@ -105,9 +114,10 @@ def validate_comparisons(
         seen_slugs: set[str] = set()
         for entry_index, entry in enumerate(entries):
             entry_path = f"{path}.entries[{entry_index}]"
-            if not isinstance(entry, Mapping) or set(entry) != {"slug", "values"}:
+            if not isinstance(entry, Mapping) or set(entry) != {"slug", "label", "values"}:
                 raise GeoComparisonError(f"{entry_path} has unknown or missing fields")
             slug = _nonempty_string(entry["slug"], f"{entry_path}.slug")
+            _nonempty_string(entry["label"], f"{entry_path}.label")
             if slug in seen_slugs:
                 raise GeoComparisonError(f"{entry_path}.slug is duplicated")
             seen_slugs.add(slug)

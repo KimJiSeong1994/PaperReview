@@ -94,10 +94,10 @@ DIST_INDEX = Path("web-ui/dist/index.html")
 ORG_ID = "https://jiphyeonjeon.kr/#organization"
 
 _GEO_AXIS_LABELS = {
-    "retrieval_or_representation_unit": "검색·표현 단위",
-    "graph_construction": "그래프 구성",
+    "retrieval_or_representation_unit": "다루는 정보·표현 단위",
+    "graph_construction": "입력 그래프와 구성",
     "evaluation_context": "평가 조건",
-    "traceability": "근거 추적",
+    "traceability": "설명·근거 확인",
     "cost": "비용",
     "failure_conditions": "실패 조건",
 }
@@ -140,12 +140,10 @@ BLOG_SERIES: dict[str, dict] = {
     "jiphyeonjeon-build": {
         "title": "집현전 개발 시리즈",
         "description": (
-            "집현전을 만들며 남긴 개발 기록 7편. 단일 쿼리로는 닿지 않는 논문을 "
-            "찾으려 검색을 에이전트로 바꾼 일에서 출발해, 흩어진 논문 사이의 관계를 "
-            "그래프로 드러내고, LLM이 논문을 읽고 밑줄을 긋게 하고, 무엇부터 읽어야 "
-            "하는지를 커리큘럼으로 답하고, 그 기능들을 MCP 도구로 브라우저 밖까지 "
-            "넓히고, 연구자 페르소나로 추천을 개인화하고, 끝내 검색 프롬프트를 "
-            "고르는 일 자체를 에이전트에게 넘기기까지를 시간순으로 읽는 시리즈."
+            "집현전을 만들며 남긴 개발 기록 7편을 시간순으로 읽습니다. "
+            "검색 에이전트에서 출발해 논문 관계 그래프, 자동 하이라이트, 읽기 커리큘럼으로 "
+            "이어집니다. 이어 MCP 도구 확장, 연구자 페르소나 기반 추천, 검색 프롬프트 선택을 "
+            "다루며 논문을 찾는 기능이 읽기와 개인화로 넓어지는 흐름을 살펴봅니다."
         ),
         "slugs": [
             "search-agent-beyond-single-query-65bcbe5c30fd",
@@ -160,11 +158,10 @@ BLOG_SERIES: dict[str, dict] = {
     "gnn": {
         "title": "GNN 논문 리뷰 시리즈",
         "description": (
-            "그래프 신경망(GNN)의 핵심 논문 11편을 랜덤워크 임베딩부터 "
-            "메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성, 강한 베이스라인 재평가까지 "
-            "권장 순서로 깊이 있게 읽는 한국어 딥리뷰 시리즈. 스탠퍼드 "
-            "CS224W(Machine Learning with Graphs) 커리큘럼과 나란히 읽을 "
-            "수 있도록 구성했다."
+            "그래프 표현 학습과 그래프 신경망(GNN)을 11편으로 읽는 시리즈입니다. "
+            "노드를 벡터로 표현하는 기초에서 이웃 정보 집계와 새 노드로의 일반화, "
+            "이종 그래프와 예측 설명, 공정한 기준선 비교로 이어집니다. "
+            "성능 순위가 아니라 개념을 연결하는 읽기 순서입니다."
         ),
         "slugs": [
             "deepwalk-online-learning-social-representations-review-2026",
@@ -183,16 +180,10 @@ BLOG_SERIES: dict[str, dict] = {
     "dwe": {
         "title": "DWE 논문 리뷰 시리즈",
         "description": (
-            "단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩"
-            "(Dynamic Word Embeddings)의 핵심 논문 12편을 변화점 통계 검정부터 "
-            "의미 변화의 통계 법칙, 베이지안 상태공간 모델, 공동 행렬 분해, "
-            "확률적 생성 모델, 컴퍼스 정렬, 문맥화 이전 연구의 조망, 문맥화 "
-            "표현의 기하 분석, 용법 유형 군집, 문맥화 임베딩과의 결합, "
-            "문맥화 탐지 연구의 조망, 그리고 문맥화 표현의 체계 비교까지 "
-            "시간순으로 깊이 있게 읽는 "
-            "한국어 딥리뷰 시리즈. 시간 구간별로 따로 학습한 임베딩을 사후에 "
-            "맞추던 정렬 문제가 학습 안으로, 다시 모델 설계 안으로 흡수되는 "
-            "흐름을 계보로 따라간다."
+            "단어 의미의 시간적 변화를 추적하는 동적 단어 임베딩의 핵심 논문 12편을 읽습니다. "
+            "변화의 통계적 탐지에서 출발해 시간 구간 사이의 임베딩 정렬과 동적 모델을 살펴보고, "
+            "문맥화 표현과 용법 분석, 체계 비교로 이어집니다. 각 단계에서 무엇을 의미 변화로 "
+            "측정하고 서로 다른 시점의 표현을 어떻게 비교하는지에 초점을 맞춥니다."
         ),
         "slugs": [
             "statistically-significant-detection-linguistic-change-review-2026",
@@ -212,17 +203,11 @@ BLOG_SERIES: dict[str, dict] = {
     "graphrag": {
         "title": "GraphRAG 논문 리뷰 시리즈",
         "description": (
-            "LLM 검색증강생성에 지식 그래프를 결합하는 GraphRAG 계열의 핵심 "
-            "논문 11편을 LLM 기반 문서 그래프 탐색(KGP), 전역 커뮤니티 "
-            "요약(MS GraphRAG), 그래프 연상 기억(HippoRAG), 경량 이중 "
-            "검색(LightRAG), 비모수적 장기 기억(HippoRAG 2), 인과 경로 "
-            "검색(CausalRAG), 계층 집약과 LCA 검색(LeanRAG), 관계 추출 없는 "
-            "선형 그래프 검색(LinearRAG), 계층 검색과 "
-            "적응적 통합(Deep GraphRAG), 계층형 인과 게이트(CausalRAG2), "
-            "다단계 파이프라인과 컴팩트 추출 모델(RAGU)까지 기초 연구부터 "
-            "최초 공개 순서로 깊이 있게 읽는 한국어 딥리뷰 "
-            "시리즈. 문서 간 연관 구조를 어떻게 색인하고, 무엇을 검색 단위로 "
-            "삼으며, 그 근거를 어디까지 믿어야 하는지를 계보로 따라간다."
+            "LLM 검색증강생성에 그래프를 결합하는 GraphRAG 계열의 핵심 논문 11편을 "
+            "기초 연구부터 최초 공개 순서로 읽습니다. 문서 그래프 탐색과 전역 요약에서 "
+            "연상 기억, 이중 검색, 인과·계층 검색과 다단계 파이프라인으로 이어집니다. "
+            "문서 간 관계를 어떻게 색인하고 무엇을 검색하며, 답변의 근거를 어디까지 "
+            "확인할 수 있는지 비교합니다."
         ),
         "slugs": [
             "knowledge-graph-prompting-multi-document-qa",
@@ -241,12 +226,10 @@ BLOG_SERIES: dict[str, dict] = {
     "graph-causality": {
         "title": "Graph causality 논문 리뷰 시리즈",
         "description": (
-            "그래프와 동역학 시계열 위에서 직접 인과, 간접 인과, 잠재 교란자를 "
-            "구분하려는 graph causality 계열의 핵심 논문 3편을 PCM의 "
-            "부분 교차사상, CIC의 보이지 않는 교란자 분해, IC2의 개입 "
-            "동역학 인과 추정까지 원논문의 공개·기초 흐름 순서로 읽는 "
-            "한국어 딥리뷰 시리즈. 관계 그래프를 예측 대상이 아니라 인과 "
-            "구조를 복원해야 할 연구 지형으로 다룬다."
+            "그래프와 동역학 시계열에서 인과 구조를 복원하려는 핵심 논문 3편을 "
+            "공개·기초 흐름 순서로 읽습니다. PCM의 간접 인과 구분에서 CIC의 잠재 교란자 "
+            "분해, IC2의 개입 동역학 인과 추정으로 이어집니다. 직접 인과, 간접 인과, "
+            "잠재 교란자를 각 방법이 어떻게 구분하려는지 살펴봅니다."
         ),
         "slugs": [
             "pcm-partial-cross-mapping-eliminates-indirect-causal-influences",
@@ -940,53 +923,94 @@ def _series_graph(series_id: str, title: str, description: str, posts: list[dict
     }
 
 
+def _series_comparison_cell_html(cell: dict) -> str:
+    content = cell["value"] if cell["state"] == "known" else cell["reason"]
+    state_label = {
+        "known": "",
+        "unknown": "미확인: ",
+        "not_applicable": "해당 없음: ",
+    }[cell["state"]]
+    sources = "".join(
+        f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
+        f"출처 {index}</a>"
+        for index, source in enumerate(cell["sources"], start=1)
+    )
+    provenance = f'<span class="geo-comparison-sources">{sources}</span>' if sources else ""
+    return f"{html.escape(state_label + (content or ''))}{provenance}"
+
+
+def _series_reading_guide_html(comparison: dict) -> str:
+    if not comparison:
+        return ""
+    items = "".join(
+        f'<li><h3>{html.escape(step["title"])}</h3>'
+        f'<p>{html.escape(step["description"])}</p></li>'
+        for step in comparison["reading_guide"]
+    )
+    return (
+        '<section class="blog-series-guide" aria-labelledby="series-guide-title">'
+        f'<h2 id="series-guide-title">읽기 안내</h2><ol>{items}</ol></section>'
+    )
+
+
 def _series_comparison_html(comparison: dict, posts_by_slug: dict[str, dict]) -> str:
     """Render a validated comparison as readable, escaped HTML."""
     if not comparison:
         return ""
 
     entries = comparison["entries"]
-    column_headers = "".join(
-        '<th scope="col"><a href="/blog/'
-        f'{html.escape(entry["slug"], quote=True)}">'
-        f'{html.escape(posts_by_slug.get(entry["slug"], {}).get("title") or entry["slug"])}</a></th>'
-        for entry in entries
-    )
+    def entry_link(entry: dict) -> str:
+        title = posts_by_slug.get(entry["slug"], {}).get("title")
+        if not title:
+            return html.escape(entry["label"])
+        title_attr = f' title="{html.escape(title, quote=True)}"'
+        return (
+            f'<a href="/blog/{html.escape(entry["slug"], quote=True)}"{title_attr}>'
+            f'{html.escape(entry["label"])}</a>'
+        )
+
+    column_headers = "".join(f'<th scope="col">{entry_link(entry)}</th>' for entry in entries)
     rows: list[str] = []
     for axis in comparison["axes"]:
         cells = []
         for entry in entries:
             cell = entry["values"][axis]
-            content = cell["value"] if cell["state"] == "known" else cell["reason"]
-            state_label = {
-                "known": "",
-                "unknown": "미확인: ",
-                "not_applicable": "해당 없음: ",
-            }[cell["state"]]
-            sources = "".join(
-                f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
-                f"출처 {index}</a>"
-                for index, source in enumerate(cell["sources"], start=1)
-            )
-            provenance = f'<span class="geo-comparison-sources">{sources}</span>' if sources else ""
             cells.append(
                 f'<td data-state="{html.escape(cell["state"], quote=True)}">'
-                f"{html.escape(state_label + (content or ''))}{provenance}</td>"
+                f"{_series_comparison_cell_html(cell)}</td>"
             )
         rows.append(
             f'<tr><th scope="row">{html.escape(_GEO_AXIS_LABELS[axis])}</th>{"".join(cells)}</tr>'
+        )
+
+    cards = []
+    for entry in entries:
+        axes = "".join(
+            "<div>"
+            f'<dt>{html.escape(_GEO_AXIS_LABELS[axis])}</dt>'
+            f'<dd data-state="{html.escape(entry["values"][axis]["state"], quote=True)}">'
+            f'{_series_comparison_cell_html(entry["values"][axis])}</dd></div>'
+            for axis in comparison["axes"]
+        )
+        cards.append(
+            '<article class="geo-comparison-card">'
+            f'<h3>{entry_link(entry)}</h3><dl>{axes}</dl></article>'
         )
 
     return (
         '<section class="geo-comparison" aria-labelledby="geo-comparison-title">'
         '<h2 id="geo-comparison-title">논문 선택 비교</h2>'
         f'<p class="geo-comparison-question">{html.escape(comparison["question"])}</p>'
-        '<div class="geo-comparison-scroll" tabindex="0">'
-        '<table><caption>여섯 기준으로 비교한 논문 선택표</caption><thead><tr>'
-        f'<th scope="col">비교 기준</th>{column_headers}</tr></thead>'
-        f'<tbody>{"".join(rows)}</tbody></table></div>'
         f'<p class="geo-comparison-limits"><strong>해석 한계:</strong> {html.escape(comparison["limits"])}</p>'
         f'<p class="geo-comparison-source-note">{html.escape(comparison["source_note"])}</p>'
+        '<div class="geo-comparison-desktop">'
+        '<p id="geo-comparison-scroll-hint">같은 기준을 가로로 비교하세요. 표가 잘리면 좌우로 스크롤할 수 있습니다.</p>'
+        '<div class="geo-comparison-scroll" role="region" aria-label="논문 선택 비교표" '
+        'aria-describedby="geo-comparison-scroll-hint" tabindex="0">'
+        '<table><caption>여섯 기준으로 비교한 논문 선택표</caption><thead><tr>'
+        f'<th scope="col">비교 기준</th>{column_headers}</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table></div></div>'
+        f'<div class="geo-comparison-cards">{"".join(cards)}</div>'
         "</section>"
     )
 # ── HTML document builder ─────────────────────────────────────────────
@@ -1513,19 +1537,33 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
 
     items = "".join(
         f'<li><a href="/blog/{html.escape(p.get("slug", ""), quote=True)}">'
-        f'{html.escape(p.get("title", ""), quote=True)}</a> — '
-        f'{html.escape(p.get("excerpt", ""), quote=True)}</li>'
-        for p in ordered
+        f'<span class="blog-series-pos" aria-hidden="true">{index}</span>'
+        f'<span class="blog-series-item-title">{html.escape(p.get("title", ""), quote=True)}</span></a>'
+        f'<p class="blog-series-item-excerpt">{html.escape(p.get("excerpt", ""), quote=True)}</p></li>'
+        for index, p in enumerate(ordered, start=1)
     )
+    reading_list = (
+        f'<ol class="blog-series-list">{items}</ol>'
+        if ordered
+        else '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>'
+    )
+    guide_link = '<a href="#series-guide-title">읽기 안내</a>' if comparison else ""
+    comparison_link = '<a href="#geo-comparison-title">논문 선택 비교</a>' if comparison else ""
     body = (
-        '<div class="blog-container"><div class="blog-content">'
+        '<div class="blog-container blog-series-page"><div class="blog-content">'
+        '<header class="blog-header">'
         '<nav aria-label="breadcrumb"><a href="/blog">Blog</a></nav>'
-        f'<h1>{html.escape(series["title"], quote=True)}</h1>'
-        f'<p>{html.escape(series["description"], quote=True)}</p>'
+        f'<h1 class="blog-title">{html.escape(series["title"], quote=True)}</h1>'
+        f'<p class="blog-subtitle">{html.escape(series["description"], quote=True)}</p></header>'
+        '<nav class="blog-series-nav" aria-label="시리즈 바로가기">'
+        f'{guide_link}<a href="#series-reading-title">추천 읽기 순서</a>{comparison_link}</nav>'
+        f"{_series_reading_guide_html(comparison)}"
+        '<section class="blog-series-reading" aria-labelledby="series-reading-title">'
+        f'<h2 id="series-reading-title">추천 읽기 순서</h2>{reading_list}</section>'
         f"{_series_comparison_html(comparison, by_slug)}"
-        f"<ol>{items}</ol>"
         "</div></div>"
     )
+    lang = _detect_lang(f'{series["title"]} {series["description"]}')
     document = _build_document(
         title=f'{series["title"]} | Jiphyeonjeon Blog',
         description=series["description"],
@@ -1535,6 +1573,8 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
         json_ld=_series_graph(series_id, series["title"], series["description"], ordered),
         article_html=body,
         noindex=not ordered,
+        lang=lang,
+        locale=_locale(lang),
     )
     return HTMLResponse(content=document, status_code=200)
 

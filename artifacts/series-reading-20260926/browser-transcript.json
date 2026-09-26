@@ -1,0 +1,128 @@
+{
+  "fixtureOnly": true,
+  "layoutScenarios": [
+    {
+      "theme": "light",
+      "width": 320,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "overflow": false,
+      "excerptSize": 16,
+      "targets": [
+        44,
+        44,
+        44
+      ],
+      "limitsBeforeEvidence": true
+    }
+  ],
+  "apiPagesRequested": [
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    2,
+    1,
+    1,
+    2
+  ],
+  "graphRagVerified": true,
+  "failureAndRetryVerified": true,
+  "pageErrors": [],
+  "limitations": "Built SPA with fixture API; not production browsing or full assistive-technology certification."
+}

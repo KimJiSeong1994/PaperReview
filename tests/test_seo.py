@@ -845,7 +845,10 @@ def _comparison_fixture(slug: str) -> dict:
     return {
         "question": "어떤 논문을 먼저 읽어야 하나요?",
         "axes": axes,
-        "entries": [{"slug": slug, "values": values}],
+        "entries": [{"slug": slug, "label": '방법 <A> "짧은 이름"', "values": values}],
+        "reading_guide": [
+            {"title": "개념 <먼저>", "description": "역할을 <구분>하고 읽습니다."},
+        ],
         "limits": "서로 다른 평가 조건의 수치를 순위처럼 비교하지 않습니다.",
         "source_note": "각 셀의 출처는 원 논문입니다.",
     }
@@ -853,7 +856,7 @@ def _comparison_fixture(slug: str) -> dict:
 
 def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     posts = _series_fixture_posts()
-    slug = posts[0]["slug"]
+    slug = posts[-2]["slug"]
     monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     monkeypatch.setattr(
@@ -865,6 +868,30 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert "어떤 논문을 먼저 읽어야 하나요?" in html
     assert html.count('scope="row"') == 6
     assert 'scope="col"' in html
+    assert '<html lang="ko">' in html
+    assert '<meta property="og:locale" content="ko_KR">' in html
+    assert "방법 &lt;A&gt; &quot;짧은 이름&quot;" in html
+    assert 'title="Series Post 0"' in html
+    assert "개념 &lt;먼저&gt;" in html
+    assert "역할을 &lt;구분&gt;하고 읽습니다." in html
+    assert html.index('class="blog-header"') < html.index('class="blog-series-nav"')
+    assert html.index('class="blog-series-nav"') < html.index('class="blog-series-guide"')
+    assert html.index('id="series-guide-title"') < html.index('id="series-reading-title"')
+    assert html.index('id="series-reading-title"') < html.index('id="geo-comparison-title"')
+    assert html.index('class="geo-comparison-limits"') < html.index("<table>")
+    assert html.index('class="geo-comparison-source-note"') < html.index("<table>")
+    for target in ("series-guide-title", "series-reading-title", "geo-comparison-title"):
+        assert f'href="#{target}"' in html
+    assert '<ol class="blog-series-list">' in html
+    assert '<p class="blog-series-item-excerpt">' in html
+    assert 'class="geo-comparison-desktop"' in html
+    assert 'class="geo-comparison-cards"' in html
+    assert html.count("<dt>") == 6
+    assert '<dt>설명·근거 확인</dt>' in html
+    assert '<dd data-state="unknown">미확인: 직접 비교 자료 없음</dd>' in html
+    assert 'role="region" aria-label="논문 선택 비교표"' in html
+    assert 'aria-describedby="geo-comparison-scroll-hint" tabindex="0"' in html
+    assert "<details" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "<script>alert(1)</script>" not in html
     assert 'href="https://example.org/traceability" rel="noopener noreferrer"' in html
@@ -873,12 +900,34 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
 
 
+def test_comparison_labels_and_sources_do_not_require_post_metadata() -> None:
+    from routers.seo import _series_comparison_html
+
+    comparison = _comparison_fixture('paper-"quoted')
+    comparison["entries"][0]["values"]["traceability"]["sources"] = [
+        'https://example.org/?q="quoted"&x=<tag>'
+    ]
+    markup = _series_comparison_html(comparison, {})
+    assert markup.count("방법 &lt;A&gt; &quot;짧은 이름&quot;") == 2
+    assert "/blog/paper-" not in markup
+    assert 'href="https://example.org/?q=&quot;quoted&quot;&amp;x=&lt;tag&gt;"' in markup
+    assert markup.count("미확인: 직접 비교 자료 없음") == 2
+    assert markup.count("해당 없음: 이 조건에는 적용되지 않음") == 2
+    linked = _series_comparison_html(
+        comparison, {'paper-"quoted': {"title": 'Full "title" <paper>'}}
+    )
+    assert 'href="/blog/paper-&quot;quoted"' in linked
+    assert 'title="Full &quot;title&quot; &lt;paper&gt;"' in linked
+
+
 def test_series_hub_keeps_original_shell_when_comparison_is_unavailable(monkeypatch) -> None:
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     monkeypatch.setattr("routers.seo.load_geo_comparisons", lambda: {})
     html = TestClient(app).get("/blog/series/gnn").text
     assert "논문 선택 비교" not in html
+    assert 'id="series-reading-title"' in html
+    assert 'href="#series-guide-title"' not in html
     assert "Series Post 0" in html
     assert '"@type": "ItemList"' in html
     assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
@@ -905,6 +954,8 @@ def test_empty_series_hub_is_noindex(client: TestClient) -> None:
     resp = client.get("/blog/series/gnn")
     assert resp.status_code == 200
     assert '<meta name="robots" content="noindex,nofollow">' in resp.text
+    assert '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>' in resp.text
+    assert '<html lang="ko">' in resp.text
 
 
 def test_unknown_series_returns_404(client: TestClient) -> None:

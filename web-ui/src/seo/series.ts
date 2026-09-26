@@ -12,12 +12,10 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
   'jiphyeonjeon-build': {
     title: '집현전 개발 시리즈',
     description:
-      '집현전을 만들며 남긴 개발 기록 7편. 단일 쿼리로는 닿지 않는 논문을 '
-      + '찾으려 검색을 에이전트로 바꾼 일에서 출발해, 흩어진 논문 사이의 관계를 '
-      + '그래프로 드러내고, LLM이 논문을 읽고 밑줄을 긋게 하고, 무엇부터 읽어야 '
-      + '하는지를 커리큘럼으로 답하고, 그 기능들을 MCP 도구로 브라우저 밖까지 '
-      + '넓히고, 연구자 페르소나로 추천을 개인화하고, 끝내 검색 프롬프트를 '
-      + '고르는 일 자체를 에이전트에게 넘기기까지를 시간순으로 읽는 시리즈.',
+      '집현전을 만들며 남긴 개발 기록 7편을 시간순으로 읽습니다. '
+      + '검색 에이전트에서 출발해 논문 관계 그래프, 자동 하이라이트, 읽기 커리큘럼으로 '
+      + '이어집니다. 이어 MCP 도구 확장, 연구자 페르소나 기반 추천, 검색 프롬프트 선택을 '
+      + '다루며 논문을 찾는 기능이 읽기와 개인화로 넓어지는 흐름을 살펴봅니다.',
     slugs: [
       'search-agent-beyond-single-query-65bcbe5c30fd',
       'paper-network-graph-hidden-connections-f954b2866fb4',
@@ -31,11 +29,10 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
   gnn: {
     title: 'GNN 논문 리뷰 시리즈',
     description:
-      '그래프 신경망(GNN)의 핵심 논문 11편을 랜덤워크 임베딩부터 '
-      + '메시지 패싱, 어텐션, 표현력, 이종 그래프, 설명가능성, 강한 베이스라인 재평가까지 '
-      + '권장 순서로 깊이 있게 읽는 한국어 딥리뷰 시리즈. 스탠퍼드 '
-      + 'CS224W(Machine Learning with Graphs) 커리큘럼과 나란히 읽을 '
-      + '수 있도록 구성했다.',
+      '그래프 표현 학습과 그래프 신경망(GNN)을 11편으로 읽는 시리즈입니다. '
+      + '노드를 벡터로 표현하는 기초에서 이웃 정보 집계와 새 노드로의 일반화, '
+      + '이종 그래프와 예측 설명, 공정한 기준선 비교로 이어집니다. '
+      + '성능 순위가 아니라 개념을 연결하는 읽기 순서입니다.',
     slugs: [
       'deepwalk-online-learning-social-representations-review-2026',
       'structural-deep-network-embedding-sdne-review-2026',
@@ -53,16 +50,10 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
   dwe: {
     title: 'DWE 논문 리뷰 시리즈',
     description:
-      '단어 의미의 시간적 변화를 임베딩으로 추적하는 동적 단어 임베딩'
-      + '(Dynamic Word Embeddings)의 핵심 논문 12편을 변화점 통계 검정부터 '
-      + '의미 변화의 통계 법칙, 베이지안 상태공간 모델, 공동 행렬 분해, '
-      + '확률적 생성 모델, 컴퍼스 정렬, 문맥화 이전 연구의 조망, 문맥화 '
-      + '표현의 기하 분석, 용법 유형 군집, 문맥화 임베딩과의 결합, '
-      + '문맥화 탐지 연구의 조망, 그리고 문맥화 표현의 체계 비교까지 '
-      + '시간순으로 깊이 있게 읽는 '
-      + '한국어 딥리뷰 시리즈. 시간 구간별로 따로 학습한 임베딩을 사후에 '
-      + '맞추던 정렬 문제가 학습 안으로, 다시 모델 설계 안으로 흡수되는 '
-      + '흐름을 계보로 따라간다.',
+      '단어 의미의 시간적 변화를 추적하는 동적 단어 임베딩의 핵심 논문 12편을 읽습니다. '
+      + '변화의 통계적 탐지에서 출발해 시간 구간 사이의 임베딩 정렬과 동적 모델을 살펴보고, '
+      + '문맥화 표현과 용법 분석, 체계 비교로 이어집니다. 각 단계에서 무엇을 의미 변화로 '
+      + '측정하고 서로 다른 시점의 표현을 어떻게 비교하는지에 초점을 맞춥니다.',
     slugs: [
       'statistically-significant-detection-linguistic-change-review-2026',
       'diachronic-word-embeddings-statistical-laws-semantic-change-review-2026',
@@ -81,17 +72,11 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
   graphrag: {
     title: 'GraphRAG 논문 리뷰 시리즈',
     description:
-      'LLM 검색증강생성에 지식 그래프를 결합하는 GraphRAG 계열의 핵심 '
-      + '논문 11편을 LLM 기반 문서 그래프 탐색(KGP), 전역 커뮤니티 '
-      + '요약(MS GraphRAG), 그래프 연상 기억(HippoRAG), 경량 이중 '
-      + '검색(LightRAG), 비모수적 장기 기억(HippoRAG 2), 인과 경로 '
-      + '검색(CausalRAG), 계층 집약과 LCA 검색(LeanRAG), 관계 추출 없는 '
-      + '선형 그래프 검색(LinearRAG), 계층 검색과 '
-      + '적응적 통합(Deep GraphRAG), 계층형 인과 게이트(CausalRAG2), '
-      + '다단계 파이프라인과 컴팩트 추출 모델(RAGU)까지 기초 연구부터 '
-      + '최초 공개 순서로 깊이 있게 읽는 한국어 딥리뷰 '
-      + '시리즈. 문서 간 연관 구조를 어떻게 색인하고, 무엇을 검색 단위로 '
-      + '삼으며, 그 근거를 어디까지 믿어야 하는지를 계보로 따라간다.',
+      'LLM 검색증강생성에 그래프를 결합하는 GraphRAG 계열의 핵심 논문 11편을 '
+      + '기초 연구부터 최초 공개 순서로 읽습니다. 문서 그래프 탐색과 전역 요약에서 '
+      + '연상 기억, 이중 검색, 인과·계층 검색과 다단계 파이프라인으로 이어집니다. '
+      + '문서 간 관계를 어떻게 색인하고 무엇을 검색하며, 답변의 근거를 어디까지 '
+      + '확인할 수 있는지 비교합니다.',
     slugs: [
       'knowledge-graph-prompting-multi-document-qa',
       'ms-graphrag-global-query-focused-summarization',
@@ -109,12 +94,10 @@ export const BLOG_SERIES: Record<string, BlogSeries> = {
   'graph-causality': {
     title: 'Graph causality 논문 리뷰 시리즈',
     description:
-      '그래프와 동역학 시계열 위에서 직접 인과, 간접 인과, 잠재 교란자를 '
-      + '구분하려는 graph causality 계열의 핵심 논문 3편을 PCM의 '
-      + '부분 교차사상, CIC의 보이지 않는 교란자 분해, IC2의 개입 '
-      + '동역학 인과 추정까지 원논문의 공개·기초 흐름 순서로 읽는 '
-      + '한국어 딥리뷰 시리즈. 관계 그래프를 예측 대상이 아니라 인과 '
-      + '구조를 복원해야 할 연구 지형으로 다룬다.',
+      '그래프와 동역학 시계열에서 인과 구조를 복원하려는 핵심 논문 3편을 '
+      + '공개·기초 흐름 순서로 읽습니다. PCM의 간접 인과 구분에서 CIC의 잠재 교란자 '
+      + '분해, IC2의 개입 동역학 인과 추정으로 이어집니다. 직접 인과, 간접 인과, '
+      + '잠재 교란자를 각 방법이 어떻게 구분하려는지 살펴봅니다.',
     slugs: [
       'pcm-partial-cross-mapping-eliminates-indirect-causal-influences',
       'cic-dynamical-causality-under-invisible-confounders',

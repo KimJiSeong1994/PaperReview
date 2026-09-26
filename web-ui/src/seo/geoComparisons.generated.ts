@@ -16,11 +16,13 @@ export interface GeoComparisonCell {
 
 export interface GeoComparisonEntry {
   slug: string;
+  label: string;
   values: Record<GeoComparisonAxis, GeoComparisonCell>;
 }
 
 export interface GeoComparisonHub {
   question: string;
+  reading_guide: Array<{ title: string; description: string }>;
   axes: GeoComparisonAxis[];
   entries: GeoComparisonEntry[];
   limits: string;
@@ -29,10 +31,28 @@ export interface GeoComparisonHub {
 
 export type GeoComparisons = Record<'graphrag' | 'gnn', GeoComparisonHub>;
 
-export const GEO_COMPARISONS_SOURCE_SHA256 = '59af32f98680e14bde48e23f7bd1202f52dcd476cb5329bd4c64b54f2783d5fd';
+export const GEO_COMPARISONS_SOURCE_SHA256 = '18c8b3df188b829a6431df92eeffc63fa7132faf5428853c4fdf37b1726f7334';
 export const GEO_COMPARISONS: GeoComparisons = {
   "graphrag": {
-    "question": "질문의 범위, 코퍼스 갱신 주기, 필요한 근거 추적 수준에 따라 어떤 GraphRAG 검색 설계가 맞는가?",
+    "question": "11편 가운데 전역 요약, 엔티티·관계 이중 검색, 계층 검색을 보여 주는 세 설계를 비교합니다. 질문 범위와 갱신 방식, 원문 근거 확인 경로를 먼저 구분하고, 서로 다른 평가 조건의 결과는 순위로 합치지 않습니다.",
+    "reading_guide": [
+      {
+        "title": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+        "description": "KGP → MS GraphRAG → HippoRAG 순서로 문서 간 연결을 탐색하고, 커뮤니티 보고서로 전체를 요약하며, 그래프를 연상 기억으로 쓰는 관점을 구분합니다. 커뮤니티는 연결이 조밀한 엔티티 묶음이고, map-reduce는 부분 답변을 만든 뒤 하나로 합치는 처리입니다."
+      },
+      {
+        "title": "4–6 · 검색 단위와 기억·경로의 차이",
+        "description": "LightRAG → HippoRAG 2 → CausalRAG로 엔티티·관계 이중 검색, 장기 기억, 인과 경로 검색을 읽습니다. 무엇을 색인하고 어떤 연결을 검색하는지 먼저 비교합니다."
+      },
+      {
+        "title": "7–9 · 집약·선형화·계층 검색",
+        "description": "LeanRAG → LinearRAG → Deep GraphRAG로 그래프를 집약하거나 단순화하고, 계층을 따라 검색하는 설계를 살펴봅니다. 검색 결과를 통합하는 단계와 최종 답변을 생성하는 단계를 분리해 읽습니다."
+      },
+      {
+        "title": "10–11 · 게이트와 전체 파이프라인 점검",
+        "description": "CausalRAG2 → RAGU로 계층형 인과 게이트와 다단계 파이프라인을 읽고 추출·색인·검색·생성의 비용과 오류 경로를 돌아봅니다. LLM 판정과 정답 문자열 일치(Exact Match)는 같은 평가 지표가 아닙니다."
+      }
+    ],
     "axes": [
       "retrieval_or_representation_unit",
       "graph_construction",
@@ -44,6 +64,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
     "entries": [
       {
         "slug": "ms-graphrag-global-query-focused-summarization",
+        "label": "MS GraphRAG",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
@@ -97,6 +118,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
       },
       {
         "slug": "lightrag-dual-level-graph-rag",
+        "label": "LightRAG",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
@@ -150,6 +172,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
       },
       {
         "slug": "deep-graphrag",
+        "label": "Deep GraphRAG",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
@@ -161,7 +184,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "graph_construction": {
             "state": "known",
-            "value": "600토큰 청크와 100토큰 겹침을 사용하고, 엔티티 설명 임베딩 정합 뒤 재귀 Louvain으로 커뮤니티 계층을 구성한다.",
+            "value": "600토큰 청크와 100토큰 겹침을 사용하며, Qwen2.5-72B-Instruct로 엔티티와 방향성 관계를 추출한다. 설명 임베딩으로 병합 후보를 찾고 LLM으로 동일 개체인지 확인한 뒤, 재귀 Louvain으로 커뮤니티 계층을 구성한다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/2601.11144v3"
@@ -169,7 +192,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "evaluation_context": {
             "state": "known",
-            "value": "Natural Questions와 HotpotQA를 local·global·comprehensive 질문으로 나눠 Exact Match를 비교했고, NQ에서 Local Search·DRIFT와 지연시간을 비교했다.",
+            "value": "Natural Questions와 HotpotQA를 local·global·comprehensive 질문으로 나눠 Exact Match를 비교했고, NQ에서 Local Search·DRIFT와 지연시간을 비교했다. Table 1의 1.5B-DW-GRPO 모델은 지식 통합 단계에 쓰이며, 최종 답변 생성에는 별도의 Qwen2.5-72B 또는 DeepSeek-R1을 사용한다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/2601.11144v3"
@@ -185,7 +208,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "cost": {
             "state": "known",
-            "value": "NQ에서 DRIFT 대비 local/global 질문 지연 감소와 1.5B 통합 모델의 조건부 성능을 보고한다. 그래프 구축, 재랭킹, 증류·DW-GRPO 훈련을 합친 총비용 비교는 제공하지 않는다.",
+            "value": "NQ에서 DRIFT 대비 local/global 질문 지연 감소를 보고한다. 작은 통합 모델도 별도의 최종 생성 모델을 사용하며, 그래프 추출·재랭킹·증류와 DW-GRPO 학습을 포함한 전체 비용 비교는 제공하지 않는다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/2601.11144v3"
@@ -203,10 +226,32 @@ export const GEO_COMPARISONS: GeoComparisons = {
       }
     ],
     "limits": "세 논문은 질문 유형, 코퍼스, 평가 지표와 생성 모델이 다르다. 표의 목적은 승자를 정하는 것이 아니라 반복 전역 요약, 증분 갱신, 계층적 global-to-local 검색 중 어떤 조건이 필요한지 구분하는 데 있다.",
-    "source_note": "각 셀은 해당 방법의 원논문 PDF에 근거한다. 비용은 논문이 공개한 조건 안에서만 정성적으로 서술했으며, 보고되지 않은 총비용과 사용자용 인용 기능은 추정하지 않았다."
+    "source_note": "각 셀은 해당 방법의 원논문 PDF에 근거한다. 검색·지식 통합·최종 생성 단계와 색인·학습·질의 비용을 구분해 읽어야 한다. 비용은 논문이 공개한 조건 안에서만 정성적으로 서술했으며, 보고되지 않은 총비용과 사용자용 인용 기능은 추정하지 않았다."
   },
   "gnn": {
-    "question": "예측 단위, 새 노드 대응, 설명 필요성, 공정한 기준선 조건에 따라 어떤 GNN 계열 방법을 먼저 검토해야 하는가?",
+    "question": "11편 중 예측 모델, 새 노드 표현 학습, 사후 설명, 기준선 개선의 차이를 보여 주는 네 논문을 비교합니다. 서로 대체하는 네 모델이 아니라 목적에 따라 함께 검토할 연구입니다.",
+    "reading_guide": [
+      {
+        "title": "1–2 · 노드를 벡터로 표현하기",
+        "description": "DeepWalk·SDNE로 그래프의 노드를 어떻게 벡터로 표현하는지 익힙니다. 다음 단계에서는 노드 표현 자체를 학습하는 관점에서 특징과 이웃으로 표현을 계산하는 방식으로 이동합니다."
+      },
+      {
+        "title": "3–6 · 이웃 집계·일반화·표현력",
+        "description": "GCN·GraphSAGE·GAT·GIN으로 이웃 정보를 모으는 메시지 패싱, 새 노드에 적용하는 조건, 구조를 구별하는 능력을 살펴봅니다. 준지도 학습, 귀납적 적용, 어텐션, 표현력은 서로 다른 질문이며 귀납적 적용은 비지도 학습과 동의어가 아닙니다."
+      },
+      {
+        "title": "7–8 · 노드와 관계의 종류 구분하기",
+        "description": "HetGNN·HAN으로 노드와 관계의 종류가 다를 때 무엇을 구분해야 하는지 읽습니다. 단일 종류의 이웃 집계에서 타입과 관계 경로를 고려하는 입력 구조로 범위를 넓힙니다."
+      },
+      {
+        "title": "9–10 · 이미 나온 예측 설명하기",
+        "description": "GNNExplainer·Temporal GNN 설명으로 예측에 관여한 입력 구조와 특징을 조사합니다. 마스크는 연결이나 특징을 선택·가중하는 값으로, 현실 인과를 증명하지 않습니다. 예측 모델을 만드는 문제와 그 판단을 설명하는 문제를 구분합니다."
+      },
+      {
+        "title": "11 · 충분히 조정한 기준선과 비교하기",
+        "description": "GNN+로 새 모델의 성능을 주장하기 전에 기존 기준선을 충분히 조정했는지 돌아봅니다. 앞서 본 모델 구조를 실제 학습·평가 조건과 연결하되, 예측 출력 단위와 데이터 구성·분할 단위를 구분합니다."
+      }
+    ],
     "axes": [
       "retrieval_or_representation_unit",
       "graph_construction",
@@ -218,10 +263,11 @@ export const GEO_COMPARISONS: GeoComparisons = {
     "entries": [
       {
         "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
+        "label": "GCN",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
-            "value": "주어진 그래프의 인접행렬과 노드 특징을 정규화된 이웃 집계로 전파해 노드별 표현과 분류값을 만든다.",
+            "value": "이웃 특징을 집계하는 예측 아키텍처다. 주어진 그래프의 인접행렬과 노드 특징을 정규화된 이웃 집계로 전파해 노드별 표현과 분류값을 만든다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/1609.02907"
@@ -261,7 +307,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "failure_conditions": {
             "state": "known",
-            "value": "고정 그래프와 full-batch 조건에 묶이며, 새 노드·새 그래프를 즉시 처리하는 inductive 절차와 대규모 mini-batch 확장은 원문 범위 밖이다.",
+            "value": "원문의 실험은 고정 그래프와 full-batch 학습 조건이다. §7.2는 메모리 부담을 줄일 mini-batch 확장을 후속 과제로 논의한다. 새 노드·새 그래프에 대한 귀납적 적용은 이 실험으로 검증하지 않았으며, 이를 모든 GCN의 고유 제약으로 일반화하지 않는다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/1609.02907"
@@ -271,6 +317,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
       },
       {
         "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
+        "label": "GraphSAGE",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
@@ -290,7 +337,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "evaluation_context": {
             "state": "known",
-            "value": "시간 뒤의 citation·Reddit 노드와 완전히 보지 못한 PPI 그래프를 대상으로 inductive node classification을 평가했다.",
+            "value": "시간 뒤의 citation·Reddit 노드와 완전히 보지 못한 PPI 그래프를 대상으로 inductive node classification을 평가했다. 학습 때 없던 노드·그래프에 적용하는 귀납적 설정과 지도·비지도 학습 목적은 별개의 선택이며, 원문은 두 학습 목적을 모두 다룬다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/1706.02216"
@@ -324,10 +371,11 @@ export const GEO_COMPARISONS: GeoComparisons = {
       },
       {
         "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
+        "label": "GNNExplainer",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
-            "value": "학습된 GNN의 특정 예측을 유지하는 작은 computation subgraph와 node-feature mask를 사후 최적화한다.",
+            "value": "이미 학습된 GNN의 특정 예측을 유지하는 작은 computation subgraph와 node-feature mask를 사후 최적화한다. 예측 모델을 대체하는 아키텍처가 아니라 그 판단을 조사하는 설명 방법이다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/pdf/1903.03894v4"
@@ -377,10 +425,11 @@ export const GEO_COMPARISONS: GeoComparisons = {
       },
       {
         "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
+        "label": "GNN+",
         "values": {
           "retrieval_or_representation_unit": {
             "state": "known",
-            "value": "GCN·GIN·GatedGCN의 message passing에 edge feature, normalization, dropout, residual connection, FFN, positional encoding을 결합해 node representation을 만든다. graph-level/property 과제에서는 이를 pooling해 graph representation으로 바꾸고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP에서는 node-level 출력을 유지한다.",
+            "value": "기존 GCN·GIN·GatedGCN에 구조·학습 요소를 결합하고 조정하는 기준선 프레임워크다. message passing에 edge feature, normalization, dropout, residual connection, FFN, positional encoding을 결합해 node representation을 만든다. graph-level/property 과제에서는 이를 pooling해 graph representation으로 바꾸고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP에서는 node-level 출력을 유지한다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/html/2502.09263v3"
@@ -396,7 +445,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
           },
           "evaluation_context": {
             "state": "known",
-            "value": "논문의 graph-level study가 묶은 14개 벤치마크에서 세 classic GNN 변형을 재평가했다. 이 가운데 10개는 graph-level/property prediction이고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP 네 개는 node classification이다.",
+            "value": "논문의 graph-level study가 묶은 14개 벤치마크에서 세 classic GNN 변형을 재평가했다. 이 가운데 10개는 graph-level/property prediction이고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP 네 개는 node classification이다. 여기서 graph-level은 그래프 단위 데이터 구성·분할 설정도 포함하며, 예측 출력이 모두 그래프 하나당 하나라는 뜻은 아니다.",
             "reason": null,
             "sources": [
               "https://arxiv.org/html/2502.09263v3"
@@ -430,6 +479,6 @@ export const GEO_COMPARISONS: GeoComparisons = {
       }
     ],
     "limits": "네 항목은 같은 문제의 순위표가 아니다. GCN·GraphSAGE·GNN+는 서로 다른 예측·일반화 조건을 다루고, GNNExplainer는 이미 학습된 모델을 설명하는 사후 방법이다.",
-    "source_note": "각 셀은 원논문 PDF 또는 공식 arXiv 버전에 근거한다. 입력 그래프를 전제로 하는 방법의 graph_construction과 설명 기능이 없는 예측 모델의 traceability는 not_applicable로 구분했다."
+    "source_note": "각 항목은 원논문에 근거합니다. 입력 그래프를 새로 만드는 방법이 아니거나 예측을 설명하는 기능이 없는 경우에는 ‘해당 없음’으로 표시했습니다. ‘미확인’은 논문에서 확인할 근거가 부족하다는 뜻입니다. 원문 실험의 제약을 모든 적용 상황의 한계로 일반화하지 않으며, GNN의 예측 설명과 GraphRAG의 원문 근거 확인은 구분해서 읽어야 합니다."
   }
 };
