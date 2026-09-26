@@ -7,9 +7,33 @@ CI keeps the three required check names (`backend`,
 which checks apply; skipped checks remain visible rather than leaving branch
 protection waiting for a workflow that never starts.
 
-- Backend tests always run, without waiting for change detection, because they
-  also enforce frontend/SSR parity and documentation contracts. The full suite,
-  existing 15% coverage gate, Chromium and sandbox checks remain enabled.
+- `backend-core`, `offline-optimizer`, and `poster-browser` always run in
+  parallel without waiting for change detection. `scripts/ci_shards.py` owns
+  the explicit offline optimizer and two real-browser file inventories.
+  Runtime SkillOpt policy/authorization tests and every unlisted/new test
+  default to core. Every shard collects the original full suite before
+  selection; the stable `backend` required check audits equal collection
+  snapshots and an exact, disjoint executed node-ID union.
+- Each shard uploads raw `.coverage` (including hidden files) and execution
+  receipts. `backend` requires all three successful jobs and complete receipts
+  and coverage inputs. Each raw coverage database must measure exactly the
+  repository's full Python source inventory under `routers`, `app`, and `src`,
+  including unexecuted files; partial, wrong, or extra source sets fail closed.
+  It combines coverage, then enforces the unchanged 15%
+  threshold across `routers`, `app`, and `src` once. Missing, cancelled, failed,
+  or skipped jobs cannot pass. Unexpected test skips fail too; only the
+  existing optional exact-upstream fixture skips are allowed on Linux CI.
+  Local non-Linux audits additionally allow the one Linux-only `renameat2`
+  contract skip; they do not prove Linux sandbox or atomic-exchange execution.
+  Chromium and
+  its SUID sandbox checks run in `poster-browser`; missing browser execution
+  cannot silently pass. The exact-source job still enforces its own policy.
+- Same-run partial retries and aggregate-only retries accept successful shard
+  receipts from earlier attempts only for the exact same SHA and workflow run
+  ID. Receipt and current attempts must be positive numbers, with no future
+  receipts accepted. Successful shard uploads overwrite their same-name
+  artifacts on retry; failed shards do not upload. This does not reuse
+  validation across separate runs or from PR validation for a main push.
 - Exact-source SkillOpt verification runs when shared `src/`, `app/`, or
   `tools/` code, evaluation data, baseline documentation, tests, shared fixtures,
   Python dependencies/configuration, or CI definition changes. The pinned
@@ -17,7 +41,9 @@ protection waiting for a workflow that never starts.
 - Frontend PR checks run for `web-ui/` or CI definition changes. Every main push
   still builds and uploads a fresh frontend artifact. `npm run build` runs
   `tsc -b`; a second standalone TypeScript invocation is unnecessary.
-- Python jobs use uv's dependency cache and installer. Superseded PR runs are
+- CI dependency installs explicitly select uv's CPU-only PyTorch backend;
+  production dependency installation is unchanged. Python jobs use uv's
+  dependency cache and installer. Superseded PR runs are
   cancelled, but main runs and serialized production deployment are not.
 
 Deployment accepts a skipped SkillOpt check only when change detection
