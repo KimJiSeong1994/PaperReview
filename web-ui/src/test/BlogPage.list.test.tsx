@@ -413,6 +413,13 @@ describe('BlogPage series index', () => {
 
     const cards = within(section()).getAllByRole('link');
     expect(cards).toHaveLength(entries.length);
+    expect(cards.map(card => card.getAttribute('href'))).toEqual([
+      '/blog/series/jiphyeonjeon-build',
+      '/blog/series/gnn',
+      '/blog/series/dwe',
+      '/blog/series/graphrag',
+      '/blog/series/graph-causality',
+    ]);
 
     const [sid, series] = entries[0];
     const card = cards[0];
