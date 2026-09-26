@@ -329,6 +329,7 @@ async def test_fixture_collector_through_common_publisher_to_authenticated_get(
         return [
             {
                 "title": f"Synthetic health fixture {seed_index}-{index}",
+                "abstract": f"This paper studies retrieval method {seed_index}-{index}.",
                 "doi": f"10.1234/health-{seed_index}-{index}",
                 "authors": ["Fixture Author"],
                 "year": NOW.year,
@@ -366,6 +367,9 @@ async def test_fixture_collector_through_common_publisher_to_authenticated_get(
     assert response.status_code == 200
     body = response.json()
     assert body["source_statuses"]["local_public"] == health
+    for item in body["items"]:
+        paper_id = item["doi"].removeprefix("10.1234/health-")
+        assert item["abstract"] == f"This paper studies retrieval method {paper_id}."
     assert body["run_id"]
     assert body["freshness"] == "fresh"
     assert len(body["items"]) == {"ready": 5, "degraded": 4}.get(health, 0)

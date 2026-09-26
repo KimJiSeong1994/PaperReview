@@ -6,6 +6,7 @@ export interface RecommendationNotification {
   display_position: number;
   seen: boolean;
   title: string;
+  abstract?: string | null;
   authors: string[];
   year?: number | string | null;
   publication_date?: string | null;
