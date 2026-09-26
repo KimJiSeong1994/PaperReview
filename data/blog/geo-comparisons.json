@@ -6,18 +6,22 @@
       "reading_guide": [
         {
           "title": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+          "slugs": ["knowledge-graph-prompting-multi-document-qa", "ms-graphrag-global-query-focused-summarization", "hipporag-neurobiologically-inspired-long-term-memory"],
           "description": "KGP → MS GraphRAG → HippoRAG 순서로 문서 간 연결을 탐색하고, 커뮤니티 보고서로 전체를 요약하며, 그래프를 연상 기억으로 쓰는 관점을 구분합니다. 커뮤니티는 연결이 조밀한 엔티티 묶음이고, map-reduce는 부분 답변을 만든 뒤 하나로 합치는 처리입니다."
         },
         {
           "title": "4–6 · 검색 단위와 기억·경로의 차이",
+          "slugs": ["lightrag-dual-level-graph-rag", "hipporag2-from-rag-to-memory", "causalrag-causal-graph-retrieval"],
           "description": "LightRAG → HippoRAG 2 → CausalRAG로 엔티티·관계 이중 검색, 장기 기억, 인과 경로 검색을 읽습니다. 무엇을 색인하고 어떤 연결을 검색하는지 먼저 비교합니다."
         },
         {
           "title": "7–9 · 집약·선형화·계층 검색",
+          "slugs": ["leanrag-semantic-aggregation-hierarchical-retrieval", "linearrag-linear-graph-retrieval-augmented-generation", "deep-graphrag"],
           "description": "LeanRAG → LinearRAG → Deep GraphRAG로 그래프를 집약하거나 단순화하고, 계층을 따라 검색하는 설계를 살펴봅니다. 검색 결과를 통합하는 단계와 최종 답변을 생성하는 단계를 분리해 읽습니다."
         },
         {
           "title": "10–11 · 게이트와 전체 파이프라인 점검",
+          "slugs": ["causalrag2-hugrag-hierarchical-causal-gating", "ragu"],
           "description": "CausalRAG2 → RAGU로 계층형 인과 게이트와 다단계 파이프라인을 읽고 추출·색인·검색·생성의 비용과 오류 경로를 돌아봅니다. LLM 판정과 정답 문자열 일치(Exact Match)는 같은 평가 지표가 아닙니다."
         }
       ],
@@ -33,6 +37,7 @@
         {
           "slug": "ms-graphrag-global-query-focused-summarization",
           "label": "MS GraphRAG",
+          "summary": {"role": "문서 집합 전체를 요약하는 검색 설계", "fit": "여러 문서에 흩어진 공통 주제와 흐름을 묻는 경우", "caution": "색인·요약 비용이 들며 국소 사실 조회의 우위를 뜻하지 않습니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -87,6 +92,7 @@
         {
           "slug": "lightrag-dual-level-graph-rag",
           "label": "LightRAG",
+          "summary": {"role": "엔티티와 관계를 함께 찾는 이중 검색", "fit": "구체적 대상과 넓은 관계를 함께 찾고 문서를 증분 갱신하는 경우", "caution": "추출 오류가 검색에 영향을 주며 총비용은 사용 조건에 따라 다릅니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -141,6 +147,7 @@
         {
           "slug": "deep-graphrag",
           "label": "Deep GraphRAG",
+          "summary": {"role": "계층 검색과 지식 통합을 결합하는 파이프라인", "fit": "넓은 문맥에서 세부 근거로 내려가는 검색을 검토하는 경우", "caution": "작은 통합 모델과 별도의 최종 생성 모델을 구분해야 합니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -201,22 +208,27 @@
       "reading_guide": [
         {
           "title": "1–2 · 노드를 벡터로 표현하기",
+          "slugs": ["deepwalk-online-learning-social-representations-review-2026", "structural-deep-network-embedding-sdne-review-2026"],
           "description": "DeepWalk·SDNE로 그래프의 노드를 어떻게 벡터로 표현하는지 익힙니다. 다음 단계에서는 노드 표현 자체를 학습하는 관점에서 특징과 이웃으로 표현을 계산하는 방식으로 이동합니다."
         },
         {
           "title": "3–6 · 이웃 집계·일반화·표현력",
+          "slugs": ["semi-supervised-classification-graph-convolutional-networks-review-2026", "graphsage-inductive-representation-learning-large-graphs-review-2026", "graph-attention-networks-gat-review-2026", "how-powerful-are-graph-neural-networks-gin-review-2026"],
           "description": "GCN·GraphSAGE·GAT·GIN으로 이웃 정보를 모으는 메시지 패싱, 새 노드에 적용하는 조건, 구조를 구별하는 능력을 살펴봅니다. 준지도 학습, 귀납적 적용, 어텐션, 표현력은 서로 다른 질문이며 귀납적 적용은 비지도 학습과 동의어가 아닙니다."
         },
         {
           "title": "7–8 · 노드와 관계의 종류 구분하기",
+          "slugs": ["heterogeneous-graph-neural-network-hetgnn-review-2026", "heterogeneous-graph-attention-network-han-review-2026"],
           "description": "HetGNN·HAN으로 노드와 관계의 종류가 다를 때 무엇을 구분해야 하는지 읽습니다. 단일 종류의 이웃 집계에서 타입과 관계 경로를 고려하는 입력 구조로 범위를 넓힙니다."
         },
         {
           "title": "9–10 · 이미 나온 예측 설명하기",
+          "slugs": ["gnnexplainer-gnn-subgraph-feature-mask-review-2026", "explaining-temporal-graph-neural-networks-feature-induced-information-flow-review-2026"],
           "description": "GNNExplainer·Temporal GNN 설명으로 예측에 관여한 입력 구조와 특징을 조사합니다. 마스크는 연결이나 특징을 선택·가중하는 값으로, 현실 인과를 증명하지 않습니다. 예측 모델을 만드는 문제와 그 판단을 설명하는 문제를 구분합니다."
         },
         {
           "title": "11 · 충분히 조정한 기준선과 비교하기",
+          "slugs": ["classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026"],
           "description": "GNN+로 새 모델의 성능을 주장하기 전에 기존 기준선을 충분히 조정했는지 돌아봅니다. 앞서 본 모델 구조를 실제 학습·평가 조건과 연결하되, 예측 출력 단위와 데이터 구성·분할 단위를 구분합니다."
         }
       ],
@@ -232,6 +244,7 @@
         {
           "slug": "semi-supervised-classification-graph-convolutional-networks-review-2026",
           "label": "GCN",
+          "summary": {"role": "이웃 특징을 모아 예측하는 기본 모델", "fit": "고정된 그래프의 준지도 노드 분류를 이해하려는 경우", "caution": "원문의 실험 조건을 모든 GCN의 적용 한계로 일반화하지 않습니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -286,6 +299,7 @@
         {
           "slug": "graphsage-inductive-representation-learning-large-graphs-review-2026",
           "label": "GraphSAGE",
+          "summary": {"role": "새 노드의 표현도 계산하는 학습 프레임워크", "fit": "학습 때 보지 못한 노드나 그래프에 적용하는 설정을 검토할 때", "caution": "귀납적 적용은 지도·비지도 학습 목적과 별개의 조건입니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -340,6 +354,7 @@
         {
           "slug": "gnnexplainer-gnn-subgraph-feature-mask-review-2026",
           "label": "GNNExplainer",
+          "summary": {"role": "학습된 모델의 예측을 조사하는 사후 설명", "fit": "특정 예측에 관여한 연결과 입력 특징을 살펴보려는 경우", "caution": "예측 모델의 대체재도, 현실 인과관계의 증명도 아닙니다."},
           "values": {
             "retrieval_or_representation_unit": {
               "state": "known",
@@ -394,6 +409,7 @@
         {
           "slug": "classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026",
           "label": "GNN+",
+          "summary": {"role": "기존 GNN을 충분히 조정하는 기준선 프레임워크", "fit": "새 구조의 효과를 비교하기 전에 학습·평가 조건을 점검할 때", "caution": "데이터 분할 단위와 예측 출력 단위를 구분해서 읽어야 합니다."},
           "values": {
         "retrieval_or_representation_unit": {
           "state": "known",

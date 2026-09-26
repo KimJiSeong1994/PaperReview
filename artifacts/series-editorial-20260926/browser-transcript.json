@@ -1,0 +1,573 @@
+{
+  "schemaVersion": 1,
+  "tool": "playwright",
+  "kind": "web-automation-transcript",
+  "fixtureOnly": true,
+  "actions": [
+    {
+      "type": "artifact-stage",
+      "timestamp": "2026-09-26T09:00:56.606216+00:00",
+      "selector": "uploaded-dist",
+      "excludesHiddenFiles": true,
+      "manifestPreserved": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:57.379058+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 320,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:57.823554+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 390,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:58.269372+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 768,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:58.733982+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 1280,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:59.176138+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 320,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:00:59.611863+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 390,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:01:00.057092+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 768,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T09:01:00.505674+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 1280,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "keypress",
+      "timestamp": "2026-09-26T09:01:01.256795+00:00",
+      "selector": ".blog-series-start-cta",
+      "key": "Enter",
+      "articleNavigation": true
+    },
+    {
+      "type": "keypress",
+      "timestamp": "2026-09-26T09:01:01.636458+00:00",
+      "selector": ".geo-decision .blog-series-text-link",
+      "key": "Enter",
+      "evidenceJump": true
+    },
+    {
+      "type": "focus",
+      "timestamp": "2026-09-26T09:01:01.687593+00:00",
+      "selector": ".blog-series-start-cta",
+      "enlargedText": "targeted CSS text enlargement, not browser zoom",
+      "overflow": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:02.087175+00:00",
+      "selector": "/blog/series/graphrag",
+      "width": 320,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:02.489055+00:00",
+      "selector": "/blog/series/graphrag",
+      "width": 390,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:02.905673+00:00",
+      "selector": "/blog/series/dwe",
+      "width": 320,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:03.305145+00:00",
+      "selector": "/blog/series/dwe",
+      "width": 390,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:03.701621+00:00",
+      "selector": "/blog/series/graph-causality",
+      "width": 320,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:04.102213+00:00",
+      "selector": "/blog/series/graph-causality",
+      "width": 390,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:04.498317+00:00",
+      "selector": "/blog/series/jiphyeonjeon-build",
+      "width": 320,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:04.903514+00:00",
+      "selector": "/blog/series/jiphyeonjeon-build",
+      "width": 390,
+      "completeMembership": true,
+      "firstPaperVisible": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:05.277855+00:00",
+      "selector": "/blog/series/gnn",
+      "adversarialState": "missing-first",
+      "passed": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:05.774318+00:00",
+      "selector": "/blog/series/gnn",
+      "adversarialState": "failure",
+      "passed": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.150679+00:00",
+      "selector": "/blog/series/gnn",
+      "adversarialState": "empty",
+      "passed": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.638835+00:00",
+      "selector": "/blog/series/gnn",
+      "adversarialState": "invalid-page",
+      "passed": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.704189+00:00",
+      "selector": "/blog/series/jiphyeonjeon-build",
+      "javaScript": false,
+      "renderer": "real SEO handler with fixture metadata"
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.746599+00:00",
+      "selector": "/blog/series/gnn",
+      "javaScript": false,
+      "renderer": "real SEO handler with fixture metadata"
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.767293+00:00",
+      "selector": "/blog/series/dwe",
+      "javaScript": false,
+      "renderer": "real SEO handler with fixture metadata"
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.789254+00:00",
+      "selector": "/blog/series/graphrag",
+      "javaScript": false,
+      "renderer": "real SEO handler with fixture metadata"
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T09:01:06.807831+00:00",
+      "selector": "/blog/series/graph-causality",
+      "javaScript": false,
+      "renderer": "real SEO handler with fixture metadata"
+    }
+  ],
+  "layouts": [
+    {
+      "theme": "light",
+      "width": 320,
+      "ctaBottom": 391.65625,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "ctaBottom": 361.96875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "ctaBottom": 320.296875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        78.375,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "ctaBottom": 357.96875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "ctaBottom": 391.65625,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "ctaBottom": 361.96875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "ctaBottom": 320.296875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        78.375,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "ctaBottom": 357.96875,
+      "overflow": false,
+      "excerptPx": 16,
+      "targets": [
+        48,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        51.1875,
+        44,
+        44,
+        44
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24
+    }
+  ],
+  "apiCalls": [
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "missing-first"
+    },
+    {
+      "page": 2,
+      "mode": "missing-first"
+    },
+    {
+      "page": 1,
+      "mode": "failure"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "empty"
+    },
+    {
+      "page": 1,
+      "mode": "invalid-page"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    }
+  ],
+  "pageErrors": [],
+  "limitations": "Fixture public metadata/API, no production requests. Text enlargement uses targeted CSS, not browser zoom. Screenshot review remains distinct from dimension assertions."
+}
