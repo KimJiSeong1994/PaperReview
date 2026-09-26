@@ -1,0 +1,41 @@
+{
+  "scope": "Rejected generic More accordion replaced with a reading-first recommendation list",
+  "reviewFindingsResolved": [
+    "Removed duplicate PDF/title viewer actions and manual read marking",
+    "Direct related search and interest commands require one activation rather than a generic disclosure",
+    "Only hide/already-seen/topic-less appear in a purpose-specific anchored chooser",
+    "Flat rows, compact header, and trailing diagnostics/history replace stacked dashboard cards",
+    "Acknowledged suppression and undo restore stable focus; chooser Escape precedes panel Escape",
+    "Failed mutation recovery is distinct from list refresh and preserves each original request identity across unrelated actions"
+  ],
+  "interactionBudget": {"openPaper": 1, "relatedSearch": 1, "interestCommand": 1, "chooseExclusionIntent": 2, "undoLatestFeedback": 1},
+  "semantics": [
+    "Opening a viewer is labeled 열어봄, not proof of reading completion",
+    "Interest is a command, not a fabricated persistent toggle",
+    "Automatic viewer-open receipts do not displace important feedback undo",
+    "Failure recovery is owner-session scoped; matching acknowledgment alone removes a failed command",
+    "Title, mutation and related-search dispatch reject a changed local account token"
+  ],
+  "verification": {
+    "frontendPassed": 573,
+    "frontendSkipped": 1,
+    "frontendFiles": 58,
+    "scopedEslint": "passed",
+    "browserHarnessRuff": "passed",
+    "productionBuild": "passed with existing bundle-size warning",
+    "diffCheck": "passed",
+    "chromiumScenarios": 19,
+    "apiCalls": 29,
+    "layoutViewports": [320, 390, 1280],
+    "themes": ["light", "dark"],
+    "fullyVisibleRowsAt390": 2,
+    "representativeMobileLongTitleRowHeightPx": 241.203125,
+    "horizontalOverflow": false,
+    "visibleControlsUnder44px": 0,
+    "selectedTextMinimumContrast": {"light": 9.6998, "dark": 11.8114},
+    "additionalLayouts": ["844x390 landscape", "390x844 with major reading/action text doubled"],
+    "retry": "Actual backend feedback success followed by a controlled lost HTTP acknowledgment; intervening real viewer seen and GET; same request identity retried and undo completed"
+  },
+  "independentReview": {"role": "architect", "verdict": "APPROVE / CLEAR", "remainingFindings": [], "scope": "Read-only static review of component, stylesheet and unit tests; leader executed all gates and browser checks"},
+  "limitations": "Synthetic local accounts and fixture papers only, not production authenticated browsing or measured user satisfaction. Enlarged text is targeted CSS text resizing, not native browser zoom. Contrast covers selected text elements, not full accessibility certification. Existing test skip, runtime and bundle warnings remain."
+}

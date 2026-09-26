@@ -6,7 +6,7 @@
   "actions": [
     {
       "type": "rank-order-and-real-visibility",
-      "timestamp": "2026-09-26T04:55:24.273413+00:00",
+      "timestamp": "2026-09-26T05:43:30.509297+00:00",
       "selector": "article[data-canonical-key]",
       "canonical_keys": [
         "provider:openalex:W100001",
@@ -15,20 +15,20 @@
         "provider:openalex:W100004",
         "provider:openalex:W100005"
       ],
-      "qualified_exposures": 2,
+      "qualified_exposures": 3,
       "exposure_is_not_read": true
     },
     {
       "type": "provider-viewer-handoff",
-      "timestamp": "2026-09-26T04:55:24.406191+00:00",
-      "selector": "button:has-text(\"PDF 보기\")",
+      "timestamp": "2026-09-26T05:43:30.639452+00:00",
+      "selector": ".recommendation-title",
       "provider_id": "W100001",
       "canonical_key": "provider:openalex:W100001",
       "popup": "captured and suppressed; no external PDF navigation"
     },
     {
       "type": "viewed-save-and-review-start-attribution",
-      "timestamp": "2026-09-26T04:55:24.426303+00:00",
+      "timestamp": "2026-09-26T05:43:30.660660+00:00",
       "selector": "/api/bookmarks/from-paper; /api/deep-review",
       "surface": "api",
       "canonical_key": "provider:openalex:W100001",
@@ -67,7 +67,7 @@
     },
     {
       "type": "durable-hide-refill-undo",
-      "timestamp": "2026-09-26T04:55:24.786518+00:00",
+      "timestamp": "2026-09-26T05:43:31.021707+00:00",
       "selector": "button:has-text(\"숨기기\")",
       "refilled_keys": [
         "provider:openalex:W100002",
@@ -80,107 +80,167 @@
     },
     {
       "type": "durable-read",
-      "timestamp": "2026-09-26T04:55:24.837108+00:00",
-      "selector": "button:has-text(\"읽음 표시\")",
+      "timestamp": "2026-09-26T05:43:31.154435+00:00",
+      "selector": ".recommendation-title",
       "canonical_key": "provider:openalex:W100002"
     },
     {
+      "type": "lost-feedback-ack-retry-and-undo",
+      "timestamp": "2026-09-26T05:43:31.536551+00:00",
+      "selector": "button:has-text(\"변경 다시 저장\")",
+      "same_request_id": true,
+      "actual_server_writes": true,
+      "failure": "HTTP response replaced after successful backend acknowledgment"
+    },
+    {
       "type": "controlled-policy-503-clears-cards",
-      "timestamp": "2026-09-26T04:55:24.975146+00:00",
+      "timestamp": "2026-09-26T05:43:31.673384+00:00",
       "selector": "[role=\"alert\"]",
       "controlled_response": true,
       "visible_cards": 0
     },
     {
       "type": "real-api-stale-fixture",
-      "timestamp": "2026-09-26T04:55:25.225922+00:00",
+      "timestamp": "2026-09-26T05:43:31.908740+00:00",
       "selector": "[role=\"status\"]",
       "age_hours": 36,
       "fixture_timestamp_changed": true
     },
     {
       "type": "readability-layout",
-      "timestamp": "2026-09-26T04:55:25.337222+00:00",
+      "timestamp": "2026-09-26T05:43:32.003300+00:00",
       "selector": "[role=\"dialog\"]",
       "theme": "light",
       "width": 320,
-      "minimumTextContrast": 9.26724669248296,
+      "minimumTextContrast": 9.699819574162511,
       "overflow": false,
       "titleSize": 17,
       "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 241.203125,
       "feedbackCollapsed": true,
       "toolbarButtonCounts": [
-        2,
-        2,
-        2,
-        2,
-        2
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       "smallControls": 0
     },
     {
       "type": "readability-layout",
-      "timestamp": "2026-09-26T04:55:25.370262+00:00",
+      "timestamp": "2026-09-26T05:43:32.053114+00:00",
       "selector": "[role=\"dialog\"]",
       "theme": "light",
       "width": 390,
-      "minimumTextContrast": 9.26724669248296,
+      "minimumTextContrast": 9.699819574162511,
       "overflow": false,
       "titleSize": 17,
       "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 241.203125,
       "feedbackCollapsed": true,
       "toolbarButtonCounts": [
-        2,
-        2,
-        2,
-        2,
-        2
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       "smallControls": 0
     },
     {
       "type": "readability-layout",
-      "timestamp": "2026-09-26T04:55:25.405636+00:00",
+      "timestamp": "2026-09-26T05:43:32.124516+00:00",
+      "selector": "[role=\"dialog\"]",
+      "theme": "light",
+      "width": 1280,
+      "minimumTextContrast": 9.699819574162511,
+      "overflow": false,
+      "titleSize": 17,
+      "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 216.5625,
+      "feedbackCollapsed": true,
+      "toolbarButtonCounts": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "smallControls": 0
+    },
+    {
+      "type": "readability-layout",
+      "timestamp": "2026-09-26T05:43:32.186507+00:00",
       "selector": "[role=\"dialog\"]",
       "theme": "dark",
       "width": 320,
-      "minimumTextContrast": 11.249019149786074,
+      "minimumTextContrast": 11.811452224894724,
       "overflow": false,
       "titleSize": 17,
       "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 241.203125,
       "feedbackCollapsed": true,
       "toolbarButtonCounts": [
-        2,
-        2,
-        2,
-        2,
-        2
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       "smallControls": 0
     },
     {
       "type": "readability-layout",
-      "timestamp": "2026-09-26T04:55:25.439508+00:00",
+      "timestamp": "2026-09-26T05:43:32.236318+00:00",
       "selector": "[role=\"dialog\"]",
       "theme": "dark",
       "width": 390,
-      "minimumTextContrast": 11.249019149786074,
+      "minimumTextContrast": 11.811452224894724,
       "overflow": false,
       "titleSize": 17,
       "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 241.203125,
       "feedbackCollapsed": true,
       "toolbarButtonCounts": [
-        2,
-        2,
-        2,
-        2,
-        2
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "smallControls": 0
+    },
+    {
+      "type": "readability-layout",
+      "timestamp": "2026-09-26T05:43:32.308068+00:00",
+      "selector": "[role=\"dialog\"]",
+      "theme": "dark",
+      "width": 1280,
+      "minimumTextContrast": 11.811452224894724,
+      "overflow": false,
+      "titleSize": 17,
+      "descriptionSize": 14,
+      "fullyVisibleRows": 2,
+      "firstRowHeight": 216.5625,
+      "feedbackCollapsed": true,
+      "toolbarButtonCounts": [
+        3,
+        3,
+        3,
+        3,
+        3
       ],
       "smallControls": 0
     },
     {
       "type": "mobile-and-keyboard",
-      "timestamp": "2026-09-26T04:55:25.503644+00:00",
+      "timestamp": "2026-09-26T05:43:32.420093+00:00",
       "selector": "[role=\"dialog\"]",
       "viewport": {
         "width": 390,
@@ -188,15 +248,41 @@
       }
     },
     {
+      "type": "landscape",
+      "timestamp": "2026-09-26T05:43:32.739102+00:00",
+      "selector": ".recommendation-exclusion-chooser",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "text_resize": false,
+      "overflow": false,
+      "visible": true,
+      "targetHeight": 44
+    },
+    {
+      "type": "text-200-percent",
+      "timestamp": "2026-09-26T05:43:32.859009+00:00",
+      "selector": ".recommendation-exclusion-chooser",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "text_resize": true,
+      "overflow": false,
+      "visible": true,
+      "targetHeight": 52.390625
+    },
+    {
       "type": "real-api-expired-fixture",
-      "timestamp": "2026-09-26T04:55:25.610256+00:00",
+      "timestamp": "2026-09-26T05:43:32.969240+00:00",
       "selector": "[role=\"dialog\"]",
       "age_hours": 72,
       "visible_cards": 0
     },
     {
       "type": "actual-deletion-recreation",
-      "timestamp": "2026-09-26T04:55:26.145477+00:00",
+      "timestamp": "2026-09-26T05:43:33.504974+00:00",
       "selector": "/api/me/all",
       "surface": "api",
       "old_token_status": 401,
@@ -374,8 +460,8 @@
         ],
         "unread_count": 12,
         "total_count": 12,
-        "latest_run_at": "2026-09-26T04:55:20+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "degraded",
         "freshness": "fresh",
@@ -394,7 +480,7 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100001",
         "visible_fraction": 1,
         "visible_ms": 1000
@@ -409,9 +495,24 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100002",
-        "visible_fraction": 0.7976264357566833,
+        "visible_fraction": 1,
+        "visible_ms": 1000
+      },
+      "response": {
+        "tracked": true,
+        "recorded": true
+      }
+    },
+    {
+      "path": "/api/recommendations/exposure",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T054326-000000",
+        "canonical_key": "provider:openalex:W100003",
+        "visible_fraction": 0.8735930919647217,
         "visible_ms": 1000
       },
       "response": {
@@ -424,18 +525,18 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100001",
         "action": "seen",
-        "request_id": "1514ec28-80a8-4a08-ae36-2f13872c699b"
+        "request_id": "54015b4f-bc33-4301-ac2a-9daeb7a68865"
       },
       "response": {
         "tracked": true,
-        "request_id": "1514ec28-80a8-4a08-ae36-2f13872c699b",
+        "request_id": "54015b4f-bc33-4301-ac2a-9daeb7a68865",
         "canonical_key": "provider:openalex:W100001",
         "action": "seen",
         "undo_action": null,
-        "applied_at": "2026-09-26T04:55:24.302643+00:00"
+        "applied_at": "2026-09-26T05:43:30.534413+00:00"
       }
     },
     {
@@ -598,8 +699,8 @@
         ],
         "unread_count": 11,
         "total_count": 12,
-        "latest_run_at": "2026-09-26T04:55:20+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "degraded",
         "freshness": "fresh",
@@ -618,12 +719,12 @@
       "method": "POST",
       "status": 200,
       "response": {
-        "id": "bm_20260926_135524_9c16f699",
+        "id": "bm_20260926_144330_3066b36f",
         "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
         "session_id": "",
         "query": "",
         "num_papers": 1,
-        "created_at": "2026-09-26T13:55:24.408774",
+        "created_at": "2026-09-26T14:43:30.642068",
         "tags": [],
         "topic": "Curriculum Papers",
         "recommendation_attribution": [
@@ -633,11 +734,11 @@
             "credited": true,
             "kind": "save",
             "canonical_key": "provider:openalex:W100001",
-            "outcome_id": "bm_20260926_135524_9c16f699",
-            "outcome_at": "2026-09-26T04:55:24.411624+00:00",
-            "run_id": "20260926T045520-000000",
+            "outcome_id": "bm_20260926_144330_3066b36f",
+            "outcome_at": "2026-09-26T05:43:30.645366+00:00",
+            "run_id": "20260926T054326-000000",
             "exposure_day": "2026-09-26",
-            "visible_at": "2026-09-26T04:55:23.973747+00:00"
+            "visible_at": "2026-09-26T05:43:30.219430+00:00"
           }
         ]
       },
@@ -648,12 +749,12 @@
       "method": "POST",
       "status": 200,
       "response": {
-        "id": "bm_20260926_135524_64be6229",
+        "id": "bm_20260926_144330_8550f26e",
         "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
         "session_id": "",
         "query": "",
         "num_papers": 1,
-        "created_at": "2026-09-26T13:55:24.416207",
+        "created_at": "2026-09-26T14:43:30.650520",
         "tags": [],
         "topic": "Curriculum Papers",
         "recommendation_attribution": [
@@ -663,11 +764,11 @@
             "credited": false,
             "kind": "save",
             "canonical_key": "provider:openalex:W100001",
-            "outcome_id": "bm_20260926_135524_64be6229",
-            "outcome_at": "2026-09-26T04:55:24.417470+00:00",
-            "run_id": "20260926T045520-000000",
+            "outcome_id": "bm_20260926_144330_8550f26e",
+            "outcome_at": "2026-09-26T05:43:30.651890+00:00",
+            "run_id": "20260926T054326-000000",
             "exposure_day": "2026-09-26",
-            "visible_at": "2026-09-26T04:55:23.973747+00:00"
+            "visible_at": "2026-09-26T05:43:30.219430+00:00"
           }
         ]
       },
@@ -679,10 +780,10 @@
       "status": 200,
       "response": {
         "success": true,
-        "session_id": "review_20260926_135524_98ff3e59",
+        "session_id": "review_20260926_144330_2bf3953d",
         "status": "processing",
         "message": "Deep review started for 1 papers",
-        "status_url": "/api/deep-review/status/review_20260926_135524_98ff3e59",
+        "status_url": "/api/deep-review/status/review_20260926_144330_2bf3953d",
         "recommendation_attribution": [
           {
             "status": "attributed",
@@ -690,11 +791,11 @@
             "credited": true,
             "kind": "review_start",
             "canonical_key": "provider:openalex:W100001",
-            "outcome_id": "review_20260926_135524_98ff3e59",
-            "outcome_at": "2026-09-26T04:55:24.423345+00:00",
-            "run_id": "20260926T045520-000000",
+            "outcome_id": "review_20260926_144330_2bf3953d",
+            "outcome_at": "2026-09-26T05:43:30.657542+00:00",
+            "run_id": "20260926T054326-000000",
             "exposure_day": "2026-09-26",
-            "visible_at": "2026-09-26T04:55:23.973747+00:00"
+            "visible_at": "2026-09-26T05:43:30.219430+00:00"
           }
         ]
       },
@@ -705,18 +806,18 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100001",
         "action": "hide",
-        "request_id": "2e67112a-17f0-4149-8edf-b5cbeadcdd3f"
+        "request_id": "61f4eb17-4ca2-4081-b542-a7d99e66d6f5"
       },
       "response": {
         "tracked": true,
-        "request_id": "2e67112a-17f0-4149-8edf-b5cbeadcdd3f",
+        "request_id": "61f4eb17-4ca2-4081-b542-a7d99e66d6f5",
         "canonical_key": "provider:openalex:W100001",
         "action": "hide",
         "undo_action": null,
-        "applied_at": "2026-09-26T04:55:24.551483+00:00"
+        "applied_at": "2026-09-26T05:43:30.783884+00:00"
       }
     },
     {
@@ -879,8 +980,8 @@
         ],
         "unread_count": 11,
         "total_count": 11,
-        "latest_run_at": "2026-09-26T04:55:20+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "degraded",
         "freshness": "fresh",
@@ -899,19 +1000,19 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100001",
         "action": "undo",
-        "request_id": "3220b30f-1737-4ecb-9c35-121d83354129",
+        "request_id": "b444dbb0-aec5-42b6-b700-a5161315ffd3",
         "undo_action": "hide"
       },
       "response": {
         "tracked": true,
-        "request_id": "3220b30f-1737-4ecb-9c35-121d83354129",
+        "request_id": "b444dbb0-aec5-42b6-b700-a5161315ffd3",
         "canonical_key": "provider:openalex:W100001",
         "action": "undo",
         "undo_action": "hide",
-        "applied_at": "2026-09-26T04:55:24.684241+00:00"
+        "applied_at": "2026-09-26T05:43:30.917715+00:00"
       }
     },
     {
@@ -1074,8 +1175,8 @@
         ],
         "unread_count": 11,
         "total_count": 12,
-        "latest_run_at": "2026-09-26T04:55:20+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "degraded",
         "freshness": "fresh",
@@ -1094,18 +1195,972 @@
       "method": "POST",
       "status": 200,
       "request": {
-        "run_id": "20260926T045520-000000",
+        "run_id": "20260926T054326-000000",
         "canonical_key": "provider:openalex:W100002",
         "action": "seen",
-        "request_id": "eaeaab2a-d859-4ac5-8207-6779a83f035b"
+        "request_id": "8f5b781f-2d02-4d60-a038-e29867817464"
       },
       "response": {
         "tracked": true,
-        "request_id": "eaeaab2a-d859-4ac5-8207-6779a83f035b",
+        "request_id": "8f5b781f-2d02-4d60-a038-e29867817464",
         "canonical_key": "provider:openalex:W100002",
         "action": "seen",
         "undo_action": null,
-        "applied_at": "2026-09-26T04:55:24.834325+00:00"
+        "applied_at": "2026-09-26T05:43:31.051134+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 02",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 03",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 04",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 05",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/feedback",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T054326-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "interested",
+        "request_id": "96356d7a-9eac-4565-b5e6-795d65ae6b46"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "96356d7a-9eac-4565-b5e6-795d65ae6b46",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "interested",
+        "undo_action": null,
+        "applied_at": "2026-09-26T05:43:31.166892+00:00"
+      },
+      "browser_status": 503,
+      "controlled_lost_ack": true
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 02",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 03",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 04",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 05",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/read-state",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T054326-000000",
+        "canonical_key": "provider:openalex:W100002",
+        "action": "seen",
+        "request_id": "18ef6007-f718-4118-b6fc-c532f1810f48"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "18ef6007-f718-4118-b6fc-c532f1810f48",
+        "canonical_key": "provider:openalex:W100002",
+        "action": "seen",
+        "undo_action": null,
+        "applied_at": "2026-09-26T05:43:31.284387+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 02",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 03",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 04",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 05",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/feedback",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T054326-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "interested",
+        "request_id": "96356d7a-9eac-4565-b5e6-795d65ae6b46"
+      },
+      "response": {
+        "action": "interested",
+        "applied_at": "2026-09-26T05:43:31.166892+00:00",
+        "canonical_key": "provider:openalex:W100001",
+        "request_id": "96356d7a-9eac-4565-b5e6-795d65ae6b46",
+        "tracked": true,
+        "undo_action": null
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 02",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 03",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 04",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 05",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/feedback",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T054326-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "undo",
+        "request_id": "31ed079a-b284-4100-8db4-c4d539a66e6f",
+        "undo_action": "interested"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "31ed079a-b284-4100-8db4-c4d539a66e6f",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "undo",
+        "undo_action": "interested",
+        "applied_at": "2026-09-26T05:43:31.433597+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 01",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 02",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 03",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 04",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Graph neural networks for reliable information retrieval — synthetic fixture 05",
+            "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
       }
     },
     {
@@ -1273,8 +2328,8 @@
         ],
         "unread_count": 10,
         "total_count": 12,
-        "latest_run_at": "2026-09-26T04:55:20+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-26T05:43:26+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "degraded",
         "freshness": "fresh",
@@ -1448,8 +2503,8 @@
         ],
         "unread_count": 10,
         "total_count": 12,
-        "latest_run_at": "2026-09-24T16:55:15+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-24T17:43:21+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "stale",
         "freshness": "stale",
@@ -1624,8 +2679,8 @@
         ],
         "unread_count": 10,
         "total_count": 12,
-        "latest_run_at": "2026-09-24T16:55:15+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-24T17:43:21+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "stale",
         "freshness": "stale",
@@ -1649,8 +2704,8 @@
         "items": [],
         "unread_count": 0,
         "total_count": 0,
-        "latest_run_at": "2026-09-23T04:55:15+00:00",
-        "run_id": "20260926T045520-000000",
+        "latest_run_at": "2026-09-23T05:43:21+00:00",
+        "run_id": "20260926T054326-000000",
         "scoring_mode": "metadata",
         "state": "expired",
         "freshness": "expired",

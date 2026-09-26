@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
@@ -10,7 +10,7 @@ import {
 import './RecommendationBell.css';
 
 const labels: Record<RecommendationAction, string> = {
-  hide: '숨기기', already_seen: '이미 읽은 논문', topic_less: '이 주제 덜 보기', interested: '관심 있어요', seen: '읽음 표시',
+  hide: '숨기기', already_seen: '이미 읽은 논문', topic_less: '이 주제 덜 보기', interested: '관심 있어요', seen: '논문 열기',
 };
 const stateLabels: Record<RecommendationNotificationResponse['state'], string> = {
   ready: '추천 준비 완료', empty: '표시할 추천 논문이 없습니다.', degraded: '일부 소스를 사용할 수 없습니다.',
@@ -28,41 +28,96 @@ const scoringLabels: Record<string, string> = {
 function day() { return new Date().toLocaleDateString('en-CA'); }
 function paperDescription(abstract?: string | null) {
   const text = abstract?.replace(/\s+/g, ' ').trim();
-  if (!text) return '이 논문은 초록이 제공되지 않아 설명을 표시할 수 없습니다.';
+  if (!text) return '초록 없음';
   const characters = Array.from(text);
   return characters.length > 280 ? `${characters.slice(0, 280).join('').trimEnd()}…` : text;
 }
 function date(value?: string | null) {
   if (!value) return '없음';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('ko-KR');
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 interface UndoReceipt { owner: string; run: string; key: string; title: string; action: RecommendationAction; id: string }
+interface FailedMutation {
+  item: { canonical_key: string; title: string };
+  action: RecommendationAction | 'undo';
+  receipt?: UndoReceipt;
+  run: string;
+  requestId: string;
+}
 
-function PaperActionControls({ item, pending, canMutate, onView, onSearch, onAction }: {
+function FeedbackReceipt({ receipt, pending, onUndo }: {
+  receipt: UndoReceipt;
+  pending: boolean;
+  onUndo: (receipt: UndoReceipt) => void;
+}) {
+  return <div>
+    <span title={receipt.title}>{labels[receipt.action]} · {receipt.title}</span>
+    <button type="button" disabled={pending} onClick={() => onUndo(receipt)}>실행 취소</button>
+  </div>;
+}
+
+function PaperFeedback({ item, pending, canMutate, expanded, onExpanded, onSearch, onAction }: {
   item: RecommendationNotification;
   pending: boolean;
   canMutate: boolean;
-  onView: () => void;
+  expanded: boolean;
+  onExpanded: (expanded: boolean) => void;
   onSearch: () => void;
   onAction: (action: RecommendationAction) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const controlsId = useId();
-  return <>
-    <div className="recommendation-card-toolbar" aria-label={`${item.title} 작업`}>
-      <button type="button" className="recommendation-action-primary" disabled={pending} onClick={onView}>PDF 보기</button>
-      <button type="button" aria-expanded={expanded} aria-controls={controlsId} onClick={() => setExpanded(value => !value)}>더보기</button>
-    </div>
-    {expanded && <div id={controlsId} className="recommendation-secondary-actions" role="group" aria-label={`${item.title} 추가 작업`}>
-      <button type="button" onClick={onSearch}>관련 검색</button>
-      {(['interested', 'seen', 'already_seen', 'topic_less', 'hide'] as const).map(action => (
-        <button type="button" key={action} disabled={pending || !canMutate || (action === 'seen' && item.seen)} onClick={() => onAction(action)}>{labels[action]}</button>
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const chooserRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!expanded || !chooserRef.current || !triggerRef.current) return;
+    const chooser = chooserRef.current;
+    const trigger = triggerRef.current.getBoundingClientRect();
+    const panel = triggerRef.current.closest('.recommendation-panel');
+    const bounds = panel?.getBoundingClientRect();
+    const headerBottom = panel?.querySelector('.recommendation-panel-header')?.getBoundingClientRect().bottom ?? 0;
+    const above = trigger.top - Math.max(bounds?.top ?? 0, headerBottom) - 8;
+    const below = (bounds?.bottom ?? window.innerHeight) - trigger.bottom - 16;
+    const upwards = above >= Math.min(chooser.scrollHeight, below);
+    const toolbar = rootRef.current!.getBoundingClientRect();
+    chooser.style.top = upwards ? 'auto' : `${trigger.bottom - toolbar.top + 4}px`;
+    chooser.style.bottom = upwards ? `${toolbar.bottom - trigger.top + 4}px` : 'auto';
+    chooser.style.maxHeight = `${Math.max(44, upwards ? above : below)}px`;
+    chooser.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [expanded]);
+  useEffect(() => {
+    if (!expanded) return;
+    const outside = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) onExpanded(false);
+    };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
+  }, [expanded, onExpanded]);
+  return <div className="recommendation-card-toolbar" ref={rootRef}
+    onKeyDown={event => {
+      if (event.key === 'Escape' && expanded) {
+        event.stopPropagation(); onExpanded(false); triggerRef.current?.focus();
+      }
+    }}
+    onBlur={event => {
+      if (expanded && event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) onExpanded(false);
+    }}
+    aria-label={`${item.title} 작업`}>
+    <button type="button" onClick={onSearch}>관련 검색</button>
+    <button type="button" disabled={pending || !canMutate} onClick={() => onAction('interested')}>관심 있어요</button>
+    <button type="button" ref={triggerRef} disabled={pending || !canMutate}
+      aria-expanded={expanded} aria-controls={controlsId} onClick={() => onExpanded(!expanded)}>추천 조정</button>
+    {expanded && <div id={controlsId} ref={chooserRef} className="recommendation-exclusion-chooser" role="group" aria-label={`${item.title} 추천 조정`}>
+      <p>어떤 추천을 줄일까요?</p>
+      {(['hide', 'already_seen', 'topic_less'] as const).map(action => (
+        <button type="button" key={action} disabled={pending || !canMutate} onClick={() => {
+          onExpanded(false); triggerRef.current?.focus(); onAction(action);
+        }}>{labels[action]}</button>
       ))}
-      <p className="recommendation-meta">변경 후 실행 취소할 수 있습니다.</p>
-      <p className="recommendation-meta" aria-label="논문 수집 경로">출처: {item.candidate_sources.map(source => sourceLabels[source] ?? source).join(', ')}</p>
+      <small>주제 조정은 이 논문을 즉시 숨기지 않을 수 있습니다. 모든 변경은 실행 취소할 수 있습니다.</small>
     </div>}
-  </>;
+  </div>;
 }
 
 export default function RecommendationBell() {
@@ -119,16 +174,34 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
   const data = snapshot?.owner === owner ? snapshot.data : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedMutations, setFailedMutations] = useState<FailedMutation[]>([]);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [receipts, setReceipts] = useState<UndoReceipt[]>([]);
+  const viewerHintId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const focusRestoration = useRef<{ key?: string } | null>(null);
   const refresh = useRef<() => Promise<void>>(async () => {});
   const requestVersion = useRef(0);
   const mutating = useRef(false);
   const exposed = useRef(new Set<string>());
   const authenticated = isAuthenticated && !!owner && owner === localStorage.getItem('access_token');
+  const closePanel = useCallback(() => {
+    setExpandedKey(null);
+    setOpen(false);
+  }, [setOpen]);
+  useLayoutEffect(() => {
+    if (pending || !focusRestoration.current) return;
+    const target = focusRestoration.current;
+    focusRestoration.current = null;
+    const panel = panelRef.current;
+    if (!panel || document.activeElement !== panel) return;
+    const rows = Array.from(panel.querySelectorAll<HTMLElement>('[data-canonical-key]'));
+    const row = rows.find(element => element.dataset.canonicalKey === target.key) ?? rows[0];
+    row?.querySelector<HTMLButtonElement>('.recommendation-title')?.focus();
+  }, [pending, data]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -196,15 +269,15 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
     if (!open) return;
     panelRef.current?.focus();
     const outside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closePanel();
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); }
+      if (event.key === 'Escape') { closePanel(); buttonRef.current?.focus(); }
     };
     document.addEventListener('mousedown', outside);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
-  }, [open, setOpen]);
+  }, [open, closePanel]);
 
   useEffect(() => {
     if (!open || !authenticated || !data?.run_id || !panelRef.current || typeof IntersectionObserver === 'undefined') return;
@@ -252,17 +325,24 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
     };
   }, [open, authenticated, data, owner, sessionRef]);
 
-  const act = async (item: { canonical_key: string; title: string }, action: RecommendationAction | 'undo', receipt?: UndoReceipt) => {
-    const run = receipt?.run ?? data?.run_id;
+  const act = async (item: { canonical_key: string; title: string }, action: RecommendationAction | 'undo', receipt?: UndoReceipt, retry?: FailedMutation) => {
+    const run = retry?.run ?? receipt?.run ?? data?.run_id;
     const controller = sessionRef.current;
-    if (!run || !authenticated || !controller || controller.signal.aborted || mutating.current) return;
-    mutating.current = true; setPending(true); setLoading(false); setError(null);
+    if (!run || !authenticated || owner !== localStorage.getItem('access_token') || !controller || controller.signal.aborted || mutating.current) return;
+    const command: FailedMutation = { item, action, receipt, run, requestId: retry?.requestId ?? crypto.randomUUID() };
+    mutating.current = true; setPending(true); setLoading(false);
     requestVersion.current++;
     const valid = () => !controller.signal.aborted && owner === localStorage.getItem('access_token');
     try {
-      const result = await mutateRecommendation({ run_id: run, canonical_key: item.canonical_key, action, request_id: crypto.randomUUID(), ...(receipt ? { undo_action: receipt.action } : {}) }, controller.signal);
+      const result = await mutateRecommendation({ run_id: run, canonical_key: item.canonical_key, action, request_id: command.requestId, ...(receipt ? { undo_action: receipt.action } : {}) }, controller.signal);
       if (!valid()) return;
       if (!result.tracked) throw new Error('Unacknowledged mutation');
+      setFailedMutations(current => current.filter(value => value.requestId !== command.requestId));
+      if (action === 'hide' || action === 'already_seen' || action === 'undo') {
+        const index = data?.items.findIndex(value => value.canonical_key === item.canonical_key) ?? -1;
+        focusRestoration.current = { key: action === 'undo' ? item.canonical_key : data?.items[index + 1]?.canonical_key ?? data?.items[index - 1]?.canonical_key };
+        panelRef.current?.focus();
+      }
       if (action === 'hide' || action === 'already_seen') {
         setSnapshot(current => {
           if (!current || current.owner !== owner || current.data.run_id !== run) return current;
@@ -282,67 +362,83 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
       if (action === 'undo') setReceipts(current => current.filter(value => value.id !== receipt?.id));
       else setReceipts(current => [...current, { owner: owner!, run, key: item.canonical_key, title: item.title, action, id: result.request_id }]);
       await refresh.current();
-      if (action === 'hide') panelRef.current?.focus();
     } catch {
-      if (valid()) setError('변경을 저장하지 못했습니다. 다시 시도해 주세요.');
+      if (valid()) setFailedMutations(current => current.some(value => value.requestId === command.requestId) ? current : [...current, command]);
     } finally {
-      if (valid()) { mutating.current = false; setPending(false); }
+      if (valid()) {
+        mutating.current = false; setPending(false);
+      }
     }
   };
   const view = (item: RecommendationNotification) => {
-    if (!authenticated) return;
+    if (!authenticated || owner !== localStorage.getItem('access_token')) return;
     const href = viewerHrefForPaper(item, 'recommendation');
     openPaperViewer(`${href}&result_key=${encodeURIComponent(item.canonical_key)}`);
     void act(item, 'seen');
   };
-  const receiptItems = receipts.filter(receipt => receipt.owner === owner).map(receipt => (
-    <div key={receipt.id}>
-      <span title={receipt.title}>{labels[receipt.action]} · {receipt.title}</span>
-      <button type="button" disabled={pending} onClick={() => void act({ canonical_key: receipt.key, title: receipt.title }, 'undo', receipt)}>실행 취소</button>
-    </div>
-  ));
+  const ownedReceipts = receipts.filter(receipt => receipt.owner === owner);
+  const latestFeedback = ownedReceipts.filter(receipt => receipt.action !== 'seen').at(-1);
+  const undoReceipt = (receipt: UndoReceipt) => void act({ canonical_key: receipt.key, title: receipt.title }, 'undo', receipt);
+  const olderReceipts = ownedReceipts.filter(receipt => receipt !== latestFeedback);
 
   return (
     <div className="recommendation-bell" ref={rootRef}>
       <button className={`recommendation-bell-btn ${open ? 'recommendation-bell-btn-active' : ''}`} type="button" aria-haspopup="dialog" aria-expanded={open} aria-label="추천 논문 열기" onClick={() => {
         const now = Date.now();
         setSnapshot(current => current && now - current.receivedAt >= 60000 ? null : current);
-        setOpen(value => !value);
+        if (open) closePanel(); else setOpen(true);
       }} ref={buttonRef}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
         {authenticated && (data?.unread_count ?? 0) > 0 && <span className="recommendation-bell-dot" aria-hidden="true" />}
       </button>
-      {open && <section className="recommendation-panel" role="dialog" aria-label="추천 논문" tabIndex={-1} ref={panelRef}>
-        <div className="recommendation-panel-header"><div><p className="recommendation-eyebrow">오늘의 추천</p><h2>추천 논문 Top 5</h2></div><button type="button" onClick={() => { setOpen(false); buttonRef.current?.focus(); }}>닫기</button></div>
+      {open && <section className="recommendation-panel" role="dialog" aria-label="추천 논문" aria-busy={pending || loading} tabIndex={-1} ref={panelRef}>
+        <div className="recommendation-panel-header">
+          <h2>추천 논문{data && <span className="recommendation-count"> {data.items.length}편</span>}</h2>
+          <button type="button" aria-label="닫기" onClick={() => { closePanel(); buttonRef.current?.focus(); }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
         {!authenticated ? <p className="recommendation-empty">로그인 후 추천을 확인해 주세요.</p> : <>
           {data && <>
-            <p className="recommendation-meta">추천 생성: {date(data.latest_run_at)}</p>
-            <div className="recommendation-summary" aria-label="추천 요약"><span>읽지 않음 {data.unread_count}편</span><span>전체 {data.total_count}편</span><span>상위 {Math.min(data.items.length, 5)}편 표시</span></div>
-            <p className="recommendation-status" role="status">{data.freshness === 'missing' && !data.run_id && data.state === 'empty' ? '아직 추천이 생성되지 않았습니다.' : data.state === 'degraded' && data.items.length > 0 ? '수집 범위가 제한되어 검증된 논문만 표시합니다.' : stateLabels[data.state]}{data.freshness === 'stale' && data.state !== 'stale' ? ' 이전 추천입니다.' : ''}{data.freshness === 'expired' && data.state !== 'expired' ? ' 추천 유효기간이 지났습니다.' : ''}</p>
-            <details className="recommendation-details">
-              <summary>추천 기준 및 수집 상태</summary>
-              {data.scoring_mode === 'metadata' && <p className="recommendation-meta">개인화 정보가 부족해 논문 메타데이터를 기준으로 추천합니다.</p>}
-              {data.scoring_mode === 'v1_fallback' && <p className="recommendation-meta">대체 추천 방식으로 표시합니다.</p>}
-              {data.scoring_mode && <p className="recommendation-meta">추천 방식: {scoringLabels[data.scoring_mode]}</p>}
-              <div className="recommendation-signals" aria-label="소스 상태">{Object.entries(data.source_statuses).map(([source, status]) => <span key={source}>{sourceLabels[source] ?? source}: {sourceStatusLabels[status] ?? status}</span>)}</div>
-              {data.degraded_reasons.length > 0 && <p className="recommendation-meta">진단 코드: {data.degraded_reasons.join(' · ')}</p>}
-            </details>
+            <div className="recommendation-summary" aria-label="추천 요약">
+              <span>아직 안 열어봄 {data.unread_count}편</span><span>전체 {data.total_count}편</span>
+              {data.latest_run_at && <time dateTime={data.latest_run_at} title={data.latest_run_at}>추천 생성: {date(data.latest_run_at)}</time>}
+            </div>
+            {(data.state !== 'ready' || data.freshness === 'stale' || data.freshness === 'expired') && <p className="recommendation-status" role="status">{data.freshness === 'missing' && !data.run_id && data.state === 'empty' ? '아직 추천이 생성되지 않았습니다.' : data.state === 'degraded' && data.items.length > 0 ? '일부 후보만 수집되어 추천 범위가 제한됩니다.' : stateLabels[data.state]}{data.freshness === 'stale' && data.state !== 'stale' ? ' 이전 추천입니다.' : ''}{data.freshness === 'expired' && data.state !== 'expired' ? ' 추천 유효기간이 지났습니다.' : ''}</p>}
           </>}
-          {loading && <p role="status">추천을 불러오는 중...</p>}
-          {error && <div className="recommendation-error" role="alert">{error}<button type="button" disabled={pending} onClick={() => void refresh.current()}>다시 시도</button></div>}
-          <div className="recommendation-receipts" aria-label="최근 변경" aria-live="polite">{receiptItems.slice(-1)}</div>
-          {receiptItems.length > 1 && <details className="recommendation-details"><summary>이전 변경 {receiptItems.length - 1}건</summary><div className="recommendation-receipts" aria-label="이전 변경">{receiptItems.slice(0, -1)}</div></details>}
+          {loading && !data && <p role="status">추천을 불러오는 중...</p>}
+          {error && <div className="recommendation-error" role="alert">{error}<button type="button" disabled={pending} onClick={() => void refresh.current()}>목록 다시 불러오기</button></div>}
+          {failedMutations.map(command => <div className="recommendation-error" role="alert" key={command.requestId}>
+            <span id={`failed-${command.requestId}`}>{command.action === 'undo' ? '실행 취소' : labels[command.action]} · {command.item.title}: 변경을 저장하지 못했습니다.</span>
+            <button type="button" aria-describedby={`failed-${command.requestId}`} disabled={pending} onClick={() => void act(command.item, command.action, command.receipt, command)}>변경 다시 저장</button>
+          </div>)}
+          <span id={viewerHintId} className="recommendation-sr-only">논문 뷰어를 새 탭으로 엽니다.</span>
           <div className="recommendation-list">{data?.items.slice(0, 5).map(item => <article className="recommendation-item" key={item.canonical_key} data-canonical-key={item.canonical_key}>
-            <div className="recommendation-item-topline"><strong>#{item.final_rank}</strong><span>{item.seen ? '읽음' : '읽지 않음'}</span></div>
-            <h3><button className="recommendation-title" type="button" disabled={pending} onClick={() => view(item)}>{item.title}</button></h3>
+            <div className="recommendation-item-topline"><strong>#{item.final_rank}</strong><span>{item.seen ? '열어봄' : '새 추천'}</span></div>
+            <h3><button className="recommendation-title" type="button" aria-describedby={viewerHintId} disabled={pending} onClick={() => view(item)}>{item.title}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M14 3h7v7M21 3 10 14M10 3H3v18h18v-7" /></svg></button></h3>
             <p className="recommendation-meta">{[item.authors.slice(0, 2).join(', '), item.publication_date || item.year, item.venue].filter(Boolean).join(' · ')}</p>
             <p className="recommendation-description">{paperDescription(item.abstract)}</p>
-            <PaperActionControls item={item} pending={pending} canMutate={!!data?.run_id}
-              onView={() => view(item)}
-              onSearch={() => { setOpen(false); navigate(`/?q=${encodeURIComponent(item.title)}`); }}
+            <PaperFeedback item={item} pending={pending} canMutate={!!data?.run_id}
+              expanded={expandedKey === item.canonical_key}
+              onExpanded={expanded => setExpandedKey(expanded ? item.canonical_key : null)}
+              onSearch={() => {
+                if (!authenticated || owner !== localStorage.getItem('access_token')) return;
+                closePanel(); navigate(`/?q=${encodeURIComponent(item.title)}`);
+              }}
               onAction={action => void act(item, action)}
             />
           </article>)}</div>
+          {data && <details className="recommendation-details recommendation-diagnostics">
+            <summary>추천 기준 및 수집 상태</summary>
+            {data.scoring_mode === 'metadata' && <p className="recommendation-meta">개인화 정보가 부족해 논문 메타데이터를 기준으로 추천합니다.</p>}
+            {data.scoring_mode === 'v1_fallback' && <p className="recommendation-meta">대체 추천 방식으로 표시합니다.</p>}
+            {data.scoring_mode && <p className="recommendation-meta">추천 방식: {scoringLabels[data.scoring_mode]}</p>}
+            <div className="recommendation-signals" aria-label="소스 상태">{Object.entries(data.source_statuses).map(([source, status]) => <span key={source}>{sourceLabels[source] ?? source}: {sourceStatusLabels[status] ?? status}</span>)}</div>
+            <ul className="recommendation-provenance" aria-label="논문별 수집 경로">{data.items.map(item => <li key={item.canonical_key}>{item.title} · {item.candidate_sources.map(source => sourceLabels[source] ?? source).join(', ')}</li>)}</ul>
+            {data.degraded_reasons.length > 0 && <p className="recommendation-meta">진단 코드: {data.degraded_reasons.join(' · ')}</p>}
+          </details>}
+          {olderReceipts.length > 0 && <details className="recommendation-details"><summary>이전 변경 {olderReceipts.length}건</summary><div className="recommendation-receipts" aria-label="이전 변경">{olderReceipts.map(receipt => <FeedbackReceipt key={receipt.id} receipt={receipt} pending={pending} onUndo={undoReceipt} />)}</div></details>}
+          <div className="recommendation-receipts recommendation-current-receipt" aria-label="최근 변경" aria-live="polite">{latestFeedback && <FeedbackReceipt receipt={latestFeedback} pending={pending} onUndo={undoReceipt} />}</div>
         </>}
       </section>}
     </div>

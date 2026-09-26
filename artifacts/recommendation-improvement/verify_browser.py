@@ -225,8 +225,10 @@ async def main():
                     + "); localStorage.setItem('username','browser-fixture');"
                 )
                 controlled_failure = False
+                lose_next_action_ack = False
 
                 async def route_api(route):
+                    nonlocal lose_next_action_ack
                     path = urlsplit(route.request.url).path
                     if path.startswith(("/api/auth/", "/api/recommendations/")):
                         if controlled_failure and path.endswith("/notifications"):
@@ -262,7 +264,18 @@ async def main():
                                 else {"authenticated": response.ok},
                             }
                         )
-                        await route.fulfill(response=response)
+                        if lose_next_action_ack and path.endswith("/feedback"):
+                            assert response.ok
+                            lose_next_action_ack = False
+                            traffic[-1]["browser_status"] = 503
+                            traffic[-1]["controlled_lost_ack"] = True
+                            await route.fulfill(
+                                status=503,
+                                content_type="application/json",
+                                body='{"detail":"controlled_lost_ack"}',
+                            )
+                        else:
+                            await route.fulfill(response=response)
                     else:
                         await route.fulfill(
                             status=200, content_type="application/json", body="{}"
@@ -317,11 +330,9 @@ async def main():
                 viewed_card = page.locator(
                     f'article[data-canonical-key="{viewed_key}"]'
                 )
-                await viewed_card.get_by_role(
-                    "button", name="PDF 보기", exact=True
-                ).click()
+                await viewed_card.locator(".recommendation-title").click()
                 await expect(
-                    viewed_card.get_by_text("읽음", exact=True)
+                    viewed_card.get_by_text("열어봄", exact=True)
                 ).to_be_visible()
                 viewer_identity = await page.evaluate(
                     "() => Object.fromEntries(new URL(window.fixtureViewerHref, location.origin).searchParams)"
@@ -330,7 +341,7 @@ async def main():
                 assert viewer_identity["result_key"] == viewed_key
                 record(
                     "provider-viewer-handoff",
-                    'button:has-text("PDF 보기")',
+                    ".recommendation-title",
                     provider_id=viewer_identity["openalex_id"],
                     canonical_key=viewer_identity["result_key"],
                     popup="captured and suppressed; no external PDF navigation",
@@ -416,7 +427,7 @@ async def main():
                     full_page=True,
                 )
                 await cards.first.get_by_role(
-                    "button", name="더보기", exact=True
+                    "button", name="추천 조정", exact=True
                 ).click()
                 await cards.first.get_by_role(
                     "button", name="숨기기", exact=True
@@ -446,20 +457,50 @@ async def main():
                     restored_key=initial[0],
                 )
                 read_key = await cards.filter(
-                    has=page.get_by_text("읽지 않음", exact=True)
+                    has=page.get_by_text("새 추천", exact=True)
                 ).first.get_attribute("data-canonical-key")
                 read_card = page.locator(f'article[data-canonical-key="{read_key}"]')
-                await read_card.get_by_role("button", name="더보기", exact=True).click()
-                await read_card.get_by_role(
-                    "button", name="읽음 표시", exact=True
-                ).click()
+                await read_card.locator(".recommendation-title").click()
                 await expect(
-                    read_card.get_by_role("button", name="읽음 표시", exact=True)
-                ).to_be_disabled()
+                    read_card.get_by_text("열어봄", exact=True)
+                ).to_be_visible()
                 record(
                     "durable-read",
-                    'button:has-text("읽음 표시")',
+                    ".recommendation-title",
                     canonical_key=read_key,
+                )
+                lose_next_action_ack = True
+                await cards.first.get_by_role(
+                    "button", name="관심 있어요", exact=True
+                ).click()
+                await expect(page.get_by_role("alert")).to_contain_text(
+                    "변경을 저장하지 못했습니다"
+                )
+                await page.evaluate("window.dispatchEvent(new Event('focus'))")
+                await cards.nth(1).locator(".recommendation-title").click()
+                await expect(
+                    page.get_by_role("button", name="변경 다시 저장")
+                ).to_be_visible()
+                await page.get_by_role("button", name="변경 다시 저장").click()
+                interest_receipt = page.locator(".recommendation-current-receipt")
+                await expect(interest_receipt).to_contain_text("관심 있어요")
+                interest_requests = [
+                    row
+                    for row in traffic
+                    if (row.get("request") or {}).get("action") == "interested"
+                ]
+                assert len(interest_requests) == 2
+                assert (
+                    interest_requests[0]["request"] == interest_requests[1]["request"]
+                )
+                await interest_receipt.get_by_role("button", name="실행 취소").click()
+                await expect(interest_receipt.get_by_role("button")).to_have_count(0)
+                record(
+                    "lost-feedback-ack-retry-and-undo",
+                    'button:has-text("변경 다시 저장")',
+                    same_request_id=True,
+                    actual_server_writes=True,
+                    failure="HTTP response replaced after successful backend acknowledgment",
                 )
                 controlled_failure = True
                 await page.evaluate("window.dispatchEvent(new Event('focus'))")
@@ -475,7 +516,7 @@ async def main():
                     visible_cards=0,
                 )
                 controlled_failure = False
-                await page.get_by_role("button", name="다시 시도").click()
+                await page.get_by_role("button", name="목록 다시 불러오기").click()
                 await expect(cards).to_have_count(5)
                 stale = {
                     **original,
@@ -503,7 +544,7 @@ async def main():
                         "(theme) => document.documentElement.dataset.theme = theme",
                         theme,
                     )
-                    for width in (320, 390):
+                    for width in (320, 390, 1280):
                         await page.set_viewport_size({"width": width, "height": 844})
                         layout = await page.locator('[role="dialog"]').evaluate(
                             r"""panel => {
@@ -525,7 +566,9 @@ async def main():
                               overflow: panel.scrollWidth > panel.clientWidth + 1,
                               titleSize: parseFloat(getComputedStyle(panel.querySelector('h3')).fontSize),
                               descriptionSize: parseFloat(getComputedStyle(panel.querySelector('.recommendation-description')).fontSize),
-                              feedbackCollapsed: panel.querySelectorAll('.recommendation-secondary-actions').length === 0,
+                              fullyVisibleRows: [...panel.querySelectorAll('article')].filter(el => el.getBoundingClientRect().top >= panel.querySelector('header, .recommendation-panel-header').getBoundingClientRect().bottom && el.getBoundingClientRect().bottom <= panel.getBoundingClientRect().bottom).length,
+                              firstRowHeight: panel.querySelector('article').getBoundingClientRect().height,
+                              feedbackCollapsed: panel.querySelectorAll('.recommendation-exclusion-chooser').length === 0,
                               toolbarButtonCounts: [...panel.querySelectorAll('.recommendation-card-toolbar')].map(el => el.querySelectorAll('button').length),
                               smallControls: [...panel.querySelectorAll('button, summary')].filter(el => el.getClientRects().length && el.getBoundingClientRect().height < 44).length
                             }}"""
@@ -539,7 +582,9 @@ async def main():
                         assert (
                             layout["feedbackCollapsed"] and layout["smallControls"] == 0
                         ), layout
-                        assert layout["toolbarButtonCounts"] == [2] * 5, layout
+                        assert layout["toolbarButtonCounts"] == [3] * 5, layout
+                        if width == 390:
+                            assert layout["fullyVisibleRows"] >= 2, layout
                         await page.screenshot(
                             path=str(OUT / f"readability-{theme}-{width}.jpg"),
                             type="jpeg",
@@ -553,18 +598,24 @@ async def main():
                             **layout,
                         )
                 await page.evaluate("document.documentElement.dataset.theme = 'light'")
+                await page.set_viewport_size({"width": 390, "height": 844})
                 more_button = cards.first.get_by_role(
-                    "button", name="더보기", exact=True
+                    "button", name="추천 조정", exact=True
                 )
                 await more_button.focus()
                 await page.keyboard.press("Enter")
                 await expect(
                     cards.first.get_by_role("button", name="숨기기", exact=True)
                 ).to_be_visible()
-                await page.keyboard.press("Enter")
+                await page.screenshot(
+                    path=str(OUT / "chooser-light-390.jpg"), type="jpeg", quality=95
+                )
+                await page.keyboard.press("Escape")
                 await expect(
                     cards.first.get_by_role("button", name="숨기기", exact=True)
                 ).not_to_be_visible()
+                await expect(more_button).to_be_focused()
+                await expect(page.get_by_role("dialog")).to_be_visible()
                 await page.screenshot(
                     path=str(OUT / "mobile.jpg"),
                     type="jpeg",
@@ -576,6 +627,58 @@ async def main():
                     '[role="dialog"]',
                     viewport={"width": 390, "height": 844},
                 )
+                for label, width, height, enlarged in (
+                    ("landscape", 844, 390, False),
+                    ("text-200-percent", 390, 844, True),
+                ):
+                    await page.set_viewport_size({"width": width, "height": height})
+                    enlargement = None
+                    if enlarged:
+                        enlargement = await page.add_style_tag(
+                            content="""
+                          .recommendation-panel h2 { font-size: 38px; }
+                          .recommendation-panel h3 { font-size: 34px; }
+                          .recommendation-description { font-size: 28px; }
+                          .recommendation-meta, .recommendation-card-toolbar button { font-size: 26px; }
+                          .recommendation-summary, .recommendation-item-topline, .recommendation-exclusion-chooser small { font-size: 24px; }
+                        """
+                        )
+                    await more_button.scroll_into_view_if_needed()
+                    await more_button.click()
+                    chooser = cards.first.locator(".recommendation-exclusion-chooser")
+                    await expect(chooser).to_be_visible()
+                    await chooser.get_by_role(
+                        "button", name="이 주제 덜 보기", exact=True
+                    ).focus()
+                    bounds = await chooser.evaluate("""el => {
+                      const panel = el.closest('.recommendation-panel');
+                      const chosen = document.activeElement.getBoundingClientRect();
+                      return {
+                        overflow: panel.scrollWidth > panel.clientWidth + 1,
+                        visible: chosen.top >= panel.querySelector('.recommendation-panel-header').getBoundingClientRect().bottom && chosen.bottom <= panel.getBoundingClientRect().bottom,
+                        targetHeight: chosen.height
+                      };
+                    }""")
+                    assert (
+                        not bounds["overflow"]
+                        and bounds["visible"]
+                        and bounds["targetHeight"] >= 44
+                    ), bounds
+                    await page.screenshot(
+                        path=str(OUT / f"{label}.jpg"), type="jpeg", quality=95
+                    )
+                    await page.keyboard.press("Escape")
+                    await expect(more_button).to_be_focused()
+                    if enlargement:
+                        await enlargement.evaluate("el => el.remove()")
+                    record(
+                        label,
+                        ".recommendation-exclusion-chooser",
+                        viewport={"width": width, "height": height},
+                        text_resize=enlarged,
+                        **bounds,
+                    )
+                await page.set_viewport_size({"width": 390, "height": 844})
                 expired = {
                     **original,
                     "run_at": (now - timedelta(hours=72, seconds=5)).isoformat(),
