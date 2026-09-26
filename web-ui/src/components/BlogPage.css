@@ -160,6 +160,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  text-decoration: none;
 }
 
 .blog-nav-btn:hover {
@@ -2216,75 +2217,145 @@
 
 .blog-series-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 1.5rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 0;
 }
 
-.blog-series-list li a {
+.blog-series-list li {
   display: flex;
-  align-items: baseline;
-  min-height: 44px;
+  align-items: flex-start;
   gap: 12px;
-  color: var(--text-hi);
-  text-decoration: none;
-  font-size: 17px;
-  font-weight: 600;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--wov-12);
 }
 
-.blog-series-list li a:hover .blog-series-item-title {
-  color: var(--indigo);
-}
-
-.geo-comparison {
-  margin: 4rem 0;
+.blog-series-list .blog-row {
+  flex: 1 1 auto;
   min-width: 0;
-  font-size: 16px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
+  gap: 20px;
 }
 
-.geo-comparison-question {
-  font-size: 1.05rem;
+/* Text column takes the width; the measure is capped on the excerpt itself so
+   every cover sits on the same right edge instead of trailing the text. */
+.blog-series-list .blog-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.geo-comparison-sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+.blog-series-list .blog-row-excerpt {
+  max-width: 72ch;
+}
+
+.blog-series-list .blog-row-title {
+  margin-top: 0;
+}
+
+/* The index drops row excerpts to 15px on phones; the hub is a reading
+   surface, so its Korean body copy never goes below 16px. */
+.blog-series-page .blog-series-list .blog-row-excerpt {
   font-size: 1rem;
-}
-
-.geo-comparison-limits,
-.geo-comparison-source-note {
-  color: var(--text-muted);
+  line-height: 1.65;
 }
 
 .blog-series-pos {
   flex: none;
+  padding-top: 2px;
   font-size: 1rem;
   font-weight: 700;
   color: var(--indigo);
 }
 
-.blog-series-item-excerpt {
-  margin: 4px 0 0 25px;
-  font-size: 16px;
+.blog-series-time {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.geo-comparison {
+  margin: 4rem 0;
+  min-width: 0;
+}
+
+.geo-comparison-question {
+  max-width: 72ch;
+  font-size: 1.0625rem;
   color: var(--text-soft);
-  line-height: 1.7;
+}
+
+.geo-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  margin-right: 6px;
+  border-radius: 100px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+dd[data-state='unknown'] .geo-state {
+  background: var(--wov-06);
+  color: var(--text-muted);
+}
+
+dd[data-state='not_applicable'] .geo-state {
+  background: var(--wov-04);
+  color: var(--text-faint);
+}
+
+dd[data-state='unknown'],
+dd[data-state='not_applicable'] {
+  color: var(--text-muted);
+}
+
+.geo-comparison-sources,
+.geo-evidence-method-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.geo-evidence-method-sources {
+  margin: 0.5rem 0 1.5rem;
+}
+
+.geo-comparison-sources a,
+.geo-evidence-method-sources a {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: var(--wov-06);
+  color: var(--indigo);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  transition: background 0.16s, color 0.16s;
+}
+
+.geo-comparison-sources a:hover,
+.geo-evidence-method-sources a:hover {
+  background: var(--wov-10);
+  color: var(--indigo-strong);
+}
+
+.geo-comparison-limits,
+.geo-comparison-source-note {
+  color: var(--text-soft);
 }
 
 .blog-series-page .blog-content {
   min-width: 0;
   max-width: 1080px;
   box-sizing: border-box;
-  padding-top: 1.25rem;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.7;
   overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .blog-series-page .blog-header {
@@ -2293,51 +2364,94 @@
 
 .blog-series-page .blog-title {
   margin: 0.75rem 0;
-  font-size: clamp(1.75rem, 4vw, 3.25rem);
+  font-size: clamp(2.125rem, 4vw, 3.25rem);
   line-height: 1.18;
   letter-spacing: -0.045em;
   text-wrap: balance;
+  color: var(--text-hi);
 }
 
 .blog-series-page .blog-subtitle {
   max-width: 64ch;
   margin: 0;
-  font-size: 1rem;
+  font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
   line-height: 1.7;
   color: var(--text-soft);
+  text-wrap: pretty;
 }
 
+/* House eyebrow row (13px/600) under the subtitle: category, chapter count,
+   total minutes. --text-muted keeps AA on white in both themes. */
+.blog-series-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.75rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* The header is not sticky, so a hash jump only needs a small breathing gap. */
 .blog-series-page h2,
 .blog-series-page h3 {
-  scroll-margin-top: 6rem;
+  scroll-margin-top: 1.5rem;
   color: var(--text-hi);
   letter-spacing: -0.025em;
   line-height: 1.35;
 }
 
 .blog-series-page h2 {
-  font-size: clamp(1.5rem, 3vw, 2.125rem);
+  font-size: clamp(1.625rem, 3vw, 2rem);
   margin: 0 0 1rem;
 }
 
 .blog-series-page .blog-series-kicker {
   color: var(--indigo);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   margin: 0 0 0.5rem;
 }
 
 .blog-series-start {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
   padding: 1.25rem 1.5rem;
-  border-left: 4px solid var(--indigo);
-  background: linear-gradient(110deg, var(--indigo-bd-08), transparent);
+  background: var(--wov-04);
+  border: 1px solid var(--indigo-bd-20);
+  border-left: 4px solid var(--indigo-bd-55);
+  border-radius: 14px;
   margin-bottom: 2.5rem;
+}
+
+.blog-series-start-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.blog-series-start-media {
+  display: none;
 }
 
 .blog-series-page .blog-series-start h2 {
   max-width: 36ch;
   font-size: clamp(1.375rem, 2.8vw, 2rem);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.blog-series-start-time {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.blog-series-start-excerpt {
+  margin: 0 0 1rem;
+  max-width: 60ch;
+  color: var(--text-soft);
+  text-wrap: pretty;
 }
 
 .blog-series-start h2 a {
@@ -2348,71 +2462,128 @@
 .blog-series-start-cta {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  min-height: 48px;
-  padding: 0.5rem 1.25rem;
-  border-radius: 6px;
-  background: #4338ca;
-  color: #fff;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.625rem 1.25rem;
+  border-radius: 999px;
+  background: var(--indigo-strong);
+  color: var(--bg);
   font-weight: 700;
   text-decoration: none;
+  transition: background-color 0.15s;
 }
 
 .blog-series-start-cta:hover {
-  background: #3730a3;
-}
-
-.blog-series-page .blog-series-path h2 {
-  font-size: 1.125rem;
+  background: var(--indigo);
 }
 
 .blog-series-path ol {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
   list-style: none;
   padding: 0;
   margin: 0;
-  gap: 0.5rem 1.25rem;
+  gap: 1rem;
 }
 
 .blog-series-path li {
-  border-top: 2px solid var(--indigo-bd-40);
+  background: var(--wov-04);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  transition: border-color 0.15s, background-color 0.15s;
 }
 
+.blog-series-path li:hover,
+.blog-series-path li:focus-within {
+  border-color: var(--indigo-bd-40);
+  background: var(--indigo-bd-08);
+}
+
+/* The card is the affordance (surface, chapter count, hover/focus lift);
+   no glyph, so nothing spurious lands in the accessible name. */
 .blog-series-path a {
   display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.75rem 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
   min-height: 44px;
   color: var(--text-hi);
+  font-weight: 600;
   text-decoration: none;
+  border-radius: 14px;
+}
+
+.blog-series-path-title {
+  text-wrap: balance;
 }
 
 .blog-series-path a:hover,
 .blog-series-start h2 a:hover {
-  color: var(--indigo);
+  color: var(--indigo-strong);
+}
+
+.blog-series-path-meta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-decoration: none;
+}
+
+/* A five-stage path is 3+2 on tablets and 2-up on phones; never 4+1. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .blog-series-path ol[data-count='5'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .blog-series-path ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
 }
 
 .blog-series-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: 0.5rem;
   margin: 1.25rem 0 3.5rem;
-  border-bottom: 1px solid var(--wov-12);
-  padding-bottom: 1rem;
 }
 
-.blog-series-nav a,
-.blog-series-error button,
-.blog-series-page .blog-header nav a,
-.blog-series-text-link,
-.geo-comparison-sources a {
+.blog-series-nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  background: var(--wov-06);
+  color: var(--text-soft);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.16s, color 0.16s;
+}
+
+.blog-series-nav a:hover {
+  background: var(--wov-10);
   color: var(--indigo);
+}
+
+/* Link language: arrows mark in-page jumps; outbound links underline on hover. */
+.blog-series-error button,
+.blog-series-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  color: var(--indigo);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.blog-series-text-link:hover {
+  color: var(--indigo-strong);
+  text-decoration: underline;
 }
 
 .blog-series-error button {
@@ -2426,16 +2597,41 @@
 }
 
 .blog-series-page a:focus-visible,
-.blog-series-page button:focus-visible {
+.blog-series-page button:focus-visible,
+.blog-logo:focus-visible,
+.blog-nav-btn:focus-visible,
+.blog-series-next a:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.blog-series-page .blog-header nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 7px 10px;
+  margin: 0 0 0 -10px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.blog-series-page .blog-header nav a:hover {
+  color: var(--indigo);
+  background: var(--wov-04);
 }
 
 .geo-comparison-limits {
-  padding: 1rem;
-  border-left: 3px solid var(--indigo);
-  background: var(--wov-03);
-  color: var(--text-hi);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--indigo-bd-20);
+  border-left: 4px solid var(--indigo-bd-55);
+  background: var(--wov-04);
+  border-radius: 14px;
+  color: var(--text-soft);
 }
 
 .blog-series-reading,
@@ -2444,15 +2640,16 @@
   min-width: 0;
 }
 
-.geo-comparison-question,
 .blog-series-reading-intro,
 .blog-series-stage-description,
 .geo-comparison-source-note {
   max-width: 72ch;
   color: var(--text-soft);
+  text-wrap: pretty;
 }
 
 .geo-comparison-caveat {
+  max-width: 72ch;
   color: var(--text-muted);
   margin-bottom: 1.5rem;
 }
@@ -2463,20 +2660,34 @@
   gap: 1.5rem 2rem;
 }
 
+.geo-decision-grid[data-count='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .geo-decision {
-  border-top: 3px solid var(--indigo);
-  padding: 1.25rem 0;
+  background: var(--wov-04);
+  border-radius: 20px;
+  padding: 24px;
+  border-left: 3px solid var(--indigo);
 }
 
 .geo-decision h3,
 .geo-evidence-method h3 {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   margin: 0 0 1.25rem;
 }
 
 .geo-decision h3 a,
 .geo-evidence-method h3 a {
   color: var(--text-hi);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.geo-decision h3 a:hover,
+.geo-evidence-method h3 a:hover {
+  color: var(--indigo);
+  text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.25em;
 }
@@ -2499,32 +2710,47 @@
   color: var(--text-hi);
 }
 
-.geo-decision dd,
-.geo-evidence-method dd {
+.geo-decision dd {
   margin: 0;
+  max-width: 72ch;
   color: var(--text-soft);
+  text-wrap: pretty;
 }
 
-.blog-series-list li {
-  padding: 1.25rem 0;
-  border-top: 1px solid var(--wov-12);
+.geo-evidence-method dd {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--text-soft);
+  text-wrap: pretty;
 }
 
 .blog-series-stage {
   margin-top: 3rem;
 }
 
-.blog-series-page .blog-header nav a {
-  color: var(--text-mid);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-decoration: none;
+/* Without the old intro paragraph the section heading sits directly on its
+   first stage; keep them together instead of leaving a 64px hole. */
+.blog-series-reading > h2 + .blog-series-stage {
+  margin-top: 0;
 }
 
+.blog-series-stage-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Stage headings must outrank the 20px row titles they group. */
 .blog-series-stage-heading h3 {
   margin: 0;
-  font-size: 1.375rem;
+  font-size: clamp(1.375rem, 2vw, 1.625rem);
+}
+
+.blog-series-stage-meta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .geo-evidence {
@@ -2536,6 +2762,18 @@
   margin-top: 3rem;
 }
 
+.geo-evidence-method + .geo-evidence-method {
+  border-top: 1px solid var(--indigo-bd-20);
+  padding-top: 2.5rem;
+}
+
+.geo-evidence-method-sources-label {
+  margin-right: 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .geo-evidence-method dl > div {
   display: grid;
   grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr);
@@ -2544,27 +2782,74 @@
   padding: 1.25rem 0;
 }
 
-@media (max-width: 767px) {
-  .blog-series-page .blog-content {
-    padding: 0.75rem 20px 4rem;
+@media (min-width: 1024px) {
+  .blog-series-start-media {
+    display: block;
+    flex: 0 0 200px;
+    width: 200px;
+    height: 140px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--wov-04);
   }
 
+  .blog-series-start-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 10px;
+    display: block;
+  }
+}
+
+/* Shares the index's 768px boundary so iPad portrait never gets the stacked
+   photo feed: eleven 16:9 covers would turn the scan list into a gallery. The
+   hub keeps a small, uncropped figure beside the text (paper figures are
+   never cropped anywhere on the blog). */
+@media (max-width: 768px) {
+  .blog-series-list .blog-row {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .blog-series-list .blog-row-thumb {
+    order: 0;
+    flex: 0 0 96px;
+    width: 96px;
+    height: 60px;
+    aspect-ratio: auto;
+    border-radius: 8px;
+    margin-top: 2px;
+  }
+
+  .blog-series-list .blog-row-thumb img {
+    object-fit: contain;
+    padding: 4px;
+  }
+
+  .blog-series-list .blog-row-excerpt {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 767px) {
   .blog-series-start {
     padding: 1rem;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .geo-decision-grid {
+
+  .geo-decision-grid,
+  .geo-decision-grid[data-count='3'] {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.5rem;
+    gap: 1rem;
   }
 
   .geo-evidence-method dl > div {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
-  }
-
-  .blog-series-item-excerpt {
-    margin-left: 0;
   }
 }
 
@@ -2635,5 +2920,110 @@
   .body-toc-heading,
   .body-toc-list {
     display: none;
+  }
+}
+
+/* ===== Post: end-of-article series nav ===== */
+
+.blog-series-next {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 32px 0 8px;
+  padding: 16px;
+  background: var(--wov-04);
+  border: 1px solid var(--indigo-bd-20);
+  border-radius: 14px;
+}
+
+.blog-series-next-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.blog-series-next-meta a {
+  color: var(--indigo);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.blog-series-next-meta a:hover {
+  text-decoration: underline;
+}
+
+.blog-series-next-sep {
+  color: var(--text-faint);
+}
+
+/* Stage titles start with a numeric range; a chip keeps '1/11편' and '1–2 · …'
+   from reading as one token. */
+.blog-series-next-stage {
+  padding: 2px 10px;
+  border-radius: 100px;
+  background: var(--wov-06);
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+.blog-series-next-prev,
+.blog-series-next-primary,
+.blog-series-next-done a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.blog-series-next-prev {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.blog-series-next-prev:hover {
+  text-decoration: underline;
+}
+
+.blog-series-next-primary {
+  color: var(--indigo);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.blog-series-next-primary:hover {
+  text-decoration: underline;
+}
+
+.blog-series-next-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.blog-series-next-done a {
+  color: var(--indigo);
+  font-weight: 600;
+}
+
+.blog-series-next-done a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .blog-series-next {
+    padding: 14px;
+  }
+
+  .blog-series-next-prev,
+  .blog-series-next-primary,
+  .blog-series-next-done {
+    width: 100%;
   }
 }

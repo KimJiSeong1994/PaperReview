@@ -29,6 +29,7 @@ from markdown_it import MarkdownIt
 
 from .blog import (
     PostDetail,
+    _effective_thumbnail,
     _estimate_reading_time,
     _load_deleted,
     _load_posts,
@@ -980,33 +981,76 @@ def _series_graph(series_id: str, title: str, description: str, posts: list[dict
     }
 
 
-def _series_comparison_cell_html(cell: dict) -> str:
+def _series_total_minutes(posts: list[dict]) -> int | None:
+    if not posts:
+        return None
+    total = 0
+    for post in posts:
+        minutes = post.get("reading_time_min")
+        if not isinstance(minutes, (int, float)):
+            return None
+        total += minutes
+    return int(total)
+
+
+def _first_sentence(text: str) -> str:
+    """Opening sentence of an excerpt/description (the claim without its hedge)."""
+    trimmed = text.strip()
+    cut = trimmed.find(". ")
+    return trimmed if cut == -1 else trimmed[: cut + 1]
+
+
+def _series_shared_sources(entry: dict, axes: list[str]) -> list[str] | None:
+    """Return the shared source list when every axis cites the same sources."""
+    first = entry["values"][axes[0]]["sources"]
+    if not first:
+        return None
+    if all(entry["values"][axis]["sources"] == first for axis in axes):
+        return first
+    return None
+
+
+def _series_source_links_html(sources: list[str]) -> str:
+    links = "".join(
+        f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
+        f"출처 {index}</a>"
+        for index, source in enumerate(sources, start=1)
+    )
+    return f'<span class="geo-comparison-sources">{links}</span>'
+
+
+def _series_comparison_cell_html(cell: dict, *, include_sources: bool = True) -> str:
     content = cell["value"] if cell["state"] == "known" else cell["reason"]
     state_label = {
         "known": "",
-        "unknown": "미확인: ",
-        "not_applicable": "해당 없음: ",
+        "unknown": '<span class="geo-state">미확인</span>',
+        "not_applicable": '<span class="geo-state">해당 없음</span>',
     }[cell["state"]]
-    sources = "".join(
-        f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
-        f"출처 {index}</a>"
-        for index, source in enumerate(cell["sources"], start=1)
-    )
-    provenance = f'<span class="geo-comparison-sources">{sources}</span>' if sources else ""
-    return f"{html.escape(state_label + (content or ''))}{provenance}"
+    provenance = _series_source_links_html(cell["sources"]) if include_sources and cell["sources"] else ""
+    return f"{state_label}{html.escape(content or '')}{provenance}"
 
 
-def _series_reading_guide_html(comparison: dict) -> str:
+def _series_reading_guide_html(comparison: dict, by_slug: dict[str, dict]) -> str:
     if not comparison:
         return ""
-    items = "".join(
-        f'<li><a href="#series-stage-{index}">'
-        f'{html.escape(step["title"])}</a></li>'
-        for index, step in enumerate(comparison["reading_guide"], start=1)
-    )
+    items = []
+    for index, step in enumerate(comparison["reading_guide"], start=1):
+        members = [slug for slug in step["slugs"] if slug in by_slug]
+        minutes = _series_total_minutes([by_slug[slug] for slug in members])
+        meta = (
+            f'<span class="blog-series-path-meta">{len(members)}편'
+            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
+            if members else ""
+        )
+        items.append(
+            f'<li><a href="#series-stage-{index}">'
+            f'<span class="blog-series-path-title">{html.escape(step["title"])}</span>'
+            f"{meta}</a></li>"
+        )
     return (
         '<nav class="blog-series-path" aria-labelledby="series-guide-title">'
-        f'<h2 id="series-guide-title">한눈에 보는 학습 경로</h2><ol>{items}</ol></nav>'
+        '<h2 id="series-guide-title">한눈에 보는 학습 경로</h2>'
+        f'<ol data-count="{len(items)}">{"".join(items)}</ol></nav>'
     )
 
 
@@ -1041,35 +1085,41 @@ def _series_comparison_html(
                 f'{html.escape(entry["label"])} 상세 근거 <span aria-hidden="true">→</span></a></article>'
             )
             continue
+        hoisted = _series_shared_sources(entry, comparison["axes"])
+        hoisted_html = (
+            '<div class="geo-evidence-method-sources">'
+            '<span class="geo-evidence-method-sources-label">전 항목 출처</span>'
+            f"{_series_source_links_html(hoisted)}</div>"
+            if hoisted else ""
+        )
         axes = "".join(
             "<div>"
             f'<dt>{html.escape(_GEO_AXIS_LABELS[axis])}</dt>'
             f'<dd data-state="{html.escape(entry["values"][axis]["state"], quote=True)}">'
-            f'{_series_comparison_cell_html(entry["values"][axis])}</dd></div>'
+            f'{_series_comparison_cell_html(entry["values"][axis], include_sources=hoisted is None)}</dd></div>'
             for axis in comparison["axes"]
         )
         cards.append(
             f'<article class="geo-evidence-method" aria-labelledby="series-evidence-{index}">'
-            f'<h3 id="series-evidence-{index}">{entry_link(entry)}</h3><dl>{axes}</dl>'
-            '<a class="blog-series-text-link" href="#geo-comparison-title">선택 요약으로 돌아가기</a></article>'
+            f'<h3 id="series-evidence-{index}">{entry_link(entry)}</h3>{hoisted_html}<dl>{axes}</dl>'
+            '<a class="blog-series-text-link" href="#geo-comparison-title">논문 선택 비교로 돌아가기 '
+            '<span aria-hidden="true">↑</span></a></article>'
         )
 
     if detailed:
         return (
             '<section class="geo-evidence" aria-labelledby="series-evidence-title">'
-            '<p class="blog-series-kicker">근거를 확인하며 읽기</p>'
             '<h2 id="series-evidence-title">상세 근거와 출처</h2>'
-            f'<p class="geo-comparison-question">{html.escape(comparison["question"])}</p>'
             f'<p class="geo-comparison-limits"><strong>해석 한계:</strong> {html.escape(comparison["limits"])}</p>'
             f'<p class="geo-comparison-source-note">{html.escape(comparison["source_note"])}</p>'
             f'{"".join(cards)}</section>'
         )
     return (
         '<section class="geo-comparison" aria-labelledby="geo-comparison-title">'
-        '<p class="blog-series-kicker">질문에 맞춰 고르기</p>'
         '<h2 id="geo-comparison-title">논문 선택 비교</h2>'
+        f'<p class="geo-comparison-question">{html.escape(comparison["question"])}</p>'
         '<p class="geo-comparison-caveat">성능 순위가 아닌 역할 비교입니다. 평가 조건과 한계는 상세 근거에서 확인하세요.</p>'
-        f'<div class="geo-decision-grid">{"".join(cards)}</div>'
+        f'<div class="geo-decision-grid" data-count="{len(entries)}">{"".join(cards)}</div>'
         "</section>"
     )
 
@@ -1080,25 +1130,46 @@ def _series_reading_list_html(ordered: list[dict], comparison: dict) -> str:
     def post_list(members: list[dict]) -> str:
         if not members:
             return ""
-        items = "".join(
-            f'<li><a href="/blog/{html.escape(p["slug"], quote=True)}">'
-            f'<span class="blog-series-pos" aria-hidden="true">{positions[p["slug"]]}</span>'
-            f'<span class="blog-series-item-title">{html.escape(p.get("title", ""))}</span></a>'
-            f'<p class="blog-series-item-excerpt">{html.escape(p.get("excerpt", ""))}</p></li>'
-            for p in members
-        )
-        return f'<ol class="blog-series-list" start="{positions[members[0]["slug"]]}">{items}</ol>'
+        items = []
+        for p in members:
+            thumb_url = _effective_thumbnail(p)
+            thumb = (
+                f'<div class="blog-row-thumb"><img src="{html.escape(thumb_url, quote=True)}" '
+                'alt="" width="228" height="128" loading="lazy" decoding="async"></div>'
+                if thumb_url else ""
+            )
+            minutes = p.get("reading_time_min")
+            time_html = (
+                f'<span class="blog-series-time">{minutes}분</span>'
+                if isinstance(minutes, (int, float)) else ""
+            )
+            items.append(
+                f'<li><span class="blog-series-pos" aria-hidden="true">{positions[p["slug"]]}</span>'
+                f'<a class="blog-row" href="/blog/{html.escape(p["slug"], quote=True)}" '
+                f'aria-label="{html.escape(p.get("title", ""), quote=True)}">'
+                '<div class="blog-row-text">'
+                f'<h4 class="blog-row-title">{html.escape(p.get("title", ""))}</h4>'
+                f'<p class="blog-row-excerpt">{html.escape(_first_sentence(p.get("excerpt", "")))}</p>'
+                f'{time_html}</div>{thumb}</a></li>'
+            )
+        return f'<ol class="blog-series-list" start="{positions[members[0]["slug"]]}">{"".join(items)}</ol>'
 
     if not comparison:
         return post_list(ordered)
     stages = []
     for index, step in enumerate(comparison["reading_guide"], start=1):
         members = [post for post in ordered if post["slug"] in step["slugs"]]
+        minutes = _series_total_minutes(members)
+        meta = (
+            f'<span class="blog-series-stage-meta">{len(members)}편'
+            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
+            if members else ""
+        )
         listing = post_list(members) or "<p>이 단계에는 아직 공개된 글이 없습니다.</p>"
         stages.append(
             f'<section class="blog-series-stage" aria-labelledby="series-stage-{index}">'
             '<div class="blog-series-stage-heading">'
-            f'<h3 id="series-stage-{index}">{html.escape(step["title"])}</h3></div>'
+            f'<h3 id="series-stage-{index}">{html.escape(step["title"])}</h3>{meta}</div>'
             f'<p class="blog-series-stage-description">{html.escape(step["description"])}</p>'
             f"{listing}</section>"
         )
@@ -1241,11 +1312,13 @@ def _render_article(
     next_post: dict | None = None,
     published_slugs: set[str] | None = None,
     reading_view: str = "default",
+    titles_by_slug: dict[str, str] | None = None,
 ) -> str:
     """Render the visible <article> body for a single blog post.
 
     ``related`` and ``prev_post``/``next_post`` add crawlable internal links so
     the post graph is not star-shaped (every post reachable only from the index).
+    ``titles_by_slug`` lets the end-of-article series nav name the next chapter.
     """
     title = html.escape(post.get("title", ""), quote=True)
     author = html.escape(post.get("author", ""), quote=True)
@@ -1291,6 +1364,7 @@ def _render_article(
     # previous/next post in reading order (crawlable cluster signal). Reading
     # order is filtered to published slugs so the banner never links a 404.
     series_html = ""
+    series_next_html = ""
     slug = post.get("slug", "")
     for series_id, series in BLOG_SERIES.items():
         slugs = [
@@ -1320,6 +1394,9 @@ def _render_article(
         series_html = (
             f'<nav class="blog-series" aria-label="Series">{" ".join(parts)}</nav>'
         )
+        series_next_html = _series_next_html(
+            series_id, series, slugs, position, titles_by_slug or {}
+        )
         break
 
     def _link(p: dict) -> str:
@@ -1346,9 +1423,11 @@ def _render_article(
     if next_post:
         href, name = _link(next_post)
         nav_parts.append(f'<a class="blog-next" rel="next" href="{href}">{name} →</a>')
+    # Members already carry their reading-order neighbours in the series nav;
+    # a second rel=prev/next block would just repeat the same two links.
     prevnext_html = (
         f'<nav class="blog-prevnext" aria-label="More posts">{"".join(nav_parts)}</nav>'
-        if nav_parts
+        if nav_parts and not series_next_html
         else ""
     )
 
@@ -1367,9 +1446,68 @@ def _render_article(
         f'<div class="blog-detail-tags">{tags_html}</div>'
         f"{series_html}"
         f'<div class="blog-detail-content">{rendered_html}</div>'
+        f"{series_next_html}"
         f"{related_html}"
         f"{prevnext_html}"
         "</div></div></div>"
+    )
+
+
+def _series_next_html(
+    series_id: str,
+    series: dict,
+    slugs: list[str],
+    position: int,
+    titles_by_slug: dict[str, str],
+) -> str:
+    """End-of-article continuation for a series member (mirrors the SPA nav)."""
+    total = len(slugs)
+    current = slugs[position - 1]
+    hub = f'/blog/series/{html.escape(series_id, quote=True)}'
+    comparison = load_geo_comparisons().get(series_id, {})
+    stage_title = ""
+    for step in comparison.get("reading_guide", []):
+        if current in step.get("slugs", []):
+            stage_title = step.get("title", "")
+            break
+    meta = (
+        f'<div class="blog-series-next-meta"><a href="{hub}">'
+        f'{html.escape(series["title"], quote=True)}</a>'
+        f'<span class="blog-series-next-sep" aria-hidden="true">·</span>'
+        f"<span>{position}/{total}편</span>"
+    )
+    if stage_title:
+        meta += (
+            '<span class="blog-series-next-stage">'
+            f"{html.escape(stage_title, quote=True)}</span>"
+        )
+    meta += "</div>"
+    parts = [meta]
+    # Primary action first; the previous chapter is tertiary.
+    if position < total:
+        next_slug = slugs[position]
+        label = html.escape(titles_by_slug.get(next_slug) or "시리즈 다음 글", quote=True)
+        parts.append(
+            '<a class="blog-series-next-primary" rel="next" '
+            f'href="/blog/{html.escape(next_slug, quote=True)}">다음: {label} →</a>'
+        )
+    else:
+        compare = (
+            f'<a href="{hub}#geo-comparison-title">논문 선택 비교 보기</a>'
+            if comparison else ""
+        )
+        parts.append(
+            '<div class="blog-series-next-done"><span>시리즈의 마지막 글입니다</span>'
+            f'<a href="{hub}#series-reading-title">시리즈 목차로 돌아가기</a>{compare}</div>'
+        )
+    if position > 1:
+        parts.append(
+            '<a class="blog-series-next-prev" rel="prev" '
+            f'href="/blog/{html.escape(slugs[position - 2], quote=True)}">← 시리즈 이전 글</a>'
+        )
+    return (
+        '<nav class="blog-series-next" aria-label="시리즈 이어 읽기">'
+        f'{"".join(parts)}</nav>'
     )
 
 
@@ -1492,6 +1630,7 @@ async def blog_post_ssr(
     idx = next((i for i, p in enumerate(published) if p.get("slug") == slug), None)
     older = published[idx + 1] if idx is not None and idx + 1 < len(published) else None
     newer = published[idx - 1] if idx is not None and idx - 1 >= 0 else None
+    published_by_slug = {p.get("slug", ""): p for p in published}
 
     displayed_post = dict(post)
     deep_content = post.get("deep_content") or ""
@@ -1524,8 +1663,9 @@ async def blog_post_ssr(
             related=related,
             prev_post=older,
             next_post=newer,
-            published_slugs={p.get("slug", "") for p in published},
+            published_slugs=set(published_by_slug),
             reading_view=reading_view,
+            titles_by_slug={s: p.get("title", "") for s, p in published_by_slug.items()},
         ),
         lang=lang,
         locale=locale,
@@ -1627,43 +1767,79 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
     comparison = load_geo_comparisons().get(series_id, {})
 
     reading_list = _series_reading_list_html(ordered, comparison)
+    total_minutes = _series_total_minutes(ordered)
+    cat = _category_of(ordered[0]) if ordered else None
+    cat_label = "Engineering" if cat == "engineering" else "Paper Review" if cat else ""
+    cat_html = f'<span class="blog-row-cat" data-cat="{cat}">{cat_label}</span>' if cat else ""
+    # Count and minutes share one basis: published chapters.
+    meta_html = (
+        f'<p class="blog-series-meta">{cat_html}<span>{len(ordered)}편'
+        f'{f" · 약 {total_minutes}분" if total_minutes is not None else ""}</span></p>'
+        if ordered else ""
+    )
+    time_html = ""
     if ordered:
         first = ordered[0]
         first_url = f'/blog/{html.escape(first["slug"], quote=True)}'
+        first_minutes = first.get("reading_time_min")
+        time_html = (
+            f'<span class="blog-series-start-time"> · {first_minutes}분</span>'
+            if isinstance(first_minutes, (int, float)) else ""
+        )
+        first_excerpt = _first_sentence(first.get("excerpt") or "")
+        thumb_url = _effective_thumbnail(first)
+        # First-fold cover: never lazy, it is the page's LCP candidate.
+        media_html = (
+            f'<div class="blog-series-start-media"><img src="{html.escape(thumb_url, quote=True)}" '
+            'alt="" decoding="async"></div>'
+            if thumb_url else ""
+        )
         spotlight = (
             f'<h2 id="series-start-title"><a href="{first_url}">{html.escape(first["title"])}</a></h2>'
+            f'<p class="blog-series-start-excerpt">{html.escape(first_excerpt)}</p>'
             f'<a class="blog-series-start-cta" href="{first_url}">첫 글 읽기 '
             '<span aria-hidden="true">→</span></a>'
         )
     else:
+        media_html = ""
         spotlight = (
             '<h2 id="series-start-title">첫 글부터 차근차근</h2>'
             '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>'
         )
-    comparison_link = '<a href="#geo-comparison-title">논문 선택 비교</a>' if comparison else ""
-    evidence_link = '<a href="#series-evidence-title">상세 근거와 출처</a>' if comparison else ""
-    intro = series["description"].split(". ", 1)[0]
-    if ". " in series["description"]:
-        intro += "."
+    nav_targets = [
+        '<a href="#series-reading-title">추천 읽기 순서</a>',
+        '<a href="#geo-comparison-title">논문 선택 비교</a>' if comparison else "",
+        '<a href="#series-evidence-title">상세 근거와 출처</a>' if comparison else "",
+    ]
+    nav_targets = [t for t in nav_targets if t]
+    series_nav = (
+        f'<nav class="blog-series-nav" aria-label="시리즈 바로가기">{"".join(nav_targets)}</nav>'
+        if len(nav_targets) >= 2 else ""
+    )
+    intro = _first_sentence(series["description"])
+    reading_intro = (
+        f'<p class="blog-series-reading-intro">'
+        f'{html.escape(series["description"].split(". ", 1)[1]) if ". " in series["description"] else ""}</p>'
+        if not comparison else ""
+    )
     body = (
-        '<div class="blog-container blog-series-page"><div class="blog-content">'
+        '<div class="blog-container blog-series-page"><main id="main" class="blog-content">'
         '<header class="blog-header">'
-        '<nav aria-label="breadcrumb"><a href="/blog">집현전 블로그</a></nav>'
+        '<nav aria-label="breadcrumb"><a href="/blog">← 블로그로</a></nav>'
         f'<h1 class="blog-title">{html.escape(series["title"], quote=True)}</h1>'
-        f'<p class="blog-subtitle">{html.escape(intro)}</p></header>'
+        f'<p class="blog-subtitle">{html.escape(intro)}</p>{meta_html}</header>'
         '<section class="blog-series-start" aria-labelledby="series-start-title">'
-        f'<p class="blog-series-kicker">여기서 시작하세요</p>{spotlight}</section>'
-        f"{_series_reading_guide_html(comparison)}"
-        '<nav class="blog-series-nav" aria-label="시리즈 바로가기">'
-        f'{comparison_link}<a href="#series-reading-title">추천 읽기 순서</a>{evidence_link}</nav>'
-        f"{_series_comparison_html(comparison, by_slug)}"
+        '<div class="blog-series-start-text">'
+        f'<p class="blog-series-kicker">여기서 시작하세요{time_html}</p>{spotlight}</div>{media_html}</section>'
+        f"{_series_reading_guide_html(comparison, by_slug)}"
+        f"{series_nav}"
         '<section class="blog-series-reading" aria-labelledby="series-reading-title">'
-        '<p class="blog-series-kicker">개념을 연결하며 읽기</p>'
         '<h2 id="series-reading-title">추천 읽기 순서</h2>'
-        f'<p class="blog-series-reading-intro">{html.escape(series["description"])}</p>'
+        f'{reading_intro}'
         f'{reading_list}</section>'
+        f"{_series_comparison_html(comparison, by_slug)}"
         f"{_series_comparison_html(comparison, by_slug, detailed=True)}"
-        "</div></div>"
+        "</main></div>"
     )
     lang = _detect_lang(f'{series["title"]} {series["description"]}')
     document = _build_document(

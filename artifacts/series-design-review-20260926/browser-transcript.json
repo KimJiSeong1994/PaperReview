@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 1,
+  "tool": "playwright",
+  "kind": "web-automation-transcript",
+  "fixtureOnly": true,
+  "actions": [
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:18.835632+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:19.305825+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 390
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:19.773896+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:20.254091+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "light",
+      "width": 1280
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:20.725373+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:21.181227+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 390
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:21.655646+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:22.136095+00:00",
+      "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
+      "theme": "dark",
+      "width": 1280
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:23.457096+00:00",
+      "selector": "#series-evidence-2",
+      "hashRestoredAfterHydration": true,
+      "top": 23.609375
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:23.859663+00:00",
+      "selector": "/blog/deepwalk-online-learning-social-representations-review-2026",
+      "endOfArticleNextNamed": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:24.262417+00:00",
+      "selector": ".blog-app-header theme toggle",
+      "themeToggleOnSeries": true
+    },
+    {
+      "type": "click",
+      "timestamp": "2026-09-26T11:30:24.767334+00:00",
+      "selector": "다시 시도",
+      "retryRecovered": true
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:24.858752+00:00",
+      "selector": "/blog/series/jiphyeonjeon-build",
+      "javaScript": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:24.925532+00:00",
+      "selector": "/blog/series/gnn",
+      "javaScript": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:24.962754+00:00",
+      "selector": "/blog/series/dwe",
+      "javaScript": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:25.002424+00:00",
+      "selector": "/blog/series/graphrag",
+      "javaScript": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:25.028136+00:00",
+      "selector": "/blog/series/graph-causality",
+      "javaScript": false
+    },
+    {
+      "type": "navigate",
+      "timestamp": "2026-09-26T11:30:25.061710+00:00",
+      "selector": "/blog/deepwalk-online-learning-social-representations-review-2026",
+      "javaScript": false,
+      "seriesOrderPrevNext": true
+    }
+  ],
+  "layouts": [
+    {
+      "theme": "light",
+      "width": 320,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        142.765625,
+        142.765625,
+        142.765625,
+        142.765625,
+        171.65625,
+        44,
+        44,
+        44,
+        193.546875,
+        193.546875,
+        245.734375,
+        219.640625,
+        167.453125,
+        193.546875,
+        193.546875,
+        193.546875,
+        245.734375,
+        324.015625,
+        297.921875
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        142.765625,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        193.546875,
+        167.453125,
+        193.546875,
+        167.453125,
+        167.453125,
+        167.453125,
+        167.453125,
+        167.453125,
+        219.640625,
+        219.640625,
+        245.734375
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        88.578125,
+        114.96875,
+        88.578125,
+        114.96875,
+        88.578125,
+        114.96875,
+        114.96875,
+        114.96875,
+        114.96875,
+        114.671875,
+        141.0625
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 51.2,
+      "h2Px": 32,
+      "h3Px": 25.6,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        146.875
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        142.765625,
+        142.765625,
+        142.765625,
+        142.765625,
+        171.65625,
+        44,
+        44,
+        44,
+        193.546875,
+        193.546875,
+        245.734375,
+        219.640625,
+        167.453125,
+        193.546875,
+        193.546875,
+        193.546875,
+        245.734375,
+        324.015625,
+        297.921875
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        142.765625,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        193.546875,
+        167.453125,
+        193.546875,
+        167.453125,
+        167.453125,
+        167.453125,
+        167.453125,
+        167.453125,
+        219.640625,
+        219.640625,
+        245.734375
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 34,
+      "h2Px": 26,
+      "h3Px": 22,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        88.578125,
+        114.96875,
+        88.578125,
+        114.96875,
+        88.578125,
+        114.96875,
+        114.96875,
+        114.96875,
+        114.96875,
+        114.671875,
+        141.0625
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "overflow": false,
+      "ordered": true,
+      "excerptPx": 16,
+      "keepAll": "keep-all",
+      "h1Px": 51.2,
+      "h2Px": 32,
+      "h3Px": 25.6,
+      "targets": [
+        48.890625,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        113.875,
+        44,
+        44,
+        44,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        128,
+        146.875
+      ],
+      "summaryCells": 12,
+      "evidenceCells": 24,
+      "statePills": 7,
+      "minutes": 11,
+      "thumbs": 11
+    }
+  ],
+  "apiCalls": [
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    },
+    {
+      "page": 1,
+      "mode": "failure"
+    },
+    {
+      "page": 1,
+      "mode": "normal"
+    },
+    {
+      "page": 2,
+      "mode": "normal"
+    }
+  ],
+  "pageErrors": [],
+  "limitations": "Built SPA + real SSR handler with fixture metadata/API; not production browsing or accessibility certification."
+}

@@ -29,6 +29,7 @@ import {
 } from '../api/client';
 import { blogSeoMeta, buildPaperViewerHref, extractPrimaryPaperReference } from '../utils/blogPaperReference';
 import { BLOG_SERIES, seriesOf } from '../seo/series';
+import { GEO_COMPARISONS } from '../seo/geoComparisons.generated';
 import {
   getBlogBootstrapPost,
   invalidateBlogBootstrap,
@@ -330,6 +331,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
   const initialSeed = slug ? getBlogBootstrapPost(slug) as BlogPost | null : null;
   const [view, setView] = useState<BlogView>(slug ? 'detail' : 'list');
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [nextChapter, setNextChapter] = useState<{ slug: string; title: string } | null>(null);
   const [storedSelectedPost, setSelectedPost] = useState<BlogPost | null>(initialSeed);
   // Route props update during SPA navigation before effects run. Guarding the
   // projection synchronously prevents article A from painting under URL B.
@@ -580,6 +582,35 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       void loadPosts();
     });
   }, [loadPosts, slug]);
+
+  // A deep link into a chapter never runs the list fetch, and the newest-100
+  // list may not hold an older chapter anyway, so the end-of-article nav asks
+  // for the next chapter itself. On failure the generic label stays.
+  const nextChapterSlug = useMemo(() => {
+    const seriesId = slug ? seriesOf(slug) : null;
+    if (!seriesId) return null;
+    const slugs = BLOG_SERIES[seriesId].slugs;
+    const at = slugs.indexOf(slug!);
+    return at >= 0 && at + 1 < slugs.length ? slugs[at + 1] : null;
+  }, [slug]);
+  const knownNextTitle = nextChapterSlug ? posts.find((p) => p.slug === nextChapterSlug)?.title : undefined;
+  useEffect(() => {
+    // The article itself comes first; the lookup starts once it has settled.
+    if (!nextChapterSlug || knownNextTitle || loading) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetchBlogPost(nextChapterSlug, { signal: controller.signal });
+        const title = (response.data as { title?: unknown } | undefined)?.title;
+        if (typeof title === 'string' && !controller.signal.aborted) {
+          setNextChapter({ slug: nextChapterSlug, title });
+        }
+      } catch {
+        // Navigation still works without the title.
+      }
+    })();
+    return () => controller.abort();
+  }, [nextChapterSlug, knownNextTitle, loading]);
 
   useEffect(() => {
     if (!slug) return;
@@ -1164,6 +1195,50 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
     </aside>
   );
 
+  // ── End-of-article series nav (post detail, after body content) ─────
+
+  const renderSeriesNextNav = (currentPost: BlogPost) => {
+    const seriesId = seriesOf(currentPost.slug);
+    if (!seriesId) return null;
+    const series = BLOG_SERIES[seriesId];
+    const position = series.slugs.indexOf(currentPost.slug) + 1;
+    const total = series.slugs.length;
+    const prevSlug = position > 1 ? series.slugs[position - 2] : null;
+    const nextSlug = position < total ? series.slugs[position] : null;
+    const comparison = GEO_COMPARISONS[seriesId as keyof typeof GEO_COMPARISONS];
+    const stage = comparison?.reading_guide?.find((step) => step.slugs.includes(currentPost.slug));
+    const nextTitle = nextSlug
+      ? posts.find((p) => p.slug === nextSlug)?.title
+        ?? (nextChapter?.slug === nextSlug ? nextChapter.title : null)
+      : null;
+    return (
+      <nav className="blog-series-next" aria-label="시리즈 이어 읽기">
+        <div className="blog-series-next-meta">
+          <a href={`/blog/series/${seriesId}`}>{series.title}</a>
+          <span className="blog-series-next-sep" aria-hidden="true">·</span>
+          <span>{`${position}/${total}편`}</span>
+          {stage && <span className="blog-series-next-stage">{stage.title}</span>}
+        </div>
+        {nextSlug ? (
+          <a className="blog-series-next-primary" rel="next" href={`/blog/${nextSlug}`}>
+            {`다음: ${nextTitle ?? '시리즈 다음 글'}\u00a0→`}
+          </a>
+        ) : (
+          <div className="blog-series-next-done">
+            <span>{'시리즈의 마지막 글입니다'}</span>
+            <a href={`/blog/series/${seriesId}#series-reading-title`}>{'시리즈 목차로 돌아가기'}</a>
+            {comparison && <a href={`/blog/series/${seriesId}#geo-comparison-title`}>{'논문 선택 비교 보기'}</a>}
+          </div>
+        )}
+        {prevSlug && (
+          <a className="blog-series-next-prev" rel="prev" href={`/blog/${prevSlug}`}>
+            {'← 시리즈 이전 글'}
+          </a>
+        )}
+      </nav>
+    );
+  };
+
   // ── Series index (page bottom, full container width) ────────────────
 
   const seriesPages = Math.ceil(Object.keys(BLOG_SERIES).length / seriesCols);
@@ -1639,6 +1714,8 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
             {normalizeBlogMarkdown(displayedPost.content)}
           </ReactMarkdown>
         </div>
+
+        {renderSeriesNextNav(selectedPost)}
 
         {isAdmin && (
           <div className="blog-detail-admin-bar">

@@ -810,6 +810,14 @@ def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> No
     # Ordered: position 1 is the first series slug.
     assert html.index("Series Post 0") < html.index("Series Post 1")
     assert "noindex" not in html
+    assert '<main id="main" class="blog-content">' in html
+    assert '<span class="blog-row-cat" data-cat="paper-review">Paper Review</span>' in html
+    # Count and minutes share one basis: the two published chapters (1 min each).
+    assert "<span>2편 · 약 2분</span>" in html
+    assert "아티클 11개" not in html
+    assert '<p class="blog-series-kicker">여기서 시작하세요<span class="blog-series-start-time"> · 1분</span></p>' in html
+    assert '<ol data-count="5">' in html
+    assert "← 블로그로" in html
 
 
 def _comparison_fixture(slug: str) -> dict:
@@ -878,14 +886,14 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert 'title="Series Post 0"' in html
     assert "개념 &lt;먼저&gt;" in html
     assert "역할을 &lt;구분&gt;하고 읽습니다." in html
-    ordered_ids = ["series-start-title", "series-guide-title", "geo-comparison-title", "series-reading-title", "series-evidence-title", "series-evidence-1"]
+    ordered_ids = ["series-start-title", "series-guide-title", "series-reading-title", "geo-comparison-title", "series-evidence-title", "series-evidence-1"]
     assert [html.index(f'id="{target}"') for target in ordered_ids] == sorted(html.index(f'id="{target}"') for target in ordered_ids)
     assert html.index('class="geo-comparison-limits"') < html.index('class="geo-evidence-method"')
     assert html.index('class="geo-comparison-source-note"') < html.index('class="geo-evidence-method"')
     for target in ("series-stage-1", "series-reading-title", "geo-comparison-title", "series-evidence-title", "series-evidence-1"):
         assert f'href="#{target}"' in html
     assert '<ol class="blog-series-list" start="1">' in html
-    assert '<p class="blog-series-item-excerpt">' in html
+    assert '<p class="blog-row-excerpt">' in html
     assert 'class="geo-decision"' in html
     assert 'class="geo-evidence-method"' in html
     assert html.count("<dt>") == 9
@@ -893,14 +901,16 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert "<dt>이럴 때</dt><dd>적합한 상황</dd>" in html
     assert "<dt>주의점</dt><dd>주의할 조건</dd>" in html
     assert '<dt>설명·근거 확인</dt>' in html
-    assert '<dd data-state="unknown">미확인: 직접 비교 자료 없음</dd>' in html
+    assert '<dd data-state="unknown"><span class="geo-state">미확인</span>직접 비교 자료 없음</dd>' in html
     assert "<details" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "<script>alert(1)</script>" not in html
     assert 'href="https://example.org/traceability" rel="noopener noreferrer"' in html
-    assert "미확인: 직접 비교 자료 없음" in html
-    assert "해당 없음: 이 조건에는 적용되지 않음" in html
+    assert "미확인" in html
+    assert "해당 없음" in html
     assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
+    assert '<span class="blog-series-path-meta">1편 · 1분</span>' in html
+    assert '<span class="blog-series-stage-meta">1편 · 1분</span>' in html
 
 
 def test_comparison_labels_and_sources_do_not_require_post_metadata() -> None:
@@ -914,8 +924,10 @@ def test_comparison_labels_and_sources_do_not_require_post_metadata() -> None:
     assert markup.count("방법 &lt;A&gt; &quot;짧은 이름&quot;") == 3
     assert "/blog/paper-" not in markup
     assert 'href="https://example.org/?q=&quot;quoted&quot;&amp;x=&lt;tag&gt;"' in markup
-    assert markup.count("미확인: 직접 비교 자료 없음") == 1
-    assert markup.count("해당 없음: 이 조건에는 적용되지 않음") == 1
+    assert markup.count("직접 비교 자료 없음") == 1
+    assert markup.count("이 조건에는 적용되지 않음") == 1
+    assert markup.count('<span class="geo-state">미확인</span>') == 1
+    assert markup.count('<span class="geo-state">해당 없음</span>') == 1
     linked = _series_comparison_html(
         comparison, {'paper-"quoted': {"title": 'Full "title" <paper>'}}
     )
@@ -936,6 +948,13 @@ def test_series_hub_keeps_original_shell_when_comparison_is_unavailable(monkeypa
     assert html.index('id="series-start-title"') < html.index('id="series-reading-title"')
     assert '"@type": "ItemList"' in html
     assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
+    from routers.seo import BLOG_SERIES
+    first_sentence = BLOG_SERIES["gnn"]["description"].split(". ")[0]
+    # Head metadata legitimately repeats the description; the visible body
+    # must state the opening sentence exactly once (subtitle, not intro).
+    body = html[html.index("<body"):]
+    assert body.count(first_sentence) == 1
+    assert '<nav class="blog-series-nav"' not in html
 
 
 def test_series_ssr_loads_lazy_styles_without_javascript(tmp_path, monkeypatch, caplog) -> None:
@@ -1084,6 +1103,45 @@ def test_series_member_post_has_banner_and_is_part_of(monkeypatch) -> None:
     assert "1/2편" in html
     assert f'href="/blog/{second}">시리즈 다음 글' in html
     assert '"isPartOf": {"@id": "https://jiphyeonjeon.kr/blog/series/gnn#collection"}' in html
+
+
+def test_series_member_article_ends_with_named_next_chapter(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    first, second = BLOG_SERIES["gnn"]["slugs"][:2]
+    html = TestClient(app).get(f"/blog/{first}").text
+    body_end = html.index('<nav class="blog-series-next" aria-label="시리즈 이어 읽기">')
+    assert html.index('class="blog-detail-content"') < body_end < html.index("<footer")
+    assert (
+        f'<a class="blog-series-next-primary" rel="next" href="/blog/{second}">'
+        "다음: Series Post 1 →</a>"
+    ) in html
+    assert 'class="blog-series-next-stage">1–2 · 노드를 벡터로 표현하기</span>' in html
+    assert "blog-series-next-prev" not in html
+    # The series nav already carries the reading-order neighbours, so members
+    # do not get a second chronological prev/next block with contradicting links.
+    assert 'class="blog-prevnext"' not in html
+
+    last = TestClient(app).get(f"/blog/{second}").text
+    assert "시리즈의 마지막 글입니다" in last
+    assert 'href="/blog/series/gnn#series-reading-title">시리즈 목차로 돌아가기</a>' in last
+    assert 'href="/blog/series/gnn#geo-comparison-title">논문 선택 비교 보기</a>' in last
+    assert f'<a class="blog-series-next-prev" rel="prev" href="/blog/{first}">' in last
+    assert 'class="blog-series-next-primary"' not in last
+    # Primary action precedes the tertiary previous link.
+    assert last.index("blog-series-next-done") < last.index("blog-series-next-prev")
+
+
+def test_non_member_article_keeps_chronological_neighbours_and_no_series_nav(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    html = TestClient(app).get(f"/blog/{KOREAN_SLUG}").text
+    assert "blog-series-next" not in html
+    assert 'class="blog-prevnext"' in html
 
 
 def test_empty_series_hub_is_noindex(client: TestClient) -> None:

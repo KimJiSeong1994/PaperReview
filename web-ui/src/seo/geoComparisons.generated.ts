@@ -32,7 +32,7 @@ export interface GeoComparisonHub {
 
 export type GeoComparisons = Record<'graphrag' | 'gnn', GeoComparisonHub>;
 
-export const GEO_COMPARISONS_SOURCE_SHA256 = '95913ffed8d0297a7943d77ad5ed36470d7d55944bcb3f44f500c903208995cd';
+export const GEO_COMPARISONS_SOURCE_SHA256 = '58b7ef348d353e4b22eff2ffd4f1157cce0a15a36db0f8c62f300156a44aae2f';
 export const GEO_COMPARISONS: GeoComparisons = {
   "graphrag": {
     "question": "11편 가운데 전역 요약, 엔티티·관계 이중 검색, 계층 검색을 보여 주는 세 설계를 비교합니다. 질문 범위와 갱신 방식, 원문 근거 확인 경로를 먼저 구분하고, 서로 다른 평가 조건의 결과는 순위로 합치지 않습니다.",
@@ -508,7 +508,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
             "value": "기존 GCN·GIN·GatedGCN에 구조·학습 요소를 결합하고 조정하는 기준선 프레임워크다. message passing에 edge feature, normalization, dropout, residual connection, FFN, positional encoding을 결합해 node representation을 만든다. graph-level/property 과제에서는 이를 pooling해 graph representation으로 바꾸고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP에서는 node-level 출력을 유지한다.",
             "reason": null,
             "sources": [
-              "https://arxiv.org/html/2502.09263v3"
+              "https://arxiv.org/abs/2502.09263v3"
             ]
           },
           "graph_construction": {
@@ -524,7 +524,7 @@ export const GEO_COMPARISONS: GeoComparisons = {
             "value": "논문의 graph-level study가 묶은 14개 벤치마크에서 세 classic GNN 변형을 재평가했다. 이 가운데 10개는 graph-level/property prediction이고, PATTERN·CLUSTER·PascalVOC-SP·COCO-SP 네 개는 node classification이다. 여기서 graph-level은 그래프 단위 데이터 구성·분할 설정도 포함하며, 예측 출력이 모두 그래프 하나당 하나라는 뜻은 아니다.",
             "reason": null,
             "sources": [
-              "https://arxiv.org/html/2502.09263v3"
+              "https://arxiv.org/abs/2502.09263v3"
             ]
           },
           "traceability": {
