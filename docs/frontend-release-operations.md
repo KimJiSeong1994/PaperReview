@@ -1,5 +1,35 @@
 # Frontend release storage and rollback
 
+## CI execution scope
+
+CI keeps the three required check names (`backend`,
+`skillopt-v020-exact-source`, `frontend-build`). A change-detection job selects
+which checks apply; skipped checks remain visible rather than leaving branch
+protection waiting for a workflow that never starts.
+
+- Backend tests always run, without waiting for change detection, because they
+  also enforce frontend/SSR parity and documentation contracts. The full suite,
+  existing 15% coverage gate, Chromium and sandbox checks remain enabled.
+- Exact-source SkillOpt verification runs when shared `src/`, `app/`, or
+  `tools/` code, evaluation data, baseline documentation, tests, shared fixtures,
+  Python dependencies/configuration, or CI definition changes. The pinned
+  source checks and upstream execution tests are unchanged.
+- Frontend PR checks run for `web-ui/` or CI definition changes. Every main push
+  still builds and uploads a fresh frontend artifact. `npm run build` runs
+  `tsc -b`; a second standalone TypeScript invocation is unnecessary.
+- Python jobs use uv's dependency cache and installer. Superseded PR runs are
+  cancelled, but main runs and serialized production deployment are not.
+
+Deployment accepts a skipped SkillOpt check only when change detection
+explicitly reports that component unaffected. Failed/cancelled checks, a
+failed detector, and a missing successful frontend build block deployment.
+Preflight, readiness, durable recovery state and rollback are not removed.
+Test durations are printed to distinguish real execution cost from setup cost;
+timing improvements must be measured on GitHub runners, not inferred from
+local test speed.
+
+## Production release storage
+
 Production keeps `web-ui/dist` as a real directory because both Nginx and the
 Python SSR path read it directly. A deployment extracts and validates the full
 artifact in a sibling directory, then uses Linux
