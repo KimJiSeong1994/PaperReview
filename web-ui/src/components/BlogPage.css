@@ -2380,14 +2380,14 @@ dd[data-state='not_applicable'] {
   text-wrap: pretty;
 }
 
-/* House eyebrow row (13px/600) under the subtitle: category, chapter count,
-   total minutes. --text-muted keeps AA on white in both themes. */
+/* Post-page meta row (13px, above the title): category eyebrow, published
+   chapter count, total minutes. Mirrors .blog-detail-meta on the article. */
 .blog-series-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 0.75rem;
+  gap: 10px 12px;
+  margin: 0.25rem 0 0.75rem;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
@@ -2415,16 +2415,16 @@ dd[data-state='not_applicable'] {
   margin: 0 0 0.5rem;
 }
 
+/* Same soft panel as the index's rail card (--wov-04, 24px) — no borders or
+   accent bars anywhere on the service; indigo stays a text accent. */
 .blog-series-start {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1.25rem 1.5rem;
+  gap: 2rem;
+  padding: 28px 32px;
   background: var(--wov-04);
-  border: 1px solid var(--indigo-bd-20);
-  border-left: 4px solid var(--indigo-bd-55);
-  border-radius: 14px;
-  margin-bottom: 2.5rem;
+  border-radius: 24px;
+  margin-bottom: 3rem;
 }
 
 .blog-series-start-text {
@@ -2459,22 +2459,28 @@ dd[data-state='not_applicable'] {
   text-decoration: none;
 }
 
+/* The post page's tinted outline pill (상세 읽기 / PDF 보기): the service has no
+   solid-filled primary button, so the hero action uses the same recipe. */
 .blog-series-start-cta {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   min-height: 44px;
-  padding: 0.625rem 1.25rem;
+  padding: 0.625rem 1.125rem;
+  border: 1px solid var(--indigo-bd-22);
   border-radius: 999px;
-  background: var(--indigo-strong);
-  color: var(--bg);
+  background: var(--indigo-bd-08);
+  color: var(--indigo);
+  font-size: 15px;
   font-weight: 700;
   text-decoration: none;
-  transition: background-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 
 .blog-series-start-cta:hover {
-  background: var(--indigo);
+  background: var(--indigo-bd-20);
+  border-color: var(--indigo-bd-40);
+  transform: translateY(-1px);
 }
 
 .blog-series-path ol {
@@ -2495,7 +2501,6 @@ dd[data-state='not_applicable'] {
 
 .blog-series-path li:hover,
 .blog-series-path li:focus-within {
-  border-color: var(--indigo-bd-40);
   background: var(--indigo-bd-08);
 }
 
@@ -2627,8 +2632,6 @@ dd[data-state='not_applicable'] {
 
 .geo-comparison-limits {
   padding: 1rem 1.25rem;
-  border: 1px solid var(--indigo-bd-20);
-  border-left: 4px solid var(--indigo-bd-55);
   background: var(--wov-04);
   border-radius: 14px;
   color: var(--text-soft);
@@ -2668,7 +2671,6 @@ dd[data-state='not_applicable'] {
   background: var(--wov-04);
   border-radius: 20px;
   padding: 24px;
-  border-left: 3px solid var(--indigo);
 }
 
 .geo-decision h3,
@@ -2754,7 +2756,7 @@ dd[data-state='not_applicable'] {
 }
 
 .geo-evidence {
-  border-top: 2px solid var(--indigo-bd-40);
+  border-top: 1px solid var(--wov-12);
   padding-top: 2.5rem;
 }
 
@@ -2763,7 +2765,7 @@ dd[data-state='not_applicable'] {
 }
 
 .geo-evidence-method + .geo-evidence-method {
-  border-top: 1px solid var(--indigo-bd-20);
+  border-top: 1px solid var(--wov-12);
   padding-top: 2.5rem;
 }
 
@@ -2783,14 +2785,16 @@ dd[data-state='not_applicable'] {
 }
 
 @media (min-width: 1024px) {
+  /* Index hero media recipe at a smaller size; the page ground shows through
+     the letterbox so the panel reads inside the --wov-04 card. */
   .blog-series-start-media {
     display: block;
-    flex: 0 0 200px;
-    width: 200px;
-    height: 140px;
-    border-radius: 14px;
+    flex: 0 0 280px;
+    width: 280px;
+    height: 160px;
+    border-radius: 16px;
     overflow: hidden;
-    background: var(--wov-04);
+    background: var(--bg);
   }
 
   .blog-series-start-media img {
@@ -2930,10 +2934,9 @@ dd[data-state='not_applicable'] {
   flex-direction: column;
   gap: 12px;
   margin: 32px 0 8px;
-  padding: 16px;
+  padding: 20px;
   background: var(--wov-04);
-  border: 1px solid var(--indigo-bd-20);
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
 .blog-series-next-meta {

@@ -6,118 +6,118 @@
   "actions": [
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:18.835632+00:00",
+      "timestamp": "2026-09-26T11:51:49.576004+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "light",
       "width": 320
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:19.305825+00:00",
+      "timestamp": "2026-09-26T11:51:50.039317+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "light",
       "width": 390
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:19.773896+00:00",
+      "timestamp": "2026-09-26T11:51:50.506610+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "light",
       "width": 768
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:20.254091+00:00",
+      "timestamp": "2026-09-26T11:51:50.985976+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "light",
       "width": 1280
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:20.725373+00:00",
+      "timestamp": "2026-09-26T11:51:51.438805+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "dark",
       "width": 320
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:21.181227+00:00",
+      "timestamp": "2026-09-26T11:51:51.897758+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "dark",
       "width": 390
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:21.655646+00:00",
+      "timestamp": "2026-09-26T11:51:52.365164+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "dark",
       "width": 768
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:22.136095+00:00",
+      "timestamp": "2026-09-26T11:51:52.853099+00:00",
       "selector": ".blog-series-nav a[href=\"#geo-comparison-title\"]",
       "theme": "dark",
       "width": 1280
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:23.457096+00:00",
+      "timestamp": "2026-09-26T11:51:54.116078+00:00",
       "selector": "#series-evidence-2",
       "hashRestoredAfterHydration": true,
-      "top": 23.609375
+      "top": 24.328125
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:23.859663+00:00",
+      "timestamp": "2026-09-26T11:51:54.518026+00:00",
       "selector": "/blog/deepwalk-online-learning-social-representations-review-2026",
       "endOfArticleNextNamed": true
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:24.262417+00:00",
+      "timestamp": "2026-09-26T11:51:54.920572+00:00",
       "selector": ".blog-app-header theme toggle",
       "themeToggleOnSeries": true
     },
     {
       "type": "click",
-      "timestamp": "2026-09-26T11:30:24.767334+00:00",
+      "timestamp": "2026-09-26T11:51:55.425275+00:00",
       "selector": "다시 시도",
       "retryRecovered": true
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:24.858752+00:00",
+      "timestamp": "2026-09-26T11:51:55.515307+00:00",
       "selector": "/blog/series/jiphyeonjeon-build",
       "javaScript": false
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:24.925532+00:00",
+      "timestamp": "2026-09-26T11:51:55.575768+00:00",
       "selector": "/blog/series/gnn",
       "javaScript": false
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:24.962754+00:00",
+      "timestamp": "2026-09-26T11:51:55.613820+00:00",
       "selector": "/blog/series/dwe",
       "javaScript": false
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:25.002424+00:00",
+      "timestamp": "2026-09-26T11:51:55.654510+00:00",
       "selector": "/blog/series/graphrag",
       "javaScript": false
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:25.028136+00:00",
+      "timestamp": "2026-09-26T11:51:55.680712+00:00",
       "selector": "/blog/series/graph-causality",
       "javaScript": false
     },
     {
       "type": "navigate",
-      "timestamp": "2026-09-26T11:30:25.061710+00:00",
+      "timestamp": "2026-09-26T11:51:55.715566+00:00",
       "selector": "/blog/deepwalk-online-learning-social-representations-review-2026",
       "javaScript": false,
       "seriesOrderPrevNext": true
@@ -135,7 +135,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         142.765625,
         142.765625,
         142.765625,
@@ -173,7 +173,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         142.765625,
@@ -211,7 +211,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         113.875,
@@ -249,7 +249,7 @@
       "h2Px": 32,
       "h3Px": 25.6,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         113.875,
@@ -287,7 +287,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         142.765625,
         142.765625,
         142.765625,
@@ -325,7 +325,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         142.765625,
@@ -363,7 +363,7 @@
       "h2Px": 26,
       "h3Px": 22,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         113.875,
@@ -401,7 +401,7 @@
       "h2Px": 32,
       "h3Px": 25.6,
       "targets": [
-        48.890625,
+        47.5,
         113.875,
         113.875,
         113.875,

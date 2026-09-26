@@ -272,14 +272,14 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
       <main id="main" className="blog-content">
         <header className="blog-header">
           <nav aria-label="breadcrumb"><a href="/blog">← 블로그로</a></nav>
-          <h1 className="blog-title">{series.title}</h1>
-          <p className="blog-subtitle">{firstSentence(series.description)}</p>
           {posts.length > 0 && (
             <p className="blog-series-meta">
               {catMeta && <span className="blog-row-cat" data-cat={catMeta}>{catMeta === 'engineering' ? 'Engineering' : 'Paper Review'}</span>}
               <span>{posts.length}편{total !== null ? ` · 약 ${total}분` : ''}</span>
             </p>
           )}
+          <h1 className="blog-title">{series.title}</h1>
+          <p className="blog-subtitle">{firstSentence(series.description)}</p>
         </header>
         <section className="blog-series-start" aria-labelledby="series-start-title">
           <div className="blog-series-start-text">

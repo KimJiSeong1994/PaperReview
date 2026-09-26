@@ -1826,8 +1826,9 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
         '<div class="blog-container blog-series-page"><main id="main" class="blog-content">'
         '<header class="blog-header">'
         '<nav aria-label="breadcrumb"><a href="/blog">← 블로그로</a></nav>'
+        f"{meta_html}"
         f'<h1 class="blog-title">{html.escape(series["title"], quote=True)}</h1>'
-        f'<p class="blog-subtitle">{html.escape(intro)}</p>{meta_html}</header>'
+        f'<p class="blog-subtitle">{html.escape(intro)}</p></header>'
         '<section class="blog-series-start" aria-labelledby="series-start-title">'
         '<div class="blog-series-start-text">'
         f'<p class="blog-series-kicker">여기서 시작하세요{time_html}</p>{spotlight}</div>{media_html}</section>'
