@@ -26,7 +26,13 @@ import numpy as np
 from fastapi import APIRouter, Body, Depends, HTTPException
 from starlette.requests import Request
 
-from .deps import get_current_user, get_optional_user, get_admin_user, limiter, search_agent
+from .deps import (
+    get_current_user,
+    get_optional_user,
+    get_admin_user,
+    limiter,
+    search_agent,
+)
 
 from src.graph.constants import (
     COSINE_EDGE_THRESHOLD_RELAXED,
@@ -43,10 +49,11 @@ router = APIRouter(prefix="/api", tags=["papers"])
 from src.storage.paper_db import PaperDB
 from src.utils.paper_utils import generate_doc_id  # P2-3: doc_id for /save SQLite sync
 
-_paper_db = PaperDB()
+_paper_data_dir = os.getenv("DATA_DIR", "data")
+_paper_db = PaperDB(db_path=os.path.join(_paper_data_dir, "papers.db"))
 
 # Auto-migrate from papers.json on first import
-_JSON_PATH = "data/papers.json"
+_JSON_PATH = os.path.join(_paper_data_dir, "papers.json")
 if os.path.exists(_JSON_PATH):
     _migrated = _paper_db.migrate_from_json(_JSON_PATH)
     if _migrated > 0:
@@ -75,8 +82,7 @@ def _build_edges_faiss(
 
     titles = [p.get("title", "") for p in papers_data]
     doc_ids = [
-        p.get("doc_id") or str(abs(hash(p.get("title", ""))))
-        for p in papers_data
+        p.get("doc_id") or str(abs(hash(p.get("title", "")))) for p in papers_data
     ]
 
     # Batch-embed all titles via the search_agent's calculator
@@ -92,7 +98,10 @@ def _build_edges_faiss(
             valid_vectors.append(emb.astype(np.float32))
 
     if len(valid_vectors) < 2:
-        logger.warning("[P2-1] Too few valid embeddings (%d), skipping FAISS edges", len(valid_vectors))
+        logger.warning(
+            "[P2-1] Too few valid embeddings (%d), skipping FAISS edges",
+            len(valid_vectors),
+        )
         return
 
     # Stack into matrix and L2-normalise for cosine similarity via inner product
@@ -125,7 +134,9 @@ def _build_edges_faiss(
 
     logger.info(
         "[P2-1] FAISS ANN: %d papers, %d valid embeddings, %d edges created",
-        len(papers_data), len(valid_vectors), len(seen_edges),
+        len(papers_data),
+        len(valid_vectors),
+        len(seen_edges),
     )
 
 
@@ -140,7 +151,9 @@ def _build_edges_jaccard(
         return [w for w in words if len(w) > 3]
 
     token_cache = {
-        p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(_title_tokens(p.get("title", "")))
+        p.get("doc_id", str(abs(hash(p.get("title", ""))))): set(
+            _title_tokens(p.get("title", ""))
+        )
         for p in papers_data
     }
 
@@ -149,10 +162,14 @@ def _build_edges_jaccard(
         did = p.get("doc_id") or str(abs(hash(p.get("title", ""))))
         kw_tokens: set = set()
         cats = p.get("categories") or ""
-        cat_list = cats.split() if isinstance(cats, str) else (cats if isinstance(cats, list) else [])
+        cat_list = (
+            cats.split()
+            if isinstance(cats, str)
+            else (cats if isinstance(cats, list) else [])
+        )
         for cat in cat_list:
             kw_tokens.add(cat.lower().strip())
-        for kw in (p.get("keywords") or []):
+        for kw in p.get("keywords") or []:
             if isinstance(kw, str) and len(kw) > 2:
                 kw_tokens.add(kw.lower().strip())
         keyword_cache[did] = kw_tokens
@@ -185,9 +202,25 @@ def _build_edges_jaccard(
 
 
 _GRAPH_LABEL_STOPWORDS = {
-    "about", "after", "analysis", "approach", "based", "between", "from",
-    "model", "models", "paper", "research", "study", "system", "systems",
-    "through", "toward", "towards", "using", "with",
+    "about",
+    "after",
+    "analysis",
+    "approach",
+    "based",
+    "between",
+    "from",
+    "model",
+    "models",
+    "paper",
+    "research",
+    "study",
+    "system",
+    "systems",
+    "through",
+    "toward",
+    "towards",
+    "using",
+    "with",
 }
 
 
@@ -215,14 +248,15 @@ def _annotate_graph_explanations(
     """Attach deterministic community labels and inspectable shared edge terms."""
     paper_by_id = {str(paper.get("doc_id", "")): paper for paper in papers_data}
     terms_by_id = {
-        paper_id: _paper_graph_terms(paper)
-        for paper_id, paper in paper_by_id.items()
+        paper_id: _paper_graph_terms(paper) for paper_id, paper in paper_by_id.items()
     }
 
     for source, target in graph.edges():
         source_keywords, source_title = terms_by_id.get(str(source), (set(), set()))
         target_keywords, target_title = terms_by_id.get(str(target), (set(), set()))
-        shared_keywords = sorted(source_keywords & target_keywords, key=lambda term: (-len(term), term))
+        shared_keywords = sorted(
+            source_keywords & target_keywords, key=lambda term: (-len(term), term)
+        )
         shared_title = sorted(source_title & target_title)
         shared_terms = list(dict.fromkeys([*shared_keywords, *shared_title]))[:4]
         graph.edges[source, target]["shared_terms"] = shared_terms
@@ -233,7 +267,10 @@ def _annotate_graph_explanations(
     detected = nx.community.louvain_communities(graph, weight="weight", seed=42)
     ordered = sorted(
         detected,
-        key=lambda node_set: (-len(node_set), min(str(node_id) for node_id in node_set)),
+        key=lambda node_set: (
+            -len(node_set),
+            min(str(node_id) for node_id in node_set),
+        ),
     )
     communities: List[Dict[str, Any]] = []
 
@@ -245,8 +282,12 @@ def _annotate_graph_explanations(
             keyword_counts.update(keyword_terms)
             title_counts.update(title_terms)
 
-        ranked_keywords = sorted(keyword_counts.items(), key=lambda item: (-item[1], item[0]))
-        ranked_titles = sorted(title_counts.items(), key=lambda item: (-item[1], item[0]))
+        ranked_keywords = sorted(
+            keyword_counts.items(), key=lambda item: (-item[1], item[0])
+        )
+        ranked_titles = sorted(
+            title_counts.items(), key=lambda item: (-item[1], item[0])
+        )
         label_terms = [term for term, _ in ranked_keywords[:2]]
         for term, _ in ranked_titles:
             if len(label_terms) >= 2:
@@ -260,17 +301,20 @@ def _annotate_graph_explanations(
             graph.nodes[node_id]["community_id"] = community_id
             graph.nodes[node_id]["community_label"] = label
 
-        communities.append({
-            "community_id": community_id,
-            "label": label,
-            "nodes": node_ids,
-            "size": len(node_ids),
-        })
+        communities.append(
+            {
+                "community_id": community_id,
+                "label": label,
+                "nodes": node_ids,
+                "size": len(node_ids),
+            }
+        )
 
     return communities
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
+
 
 @router.post("/save")
 async def save_papers(
@@ -284,8 +328,14 @@ async def save_papers(
     Save search results to database with automatic embedding generation and graph update.
     """
     try:
-        logger.info("Saving %s papers...", sum(len(papers) for papers in results.values()))
-        logger.info("Generate embeddings: %s, Update graph: %s", generate_embeddings, update_graph)
+        logger.info(
+            "Saving %s papers...", sum(len(papers) for papers in results.values())
+        )
+        logger.info(
+            "Generate embeddings: %s, Update graph: %s",
+            generate_embeddings,
+            update_graph,
+        )
 
         # Stamp username on papers
         if username:
@@ -294,7 +344,10 @@ async def save_papers(
                     paper["searched_by"] = username
 
         save_info = search_agent.save_papers(
-            results, query, generate_embeddings=generate_embeddings, update_graph=update_graph
+            results,
+            query,
+            generate_embeddings=generate_embeddings,
+            update_graph=update_graph,
         )
 
         # P2-3: also upsert into SQLite (_paper_db) so get_paper / DB-backed search can
@@ -308,15 +361,19 @@ async def save_papers(
                     flat.append(p)
             if flat:
                 synced = _paper_db.save_papers(flat)
-                logger.info("[P2-3] /save synced %d papers to SQLite (%d upserted)", len(flat), synced)
+                logger.info(
+                    "[P2-3] /save synced %d papers to SQLite (%d upserted)",
+                    len(flat),
+                    synced,
+                )
         except Exception as db_err:
             logger.warning("[P2-3] SQLite sync on /save failed: %s", db_err)
 
         logger.info(
             "Save completed: %s new papers, %s embeddings generated, graph updated: %s",
-            save_info.get('new_papers', 0),
-            save_info.get('embeddings_generated', 0),
-            save_info.get('graph_updated', False),
+            save_info.get("new_papers", 0),
+            save_info.get("embeddings_generated", 0),
+            save_info.get("graph_updated", False),
         )
 
         return save_info
@@ -342,7 +399,9 @@ async def get_saved_papers():
             if papers:
                 return {"papers": papers}
         except Exception as db_err:
-            logger.warning("[P2-2] SQLite read failed, falling back to JSON: %s", db_err)
+            logger.warning(
+                "[P2-2] SQLite read failed, falling back to JSON: %s", db_err
+            )
 
         # Fallback to JSON file
         papers_file = search_agent.papers_file
@@ -369,7 +428,9 @@ async def clear_papers(username: str = Depends(get_admin_user)):
 
 
 @router.get("/papers/{paper_id}")
-async def get_paper_by_id(paper_id: str, username: str | None = Depends(get_optional_user)):
+async def get_paper_by_id(
+    paper_id: str, username: str | None = Depends(get_optional_user)
+):
     """Retrieve a single paper by its doc_id (arxiv_id, DOI, or internal id).
 
     Used by the MCP server to resolve paper metadata without listing all papers.
@@ -403,18 +464,22 @@ async def collect_references(
     try:
         logger.info(
             "Collecting references: max_references_per_paper=%s, max_papers=%s",
-            max_references_per_paper, max_papers,
+            max_references_per_paper,
+            max_papers,
         )
         result = search_agent.collect_references(max_references_per_paper, max_papers)
         logger.info(
             "References collected: %s references for %s papers",
-            result.get('references_found', 0), result.get('papers_processed', 0),
+            result.get("references_found", 0),
+            result.get("papers_processed", 0),
         )
         return result
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("Error in collect references: %s", error_trace)
-        raise HTTPException(status_code=500, detail=f"Reference collection failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Reference collection failed: {str(e)}"
+        )
 
 
 @router.post("/paper-references")
@@ -437,7 +502,9 @@ async def get_paper_references(
             "arxiv_id": body.get("arxiv_id"),
         }
         max_refs = min(body.get("max_references", 10), 20)
-        logger.info("Fetching references for: %s (max=%s)", paper["title"][:60], max_refs)
+        logger.info(
+            "Fetching references for: %s (max=%s)", paper["title"][:60], max_refs
+        )
         refs = search_agent.reference_collector.get_references(paper, max_refs)
         logger.info("Found %s references for: %s", len(refs), paper["title"][:60])
         return {"references": refs}
@@ -466,16 +533,23 @@ async def get_paper_code_repos(
         arxiv_id = body.get("arxiv_id") or None
         doi = body.get("doi") or None
         authors = body.get("authors") or None
-        logger.info("Searching code repos for: %s (arxiv=%s, doi=%s)", title[:60], arxiv_id, doi)
+        logger.info(
+            "Searching code repos for: %s (arxiv=%s, doi=%s)", title[:60], arxiv_id, doi
+        )
         repos = search_agent.github_client.search_repos(
-            title=title, arxiv_id=arxiv_id, doi=doi, authors=authors,
+            title=title,
+            arxiv_id=arxiv_id,
+            doi=doi,
+            authors=authors,
         )
         logger.info("Found %s code repos for: %s", len(repos), title[:60])
         return {"repos": repos}
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("Error fetching code repos: %s", error_trace)
-        raise HTTPException(status_code=500, detail=f"Code repo search failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Code repo search failed: {str(e)}"
+        )
 
 
 @router.post("/batch-references")
@@ -492,10 +566,13 @@ async def get_batch_references(
     single-paper endpoint.
     """
     import time as _time
+
     try:
         papers_list = body.get("papers", [])[:5]
         max_refs = min(body.get("max_references", 5), 10)
-        logger.info("Batch references: %s papers, max_refs=%s", len(papers_list), max_refs)
+        logger.info(
+            "Batch references: %s papers, max_refs=%s", len(papers_list), max_refs
+        )
 
         all_refs: List[Dict[str, Any]] = []
         seen_titles: set = set()
@@ -517,12 +594,18 @@ async def get_batch_references(
             if i < len(papers_list) - 1:
                 _time.sleep(0.3)
 
-        logger.info("Batch references done: %s unique refs from %s papers", len(all_refs), len(papers_list))
+        logger.info(
+            "Batch references done: %s unique refs from %s papers",
+            len(all_refs),
+            len(papers_list),
+        )
         return {"references": all_refs}
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("Error in batch references: %s", error_trace)
-        raise HTTPException(status_code=500, detail=f"Batch reference fetch failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Batch reference fetch failed: {str(e)}"
+        )
 
 
 @router.post("/extract-texts")
@@ -546,12 +629,14 @@ async def extract_texts(
     try:
         logger.info(
             "Extracting full texts: max_papers=%s arxiv_ids=%s",
-            max_papers, len(arxiv_ids) if arxiv_ids else 0,
+            max_papers,
+            len(arxiv_ids) if arxiv_ids else 0,
         )
         result = search_agent.extract_full_texts(max_papers, arxiv_ids=arxiv_ids)
         logger.info(
             "Texts extracted: %s/%s papers",
-            result.get('texts_extracted', 0), result.get('papers_processed', 0),
+            result.get("texts_extracted", 0),
+            result.get("papers_processed", 0),
         )
         return result
     except Exception as e:
@@ -581,15 +666,19 @@ async def enrich_papers(
 
         if collect_references:
             logger.info("Step 1: Collecting references...")
-            ref_result = search_agent.collect_references(max_references_per_paper, max_papers)
+            ref_result = search_agent.collect_references(
+                max_references_per_paper, max_papers
+            )
             results["references"] = ref_result
-            logger.info("References collected: %s", ref_result.get('references_found', 0))
+            logger.info(
+                "References collected: %s", ref_result.get("references_found", 0)
+            )
 
         if extract_texts:
             logger.info("Step 2: Extracting full texts...")
             text_result = search_agent.extract_full_texts(max_papers)
             results["texts"] = text_result
-            logger.info("Texts extracted: %s", text_result.get('texts_extracted', 0))
+            logger.info("Texts extracted: %s", text_result.get("texts_extracted", 0))
 
         logger.info("Paper enrichment completed")
         return results
@@ -597,7 +686,9 @@ async def enrich_papers(
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("Error in enrich papers: %s", error_trace)
-        raise HTTPException(status_code=500, detail=f"Paper enrichment failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Paper enrichment failed: {str(e)}"
+        )
 
 
 def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -609,7 +700,11 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     papers_data = [
         {
             **paper,
-            "doc_id": str(paper.get("result_key") or paper.get("doc_id") or generate_result_key(paper)),
+            "doc_id": str(
+                paper.get("result_key")
+                or paper.get("doc_id")
+                or generate_result_key(paper)
+            ),
         }
         for paper in papers_data
     ]
@@ -649,7 +744,10 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
                 logger.info("[Graph] Jaccard fallback for %d papers", n_papers)
                 _build_edges_jaccard(papers_data, graph)
             else:
-                logger.warning("[Graph] %d papers too large for Jaccard fallback, skipping edges", n_papers)
+                logger.warning(
+                    "[Graph] %d papers too large for Jaccard fallback, skipping edges",
+                    n_papers,
+                )
                 edge_method = "unavailable"
                 edge_label = "연결 계산 불가"
                 edge_threshold = None
@@ -664,18 +762,26 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     except ImportError:
         logger.warning("scipy not available, using random layout fallback")
         import random as _rand
+
         _rand.seed(42)
-        layout = {node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()}
+        layout = {
+            node: (_rand.uniform(-1, 1), _rand.uniform(-1, 1)) for node in graph.nodes()
+        }
 
     if len(layout) > 0:
         centroid_x = sum(pos[0] for pos in layout.values()) / len(layout)
         centroid_y = sum(pos[1] for pos in layout.values()) / len(layout)
-        centered = {nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()}
+        centered = {
+            nid: (x - centroid_x, y - centroid_y) for nid, (x, y) in layout.items()
+        }
 
-        max_abs = max(
-            max(abs(x) for x, _ in centered.values()),
-            max(abs(y) for _, y in centered.values()),
-        ) or 1.0
+        max_abs = (
+            max(
+                max(abs(x) for x, _ in centered.values()),
+                max(abs(y) for _, y in centered.values()),
+            )
+            or 1.0
+        )
         layout = {nid: (x / max_abs, y / max_abs) for nid, (x, y) in centered.items()}
 
     # Extract nodes and edges for frontend

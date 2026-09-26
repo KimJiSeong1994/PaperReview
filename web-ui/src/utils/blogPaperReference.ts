@@ -10,6 +10,9 @@ export interface BlogPaperReference {
   year?: number;
   arxiv_id?: string;
   doi?: string;
+  openalex_id?: string;
+  semantic_scholar_id?: string;
+  pmid?: string;
   url?: string;
   pdf_url?: string;
 }
@@ -117,6 +120,9 @@ export function buildPaperViewerHref(ref: BlogPaperReference, source: PaperViewe
   if (ref.pdf_url) params.set('pdf_url', ref.pdf_url);
   if (ref.doi) params.set('doi', ref.doi);
   if (ref.arxiv_id) params.set('arxiv_id', ref.arxiv_id);
+  if (ref.openalex_id) params.set('openalex_id', ref.openalex_id);
+  if (ref.semantic_scholar_id) params.set('semantic_scholar_id', ref.semantic_scholar_id);
+  if (ref.pmid) params.set('pmid', ref.pmid);
   if (ref.url) params.set('url', ref.url);
   params.set('source', source);
   return `/paper-viewer?${params.toString()}`;
@@ -136,7 +142,7 @@ export function openPaperViewer(href: string): void {
  * (year as a string, optional authors); this narrows them to the viewer's.
  */
 export function viewerHrefForPaper(
-  paper: { title: string; authors?: string[]; year?: number | string | null; arxiv_id?: string | null; doi?: string | null; url?: string | null; pdf_url?: string | null },
+  paper: { title: string; authors?: string[]; year?: number | string | null; arxiv_id?: string | null; doi?: string | null; openalex_id?: string | null; semantic_scholar_id?: string | null; pmid?: string | null; url?: string | null; pdf_url?: string | null },
   source: PaperViewerSource,
 ): string {
   const year = paper.year == null || paper.year === '' ? undefined : Number(paper.year);
@@ -146,6 +152,9 @@ export function viewerHrefForPaper(
     year: Number.isFinite(year) ? year : undefined,
     arxiv_id: paper.arxiv_id || undefined,
     doi: paper.doi || undefined,
+    openalex_id: paper.openalex_id || undefined,
+    semantic_scholar_id: paper.semantic_scholar_id || undefined,
+    pmid: paper.pmid || undefined,
     url: paper.url || undefined,
     pdf_url: paper.pdf_url || undefined,
   }, source);

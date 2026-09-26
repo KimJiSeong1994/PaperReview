@@ -80,8 +80,12 @@ def _deployment_revision() -> str:
     """Capture code identity at import, not the mutable checkout on each probe."""
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent,
-            capture_output=True, text=True, timeout=2, check=True,
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
         )
         revision = result.stdout.strip()
         return revision if re.fullmatch(r"[0-9a-f]{40}", revision) else "unknown"
@@ -94,19 +98,23 @@ _DEPLOYMENT_REVISION = _deployment_revision()
 
 def _ensure_faiss_index():
     """Rebuild FAISS index from JSON if the index file is missing."""
-    index_path = Path("data/embeddings/paper_embeddings.index")
-    json_path = Path("data/embeddings/embeddings.json")
+    embeddings_dir = Path(os.getenv("DATA_DIR", "data")) / "embeddings"
+    index_path = embeddings_dir / "paper_embeddings.index"
+    json_path = embeddings_dir / "embeddings.json"
 
     if index_path.exists():
         logger.info("FAISS index already exists: %s", index_path)
         return
 
     if not json_path.exists():
-        logger.warning("No embeddings JSON found at %s — skipping FAISS rebuild", json_path)
+        logger.warning(
+            "No embeddings JSON found at %s — skipping FAISS rebuild", json_path
+        )
         return
 
     try:
         from src.graph.embedding_generator import EmbeddingGenerator
+
         ok = EmbeddingGenerator.rebuild_faiss_from_json(
             json_path=str(json_path),
             output_dir=str(json_path.parent),
@@ -175,6 +183,21 @@ def _warm_cross_encoder_background() -> None:
         logger.warning("Optional cross-encoder warmup failed: %s", exc)
 
 
+def _initialize_account_authority() -> None:
+    """Provision authority and policy identity before authenticated traffic."""
+    from routers.deps.storage import _get_user_db
+    from src.recommendation_state import RecommendationState
+
+    authority = _get_user_db()
+    authority.get_all()
+    events_path = Path(
+        os.getenv(
+            "EVENTS_DB_PATH", str(Path(os.getenv("DATA_DIR", "data")) / "events.db")
+        )
+    )
+    RecommendationState.initialize(events_path, authority=authority)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle.
@@ -184,7 +207,11 @@ async def lifespan(app: FastAPI):
     SQLite before the ASGI server exits. This guarantees zero event
     loss on SIGTERM for the gunicorn/uvicorn graceful shutdown path.
     """
+    app.state.account_authority_ready = False
+    await asyncio.to_thread(_initialize_account_authority)
+    app.state.account_authority_ready = True
     from src.analytics.mcp_usage import initialize_mcp_usage
+
     await asyncio.to_thread(initialize_mcp_usage)
     _ensure_faiss_index()
 
@@ -195,8 +222,11 @@ async def lifespan(app: FastAPI):
     # that replaces per-event INSERTs with ``executemany`` batches.
     try:
         from src.events.event_bus import get_event_bus
+        from routers.deps.storage import _get_user_db
 
-        get_event_bus().register_main_loop(asyncio.get_running_loop())
+        bus = get_event_bus()
+        bus.bind_account_authority(_get_user_db())
+        bus.register_main_loop(asyncio.get_running_loop())
     except RuntimeError:
         logger.warning(
             "event bus not initialized at lifespan startup; "
@@ -218,7 +248,8 @@ async def lifespan(app: FastAPI):
         # This daemon owns no durable application state; required workers and
         # analytics still drain below before the process may exit.
         warmup_thread = threading.Thread(
-            target=_warm_cross_encoder_background, name="cross-encoder-warmup",
+            target=_warm_cross_encoder_background,
+            name="cross-encoder-warmup",
             daemon=True,
         )
         warmup_thread.start()
@@ -319,9 +350,6 @@ app.add_middleware(
 )
 
 
-
-
-
 # ── Global exception handler ──────────────────────────────────────────
 
 
@@ -345,6 +373,7 @@ app.add_middleware(McpUsageMiddleware)
 
 
 # ── Root & health endpoints ──────────────────────────────────────────
+
 
 @app.get("/")
 async def root():
@@ -394,16 +423,21 @@ async def health_check():
     """Health check endpoint for monitoring."""
     checks = {
         "api": "ok",
+        "account_authority": "ok"
+        if getattr(app.state, "account_authority_ready", False)
+        else "not_initialized",
         "openai_key": "configured" if api_key else "missing",
-        "data_dir": "ok" if Path("data").exists() else "missing",
+        "data_dir": "ok" if Path(os.getenv("DATA_DIR", "data")).exists() else "missing",
         "jwt_secret": "configured" if os.getenv("JWT_SECRET") else "random-fallback",
     }
     # "random-fallback" is acceptable in dev but should trigger warnings in prod monitoring
     _acceptable = ("ok", "configured", "random-fallback")
     status = "healthy" if all(v in _acceptable for v in checks.values()) else "degraded"
     return {
-        "status": status, "checks": checks,
-        "deployment_revision": _DEPLOYMENT_REVISION, "process_id": os.getpid(),
+        "status": status,
+        "checks": checks,
+        "deployment_revision": _DEPLOYMENT_REVISION,
+        "process_id": os.getpid(),
     }
 
 
@@ -420,6 +454,7 @@ app.include_router(lightrag_router)
 app.include_router(admin_router)
 app.include_router(admin_analytics_router)
 from routers.mcp_telemetry import router as mcp_telemetry_router
+
 app.include_router(mcp_telemetry_router)
 app.include_router(exploration_router)
 app.include_router(share_router)
@@ -437,6 +472,7 @@ app.include_router(seo_router)
 # ── Entrypoint ─────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
         host="0.0.0.0",

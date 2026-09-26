@@ -4,6 +4,8 @@ OpenAlex REST API를 통한 학술 논문 검색 (무료, API 키 불필요)
 """
 
 import logging
+import hashlib
+import json
 import time
 import requests
 from typing import List, Dict, Any, Optional
@@ -25,12 +27,11 @@ class OpenAlexSearcher:
     def __init__(self):
         self.base_url = "https://api.openalex.org/works"
         self.headers = {
-            'User-Agent': 'PaperReviewAgent/1.0 (mailto:paperreviewagent@example.com)',
-            'Accept': 'application/json',
+            "User-Agent": "PaperReviewAgent/1.0 (mailto:paperreviewagent@example.com)",
+            "Accept": "application/json",
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-
 
     def close(self):
         """Close the HTTP session."""
@@ -54,8 +55,8 @@ class OpenAlexSearcher:
                     word_positions.append((pos, word))
             word_positions.sort(key=lambda x: x[0])
             return " ".join(word for _, word in word_positions)
-        except Exception as e:
-            logger.debug("Failed to reconstruct abstract from inverted index: %s", e)
+        except Exception:
+            logger.debug("openalex_invalid_abstract")
             return ""
 
     def _parse_paper(self, work: Dict) -> Dict[str, Any]:
@@ -71,7 +72,7 @@ class OpenAlexSearcher:
         # DOI
         doi = work.get("doi", "") or ""
         if doi.startswith("https://doi.org/"):
-            doi = doi[len("https://doi.org/"):]
+            doi = doi[len("https://doi.org/") :]
 
         # URL
         primary_location = work.get("primary_location") or {}
@@ -109,8 +110,19 @@ class OpenAlexSearcher:
             "venue": venue,
         }
 
-    def _search_requests(self, query, max_results, filters, *, deadline=None, stop_event=None, attempts=None):
+    def _search_requests(
+        self,
+        query,
+        max_results,
+        filters,
+        *,
+        deadline=None,
+        stop_event=None,
+        attempts=None,
+        max_response_bytes=None,
+    ):
         from src.utils.paper_utils import generate_result_key
+
         deadline = deadline if deadline is not None else time.monotonic() + 30
         papers, seen = [], set()
         for source_filter in filters:
@@ -118,20 +130,60 @@ class OpenAlexSearcher:
             if attempts is not None:
                 attempts.append(receipt)
             try:
-                if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
+                if time.monotonic() >= deadline or (
+                    stop_event is not None and stop_event.is_set()
+                ):
                     raise TimeoutError("OpenAlex budget exhausted")
-                self._rate_limit()
+                if max_response_bytes is None:
+                    self._rate_limit()
                 remaining = deadline - time.monotonic()
                 if remaining <= 0 or (stop_event is not None and stop_event.is_set()):
                     raise TimeoutError("OpenAlex budget exhausted")
-                params = {"per_page": min(max_results * 2, 50)}
+                params = {
+                    "per_page": min(
+                        max_results
+                        if max_response_bytes is not None
+                        else max_results * 2,
+                        50,
+                    )
+                }
                 if not source_filter or not source_filter.startswith("title.search:"):
                     params["search"] = query
                 if source_filter:
                     params["filter"] = source_filter
-                response = self.session.get(self.base_url, params=params, timeout=min(15, remaining))
-                response.raise_for_status()
-                works = response.json().get("results", [])
+                if max_response_bytes is None:
+                    response = self.session.get(
+                        self.base_url, params=params, timeout=min(15, remaining)
+                    )
+                    response.raise_for_status()
+                    works = response.json().get("results", [])
+                else:
+                    with self.session.get(
+                        self.base_url,
+                        params=params,
+                        timeout=min(10, remaining),
+                        stream=True,
+                    ) as response:
+                        response.raise_for_status()
+                        payload = bytearray()
+                        for chunk in response.iter_content(chunk_size=1024):
+                            if time.monotonic() >= deadline or (
+                                stop_event is not None and stop_event.is_set()
+                            ):
+                                raise TimeoutError("budget_exhausted")
+                            if len(payload) + len(chunk) > max_response_bytes:
+                                raise ValueError("response_size_limit")
+                            payload.extend(chunk)
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError("budget_exhausted")
+                        receipt["response_sha256"] = hashlib.sha256(payload).hexdigest()
+                        receipt["response_bytes"] = len(payload)
+                        body = json.loads(payload)
+                        if not isinstance(body, dict) or not isinstance(
+                            body.get("results"), list
+                        ):
+                            raise ValueError("invalid_response")
+                        works = body["results"]
                 receipt["status"] = "searched" if works else "searched_empty"
                 for work in works:
                     paper = self._parse_paper(work)
@@ -142,33 +194,115 @@ class OpenAlexSearcher:
                         seen.add(key)
                         papers.append(paper)
             except Exception as error:
-                receipt["status"] = "timeout" if isinstance(error, (TimeoutError, requests.Timeout)) else "error"
+                receipt["status"] = (
+                    "timeout"
+                    if isinstance(error, (TimeoutError, requests.Timeout))
+                    else "error"
+                )
                 if attempts is None:
                     raise
                 if receipt["status"] == "timeout":
                     break
             if len(papers) >= max_results:
                 break
-        if filters == [None] and papers and papers[0].get("relevance_score"):
+        if (
+            max_response_bytes is None
+            and filters == [None]
+            and papers
+            and papers[0].get("relevance_score")
+        ):
             top_score = papers[0]["relevance_score"]
             if top_score > 0:
-                papers = [p for p in papers if not p.get("relevance_score") or p["relevance_score"] >= top_score * 0.3]
+                papers = [
+                    p
+                    for p in papers
+                    if not p.get("relevance_score")
+                    or p["relevance_score"] >= top_score * 0.3
+                ]
         return papers[:max_results]
 
+    def search_public(
+        self,
+        query,
+        max_results=8,
+        *,
+        deadline,
+        stop_event=None,
+        attempts=None,
+        max_response_bytes=20 * 1024 * 1024,
+    ):
+        """Unlogged public-only acquisition; one bounded provider attempt."""
+        return self._search_requests(
+            query,
+            max_results,
+            [None],
+            deadline=deadline,
+            stop_event=stop_event,
+            attempts=attempts,
+            max_response_bytes=max_response_bytes,
+        )
+
     @log_search_operation("OpenAlex")
-    def search(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
-        return self._search_requests(query, max_results, [None], deadline=deadline, stop_event=stop_event, attempts=attempts)
+    def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        *,
+        deadline=None,
+        stop_event=None,
+        attempts=None,
+    ) -> List[Dict[str, Any]]:
+        return self._search_requests(
+            query,
+            max_results,
+            [None],
+            deadline=deadline,
+            stop_event=stop_event,
+            attempts=attempts,
+        )
 
     @log_search_operation("OpenAlex Title")
-    def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
-        return self._search_requests(title, max_results, [f'title.search:{title}'], deadline=deadline, stop_event=stop_event, attempts=attempts)
+    def search_by_title(
+        self,
+        title: str,
+        max_results: int = 5,
+        *,
+        deadline=None,
+        stop_event=None,
+        attempts=None,
+    ) -> List[Dict[str, Any]]:
+        return self._search_requests(
+            title,
+            max_results,
+            [f"title.search:{title}"],
+            deadline=deadline,
+            stop_event=stop_event,
+            attempts=attempts,
+        )
 
     @log_search_operation("OpenAlex Korean")
-    def search_korean(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
-        return self._search_requests(query, max_results, ['language:ko', 'institutions.country_code:KR'], deadline=deadline, stop_event=stop_event, attempts=attempts)
+    def search_korean(
+        self,
+        query: str,
+        max_results: int = 10,
+        *,
+        deadline=None,
+        stop_event=None,
+        attempts=None,
+    ) -> List[Dict[str, Any]]:
+        return self._search_requests(
+            query,
+            max_results,
+            ["language:ko", "institutions.country_code:KR"],
+            deadline=deadline,
+            stop_event=stop_event,
+            attempts=attempts,
+        )
 
     @log_search_operation("OpenAlex Enhanced")
-    def enhanced_search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    def enhanced_search(
+        self, query: str, max_results: int = 10
+    ) -> List[Dict[str, Any]]:
         """
         향상된 검색 - 일반 검색 + 제목 필터 검색 병합
 

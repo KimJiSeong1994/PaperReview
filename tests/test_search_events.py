@@ -65,7 +65,7 @@ def _make_search_agent_mock() -> MagicMock:
 
 
 @pytest.fixture(autouse=True)
-def _patch_search_deps():
+def _patch_search_deps(tmp_path):
     """Patch module-level singletons and suppress cache/disk I/O."""
     with (
         patch("routers.search.query_analyzer", _make_query_analyzer_mock()),
@@ -73,8 +73,8 @@ def _patch_search_deps():
         patch("routers.search._hybrid_ranker", None),
         patch("routers.search._set_cache", return_value=None),
         patch("routers.search._get_cached_result", return_value=None),
-        patch("routers.search.json.dump", return_value=None),
-        patch("routers.search.Path.mkdir", return_value=None),
+        patch("routers.search.SEARCH_CACHE_DIR", tmp_path / "search-cache"),
+        patch("routers.search._persist_last_search", return_value=None),
     ):
         yield
 
@@ -97,7 +97,9 @@ class TestQuerySubmitEvent:
     """POST /api/search emits QUERY_SUBMIT on success."""
 
     @pytest.mark.asyncio
-    async def test_search_emits_query_submit(self, client: Any, auth_headers: dict) -> None:
+    async def test_search_emits_query_submit(
+        self, client: Any, auth_headers: dict
+    ) -> None:
         """Authenticated search emits exactly one QUERY_SUBMIT with correct payload."""
         captured: list[Any] = []
 
@@ -107,14 +109,19 @@ class TestQuerySubmitEvent:
         with patch("routers.search.emit_or_warn", side_effect=_capture):
             resp = await client.post(
                 "/api/search",
-                json={"query": "transformer survey models", "fast_mode": True, "save_papers": False},
+                json={
+                    "query": "transformer survey models",
+                    "fast_mode": True,
+                    "save_papers": False,
+                },
                 headers=auth_headers,
             )
 
         assert resp.status_code == 200, resp.text
 
         query_submit_events = [
-            e for e in captured
+            e
+            for e in captured
             if hasattr(e, "event_type") and e.event_type.value == "query_submit"
         ]
         assert len(query_submit_events) == 1, (
@@ -154,7 +161,9 @@ class TestQuerySubmitEvent:
         """Unauthenticated search (no Authorization header) must NOT emit QUERY_SUBMIT."""
         captured: list[Any] = []
 
-        with patch("routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)):
+        with patch(
+            "routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)
+        ):
             resp = await client.post(
                 "/api/search",
                 json={"query": "transformer", "fast_mode": True, "save_papers": False},
@@ -162,7 +171,8 @@ class TestQuerySubmitEvent:
 
         assert resp.status_code == 200, resp.text
         query_submit_events = [
-            e for e in captured
+            e
+            for e in captured
             if hasattr(e, "event_type") and e.event_type.value == "query_submit"
         ]
         assert query_submit_events == [], (
@@ -199,7 +209,9 @@ class TestSearchClickEndpoint:
         """Authenticated click emits SEARCH_CLICK with query_hash and paper_id."""
         captured: list[Any] = []
 
-        with patch("routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)):
+        with patch(
+            "routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)
+        ):
             resp = await client.post(
                 "/api/search/click",
                 json={"query_hash": "abc123def456", "paper_id": "arxiv:2401.00001"},
@@ -210,7 +222,8 @@ class TestSearchClickEndpoint:
         assert resp.json()["tracked"] is True
 
         click_events = [
-            e for e in captured
+            e
+            for e in captured
             if hasattr(e, "event_type") and e.event_type.value == "search_click"
         ]
         assert len(click_events) == 1
@@ -227,7 +240,9 @@ class TestSearchClickEndpoint:
         """The clicked position is what MRR/CTR are computed from."""
         captured: list[Any] = []
 
-        with patch("routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)):
+        with patch(
+            "routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)
+        ):
             resp = await client.post(
                 "/api/search/click",
                 json={
@@ -263,7 +278,9 @@ class TestSearchClickEndpoint:
         """Unauthenticated click returns tracked=False and does not emit."""
         captured: list[Any] = []
 
-        with patch("routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)):
+        with patch(
+            "routers.search.emit_or_warn", side_effect=lambda e: captured.append(e)
+        ):
             resp = await client.post(
                 "/api/search/click",
                 json={"query_hash": "abc123def456", "paper_id": "arxiv:2401.00001"},

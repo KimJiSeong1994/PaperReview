@@ -11,10 +11,9 @@ in-memory caches).  It is consumed by two endpoints:
 Design
 ------
 Each stage is executed **independently** inside its own ``try/except``.  A
-stage failure does *not* abort the remaining stages; instead the stage name
-is appended to ``partial_failures``.  Stage 9 (``users_db``) is always
-executed — even when every earlier stage failed — so that the user row is
-guaranteed to be removed and re-registration becomes possible.
+stage failure does *not* abort the remaining stages. The identity is revoked
+before cleanup and reserved until every cleanup stage succeeds. A cross-process
+lease serializes cleanup retries without holding an authority transaction.
 
 Path configuration is dynamic via module-level globals so that test fixtures
 can monkey-patch ``routers.deps.user_deletion.EVENTS_DB_PATH`` (etc.) between
@@ -40,10 +39,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
-from filelock import FileLock
+from filelock import FileLock, Timeout
 from pydantic import BaseModel
 
 from src.events.contracts import assert_valid_username, safe_user_path
+from src.storage.user_db import AccountLifecycleError
+from .auth import AuthenticatedPrincipal
 
 from .storage import (
     PAPERS_FILE,
@@ -69,6 +70,14 @@ BLOG_POSTS_FILE: Path = _DATA_DIR / "blog" / "posts.json"
 BLOG_POSTS_LOCK: FileLock = FileLock(str(BLOG_POSTS_FILE) + ".lock")
 CURRICULA_DIR: Path = _DATA_DIR / "curricula"
 GDPR_AUDIT_LOG: Path = _DATA_DIR / ".gdpr_audit.jsonl"
+RECOMMENDATIONS_DIR: Path = Path(
+    os.getenv("RECOMMENDATIONS_ARTIFACTS_DIR", str(_DATA_DIR / "recommendations"))
+)
+RECOMMENDATION_CANDIDATES_DIR: Path = Path(
+    os.getenv(
+        "RECOMMENDATION_CANDIDATES_DIR", str(_DATA_DIR / "recommendation-candidates")
+    )
+)
 
 
 # ── Public constants ──────────────────────────────────────────────────
@@ -113,7 +122,7 @@ class DeleteResult(BaseModel):
         Stage names that raised (``"rubric_db"``, ``"profile_emb"``,
         ``"events_db"``, ``"bookmarks"``, ``"papers_anonymize"``,
         ``"blog_anonymize"``, ``"curriculum_anonymize"``,
-        ``"review_sessions_memory"``, ``"users_db"``, ``"audit_log"``,
+        ``review_sessions_memory"``, ``"account_authority"``, ``"audit_log"``,
         or ``"username_invalid"``).
     audit_hash:
         ``sha256(username)`` hex digest — provides proof-of-deletion
@@ -123,6 +132,7 @@ class DeleteResult(BaseModel):
     deleted: bool
     partial_failures: list[str]
     audit_hash: str
+    retryable: bool = False
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -154,6 +164,9 @@ def _resolve_paths(override: Optional[Mapping[str, Path]]) -> Dict[str, Any]:
         "blog_posts_lock": _self.BLOG_POSTS_LOCK,
         "curricula_dir": _self.CURRICULA_DIR,
         "audit_log": _self.GDPR_AUDIT_LOG,
+        "recommendations_dir": _self.RECOMMENDATIONS_DIR,
+        "recommendation_candidates_dir": _self.RECOMMENDATION_CANDIDATES_DIR,
+        "papers_file": PAPERS_FILE,
     }
     if override:
         paths.update({k: v for k, v in override.items() if v is not None})
@@ -217,9 +230,7 @@ def _stage_rubric_db(username: str, db_path: Path) -> None:
 
 def _stage_profile_emb(username: str, embeddings_dir: Path) -> None:
     """Stage 2 — remove embeddings/users/<username>/ directory."""
-    emb_path = safe_user_path(embeddings_dir, username)
-    if emb_path.exists():
-        shutil.rmtree(emb_path)
+    _remove_owned_tree(embeddings_dir, username)
 
 
 def _stage_events_db(username: str, db_path: Path) -> None:
@@ -228,6 +239,10 @@ def _stage_events_db(username: str, db_path: Path) -> None:
         return
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     try:
+        if not conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_events'"
+        ).fetchone():
+            return
         conn.execute("DELETE FROM user_events WHERE user_id = ?", (username,))
         conn.commit()
     finally:
@@ -284,7 +299,7 @@ def _stage_blog_anonymize(
         # posts.json is either {"posts": [...]} or a bare list (legacy).
         posts = data.get("posts") if isinstance(data, dict) else data
         if not isinstance(posts, list):
-            return
+            raise ValueError("invalid_blog_cleanup_input")
 
         changed = False
         for post in posts:
@@ -321,16 +336,10 @@ def _anonymize_json_file(
         with open(json_path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        # macOS AppleDouble sidecars (``._*.json``) surface as binary
-        # files with ``.json`` suffix and blow up the open() with a
-        # UnicodeDecodeError; an upstream corrupted JSON file triggers
-        # JSONDecodeError.  Either way the file has nothing we can
-        # meaningfully rewrite — skip and let the rest of the stage
-        # continue.  Without this catch the exception bubbles out of
-        # the per-file loop (which only handles OSError) and aborts
-        # the whole ``curriculum_anonymize`` stage.
-        logger.warning("Skipping unreadable JSON: %s", json_path.name)
-        return
+        # Hidden sidecars are excluded by the caller. An unreadable real
+        # document may retain owner input; do not claim complete erasure.
+        logger.warning("Unreadable curriculum JSON requires cleanup retry")
+        raise
 
     changed = [False]
 
@@ -368,6 +377,7 @@ def _stage_curriculum_anonymize(
     """
     if not curricula_dir.exists():
         return
+    failed = False
     for json_path in sorted(curricula_dir.glob("*.json")):
         # Hidden files (``._*`` AppleDouble sidecars, ``.DS_Store``-adjacent
         # noise) are never real curricula — skip without even opening them.
@@ -380,26 +390,69 @@ def _stage_curriculum_anonymize(
             logger.warning(
                 "curriculum_anonymize: failed on %s: %s", json_path.name, exc
             )
+            failed = True
+    if failed:
+        raise OSError("curriculum_cleanup_incomplete")
 
 
 def _stage_review_sessions_memory(username: str) -> None:
     """Stage 8 — evict in-memory review sessions owned by username."""
     with review_sessions_lock:
         doomed = [
-            sid for sid, sess in review_sessions.items()
+            sid
+            for sid, sess in review_sessions.items()
             if sess.get("username") == username
         ]
         for sid in doomed:
             review_sessions.pop(sid, None)
 
 
-def _stage_users_db(username: str) -> None:
-    """Stage 9 — delete the primary users row.
+def _remove_owned_tree(
+    root: Path, owner: str, *, legacy_username: Optional[str] = None
+) -> None:
+    """Remove an exact contained tree, refusing symlink traversal."""
+    root = Path(root).absolute()
+    if any(part.is_symlink() for part in (root, *root.parents)):
+        raise ValueError("unsafe_cleanup_path")
+    lexical_target = root / owner
+    if lexical_target.is_symlink():
+        raise ValueError("unsafe_cleanup_path")
+    target = safe_user_path(root, owner)
+    if not target.exists():
+        return
+    for directory, dirs, files in os.walk(target, followlinks=False):
+        if any((Path(directory) / name).is_symlink() for name in dirs + files):
+            raise ValueError("unsafe_cleanup_path")
+        if legacy_username is not None:
+            for name in files:
+                path = Path(directory) / name
+                # Generation IDs share the old username directory level.
+                # Prove legacy ownership rather than deleting a colliding
+                # generation directory belonging to a different account.
+                if path.suffix != ".json":
+                    raise ValueError("unverified_legacy_owner")
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("user_id") != legacy_username
+                ):
+                    raise ValueError("unverified_legacy_owner")
+    shutil.rmtree(target)
 
-    **Must always run** — even when earlier stages raised — so that the
-    account becomes unusable and the username can be re-registered.
-    """
-    _get_user_db().delete(username)
+
+def _stage_recommendations(
+    username: str, incarnation: str, paths: Mapping, *, authority
+) -> None:
+    from src.recommendation_state import RecommendationState
+
+    RecommendationState(paths["events_db"], authority=authority).delete_incarnation(
+        incarnation
+    )
+    _remove_owned_tree(paths["recommendations_dir"], incarnation)
+    _remove_owned_tree(paths["recommendations_dir"], username, legacy_username=username)
+    _remove_owned_tree(
+        Path(paths["recommendation_candidates_dir"]) / "private", incarnation
+    )
 
 
 # ── Public entry point ────────────────────────────────────────────────
@@ -407,52 +460,83 @@ def _stage_users_db(username: str) -> None:
 
 def delete_user_cascade(
     username: str,
-    actor: Optional[str] = None,
+    *,
+    account_incarnation: str,
+    actor: Optional[AuthenticatedPrincipal] = None,
     paths: Optional[Mapping[str, Path]] = None,
 ) -> DeleteResult:
-    """Remove or anonymise every trace of *username* across the stack.
-
-    Parameters
-    ----------
-    username:
-        The account to delete.  Must match the safe pattern
-        ``^[A-Za-z0-9_\\-]{1,64}$``; otherwise ``username_invalid`` is
-        returned and no stages run.
-    actor:
-        Principal that triggered the delete.  ``None`` → self-delete;
-        otherwise the admin username (hashed before audit-log write).
-    paths:
-        Optional path overrides.  Recognised keys: ``events_db``,
-        ``profile_db``, ``embeddings_users_dir``, ``blog_posts_file``,
-        ``blog_posts_lock``, ``curricula_dir``, ``audit_log``.  Missing
-        keys fall back to the module defaults; ``None`` values are
-        ignored.  This override is the supported mechanism for legacy
-        ``routers.me`` tests that patch module-level path constants on
-        ``routers.me``.
-
-    Returns
-    -------
-    DeleteResult
-        Structured outcome.  ``deleted`` is ``True`` only when every
-        stage completed without error.
-    """
-    # ── Validate ──────────────────────────────────────────────────────
+    """Revoke and clean exactly one identity under a cross-process cleanup lease."""
+    audit_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()
     try:
         assert_valid_username(username)
     except ValueError:
-        # Intentionally do NOT include the raw exception message — its
-        # str(exc) contains the offending username and would leak PII
-        # into the log.  The hash prefix is sufficient for correlation.
-        logger.error(
-            "delete_user_cascade: invalid username (hash_prefix=%s)",
-            _hash_prefix(username),
+        return DeleteResult(
+            deleted=False, partial_failures=["username_invalid"], audit_hash=""
         )
+    try:
+        db = _get_user_db()
+        with db.cleanup_lock(username):
+            with db.transaction() as tx:
+                if actor is not None:
+                    acting = tx.validate_principal(
+                        actor.username, actor.account_incarnation
+                    )
+                    if acting.get("role") != "admin":
+                        raise AccountLifecycleError("admin_required")
+                    if actor.username == username:
+                        raise AccountLifecycleError("cannot_delete_self_as_admin")
+                    target = tx.get(username)
+                    if target and target.get("role") == "admin":
+                        if (
+                            sum(u.get("role") == "admin" for u in tx.get_all().values())
+                            <= 1
+                        ):
+                            raise AccountLifecycleError("last_admin")
+                else:
+                    tx.validate_principal(username, account_incarnation)
+                tx.begin_delete(username, account_incarnation)
+            return _delete_reserved_user(
+                username,
+                account_incarnation,
+                db,
+                actor.username if actor else None,
+                paths,
+            )
+    except Timeout:
         return DeleteResult(
             deleted=False,
-            partial_failures=["username_invalid"],
-            audit_hash="",
+            partial_failures=["cleanup_busy"],
+            audit_hash=audit_hash,
+            retryable=True,
+        )
+    except AccountLifecycleError as exc:
+        authority_failure = exc.reason in {
+            "lifecycle_integrity_error",
+            "unsafe_cleanup_lock",
+        }
+        return DeleteResult(
+            deleted=False,
+            partial_failures=[exc.reason],
+            audit_hash=audit_hash,
+            retryable=authority_failure,
+        )
+    except (sqlite3.Error, OSError):
+        return DeleteResult(
+            deleted=False,
+            partial_failures=["account_authority"],
+            audit_hash=audit_hash,
+            retryable=True,
         )
 
+
+def _delete_reserved_user(
+    username: str,
+    account_incarnation: str,
+    db,
+    actor: Optional[str],
+    paths: Optional[Mapping[str, Path]],
+) -> DeleteResult:
+    """Run best-effort stages while the caller holds the exact identity lease."""
     audit_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()
     sentinel = make_sentinel(audit_hash)
     hp = _hash_prefix(username)
@@ -490,11 +574,9 @@ def delete_user_cascade(
 
     # ── Stage 5: papers_anonymize ─────────────────────────────────────
     try:
-        _stage_papers_anonymize(username, sentinel, PAPERS_FILE)
+        _stage_papers_anonymize(username, sentinel, p["papers_file"])
     except Exception:
-        logger.exception(
-            "cascade[papers_anonymize] failed for hash_prefix=%s", hp
-        )
+        logger.exception("cascade[papers_anonymize] failed for hash_prefix=%s", hp)
         partial_failures.append("papers_anonymize")
 
     # ── Stage 6: blog_anonymize ───────────────────────────────────────
@@ -503,18 +585,14 @@ def delete_user_cascade(
             username, sentinel, p["blog_posts_file"], p["blog_posts_lock"]
         )
     except Exception:
-        logger.exception(
-            "cascade[blog_anonymize] failed for hash_prefix=%s", hp
-        )
+        logger.exception("cascade[blog_anonymize] failed for hash_prefix=%s", hp)
         partial_failures.append("blog_anonymize")
 
     # ── Stage 7: curriculum_anonymize ─────────────────────────────────
     try:
         _stage_curriculum_anonymize(username, sentinel, p["curricula_dir"])
     except Exception:
-        logger.exception(
-            "cascade[curriculum_anonymize] failed for hash_prefix=%s", hp
-        )
+        logger.exception("cascade[curriculum_anonymize] failed for hash_prefix=%s", hp)
         partial_failures.append("curriculum_anonymize")
 
     # ── Stage 8: review_sessions_memory ───────────────────────────────
@@ -529,17 +607,18 @@ def delete_user_cascade(
     # Dedicated MCP measurements must follow account deletion as well.
     try:
         from src.analytics.mcp_usage import delete_actor_events
+
         delete_actor_events(username, p["mcp_analytics_db"])
     except Exception:
         logger.exception("cascade[mcp_analytics] failed for hash_prefix=%s", hp)
         partial_failures.append("mcp_analytics")
 
-    # ── Stage 9: users_db (MUST run even after upstream failures) ─────
+    # Policy revocation and both private file namespaces are required cleanup.
     try:
-        _stage_users_db(username)
+        _stage_recommendations(username, account_incarnation, p, authority=db)
     except Exception:
-        logger.exception("cascade[users_db] failed for hash_prefix=%s", hp)
-        partial_failures.append("users_db")
+        logger.error("cascade[recommendations] failed for hash_prefix=%s", hp)
+        partial_failures.append("recommendations")
 
     # ── Audit log ─────────────────────────────────────────────────────
     try:
@@ -557,8 +636,16 @@ def delete_user_cascade(
         )
         partial_failures.append("audit_log")
 
+    try:
+        db.finish_delete(
+            username, account_incarnation, cleanup_succeeded=not partial_failures
+        )
+    except (AccountLifecycleError, sqlite3.Error, OSError):
+        partial_failures.append("account_authority")
+
     return DeleteResult(
         deleted=len(partial_failures) == 0,
         partial_failures=partial_failures,
         audit_hash=audit_hash,
+        retryable=bool(partial_failures),
     )

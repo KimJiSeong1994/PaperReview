@@ -14,6 +14,7 @@ from filelock import FileLock
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _unique_username(prefix: str = "testuser") -> str:
     """Generate a unique username for test isolation."""
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
@@ -23,15 +24,18 @@ def _unique_username(prefix: str = "testuser") -> str:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def mock_users_file(tmp_path):
     """Isolate user storage to a temp file for every test."""
     uf = tmp_path / "users.json"
     uf.write_text(json.dumps({}))
-    with patch("routers.deps.USERS_FILE", uf), \
-         patch("routers.deps.storage.USERS_FILE", uf), \
-         patch("routers.deps._users_lock", FileLock(str(uf) + ".lock")), \
-         patch("routers.deps.storage._users_lock", FileLock(str(uf) + ".lock")):
+    with (
+        patch("routers.deps.USERS_FILE", uf),
+        patch("routers.deps.storage.USERS_FILE", uf),
+        patch("routers.deps._users_lock", FileLock(str(uf) + ".lock")),
+        patch("routers.deps.storage._users_lock", FileLock(str(uf) + ".lock")),
+    ):
         yield uf
 
 
@@ -46,6 +50,7 @@ def disable_rate_limiter(app):
 # ---------------------------------------------------------------------------
 # Registration tests
 # ---------------------------------------------------------------------------
+
 
 class TestRegister:
     """POST /api/auth/register"""
@@ -76,7 +81,36 @@ class TestRegister:
             json={"username": username, "password": "pass5678"},
         )
         assert resp2.status_code == 409
-        assert "already exists" in resp2.json()["detail"].lower()
+        assert resp2.json()["detail"] == "username_reserved"
+
+    async def test_register_waits_for_cleanup_then_issues_new_identity(self, client):
+        from routers.deps.storage import _get_user_db
+
+        db = _get_user_db()
+        old = db.create_account("reserved_user", {"role": "user"})
+        db.begin_delete("reserved_user", old["account_incarnation"])
+        db.finish_delete(
+            "reserved_user", old["account_incarnation"], cleanup_succeeded=False
+        )
+        response = await client.post(
+            "/api/auth/register",
+            json={"username": "reserved_user", "password": "newpass"},
+        )
+        assert (
+            response.status_code == 409
+            and response.json()["detail"] == "username_reserved"
+        )
+        db.finish_delete(
+            "reserved_user", old["account_incarnation"], cleanup_succeeded=True
+        )
+        response = await client.post(
+            "/api/auth/register",
+            json={"username": "reserved_user", "password": "newpass"},
+        )
+        assert response.status_code == 200
+        current = db.get("reserved_user")
+        assert current["account_incarnation"] != old["account_incarnation"]
+        assert current["legacy_event_cutoff"] is None
 
     async def test_register_short_username(self, client):
         """Username shorter than 3 characters returns 422."""
@@ -107,6 +141,7 @@ class TestRegister:
 # ---------------------------------------------------------------------------
 # Login tests
 # ---------------------------------------------------------------------------
+
 
 class TestLogin:
     """POST /api/auth/login"""
@@ -164,8 +199,28 @@ class TestLogin:
 # Token verification tests
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyToken:
     """GET /api/auth/verify with Authorization: Bearer token."""
+
+    async def test_username_only_token_requires_relogin(self, client):
+        from tests.conftest import _TEST_JWT_SECRET
+        from routers.deps.storage import _get_user_db
+
+        _get_user_db().create_account("legacy_token_user", {"role": "user"})
+        token = jwt.encode(
+            {
+                "sub": "legacy_token_user",
+                "role": "user",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
+            _TEST_JWT_SECRET,
+            algorithm="HS256",
+        )
+        response = await client.get(
+            "/api/auth/verify", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 401
 
     async def test_verify_valid_token(self, client):
         """A freshly obtained token is valid."""
@@ -193,9 +248,11 @@ class TestVerifyToken:
     async def test_verify_expired_token(self, client):
         """An expired JWT returns 401."""
         from tests.conftest import _TEST_JWT_SECRET
+
         secret = _TEST_JWT_SECRET
         payload = {
             "sub": "expired_user",
+            "account_incarnation": "expired-incarnation",
             "role": "user",
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "iat": datetime.now(timezone.utc) - timedelta(hours=2),
@@ -239,8 +296,28 @@ class TestVerifyToken:
 # Role-based access tests
 # ---------------------------------------------------------------------------
 
+
 class TestRoleBasedAccess:
     """Verify admin vs regular user access on /api/admin endpoints."""
+
+    async def test_current_role_demotion_overrides_signed_admin(self, client):
+        from routers.deps.storage import _get_user_db
+        from tests.conftest import _make_test_token
+
+        db = _get_user_db()
+        record = db.create_account("demoted_admin", {"role": "admin"})
+        headers = {
+            "Authorization": f"Bearer {_make_test_token('demoted_admin', role='admin')}"
+        }
+        db.upsert(
+            "demoted_admin",
+            {"role": "user"},
+            expected_incarnation=record["account_incarnation"],
+        )
+        response = await client.get("/api/admin/dashboard", headers=headers)
+        assert response.status_code == 403
+        verified = await client.get("/api/auth/verify", headers=headers)
+        assert verified.status_code == 200 and verified.json()["role"] == "user"
 
     async def _register_and_login(self, client, username: str, password: str) -> str:
         """Helper: register a user, log in, and return the access token."""
@@ -274,7 +351,7 @@ class TestRoleBasedAccess:
         db = _get_user_db()
         data = db.get(admin_name) or {}
         data["role"] = "admin"
-        db.upsert(admin_name, data)
+        db.upsert(admin_name, data, expected_incarnation=data["account_incarnation"])
 
         admin_token = _make_test_token(username=admin_name, role="admin")
         headers = {"Authorization": f"Bearer {admin_token}"}

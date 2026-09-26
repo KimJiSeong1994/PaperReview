@@ -1,230 +1,309 @@
-"""F-01 + F-02 regression tests: deep-review session access control.
-
-Covers:
-- F-01: anonymous and cross-user callers can no longer bypass the
-  session-ownership guard on the review endpoints.
-- F-02: ``metadata.json`` written at session completion persists the
-  owner ``username`` so that post-restart restores keep ownership; legacy
-  sessions without a ``username`` field are sealed with a sentinel so
-  they 404 for every caller.
-
-Test fixtures mirror the pattern used by ``test_bookmark_cross_user_mutating.py``
-and ``test_auth.py``.
-"""
+"""Real JWT/authority coverage of review production, persistence and access."""
 
 import json
-import os
-from datetime import datetime, timedelta, timezone
+from functools import partial
 from pathlib import Path
 
-import jwt
 import pytest
-
-_JWT_SECRET = os.environ.get("JWT_SECRET", "test-jwt-secret-for-testing-only")
-
-
-def _make_token(username: str) -> str:
-    payload = {
-        "sub": username,
-        "role": "user",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-        "iat": datetime.now(timezone.utc),
-    }
-    return jwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+from tests.test_bookmark_incarnation import (
+    qualified_outcome_store as qualified_outcome_store,
+)
 
 
-def _auth(username: str) -> dict:
-    """Seed the user in the DB (get_current_user requires DB existence)
-    and return Authorization headers for the caller."""
+def _auth(username):
     from routers.deps.storage import _get_user_db
+    from tests.conftest import _make_test_token
 
     db = _get_user_db()
     if db.get(username) is None:
-        db.upsert(username, {"password_hash": "x", "role": "user", "created_at": ""})
-    return {"Authorization": f"Bearer {_make_token(username)}"}
-
-
-def _inject_review_session(session_id: str, username: str | None, tmp_path) -> None:
-    """Inject a fake completed review session into the in-memory store.
-
-    ``username=None`` is deliberately allowed so we can test the F-02
-    sentinel path without touching disk.
-    """
-    import routers.reviews as reviews_mod
-
-    workspace = tmp_path / "ws"
-    reports = workspace / "reports"
-    reports.mkdir(parents=True, exist_ok=True)
-    (reports / "report.md").write_text("# Test Report\nBody content.")
-
-    with reviews_mod.review_sessions_lock:
-        reviews_mod.review_sessions[session_id] = {
-            "session_id": session_id,
-            "username": username,
-            "status": "completed",
-            "progress": "100%",
-            "report_available": True,
-            "error": None,
-            "verification_stats": None,
-            "workspace_path": str(workspace),
-            "num_papers": 1,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-
-def _cleanup_review_session(session_id: str) -> None:
-    import routers.reviews as reviews_mod
-
-    with reviews_mod.review_sessions_lock:
-        reviews_mod.review_sessions.pop(session_id, None)
+        db.create_account(username, {"password_hash": "x", "role": "user"})
+    return {"Authorization": f"Bearer {_make_test_token(username, role='user')}"}
 
 
 @pytest.fixture
-def alice_review_session(tmp_path):
-    sid = "review_20260423_120000_alicef01"
-    _inject_review_session(sid, "alice_f01", tmp_path)
-    yield sid
-    _cleanup_review_session(sid)
+def local_review(client, tmp_path, monkeypatch):
+    from app.DeepAgent import workspace_manager
+    from routers import reviews
+    from routers.deps import storage
 
-
-# ---------------------------------------------------------------------------
-# F-01: ownership bypass fixes
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_review_status_anon_call_returns_401(client, alice_review_session):
-    """Anonymous (no Authorization header) must get 401, not 200 with body.
-
-    Before the fix: ``get_optional_user`` returned ``None`` and the
-    ownership guard short-circuited, exposing the session body.
-    After: ``get_current_user`` rejects the missing header at 401.
-    """
-    r = await client.get(f"/api/deep-review/status/{alice_review_session}")
-    assert r.status_code == 401, (
-        f"Anonymous caller must be blocked at auth layer; got {r.status_code}: {r.text}"
+    # Independent API scenarios must not share the in-memory rate-limit bucket.
+    reviews.limiter._storage.reset()
+    root = tmp_path / "workspace"
+    monkeypatch.setattr(
+        workspace_manager,
+        "WorkspaceManager",
+        partial(workspace_manager.WorkspaceManager, base_path=str(root)),
     )
+    monkeypatch.setattr(storage, "WORKSPACE_DIR", root)
 
-
-@pytest.mark.asyncio
-async def test_review_report_wrong_user_returns_404(client, alice_review_session):
-    """Authenticated but non-owner caller must get 404 (not 200, not 403)."""
-    r = await client.get(
-        f"/api/deep-review/report/{alice_review_session}",
-        headers=_auth("bob_f01"),
-    )
-    assert r.status_code == 404, (
-        f"Cross-user GET must return 404; got {r.status_code}: {r.text}"
-    )
-
-
-@pytest.mark.asyncio
-async def test_review_report_owner_call_returns_200(client, alice_review_session):
-    """The rightful owner must still be able to read the report (happy path)."""
-    r = await client.get(
-        f"/api/deep-review/report/{alice_review_session}",
-        headers=_auth("alice_f01"),
-    )
-    assert r.status_code == 200, (
-        f"Owner must still retrieve report; got {r.status_code}: {r.text}"
-    )
-    body = r.json()
-    assert body["session_id"] == alice_review_session
-    assert "Body content." in body["report_markdown"]
-
-
-# ---------------------------------------------------------------------------
-# F-02: metadata.json persistence & legacy sentinel sealing
-# ---------------------------------------------------------------------------
-
-def test_metadata_json_persists_username(tmp_path, monkeypatch):
-    """Completion path writes ``username`` into ``metadata.json``.
-
-    We exercise the exact code block from
-    ``run_deep_review_background`` that updates ``metadata.json`` on
-    success, verifying ``"username"`` is present.
-    """
-    import routers.reviews as reviews_mod
-
-    session_id = "review_20260423_130000_metajson"
-    workspace_path = tmp_path / "ws-meta"
-    workspace_path.mkdir(parents=True, exist_ok=True)
-
-    # Seed the in-memory session as the orchestrator would just before
-    # the metadata-write block runs.
-    with reviews_mod.review_sessions_lock:
-        reviews_mod.review_sessions[session_id] = {
+    # Keep the actual endpoint and background orchestration; replace only the
+    # expensive review implementation with a bounded local report producer.
+    def fake_review(session_id, paper_ids, model, workspace, papers_data):
+        (workspace.session_path / "reports" / "report.md").write_text(
+            "# Test Report\nBody content.", encoding="utf-8"
+        )
+        return {
             "status": "completed",
-            "username": "alice_f02",
-            "num_papers": 2,
-            "workspace_path": str(workspace_path),
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "papers_reviewed": len(paper_ids),
+            "workspace_path": str(workspace.session_path),
         }
 
-    try:
-        # Inline the exact write the handler performs (see reviews.py
-        # L864-875): we mirror it rather than run a full review.
-        meta_path = workspace_path / "metadata.json"
-        meta = {
-            "session_id": session_id,
-            "status": "completed",
-            "num_papers": reviews_mod.review_sessions[session_id]["num_papers"],
-            "paper_ids": ["p1", "p2"],
-            "username": reviews_mod.review_sessions[session_id].get("username"),
-        }
-        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    monkeypatch.setattr(reviews, "run_fast_review", fake_review)
+    yield reviews, storage, fake_review
+    with reviews.review_sessions_lock:
+        for sid, session in list(reviews.review_sessions.items()):
+            if str(root) in session.get("workspace_path", ""):
+                reviews.review_sessions.pop(sid)
 
-        loaded = json.loads(meta_path.read_text(encoding="utf-8"))
-        assert "username" in loaded, "metadata.json must persist the owner username (F-02)"
-        assert loaded["username"] == "alice_f02"
-    finally:
-        _cleanup_review_session(session_id)
+
+async def _start(client, headers):
+    response = await client.post(
+        "/api/deep-review",
+        headers=headers,
+        json={"paper_ids": ["p1"], "fast_mode": True},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["session_id"]
+
+
+async def _bookmark(client, sid, headers):
+    return await client.post(
+        "/api/bookmarks",
+        headers=headers,
+        json={"session_id": sid, "title": "paper", "report_markdown": "report"},
+    )
 
 
 @pytest.mark.asyncio
-async def test_restored_legacy_session_is_sealed(tmp_path, client, monkeypatch):
-    """Legacy ``metadata.json`` (no ``username``) restores under sentinel
-    and 404s for every caller — including an authenticated user whose
-    name matches the sentinel byte-for-byte would never happen in prod
-    because ``__legacy_unknown__`` starts with underscores which our
-    username validator rejects.
-    """
-    import routers.deps.storage as storage_mod
+@pytest.mark.parametrize("recreated", [False, True])
+async def test_review_start_qualified_attribution(
+    client, local_review, qualified_outcome_store, monkeypatch, recreated
+):
+    import sqlite3
 
-    # Point WORKSPACE_DIR at a throwaway dir for this test.
-    ws_root = tmp_path / "workspace"
-    session_id = "review_20260423_140000_legacyss"
-    session_dir = ws_root / session_id
-    (session_dir / "reports").mkdir(parents=True, exist_ok=True)
-    (session_dir / "reports" / "report.md").write_text("# Legacy")
-    # metadata.json WITHOUT username — simulates pre-F-02 sessions.
-    (session_dir / "metadata.json").write_text(
-        json.dumps({"session_id": session_id, "status": "completed",
-                    "num_papers": 1, "paper_ids": ["p1"]}),
-        encoding="utf-8",
+    reviews, _, _ = local_review
+    users, incarnation, headers, path, _, paper, key, expose = qualified_outcome_store
+    expose()
+    if recreated:
+        record_started = reviews.record_job_started
+
+        async def replace_after_acceptance(*args):
+            result = await record_started(*args)
+            users.begin_delete("outcome-owner", incarnation)
+            users.finish_delete("outcome-owner", incarnation, cleanup_succeeded=True)
+            users.create_account("outcome-owner", {"role": "user"})
+            return result
+
+        monkeypatch.setattr(reviews, "record_job_started", replace_after_acceptance)
+    response = await client.post(
+        "/api/deep-review",
+        headers=headers,
+        json={
+            "paper_ids": ["p1"],
+            "papers": [paper],
+            "fast_mode": True,
+            "run_id": "forged",
+            "canonical_key": "doi:foreign",
+        },
     )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (
+        reviews.review_sessions[body["session_id"]]["account_incarnation"]
+        == incarnation
+    )
+    attribution = body["recommendation_attribution"][0]
+    with sqlite3.connect(path) as conn:
+        rows = conn.execute(
+            "SELECT incarnation,outcome_id,canonical_key,credited FROM recommendation_outcomes"
+        ).fetchall()
+    if recreated:
+        assert attribution["status"] != "attributed"
+        assert rows == []
+    else:
+        assert attribution["credited"] is True
+        assert attribution["run_id"] == "qualified-run"
+        assert rows == [(incarnation, body["session_id"], key, 1)]
 
-    monkeypatch.setattr(storage_mod, "WORKSPACE_DIR", ws_root)
 
-    # Ensure no stale in-memory entry.
-    with storage_mod.review_sessions_lock:
-        storage_mod.review_sessions.pop(session_id, None)
+@pytest.mark.asyncio
+async def test_rejected_review_start_has_no_outcome(
+    client, local_review, qualified_outcome_store
+):
+    import sqlite3
 
-    try:
-        restored = storage_mod._restore_sessions_from_workspace()
-        assert restored >= 1, "legacy session should still be restored"
-
-        loaded = storage_mod.review_sessions[session_id]
-        assert loaded["username"] == "__legacy_unknown__", (
-            f"Legacy session must be sealed with sentinel; got {loaded['username']!r}"
+    _, _, headers, path, _, paper, _, expose = qualified_outcome_store
+    expose()
+    response = await client.post(
+        "/api/deep-review", headers=headers, json={"papers": [paper]}
+    )
+    assert response.status_code == 422
+    with sqlite3.connect(path) as conn:
+        assert (
+            conn.execute("SELECT COUNT(*) FROM recommendation_outcomes").fetchone()[0]
+            == 0
         )
 
-        # Now verify that every authenticated HTTP caller is 404'd.
-        r = await client.get(
-            f"/api/deep-review/status/{session_id}",
-            headers=_auth("anyone_f02"),
-        )
-        assert r.status_code == 404, (
-            f"Sealed legacy session must be unreachable; got {r.status_code}"
-        )
-    finally:
-        _cleanup_review_session(session_id)
+
+@pytest.mark.asyncio
+async def test_actual_producer_bookmark_and_metadata_restore(client, local_review):
+    reviews, storage, _ = local_review
+    headers = _auth("alice")
+    incarnation = storage._get_user_db().get("alice")["account_incarnation"]
+    sid = await _start(client, headers)
+    session = reviews.review_sessions[sid]
+    assert session["account_incarnation"] == incarnation
+    metadata = json.loads(
+        (Path(session["workspace_path"]) / "metadata.json").read_text()
+    )
+    assert metadata["username"] == "alice"
+    assert metadata["account_incarnation"] == incarnation
+    assert (await _bookmark(client, sid, headers)).status_code == 200
+    with reviews.review_sessions_lock:
+        reviews.review_sessions.pop(sid)
+    assert storage._restore_sessions_from_workspace() == 1
+    assert reviews.review_sessions[sid]["account_incarnation"] == incarnation
+    assert (await _bookmark(client, sid, headers)).status_code == 200
+    for endpoint in ("status", "report", "verification"):
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}", headers=headers)
+        ).status_code == 200
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}")
+        ).status_code == 401
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}", headers=_auth("bob"))
+        ).status_code == 404
+    assert (await _bookmark(client, sid, _auth("bob"))).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_anonymous_production_never_invents_owner(client, local_review):
+    reviews, _, _ = local_review
+    sid = await _start(client, {})
+    assert reviews.review_sessions[sid]["username"] is None
+    assert reviews.review_sessions[sid]["account_incarnation"] is None
+    headers = _auth("alice")
+    assert (
+        await client.get(f"/api/deep-review/status/{sid}", headers=headers)
+    ).status_code == 404
+    assert (await _bookmark(client, sid, headers)).status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recreate_at", ["work", "dispatch"])
+async def test_late_completion_cannot_relabel_recreated_account(
+    client, local_review, monkeypatch, recreate_at
+):
+    reviews, storage, fake_review = local_review
+    old_headers = _auth("alice")
+    users = storage._get_user_db()
+    old_incarnation = users.get("alice")["account_incarnation"]
+
+    def recreate():
+        users.begin_delete("alice", old_incarnation)
+        users.finish_delete("alice", old_incarnation, cleanup_succeeded=True)
+        users.create_account("alice", {"role": "user"})
+
+    def recreate_during_work(*args):
+        recreate()
+        return fake_review(*args)
+
+    if recreate_at == "work":
+        monkeypatch.setattr(reviews, "run_fast_review", recreate_during_work)
+    else:
+        record_started = reviews.record_job_started
+
+        async def recreate_during_dispatch(*args):
+            measurement = await record_started(*args)
+            recreate()
+            return measurement
+
+        monkeypatch.setattr(reviews, "record_job_started", recreate_during_dispatch)
+    sid = await _start(client, old_headers)
+    session = reviews.review_sessions[sid]
+    metadata = json.loads(
+        (Path(session["workspace_path"]) / "metadata.json").read_text()
+    )
+    assert metadata["account_incarnation"] == old_incarnation
+    with reviews.review_sessions_lock:
+        reviews.review_sessions.pop(sid)
+    storage._restore_sessions_from_workspace()
+    headers = _auth("alice")
+    for endpoint in ("status", "report", "verification"):
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}", headers=headers)
+        ).status_code == 404
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}", headers=old_headers)
+        ).status_code == 401
+    assert (await _bookmark(client, sid, headers)).status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "claim", [{}, {"account_incarnation": None}, {"account_incarnation": "foreign"}]
+)
+async def test_restore_rejects_unbound_null_and_foreign_for_new_account(
+    client, local_review, claim
+):
+    _, storage, _ = local_review
+    headers = _auth("alice")
+    sid = "review_legacy_claim"
+    directory = storage.WORKSPACE_DIR / sid
+    (directory / "reports").mkdir(parents=True)
+    (directory / "reports" / "report.md").write_text("# Legacy")
+    (directory / "metadata.json").write_text(json.dumps({"username": "alice", **claim}))
+    storage._restore_sessions_from_workspace()
+    session = storage.review_sessions[sid]
+    assert ("account_incarnation" in session) == ("account_incarnation" in claim)
+    assert (
+        await client.get(f"/api/deep-review/status/{sid}", headers=headers)
+    ).status_code == 404
+    assert (await _bookmark(client, sid, headers)).status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "claim,allowed",
+    [
+        ({}, True),
+        ({"account_incarnation": None}, False),
+        ({"account_incarnation": "foreign"}, False),
+    ],
+)
+async def test_only_authoritative_original_account_can_read_legacy(
+    client, local_review, tmp_path, monkeypatch, claim, allowed
+):
+    _, storage, _ = local_review
+    legacy_users = tmp_path / "legacy-users.json"
+    legacy_users.write_text(
+        json.dumps({"original": {"role": "user", "password_hash": "x"}})
+    )
+    monkeypatch.setattr(storage, "USERS_FILE", legacy_users)
+    users = storage._get_user_db()
+    assert users.get("original")["legacy_event_cutoff"]
+    headers = _auth("original")
+    sid = "review_original_legacy"
+    directory = storage.WORKSPACE_DIR / sid
+    (directory / "reports").mkdir(parents=True)
+    (directory / "reports" / "report.md").write_text("# Legacy")
+    (directory / "metadata.json").write_text(
+        json.dumps({"username": "original", **claim})
+    )
+    storage._restore_sessions_from_workspace()
+    expected = 200 if allowed else 404
+    for endpoint in ("status", "report", "verification"):
+        assert (
+            await client.get(f"/api/deep-review/{endpoint}/{sid}", headers=headers)
+        ).status_code == expected
+    assert (await _bookmark(client, sid, headers)).status_code == expected
+    incarnation = users.get("original")["account_incarnation"]
+    users.begin_delete("original", incarnation)
+    users.finish_delete("original", incarnation, cleanup_succeeded=True)
+    replacement_headers = _auth("original")
+    assert users.get("original")["legacy_event_cutoff"] is None
+    assert (
+        await client.get(f"/api/deep-review/status/{sid}", headers=replacement_headers)
+    ).status_code == 404
+    assert (await _bookmark(client, sid, replacement_headers)).status_code == 404

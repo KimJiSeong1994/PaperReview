@@ -61,8 +61,13 @@ _USERNAME = "integration-user"
 
 def _make_token(username: str = _USERNAME) -> str:
     """Return a signed HS256 JWT for *username*."""
+    from routers.deps.storage import _get_user_db
+
+    account = _get_user_db().get(username)
+    assert account is not None
     payload = {
         "sub": username,
+        "account_incarnation": account["account_incarnation"],
         "role": "user",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -104,7 +109,7 @@ def isolated_event_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     ensure_events_db(events_db)
     ensure_profile_db(profile_db)
-    init_event_bus(events_db)
+    bus = init_event_bus(events_db)
 
     from filelock import FileLock
 
@@ -112,9 +117,12 @@ def isolated_event_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     # the user DB.  Seed the integration user before any request runs so
     # the auth check passes.
     from routers.deps.storage import _get_user_db
-    _get_user_db().upsert(
+
+    authority = _get_user_db()
+    authority.create_account(
         _USERNAME, {"password_hash": "x", "role": "user", "created_at": ""}
     )
+    bus.bind_account_authority(authority)
 
     with (
         patch("routers.deps.storage.BOOKMARKS_FILE", bookmarks_file),
@@ -127,6 +135,21 @@ def isolated_event_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         # read-only re-exports on ``routers.me``.
         patch("routers.deps.user_deletion.EVENTS_DB_PATH", events_db),
         patch("routers.deps.user_deletion.PROFILE_DB_PATH", profile_db),
+        patch("routers.deps.user_deletion.PAPERS_FILE", tmp_path / "papers.json"),
+        patch("routers.deps.user_deletion.BLOG_POSTS_FILE", tmp_path / "posts.json"),
+        patch(
+            "routers.deps.user_deletion.BLOG_POSTS_LOCK",
+            FileLock(str(tmp_path / "posts.lock")),
+        ),
+        patch("routers.deps.user_deletion.CURRICULA_DIR", tmp_path / "curricula"),
+        patch(
+            "routers.deps.user_deletion.RECOMMENDATIONS_DIR",
+            tmp_path / "recommendations",
+        ),
+        patch(
+            "routers.deps.user_deletion.RECOMMENDATION_CANDIDATES_DIR",
+            tmp_path / "candidates",
+        ),
         patch(
             "routers.deps.user_deletion.EMBEDDINGS_USERS_DIR",
             tmp_path / "embeddings" / "users",
@@ -205,8 +228,7 @@ def _count_events(
             ).fetchone()
         else:
             row = conn.execute(
-                "SELECT COUNT(*) FROM user_events "
-                "WHERE user_id = ? AND event_type = ?",
+                "SELECT COUNT(*) FROM user_events WHERE user_id = ? AND event_type = ?",
                 (user_id, event_type),
             ).fetchone()
         return int(row[0])
@@ -241,20 +263,18 @@ def test_full_event_pipeline(
     bookmark_id = resp.json()["id"]
 
     _drain_event_bus()
-    assert _count_events(
-        events_db, user_id=_USERNAME, event_type="bookmark_add"
-    ) == 1, "bookmark_add event must be persisted after POST"
+    assert (
+        _count_events(events_db, user_id=_USERNAME, event_type="bookmark_add") == 1
+    ), "bookmark_add event must be persisted after POST"
 
     # 2. DELETE /api/bookmarks/{id} — expect a ``bookmark_remove`` event.
-    resp = test_client.delete(
-        f"/api/bookmarks/{bookmark_id}", headers=_auth()
-    )
+    resp = test_client.delete(f"/api/bookmarks/{bookmark_id}", headers=_auth())
     assert resp.status_code == 200, resp.text
 
     _drain_event_bus()
-    assert _count_events(
-        events_db, user_id=_USERNAME, event_type="bookmark_remove"
-    ) == 1, "bookmark_remove event must be persisted after DELETE"
+    assert (
+        _count_events(events_db, user_id=_USERNAME, event_type="bookmark_remove") == 1
+    ), "bookmark_remove event must be persisted after DELETE"
 
     total_before_wipe = _count_events(events_db, user_id=_USERNAME)
     assert total_before_wipe >= 2
@@ -321,6 +341,7 @@ def test_startup_creates_db_files(
 
     # Also verify the ``routers.deps`` import path wires a fresh bus.
     import routers.deps as deps_mod  # noqa: F401 — side-effects desired
+
     importlib.reload(deps_mod)
 
     from src.events.event_bus import get_event_bus
@@ -339,6 +360,7 @@ def test_event_bus_singleton_available_after_startup(
     monkeypatch.setenv("PROFILE_DB_PATH", str(tmp_path / "singleton_profile.db"))
 
     import routers.deps as deps_mod
+
     importlib.reload(deps_mod)
 
     from src.events.event_bus import EventBus, get_event_bus
@@ -349,14 +371,20 @@ def test_event_bus_singleton_available_after_startup(
 
     # A direct publish must succeed and persist a row.
     async def _publish_and_drain() -> None:
-        await bus.publish(
-            UserEvent(
-                user_id="singleton-user",
-                event_type=EventType.PAPER_OPEN,
-                payload={"paper_id": "p1"},
+        try:
+            await bus.publish(
+                UserEvent(
+                    user_id="singleton-user",
+                    event_type=EventType.PAPER_OPEN,
+                    payload={"paper_id": "p1"},
+                )
             )
-        )
-        await bus.wait_for_drain(timeout=2.0)
+            await bus.wait_for_drain(timeout=2.0)
+        finally:
+            task = bus._batch_task
+            bus.close()
+            if task is not None:
+                await asyncio.gather(task, return_exceptions=True)
 
     asyncio.run(_publish_and_drain())
 
@@ -365,4 +393,4 @@ def test_event_bus_singleton_available_after_startup(
         user_id="singleton-user",
         event_type="paper_open",
     )
-    assert rows == 1, "publish must persist synchronously before fan-out"
+    assert rows == 1, "publish must be durable after the awaited drain"

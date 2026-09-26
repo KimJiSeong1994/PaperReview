@@ -1,280 +1,344 @@
-"""Utilities for reading AutoResearchClaw paper-recommender artifacts."""
+"""Strict reader for common-local recommendation deliveries, never raw candidates."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import math
+import os
+import re
+import stat
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from src.recommendation_candidates import CandidateValidationError, normalize_candidate
+from src.recommendation_state import RecommendationPolicy
+from src.utils.secure_directory import open_directory
 
-EMPTY_RECOMMENDATIONS: dict[str, Any] = {
-    "items": [],
-    "grouped_items": [],
-    "unread_count": 0,
-    "raw_count": 0,
-    "latest_run_at": None,
-    "scoring_mode": None,
-    "score_stats": {},
+DELIVERY_SCHEMA = "recommendation_delivery_v1"
+POLICY_VERSION = "recommendation_policy_v1"
+MAX_DELIVERY_BYTES = 2 * 1024 * 1024
+MAX_DELIVERY_FILES = 400
+_IDENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}\Z")
+_SOURCES = {"local_public", "owner_local", "openclaw"}
+_SOURCE_STATES = {
+    "ready",
+    "empty",
+    "missing",
+    "invalid",
+    "disabled",
+    "stale",
+    "error",
+    "degraded",
 }
+_REASONS = {
+    "events_unavailable",
+    "events_error",
+    "ranker_error",
+    "source_missing",
+    "source_invalid",
+    "source_error",
+    "source_stale",
+    "budget_exhausted",
+    "delivery_stale",
+    "delivery_expired",
+    "policy_unavailable",
+    "authority_unavailable",
+    "invalid_artifact",
+    "no_candidates",
+    "no_eligible_candidates",
+    "source_disabled",
+    "limited_coverage",
+    "artifact_scan_limit",
+}
+
+
+class DeliveryValidationError(ValueError):
+    """A payload-free, fail-closed delivery boundary error."""
 
 
 def safe_str(value: Any) -> str:
     return str(value).strip() if value is not None else ""
 
 
-def paper_id(item: dict[str, Any]) -> str:
-    for key in ("paper_id", "arxiv_id", "doi", "id", "doc_id"):
-        value = safe_str(item.get(key))
-        if value:
-            return value
-    title = safe_str(item.get("title")).lower()
-    return f"{title}::{item.get('year') or ''}"
+def delivery_identifier(value: Any) -> str:
+    if not isinstance(value, str) or not _IDENT.fullmatch(value):
+        raise DeliveryValidationError("invalid_identifier")
+    return value
 
 
-def coerce_authors(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [safe_str(v) for v in value if safe_str(v)][:6]
-    if isinstance(value, str) and value.strip():
-        return [part.strip() for part in value.split(",") if part.strip()][:6]
-    return []
-
-
-def coerce_score(value: Any) -> float | None:
+def parse_delivery_time(value: Any) -> datetime:
     try:
-        return float(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError, AttributeError):
+        raise DeliveryValidationError("invalid_time") from None
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        raise DeliveryValidationError("invalid_time")
+    return parsed.astimezone(timezone.utc)
 
 
-def coerce_rank(value: Any) -> int | None:
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def display_score(score: float | None) -> str | None:
-    if score is None:
-        return None
-    return f"{score:.1f}"
-
-
-def confidence_label(score: float | None, rank: int | None) -> str:
-    if rank == 1:
-        return "상위 추천"
-    if score is None:
-        return "추천"
-    if score >= 4.5:
-        return "강한 추천"
-    if score >= 3.5:
-        return "관련도 높음"
-    return "검토 추천"
-
-
-def parse_run_at(raw: dict[str, Any], fallback_path: Path) -> str:
-    run_at = safe_str(raw.get("run_at"))
-    if run_at:
-        return run_at
-    try:
-        return datetime.fromtimestamp(fallback_path.stat().st_mtime, tz=timezone.utc).isoformat()
-    except OSError:
-        return ""
-
-
-def artifact_belongs_to_user(root: Path, path: Path, raw: dict[str, Any], username: str) -> bool:
-    user_id = safe_str(raw.get("user_id"))
-    if user_id:
-        return user_id == username
-
-    try:
-        relative_parts = path.relative_to(root).parts
-    except ValueError:
-        return False
-    return username in relative_parts
-
-
-def latest_raw_file(root: Path, username: str) -> Path | None:
-    if not root.exists():
-        return None
-
-    candidates = sorted(root.glob("**/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for path in candidates:
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if artifact_belongs_to_user(root, path, raw, username):
-            return path
-    return None
-
-
-def _sort_key(item: dict[str, Any]) -> tuple[float, int]:
-    score = item.get("score")
-    rank = item.get("rank")
-    return (
-        score if isinstance(score, (int, float)) else -1,
-        -(rank if isinstance(rank, int) else 9999),
-    )
-
-
-def _paper_row(run_at: str, variant: str, item: dict[str, Any]) -> dict[str, Any]:
-    title = safe_str(item.get("title")) or "Untitled paper"
-    item_id = paper_id(item)
-    score = coerce_score(item.get("score"))
-    rank = coerce_rank(item.get("rank"))
-    label = confidence_label(score, rank)
-    row = {
-        "id": f"{run_at}:{variant}:{item_id}",
-        "paper_id": item_id,
-        "title": title,
-        "reason": safe_str(item.get("reason")),
-        "variant": str(variant),
-        "run_at": run_at,
-        "score": score,
-        "display_score": display_score(score),
-        "confidence_label": label,
-        "rank": rank,
-        "year": item.get("year"),
-        "authors": coerce_authors(item.get("authors")),
-        "venue": safe_str(item.get("venue")) or None,
-        "source": safe_str(item.get("source")) or None,
-        "url": safe_str(item.get("url")) or None,
-        "pdf_url": safe_str(item.get("pdf_url")) or None,
-        "doi": safe_str(item.get("doi")) or None,
-        "arxiv_id": safe_str(item.get("arxiv_id")) or None,
-    }
-    for key in (
-        "raw_score",
-        "normalized_score",
-        "score_breakdown",
-        "matched_terms",
-        "reason_summary",
-        "reason_factors",
-        "evidence_count",
-        "explanation_confidence",
-        "slot_type",
-        "diversity_adjusted",
-        "similarity_penalty",
+def _finite(value: Any) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
     ):
-        if key in item:
-            row[key] = item[key]
-    return row
+        raise DeliveryValidationError("invalid_score")
+    return float(value)
 
 
-def _group_items(items: list[dict[str, Any]], run_at: str) -> list[dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
+def validate_delivery(
+    raw: Any, *, incarnation: str, now: datetime, run_id: str | None = None
+) -> dict:
+    """Validate provenance, identity and order before exposing any row."""
+    delivery_identifier(incarnation)
+    if (
+        not isinstance(raw, dict)
+        or raw.get("schema") != DELIVERY_SCHEMA
+        or raw.get("producer") != "common_local"
+    ):
+        raise DeliveryValidationError("invalid_producer")
+    if raw.get("account_incarnation") != incarnation:
+        raise DeliveryValidationError("wrong_incarnation")
+    actual_run = delivery_identifier(raw.get("run_id"))
+    if run_id is not None and actual_run != run_id:
+        raise DeliveryValidationError("wrong_run")
+    generated = parse_delivery_time(raw.get("run_at"))
+    cutoff = parse_delivery_time(raw.get("cutoff"))
+    if now.tzinfo is None or generated > now or cutoff > generated:
+        raise DeliveryValidationError("invalid_time")
+    if raw.get("policy_version") != POLICY_VERSION:
+        raise DeliveryValidationError("invalid_policy")
+    for key in ("code_hash", "config_hash", "input_manifest_hash"):
+        if not isinstance(raw.get(key), str) or not re.fullmatch(
+            r"[a-f0-9]{64}", raw[key]
+        ):
+            raise DeliveryValidationError("missing_manifest")
+    if raw.get("scoring_mode") not in {
+        "v1",
+        "v2",
+        "v1_fallback",
+        "metadata",
+    } or not isinstance(raw.get("ranker_version"), str):
+        raise DeliveryValidationError("invalid_scoring_mode")
+    if raw.get("status") not in {"ready", "empty", "degraded"}:
+        raise DeliveryValidationError("invalid_status")
+    reasons = raw.get("degraded_reasons", [])
+    sources = raw.get("source_statuses", {})
+    if not isinstance(reasons, list) or any(
+        reason not in _REASONS for reason in reasons
+    ):
+        raise DeliveryValidationError("invalid_status")
+    if not isinstance(sources, dict) or any(
+        key not in _SOURCES or value not in _SOURCE_STATES
+        for key, value in sources.items()
+    ):
+        raise DeliveryValidationError("invalid_source_status")
+    items = raw.get("items")
+    if not isinstance(items, list) or len(items) > 12:
+        raise DeliveryValidationError("invalid_reserve")
+    cleaned, identities = [], set()
+    previous_rank = 0
     for row in items:
-        group = grouped.setdefault(
-            row["paper_id"],
+        if not isinstance(row, dict):
+            raise DeliveryValidationError("invalid_item")
+        try:
+            normalized = normalize_candidate(row)
+        except CandidateValidationError:
+            raise DeliveryValidationError("invalid_metadata") from None
+        key = row.get("canonical_key")
+        if key != normalized.canonical_key or key in identities:
+            raise DeliveryValidationError("invalid_identity")
+        identities.add(key)
+        rank = row.get("final_rank")
+        if (
+            isinstance(rank, bool)
+            or not isinstance(rank, int)
+            or not previous_rank < rank <= 12
+        ):
+            raise DeliveryValidationError("invalid_rank")
+        previous_rank = rank
+        if (
+            normalized.metadata.get("year", cutoff.year) > cutoff.year
+            or normalized.metadata.get("publication_date", cutoff.date().isoformat())
+            > cutoff.date().isoformat()
+        ):
+            raise DeliveryValidationError("future_publication")
+        reason = row.get("reason", "")
+        if not isinstance(reason, str) or len(reason) > 512:
+            raise DeliveryValidationError("invalid_reason")
+        candidate_sources = row.get("candidate_sources", [])
+        if not isinstance(candidate_sources, list) or any(
+            source not in _SOURCES for source in candidate_sources
+        ):
+            raise DeliveryValidationError("invalid_source_status")
+        breakdown = row.get("score_breakdown", {})
+        if not isinstance(breakdown, dict) or len(breakdown) > 16:
+            raise DeliveryValidationError("invalid_score")
+        for factor, value in breakdown.items():
+            if not isinstance(factor, str) or not re.fullmatch(r"[a-z_]{1,48}", factor):
+                raise DeliveryValidationError("invalid_score")
+            _finite(value)
+        cleaned.append(
             {
-                "id": f"{run_at}:{row['paper_id']}",
-                "paper_id": row["paper_id"],
-                "title": row["title"],
-                "top_reason": "",
-                "run_at": row["run_at"],
-                "score": row["score"],
-                "display_score": row["display_score"],
-                "confidence_label": row["confidence_label"],
-                "rank": row["rank"],
-                "year": row["year"],
-                "authors": row["authors"],
-                "venue": row["venue"],
-                "source": row["source"],
-                "url": row["url"],
-                "pdf_url": row["pdf_url"],
-                "doi": row["doi"],
-                "arxiv_id": row["arxiv_id"],
-                "variants": [],
-                "matched_terms": row.get("matched_terms", []),
-                "reason_factors": row.get("reason_factors", []),
-                "score_breakdown": row.get("score_breakdown", {}),
-                "evidence_count": row.get("evidence_count"),
-                "explanation_confidence": row.get("explanation_confidence"),
-                "slot_type": row.get("slot_type"),
-                "diversity_adjusted": row.get("diversity_adjusted", False),
-                "similarity_penalty": row.get("similarity_penalty", 0.0),
-            },
-        )
-        if _sort_key(row) > _sort_key(group):
-            for key in (
-                "title",
-                "score",
-                "display_score",
-                "confidence_label",
-                "rank",
-                "year",
-                "authors",
-                "venue",
-                "source",
-                "url",
-                "pdf_url",
-                "doi",
-                "arxiv_id",
-            ):
-                group[key] = row[key]
-            for key in ("matched_terms", "reason_factors", "score_breakdown", "evidence_count", "explanation_confidence", "slot_type", "diversity_adjusted", "similarity_penalty"):
-                group[key] = row.get(key, [] if key in {"matched_terms", "reason_factors"} else {} if key == "score_breakdown" else None)
-        if row["reason"] and not group["top_reason"]:
-            group["top_reason"] = row["reason"]
-        group["variants"].append(
-            {
-                "variant": row["variant"],
-                "reason": row["reason"],
-                "score": row["score"],
-                "display_score": row["display_score"],
-                "confidence_label": row["confidence_label"],
-                "rank": row["rank"],
-                "matched_terms": row.get("matched_terms", []),
-                "reason_factors": row.get("reason_factors", []),
-                "score_breakdown": row.get("score_breakdown", {}),
-                "evidence_count": row.get("evidence_count"),
-                "explanation_confidence": row.get("explanation_confidence"),
-                "slot_type": row.get("slot_type"),
-                "diversity_adjusted": row.get("diversity_adjusted", False),
-                "similarity_penalty": row.get("similarity_penalty", 0.0),
+                **normalized.metadata,
+                "canonical_key": key,
+                "final_rank": rank,
+                "score": _finite(row.get("score")),
+                "reason": reason,
+                "candidate_sources": list(candidate_sources),
+                "score_breakdown": dict(breakdown),
             }
         )
-
-    groups = list(grouped.values())
-    for group in groups:
-        group["variants"].sort(key=_sort_key, reverse=True)
-    groups.sort(key=_sort_key, reverse=True)
-    return groups
+    if bool(items) == (raw["status"] == "empty"):
+        raise DeliveryValidationError("inconsistent_status")
+    return {**raw, "items": cleaned}
 
 
-def empty_response() -> dict[str, Any]:
-    return dict(EMPTY_RECOMMENDATIONS)
-
-
-def load_recommendation_artifact(root: Path, username: str, limit: int) -> dict[str, Any]:
-    raw_path = latest_raw_file(root, username)
-    if raw_path is None:
-        return empty_response()
-
-    try:
-        raw = json.loads(raw_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return empty_response()
-
-    run_at = parse_run_at(raw, raw_path)
-    items: list[dict[str, Any]] = []
-    variants = raw.get("variants") if isinstance(raw.get("variants"), dict) else {}
-    for variant, papers in variants.items():
-        if not isinstance(papers, list):
-            continue
-        for item in papers:
-            if isinstance(item, dict):
-                items.append(_paper_row(run_at, str(variant), item))
-
-    items.sort(key=_sort_key, reverse=True)
-    grouped_items = _group_items(items, run_at)
+def empty_response(
+    *, state: str = "empty", reason: str | None = None
+) -> dict[str, Any]:
     return {
-        "items": items[:limit],
-        "grouped_items": grouped_items[:limit],
-        "unread_count": len(grouped_items),
-        "raw_count": len(items),
-        "latest_run_at": run_at or None,
-        "scoring_mode": safe_str(raw.get("scoring_mode")) or None,
-        "score_stats": raw.get("score_stats") if isinstance(raw.get("score_stats"), dict) else {},
+        "items": [],
+        "unread_count": 0,
+        "total_count": 0,
+        "latest_run_at": None,
+        "run_id": None,
+        "scoring_mode": None,
+        "state": state,
+        "freshness": "missing",
+        "source_statuses": {},
+        "degraded_reasons": [reason] if reason else [],
     }
+
+
+def open_delivery_owner(root: Path, incarnation: str, *, create: bool = False) -> int:
+    """Open a stable no-symlink directory descriptor for a single incarnation."""
+    delivery_identifier(incarnation)
+    return open_directory(Path(root) / incarnation, create=create)
+
+
+def _read_file(owner_fd: int, name: str, *, incarnation: str, now: datetime) -> dict:
+    run_id = delivery_identifier(name.removesuffix(".json"))
+    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=owner_fd)
+    with os.fdopen(fd, "rb") as handle:
+        file_stat = os.fstat(handle.fileno())
+        if (
+            not stat.S_ISREG(file_stat.st_mode)
+            or file_stat.st_size > MAX_DELIVERY_BYTES
+        ):
+            raise DeliveryValidationError("invalid_file")
+        content = handle.read(MAX_DELIVERY_BYTES + 1)
+    if len(content) > MAX_DELIVERY_BYTES:
+        raise DeliveryValidationError("size_limit")
+    try:
+        raw = json.loads(content)
+    except (ValueError, UnicodeError):
+        raise DeliveryValidationError("invalid_json") from None
+    return validate_delivery(raw, incarnation=incarnation, now=now, run_id=run_id)
+
+
+def read_delivery(
+    root: Path, incarnation: str, *, now: datetime, run_id: str | None = None
+) -> dict | None:
+    """Only scan the exact owner's flat directory; mtime is never ordering data."""
+    try:
+        owner_fd = open_delivery_owner(root, incarnation)
+    except FileNotFoundError:
+        return None
+    try:
+        if run_id is not None:
+            name = delivery_identifier(run_id) + ".json"
+            try:
+                return _read_file(owner_fd, name, incarnation=incarnation, now=now)
+            except FileNotFoundError:
+                return None
+        candidates, count, invalid = [], 0, 0
+        with os.scandir(owner_fd) as entries:
+            for entry in entries:
+                count += 1
+                if count > MAX_DELIVERY_FILES:
+                    raise DeliveryValidationError("artifact_scan_limit")
+                if not entry.name.endswith(".json"):
+                    continue
+                try:
+                    raw = _read_file(
+                        owner_fd, entry.name, incarnation=incarnation, now=now
+                    )
+                except (OSError, DeliveryValidationError):
+                    invalid += 1
+                    continue
+                candidates.append(raw)
+        if not candidates:
+            if invalid:
+                raise DeliveryValidationError("invalid_artifact")
+            return None
+        selected = max(
+            candidates,
+            key=lambda raw: (parse_delivery_time(raw["run_at"]), raw["run_id"]),
+        )
+        if invalid:
+            selected = {
+                **selected,
+                "status": "degraded" if selected["items"] else "empty",
+                "degraded_reasons": [
+                    *selected.get("degraded_reasons", []),
+                    "invalid_artifact",
+                ],
+            }
+        return selected
+    finally:
+        os.close(owner_fd)
+
+
+def load_recommendation_artifact(
+    root: Path,
+    incarnation: str,
+    limit: int,
+    *,
+    policy: RecommendationPolicy,
+    now: datetime,
+) -> dict[str, Any]:
+    """Project the common ordered reserve through the current durable policy."""
+    if not 1 <= limit <= 5:
+        raise DeliveryValidationError("invalid_limit")
+    if policy.incarnation != incarnation:
+        raise DeliveryValidationError("wrong_policy_owner")
+    raw = read_delivery(root, incarnation, now=now)
+    if raw is None:
+        return empty_response()
+    age = now - parse_delivery_time(raw["run_at"])
+    result = {
+        "latest_run_at": raw["run_at"],
+        "run_id": raw["run_id"],
+        "scoring_mode": raw["scoring_mode"],
+        "state": raw["status"],
+        "freshness": "fresh",
+        "source_statuses": dict(raw["source_statuses"]),
+        "degraded_reasons": list(raw.get("degraded_reasons", [])),
+    }
+    if age >= timedelta(hours=72):
+        return {
+            **result,
+            "items": [],
+            "total_count": 0,
+            "unread_count": 0,
+            "state": "expired",
+            "freshness": "expired",
+            "degraded_reasons": [*result["degraded_reasons"], "delivery_expired"],
+        }
+    eligible = policy.project(raw["items"], limit=12)
+    result.update(
+        items=eligible[:limit],
+        total_count=len(eligible),
+        unread_count=sum(not paper["seen"] for paper in eligible),
+    )
+    if age >= timedelta(hours=36):
+        result.update(
+            state="stale",
+            freshness="stale",
+            degraded_reasons=[*result["degraded_reasons"], "delivery_stale"],
+        )
+    elif not eligible:
+        result["state"] = "empty"
+    return result

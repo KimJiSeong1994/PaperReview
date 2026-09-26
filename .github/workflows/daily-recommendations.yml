@@ -2,209 +2,130 @@ name: Daily Recommendations
 
 on:
   schedule:
-    # 09:00 KST every day (00:00 UTC).
-    # Runs related-paper collection -> review -> LLM wiki build -> recommendations.
     - cron: "0 0 * * *"
   workflow_dispatch:
 
-jobs:
-  python-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Audit Python dependencies
-        run: |
-          python -m pip install --upgrade pip pip-audit
-          pip-audit -r requirements.txt
+concurrency:
+  group: daily-recommendations-production
+  cancel-in-progress: false
 
+jobs:
   refresh:
-    needs: python-audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: production
     env:
-      OPENCLAW_HOST: ${{ secrets.OPENCLAW_HOST || '52.79.96.56' }}
-      OPENCLAW_USER: ${{ secrets.OPENCLAW_USER || 'ubuntu' }}
-      OPENCLAW_PROJECT_DIR: ${{ secrets.OPENCLAW_PROJECT_DIR || '/home/ubuntu/.openclaw/workspace/projects/paper-recommender' }}
-      PAPERREVIEW_OPENCLAW_RAW: /tmp/paperreview-openclaw-raw.json
-      OPENCLAW_JIPHYEONJEON_USER: ${{ secrets.OPENCLAW_JIPHYEONJEON_USER || 'Jipyheonjeon' }}
+      DEPLOY_HOST: ${{ secrets.EC2_HOST }}
+      DEPLOY_USER: ${{ secrets.EC2_USER }}
+      DEPLOY_KEY: ${{ secrets.EC2_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      RELEASE_PATH: ${{ vars.RECOMMENDATIONS_RELEASE_PATH }}
+      RELEASE_SHA: ${{ vars.RECOMMENDATIONS_RELEASE_SHA }}
+      DATA_ROOT: ${{ vars.RECOMMENDATIONS_DATA_ROOT }}
+      PUBLIC_SOURCE_QUALIFIED: ${{ vars.RECOMMENDATIONS_PUBLIC_SOURCE_QUALIFIED }}
     steps:
-      - name: Prepare SSH keys
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          OPENCLAW_SSH_KEY: ${{ secrets.OPENCLAW_SSH_KEY }}
+      - name: Immutable common recommendation batch (external source disabled)
+        shell: python
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          if [ -n "$OPENCLAW_SSH_KEY" ]; then
-            printf '%s\n' "$OPENCLAW_SSH_KEY" > ~/.ssh/openclaw_key
-          else
-            cp ~/.ssh/deploy_key ~/.ssh/openclaw_key
-          fi
-          chmod 600 ~/.ssh/openclaw_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          ssh-keyscan -H "$OPENCLAW_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Fetch OpenClaw recommendation artifact
-        run: |
-          set +e
-          rm -f openclaw-raw.json openclaw-remote-path.txt
-          jiphyeonjeon_token="$(
-            ssh -i ~/.ssh/deploy_key \
-              -o BatchMode=yes \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-              "OPENCLAW_JIPHYEONJEON_USER='$OPENCLAW_JIPHYEONJEON_USER' bash -s" <<'SCRIPT'
-          set -euo pipefail
-          cd ~/PaperReviewAgent
-          source venv/bin/activate
-          python - <<'PY'
+          import json
           import os
-          from routers.auth import _create_token
+          import re
+          import signal
+          import subprocess
+          import tempfile
+          from pathlib import Path
 
-          print(_create_token(os.environ["OPENCLAW_JIPHYEONJEON_USER"], role="user"))
-          PY
-          SCRIPT
-          )"
-          if [ -z "$jiphyeonjeon_token" ]; then
-            echo "Could not mint PaperReview JWT for OpenClaw; continuing with local fallback."
-            exit 0
-          fi
-          printf '%s' "$jiphyeonjeon_token" | ssh -i ~/.ssh/openclaw_key \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=12 \
-            "$OPENCLAW_USER@$OPENCLAW_HOST" \
-            'umask 077; cat > /tmp/paperreview-jiphyeonjeon-token'
-          ssh -i ~/.ssh/openclaw_key \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=12 \
-            "$OPENCLAW_USER@$OPENCLAW_HOST" \
-            "OPENCLAW_PROJECT_DIR='$OPENCLAW_PROJECT_DIR' bash -s" > openclaw-remote-path.txt <<'SCRIPT'
-          set -euo pipefail
-          cd "$OPENCLAW_PROJECT_DIR"
-          today="$(date -u +%F)"
-          if [ -s "artifacts/${today}/raw.json" ]; then
-            TODAY="$today" python3 -c 'import os; from pathlib import Path; print((Path("artifacts") / os.environ["TODAY"] / "raw.json").resolve())'
-            exit 0
-          fi
-          if [ -f "$HOME/.openclaw_gateway_token" ]; then
-            export OPENCLAW_GATEWAY_TOKEN="$(tr -d '\n' < "$HOME/.openclaw_gateway_token")"
-          fi
-          if [ -f .env ]; then
-            set -a
-            . ./.env
-            set +a
-          fi
-          export JIPHYEONJEON_TOKEN="$(cat /tmp/paperreview-jiphyeonjeon-token)"
-          rm -f /tmp/paperreview-jiphyeonjeon-token
-          mkdir -p logs
-          ts="$(date +%Y%m%d_%H%M%S)"
-          log_file="logs/run_${ts}.log"
-          if ! .venv/bin/paper-recommender --config config.yaml run >"$log_file" 2>&1; then
-            tail -n 40 "$log_file" >&2 || true
-            exit 4
-          fi
-          latest="$(python3 -c 'from pathlib import Path; paths = sorted(Path("artifacts").glob("*/raw.json"), key=lambda p: p.stat().st_mtime, reverse=True); print(paths[0].resolve() if paths else "")')"
-          if [ -z "$latest" ]; then
-            echo "OpenClaw produced no raw.json artifact" >&2
-            exit 3
-          fi
-          printf '%s\n' "$latest"
-          SCRIPT
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "OpenClaw recommendation run unavailable; continuing with local fallback."
-            exit 0
-          fi
-          remote_path="$(tail -n 1 openclaw-remote-path.txt)"
-          if [ -z "$remote_path" ]; then
-            echo "OpenClaw returned no artifact path; continuing with local fallback."
-            exit 0
-          fi
-          if ! scp -i ~/.ssh/openclaw_key \
-            -o BatchMode=yes \
-            -o ConnectTimeout=20 \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=12 \
-            "$OPENCLAW_USER@$OPENCLAW_HOST:$remote_path" \
-            openclaw-raw.json; then
-            echo "Could not copy OpenClaw raw.json; continuing with local fallback."
-            rm -f openclaw-raw.json
-            exit 0
-          fi
-          if [ ! -s openclaw-raw.json ]; then
-            echo "OpenClaw raw.json was empty; continuing with local fallback."
-            rm -f openclaw-raw.json
-          fi
-
-      - name: Clear previous OpenClaw temp artifact
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o BatchMode=yes \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "rm -f $PAPERREVIEW_OPENCLAW_RAW"
-
-      - name: Upload OpenClaw artifact to PaperReview host
-        if: hashFiles('openclaw-raw.json') != ''
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            -o BatchMode=yes \
-            openclaw-raw.json \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:$PAPERREVIEW_OPENCLAW_RAW
-
-      - name: Generate per-user recommendation artifacts
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
-          set -euo pipefail
-          cd ~/PaperReviewAgent
-          git fetch origin main
-          git checkout -f main
-          git reset --hard origin/main
-          source venv/bin/activate
-          artifacts_dir="${RECOMMENDATIONS_ARTIFACTS_DIR:-data/recommendations}"
-          run_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          run_date="${run_at%%T*}"
-          python scripts/collect_related_papers_for_wiki.py \
-            --bookmarks-db data/bookmarks.db \
-            --papers-json data/raw/papers.json \
-            --wiki-dir data/llm-wiki \
-            --report-dir data/related-papers \
-            --max-queries 10 \
-            --per-query 8 \
-            --top 24 \
-            --run-at "$run_at"
-          openclaw_raw="/tmp/paperreview-openclaw-raw.json"
-          if [ -s "$openclaw_raw" ]; then
-            if python scripts/import_openclaw_recommendation_artifact.py \
-              "$openclaw_raw" \
-              --artifacts-dir "$artifacts_dir" \
-              --date "$run_date"; then
-              echo "OpenClaw recommendation artifact imported."
-            else
-              echo "OpenClaw artifact import failed validation; continuing with local fallback."
-            fi
-          else
-            echo "No OpenClaw recommendation artifact available; using local fallback."
-          fi
-          python scripts/generate_daily_recommendations.py \
-            --users-db data/users.db \
-            --bookmarks-db data/bookmarks.db \
-            --papers-json data/raw/papers.json \
-            --artifacts-dir "$artifacts_dir" \
-            --events-db data/events.db \
-            --related-papers-json "data/related-papers/${run_date}.json" \
-            --limit 12 \
-            --run-at "$run_at" \
-            --skip-existing
-          rm -f "$openclaw_raw"
-          SCRIPT
-
-      - name: Cleanup
-        if: always()
-        run: rm -f ~/.ssh/deploy_key ~/.ssh/openclaw_key openclaw-raw.json openclaw-remote-path.txt
+          def interrupted(signum, frame):
+              print(json.dumps({"stage": "batch", "code": "interrupted"}), flush=True)
+              raise SystemExit(2)
+          signal.signal(signal.SIGTERM, interrupted)
+          signal.signal(signal.SIGINT, interrupted)
+          def fail(code):
+              print(json.dumps({"stage": "batch", "code": code}))
+              raise SystemExit(2)
+          config = {name: os.environ.get(name, "") for name in (
+              "RELEASE_PATH", "RELEASE_SHA", "DATA_ROOT", "PUBLIC_SOURCE_QUALIFIED")}
+          if not re.fullmatch(r"[0-9a-f]{40}", config["RELEASE_SHA"]):
+              fail("release_unconfigured")
+          if not all(config[name].startswith("/") for name in ("RELEASE_PATH", "DATA_ROOT")):
+              fail("paths_unconfigured")
+          host, user = os.environ["DEPLOY_HOST"], os.environ["DEPLOY_USER"]
+          if not re.fullmatch(r"[A-Za-z0-9.-]+", host) or not re.fullmatch(r"[A-Za-z0-9_-]+", user):
+              fail("transport_unconfigured")
+          if not os.environ["DEPLOY_KEY"] or not os.environ["DEPLOY_KNOWN_HOSTS"]:
+              fail("transport_unconfigured")
+          remote = "CONFIG = " + repr(config) + "\n" + r'''
+          import datetime
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+          def finish(code):
+              print(json.dumps({"stage": "batch", "code": code}), flush=True)
+              raise SystemExit(2)
+          release = Path(CONFIG["RELEASE_PATH"])
+          data = Path(CONFIG["DATA_ROOT"])
+          if not release.is_dir() or release.is_symlink() or not data.is_dir():
+              finish("release_missing")
+          def git(*args):
+              result = subprocess.run(["git", "-C", str(release), *args], capture_output=True, timeout=10)
+              if result.returncode:
+                  finish("release_check_failed")
+              return result.stdout.decode().strip()
+          if git("rev-parse", "HEAD") != CONFIG["RELEASE_SHA"] or git("status", "--porcelain", "--untracked-files=all"):
+              finish("release_drift")
+          python = release / "venv/bin/python"
+          if not python.is_file():
+              finish("runtime_missing")
+          run_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          common = ["--candidate-root", str(data / "recommendation-candidates"),
+                    "--run-at", run_at]
+          collector = [str(python), "scripts/collect_related_papers_for_wiki.py", *common,
+                       "--final-root", str(data / "recommendations")]
+          if CONFIG["PUBLIC_SOURCE_QUALIFIED"] == "true":
+              collector.append("--source-qualified")
+          daily = [str(python), "scripts/generate_daily_recommendations.py", *common,
+                   "--users-db", str(data / "users.db"), "--events-db", str(data / "events.db"),
+                   "--bookmarks-db", str(data / "bookmarks.db"),
+                   "--artifacts-dir", str(data / "recommendations"), "--limit", "12"]
+          child_env = {**os.environ, "DATA_DIR": str(data),
+                       "EVENTS_DB_PATH": str(data / "events.db"),
+                       "FEATURE_FLAGS_DB_PATH": str(data / "feature_flags.db")}
+          # Both commands are locally owned children of the remote timeout process group.
+          # Daily CLI owns its authoritative single-batch lease. No opaque producer is run.
+          for stage, command in (("public_collector", collector), ("common_daily", daily)):
+              result = subprocess.run(command, cwd=release, env=child_env,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              code = "ok" if result.returncode == 0 else "failed"
+              if stage == "public_collector" and result.returncode == 3:
+                  code = "acquisition_error"
+              print(json.dumps({"stage": stage, "code": code}), flush=True)
+              allowed = (0, 3) if stage == "public_collector" else (0,)
+              if result.returncode not in allowed:
+                  raise SystemExit(2)
+          print(json.dumps({"stage": "external", "code": "source_disabled"}), flush=True)
+          '''
+          # A unique credential directory is removed on success, failure, timeout or interrupt.
+          # No historical remote credentials are touched. Pinned host keys are mandatory.
+          try:
+              with tempfile.TemporaryDirectory(prefix="recommendations-transport-") as temporary:
+                  key = Path(temporary) / "key"
+                  known = Path(temporary) / "known_hosts"
+                  key.write_text(os.environ.pop("DEPLOY_KEY"))
+                  known.write_text(os.environ.pop("DEPLOY_KNOWN_HOSTS"))
+                  key.chmod(0o600)
+                  known.chmod(0o600)
+                  command = ["ssh", "-i", str(key), "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+                             "-o", "UserKnownHostsFile=" + str(known), "-o", "ConnectTimeout=15",
+                             "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2",
+                             user + "@" + host,
+                             "timeout --signal=TERM --kill-after=5s 780s python3 -"]
+                  result = subprocess.run(command, input=remote, text=True, stdout=subprocess.DEVNULL,
+                                          stderr=subprocess.DEVNULL, timeout=810)
+                  if result.returncode:
+                      fail("remote_batch_failed")
+          except subprocess.TimeoutExpired:
+              fail("transport_timeout")
+          except Exception:
+              fail("transport_failed")
+          print(json.dumps({"stage": "batch", "code": "complete", "external": "disabled"}))

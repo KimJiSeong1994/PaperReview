@@ -25,8 +25,13 @@ _JWT_SECRET = os.environ.get("JWT_SECRET", "test-jwt-secret-for-testing-only")
 
 
 def _make_token(username: str) -> str:
+    from routers.deps.storage import _get_user_db
+
+    account = _get_user_db().get(username)
+    assert account is not None
     payload = {
         "sub": username,
+        "account_incarnation": account["account_incarnation"],
         "role": "user",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -41,7 +46,9 @@ def _auth(username: str) -> dict:
 
     db = _get_user_db()
     if db.get(username) is None:
-        db.upsert(username, {"password_hash": "x", "role": "user", "created_at": ""})
+        db.create_account(
+            username, {"password_hash": "x", "role": "user", "created_at": ""}
+        )
     return {"Authorization": f"Bearer {_make_token(username)}"}
 
 
@@ -73,7 +80,9 @@ _BOOKMARK_PAYLOAD = {
 
 async def _bob_creates_bookmark(client) -> str:
     """Helper: bob creates a bookmark and returns its ID."""
-    r = await client.post("/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("bob_us6"))
+    r = await client.post(
+        "/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("bob_us6")
+    )
     assert r.status_code == 200, f"Bob bookmark creation failed: {r.text}"
     return r.json()["id"]
 
@@ -81,6 +90,7 @@ async def _bob_creates_bookmark(client) -> str:
 # ---------------------------------------------------------------------------
 # bookmarks.py — PATCH /topic
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_patch_topic_cross_user_returns_404(client):
@@ -117,6 +127,7 @@ async def test_patch_topic_own_bookmark_still_200(client):
 # bookmarks.py — PATCH /title
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_patch_title_cross_user_returns_404(client):
     """Alice PATCHing bob's bookmark title must return 404, not 403."""
@@ -151,6 +162,7 @@ async def test_patch_title_own_bookmark_still_200(client):
 # ---------------------------------------------------------------------------
 # bookmarks.py — PATCH /notes
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_patch_notes_cross_user_returns_404(client):
@@ -189,9 +201,14 @@ async def test_patch_notes_own_bookmark_still_200(client):
 # We inject a fake session owned by bob and try to access as alice.
 # ---------------------------------------------------------------------------
 
+
 def _inject_review_session(session_id: str, username: str, tmp_path) -> None:
     """Inject a fake completed review session into the in-memory store."""
     import routers.reviews as reviews_mod
+    from routers.deps.storage import _get_user_db
+
+    _auth(username)
+    incarnation = _get_user_db().get(username)["account_incarnation"]
 
     workspace = tmp_path / "ws"
     reports = workspace / "reports"
@@ -206,6 +223,7 @@ def _inject_review_session(session_id: str, username: str, tmp_path) -> None:
         reviews_mod.review_sessions[session_id] = {
             "session_id": session_id,
             "username": username,
+            "account_incarnation": incarnation,
             "status": "completed",
             "progress": "100%",
             "report_available": True,
@@ -283,7 +301,9 @@ async def test_deep_review_report_own_session_still_200(client, bob_review_sessi
 
 
 @pytest.mark.asyncio
-async def test_deep_review_verification_cross_user_returns_404(client, bob_review_session):
+async def test_deep_review_verification_cross_user_returns_404(
+    client, bob_review_session
+):
     """Alice accessing bob's deep-review verification detail must return 404, not 403."""
     r = await client.get(
         f"/api/deep-review/verification/{bob_review_session}",
@@ -295,7 +315,9 @@ async def test_deep_review_verification_cross_user_returns_404(client, bob_revie
 
 
 @pytest.mark.asyncio
-async def test_deep_review_verification_own_session_still_200(client, bob_review_session):
+async def test_deep_review_verification_own_session_still_200(
+    client, bob_review_session
+):
     """Bob accessing his own deep-review verification detail must still return 200."""
     r = await client.get(
         f"/api/deep-review/verification/{bob_review_session}",
@@ -322,6 +344,7 @@ async def test_deep_review_visualize_cross_user_returns_404(client, bob_review_s
 # share.py — POST /api/bookmarks/{id}/share (cross-user)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_share_post_cross_user_returns_404(client):
     """Alice attempting POST /bookmarks/{bob_id}/share must return 404, not 403."""
@@ -339,12 +362,15 @@ async def test_share_post_cross_user_returns_404(client):
     # Confirm bob's bookmark has no share link set (alice's attempt must be a no-op)
     r_bob = await client.get(f"/api/bookmarks/{bm_id}", headers=_auth("bob_us6"))
     assert r_bob.status_code == 200
-    assert "share" not in r_bob.json(), "Alice's failed share attempt must not mutate bob's bookmark"
+    assert "share" not in r_bob.json(), (
+        "Alice's failed share attempt must not mutate bob's bookmark"
+    )
 
 
 # ---------------------------------------------------------------------------
 # share.py — DELETE /api/bookmarks/{id}/share (cross-user)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_share_delete_cross_user_returns_404(client):
@@ -371,4 +397,6 @@ async def test_share_delete_cross_user_returns_404(client):
 
     # Bob's share token must still be intact
     r_pub = await client.get(f"/api/shared/{token}")
-    assert r_pub.status_code == 200, "Bob's share link must survive alice's failed revocation attempt"
+    assert r_pub.status_code == 200, (
+        "Bob's share link must survive alice's failed revocation attempt"
+    )

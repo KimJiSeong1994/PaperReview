@@ -8,6 +8,9 @@ data/*
 !data/search_eval/*.json
 !data/deep_review_eval/
 !data/deep_review_eval/*.json
+!data/recommendation_eval/
+data/recommendation_eval/*
+!data/recommendation_eval/public_fixture_manifest.json
 !data/blog/
 data/blog/*
 !data/blog/figures/

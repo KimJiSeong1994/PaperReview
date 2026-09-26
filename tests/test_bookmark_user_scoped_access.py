@@ -18,8 +18,13 @@ _JWT_SECRET = os.environ.get("JWT_SECRET", "test-jwt-secret-for-testing-only")
 
 
 def _make_token(username: str) -> str:
+    from routers.deps.storage import _get_user_db
+
+    account = _get_user_db().get(username)
+    assert account is not None
     payload = {
         "sub": username,
+        "account_incarnation": account["account_incarnation"],
         "role": "user",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -34,7 +39,9 @@ def _auth(username: str) -> dict:
 
     db = _get_user_db()
     if db.get(username) is None:
-        db.upsert(username, {"password_hash": "x", "role": "user", "created_at": ""})
+        db.create_account(
+            username, {"password_hash": "x", "role": "user", "created_at": ""}
+        )
     return {"Authorization": f"Bearer {_make_token(username)}"}
 
 
@@ -67,7 +74,9 @@ _BOOKMARK_PAYLOAD = {
 async def test_list_bookmarks_returns_only_current_user(client):
     """Alice's list must not include Bob's bookmarks."""
     # Alice creates one bookmark
-    r = await client.post("/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("alice_us2"))
+    r = await client.post(
+        "/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("alice_us2")
+    )
     assert r.status_code == 200, r.text
 
     # Bob creates one bookmark
@@ -93,7 +102,11 @@ async def test_list_bookmarks_returns_only_current_user(client):
 async def test_get_bookmark_cross_user_returns_404(client):
     """Alice requesting Bob's bookmark by ID must receive 404 (not 403/200)."""
     # Bob creates a bookmark
-    r = await client.post("/api/bookmarks", json=_BOOKMARK_PAYLOAD | {"title": "Bob Secret"}, headers=_auth("bob_us2"))
+    r = await client.post(
+        "/api/bookmarks",
+        json=_BOOKMARK_PAYLOAD | {"title": "Bob Secret"},
+        headers=_auth("bob_us2"),
+    )
     assert r.status_code == 200, r.text
     bob_bm_id = r.json()["id"]
 
@@ -107,7 +120,9 @@ async def test_get_bookmark_cross_user_returns_404(client):
 @pytest.mark.asyncio
 async def test_list_bookmarks_response_shape_unchanged(client):
     """List response must include all required summary fields."""
-    r = await client.post("/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("alice_us2"))
+    r = await client.post(
+        "/api/bookmarks", json=_BOOKMARK_PAYLOAD, headers=_auth("alice_us2")
+    )
     assert r.status_code == 200
 
     r2 = await client.get("/api/bookmarks", headers=_auth("alice_us2"))
@@ -117,8 +132,17 @@ async def test_list_bookmarks_response_shape_unchanged(client):
 
     bm = bms[0]
     required_keys = {
-        "id", "title", "session_id", "query", "num_papers",
-        "created_at", "tags", "topic", "has_notes", "has_citation_tree", "has_share",
+        "id",
+        "title",
+        "session_id",
+        "query",
+        "num_papers",
+        "created_at",
+        "tags",
+        "topic",
+        "has_notes",
+        "has_citation_tree",
+        "has_share",
     }
     missing = required_keys - set(bm.keys())
     assert not missing, f"Response missing keys: {missing}"
@@ -136,11 +160,16 @@ async def test_list_bookmarks_response_shape_unchanged(client):
 async def test_list_bookmarks_empty_for_new_user(client):
     """A user with no bookmarks should receive an empty list, not someone else's data."""
     # Bob creates a bookmark
-    await client.post("/api/bookmarks", json=_BOOKMARK_PAYLOAD | {"title": "Bob Only"}, headers=_auth("bob_us2"))
+    await client.post(
+        "/api/bookmarks",
+        json=_BOOKMARK_PAYLOAD | {"title": "Bob Only"},
+        headers=_auth("bob_us2"),
+    )
 
     # Carol (new user) should see an empty list
     r = await client.get("/api/bookmarks", headers=_auth("carol_us2"))
     assert r.status_code == 200
+    assert r.json()["bookmarks"] == []
 
 
 def test_load_bookmarks_for_user_invalid_username_returns_empty(monkeypatch):

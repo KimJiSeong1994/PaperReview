@@ -12,8 +12,12 @@ Bookmark CRUD endpoints (per-user isolated):
 """
 
 import logging
+import os
+import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -28,15 +32,105 @@ from .deps import (
     modify_bookmarks,
     review_sessions,
     review_sessions_lock,
-    get_current_user,
     get_openai_client,
     limiter,
 )
-from .highlight_service import CATEGORY_CONFIG, generate_highlights, _find_verbatim_or_fuzzy
+from .highlight_service import (
+    CATEGORY_CONFIG,
+    generate_highlights,
+    _find_verbatim_or_fuzzy,
+)
 from src.events.emit import emit_or_warn
 from src.events.event_types import EventType, UserEvent
+from src.storage.bookmark_db import bookmark_belongs_to_account
+from src.storage.user_db import AccountLifecycleError
+from src.recommendation_attribution import attribute_recommendation_outcome
+from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
+from .deps.storage import _get_user_db, _get_bookmark_db
 
 router = APIRouter(prefix="/api", tags=["bookmarks"])
+
+
+@contextmanager
+def _account_guard(principal):
+    try:
+        with _get_user_db().account_guard(
+            principal.username, principal.account_incarnation
+        ) as account:
+            yield account
+    except AccountLifecycleError:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+    except (sqlite3.Error, OSError):
+        raise HTTPException(status_code=503, detail="Account authority unavailable")
+
+
+def _belongs(record, principal, account):
+    return bookmark_belongs_to_account(
+        record,
+        username=principal.username,
+        account_incarnation=principal.account_incarnation,
+        legacy_event_cutoff=account["legacy_event_cutoff"],
+    )
+
+
+@contextmanager
+def _modify_owned(principal):
+    with _account_guard(principal) as account:
+        with modify_bookmarks() as all_data:
+            owned = [
+                bm for bm in all_data["bookmarks"] if _belongs(bm, principal, account)
+            ]
+            other = [
+                bm
+                for bm in all_data["bookmarks"]
+                if not _belongs(bm, principal, account)
+            ]
+            data = {"bookmarks": owned}
+            yield data
+            for bm in data["bookmarks"]:
+                bm["account_incarnation"] = principal.account_incarnation
+            all_data["bookmarks"] = other + data["bookmarks"]
+
+
+def _get_owned(bookmark_id, principal):
+    with _account_guard(principal) as account:
+        bm = _get_bookmark_db().get_by_id(bookmark_id)
+        if bm is None or not _belongs(bm, principal, account):
+            raise HTTPException(status_code=404, detail="Bookmark not found")
+        return bm
+
+
+def _emit_bound(principal, event):
+    event.payload["account_incarnation"] = principal.account_incarnation
+    emit_or_warn(event)
+
+
+def _attribute_saved_papers(bookmark, principal):
+    """Secondary attribution must never turn a committed save into an error."""
+    if not bookmark["papers"]:
+        return [{"status": "not_attributed", "reason": "missing_paper_metadata"}]
+    try:
+        authority = _get_user_db()
+        events_db = Path(
+            os.getenv(
+                "EVENTS_DB_PATH", str(Path(os.getenv("DATA_DIR", "data")) / "events.db")
+            )
+        )
+        return [
+            attribute_recommendation_outcome(
+                authority=authority,
+                events_db=events_db,
+                username=principal.username,
+                account_incarnation=principal.account_incarnation,
+                paper=paper,
+                kind="save",
+                outcome_id=bookmark["id"],
+            )
+            for paper in bookmark["papers"]
+        ]
+    except Exception:
+        logger.warning("Recommendation save attribution unavailable")
+        return [{"status": "unavailable", "reason": "attribution_unavailable"}]
 
 
 # ── Pydantic models ───────────────────────────────────────────────────
@@ -78,6 +172,7 @@ class BookmarkResponse(BaseModel):
     created_at: str
     tags: List[str]
     topic: str = "General"
+    recommendation_attribution: List[dict] = Field(default_factory=list)
 
 
 class BookmarkFromPaperRequest(BaseModel):
@@ -87,6 +182,11 @@ class BookmarkFromPaperRequest(BaseModel):
     venue: Optional[str] = Field(None, max_length=500)
     doi: Optional[str] = Field(None, max_length=200)
     arxiv_id: Optional[str] = Field(None, max_length=100)
+    openalex_id: Optional[str] = Field(None, max_length=256)
+    semantic_scholar_id: Optional[str] = Field(None, max_length=256)
+    pmid: Optional[str] = Field(None, max_length=256)
+    url: Optional[str] = Field(None, max_length=2048)
+    pdf_url: Optional[str] = Field(None, max_length=2048)
     context: Optional[str] = Field(None, max_length=_MAX_REPORT_BYTES)
     source_curriculum: Optional[str] = Field(None, max_length=500)
     topic: str = Field("Curriculum Papers", max_length=100)
@@ -109,20 +209,27 @@ class BookmarkNotesUpdateRequest(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────────
 
+
 @router.post("/bookmarks")
 @limiter.limit("30/minute")
 async def create_bookmark(
     request: Request,
     payload: BookmarkCreateRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Save a deep research result as a bookmark."""
-    bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    bookmark_id = (
+        f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    )
 
     workspace_path = ""
-    with review_sessions_lock:
+    with _account_guard(principal) as account, review_sessions_lock:
         if payload.session_id in review_sessions:
-            workspace_path = review_sessions[payload.session_id].get("workspace_path", "")
+            session = review_sessions[payload.session_id]
+            if not _belongs(session, principal, account):
+                raise HTTPException(status_code=404, detail="Review session not found")
+            workspace_path = session.get("workspace_path", "")
 
     bookmark = {
         "id": bookmark_id,
@@ -139,18 +246,22 @@ async def create_bookmark(
         "topic": payload.topic,
     }
 
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         data["bookmarks"].append(bookmark)
 
-    emit_or_warn(UserEvent(
-        user_id=username,
-        event_type=EventType.BOOKMARK_ADD,
-        paper_id=bookmark_id,
-        payload={
-            "topic": payload.topic[:200],
-            "title": payload.title[:200],
-        },
-    ))
+    attribution = _attribute_saved_papers(bookmark, principal)
+    _emit_bound(
+        principal,
+        UserEvent(
+            user_id=username,
+            event_type=EventType.BOOKMARK_ADD,
+            paper_id=bookmark_id,
+            payload={
+                "topic": payload.topic[:200],
+                "title": payload.title[:200],
+            },
+        ),
+    )
 
     return BookmarkResponse(
         id=bookmark_id,
@@ -161,6 +272,7 @@ async def create_bookmark(
         created_at=bookmark["created_at"],
         tags=payload.tags,
         topic=payload.topic,
+        recommendation_attribution=attribution,
     )
 
 
@@ -169,14 +281,17 @@ async def create_bookmark(
 async def create_bookmark_from_paper(
     request: Request,
     payload: BookmarkFromPaperRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Create a lightweight bookmark from a paper's metadata (e.g., from curriculum).
 
     F-34: IP rate-limited to 30/min — matches the primary create_bookmark
     endpoint and caps write-amplification from the curriculum/explore UI.
     """
-    bookmark_id = f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    bookmark_id = (
+        f"bm_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    )
 
     report_lines = [f"# {payload.title}\n"]
     if payload.authors:
@@ -191,10 +306,15 @@ async def create_bookmark_from_paper(
     paper_entry = {
         "title": payload.title,
         "authors": payload.authors,
-        "year": str(payload.year) if payload.year else "",
+        "year": payload.year,
         "venue": payload.venue or "",
         "doi": payload.doi or "",
         "arxiv_id": payload.arxiv_id or "",
+        "openalex_id": payload.openalex_id or "",
+        "semantic_scholar_id": payload.semantic_scholar_id or "",
+        "pmid": payload.pmid or "",
+        "url": payload.url or "",
+        "pdf_url": payload.pdf_url or "",
     }
 
     bookmark = {
@@ -212,18 +332,22 @@ async def create_bookmark_from_paper(
         "topic": payload.topic,
     }
 
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         data["bookmarks"].append(bookmark)
 
-    emit_or_warn(UserEvent(
-        user_id=username,
-        event_type=EventType.BOOKMARK_ADD,
-        paper_id=bookmark_id,
-        payload={
-            "topic": payload.topic[:200],
-            "title": payload.title[:200],
-        },
-    ))
+    attribution = _attribute_saved_papers(bookmark, principal)
+    _emit_bound(
+        principal,
+        UserEvent(
+            user_id=username,
+            event_type=EventType.BOOKMARK_ADD,
+            paper_id=bookmark_id,
+            payload={
+                "topic": payload.topic[:200],
+                "title": payload.title[:200],
+            },
+        ),
+    )
 
     return BookmarkResponse(
         id=bookmark_id,
@@ -234,13 +358,21 @@ async def create_bookmark_from_paper(
         created_at=bookmark["created_at"],
         tags=bookmark["tags"],
         topic=payload.topic,
+        recommendation_attribution=attribution,
     )
 
 
 @router.get("/bookmarks")
-async def list_bookmarks(username: str = Depends(get_current_user)):
+async def list_bookmarks(
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+):
     """List bookmarks for the current user (summary only)."""
-    user_bookmarks = load_bookmarks_for_user(username, include_reports=False)
+    with _account_guard(principal) as account:
+        user_bookmarks = [
+            bm
+            for bm in load_bookmarks_for_user(principal.username, include_reports=False)
+            if _belongs(bm, principal, account)
+        ]
     return {
         "bookmarks": [
             {
@@ -252,7 +384,8 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
                 "created_at": bm.get("created_at", ""),
                 "tags": bm.get("tags", []),
                 "topic": bm.get("topic", "General"),
-                "has_notes": bool((bm.get("notes") or "").strip()) or bool(bm.get("highlights", [])),
+                "has_notes": bool((bm.get("notes") or "").strip())
+                or bool(bm.get("highlights", [])),
                 "has_citation_tree": bool(bm.get("citation_tree")),
                 "has_share": bool(bm.get("share")),
             }
@@ -262,14 +395,12 @@ async def list_bookmarks(username: str = Depends(get_current_user)):
 
 
 @router.get("/bookmarks/{bookmark_id}")
-async def get_bookmark(bookmark_id: str, username: str = Depends(get_current_user)):
+async def get_bookmark(
+    bookmark_id: str,
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+):
     """Get full bookmark detail including report."""
-    from .deps.storage import _get_bookmark_db
-    bm = _get_bookmark_db().get_by_id(bookmark_id)
-    # Return 404 for both missing and cross-user bookmarks to prevent ID enumeration.
-    if bm is None or bm.get("username") != username:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
-    return bm
+    return _get_owned(bookmark_id, principal)
 
 
 @router.delete("/bookmarks/{bookmark_id}")
@@ -277,24 +408,29 @@ async def get_bookmark(bookmark_id: str, username: str = Depends(get_current_use
 async def delete_bookmark(
     request: Request,
     bookmark_id: str,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Delete a bookmark owned by the current user."""
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         original_len = len(data["bookmarks"])
         data["bookmarks"] = [
-            bm for bm in data["bookmarks"]
+            bm
+            for bm in data["bookmarks"]
             if not (bm["id"] == bookmark_id and bm.get("username") == username)
         ]
         if len(data["bookmarks"]) == original_len:
             raise HTTPException(status_code=404, detail="Bookmark not found")
 
-    emit_or_warn(UserEvent(
-        user_id=username,
-        event_type=EventType.BOOKMARK_REMOVE,
-        paper_id=bookmark_id,
-        payload={"bookmark_id": bookmark_id},
-    ))
+    _emit_bound(
+        principal,
+        UserEvent(
+            user_id=username,
+            event_type=EventType.BOOKMARK_REMOVE,
+            paper_id=bookmark_id,
+            payload={"bookmark_id": bookmark_id},
+        ),
+    )
     return {"success": True, "message": "Bookmark deleted"}
 
 
@@ -304,10 +440,11 @@ async def update_bookmark_topic(
     request: Request,
     bookmark_id: str,
     payload: BookmarkTopicUpdateRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Update a bookmark's topic."""
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
@@ -323,8 +460,9 @@ async def update_bookmark_title(
     request: Request,
     bookmark_id: str,
     payload: BookmarkTitleUpdateRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Update a bookmark's title.
 
     F-34: IP rate-limited to 30/min to bound write volume on this PATCH.
@@ -332,7 +470,7 @@ async def update_bookmark_title(
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Title cannot be empty")
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
@@ -348,14 +486,15 @@ async def update_bookmark_notes(
     request: Request,
     bookmark_id: str,
     payload: BookmarkNotesUpdateRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Update a bookmark's personal notes and/or highlights."""
     result: dict | None = None
     highlight_event_type: EventType | None = None
     prev_highlight_count: int = 0
 
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id:
                 if bm.get("username") != username:
@@ -382,15 +521,18 @@ async def update_bookmark_notes(
             raise HTTPException(status_code=404, detail="Bookmark not found")
 
     if highlight_event_type is not None:
-        emit_or_warn(UserEvent(
-            user_id=username,
-            event_type=highlight_event_type,
-            paper_id=bookmark_id,
-            payload={
-                "bookmark_id": bookmark_id,
-                "highlight_count": len(payload.highlights),
-            },
-        ))
+        _emit_bound(
+            principal,
+            UserEvent(
+                user_id=username,
+                event_type=highlight_event_type,
+                paper_id=bookmark_id,
+                payload={
+                    "bookmark_id": bookmark_id,
+                    "highlight_count": len(payload.highlights),
+                },
+            ),
+        )
 
     return result
 
@@ -400,8 +542,9 @@ async def update_bookmark_notes(
 async def auto_highlight_bookmark(
     request: Request,
     bookmark_id: str,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Use LLM to automatically extract key highlights from the bookmark report.
 
     Async so the long-running LLM call is offloaded via
@@ -412,11 +555,7 @@ async def auto_highlight_bookmark(
     from openai import APITimeoutError, RateLimitError, APIError
 
     # Phase 1: Read bookmark and report (before LLM call)
-    from .deps.storage import _get_bookmark_db
-    bookmark = _get_bookmark_db().get_by_id(bookmark_id)
-    # Return 404 for both missing and cross-user bookmarks to prevent ID enumeration.
-    if bookmark is None or bookmark.get("username") != username:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
+    bookmark = _get_owned(bookmark_id, principal)
 
     report = bookmark.get("report_markdown", "")
     if not report.strip():
@@ -433,16 +572,20 @@ async def auto_highlight_bookmark(
             generate_highlights, report, query, title, client
         )
     except APITimeoutError:
-        raise HTTPException(status_code=504, detail="LLM analysis timed out. Please retry.")
+        raise HTTPException(
+            status_code=504, detail="LLM analysis timed out. Please retry."
+        )
     except RateLimitError:
-        raise HTTPException(status_code=429, detail="Rate limited. Please wait and retry.")
+        raise HTTPException(
+            status_code=429, detail="Rate limited. Please wait and retry."
+        )
     except APIError as e:
         raise HTTPException(status_code=502, detail=f"LLM service error: {e.message}")
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     # Phase 3: Atomic read-modify-write under single lock
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         bookmark = None
         for bm in data["bookmarks"]:
             if bm["id"] == bookmark_id and bm.get("username") == username:
@@ -451,7 +594,9 @@ async def auto_highlight_bookmark(
         if not bookmark:
             raise HTTPException(status_code=404, detail="Bookmark not found")
 
-        existing_by_text = {h["text"]: i for i, h in enumerate(bookmark.get("highlights", []))}
+        existing_by_text = {
+            h["text"]: i for i, h in enumerate(bookmark.get("highlights", []))
+        }
         new_highlights = list(bookmark.get("highlights", []))
         added_count = 0
         enriched_count = 0
@@ -472,7 +617,9 @@ async def auto_highlight_bookmark(
                 strength_or_weakness = ""
             question_for_authors = item.get("question_for_authors", "").strip()
             try:
-                confidence_level = max(1, min(5, int(float(item.get("confidence_level", 3)))))
+                confidence_level = max(
+                    1, min(5, int(float(item.get("confidence_level", 3))))
+                )
             except (ValueError, TypeError):
                 confidence_level = 3
             try:
@@ -489,10 +636,18 @@ async def auto_highlight_bookmark(
                 continue
 
             cfg = CATEGORY_CONFIG[category]
-            memo = f"{cfg['label']} {reviewer_comment}" if reviewer_comment else cfg["label"]
+            memo = (
+                f"{cfg['label']} {reviewer_comment}"
+                if reviewer_comment
+                else cfg["label"]
+            )
 
             # Enrich existing highlight if it lacks deep comment fields
-            existing_idx = existing_by_text.get(text) if text in existing_by_text else existing_by_text.get(matched_text)
+            existing_idx = (
+                existing_by_text.get(text)
+                if text in existing_by_text
+                else existing_by_text.get(matched_text)
+            )
             if existing_idx is not None:
                 existing_hl = new_highlights[existing_idx]
                 enriched = False
@@ -509,7 +664,10 @@ async def auto_highlight_bookmark(
                     existing_hl["category"] = category
                     existing_hl["color"] = cfg["color"]
                     enriched = True
-                if reviewer_comment and (not existing_hl.get("memo") or existing_hl["memo"] == existing_hl.get("category", "")):
+                if reviewer_comment and (
+                    not existing_hl.get("memo")
+                    or existing_hl["memo"] == existing_hl.get("category", "")
+                ):
                     existing_hl["memo"] = memo
                     enriched = True
                 if strength_or_weakness and not existing_hl.get("strength_or_weakness"):
@@ -525,20 +683,22 @@ async def auto_highlight_bookmark(
                     enriched_count += 1
                 continue
 
-            new_highlights.append({
-                "id": f"hl_{uuid.uuid4().hex[:12]}",
-                "text": matched_text,
-                "color": cfg["color"],
-                "memo": memo,
-                "category": category,
-                "significance": significance,
-                "section": section,
-                "implication": implication,
-                "strength_or_weakness": strength_or_weakness,
-                "question_for_authors": question_for_authors,
-                "confidence_level": confidence_level,
-                "created_at": datetime.now().isoformat(),
-            })
+            new_highlights.append(
+                {
+                    "id": f"hl_{uuid.uuid4().hex[:12]}",
+                    "text": matched_text,
+                    "color": cfg["color"],
+                    "memo": memo,
+                    "category": category,
+                    "significance": significance,
+                    "section": section,
+                    "implication": implication,
+                    "strength_or_weakness": strength_or_weakness,
+                    "question_for_authors": question_for_authors,
+                    "confidence_level": confidence_level,
+                    "created_at": datetime.now().isoformat(),
+                }
+            )
             existing_by_text[matched_text] = len(new_highlights) - 1
             added_count += 1
 
@@ -557,27 +717,33 @@ async def auto_highlight_bookmark(
 async def bulk_delete_bookmarks(
     request: Request,
     payload: BulkDeleteBookmarksRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Delete multiple bookmarks owned by the current user."""
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         ids_set = set(payload.bookmark_ids)
+        deleted_ids = {bm["id"] for bm in data["bookmarks"] if bm["id"] in ids_set}
         original = len(data["bookmarks"])
         data["bookmarks"] = [
-            bm for bm in data["bookmarks"]
+            bm
+            for bm in data["bookmarks"]
             if not (bm["id"] in ids_set and bm.get("username") == username)
         ]
         deleted = original - len(data["bookmarks"])
         if deleted == 0:
             raise HTTPException(status_code=404, detail="No bookmarks found to delete")
 
-    for bm_id in payload.bookmark_ids:
-        emit_or_warn(UserEvent(
-            user_id=username,
-            event_type=EventType.BOOKMARK_REMOVE,
-            paper_id=bm_id,
-            payload={"bookmark_id": bm_id, "bulk": True},
-        ))
+    for bm_id in sorted(deleted_ids):
+        _emit_bound(
+            principal,
+            UserEvent(
+                user_id=username,
+                event_type=EventType.BOOKMARK_REMOVE,
+                paper_id=bm_id,
+                payload={"bookmark_id": bm_id, "bulk": True},
+            ),
+        )
     return {"success": True, "deleted_count": deleted}
 
 
@@ -586,14 +752,15 @@ async def bulk_delete_bookmarks(
 async def bulk_move_bookmarks(
     request: Request,
     payload: BulkMoveBookmarksRequest,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
+    username = principal.username
     """Move multiple bookmarks to a new topic (current user only).
 
     F-34: IP rate-limited to 10/min — this endpoint updates up to 500
     bookmarks in one shot, so looser caps would invite burst abuse.
     """
-    with modify_bookmarks() as data:
+    with _modify_owned(principal) as data:
         ids_set = set(payload.bookmark_ids)
         updated = 0
         for bm in data["bookmarks"]:

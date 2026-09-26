@@ -3,9 +3,21 @@ import {
   blogSeoMeta,
   buildPaperViewerHref,
   extractPrimaryPaperReference,
+  viewerHrefForPaper,
 } from '../utils/blogPaperReference';
 
 describe('blog paper reference extraction', () => {
+  it.each([
+    ['openalex_id', 'W123456'],
+    ['semantic_scholar_id', 'a'.repeat(40)],
+    ['pmid', '123456'],
+  ])('preserves %s through the recommendation viewer URL', (field, value) => {
+    const href = viewerHrefForPaper({ title: 'Provider-only paper', [field]: value }, 'recommendation');
+    const params = new URL(href, 'https://example.test').searchParams;
+    expect(params.get(field)).toBe(value);
+    expect(params.get('source')).toBe('recommendation');
+    expect(params.has('doi')).toBe(false);
+  });
   it('does not invent a primary paper for an explicit source collection', () => {
     expect(extractPrimaryPaperReference({
       category: 'paper-review',
