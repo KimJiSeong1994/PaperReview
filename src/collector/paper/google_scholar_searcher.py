@@ -23,31 +23,8 @@ import threading
 from pathlib import Path
 from src.utils.logger import log_search_operation, logger
 
-def _get_free_proxy(timeout: int = 5, *, deadline=None, stop_event=None) -> Optional[str]:
-    """Bound proxy discovery and validation synchronously in the owning worker."""
-    deadline = min(deadline or float('inf'), time.monotonic() + timeout)
-    try:
-        if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
-            return None
-        response = requests.get('https://www.sslproxies.org/', timeout=max(0.01, deadline - time.monotonic()))
-        response.raise_for_status()
-        rows = BeautifulSoup(response.text, 'html.parser').select('#list tbody tr')[:2]
-        for row in rows:
-            if time.monotonic() >= deadline or (stop_event is not None and stop_event.is_set()):
-                break
-            cells = row.find_all('td')
-            if len(cells) < 7 or cells[6].get_text(strip=True).lower() != 'yes':
-                continue
-            proxy = 'http://' + cells[0].get_text(strip=True) + ':' + cells[1].get_text(strip=True)
-            try:
-                check = requests.get('https://www.google.com', proxies={'https': proxy}, timeout=min(2, deadline - time.monotonic()))
-                check.raise_for_status()
-                return proxy
-            except requests.RequestException:
-                continue
-    except requests.RequestException as error:
-        logger.debug('Proxy discovery failed: %s', error)
-    return None
+class ScholarBudgetExhausted(TimeoutError):
+    """The caller's local deadline or cancellation stopped Scholar retrieval."""
 
 class GoogleScholarSearcher:
     """Google Scholar 검색 클라이언트 (Enhanced)"""
@@ -88,11 +65,6 @@ class GoogleScholarSearcher:
         # 스레드 안전성을 위한 상태 잠금
         self._state_lock = threading.Lock()
 
-        # 프록시 설정 (lazy init - 첫 요청 시 설정)
-        self._proxy = None
-        self._proxy_initialized = False
-        self._proxy_failures = 0
-
         # CAPTCHA 처리 설정
         self.enable_manual_captcha = True  # 수동 CAPTCHA 해결 활성화
         self.cookies_file = Path(os.path.dirname(__file__)) / '.google_scholar_cookies.pkl'
@@ -103,34 +75,6 @@ class GoogleScholarSearcher:
         self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
         self._circuit_breaker_threshold = 8  # 연속 실패 횟수 임계값 (5→8)
         self._circuit_breaker_cooldown = 300  # 비활성화 시간 (2분→5분)
-
-    def _ensure_proxy(self, *, deadline=None, stop_event=None):
-        """첫 요청 시 프록시 설정 (lazy init)"""
-        with self._state_lock:
-            if self._proxy_initialized:
-                return
-            self._proxy_initialized = True
-        self._try_set_proxy(deadline=deadline, stop_event=stop_event)
-
-    def _try_set_proxy(self, *, deadline=None, stop_event=None):
-        """무료 프록시 획득 및 설정"""
-        proxy_url = _get_free_proxy(deadline=deadline, stop_event=stop_event)
-        if proxy_url:
-            self._proxy = {"http": proxy_url, "https": proxy_url}
-            self.session.proxies.update(self._proxy)
-            logger.info(f"Google Scholar proxy configured: {proxy_url}")
-        else:
-            self._proxy = None
-            self.session.proxies.clear()
-            logger.info("Google Scholar running without proxy")
-
-    def _rotate_proxy(self):
-        """프록시 실패 시 새 프록시로 교체"""
-        with self._state_lock:
-            self._proxy_failures += 1
-            logger.info("Rotating to new proxy after failure...")
-            self._proxy_failures = 0
-        self._try_set_proxy()
 
     def _load_cookies(self):
         """저장된 쿠키 로드"""
@@ -212,10 +156,9 @@ class GoogleScholarSearcher:
         def check():
             remaining = deadline - time.monotonic()
             if remaining <= 0 or (stop_event is not None and stop_event.is_set()):
-                raise TimeoutError('Scholar request budget exhausted')
+                raise ScholarBudgetExhausted('Scholar request budget exhausted')
             return remaining
         check()
-        self._ensure_proxy(deadline=deadline, stop_event=stop_event)
         for attempt in range(max(1, self.max_retries)):
             check()
             self._rate_limit()
@@ -224,14 +167,19 @@ class GoogleScholarSearcher:
                 response = self.session.get(url, params=params, timeout=min(10, remaining))
                 response.raise_for_status()
                 return response
-            except requests.RequestException:
+            except requests.RequestException as error:
                 if attempt + 1 >= max(1, self.max_retries):
                     raise
-                delay = min(self.retry_delay_base * (2 ** attempt), check())
-                if stop_event is not None:
-                    stop_event.wait(delay)
-                else:
-                    time.sleep(delay)
+                try:
+                    delay = min(self.retry_delay_base * (2 ** attempt), check())
+                    if stop_event is not None:
+                        stop_event.wait(delay)
+                    else:
+                        time.sleep(delay)
+                    check()
+                except ScholarBudgetExhausted:
+                    # Cancellation must not hide an upstream failure already observed.
+                    raise error
         raise RuntimeError('Scholar retry budget exhausted')
 
     def _is_captcha_response(self, response) -> bool:
@@ -402,6 +350,11 @@ class GoogleScholarSearcher:
             self._record_success()
             receipt['status'] = 'searched' if papers else 'searched_empty'
             return papers
+        except ScholarBudgetExhausted:
+            receipt['status'] = 'timeout'
+            if attempts is None:
+                raise
+            return []
         except Exception as error:
             receipt['status'] = 'timeout' if isinstance(error, (TimeoutError, requests.Timeout)) else 'error'
             self._record_failure()

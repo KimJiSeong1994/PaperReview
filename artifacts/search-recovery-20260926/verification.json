@@ -1,0 +1,92 @@
+{
+  "scope": [
+    "app/QueryAgent/query_analyzer.py",
+    "app/SearchAgent/search_agent.py",
+    "routers/search.py",
+    "src/collector/paper/google_scholar_searcher.py",
+    "tests/test_query_analyzer_unified_path.py",
+    "tests/test_search_source_timing.py",
+    "tests/test_search_routing_contract.py",
+    "tests/test_search_request_contract.py",
+    "tests/test_google_scholar_circuit_breaker.py",
+    "tests/test_search_provider_failures.py",
+    "tests/test_search_agent_executor_lifecycle.py",
+    "web-ui/src/components/SearchPage.tsx",
+    "web-ui/src/components/SearchPage.css",
+    "web-ui/src/test/SearchPage.ranking.test.tsx",
+    "web-ui/src/test/SearchPage.states.test.tsx",
+    "web-ui/src/types.ts"
+  ],
+  "sha256": {
+    "app/QueryAgent/query_analyzer.py": "b99a47610e4be5da1fc1ccf038b01f05131fd7e3c05e95398c0c2f573ab89a86",
+    "app/SearchAgent/search_agent.py": "0bfb234c78066e23a5fffc9d884b9a5302332d63a1ab630e5e07281b70174edc",
+    "routers/search.py": "8b05df6ec19df3a8592b759810c11f92c20954966b756c0b8a116a308f9e1cda",
+    "src/collector/paper/google_scholar_searcher.py": "a7085feee960adc8a23b06a5ba9c7af030447b5476f4d8c31f64f3bd05db283b",
+    "tests/test_query_analyzer_unified_path.py": "b69ad89791f58f8be578af9c42555abdfed5b1e67afe0b76dd2c54e7af463928",
+    "tests/test_search_source_timing.py": "31017d19f8e84bc14fdc8f8755211be5b0d9931d23612a138f072eac06195055",
+    "tests/test_search_routing_contract.py": "f031a46fe2c6f75f730bcbd06e30bd41973cbe14f0193f665a159ddae9556af3",
+    "tests/test_search_request_contract.py": "e1296de21f23101e83c6d2730587b5fbfe472016f74e346c56394ba7306de4b7",
+    "tests/test_google_scholar_circuit_breaker.py": "65f35db2193a21925ffba0a8ec2b13041a374ec91f2b3544aef15a448b64b43a",
+    "tests/test_search_provider_failures.py": "4e471a57cad75317623dd06966e890209aaad822bdc6bbb77dd749882484eeaf",
+    "tests/test_search_agent_executor_lifecycle.py": "6988c56014088e6978bf4f6b651d562e0c9290a872f78caefd5c0f6b1eef260e",
+    "web-ui/src/components/SearchPage.tsx": "c529a90784f573bf1beee7be60f758e7ab7c4a7a4c9f455aedf5f0a11ea63444",
+    "web-ui/src/components/SearchPage.css": "7448a5e0e1bd71c171c8945f031d9618f44ba693b56a9653561dc0e00f35fadf",
+    "web-ui/src/test/SearchPage.ranking.test.tsx": "49d7699168371abac6ee1fb244dc9903fb7e626ac0d4b6e79d7aaa28a0418c04",
+    "web-ui/src/test/SearchPage.states.test.tsx": "be1250274baf08acf8ba6be21d4975640123de1d4e65d5705bb03ad9f0665a3b",
+    "web-ui/src/types.ts": "c7f1b7006e8d49f0957a86da3bba4655b4eca4e62d5994dfa46285cfa183e9bf"
+  },
+  "backend": {
+    "passed": 430,
+    "diagnosticXpass": 5,
+    "warnings": 53,
+    "network": "offline isolated fixtures"
+  },
+  "frontend": {
+    "passed": 578,
+    "skipped": 1,
+    "files": 58
+  },
+  "build": "passed; existing chunk-size warning",
+  "ruff": "passed",
+  "eslint": {
+    "baseline": {
+      "errors": 4,
+      "warnings": 7,
+      "rules": {
+        "react-hooks/refs": 4,
+        "react-hooks/exhaustive-deps": 1,
+        "@typescript-eslint/no-explicit-any": 6
+      }
+    },
+    "current": {
+      "errors": 4,
+      "warnings": 7,
+      "rules": {
+        "react-hooks/refs": 4,
+        "react-hooks/exhaustive-deps": 1,
+        "@typescript-eslint/no-explicit-any": 6
+      }
+    }
+  },
+  "review": {
+    "providerExecution": "APPROVE / CLEAR",
+    "analysisAndUI": "APPROVE / CLEAR",
+    "reviewerScope": "static only; leader ran verification"
+  },
+  "production": {
+    "deployed": false,
+    "externalAvailabilityRestored": false,
+    "paidModelCalls": 0,
+    "remaining": [
+      "arxiv HTTP406",
+      "DBLP connection reset",
+      "SemanticScholar HTTP429; no S2 key configured",
+      "Google Scholar direct production-host public-fixture request HTTP403"
+    ]
+  },
+  "limitations": [
+    "Mocked model/provider regressions do not prove live availability or recommendation quality",
+    "Existing baseline ESLint errors remain; this is not an all-green lint claim",
+    "No raw private queries or credential values collected"
+  ]
+}

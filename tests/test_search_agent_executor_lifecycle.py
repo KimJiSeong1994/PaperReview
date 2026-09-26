@@ -17,7 +17,7 @@ def test_async_cancel_preserves_completed_snapshot_and_charges_running_work():
     release = threading.Event()
     started = threading.Event()
 
-    def blocked(*args):
+    def blocked(*args, **kwargs):
         started.set()
         release.wait(2)
         return [{"title": "late"}]
@@ -56,7 +56,7 @@ def test_async_saturation_retains_two_generations_until_workers_drain():
     release = threading.Event()
     started = threading.Barrier(3)
 
-    def blocked(*args):
+    def blocked(*args, **kwargs):
         started.wait(timeout=2)
         release.wait(2)
         return []

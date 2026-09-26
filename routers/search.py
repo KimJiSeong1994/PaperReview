@@ -1797,6 +1797,7 @@ async def search_papers(
                                 search_query,
                                 max_results_per_source=request.max_results,
                                 context=request.search_context,
+                                sources=request.sources,
                             ),
                             min(deadline, time.monotonic() + _SOURCE_SEARCH_TIMEOUT),
                             stop,

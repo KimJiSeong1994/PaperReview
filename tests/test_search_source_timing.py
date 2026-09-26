@@ -1,6 +1,7 @@
 from unittest.mock import ANY, MagicMock
 
 import pytest
+import requests
 
 from app.SearchAgent.search_agent import SearchAgent
 
@@ -137,3 +138,47 @@ def test_openalex_korean_search_prefers_original_korean_query():
     agent.openalex_searcher.search_korean.assert_called_once_with(
         "거대 언어 모델", 5, deadline=None, stop_event=None, attempts=ANY
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("collector", ["sync", "async", "llm"])
+@pytest.mark.parametrize(
+    "failure,mode",
+    [
+        (requests.ReadTimeout("read timed out"), "timeout"),
+        (requests.ConnectTimeout("connect timed out"), "timeout"),
+        (TimeoutError("budget expired"), "timeout"),
+        (requests.HTTPError("429 Too Many Requests"), "error"),
+        (requests.ConnectionError("Connection reset by peer (104)"), "error"),
+        (None, "searched_empty"),
+    ],
+)
+async def test_collectors_preserve_transport_outcomes(monkeypatch, collector, failure, mode):
+    agent = SearchAgent.__new__(SearchAgent)
+    agent.search_history = []
+    agent.query_analyzer = None
+
+    def search(source, *args):
+        if source == "dblp":
+            if failure is not None:
+                raise failure
+            return []
+        return [{"title": "Healthy result", "doi": "10.1234/healthy"}]
+
+    monkeypatch.setattr(agent, "_search_single_source", search)
+    metadata = {}
+    filters = {"sources": ["dblp", "openalex"], "_metadata": metadata}
+    if collector == "async":
+        results = await agent.async_search_with_filters("topic", filters)
+    elif collector == "sync":
+        results = agent.search_with_filters("topic", filters)
+    else:
+        results = agent.llm_context_search("topic", sources=filters["sources"])
+        metadata = results["_metadata"]
+
+    assert results["dblp"] == []
+    assert results["openalex"][0]["title"] == "Healthy result"
+    assert metadata["modes"] == {"dblp": mode, "openalex": "searched"}
+    assert metadata["timeouts"] == {"dblp": mode == "timeout", "openalex": False}
+    assert metadata["timings"]["dblp"] > 0
+    assert metadata["timings"]["openalex"] > 0

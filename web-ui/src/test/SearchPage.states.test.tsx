@@ -92,7 +92,7 @@ describe('SearchPage honest states', () => {
 
     expect(screen.queryByText(/다른 키워드로 시도해보세요/)).toBeNull();
     expect(screen.getByText(/2개 출처가 제때 응답하지 않아/)).toBeTruthy();
-    expect(screen.getByText(/arxiv, openalex/)).toBeTruthy();
+    expect(screen.getByText(/arXiv, OpenAlex/)).toBeTruthy();
   });
 
   it('still blames nothing in particular when the sources simply found nothing', async () => {

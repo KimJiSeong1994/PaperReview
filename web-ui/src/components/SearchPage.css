@@ -1,0 +1,6 @@
+.results-save-information {
+  max-width: 900px;
+  margin: 0 auto 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
