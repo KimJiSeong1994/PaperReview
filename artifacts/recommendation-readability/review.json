@@ -1,0 +1,34 @@
+{
+  "scope": "오늘의 추천 패널 가독성 및 상호작용 개선",
+  "findings": [
+    "기술 상태와 진단 코드가 논문보다 앞서 노출되어 정보 위계가 흐려짐",
+    "모바일에서 카드당 7개 버튼이 세로로 쌓여 읽기 영역을 차지함",
+    "작은 제목·설명·메타데이터와 좁은 행간이 스캔을 어렵게 함",
+    "긴 실행 취소 기록이 누적되어 첫 논문을 화면 아래로 밀어냄",
+    "추천 미생성과 실제 후보 없음이 같은 안내로 표시됨"
+  ],
+  "changes": [
+    "제목 17px, 설명 14px/1.75행간, 설명 최대 4줄과 카드 간격 확대",
+    "PDF 보기·관련 검색은 기본 노출, 추천 조정과 진단 정보는 native details/summary로 접음",
+    "최신 변경만 기본 노출하고 이전 변경도 펼쳐 실행 취소 가능",
+    "작은 화면에서도 읽기 버튼을 2열로 유지하고 44px 클릭 영역 적용",
+    "고정 헤더, 명확한 포커스 표시, 한국어 소스 상태, 미생성 안내 분리"
+  ],
+  "verification": {
+    "frontendTests": {"passed": 564, "skipped": 1, "files": 58},
+    "scopedEslint": "passed",
+    "browserHarnessRuff": "passed",
+    "productionBuild": "passed with existing bundle-size warning",
+    "gitDiffCheck": "passed",
+    "actualChromiumActions": 14,
+    "actualApiCalls": 18,
+    "mobileWidths": [320, 390],
+    "themes": ["light", "dark"],
+    "panelHorizontalOverflow": false,
+    "visiblePanelControlsUnder44px": 0,
+    "selectedTextMinimumContrast": {"light": 9.267, "dark": 11.249},
+    "keyboard": "Enter toggles native feedback disclosure; Escape closes dialog and returns focus",
+    "behavior": "Actual fixture hide/refill/undo/read, provider identity handoff, exposure/outcomes and deletion remain exercised"
+  },
+  "limits": "Synthetic local browser/API fixtures only, not production user sessions. Contrast calculation covers selected title/description/metadata/summary elements and CSS background compositing, not a complete accessibility certification. Existing test skip, runtime warnings and bundle warning remain. No production deployment, commit or push performed for this UI change."
+}

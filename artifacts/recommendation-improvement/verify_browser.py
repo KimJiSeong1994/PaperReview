@@ -17,11 +17,14 @@ from urllib.parse import urlsplit
 from playwright.async_api import async_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = Path(__file__).resolve().parent
+OUT = Path(
+    os.environ.get("RECOMMENDATION_QA_OUTPUT", str(Path(__file__).resolve().parent))
+)
 sys.path.insert(0, str(ROOT))
 
 
 async def main():
+    OUT.mkdir(parents=True, exist_ok=True)
     report = {
         "schemaVersion": 1,
         "tool": "playwright",
@@ -113,7 +116,8 @@ async def main():
         now = datetime.now(timezone.utc).replace(microsecond=0)
         papers = [
             {
-                "title": f"Synthetic browser fixture {n:02d}",
+                "title": f"Graph neural networks for reliable information retrieval — synthetic fixture {n:02d}",
+                "abstract": "This synthetic paper fixture examines how graph structure can improve document retrieval. It compares robust representation learning with conventional keyword matching and describes limitations under distribution shifts.",
                 "authors": ["Fixture Author"],
                 "openalex_id": f"W{100000 + n}",
                 "year": now.year,
@@ -411,6 +415,7 @@ async def main():
                     quality=95,
                     full_page=True,
                 )
+                await cards.first.locator("summary").click()
                 await cards.first.get_by_role(
                     "button", name="숨기기", exact=True
                 ).click()
@@ -420,7 +425,7 @@ async def main():
                 await expect(cards).to_have_count(5)
                 hide_undo = (
                     page.locator(".recommendation-receipts > div")
-                    .filter(has_text=": 숨기기")
+                    .filter(has_text="숨기기 ·")
                     .get_by_role("button", name="실행 취소")
                 )
                 await expect(hide_undo).to_be_enabled()
@@ -442,6 +447,7 @@ async def main():
                     has=page.get_by_text("읽지 않음", exact=True)
                 ).first.get_attribute("data-canonical-key")
                 read_card = page.locator(f'article[data-canonical-key="{read_key}"]')
+                await read_card.locator("summary").click()
                 await read_card.get_by_role(
                     "button", name="읽음 표시", exact=True
                 ).click()
@@ -490,6 +496,69 @@ async def main():
                 await page.set_viewport_size({"width": 390, "height": 844})
                 await bell.click()
                 await expect(cards).to_have_count(5)
+                for theme in ("light", "dark"):
+                    await page.evaluate(
+                        "(theme) => document.documentElement.dataset.theme = theme",
+                        theme,
+                    )
+                    for width in (320, 390):
+                        await page.set_viewport_size({"width": width, "height": 844})
+                        layout = await page.locator('[role="dialog"]').evaluate(
+                            r"""panel => {
+                              const rgba = value => value.match(/[0-9.]+/g).map(Number);
+                              const blend = (front, back) => front.slice(0, 3).map((v, i) => v * (front[3] ?? 1) + back[i] * (1 - (front[3] ?? 1)));
+                              const background = el => el ? blend(rgba(getComputedStyle(el).backgroundColor), background(el.parentElement)) : [255, 255, 255];
+                              const luminance = rgb => rgb.map(v => {
+                                v /= 255;
+                                return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+                              }).reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+                              const contrast = el => {
+                                const bg = background(el);
+                                const a = luminance(blend(rgba(getComputedStyle(el).color), bg));
+                                const b = luminance(bg);
+                                return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+                              };
+                              return {
+                              minimumTextContrast: Math.min(...[...panel.querySelectorAll('.recommendation-title, .recommendation-description, .recommendation-meta, summary')].filter(el => el.getClientRects().length).map(contrast)),
+                              overflow: panel.scrollWidth > panel.clientWidth + 1,
+                              titleSize: parseFloat(getComputedStyle(panel.querySelector('h3')).fontSize),
+                              descriptionSize: parseFloat(getComputedStyle(panel.querySelector('.recommendation-description')).fontSize),
+                              feedbackCollapsed: [...panel.querySelectorAll('.recommendation-feedback')].every(el => !el.open),
+                              smallControls: [...panel.querySelectorAll('button, summary')].filter(el => el.getClientRects().length && el.getBoundingClientRect().height < 44).length
+                            }}"""
+                        )
+                        assert not layout["overflow"], layout
+                        assert layout["minimumTextContrast"] >= 4.5, layout
+                        assert (
+                            layout["titleSize"] >= 17
+                            and layout["descriptionSize"] >= 14
+                        ), layout
+                        assert (
+                            layout["feedbackCollapsed"] and layout["smallControls"] == 0
+                        ), layout
+                        await page.screenshot(
+                            path=str(OUT / f"readability-{theme}-{width}.jpg"),
+                            type="jpeg",
+                            quality=95,
+                        )
+                        record(
+                            "readability-layout",
+                            '[role="dialog"]',
+                            theme=theme,
+                            width=width,
+                            **layout,
+                        )
+                await page.evaluate("document.documentElement.dataset.theme = 'light'")
+                first_summary = cards.first.locator("summary")
+                await first_summary.focus()
+                await page.keyboard.press("Enter")
+                await expect(
+                    cards.first.get_by_role("button", name="숨기기", exact=True)
+                ).to_be_visible()
+                await page.keyboard.press("Enter")
+                await expect(
+                    cards.first.get_by_role("button", name="숨기기", exact=True)
+                ).not_to_be_visible()
                 await page.screenshot(
                     path=str(OUT / "mobile.jpg"),
                     type="jpeg",

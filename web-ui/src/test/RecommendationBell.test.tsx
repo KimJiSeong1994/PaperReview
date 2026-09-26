@@ -32,6 +32,11 @@ async function open() {
   return rendered;
 }
 const card = (key: string) => within(document.querySelector(`[data-canonical-key="${key}"]`)! as HTMLElement);
+const feedbackCard = (key: string) => {
+  const details = document.querySelector(`[data-canonical-key="${key}"] .recommendation-feedback`) as HTMLDetailsElement;
+  if (!details.open) fireEvent.click(within(details).getByText('추천 조정', { selector: 'summary' }));
+  return card(key);
+};
 const observer = () => Observer.instances[Observer.instances.length - 1];
 
 beforeEach(() => {
@@ -55,6 +60,44 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('RecommendationBell durable recommendation contract', () => {
+  it('prioritizes reading while keeping feedback and diagnostics discoverable', async () => {
+    mocks.fetch.mockResolvedValue({
+      ...response([paper('a', 1)]),
+      source_statuses: { local_public: 'degraded', openclaw: 'disabled' },
+      degraded_reasons: ['limited_coverage'],
+    });
+    await open();
+    expect(card('a').getByRole('button', { name: 'PDF 보기' })).toBeVisible();
+    expect(card('a').getByRole('button', { name: '숨기기' })).not.toBeVisible();
+    expect(screen.getByText('진단 코드: limited_coverage')).not.toBeVisible();
+    fireEvent.click(screen.getByText('추천 기준 및 수집 상태', { selector: 'summary' }));
+    expect(screen.getByText('공개 논문: 일부 수집')).toBeVisible();
+    expect(screen.getByText('OpenClaw: 사용 안 함')).toBeVisible();
+    expect(feedbackCard('a').getByRole('button', { name: '숨기기' })).toBeVisible();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes not-yet-generated delivery from an empty candidate result', async () => {
+    mocks.fetch.mockResolvedValue({
+      ...response([]), state: 'empty', freshness: 'missing', run_id: null, latest_run_at: null,
+    });
+    await open();
+    expect(screen.getByText('아직 추천이 생성되지 않았습니다.')).toBeVisible();
+    expect(screen.queryByText('표시할 추천 논문이 없습니다.')).not.toBeInTheDocument();
+  });
+
+  it('keeps older changes undoable without filling the reading area', async () => {
+    await open();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '관심 있어요' })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '이 주제 덜 보기' })); await flush();
+    expect(screen.getByText('관심 있어요 · Paper a')).not.toBeVisible();
+    expect(screen.getByText('이 주제 덜 보기 · Paper a')).toBeVisible();
+    fireEvent.click(screen.getByText('이전 변경 1건', { selector: 'summary' }));
+    expect(screen.getByText('관심 있어요 · Paper a')).toBeVisible();
+    fireEvent.click(within(screen.getByLabelText('이전 변경')).getByRole('button', { name: '실행 취소' })); await flush();
+    expect(mocks.mutate.mock.calls[2][0]).toMatchObject({ action: 'undo', undo_action: 'interested', canonical_key: 'a' });
+  });
+
   it('shows the paper abstract instead of generic personalization reasons', async () => {
     mocks.fetch.mockResolvedValue(response([{
       ...paper('a', 1),
@@ -95,7 +138,7 @@ describe('RecommendationBell durable recommendation contract', () => {
   it('refills from the server after hide and keeps an actionable undo receipt for the hidden key', async () => {
     await open();
     mocks.fetch.mockResolvedValue(response([paper('b', 3), paper('c', 6)]));
-    fireEvent.click(card('a').getByRole('button', { name: '숨기기' })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '숨기기' })); await flush();
     expect(document.querySelector('[data-canonical-key="a"]')).toBeNull();
     expect(screen.getByText('#6')).toBeInTheDocument();
     expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ run_id: 'run-1', canonical_key: 'a', action: 'hide' });
@@ -107,7 +150,7 @@ describe('RecommendationBell durable recommendation contract', () => {
 
   it('does not acknowledge failed writes or replace the current list', async () => {
     await open(); mocks.mutate.mockRejectedValue(new Error('offline'));
-    fireEvent.click(card('a').getByRole('button', { name: '숨기기' })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '숨기기' })); await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('변경을 저장하지 못했습니다');
     expect(card('a').getByText('읽지 않음')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '실행 취소' })).not.toBeInTheDocument();
@@ -130,7 +173,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     await open();
     let rejectRefresh!: (reason: unknown) => void;
     mocks.fetch.mockReturnValueOnce(new Promise((_, reject) => { rejectRefresh = reject; }));
-    fireEvent.click(card('a').getByRole('button', { name: label })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: label })); await flush();
     expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ canonical_key: 'a', action });
     expect(document.querySelector('[data-canonical-key="a"]')).toBeNull();
     expect(card('b').getByText('#3')).toBeInTheDocument();
@@ -159,7 +202,7 @@ describe('RecommendationBell durable recommendation contract', () => {
 
   it.each(['already_seen', 'topic_less', 'interested'] as const)('persists %s independently of read state', async action => {
     const labels = { already_seen: '이미 읽은 논문', topic_less: '이 주제 덜 보기', interested: '관심 있어요' };
-    await open(); fireEvent.click(card('a').getByRole('button', { name: labels[action] })); await flush();
+    await open(); fireEvent.click(feedbackCard('a').getByRole('button', { name: labels[action] })); await flush();
     expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ action, canonical_key: 'a' });
     expect(mocks.mutate.mock.calls[0][0].request_id).toMatch(/^[0-9a-f-]{36}$/i);
   });
@@ -243,7 +286,7 @@ describe('RecommendationBell durable recommendation contract', () => {
 
   it('remounts session state on auth lifecycle changes even when the token string is unchanged', async () => {
     const view = await open();
-    fireEvent.click(card('a').getByRole('button', { name: '관심 있어요' })); await flush();
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '관심 있어요' })); await flush();
     expect(screen.getByRole('button', { name: '실행 취소' })).toBeInTheDocument();
     const oldSignal = mocks.fetch.mock.calls[0][1] as AbortSignal;
     mocks.authenticated = false;
@@ -300,7 +343,7 @@ describe('RecommendationBell durable recommendation contract', () => {
     let acknowledge!: (value: unknown) => void;
     await open();
     mocks.mutate.mockReturnValueOnce(new Promise(resolve => { acknowledge = resolve; }));
-    fireEvent.click(card('a').getByRole('button', { name: '숨기기' }));
+    fireEvent.click(feedbackCard('a').getByRole('button', { name: '숨기기' }));
     observer().emit(1); await tick(500);
     localStorage.setItem('access_token', 'owner-b');
     mocks.fetch.mockResolvedValue(response([paper('b-only', 1)]));

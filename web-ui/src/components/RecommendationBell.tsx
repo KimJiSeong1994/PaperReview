@@ -17,6 +17,14 @@ const stateLabels: Record<RecommendationNotificationResponse['state'], string> =
   stale: '이전 추천입니다. 최신 추천을 기다리고 있습니다.', expired: '추천 유효기간이 지났습니다.',
   unavailable: '아직 추천을 사용할 수 없습니다.',
 };
+const sourceLabels: Record<string, string> = { local_public: '공개 논문', owner_local: '내 자료', openclaw: 'OpenClaw' };
+const sourceStatusLabels: Record<string, string> = {
+  ready: '사용 가능', empty: '후보 없음', disabled: '사용 안 함', degraded: '일부 수집',
+  error: '수집 실패', missing: '수집 대기', invalid: '검증 실패', stale: '갱신 필요',
+};
+const scoringLabels: Record<string, string> = {
+  v1: '관심사 기반', v2: '활동·관심사 기반', v1_fallback: '기본 관심사 기반', metadata: '논문 정보 기반',
+};
 function day() { return new Date().toLocaleDateString('en-CA'); }
 function paperDescription(abstract?: string | null) {
   const text = abstract?.replace(/\s+/g, ' ').trim();
@@ -261,6 +269,12 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
     openPaperViewer(`${href}&result_key=${encodeURIComponent(item.canonical_key)}`);
     void act(item, 'seen');
   };
+  const receiptItems = receipts.filter(receipt => receipt.owner === owner).map(receipt => (
+    <div key={receipt.id}>
+      <span title={receipt.title}>{labels[receipt.action]} · {receipt.title}</span>
+      <button type="button" disabled={pending} onClick={() => void act({ canonical_key: receipt.key, title: receipt.title }, 'undo', receipt)}>실행 취소</button>
+    </div>
+  ));
 
   return (
     <div className="recommendation-bell" ref={rootRef}>
@@ -277,29 +291,39 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
         {!authenticated ? <p className="recommendation-empty">로그인 후 추천을 확인해 주세요.</p> : <>
           {data && <>
             <p className="recommendation-meta">추천 생성: {date(data.latest_run_at)}</p>
-            <div className="recommendation-summary" aria-label="추천 요약"><span>읽지 않음 {data.unread_count}편</span><span>전체 {data.total_count}편</span><span>상위 {Math.min(data.items.length, 5)}편 표시</span>{data.scoring_mode && <span>추천 방식: {data.scoring_mode}</span>}</div>
-            {data.scoring_mode === 'metadata' && <p className="recommendation-meta">개인화 정보가 부족해 논문 메타데이터를 기준으로 추천합니다.</p>}
-            {data.scoring_mode === 'v1_fallback' && <p className="recommendation-meta">대체 추천 방식으로 표시합니다.</p>}
-            <p role="status">{stateLabels[data.state]}{data.freshness === 'stale' && data.state !== 'stale' ? ' 이전 추천입니다.' : ''}{data.freshness === 'expired' && data.state !== 'expired' ? ' 추천 유효기간이 지났습니다.' : ''}</p>
-            <div className="recommendation-signals" aria-label="소스 상태">{Object.entries(data.source_statuses).map(([source, status]) => <span key={source}>{source}: {status}</span>)}</div>
-            {data.degraded_reasons.length > 0 && <p className="recommendation-meta">{data.degraded_reasons.join(' · ')}</p>}
+            <div className="recommendation-summary" aria-label="추천 요약"><span>읽지 않음 {data.unread_count}편</span><span>전체 {data.total_count}편</span><span>상위 {Math.min(data.items.length, 5)}편 표시</span></div>
+            <p className="recommendation-status" role="status">{data.freshness === 'missing' && !data.run_id && data.state === 'empty' ? '아직 추천이 생성되지 않았습니다.' : data.state === 'degraded' && data.items.length > 0 ? '수집 범위가 제한되어 검증된 논문만 표시합니다.' : stateLabels[data.state]}{data.freshness === 'stale' && data.state !== 'stale' ? ' 이전 추천입니다.' : ''}{data.freshness === 'expired' && data.state !== 'expired' ? ' 추천 유효기간이 지났습니다.' : ''}</p>
+            <details className="recommendation-details">
+              <summary>추천 기준 및 수집 상태</summary>
+              {data.scoring_mode === 'metadata' && <p className="recommendation-meta">개인화 정보가 부족해 논문 메타데이터를 기준으로 추천합니다.</p>}
+              {data.scoring_mode === 'v1_fallback' && <p className="recommendation-meta">대체 추천 방식으로 표시합니다.</p>}
+              {data.scoring_mode && <p className="recommendation-meta">추천 방식: {scoringLabels[data.scoring_mode]}</p>}
+              <div className="recommendation-signals" aria-label="소스 상태">{Object.entries(data.source_statuses).map(([source, status]) => <span key={source}>{sourceLabels[source] ?? source}: {sourceStatusLabels[status] ?? status}</span>)}</div>
+              {data.degraded_reasons.length > 0 && <p className="recommendation-meta">진단 코드: {data.degraded_reasons.join(' · ')}</p>}
+            </details>
           </>}
           {loading && <p role="status">추천을 불러오는 중...</p>}
           {error && <div className="recommendation-error" role="alert">{error}<button type="button" disabled={pending} onClick={() => void refresh.current()}>다시 시도</button></div>}
-          {data && data.items.length === 0 && data.state !== 'empty' && <p className="recommendation-empty">표시할 추천 논문이 없습니다.</p>}
-          <div className="recommendation-receipts" aria-label="최근 변경" aria-live="polite">{receipts.filter(receipt => receipt.owner === owner).map(receipt => <div key={receipt.id}><span>{receipt.title}: {labels[receipt.action]}</span><button type="button" disabled={pending} onClick={() => void act({ canonical_key: receipt.key, title: receipt.title }, 'undo', receipt)}>실행 취소</button></div>)}</div>
+          <div className="recommendation-receipts" aria-label="최근 변경" aria-live="polite">{receiptItems.slice(-1)}</div>
+          {receiptItems.length > 1 && <details className="recommendation-details"><summary>이전 변경 {receiptItems.length - 1}건</summary><div className="recommendation-receipts" aria-label="이전 변경">{receiptItems.slice(0, -1)}</div></details>}
           <div className="recommendation-list">{data?.items.slice(0, 5).map(item => <article className="recommendation-item" key={item.canonical_key} data-canonical-key={item.canonical_key}>
             <div className="recommendation-item-topline"><strong>#{item.final_rank}</strong><span>{item.seen ? '읽음' : '읽지 않음'}</span></div>
             <h3><button className="recommendation-title" type="button" disabled={pending} onClick={() => view(item)}>{item.title}</button></h3>
             <p className="recommendation-meta">{[item.authors.slice(0, 2).join(', '), item.year, item.venue].filter(Boolean).join(' · ')}</p>
             {item.publication_date && <p className="recommendation-meta">논문 발표: {date(item.publication_date)}</p>}
             <p className="recommendation-description">{paperDescription(item.abstract)}</p>
-            <div className="recommendation-signals">{item.candidate_sources.map(source => <span key={source}>{source}</span>)}</div>
             <div className="recommendation-actions" aria-label={`${item.title} 작업`}>
               <button type="button" className="recommendation-action-primary" disabled={pending} onClick={() => view(item)}>PDF 보기</button>
               <button type="button" onClick={() => { setOpen(false); navigate(`/?q=${encodeURIComponent(item.title)}`); }}>관련 검색</button>
-              {(Object.keys(labels) as RecommendationAction[]).map(action => <button type="button" key={action} disabled={pending || !data?.run_id || (action === 'seen' && item.seen)} onClick={() => void act(item, action)}>{labels[action]}</button>)}
             </div>
+            <details className="recommendation-details recommendation-feedback">
+              <summary>추천 조정</summary>
+              <p className="recommendation-meta">관심을 표시하거나 원치 않는 추천을 줄일 수 있습니다. 변경 후 실행 취소가 가능합니다.</p>
+              <div className="recommendation-signals" aria-label="논문 수집 경로">{item.candidate_sources.map(source => <span key={source}>{sourceLabels[source] ?? source}</span>)}</div>
+              <div className="recommendation-actions" aria-label={`${item.title} 추천 조정`}>
+              {(Object.keys(labels) as RecommendationAction[]).map(action => <button type="button" key={action} disabled={pending || !data?.run_id || (action === 'seen' && item.seen)} onClick={() => void act(item, action)}>{labels[action]}</button>)}
+              </div>
+            </details>
           </article>)}</div>
         </>}
       </section>}
