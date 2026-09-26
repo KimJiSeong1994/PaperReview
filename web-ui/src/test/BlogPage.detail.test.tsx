@@ -217,6 +217,92 @@ describe('BlogPage detail layout', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('DeepWalk Review');
   });
 
+  it('renders the bottom series nav with the next title when a later member is loaded', async () => {
+    // The next post's title only resolves from `posts`, which this component
+    // populates from the list fetch — a direct slug mount never calls it. So
+    // this reaches the case via an in-app list → detail navigation instead of
+    // `renderDetail`'s direct-slug mount, exactly how a real reader gets there.
+    const NEXT_SLUG = 'structural-deep-network-embedding-sdne-review-2026';
+    const currentFixture = post(SERIES_SLUG, CONTENT, { title: 'DeepWalk list card' });
+    const nextFixture = post(NEXT_SLUG, CONTENT, { title: 'SDNE Review' });
+    vi.mocked(fetchBlogPosts).mockResolvedValue({
+      data: { posts: [currentFixture, nextFixture] },
+    } as unknown as PostsResponse);
+    vi.mocked(fetchBlogPost).mockResolvedValue({ data: currentFixture } as unknown as PostResponse);
+
+    render(
+      <MemoryRouter initialEntries={['/blog']}>
+        <BlogPage isAdmin={false} />
+      </MemoryRouter>,
+    );
+    const link = await screen.findByRole('link', { name: 'DeepWalk list card' });
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const nav = await screen.findByRole('navigation', { name: '시리즈 이어 읽기' });
+    expect(nav.textContent).toContain('다음: SDNE Review\u00a0→');
+    expect(nav.querySelector('a[rel="next"]')).toHaveAttribute('href', `/blog/${NEXT_SLUG}`);
+  });
+
+  it('names the next chapter on a direct deep link by asking for that chapter', async () => {
+    const NEXT_SLUG = 'structural-deep-network-embedding-sdne-review-2026';
+    const current = post(SERIES_SLUG, CONTENT);
+    vi.mocked(fetchBlogPost).mockImplementation(async (slug: string) => ({
+      data: slug === NEXT_SLUG ? post(NEXT_SLUG, CONTENT, { title: 'SDNE Review' }) : current,
+    }) as unknown as PostResponse);
+    render(
+      <MemoryRouter initialEntries={[`/blog/${SERIES_SLUG}`]}>
+        <BlogPage isAdmin={false} slug={SERIES_SLUG} />
+      </MemoryRouter>,
+    );
+    await screen.findByText('DeepWalk Review');
+
+    const nav = await screen.findByRole('navigation', { name: '시리즈 이어 읽기' });
+    await waitFor(() => expect(nav.textContent).toContain('다음: SDNE Review\u00a0→'));
+    expect(vi.mocked(fetchBlogPost).mock.calls.map(([s]) => s)).toEqual([SERIES_SLUG, NEXT_SLUG]);
+    // The list is not fetched just to learn one title.
+    expect(fetchBlogPosts).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a generic next label when the next chapter cannot be loaded', async () => {
+    const current = post(SERIES_SLUG, CONTENT);
+    vi.mocked(fetchBlogPost).mockImplementation(async (slug: string) => {
+      if (slug !== SERIES_SLUG) throw new Error('offline');
+      return { data: current } as unknown as PostResponse;
+    });
+    render(
+      <MemoryRouter initialEntries={[`/blog/${SERIES_SLUG}`]}>
+        <BlogPage isAdmin={false} slug={SERIES_SLUG} />
+      </MemoryRouter>,
+    );
+    await screen.findByText('DeepWalk Review');
+
+    const nav = await screen.findByRole('navigation', { name: '시리즈 이어 읽기' });
+    expect(nav.textContent).toContain('다음: 시리즈 다음 글\u00a0→');
+    expect(nav.querySelector('a[rel="next"]')).toHaveAttribute('href', '/blog/structural-deep-network-embedding-sdne-review-2026');
+  });
+
+  it('shows completion and a hub link on the last series member', async () => {
+    const LAST_SLUG = 'classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026';
+    await renderDetail(post(LAST_SLUG, CONTENT));
+
+    const nav = await screen.findByRole('navigation', { name: '시리즈 이어 읽기' });
+    expect(nav.textContent).toContain('시리즈의 마지막 글입니다');
+    expect(nav.querySelector('a[href="/blog/series/gnn#series-reading-title"]')).toHaveTextContent('시리즈 목차로 돌아가기');
+    expect(nav.querySelector('a[href="/blog/series/gnn#geo-comparison-title"]')).toHaveTextContent('논문 선택 비교 보기');
+    expect(nav.querySelector('a[rel="next"]')).toBeNull();
+    // Primary/done block comes before the tertiary previous link.
+    const done = nav.querySelector('.blog-series-next-done')!;
+    const prev = nav.querySelector('a[rel="prev"]')!;
+    expect(done.compareDocumentPosition(prev) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders no bottom series nav for a non-series post and asks for nothing else', async () => {
+    await renderDetail(post('deepwalk', CONTENT));
+
+    expect(screen.queryByRole('navigation', { name: '시리즈 이어 읽기' })).toBeNull();
+    expect(fetchBlogPost).toHaveBeenCalledTimes(1);
+  });
+
   it('skips the structural h2s under their Korean and English labels alike', async () => {
     await renderDetail(post('korean', KOREAN_BOILERPLATE_CONTENT));
 

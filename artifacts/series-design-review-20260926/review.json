@@ -1,0 +1,42 @@
+{
+  "scope": "Critical design review of the deployed series pages (960fe2c) and the resulting upgrade",
+  "liveCaptures": "20 captures of jiphyeonjeon.kr (series gnn/graphrag/build, blog index, post) at 390/1280 light/dark, see capture-receipt.json",
+  "reviewTeam": {
+    "visual": "43-DesignVisualCritic: 4 P1 + 8 P2/P3 in round 1; round 2 all P1 resolved, 5 P2 + 7 P3 follow-ups, all applied except accepted house patterns",
+    "reading": "44-DesignReadingCritic: 3 HIGH + 6 MED/LOW in round 1; round 2 all resolved, 2 MED + 6 LOW follow-ups applied",
+    "interaction": "45-DesignInteractionCritic: 1 HIGH + 6 in round 1 (REQUEST CHANGES); round 2 COMMENT, 1 MED + 5 LOW applied"
+  },
+  "rootCauses": [
+    "Series page was the only blog surface without the site header (logo, nav, theme toggle) and sat 20px from the viewport top",
+    "Korean words broke mid-syllable: series container lacked word-break: keep-all",
+    "Flat type ladder (mobile H2 == H3, 18px path H2 smaller than H3s) and 16px/700 kickers competing with headings",
+    "Reading list was 17px text on 1px rules with no covers or reading time; comparison sat between the map and the list it pointed to; comparison.question rendered 6000px below the cards",
+    "No end-of-article continuation on member posts; SSR prev/next followed publish date, contradicting series order",
+    "Undefined --text-mid token made the breadcrumb render as a label; hash deep links lost after hydration; no <main> landmark"
+  ],
+  "changes": [
+    "Shared BlogAppHeader (anchor logo/nav, aria-current, ThemeToggle) on series + tags pages; 64px rhythm restored",
+    "Section order start -> path -> reading list -> comparison -> evidence in SPA and SSR; kickers removed; question leads the comparison",
+    "Reading rows in house .blog-row form: 20/700 title, first-sentence excerpt, cover on one right edge, N분; compact uncropped 96x60 cover on phones (<=768px)",
+    "Reading time everywhere it is known: header meta (category · N편 · 약 M분 on published basis), start kicker (· 5분), path/stage (N편 · M분), rows",
+    "Type ladder H1 51 / H2 32 / stage H3 26 / row H4 20 / body 17; keep-all + text-wrap pretty; 72ch/64ch measures",
+    "Surfaces: start card and 해석 한계 blockquote recipe, decision cards --wov-04/20px with single indigo accent, path cards with hover/focus lift (2-up phones, 3+2 tablets, 5-up desktop), pill section nav only with >=2 targets",
+    "Evidence: 미확인/해당 없음 state pills, muted dd, source chips, identical per-axis sources hoisted once as '전 항목 출처' (GNN+ URLs normalised to /abs/), method boundaries, '논문 선택 비교로 돌아가기 ↑'",
+    "End-of-article series nav (SPA + SSR): series · position · stage chip, '다음: <title> →' (deep links resolve the chapter title directly), last chapter offers 목차/비교 links, prev tertiary; duplicate chronological prev/next dropped for members",
+    "Breadcrumb '← 블로그로', hash restore after hydration, <main id=main>, focus rings on header/cards/end nav, AA contrast tokens for meta text, LCP cover not lazy"
+  ],
+  "verification": {
+    "backendPassed": 193,
+    "frontendPassed": 601,
+    "frontendSkipped": 1,
+    "lint": "series/new files clean; the 4 pre-existing errors in BlogPage.tsx/BlogTagsPage.tsx are unchanged baseline",
+    "build": "passed; existing chunk-size warning",
+    "browser": "18 recorded actions, 8 themed layouts (320/390/768/1280), 23 fixture API calls; header/main/order/type-ladder/keep-all/44px/state-pill/minutes assertions; hash restore; end-of-article next named on deep link; theme toggle; failure/retry; 5 styled no-JS SSR pages; SSR post end nav + single rel=next target"
+  },
+  "limitations": [
+    "Browser proof uses the local build with fixture metadata (llama icon covers); production covers are real figures",
+    "Not committed or deployed; the live site still serves 960fe2c",
+    "SPA position/total use configured slugs while SSR filters to published (pre-existing top-banner behaviour, all chapters currently published)",
+    "Row link accessible name stays the title (house .blog-row pattern), so AT users do not hear the excerpt/minutes"
+  ]
+}

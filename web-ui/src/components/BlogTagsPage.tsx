@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import './BlogPage.css';
 import './BlogTagsPage.css';
 import SEOHead from './SEOHead';
-import ThemeToggle from './ThemeToggle';
+import BlogAppHeader from './BlogAppHeader';
 import { SITE_URL } from '../seo/structuredData';
 import { fetchBlogTags } from '../api/client';
 
@@ -17,7 +17,6 @@ const TAGS_TITLE = 'Tags | Jiphyeonjeon Blog';
 const TAGS_DESCRIPTION = '집현전 블로그의 모든 태그를 한곳에서 모아봅니다. 관심 있는 주제를 골라 관련 글을 찾아보세요.';
 
 function BlogTagsPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // A junk or out-of-range ?page= still requests that page: the API answers with
   // an empty list, which renders the empty state rather than crashing.
@@ -65,32 +64,7 @@ function BlogTagsPage() {
     <div className="blog-container">
       <SEOHead title={TAGS_TITLE} description={TAGS_DESCRIPTION} canonical={canonical} />
 
-      {/* Minimal copy of BlogPage's header: that one is a closure over the blog's
-          view/search state, so reusing it would mean refactoring BlogPage. */}
-      <div className="blog-app-header">
-        <div className="blog-header-nav">
-          <div className="blog-logo" onClick={() => navigate('/')}>
-            <picture>
-              <source srcSet="/Jiphyeonjeon_llama.webp" type="image/webp" />
-              <img
-                src="/Jiphyeonjeon_llama.png"
-                alt="Jiphyeonjeon"
-                className="blog-logo-icon"
-                width={128}
-                height={128}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            </picture>
-            <span className="blog-brand-name">Jiphyeonjeon</span>
-          </div>
-          <div className="blog-header-actions">
-            <button className="blog-nav-btn blog-nav-btn-active" onClick={() => navigate('/blog')}>Blog</button>
-            <button className="blog-nav-btn" onClick={() => navigate('/')}>Search</button>
-            <button className="blog-nav-btn" onClick={() => navigate('/mypage')}>My Page</button>
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
+      <BlogAppHeader />
 
       <div className="blog-content">
         <header className="blog-tags-header">

@@ -1,0 +1,1305 @@
+{
+  "base": "https://jiphyeonjeon.kr",
+  "captures": [
+    {
+      "page": "series-gnn",
+      "viewport": "mobile",
+      "theme": "light",
+      "fold": "series-gnn-mobile-light-fold.png",
+      "full": "series-gnn-mobile-light-full.png",
+      "height": 13087,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "DeepWalk: Online Learning of Social Repr",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GCN",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GraphSAGE",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNNExplainer",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNN+",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–2 · 노드를 벡터로 표현하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "3–6 · 이웃 집계·일반화·표현력",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–8 · 노드와 관계의 종류 구분하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "9–10 · 이미 나온 예측 설명하기",
+          "size": "22px"
+        }
+      ]
+    },
+    {
+      "page": "series-graphrag",
+      "viewport": "mobile",
+      "theme": "light",
+      "fold": "series-graphrag-mobile-light-fold.png",
+      "full": "series-graphrag-mobile-light-full.png",
+      "height": 11436,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "Knowledge Graph Prompting for Multi-Docu",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "MS GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "LightRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "Deep GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "4–6 · 검색 단위와 기억·경로의 차이",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–9 · 집약·선형화·계층 검색",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "10–11 · 게이트와 전체 파이프라인 점검",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "상세 근거와 출처",
+          "size": "24px"
+        }
+      ]
+    },
+    {
+      "page": "series-build",
+      "viewport": "mobile",
+      "theme": "light",
+      "fold": "series-build-mobile-light-fold.png",
+      "full": "series-build-mobile-light-full.png",
+      "height": 2739,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "집현전 검색 에이전트: 단일 쿼리의 한계를 넘어서",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        }
+      ]
+    },
+    {
+      "page": "blog-index",
+      "viewport": "mobile",
+      "theme": "light",
+      "fold": "blog-index-mobile-light-fold.png",
+      "full": "blog-index-mobile-light-full.png",
+      "height": 4595,
+      "h1": {
+        "size": "32px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "15px",
+        "lineHeight": "24px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "전체 아티클",
+          "size": "26px"
+        },
+        {
+          "tag": "H3",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "EvoOntology: A Self-Evolving Ontology La",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "Better & Faster Large Language Models vi",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "최근 글",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "인기 태그",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "아티클 시리즈",
+          "size": "26px"
+        }
+      ]
+    },
+    {
+      "page": "post",
+      "viewport": "mobile",
+      "theme": "light",
+      "fold": "post-mobile-light-fold.png",
+      "full": "post-mobile-light-full.png",
+      "height": 6150,
+      "h1": {
+        "size": "38px",
+        "weight": "760",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "19px",
+        "lineHeight": "32.3px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "한눈에 보기",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "1. 왜 walk를 문장으로 바꾸나",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "2. 알고리즘의 핵심",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "3. 예로 이해하기",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "4. 저자 보고 결과",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "5. 사용할 때의 조건과 한계",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "References",
+          "size": "25px"
+        }
+      ]
+    },
+    {
+      "page": "series-gnn",
+      "viewport": "desktop",
+      "theme": "light",
+      "fold": "series-gnn-desktop-light-fold.png",
+      "full": "series-gnn-desktop-light-full.png",
+      "height": 8845,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "DeepWalk: Online Learning of Social Repr",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "GCN",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GraphSAGE",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNNExplainer",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNN+",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–2 · 노드를 벡터로 표현하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "3–6 · 이웃 집계·일반화·표현력",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–8 · 노드와 관계의 종류 구분하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "9–10 · 이미 나온 예측 설명하기",
+          "size": "22px"
+        }
+      ]
+    },
+    {
+      "page": "series-graphrag",
+      "viewport": "desktop",
+      "theme": "light",
+      "fold": "series-graphrag-desktop-light-fold.png",
+      "full": "series-graphrag-desktop-light-full.png",
+      "height": 7812,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "Knowledge Graph Prompting for Multi-Docu",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "MS GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "LightRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "Deep GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "4–6 · 검색 단위와 기억·경로의 차이",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–9 · 집약·선형화·계층 검색",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "10–11 · 게이트와 전체 파이프라인 점검",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "상세 근거와 출처",
+          "size": "34px"
+        }
+      ]
+    },
+    {
+      "page": "series-build",
+      "viewport": "desktop",
+      "theme": "light",
+      "fold": "series-build-desktop-light-fold.png",
+      "full": "series-build-desktop-light-full.png",
+      "height": 2057,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "집현전 검색 에이전트: 단일 쿼리의 한계를 넘어서",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        }
+      ]
+    },
+    {
+      "page": "blog-index",
+      "viewport": "desktop",
+      "theme": "light",
+      "fold": "blog-index-desktop-light-fold.png",
+      "full": "blog-index-desktop-light-full.png",
+      "height": 2739,
+      "h1": {
+        "size": "32px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "17px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "전체 아티클",
+          "size": "32px"
+        },
+        {
+          "tag": "H3",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "EvoOntology: A Self-Evolving Ontology La",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "Better & Faster Large Language Models vi",
+          "size": "20px"
+        },
+        {
+          "tag": "H2",
+          "text": "최근 글",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "인기 태그",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "아티클 시리즈",
+          "size": "32px"
+        }
+      ]
+    },
+    {
+      "page": "post",
+      "viewport": "desktop",
+      "theme": "light",
+      "fold": "post-desktop-light-fold.png",
+      "full": "post-desktop-light-full.png",
+      "height": 5112,
+      "h1": {
+        "size": "52px",
+        "weight": "760",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "19px",
+        "lineHeight": "32.3px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "한눈에 보기",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "1. 왜 walk를 문장으로 바꾸나",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "2. 알고리즘의 핵심",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "3. 예로 이해하기",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "4. 저자 보고 결과",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "5. 사용할 때의 조건과 한계",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "References",
+          "size": "32px"
+        }
+      ]
+    },
+    {
+      "page": "series-gnn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "fold": "series-gnn-mobile-dark-fold.png",
+      "full": "series-gnn-mobile-dark-full.png",
+      "height": 13087,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "DeepWalk: Online Learning of Social Repr",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GCN",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GraphSAGE",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNNExplainer",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNN+",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–2 · 노드를 벡터로 표현하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "3–6 · 이웃 집계·일반화·표현력",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–8 · 노드와 관계의 종류 구분하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "9–10 · 이미 나온 예측 설명하기",
+          "size": "22px"
+        }
+      ]
+    },
+    {
+      "page": "series-graphrag",
+      "viewport": "mobile",
+      "theme": "dark",
+      "fold": "series-graphrag-mobile-dark-fold.png",
+      "full": "series-graphrag-mobile-dark-full.png",
+      "height": 11436,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "Knowledge Graph Prompting for Multi-Docu",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "MS GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "LightRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "Deep GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "4–6 · 검색 단위와 기억·경로의 차이",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–9 · 집약·선형화·계층 검색",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "10–11 · 게이트와 전체 파이프라인 점검",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "상세 근거와 출처",
+          "size": "24px"
+        }
+      ]
+    },
+    {
+      "page": "series-build",
+      "viewport": "mobile",
+      "theme": "dark",
+      "fold": "series-build-mobile-dark-fold.png",
+      "full": "series-build-mobile-dark-full.png",
+      "height": 2739,
+      "h1": {
+        "size": "28px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "집현전 검색 에이전트: 단일 쿼리의 한계를 넘어서",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "24px"
+        }
+      ]
+    },
+    {
+      "page": "blog-index",
+      "viewport": "mobile",
+      "theme": "dark",
+      "fold": "blog-index-mobile-dark-fold.png",
+      "full": "blog-index-mobile-dark-full.png",
+      "height": 4595,
+      "h1": {
+        "size": "32px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "15px",
+        "lineHeight": "24px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "26px"
+        },
+        {
+          "tag": "H2",
+          "text": "전체 아티클",
+          "size": "26px"
+        },
+        {
+          "tag": "H3",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "EvoOntology: A Self-Evolving Ontology La",
+          "size": "18px"
+        },
+        {
+          "tag": "H3",
+          "text": "Better & Faster Large Language Models vi",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "최근 글",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "인기 태그",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "아티클 시리즈",
+          "size": "26px"
+        }
+      ]
+    },
+    {
+      "page": "post",
+      "viewport": "mobile",
+      "theme": "dark",
+      "fold": "post-mobile-dark-fold.png",
+      "full": "post-mobile-dark-full.png",
+      "height": 6150,
+      "h1": {
+        "size": "38px",
+        "weight": "760",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "19px",
+        "lineHeight": "32.3px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "한눈에 보기",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "1. 왜 walk를 문장으로 바꾸나",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "2. 알고리즘의 핵심",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "3. 예로 이해하기",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "4. 저자 보고 결과",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "5. 사용할 때의 조건과 한계",
+          "size": "25px"
+        },
+        {
+          "tag": "H2",
+          "text": "References",
+          "size": "25px"
+        }
+      ]
+    },
+    {
+      "page": "series-gnn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "fold": "series-gnn-desktop-dark-fold.png",
+      "full": "series-gnn-desktop-dark-full.png",
+      "height": 8845,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "DeepWalk: Online Learning of Social Repr",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "GCN",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GraphSAGE",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNNExplainer",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "GNN+",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–2 · 노드를 벡터로 표현하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "3–6 · 이웃 집계·일반화·표현력",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–8 · 노드와 관계의 종류 구분하기",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "9–10 · 이미 나온 예측 설명하기",
+          "size": "22px"
+        }
+      ]
+    },
+    {
+      "page": "series-graphrag",
+      "viewport": "desktop",
+      "theme": "dark",
+      "fold": "series-graphrag-desktop-dark-fold.png",
+      "full": "series-graphrag-desktop-dark-full.png",
+      "height": 7812,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "Knowledge Graph Prompting for Multi-Docu",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "한눈에 보는 학습 경로",
+          "size": "18px"
+        },
+        {
+          "tag": "H2",
+          "text": "논문 선택 비교",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "MS GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "LightRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H3",
+          "text": "Deep GraphRAG",
+          "size": "24px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        },
+        {
+          "tag": "H3",
+          "text": "1–3 · 문서 탐색에서 전역 요약과 기억으로",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "4–6 · 검색 단위와 기억·경로의 차이",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "7–9 · 집약·선형화·계층 검색",
+          "size": "22px"
+        },
+        {
+          "tag": "H3",
+          "text": "10–11 · 게이트와 전체 파이프라인 점검",
+          "size": "22px"
+        },
+        {
+          "tag": "H2",
+          "text": "상세 근거와 출처",
+          "size": "34px"
+        }
+      ]
+    },
+    {
+      "page": "series-build",
+      "viewport": "desktop",
+      "theme": "dark",
+      "fold": "series-build-desktop-dark-fold.png",
+      "full": "series-build-desktop-dark-full.png",
+      "height": 2057,
+      "h1": {
+        "size": "51.2px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "16px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "집현전 검색 에이전트: 단일 쿼리의 한계를 넘어서",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "추천 읽기 순서",
+          "size": "34px"
+        }
+      ]
+    },
+    {
+      "page": "blog-index",
+      "viewport": "desktop",
+      "theme": "dark",
+      "fold": "blog-index-desktop-dark-fold.png",
+      "full": "blog-index-desktop-dark-full.png",
+      "height": 2739,
+      "h1": {
+        "size": "32px",
+        "weight": "700",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "17px",
+        "lineHeight": "27.2px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "36px"
+        },
+        {
+          "tag": "H2",
+          "text": "전체 아티클",
+          "size": "32px"
+        },
+        {
+          "tag": "H3",
+          "text": "A Survey of Agentic Reasoning for Large ",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "WFM: Wiki Foundation Model for Complex A",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "RLCD: Reinforcement Learning from Contra",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "EvoOntology: A Self-Evolving Ontology La",
+          "size": "20px"
+        },
+        {
+          "tag": "H3",
+          "text": "Better & Faster Large Language Models vi",
+          "size": "20px"
+        },
+        {
+          "tag": "H2",
+          "text": "최근 글",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "인기 태그",
+          "size": "16px"
+        },
+        {
+          "tag": "H2",
+          "text": "아티클 시리즈",
+          "size": "32px"
+        }
+      ]
+    },
+    {
+      "page": "post",
+      "viewport": "desktop",
+      "theme": "dark",
+      "fold": "post-desktop-dark-fold.png",
+      "full": "post-desktop-dark-full.png",
+      "height": 5112,
+      "h1": {
+        "size": "52px",
+        "weight": "760",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "body": {
+        "size": "19px",
+        "lineHeight": "32.3px",
+        "family": "Pretendard, -apple-system, \"system-ui\", sans-serif"
+      },
+      "headings": [
+        {
+          "tag": "H2",
+          "text": "한눈에 보기",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "1. 왜 walk를 문장으로 바꾸나",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "2. 알고리즘의 핵심",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "3. 예로 이해하기",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "4. 저자 보고 결과",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "5. 사용할 때의 조건과 한계",
+          "size": "32px"
+        },
+        {
+          "tag": "H2",
+          "text": "References",
+          "size": "32px"
+        }
+      ]
+    }
+  ]
+}
