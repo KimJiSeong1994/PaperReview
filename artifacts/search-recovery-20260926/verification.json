@@ -15,7 +15,8 @@
     "web-ui/src/components/SearchPage.css",
     "web-ui/src/test/SearchPage.ranking.test.tsx",
     "web-ui/src/test/SearchPage.states.test.tsx",
-    "web-ui/src/types.ts"
+    "web-ui/src/types.ts",
+    "src/search_eval/skillopt_compatibility.py"
   ],
   "sha256": {
     "app/QueryAgent/query_analyzer.py": "b99a47610e4be5da1fc1ccf038b01f05131fd7e3c05e95398c0c2f573ab89a86",
@@ -33,7 +34,8 @@
     "web-ui/src/components/SearchPage.css": "7448a5e0e1bd71c171c8945f031d9618f44ba693b56a9653561dc0e00f35fadf",
     "web-ui/src/test/SearchPage.ranking.test.tsx": "49d7699168371abac6ee1fb244dc9903fb7e626ac0d4b6e79d7aaa28a0418c04",
     "web-ui/src/test/SearchPage.states.test.tsx": "be1250274baf08acf8ba6be21d4975640123de1d4e65d5705bb03ad9f0665a3b",
-    "web-ui/src/types.ts": "c7f1b7006e8d49f0957a86da3bba4655b4eca4e62d5994dfa46285cfa183e9bf"
+    "web-ui/src/types.ts": "c7f1b7006e8d49f0957a86da3bba4655b4eca4e62d5994dfa46285cfa183e9bf",
+    "src/search_eval/skillopt_compatibility.py": "42bdc0e7a87344a5e0699362a792c3bf34f9d6b5648127300fd05f7d194b2ae4"
   },
   "backend": {
     "passed": 430,
@@ -88,5 +90,11 @@
     "Mocked model/provider regressions do not prove live availability or recommendation quality",
     "Existing baseline ESLint errors remain; this is not an all-green lint claim",
     "No raw private queries or credential values collected"
-  ]
+  ],
+  "optimizerVerification": {
+    "passed": 649,
+    "skipped": 34,
+    "sourceBinding": "Updated reviewed analyzer SHA256; drift rejection remains enforced",
+    "firstCi": "Failed because old approved source pin was not updated; fixed and full optimizer suite rerun"
+  }
 }
