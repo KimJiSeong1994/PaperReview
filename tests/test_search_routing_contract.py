@@ -93,3 +93,31 @@ def test_arxiv_attempts_are_distinct_and_deadline_stops_transport(monkeypatch):
     with pytest.raises(TimeoutError):
         searcher.search('graph learning', 10, stop_event=stop)
     assert calls == []
+
+
+@pytest.mark.parametrize("query", ["graph learning", '"Exact Paper Title"', "10.1234/paper"])
+@pytest.mark.parametrize("cutoff", ["stop", "deadline"])
+def test_dblp_budget_reaches_transport_boundary(monkeypatch, query, cutoff):
+    from types import SimpleNamespace
+    from src.collector.paper import dblp_searcher
+
+    agent = SearchAgent.__new__(SearchAgent)
+    agent.dblp_searcher = dblp_searcher.DBLPSearcher()
+    stop = threading.Event()
+    deadline = time.monotonic() + 30
+    transport = MagicMock(side_effect=AssertionError("expired DBLP must not send HTTP"))
+    monkeypatch.setattr(agent.dblp_searcher.session, "get", transport)
+
+    def rate_limit():
+        if cutoff == "stop":
+            stop.set()
+        else:
+            monkeypatch.setattr(dblp_searcher, "time", SimpleNamespace(monotonic=lambda: deadline))
+
+    monkeypatch.setattr(agent.dblp_searcher, "_rate_limit", rate_limit)
+    with pytest.raises(TimeoutError):
+        agent._search_single_source(
+            "dblp", query, {"_deadline": deadline, "_stop_event": stop},
+            normalize_source_queries(query), 5,
+        )
+    transport.assert_not_called()

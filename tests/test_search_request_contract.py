@@ -51,6 +51,55 @@ def test_sources_are_canonical():
     ).sources == ["arxiv", "openalex"]
 
 
+@pytest.mark.asyncio
+async def test_llm_request_dispatches_only_selected_sources(runtime, monkeypatch):
+    agent = rs.SearchAgent.__new__(rs.SearchAgent)
+    agent.search_history = []
+    agent.deduplicator = runtime.deduplicator
+    analyzer = MagicMock()
+    analyzer.analyze_and_prepare.return_value = {
+        "is_academic": True,
+        "confidence": 0.95,
+        "improved_query": "graph learning",
+        "source_queries": {"openalex": "graph learning"},
+    }
+    agent.query_analyzer = analyzer
+    for attribute in set(agent._SOURCE_SEARCHER_ATTRS.values()):
+        provider = MagicMock()
+        provider.search.side_effect = AssertionError("unrequested provider invoked")
+        setattr(agent, attribute, provider)
+    agent.openalex_searcher.search.side_effect = None
+    agent.openalex_searcher.search.return_value = [
+        {"title": "Selected result", "doi": "10.1234/selected", "source": "OpenAlex"}
+    ]
+    agent.openalex_searcher.search_korean.side_effect = AssertionError(
+        "unrequested Korean source invoked"
+    )
+    monkeypatch.setattr(rs, "search_agent", agent)
+    monkeypatch.setattr(rs, "query_analyzer", analyzer)
+    monkeypatch.setattr(rs, "_graphrag_expand", lambda *args, **kwargs: [])
+
+    response = await rs.search_papers(
+        rs.SearchRequest(
+            query="graph learning", sources=["openalex"],
+            use_llm_search=True, save_papers=False,
+        ),
+        None,
+    )
+
+    agent.openalex_searcher.search.assert_called_once()
+    agent.openalex_searcher.search_korean.assert_not_called()
+    for source, attribute in agent._SOURCE_SEARCHER_ATTRS.items():
+        if source not in ("openalex", "openalex_korean"):
+            getattr(agent, attribute).search.assert_not_called()
+    assert response.total == 1
+    assert response.stage_modes["source_search_mode"] == "llm_context_search"
+    assert set(response.source_timings) == {"openalex"}
+    assert response.source_timeouts == {"openalex": False}
+    assert response.metadata["executed_queries"] == {"openalex": ["graph learning"]}
+    assert not (set(response.results) & {"arxiv", "google_scholar", "connected_papers", "dblp", "openalex_korean"})
+
+
 def test_relevance_survives_dedup_and_provider_display_source(runtime):
     original = {
         "arxiv": [
@@ -310,6 +359,7 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
         max_results_per_source=10,
         context="",
         *,
+        sources=None,
         deadline=None,
         stop_event=None,
         snapshot_callback=None,

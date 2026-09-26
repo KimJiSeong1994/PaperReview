@@ -82,6 +82,7 @@ export interface QueryAnalysis {
   confidence: number;
   original_query: string;
   analysis_details?: string;
+  analysis_status?: 'low_confidence_original_query' | 'unavailable_original_query';
   is_academic?: boolean;
 }
 

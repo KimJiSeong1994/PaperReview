@@ -1,0 +1,44 @@
+{
+  "scope": "Search degradation investigation; sanitized production logs and bounded public-query probes",
+  "confirmed": {
+    "queryAnalysis": "analyze_and_prepare rejected source_queries.default and source_queries.openalex, both requested by its own prompt but forbidden by the raw contract",
+    "arxiv": "HTTPS official export API returned HTTP 406 in logs and one direct production-host public-fixture probe",
+    "dblp": "Logs contain ConnectionResetError 104; one direct official API public-fixture probe returned ConnectionError",
+    "semanticScholar": "HTTP 429 observed; Connected Papers search uses unauthenticated Semantic Scholar",
+    "googleScholar": "One direct production-host public-fixture request returned HTTP 403; no proxy discovery, redirects, retries or CAPTCHA bypass",
+    "saveAccepted": "Normal asynchronous best-effort admission was concatenated with search degradation warnings"
+  },
+  "credentialPresenceOnly": {
+    "openaiConfigured": true,
+    "s2ApiKeyConfigured": false,
+    "semanticScholarApiKeyConfigured": false,
+    "httpProxyConfigured": false,
+    "httpsProxyConfigured": false,
+    "allProxyConfigured": false
+  },
+  "probeConstraints": {
+    "queries": "Fixed public graph-neural-network terms, never user queries",
+    "arxivAttempts": 1,
+    "dblpAttempts": 1,
+    "googleScholarAttempts": 1,
+    "connectTimeoutSeconds": 5,
+    "readTimeoutSeconds": 10,
+    "paidModelCalls": 0,
+    "credentialValuesCollected": false,
+    "providerBodiesRetained": false
+  },
+  "codeFindings": [
+    "DBLP deadline and stop support not forwarded by topic/title/DOI dispatch",
+    "Transport timeouts classified as generic errors and exception elapsed time lost",
+    "LLM search can ignore selected sources",
+    "Local Scholar cancellation counts toward upstream circuit breaker",
+    "Scholar automatically discovers untrusted public proxies before direct search"
+  ],
+  "limitations": [
+    "Google Scholar direct availability is currently HTTP403; the earlier request's exact failure path is not established and Semantic Scholar log co-matches were not treated as attribution",
+    "HTTP 406 and connection reset are not evidence of a particular upstream blocking policy",
+    "No production user search was replayed and no paid query-analysis request was made",
+    "No credentials, raw user queries, response bodies, or raw private logs are included",
+    "Code fixes alone cannot guarantee recovery of externally rejected providers"
+  ]
+}

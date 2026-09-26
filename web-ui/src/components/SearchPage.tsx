@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PaperList from './PaperList';
 import DetailPanel from './DetailPanel';
 import SearchBar from './SearchBar';
+import './SearchPage.css';
 import {
   searchPapers,
   trackSearchClick,
@@ -36,6 +37,18 @@ import {
 } from '../analytics/events';
 
 const GraphViewComponent = lazy(() => import('./GraphView'));
+
+const providerName = (provider: string): string => {
+  switch (provider) {
+    case 'arxiv': return 'arXiv';
+    case 'connected_papers': return 'Connected Papers via Semantic Scholar';
+    case 'google_scholar': return 'Google Scholar';
+    case 'openalex': return 'OpenAlex';
+    case 'dblp': return 'DBLP';
+    case 'openalex_korean': return 'OpenAlex (한국어)';
+    default: return '일부 출처';
+  }
+};
 
 // PDF 실패는 다시 눌러 볼 값어치가 있는지로 갈린다. 서버에 Chromium 이 없으면
 // 재시도는 같은 503 을 되돌려 줄 뿐이므로, 그 경우엔 이미 손에 쥔 HTML 로 안내한다.
@@ -100,6 +113,7 @@ function SearchPage() {
   const [improvedQuery, setImprovedQuery] = useState('');
   const [timedOutSources, setTimedOutSources] = useState<string[]>([]);
   const [searchNotices, setSearchNotices] = useState<string[]>([]);
+  const [saveInformation, setSaveInformation] = useState('');
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -316,6 +330,7 @@ function SearchPage() {
     setImprovedQuery('');
     setTimedOutSources([]);
     setSearchNotices([]);
+    setSaveInformation('');
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
     const loadingTimer = setTimeout(() => {
@@ -342,19 +357,20 @@ function SearchPage() {
       const executed = Object.entries(results.metadata?.executed_queries ?? {})
         .filter(([, queries]) => (Array.isArray(queries) ? queries : [queries])
           .some(value => value.trim() !== searchQuery.trim()))
-        .map(([provider, queries]) => `${provider}: ${Array.isArray(queries) ? queries.join(' / ') : queries}`);
+        .map(([provider, queries]) => `${providerName(provider)}: ${Array.isArray(queries) ? queries.join(' / ') : queries}`);
       const executedQuery = results.metadata?.executed_query?.trim() || '';
       setImprovedQuery(executed.join(' · ') || (executedQuery !== searchQuery.trim() ? executedQuery : ''));
       // Only fixed user-facing messages: backend markers may include exception
       // names or diagnostics and are not safe presentation text.
       const notices: string[] = [];
       const degradation = [...(results.degraded ?? []), ...(results.metadata?.degraded ?? [])];
-      if (degradation.length) notices.push('일부 검색 기능이 제한되었습니다.');
       if (results.metadata?.partial) notices.push('일부 검색만 완료되었습니다.');
+      else if (degradation.length) notices.push('일부 검색 기능이 제한되었습니다.');
       const stageModes = results.stage_modes ?? results.metadata?.stage_modes ?? {};
       const isDegraded = (mode: unknown) => typeof mode === 'string'
         && /fallback|error|timeout|capacity|circuit|reject|unavailable|disabled_no_api_key/i.test(mode);
       if (isDegraded(stageModes.query_analysis_mode) || isDegraded(stageModes.analyze)
+        || results.query_analysis?.analysis_status
         || degradation.some(marker => /^(query_analysis_mode|analyze):/.test(marker))) {
         notices.push('질의 분석이 제한되어 원래 검색어로 대체 검색했습니다.');
       }
@@ -364,10 +380,8 @@ function SearchPage() {
       }
       const sourceModes = stageModes.source_modes as Record<string, string> | undefined;
       for (const [provider, mode] of Object.entries(sourceModes ?? {})) {
-        if (isDegraded(mode)) {
-          const sourceName = ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'].includes(provider)
-            ? provider : '일부 출처';
-          notices.push(`${sourceName}: 검색 응답이 제한되었습니다.`);
+        if (isDegraded(mode) && !results.source_timeouts?.[provider]) {
+          notices.push(`${providerName(provider)}: 검색 응답이 제한되었습니다.`);
         }
       }
       const saveMessages = {
@@ -380,7 +394,13 @@ function SearchPage() {
         not_admitted_disconnect: '연결이 종료되어 자동 저장 요청이 접수되지 않았습니다.',
       };
       const saveStatus = results.metadata?.save_status;
-      if (saveStatus) notices.push(saveMessages[saveStatus]);
+      if (saveStatus && Object.hasOwn(saveMessages, saveStatus)) {
+        if (['accepted', 'skipped_cache', 'not_requested', 'no_results'].includes(saveStatus)) {
+          setSaveInformation(saveMessages[saveStatus]);
+        } else {
+          notices.push(saveMessages[saveStatus]);
+        }
+      }
       setSearchNotices([...new Set(notices)]);
 
       // A source that timed out is not a source that found nothing. Without
@@ -389,16 +409,16 @@ function SearchPage() {
       setTimedOutSources(
         Object.entries(results.source_timeouts ?? {})
           .filter(([, timedOut]) => timedOut)
-          .map(([name]) => name),
+          .map(([name]) => providerName(name)),
       );
       const variant = String(
         (results.stage_modes as Record<string, unknown> | undefined)?.ranking_variant ?? '',
       );
       setRankingVariant(variant);
 
-      // Check if query was classified as non-academic
+      // A fallback classification cannot reject results the backend retrieved.
       const qa = results.query_analysis;
-      if (qa && qa.is_academic === false) {
+      if (qa && qa.is_academic === false && !qa.analysis_status) {
         clearTimeout(loadingTimer);
         setGuidanceMessage(
           '학술 논문 및 연구 관련 주제를 입력해주세요. 예: "transformer attention mechanism", "강화학습 정책 최적화"'
@@ -1079,6 +1099,9 @@ function SearchPage() {
           {searchNotices.length > 0 && (
             <p className="results-degraded" role="status">{searchNotices.join(' · ')}</p>
           )}
+          {saveInformation && (
+            <p className="results-save-information" role="status">{saveInformation}</p>
+          )}
 
           <div className="results-workspace-toolbar" aria-label="검색 결과 보기 설정">
             <div className="results-context">
@@ -1399,7 +1422,8 @@ function SearchPage() {
                dropped to <body>. */
             <div className="empty-state" role="status" aria-live="polite">
               {improvedQuery && <p>실제 검색어: <span>{improvedQuery}</span></p>}
-              {searchNotices.length > 0 && <p>{searchNotices.join(' · ')}</p>}
+              {searchNotices.length > 0 && <p className="results-degraded" role="status">{searchNotices.join(' · ')}</p>}
+              {saveInformation && <p className="results-save-information" role="status">{saveInformation}</p>}
               {timedOutSources.length > 0 ? (
                 <>
                   <p>

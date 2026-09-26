@@ -11,6 +11,7 @@ import time
 import copy
 import re
 import unicodedata
+import requests
 
 from src.collector.paper.arxiv_searcher import ArxivSearcher
 from src.collector.paper.connected_papers_searcher import ConnectedPapersSearcher
@@ -555,7 +556,7 @@ class SearchAgent:
         return " ".join(top_keywords)
 
     @log_search_operation("LLM Context Search")
-    def llm_context_search(self, query: str, max_results_per_source: int = 10, context: str = "", *, deadline=None, stop_event=None, snapshot_callback=None) -> Dict[str, Any]:
+    def llm_context_search(self, query: str, max_results_per_source: int = 10, context: str = "", *, sources=None, deadline=None, stop_event=None, snapshot_callback=None) -> Dict[str, Any]:
         """Bound analysis and retrieval by one deadline; publish private completed buckets.
 
         snapshot_callback runs on the collecting thread, never a provider worker.
@@ -566,10 +567,12 @@ class SearchAgent:
 
         deadline = deadline if deadline is not None else time.monotonic() + _LLM_CONTEXT_SEARCH_TIMEOUT_SECONDS
         stop_event = stop_event if stop_event is not None else threading.Event()
-        sources = ["arxiv", "google_scholar", "connected_papers", "openalex", "dblp"]
-        if _contains_korean(query):
-            sources.append("openalex_korean")
-        results = {source: [] for source in self._SOURCE_SEARCHER_ATTRS}
+        if sources is None:
+            sources = ["arxiv", "google_scholar", "connected_papers", "openalex", "dblp"]
+            if _contains_korean(query):
+                sources.append("openalex_korean")
+        sources = list(dict.fromkeys(sources))
+        results = {source: [] for source in sources}
         metadata = {"original_query": query, "timings": {}, "timeouts": {}, "modes": {}, "executed_queries": {}, "routing": classify_search_route(query)}
         results["_metadata"] = metadata
         source_queries = normalize_source_queries(query)
@@ -642,7 +645,7 @@ class SearchAgent:
 
             def collect(future):
                 source, started, worker_filters = futures[future]
-                metadata["timings"][source] = round(time.monotonic() - started, 3)
+                metadata["timings"][source] = time.monotonic() - started
                 metadata["timeouts"][source] = False
                 try:
                     papers = future.result()
@@ -662,6 +665,10 @@ class SearchAgent:
                         metadata["executed_queries"][source] = list(dict.fromkeys(attempt["query"] for attempt in worker_filters["_attempts"]))
                 except SearchCapacityExceeded:
                     raise
+                except (TimeoutError, requests.Timeout) as error:
+                    metadata["modes"][source] = "timeout"
+                    metadata["timeouts"][source] = True
+                    logger.warning("[SearchAgent] %s search timed out: %s", source, error)
                 except Exception as error:
                     metadata["modes"][source] = "error"
                     logger.warning("[SearchAgent] %s search failed: %s", source, error)
@@ -855,6 +862,8 @@ class SearchAgent:
                     method = getattr(searcher, "search_by_title", None)
                     if source_name in ("arxiv", "google_scholar", "openalex"):
                         papers = method(route["value"], max_results, **budget)
+                    elif source_name == "dblp":
+                        papers = method(route["value"], max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
                     else:
                         papers = method(route["value"], max_results) if method else []
                 else:
@@ -862,6 +871,8 @@ class SearchAgent:
                         papers = searcher.search(f'doi:"{route["value"]}"', max_results, deadline=filters.get("_deadline"), stop_event=filters.get("_stop_event"), attempts=filters.get("_attempts"))
                     elif source_name in ("google_scholar", "openalex"):
                         papers = searcher.search(route["value"], max_results, **budget)
+                    elif source_name == "dblp":
+                        papers = searcher.search(route["value"], max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
                     else:
                         papers = searcher.search(route["value"], max_results)
                 if route["kind"] in ("doi", "arxiv"):
@@ -930,7 +941,7 @@ class SearchAgent:
                             buckets.append(extra_papers)
                             attempts.extend(copy.deepcopy(bucket_attempts))
                         except Exception as e:
-                            attempts.append({"query": sq, "status": "timeout" if isinstance(e, TimeoutError) else "error"})
+                            attempts.append({"query": sq, "status": "timeout" if isinstance(e, (TimeoutError, requests.Timeout)) else "error"})
                             logger.warning("[SearchAgent] Extra scholar query failed: %s", e)
                 finally:
                     generation.close()
@@ -956,7 +967,7 @@ class SearchAgent:
 
             elif source_name == "dblp":
                 dblp_q = source_queries.get("dblp", query)
-                return self.dblp_searcher.search(dblp_q, max_results)
+                return self.dblp_searcher.search(dblp_q, max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
 
             elif source_name == "openalex_korean":
                 original_query = filters.get("original_query")
@@ -1017,6 +1028,7 @@ class SearchAgent:
         results: Dict[str, List[Dict[str, Any]]] = {}
         futures: Dict[concurrent.futures.Future, str] = {}
         worker_receipts = {}
+        started_at = {}
 
         generation = self._begin_operation_generation("search_with_filters")
 
@@ -1025,6 +1037,7 @@ class SearchAgent:
                 worker_filters = dict(filters)
                 worker_filters["_attempts"] = []
                 worker_receipts[source] = worker_filters["_attempts"]
+                started_at[source] = time.monotonic()
                 fut = generation.submit(
                     self._search_single_source,
                     source, query, worker_filters, source_queries, max_results,
@@ -1037,16 +1050,21 @@ class SearchAgent:
                     futures, timeout=max(0.0, deadline - time.monotonic())
                 ):
                     source = futures[future]
+                    metadata.setdefault("timings", {})[source] = time.monotonic() - started_at[source]
                     try:
                         results[source], _ = apply_search_filters(future.result(timeout=5), filters)
                         metadata.setdefault("provider_attempts", {})[source] = copy.deepcopy(worker_receipts[source])
                         mode = self._source_outcome_mode(source, results[source], worker_receipts[source])
                         metadata.setdefault("modes", {})[source] = mode
                         metadata.setdefault("timeouts", {})[source] = mode in ("timeout", "partial_timeout")
+                    except SearchCapacityExceeded:
+                        raise
                     except Exception as e:
                         logger.warning("[SearchAgent] %s search failed: %s", source, e)
                         results[source] = []
-                        metadata.setdefault("modes", {})[source] = "error"
+                        timed_out = isinstance(e, (TimeoutError, requests.Timeout))
+                        metadata.setdefault("modes", {})[source] = "timeout" if timed_out else "error"
+                        metadata.setdefault("timeouts", {})[source] = timed_out
             except concurrent.futures.TimeoutError:
                 logger.warning(
                     "[SearchAgent] search_with_filters overall timeout (60s) — returning partial results"
@@ -1056,6 +1074,7 @@ class SearchAgent:
                         if not future.done():
                             future.cancel()  # best-effort; ThreadPool 작업 중단은 보장 안 됨
                         results[source] = []
+                        metadata.setdefault("timings", {})[source] = time.monotonic() - started_at[source]
                         metadata.setdefault("modes", {})[source] = "timeout"
                         metadata.setdefault("timeouts", {})[source] = True
         finally:
@@ -1165,7 +1184,7 @@ class SearchAgent:
                 if rejected:
                     filter_drops[source_name]["identity_mismatch"] = rejected
                 partial[source_name] = copy.deepcopy(papers)
-                source_timings[source_name] = round(time.monotonic() - started_at, 3)
+                source_timings[source_name] = time.monotonic() - started_at
                 source_modes[source_name] = self._source_outcome_mode(source_name, papers, worker_filters["_attempts"])
                 source_timeouts[source_name] = source_modes[source_name] in ("timeout", "partial_timeout")
                 if papers and route["kind"] in ("doi", "arxiv") and source_modes[source_name] == "searched":
@@ -1173,13 +1192,20 @@ class SearchAgent:
                 elif rejected and not papers and source_modes[source_name] == "searched_empty":
                     source_modes[source_name] = "identity_rejected"
                 return source_name, papers
-            except asyncio.TimeoutError:
-                source_timings[source_name] = round(time.monotonic() - started_at, 3)
+            except (TimeoutError, requests.Timeout):
+                source_timings[source_name] = time.monotonic() - started_at
                 source_timeouts[source_name] = True
                 source_modes[source_name] = "timeout"
                 if not fut.done():
                     fut.cancel()  # best-effort; ThreadPool 스레드는 중단 불가이나 Future 상태 정리
-                logger.warning("[SearchAgent] source %s timed out after %ds", source_name, timeout)
+                logger.warning("[SearchAgent] source %s timed out after %.3fs", source_name, source_timings[source_name])
+                return source_name, []
+            except SearchCapacityExceeded:
+                raise
+            except Exception as error:
+                source_timings[source_name] = time.monotonic() - started_at
+                source_modes[source_name] = "error"
+                logger.warning("[SearchAgent] source %s failed: %s", source_name, error)
                 return source_name, []
 
         tasks = [asyncio.create_task(_run_source(s)) for s in dict.fromkeys(sources)]

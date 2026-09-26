@@ -199,7 +199,7 @@ OVERLAY_SCHEMA_PATH = "overlay/schema/generated_overlay_schema.json"
 REGISTRY_PATCH_CONTRACT_PATH = "overlay/contracts/registry_patch_contract.json"
 QUERY_ANALYZER_SOURCE_PATH = "app/QueryAgent/query_analyzer.py"
 QUERY_ANALYZER_SOURCE_SHA256 = (
-    "a1bdaeccceb652f403eabbf7d96912b08886bd411253e7d7b6ee3fe33304edb3"
+    "b99a47610e4be5da1fc1ccf038b01f05131fd7e3c05e95398c0c2f573ab89a86"
 )
 QUERY_ANALYSIS_CONTRACT_SOURCE_PATH = "app/QueryAgent/query_analysis_contract.py"
 QUERY_ANALYSIS_CONTRACT_SOURCE_SHA256 = (

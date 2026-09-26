@@ -74,7 +74,6 @@ async def test_real_scholar_mixed_buckets_keep_success_and_expose_error(monkeypa
     agent = SearchAgent.__new__(SearchAgent)
     agent.search_history = []
     searcher = agent.google_scholar_searcher = GoogleScholarSearcher()
-    monkeypatch.setattr(searcher, "_ensure_proxy", lambda **kwargs: None)
     monkeypatch.setattr(searcher, "_rate_limit", lambda: None)
     response = MagicMock(status_code=200, url="https://scholar.google.com", text="paper")
     def request(url, params, **kwargs):
@@ -135,16 +134,29 @@ def test_scholar_captcha_does_not_spawn_manual_or_scholarly_work(monkeypatch):
     fallback.assert_not_called()
 
 
-def test_proxy_discovery_is_synchronous_and_stopped_before_transport(monkeypatch):
-    import threading
+def test_scholar_uses_only_session_transport_without_proxy_discovery(monkeypatch):
     from src.collector.paper import google_scholar_searcher as module
     transport = MagicMock()
     monkeypatch.setattr(module.requests, "get", transport)
-    stop = threading.Event()
-    stop.set()
-    before = {thread.ident for thread in threading.enumerate()}
-    assert module._get_free_proxy(stop_event=stop) is None
-    assert {thread.ident for thread in threading.enumerate()} == before
+    searcher = module.GoogleScholarSearcher()
+    monkeypatch.setattr(searcher, "_rate_limit", lambda: None)
+    response = MagicMock(
+        status_code=200, url="https://scholar.google.com/scholar", text="<html></html>",
+    )
+    session_transport = MagicMock(return_value=response)
+    monkeypatch.setattr(searcher.session, "get", session_transport)
+    # Explicit operator configuration must not be cleared by search either.
+    searcher.session.proxies["https"] = "http://administrator-proxy:8080"
+    for _ in range(2):
+        assert searcher.search("topic") == []
+    assert session_transport.call_count == 2
+    assert all(
+        call.args[0] == "https://scholar.google.com/scholar"
+        and "proxies" not in call.kwargs
+        for call in session_transport.call_args_list
+    )
+    assert searcher.session.trust_env is True
+    assert searcher.session.proxies == {"https": "http://administrator-proxy:8080"}
     transport.assert_not_called()
 
 
@@ -154,7 +166,6 @@ def test_scholar_retry_does_not_start_after_stop(monkeypatch):
     searcher = GoogleScholarSearcher()
     searcher.max_retries = 2
     stop = threading.Event()
-    monkeypatch.setattr(searcher, "_ensure_proxy", lambda **kwargs: None)
     monkeypatch.setattr(searcher, "_rate_limit", lambda: None)
     def fail(*args, **kwargs):
         stop.set()
@@ -165,6 +176,7 @@ def test_scholar_retry_does_not_start_after_stop(monkeypatch):
     assert searcher.search("topic", stop_event=stop, attempts=attempts) == []
     assert attempts[-1]["status"] == "timeout"
     searcher.session.get.assert_called_once()
+    assert searcher._consecutive_failures == 1
 
 
 def test_scholar_enhanced_does_not_start_second_strategy_after_stop(monkeypatch):
@@ -214,7 +226,6 @@ async def test_successful_empty_adapters_remain_searched_empty(monkeypatch, sour
         searcher.client.results = MagicMock(return_value=iter([]))
     else:
         searcher = agent.google_scholar_searcher = GoogleScholarSearcher()
-        monkeypatch.setattr(searcher, "_ensure_proxy", lambda **kwargs: None)
         monkeypatch.setattr(searcher, "_rate_limit", lambda: None)
         searcher.session = MagicMock()
         searcher.session.get.return_value = MagicMock(

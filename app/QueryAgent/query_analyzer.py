@@ -842,26 +842,28 @@ CRITICAL RULES:
 
 Return JSON:
 {{
-    "is_academic": true/false,
-    "intent": "paper_search|topic_exploration|author_search|method_search|comparison|survey|latest_research|problem_solving",
-    "keywords": ["keyword1", "keyword2", ...],
+    "is_academic": true,
+    "intent": "paper_search",
+    "keywords": ["keyword1", "keyword2"],
     "core_concepts": ["concept1", "concept2"],
     "research_area": "field name",
     "improved_query": "improved search query",
     "search_strategy": "brief strategy",
     "search_filters": {{"year_start": null, "year_end": null, "category": null}},
-    "confidence": 0.0-1.0,
+    "confidence": 0.9,
     "source_queries": {{
         "arxiv": "arXiv query using (ti:X OR ti:Y) OR (abs:X AND abs:Y)",
         "dblp": "2-4 core keywords",
-        "default": "faithful English translation, or the original English query",
-        "openalex": "faithful English query",
         "google_scholar": ["specific query with quoted phrases", "broader rephrased query", "alternative angle query"]
     }}
 }}
 
 RULES:
 - is_academic: false ONLY for clearly non-academic queries (weather, food, shopping, etc.)
+- intent: one of paper_search, topic_exploration, author_search, method_search, comparison, survey, latest_research, problem_solving
+- confidence: number between 0.0 and 1.0
+- Return only the JSON fields shown above. source_queries must contain only arxiv, dblp, and google_scholar.
+- Do not generate source_queries.default or source_queries.openalex; the application derives provider defaults from the original input.
 - source_queries.arxiv: Use (ti:keyword1 OR ti:keyword2) OR (abs:keyword1 AND abs:keyword2)
 - source_queries.dblp: 2-4 core technical keywords only
 - source_queries.google_scholar: Array of 2-3 queries (specific to broad). Natural language with "quoted key phrases"

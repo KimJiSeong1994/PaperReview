@@ -6,11 +6,20 @@ retrieval on failure without extra LLM calls or a reset request deadline.
 
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
 from typing import Any, Dict
 from unittest.mock import ANY, MagicMock
 
 import pytest
 
+from app.QueryAgent import query_analyzer as query_analyzer_module
+from app.QueryAgent.query_analysis_contract import (
+    SOURCE_REQUIRED_KEYS,
+    parse_raw_model_output,
+)
+from app.QueryAgent.query_analyzer import QueryAnalyzer
+from app.QueryAgent.skillopt_policy import SkillOptPolicy
 from app.SearchAgent.search_agent import SearchAgent
 
 
@@ -255,3 +264,120 @@ class TestAnalyzeAndPrepareReturnShape:
             "openalex_korean": "graph neural networks",
         }
         assert result["analysis_status"] == "unavailable_original_query"
+
+
+@pytest.fixture
+def unified_analyzer(monkeypatch: pytest.MonkeyPatch):
+    """Exercise the real unified boundary without clients, policy files, or cache hits."""
+    analyzer = object.__new__(QueryAnalyzer)
+    analyzer.client = object()
+    analyzer.model = "fixture-model"
+    monkeypatch.setattr(query_analyzer_module, "_analysis_cache", {})
+    monkeypatch.setattr(
+        analyzer,
+        "_load_skillopt_policy",
+        lambda: SkillOptPolicy(
+            enabled=True,
+            content="strict policy",
+            content_hash="a" * 64,
+            reason="enabled",
+        ),
+    )
+    raw = {
+        "is_academic": True,
+        "intent": "paper_search",
+        "keywords": ["graph", "neural"],
+        "improved_query": "graph neural networks",
+        "confidence": 0.92,
+        "source_queries": {
+            "arxiv": "ti:graph AND abs:neural",
+            "dblp": "graph neural",
+            "google_scholar": ["graph neural networks", "graph representation learning"],
+        },
+    }
+    completion = MagicMock(
+        return_value=SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(raw)))]
+        )
+    )
+    monkeypatch.setattr(query_analyzer_module, "create_chat_completion", completion)
+    return analyzer, completion, raw
+
+
+@pytest.mark.parametrize("apply_skillopt_policy", [False, True])
+def test_actual_unified_prompt_example_satisfies_raw_contract(
+    unified_analyzer, apply_skillopt_policy: bool
+) -> None:
+    analyzer, completion, _ = unified_analyzer
+
+    analyzer.analyze_and_prepare(
+        "그래프 신경망", apply_skillopt_policy=apply_skillopt_policy
+    )
+
+    completion.assert_called_once()
+    messages = completion.call_args.kwargs["messages"]
+    prompt = next(message["content"] for message in messages if message["role"] == "user")
+    example_text = prompt.split("Return JSON:\n", 1)[1].split("\n\nRULES:", 1)[0]
+    example = parse_raw_model_output(example_text)
+    assert set(example["source_queries"]) == SOURCE_REQUIRED_KEYS
+    assert "Do not generate source_queries.default or source_queries.openalex" in prompt
+
+
+def test_conforming_unified_response_preserves_queries_and_original_defaults(
+    unified_analyzer,
+) -> None:
+    analyzer, completion, raw = unified_analyzer
+    query = "그래프 신경망"
+
+    result = analyzer.analyze_and_prepare(query, apply_skillopt_policy=True)
+
+    completion.assert_called_once()
+    assert "analysis_status" not in result
+    assert result["confidence"] == raw["confidence"]
+    assert result["improved_query"] == raw["improved_query"]
+    assert result["original_query"] == query
+    assert result["source_queries"] == {
+        "arxiv": raw["source_queries"]["arxiv"],
+        "dblp": raw["source_queries"]["dblp"],
+        "google_scholar": raw["source_queries"]["google_scholar"][0],
+        "scholar_queries": raw["source_queries"]["google_scholar"],
+        "default": query,
+        "openalex": query,
+        "openalex_korean": query,
+    }
+
+
+@pytest.mark.parametrize("extra_keys", [("default",), ("openalex",), ("default", "openalex")])
+def test_invalid_raw_provider_defaults_disclose_fallback_without_retry(
+    unified_analyzer,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    extra_keys: tuple[str, ...],
+) -> None:
+    analyzer, completion, raw = unified_analyzer
+    raw["source_queries"].update({key: "generated translation" for key in extra_keys})
+    completion.return_value.choices[0].message.content = json.dumps(raw)
+    retry_calls = {}
+    for name in (
+        "analyze_query",
+        "classify_topic",
+        "generate_search_queries",
+        "generate_source_specific_queries",
+    ):
+        retry_calls[name] = MagicMock(side_effect=AssertionError("Unexpected extra LLM stage"))
+        monkeypatch.setattr(analyzer, name, retry_calls[name])
+    query = "그래프 신경망"
+
+    result = analyzer.analyze_and_prepare(query, apply_skillopt_policy=True)
+
+    completion.assert_called_once()
+    for retry in retry_calls.values():
+        retry.assert_not_called()
+    assert result["analysis_status"] == "unavailable_original_query"
+    assert result["improved_query"] == query
+    assert result["search_filters"] == {}
+    assert result["source_queries"] == query_analyzer_module.normalize_source_queries(query)
+    assert "analyze_and_prepare failed" in caplog.text
+    assert "unsupported keys" in caplog.text
+    for key in extra_keys:
+        assert key in caplog.text

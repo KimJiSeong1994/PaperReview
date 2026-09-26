@@ -156,8 +156,33 @@ describe('SearchPage result ordering', () => {
     await submitSearch('original');
     expect(screen.queryByText(/실제 검색어:/)).not.toBeInTheDocument();
     await submitSearch('original');
-    expect(screen.getByText('openalex: translated')).toBeInTheDocument();
-    expect(screen.queryByText('arxiv: original')).not.toBeInTheDocument();
+    expect(screen.getByText('OpenAlex: translated')).toBeInTheDocument();
+    expect(screen.queryByText('arXiv: original')).not.toBeInTheDocument();
+  });
+
+  it('preserves retrieved papers when a low-confidence classification is non-authoritative', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { openalex: [paper('fallback', 'Retrieved despite uncertain classification', 0)] },
+      total: 1,
+      query_analysis: {
+        is_academic: false,
+        analysis_status: 'low_confidence_original_query',
+        intent: 'paper_search',
+        keywords: [],
+        improved_query: 'original',
+        search_filters: {},
+        confidence: 0.2,
+        original_query: 'original',
+      },
+    });
+    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('original');
+    expect(screen.getAllByText('Retrieved despite uncertain classification')[0]).toBeVisible();
+    expect(screen.getByText(/질의 분석이 제한되어 원래 검색어/)).toBeInTheDocument();
+    expect(screen.queryByText(/학술 논문 및 연구 관련 주제를 입력/)).not.toBeInTheDocument();
+    expect(trackSearchEvent).not.toHaveBeenCalledWith(
+      expect.anything(), 'non_academic', expect.anything(), expect.anything(), expect.anything(),
+    );
   });
 
   it('uses result keys for list communities and related highlights despite storage collisions', () => {
@@ -310,11 +335,12 @@ describe('SearchPage result ordering', () => {
     } as never);
     render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('한국어 질문');
-    expect(screen.getByText('openalex: actual translated query')).toBeInTheDocument();
+    expect(screen.getByText('OpenAlex: actual translated query')).toBeInTheDocument();
     expect(screen.queryByText(/suggestion that never ran/)).not.toBeInTheDocument();
-    expect(screen.getByText(/일부 검색만 완료/)).toHaveTextContent('dblp: 검색 응답이 제한되었습니다.');
+    expect(screen.getByText(/일부 검색만 완료/)).toHaveTextContent('DBLP: 검색 응답이 제한되었습니다.');
+    expect(screen.queryByText(/일부 검색 기능이 제한/)).not.toBeInTheDocument();
     expect(screen.getByText(/저장 작업 용량이 부족/)).toBeInTheDocument();
-    expect(screen.getByText(/google_scholar 출처가 제때/)).toBeInTheDocument();
+    expect(screen.getByText(/Google Scholar 출처가 제때/)).toBeInTheDocument();
   });
 
   it('discloses actual query and no-results save status for empty results', async () => {
@@ -349,27 +375,62 @@ describe('SearchPage result ordering', () => {
     expect(screen.getByText(/질의 분석이 제한되어 원래 검색어/)).toBeInTheDocument();
     expect(screen.getByText(/결과 순위 계산이 제한되어 대체 순서/)).toBeInTheDocument();
     expect(screen.getByText(/일부 검색만 완료/)).toBeInTheDocument();
-    expect(screen.getByText(/저장 완료를 보장하지 않습니다/)).toBeInTheDocument();
+    expect(screen.queryByText(/일부 검색 기능이 제한/)).not.toBeInTheDocument();
+    expect(screen.getByText(/저장 완료를 보장하지 않습니다/)).toHaveClass('results-save-information');
     expect(screen.queryByText(/secret-token-123|fallback_TimeoutError/)).not.toBeInTheDocument();
   });
 
   it.each([
+    ['accepted', '저장 완료를 보장하지 않습니다'],
+    ['not_requested', '자동 저장을 요청하지 않았습니다'],
     ['skipped_cache', '캐시 결과에 새 자동 저장 작업'],
     ['no_results', '저장할 검색 결과가 없어'],
+    ['not_admitted_capacity', '저장 작업 용량이 부족'],
     ['not_admitted_shutdown', '서버 종료 중이어서'],
     ['not_admitted_disconnect', '연결이 종료되어'],
   ] as const)('discloses backend save status %s', async (save_status, message) => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: save_status === 'no_results' ? {} : { arxiv: [paper('one', 'Result', 0)] },
       total: save_status === 'no_results' ? 0 : 1,
-      stage_modes: { query_analysis_mode: 'skipped_cache_hit', ranking_mode: 'skipped_cache_hit' },
+      stage_modes: save_status === 'skipped_cache'
+        ? { query_analysis_mode: 'skipped_cache_hit', ranking_mode: 'skipped_cache_hit' }
+        : { query_analysis_mode: 'llm', ranking_mode: 'llm' },
       metadata: { executed_query: 'original', partial: false, save_status },
       cache_hit: save_status === 'skipped_cache',
     });
-    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('original');
     expect(screen.getByText(new RegExp(message))).toBeInTheDocument();
     expect(screen.queryByText(/결과 순위 계산이 제한/)).not.toBeInTheDocument();
+    if (save_status.startsWith('not_admitted')) {
+      expect(screen.getByText(new RegExp(message))).toHaveClass('results-degraded');
+    } else {
+      expect(screen.getByText(new RegExp(message))).toHaveClass('results-save-information');
+      expect(container.querySelector('.results-degraded')).toBeNull();
+    }
+  });
+
+  it('uses readable provider names and never renders unknown provider or mode diagnostics', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('one', 'Result', 0)] }, total: 1,
+      stage_modes: { source_modes: {
+        connected_papers: 'error_HTTP429_secret-token',
+        'unknown-secret-provider': 'error_secret-token',
+        dblp: 'timeout_internal-reset',
+      } },
+      source_timeouts: { dblp: true, 'unknown-timeout-token': true },
+      metadata: {
+        executed_queries: { 'unknown-query-provider-token': 'translated query' },
+        partial: true, save_status: 'accepted',
+      },
+    });
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('original');
+    expect(screen.getByText(/Connected Papers via Semantic Scholar: 검색 응답이 제한/)).toBeInTheDocument();
+    expect(screen.getByText(/DBLP, 일부 출처 출처가 제때/)).toBeInTheDocument();
+    expect(screen.queryByText(/DBLP: 검색 응답이 제한/)).not.toBeInTheDocument();
+    expect(screen.getByText('일부 출처: translated query')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/secret-token|unknown-.*token|unknown-secret-provider|internal-reset|HTTP429/);
   });
 
   it('reports capacity errors without blaming an empty result on the query', async () => {
