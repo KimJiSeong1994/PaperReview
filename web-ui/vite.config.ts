@@ -19,6 +19,7 @@ export default defineConfig({
     },
   },
   build: {
+    manifest: 'series-manifest.json',
     rollupOptions: {
       output: {
         manualChunks: {

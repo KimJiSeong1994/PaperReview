@@ -92,12 +92,13 @@ export interface GeoComparisonCell {{
 export interface GeoComparisonEntry {{
   slug: string;
   label: string;
+  summary: {{ role: string; fit: string; caution: string }};
   values: Record<GeoComparisonAxis, GeoComparisonCell>;
 }}
 
 export interface GeoComparisonHub {{
   question: string;
-  reading_guide: Array<{{ title: string; description: string }}>;
+  reading_guide: Array<{{ title: string; description: string; slugs: string[] }}>;
   axes: GeoComparisonAxis[];
   entries: GeoComparisonEntry[];
   limits: string;

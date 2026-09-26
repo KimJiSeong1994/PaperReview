@@ -1,0 +1,75 @@
+{
+  "briefPath": ".gjc/_session-01a0d636-6381-7380-a24a-35b7cc91de73/ultragoal/brief.md",
+  "paths": [
+    "data/blog/geo-comparisons.json",
+    "routers/geo_comparisons.py",
+    "scripts/sync_geo_comparisons.py",
+    "tests/test_geo_comparisons.py",
+    "tests/test_geo_adversarial_contracts.py",
+    "web-ui/src/components/SeriesPage.tsx",
+    "web-ui/src/components/BlogPage.css",
+    "web-ui/src/test/SeriesPage.test.tsx",
+    "routers/seo.py",
+    "tests/test_seo.py",
+    "docs/geo-content-guide.md",
+    "routers/geo_comparisons_generated.py",
+    "web-ui/src/seo/geoComparisons.generated.ts",
+    "web-ui/vite.config.ts"
+  ],
+  "sha256": {
+    "data/blog/geo-comparisons.json": "ef1652e492be79b378e4d44286ff3a2047f0052ce8060964c667e5224839250c",
+    "routers/geo_comparisons.py": "4bb74f10b02106a209ca619022cefc6a2b5225ce71fbac18cdf51ca3eafe433a",
+    "scripts/sync_geo_comparisons.py": "242139bfb9b13309bb53160b77340adbfb526a3af3581c48502ec6b622f53acb",
+    "tests/test_geo_comparisons.py": "fae3a16f80d64769115473b6f95be6b0a2f393bac966b661b06e3bd41ceb4dcd",
+    "tests/test_geo_adversarial_contracts.py": "9af5cea993e66a4ba83fe9ef956c831ed6f29d417e2d9e881916b54076e88797",
+    "web-ui/src/components/SeriesPage.tsx": "cf83a1259423c9db379e45ad4891bd0fa9b4449e44d8bf379390c383375bd9d1",
+    "web-ui/src/components/BlogPage.css": "009e2508736c4d49a97211dff0a6c71aff8b6185607519a9c72306b70a19e3af",
+    "web-ui/src/test/SeriesPage.test.tsx": "d2cae08e07479e615fb53a9274a68a99b2deb1641ddbc698333ec523e24c53f7",
+    "routers/seo.py": "65720416df27d4596acd64c1d0e9ae0cbc433edca53ddf69ce8d13748cc347a6",
+    "tests/test_seo.py": "8a83b3f81107175a3e941028f47dc74efce5e4a60f0922f3b57703a603166aeb",
+    "docs/geo-content-guide.md": "8491b5f00f218f8cbcbbf4b40493a5603180ff4e38fe64b2eb1acfa7137ddb77",
+    "routers/geo_comparisons_generated.py": "5515ef17b88637a0aed4a3d09b033dd41fbeb72abab1995f4775afe2de986052",
+    "web-ui/src/seo/geoComparisons.generated.ts": "18ff4e78213dc30bf34967251107d37582adc71b128c5c9e6c5e5718232ce531",
+    "web-ui/vite.config.ts": "ecfaf8581533d8e7df0c195e66d4620a3e02d7c894cebf1d48e0257dfaf8eed3"
+  },
+  "preservation": {
+    "preexistingFilesChecked": 325,
+    "unexpectedChanges": []
+  },
+  "verification": {
+    "backendPassed": 191,
+    "backendWarnings": 53,
+    "frontendPassed": 593,
+    "frontendSkipped": 1,
+    "build": "passed; existing chunk-size warning",
+    "browser": "29recordedactions=28browser+1artifact-stage;45API;8GNNthemedlayouts+other4series320/390+all5stylednoJS; actualbuiltassets copied excludinghiddenfiles beforebrowser/SSR",
+    "fixturesOnly": true
+  },
+  "evidenceDirectory": "artifacts/series-editorial-20260926",
+  "baselineImagesDirectory": "artifacts/series-reading-20260926",
+  "diffPath": "artifacts/series-editorial-20260926/review-delta.json",
+  "designRationale": "Reuse existing house indigo theme tokens; strong dark indigo primaryCTA contrast, single start spotlight, consistent editorial hierarchy; no invented data graphics or performance badges.",
+  "sourceHash": "sha256:a0a063bd988925b9ca270d0084b17ca5c5fa056085e7625a14c26940cb0cb2e3",
+  "priorGenerationSourceHash": "sha256:ffe1bc6f148d37a47f049990e0c3567159c5c46c5e1183ac42ae22de7bacebc7",
+  "reviewGeneration": 2,
+  "deltaOnly": true,
+  "deltaPaths": [
+    "web-ui/src/components/SeriesPage.tsx",
+    "web-ui/src/test/SeriesPage.test.tsx",
+    "routers/seo.py",
+    "tests/test_seo.py",
+    "web-ui/vite.config.ts",
+    "artifacts/series-editorial-20260926/verify_browser.py",
+    "artifacts/series-editorial-20260926/backend-tests.xml",
+    "artifacts/series-editorial-20260926/frontend-tests.xml",
+    "artifacts/series-editorial-20260926/browser-transcript.json"
+  ],
+  "repairs": [
+    "nonhidden series-manifest.json retained through artifact filtering",
+    "fixed built-manifest diagnostics; unbuiltdev distinguished; missing CSS diagnosed",
+    "neutral first-article CTA for engineering/reviews",
+    "native ordered-list positions align with visible published order"
+  ],
+  "provenanceNote": "GEN2 product/verification receipt relocated under repository for native artifact confinement. All14 product hashes and325file preservation rechecked before publication; no new product changes or new execution claims.",
+  "deliveryEncoding": "review-delta.json.patch and frontend-tests.json.junitXml losslessly preserve original reviewed UTF-8 artifacts, including whitespace-sensitive diff prefixes and whitespace-input test names; each includes original SHA256. No test results or product digests changed."
+}

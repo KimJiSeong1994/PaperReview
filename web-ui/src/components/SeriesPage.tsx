@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import './BlogPage.css';
 import SEOHead from './SEOHead';
 import { BLOG_SERIES } from '../seo/series';
@@ -45,7 +44,7 @@ function ComparisonCell({ cell }: { cell: GeoComparisonHub['entries'][number]['v
       {cell.sources.length > 0 && (
         <span className="geo-comparison-sources">
           {cell.sources.map((source, index) => (
-            <a key={source} href={source} target="_blank" rel="noopener noreferrer">
+            <a key={source} href={source} rel="noopener noreferrer">
               출처 {index + 1}
             </a>
           ))}
@@ -55,47 +54,21 @@ function ComparisonCell({ cell }: { cell: GeoComparisonHub['entries'][number]['v
   );
 }
 
-function SeriesComparison({ comparison, posts }: { comparison: GeoComparisonHub; posts: SeriesPost[] }) {
+function SeriesComparison({ comparison, posts, detailed = false }: { comparison: GeoComparisonHub; posts: SeriesPost[]; detailed?: boolean }) {
   const titles = new Map(posts.map((post) => [post.slug, post.title]));
   const entryLabel = (entry: GeoComparisonHub['entries'][number]) => titles.has(entry.slug)
     ? <a href={`/blog/${entry.slug}`} title={titles.get(entry.slug)}>{entry.label}</a>
     : entry.label;
-  return (
-    <section className="geo-comparison" aria-labelledby="geo-comparison-title">
-      <h2 id="geo-comparison-title">논문 선택 비교</h2>
+  if (detailed) return (
+    <section className="geo-evidence" aria-labelledby="series-evidence-title">
+      <p className="blog-series-kicker">근거를 확인하며 읽기</p>
+      <h2 id="series-evidence-title">상세 근거와 출처</h2>
       <p className="geo-comparison-question">{comparison.question}</p>
       <p className="geo-comparison-limits"><strong>해석 한계:</strong> {comparison.limits}</p>
       <p className="geo-comparison-source-note">{comparison.source_note}</p>
-      <div className="geo-comparison-desktop">
-        <p id="geo-comparison-scroll-hint">같은 기준을 가로로 비교하세요. 표가 잘리면 좌우로 스크롤할 수 있습니다.</p>
-        <div className="geo-comparison-scroll" role="region" aria-label="논문 선택 비교표" aria-describedby="geo-comparison-scroll-hint" tabIndex={0}>
-          <table>
-            <caption>여섯 기준으로 비교한 논문 선택표</caption>
-            <thead>
-              <tr>
-                <th scope="col">비교 기준</th>
-                {comparison.entries.map((entry) => <th scope="col" key={entry.slug}>{entryLabel(entry)}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {comparison.axes.map((axis) => (
-                <tr key={axis}>
-                  <th scope="row">{AXIS_LABELS[axis]}</th>
-                  {comparison.entries.map((entry) => (
-                    <td key={entry.slug} data-state={entry.values[axis].state}>
-                      <ComparisonCell cell={entry.values[axis]} />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="geo-comparison-cards">
-        {comparison.entries.map((entry) => (
-          <article className="geo-comparison-card" key={entry.slug}>
-            <h3>{entryLabel(entry)}</h3>
+      {comparison.entries.map((entry, index) => (
+          <article className="geo-evidence-method" key={entry.slug} aria-labelledby={`series-evidence-${index + 1}`}>
+            <h3 id={`series-evidence-${index + 1}`}>{entryLabel(entry)}</h3>
             <dl>
               {comparison.axes.map((axis) => (
                 <div key={axis}>
@@ -104,6 +77,26 @@ function SeriesComparison({ comparison, posts }: { comparison: GeoComparisonHub;
                 </div>
               ))}
             </dl>
+            <a className="blog-series-text-link" href="#geo-comparison-title">선택 요약으로 돌아가기</a>
+          </article>
+        ))}
+    </section>
+  );
+  return (
+    <section className="geo-comparison" aria-labelledby="geo-comparison-title">
+      <p className="blog-series-kicker">질문에 맞춰 고르기</p>
+      <h2 id="geo-comparison-title">논문 선택 비교</h2>
+      <p className="geo-comparison-caveat">성능 순위가 아닌 역할 비교입니다. 평가 조건과 한계는 상세 근거에서 확인하세요.</p>
+      <div className="geo-decision-grid">
+        {comparison.entries.map((entry, index) => (
+          <article className="geo-decision" key={entry.slug}>
+            <h3>{entryLabel(entry)}</h3>
+            <dl>
+              <div><dt>역할</dt><dd>{entry.summary.role}</dd></div>
+              <div><dt>이럴 때</dt><dd>{entry.summary.fit}</dd></div>
+              <div><dt>주의점</dt><dd>{entry.summary.caution}</dd></div>
+            </dl>
+            <a className="blog-series-text-link" href={`#series-evidence-${index + 1}`}>{entry.label} 상세 근거 <span aria-hidden="true">→</span></a>
           </article>
         ))}
       </div>
@@ -116,13 +109,26 @@ function SeriesPage({ seriesId }: SeriesPageProps) {
 }
 
 function SeriesPageContent({ seriesId }: SeriesPageProps) {
-  const navigate = useNavigate();
   const series = BLOG_SERIES[seriesId];
   const comparison = GEO_COMPARISONS[seriesId as keyof typeof GEO_COMPARISONS];
   const [request, setRequest] = useState<SeriesRequest>({ seriesId, status: 'loading', posts: [] });
   const [attempt, setAttempt] = useState(0);
-  const current = request.seriesId === seriesId ? request : { status: 'loading', posts: [] };
+  const current: Pick<SeriesRequest, 'status' | 'posts'> = request.seriesId === seriesId ? request : { status: 'loading', posts: [] };
   const posts = current.posts;
+  const first = posts[0];
+  const readingList = (members: SeriesPost[]) => (
+    <ol className="blog-series-list" start={posts.indexOf(members[0]) + 1}>
+      {members.map((post) => (
+        <li key={post.slug}>
+          <a href={`/blog/${post.slug}`}>
+            <span className="blog-series-pos" aria-hidden="true">{posts.indexOf(post) + 1}</span>
+            <span className="blog-series-item-title">{post.title}</span>
+          </a>
+          <p className="blog-series-item-excerpt">{post.excerpt}</p>
+        </li>
+      ))}
+    </ol>
+  );
 
   useEffect(() => {
     if (!series) return;
@@ -170,50 +176,59 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
         title={`${series.title} | Jiphyeonjeon Blog`}
         description={series.description}
         canonical={`${SITE_URL}/blog/series/${seriesId}`}
+        robots={current.status === 'success' && posts.length === 0 ? 'noindex,nofollow' : undefined}
         locale={localeFor(detectLang(series.title + series.description))}
         jsonLd={seriesGraph(seriesId, posts)}
       />
       <div className="blog-content">
         <header className="blog-header">
-          <nav aria-label="breadcrumb"><a href="/blog" onClick={(e) => { e.preventDefault(); navigate('/blog'); }}>Blog</a></nav>
+          <nav aria-label="breadcrumb"><a href="/blog">집현전 블로그</a></nav>
           <h1 className="blog-title">{series.title}</h1>
-          <p className="blog-subtitle">{series.description}</p>
+          <p className="blog-subtitle">{series.description.split('. ')[0]}{series.description.includes('. ') ? '.' : ''}</p>
         </header>
-        <nav className="blog-series-nav" aria-label="시리즈 바로가기">
-          {comparison && <a href="#series-guide-title">읽기 안내</a>}
-          <a href="#series-reading-title">추천 읽기 순서</a>
-          {comparison && <a href="#geo-comparison-title">논문 선택 비교</a>}
-        </nav>
-        {comparison && (
-          <section className="blog-series-guide" aria-labelledby="series-guide-title">
-            <h2 id="series-guide-title">읽기 안내</h2>
-            <ol>{comparison.reading_guide.map((step) => <li key={step.title}><h3>{step.title}</h3><p>{step.description}</p></li>)}</ol>
-          </section>
-        )}
-        <section className="blog-series-reading" aria-labelledby="series-reading-title">
-          <h2 id="series-reading-title">추천 읽기 순서</h2>
-          {current.status === 'loading' && <p role="status">시리즈 글을 불러오는 중입니다.</p>}
-          {current.status === 'error' && (
-            <div className="blog-series-error">
+        <section className="blog-series-start" aria-labelledby="series-start-title">
+          <p className="blog-series-kicker">여기서 시작하세요</p>
+          {first ? <>
+            <h2 id="series-start-title"><a href={`/blog/${first.slug}`}>{first.title}</a></h2>
+            <a className="blog-series-start-cta" href={`/blog/${first.slug}`}>첫 글 읽기 <span aria-hidden="true">→</span></a>
+          </> : <>
+            <h2 id="series-start-title">첫 글부터 차근차근</h2>
+            {current.status === 'loading' && <p role="status">시리즈 글을 불러오는 중입니다.</p>}
+            {current.status === 'error' && <div className="blog-series-error">
               <p role="alert">시리즈 글을 불러오지 못했습니다. 다시 시도해 주세요.</p>
               <button type="button" onClick={() => { setRequest({ seriesId, status: 'loading', posts: [] }); setAttempt((value) => value + 1); }}>다시 시도</button>
-            </div>
-          )}
-          {current.status === 'success' && (posts.length === 0
-            ? <p role="status">아직 공개된 시리즈 글이 없습니다.</p>
-            : <ol className="blog-series-list">
-              {posts.map((post, i) => (
-                <li key={post.slug}>
-                  <a href={`/blog/${post.slug}`} onClick={(e) => { e.preventDefault(); navigate(`/blog/${post.slug}`); }}>
-                    <span className="blog-series-pos" aria-hidden="true">{i + 1}</span>
-                    <span className="blog-series-item-title">{post.title}</span>
-                  </a>
-                  <p className="blog-series-item-excerpt">{post.excerpt}</p>
-                </li>
-              ))}
-            </ol>)}
+            </div>}
+            {current.status === 'success' && <p role="status">아직 공개된 시리즈 글이 없습니다.</p>}
+          </>}
         </section>
+        {comparison && (
+          <nav className="blog-series-path" aria-labelledby="series-guide-title">
+            <h2 id="series-guide-title">한눈에 보는 학습 경로</h2>
+            <ol>{comparison.reading_guide.map((step, index) => <li key={step.title}>
+              <a href={`#series-stage-${index + 1}`}>{step.title}</a>
+            </li>)}</ol>
+          </nav>
+        )}
+        <nav className="blog-series-nav" aria-label="시리즈 바로가기">
+          {comparison && <a href="#geo-comparison-title">논문 선택 비교</a>}
+          <a href="#series-reading-title">추천 읽기 순서</a>
+          {comparison && <a href="#series-evidence-title">상세 근거와 출처</a>}
+        </nav>
         {comparison && <SeriesComparison comparison={comparison} posts={posts} />}
+        <section className="blog-series-reading" aria-labelledby="series-reading-title">
+          <p className="blog-series-kicker">개념을 연결하며 읽기</p>
+          <h2 id="series-reading-title">추천 읽기 순서</h2>
+          <p className="blog-series-reading-intro">{series.description}</p>
+          {comparison ? comparison.reading_guide.map((step, index) => {
+            const members = posts.filter((post) => step.slugs.includes(post.slug));
+            return <section className="blog-series-stage" key={step.title} aria-labelledby={`series-stage-${index + 1}`}>
+              <div className="blog-series-stage-heading"><h3 id={`series-stage-${index + 1}`}>{step.title}</h3></div>
+              <p className="blog-series-stage-description">{step.description}</p>
+              {members.length > 0 ? readingList(members) : current.status === 'success' && <p>이 단계에는 아직 공개된 글이 없습니다.</p>}
+            </section>;
+          }) : posts.length > 0 && readingList(posts)}
+        </section>
+        {comparison && <SeriesComparison comparison={comparison} posts={posts} detailed />}
       </div>
     </div>
   );

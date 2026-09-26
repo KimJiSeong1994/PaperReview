@@ -35,10 +35,12 @@ def _document() -> dict:
     def hub(slug: str) -> dict:
         return {
             "question": "Which conditions fit this method?",
-            "reading_guide": [{"title": "Start here", "description": "Identify the task."}],
+            "reading_guide": [{"title": "Start here", "description": "Identify the task.", "slugs": [slug]}],
             "axes": list(AXES),
             "entries": [
-                {"slug": slug, "label": "Method", "values": {axis: _cell() for axis in AXES}}
+                {"slug": slug, "label": "Method",
+                 "summary": {"role": "Method role", "fit": "Stated setting", "caution": "Different evaluations"},
+                 "values": {axis: _cell() for axis in AXES}}
             ],
             "limits": "Do not compare unlike benchmarks as a ranking.",
             "source_note": "Claims are scoped to each primary paper.",
@@ -89,6 +91,16 @@ def test_comparison_schema_version_rejects_boolean_alias() -> None:
         lambda hub: hub["reading_guide"][0].update(title=1),
         lambda hub: hub["reading_guide"][0].update(description=None),
         lambda hub: hub["reading_guide"][0].update(slug="extra-field"),
+        lambda hub: hub["reading_guide"][0].pop("slugs"),
+        lambda hub: hub["reading_guide"][0].update(slugs=[]),
+        lambda hub: hub["reading_guide"][0].update(slugs=[""]),
+        lambda hub: hub["reading_guide"][0].update(slugs=["duplicate", "duplicate"]),
+        lambda hub: hub["entries"][0].pop("summary"),
+        lambda hub: hub["entries"][0]["summary"].pop("fit"),
+        lambda hub: hub["entries"][0]["summary"].update(role=""),
+        lambda hub: hub["entries"][0]["summary"].update(fit=False),
+        lambda hub: hub["entries"][0]["summary"].update(caution="가" * 101),
+        lambda hub: hub["entries"][0]["summary"].update(score=100),
         lambda hub: hub["entries"][0].pop("label"),
         lambda hub: hub["entries"][0].update(label=" "),
         lambda hub: hub["entries"][0].update(label=None),
@@ -106,7 +118,7 @@ def test_reading_contract_is_required_and_strict(hub_id, mutation) -> None:
 def test_reading_guide_boundaries_and_detached_result(step_count) -> None:
     document = _document()
     document["comparisons"]["gnn"]["reading_guide"] = [
-        {"title": f"Step {index}", "description": "Read the primary evidence."}
+        {"title": f"Step {index}", "description": "Read the primary evidence.", "slugs": [f"step-{index}"]}
         for index in range(step_count)
     ]
     result = validate_comparisons(document)
@@ -188,7 +200,8 @@ def test_checked_in_source_and_projections_are_exact() -> None:
     assert generated.GEO_COMPARISONS == source
     ts_source = (ROOT / "web-ui/src/seo/geoComparisons.generated.ts").read_text(encoding="utf-8")
     assert "  label: string;" in ts_source
-    assert "  reading_guide: Array<{ title: string; description: string }>;" in ts_source
+    assert "  reading_guide: Array<{ title: string; description: string; slugs: string[] }>;" in ts_source
+    assert "  summary: { role: string; fit: string; caution: string };" in ts_source
     payload = ts_source.split("export const GEO_COMPARISONS: GeoComparisons = ", 1)[1].rsplit(";", 1)[0]
     assert json.loads(payload) == source
 
@@ -197,6 +210,28 @@ def test_runtime_falls_back_when_generated_object_is_malformed(tmp_path) -> None
     malformed = tmp_path / "geo_generated.py"
     malformed.write_text("raise RuntimeError('must never execute')\n", encoding="utf-8")
     assert load_geo_comparisons(generated_path=malformed) == {}
+
+
+@pytest.mark.parametrize("slugs", [["graph-entry"], ["second", "graph-entry"], ["graph-entry", "foreign"]])
+def test_reading_path_rejects_incomplete_reordered_or_foreign_members(slugs) -> None:
+    document = _document()
+    document["comparisons"]["graphrag"]["reading_guide"][0]["slugs"] = slugs
+    with pytest.raises(GeoComparisonError, match="complete series order"):
+        validate_comparisons(
+            document,
+            series_members={"graphrag": ["graph-entry", "second"], "gnn": ["gnn-entry"]},
+        )
+
+
+def test_concise_summaries_preserve_method_roles_and_caveats() -> None:
+    comparisons = validate_comparisons(json.loads(SOURCE.read_text(encoding="utf-8")))
+    gnn = {entry["label"]: entry["summary"] for entry in comparisons["gnn"]["entries"]}
+    assert "사후 설명" in gnn["GNNExplainer"]["role"]
+    assert "대체재도" in gnn["GNNExplainer"]["caution"]
+    assert "별개" in gnn["GraphSAGE"]["caution"]
+    assert "분할 단위" in gnn["GNN+"]["caution"]
+    deep = comparisons["graphrag"]["entries"][2]["summary"]
+    assert "별도의 최종 생성" in deep["caution"]
 
 
 def test_check_mode_detects_generated_byte_drift(tmp_path, monkeypatch) -> None:

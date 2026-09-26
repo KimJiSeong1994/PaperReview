@@ -2239,7 +2239,7 @@
 }
 
 .geo-comparison {
-  margin: 2rem 0;
+  margin: 4rem 0;
   min-width: 0;
   font-size: 16px;
   line-height: 1.7;
@@ -2250,42 +2250,12 @@
   font-size: 1.05rem;
 }
 
-.geo-comparison-scroll {
-  overflow-x: auto;
-  max-width: 100%;
-  margin: 1rem 0;
-}
-
-.geo-comparison table {
-  width: 100%;
-  min-width: 44rem;
-  border-collapse: collapse;
-}
-
-.geo-comparison caption {
-  text-align: left;
-  font-weight: 600;
-  margin-bottom: 0.6rem;
-}
-
-.geo-comparison th,
-.geo-comparison td {
-  padding: 0.75rem;
-  border: 1px solid var(--wov-12);
-  text-align: left;
-  vertical-align: top;
-}
-
-.geo-comparison tbody th {
-  width: 10rem;
-}
-
 .geo-comparison-sources {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
 
 .geo-comparison-limits,
@@ -2295,7 +2265,7 @@
 
 .blog-series-pos {
   flex: none;
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--indigo);
 }
@@ -2309,62 +2279,140 @@
 
 .blog-series-page .blog-content {
   min-width: 0;
-  max-width: 960px;
+  max-width: 1080px;
   box-sizing: border-box;
-}
-
-.blog-series-page .blog-subtitle,
-.blog-series-guide,
-.blog-series-reading {
+  padding-top: 1.25rem;
   font-size: 16px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 
+.blog-series-page .blog-header {
+  margin-bottom: 1.25rem;
+}
+
+.blog-series-page .blog-title {
+  margin: 0.75rem 0;
+  font-size: clamp(1.75rem, 4vw, 3.25rem);
+  line-height: 1.18;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
 .blog-series-page .blog-subtitle {
-  max-width: 70ch;
-  margin-inline: auto;
+  max-width: 64ch;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-soft);
+}
+
+.blog-series-page h2,
+.blog-series-page h3 {
+  scroll-margin-top: 6rem;
+  color: var(--text-hi);
+  letter-spacing: -0.025em;
+  line-height: 1.35;
 }
 
 .blog-series-page h2 {
-  scroll-margin-top: 90px;
+  font-size: clamp(1.5rem, 3vw, 2.125rem);
+  margin: 0 0 1rem;
 }
 
-.blog-series-guide {
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--wov-12);
-  border-radius: 12px;
-  background: var(--wov-03);
+.blog-series-page .blog-series-kicker {
+  color: var(--indigo);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
 }
 
-.blog-series-guide ol {
-  padding-left: 1.5rem;
+.blog-series-start {
+  padding: 1.25rem 1.5rem;
+  border-left: 4px solid var(--indigo);
+  background: linear-gradient(110deg, var(--indigo-bd-08), transparent);
+  margin-bottom: 2.5rem;
 }
 
-.blog-series-guide li + li {
-  margin-top: 1.25rem;
+.blog-series-page .blog-series-start h2 {
+  max-width: 36ch;
+  font-size: clamp(1.375rem, 2.8vw, 2rem);
+  margin-bottom: 1rem;
 }
 
-.blog-series-guide h3,
-.blog-series-guide p {
-  margin: 0.4rem 0;
+.blog-series-start h2 a {
+  color: var(--text-hi);
+  text-decoration: none;
+}
+
+.blog-series-start-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 48px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  background: #4338ca;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.blog-series-start-cta:hover {
+  background: #3730a3;
+}
+
+.blog-series-page .blog-series-path h2 {
+  font-size: 1.125rem;
+}
+
+.blog-series-path ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 0.5rem 1.25rem;
+}
+
+.blog-series-path li {
+  border-top: 2px solid var(--indigo-bd-40);
+}
+
+.blog-series-path a {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.75rem 0;
+  min-height: 44px;
+  color: var(--text-hi);
+  text-decoration: none;
+}
+
+.blog-series-path a:hover,
+.blog-series-start h2 a:hover {
+  color: var(--indigo);
 }
 
 .blog-series-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
-  margin: 1.5rem 0;
+  margin: 1.25rem 0 3.5rem;
+  border-bottom: 1px solid var(--wov-12);
+  padding-bottom: 1rem;
 }
 
 .blog-series-nav a,
 .blog-series-error button,
 .blog-series-page .blog-header nav a,
-.geo-comparison th a,
-.geo-comparison-card h3 a {
+.blog-series-text-link,
+.geo-comparison-sources a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  color: var(--indigo);
 }
 
 .blog-series-error button {
@@ -2378,8 +2426,7 @@
 }
 
 .blog-series-page a:focus-visible,
-.blog-series-page button:focus-visible,
-.geo-comparison-scroll:focus-visible {
+.blog-series-page button:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 3px;
 }
@@ -2391,47 +2438,129 @@
   color: var(--text-hi);
 }
 
-.geo-comparison-cards {
-  display: none;
-}
-
-.geo-comparison-card {
-  padding: 1rem;
-  border: 1px solid var(--wov-12);
-  border-radius: 12px;
+.blog-series-reading,
+.geo-evidence {
+  margin-top: 4rem;
   min-width: 0;
 }
 
-.geo-comparison-card h3 {
-  margin: 0 0 1rem;
+.geo-comparison-question,
+.blog-series-reading-intro,
+.blog-series-stage-description,
+.geo-comparison-source-note {
+  max-width: 72ch;
+  color: var(--text-soft);
 }
 
-.geo-comparison-card dl {
+.geo-comparison-caveat {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.geo-decision-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+}
+
+.geo-decision {
+  border-top: 3px solid var(--indigo);
+  padding: 1.25rem 0;
+}
+
+.geo-decision h3,
+.geo-evidence-method h3 {
+  font-size: 1.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.geo-decision h3 a,
+.geo-evidence-method h3 a {
+  color: var(--text-hi);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.geo-decision dl,
+.geo-evidence-method dl {
   margin: 0;
 }
 
-.geo-comparison-card dl > div + div {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+.geo-decision dl > div {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.geo-decision dt,
+.geo-evidence-method dt {
+  font-weight: 700;
+  color: var(--text-hi);
+}
+
+.geo-decision dd,
+.geo-evidence-method dd {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.blog-series-list li {
+  padding: 1.25rem 0;
   border-top: 1px solid var(--wov-12);
 }
 
-.geo-comparison-card dt {
-  font-weight: 700;
+.blog-series-stage {
+  margin-top: 3rem;
 }
 
-.geo-comparison-card dd {
-  margin: 0.4rem 0 0;
+.blog-series-page .blog-header nav a {
+  color: var(--text-mid);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.blog-series-stage-heading h3 {
+  margin: 0;
+  font-size: 1.375rem;
+}
+
+.geo-evidence {
+  border-top: 2px solid var(--indigo-bd-40);
+  padding-top: 2.5rem;
+}
+
+.geo-evidence-method {
+  margin-top: 3rem;
+}
+
+.geo-evidence-method dl > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr);
+  gap: 1.5rem;
+  border-top: 1px solid var(--wov-12);
+  padding: 1.25rem 0;
 }
 
 @media (max-width: 767px) {
-  .geo-comparison-desktop {
-    display: none;
+  .blog-series-page .blog-content {
+    padding: 0.75rem 20px 4rem;
   }
 
-  .geo-comparison-cards {
-    display: grid;
-    gap: 1rem;
+  .blog-series-start {
+    padding: 1rem;
+  }
+
+  .geo-decision-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .geo-evidence-method dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
   }
 
   .blog-series-item-excerpt {

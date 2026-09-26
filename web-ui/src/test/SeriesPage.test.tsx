@@ -38,39 +38,46 @@ describe('SeriesPage reading and comparison', () => {
       expect(screen.getByRole('heading', { name: step.title })).toBeInTheDocument();
       expect(screen.getByText(step.description)).toBeInTheDocument();
     }
-    const table = screen.getByRole('table');
-    const headers = within(table).getAllByRole('columnheader');
-    expect(headers.slice(1).map((cell) => cell.textContent)).toEqual(comparison.entries.map((entry) => entry.label));
-    expect(within(table).queryByRole('link', { name: comparison.entries[0].label })).not.toBeInTheDocument();
-    expect(within(table).getAllByRole('rowheader')).toHaveLength(comparison.axes.length);
-    expect(screen.getByRole('region', { name: '논문 선택 비교표' })).toHaveAttribute('tabindex', '0');
-    expect(table.querySelector('caption')).toHaveTextContent('여섯 기준으로 비교한 논문 선택표');
-    expect(headers.every((header) => header.getAttribute('scope') === 'col')).toBe(true);
-    expect(within(table).getAllByRole('rowheader').every((header) => header.getAttribute('scope') === 'row')).toBe(true);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(container.querySelector('details')).not.toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: '논문 선택 비교' });
+    const evidence = screen.getByRole('region', { name: '상세 근거와 출처' });
+    expect(within(summary).queryByRole('link', { name: comparison.entries[0].label })).not.toBeInTheDocument();
+    expect(summary.compareDocumentPosition(reading()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(reading().compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const limits = container.querySelector('.geo-comparison-limits')!;
-    expect(limits.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(reading().compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(evidence).toContainElement(limits as HTMLElement);
+    expect(within(summary).queryByText(comparison.limits)).not.toBeInTheDocument();
     const navigation = screen.getByRole('navigation', { name: '시리즈 바로가기' });
-    expect(container.querySelector('.blog-header')?.nextElementSibling).toBe(navigation);
-    expect(navigation.nextElementSibling).toHaveClass('blog-series-guide');
+    expect(container.querySelector('.blog-header')?.nextElementSibling).toHaveClass('blog-series-start');
+    const path = screen.getByRole('navigation', { name: '한눈에 보는 학습 경로' });
+    expect(container.querySelector('.blog-series-start')?.nextElementSibling).toBe(path);
+    comparison.reading_guide.forEach((step, index) => {
+      expect(within(path).getByRole('link', { name: step.title })).toHaveAttribute('href', `#series-stage-${index + 1}`);
+      expect(path).not.toHaveTextContent(step.description);
+      expect(container.querySelector(`#series-stage-${index + 1}`)).toHaveTextContent(step.title);
+    });
     for (const link of within(navigation).getAllByRole('link')) {
       expect(container.querySelector(link.getAttribute('href')!)).toBeInTheDocument();
     }
-    const cards = container.querySelectorAll('.geo-comparison-card');
+    const cards = container.querySelectorAll('.geo-evidence-method');
+    const decisions = container.querySelectorAll('.geo-decision');
     comparison.entries.forEach((entry, index) => {
+      expect(decisions[index].querySelectorAll('dd')).toHaveLength(3);
+      expect(Array.from(decisions[index].querySelectorAll('dd')).map((cell) => cell.textContent)).toEqual([entry.summary.role, entry.summary.fit, entry.summary.caution]);
+      expect(within(decisions[index] as HTMLElement).getByRole('link', { name: `${entry.label} 상세 근거` })).toHaveAttribute('href', `#series-evidence-${index + 1}`);
       expect(cards[index].querySelector('h3')).toHaveTextContent(entry.label);
+      expect(cards[index].querySelectorAll('dt')).toHaveLength(comparison.axes.length);
+      expect(cards[index].querySelector('h3')).toHaveAttribute('id', `series-evidence-${index + 1}`);
       comparison.axes.forEach((axis, axisIndex) => {
         const cell = entry.values[axis];
-        const desktop = table.querySelectorAll('tbody tr')[axisIndex].querySelectorAll('td')[index];
-        const mobile = cards[index].querySelectorAll('dd')[axisIndex];
-        for (const rendered of [desktop, mobile]) {
+        const rendered = cards[index].querySelectorAll('dd')[axisIndex];
           expect(rendered).toHaveAttribute('data-state', cell.state);
           expect(rendered).toHaveTextContent((cell.state === 'known' ? cell.value : cell.reason)!);
           if (cell.state === 'unknown') expect(rendered).toHaveTextContent('미확인:');
           if (cell.state === 'not_applicable') expect(rendered).toHaveTextContent('해당 없음:');
           expect(Array.from(rendered.querySelectorAll('a')).map((link) => link.href)).toEqual(cell.sources);
           rendered.querySelectorAll('a').forEach((link) => expect(link).toHaveAttribute('rel', 'noopener noreferrer'));
-        }
       });
     });
   });
@@ -85,6 +92,27 @@ describe('SeriesPage reading and comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     expect(await within(reading()).findByRole('link', { name: '재시도 논문' })).toBeInTheDocument();
     expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
+  });
+
+  it('spotlights the first published member and groups every paper under its explicit stage', async () => {
+    const series = BLOG_SERIES.graphrag;
+    const published = series.slugs.slice(1);
+    vi.mocked(fetchBlogPosts).mockResolvedValue(response([...published].reverse().map((slug) => post(slug, `제목 ${slug}`))));
+    const { container } = mount();
+    const start = container.querySelector('.blog-series-start')! as HTMLElement;
+    const cta = await within(start).findByRole('link', { name: '첫 글 읽기' });
+    expect(cta).toHaveAttribute('href', `/blog/${published[0]}`);
+    expect(within(start).getByRole('heading', { name: `제목 ${published[0]}` })).toBeInTheDocument();
+    expect(container.querySelector(`a[href="/blog/${series.slugs[0]}"]`)).not.toBeInTheDocument();
+    expect(within(reading()).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(published.map((slug) => `/blog/${slug}`));
+    GEO_COMPARISONS.graphrag.reading_guide.forEach((stage, index) => {
+      const group = screen.getByRole('region', { name: stage.title });
+      expect(group).toHaveAttribute('aria-labelledby', `series-stage-${index + 1}`);
+      expect(within(group).getByText(stage.description)).toBeInTheDocument();
+      const firstMember = stage.slugs.find((slug) => published.includes(slug))!;
+      expect(within(group).getByRole('list')).toHaveAttribute('start', String(published.indexOf(firstMember) + 1));
+      expect(within(group).queryAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(stage.slugs.filter((slug) => published.includes(slug)).map((slug) => `/blog/${slug}`));
+    });
   });
 
   it('distinguishes a successful empty reading list', async () => {
@@ -111,11 +139,11 @@ describe('SeriesPage reading and comparison', () => {
   it('stops pagination once every configured member has been found', async () => {
     vi.mocked(fetchBlogPosts).mockResolvedValue(response(BLOG_SERIES.gnn.slugs.map((slug) => post(slug, `정식 제목 ${slug}`)), 1, 20));
     mount('gnn');
-    await within(reading()).findByRole('list');
+    await within(reading()).findAllByRole('list');
     expect(fetchBlogPosts).toHaveBeenCalledTimes(1);
-    const table = screen.getByRole('table');
+    const summary = screen.getByRole('region', { name: '논문 선택 비교' });
     for (const entry of GEO_COMPARISONS.gnn.entries) {
-      const link = within(table).getByRole('link', { name: entry.label });
+      const link = within(summary).getByRole('link', { name: entry.label });
       expect(link).toHaveAttribute('href', `/blog/${entry.slug}`);
       expect(link).toHaveAttribute('title', `정식 제목 ${entry.slug}`);
     }
@@ -211,6 +239,17 @@ describe('SeriesPage reading and comparison', () => {
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     await screen.findByText('아직 공개된 시리즈 글이 없습니다.');
     expect(screen.queryByRole('heading', { name: '논문 선택 비교' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a real starting paper and ordinary reading list without comparison data', async () => {
+    const seriesId = 'jiphyeonjeon-build';
+    const slug = BLOG_SERIES[seriesId].slugs[0];
+    vi.mocked(fetchBlogPosts).mockResolvedValue(response([post(slug, '개발 기록 시작')]));
+    mount(seriesId);
+    expect(await screen.findByRole('link', { name: '첫 글 읽기' })).toHaveAttribute('href', `/blog/${slug}`);
+    expect(within(reading()).getByRole('link', { name: '개발 기록 시작' })).toHaveAttribute('href', `/blog/${slug}`);
+    expect(screen.queryByRole('navigation', { name: '한눈에 보는 학습 경로' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '상세 근거와 출처' })).not.toBeInTheDocument();
   });
 
   it('keeps the existing noindex not-found behavior', async () => {
