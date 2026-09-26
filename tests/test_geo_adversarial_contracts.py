@@ -38,10 +38,12 @@ def _comparison_document(shared_slug: str) -> dict:
     def hub() -> dict:
         return {
             "question": "Which conditions fit this method?",
+            "reading_guide": [{"title": "Start here", "description": "Compare the stated assumptions."}],
             "axes": list(AXES),
             "entries": [
                 {
                     "slug": shared_slug,
+                    "label": "Shared method",
                     "values": {axis: _known_cell() for axis in AXES},
                 }
             ],

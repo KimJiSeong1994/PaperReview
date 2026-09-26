@@ -1,0 +1,47 @@
+{
+  "scope": "Blog series explanations, evidence comparisons and reading-first UX",
+  "team": {"independentReviews": 2, "implementationLanes": 3, "contentVerdict": "APPROVE / CLEAR", "uxVerdict": "APPROVE / CLEAR", "remainingFindings": []},
+  "contentChanges": [
+    "Concise synchronized introductions for all five existing series; unchanged paper membership and order",
+    "GNN five-step conceptual reading guide, separating prediction architecture, inductive use, post-hoc explanation and baseline methodology",
+    "GraphRAG reading guide and corrected Deep GraphRAG extraction, entity merging, small integration model and separate final generation model",
+    "Seven compared papers retain their citations, six evidence axes and known/unknown/not-applicable states",
+    "Mandatory short method labels and reading-guide fields validated in one canonical JSON and regenerated into Python and TypeScript"
+  ],
+  "uxChanges": [
+    "Header, section navigation, visible reading guide, headed reading list, then detailed comparison",
+    "Interpretation limits before comparison; no generic accordion hiding evidence",
+    "Desktop semantic table and mobile per-paper criterion cards with exclusive visibility",
+    "Complete validated pagination beyond the first 100 posts",
+    "Series-identity remount, stale response protection, distinct loading/error/empty states and explicit retry",
+    "SSR Korean language/locale and matching semantic section order"
+  ],
+  "verification": {
+    "backendPassed": 158,
+    "backendWarnings": 53,
+    "frontendPassed": 591,
+    "frontendSkipped": 1,
+    "frontendFiles": 58,
+    "scopedEslint": "passed",
+    "scopedRuff": "passed",
+    "build": "passed with existing chunk-size warning",
+    "canonicalGenerationCheck": "passed",
+    "diffCheck": "passed",
+    "chromiumLayoutScenarios": 8,
+    "apiCalls": 21,
+    "viewportWidths": [320, 390, 768, 1280],
+    "themes": ["light", "dark"],
+    "pageHorizontalOverflow": false,
+    "minimumExcerptFontPx": 16,
+    "minimumSectionNavigationTargetPx": 44,
+    "olderThan100Membership": "verified",
+    "graphRagAndFailureRetry": "verified"
+  },
+  "limitations": [
+    "Reviewers performed static and source-evidence review; leader executed gates and browser scenarios",
+    "Browser proof uses built SPA with fixture API, not a production deployment or full screen-reader certification",
+    "Seven compared papers were source-checked; not every paper in all five series was independently re-audited",
+    "Unrelated posts.json, runtime and publication changes preserved",
+    "Series changes are local and not yet committed or deployed"
+  ]
+}

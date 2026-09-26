@@ -2226,6 +2226,7 @@
 .blog-series-list li a {
   display: flex;
   align-items: baseline;
+  min-height: 44px;
   gap: 12px;
   color: var(--text-hi);
   text-decoration: none;
@@ -2239,6 +2240,10 @@
 
 .geo-comparison {
   margin: 2rem 0;
+  min-width: 0;
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .geo-comparison-question {
@@ -2247,6 +2252,7 @@
 
 .geo-comparison-scroll {
   overflow-x: auto;
+  max-width: 100%;
   margin: 1rem 0;
 }
 
@@ -2296,9 +2302,141 @@
 
 .blog-series-item-excerpt {
   margin: 4px 0 0 25px;
-  font-size: 13.5px;
-  color: var(--text-muted);
-  line-height: 1.6;
+  font-size: 16px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.blog-series-page .blog-content {
+  min-width: 0;
+  max-width: 960px;
+  box-sizing: border-box;
+}
+
+.blog-series-page .blog-subtitle,
+.blog-series-guide,
+.blog-series-reading {
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.blog-series-page .blog-subtitle {
+  max-width: 70ch;
+  margin-inline: auto;
+}
+
+.blog-series-page h2 {
+  scroll-margin-top: 90px;
+}
+
+.blog-series-guide {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--wov-12);
+  border-radius: 12px;
+  background: var(--wov-03);
+}
+
+.blog-series-guide ol {
+  padding-left: 1.5rem;
+}
+
+.blog-series-guide li + li {
+  margin-top: 1.25rem;
+}
+
+.blog-series-guide h3,
+.blog-series-guide p {
+  margin: 0.4rem 0;
+}
+
+.blog-series-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 1.5rem 0;
+}
+
+.blog-series-nav a,
+.blog-series-error button,
+.blog-series-page .blog-header nav a,
+.geo-comparison th a,
+.geo-comparison-card h3 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.blog-series-error button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--wov-12);
+  border-radius: 8px;
+  background: var(--wov-03);
+  color: var(--text-hi);
+  font: inherit;
+  cursor: pointer;
+}
+
+.blog-series-page a:focus-visible,
+.blog-series-page button:focus-visible,
+.geo-comparison-scroll:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 3px;
+}
+
+.geo-comparison-limits {
+  padding: 1rem;
+  border-left: 3px solid var(--indigo);
+  background: var(--wov-03);
+  color: var(--text-hi);
+}
+
+.geo-comparison-cards {
+  display: none;
+}
+
+.geo-comparison-card {
+  padding: 1rem;
+  border: 1px solid var(--wov-12);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.geo-comparison-card h3 {
+  margin: 0 0 1rem;
+}
+
+.geo-comparison-card dl {
+  margin: 0;
+}
+
+.geo-comparison-card dl > div + div {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--wov-12);
+}
+
+.geo-comparison-card dt {
+  font-weight: 700;
+}
+
+.geo-comparison-card dd {
+  margin: 0.4rem 0 0;
+}
+
+@media (max-width: 767px) {
+  .geo-comparison-desktop {
+    display: none;
+  }
+
+  .geo-comparison-cards {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .blog-series-item-excerpt {
+    margin-left: 0;
+  }
 }
 
 /* ===== Sticky table of contents (>= 1200px) ===== */

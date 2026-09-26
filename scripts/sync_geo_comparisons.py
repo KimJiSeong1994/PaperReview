@@ -91,11 +91,13 @@ export interface GeoComparisonCell {{
 
 export interface GeoComparisonEntry {{
   slug: string;
+  label: string;
   values: Record<GeoComparisonAxis, GeoComparisonCell>;
 }}
 
 export interface GeoComparisonHub {{
   question: string;
+  reading_guide: Array<{{ title: string; description: string }}>;
   axes: GeoComparisonAxis[];
   entries: GeoComparisonEntry[];
   limits: string;
