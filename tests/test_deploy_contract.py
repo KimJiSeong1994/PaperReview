@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shlex
 
 import pytest
 
@@ -11,6 +12,83 @@ from scripts import check_deploy_ready
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 REVISION = "a" * 40
+
+
+def test_deploy_requires_success_or_explicitly_unaffected_checks() -> None:
+    workflow = WORKFLOW.read_text()
+    deploy = workflow[workflow.index("  deploy:") :]
+    condition = deploy[deploy.index("    if:") : deploy.index("    environment:")]
+    assert (
+        "needs: [changes, backend, skillopt-v020-exact-source, frontend-build]"
+        in deploy
+    )
+    assert "always() && !cancelled()" in condition
+    assert "needs.changes.result == 'success'" in condition
+    assert "needs.backend.result == 'success'" in condition
+    assert "needs.frontend-build.result == 'success'" in condition
+    assert (
+        "(needs.skillopt-v020-exact-source.result == 'success' || "
+        "(needs.changes.outputs.skillopt == 'false' && "
+        "needs.skillopt-v020-exact-source.result == 'skipped'))"
+    ) in condition
+
+
+def test_required_check_names_remain_and_main_always_builds_artifact() -> None:
+    workflow = WORKFLOW.read_text()
+    assert "\n  backend:\n" in workflow
+    for job in ("skillopt-v020-exact-source", "frontend-build"):
+        assert f"\n  {job}:\n    needs: changes\n" in workflow
+    frontend = workflow[
+        workflow.index("  frontend-build:") : workflow.index("  deploy:")
+    ]
+    assert (
+        "if: github.event_name == 'push' || needs.changes.outputs.frontend == 'true'"
+        in frontend
+    )
+    assert "actions/upload-artifact@v4" in frontend
+    assert "name: frontend-dist" in frontend
+    # Build already type-checks every referenced TypeScript project.
+    scripts = json.loads((ROOT / "web-ui/package.json").read_text())["scripts"]
+    assert scripts["build"].startswith("tsc -b &&")
+    assert "run: npm run build" in frontend
+    assert "run: npx tsc --noEmit" not in frontend
+
+
+def test_only_superseded_pull_requests_are_cancelled() -> None:
+    workflow = WORKFLOW.read_text()
+    concurrency = workflow[: workflow.index("\njobs:")]
+    assert (
+        "group: ci-${{ github.event.pull_request.number || github.run_id }}"
+        in concurrency
+    )
+    assert (
+        "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in concurrency
+    )
+    deploy = workflow[workflow.index("  deploy:") :]
+    assert "group: production-deploy" in deploy
+    assert "cancel-in-progress: false" in deploy
+
+
+def test_backend_retains_full_suite_and_coverage_gate() -> None:
+    workflow = WORKFLOW.read_text()
+    backend = workflow[
+        workflow.index("  backend:") : workflow.index("  skillopt-v020-exact-source:")
+    ]
+    command = next(
+        line.strip().removeprefix("run: ")
+        for line in backend.splitlines()
+        if line.strip().startswith("run: pytest ")
+    )
+    arguments = shlex.split(command)
+    assert arguments[:2] == ["pytest", "tests/"]
+    assert "\n    if:" not in backend
+    assert "\n    needs:" not in backend
+    assert {"--cov=routers", "--cov=app", "--cov=src", "--cov-fail-under=15"} <= set(
+        arguments
+    )
+    assert not any(arg.startswith(("--ignore", "--deselect")) for arg in arguments)
+    assert "playwright install --with-deps chromium" in backend
+    assert "CHROME_DEVEL_SANDBOX" in backend
 
 
 def _post() -> dict[str, object]:

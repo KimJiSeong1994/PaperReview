@@ -6,12 +6,50 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+
+# Superseded PR runs are disposable; production runs must finish or roll back.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  backend:
+  changes:
     runs-on: ubuntu-latest
-    # Backstop: the suite runs in ~1 min. If a test ever stalls on an external
-    # call despite the conftest socket timeout, fail fast instead of hanging
-    # the whole pipeline (and its deploy) for the GitHub 6-hour default.
+    timeout-minutes: 3
+    outputs:
+      frontend: ${{ steps.components.outputs.frontend }}
+      skillopt: ${{ steps.components.outputs.skillopt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: components
+        with:
+          filters: |
+            frontend:
+              - 'web-ui/**'
+              - '.github/workflows/ci.yml'
+            skillopt:
+              # Shared conftest/package imports reach beyond the adapter.
+              - 'src/**'
+              - 'app/**'
+              - 'tools/**'
+              - 'data/search_eval/**'
+              - 'docs/skillopt_search/**'
+              - 'tests/integration/skillopt_upstream/**'
+              - 'tests/test_skillopt*.py'
+              - 'tests/**/conftest.py'
+              - 'requirements.txt'
+              - 'pytest.ini'
+              - 'pyproject.toml'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    # Also covers frontend/SSR parity and documentation contracts.
+    runs-on: ubuntu-latest
+    # Bound hangs independently of the measured suite duration.
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +57,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.txt
 
       - name: Install dependencies
-        run: |
-          pip install ruff
-          pip install -r requirements.txt
+        run: uv pip install --system ruff -r requirements.txt
 
       # The poster PDF tests skip themselves when no browser is installed, so
       # without this every claim the feature rests on — scripting disabled in
@@ -60,9 +100,11 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.CI_OPENAI_KEY || 'ci-placeholder-not-a-real-key' }}
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
           APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
-        run: pytest tests/ -v --tb=short --cov=routers --cov=app --cov=src --cov-report=term-missing --cov-fail-under=15
+        run: pytest tests/ -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report=term-missing --cov-fail-under=15
 
   skillopt-v020-exact-source:
+    needs: changes
+    if: needs.changes.outputs.skillopt == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -71,10 +113,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.txt
 
       - name: Install test dependencies
-        run: pip install -r requirements.txt
+        run: uv pip install --system -r requirements.txt
 
       - name: Verify exact SkillOpt v0.2.0 Git objects
         run: |
@@ -90,7 +136,7 @@ jobs:
           test ! -e .skillopt-v020-source/.git
 
       - name: Install exact SkillOpt v0.2.0 dependencies
-        run: pip install -r .skillopt-v020-source/requirements.txt
+        run: uv pip install --system -r .skillopt-v020-source/requirements.txt
 
       - name: Run exact-source compatibility diagnostic tests
         env:
@@ -100,6 +146,9 @@ jobs:
         run: pytest -q tests/integration/skillopt_upstream
 
   frontend-build:
+    needs: changes
+    # Main always produces a fresh deployment artifact, even for backend changes.
+    if: github.event_name == 'push' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     env:
       VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED || secrets.VITE_ANALYTICS_ENABLED || 'true' }}
@@ -126,9 +175,6 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      - name: Type check
-        run: npx tsc --noEmit
-
       - name: Build
         run: npm run build
 
@@ -143,8 +189,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [backend, skillopt-v020-exact-source, frontend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [changes, backend, skillopt-v020-exact-source, frontend-build]
+    if: >-
+      always() && !cancelled() &&
+      github.ref == 'refs/heads/main' && github.event_name == 'push' &&
+      needs.changes.result == 'success' &&
+      needs.backend.result == 'success' &&
+      (needs.skillopt-v020-exact-source.result == 'success' || (needs.changes.outputs.skillopt == 'false' && needs.skillopt-v020-exact-source.result == 'skipped')) &&
+      needs.frontend-build.result == 'success'
     environment: production
     concurrency:
       group: production-deploy
