@@ -55,6 +55,31 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('RecommendationBell durable recommendation contract', () => {
+  it('shows the paper abstract instead of generic personalization reasons', async () => {
+    mocks.fetch.mockResolvedValue(response([{
+      ...paper('a', 1),
+      abstract: '이 논문은 그래프 신경망의\n  학습 효율을 개선하는 방법을 제안합니다.',
+      reason: '사용자의 북마크/주제 신호와 겹치는 키워드가 있습니다',
+    }]));
+    await open();
+    expect(card('a').getByText('이 논문은 그래프 신경망의 학습 효율을 개선하는 방법을 제안합니다.')).toBeInTheDocument();
+    expect(screen.queryByText('사용자의 북마크/주제 신호와 겹치는 키워드가 있습니다')).not.toBeInTheDocument();
+  });
+
+  it.each([undefined, null, '', ' \n '])('does not invent a description when the abstract is %s', async abstract => {
+    mocks.fetch.mockResolvedValue(response([{ ...paper('a', 1), abstract }]));
+    await open();
+    expect(card('a').getByText('이 논문은 초록이 제공되지 않아 설명을 표시할 수 없습니다.')).toBeInTheDocument();
+    expect(screen.queryByText('추천 이유')).not.toBeInTheDocument();
+  });
+
+  it.each([280, 281])('bounds a %i-character abstract without splitting Unicode characters', async length => {
+    const abstract = '𝛼'.repeat(length);
+    mocks.fetch.mockResolvedValue(response([{ ...paper('a', 1), abstract }]));
+    await open();
+    expect(card('a').getByText('𝛼'.repeat(280) + (length > 280 ? '…' : ''))).toBeInTheDocument();
+  });
+
   it('keeps server order and rank gaps despite scores, with separate unread/total and dates', async () => {
     mocks.fetch.mockResolvedValue(response([paper('a', 1, 1), { ...paper('b', 3, 99), publication_date: '2020-01-01' }]));
     await open();

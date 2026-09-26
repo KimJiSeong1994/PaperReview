@@ -169,14 +169,14 @@
   line-height: 1.4;
 }
 
-.recommendation-reason {
+.recommendation-description {
   display: -webkit-box;
   margin: 8px 0 0;
   overflow: hidden;
   color: var(--text-soft);
   font-size: 12px;
   line-height: 1.48;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 

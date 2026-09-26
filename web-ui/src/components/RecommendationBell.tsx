@@ -18,6 +18,12 @@ const stateLabels: Record<RecommendationNotificationResponse['state'], string> =
   unavailable: '아직 추천을 사용할 수 없습니다.',
 };
 function day() { return new Date().toLocaleDateString('en-CA'); }
+function paperDescription(abstract?: string | null) {
+  const text = abstract?.replace(/\s+/g, ' ').trim();
+  if (!text) return '이 논문은 초록이 제공되지 않아 설명을 표시할 수 없습니다.';
+  const characters = Array.from(text);
+  return characters.length > 280 ? `${characters.slice(0, 280).join('').trimEnd()}…` : text;
+}
 function date(value?: string | null) {
   if (!value) return '없음';
   const parsed = new Date(value);
@@ -287,7 +293,7 @@ function RecommendationSession({ owner, isAuthenticated, open, setOpen, sessionR
             <h3><button className="recommendation-title" type="button" disabled={pending} onClick={() => view(item)}>{item.title}</button></h3>
             <p className="recommendation-meta">{[item.authors.slice(0, 2).join(', '), item.year, item.venue].filter(Boolean).join(' · ')}</p>
             {item.publication_date && <p className="recommendation-meta">논문 발표: {date(item.publication_date)}</p>}
-            <p className="recommendation-reason">{item.reason}</p>
+            <p className="recommendation-description">{paperDescription(item.abstract)}</p>
             <div className="recommendation-signals">{item.candidate_sources.map(source => <span key={source}>{source}</span>)}</div>
             <div className="recommendation-actions" aria-label={`${item.title} 작업`}>
               <button type="button" className="recommendation-action-primary" disabled={pending} onClick={() => view(item)}>PDF 보기</button>

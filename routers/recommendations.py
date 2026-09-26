@@ -47,6 +47,7 @@ class RecommendationNotification(BaseModel):
     display_position: int
     seen: bool
     title: str
+    abstract: str | None = Field(None, max_length=8000)
     authors: list[str] = Field(default_factory=list)
     year: int | None = None
     publication_date: str | None = None
