@@ -46,7 +46,7 @@ jobs:
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
 
-  backend:
+  backend-core:
     # Also covers frontend/SSR parity and documentation contracts.
     runs-on: ubuntu-latest
     # Bound hangs independently of the measured suite duration.
@@ -64,7 +64,77 @@ jobs:
           cache-dependency-glob: requirements.txt
 
       - name: Install dependencies
-        run: uv pip install --system ruff -r requirements.txt
+        run: uv pip install --system --torch-backend=cpu ruff -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Verify GEO generated projections and pilot records
+        run: |
+          python scripts/sync_geo_comparisons.py --check
+          python scripts/validate_geo_pilot.py data/blog/geo-pilot.json data/blog/geo-pilot-observation.json
+
+      - name: Run core tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.CI_OPENAI_KEY || 'ci-placeholder-not-a-real-key' }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
+          APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
+          COVERAGE_FILE: ci-results/.coverage
+        run: python -m pytest tests/ -p scripts.ci_shards --ci-shard=backend-core -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report= --cov-fail-under=0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-core
+          path: ci-results/
+          overwrite: true
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  offline-optimizer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.txt
+      - name: Install dependencies
+        run: uv pip install --system --torch-backend=cpu -r requirements.txt
+      - name: Run offline optimizer tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.CI_OPENAI_KEY || 'ci-placeholder-not-a-real-key' }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
+          APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
+          COVERAGE_FILE: ci-results/.coverage
+        run: python -m pytest tests/ -p scripts.ci_shards --ci-shard=offline-optimizer -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report= --cov-fail-under=0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-optimizer
+          path: ci-results/
+          overwrite: true
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  poster-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.txt
+      - name: Install dependencies
+        run: uv pip install --system --torch-backend=cpu -r requirements.txt
 
       # The poster PDF tests skip themselves when no browser is installed, so
       # without this every claim the feature rests on — scripting disabled in
@@ -85,22 +155,53 @@ jobs:
           sudo chmod 4755 "$helper"
           echo "CHROME_DEVEL_SANDBOX=$helper" >> "$GITHUB_ENV"
 
-      - name: Lint with ruff
-        run: ruff check .
-
-      - name: Verify GEO generated projections and pilot records
-        run: |
-          python scripts/sync_geo_comparisons.py --check
-          python scripts/validate_geo_pilot.py data/blog/geo-pilot.json data/blog/geo-pilot-observation.json
-
-      - name: Run tests
+      - name: Run browser tests
         # Placeholders deliberately do NOT match real key formats to avoid
         # triggering GitHub/GitGuardian/TruffleHog secret scanners.
         env:
           OPENAI_API_KEY: ${{ secrets.CI_OPENAI_KEY || 'ci-placeholder-not-a-real-key' }}
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
           APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
-        run: pytest tests/ -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report=term-missing --cov-fail-under=15
+          COVERAGE_FILE: ci-results/.coverage
+        run: python -m pytest tests/ -p scripts.ci_shards --ci-shard=poster-browser -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report= --cov-fail-under=0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poster-browser
+          path: ci-results/
+          overwrite: true
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  backend:
+    # Stable required check: never turn missing/failed/skipped shards green.
+    needs: [backend-core, offline-optimizer, poster-browser]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv pip install --system coverage
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-core
+          path: ci-results/backend-core
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-optimizer
+          path: ci-results/offline-optimizer
+      - uses: actions/download-artifact@v4
+        with:
+          name: poster-browser
+          path: ci-results/poster-browser
+      - name: Audit node union and enforce combined 15% coverage
+        env:
+          SHARD_NEEDS: ${{ toJSON(needs) }}
+        run: python scripts/ci_shards.py --aggregate ci-results
 
   skillopt-v020-exact-source:
     needs: changes
@@ -120,7 +221,7 @@ jobs:
           cache-dependency-glob: requirements.txt
 
       - name: Install test dependencies
-        run: uv pip install --system -r requirements.txt
+        run: uv pip install --system --torch-backend=cpu -r requirements.txt
 
       - name: Verify exact SkillOpt v0.2.0 Git objects
         run: |
@@ -136,7 +237,7 @@ jobs:
           test ! -e .skillopt-v020-source/.git
 
       - name: Install exact SkillOpt v0.2.0 dependencies
-        run: uv pip install --system -r .skillopt-v020-source/requirements.txt
+        run: uv pip install --system --torch-backend=cpu -r .skillopt-v020-source/requirements.txt
 
       - name: Run exact-source compatibility diagnostic tests
         env:

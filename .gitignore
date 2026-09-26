@@ -81,6 +81,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+# Local/CI execution receipts and downloaded shard coverage (not source).
+ci-results/
+artifacts/ci-phase2/
 
 # Translations
 *.mo
