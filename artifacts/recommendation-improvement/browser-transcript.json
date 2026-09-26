@@ -1,0 +1,1539 @@
+{
+  "schemaVersion": 1,
+  "tool": "playwright",
+  "kind": "web-automation-transcript",
+  "evidence_scope": "Real built frontend and real recommendation/auth APIs; disposable synthetic papers/accounts. Controlled 503 tests UI failure only. No provider/source qualification.",
+  "actions": [
+    {
+      "type": "rank-order-and-real-visibility",
+      "timestamp": "2026-09-26T00:32:10.945926+00:00",
+      "selector": "article[data-canonical-key]",
+      "canonical_keys": [
+        "provider:openalex:W100001",
+        "provider:openalex:W100002",
+        "provider:openalex:W100003",
+        "provider:openalex:W100004",
+        "provider:openalex:W100005"
+      ],
+      "qualified_exposures": 1,
+      "exposure_is_not_read": true
+    },
+    {
+      "type": "provider-viewer-handoff",
+      "timestamp": "2026-09-26T00:32:11.079562+00:00",
+      "selector": "button:has-text(\"PDF 보기\")",
+      "provider_id": "W100001",
+      "canonical_key": "provider:openalex:W100001",
+      "popup": "captured and suppressed; no external PDF navigation"
+    },
+    {
+      "type": "viewed-save-and-review-start-attribution",
+      "timestamp": "2026-09-26T00:32:11.100647+00:00",
+      "selector": "/api/bookmarks/from-paper; /api/deep-review",
+      "surface": "api",
+      "canonical_key": "provider:openalex:W100001",
+      "metrics": {
+        "total": {
+          "visible_userdays": 1,
+          "positive_userdays": 1,
+          "per_kind_counts": {
+            "save": 1,
+            "review_start": 1
+          },
+          "rate": 1.0
+        },
+        "mature": {
+          "visible_userdays": 1,
+          "positive_userdays": 1,
+          "per_kind_counts": {
+            "save": 1,
+            "review_start": 1
+          },
+          "rate": 1.0
+        },
+        "right_censored": {
+          "visible_userdays": 0,
+          "positive_userdays": 0,
+          "per_kind_counts": {
+            "save": 0,
+            "review_start": 0
+          },
+          "rate": null
+        }
+      },
+      "metrics_clock": "controlled day-start plus nine days",
+      "review_work": "controlled background; no provider or completed-review claim",
+      "duplicate_save_credited": false
+    },
+    {
+      "type": "durable-hide-refill-undo",
+      "timestamp": "2026-09-26T00:32:11.459258+00:00",
+      "selector": "button:has-text(\"숨기기\")",
+      "refilled_keys": [
+        "provider:openalex:W100002",
+        "provider:openalex:W100003",
+        "provider:openalex:W100004",
+        "provider:openalex:W100005",
+        "provider:openalex:W100006"
+      ],
+      "restored_key": "provider:openalex:W100001"
+    },
+    {
+      "type": "durable-read",
+      "timestamp": "2026-09-26T00:32:11.576468+00:00",
+      "selector": "button:has-text(\"읽음 표시\")",
+      "canonical_key": "provider:openalex:W100002"
+    },
+    {
+      "type": "controlled-policy-503-clears-cards",
+      "timestamp": "2026-09-26T00:32:11.810584+00:00",
+      "selector": "[role=\"alert\"]",
+      "controlled_response": true,
+      "visible_cards": 0
+    },
+    {
+      "type": "real-api-stale-fixture",
+      "timestamp": "2026-09-26T00:32:12.049336+00:00",
+      "selector": "[role=\"status\"]",
+      "age_hours": 36,
+      "fixture_timestamp_changed": true
+    },
+    {
+      "type": "mobile-and-keyboard",
+      "timestamp": "2026-09-26T00:32:12.374373+00:00",
+      "selector": "[role=\"dialog\"]",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "type": "real-api-expired-fixture",
+      "timestamp": "2026-09-26T00:32:12.481164+00:00",
+      "selector": "[role=\"dialog\"]",
+      "age_hours": 72,
+      "visible_cards": 0
+    },
+    {
+      "type": "actual-deletion-recreation",
+      "timestamp": "2026-09-26T00:32:13.015152+00:00",
+      "selector": "/api/me/all",
+      "surface": "api",
+      "old_token_status": 401,
+      "replacement_cards": 0,
+      "prior_outcome_userdays": 0
+    }
+  ],
+  "api_traffic": [
+    {
+      "path": "/api/auth/verify",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "authenticated": true
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": false,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": false,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 12,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T00:32:07+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/exposure",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T003207-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "visible_fraction": 1,
+        "visible_ms": 1000
+      },
+      "response": {
+        "tracked": true,
+        "recorded": true
+      }
+    },
+    {
+      "path": "/api/recommendations/read-state",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T003207-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "seen",
+        "request_id": "b8276944-566c-4bc0-a179-131431791f83"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "b8276944-566c-4bc0-a179-131431791f83",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "seen",
+        "undo_action": null,
+        "applied_at": "2026-09-26T00:32:10.974299+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": false,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 11,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T00:32:07+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/bookmarks/from-paper",
+      "method": "POST",
+      "status": 200,
+      "response": {
+        "id": "bm_20260926_093211_2808bfbe",
+        "title": "Synthetic browser fixture 01",
+        "session_id": "",
+        "query": "",
+        "num_papers": 1,
+        "created_at": "2026-09-26T09:32:11.082261",
+        "tags": [],
+        "topic": "Curriculum Papers",
+        "recommendation_attribution": [
+          {
+            "status": "attributed",
+            "reason": "last_touch",
+            "credited": true,
+            "kind": "save",
+            "canonical_key": "provider:openalex:W100001",
+            "outcome_id": "bm_20260926_093211_2808bfbe",
+            "outcome_at": "2026-09-26T00:32:11.086114+00:00",
+            "run_id": "20260926T003207-000000",
+            "exposure_day": "2026-09-26",
+            "visible_at": "2026-09-26T00:32:10.659030+00:00"
+          }
+        ]
+      },
+      "surface": "actual-api"
+    },
+    {
+      "path": "/api/bookmarks/from-paper",
+      "method": "POST",
+      "status": 200,
+      "response": {
+        "id": "bm_20260926_093211_63630f19",
+        "title": "Synthetic browser fixture 01",
+        "session_id": "",
+        "query": "",
+        "num_papers": 1,
+        "created_at": "2026-09-26T09:32:11.090595",
+        "tags": [],
+        "topic": "Curriculum Papers",
+        "recommendation_attribution": [
+          {
+            "status": "attributed",
+            "reason": "already_credited",
+            "credited": false,
+            "kind": "save",
+            "canonical_key": "provider:openalex:W100001",
+            "outcome_id": "bm_20260926_093211_63630f19",
+            "outcome_at": "2026-09-26T00:32:11.091790+00:00",
+            "run_id": "20260926T003207-000000",
+            "exposure_day": "2026-09-26",
+            "visible_at": "2026-09-26T00:32:10.659030+00:00"
+          }
+        ]
+      },
+      "surface": "actual-api"
+    },
+    {
+      "path": "/api/deep-review",
+      "method": "POST",
+      "status": 200,
+      "response": {
+        "success": true,
+        "session_id": "review_20260926_093211_7f203a41",
+        "status": "processing",
+        "message": "Deep review started for 1 papers",
+        "status_url": "/api/deep-review/status/review_20260926_093211_7f203a41",
+        "recommendation_attribution": [
+          {
+            "status": "attributed",
+            "reason": "last_touch",
+            "credited": true,
+            "kind": "review_start",
+            "canonical_key": "provider:openalex:W100001",
+            "outcome_id": "review_20260926_093211_7f203a41",
+            "outcome_at": "2026-09-26T00:32:11.097719+00:00",
+            "run_id": "20260926T003207-000000",
+            "exposure_day": "2026-09-26",
+            "visible_at": "2026-09-26T00:32:10.659030+00:00"
+          }
+        ]
+      },
+      "surface": "actual-api"
+    },
+    {
+      "path": "/api/recommendations/feedback",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T003207-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "hide",
+        "request_id": "1ad0b94d-a2a1-48b4-807c-297b68542816"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "1ad0b94d-a2a1-48b4-807c-297b68542816",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "hide",
+        "undo_action": null,
+        "applied_at": "2026-09-26T00:32:11.223490+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 1,
+            "seen": false,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 2,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100006",
+            "final_rank": 6,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 06",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/6",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100006",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 11,
+        "total_count": 11,
+        "latest_run_at": "2026-09-26T00:32:07+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/feedback",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T003207-000000",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "undo",
+        "request_id": "3caa41fa-6db6-4f97-96df-1727b281c160",
+        "undo_action": "hide"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "3caa41fa-6db6-4f97-96df-1727b281c160",
+        "canonical_key": "provider:openalex:W100001",
+        "action": "undo",
+        "undo_action": "hide",
+        "applied_at": "2026-09-26T00:32:11.356101+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": false,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 11,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T00:32:07+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/read-state",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "run_id": "20260926T003207-000000",
+        "canonical_key": "provider:openalex:W100002",
+        "action": "seen",
+        "request_id": "c229aecd-a313-4401-8527-8b43b79fa980"
+      },
+      "response": {
+        "tracked": true,
+        "request_id": "c229aecd-a313-4401-8527-8b43b79fa980",
+        "canonical_key": "provider:openalex:W100002",
+        "action": "seen",
+        "undo_action": null,
+        "applied_at": "2026-09-26T00:32:11.573883+00:00"
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "status": 503,
+      "controlled": true
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-26T00:32:07+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "degraded",
+        "freshness": "fresh",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-24T12:32:02+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "stale",
+        "freshness": "stale",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage",
+          "delivery_stale"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [
+          {
+            "canonical_key": "provider:openalex:W100001",
+            "final_rank": 1,
+            "display_position": 1,
+            "seen": true,
+            "title": "Synthetic browser fixture 01",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/1",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100001",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100002",
+            "final_rank": 2,
+            "display_position": 2,
+            "seen": true,
+            "title": "Synthetic browser fixture 02",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/2",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100002",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100003",
+            "final_rank": 3,
+            "display_position": 3,
+            "seen": false,
+            "title": "Synthetic browser fixture 03",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/3",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100003",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100004",
+            "final_rank": 4,
+            "display_position": 4,
+            "seen": false,
+            "title": "Synthetic browser fixture 04",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/4",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100004",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          },
+          {
+            "canonical_key": "provider:openalex:W100005",
+            "final_rank": 5,
+            "display_position": 5,
+            "seen": false,
+            "title": "Synthetic browser fixture 05",
+            "authors": [
+              "Fixture Author"
+            ],
+            "year": 2026,
+            "publication_date": "2026-01-01",
+            "venue": null,
+            "url": "https://example.org/fixture/5",
+            "pdf_url": null,
+            "doi": null,
+            "arxiv_id": null,
+            "openalex_id": "W100005",
+            "semantic_scholar_id": null,
+            "pmid": null,
+            "score": 1.0,
+            "reason": "개인화 근거가 적어 공개 서지정보와 발행연도를 반영했습니다. 과학적 품질 평가는 아닙니다.",
+            "candidate_sources": [
+              "local_public"
+            ],
+            "score_breakdown": {
+              "content_relevance_proxy": 1.0,
+              "negative_match": 0.0
+            }
+          }
+        ],
+        "unread_count": 10,
+        "total_count": 12,
+        "latest_run_at": "2026-09-24T12:32:02+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "stale",
+        "freshness": "stale",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage",
+          "delivery_stale"
+        ]
+      }
+    },
+    {
+      "path": "/api/recommendations/notifications",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "items": [],
+        "unread_count": 0,
+        "total_count": 0,
+        "latest_run_at": "2026-09-23T00:32:02+00:00",
+        "run_id": "20260926T003207-000000",
+        "scoring_mode": "metadata",
+        "state": "expired",
+        "freshness": "expired",
+        "source_statuses": {
+          "local_public": "ready",
+          "openclaw": "disabled",
+          "owner_local": "disabled"
+        },
+        "degraded_reasons": [
+          "limited_coverage",
+          "delivery_expired"
+        ]
+      }
+    }
+  ]
+}

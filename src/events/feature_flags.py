@@ -47,9 +47,12 @@ CREATE TABLE IF NOT EXISTS feature_flags (
 
 
 def _db_path() -> Path:
-    """Return the active DB path, honouring the FEATURE_FLAGS_DB_PATH env var."""
+    """Use the explicit store, or the application's configured data root."""
     env = os.environ.get("FEATURE_FLAGS_DB_PATH")
-    return Path(env) if env else _DEFAULT_DB_PATH
+    if env:
+        return Path(env)
+    data_dir = os.environ.get("DATA_DIR")
+    return Path(data_dir) / "feature_flags.db" if data_dir else _DEFAULT_DB_PATH
 
 
 @contextmanager

@@ -21,17 +21,19 @@ import logging
 from pathlib import Path
 
 import jwt as _pyjwt
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from starlette.requests import Request
 
-from .deps import get_current_user, limiter, _JWT_SECRET, _JWT_ALGORITHM
+from .deps import limiter, _JWT_SECRET, _JWT_ALGORITHM
 from .deps import user_deletion
 from .deps.user_deletion import DeleteResult, delete_user_cascade
+from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 
 logger = logging.getLogger(__name__)
 
 
 # ── Rate-limit key: JWT sub (not IP) ──────────────────────────────────
+
 
 def _user_key_func(request: Request) -> str:
     """Return the JWT ``sub`` claim for rate-limiting.
@@ -46,7 +48,7 @@ def _user_key_func(request: Request) -> str:
     """
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
-        token = auth_header[len("Bearer "):]
+        token = auth_header[len("Bearer ") :]
         try:
             payload = _pyjwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
             sub = payload.get("sub")
@@ -55,9 +57,7 @@ def _user_key_func(request: Request) -> str:
                 # appears in slowapi's "ratelimit … exceeded" log line.
                 # The hash is stable per user, so rate-limit semantics are
                 # identical to keying on the raw sub.
-                return "u:" + hashlib.sha256(
-                    sub.encode("utf-8")
-                ).hexdigest()[:16]
+                return "u:" + hashlib.sha256(sub.encode("utf-8")).hexdigest()[:16]
         except _pyjwt.InvalidTokenError:
             pass
     # Fallback: IP address (unauthenticated or malformed token)
@@ -70,11 +70,13 @@ router = APIRouter(prefix="/api/me", tags=["me"])
 
 # ── Endpoint ──────────────────────────────────────────────────────────
 
+
 @router.delete("/all", response_model=DeleteResult)
 @limiter.limit("3/day", key_func=_user_key_func)
 async def delete_all(
     request: Request,
-    username: str = Depends(get_current_user),
+    response: Response,
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ) -> DeleteResult:
     """Delete **all** personal data for the authenticated user.
 
@@ -88,7 +90,13 @@ async def delete_all(
         Structured result including an audit hash and a list of any stages
         that raised an exception.
     """
-    return delete_user_cascade(username, actor=None)
+    result = delete_user_cascade(
+        principal.username,
+        account_incarnation=principal.account_incarnation,
+    )
+    if not result.deleted:
+        response.status_code = 503 if result.retryable else 409
+    return result
 
 
 # ── Legacy re-exports (kept for backward compatibility with fixtures) ──

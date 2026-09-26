@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI wrapper for daily related-paper collection and LLM-wiki generation."""
+"""Public-only fixed-seed candidate staging and bibliographic wiki CLI."""
 
 from __future__ import annotations
 

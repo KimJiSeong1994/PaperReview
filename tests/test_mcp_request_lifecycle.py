@@ -38,18 +38,36 @@ def events(monkeypatch):
 
 
 @pytest.fixture
-def headers(monkeypatch):
+def headers(monkeypatch, tmp_path):
     from routers.deps import storage
+    from src.storage.user_db import UserDB
+
     monkeypatch.setattr(auth, "_JWT_SECRET", "mcp-isolation-test-secret-that-is-long")
-    monkeypatch.setattr(storage, "_get_user_db", lambda: SimpleNamespace(get=lambda name: {"role": "user"}))
+    authority = UserDB(tmp_path / "mcp-users.db")
+    monkeypatch.setattr(storage, "_get_user_db", lambda: authority)
 
     def make(name="alice", mcp=True):
-        token = jwt.encode({"sub": name, "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
-                           auth._JWT_SECRET, algorithm="HS256")
+        account = authority.get(name)
+        if account is None:
+            account = authority.create_account(name, {"role": "user"})
+        token = jwt.encode(
+            {
+                "sub": name,
+                "role": account["role"],
+                "account_incarnation": account["account_incarnation"],
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
+            auth._JWT_SECRET,
+            algorithm="HS256",
+        )
         value = {"Authorization": f"Bearer {token}"}
         if mcp:
-            value.update({"User-Agent": "jiphyeonjeon-mcp/0.1.6",
-                          "X-Jiphyeonjeon-Invocation-Id": str(uuid4())})
+            value.update(
+                {
+                    "User-Agent": "jiphyeonjeon-mcp/0.1.6",
+                    "X-Jiphyeonjeon-Invocation-Id": str(uuid4()),
+                }
+            )
         return value
 
     return make
@@ -71,10 +89,16 @@ async def test_concurrent_actors_are_isolated_and_paths_are_normalized(events, h
         assert capture_context()["actor_id"] == actor
         return {"ok": True}
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         responses = await asyncio.gather(
-            client.get("/api/action/private-alice?token=never-store", headers=headers("alice")),
-            client.get("/api/action/private-bob?query=never-store", headers=headers("bob")),
+            client.get(
+                "/api/action/private-alice?token=never-store", headers=headers("alice")
+            ),
+            client.get(
+                "/api/action/private-bob?query=never-store", headers=headers("bob")
+            ),
         )
     assert [response.status_code for response in responses] == [200, 200]
     await drain_measurements()
@@ -86,8 +110,11 @@ async def test_concurrent_actors_are_isolated_and_paths_are_normalized(events, h
 
 
 @pytest.mark.asyncio
-async def test_request_boundary_captured_before_background_work_and_probes_excluded(events, headers, monkeypatch):
+async def test_request_boundary_captured_before_background_work_and_probes_excluded(
+    events, headers, monkeypatch
+):
     from src.analytics import mcp_context
+
     clock = [0.0]
     monkeypatch.setattr(mcp_context.time, "perf_counter", lambda: clock[0])
     app = FastAPI()
@@ -105,10 +132,14 @@ async def test_request_boundary_captured_before_background_work_and_probes_exclu
     async def version():
         return {"version": "1"}
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         assert (await client.get("/api/action", headers=headers())).status_code == 200
         assert (await client.get("/api/version", headers=headers())).status_code == 200
-        assert (await client.get("/api/version", headers=headers(mcp=False))).status_code == 200
+        assert (
+            await client.get("/api/version", headers=headers(mcp=False))
+        ).status_code == 200
     await drain_measurements()
     assert len(events) == 1
     assert events[0]["duration_ms"] == 0
@@ -125,10 +156,16 @@ async def test_invalid_mcp_token_cannot_silently_start_anonymous_work(events):
         started.append(actor)
         return {"ok": True}
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/deep-review", headers={
-            "User-Agent": "jiphyeonjeon-mcp/0.1.6", "Authorization": "Bearer invalid",
-        })
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/deep-review",
+            headers={
+                "User-Agent": "jiphyeonjeon-mcp/0.1.6",
+                "Authorization": "Bearer invalid",
+            },
+        )
         assert response.status_code == 401
         assert not started
         # Existing browser optional-auth semantics remain intact.
@@ -159,7 +196,9 @@ async def test_poster_terminal_survives_http_timeout(events, headers, monkeypatc
     async def generate(actor=Depends(auth.get_current_user)):
         try:
             await poster_service.PosterApplicationService().generate(
-                report_content="test", num_papers=1, agent_factory=Agent,
+                report_content="test",
+                num_papers=1,
+                agent_factory=Agent,
                 timeout_seconds=0.01,
             )
         except PosterServiceError as error:
@@ -167,8 +206,12 @@ async def test_poster_terminal_survives_http_timeout(events, headers, monkeypatc
             return {"timed_out": True}
 
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post("/api/deep-review/visualize-direct", headers=headers())
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/deep-review/visualize-direct", headers=headers()
+            )
         assert response.json() == {"timed_out": True}
         assert [r["status"] for r in events if r["kind"] == "job"] == ["started"]
     finally:
@@ -180,13 +223,22 @@ async def test_poster_terminal_survives_http_timeout(events, headers, monkeypatc
     jobs = [r for r in events if r["kind"] == "job"]
     assert [r["status"] for r in jobs] == ["started", "succeeded"]
     assert jobs[0]["job_id"] == jobs[1]["job_id"]
-    assert all(r["actor_id"] == "alice" and r["source"] == "server_observed" for r in jobs)
+    assert all(
+        r["actor_id"] == "alice" and r["source"] == "server_observed" for r in jobs
+    )
 
 
 @pytest.mark.asyncio
-async def test_review_failure_is_recorded_by_worker(events, headers, monkeypatch, tmp_path):
+async def test_review_failure_is_recorded_by_worker(
+    events, headers, monkeypatch, tmp_path
+):
     from routers import reviews
-    monkeypatch.setattr(reviews, "run_fast_review", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("private failure")))
+
+    monkeypatch.setattr(
+        reviews,
+        "run_fast_review",
+        lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("private failure")),
+    )
     app = FastAPI()
     app.add_middleware(McpUsageMiddleware)
 
@@ -195,13 +247,26 @@ async def test_review_failure_is_recorded_by_worker(events, headers, monkeypatch
         sid = "review_mcp_lifecycle_test"
         reviews.review_sessions[sid] = {"status": "processing", "username": actor}
         measurement = await record_job_started("deep_review", sid)
-        tasks.add_task(reviews.run_deep_review_background, sid, [], None, 1, "test",
-                       SimpleNamespace(session_path=tmp_path), True, measurement)
+        tasks.add_task(
+            reviews.run_deep_review_background,
+            sid,
+            [],
+            None,
+            1,
+            "test",
+            SimpleNamespace(session_path=tmp_path),
+            True,
+            measurement,
+        )
         return {"accepted": True}
 
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            assert (await client.post("/api/review-test", headers=headers())).status_code == 200
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            assert (
+                await client.post("/api/review-test", headers=headers())
+            ).status_code == 200
         jobs = [r for r in events if r["kind"] == "job"]
         assert [r["status"] for r in jobs] == ["started", "failed"]
         assert jobs[1]["actor_id"] == "alice"
@@ -212,29 +277,49 @@ async def test_review_failure_is_recorded_by_worker(events, headers, monkeypatch
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("result_kind,expected", [("success", "succeeded"), ("failure", "failed"), ("disconnect", "unknown")])
+@pytest.mark.parametrize(
+    "result_kind,expected",
+    [("success", "succeeded"), ("failure", "failed"), ("disconnect", "unknown")],
+)
 @pytest.mark.parametrize("collector_outage", [False, True])
-async def test_actual_mcp_figure_endpoint_records_outcomes(events, headers, monkeypatch, result_kind, expected, collector_outage):
+async def test_actual_mcp_figure_endpoint_records_outcomes(
+    events, headers, monkeypatch, result_kind, expected, collector_outage
+):
     from routers import autofigure
 
     async def generate(*args, **kwargs):
         if result_kind == "disconnect":
             raise TimeoutError("private remote timeout")
-        return SimpleNamespace(success=result_kind == "success", final_svg="<svg></svg>",
-                               figure_png_b64="", error="private failure")
+        return SimpleNamespace(
+            success=result_kind == "success",
+            final_svg="<svg></svg>",
+            figure_png_b64="",
+            error="private failure",
+        )
 
     monkeypatch.setattr(autofigure, "_autofigure_available", True)
-    monkeypatch.setattr(autofigure, "get_autofigure_client", lambda: SimpleNamespace(method_to_svg=generate))
+    monkeypatch.setattr(
+        autofigure,
+        "get_autofigure_client",
+        lambda: SimpleNamespace(method_to_svg=generate),
+    )
     if collector_outage:
+
         async def broken_writer(**fields):
             raise RuntimeError("executor unavailable")
+
         monkeypatch.setattr(mcp_usage, "record_event_async", broken_writer)
     app = FastAPI()
     app.add_middleware(McpUsageMiddleware)
     app.include_router(autofigure.router)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/api/autofigure/method-to-svg", headers=headers(),
-                                     json={"method_text": "private method body"})
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/autofigure/method-to-svg",
+            headers=headers(),
+            json={"method_text": "private method body"},
+        )
     assert response.status_code == (503 if result_kind == "disconnect" else 200)
     await drain_measurements()
     jobs = [r for r in events if r["kind"] == "job"]
@@ -248,7 +333,9 @@ async def test_actual_mcp_figure_endpoint_records_outcomes(events, headers, monk
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("writer_error", [RuntimeError, asyncio.CancelledError])
-async def test_broken_collector_never_prevents_background_or_poster_work(headers, monkeypatch, writer_error):
+async def test_broken_collector_never_prevents_background_or_poster_work(
+    headers, monkeypatch, writer_error
+):
     from app.DeepAgent.poster import service as poster_service
 
     async def broken_writer(**fields):
@@ -277,12 +364,16 @@ async def test_broken_collector_never_prevents_background_or_poster_work(headers
     async def run(tasks: BackgroundTasks, actor=Depends(auth.get_current_user)):
         await record_job_started("deep_review", "test_job")
         result = await poster_service.PosterApplicationService().generate(
-            report_content="test", num_papers=1, agent_factory=Agent,
+            report_content="test",
+            num_papers=1,
+            agent_factory=Agent,
         )
         tasks.add_task(background)
         return {"success": result["success"]}
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post("/api/test", headers=headers())
     await drain_measurements()
     assert response.status_code == 200 and response.json()["success"] is True

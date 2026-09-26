@@ -20,33 +20,48 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from starlette.requests import Request
 
 from src.events.contracts import assert_valid_username
+from src.storage.user_db import AccountLifecycleError
 
 logger = logging.getLogger(__name__)
 
 from .deps import (
-    get_admin_user, load_bookmarks, load_users, save_users, review_sessions, review_sessions_lock, _papers_lock, PAPERS_FILE, limiter,
+    get_admin_user,
+    load_bookmarks,
+    load_users,
+    review_sessions,
+    review_sessions_lock,
+    _papers_lock,
+    PAPERS_FILE,
+    limiter,
 )
-from .deps.storage import _get_bookmark_db
+from .deps.storage import _get_bookmark_db, _get_user_db
+from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 from .deps.user_deletion import delete_user_cascade
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 USERS_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
-GRAPH_META_FILE = Path(__file__).resolve().parent.parent / "data" / "graph" / "paper_graph_metadata.json"
+GRAPH_META_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "graph"
+    / "paper_graph_metadata.json"
+)
 CURRICULA_DIR = Path(__file__).resolve().parent.parent / "data" / "curricula"
-CURRICULUM_PROGRESS_FILE = Path(__file__).resolve().parent.parent / "data" / "curriculum_progress.json"
+CURRICULUM_PROGRESS_FILE = (
+    Path(__file__).resolve().parent.parent / "data" / "curriculum_progress.json"
+)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
-# Users: use shared load_users/save_users/modify_users from deps
+# User reads use the shared store; mutations use explicit lifecycle transactions.
 _load_users = load_users
-_save_users = save_users
 
 
 def _load_papers_unlocked() -> dict:
@@ -104,6 +119,7 @@ def _modify_papers():
 
 # ── Pydantic models ─────────────────────────────────────────────────
 
+
 class RoleUpdateRequest(BaseModel):
     role: str  # "admin" or "user"
 
@@ -148,15 +164,18 @@ def _paper_fingerprint(p: dict) -> str:
     title and searched_by are present on every record and are already part of
     the listing payload.
     """
-    raw = "\x1f".join([
-        _norm_arxiv_id(p.get("arxiv_id") or ""),
-        p.get("title", "Untitled"),
-        p.get("searched_by", ""),
-    ])
+    raw = "\x1f".join(
+        [
+            _norm_arxiv_id(p.get("arxiv_id") or ""),
+            p.get("title", "Untitled"),
+            p.get("searched_by", ""),
+        ]
+    )
     return hashlib.blake2s(raw.encode("utf-8"), digest_size=8).hexdigest()
 
 
 # ── Data Diagnostics ─────────────────────────────────────────────────
+
 
 @router.get("/diagnostics")
 async def admin_diagnostics(admin: str = Depends(get_admin_user)):
@@ -208,13 +227,18 @@ async def admin_diagnostics(admin: str = Depends(get_admin_user)):
             "users": _db_count(data_dir / "users.db", "users"),
             "papers": _db_count(data_dir / "papers.db", "papers"),
         },
-        "bookmark_usernames": _distinct_values(data_dir / "bookmarks.db", "bookmarks", "username"),
-        "registered_users": _distinct_values(data_dir / "users.db", "users", "username"),
+        "bookmark_usernames": _distinct_values(
+            data_dir / "bookmarks.db", "bookmarks", "username"
+        ),
+        "registered_users": _distinct_values(
+            data_dir / "users.db", "users", "username"
+        ),
         "current_admin": admin,
     }
 
 
 # ── Dashboard ────────────────────────────────────────────────────────
+
 
 @router.get("/dashboard")
 async def admin_dashboard(admin: str = Depends(get_admin_user)):
@@ -242,7 +266,9 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
 
     # Papers by source
     source_counter = Counter(p.get("source", "Unknown") for p in papers)
-    papers_by_source = [{"source": s, "count": c} for s, c in source_counter.most_common()]
+    papers_by_source = [
+        {"source": s, "count": c} for s, c in source_counter.most_common()
+    ]
 
     # Papers by year
     year_counter: Counter = Counter()
@@ -255,18 +281,26 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
 
     # Queries attached to stored papers. One query can contribute many papers,
     # so this is a collection-contribution count, not search-event frequency.
-    query_counter = Counter(p.get("search_query", "") for p in papers if p.get("search_query"))
-    collection_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(7)]
+    query_counter = Counter(
+        p.get("search_query", "") for p in papers if p.get("search_query")
+    )
+    collection_queries = [
+        {"query": q, "count": c} for q, c in query_counter.most_common(7)
+    ]
 
     # Top categories
     cat_counter: Counter = Counter()
     for p in papers:
         for cat in p.get("categories", []):
             cat_counter[cat] += 1
-    top_categories = [{"category": cat, "count": c} for cat, c in cat_counter.most_common(7)]
+    top_categories = [
+        {"category": cat, "count": c} for cat, c in cat_counter.most_common(7)
+    ]
 
     # Recent papers (by collected_at)
-    sorted_papers = sorted(papers, key=lambda p: p.get("collected_at", ""), reverse=True)
+    sorted_papers = sorted(
+        papers, key=lambda p: p.get("collected_at", ""), reverse=True
+    )
     recent_papers = [
         {
             "title": p.get("title", "Untitled"),
@@ -313,6 +347,7 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
 
 # ── Users ────────────────────────────────────────────────────────────
 
+
 @router.get("/users")
 async def list_users(admin: str = Depends(get_admin_user)):
     """List all registered users with their bookmark counts."""
@@ -327,31 +362,48 @@ async def list_users(admin: str = Depends(get_admin_user)):
 
     user_list = []
     for username, data in users.items():
-        user_list.append({
-            "username": username,
-            "role": data.get("role", "user"),
-            "created_at": data.get("created_at", ""),
-            "bookmark_count": bm_counts.get(username, 0),
-        })
+        user_list.append(
+            {
+                "username": username,
+                "role": data.get("role", "user"),
+                "created_at": data.get("created_at", ""),
+                "bookmark_count": bm_counts.get(username, 0),
+            }
+        )
 
     return {"users": user_list}
 
 
 @router.patch("/users/{username}/role")
-async def update_user_role(username: str, request: RoleUpdateRequest, admin: str = Depends(get_admin_user)):
+async def update_user_role(
+    username: str,
+    request: RoleUpdateRequest,
+    admin: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+):
     """Change a user's role (admin or user)."""
     if request.role not in ("admin", "user"):
         raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
 
-    if username == admin:
+    if username == admin.username:
         raise HTTPException(status_code=400, detail="Cannot change your own role")
 
-    users = _load_users()
-    if username not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    users[username]["role"] = request.role
-    _save_users(users)
+    try:
+        with _get_user_db().transaction() as tx:
+            acting = tx.validate_principal(admin.username, admin.account_incarnation)
+            if acting.get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            user = tx.get(username)
+            if user is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            tx.upsert(
+                username,
+                {"role": request.role},
+                expected_incarnation=user["account_incarnation"],
+            )
+    except AccountLifecycleError as exc:
+        raise HTTPException(status_code=409, detail=exc.reason)
+    except (sqlite3.Error, OSError):
+        raise HTTPException(status_code=503, detail="Account authority unavailable")
     return {"success": True, "username": username, "role": request.role}
 
 
@@ -360,7 +412,8 @@ async def update_user_role(username: str, request: RoleUpdateRequest, admin: str
 async def delete_user(
     request: Request,  # required positional for slowapi limiter
     username: str,
-    admin: str = Depends(get_admin_user),
+    response: Response,
+    admin: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
     """Admin: completely remove a user and all associated data.
 
@@ -385,28 +438,28 @@ async def delete_user(
         raise HTTPException(status_code=400, detail="Invalid username format")
 
     # 2. Self-deletion guard.
-    if username == admin:
-        raise HTTPException(
-            status_code=400, detail="Cannot delete your own account"
-        )
+    if username == admin.username:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
-    # 3. Existence + 4. last-admin guard.
-    users = _load_users()
-    if username not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if users[username].get("role") == "admin":
-        admin_count = sum(
-            1 for u in users.values() if u.get("role") == "admin"
-        )
-        if admin_count <= 1:
-            raise HTTPException(
-                status_code=409,
-                detail="Cannot delete the last admin account",
-            )
+    # Capture the exact target, including pending identities without credentials.
+    try:
+        with _get_user_db().transaction() as tx:
+            acting = tx.validate_principal(admin.username, admin.account_incarnation)
+            if acting.get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            target = tx.get_lifecycle(username)
+            if target is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            incarnation = target["account_incarnation"]
+    except AccountLifecycleError as exc:
+        raise HTTPException(status_code=409, detail=exc.reason)
+    except (sqlite3.Error, OSError):
+        raise HTTPException(status_code=503, detail="Account authority unavailable")
 
     # 5. Run the cascade; admin is recorded as the actor in the audit log.
-    result = delete_user_cascade(username, actor=admin)
+    result = delete_user_cascade(username, account_incarnation=incarnation, actor=admin)
+    if not result.deleted:
+        response.status_code = 503 if result.retryable else 409
 
     return {
         "success": result.deleted,
@@ -417,10 +470,12 @@ async def delete_user(
         ),
         "partial_failures": result.partial_failures,
         "audit_hash": result.audit_hash,
+        "retryable": result.retryable,
     }
 
 
 # ── Papers ───────────────────────────────────────────────────────────
+
 
 @router.get("/papers/stats")
 async def papers_stats(admin: str = Depends(get_admin_user)):
@@ -458,7 +513,11 @@ async def list_papers(
 
     # Filter by username if provided
     if username == "(unknown)":
-        indexed = [(i, p) for i, p in indexed if not p.get("searched_by") or p.get("searched_by") == "(unknown)"]
+        indexed = [
+            (i, p)
+            for i, p in indexed
+            if not p.get("searched_by") or p.get("searched_by") == "(unknown)"
+        ]
     elif username:
         indexed = [(i, p) for i, p in indexed if p.get("searched_by") == username]
 
@@ -468,21 +527,32 @@ async def list_papers(
     end = start + page_size
     page_papers = []
     for idx, p in indexed[start:end]:
-        page_papers.append({
-            "index": idx,
-            "fingerprint": _paper_fingerprint(p),
-            "title": p.get("title", "Untitled"),
-            "authors": p.get("authors", [])[:3],
-            "source": p.get("source", ""),
-            "published_date": p.get("published_date", ""),
-            "search_query": p.get("search_query", ""),
-            "searched_by": p.get("searched_by", ""),
-        })
+        page_papers.append(
+            {
+                "index": idx,
+                "fingerprint": _paper_fingerprint(p),
+                "title": p.get("title", "Untitled"),
+                "authors": p.get("authors", [])[:3],
+                "source": p.get("source", ""),
+                "published_date": p.get("published_date", ""),
+                "search_query": p.get("search_query", ""),
+                "searched_by": p.get("searched_by", ""),
+            }
+        )
 
     # Collect unique usernames for filter dropdown (include unknown users)
     all_papers = papers_data.get("papers", [])
-    usernames = sorted(set(p.get("searched_by", "") for p in all_papers if p.get("searched_by") and p.get("searched_by") != "(unknown)"))
-    if any(not p.get("searched_by") or p.get("searched_by") == "(unknown)" for p in all_papers):
+    usernames = sorted(
+        set(
+            p.get("searched_by", "")
+            for p in all_papers
+            if p.get("searched_by") and p.get("searched_by") != "(unknown)"
+        )
+    )
+    if any(
+        not p.get("searched_by") or p.get("searched_by") == "(unknown)"
+        for p in all_papers
+    ):
         usernames = ["(unknown)"] + usernames
 
     return {
@@ -496,7 +566,9 @@ async def list_papers(
 
 
 @router.delete("/papers")
-async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_admin_user)):
+async def delete_papers(
+    request: PaperDeleteRequest, admin: str = Depends(get_admin_user)
+):
     """Delete papers by index, after verifying each record's identity.
 
     An index is a position, not an identity: the corpus shifts on every delete,
@@ -509,9 +581,13 @@ async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_ad
         papers = papers_data.get("papers", [])
 
         # Validate indices are within range
-        invalid = [it.index for it in request.papers if it.index < 0 or it.index >= len(papers)]
+        invalid = [
+            it.index for it in request.papers if it.index < 0 or it.index >= len(papers)
+        ]
         if invalid:
-            raise HTTPException(status_code=400, detail=f"Invalid paper indices: {invalid}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid paper indices: {invalid}"
+            )
 
         moved = [
             it.index
@@ -528,14 +604,20 @@ async def delete_papers(request: PaperDeleteRequest, admin: str = Depends(get_ad
             )
 
         indices_set = {it.index for it in request.papers}
-        papers_data["papers"] = [p for i, p in enumerate(papers) if i not in indices_set]
+        papers_data["papers"] = [
+            p for i, p in enumerate(papers) if i not in indices_set
+        ]
 
         deleted = len(papers) - len(papers_data["papers"])
         if deleted == 0:
-            raise HTTPException(status_code=404, detail="No papers found at given indices")
+            raise HTTPException(
+                status_code=404, detail="No papers found at given indices"
+            )
 
         # Update metadata
-        papers_data.setdefault("metadata", {})["total_papers"] = len(papers_data["papers"])
+        papers_data.setdefault("metadata", {})["total_papers"] = len(
+            papers_data["papers"]
+        )
 
     return {"success": True, "deleted_count": deleted}
 
@@ -584,6 +666,7 @@ async def delete_papers_by_arxiv(
 
 
 # ── Bookmarks ────────────────────────────────────────────────────────
+
 
 @router.get("/bookmarks")
 async def list_all_bookmarks(
@@ -635,6 +718,7 @@ async def admin_delete_bookmark(bookmark_id: str, admin: str = Depends(get_admin
 
 # ── Curricula ───────────────────────────────────────────────────────
 
+
 def _load_curriculum_progress() -> dict:
     if not CURRICULUM_PROGRESS_FILE.exists():
         return {}
@@ -668,16 +752,18 @@ async def admin_curricula(admin: str = Depends(get_admin_user)):
         owner = entry.get("owner", "(unknown)")
         if owner not in owner_map:
             owner_map[owner] = []
-        owner_map[owner].append({
-            "id": entry.get("id", ""),
-            "name": entry.get("name", "Untitled"),
-            "difficulty": entry.get("difficulty", "intermediate"),
-            "total_papers": entry.get("total_papers", 0),
-            "total_modules": entry.get("total_modules", 0),
-            "is_preset": entry.get("is_preset", False),
-            "forked_from": entry.get("forked_from"),
-            "type": "fork" if entry.get("forked_from") else "custom",
-        })
+        owner_map[owner].append(
+            {
+                "id": entry.get("id", ""),
+                "name": entry.get("name", "Untitled"),
+                "difficulty": entry.get("difficulty", "intermediate"),
+                "total_papers": entry.get("total_papers", 0),
+                "total_modules": entry.get("total_modules", 0),
+                "is_preset": entry.get("is_preset", False),
+                "forked_from": entry.get("forked_from"),
+                "type": "fork" if entry.get("forked_from") else "custom",
+            }
+        )
 
     # Build per-user progress stats (covers both presets and user courses)
     user_progress_map: dict[str, dict] = {}
@@ -700,16 +786,20 @@ async def admin_curricula(admin: str = Depends(get_admin_user)):
     users = []
     for username in sorted(all_usernames):
         curricula = owner_map.get(username, [])
-        progress_info = user_progress_map.get(username, {"total_read_papers": 0, "courses_with_progress": 0})
-        users.append({
-            "username": username,
-            "curricula": curricula,
-            "total_curricula": len(curricula),
-            "fork_count": sum(1 for c in curricula if c["type"] == "fork"),
-            "custom_count": sum(1 for c in curricula if c["type"] == "custom"),
-            "total_read_papers": progress_info["total_read_papers"],
-            "courses_with_progress": progress_info["courses_with_progress"],
-        })
+        progress_info = user_progress_map.get(
+            username, {"total_read_papers": 0, "courses_with_progress": 0}
+        )
+        users.append(
+            {
+                "username": username,
+                "curricula": curricula,
+                "total_curricula": len(curricula),
+                "fork_count": sum(1 for c in curricula if c["type"] == "fork"),
+                "custom_count": sum(1 for c in curricula if c["type"] == "custom"),
+                "total_read_papers": progress_info["total_read_papers"],
+                "courses_with_progress": progress_info["courses_with_progress"],
+            }
+        )
 
     return {
         "total_user_curricula": len(user_entries),

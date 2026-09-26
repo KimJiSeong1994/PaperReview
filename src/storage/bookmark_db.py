@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DB_PATH = Path("data/bookmarks.db")
 
 
+def bookmark_belongs_to_account(
+    record, *, username, account_incarnation, legacy_event_cutoff
+):
+    """Pure ownership predicate; only original accounts may read unbound legacy data."""
+    if not isinstance(record, dict) or record.get("username") != username:
+        return False
+    if not isinstance(account_incarnation, str) or not account_incarnation:
+        return False
+    if "account_incarnation" in record:
+        return record["account_incarnation"] == account_incarnation
+    return bool(legacy_event_cutoff)
+
+
 _UPSERT_SQL = """
     INSERT INTO bookmarks
         (id, username, topic, title, papers, report,
@@ -191,8 +204,16 @@ class BookmarkDB:
         # `share` metadata on the way in, and reading it back out would put a
         # second copy of the token in the dict that a later write could
         # disagree with. The metadata `share` object is the value callers read.
-        for key in ("id", "username", "topic", "title", "report",
-                    "notes", "created_at", "updated_at"):
+        for key in (
+            "id",
+            "username",
+            "topic",
+            "title",
+            "report",
+            "notes",
+            "created_at",
+            "updated_at",
+        ):
             if key in present:
                 bm[key] = row[key]
 
@@ -213,7 +234,9 @@ class BookmarkDB:
             try:
                 meta = json.loads(metadata_raw)
                 if isinstance(meta, dict):
-                    bm.update(meta)
+                    bm.update(
+                        {k: v for k, v in meta.items() if k not in {"id", "username"}}
+                    )
             except (json.JSONDecodeError, TypeError):
                 pass
 
@@ -227,9 +250,20 @@ class BookmarkDB:
     def _dict_to_row(bm: Dict[str, Any]) -> tuple:
         """Convert a bookmark dict to an INSERT/UPDATE tuple."""
         _known_keys = {
-            "id", "username", "topic", "title", "papers", "report",
-            "report_markdown", "notes", "highlights", "share_token",
-            "citation_tree", "created_at", "updated_at", "metadata",
+            "id",
+            "username",
+            "topic",
+            "title",
+            "papers",
+            "report",
+            "report_markdown",
+            "notes",
+            "highlights",
+            "share_token",
+            "citation_tree",
+            "created_at",
+            "updated_at",
+            "metadata",
         }
 
         bm_id = bm.get("id", "")
@@ -251,7 +285,11 @@ class BookmarkDB:
 
         highlights_raw = bm.get("highlights", [])
         if isinstance(highlights_raw, list):
-            highlights_json = json.dumps(highlights_raw, ensure_ascii=False) if highlights_raw else None
+            highlights_json = (
+                json.dumps(highlights_raw, ensure_ascii=False)
+                if highlights_raw
+                else None
+            )
         else:
             highlights_json = str(highlights_raw) if highlights_raw else None
 
@@ -278,13 +316,31 @@ class BookmarkDB:
         extra = {k: v for k, v in bm.items() if k not in _known_keys}
         existing_meta = bm.get("metadata")
         if isinstance(existing_meta, dict):
-            extra.update(existing_meta)
-        metadata_json = json.dumps(extra, ensure_ascii=False, default=str) if extra else None
+            extra.update(
+                {
+                    k: v
+                    for k, v in existing_meta.items()
+                    if k not in _known_keys and k != "account_incarnation"
+                }
+            )
+        metadata_json = (
+            json.dumps(extra, ensure_ascii=False, default=str) if extra else None
+        )
 
         return (
-            bm_id, username, topic, title, papers_json, report,
-            notes, highlights_json, share_token, citation_tree_json,
-            created_at, updated_at, metadata_json,
+            bm_id,
+            username,
+            topic,
+            title,
+            papers_json,
+            report,
+            notes,
+            highlights_json,
+            share_token,
+            citation_tree_json,
+            created_at,
+            updated_at,
+            metadata_json,
         )
 
     # ── Public API ────────────────────────────────────────────────────
@@ -458,9 +514,7 @@ class BookmarkDB:
         with self._lock:
             conn = self._connect()
             try:
-                conn.execute(
-                    "DELETE FROM bookmarks WHERE username = ?", (username,)
-                )
+                conn.execute("DELETE FROM bookmarks WHERE username = ?", (username,))
                 deleted = conn.execute("SELECT changes()").fetchone()[0]
                 conn.commit()
                 return int(deleted)
@@ -521,9 +575,7 @@ class BookmarkDB:
 
             try:
                 os.rename(str(json_path), str(migrated_marker))
-                logger.info(
-                    "[BookmarkDB] Renamed %s -> %s", json_path, migrated_marker
-                )
+                logger.info("[BookmarkDB] Renamed %s -> %s", json_path, migrated_marker)
             except OSError as e:
                 logger.warning("[BookmarkDB] Could not rename JSON file: %s", e)
 

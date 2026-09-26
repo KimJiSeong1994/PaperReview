@@ -42,7 +42,10 @@ from app.QueryAgent.skillopt_policy import (
     load_skillopt_policy_from_env,
 )
 from app.SearchAgent.search_agent import (
-    SearchAgent, SearchCapacityExceeded, apply_search_filters, classify_search_route,
+    SearchAgent,
+    SearchCapacityExceeded,
+    apply_search_filters,
+    classify_search_route,
 )
 from src.utils.paper_utils import generate_doc_id, generate_result_key
 
@@ -90,6 +93,7 @@ def _current_degradation_markers() -> Optional[List[str]]:
     # Return a copy so callers cannot mutate our module state.
     return list(_RANKER_DEGRADATION_REASONS)
 
+
 router = APIRouter(prefix="/api", tags=["search"])
 
 # This owner has no providers: mocking a provider singleton cannot disable admission.
@@ -117,7 +121,9 @@ async def _run_owned(operation, function, timeout, stop_event=None):
         generation.close()
 
 
-async def _run_snapshot_search(operation, function, deadline, stop, snapshots, metadata):
+async def _run_snapshot_search(
+    operation, function, deadline, stop, snapshots, metadata
+):
     """Marshal collector snapshots; close publication before returning or cancelling."""
     loop = asyncio.get_running_loop()
     closed = False
@@ -128,10 +134,17 @@ async def _run_snapshot_search(operation, function, deadline, stop, snapshots, m
             return
         snapshot_metadata = snapshot.get("_metadata", {})
         completed = snapshot_metadata.get("timings", {})
-        known_sources.update(source for source in snapshot if not source.startswith("_"))
+        known_sources.update(
+            source for source in snapshot if not source.startswith("_")
+        )
         snapshots.clear()
-        snapshots.update({source: papers for source, papers in snapshot.items()
-                          if not source.startswith("_") and (papers or source in completed)})
+        snapshots.update(
+            {
+                source: papers
+                for source, papers in snapshot.items()
+                if not source.startswith("_") and (papers or source in completed)
+            }
+        )
         metadata.clear()
         metadata.update(snapshot_metadata)
 
@@ -146,7 +159,9 @@ async def _run_snapshot_search(operation, function, deadline, stop, snapshots, m
     try:
         return await _run_owned(
             operation,
-            partial(function, deadline=deadline, stop_event=stop, snapshot_callback=receive),
+            partial(
+                function, deadline=deadline, stop_event=stop, snapshot_callback=receive
+            ),
             max(0.0, deadline - time.monotonic()),
             stop,
         )
@@ -169,7 +184,9 @@ async def _run_legacy_search(function, timeout, *, smart=False):
         _router_request_stops.add(stop)
     try:
         try:
-            return await _run_snapshot_search("search_legacy", function, deadline, stop, snapshots, metadata)
+            return await _run_snapshot_search(
+                "search_legacy", function, deadline, stop, snapshots, metadata
+            )
         except asyncio.TimeoutError:
             stop.set()
             if not snapshots:
@@ -177,7 +194,12 @@ async def _run_legacy_search(function, timeout, *, smart=False):
             metadata = copy.deepcopy(metadata)
             metadata["partial"] = True
             if smart:
-                return {"papers": [paper for papers in snapshots.values() for paper in papers], "metadata": metadata}
+                return {
+                    "papers": [
+                        paper for papers in snapshots.values() for paper in papers
+                    ],
+                    "metadata": metadata,
+                }
             return {**copy.deepcopy(snapshots), "_metadata": metadata}
     finally:
         stop.set()
@@ -187,7 +209,9 @@ async def _run_legacy_search(function, timeout, *, smart=False):
 
 def _finalize_results(results, filters, sources):
     """One publication boundary for fresh, graph-added, cached and partial hits."""
-    keys = list(dict.fromkeys([*sources, *[key for key in results if not key.startswith("_")]]))
+    keys = list(
+        dict.fromkeys([*sources, *[key for key in results if not key.startswith("_")]])
+    )
     papers = []
     for source in keys:
         for paper in results.get(source, []):
@@ -195,9 +219,16 @@ def _finalize_results(results, filters, sources):
             record["_result_source"] = source
             papers.append(record)
     papers.sort(key=lambda paper: paper.get("_rank", float("inf")))
-    order = {generate_result_key(paper): index for index, paper in reversed(list(enumerate(papers)))}
+    order = {
+        generate_result_key(paper): index
+        for index, paper in reversed(list(enumerate(papers)))
+    }
     papers = search_agent.deduplicator.deduplicate(papers)
-    papers.sort(key=lambda paper: order.get(generate_result_key(paper), paper.get("_rank", float("inf"))))
+    papers.sort(
+        key=lambda paper: order.get(
+            generate_result_key(paper), paper.get("_rank", float("inf"))
+        )
+    )
     papers, drops = apply_search_filters(papers, filters)
     rebuilt = {source: [] for source in keys}
     published = []
@@ -218,7 +249,17 @@ def _finalize_results(results, filters, sources):
     return rebuilt, drops
 
 
-def _admit_save(query, results, collect_refs=False, extract_text=False, max_refs=10, *, fast_mode=False, disconnect_event=None, completion_event=None):
+def _admit_save(
+    query,
+    results,
+    collect_refs=False,
+    extract_text=False,
+    max_refs=10,
+    *,
+    fast_mode=False,
+    disconnect_event=None,
+    completion_event=None,
+):
     if not any(results.values()):
         return "no_results"
     with _router_admission_lock:
@@ -227,7 +268,9 @@ def _admit_save(query, results, collect_refs=False, extract_text=False, max_refs
         if _router_shutdown.is_set():
             return "not_admitted_shutdown"
         try:
-            generation = _router_operation_owner._begin_operation_generation("search_save_enrichment")
+            generation = _router_operation_owner._begin_operation_generation(
+                "search_save_enrichment"
+            )
         except SearchCapacityExceeded:
             return "not_admitted_capacity"
         try:
@@ -239,8 +282,14 @@ def _admit_save(query, results, collect_refs=False, extract_text=False, max_refs
                 submitted.wait()
                 try:
                     _enrich_papers_background(
-                        query, snapshot, collect_refs, extract_text, max_refs,
-                        fast_mode=fast_mode, deadline=deadline, disconnect_event=disconnect_event,
+                        query,
+                        snapshot,
+                        collect_refs,
+                        extract_text,
+                        max_refs,
+                        fast_mode=fast_mode,
+                        deadline=deadline,
+                        disconnect_event=disconnect_event,
                     )
                 finally:
                     if completion_event is not None:
@@ -297,7 +346,10 @@ def _load_graph_cached():
             with open(_GRAPH_PATH, "rb") as f:
                 _cached_graph = pickle.load(f)
             _cached_graph_mtime = current_mtime
-            logger.info("[GraphRAG] Graph loaded/refreshed: %d nodes", _cached_graph.number_of_nodes())
+            logger.info(
+                "[GraphRAG] Graph loaded/refreshed: %d nodes",
+                _cached_graph.number_of_nodes(),
+            )
         except Exception as exc:
             logger.warning("[GraphRAG] Graph load failed: %s", exc)
     return _cached_graph
@@ -391,10 +443,18 @@ def _graphrag_expand(
 
 # ── Pydantic models ───────────────────────────────────────────────────
 
+
 class SearchRequest(BaseModel):
     query: str
     max_results: int = Field(default=20, ge=1, le=100)
-    sources: List[str] = ["arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"]
+    sources: List[str] = [
+        "arxiv",
+        "connected_papers",
+        "google_scholar",
+        "openalex",
+        "dblp",
+        "openalex_korean",
+    ]
     sort_by: str = "relevance"
     year_start: Optional[int] = None
     year_end: Optional[int] = None
@@ -411,7 +471,14 @@ class SearchRequest(BaseModel):
     @field_validator("sources")
     @classmethod
     def validate_sources(cls, sources):
-        allowed = {"arxiv", "connected_papers", "google_scholar", "openalex", "dblp", "openalex_korean"}
+        allowed = {
+            "arxiv",
+            "connected_papers",
+            "google_scholar",
+            "openalex",
+            "dblp",
+            "openalex_korean",
+        }
         if not sources or any(source not in allowed for source in sources):
             raise ValueError("Unsupported or empty sources")
         return sorted(set(sources))
@@ -425,9 +492,16 @@ class SearchRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_years(self):
-        if any(year is not None and not 1 <= year <= 9999 for year in (self.year_start, self.year_end)):
+        if any(
+            year is not None and not 1 <= year <= 9999
+            for year in (self.year_start, self.year_end)
+        ):
             raise ValueError("Invalid year")
-        if self.year_start is not None and self.year_end is not None and self.year_start > self.year_end:
+        if (
+            self.year_start is not None
+            and self.year_end is not None
+            and self.year_start > self.year_end
+        ):
             raise ValueError("Reversed year range")
         return self
 
@@ -484,7 +558,10 @@ class LLMSearchResponse(BaseModel):
 
 # ── Helper ─────────────────────────────────────────────────────────────
 
-def _stamp_searched_by(results: Dict[str, List[Dict[str, Any]]], username: Optional[str]):
+
+def _stamp_searched_by(
+    results: Dict[str, List[Dict[str, Any]]], username: Optional[str]
+):
     """Add/overwrite searched_by field on all papers.
 
     This is idempotent per caller: the value is overwritten, not appended.
@@ -512,25 +589,55 @@ def _strip_searched_by(results: Dict[str, List[Dict[str, Any]]]) -> None:
                 paper.pop("searched_by", None)
 
 
-def _enrich_papers_background(query, results, collect_refs, extract_text, max_refs, *, fast_mode=False, deadline=None, disconnect_event=None):
+def _enrich_papers_background(
+    query,
+    results,
+    collect_refs,
+    extract_text,
+    max_refs,
+    *,
+    fast_mode=False,
+    deadline=None,
+    disconnect_event=None,
+):
     """Best effort callback; a running call keeps its admission until completion."""
     deadline = deadline if deadline is not None else time.monotonic() + 30
+
     def allowed():
         return not _router_shutdown.is_set() and time.monotonic() < deadline
+
     if not allowed():
         logger.info("[Search save] Skipped expired_or_shutdown")
         return
     try:
-        saved = search_agent.save_papers(results, query, generate_embeddings=False, update_graph=False)
+        saved = search_agent.save_papers(
+            results, query, generate_embeddings=False, update_graph=False
+        )
         if saved.get("success") is False:
-            logger.error("[Search save] Persistence failed: %s", saved.get("error", "unspecified"))
+            logger.error(
+                "[Search save] Persistence failed: %s",
+                saved.get("error", "unspecified"),
+            )
             return
-        logger.info("[Search save] Persistence completed new_papers=%s within_budget=%s", saved.get("new_papers", 0), allowed())
-        if fast_mode or not allowed() or (disconnect_event is not None and disconnect_event.is_set()) or not saved.get("new_papers", 0):
+        logger.info(
+            "[Search save] Persistence completed new_papers=%s within_budget=%s",
+            saved.get("new_papers", 0),
+            allowed(),
+        )
+        if (
+            fast_mode
+            or not allowed()
+            or (disconnect_event is not None and disconnect_event.is_set())
+            or not saved.get("new_papers", 0)
+        ):
             return
         if collect_refs and allowed():
             search_agent.collect_references(max_refs, min(saved["new_papers"], 10))
-        if extract_text and allowed() and not (disconnect_event is not None and disconnect_event.is_set()):
+        if (
+            extract_text
+            and allowed()
+            and not (disconnect_event is not None and disconnect_event.is_set())
+        ):
             search_agent.extract_full_texts(saved.get("new_papers"))
         logger.info("[Search save] Completed within_budget=%s", allowed())
     except Exception:
@@ -551,10 +658,32 @@ CACHE_TTL_SECONDS = 3600  # 1시간
 CACHE_MAX_SIZE = 200  # 최대 캐시 엔트리 수
 
 
-_RECOMMENDATION_STOPWORDS = frozenset({
-    "a", "an", "the", "in", "on", "at", "to", "for", "of", "with", "by", "from",
-    "is", "are", "and", "or", "but", "not", "this", "that", "these", "those",
-})
+_RECOMMENDATION_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "and",
+        "or",
+        "but",
+        "not",
+        "this",
+        "that",
+        "these",
+        "those",
+    }
+)
 
 
 def _normalize_query_for_cache(query: str) -> str:
@@ -562,8 +691,6 @@ def _normalize_query_for_cache(query: str) -> str:
     q = unicodedata.normalize("NFKC", query).strip().lower()
     q = re.sub(r"\s+", " ", q)
     return q.casefold()
-
-
 
 
 def _recommendation_normalized_terms(query: str, *, max_terms: int = 8) -> list[str]:
@@ -593,9 +720,7 @@ def _query_hash(query: str) -> str:
     return hashlib.sha256(query.encode("utf-8")).hexdigest()[:12]
 
 
-def _skillopt_result_cache_namespace(
-    *, apply_skillopt_policy: bool
-) -> Tuple[str, str]:
+def _skillopt_result_cache_namespace(*, apply_skillopt_policy: bool) -> Tuple[str, str]:
     """Return the validated SkillOpt namespace and why that namespace was chosen.
 
     The reason is reported separately because every fallback path collapses to
@@ -650,14 +775,20 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
     return hashlib.sha256(key_str.encode()).hexdigest()[:16]
 
 
-def _cache_entry_passes_guard(entry: Dict[str, Any], *, require_academic_guard: bool) -> bool:
+def _cache_entry_passes_guard(
+    entry: Dict[str, Any], *, require_academic_guard: bool
+) -> bool:
     if not require_academic_guard:
         return True
     metadata = entry.get("metadata") if isinstance(entry, dict) else None
-    return bool(isinstance(metadata, dict) and metadata.get("academic_guard_passed") is True)
+    return bool(
+        isinstance(metadata, dict) and metadata.get("academic_guard_passed") is True
+    )
 
 
-def _get_cached_result(cache_key: str, *, require_academic_guard: bool = False) -> Optional[Dict[str, Any]]:
+def _get_cached_result(
+    cache_key: str, *, require_academic_guard: bool = False
+) -> Optional[Dict[str, Any]]:
     """인메모리 → 파일 순서로 캐시 조회.
 
     F-03 defensive behaviour: any ``searched_by`` stamp found in the cached
@@ -676,7 +807,9 @@ def _get_cached_result(cache_key: str, *, require_academic_guard: bool = False) 
         if cache_key in _search_cache:
             entry = _search_cache[cache_key]
             if datetime.fromisoformat(entry["expires_at"]) > now:
-                if not _cache_entry_passes_guard(entry, require_academic_guard=require_academic_guard):
+                if not _cache_entry_passes_guard(
+                    entry, require_academic_guard=require_academic_guard
+                ):
                     logger.debug("[Cache] HIT blocked by academic guard: %s", cache_key)
                     return None
                 logger.debug("[Cache] HIT (memory): %s", cache_key)
@@ -693,8 +826,12 @@ def _get_cached_result(cache_key: str, *, require_academic_guard: bool = False) 
             with open(cache_file, "r", encoding="utf-8") as f:
                 entry = json.load(f)
             if datetime.fromisoformat(entry["expires_at"]) > now:
-                if not _cache_entry_passes_guard(entry, require_academic_guard=require_academic_guard):
-                    logger.debug("[Cache] FILE HIT blocked by academic guard: %s", cache_key)
+                if not _cache_entry_passes_guard(
+                    entry, require_academic_guard=require_academic_guard
+                ):
+                    logger.debug(
+                        "[Cache] FILE HIT blocked by academic guard: %s", cache_key
+                    )
                     return None
                 # Strip before memoizing so future memory hits are also clean.
                 _strip_searched_by(entry["results"])
@@ -711,30 +848,66 @@ def _get_cached_result(cache_key: str, *, require_academic_guard: bool = False) 
     return None
 
 
-def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE_TTL_SECONDS, *, academic_guard_passed: bool = False, stop_event: Optional[threading.Event] = None, deadline: Optional[float] = None):
+def _set_cache(
+    cache_key: str,
+    results: Dict[str, Any],
+    ttl_seconds: int = CACHE_TTL_SECONDS,
+    *,
+    academic_guard_passed: bool = False,
+    stop_event: Optional[threading.Event] = None,
+    deadline: Optional[float] = None,
+):
     """Prepare privately, then publish only while the foreground still owns it."""
     import tempfile
+
     now = datetime.now()
     sanitized = copy.deepcopy(results)
     _strip_searched_by(sanitized)
-    entry = {"results": sanitized, "expires_at": (now + timedelta(seconds=ttl_seconds)).isoformat(), "cached_at": now.isoformat(), "metadata": {"cache_schema_version": _CACHE_SCHEMA_VERSION, "academic_guard_passed": academic_guard_passed}}
+    entry = {
+        "results": sanitized,
+        "expires_at": (now + timedelta(seconds=ttl_seconds)).isoformat(),
+        "cached_at": now.isoformat(),
+        "metadata": {
+            "cache_schema_version": _CACHE_SCHEMA_VERSION,
+            "academic_guard_passed": academic_guard_passed,
+        },
+    }
+
     def expired():
-        return ((stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline))
+        return (stop_event is not None and stop_event.is_set()) or (
+            deadline is not None and time.monotonic() >= deadline
+        )
+
     if expired():
         return
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=SEARCH_CACHE_DIR, suffix=".tmp", delete=False) as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=SEARCH_CACHE_DIR,
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
             temporary = Path(handle.name)
             json.dump(entry, handle, ensure_ascii=False)
         with _cache_lock:
             if expired():
                 return
             if len(_search_cache) >= CACHE_MAX_SIZE:
-                for key in [key for key, value in _search_cache.items() if datetime.fromisoformat(value["expires_at"]) <= now]:
+                for key in [
+                    key
+                    for key, value in _search_cache.items()
+                    if datetime.fromisoformat(value["expires_at"]) <= now
+                ]:
                     del _search_cache[key]
                 if len(_search_cache) >= CACHE_MAX_SIZE:
-                    del _search_cache[min(_search_cache, key=lambda key: _search_cache[key]["cached_at"])]
+                    del _search_cache[
+                        min(
+                            _search_cache,
+                            key=lambda key: _search_cache[key]["cached_at"],
+                        )
+                    ]
             temporary.replace(SEARCH_CACHE_DIR / f"{cache_key}.json")
             _search_cache[cache_key] = entry
     except Exception:
@@ -747,15 +920,22 @@ def _set_cache(cache_key: str, results: Dict[str, Any], ttl_seconds: int = CACHE
 def _persist_last_search(results, stop_event, deadline):
     """Keep the existing DeepAgent handoff outside the event loop."""
     import tempfile
+
     temporary = None
     directory = Path("data/cache")
     try:
         if stop_event.is_set() or time.monotonic() >= deadline:
             return
         directory.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory, suffix=".tmp", delete=False) as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=directory, suffix=".tmp", delete=False
+        ) as handle:
             temporary = Path(handle.name)
-            json.dump([paper for papers in results.values() for paper in papers], handle, ensure_ascii=False)
+            json.dump(
+                [paper for papers in results.values() for paper in papers],
+                handle,
+                ensure_ascii=False,
+            )
         if not stop_event.is_set() and time.monotonic() < deadline:
             temporary.replace(directory / "last_search_results.json")
     except Exception:
@@ -774,7 +954,9 @@ def _cleanup_expired_cache():
             try:
                 with open(cache_file, "r", encoding="utf-8") as f:
                     entry = json.load(f)
-                expires_at = datetime.fromisoformat(entry.get("expires_at", "2000-01-01"))
+                expires_at = datetime.fromisoformat(
+                    entry.get("expires_at", "2000-01-01")
+                )
                 if expires_at <= now:
                     cache_file.unlink(missing_ok=True)
                     removed += 1
@@ -818,31 +1000,6 @@ def _periodic_cache_maintenance(stop_event: threading.Event) -> None:
             logger.warning("[Cache] Periodic cleanup error: %s", e)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class _BackgroundWorkerGeneration:
     """One maintenance worker with an immutable stop signal."""
 
@@ -867,7 +1024,11 @@ def _active_search_operations():
             continue
         lock, operations = owner._operation_generation_state()
         with lock:
-            active.extend(operation for generations in operations.values() for operation in generations)
+            active.extend(
+                operation
+                for generations in operations.values()
+                for operation in generations
+            )
     return active
 
 
@@ -875,13 +1036,20 @@ def start_search_background_workers() -> bool:
     """Start maintenance without overlapping a draining generation."""
     global _background_generation, _cache_maintenance_thread
     with _background_workers_lock, _router_admission_lock:
-        if _background_generation and any(thread.is_alive() for thread in _background_generation.threads):
+        if _background_generation and any(
+            thread.is_alive() for thread in _background_generation.threads
+        ):
             return False
         if _router_shutdown.is_set() and _active_search_operations():
             return False
         _router_shutdown.clear()
         stop = threading.Event()
-        thread = threading.Thread(target=_periodic_cache_maintenance, args=(stop,), daemon=True, name="cache-maintenance")
+        thread = threading.Thread(
+            target=_periodic_cache_maintenance,
+            args=(stop,),
+            daemon=True,
+            name="cache-maintenance",
+        )
         _background_generation = _BackgroundWorkerGeneration(stop, thread)
         _cache_maintenance_thread = thread
         _cleanup_expired_cache()
@@ -890,7 +1058,9 @@ def start_search_background_workers() -> bool:
         return True
 
 
-def stop_search_background_workers(join_timeout: float = _BACKGROUND_JOIN_TIMEOUT_SECONDS) -> bool:
+def stop_search_background_workers(
+    join_timeout: float = _BACKGROUND_JOIN_TIMEOUT_SECONDS,
+) -> bool:
     """Stop new stages; running operations remain charged until drained."""
     global _background_generation, _cache_maintenance_thread
     with _router_admission_lock:
@@ -924,10 +1094,10 @@ def stop_search_background_workers(join_timeout: float = _BACKGROUND_JOIN_TIMEOU
 _ANALYZE_TIMEOUT = 15
 _LLM_SEARCH_TIMEOUT = 60
 _SMART_SEARCH_TIMEOUT = 60
-_SEARCH_TIMEOUT = 100           # 전체 검색 파이프라인 (분석+검색+랭킹)
-_SOURCE_SEARCH_TIMEOUT = 40     # 멀티소스 검색 단계만
-_GRAPHRAG_TIMEOUT = 5           # GraphRAG 확장
-_RANKING_TIMEOUT = 25           # HyDE + hybrid ranking
+_SEARCH_TIMEOUT = 100  # 전체 검색 파이프라인 (분석+검색+랭킹)
+_SOURCE_SEARCH_TIMEOUT = 40  # 멀티소스 검색 단계만
+_GRAPHRAG_TIMEOUT = 5  # GraphRAG 확장
+_RANKING_TIMEOUT = 25  # HyDE + hybrid ranking
 _MIN_BUDGET_FOR_GRAPHRAG = 18
 
 _MIN_BUDGET_FOR_HYDE_HARD = 28
@@ -950,7 +1120,9 @@ def _interleave_source_candidates(
     limit: int,
 ) -> List[Dict[str, Any]]:
     """Preserve source diversity when capping ranking candidates."""
-    queues = {source: collections.deque(results.get(source, [])) for source in source_keys}
+    queues = {
+        source: collections.deque(results.get(source, [])) for source in source_keys
+    }
     merged: List[Dict[str, Any]] = []
 
     while len(merged) < limit:
@@ -1002,7 +1174,9 @@ async def _dedup_and_rank_deep_search(
     query: str,
     papers: List[Dict[str, Any]],
     intent: str,
-    *, deadline=None, stop_event=None,
+    *,
+    deadline=None,
+    stop_event=None,
 ) -> List[Dict[str, Any]]:
     """Give the deep-search paths the same dedup and fusion as ``/api/search``.
 
@@ -1032,10 +1206,20 @@ async def _dedup_and_rank_deep_search(
 
     try:
         ranked = await asyncio.wait_for(
-            _run_owned("search_rank", partial(_hybrid_ranker.rank_papers, query=query,
-            papers=copy.deepcopy(papers),
-            intent=intent,
-            use_rrf=True, deadline=deadline, stop_event=stop_event), max(0, deadline - time.monotonic()), stop_event),
+            _run_owned(
+                "search_rank",
+                partial(
+                    _hybrid_ranker.rank_papers,
+                    query=query,
+                    papers=copy.deepcopy(papers),
+                    intent=intent,
+                    use_rrf=True,
+                    deadline=deadline,
+                    stop_event=stop_event,
+                ),
+                max(0, deadline - time.monotonic()),
+                stop_event,
+            ),
             timeout=max(0, deadline - time.monotonic()),
         )
         papers = list(ranked)
@@ -1060,6 +1244,7 @@ async def _evaluate_deep_results(query, intent, papers, result, deadline, stop):
         metadata.update(partial=True, evaluation_mode="skipped_budget")
         return {}
     from app.QueryAgent.rubric_evaluator import RubricEvaluator
+
     try:
         evaluation = await asyncio.wait_for(
             RubricEvaluator().evaluate(query=query, intent=intent, papers=papers),
@@ -1102,16 +1287,27 @@ async def analyze_query(request: QueryAnalysisRequest):
     try:
         logger.info("[API] Analyzing query: %s", request.query)
         analysis = await asyncio.wait_for(
-            _run_owned("search_analysis", partial(query_analyzer.analyze_query, request.query), _ANALYZE_TIMEOUT),
+            _run_owned(
+                "search_analysis",
+                partial(query_analyzer.analyze_query, request.query),
+                _ANALYZE_TIMEOUT,
+            ),
             timeout=_ANALYZE_TIMEOUT,
         )
-        logger.info("[API] Analysis result: intent=%s, confidence=%s", analysis.get("intent"), analysis.get("confidence"))
+        logger.info(
+            "[API] Analysis result: intent=%s, confidence=%s",
+            analysis.get("intent"),
+            analysis.get("confidence"),
+        )
         return QueryAnalysisResponse(**analysis)
     except SearchCapacityExceeded as e:
         raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         logger.error("[API] Query analysis timed out after %ds", _ANALYZE_TIMEOUT)
-        raise HTTPException(status_code=504, detail=f"Query analysis timed out after {_ANALYZE_TIMEOUT}s")
+        raise HTTPException(
+            status_code=504,
+            detail=f"Query analysis timed out after {_ANALYZE_TIMEOUT}s",
+        )
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] Error in query analysis: %s", error_trace)
@@ -1119,7 +1315,9 @@ async def analyze_query(request: QueryAnalysisRequest):
 
 
 @router.post("/llm-search", response_model=LLMSearchResponse)
-async def llm_context_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
+async def llm_context_search(
+    request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)
+):
     """
     LLM context-based search.
     Analyzes user query, optimises search terms, searches arXiv & Scholar.
@@ -1135,27 +1333,35 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
         start_time = time.time()
         logger.info("[API] LLM Context Search: %s", request.query)
 
-
         results = await _run_legacy_search(
             partial(
                 search_agent.llm_context_search,
                 query=request.query,
                 max_results_per_source=request.max_results,
                 context=request.context,
-            ), _LLM_SEARCH_TIMEOUT,
+            ),
+            _LLM_SEARCH_TIMEOUT,
         )
 
         metadata = results.pop("_metadata", {})
         results, metadata["filter_drops"] = _finalize_results(
-            results, {"max_results": request.max_results}, list(results) or ["arxiv"],
+            results,
+            {"max_results": request.max_results},
+            list(results) or ["arxiv"],
         )
         total = sum(len(papers) for papers in results.values())
         search_time = time.time() - start_time
 
-        logger.info("[API] LLM Search completed: %s papers in %.2fs", total, search_time)
+        logger.info(
+            "[API] LLM Search completed: %s papers in %.2fs", total, search_time
+        )
 
         _stamp_searched_by(results, username)
-        metadata["save_status"] = _admit_save(request.query, results) if request.save_papers else "not_requested"
+        metadata["save_status"] = (
+            _admit_save(request.query, results)
+            if request.save_papers
+            else "not_requested"
+        )
 
         metadata["search_time"] = round(search_time, 2)
 
@@ -1165,7 +1371,9 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
         raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         logger.error("[API] LLM Search timed out after %ds", _LLM_SEARCH_TIMEOUT)
-        raise HTTPException(status_code=504, detail=f"LLM search timed out after {_LLM_SEARCH_TIMEOUT}s")
+        raise HTTPException(
+            status_code=504, detail=f"LLM search timed out after {_LLM_SEARCH_TIMEOUT}s"
+        )
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] LLM Search error: %s", error_trace)
@@ -1173,7 +1381,9 @@ async def llm_context_search(request: LLMSearchRequest, username: Optional[str] 
 
 
 @router.post("/smart-search")
-async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
+async def smart_search(
+    request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)
+):
     """
     Smart search -- LLM analysis + multi-source strategy.
     1. LLM analyses query & decides strategy
@@ -1185,24 +1395,38 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
         start_time = time.time()
         logger.info("[API] Smart Search: %s", request.query)
 
-
         result = await _run_legacy_search(
-            partial(search_agent.smart_search, query=request.query, max_results=request.max_results),
-            _SMART_SEARCH_TIMEOUT, smart=True,
+            partial(
+                search_agent.smart_search,
+                query=request.query,
+                max_results=request.max_results,
+            ),
+            _SMART_SEARCH_TIMEOUT,
+            smart=True,
         )
 
         search_time = time.time() - start_time
         result["metadata"]["search_time"] = round(search_time, 2)
 
-        logger.info("[API] Smart Search completed: %s papers in %.2fs", len(result["papers"]), search_time)
+        logger.info(
+            "[API] Smart Search completed: %s papers in %.2fs",
+            len(result["papers"]),
+            search_time,
+        )
 
         results_by_source, drops = _finalize_results(
-            {"smart": result["papers"]}, {"max_results": request.max_results}, ["smart"],
+            {"smart": result["papers"]},
+            {"max_results": request.max_results},
+            ["smart"],
         )
         result["papers"] = results_by_source["smart"]
         _stamp_searched_by(results_by_source, username)
         result["metadata"]["filter_drops"] = drops
-        result["metadata"]["save_status"] = _admit_save(request.query, results_by_source) if request.save_papers else "not_requested"
+        result["metadata"]["save_status"] = (
+            _admit_save(request.query, results_by_source)
+            if request.save_papers
+            else "not_requested"
+        )
 
         return result
 
@@ -1210,7 +1434,10 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
         raise _search_capacity_unavailable(e)
     except asyncio.TimeoutError:
         logger.error("[API] Smart Search timed out after %ds", _SMART_SEARCH_TIMEOUT)
-        raise HTTPException(status_code=504, detail=f"Smart search timed out after {_SMART_SEARCH_TIMEOUT}s")
+        raise HTTPException(
+            status_code=504,
+            detail=f"Smart search timed out after {_SMART_SEARCH_TIMEOUT}s",
+        )
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error("[API] Smart Search error: %s", error_trace)
@@ -1218,7 +1445,9 @@ async def smart_search(request: LLMSearchRequest, username: Optional[str] = Depe
 
 
 @router.post("/deep-search")
-async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)):
+async def deep_search(
+    request: LLMSearchRequest, username: Optional[str] = Depends(get_optional_user)
+):
     """ArxivQA 스타일 멀티턴 심층 검색.
 
     ReAct 에이전트가 검색→분석→재쿼리를 반복하고,
@@ -1236,16 +1465,24 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         analysis = {}
         if query_analyzer:
             try:
-
                 analysis = await asyncio.wait_for(
-                    _run_owned("search_analysis", partial(query_analyzer.analyze_query, request.query), min(10, max(0, deadline-time.monotonic())), stop),
-                    timeout=max(0, deadline-time.monotonic()),
+                    _run_owned(
+                        "search_analysis",
+                        partial(query_analyzer.analyze_query, request.query),
+                        min(10, max(0, deadline - time.monotonic())),
+                        stop,
+                    ),
+                    timeout=max(0, deadline - time.monotonic()),
                 )
             except Exception as e:
                 logger.warning("[Deep Search] Query analysis failed: %s", e)
 
         # 2. ReAct multi-turn search (난이도 기반 max_turns)
-        difficulty = query_analyzer.classify_difficulty(analysis) if query_analyzer and analysis else "medium"
+        difficulty = (
+            query_analyzer.classify_difficulty(analysis)
+            if query_analyzer and analysis
+            else "medium"
+        )
         _DIFFICULTY_TURNS = {"easy": 1, "medium": 2, "hard": 3}
         max_turns = _DIFFICULTY_TURNS.get(difficulty, 2)
 
@@ -1256,29 +1493,56 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
             openai_client=get_openai_client(),
             max_turns=max_turns,
         )
-        result = await react_agent.search(query=request.query, analysis=analysis, max_results=request.max_results or 20, deadline=deadline, stop_event=stop)
+        result = await react_agent.search(
+            query=request.query,
+            analysis=analysis,
+            max_results=request.max_results or 20,
+            deadline=deadline,
+            stop_event=stop,
+        )
 
         # 2.5. GraphRAG auxiliary expansion
         try:
             react_papers = result.get("papers", [])
             if react_papers:
-
-                graphrag_papers = await _run_owned("search_graph", partial(_graphrag_expand, request.query, copy.deepcopy(react_papers), 15), min(_GRAPHRAG_TIMEOUT, max(0, deadline-time.monotonic())), stop)
+                graphrag_papers = await _run_owned(
+                    "search_graph",
+                    partial(
+                        _graphrag_expand, request.query, copy.deepcopy(react_papers), 15
+                    ),
+                    min(_GRAPHRAG_TIMEOUT, max(0, deadline - time.monotonic())),
+                    stop,
+                )
                 if graphrag_papers:
                     for p in graphrag_papers:
                         p["_source"] = "graphrag"
                     result["papers"].extend(graphrag_papers)
-                    logger.info("[Deep Search][GraphRAG] Added %d papers from graph expansion", len(graphrag_papers))
+                    logger.info(
+                        "[Deep Search][GraphRAG] Added %d papers from graph expansion",
+                        len(graphrag_papers),
+                    )
         except Exception as e:
-            logger.warning("[Deep Search][GraphRAG] Expansion failed (continuing): %s", e)
+            logger.warning(
+                "[Deep Search][GraphRAG] Expansion failed (continuing): %s", e
+            )
 
         # 2.6. Dedup + hybrid ranking, before the rubric so the evaluation
         # scores the set the caller actually receives.
-        result["papers"] = await _dedup_and_rank_deep_search(request.query, result.get("papers", []), analysis.get("intent", "paper_search"), deadline=deadline, stop_event=stop)
+        result["papers"] = await _dedup_and_rank_deep_search(
+            request.query,
+            result.get("papers", []),
+            analysis.get("intent", "paper_search"),
+            deadline=deadline,
+            stop_event=stop,
+        )
 
         evaluation = await _evaluate_deep_results(
-            request.query, analysis.get("intent", "paper_search"),
-            result.get("papers", []), result, deadline, stop,
+            request.query,
+            analysis.get("intent", "paper_search"),
+            result.get("papers", []),
+            result,
+            deadline,
+            stop,
         )
         result["evaluation"] = evaluation
 
@@ -1297,12 +1561,19 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
         # 4. Save papers
         if request.save_papers and result.get("papers"):
             try:
-                results_by_source = {"arxiv": [], "openalex": [], "dblp": [], "graphrag": []}
+                results_by_source = {
+                    "arxiv": [],
+                    "openalex": [],
+                    "dblp": [],
+                    "graphrag": [],
+                }
                 for paper in result["papers"]:
                     src = paper.get("_source", paper.get("source", "arxiv"))
                     results_by_source.setdefault(src, []).append(paper)
                 _stamp_searched_by(results_by_source, username)
-                result.setdefault("metadata", {}).update(save_status=_admit_save(request.query, results_by_source))
+                result.setdefault("metadata", {}).update(
+                    save_status=_admit_save(request.query, results_by_source)
+                )
             except Exception as e:
                 logger.error("[Deep Search] Save papers error: %s", e)
 
@@ -1323,8 +1594,24 @@ async def deep_search(request: LLMSearchRequest, username: Optional[str] = Depen
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search_papers(request: SearchRequest, username: Optional[str] = Depends(get_optional_user), http_request: Request = None):
+async def search_papers(
+    request: SearchRequest,
+    username: Optional[str] = Depends(get_optional_user),
+    http_request: Request = None,
+):
     """Publish finalized snapshots; ownership outlives an expired await."""
+    # Capture the authenticated lifetime before provider awaits. Looking up the
+    # username after completion could attribute an old request to a new account.
+    principal = (
+        getattr(http_request.state, "authenticated_principal", None)
+        if http_request is not None
+        else None
+    )
+    event_incarnation = (
+        principal.account_incarnation
+        if principal is not None and principal.username == username
+        else None
+    )
     started = time.monotonic()
     deadline = started + _SEARCH_TIMEOUT
     stop = threading.Event()
@@ -1333,29 +1620,60 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
     save_accepted = False
     observer_closed = threading.Event()
     observer_deadline = deadline
+
     async def observe_disconnect():
-        while (not observer_closed.is_set() and not save_completed.is_set()
-               and not _router_shutdown.is_set() and time.monotonic() < observer_deadline):
+        while (
+            not observer_closed.is_set()
+            and not save_completed.is_set()
+            and not _router_shutdown.is_set()
+            and time.monotonic() < observer_deadline
+        ):
             if await http_request.is_disconnected():
                 disconnected.set()
                 stop.set()
                 return
             if observer_closed.is_set():
                 return
-            await asyncio.sleep(.01)
+            await asyncio.sleep(0.01)
+
     with _router_admission_lock:
         if _router_shutdown.is_set():
             raise _search_capacity_unavailable(SearchCapacityExceeded("search_sources"))
         _router_request_stops.add(stop)
-    observer = asyncio.create_task(observe_disconnect()) if http_request is not None else None
+    observer = (
+        asyncio.create_task(observe_disconnect()) if http_request is not None else None
+    )
     sources = request.sources
     policy_requested = not request.fast_mode and not request.use_llm_search
-    namespace, policy_reason = _skillopt_result_cache_namespace(apply_skillopt_policy=policy_requested)
-    filters = {key: getattr(request, key) for key in ("max_results", "sort_by", "year_start", "year_end", "author", "category", "fast_mode", "use_llm_search", "search_context")}
-    filters.update(sources=sources, original_query=request.query, skillopt_policy=namespace)
+    namespace, policy_reason = _skillopt_result_cache_namespace(
+        apply_skillopt_policy=policy_requested
+    )
+    filters = {
+        key: getattr(request, key)
+        for key in (
+            "max_results",
+            "sort_by",
+            "year_start",
+            "year_end",
+            "author",
+            "category",
+            "fast_mode",
+            "use_llm_search",
+            "search_context",
+        )
+    }
+    filters.update(
+        sources=sources, original_query=request.query, skillopt_policy=namespace
+    )
     cache_key = _compute_cache_key(request.query, sources, filters)
     timings = {}
-    modes = {"fast_mode": request.fast_mode, "use_llm_search": request.use_llm_search, "skillopt_policy_cache_namespace": namespace, "skillopt_policy_requested": policy_requested, "skillopt_policy_reason": policy_reason}
+    modes = {
+        "fast_mode": request.fast_mode,
+        "use_llm_search": request.use_llm_search,
+        "skillopt_policy_cache_namespace": namespace,
+        "skillopt_policy_requested": policy_requested,
+        "skillopt_policy_reason": policy_reason,
+    }
     source_metadata = {"timings": {}, "timeouts": {}, "modes": {}}
     snapshots = {}
     analysis = None
@@ -1376,17 +1694,28 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
     async def stage(name, function, timeout):
         before = time.monotonic()
         try:
-            return await _run_owned(name, function, min(timeout, max(0.0, deadline - before)), stop)
+            return await _run_owned(
+                name, function, min(timeout, max(0.0, deadline - before)), stop
+            )
         finally:
             timings[name] = round(timings.get(name, 0.0) + time.monotonic() - before, 3)
 
     try:
-        cached = await stage("search_cache_io", partial(_get_cached_result, cache_key, require_academic_guard=True), 2)
+        cached = await stage(
+            "search_cache_io",
+            partial(_get_cached_result, cache_key, require_academic_guard=True),
+            2,
+        )
         if cached is not None:
             cached_metadata = cached.pop("_metadata", {})
             results = cached
             cache_hit = True
-            modes.update(cache_fast_path=True, query_analysis_mode="skipped_cache_hit", ranking_mode="skipped_cache_hit", source_search_mode="skipped_cache_hit")
+            modes.update(
+                cache_fast_path=True,
+                query_analysis_mode="skipped_cache_hit",
+                ranking_mode="skipped_cache_hit",
+                source_search_mode="skipped_cache_hit",
+            )
             search_query = cached_metadata.get("executed_query", request.query)
         else:
             modes["cache_fast_path"] = False
@@ -1395,49 +1724,97 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                 modes["query_analysis_mode"] = "skipped_exact_route"
             elif query_analyzer:
                 try:
-                    analysis = await stage("search_analysis", partial(query_analyzer.analyze_and_prepare, request.query, apply_skillopt_policy=policy_requested), _ANALYZE_TIMEOUT)
+                    analysis = await stage(
+                        "search_analysis",
+                        partial(
+                            query_analyzer.analyze_and_prepare,
+                            request.query,
+                            apply_skillopt_policy=policy_requested,
+                        ),
+                        _ANALYZE_TIMEOUT,
+                    )
                     if analysis.get("analysis_status"):
                         guard = False
                         healthy = False
-                        modes["query_analysis_mode"] = "original_query_fallback_returned"
+                        modes["query_analysis_mode"] = (
+                            "original_query_fallback_returned"
+                        )
                     else:
                         guard = analysis.get("is_academic") is True
                         modes["query_analysis_mode"] = "unified_llm"
                 except (asyncio.TimeoutError, SearchCapacityExceeded) as exc:
                     healthy = False
-                    modes["query_analysis_mode"] = "original_query_fallback_" + type(exc).__name__
+                    modes["query_analysis_mode"] = (
+                        "original_query_fallback_" + type(exc).__name__
+                    )
                 except Exception:
                     healthy = False
                     modes["query_analysis_mode"] = "original_query_fallback_error"
             else:
                 modes["query_analysis_mode"] = "disabled_no_api_key"
             modes["academic_guard_passed"] = guard
-            blocked = analysis is not None and not analysis.get("analysis_status") and analysis.get("is_academic") is False
+            blocked = (
+                analysis is not None
+                and not analysis.get("analysis_status")
+                and analysis.get("is_academic") is False
+            )
             if not blocked:
-                if route["kind"] == "topic" and analysis and not analysis.get("analysis_status") and analysis.get("confidence", 0) >= 0.8:
+                if (
+                    route["kind"] == "topic"
+                    and analysis
+                    and not analysis.get("analysis_status")
+                    and analysis.get("confidence", 0) >= 0.8
+                ):
                     improved = analysis.get("improved_query")
                     if isinstance(improved, str) and improved.strip():
                         search_query = improved.strip()
                     if isinstance(analysis.get("source_queries"), dict):
-                        filters["source_queries"] = copy.deepcopy(analysis["source_queries"])
-                filters.update(_deadline=deadline, _stop_event=stop, _partial_results=snapshots, _metadata=source_metadata)
+                        filters["source_queries"] = copy.deepcopy(
+                            analysis["source_queries"]
+                        )
+                filters.update(
+                    _deadline=deadline,
+                    _stop_event=stop,
+                    _partial_results=snapshots,
+                    _metadata=source_metadata,
+                )
                 if _router_shutdown.is_set():
                     stop.set()
                     raise SearchCapacityExceeded("search_sources")
                 before = time.monotonic()
                 try:
-                    if request.use_llm_search and query_analyzer and route["kind"] == "topic" and not request.fast_mode:
+                    if (
+                        request.use_llm_search
+                        and query_analyzer
+                        and route["kind"] == "topic"
+                        and not request.fast_mode
+                    ):
                         modes["source_search_mode"] = "llm_context_search"
                         results = await _run_snapshot_search(
                             "search_llm",
-                            partial(search_agent.llm_context_search, search_query, max_results_per_source=request.max_results, context=request.search_context),
+                            partial(
+                                search_agent.llm_context_search,
+                                search_query,
+                                max_results_per_source=request.max_results,
+                                context=request.search_context,
+                            ),
                             min(deadline, time.monotonic() + _SOURCE_SEARCH_TIMEOUT),
-                            stop, snapshots, source_metadata,
+                            stop,
+                            snapshots,
+                            source_metadata,
                         )
                         source_metadata.update(results.pop("_metadata", {}))
                     else:
                         modes["source_search_mode"] = "standard_async_multi_source"
-                        results = await asyncio.wait_for(search_agent.async_search_with_filters(search_query, filters), timeout=min(_SOURCE_SEARCH_TIMEOUT, max(0.0, deadline - time.monotonic())))
+                        results = await asyncio.wait_for(
+                            search_agent.async_search_with_filters(
+                                search_query, filters
+                            ),
+                            timeout=min(
+                                _SOURCE_SEARCH_TIMEOUT,
+                                max(0.0, deadline - time.monotonic()),
+                            ),
+                        )
                 except asyncio.TimeoutError:
                     healthy = False
                     stop.set()
@@ -1449,9 +1826,29 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                             source_metadata.setdefault("modes", {})[source] = "timeout"
                 timings["source_search"] = round(time.monotonic() - before, 3)
                 results = finalize(results)
-                if not request.fast_mode and route["kind"] == "topic" and not stop.is_set() and _remaining_budget(started) >= _MIN_BUDGET_FOR_GRAPHRAG:
+                if (
+                    not request.fast_mode
+                    and route["kind"] == "topic"
+                    and not stop.is_set()
+                    and _remaining_budget(started) >= _MIN_BUDGET_FOR_GRAPHRAG
+                ):
                     try:
-                        graph = await stage("search_graph", partial(_graphrag_expand, request.query, copy.deepcopy([paper for papers in results.values() for paper in papers]), 15), _GRAPHRAG_TIMEOUT)
+                        graph = await stage(
+                            "search_graph",
+                            partial(
+                                _graphrag_expand,
+                                request.query,
+                                copy.deepcopy(
+                                    [
+                                        paper
+                                        for papers in results.values()
+                                        for paper in papers
+                                    ]
+                                ),
+                                15,
+                            ),
+                            _GRAPHRAG_TIMEOUT,
+                        )
                         if graph:
                             results["graphrag"] = graph
                         modes["graphrag_mode"] = "enabled"
@@ -1459,16 +1856,44 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
                         healthy = False
                         modes["graphrag_mode"] = type(exc).__name__
                 else:
-                    modes["graphrag_mode"] = "fast_capability" if request.fast_mode else "skipped"
+                    modes["graphrag_mode"] = (
+                        "fast_capability" if request.fast_mode else "skipped"
+                    )
                 results = finalize(results)
                 if _hybrid_ranker and any(results.values()) and not stop.is_set():
-                    papers = _interleave_source_candidates(results, list(results), _ranking_candidate_cap(request.max_results))
+                    papers = _interleave_source_candidates(
+                        results,
+                        list(results),
+                        _ranking_candidate_cap(request.max_results),
+                    )
                     try:
-                        hyde = not request.fast_mode and route["kind"] == "topic" and _remaining_budget(started) >= _MIN_BUDGET_FOR_HYDE_HARD
-                        ranked = await stage("search_rank", partial(_hybrid_ranker.rank_papers, query=request.query, papers=copy.deepcopy(papers), intent=(analysis or {}).get("intent", "paper_search"), openai_client=get_openai_client() if hyde else None, use_rrf=True, fast_mode=request.fast_mode, deadline=min(deadline, time.monotonic() + _RANKING_TIMEOUT), stop_event=stop), _RANKING_TIMEOUT)
+                        hyde = (
+                            not request.fast_mode
+                            and route["kind"] == "topic"
+                            and _remaining_budget(started) >= _MIN_BUDGET_FOR_HYDE_HARD
+                        )
+                        ranked = await stage(
+                            "search_rank",
+                            partial(
+                                _hybrid_ranker.rank_papers,
+                                query=request.query,
+                                papers=copy.deepcopy(papers),
+                                intent=(analysis or {}).get("intent", "paper_search"),
+                                openai_client=get_openai_client() if hyde else None,
+                                use_rrf=True,
+                                fast_mode=request.fast_mode,
+                                deadline=min(
+                                    deadline, time.monotonic() + _RANKING_TIMEOUT
+                                ),
+                                stop_event=stop,
+                            ),
+                            _RANKING_TIMEOUT,
+                        )
                         _stamp_global_rank(ranked)
                         results = _rebuild_results_from_ranked(ranked, list(results))
-                        modes["ranking_mode"] = "cheap_rrf" if request.fast_mode else "hybrid_rrf"
+                        modes["ranking_mode"] = (
+                            "cheap_rrf" if request.fast_mode else "hybrid_rrf"
+                        )
                         modes["hyde_mode"] = "enabled" if hyde else "disabled"
                     except Exception as exc:
                         healthy = False
@@ -1478,26 +1903,71 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             else:
                 modes["source_search_mode"] = "non_academic"
         results = finalize(results)
-        drops = {"sources": copy.deepcopy(source_metadata.get("filter_drops", {})), "finalization": dict(finalization_drops)}
+        drops = {
+            "sources": copy.deepcopy(source_metadata.get("filter_drops", {})),
+            "finalization": dict(finalization_drops),
+        }
         _stamp_searched_by(results, username)
         total = sum(map(len, results.values()))
         source_modes = source_metadata.get("modes", {})
-        unhealthy = any(source_metadata.get("timeouts", {}).values()) or any(any(word in str(mode).lower() for word in ("error", "timeout", "circuit", "reject", "capacity")) for mode in source_modes.values())
-        healthy = healthy and not unhealthy and not stop.is_set() and not _current_degradation_markers()
-        executed_queries = cached_metadata.get("executed_queries", source_metadata.get("executed_queries", {}))
-        actual_queries = [query for queries in executed_queries.values() if isinstance(queries, list) for query in queries if isinstance(query, str)]
+        unhealthy = any(source_metadata.get("timeouts", {}).values()) or any(
+            any(
+                word in str(mode).lower()
+                for word in ("error", "timeout", "circuit", "reject", "capacity")
+            )
+            for mode in source_modes.values()
+        )
+        healthy = (
+            healthy
+            and not unhealthy
+            and not stop.is_set()
+            and not _current_degradation_markers()
+        )
+        executed_queries = cached_metadata.get(
+            "executed_queries", source_metadata.get("executed_queries", {})
+        )
+        actual_queries = [
+            query
+            for queries in executed_queries.values()
+            if isinstance(queries, list)
+            for query in queries
+            if isinstance(query, str)
+        ]
         if actual_queries and search_query not in actual_queries:
             search_query = actual_queries[0]
-        if analysis and not analysis.get("analysis_status") and analysis.get("is_academic") is False:
+        if (
+            analysis
+            and not analysis.get("analysis_status")
+            and analysis.get("is_academic") is False
+        ):
             search_query = None
-        metadata = {"executed_query": search_query, "executed_queries": executed_queries, "routing": source_metadata.get("routing", route), "filter_drops": drops, "save_status": "not_requested", "stage_modes": modes, "cache_hit": cache_hit, "quality_mode": "fast" if request.fast_mode else "standard", "source_timings": dict(source_metadata.get("timings", {})), "source_timeouts": dict(source_metadata.get("timeouts", {}))}
+        metadata = {
+            "executed_query": search_query,
+            "executed_queries": executed_queries,
+            "routing": source_metadata.get("routing", route),
+            "filter_drops": drops,
+            "save_status": "not_requested",
+            "stage_modes": modes,
+            "cache_hit": cache_hit,
+            "quality_mode": "fast" if request.fast_mode else "standard",
+            "source_timings": dict(source_metadata.get("timings", {})),
+            "source_timeouts": dict(source_metadata.get("timeouts", {})),
+        }
         degradation = list(_current_degradation_markers() or [])
         for stage_name, mode in modes.items():
-            if isinstance(mode, str) and any(word in mode.lower() for word in ("fallback", "error", "timeout", "capacity")):
+            if isinstance(mode, str) and any(
+                word in mode.lower()
+                for word in ("fallback", "error", "timeout", "capacity")
+            ):
                 degradation.append(f"{stage_name}:{mode}")
         if unhealthy:
             degradation.append("source_incomplete")
-        metadata["partial"] = bool(source_metadata.get("partial") or unhealthy or stop.is_set() or modes.get("source_search_mode") == "timeout_partial")
+        metadata["partial"] = bool(
+            source_metadata.get("partial")
+            or unhealthy
+            or stop.is_set()
+            or modes.get("source_search_mode") == "timeout_partial"
+        )
         metadata["degraded"] = degradation or None
         if request.save_papers and cache_hit:
             metadata["save_status"] = "skipped_cache"
@@ -1507,15 +1977,38 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             metadata["graph_save_enrichment"] = "not_requested"
         if not cache_hit and healthy and guard:
             cache_body = copy.deepcopy(results)
-            cache_body["_metadata"] = {"executed_query": search_query, "executed_queries": executed_queries}
+            cache_body["_metadata"] = {
+                "executed_query": search_query,
+                "executed_queries": executed_queries,
+            }
             try:
-                await stage("search_cache_io", partial(_set_cache, cache_key, cache_body, academic_guard_passed=True, stop_event=stop, deadline=min(deadline, time.monotonic() + 2)), 2)
+                await stage(
+                    "search_cache_io",
+                    partial(
+                        _set_cache,
+                        cache_key,
+                        cache_body,
+                        academic_guard_passed=True,
+                        stop_event=stop,
+                        deadline=min(deadline, time.monotonic() + 2),
+                    ),
+                    2,
+                )
             except (asyncio.TimeoutError, SearchCapacityExceeded):
                 modes["cache_write"] = "not_completed"
         await asyncio.sleep(0)
         if total and not cache_hit and not stop.is_set():
             try:
-                await stage("search_cache_io", partial(_persist_last_search, copy.deepcopy(results), stop, min(deadline, time.monotonic() + 2)), 2)
+                await stage(
+                    "search_cache_io",
+                    partial(
+                        _persist_last_search,
+                        copy.deepcopy(results),
+                        stop,
+                        min(deadline, time.monotonic() + 2),
+                    ),
+                    2,
+                )
             except (asyncio.TimeoutError, SearchCapacityExceeded):
                 modes["last_search_write"] = "not_completed"
         await asyncio.sleep(0)
@@ -1523,19 +2016,69 @@ async def search_papers(request: SearchRequest, username: Optional[str] = Depend
             if http_request is not None and await http_request.is_disconnected():
                 disconnected.set()
                 stop.set()
-            metadata["save_status"] = _admit_save(request.query, results, request.collect_references, request.extract_texts, request.max_references_per_paper, fast_mode=request.fast_mode, disconnect_event=disconnected, completion_event=save_completed) if total else "no_results"
+            metadata["save_status"] = (
+                _admit_save(
+                    request.query,
+                    results,
+                    request.collect_references,
+                    request.extract_texts,
+                    request.max_references_per_paper,
+                    fast_mode=request.fast_mode,
+                    disconnect_event=disconnected,
+                    completion_event=save_completed,
+                )
+                if total
+                else "no_results"
+            )
             save_accepted = metadata["save_status"] == "accepted"
             if save_accepted:
                 observer_deadline = time.monotonic() + 30
         timings["total"] = round(time.monotonic() - started, 3)
         metadata["stage_timings"] = timings
         modes["source_modes"] = source_modes
-        if username:
+        if username and event_incarnation:
             try:
-                emit_or_warn(UserEvent(user_id=username, event_type=EventType.QUERY_SUBMIT, payload={"query_hash": _query_hash(request.query), "normalized_terms": _recommendation_normalized_terms(request.query), "results_count": total, "ranking_applied": modes.get("ranking_mode") in {"cheap_rrf", "hybrid_rrf"}, "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}", "source_counts": {source: len(papers) for source, papers in results.items()}, "elapsed_ms": int(timings["total"] * 1000), "cache_hit": cache_hit}))
+                emit_or_warn(
+                    UserEvent(
+                        user_id=username,
+                        event_type=EventType.QUERY_SUBMIT,
+                        payload={
+                            "account_incarnation": event_incarnation,
+                            "query_hash": _query_hash(request.query),
+                            "normalized_terms": _recommendation_normalized_terms(
+                                request.query
+                            ),
+                            "results_count": total,
+                            "ranking_applied": modes.get("ranking_mode")
+                            in {"cheap_rrf", "hybrid_rrf"},
+                            "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}",
+                            "source_counts": {
+                                source: len(papers)
+                                for source, papers in results.items()
+                            },
+                            "elapsed_ms": int(timings["total"] * 1000),
+                            "cache_hit": cache_hit,
+                        },
+                    )
+                )
             except Exception as exc:
-                logger.warning("[Search analytics] Query event failed: %s", type(exc).__name__)
-        return SearchResponse(results=results, total=total, query_hash=_query_hash(request.query), query_analysis=analysis, stage_timings=timings, stage_modes=modes, source_timings=metadata["source_timings"], source_timeouts=metadata["source_timeouts"], cache_hit=cache_hit, quality_mode=metadata["quality_mode"], metadata=metadata, degraded=degradation or None)
+                logger.warning(
+                    "[Search analytics] Query event failed: %s", type(exc).__name__
+                )
+        return SearchResponse(
+            results=results,
+            total=total,
+            query_hash=_query_hash(request.query),
+            query_analysis=analysis,
+            stage_timings=timings,
+            stage_modes=modes,
+            source_timings=metadata["source_timings"],
+            source_timeouts=metadata["source_timeouts"],
+            cache_hit=cache_hit,
+            quality_mode=metadata["quality_mode"],
+            metadata=metadata,
+            degraded=degradation or None,
+        )
     except SearchCapacityExceeded as exc:
         raise _search_capacity_unavailable(exc)
     finally:
@@ -1576,26 +2119,36 @@ async def track_search_click(
     """
     if not (body.query_hash and body.paper_id):
         return {"tracked": False}
-    if username:
+    principal = getattr(request.state, "authenticated_principal", None)
+    event_incarnation = (
+        principal.account_incarnation
+        if principal is not None and principal.username == username
+        else None
+    )
+    if username and event_incarnation:
         try:
             payload: Dict[str, Any] = {
+                "account_incarnation": event_incarnation,
                 "query_hash": body.query_hash,
                 "paper_id": body.paper_id,
             }
             if body.rank is not None:
                 payload["rank"] = body.rank
-            emit_or_warn(UserEvent(
-                user_id=username,
-                event_type=EventType.SEARCH_CLICK,
-                payload=payload,
-                paper_id=body.paper_id,
-            ))
+            emit_or_warn(
+                UserEvent(
+                    user_id=username,
+                    event_type=EventType.SEARCH_CLICK,
+                    payload=payload,
+                    paper_id=body.paper_id,
+                )
+            )
         except Exception:
             logger.debug("failed to emit SEARCH_CLICK event", exc_info=True)
-    return {"tracked": username is not None}
+    return {"tracked": username is not None and event_incarnation is not None}
 
 
 # ── P2-4: SSE Streaming Deep Search ──────────────────────────────────
+
 
 class DeepSearchStreamRequest(BaseModel):
     query: str
@@ -1605,7 +2158,10 @@ class DeepSearchStreamRequest(BaseModel):
 
 
 @router.post("/deep-search-stream")
-async def deep_search_stream(request: DeepSearchStreamRequest, username: Optional[str] = Depends(get_optional_user)):
+async def deep_search_stream(
+    request: DeepSearchStreamRequest,
+    username: Optional[str] = Depends(get_optional_user),
+):
     """SSE streaming endpoint for deep search.
 
     Emits real-time progress events as the multi-turn ReAct agent works:
@@ -1617,7 +2173,6 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
     - ``complete``: Final results with all papers
     - ``error``: An error occurred
     """
-
 
     async def event_generator():
         """Generate SSE events during deep search execution."""
@@ -1633,29 +2188,50 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
             analysis = {}
             if query_analyzer:
                 try:
-
                     analysis = await asyncio.wait_for(
-                        _run_owned("search_analysis", partial(query_analyzer.analyze_query, request.query), min(10, max(0, deadline-time.monotonic())), stop),
-                        timeout=max(0, deadline-time.monotonic()),
+                        _run_owned(
+                            "search_analysis",
+                            partial(query_analyzer.analyze_query, request.query),
+                            min(10, max(0, deadline - time.monotonic())),
+                            stop,
+                        ),
+                        timeout=max(0, deadline - time.monotonic()),
                     )
-                    yield _sse_event("query_analysis", {
-                        "intent": analysis.get("intent", "paper_search"),
-                        "keywords": analysis.get("keywords", []),
-                        "confidence": analysis.get("confidence", 0),
-                    })
+                    yield _sse_event(
+                        "query_analysis",
+                        {
+                            "intent": analysis.get("intent", "paper_search"),
+                            "keywords": analysis.get("keywords", []),
+                            "confidence": analysis.get("confidence", 0),
+                        },
+                    )
                 except Exception as e:
                     logger.warning("[Deep Search Stream] Query analysis failed: %s", e)
-                    yield _sse_event("query_analysis", {"intent": "paper_search", "keywords": [], "error": str(e)})
+                    yield _sse_event(
+                        "query_analysis",
+                        {"intent": "paper_search", "keywords": [], "error": str(e)},
+                    )
 
             # ── Multi-turn ReAct search ───────────────────────────
-            difficulty = query_analyzer.classify_difficulty(analysis) if query_analyzer and analysis else "medium"
+            difficulty = (
+                query_analyzer.classify_difficulty(analysis)
+                if query_analyzer and analysis
+                else "medium"
+            )
             _DIFFICULTY_TURNS = {"easy": 1, "medium": 2, "hard": 3}
             max_turns = _DIFFICULTY_TURNS.get(difficulty, 2)
 
-            yield _sse_event("turn_start", {"turn": 1, "phase": "search", "max_turns": max_turns, "difficulty": difficulty})
+            yield _sse_event(
+                "turn_start",
+                {
+                    "turn": 1,
+                    "phase": "search",
+                    "max_turns": max_turns,
+                    "difficulty": difficulty,
+                },
+            )
 
             from app.SearchAgent.react_search_agent import ReActSearchAgent
-
 
             react_agent = ReActSearchAgent(
                 search_agent=search_agent,
@@ -1663,14 +2239,29 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
                 max_turns=max_turns,
             )
 
-            result = await react_agent.search(query=request.query, analysis=analysis, max_results=request.max_results or 20, deadline=deadline, stop_event=stop)
+            result = await react_agent.search(
+                query=request.query,
+                analysis=analysis,
+                max_results=request.max_results or 20,
+                deadline=deadline,
+                stop_event=stop,
+            )
 
-            papers = await _dedup_and_rank_deep_search(request.query, result.get("papers", []), analysis.get("intent", "paper_search"), deadline=deadline, stop_event=stop)
+            papers = await _dedup_and_rank_deep_search(
+                request.query,
+                result.get("papers", []),
+                analysis.get("intent", "paper_search"),
+                deadline=deadline,
+                stop_event=stop,
+            )
             result["papers"] = papers
-            yield _sse_event("papers_found", {
-                "count": len(papers),
-                "turns_used": result.get("metadata", {}).get("turns_used", 1),
-            })
+            yield _sse_event(
+                "papers_found",
+                {
+                    "count": len(papers),
+                    "turns_used": result.get("metadata", {}).get("turns_used", 1),
+                },
+            )
 
             # ── Gap analysis ──────────────────────────────────────
             turns_history = result.get("metadata", {}).get("turns_history", [])
@@ -1683,22 +2274,32 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
                 yield _sse_event("gap_analysis", {"missing": missing_aspects[:10]})
 
             # ── Rubric evaluation ─────────────────────────────────
-            yield _sse_event("turn_start", {"turn": max_turns + 1, "phase": "evaluation"})
+            yield _sse_event(
+                "turn_start", {"turn": max_turns + 1, "phase": "evaluation"}
+            )
 
             evaluation = await _evaluate_deep_results(
-                request.query, analysis.get("intent", "paper_search"),
-                papers, result, deadline, stop,
+                request.query,
+                analysis.get("intent", "paper_search"),
+                papers,
+                result,
+                deadline,
+                stop,
             )
             result["evaluation"] = evaluation
 
-            yield _sse_event("evaluation", {
-                "overall_score": evaluation.get("overall_score"),
-                "mode": result["metadata"]["evaluation_mode"],
-                "dimensions": {
-                    k: v for k, v in evaluation.items()
-                    if k != "overall_score" and isinstance(v, (int, float))
+            yield _sse_event(
+                "evaluation",
+                {
+                    "overall_score": evaluation.get("overall_score"),
+                    "mode": result["metadata"]["evaluation_mode"],
+                    "dimensions": {
+                        k: v
+                        for k, v in evaluation.items()
+                        if k != "overall_score" and isinstance(v, (int, float))
+                    },
                 },
-            })
+            )
 
             # ── Save papers ───────────────────────────────────────
             search_time = time.time() - start_time
@@ -1713,29 +2314,41 @@ async def deep_search_stream(request: DeepSearchStreamRequest, username: Optiona
                         src = paper.get("_source", paper.get("source", "arxiv"))
                         results_by_source.setdefault(src, []).append(paper)
                     _stamp_searched_by(results_by_source, username)
-                    result.setdefault("metadata", {}).update(save_status=_admit_save(request.query, results_by_source))
+                    result.setdefault("metadata", {}).update(
+                        save_status=_admit_save(request.query, results_by_source)
+                    )
                 except Exception as e:
                     logger.error("[Deep Search Stream] Save papers error: %s", e)
 
             # ── Complete ──────────────────────────────────────────
-            yield _sse_event("complete", {
-                "papers": papers,
-                "total": len(papers),
-                "search_time": round(search_time, 2),
-                "evaluation": evaluation,
-                "metadata": result.get("metadata", {}),
-            })
+            yield _sse_event(
+                "complete",
+                {
+                    "papers": papers,
+                    "total": len(papers),
+                    "search_time": round(search_time, 2),
+                    "evaluation": evaluation,
+                    "metadata": result.get("metadata", {}),
+                },
+            )
 
             logger.info(
                 "[API] Deep Search Stream completed: %d papers, %.1fs, score=%.2f",
-                len(papers), search_time, evaluation.get("overall_score", 0),
+                len(papers),
+                search_time,
+                evaluation.get("overall_score", 0),
             )
 
         except SearchCapacityExceeded as e:
-            yield _sse_event("error", {
-                "message": str(e), "status_code": 503,
-                "code": "search_capacity_exceeded", "retry_after": 1,
-            })
+            yield _sse_event(
+                "error",
+                {
+                    "message": str(e),
+                    "status_code": 503,
+                    "code": "search_capacity_exceeded",
+                    "retry_after": 1,
+                },
+            )
         except Exception as e:
             logger.error("[API] Deep Search Stream failed: %s", e, exc_info=True)
             yield _sse_event("error", {"message": str(e)})

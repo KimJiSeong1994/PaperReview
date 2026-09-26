@@ -2,11 +2,11 @@
 Storage helpers: bookmarks, users, papers.
 
 Provides load/save/modify functions backed by SQLite (BookmarkDB / UserDB).
-The public function signatures are unchanged so all routers continue to work
-without modification.
+User snapshots carry authoritative account incarnations: save/modify update
+existing identities only; registration and deletion use explicit lifecycle APIs.
 
-Migration: on first call the legacy JSON files are automatically imported
-into SQLite and renamed to *.migrated.
+Legacy bookmarks are imported and renamed. Legacy users have a transactional
+one-time import marker and retained username history to prevent resurrection.
 """
 
 import json
@@ -86,6 +86,11 @@ def _restore_sessions_from_workspace() -> int:
             "papers_data": metadata.get("papers_data"),
             "progress": "Restored from workspace",
             "username": restored_username,
+            **(
+                {"account_incarnation": metadata["account_incarnation"]}
+                if "account_incarnation" in metadata
+                else {}
+            ),
         }
         restored += 1
 
@@ -158,6 +163,7 @@ def _get_user_db():
 
 # ── Bookmarks public API ──────────────────────────────────────────────
 
+
 def load_bookmarks(include_reports: bool = True) -> dict:
     """Load bookmarks from SQLite (thread-safe).
 
@@ -215,9 +221,7 @@ def load_bookmarks_for_user(username: str, include_reports: bool = True) -> list
             user_hash_prefix,
         )
         return []
-    return _get_bookmark_db().get_by_username(
-        username, include_reports=include_reports
-    )
+    return _get_bookmark_db().get_by_username(username, include_reports=include_reports)
 
 
 def save_bookmarks(data: dict) -> None:
@@ -269,6 +273,7 @@ def modify_bookmarks():
 
 # ── Users public API ─────────────────────────────────────────────────
 
+
 def load_users() -> dict:
     """Load users from SQLite (thread-safe).
 
@@ -280,39 +285,24 @@ def load_users() -> dict:
 
 
 def save_users(users: dict) -> None:
-    """Persist a users dict to SQLite.
-
-    Accepts the same ``{username: {...}}`` structure as before.
-    Each user is upserted; users absent from *users* are NOT deleted
-    (use :func:`modify_users` for replace-all semantics).
-    """
-    db = _get_user_db()
-    for username, data in users.items():
-        db.upsert(username, data)
-
-
-def _save_users_replace(users: dict) -> None:
-    """Replace-all helper used inside modify_users context manager."""
-    db = _get_user_db()
-    new_usernames = set(users.keys())
-
-    existing = db.get_all()
-    for username in existing:
-        if username not in new_usernames:
-            db.delete(username)
-
-    for username, data in users.items():
-        db.upsert(username, data)
+    """Atomically update existing account snapshots; never create identities."""
+    with _get_user_db().transaction() as tx:
+        for username, data in users.items():
+            tx.upsert(
+                username, data, expected_incarnation=data.get("account_incarnation")
+            )
 
 
 @contextmanager
 def modify_users():
-    """Atomically read-modify-write users backed by SQLite."""
-    db = _get_user_db()
-    users = db.get_all()
-    try:
+    """Update existing users in one transaction; lifecycle changes are explicit."""
+    from src.storage.user_db import AccountLifecycleError
+
+    with _get_user_db().transaction() as tx:
+        users = tx.get_all()
+        original = {name: user["account_incarnation"] for name, user in users.items()}
         yield users
-    except Exception:
-        raise
-    else:
-        _save_users_replace(users)
+        if users.keys() != original.keys():
+            raise AccountLifecycleError("explicit_lifecycle_operation_required")
+        for username, data in users.items():
+            tx.upsert(username, data, expected_incarnation=original[username])

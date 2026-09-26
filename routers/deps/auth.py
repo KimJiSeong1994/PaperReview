@@ -11,6 +11,8 @@ the JWT's natural expiry.
 import logging
 import os
 import secrets
+import sqlite3
+from dataclasses import dataclass
 from typing import Optional
 
 import jwt as _pyjwt
@@ -18,6 +20,7 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 from src.analytics.mcp_context import identify_actor, is_mcp_request
+from src.storage.user_db import AccountLifecycleError
 
 from .config import ENVIRONMENT
 
@@ -29,30 +32,62 @@ if not _JWT_SECRET:
     if ENVIRONMENT == "production":
         raise RuntimeError(
             "FATAL: JWT_SECRET environment variable is required in production. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     _JWT_SECRET = secrets.token_hex(32)
     logger.warning("JWT_SECRET not set — using random secret (development mode).")
 _JWT_ALGORITHM = "HS256"
 
 
+@dataclass(frozen=True)
+class AuthenticatedPrincipal:
+    username: str
+    account_incarnation: str
+
+
 def _decode_jwt(request: Request) -> dict:
     """Extract and decode JWT from Authorization header. Returns full payload."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Missing or invalid Authorization header"
+        )
 
-    token = auth_header[len("Bearer "):]
+    token = auth_header[len("Bearer ") :]
     try:
-        payload = _pyjwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+        payload = _pyjwt.decode(
+            token,
+            _JWT_SECRET,
+            algorithms=[_JWT_ALGORITHM],
+            options={"require": ["sub", "exp", "account_incarnation"]},
+        )
     except _pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except _pyjwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    if not payload.get("sub"):
-        raise HTTPException(status_code=401, detail="Invalid token payload")
+    from .storage import _get_user_db
+
+    try:
+        user = _get_user_db().validate_principal(
+            payload["sub"], payload["account_incarnation"]
+        )
+    except AccountLifecycleError:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+    except sqlite3.Error:
+        raise HTTPException(status_code=503, detail="Account authority unavailable")
+    payload["role"] = user.get("role")
+    request.state.authenticated_principal = AuthenticatedPrincipal(
+        payload["sub"], payload["account_incarnation"]
+    )
     return payload
+
+
+async def get_authenticated_principal(request: Request) -> AuthenticatedPrincipal:
+    """Return the identity validated at the authoritative auth boundary."""
+    payload = _decode_jwt(request)
+    identify_actor(payload["sub"], payload.get("role"))
+    return AuthenticatedPrincipal(payload["sub"], payload["account_incarnation"])
 
 
 async def get_current_user(request: Request) -> str:
@@ -61,15 +96,7 @@ async def get_current_user(request: Request) -> str:
     A deleted or disabled account returns HTTP 401 with detail
     ``"Account deleted or disabled"`` so the client can force re-login.
     """
-    payload = _decode_jwt(request)
-    username = payload["sub"]
-    # Deferred import to avoid a circular dependency at module-load time.
-    from .storage import _get_user_db
-    user = _get_user_db().get(username)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Account deleted or disabled")
-    identify_actor(username, user.get("role"))
-    return username
+    return (await get_authenticated_principal(request)).username
 
 
 async def get_admin_user(request: Request) -> str:
@@ -83,14 +110,7 @@ async def get_admin_user(request: Request) -> str:
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     username = payload["sub"]
-    from .storage import _get_user_db
-    user = _get_user_db().get(username)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Account deleted or disabled")
-    # Re-verify role from DB to honour demotions between token issue and now.
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    identify_actor(username, user.get("role"))
+    identify_actor(username, payload.get("role"))
     return username
 
 
@@ -106,13 +126,8 @@ async def get_optional_user(request: Request) -> Optional[str]:
     if is_mcp_request(request.headers):
         return await get_current_user(request)
     try:
-        payload = _decode_jwt(request)
-    except HTTPException:
+        return await get_current_user(request)
+    except HTTPException as exc:
+        if exc.status_code != 401:
+            raise
         return None
-    username = payload.get("sub")
-    if not username:
-        return None
-    from .storage import _get_user_db
-    if _get_user_db().get(username) is None:
-        return None
-    return username

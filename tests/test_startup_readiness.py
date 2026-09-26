@@ -1,7 +1,10 @@
 """Optional model warmup must not hold public blog readiness hostage."""
 
 import asyncio
+import importlib.util
+import json
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +12,32 @@ import api_server as server
 import routers.pdf_proxy as pdf_proxy
 import src.analytics.mcp_usage as mcp_usage
 import src.events.event_bus as event_bus
+
+
+def test_paper_router_import_respects_data_root(tmp_path, monkeypatch):
+    import routers.papers as papers
+
+    launch = tmp_path / "launch"
+    launch.mkdir()
+    isolated = tmp_path / "isolated"
+    isolated.mkdir()
+    legacy = isolated / "papers.json"
+    legacy.write_text(
+        json.dumps(
+            {"papers": [{"doc_id": "fixture-paper", "title": "Synthetic fixture"}]}
+        )
+    )
+    monkeypatch.chdir(launch)
+    monkeypatch.setenv("DATA_DIR", str(isolated))
+    spec = importlib.util.spec_from_file_location(
+        "routers._isolated_paper_fixture", papers.__file__
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module._paper_db._db_path == isolated / "papers.db"
+    assert Path(module._JSON_PATH) == legacy
+    assert legacy.with_suffix(".json.migrated").exists()
+    assert not (launch / "data").exists()
 
 
 @pytest.fixture
@@ -19,6 +48,9 @@ def startup(monkeypatch, isolate_optional_model_warmup):
     )
 
     class Bus:
+        def bind_account_authority(self, authority):
+            events.append("authority_bound")
+
         def register_main_loop(self, loop):
             events.append("bus_ready")
 
@@ -110,6 +142,57 @@ async def test_required_database_initialization_still_blocks_startup(
         async with server.lifespan(server.app):
             pytest.fail("Required initialization was bypassed")
     assert "workers_started" not in startup
+
+
+@pytest.mark.asyncio
+async def test_account_lifecycle_failure_prevents_readiness(startup, monkeypatch):
+    def fail():
+        raise RuntimeError("account lifecycle initialization failed")
+
+    monkeypatch.setattr(server, "_initialize_account_authority", fail)
+    with pytest.raises(RuntimeError, match="account lifecycle"):
+        async with server.lifespan(server.app):
+            pytest.fail("Uninitialized account identities must not accept traffic")
+    assert not server.app.state.account_authority_ready
+    assert "db_ready" not in startup
+    assert "workers_started" not in startup
+
+
+@pytest.mark.asyncio
+async def test_policy_store_loss_prevents_readiness_without_reprovisioning(startup):
+    import os
+    import sqlite3
+    from routers.deps.storage import _get_user_db
+    from src.recommendation_state import RecommendationState
+
+    path = Path(os.environ["EVENTS_DB_PATH"])
+    authority = _get_user_db()
+    RecommendationState.initialize(path, authority=authority)
+    path.unlink()
+    with pytest.raises(sqlite3.Error):
+        async with server.lifespan(server.app):
+            pytest.fail("Missing acknowledged policy storage must not be reset")
+    assert not server.app.state.account_authority_ready
+    assert "workers_started" not in startup
+    assert not path.exists()
+
+
+@pytest.mark.asyncio
+async def test_account_lifecycle_is_initialized_before_background_workers(
+    startup, monkeypatch
+):
+    monkeypatch.setattr(
+        server,
+        "_initialize_account_authority",
+        lambda: startup.append("accounts_ready"),
+    )
+    monkeypatch.setattr(server, "_warm_cross_encoder", lambda: None)
+    async with server.lifespan(server.app):
+        assert startup.index("accounts_ready") < startup.index("db_ready")
+        assert startup.index("accounts_ready") < startup.index("authority_bound")
+        assert startup.index("authority_bound") < startup.index("workers_started")
+        assert startup.index("accounts_ready") < startup.index("workers_started")
+        assert server.app.state.account_authority_ready
 
 
 @pytest.mark.asyncio

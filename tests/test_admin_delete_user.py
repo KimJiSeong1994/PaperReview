@@ -31,6 +31,7 @@ from unittest.mock import patch
 import jwt as _pyjwt
 import pytest
 from fastapi.testclient import TestClient
+from filelock import FileLock
 
 # Env must be primed before any app import.
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-testing-only")
@@ -41,8 +42,13 @@ _JWT_SECRET = os.environ["JWT_SECRET"]
 
 
 def _token(username: str, role: str = "user") -> str:
+    from routers.deps.storage import _get_user_db
+
+    user = _get_user_db().get(username)
+    assert user is not None
     payload = {
         "sub": username,
+        "account_incarnation": user["account_incarnation"],
         "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -58,7 +64,7 @@ def _bearer(username: str, role: str = "user") -> dict[str, str]:
 
 
 @pytest.fixture
-def tmp_env(tmp_path: Path) -> Iterator[dict[str, Path]]:
+def tmp_env(tmp_path: Path, monkeypatch) -> Iterator[dict[str, Path]]:
     """Redirect every cascade-relevant path to ``tmp_path``.
 
     We patch ``routers.deps.user_deletion.X`` directly so the cascade
@@ -69,14 +75,32 @@ def tmp_env(tmp_path: Path) -> Iterator[dict[str, Path]]:
     profile_db = tmp_path / "profile.db"
     embeddings_dir = tmp_path / "embeddings" / "users"
     audit_log = tmp_path / ".gdpr_audit.jsonl"
+    monkeypatch.setenv("EVENTS_DB_PATH", str(events_db))
+    from routers.deps.storage import _get_user_db
+    from src.recommendation_state import RecommendationState
+
+    RecommendationState.initialize(events_db, authority=_get_user_db())
 
     with (
         patch("routers.deps.user_deletion.EVENTS_DB_PATH", events_db),
         patch("routers.deps.user_deletion.PROFILE_DB_PATH", profile_db),
-        patch(
-            "routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", embeddings_dir
-        ),
+        patch("routers.deps.user_deletion.EMBEDDINGS_USERS_DIR", embeddings_dir),
         patch("routers.deps.user_deletion.GDPR_AUDIT_LOG", audit_log),
+        patch("routers.deps.user_deletion.BLOG_POSTS_FILE", tmp_path / "blog.json"),
+        patch(
+            "routers.deps.user_deletion.BLOG_POSTS_LOCK",
+            FileLock(str(tmp_path / "blog.lock")),
+        ),
+        patch("routers.deps.user_deletion.CURRICULA_DIR", tmp_path / "curricula"),
+        patch("routers.deps.user_deletion.PAPERS_FILE", tmp_path / "papers.json"),
+        patch(
+            "routers.deps.user_deletion.RECOMMENDATIONS_DIR",
+            tmp_path / "recommendations",
+        ),
+        patch(
+            "routers.deps.user_deletion.RECOMMENDATION_CANDIDATES_DIR",
+            tmp_path / "candidates",
+        ),
     ):
         yield {
             "events_db": events_db,
@@ -88,13 +112,16 @@ def tmp_env(tmp_path: Path) -> Iterator[dict[str, Path]]:
 
 
 def _seed_user(username: str, role: str = "user") -> None:
-    """Insert/upsert ``username`` into the real user DB."""
+    """Explicitly create or CAS-update an isolated account."""
     from routers.deps.storage import _get_user_db
 
-    _get_user_db().upsert(
-        username,
-        {"password_hash": "x", "role": role, "created_at": ""},
-    )
+    db = _get_user_db()
+    user = db.get(username)
+    data = {"password_hash": "x", "role": role, "created_at": ""}
+    if user is None:
+        db.create_account(username, data)
+    else:
+        db.upsert(username, data, expected_incarnation=user["account_incarnation"])
 
 
 def _reset_rate_limiter() -> None:
@@ -169,16 +196,7 @@ def test_admin_cannot_delete_self_via_admin_endpoint(client: TestClient) -> None
 def test_curriculum_stage_survives_appledouble_and_bad_encoding(
     client: TestClient, tmp_env: dict
 ) -> None:
-    """AppleDouble sidecars / non-UTF-8 JSONs must not abort stage 7.
-
-    Before the fix: a single ``._foo.json`` (AppleDouble binary sidecar
-    that ``glob('*.json')`` happily yields) triggered UnicodeDecodeError
-    inside ``_anonymize_json_file``.  The per-file ``except OSError`` in
-    ``_stage_curriculum_anonymize`` didn't catch it, so the whole stage
-    failed and the user saw ``partial_failures: ["curriculum_anonymize"]``
-    even on clean admin-initiated deletes.  This pins the contract that
-    unreadable JSONs are skipped per-file, not elevated to stage failure.
-    """
+    """Ignore sidecars, but retain reservations for unreadable owner documents."""
     from routers.deps import user_deletion as _ud
     from routers.deps.storage import _get_user_db
 
@@ -198,7 +216,7 @@ def test_curriculum_stage_survives_appledouble_and_bad_encoding(
     sidecar = curri_dir / "._good.json"
     sidecar.write_bytes(b"\x00\x05\x16\x07" + b"\x00" * 33 + b"\xcf\xff\xfe")
     # 3) Legit .json with cp949-encoded Korean (common on Windows exports).
-    bad_enc = curri_dir / "bad_encoding.json"
+    bad_enc = curri_dir / "z_bad_encoding.json"
     bad_enc.write_bytes('{"owner": "curri_victim", "note": "한글"}'.encode("cp949"))
 
     with patch("routers.deps.user_deletion.CURRICULA_DIR", curri_dir):
@@ -207,44 +225,44 @@ def test_curriculum_stage_survives_appledouble_and_bad_encoding(
             headers=_bearer("test-admin", "admin"),
         )
 
-    assert resp.status_code == 200, resp.text
+    assert resp.status_code == 503, resp.text
     body = resp.json()
-    assert "curriculum_anonymize" not in body["partial_failures"], body
-    assert body["success"] is True, body
+    assert "curriculum_anonymize" in body["partial_failures"], body
+    assert body["success"] is False and body["retryable"] is True, body
+    assert _get_user_db().get_lifecycle("curri_victim")["state"] == "cleanup_pending"
     # Victim is gone from the DB; good.json is anonymized.
     assert _get_user_db().get("curri_victim") is None
     assert "curri_victim" not in good.read_text(encoding="utf-8")
     # The sentinel lives in good.json.
     prefix = _ud.ANONYMIZED_SENTINEL_PREFIX
     assert prefix in good.read_text(encoding="utf-8")
+    # Repair the actual owner document; the hidden sidecar remains ignored.
+    bad_enc.write_text('{"owner": "curri_victim"}', encoding="utf-8")
+    with patch("routers.deps.user_deletion.CURRICULA_DIR", curri_dir):
+        retry = client.delete(
+            "/api/admin/users/curri_victim", headers=_bearer("test-admin", "admin")
+        )
+    assert retry.status_code == 200 and retry.json()["success"] is True
+    assert sidecar.exists()
 
 
 def test_last_admin_guard_triggers_409(tmp_env: dict) -> None:
-    """The defensive last-admin check returns 409 when fired.
-
-    The 409 branch is not reachable through a pure HTTP round-trip
-    (self-delete is 400, demoted-admin tokens are 403 via
-    ``get_admin_user``'s DB re-check, two live admins make the count > 1).
-    We therefore invoke the handler directly with a DB state where it
-    IS the only live guard — exactly one admin row that is not the
-    caller — and assert the 409 is raised.
-    """
+    """Exercise the defensive last-admin branch without bypassing actor auth."""
     import asyncio
+    import inspect
 
-    from fastapi import HTTPException
+    from fastapi import Response
     from starlette.requests import Request
 
     from routers.admin import delete_user
     from routers.deps.storage import _get_user_db
+    from routers.deps.auth import AuthenticatedPrincipal
+    from src.storage.user_db import _UserTransaction
 
     db = _get_user_db()
-    # Wipe and set up: exactly one admin, plus a distinct "caller"
-    # principal that we pretend is another admin (the real DB-role
-    # check is done by ``get_admin_user``, which we bypass by calling
-    # the handler directly).
-    for existing in list(db.get_all().keys()):
-        db.delete(existing)
-    db.upsert("sole_admin", {"role": "admin", "created_at": ""})
+    target = db.create_account("sole_admin", {"role": "admin", "created_at": ""})
+    caller = db.create_account("caller_admin", {"role": "admin"})
+    principal = AuthenticatedPrincipal("caller_admin", caller["account_incarnation"])
 
     # slowapi's limiter insists on a real starlette.requests.Request —
     # build one from a minimal ASGI scope.
@@ -259,17 +277,22 @@ def test_last_admin_guard_triggers_409(tmp_env: dict) -> None:
         }
     )
 
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            delete_user(
+    # With two genuinely active admins the guard cannot normally fire.
+    # Inject the defensive count condition, not a forged authenticated actor.
+    response = Response()
+    with patch.object(_UserTransaction, "get_all", return_value={"sole_admin": target}):
+        result = asyncio.run(
+            inspect.unwrap(delete_user)(
                 request=req,
                 username="sole_admin",
-                admin="caller_admin",
+                response=response,
+                admin=principal,
             )
         )
 
-    assert exc_info.value.status_code == 409
-    assert "last admin" in exc_info.value.detail.lower()
+    assert response.status_code == 409
+    assert result["partial_failures"] == ["last_admin"]
+    assert db.get("sole_admin") == target
 
 
 def test_invalid_username_returns_400(client: TestClient) -> None:
@@ -304,10 +327,10 @@ def test_deleted_users_jwt_becomes_unusable(client: TestClient) -> None:
     """After the cascade the victim's own token must be rejected (HTTP 401)."""
     _seed_user("disappear_me")
 
+    # Preserve the original JWT rather than attempting to mint after deletion.
+    victim_headers = _bearer("disappear_me", "user")
     # Pre-check: victim can hit a protected route with their own token.
-    pre = client.get(
-        "/api/bookmarks", headers=_bearer("disappear_me", "user")
-    )
+    pre = client.get("/api/bookmarks", headers=victim_headers)
     assert pre.status_code == 200, pre.text
 
     # Admin wipes the account.
@@ -319,8 +342,9 @@ def test_deleted_users_jwt_becomes_unusable(client: TestClient) -> None:
 
     # Same token, same endpoint — now rejected because the DB-existence
     # check in ``get_current_user`` fails for a user that no longer exists.
-    post = client.get(
-        "/api/bookmarks", headers=_bearer("disappear_me", "user")
-    )
+    post = client.get("/api/bookmarks", headers=victim_headers)
     assert post.status_code == 401
-    assert "deleted" in post.json()["detail"].lower() or "disabled" in post.json()["detail"].lower()
+    assert (
+        "deleted" in post.json()["detail"].lower()
+        or "disabled" in post.json()["detail"].lower()
+    )

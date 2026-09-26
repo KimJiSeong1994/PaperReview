@@ -27,6 +27,7 @@ def _fresh_module(monkeypatch, db_path: str):
     monkeypatch.setenv("FEATURE_FLAGS_DB_PATH", db_path)
 
     import src.events.feature_flags as ff_module
+
     importlib.reload(ff_module)
     return ff_module
 
@@ -34,6 +35,27 @@ def _fresh_module(monkeypatch, db_path: str):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+
+def test_durable_data_root_and_explicit_store_precedence(monkeypatch, tmp_path):
+    ff = _fresh_module(monkeypatch, str(tmp_path / "explicit.db"))
+    release_default = tmp_path / "release" / "data" / "feature_flags.db"
+    monkeypatch.setattr(ff, "_DEFAULT_DB_PATH", release_default)
+    monkeypatch.delenv("FEATURE_FLAGS_DB_PATH")
+    data_dir = tmp_path / "durable"
+    monkeypatch.setenv("DATA_DIR", str(data_dir))
+    monkeypatch.delenv(ff.PROFILE_RANKER_ENABLED, raising=False)
+
+    ff.set_override(ff.PROFILE_RANKER_ENABLED, enabled=True, username="fixture-user")
+    assert ff.is_enabled(ff.PROFILE_RANKER_ENABLED, username="fixture-user")
+    assert (data_dir / "feature_flags.db").exists()
+    assert not release_default.parent.exists()
+
+    monkeypatch.setenv("FEATURE_FLAGS_DB_PATH", str(tmp_path / "explicit.db"))
+    ff.set_override(ff.PROFILE_RANKER_ENABLED, enabled=False, username="fixture-user")
+    assert not ff.is_enabled(ff.PROFILE_RANKER_ENABLED, username="fixture-user")
+    monkeypatch.delenv("FEATURE_FLAGS_DB_PATH")
+    assert ff.is_enabled(ff.PROFILE_RANKER_ENABLED, username="fixture-user")
 
 
 def test_env_var_default_false(monkeypatch, tmp_path):

@@ -10,7 +10,9 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import time
+from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -58,18 +60,34 @@ from .deps import (
 )
 
 
-def _require_session_owner(session: Dict[str, Any], username: str) -> None:
-    """Enforce session ownership. Raise 404 if caller is not the owner.
+from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
+from .deps.storage import _get_user_db
+from src.storage.bookmark_db import bookmark_belongs_to_account
+from src.storage.user_db import AccountLifecycleError
+from src.recommendation_attribution import attribute_recommendation_outcome
 
-    Security note: any mismatch (including ``session_owner is None`` — a
-    legacy or anonymously-created session) returns ``404 "Session not
-    found"``. We return 404 rather than 403 so callers cannot distinguish
-    between "session exists but you can't see it" and "session ID is
-    unknown", preventing enumeration of session IDs.
-    """
-    session_owner = session.get("username")
-    if session_owner != username:
+
+@contextmanager
+def _account_guard(principal: AuthenticatedPrincipal):
+    try:
+        with _get_user_db().account_guard(
+            principal.username, principal.account_incarnation
+        ) as account:
+            yield account
+    except AccountLifecycleError:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+
+
+def _require_session_owner(session, principal, account) -> None:
+    """Use the same authoritative ownership boundary as bookmark attachment."""
+    if not bookmark_belongs_to_account(
+        session,
+        username=principal.username,
+        account_incarnation=principal.account_incarnation,
+        legacy_event_cutoff=account["legacy_event_cutoff"],
+    ):
         raise HTTPException(status_code=404, detail="Session not found")
+
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +117,7 @@ DEEP_REVIEW_SYSTEM_PROMPT = (
 
 _SESSION_TTL_SECONDS = 86400  # 24 hours
 _last_cleanup = 0.0
+
 
 def _cleanup_expired_sessions():
     """Remove review sessions older than 24 hours."""
@@ -178,6 +197,7 @@ def _user_hash(username: Optional[str]) -> str:
 
 # ── Pydantic models ───────────────────────────────────────────────────
 
+
 class DeepReviewRequest(BaseModel):
     paper_ids: List[str]
     papers: Optional[List[Dict[str, Any]]] = None
@@ -211,7 +231,10 @@ class ReviewStatusResponse(BaseModel):
 
 # ── Helper functions ───────────────────────────────────────────────────
 
-def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+def _enrich_papers_with_abstracts(
+    papers_data: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """Fetch abstracts from arXiv for papers that lack them (batch mode)."""
     try:
         import arxiv
@@ -242,9 +265,17 @@ def _enrich_papers_with_abstracts(papers_data: List[Dict[str, Any]]) -> List[Dic
 
         for result in client.results(search):
             # Match result back to paper
-            result_id = result.entry_id.split("/abs/")[-1].split("v")[0] if result.entry_id else ""
+            result_id = (
+                result.entry_id.split("/abs/")[-1].split("v")[0]
+                if result.entry_id
+                else ""
+            )
             if not result_id:
-                result_id = result.get_short_id().split("v")[0] if hasattr(result, "get_short_id") else ""
+                result_id = (
+                    result.get_short_id().split("v")[0]
+                    if hasattr(result, "get_short_id")
+                    else ""
+                )
 
             idx = needs_abstract.get(result_id)
             if idx is not None:
@@ -326,7 +357,9 @@ def run_fast_review(
         citations = paper.get("citations")
         doi = paper.get("doi", "")
         url = paper.get("url", "") or paper.get("pdf_url", "")
-        venue = paper.get("venue") or paper.get("journal") or paper.get("journal_ref", "")
+        venue = (
+            paper.get("venue") or paper.get("journal") or paper.get("journal_ref", "")
+        )
         full_text = paper.get("full_text", "")
 
         cat_str = ", ".join(categories[:5]) if categories else ""
@@ -358,10 +391,14 @@ def run_fast_review(
         papers_text.append(paper_entry)
 
     combined_papers = "\n".join(papers_text)
-    skillopt_policy_block, skillopt_policy_reason = _load_skillopt_deep_review_prompt_block()
+    skillopt_policy_block, skillopt_policy_reason = (
+        _load_skillopt_deep_review_prompt_block()
+    )
     with review_sessions_lock:
         if session_id in review_sessions:
-            review_sessions[session_id]["skillopt_policy_reason"] = skillopt_policy_reason
+            review_sessions[session_id]["skillopt_policy_reason"] = (
+                skillopt_policy_reason
+            )
 
     prompt = f"""당신은 Nature, Science 등 최상위 저널의 리뷰어이자, 해당 분야에서 20년 이상 핵심 연구를 수행해온 석학 교수입니다.{skillopt_policy_block}
 다음 {len(papers)}편의 논문을 단순히 요약하는 것이 아니라, **비판적으로 분석하고 학술적 통찰을 도출**하여
@@ -393,7 +430,7 @@ def run_fast_review(
 
 ---
 
-**리뷰 날짜**: {datetime.now().strftime('%Y년 %m월 %d일')}
+**리뷰 날짜**: {datetime.now().strftime("%Y년 %m월 %d일")}
 **분석 논문 수**: {len(papers)}편
 **리뷰 방법론**: AI 기반 심층 연구 분석 시스템 (비판적 분석 프레임워크)
 
@@ -578,11 +615,15 @@ def run_fast_review(
 
         with review_sessions_lock:
             if session_id in review_sessions:
-                review_sessions[session_id]["progress"] = "AI is analysing the papers..."
+                review_sessions[session_id]["progress"] = (
+                    "AI is analysing the papers..."
+                )
 
         # Scale timeout with number of papers (min 180s, +60s per paper, max 600s)
         api_timeout = min(600, max(180, 60 * len(papers)))
-        logger.info("[Fast Review] API timeout: %ds for %d papers", api_timeout, len(papers))
+        logger.info(
+            "[Fast Review] API timeout: %ds for %d papers", api_timeout, len(papers)
+        )
 
         messages = [
             {"role": "system", "content": FAST_REVIEW_SYSTEM_PROMPT},
@@ -599,7 +640,8 @@ def run_fast_review(
         last_err: Optional[Exception] = None
         for attempt in range(1, max_retries + 1):
             try:
-                response = create_chat_completion(client,
+                response = create_chat_completion(
+                    client,
                     model=deep_research_model,
                     messages=messages,
                     temperature=0.4,
@@ -616,7 +658,9 @@ def run_fast_review(
                     backoff = 2 * attempt  # 2s, 4s
                     logger.warning(
                         "[Fast Review] Attempt %d failed (%s); retrying in %ds",
-                        attempt, retry_err.__class__.__name__, backoff,
+                        attempt,
+                        retry_err.__class__.__name__,
+                        backoff,
                     )
                     with review_sessions_lock:
                         if session_id in review_sessions:
@@ -689,12 +733,16 @@ def run_fast_review(
             )
         logger.exception(
             "Fast Review error (session=%s, user=%s): %s",
-            session_id, _user_hash(uname), e,
+            session_id,
+            _user_hash(uname),
+            e,
         )
         return {"status": "failed", "error": str(e)}
 
 
-def _generate_review_report_content(workspace: Any, result: dict, paper_ids: List[str]) -> str:
+def _generate_review_report_content(
+    workspace: Any, result: dict, paper_ids: List[str]
+) -> str:
     """
     Generate a Korean academic research-style deep report using LLM.
     """
@@ -906,7 +954,7 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
 ---
 
 ## 부록: 리뷰 메타데이터
-- **리뷰 생성 일시**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+- **리뷰 생성 일시**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 - **세션 ID**: {workspace.session_id}
 - **분석 시스템**: 멀티 에이전트 심층 연구 시스템
 - **분석된 논문 수**: {num_papers}편
@@ -931,10 +979,13 @@ def _generate_review_report_content(workspace: Any, result: dict, paper_ids: Lis
     # the background caller catches, marks the session failed with an
     # informative error, and leaves any partial output untouched.
     deep_research_model = DEFAULT_RESEARCH_MODEL
-    logger.info("[Deep Review] Generating report with LLM... (model: %s)", deep_research_model)
+    logger.info(
+        "[Deep Review] Generating report with LLM... (model: %s)", deep_research_model
+    )
 
     client = get_openai_client()
-    response = create_chat_completion(client,
+    response = create_chat_completion(
+        client,
         model=deep_research_model,
         messages=[
             {"role": "system", "content": DEEP_REVIEW_SYSTEM_PROMPT},
@@ -987,7 +1038,9 @@ def _generate_fallback_report(
                 if isinstance(content, str) and content:
                     report.append(content[:5000])
                 elif isinstance(content, dict):
-                    report.append(json.dumps(content, indent=2, ensure_ascii=False)[:5000])
+                    report.append(
+                        json.dumps(content, indent=2, ensure_ascii=False)[:5000]
+                    )
 
                 report.append("")
                 report.append("---")
@@ -997,7 +1050,9 @@ def _generate_fallback_report(
             report.append(f"[{i}] Paper ID: {paper_id}")
 
     report.append("")
-    report.append("*A fallback template was used due to an error during report generation.*")
+    report.append(
+        "*A fallback template was used due to an error during report generation.*"
+    )
 
     return "\n".join(report)
 
@@ -1011,33 +1066,51 @@ def run_deep_review_background(
     workspace: Any,
     fast_mode: bool = True,
     mcp_measurement: tuple[dict[str, Any], float] | None = None,
+    owner_principal: AuthenticatedPrincipal | None = None,
 ):
     """Background task to run deep review."""
     try:
         logger.info("[Deep Review] Starting session %s", session_id)
-        logger.info("[Deep Review] Papers: %s, Mode: %s", len(paper_ids), "Fast" if fast_mode else "Deep")
-        logger.info("[Deep Review] Direct papers data: %s papers", len(papers_data) if papers_data else 0)
+        logger.info(
+            "[Deep Review] Papers: %s, Mode: %s",
+            len(paper_ids),
+            "Fast" if fast_mode else "Deep",
+        )
+        logger.info(
+            "[Deep Review] Direct papers data: %s papers",
+            len(papers_data) if papers_data else 0,
+        )
 
         with review_sessions_lock:
             if session_id in review_sessions:
                 review_sessions[session_id]["status"] = "analyzing"
                 review_sessions[session_id]["progress"] = (
-                    "Analysing papers..." if fast_mode else "Researchers analyzing papers with deepagents..."
+                    "Analysing papers..."
+                    if fast_mode
+                    else "Researchers analyzing papers with deepagents..."
                 )
 
         # Enrich papers lacking abstracts (e.g. curriculum papers with arxiv_id)
         if papers_data:
             with review_sessions_lock:
                 if session_id in review_sessions:
-                    review_sessions[session_id]["progress"] = "Fetching paper abstracts..."
+                    review_sessions[session_id]["progress"] = (
+                        "Fetching paper abstracts..."
+                    )
             papers_data = _enrich_papers_with_abstracts(papers_data)
 
         if fast_mode:
-            result = run_fast_review(session_id, paper_ids, model, workspace, papers_data)
+            result = run_fast_review(
+                session_id, paper_ids, model, workspace, papers_data
+            )
         else:
             from app.DeepAgent.deep_review_agent import DeepReviewAgent
 
-            agent = DeepReviewAgent(model=model or DEFAULT_TOOL_MODEL, num_researchers=num_researchers, workspace=workspace)
+            agent = DeepReviewAgent(
+                model=model or DEFAULT_TOOL_MODEL,
+                num_researchers=num_researchers,
+                workspace=workspace,
+            )
             result = agent.review_papers(
                 paper_ids=paper_ids, verbose=True, papers_data=papers_data
             )
@@ -1050,9 +1123,13 @@ def run_deep_review_background(
                 reports_dir = Path(workspace_path) / "reports"
                 reports_dir.mkdir(parents=True, exist_ok=True)
 
-                report_content = _generate_review_report_content(workspace, result, paper_ids)
+                report_content = _generate_review_report_content(
+                    workspace, result, paper_ids
+                )
 
-                report_filename = f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                report_filename = (
+                    f"final_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                )
                 report_path = reports_dir / report_filename
                 report_path.write_text(report_content, encoding="utf-8")
                 logger.info("[Review] Report saved to: %s", report_path)
@@ -1073,7 +1150,9 @@ def run_deep_review_background(
                     )
                 logger.exception(
                     "[Deep Review] Report generation failed for session %s (user=%s): %s",
-                    session_id, _user_hash(uname), report_error,
+                    session_id,
+                    _user_hash(uname),
+                    report_error,
                 )
 
         with review_sessions_lock:
@@ -1093,25 +1172,37 @@ def run_deep_review_background(
                     review_sessions[session_id]["progress"] = "Review completed"
                     review_sessions[session_id]["report_available"] = True
                     review_sessions[session_id]["workspace_path"] = workspace_path
-                    review_sessions[session_id]["num_papers"] = result.get("papers_reviewed", len(paper_ids))
+                    review_sessions[session_id]["num_papers"] = result.get(
+                        "papers_reviewed", len(paper_ids)
+                    )
                     if papers_data:
                         review_sessions[session_id]["papers_data"] = papers_data
 
                     # metadata.json 갱신 (서버 재시작 시 세션 복원용).
-                    # F-02: username을 반드시 기록해 재시작 후에도 소유자 정보가
-                    # 유실되지 않도록 한다 (없으면 sentinel 로 강제 차단됨).
+                    # Persist the request's captured identity, never resolve a
+                    # username after work that may outlive account deletion.
                     try:
                         meta_path = Path(workspace_path) / "metadata.json"
-                        meta = {"session_id": session_id, "status": "completed",
-                                "num_papers": review_sessions[session_id]["num_papers"],
-                                "paper_ids": paper_ids,
-                                "username": review_sessions[session_id].get("username")}
+                        meta = {
+                            "session_id": session_id,
+                            "status": "completed",
+                            "num_papers": review_sessions[session_id]["num_papers"],
+                            "paper_ids": paper_ids,
+                            "username": owner_principal.username
+                            if owner_principal is not None
+                            else None,
+                            "account_incarnation": owner_principal.account_incarnation
+                            if owner_principal is not None
+                            else None,
+                        }
                         if papers_data:
                             meta["papers_data"] = papers_data
                         with open(meta_path, "w", encoding="utf-8") as mf:
                             json.dump(meta, mf, ensure_ascii=False, indent=2)
                     except Exception as me:
-                        logger.warning("[Deep Review] Failed to update metadata.json: %s", me)
+                        logger.warning(
+                            "[Deep Review] Failed to update metadata.json: %s", me
+                        )
 
                     # 검증 통계 저장
                     v_result = result.get("verification", {})
@@ -1128,9 +1219,13 @@ def run_deep_review_background(
                         }
                 else:
                     review_sessions[session_id]["status"] = "failed"
-                    review_sessions[session_id]["error"] = result.get("error", "Unknown error")
+                    review_sessions[session_id]["error"] = result.get(
+                        "error", "Unknown error"
+                    )
 
-        logger.info("[Deep Review] Session %s completed: %s", session_id, result["status"])
+        logger.info(
+            "[Deep Review] Session %s completed: %s", session_id, result["status"]
+        )
 
     except Exception as e:
         logger.exception("[Deep Review] Session %s failed: %s", session_id, e)
@@ -1147,6 +1242,7 @@ def run_deep_review_background(
 
 # ── Endpoints ──────────────────────────────────────────────────────────
 
+
 @router.post("/deep-review")
 @limiter.limit("5/minute")
 async def start_deep_review(
@@ -1156,24 +1252,36 @@ async def start_deep_review(
     username: str | None = Depends(get_optional_user),
 ):
     """Start deep paper review. Runs in background and returns session_id immediately."""
+    principal = getattr(request.state, "authenticated_principal", None)
+    if username is None:
+        principal = None
     _cleanup_expired_sessions()
 
     try:
         from app.DeepAgent.workspace_manager import WorkspaceManager
 
-        logger.info("[Deep Review] Starting with %s papers", len(review_request.paper_ids))
+        logger.info(
+            "[Deep Review] Starting with %s papers", len(review_request.paper_ids)
+        )
 
         workspace = WorkspaceManager()
         session_id = workspace.session_id
 
-        with review_sessions_lock:
+        with (
+            _account_guard(principal) if principal is not None else nullcontext(),
+            review_sessions_lock,
+        ):
             review_sessions[session_id] = {
                 "status": "processing",
                 "paper_ids": review_request.paper_ids,
+                "papers_data": review_request.papers,
                 "num_papers": len(review_request.paper_ids),
                 "workspace_path": str(workspace.session_path),
                 "created_at": datetime.now().isoformat(),
-                "username": username,
+                "username": principal.username if principal is not None else None,
+                "account_incarnation": principal.account_incarnation
+                if principal is not None
+                else None,
             }
 
         mcp_measurement = await record_job_started("deep_review", session_id)
@@ -1187,7 +1295,42 @@ async def start_deep_review(
             workspace=workspace,
             fast_mode=review_request.fast_mode,
             mcp_measurement=mcp_measurement,
+            owner_principal=principal,
         )
+
+        attribution = [{"status": "not_attributed", "reason": "anonymous"}]
+        if principal is not None:
+            attribution = [
+                {"status": "not_attributed", "reason": "missing_paper_metadata"}
+            ]
+            if review_request.papers:
+                try:
+                    authority = _get_user_db()
+                    events_db = Path(
+                        os.getenv(
+                            "EVENTS_DB_PATH",
+                            str(Path(os.getenv("DATA_DIR", "data")) / "events.db"),
+                        )
+                    )
+                    attribution = [
+                        attribute_recommendation_outcome(
+                            authority=authority,
+                            events_db=events_db,
+                            username=principal.username,
+                            account_incarnation=principal.account_incarnation,
+                            paper=paper,
+                            kind="review_start",
+                            outcome_id=session_id,
+                        )
+                        for paper in review_request.papers
+                    ]
+                except Exception:
+                    logger.warning(
+                        "Recommendation review-start attribution unavailable"
+                    )
+                    attribution = [
+                        {"status": "unavailable", "reason": "attribution_unavailable"}
+                    ]
 
         return {
             "success": True,
@@ -1195,22 +1338,28 @@ async def start_deep_review(
             "status": "processing",
             "message": f"Deep review started for {len(review_request.paper_ids)} papers",
             "status_url": f"/api/deep-review/status/{session_id}",
+            "recommendation_attribution": attribution,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("[Deep Review] ERROR: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to start review: {str(e)}")
 
 
 @router.get("/deep-review/status/{session_id}")
-async def get_review_status(session_id: str, username: str = Depends(get_current_user)) -> ReviewStatusResponse:
+async def get_review_status(
+    session_id: str,
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+) -> ReviewStatusResponse:
     """Get status of a deep review session."""
-    with review_sessions_lock:
+    with _account_guard(principal) as account, review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-        _require_session_owner(session, username)
+        _require_session_owner(session, principal, account)
 
         v_raw = session.get("verification_stats")
         v_stats = VerificationStats(**v_raw) if v_raw else None
@@ -1227,18 +1376,22 @@ async def get_review_status(session_id: str, username: str = Depends(get_current
 
 
 @router.get("/deep-review/report/{session_id}")
-async def get_review_report(session_id: str, username: str = Depends(get_current_user)):
+async def get_review_report(
+    session_id: str,
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+):
     """Get the generated review report."""
-    with review_sessions_lock:
+    with _account_guard(principal) as account, review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-        _require_session_owner(session, username)
+        _require_session_owner(session, principal, account)
 
         if session["status"] != "completed":
             raise HTTPException(
-                status_code=400, detail=f"Review not completed yet (status: {session['status']})"
+                status_code=400,
+                detail=f"Review not completed yet (status: {session['status']})",
             )
 
         workspace_path = Path(session["workspace_path"])
@@ -1247,7 +1400,9 @@ async def get_review_report(session_id: str, username: str = Depends(get_current
         if not reports_dir.exists():
             raise HTTPException(status_code=404, detail="Reports directory not found")
 
-        md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        md_files = sorted(
+            reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         if not md_files:
             raise HTTPException(status_code=404, detail="Report not found")
@@ -1255,7 +1410,9 @@ async def get_review_report(session_id: str, username: str = Depends(get_current
         with open(md_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
 
-        json_files = sorted(reports_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        json_files = sorted(
+            reports_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
         json_result = None
         if json_files:
             try:
@@ -1275,18 +1432,22 @@ async def get_review_report(session_id: str, username: str = Depends(get_current
 
 
 @router.get("/deep-review/verification/{session_id}")
-async def get_verification_detail(session_id: str, username: str = Depends(get_current_user)):
+async def get_verification_detail(
+    session_id: str,
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+):
     """Get detailed verification results (claims, evidence, cross-references)."""
-    with review_sessions_lock:
+    with _account_guard(principal) as account, review_sessions_lock:
         if session_id not in review_sessions:
             raise HTTPException(status_code=404, detail="Session not found")
 
         session = review_sessions[session_id]
-        _require_session_owner(session, username)
+        _require_session_owner(session, principal, account)
 
         if session["status"] != "completed":
             raise HTTPException(
-                status_code=400, detail=f"Review not completed yet (status: {session['status']})"
+                status_code=400,
+                detail=f"Review not completed yet (status: {session['status']})",
             )
 
         workspace_path = Path(session["workspace_path"])
@@ -1347,14 +1508,16 @@ async def get_verification_detail(session_id: str, username: str = Depends(get_c
 async def generate_poster_visualization(
     request: Request,
     session_id: str,
-    username: str = Depends(get_current_user),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
 ):
     """Generate a conference poster from the deep research report."""
     del request
     try:
-        logger.info("[Poster API] Starting poster generation for session: %s", session_id)
+        logger.info(
+            "[Poster API] Starting poster generation for session: %s", session_id
+        )
 
-        with review_sessions_lock:
+        with _account_guard(principal) as account, review_sessions_lock:
             if session_id not in review_sessions:
                 logger.error("[Poster API] Session not found: %s", session_id)
                 raise HTTPException(
@@ -1369,19 +1532,24 @@ async def generate_poster_visualization(
                 )
 
             session = review_sessions[session_id]
-            _require_session_owner(session, username)
+            _require_session_owner(session, principal, account)
 
             logger.info("[Poster API] Session found: status=%s", session.get("status"))
 
             if session["status"] != "completed":
-                logger.error("[Poster API] Review not completed: status=%s", session.get("status"))
+                logger.error(
+                    "[Poster API] Review not completed: status=%s",
+                    session.get("status"),
+                )
                 raise HTTPException(status_code=400, detail="Review not completed yet")
 
             workspace_path = Path(session["workspace_path"])
             logger.info("[Poster API] Workspace path: %s", workspace_path)
 
         reports_dir = workspace_path / "reports"
-        md_files = sorted(reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        md_files = sorted(
+            reports_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         if not md_files:
             logger.error("[Poster API] No report files found in: %s", reports_dir)
@@ -1410,7 +1578,9 @@ async def generate_poster_visualization(
             if not papers_data:
                 papers_data = session.get("papers_data")
                 if papers_data:
-                    logger.info("[Poster API] Using session papers data: %s", len(papers_data))
+                    logger.info(
+                        "[Poster API] Using session papers data: %s", len(papers_data)
+                    )
         except Exception as e:
             logger.warning("[Poster API] Failed to load papers data: %s", e)
             papers_data = session.get("papers_data")
@@ -1426,12 +1596,16 @@ async def generate_poster_visualization(
             from app.DeepAgent.agents import PosterGenerationAgent
 
             try:
-                from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+                from app.DeepAgent.config.design_pattern_manager import (
+                    get_design_pattern_manager,
+                )
 
                 pattern_manager = get_design_pattern_manager()
                 logger.info("[Poster API] DesignPatternManager initialized")
             except Exception as e:
-                logger.warning("[Poster API] Failed to initialize DesignPatternManager: %s", e)
+                logger.warning(
+                    "[Poster API] Failed to initialize DesignPatternManager: %s", e
+                )
                 pattern_manager = None
 
             poster_agent = PosterGenerationAgent(
@@ -1470,7 +1644,9 @@ async def generate_poster_visualization(
             ) from e
         except Exception as e:
             logger.exception("[Poster API] Failed to generate poster: %s", e)
-            raise HTTPException(status_code=500, detail=f"Failed to generate poster: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to generate poster: {str(e)}"
+            )
 
         if not result.get("poster_html"):
             error_msg = result.get("error", "Poster HTML generation returned empty")
@@ -1490,11 +1666,14 @@ async def generate_poster_visualization(
         raise
     except Exception as e:
         logger.exception("[Poster API] Unexpected error: %s", e)
-        raise HTTPException(status_code=500, detail=f"Poster generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Poster generation failed: {str(e)}"
+        )
 
 
 class DirectPosterRequest(BaseModel):
     """세션 없이 리포트 콘텐츠로 직접 포스터를 생성하는 요청."""
+
     report_content: str = Field(..., min_length=1, max_length=200_000)
     num_papers: int = Field(default=0, ge=0, le=50)
 
@@ -1515,13 +1694,20 @@ async def generate_poster_direct(
     # directly here; auth acts as a rate-limit / resource-protection gate.
     del request, username
     try:
-        logger.info("[Poster Direct] Starting: %d chars, %d papers", len(body.report_content), body.num_papers)
+        logger.info(
+            "[Poster Direct] Starting: %d chars, %d papers",
+            len(body.report_content),
+            body.num_papers,
+        )
 
         def _agent_factory():
             from app.DeepAgent.agents import PosterGenerationAgent
 
             try:
-                from app.DeepAgent.config.design_pattern_manager import get_design_pattern_manager
+                from app.DeepAgent.config.design_pattern_manager import (
+                    get_design_pattern_manager,
+                )
+
                 pattern_manager = get_design_pattern_manager()
             except Exception:
                 pattern_manager = None
@@ -1531,7 +1717,11 @@ async def generate_poster_direct(
                 enable_critic=True,
                 max_critic_rounds=1,  # 직접 생성은 1라운드로 빠르게
             )
-            logger.info("[Poster Direct] Agent: llm=%s, api_key=%s", poster_agent.llm is not None, bool(poster_agent.api_key))
+            logger.info(
+                "[Poster Direct] Agent: llm=%s, api_key=%s",
+                poster_agent.llm is not None,
+                bool(poster_agent.api_key),
+            )
             return poster_agent
 
         result = await _poster_service.generate(
@@ -1543,7 +1733,9 @@ async def generate_poster_direct(
         )
 
         if not result.get("poster_html"):
-            raise HTTPException(status_code=500, detail=result.get("error", "Empty poster"))
+            raise HTTPException(
+                status_code=500, detail=result.get("error", "Empty poster")
+            )
 
         return {
             **result,
@@ -1567,6 +1759,7 @@ async def generate_poster_direct(
 
 class PosterPdfRequest(BaseModel):
     """클라이언트가 보유한 포스터 HTML을 A3 PDF로 내보내는 요청."""
+
     poster_html: str = Field(..., min_length=1, max_length=POSTER_PDF_HTML_MAX_CHARS)
 
 
@@ -1594,7 +1787,9 @@ async def export_poster_pdf(
             "Poster HTML had no renderable content after sanitization",
             retryable=False,
         )
-        raise HTTPException(status_code=error.status_code, detail=public_error_detail(error))
+        raise HTTPException(
+            status_code=error.status_code, detail=public_error_detail(error)
+        )
 
     # 클라이언트가 돌려보낸 HTML은 여기서 다시 sanitize되고, 그때 전달받았던
     # http-equiv가 떨어져 나간다. 다시 심지 않으면 PDF 경로만 정책 없이
@@ -1639,7 +1834,9 @@ async def export_poster_pdf(
         _poster_pdf_semaphore.release()
 
     logger.info(
-        "[Poster PDF] Exported %d bytes from html_sha256=%s", len(pdf_bytes), html_sha256
+        "[Poster PDF] Exported %d bytes from html_sha256=%s",
+        len(pdf_bytes),
+        html_sha256,
     )
     return Response(
         content=pdf_bytes,

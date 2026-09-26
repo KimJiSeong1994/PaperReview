@@ -28,10 +28,16 @@ from tests.conftest import _TEST_JWT_SECRET
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
+
 def _admin_bearer() -> dict[str, str]:
     """Admin bearer token that matches the test-admin seed in conftest."""
+    from routers.deps.storage import _get_user_db
+
+    account = _get_user_db().get("test-admin")
+    assert account is not None and account["role"] == "admin"
     payload = {
         "sub": "test-admin",
+        "account_incarnation": account["account_incarnation"],
         "role": "admin",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -42,8 +48,13 @@ def _admin_bearer() -> dict[str, str]:
 
 def _user_bearer(username: str = "hbh-user") -> dict[str, str]:
     """User bearer token for a regular (non-admin) caller."""
+    from routers.deps.storage import _get_user_db
+
+    account = _get_user_db().get(username)
+    assert account is not None and account["role"] == "user"
     payload = {
         "sub": username,
+        "account_incarnation": account["account_incarnation"],
         "role": "user",
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         "iat": datetime.now(timezone.utc),
@@ -62,10 +73,13 @@ def _reset_rate_limiter() -> None:
 def _seed_user(username: str, role: str = "user") -> None:
     from routers.deps.storage import _get_user_db
 
-    _get_user_db().upsert(
-        username,
-        {"password_hash": "x", "role": role, "created_at": ""},
-    )
+    db = _get_user_db()
+    account = db.get(username)
+    data = {"password_hash": "x", "role": role, "created_at": ""}
+    if account is None:
+        db.create_account(username, data)
+    else:
+        db.upsert(username, data, expected_incarnation=account["account_incarnation"])
 
 
 @pytest.fixture
@@ -107,9 +121,7 @@ def test_f32_admin_delete_bookmark_removes_from_sqlite(
     )
     assert db.get_by_id(bm_id) is not None, "precondition: bookmark seeded"
 
-    resp = sync_client.delete(
-        f"/api/admin/bookmarks/{bm_id}", headers=_admin_bearer()
-    )
+    resp = sync_client.delete(f"/api/admin/bookmarks/{bm_id}", headers=_admin_bearer())
     assert resp.status_code == 200, resp.text
     assert resp.json()["success"] is True
 

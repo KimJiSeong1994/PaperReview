@@ -21,6 +21,11 @@ export const saveBookmarkFromPaper = async (request: {
   venue?: string;
   doi?: string | null;
   arxiv_id?: string | null;
+  openalex_id?: string | null;
+  semantic_scholar_id?: string | null;
+  pmid?: string | null;
+  url?: string | null;
+  pdf_url?: string | null;
   context?: string;
   source_curriculum?: string;
   topic?: string;

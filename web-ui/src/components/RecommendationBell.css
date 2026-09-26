@@ -73,7 +73,7 @@
 
 .recommendation-panel-header h2 {
   margin: 0;
-  color: #fff;
+  color: var(--text);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.2px;
@@ -101,8 +101,7 @@
 }
 
 .recommendation-summary span,
-.recommendation-signals span,
-.recommendation-variant-chip {
+.recommendation-signals span {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -152,17 +151,6 @@
   flex: 0 0 auto;
   color: var(--indigo-strong);
   font-weight: 650;
-}
-
-.recommendation-variant-stack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.recommendation-variant-chip {
-  background: var(--wov-06);
-  color: var(--indigo-strong);
 }
 
 .recommendation-item h3 {
@@ -254,6 +242,55 @@
 
 .recommendation-error {
   color: var(--danger);
+}
+
+.recommendation-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recommendation-panel button:focus-visible,
+.recommendation-bell-btn:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 3px;
+}
+
+.recommendation-panel button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.recommendation-receipts {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-receipts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recommendation-receipts button,
+.recommendation-panel-header button,
+.recommendation-error button {
+  flex-shrink: 0;
+  min-height: 32px;
+  border: 1px solid var(--wov-10);
+  border-radius: 8px;
+  background: var(--wov-05);
+  color: var(--text);
+  cursor: pointer;
 }
 
 @media (max-width: 560px) {

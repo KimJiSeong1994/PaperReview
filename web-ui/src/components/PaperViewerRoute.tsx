@@ -62,6 +62,9 @@ export default function PaperViewerRoute() {
       pdf_url: normalizeUrl(params.get('pdf_url')),
       doi: params.get('doi')?.trim() || undefined,
       arxiv_id: params.get('arxiv_id')?.trim() || undefined,
+      openalex_id: params.get('openalex_id')?.trim() || undefined,
+      semantic_scholar_id: params.get('semantic_scholar_id')?.trim() || undefined,
+      pmid: params.get('pmid')?.trim() || undefined,
       url: normalizeUrl(params.get('url')),
       source: params.get('source')?.trim() || 'blog-reference',
     };

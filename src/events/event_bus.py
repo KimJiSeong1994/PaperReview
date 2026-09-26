@@ -46,6 +46,11 @@ module-level singleton; there is **no** ``EventBus.instance()`` method.
    :meth:`flush_immediately`. Graceful shutdown code paths must call
    :meth:`wait_for_drain` before exiting.
 
+   Tagged events require a bound account authority at actual durable write
+   time. Revoked, mismatched or unavailable identities are rejected rather
+   than resurrected by fallback. Drain is not a durability acknowledgment
+   for rejected tagged events; untagged legacy semantics remain unchanged.
+
 .. warning:: Subscriber contract
 
    Subscribers MUST consume the ``UserEvent`` *object* passed to them —
@@ -71,6 +76,8 @@ from typing import Awaitable, Callable
 
 from src.events.event_types import UserEvent
 from src.events.migrations import ensure_events_db
+from src.storage.user_db import AccountLifecycleError, UserDB
+from contextlib import nullcontext
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +135,9 @@ class EventBus:
     #: Max seconds between flushes when a partial batch is pending.
     _DEFAULT_BATCH_INTERVAL_S: float = 0.25
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(
+        self, db_path: Path, *, account_authority: UserDB | None = None
+    ) -> None:
         """
         Open (and migrate) the events DB at *db_path*.
 
@@ -140,6 +149,7 @@ class EventBus:
             :func:`~src.events.migrations.ensure_events_db`.
         """
         self._db_path: Path = Path(db_path)
+        self._account_authority = account_authority
         ensure_events_db(self._db_path)
 
         # One dedicated connection per bus. ``check_same_thread=False`` is
@@ -193,69 +203,74 @@ class EventBus:
     # Persistence
     # ------------------------------------------------------------------
 
-    def _persist(self, event: UserEvent) -> None:
-        """
-        Synchronously INSERT *event* into ``user_events``.
+    def bind_account_authority(self, authority: UserDB) -> None:
+        """Bind the initialized users.db authority before accepting tagged events."""
+        self._account_authority = authority
 
-        Raises the underlying :class:`sqlite3.Error` on failure so the
-        caller can decide to retry. The failure is logged at ERROR first
-        so operators see it even if the caller swallows the exception.
-        """
-        payload_json = json.dumps(event.payload, ensure_ascii=False)
-        created_at_iso = event.created_at.isoformat()
-
-        try:
-            with self._db_lock:
-                self._conn.execute(
-                    """
-                    INSERT INTO user_events
-                        (user_id, event_type, payload, paper_id, created_at, source)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        event.user_id,
-                        event.event_type.value,
-                        payload_json,
-                        event.paper_id,
-                        created_at_iso,
-                        event.source,
-                    ),
-                )
-        except sqlite3.Error:
-            logger.error(
-                "event_bus: failed to persist event user_id=%s type=%s",
-                event.user_id,
-                event.event_type.value,
-                exc_info=True,
+    def _persist_rows(self, rows):
+        """Commit one adjacent identity group; caller never holds Events locks."""
+        if not rows:
+            return
+        payload = json.loads(rows[0][2])
+        tagged = "account_incarnation" in payload
+        if tagged and self._account_authority is None:
+            raise AccountLifecycleError("account_authority_unbound")
+        guard = (
+            self._account_authority.account_guard(
+                rows[0][0], payload["account_incarnation"]
             )
-            raise
+            if tagged
+            else nullcontext()
+        )
+        with guard:
+            with self._db_lock:
+                try:
+                    self._conn.execute("BEGIN IMMEDIATE")
+                    self._conn.executemany(
+                        "INSERT INTO user_events (user_id,event_type,payload,paper_id,created_at,source) VALUES (?,?,?,?,?,?)",
+                        rows,
+                    )
+                    self._conn.commit()
+                except BaseException:
+                    self._conn.rollback()
+                    raise
+
+    def _persist(self, event: UserEvent) -> None:
+        self._persist_rows(
+            [
+                (
+                    event.user_id,
+                    event.event_type.value,
+                    json.dumps(event.payload, ensure_ascii=False),
+                    event.paper_id,
+                    event.created_at.isoformat(),
+                    event.source,
+                )
+            ]
+        )
 
     def _executemany_with_lock(self, rows: list[tuple]) -> None:
-        """Run one ``executemany`` INSERT under the DB lock.
+        from itertools import groupby
 
-        Extracted for :func:`asyncio.to_thread` dispatch so the batch
-        worker doesn't block its own event loop while SQLite is writing.
-        """
-        try:
-            with self._db_lock:
-                self._conn.executemany(
-                    """
-                    INSERT INTO user_events
-                        (user_id, event_type, payload, paper_id, created_at, source)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    rows,
-                )
-        except sqlite3.Error:
-            logger.error(
-                "event_bus: batch INSERT failed count=%d",
-                len(rows),
-                exc_info=True,
-            )
-            raise
+        def identity(row):
+            payload = json.loads(row[2])
+            if "account_incarnation" not in payload:
+                return (False, None, None)
+            return (True, row[0], payload["account_incarnation"])
+
+        # Commit/release Events before acquiring the next Users guard. Groupby
+        # preserves input order and does not merge nonadjacent identities.
+        for key, adjacent in groupby(rows, key=identity):
+            group = list(adjacent)
+            try:
+                self._persist_rows(group)
+            except (AccountLifecycleError, sqlite3.Error, OSError):
+                if not key[0]:
+                    raise
+                logger.warning("event_bus: tagged persistence rejected")
 
     async def _persist_batch(self, events: list[UserEvent]) -> None:
-        """Persist *events* in a single ``executemany`` under the DB lock.
+        """Persist events as bounded identity groups with Users→Events lock order.
 
         Runs the blocking SQLite call on the default thread-pool via
         :func:`asyncio.to_thread` so the batch flusher's event loop stays
@@ -329,7 +344,11 @@ class EventBus:
         """
         with self._swap_lock:
             existing = self._batch_task
-            if existing is not None and not existing.done() and self._batch_task_loop is loop:
+            if (
+                existing is not None
+                and not existing.done()
+                and self._batch_task_loop is loop
+            ):
                 return
             if existing is not None and not existing.done():
                 # A flusher bound to a different loop exists; we cannot
@@ -422,9 +441,7 @@ class EventBus:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def _run_subscriber(
-        callback: SubscribeCallback, event: UserEvent
-    ) -> None:
+    async def _run_subscriber(callback: SubscribeCallback, event: UserEvent) -> None:
         """
         Invoke *callback* with full isolation — exceptions are logged and
         swallowed so sibling subscribers are unaffected.
@@ -501,9 +518,7 @@ class EventBus:
             # the "never silently drop" guarantee for edge-case callers
             # that wrap the coroutine with ``asyncio.run`` and a closed
             # loop, and mirrors the pre-US-007 fallback semantics.
-            logger.warning(
-                "event_bus.publish: no running loop; persist_only fallback"
-            )
+            logger.warning("event_bus.publish: no running loop; persist_only fallback")
             self._persist(event)
             return
 
