@@ -1,0 +1,33 @@
+{
+  "verdict": "No overall latency/reliability improvement demonstrated for the current sequential JEV implementation.",
+  "scope": "Same two public English/Korean queries, three candidates each, five repetitions per language and arm; local ranking only, not deployed end-to-end search.",
+  "standard_cold": {
+    "attempts": 10,
+    "successes": 10,
+    "mean_ms": 3294.215970893856,
+    "median_ms": 3142.2579165082425,
+    "sample_p95_nearest_rank_ms": 4256.071708048694
+  },
+  "jev_sequential": {
+    "attempts": 10,
+    "successes": 8,
+    "timeouts": 2,
+    "mean_ms_all_attempts": 5391.58512908034,
+    "mean_ms_success_only": 4150.572874976206,
+    "median_ms_all_attempts": 1503.4657289506868,
+    "sample_p95_nearest_rank_ms_all_attempts": 17755.77654200606
+  },
+  "standard_warm": {"attempts": 8, "mean_ms": 0.2267550880787894},
+  "fast_rrf": {"attempts": 10, "successes": 10, "mean_ms": 0.2031586249358952},
+  "interpretation": "JEV's sample median was lower than cold standard, but its successful-attempt mean was about 26% higher and two queries timed out. Warm standard benefits from HyDE and embedding caches that the current JEV evaluator does not have.",
+  "limitations": [
+    "With ten attempts, nearest-rank p95 equals the maximum; not a reliable production percentile.",
+    "Cold standard control was measured after the interleaved first pilot, so conditions are not perfectly simultaneous.",
+    "HTTP timeout was 10 seconds with no retries, and query deadline was 25 seconds; baseline uses isolated caches rather than deployed server state.",
+    "Three candidates and two simple synthetic-labeled queries do not establish representative workload performance or quality parity.",
+    "Measured existing JEV sequential per-candidate requests only; no claims about batched or concurrent JEV.",
+    "No production search behavior was changed."
+  ],
+  "evidence": ["latency-comparison.json", "latency-cold-baseline.json"],
+  "credential_scan": "clean"
+}

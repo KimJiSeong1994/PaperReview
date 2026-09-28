@@ -1,0 +1,62 @@
+{
+  "version": "jev-evaluation-input-v1",
+  "evidence_kind": "synthetic",
+  "queries": [
+    {
+      "query_id": "attention-en",
+      "query": "Find the paper that replaces recurrence and convolutions with attention for sequence transduction and machine translation.",
+      "language": "en",
+      "split": "development",
+      "candidates": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "title": "Adam: A Method for Stochastic Optimization",
+          "abstract": "We introduce Adam, an algorithm for first-order gradient-based optimization of stochastic objective functions, based on adaptive estimates of lower-order moments. The method is straightforward to implement, is computationally efficient, has little memory requirements, is invariant to diagonal rescaling of the gradients, and is well suited for problems that are large in terms of data and/or parameters."
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "title": "Deep Residual Learning for Image Recognition",
+          "abstract": "Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously. We explicitly reformulate the layers as learning residual functions with reference to the layer inputs, instead of learning unreferenced functions."
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "title": "Attention Is All You Need",
+          "abstract": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+        }
+      ],
+      "judgments": [
+        {"paper_key": "arxiv:1412.6980", "grade": 0, "required": false, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1412.6980"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"},
+        {"paper_key": "arxiv:1512.03385", "grade": 0, "required": false, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1512.03385"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"},
+        {"paper_key": "arxiv:1706.03762", "grade": 3, "required": true, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1706.03762"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"}
+      ]
+    },
+    {
+      "query_id": "attention-ko",
+      "query": "순환 신경망과 합성곱 없이 어텐션만으로 시퀀스 변환과 기계 번역을 수행하는 구조를 제안한 논문을 찾아줘.",
+      "language": "ko",
+      "split": "development",
+      "candidates": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "title": "Adam: A Method for Stochastic Optimization",
+          "abstract": "We introduce Adam, an algorithm for first-order gradient-based optimization of stochastic objective functions, based on adaptive estimates of lower-order moments. The method is straightforward to implement, is computationally efficient, has little memory requirements, is invariant to diagonal rescaling of the gradients, and is well suited for problems that are large in terms of data and/or parameters."
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "title": "Deep Residual Learning for Image Recognition",
+          "abstract": "Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously. We explicitly reformulate the layers as learning residual functions with reference to the layer inputs, instead of learning unreferenced functions."
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "title": "Attention Is All You Need",
+          "abstract": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+        }
+      ],
+      "judgments": [
+        {"paper_key": "arxiv:1412.6980", "grade": 0, "required": false, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1412.6980"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"},
+        {"paper_key": "arxiv:1512.03385", "grade": 0, "required": false, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1512.03385"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"},
+        {"paper_key": "arxiv:1706.03762", "grade": 3, "required": true, "excluded": false, "evidence_refs": ["https://arxiv.org/abs/1706.03762"], "author_id": null, "reviewer_id": null, "review_status": "synthetic"}
+      ]
+    }
+  ]
+}

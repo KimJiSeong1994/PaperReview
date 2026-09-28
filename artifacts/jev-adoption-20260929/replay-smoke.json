@@ -1,0 +1,487 @@
+{
+  "version": "jev-evaluation-report-v1",
+  "input_hash": "sha256:62d439ff2e0bffeb287b869ef8b56d698584556ec5d3f26f97c3ba9313beda9d",
+  "evidence_kind": "synthetic",
+  "model": "jev-1.13.0",
+  "rubric_version": "paper-relevance-v1",
+  "rubric_hash": "sha256:ed139e67397f5545ea4005c191c98759f015468d7fb8dea7b46bb957e82ed743",
+  "execution_mode": "replay",
+  "comparison_scope": "fixed_pool",
+  "baseline_definition": "input_order_not_production_ranker",
+  "timing_scope": "jev_scoring_only",
+  "per_query": [
+    {
+      "query_id": "attention-en",
+      "query": "Find the paper that replaces recurrence and convolutions with attention for sequence transduction and machine translation.",
+      "language": "en",
+      "split": "development",
+      "candidate_ids": [
+        "arxiv:1412.6980",
+        "arxiv:1512.03385",
+        "arxiv:1706.03762"
+      ],
+      "baseline_order": [
+        "arxiv:1412.6980",
+        "arxiv:1512.03385",
+        "arxiv:1706.03762"
+      ],
+      "candidate_order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.12,
+          "confidence": 0.88,
+          "probabilities": {
+            "0": 0.88,
+            "1": 0.12,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 634,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 249
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.02,
+          "confidence": 0.98,
+          "probabilities": {
+            "0": 0.99,
+            "1": 0.01,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 618,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 262
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 3.0,
+          "confidence": 1.0,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0,
+            "3": 1.0
+          },
+          "usage": {
+            "input_tokens": 616,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 211
+        }
+      ],
+      "baseline_metrics": {
+        "nDCG@10": 0.5,
+        "MRR@10": 0.3333333333333333,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "candidate_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "scoring_elapsed_ms": 722.0
+    },
+    {
+      "query_id": "attention-ko",
+      "query": "순환 신경망과 합성곱 없이 어텐션만으로 시퀀스 변환과 기계 번역을 수행하는 구조를 제안한 논문을 찾아줘.",
+      "language": "ko",
+      "split": "development",
+      "candidate_ids": [
+        "arxiv:1412.6980",
+        "arxiv:1512.03385",
+        "arxiv:1706.03762"
+      ],
+      "baseline_order": [
+        "arxiv:1412.6980",
+        "arxiv:1512.03385",
+        "arxiv:1706.03762"
+      ],
+      "candidate_order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.11,
+          "confidence": 0.89,
+          "probabilities": {
+            "0": 0.89,
+            "1": 0.11,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 659,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 14957
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.01,
+          "confidence": 0.99,
+          "probabilities": {
+            "0": 0.99,
+            "1": 0.01,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 643,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 221
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 3.0,
+          "confidence": 1.0,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0,
+            "3": 1.0
+          },
+          "usage": {
+            "input_tokens": 641,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 258
+        }
+      ],
+      "baseline_metrics": {
+        "nDCG@10": 0.5,
+        "MRR@10": 0.3333333333333333,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "candidate_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "scoring_elapsed_ms": 15436.0
+    }
+  ],
+  "aggregate": {
+    "query_count": 2,
+    "baseline": {
+      "nDCG@10": 0.5,
+      "MRR@10": 0.3333333333333333,
+      "Recall@5": 1.0,
+      "Recall@10": 1.0,
+      "wrong_paper_handoff_rate": 0.0
+    },
+    "candidate": {
+      "nDCG@10": 1.0,
+      "MRR@10": 1.0,
+      "Recall@5": 1.0,
+      "Recall@10": 1.0,
+      "wrong_paper_handoff_rate": 0.0
+    }
+  },
+  "slices": {
+    "language/en": {
+      "query_count": 1,
+      "baseline": {
+        "nDCG@10": 0.5,
+        "MRR@10": 0.3333333333333333,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "candidate": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      }
+    },
+    "language/ko": {
+      "query_count": 1,
+      "baseline": {
+        "nDCG@10": 0.5,
+        "MRR@10": 0.3333333333333333,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "candidate": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      }
+    },
+    "split/development": {
+      "query_count": 2,
+      "baseline": {
+        "nDCG@10": 0.5,
+        "MRR@10": 0.3333333333333333,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "candidate": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 3811,
+    "output_tokens": 114,
+    "estimated_input_cost_usd": 0.000160062
+  },
+  "scoring_elapsed_ms": 16158.0,
+  "grade_provenance": {
+    "evidence_kind": "synthetic",
+    "judgment_sources": [
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1412.6980",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1412.6980"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      },
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1512.03385",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1512.03385"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      },
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1706.03762",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1706.03762"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1412.6980",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1412.6980"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1512.03385",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1512.03385"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1706.03762",
+        "review_status": "synthetic",
+        "evidence_refs": [
+          "https://arxiv.org/abs/1706.03762"
+        ],
+        "author_id": null,
+        "reviewer_id": null
+      }
+    ],
+    "human_authentication_claimed": false,
+    "production_claimed": false
+  },
+  "promotion_eligible": false,
+  "rollout_authority": false,
+  "limitations": [
+    "Baseline is input order, not a production ranker.",
+    "Fixed-pool results do not measure retrieval or live-corpus coverage.",
+    "Evidence provenance is not authentication of human participation.",
+    "This evaluation report grants no implementation, promotion, or rollout authority.",
+    "Timing covers Jev scoring responses only, not end-to-end application latency."
+  ],
+  "scoring_capture": {
+    "version": "jev-evaluation-scoring-v1",
+    "input_hash": "sha256:62d439ff2e0bffeb287b869ef8b56d698584556ec5d3f26f97c3ba9313beda9d",
+    "model": "jev-1.13.0",
+    "rubric_version": "paper-relevance-v1",
+    "rubric_hash": "sha256:ed139e67397f5545ea4005c191c98759f015468d7fb8dea7b46bb957e82ed743",
+    "results": [
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1412.6980",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.12,
+          "confidence": 0.88,
+          "probabilities": {
+            "0": 0.88,
+            "1": 0.12,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 634,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 249
+        }
+      },
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1512.03385",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.02,
+          "confidence": 0.98,
+          "probabilities": {
+            "0": 0.99,
+            "1": 0.01,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 618,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 262
+        }
+      },
+      {
+        "query_id": "attention-en",
+        "paper_key": "arxiv:1706.03762",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 3.0,
+          "confidence": 1.0,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0,
+            "3": 1.0
+          },
+          "usage": {
+            "input_tokens": 616,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 211
+        }
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1412.6980",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.11,
+          "confidence": 0.89,
+          "probabilities": {
+            "0": 0.89,
+            "1": 0.11,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 659,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 14957
+        }
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1512.03385",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 0.01,
+          "confidence": 0.99,
+          "probabilities": {
+            "0": 0.99,
+            "1": 0.01,
+            "2": 0.0,
+            "3": 0.0
+          },
+          "usage": {
+            "input_tokens": 643,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 221
+        }
+      },
+      {
+        "query_id": "attention-ko",
+        "paper_key": "arxiv:1706.03762",
+        "result": {
+          "model": "jev-1.13.0",
+          "rubric_version": "paper-relevance-v1",
+          "score": 3.0,
+          "confidence": 1.0,
+          "probabilities": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.0,
+            "3": 1.0
+          },
+          "usage": {
+            "input_tokens": 641,
+            "output_tokens": 19
+          },
+          "elapsed_ms": 258
+        }
+      }
+    ],
+    "scoring_hash": "sha256:8e68defb3f82f98b8a920e6a3af6e9a0a01f342136ca21ad6952049e1057f19f"
+  },
+  "report_hash": "sha256:30d45154f8f1ee6ab98522973e91bf942491faf57e735fad68b9ef7b46b46fa6"
+}

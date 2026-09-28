@@ -1,0 +1,214 @@
+{
+  "version": "jev-cold-baseline-control-v1",
+  "fixture_hash": "sha256:62d439ff2e0bffeb287b869ef8b56d698584556ec5d3f26f97c3ba9313beda9d",
+  "arm": "standard_hybrid_cold",
+  "cache": "HyDE and embedding caches empty before EACH trial, in this isolated benchmark process only",
+  "configuration": {
+    "per_call_timeout_seconds": 10,
+    "query_deadline_seconds": 25,
+    "retries": 0,
+    "candidate_count": 3
+  },
+  "summary": {
+    "n": 10,
+    "ok": 10,
+    "non_ok": 0,
+    "mean_ms_all_attempts": 3294.215970893856,
+    "p50_ms_all_attempts": 3142.2579165082425,
+    "p95_ms_nearest_rank_all_attempts": 4256.071708048694,
+    "mean_ms_success_only": 3294.215970893856
+  },
+  "trials": [
+    {
+      "repeat": 0,
+      "query_id": "attention-en",
+      "language": "en",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 4256.071708048694,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3830.9675839263946,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-en",
+      "language": "en",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 2808.945875032805,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3192.8049999987707,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-en",
+      "language": "en",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3048.67958300747,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3014.757917029783,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-en",
+      "language": "en",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 2931.2360839685425,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3091.7108330177143,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-en",
+      "language": "en",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3269.9108748929575,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "status": "ok",
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "elapsed_ms": 3497.07425001543,
+      "warnings": []
+    }
+  ],
+  "limitations": [
+    "Measured after the interleaved JEV/standard/fast pilot, not simultaneously.",
+    "Ten repeated trials over two simple queries cannot establish production percentiles or quality parity.",
+    "Imports/client creation and candidate retrieval are outside the timer; actual ranking and network calls are inside."
+  ],
+  "promotion_eligible": false
+}

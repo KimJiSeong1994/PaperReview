@@ -1,0 +1,51 @@
+{
+  "decision": "Promising small-sample relevance gains, insufficient evidence for production replacement",
+  "production_search_changed": false,
+  "source": "BEIR SciFact published scientific-claim evidence retrieval qrels; Wadden et al.2020 and Thakur et al.2021",
+  "design": "Eight frozen seeded English test queries and eight unreviewed AI Korean translations; identical English BM25 top10 candidate pools from5183 abstracts, no gold injection, current standard HybridRanker versus unchanged JEV Score rubric.",
+  "english": {
+    "independent_queries": 8,
+    "ndcg_at_10_baseline": 0.6633216995478411,
+    "ndcg_at_10_jev": 0.7258216995478411,
+    "hit_at_1_baseline": 0.625,
+    "hit_at_1_jev": 0.75,
+    "recall_at_5_baseline": 0.75,
+    "recall_at_5_jev": 0.6875,
+    "ndcg_wins_ties_losses": [1, 6, 1],
+    "mean_ndcg_delta_bootstrap95": [-0.04243019728704689, 0.2299301972870469]
+  },
+  "korean_exploratory": {
+    "translated_queries": 8,
+    "ndcg_at_10_baseline": 0.6263694711156507,
+    "ndcg_at_10_jev": 0.7271911987942431,
+    "hit_at_1_baseline": 0.5,
+    "hit_at_1_jev": 0.75,
+    "recall_at_5_baseline": 0.6875,
+    "recall_at_5_jev": 0.6875,
+    "ndcg_wins_ties_losses": [3, 5, 0],
+    "human_korean_ground_truth": false
+  },
+  "validation_fix": {
+    "finding": "Original probability validation incorrectly rejected some independently hundredth-rounded API values, including probabilities summing to0.99.",
+    "change": "Bounded four-bin rounding allowances:0.02 probability sum and0.035 expected-score discrepancy plus floating epsilon; no normalization or altered raw scores.",
+    "first_pass_queries_incomplete": 3,
+    "diagnostic_calls_excluded_from_metrics": 3,
+    "recovery_score_calls": 3,
+    "first_pass_report_preserved": true,
+    "recovery_report": "comparison-validation-recovery.json",
+    "focused_tests_passed": 101,
+    "dependency_deprecation_warnings": 3,
+    "ruff": "passed",
+    "independent_metric_recalculation": "passed for all16 rows",
+    "credential_scan": "clean"
+  },
+  "limitations": [
+    "English gain interval includes zero and is based on only8 independent claims; one query improves and one regresses. No statistically established general superiority.",
+    "Korean uses unreviewed translations and borrowed English labels, not independent human Korean judgments. Bootstrap intervals with few non-tied queries must not be treated as deployment proof.",
+    "Unlisted qrel candidates are assigned zero only by benchmark convention, not verified irrelevant. One sampled query has no gold in the candidate pool.",
+    "Three recovered scores were requested after the numerical-validation correction; other scores remain frozen, so the final comparison is a mixed-time recovery, not a complete fresh rerun.",
+    "Scientific-claim evidence retrieval is narrower than general scholarly search. This does not test all author/year/exclusion filters or establish general Korean search quality.",
+    "Prior latency regression and timeouts remain relevant; this quality result does not remove those operational costs."
+  ],
+  "recommendation": "Keep existing production ranking. Treat JEV as an optional evaluation candidate; require larger independently reviewed Korean and domain-specific holdout evidence plus latency improvement before deployment."
+}
