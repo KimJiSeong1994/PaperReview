@@ -650,6 +650,14 @@ def test_search_eval_is_not_imported_by_production_modules():
         "__pycache__",
     }
     expected_non_production_consumers = [
+        # Explicit research-only scripts, never imported by the application.
+        # Keep this narrow: do not exempt the entire artifacts directory.
+        "artifacts/jev-adoption-20260929/measure_cold_baseline.py",
+        "artifacts/jev-adoption-20260929/measure_latency.py",
+        "artifacts/jev-quality-20260929/diagnose_rejections.py",
+        "artifacts/jev-quality-20260929/evaluate.py",
+        "artifacts/jev-quality-20260929/prepare.py",
+        "artifacts/jev-quality-20260929/recover_validation.py",
         "tools/skillopt_compat/__init__.py",
         "tools/skillopt_compat/run_compat.py",
     ]

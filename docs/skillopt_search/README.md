@@ -1,5 +1,85 @@
 # SkillOpt Paper Search Scaffolding
 
+## JEV offline relevance evaluation
+
+JEV is an evaluation-only candidate reranker, not a replacement for retrieval,
+query generation, or human judgments. Nothing in this harness changes the
+production router, ranker, frontend, or search defaults. It uses the existing
+HTTP dependency and TypeSafe's documented Score API, pinned to `jev-1.13.0`.
+The installed project skill is `.agents/skills/typesafe-ai/SKILL.md`; GJC
+discovers it through `.gjc/skills`. Consult the live
+[API](https://docs.typesafe.ai/api.md) and
+[model limits](https://docs.typesafe.ai/models.md) before changing the integration.
+
+The checked-in `data/search_eval/jev_public_smoke_v1.json` contains two paired
+English/Korean development queries and three public paper abstract excerpts per
+query. Its labels are **synthetic**, not independently human-reviewed. The
+deliberately simple input order is a fixture baseline, not the production
+HybridRanker. This fixture checks API plumbing and replay, not search quality,
+Korean generalization, or deployment eligibility.
+
+Explicitly export `TYPESAFE_API_KEY` in the local shell or inject it from a secret
+manager. Do not paste a key into commands, source, report files, or frontend
+environment variables. The CLI does not implicitly load `.env`; merely adding a
+key does not enable network calls.
+
+```bash
+# Up to six requests; only the public fixture is sent externally.
+python -m src.search_eval.jev_eval \
+  --input data/search_eval/jev_public_smoke_v1.json \
+  --out artifacts/jev-public-live.json \
+  --allow-network --max-calls 6
+
+# Deterministic scoring replay: no key or network access needed.
+python -m src.search_eval.jev_eval \
+  --input data/search_eval/jev_public_smoke_v1.json \
+  --out artifacts/jev-public-replay.json \
+  --replay artifacts/jev-public-live.json
+```
+
+Use fresh output paths; existing reports and inputs must not be overwritten.
+Network use is opt-in and bounded by the call cap and deadline. Failed or
+malformed provider responses are errors, not invented scores or successful
+fallback evaluations. Results retain the same candidate identities; ties retain
+their input order. Missing title/abstract evidence is rejected before calling
+the provider rather than treated as a verified negative.
+
+Observed API responses round probabilities and scores to hundredths. Validation
+allows the resulting bounded rounding error (0.02 across four probabilities,
+0.035 for a four-level expected score, plus floating-point epsilon), while still
+rejecting nonfinite values, invalid ranges, and larger inconsistencies. Raw
+probabilities and scores are retained without renormalization. This numerical
+tolerance is not a relevance or confidence threshold.
+
+Inputs use `jev-evaluation-input-v1`, with `evidence_kind` and `queries`. Each
+query has `query_id`, `query`, `language`, `split`, `candidates`, and `judgments`.
+Candidates contain `paper_key`, `title`, and `abstract`. Complete judgments carry
+`paper_key`, grade 0..3, `required`, `excluded`, `evidence_refs`, `author_id`,
+`reviewer_id`, and `review_status`. Human-reviewed data requires distinct author
+and reviewer identities and evidence references; these declarations do not
+authenticate the humans. Do not derive ground truth from JEV itself.
+
+Reports bind input and scoring provenance, retain score probabilities and
+confidence, and reuse the identity-based evaluator's nDCG@10, MRR@10, required-
+positive Recall@5/10, and excluded-paper handoff metrics. `METRIC` stdout lines
+are suitable for local benchmark consumption. The comparison is fixed-pool and
+timing is JEV scoring only, not live retrieval or browser latency.
+`promotion_eligible` is always false, even for human-reviewed inputs. Deterministic
+replay verifies scoring composition, not repeatability of the hosted model.
+
+The reported token cost uses the documented $0.042 per million input tokens,
+excluding taxes and other services. Review current pricing and limits before
+larger runs. Score confidence is distribution concentration, not a correctness
+guarantee; no automatic confidence-based promotion threshold is supplied.
+Apply deterministic DOI/author/year filters before preparing candidate pools.
+Validate hard negatives, absent metadata, Korean queries, and held-out relevance
+judgments before proposing a separate online integration.
+
+Send only content whose external processing is authorized. No-training is not
+zero retention; verify the account's DPA/ZDR and query privacy requirements.
+TypeSafe's customer agreement also restricts model distillation and imitation;
+these outputs are not an unrestricted training-label source.
+
 ## Search runtime and evidence contract
 
 Normal SearchPage submission remains **standard**, with `use_llm_search=false`,

@@ -1,0 +1,49 @@
+{
+  "version": "jev-adoption-verification-v1",
+  "implementation_scope": "opt-in offline fixed-pool relevance evaluation",
+  "production_search_changed": false,
+  "skill": {
+    "name": "typesafe-ai",
+    "installation_method": "npx skills add typesafe-ai/skills --skill typesafe-ai --agent universal --yes",
+    "path": ".agents/skills/typesafe-ai/SKILL.md",
+    "gjc_discovery_verified": true
+  },
+  "verification": {
+    "python": ".venv/bin/python",
+    "test_command": ".venv/bin/python -m pytest -q tests/test_jev_client.py tests/test_jev_eval.py tests/test_judged_replay.py",
+    "test_network": "disabled with PAPERREVIEW_OFFLINE_TESTS=1",
+    "passed": 93,
+    "warnings": 3,
+    "warning_kind": "SWIG dependency deprecations in existing judged replay test",
+    "ruff": "passed for both new modules and both new test files",
+    "diff_check": "passed for modified environment template and evaluation documentation",
+    "default_python_limitation": "System python3 could not load repository test conftest because pdfplumber was missing; project .venv completed all focused tests."
+  },
+  "live_validation": {
+    "status": "passed_public_smoke_with_replacement_credential",
+    "model": "jev-1.13.0",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "input": "data/search_eval/jev_public_smoke_v1.json",
+    "requested_max_calls": 6,
+    "harness_exit_code": 0,
+    "diagnostic": "The original credential returned HTTP 401. With the replacement credential, the initial 10-second timeout attempt failed; one bounded retry using a 30-second per-call timeout and 180-second total deadline completed six scores.",
+    "successful_live_report_created": true,
+    "live_report": "artifacts/jev-adoption-20260929/live-smoke.json",
+    "replay_report": "artifacts/jev-adoption-20260929/replay-smoke.json",
+    "credential_free_replay_equal": true,
+    "completed_scoring_calls": 6,
+    "input_tokens": 3811,
+    "output_tokens": 114,
+    "successful_run_estimated_input_cost_usd": 0.000160062,
+    "successful_run_scoring_elapsed_ms": 16158.0,
+    "cost_limitation": "Successful-run token estimate only; excludes any charge incurred by the timed-out attempt, taxes and other services.",
+    "production_quality_claimed": false,
+    "credential_persisted_in_project": false,
+    "credential_scan": "No API key patterns in live or replay reports."
+  },
+  "evidence_limitations": [
+    "Unit-test scores are mocked; the separate live smoke report contains actual JEV responses on a tiny synthetic-labeled public fixture.",
+    "The public bilingual smoke fixture has synthetic labels and abstract excerpts; it cannot establish Korean search quality.",
+    "No production rollout, model training, live user query export, or deployment was performed."
+  ]
+}

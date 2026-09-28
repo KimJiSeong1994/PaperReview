@@ -1,0 +1,1381 @@
+{
+  "version": "jev-latency-pilot-v1",
+  "fixture_hash": "sha256:62d439ff2e0bffeb287b869ef8b56d698584556ec5d3f26f97c3ba9313beda9d",
+  "models": {
+    "jev": "jev-1.13.0",
+    "rubric_hash": "sha256:ed139e67397f5545ea4005c191c98759f015468d7fb8dea7b46bb957e82ed743",
+    "standard_chat": "gpt-5.4-mini",
+    "standard_embedding": "text-embedding-3-small"
+  },
+  "configuration": {
+    "repeats_per_language": 5,
+    "candidate_count": 3,
+    "cross_encoder_weight": 0.0,
+    "per_call_timeout_seconds": 10,
+    "query_deadline_seconds": 25,
+    "retries": 0,
+    "standard_hyde": true,
+    "standard_embedding_cache": "isolated empty cache at process start, then reused",
+    "jev_cache": "none",
+    "jev_parallelism": 1
+  },
+  "scope": "Local ranker-only timing including network/model calls; excludes provider retrieval, query analysis, app startup and browser rendering",
+  "limitations": [
+    "Only two simple synthetic-labeled queries and ten trials per arm; nearest-rank p95 is the maximum of ten and is not a reliable production percentile.",
+    "Standard baseline uses real current HybridRanker with HyDE and embeddings but isolated cache and bounded HTTP retries/timeouts, not a measurement of the deployed server.",
+    "Repeats after the first may use warm embeddings; do not interpret these as independent cold-cache runs.",
+    "Timeouts and degraded fallback paths are recorded separately, not counted as successful standard ranking.",
+    "Fixture relevance scores do not establish quality parity or justify production rollout."
+  ],
+  "summary": {
+    "standard_hybrid": {
+      "n": 10,
+      "ok": 10,
+      "non_ok": 0,
+      "mean_ms_all_attempts": 1140.958808164578,
+      "p50_ms_all_attempts": 0.22327096667140722,
+      "p95_ms_nearest_rank_all_attempts": 7417.19850001391,
+      "mean_ms_success_only": 1140.958808164578
+    },
+    "fast_rrf": {
+      "n": 10,
+      "ok": 10,
+      "non_ok": 0,
+      "mean_ms_all_attempts": 0.2031586249358952,
+      "p50_ms_all_attempts": 0.2181880408897996,
+      "p95_ms_nearest_rank_all_attempts": 0.2755840541794896,
+      "mean_ms_success_only": 0.2031586249358952
+    },
+    "jev_sequential": {
+      "n": 10,
+      "ok": 8,
+      "non_ok": 2,
+      "mean_ms_all_attempts": 5391.58512908034,
+      "p50_ms_all_attempts": 1503.4657289506868,
+      "p95_ms_nearest_rank_all_attempts": 17755.77654200606,
+      "mean_ms_success_only": 4150.572874976206
+    }
+  },
+  "by_language": {
+    "standard_hybrid": {
+      "en": {
+        "n": 5,
+        "ok": 5,
+        "non_ok": 0,
+        "mean_ms_all_attempts": 1483.597366604954,
+        "p50_ms_all_attempts": 0.2115829847753048,
+        "p95_ms_nearest_rank_all_attempts": 7417.19850001391,
+        "mean_ms_success_only": 1483.597366604954
+      },
+      "ko": {
+        "n": 5,
+        "ok": 5,
+        "non_ok": 0,
+        "mean_ms_all_attempts": 798.3202497242019,
+        "p50_ms_all_attempts": 0.2943748841062188,
+        "p95_ms_nearest_rank_all_attempts": 3990.5755409272388,
+        "mean_ms_success_only": 798.3202497242019
+      }
+    },
+    "fast_rrf": {
+      "en": {
+        "n": 5,
+        "ok": 5,
+        "non_ok": 0,
+        "mean_ms_all_attempts": 0.2109920373186469,
+        "p50_ms_all_attempts": 0.2510420745238662,
+        "p95_ms_nearest_rank_all_attempts": 0.2755840541794896,
+        "mean_ms_success_only": 0.2109920373186469
+      },
+      "ko": {
+        "n": 5,
+        "ok": 5,
+        "non_ok": 0,
+        "mean_ms_all_attempts": 0.1953252125531435,
+        "p50_ms_all_attempts": 0.20558398682624102,
+        "p95_ms_nearest_rank_all_attempts": 0.24212501011788845,
+        "mean_ms_success_only": 0.1953252125531435
+      }
+    },
+    "jev_sequential": {
+      "en": {
+        "n": 5,
+        "ok": 4,
+        "non_ok": 1,
+        "mean_ms_all_attempts": 4572.955316584557,
+        "p50_ms_all_attempts": 1583.5651669185609,
+        "p95_ms_nearest_rank_all_attempts": 10263.204416027293,
+        "mean_ms_success_only": 3150.3930417238735
+      },
+      "ko": {
+        "n": 5,
+        "ok": 4,
+        "non_ok": 1,
+        "mean_ms_all_attempts": 6210.214941576123,
+        "p50_ms_all_attempts": 1423.3662909828126,
+        "p95_ms_nearest_rank_all_attempts": 17755.77654200606,
+        "mean_ms_success_only": 5150.752708228538
+      }
+    }
+  },
+  "trials": [
+    {
+      "repeat": 0,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 7417.19850001391,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.26037509087473154,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.13,
+            "confidence": 0.87,
+            "probabilities": {
+              "0": 0.88,
+              "1": 0.12,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 634,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 845
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.02,
+            "confidence": 0.98,
+            "probabilities": {
+              "0": 0.98,
+              "1": 0.02,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 618,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 428
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 616,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 308
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 1583.5651669185609,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 3990.5755409272388,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.20558398682624102,
+      "warnings": []
+    },
+    {
+      "repeat": 0,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.09,
+            "confidence": 0.91,
+            "probabilities": {
+              "0": 0.91,
+              "1": 0.09,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 659,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 262
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.01,
+            "confidence": 0.99,
+            "probabilities": {
+              "0": 0.99,
+              "1": 0.01,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 643,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 281
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 641,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 223
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 767.456749919802,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.12,
+            "confidence": 0.88,
+            "probabilities": {
+              "0": 0.88,
+              "1": 0.12,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 634,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 210
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.02,
+            "confidence": 0.98,
+            "probabilities": {
+              "0": 0.98,
+              "1": 0.02,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 618,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 259
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 616,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 8247
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 8717.827624990605,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.2510420745238662,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.2115829847753048,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.1,
+            "confidence": 0.9,
+            "probabilities": {
+              "0": 0.9,
+              "1": 0.1,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 659,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 230
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.01,
+            "confidence": 0.99,
+            "probabilities": {
+              "0": 0.99,
+              "1": 0.01,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 643,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 200
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 641,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 225
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 656.4112500054762,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.23079209495335817,
+      "warnings": []
+    },
+    {
+      "repeat": 1,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.20699994638562202,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.17374998424202204,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.12816698290407658,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.12,
+            "confidence": 0.88,
+            "probabilities": {
+              "0": 0.88,
+              "1": 0.12,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 634,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 255
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.01,
+            "confidence": 0.99,
+            "probabilities": {
+              "0": 0.99,
+              "1": 0.01,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 618,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 341
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 616,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 284
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 881.2547909328714,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.2943748841062188,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.15558302402496338,
+      "warnings": []
+    },
+    {
+      "repeat": 2,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.08,
+            "confidence": 0.92,
+            "probabilities": {
+              "0": 0.92,
+              "1": 0.08,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 659,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 296
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.01,
+            "confidence": 0.99,
+            "probabilities": {
+              "0": 0.99,
+              "1": 0.01,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 643,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 8566
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 641,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 8892
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 17755.77654200606,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "error",
+      "error_type": "JevError",
+      "error": "TypeSafe request timed out",
+      "elapsed_ms": 10263.204416027293,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.2755840541794896,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.222250004298985,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.09,
+            "confidence": 0.91,
+            "probabilities": {
+              "0": 0.91,
+              "1": 0.09,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 659,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 316
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.01,
+            "confidence": 0.99,
+            "probabilities": {
+              "0": 0.99,
+              "1": 0.01,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 643,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 413
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 641,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 693
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 1423.3662909828126,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.24212501011788845,
+      "warnings": []
+    },
+    {
+      "repeat": 3,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.22429192904382944,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.18075003754347563,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.13979198411107063,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-en",
+      "language": "en",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "ok",
+      "scores": [
+        {
+          "paper_key": "arxiv:1412.6980",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.12,
+            "confidence": 0.88,
+            "probabilities": {
+              "0": 0.88,
+              "1": 0.12,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 634,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 375
+          }
+        },
+        {
+          "paper_key": "arxiv:1512.03385",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 0.02,
+            "confidence": 0.98,
+            "probabilities": {
+              "0": 0.98,
+              "1": 0.02,
+              "2": 0.0,
+              "3": 0.0
+            },
+            "usage": {
+              "input_tokens": 618,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 703
+          }
+        },
+        {
+          "paper_key": "arxiv:1706.03762",
+          "result": {
+            "model": "jev-1.13.0",
+            "rubric_version": "paper-relevance-v1",
+            "score": 3.0,
+            "confidence": 1.0,
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "3": 1.0
+            },
+            "usage": {
+              "input_tokens": 616,
+              "output_tokens": 19
+            },
+            "elapsed_ms": 339
+          }
+        }
+      ],
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1412.6980",
+        "arxiv:1512.03385"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 1418.9245840534568,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "standard_hybrid",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "disabled_weight"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.30004093423485756,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "fast_rrf",
+      "candidate_count": 3,
+      "status": "ok",
+      "excluded_signals": {
+        "bm25": "constant",
+        "semantic": "fast_capability",
+        "citations": "constant",
+        "recency": "constant",
+        "cross_encoder": "fast_capability"
+      },
+      "order": [
+        "arxiv:1706.03762",
+        "arxiv:1512.03385",
+        "arxiv:1412.6980"
+      ],
+      "fixture_metrics": {
+        "nDCG@10": 1.0,
+        "MRR@10": 1.0,
+        "Recall@5": 1.0,
+        "Recall@10": 1.0,
+        "wrong_paper_handoff_rate": 0.0
+      },
+      "elapsed_ms": 0.1425419468432665,
+      "warnings": []
+    },
+    {
+      "repeat": 4,
+      "query_id": "attention-ko",
+      "language": "ko",
+      "arm": "jev_sequential",
+      "candidate_count": 3,
+      "status": "error",
+      "error_type": "JevError",
+      "error": "TypeSafe request timed out",
+      "elapsed_ms": 10448.063874966465,
+      "warnings": []
+    }
+  ],
+  "jev_successful_response_input_tokens": 15244,
+  "promotion_eligible": false
+}
