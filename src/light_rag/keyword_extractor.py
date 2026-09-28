@@ -14,7 +14,7 @@ import json
 import re
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
-from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
 
 load_dotenv()
@@ -43,7 +43,7 @@ class KeywordExtractor:
   "high_level": ["theme1", "theme2"]
 }}"""
 
-    def __init__(self, model: str = DEFAULT_TOOL_MODEL, api_key: Optional[str] = None):
+    def __init__(self, model: str = DEFAULT_SEARCH_MODEL, api_key: Optional[str] = None):
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package is required")
 
