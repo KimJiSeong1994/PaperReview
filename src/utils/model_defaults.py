@@ -2,7 +2,8 @@
 
 Defaults are intentionally split by workload:
 - research/answering paths use the strongest current default;
-- high-frequency search/tooling paths use a low-latency reasoning model;
+- search uses its dedicated SEARCH_MODEL setting and defaults to gpt-6-luna;
+- high-frequency non-search tooling paths use a low-latency reasoning model;
 - embedding defaults stay dimension-compatible and are not env-overridden here.
 """
 from __future__ import annotations
@@ -23,6 +24,9 @@ if load_dotenv is not None:
 DEFAULT_RESEARCH_MODEL = os.getenv("RESEARCH_MODEL", "gpt-5.5")
 
 # High-frequency search planning, extraction, relevance fallback, and JSON utility calls.
+DEFAULT_SEARCH_MODEL = os.getenv("SEARCH_MODEL", "gpt-6-luna")
+
+# High-frequency non-search tooling calls.
 DEFAULT_TOOL_MODEL = os.getenv("TOOL_MODEL", "gpt-5.4-mini")
 
 # Internal judge/evaluation/fact-check helper calls; keep fast by default.

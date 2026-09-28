@@ -48,6 +48,7 @@ from app.SearchAgent.search_agent import (
     classify_search_route,
 )
 from src.utils.paper_utils import generate_doc_id, generate_result_key
+from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -750,6 +751,7 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
     """
     key_data = {
         "schema_version": _CACHE_SCHEMA_VERSION,
+        "search_model": DEFAULT_SEARCH_MODEL,
         "query": _normalize_query_for_cache(query),
         "sources": sorted(set(sources)),
         "search_context": _normalize_query_for_cache(filters.get("search_context", "")),

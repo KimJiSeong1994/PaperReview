@@ -8,6 +8,7 @@ import importlib
 def _reload_defaults(monkeypatch, **env):
     for key in (
         "RESEARCH_MODEL",
+        "SEARCH_MODEL",
         "TOOL_MODEL",
         "EVAL_MODEL",
         "EMBEDDING_MODEL",
@@ -26,6 +27,18 @@ def test_literal_openai_model_defaults(monkeypatch):
     defaults = _reload_defaults(monkeypatch)
 
     assert defaults.DEFAULT_RESEARCH_MODEL == "gpt-5.5"
+    assert defaults.DEFAULT_SEARCH_MODEL == "gpt-6-luna"
+    assert defaults.DEFAULT_TOOL_MODEL == "gpt-5.4-mini"
+    assert defaults.DEFAULT_EVAL_MODEL == "gpt-5.4-mini"
+    assert defaults.DEFAULT_EMBEDDING_MODEL == "text-embedding-3-small"
+    assert defaults.DEFAULT_KOREAN_EMBEDDING_MODEL == "text-embedding-3-large"
+
+
+def test_search_model_env_override_is_isolated_from_other_workloads(monkeypatch):
+    defaults = _reload_defaults(monkeypatch, SEARCH_MODEL="gpt-test-search")
+
+    assert defaults.DEFAULT_SEARCH_MODEL == "gpt-test-search"
+    assert defaults.DEFAULT_RESEARCH_MODEL == "gpt-5.5"
     assert defaults.DEFAULT_TOOL_MODEL == "gpt-5.4-mini"
     assert defaults.DEFAULT_EVAL_MODEL == "gpt-5.4-mini"
     assert defaults.DEFAULT_EMBEDDING_MODEL == "text-embedding-3-small"
@@ -36,6 +49,7 @@ def test_chat_model_env_overrides_do_not_affect_embedding_dimensions(monkeypatch
     defaults = _reload_defaults(
         monkeypatch,
         RESEARCH_MODEL="gpt-test-research",
+        SEARCH_MODEL="gpt-test-search",
         TOOL_MODEL="gpt-test-tool",
         EVAL_MODEL="gpt-test-eval",
         EMBEDDING_MODEL="text-embedding-override",
@@ -43,6 +57,7 @@ def test_chat_model_env_overrides_do_not_affect_embedding_dimensions(monkeypatch
     )
 
     assert defaults.DEFAULT_RESEARCH_MODEL == "gpt-test-research"
+    assert defaults.DEFAULT_SEARCH_MODEL == "gpt-test-search"
     assert defaults.DEFAULT_TOOL_MODEL == "gpt-test-tool"
     assert defaults.DEFAULT_EVAL_MODEL == "gpt-test-eval"
     assert defaults.DEFAULT_EMBEDDING_MODEL == "text-embedding-3-small"

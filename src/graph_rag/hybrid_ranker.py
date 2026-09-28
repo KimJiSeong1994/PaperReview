@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOOL_MODEL
+from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_SEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
 from src.utils.paper_utils import generate_result_key
 
@@ -611,7 +611,7 @@ class HybridRanker:
             else "across academic research domains"
         )
         hyde_response = create_chat_completion(openai_client,
-            model=DEFAULT_TOOL_MODEL,
+            model=DEFAULT_SEARCH_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -655,7 +655,7 @@ class HybridRanker:
             return []
         local_started = time.perf_counter()
         alt_response = create_chat_completion(openai_client,
-            model=DEFAULT_TOOL_MODEL,
+            model=DEFAULT_SEARCH_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -689,7 +689,7 @@ class HybridRanker:
         deadline=None,
         stop_event=None,
     ) -> Tuple[str, List[str]]:
-        """통합 HyDE 호출: 1회의 DEFAULT_TOOL_MODEL JSON 응답으로 (abstract, alt_queries[2]) 획득.
+        """통합 HyDE 호출: 1회의 DEFAULT_SEARCH_MODEL JSON 응답으로 (abstract, alt_queries[2]) 획득.
 
         2 LLM calls → 1 LLM call 로 축소하여 HyDE 경로 지연을 절반으로 단축.
         JSON 파싱/응답 불완전 시 기존 개별 메서드로 graceful fallback.
@@ -724,7 +724,7 @@ class HybridRanker:
             if _cutoff_reason(deadline, stop_event):
                 return "", []
             response = create_chat_completion(openai_client,
-                model=DEFAULT_TOOL_MODEL,
+                model=DEFAULT_SEARCH_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Research query: {query}"},
@@ -801,8 +801,8 @@ class HybridRanker:
         """
         HyDE (Hypothetical Document Embedding) + Multi-Query 평균 임베딩 생성.
 
-        1. DEFAULT_TOOL_MODEL로 가상 초록(hypothetical abstract) 생성
-        2. DEFAULT_TOOL_MODEL로 대안 검색 쿼리 2개 생성
+        1. DEFAULT_SEARCH_MODEL로 가상 초록(hypothetical abstract) 생성
+        2. DEFAULT_SEARCH_MODEL로 대안 검색 쿼리 2개 생성
         3. [원본 쿼리, 가상 초록, 대안1, 대안2] 배치 임베딩
         4. L2-정규화 후 평균 반환
 

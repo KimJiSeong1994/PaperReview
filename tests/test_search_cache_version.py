@@ -57,6 +57,24 @@ def test_same_version_same_key():
     assert key1 == key2
 
 
+def test_search_model_change_does_not_reuse_cached_results(monkeypatch, tmp_path):
+    rs = _get_module()
+    monkeypatch.setattr(rs, "SEARCH_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(rs, "_search_cache", {})
+    monkeypatch.setattr(rs, "DEFAULT_SEARCH_MODEL", "gpt-5.4-mini")
+    old_key = rs._compute_cache_key("model migration", ["arxiv"], {})
+    rs._set_cache(old_key, {"arxiv": [{"title": "Earlier model result"}]})
+    assert rs._get_cached_result(old_key) is not None
+
+    monkeypatch.setattr(rs, "DEFAULT_SEARCH_MODEL", "gpt-6-luna")
+    new_key = rs._compute_cache_key("model migration", ["arxiv"], {})
+    assert new_key != old_key
+    assert rs._get_cached_result(new_key) is None
+    monkeypatch.setattr(rs, "_search_cache", {})
+    assert rs._get_cached_result(new_key) is None
+    assert rs._get_cached_result(old_key) is not None
+
+
 @pytest.mark.parametrize("left,right", [
     ("graph NOT retrieval", "graph retrieval"),
     ("graph AND retrieval", "graph OR retrieval"),

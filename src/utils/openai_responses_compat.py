@@ -1,13 +1,13 @@
-"""Compatibility helpers for using GPT-5 family models via the Responses API.
+"""Compatibility helpers for supported models via the Responses API.
 
 Most of this codebase still expects the Chat Completions response shape
-(`choices[0].message.content`). The current OpenAI model guide makes latest
-GPT-5 models available through the Responses API, so these helpers route real
-GPT-5-family calls through `client.responses.create(...)` and adapt the result
-back to the small Chat-Completions-shaped surface the existing code consumes.
+(`choices[0].message.content`). The GPT-5 family and the API-verified
+gpt-6-luna model use the Responses routing supported here. These helpers
+route supported calls through `client.responses.create(...)` and adapt
+the result back to the small Chat-Completions-shaped surface the existing code
+consumes.
 
-Mock clients and non-GPT-5 models are passed through to Chat Completions, which
-keeps existing tests and explicit legacy overrides stable.
+Mock clients and unsupported models are passed through to Chat Completions.
 """
 from __future__ import annotations
 
@@ -16,9 +16,10 @@ from types import SimpleNamespace
 from typing import Any, Dict, Iterable, Iterator, Mapping, Optional
 
 
-def is_gpt5_family(model: Optional[str]) -> bool:
-    """Return True for latest GPT-5-family model IDs."""
-    return bool(model and str(model).startswith("gpt-5"))
+def _supports_responses_api_model(model: Optional[str]) -> bool:
+    """Return whether a confirmed model ID is supported by Responses routing."""
+    model_id = str(model) if model is not None else ""
+    return model_id.startswith("gpt-5") or model_id == "gpt-6-luna"
 
 
 def _is_mock(obj: Any) -> bool:
@@ -26,7 +27,7 @@ def _is_mock(obj: Any) -> bool:
 
 
 def _should_use_responses(client: Any, model: Optional[str]) -> bool:
-    if not is_gpt5_family(model):
+    if not _supports_responses_api_model(model):
         return False
     responses = getattr(client, "responses", None)
     return responses is not None and not _is_mock(responses) and hasattr(responses, "create")
@@ -46,7 +47,7 @@ def _response_format_to_text(response_format: Optional[Mapping[str, Any]]) -> Op
 
 
 def _reasoning_for_model(model: Optional[str]) -> Dict[str, str]:
-    if not is_gpt5_family(model):
+    if not _supports_responses_api_model(model):
         return {}
     model_s = str(model)
     if "mini" in model_s or "nano" in model_s:
@@ -70,7 +71,7 @@ def _build_responses_kwargs(kwargs: Mapping[str, Any]) -> Dict[str, Any]:
     if max_output_tokens is not None:
         responses_kwargs["max_output_tokens"] = max_output_tokens
 
-    # GPT-5-family calls are routed here because they use the Responses API.
+    # Supported calls are routed here because they use the Responses API.
     # Sampling controls accepted by Chat Completions, such as temperature/top_p,
     # can be rejected by reasoning models (400 unsupported_parameter), so do not
     # forward them on this compatibility path.
@@ -140,7 +141,7 @@ def _chat_like_stream(events: Iterable[Any]) -> Iterator[Any]:
 
 
 def create_chat_completion(client: Any, **kwargs: Any) -> Any:
-    """Create a completion, routing real GPT-5-family calls through Responses."""
+    """Create a completion, routing supported real-model calls through Responses."""
     model = kwargs.get("model")
     if not _should_use_responses(client, model):
         return client.chat.completions.create(**kwargs)

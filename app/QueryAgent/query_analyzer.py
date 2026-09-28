@@ -12,7 +12,7 @@ import time as _time
 logger = logging.getLogger(__name__)
 from typing import Dict, List, Any, Optional, TypedDict
 from dotenv import load_dotenv
-from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
 from app.QueryAgent.query_analysis_contract import parse_and_normalize_query_analysis
 from app.QueryAgent.skillopt_policy import (
@@ -113,13 +113,13 @@ except ImportError:
 class QueryAnalyzer:
     """유저 질의 분석 클래스"""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_TOOL_MODEL):
+    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_SEARCH_MODEL):
         """
         QueryAnalyzer 초기화
 
         Args:
             api_key: OpenAI API 키 (없으면 환경변수에서 로드)
-            model: 사용할 LLM 모델 (기본값: DEFAULT_TOOL_MODEL)
+            model: 사용할 LLM 모델 (기본값: DEFAULT_SEARCH_MODEL)
         """
         # SSL 검증은 api_server.py에서 전역으로 처리됨
 
@@ -386,7 +386,7 @@ Return only valid JSON, no additional text."""
         """
         쿼리가 학술/논문 검색 주제인지 경량 분류.
 
-        DEFAULT_TOOL_MODEL + max_tokens=20으로 빠르게 판정한다.
+        DEFAULT_SEARCH_MODEL + max_tokens=20으로 빠르게 판정한다.
         실패 시 항상 is_academic=True를 반환하여 정상 검색이 차단되지 않도록 한다.
 
         Args:
