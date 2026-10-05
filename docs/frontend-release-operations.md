@@ -54,6 +54,16 @@ Test durations are printed to distinguish real execution cost from setup cost;
 timing improvements must be measured on GitHub runners, not inferred from
 local test speed.
 
+The optional GitHub Actions repository secret `TYPESAFE_API_KEY` enables the
+server-side JEV reranker. When set, deployment sends it only on SSH stdin and
+updates `TYPESAFE_API_KEY` in the existing `$HOME/PaperReviewAgent/.env` using
+the server virtualenv's `python-dotenv`; unrelated `.env` entries are retained
+and the file is kept at mode `0600`. The key is not passed in SSH command
+arguments or printed. If the secret is absent or empty, deployment makes no
+credential update, preserving the current server setting. A missing `.env` or
+invalid secret input fails deployment rather than creating or clearing the
+server configuration.
+
 ## Production release storage
 
 Production keeps `web-ui/dist` as a real directory because both Nginx and the

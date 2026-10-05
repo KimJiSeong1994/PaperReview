@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 import httpx
-from src.search_eval.jev_client import JevError, score_candidate
+from src.utils.jev_client import JevError, score_candidate
 root=Path(__file__).parent
 report=json.loads((root/"comparison.json").read_text())
 frozen=json.loads((root/"frozen-en.json").read_text())

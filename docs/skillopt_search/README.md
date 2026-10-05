@@ -1,11 +1,37 @@
 # SkillOpt Paper Search Scaffolding
 
+## Live JEV search reranking
+
+The server-side JEV reranker is automatically active when `TYPESAFE_API_KEY` is
+present in the server environment; there is no separate enable switch. Without
+the key, search reports `jev_mode=disabled_no_api_key` and retains the existing
+ranking. Never put the key in frontend configuration or send it to a browser.
+
+For eligible topic/relevance searches, JEV reranks up to the first 20 papers in
+HybridRanker order. It is skipped for fast searches, exact DOI/arXiv/title
+routes, and explicit date sorts. Deep-search routes use the same reranker within
+their existing absolute request deadline. Scoring is limited to 8 seconds and
+uses concurrency capped at 8; it does not extend the request budget. A timeout,
+provider error, or cancellation preserves the complete hybrid order and applies
+no partial JEV scores. Missing evidence is skipped rather than treated as a
+negative judgment. Cache keys fingerprint only key presence and the pinned
+model, rubric, candidate-cap, and reranker-version configuration (never the
+secret), keeping keyless, active, and changed JEV variants isolated; cached
+responses restore the actual mode that produced their order.
+
+Live scoring sends the search query and candidate paper titles/abstracts to
+TypeSafe. Send only content whose external processing is authorized; confirm
+privacy, retention, and account terms before configuring the server key. The
+runtime integration is separate from the offline evaluation commands below and
+does not establish any relevance-quality or efficacy improvement.
+
 ## JEV offline relevance evaluation
 
-JEV is an evaluation-only candidate reranker, not a replacement for retrieval,
-query generation, or human judgments. Nothing in this harness changes the
-production router, ranker, frontend, or search defaults. It uses the existing
-HTTP dependency and TypeSafe's documented Score API, pinned to `jev-1.13.0`.
+This offline harness remains an evaluation-only candidate reranker, not a
+replacement for retrieval, query generation, or human judgments. It does not
+enable or measure the separate live runtime integration above. It uses the
+existing HTTP dependency and TypeSafe's documented Score API, pinned to
+`jev-1.13.0`.
 The installed project skill is `.agents/skills/typesafe-ai/SKILL.md`; GJC
 discovers it through `.gjc/skills`. Consult the live
 [API](https://docs.typesafe.ai/api.md) and
@@ -20,8 +46,10 @@ Korean generalization, or deployment eligibility.
 
 Explicitly export `TYPESAFE_API_KEY` in the local shell or inject it from a secret
 manager. Do not paste a key into commands, source, report files, or frontend
-environment variables. The CLI does not implicitly load `.env`; merely adding a
-key does not enable network calls.
+environment variables. The CLI does not implicitly load `.env`; an exported key
+alone does not authorize offline CLI network calls, which still require the
+explicit `--allow-network` flag. In contrast, the server automatically uses the
+key for eligible live searches as described above.
 
 ```bash
 # Up to six requests; only the public fixture is sent externally.
@@ -327,12 +355,13 @@ pins it.
 Coverage is bounded by consent: visitors who decline analytics contribute
 nothing, so treat the numbers as a sample rather than a census.
 
-`--by-variant` groups impressions by `ranking_variant` (currently the
-cross-encoder RRF weight, `ce_w=<value>`), which is how
+`--by-variant` groups impressions by `ranking_variant` (the cross-encoder RRF
+weight `ce_w=<value>`, with a JEV fingerprint appended only when live JEV
+scoring completed), which is how
 `CROSS_ENCODER_RRF_WEIGHT` should be settled: change it, let both variants
 accumulate impressions, compare MRR@10. Cache hits are excluded from that split
-because a cached body was ordered by whichever weight was live when it was
-written. Clicks with no recorded position appear as `clicks_without_rank`
+because a cached body retains the exact ranking variant and outcome from when it
+was written. Clicks with no recorded position appear as `clicks_without_rank`
 rather than being scored or dropped.
 
 This output is the `measured` evidence class the approval chain below asks for —

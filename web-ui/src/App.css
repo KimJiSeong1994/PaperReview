@@ -546,17 +546,6 @@ body {
    applies, and the bar reuses .search-bar-fixed's 900px so it matches the one
    in the results view. */
 
-.results-rewritten-query {
-  max-width: 900px;
-  margin: 0 auto 8px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-}
-
-.results-rewritten-query span {
-  color: var(--text-soft);
-}
-
 .results-degraded {
   max-width: 900px;
   margin: 0 auto 8px;

@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 # reintroduced where both ImportError and constructor failure were caught
 # by a broad ``except Exception`` — every search silently lost ranking.
 from src.graph_rag.hybrid_ranker import CROSS_ENCODER_RRF_WEIGHT, HybridRanker  # noqa: E402
+from src.graph_rag.jev_reranker import ranking_cache_variant, rerank_papers
 
 # Track ranker-degradation reasons so operators + API consumers see the
 # degradation instead of it being silent-ranking-skipped. Exposed on
@@ -651,7 +652,7 @@ SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
 # Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
-_CACHE_SCHEMA_VERSION = "v4-meaning-identity-finalization"
+_CACHE_SCHEMA_VERSION = "v5-jev-head-rerank"
 
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
@@ -772,6 +773,13 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
         # their result bodies shared one cache key.
         "use_llm_search": filters.get("use_llm_search", False),
         "skillopt_policy": filters.get("skillopt_policy", "baseline"),
+        # The helper fingerprints only whether the server key is present and
+        # the pinned JEV configuration; it never includes the secret itself.
+        "jev_ranking_cache_variant": (
+            filters["jev_ranking_cache_variant"]
+            if "jev_ranking_cache_variant" in filters
+            else ranking_cache_variant()
+        ),
     }
     key_str = json.dumps(key_data, sort_keys=True)
     return hashlib.sha256(key_str.encode()).hexdigest()[:16]
@@ -1172,6 +1180,62 @@ def _stamp_global_rank(
                 rank += 1
 
 
+def _base_ranking_variant() -> str:
+    return f"ce_w={CROSS_ENCODER_RRF_WEIGHT}"
+
+
+async def _apply_jev_reranking(
+    query: str,
+    ranked_papers: List[Dict[str, Any]],
+    *,
+    deadline: Optional[float],
+    stop_event,
+    cache_variant: str,
+    ranking_mode: str,
+    skip_reason: Optional[str] = None,
+):
+    """Apply JEV atomically, retaining the hybrid order for every fallback."""
+    mode = skip_reason
+    scored_count = 0
+    variant = _base_ranking_variant()
+    if mode is None and stop_event is not None and stop_event.is_set():
+        mode = "cancelled"
+    if mode is None:
+        try:
+            reranked, metadata = await rerank_papers(
+                query,
+                copy.deepcopy(ranked_papers),
+                deadline=deadline,
+                stop_event=stop_event,
+            )
+            if not isinstance(metadata, dict):
+                raise TypeError("JEV reranker returned invalid metadata")
+            mode = metadata.get("mode")
+            if mode == "completed" and isinstance(reranked, list):
+                scored_count = metadata.get("scored_count", 0)
+                if not isinstance(scored_count, int) or scored_count < 0:
+                    scored_count = 0
+                variant = f"{variant};jev={cache_variant}"
+                return reranked, {
+                    "jev_mode": mode,
+                    "scored_count": scored_count,
+                    "ranking_mode": "hybrid_rrf_jev",
+                    "ranking_variant": variant,
+                }
+            if mode == "completed" or not isinstance(mode, str):
+                mode = "fallback_error"
+        except Exception as exc:
+            logger.warning("[Search] JEV reranking failed: %s", type(exc).__name__)
+            mode = "fallback_error"
+
+    return ranked_papers, {
+        "jev_mode": mode,
+        "scored_count": scored_count,
+        "ranking_mode": ranking_mode,
+        "ranking_variant": variant,
+    }
+
+
 async def _dedup_and_rank_deep_search(
     query: str,
     papers: List[Dict[str, Any]],
@@ -1179,6 +1243,7 @@ async def _dedup_and_rank_deep_search(
     *,
     deadline=None,
     stop_event=None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Give the deep-search paths the same dedup and fusion as ``/api/search``.
 
@@ -1192,6 +1257,13 @@ async def _dedup_and_rank_deep_search(
     an unranked answer beats no answer.
     """
     if not papers:
+        if metadata is not None:
+            metadata.update(
+                jev_mode="skipped_no_results",
+                scored_count=0,
+                ranking_mode="skipped",
+                ranking_variant=_base_ranking_variant(),
+            )
         return papers
     deadline = deadline if deadline is not None else time.monotonic() + _RANKING_TIMEOUT
 
@@ -1201,12 +1273,21 @@ async def _dedup_and_rank_deep_search(
         logger.warning("[Deep Search] Dedup failed (continuing): %s", exc)
 
     if _hybrid_ranker is None:
+        if metadata is not None:
+            metadata.update(
+                jev_mode="skipped_hybrid_ranker_unavailable",
+                scored_count=0,
+                ranking_mode="skipped",
+                ranking_variant=_base_ranking_variant(),
+            )
         _stamp_global_rank(papers)
         for paper in papers:
             paper["result_key"] = generate_result_key(paper)
         return papers
 
+    ranking_mode = "hybrid_rrf"
     try:
+        ranking_timeout = max(0, deadline - time.monotonic())
         ranked = await asyncio.wait_for(
             _run_owned(
                 "search_rank",
@@ -1219,19 +1300,46 @@ async def _dedup_and_rank_deep_search(
                     deadline=deadline,
                     stop_event=stop_event,
                 ),
-                max(0, deadline - time.monotonic()),
+                ranking_timeout,
                 stop_event,
             ),
-            timeout=max(0, deadline - time.monotonic()),
+            timeout=ranking_timeout,
         )
         papers = list(ranked)
     except asyncio.TimeoutError:
+        ranking_mode = "fallback_timeout"
         logger.warning(
             "[Deep Search] Ranking timed out after %ds (returning dedup order)",
             _RANKING_TIMEOUT,
         )
     except Exception as exc:  # noqa: BLE001
+        ranking_mode = "fallback_error"
         logger.warning("[Deep Search] Ranking failed (returning dedup order): %s", exc)
+
+    if ranking_mode == "hybrid_rrf":
+        deep_skip_reason = (
+            None
+            if classify_search_route(query)["kind"] == "topic"
+            else "skipped_identity_route"
+        )
+        papers, jev_modes = await _apply_jev_reranking(
+            query,
+            papers,
+            deadline=deadline,
+            stop_event=stop_event,
+            cache_variant=ranking_cache_variant(),
+            ranking_mode=ranking_mode,
+            skip_reason=deep_skip_reason,
+        )
+    else:
+        jev_modes = {
+            "jev_mode": "skipped_hybrid_ranker_failure",
+            "scored_count": 0,
+            "ranking_mode": ranking_mode,
+            "ranking_variant": _base_ranking_variant(),
+        }
+    if metadata is not None:
+        metadata.update(jev_modes)
 
     _stamp_global_rank(papers)
     for paper in papers:
@@ -1536,6 +1644,7 @@ async def deep_search(
             analysis.get("intent", "paper_search"),
             deadline=deadline,
             stop_event=stop,
+            metadata=result.setdefault("metadata", {}),
         )
 
         evaluation = await _evaluate_deep_results(
@@ -1664,8 +1773,12 @@ async def search_papers(
             "search_context",
         )
     }
+    jev_cache_variant = ranking_cache_variant()
     filters.update(
-        sources=sources, original_query=request.query, skillopt_policy=namespace
+        sources=sources,
+        original_query=request.query,
+        skillopt_policy=namespace,
+        jev_ranking_cache_variant=jev_cache_variant,
     )
     cache_key = _compute_cache_key(request.query, sources, filters)
     timings = {}
@@ -1675,6 +1788,9 @@ async def search_papers(
         "skillopt_policy_cache_namespace": namespace,
         "skillopt_policy_requested": policy_requested,
         "skillopt_policy_reason": policy_reason,
+        "jev_mode": "skipped",
+        "scored_count": 0,
+        "ranking_variant": _base_ranking_variant(),
     }
     source_metadata = {"timings": {}, "timeouts": {}, "modes": {}}
     snapshots = {}
@@ -1715,8 +1831,13 @@ async def search_papers(
             modes.update(
                 cache_fast_path=True,
                 query_analysis_mode="skipped_cache_hit",
-                ranking_mode="skipped_cache_hit",
+                ranking_mode=cached_metadata.get("ranking_mode", "skipped_cache_hit"),
                 source_search_mode="skipped_cache_hit",
+                jev_mode=cached_metadata.get("jev_mode", "skipped_cache_hit"),
+                scored_count=cached_metadata.get("scored_count", 0),
+                ranking_variant=cached_metadata.get(
+                    "ranking_variant", _base_ranking_variant()
+                ),
             )
             search_query = cached_metadata.get("executed_query", request.query)
         else:
@@ -1863,7 +1984,12 @@ async def search_papers(
                         "fast_capability" if request.fast_mode else "skipped"
                     )
                 results = finalize(results)
-                if _hybrid_ranker and any(results.values()) and not stop.is_set():
+                if (
+                    _hybrid_ranker
+                    and any(results.values())
+                    and not stop.is_set()
+                    and request.sort_by == "relevance"
+                ):
                     papers = _interleave_source_candidates(
                         results,
                         list(results),
@@ -1892,17 +2018,67 @@ async def search_papers(
                             ),
                             _RANKING_TIMEOUT,
                         )
-                        _stamp_global_rank(ranked)
-                        results = _rebuild_results_from_ranked(ranked, list(results))
-                        modes["ranking_mode"] = (
+                        base_ranking_mode = (
                             "cheap_rrf" if request.fast_mode else "hybrid_rrf"
                         )
+                        skip_jev_reason = None
+                        if request.fast_mode:
+                            skip_jev_reason = "skipped_fast_mode"
+                        elif route["kind"] != "topic":
+                            skip_jev_reason = "skipped_identity_route"
+                        if skip_jev_reason is None:
+                            jev_started = time.monotonic()
+                            try:
+                                ranked, jev_modes = await _apply_jev_reranking(
+                                    request.query,
+                                    ranked,
+                                    deadline=deadline,
+                                    stop_event=stop,
+                                    cache_variant=jev_cache_variant,
+                                    ranking_mode=base_ranking_mode,
+                                )
+                            finally:
+                                timings["search_jev"] = round(
+                                    time.monotonic() - jev_started, 3
+                                )
+                            modes.update(jev_modes)
+                            if str(jev_modes["jev_mode"]).startswith("fallback_"):
+                                healthy = False
+                        else:
+                            modes.update(
+                                jev_mode=skip_jev_reason,
+                                scored_count=0,
+                                ranking_mode=base_ranking_mode,
+                                ranking_variant=_base_ranking_variant(),
+                            )
+                        _stamp_global_rank(ranked)
+                        results = _rebuild_results_from_ranked(ranked, list(results))
                         modes["hyde_mode"] = "enabled" if hyde else "disabled"
                     except Exception as exc:
                         healthy = False
                         modes["ranking_mode"] = "fallback_" + type(exc).__name__
+                        modes["jev_mode"] = "skipped_hybrid_ranker_failure"
+                        modes["scored_count"] = 0
+                        modes["ranking_variant"] = _base_ranking_variant()
+                elif request.sort_by != "relevance":
+                    modes["ranking_mode"] = "skipped_non_relevance_sort"
+                    modes["jev_mode"] = "skipped_non_relevance_sort"
+                    modes["scored_count"] = 0
+                    modes["ranking_variant"] = _base_ranking_variant()
                 else:
                     modes["ranking_mode"] = "skipped"
+                    if stop.is_set():
+                        modes["jev_mode"] = "cancelled"
+                    elif not any(results.values()):
+                        modes["jev_mode"] = "skipped_no_results"
+                    elif request.fast_mode:
+                        modes["jev_mode"] = "skipped_fast_mode"
+                    elif route["kind"] != "topic":
+                        modes["jev_mode"] = "skipped_identity_route"
+                    else:
+                        modes["jev_mode"] = "skipped_hybrid_ranker_unavailable"
+                    modes["scored_count"] = 0
+                    modes["ranking_variant"] = _base_ranking_variant()
             else:
                 modes["source_search_mode"] = "non_academic"
         results = finalize(results)
@@ -1983,6 +2159,12 @@ async def search_papers(
             cache_body["_metadata"] = {
                 "executed_query": search_query,
                 "executed_queries": executed_queries,
+                "jev_mode": modes.get("jev_mode", "skipped"),
+                "scored_count": modes.get("scored_count", 0),
+                "ranking_mode": modes.get("ranking_mode", "skipped"),
+                "ranking_variant": modes.get(
+                    "ranking_variant", _base_ranking_variant()
+                ),
             }
             try:
                 await stage(
@@ -2053,8 +2235,12 @@ async def search_papers(
                             ),
                             "results_count": total,
                             "ranking_applied": modes.get("ranking_mode")
-                            in {"cheap_rrf", "hybrid_rrf"},
-                            "ranking_variant": f"ce_w={CROSS_ENCODER_RRF_WEIGHT}",
+                            in {"cheap_rrf", "hybrid_rrf", "hybrid_rrf_jev"},
+                            "ranking_variant": modes.get(
+                                "ranking_variant", _base_ranking_variant()
+                            ),
+                            "jev_mode": modes.get("jev_mode", "skipped"),
+                            "scored_count": modes.get("scored_count", 0),
                             "source_counts": {
                                 source: len(papers)
                                 for source, papers in results.items()
@@ -2256,6 +2442,7 @@ async def deep_search_stream(
                 analysis.get("intent", "paper_search"),
                 deadline=deadline,
                 stop_event=stop,
+                metadata=result.setdefault("metadata", {}),
             )
             result["papers"] = papers
             yield _sse_event(

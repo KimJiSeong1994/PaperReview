@@ -185,6 +185,41 @@ def test_deploy_uses_release_namespace_worker_attestation_and_strict_readiness()
     assert "--workers 2" not in workflow
 
 
+def test_jev_api_key_update_is_optional_private_and_stdin_only() -> None:
+    workflow = WORKFLOW.read_text()
+    deploy = workflow[workflow.index("  deploy:") :]
+    install = deploy.index(
+        "      - name: Install exact backend revision and dependencies"
+    )
+    update = deploy.index("      - name: Update JEV server API key")
+    promotion = deploy.index("      - name: Atomically promote frontend")
+    restart = deploy.index(
+        "      - name: Restart the managed service and verify readiness"
+    )
+    assert install < update < promotion < restart
+
+    step = deploy[update:promotion]
+    assert "if: steps.stale.outputs.skip != 'true'" in step
+    assert "TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}" in step
+    assert 'if [ -n "$TYPESAFE_API_KEY" ]; then' in step
+    assert 'printf \'%s\' "$TYPESAFE_API_KEY" | ssh -i ~/.ssh/deploy_key' in step
+    assert step.count('"$TYPESAFE_API_KEY"') == 2
+    assert "sys.stdin.read()" in step
+    assert 'APP_ROOT="$HOME/PaperReviewAgent"' in step
+    assert "$HOME/PaperReviewAgent/venv/bin/python" in step
+    assert r'Path(os.environ[\"APP_ROOT\"]) / \".env\"' in step
+    assert (
+        r'set_key(str(env_file), \"TYPESAFE_API_KEY\", key, quote_mode=\"always\")'
+        in step
+    )
+    assert "env_file.is_file()" in step
+    assert step.count("env_file.chmod(0o600)") == 2
+    assert "unicodedata.category" in step
+    assert "print(" not in step
+    assert "tee " not in step
+    assert "echo " not in step
+
+
 def test_failed_same_sha_rerun_has_distinct_remote_namespace() -> None:
     workflow = WORKFLOW.read_text()
     assert (

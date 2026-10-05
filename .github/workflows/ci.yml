@@ -431,6 +431,16 @@ jobs:
           pip install -r requirements.txt --quiet
           SCRIPT
 
+      - name: Update JEV server API key
+        if: steps.stale.outputs.skip != 'true'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          if [ -n "$TYPESAFE_API_KEY" ]; then
+            printf '%s' "$TYPESAFE_API_KEY" | ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              'APP_ROOT="$HOME/PaperReviewAgent" "$HOME/PaperReviewAgent/venv/bin/python" -c "import os, sys, unicodedata; from pathlib import Path; from dotenv import set_key; key = sys.stdin.read(); assert key and all(unicodedata.category(char) != \"Cc\" for char in key), \"invalid TYPESAFE_API_KEY input\"; env_file = Path(os.environ[\"APP_ROOT\"]) / \".env\"; assert env_file.is_file(), \"server .env is missing\"; env_file.chmod(0o600); set_key(str(env_file), \"TYPESAFE_API_KEY\", key, quote_mode=\"always\"); env_file.chmod(0o600)"'
+          fi
+
       - name: Atomically promote frontend
         if: steps.stale.outputs.skip != 'true'
         run: |

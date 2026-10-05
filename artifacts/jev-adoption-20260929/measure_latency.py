@@ -15,7 +15,7 @@ from openai import OpenAI
 
 from src.graph_rag.hybrid_ranker import HybridRanker, CROSS_ENCODER_RRF_WEIGHT
 from src.collector.paper.similarity_calculator import SimilarityCalculator
-from src.search_eval.jev_client import MODEL, RUBRIC_HASH, JevError, score_candidate
+from src.utils.jev_client import MODEL, RUBRIC_HASH, JevError, score_candidate
 from src.search_eval.judged_replay import digest, score_identities
 from src.utils.model_defaults import DEFAULT_TOOL_MODEL, DEFAULT_EMBEDDING_MODEL
 
