@@ -546,19 +546,6 @@ body {
    applies, and the bar reuses .search-bar-fixed's 900px so it matches the one
    in the results view. */
 
-.results-degraded {
-  max-width: 900px;
-  margin: 0 auto 8px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-}
-
-.empty-state-detail {
-  margin-top: 6px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-}
-
 .search-bar-fixed {
   width: 100%;
   max-width: 900px;
