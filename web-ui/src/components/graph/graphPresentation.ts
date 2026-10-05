@@ -7,6 +7,71 @@ export const graphEdgeKey = (source: string, target: string): string => (
   source < target ? `${source}--${target}` : `${target}--${source}`
 );
 
+export interface RankedNeighbor {
+  id: string;
+  weight: number;
+  sharedTerms: string[];
+}
+
+export function rankedNeighbors(
+  graphData: GraphData | null | undefined,
+  selectedId: string | null | undefined,
+  limit = 5,
+): RankedNeighbor[] {
+  if (!graphData || selectedId === null || selectedId === undefined) return [];
+
+  const selectedKey = String(selectedId);
+  const neighbors = new Map<string, RankedNeighbor>();
+  graphData.edges.forEach(edge => {
+    const source = String(edge.source);
+    const target = String(edge.target);
+    if (source === target) return;
+
+    const neighborId = source === selectedKey
+      ? target
+      : target === selectedKey
+        ? source
+        : null;
+    if (neighborId === null || neighborId === selectedKey) return;
+
+    const weight = edge.weight;
+    if (typeof weight !== 'number' || !Number.isFinite(weight)) return;
+    const existing = neighbors.get(neighborId);
+    if (!existing || weight > existing.weight) {
+      neighbors.set(neighborId, {
+        id: neighborId,
+        weight,
+        sharedTerms: [...(edge.shared_terms ?? [])],
+      });
+    }
+  });
+
+  return [...neighbors.values()]
+    .sort((left, right) => (
+      right.weight - left.weight || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    ))
+    .slice(0, Math.max(0, Math.floor(limit)));
+}
+
+export function describeEdgeMethod(meta?: GraphData['meta']): { label: string; explanation: string } {
+  if (meta?.edge_method === 'semantic_cosine') {
+    return {
+      label: meta.edge_label || '제목 의미 유사도',
+      explanation: '제목 임베딩 코사인 유사도 · 인용·인과 관계 아님',
+    };
+  }
+  if (meta?.edge_method === 'title_keyword_jaccard') {
+    return {
+      label: meta.edge_label || '제목·키워드 유사도',
+      explanation: '제목·키워드 겹침(Jaccard) · 인용·인과 관계 아님',
+    };
+  }
+  return {
+    label: '논문 간 유사도',
+    explanation: '관계 계산 정보 없음',
+  };
+}
+
 export function strongestPathToOrigin(
   graphData: GraphData,
   selectedId: string | null,

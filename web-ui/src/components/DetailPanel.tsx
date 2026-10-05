@@ -1,15 +1,31 @@
 import { useState } from 'react';
 import './DetailPanel.css';
-import type { Paper } from '../types';
+import type { GraphData, Paper } from '../types';
 import { generateApaCitation } from '../utils/citation';
 import { copyToClipboard } from '../utils/clipboard';
+import { describeEdgeMethod } from './graph/graphPresentation';
+
+interface RelatedPaper {
+  paper: Paper;
+  weight: number;
+  sharedTerms: string[];
+}
 
 interface DetailPanelProps {
   paper: Paper;
   onViewPaper?: (paper: Paper) => void;
+  relatedPapers?: RelatedPaper[];
+  edgeMeta?: GraphData['meta'];
+  onSelectRelated?: (paper: Paper) => void;
 }
 
-function DetailPanel({ paper, onViewPaper }: DetailPanelProps) {
+function DetailPanel({
+  paper,
+  onViewPaper,
+  relatedPapers = [],
+  edgeMeta,
+  onSelectRelated,
+}: DetailPanelProps) {
   const [copied, setCopied] = useState(false);
 
   const formatAuthors = (authors: string[]): string => {
@@ -29,6 +45,8 @@ function DetailPanel({ paper, onViewPaper }: DetailPanelProps) {
     };
     return sourceMap[paper.source || ''] || paper.source || 'Unknown';
   };
+
+  const edgeMethod = describeEdgeMethod(edgeMeta);
 
   const handleCopyCitation = () => {
     const citation = generateApaCitation(paper);
@@ -91,6 +109,39 @@ function DetailPanel({ paper, onViewPaper }: DetailPanelProps) {
         <span className="metric-label">Citations</span>
         <span className="metric-value">{paper.citations || 0}</span>
       </div>
+
+      {relatedPapers.length > 0 && (
+        <section className="detail-related-section" aria-label="다음에 읽을 논문">
+          <h3>다음에 읽을 논문 · 그래프 유사도 기준</h3>
+          <div className="detail-related-list">
+            {relatedPapers.map(({ paper: relatedPaper, weight, sharedTerms }) => {
+              const terms = sharedTerms.slice(0, 3);
+              return (
+                <button
+                  key={String(relatedPaper.result_key ?? relatedPaper.doc_id)}
+                  type="button"
+                  className="detail-related-card"
+                  onClick={() => onSelectRelated?.(relatedPaper)}
+                >
+                  <span className="detail-related-title">{relatedPaper.title}</span>
+                  {relatedPaper.year && (
+                    <span className="detail-related-year">{relatedPaper.year}</span>
+                  )}
+                  <span className="detail-related-similarity">
+                    {edgeMethod.label} {Math.round(weight * 100)}%
+                  </span>
+                  <span className="detail-related-terms">
+                    {terms.length > 0
+                      ? `공통 단서: ${terms.join(' · ')}`
+                      : '공통 용어 정보 없음'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="detail-related-footnote">{edgeMethod.explanation}</p>
+        </section>
+      )}
 
       <div className="detail-abstract">
         <h3>Abstract</h3>

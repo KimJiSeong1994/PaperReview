@@ -9,7 +9,7 @@ protection waiting for a workflow that never starts.
 
 - `backend-core`, `offline-optimizer`, and `poster-browser` always run in
   parallel without waiting for change detection. `scripts/ci_shards.py` owns
-  the explicit offline optimizer and two real-browser file inventories.
+  the explicit offline optimizer and real-browser file inventories.
   Runtime SkillOpt policy/authorization tests and every unlisted/new test
   default to core. Every shard collects the original full suite before
   selection; the stable `backend` required check audits equal collection
@@ -25,9 +25,12 @@ protection waiting for a workflow that never starts.
   existing optional exact-upstream fixture skips are allowed on Linux CI.
   Local non-Linux audits additionally allow the one Linux-only `renameat2`
   contract skip; they do not prove Linux sandbox or atomic-exchange execution.
-  Chromium and
-  its SUID sandbox checks run in `poster-browser`; missing browser execution
-  cannot silently pass. The exact-source job still enforces its own policy.
+  Chromium and its SUID sandbox checks run in `poster-browser`; that job also
+  serves `web-ui` from a loopback Vite server for
+  `tests/test_graph_view_browser.py`.
+  After `npm ci`, it sets `GRAPH_UI_BASE_URL`, so all five graph Playwright
+  cases run without a skip exception. Missing browser execution cannot silently
+  pass. The exact-source job still enforces its own policy.
 - Same-run partial retries and aggregate-only retries accept successful shard
   receipts from earlier attempts only for the exact same SHA and workflow run
   ID. Receipt and current attempts must be positive numbers, with no future

@@ -12,14 +12,33 @@ import pytest
 from scripts import ci_shards as ci
 
 
+GRAPH_BROWSER_TESTS = {
+    "tests/test_graph_view_browser.py::"
+    "test_fixture_graph_presentation_in_real_plotly[desktop-1280-800]",
+    "tests/test_graph_view_browser.py::"
+    "test_fixture_graph_presentation_in_real_plotly[mobile-390-844]",
+    "tests/test_graph_view_browser.py::"
+    "test_fixture_softcap_retains_every_path_pin_above_twenty_node_limit",
+    "tests/test_graph_view_browser.py::"
+    "test_graph_data_failure_keeps_results_without_graph_or_next_read",
+    "tests/test_graph_view_browser.py::"
+    "test_search_request_failure_keeps_the_search_error_state",
+}
+
+
 def nodes():
-    return sorted(
-        f"{path}::test_case" for path in ci.OFFLINE_OPTIMIZER | ci.POSTER_BROWSER
-    ) + [
-        "tests/test_skillopt_policy_runtime.py::test_authority",
-        "tests/test_skillopt_deep_review_policy_runtime.py::test_authority",
-        "tests/test_new_feature.py::test_new",
-    ]
+    inventory_files = (ci.OFFLINE_OPTIMIZER | ci.POSTER_BROWSER) - {
+        "tests/test_graph_view_browser.py"
+    }
+    return (
+        sorted(f"{path}::test_case" for path in inventory_files)
+        + sorted(GRAPH_BROWSER_TESTS)
+        + [
+            "tests/test_skillopt_policy_runtime.py::test_authority",
+            "tests/test_skillopt_deep_review_policy_runtime.py::test_authority",
+            "tests/test_new_feature.py::test_new",
+        ]
+    )
 
 
 def receipts():
@@ -68,6 +87,18 @@ def test_default_core_keeps_runtime_policies_and_new_files():
     for node in nodes()[-3:]:
         assert ci.shard_for(node) == "backend-core"
     assert ci.audit_receipts(receipts(), needs()) == sorted(nodes())
+
+
+def test_graph_browser_cases_are_in_browser_shard_without_skip_exceptions():
+    assert GRAPH_BROWSER_TESTS <= set(nodes())
+    for node in GRAPH_BROWSER_TESTS:
+        assert ci.shard_for(node) == "poster-browser"
+        assert not ci.allowed_skip(
+            node, "set GRAPH_UI_BASE_URL to a running local frontend"
+        )
+        assert not ci.allowed_skip(
+            node, "Playwright Chromium executable is not installed"
+        )
 
 
 @pytest.mark.parametrize("status", ["skipped", "cancelled", "failure", "", None])

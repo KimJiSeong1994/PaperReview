@@ -99,6 +99,81 @@
   letter-spacing: -0.5px;
 }
 
+.detail-related-section {
+  margin: 0 0 24px;
+}
+
+.detail-related-section h3 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.detail-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.detail-related-card {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--wov-10);
+  border-radius: 9px;
+  background: var(--wov-03);
+  color: var(--text-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.detail-related-card:hover {
+  border-color: var(--ibd-30);
+  background: var(--wov-06);
+}
+
+.detail-related-card:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.detail-related-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.detail-related-year,
+.detail-related-similarity,
+.detail-related-terms,
+.detail-related-footnote {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.detail-related-year,
+.detail-related-terms {
+  color: var(--text-muted);
+}
+
+.detail-related-similarity {
+  color: var(--indigo);
+  font-weight: 600;
+}
+
+.detail-related-footnote {
+  margin: 10px 0 0;
+  color: var(--text-faint);
+}
+
 .detail-abstract {
   margin-top: 24px;
 }

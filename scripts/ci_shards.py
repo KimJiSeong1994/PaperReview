@@ -46,6 +46,7 @@ OFFLINE_OPTIMIZER = frozenset(
 )
 POSTER_BROWSER = frozenset(
     {
+        "tests/test_graph_view_browser.py",
         "tests/test_poster_browser_security.py",
         "tests/test_poster_export_contract.py",
     }

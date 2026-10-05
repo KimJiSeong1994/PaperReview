@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import { fetchBatchReferences, getGraphData, searchPapers, startDeepReview } from '../api/client';
-import { trackSearchEvent } from '../analytics/events';
+import { trackPaperSelect, trackSearchEvent } from '../analytics/events';
 import { useDeepReview } from '../hooks/useDeepReview';
 import type { PaperReference } from '../api/search';
 import GraphView from '../components/GraphView';
@@ -96,6 +96,12 @@ async function submitSearch(query: string) {
 function renderedTitles(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll('.paper-title')).map(
     (node) => node.textContent ?? '',
+  );
+}
+
+function relatedBadges(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll('.paper-card')).map(
+    card => card.querySelector('.related-rank-badge')?.textContent ?? '',
   );
 }
 
@@ -206,6 +212,55 @@ describe('SearchPage result ordering', () => {
     expect(cards[1]).toHaveClass('graph-related');
     expect(cards[2]).not.toHaveClass('graph-related');
     expect(screen.getAllByText('유사 1')).toHaveLength(1);
+  });
+
+  it('derives initial, list, and node highlights from one result-key-ranked neighborhood', async () => {
+    const origin = { ...paper('legacy', 'Origin', 0), result_key: 'doi:origin' };
+    const alpha = { ...paper('legacy', 'Alpha', 1), result_key: 'doi:alpha' };
+    const beta = { ...paper('legacy', 'Beta', 2), result_key: 'doi:beta' };
+    const zeta = { ...paper('legacy', 'Zeta', 3), result_key: 'doi:zeta' };
+    const results = [origin, alpha, beta, zeta];
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: results }, total: results.length,
+    } as never);
+    vi.mocked(getGraphData).mockResolvedValue({
+      nodes: results.map((result, index) => ({
+        id: result.result_key,
+        title: result.title,
+        x: index,
+        y: 0,
+      })),
+      edges: [
+        { source: 'doi:origin', target: 'doi:zeta', weight: 0.99 },
+        { source: 'doi:origin', target: 'doi:beta', weight: 0.9 },
+        { source: 'doi:origin', target: 'doi:alpha', weight: 0.9 },
+        { source: 'doi:alpha', target: 'doi:beta', weight: 0.7 },
+      ],
+    });
+
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('graph neighbors');
+    await waitFor(() => expect(relatedBadges(container)).toEqual([
+      '', '유사 2', '유사 3', '유사 1',
+    ]));
+
+    fireEvent.click(container.querySelectorAll('.paper-card')[1]);
+    await waitFor(() => expect(relatedBadges(container)).toEqual([
+      '', '', '유사 2', '',
+    ]));
+    // The origin keeps its dedicated badge; relation cards still include it first.
+    const relatedTitles = () => Array.from(
+      container.querySelectorAll('.detail-related-title'),
+      element => element.textContent,
+    );
+    expect(relatedTitles()).toEqual(['Origin', 'Beta']);
+    const listSelectionBadges = relatedBadges(container);
+    fireEvent.click(screen.getByRole('button', { name: 'graph-click:doi:alpha' }));
+    await waitFor(() => expect(relatedBadges(container)).toEqual(listSelectionBadges));
+    expect(relatedTitles()).toEqual(['Origin', 'Beta']);
+
+    expect(trackPaperSelect).toHaveBeenCalledWith('list', expect.objectContaining({ rank: 2 }));
+    expect(trackPaperSelect).toHaveBeenCalledWith('graph', expect.objectContaining({ rank: 2 }));
   });
 
   it('keeps independently identified same-title references independently selectable', async () => {

@@ -126,6 +126,11 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-ui/package-lock.json
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -135,6 +140,23 @@ jobs:
           cache-dependency-glob: requirements.txt
       - name: Install dependencies
         run: uv pip install --system --torch-backend=cpu -r requirements.txt
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: web-ui
+
+      - name: Start local frontend for graph browser tests
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/graph-ui-vite.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/graph-ui-vite.log"
+          exit 1
+        working-directory: web-ui
 
       # The poster PDF tests skip themselves when no browser is installed, so
       # without this every claim the feature rests on — scripting disabled in
@@ -163,6 +185,7 @@ jobs:
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-jwt-not-real' }}
           APP_PASSWORD: ${{ secrets.CI_APP_PASSWORD || 'ci-placeholder-password' }}
           COVERAGE_FILE: ci-results/.coverage
+          GRAPH_UI_BASE_URL: http://127.0.0.1:4173
         run: python -m pytest tests/ -p scripts.ci_shards --ci-shard=poster-browser -v --tb=short --durations=25 --cov=routers --cov=app --cov=src --cov-report= --cov-fail-under=0
       - uses: actions/upload-artifact@v4
         with:
