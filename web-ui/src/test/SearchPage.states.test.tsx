@@ -80,19 +80,16 @@ describe('SearchPage honest states', () => {
     });
   });
 
-  // Zero results and "every source timed out" are different facts. The UI read
-  // only is_academic, so a backend that never answered was reported to the user
-  // as their keywords being wrong.
-  it('names the sources that timed out instead of blaming the query', async () => {
+  // Provider timeouts are internal diagnostics; no-result guidance stays neutral.
+  it('keeps provider timeout details out of the no-results state', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: {}, total: 0, source_timeouts: { arxiv: true, openalex: true, dblp: false },
     } as never);
     renderPage();
     await submit('graph neural networks');
 
-    expect(screen.queryByText(/다른 키워드로 시도해보세요/)).toBeNull();
-    expect(screen.getByText(/2개 출처가 제때 응답하지 않아/)).toBeTruthy();
-    expect(screen.getByText(/arXiv, OpenAlex/)).toBeTruthy();
+    expect(screen.getByText('검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.')).toBeTruthy();
+    expect(screen.queryByText(/출처가 제때 응답하지 않아|응답하지 않은 출처|arXiv|OpenAlex/)).toBeNull();
   });
 
   it('still blames nothing in particular when the sources simply found nothing', async () => {
@@ -101,7 +98,7 @@ describe('SearchPage honest states', () => {
     } as never);
     renderPage();
     await submit('graph neural networks');
-    expect(screen.getByText(/검색 결과가 없습니다/)).toBeTruthy();
+    expect(screen.getByText('검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.')).toBeTruthy();
   });
 
   // The loading branch's live region unmounts when loading ends, so without

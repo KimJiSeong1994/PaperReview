@@ -37,18 +37,6 @@ import {
 
 const GraphViewComponent = lazy(() => import('./GraphView'));
 
-const providerName = (provider: string): string => {
-  switch (provider) {
-    case 'arxiv': return 'arXiv';
-    case 'connected_papers': return 'Connected Papers via Semantic Scholar';
-    case 'google_scholar': return 'Google Scholar';
-    case 'openalex': return 'OpenAlex';
-    case 'dblp': return 'DBLP';
-    case 'openalex_korean': return 'OpenAlex (한국어)';
-    default: return '일부 출처';
-  }
-};
-
 // PDF 실패는 다시 눌러 볼 값어치가 있는지로 갈린다. 서버에 Chromium 이 없으면
 // 재시도는 같은 503 을 되돌려 줄 뿐이므로, 그 경우엔 이미 손에 쥔 HTML 로 안내한다.
 const posterPdfErrorMessage = (
@@ -105,7 +93,6 @@ function SearchPage() {
   // Survives a failed search so the empty state can hand the query back
   // instead of dropping it (a chip click has no other copy of it).
   const [attemptedQuery, setAttemptedQuery] = useState('');
-  const [timedOutSources, setTimedOutSources] = useState<string[]>([]);
 
   // Deep Review states
   const [selectedPapersForReview, setSelectedPapersForReview] = useState<Set<string>>(new Set());
@@ -319,7 +306,6 @@ function SearchPage() {
     setGuidanceMessage(null);
     setGuidanceSticky(false);
     setEnrichmentLoading(false);
-    setTimedOutSources([]);
 
     // Delay loading indicator so non-academic responses (~0.5s) don't flash it
     const loadingTimer = setTimeout(() => {
@@ -342,14 +328,6 @@ function SearchPage() {
 
       setQueryHash(results.query_hash || '');
 
-      // A source that timed out is not a source that found nothing. Without
-      // this the zero-result copy blames the user's keywords for a backend
-      // that never answered.
-      setTimedOutSources(
-        Object.entries(results.source_timeouts ?? {})
-          .filter(([, timedOut]) => timedOut)
-          .map(([name]) => providerName(name)),
-      );
       const variant = String(
         (results.stage_modes as Record<string, unknown> | undefined)?.ranking_variant ?? '',
       );
@@ -1022,12 +1000,6 @@ function SearchPage() {
             </div>
           </div>
 
-          {timedOutSources.length > 0 && (
-            <p className="results-degraded" role="status">
-              {timedOutSources.join(', ')} 출처가 제때 응답하지 않아 일부 결과가 빠졌을 수 있습니다.
-            </p>
-          )}
-
           <div className="results-workspace-toolbar" aria-label="검색 결과 보기 설정">
             <div className="results-context">
               <strong>{papers.length}편의 논문 관계</strong>
@@ -1346,18 +1318,7 @@ function SearchPage() {
                searched and got nothing was told nothing at all while focus
                dropped to <body>. */
             <div className="empty-state" role="status" aria-live="polite">
-              {timedOutSources.length > 0 ? (
-                <>
-                  <p>
-                    {timedOutSources.length}개 출처가 제때 응답하지 않아 결과를 가져오지 못했습니다.
-                  </p>
-                  <p className="empty-state-detail">
-                    응답하지 않은 출처: {timedOutSources.join(', ')} · 잠시 후 다시 시도해보세요.
-                  </p>
-                </>
-              ) : (
-                <p>검색 결과가 없습니다. 다른 키워드로 시도해보세요.</p>
-              )}
+              <p>검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.</p>
             </div>
           )}
         </div>

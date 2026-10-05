@@ -322,7 +322,7 @@ describe('SearchPage result ordering', () => {
     });
   });
 
-  it('hides executed queries and diagnostic/save status while preserving result and timeout messages', async () => {
+  it('hides executed queries and diagnostic, save, and provider status while preserving results', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper('one', 'Result', 0)] }, total: 1,
       query_analysis: { improved_query: 'suggestion that never ran' },
@@ -343,7 +343,8 @@ describe('SearchPage result ordering', () => {
     expect(screen.queryByText(/DBLP: 검색 응답이 제한되었습니다/)).not.toBeInTheDocument();
     expect(screen.queryByText(/일부 검색 기능이 제한/)).not.toBeInTheDocument();
     expect(screen.queryByText(/저장 작업 용량이 부족/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Google Scholar 출처가 제때/)).toBeInTheDocument();
+    expect(screen.queryByText(/출처가 제때 응답하지 않아|응답하지 않은 출처/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Google Scholar/)).not.toBeInTheDocument();
   });
 
   it('keeps executed query, partial-result, and save metadata out of the empty state', async () => {
@@ -353,7 +354,7 @@ describe('SearchPage result ordering', () => {
     });
     render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('empty');
-    expect(screen.getByText('검색 결과가 없습니다. 다른 키워드로 시도해보세요.')).toBeInTheDocument();
+    expect(screen.getByText('검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.')).toBeInTheDocument();
     expect(screen.queryByText('executed empty query')).not.toBeInTheDocument();
     expect(screen.queryByText(/실제 검색어:|일부 검색만 완료|저장할 검색 결과가 없어/)).not.toBeInTheDocument();
   });
@@ -409,15 +410,14 @@ describe('SearchPage result ordering', () => {
     expect(screen.queryByText(new RegExp(message))).not.toBeInTheDocument();
     expect(screen.queryByText(/결과 순위 계산이 제한/)).not.toBeInTheDocument();
     expect(container.querySelector('.results-save-information')).toBeNull();
-    expect(container.querySelector('.results-degraded')).toBeNull();
     if (save_status === 'no_results') {
-      expect(screen.getByText('검색 결과가 없습니다. 다른 키워드로 시도해보세요.')).toBeInTheDocument();
+      expect(screen.getByText('검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.')).toBeInTheDocument();
     } else {
       expect(screen.getAllByText('Result').length).toBeGreaterThan(0);
     }
   });
 
-  it('uses readable provider names and never renders unknown provider or mode diagnostics', async () => {
+  it('never renders provider timeout or diagnostic status', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper('one', 'Result', 0)] }, total: 1,
       stage_modes: { source_modes: {
@@ -433,9 +433,7 @@ describe('SearchPage result ordering', () => {
     });
     const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('original');
-    expect(screen.queryByText(/Connected Papers via Semantic Scholar: 검색 응답이 제한/)).not.toBeInTheDocument();
-    expect(screen.getByText(/DBLP, 일부 출처 출처가 제때/)).toBeInTheDocument();
-    expect(screen.queryByText(/DBLP: 검색 응답이 제한/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/출처가 제때 응답하지 않아|응답하지 않은 출처|검색 응답이 제한/)).not.toBeInTheDocument();
     expect(screen.queryByText('일부 출처: translated query')).not.toBeInTheDocument();
     expect(container.textContent).not.toMatch(/secret-token|unknown-.*token|unknown-secret-provider|internal-reset|HTTP429/);
   });
