@@ -115,7 +115,7 @@ describe('SearchPage honest states', () => {
     expect(empty?.getAttribute('aria-live')).toBe('polite');
   });
 
-  it('shows the executed query rather than an analyzer suggestion', async () => {
+  it('keeps executed-query metadata and analyzer suggestions out of results', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper] }, total: 1,
       query_analysis: { improved_query: 'unexecuted suggestion' },
@@ -123,11 +123,13 @@ describe('SearchPage honest states', () => {
     } as never);
     renderPage();
     await submit('GNN');
-    expect(screen.getByText('graph neural network representation learning')).toBeTruthy();
+    expect(screen.getAllByText(paper.title).length).toBeGreaterThan(0);
+    expect(screen.queryByText('graph neural network representation learning')).toBeNull();
     expect(screen.queryByText('unexecuted suggestion')).toBeNull();
+    expect(screen.queryByText(/실제 검색어:/)).toBeNull();
   });
 
-  it('stays quiet when the rewrite is the query', async () => {
+  it('keeps the executed query hidden even when it matches the search input', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: { arxiv: [paper] }, total: 1,
       query_analysis: { improved_query: 'graph neural networks' },
@@ -135,6 +137,8 @@ describe('SearchPage honest states', () => {
     } as never);
     renderPage();
     await submit('graph neural networks');
-    expect(document.querySelector('.results-rewritten-query')).toBeNull();
+    expect(screen.getAllByText(paper.title).length).toBeGreaterThan(0);
+    expect(screen.queryByText('graph neural networks')).toBeNull();
+    expect(screen.queryByText(/실제 검색어:/)).toBeNull();
   });
 });

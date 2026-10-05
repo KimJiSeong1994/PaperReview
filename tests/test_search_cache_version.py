@@ -15,15 +15,18 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_module():
     """Import routers.search with the real module (no reload needed)."""
     import routers.search as rs
+
     return rs
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_cache_schema_version_constant_exists():
     rs = _get_module()
@@ -57,6 +60,23 @@ def test_same_version_same_key():
     assert key1 == key2
 
 
+def test_cache_key_isolates_jev_key_presence(monkeypatch):
+    rs = _get_module()
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    without_key_variant = rs.ranking_cache_variant()
+    without_key = rs._compute_cache_key("key activation", ["arxiv"], {})
+
+    test_key = "fake-key-for-cache-fingerprint-test"
+    monkeypatch.setenv("TYPESAFE_API_KEY", test_key)
+    with_key_variant = rs.ranking_cache_variant()
+    with_key = rs._compute_cache_key("key activation", ["arxiv"], {})
+
+    assert with_key != without_key
+    assert with_key_variant != without_key_variant
+    assert test_key not in without_key_variant
+    assert test_key not in with_key_variant
+
+
 def test_search_model_change_does_not_reuse_cached_results(monkeypatch, tmp_path):
     rs = _get_module()
     monkeypatch.setattr(rs, "SEARCH_CACHE_DIR", tmp_path)
@@ -75,24 +95,37 @@ def test_search_model_change_does_not_reuse_cached_results(monkeypatch, tmp_path
     assert rs._get_cached_result(old_key) is not None
 
 
-@pytest.mark.parametrize("left,right", [
-    ("graph NOT retrieval", "graph retrieval"),
-    ("graph AND retrieval", "graph OR retrieval"),
-    ('"graph retrieval"', "graph retrieval"),
-    ("C++ methods", "C methods"),
-])
+@pytest.mark.parametrize(
+    "left,right",
+    [
+        ("graph NOT retrieval", "graph retrieval"),
+        ("graph AND retrieval", "graph OR retrieval"),
+        ('"graph retrieval"', "graph retrieval"),
+        ("C++ methods", "C methods"),
+    ],
+)
 def test_cache_preserves_query_meaning(left, right):
     rs = _get_module()
-    assert rs._compute_cache_key(left, ["arxiv"], {}) != rs._compute_cache_key(right, ["arxiv"], {})
+    assert rs._compute_cache_key(left, ["arxiv"], {}) != rs._compute_cache_key(
+        right, ["arxiv"], {}
+    )
 
 
 def test_cache_context_and_canonical_sources():
     rs = _get_module()
-    assert rs._compute_cache_key("논문", ["arxiv", "openalex"], {}) == rs._compute_cache_key(
-        "  논문  ", ["openalex", "arxiv", "arxiv"], {},
+    assert rs._compute_cache_key(
+        "논문", ["arxiv", "openalex"], {}
+    ) == rs._compute_cache_key(
+        "  논문  ",
+        ["openalex", "arxiv", "arxiv"],
+        {},
     )
-    assert rs._compute_cache_key("query", ["arxiv"], {"search_context": "biology"}) != rs._compute_cache_key(
-        "query", ["arxiv"], {"search_context": "physics"},
+    assert rs._compute_cache_key(
+        "query", ["arxiv"], {"search_context": "biology"}
+    ) != rs._compute_cache_key(
+        "query",
+        ["arxiv"],
+        {"search_context": "physics"},
     )
 
 
@@ -103,7 +136,9 @@ def test_cache_returns_private_nested_papers(monkeypatch, tmp_path):
     first = rs._get_cached_result("private")
     first["arxiv"][0]["authors"].append("B")
     first["arxiv"][0]["searched_by"] = "user"
-    assert rs._get_cached_result("private") == {"arxiv": [{"title": "P", "authors": ["A"]}]}
+    assert rs._get_cached_result("private") == {
+        "arxiv": [{"title": "P", "authors": ["A"]}]
+    }
 
 
 def test_cache_version_change_invalidates_file_cache(monkeypatch, tmp_path):
@@ -153,6 +188,7 @@ def test_legacy_key_still_in_cache_but_unreachable_via_new_key():
         old_key = rs._compute_cache_key("some query", ["arxiv"], {})
 
         from datetime import datetime, timedelta
+
         future = (datetime.now() + timedelta(hours=1)).isoformat()
         with rs._cache_lock:
             rs._search_cache[old_key] = {

@@ -16,7 +16,7 @@ import sys
 import time
 
 from . import judged_replay
-from .jev_client import (
+from src.utils.jev_client import (
     MODEL,
     RUBRIC_HASH,
     RUBRIC_VERSION,

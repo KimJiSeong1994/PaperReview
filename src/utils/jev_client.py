@@ -1,15 +1,15 @@
-"""Small, fail-closed HTTP client for offline Jev paper-relevance judgments."""
+"""Small, fail-closed HTTP client for Jev paper-relevance judgments."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import time
 from collections.abc import Mapping
 from typing import Any
 
 import httpx
-
-from .judged_replay import digest
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-1.13.0"
@@ -48,9 +48,14 @@ _CRITERIA = [
     "and substantively investigates the query's topic or requested relationship, "
     "with closely matching scope, method, or context.",
 ]
-RUBRIC_HASH = digest(
-    {"type": "score", "instructions": _INSTRUCTIONS, "criteria": _CRITERIA}
-)
+_RUBRIC_JSON = json.dumps(
+    {"type": "score", "instructions": _INSTRUCTIONS, "criteria": _CRITERIA},
+    sort_keys=True,
+    separators=(",", ":"),
+    ensure_ascii=False,
+    allow_nan=False,
+).encode("utf-8")
+RUBRIC_HASH = "sha256:" + hashlib.sha256(_RUBRIC_JSON).hexdigest()
 
 
 class JevError(Exception):
@@ -66,6 +71,90 @@ def score_candidate(
     timeout: float = 10.0,
 ) -> dict[str, Any]:
     """Score one paper candidate against a scholarly query using Jev."""
+    body, headers, request_timeout = _prepare_score_request(
+        query, candidate, api_key=api_key, timeout=timeout
+    )
+    started = time.perf_counter()
+
+    try:
+        if client is None:
+            with httpx.Client(follow_redirects=False) as owned_client:
+                response = owned_client.post(
+                    API_URL,
+                    headers=headers,
+                    json=body,
+                    timeout=request_timeout,
+                    follow_redirects=False,
+                )
+        else:
+            response = client.post(
+                API_URL,
+                headers=headers,
+                json=body,
+                timeout=request_timeout,
+                follow_redirects=False,
+            )
+    except httpx.TimeoutException:
+        raise JevError("TypeSafe request timed out") from None
+    except httpx.HTTPError:
+        raise JevError("TypeSafe request failed") from None
+    except Exception:
+        # Injected clients may raise non-httpx exceptions; never expose their details.
+        raise JevError("TypeSafe request failed") from None
+
+    return _validated_response_result(response, started)
+
+
+async def async_score_candidate(
+    query: str,
+    candidate: Mapping[str, Any],
+    *,
+    api_key: str,
+    client: httpx.AsyncClient | None = None,
+    timeout: float = 10.0,
+) -> dict[str, Any]:
+    """Asynchronously score one paper candidate against a scholarly query."""
+    body, headers, request_timeout = _prepare_score_request(
+        query, candidate, api_key=api_key, timeout=timeout
+    )
+    started = time.perf_counter()
+
+    try:
+        if client is None:
+            async with httpx.AsyncClient(follow_redirects=False) as owned_client:
+                response = await owned_client.post(
+                    API_URL,
+                    headers=headers,
+                    json=body,
+                    timeout=request_timeout,
+                    follow_redirects=False,
+                )
+        else:
+            response = await client.post(
+                API_URL,
+                headers=headers,
+                json=body,
+                timeout=request_timeout,
+                follow_redirects=False,
+            )
+    except httpx.TimeoutException:
+        raise JevError("TypeSafe request timed out") from None
+    except httpx.HTTPError:
+        raise JevError("TypeSafe request failed") from None
+    except Exception:
+        # Cancellation derives from BaseException and intentionally propagates.
+        raise JevError("TypeSafe request failed") from None
+
+    return _validated_response_result(response, started)
+
+
+def _prepare_score_request(
+    query: str,
+    candidate: Mapping[str, Any],
+    *,
+    api_key: str,
+    timeout: float,
+) -> tuple[dict[str, Any], dict[str, str], float]:
     clean_query = _required_text(query, "query", maximum=_MAX_QUERY_CHARS)
     if not isinstance(candidate, Mapping):
         raise JevError("Invalid candidate")
@@ -97,34 +186,12 @@ def score_candidate(
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    started = time.perf_counter()
+    return body, headers, request_timeout
 
-    try:
-        if client is None:
-            with httpx.Client(follow_redirects=False) as owned_client:
-                response = owned_client.post(
-                    API_URL,
-                    headers=headers,
-                    json=body,
-                    timeout=request_timeout,
-                    follow_redirects=False,
-                )
-        else:
-            response = client.post(
-                API_URL,
-                headers=headers,
-                json=body,
-                timeout=request_timeout,
-                follow_redirects=False,
-            )
-    except httpx.TimeoutException:
-        raise JevError("TypeSafe request timed out") from None
-    except httpx.HTTPError:
-        raise JevError("TypeSafe request failed") from None
-    except Exception:
-        # Injected clients may raise non-httpx exceptions; never expose their details.
-        raise JevError("TypeSafe request failed") from None
 
+def _validated_response_result(
+    response: httpx.Response, started: float
+) -> dict[str, Any]:
     status = response.status_code
     if status == 401:
         raise JevError("TypeSafe authentication failed")

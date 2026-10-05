@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import random
 import statistics
-from src.search_eval.jev_client import JevError, score_candidate
+from src.utils.jev_client import JevError, score_candidate
 from src.search_eval.judged_replay import digest, score_identities
 
 root=Path(__file__).parent

@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
 import pytest
 
-from src.search_eval.jev_client import (
+from src.utils.jev_client import (
     API_URL,
     MODEL,
     RUBRIC_HASH,
     RUBRIC_VERSION,
     JevError,
+    async_score_candidate,
     score_candidate,
     validate_score_result,
 )
@@ -137,6 +139,69 @@ def test_valid_score_response_is_normalized_and_injected_client_stays_open():
     assert isinstance(result["elapsed_ms"], int)
     assert not client.is_closed
     client.close()
+
+
+@pytest.mark.asyncio
+async def test_async_score_response_uses_same_validated_contract_and_keeps_client_open():
+    requests = []
+
+    async def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json=_payload(), request=request)
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), follow_redirects=False
+    ) as client:
+        result = await async_score_candidate(
+            "graph molecules", _candidate(), api_key=_API_KEY, client=client
+        )
+        assert not client.is_closed
+
+    assert requests and str(requests[0].url) == API_URL
+    assert requests[0].headers["Authorization"] == f"Bearer {_API_KEY}"
+    assert result["model"] == MODEL
+    assert result["rubric_version"] == RUBRIC_VERSION
+    assert result["score"] == 2.2
+    validate_score_result(result)
+
+
+@pytest.mark.asyncio
+async def test_async_invalid_response_reuses_strict_validation():
+    async def handler(request):
+        answer = {
+            "type": "score",
+            "score": 1.0,
+            "confidence": 0.8,
+            "probabilities": {"0": 0, "1": 0, "2": 1, "3": 0},
+        }
+        return httpx.Response(200, json=_payload(answer=answer), request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(JevError, match="^Invalid score result score$"):
+            await async_score_candidate(
+                "graph molecules", _candidate(), api_key=_API_KEY, client=client
+            )
+
+
+@pytest.mark.asyncio
+async def test_async_cancellation_propagates_without_closing_injected_client():
+    entered = asyncio.Event()
+
+    async def handler(request):
+        entered.set()
+        await asyncio.Event().wait()
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        request_task = asyncio.create_task(
+            async_score_candidate(
+                "graph molecules", _candidate(), api_key=_API_KEY, client=client
+            )
+        )
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        request_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request_task
+        assert not client.is_closed
 
 
 def test_observed_two_decimal_wire_response_is_accepted_without_normalization():

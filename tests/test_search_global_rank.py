@@ -11,8 +11,11 @@ another, and the cross-encoder weight that replaced the second reranking pass.
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from datetime import datetime
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -111,8 +114,9 @@ def test_cache_key_separates_llm_search_pipeline():
     """use_llm_search selects a different pipeline; both map to the
     'baseline' SkillOpt namespace while the policy is off, so the key itself
     has to distinguish them."""
-    assert rs._skillopt_result_cache_namespace(apply_skillopt_policy=False)[0] == (
-        rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)[0]
+    assert (
+        rs._skillopt_result_cache_namespace(apply_skillopt_policy=False)[0]
+        == (rs._skillopt_result_cache_namespace(apply_skillopt_policy=True)[0])
     ), "precondition: both pipelines share the SkillOpt namespace when policy is off"
     assert _key(use_llm_search=True) != _key(use_llm_search=False)
 
@@ -122,6 +126,265 @@ def test_cache_key_still_separates_existing_dimensions():
     assert _key(fast_mode=True) != _key(fast_mode=False)
     assert _key(year_start=2020) != _key(year_start=None)
     assert _key() == _key(), "key must be deterministic"
+
+
+def _mock_api_search(monkeypatch, papers):
+    analyzer = MagicMock()
+    analyzer.analyze_and_prepare.return_value = {
+        "intent": "paper_search",
+        "confidence": 0.5,
+        "is_academic": True,
+    }
+    agent = MagicMock()
+    agent.deduplicator.deduplicate.side_effect = lambda values: values
+
+    async def search(_query, _filters):
+        return {"arxiv": list(papers)}
+
+    agent.async_search_with_filters.side_effect = search
+    ranker = MagicMock()
+    ranker.rank_papers.side_effect = lambda **kwargs: list(kwargs["papers"])
+    jev = AsyncMock(
+        return_value=(
+            list(papers),
+            {
+                "mode": "disabled_no_api_key",
+                "model": None,
+                "scored_count": 0,
+            },
+        )
+    )
+    monkeypatch.setattr(rs, "query_analyzer", analyzer)
+    monkeypatch.setattr(rs, "search_agent", agent)
+    monkeypatch.setattr(rs, "_hybrid_ranker", ranker)
+    monkeypatch.setattr(rs, "_graphrag_expand", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(rs, "get_openai_client", lambda: None)
+    monkeypatch.setattr(rs, "rerank_papers", jev)
+    monkeypatch.setattr(rs, "_get_cached_result", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(rs, "_set_cache", MagicMock())
+    monkeypatch.setattr(rs, "_persist_last_search", MagicMock())
+    return ranker, jev
+
+
+@pytest.mark.asyncio
+async def test_search_api_jev_order_is_stamped_and_restored_from_warm_cache(
+    monkeypatch, tmp_path
+):
+    get_cached_result = rs._get_cached_result
+    set_cache = rs._set_cache
+    papers = [
+        {"title": "a", "abstract": "abstract a", "doi": "10.1234/a"},
+        {"title": "b", "abstract": "abstract b", "doi": "10.1234/b"},
+        {"title": "c", "abstract": "abstract c", "doi": "10.1234/c"},
+    ]
+    ranker, jev = _mock_api_search(monkeypatch, papers)
+    monkeypatch.setattr(rs, "_search_cache", {})
+    monkeypatch.setattr(rs, "SEARCH_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(rs, "_get_cached_result", get_cached_result)
+    monkeypatch.setattr(rs, "_set_cache", set_cache)
+    monkeypatch.setattr(rs, "ranking_cache_variant", lambda: "jev-key-present-v1")
+
+    def hybrid_rank(**kwargs):
+        by_title = {paper["title"]: paper for paper in kwargs["papers"]}
+        return [by_title[title] for title in ("c", "a", "b")]
+
+    ranker.rank_papers.side_effect = hybrid_rank
+
+    async def jev_rerank(query, values, *, deadline, stop_event):
+        assert query == "topic warm cache"
+        assert deadline is not None
+        assert isinstance(stop_event, threading.Event)
+        by_title = {paper["title"]: paper for paper in values}
+        return [by_title[title] for title in ("a", "c", "b")], {
+            "mode": "completed",
+            "model": "mock-jev",
+            "scored_count": 3,
+        }
+
+    jev.side_effect = jev_rerank
+    emitted = []
+    monkeypatch.setattr(rs, "emit_or_warn", emitted.append)
+    principal = SimpleNamespace(username="reader", account_incarnation="inc-1")
+    http_request = SimpleNamespace(
+        state=SimpleNamespace(authenticated_principal=principal),
+        is_disconnected=AsyncMock(return_value=False),
+    )
+    request = rs.SearchRequest(
+        query="topic warm cache",
+        sources=["arxiv"],
+        save_papers=False,
+    )
+
+    first = await rs.search_papers(request, "reader", http_request)
+    first_by_rank = sorted(first.results["arxiv"], key=lambda paper: paper["_rank"])
+    assert [paper["title"] for paper in first_by_rank] == ["a", "c", "b"]
+    assert [paper["_rank"] for paper in first_by_rank] == [0, 1, 2]
+    assert first.stage_modes["ranking_mode"] == "hybrid_rrf_jev"
+    assert first.stage_modes["jev_mode"] == "completed"
+    assert first.stage_modes["scored_count"] == 3
+    assert first.stage_modes["ranking_variant"] == ("ce_w=0.0;jev=jev-key-present-v1")
+    assert emitted[0].payload["ranking_applied"] is True
+    assert emitted[0].payload["ranking_variant"] == first.stage_modes["ranking_variant"]
+    assert emitted[0].payload["jev_mode"] == "completed"
+    assert emitted[0].payload["scored_count"] == 3
+
+    warm = await rs.search_papers(request, None)
+    warm_by_rank = sorted(warm.results["arxiv"], key=lambda paper: paper["_rank"])
+    assert warm.cache_hit is True
+    assert [paper["title"] for paper in warm_by_rank] == ["a", "c", "b"]
+    assert warm.stage_modes["ranking_mode"] == "hybrid_rrf_jev"
+    assert warm.stage_modes["jev_mode"] == "completed"
+    assert warm.stage_modes["scored_count"] == 3
+    assert warm.stage_modes["ranking_variant"] == first.stage_modes["ranking_variant"]
+    ranker.rank_papers.assert_called_once()
+    jev.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_jev_timeout_keeps_hybrid_order_and_is_not_cached(monkeypatch, tmp_path):
+    papers = [
+        {"title": title, "abstract": f"abstract {title}", "doi": f"10.1234/{title}"}
+        for title in ("a", "b", "c")
+    ]
+    ranker, jev = _mock_api_search(monkeypatch, papers)
+    monkeypatch.setattr(rs, "_search_cache", {})
+    monkeypatch.setattr(rs, "SEARCH_CACHE_DIR", tmp_path)
+
+    def hybrid_rank(**kwargs):
+        by_title = {paper["title"]: paper for paper in kwargs["papers"]}
+        return [by_title[title] for title in ("c", "a", "b")]
+
+    ranker.rank_papers.side_effect = hybrid_rank
+
+    async def failed_jev(_query, values, **_kwargs):
+        return list(reversed(values)), {
+            "mode": "fallback_timeout",
+            "model": "mock-jev",
+            "scored_count": 0,
+        }
+
+    jev.side_effect = failed_jev
+    response = await rs.search_papers(
+        rs.SearchRequest(
+            query="topic timeout",
+            sources=["arxiv"],
+            save_papers=False,
+        ),
+        None,
+    )
+    by_rank = sorted(response.results["arxiv"], key=lambda paper: paper["_rank"])
+    assert [paper["title"] for paper in by_rank] == ["c", "a", "b"]
+    assert response.stage_modes["jev_mode"] == "fallback_timeout"
+    assert response.stage_modes["ranking_mode"] == "hybrid_rrf"
+    assert response.stage_modes["ranking_variant"] == "ce_w=0.0"
+    rs._set_cache.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query,fast_mode,sort_by,expected_mode,ranker_runs",
+    [
+        ("10.1234/exact", False, "relevance", "skipped_identity_route", True),
+        ("topic search", True, "relevance", "skipped_fast_mode", True),
+        (
+            "topic search",
+            False,
+            "submittedDate",
+            "skipped_non_relevance_sort",
+            False,
+        ),
+    ],
+)
+async def test_search_skips_jev_for_exact_fast_and_date_sort(
+    monkeypatch,
+    query,
+    fast_mode,
+    sort_by,
+    expected_mode,
+    ranker_runs,
+):
+    papers = [
+        {
+            "title": "Older",
+            "abstract": "abstract",
+            "doi": "10.1234/older",
+            "published_date": "2020-01-01",
+        },
+        {
+            "title": "Newer",
+            "abstract": "abstract",
+            "doi": "10.1234/newer",
+            "published_date": "2025-01-01",
+        },
+    ]
+    ranker, jev = _mock_api_search(monkeypatch, papers)
+    response = await rs.search_papers(
+        rs.SearchRequest(
+            query=query,
+            sources=["arxiv"],
+            fast_mode=fast_mode,
+            sort_by=sort_by,
+            save_papers=False,
+        ),
+        None,
+    )
+    assert response.stage_modes["jev_mode"] == expected_mode
+    jev.assert_not_awaited()
+    assert ranker.rank_papers.call_count == int(ranker_runs)
+    if sort_by == "submittedDate":
+        assert [paper["title"] for paper in response.results["arxiv"]] == [
+            "Newer",
+            "Older",
+        ]
+
+
+@pytest.mark.asyncio
+async def test_deep_search_jev_reorders_before_global_rank(monkeypatch):
+    papers = [
+        {"title": "first", "abstract": "abstract first", "doi": "10.1234/1"},
+        {"title": "second", "abstract": "abstract second", "doi": "10.1234/2"},
+    ]
+    agent = MagicMock()
+    agent.deduplicator.deduplicate.side_effect = lambda values: values
+    monkeypatch.setattr(rs, "search_agent", agent)
+    ranker = MagicMock()
+    ranker.rank_papers.side_effect = lambda **kwargs: list(kwargs["papers"])
+    monkeypatch.setattr(rs, "_hybrid_ranker", ranker)
+    monkeypatch.setattr(rs, "ranking_cache_variant", lambda: "jev-key-present-v1")
+
+    async def jev_rerank(query, values, *, deadline, stop_event):
+        assert query == "topic deep search"
+        assert deadline == requested_deadline
+        assert stop_event is stop
+        return list(reversed(values)), {
+            "mode": "completed",
+            "model": "mock-jev",
+            "scored_count": 2,
+        }
+
+    monkeypatch.setattr(rs, "rerank_papers", jev_rerank)
+    requested_deadline = asyncio.get_running_loop().time() + 10
+    # The router's absolute deadline uses time.monotonic(), which shares the
+    # event loop's monotonic clock on supported asyncio implementations.
+    stop = threading.Event()
+    metadata = {}
+    ranked = await rs._dedup_and_rank_deep_search(
+        "topic deep search",
+        papers,
+        "paper_search",
+        deadline=requested_deadline,
+        stop_event=stop,
+        metadata=metadata,
+    )
+    assert [paper["title"] for paper in ranked] == ["second", "first"]
+    assert [paper["_rank"] for paper in ranked] == [0, 1]
+    assert [paper["result_key"] for paper in ranked] == [
+        "doi:10.1234/2",
+        "doi:10.1234/1",
+    ]
+    assert metadata["jev_mode"] == "completed"
+    assert metadata["ranking_mode"] == "hybrid_rrf_jev"
+    assert metadata["scored_count"] == 2
 
 
 # ── weighted RRF ──────────────────────────────────────────────────────
@@ -163,7 +426,9 @@ def test_cross_encoder_does_not_dominate_the_fusion():
         side_effect=lambda q, ps: [0.4 - 0.1 * int(p["paper_id"][1:]) for p in ps],
     ):
         ranked = HybridRanker().rank_papers(
-            query="attention parity", papers=list(papers), use_rrf=True,
+            query="attention parity",
+            papers=list(papers),
+            use_rrf=True,
             cross_encoder_weight=1.0,
         )
 
@@ -216,6 +481,7 @@ def test_cross_encoder_weight_can_be_overridden_per_call():
     Sweeping by monkeypatching the module constant would race any concurrent
     search, so the ranker takes the weight as an argument.
     """
+
     def _ranked_titles(weight):
         with patch(
             "app.QueryAgent.relevance_filter.LocalRelevanceScorer.score_papers",
@@ -248,7 +514,9 @@ def test_cross_encoder_weight_matches_the_rrf_contribution():
         side_effect=lambda q, ps: [0.9, 0.5, 0.1],
     ):
         ranked = HybridRanker().rank_papers(
-            query="attention", papers=list(papers), use_rrf=True,
+            query="attention",
+            papers=list(papers),
+            use_rrf=True,
             cross_encoder_weight=0.5,
         )
 
@@ -268,7 +536,9 @@ def test_unavailable_cross_encoder_leaves_the_other_signals_alone():
         side_effect=lambda q, ps: [],
     ) as scorer:
         ranked = HybridRanker().rank_papers(
-            query="attention", papers=list(papers), use_rrf=True,
+            query="attention",
+            papers=list(papers),
+            use_rrf=True,
             cross_encoder_weight=1.0,
         )
 
@@ -305,7 +575,10 @@ def test_cross_encoder_scored_once_per_ranking_pass():
         side_effect=_counting,
     ):
         HybridRanker().rank_papers(
-            query="attention", papers=_rankable(5), use_rrf=True, cross_encoder_weight=1.0
+            query="attention",
+            papers=_rankable(5),
+            use_rrf=True,
+            cross_encoder_weight=1.0,
         )
 
     assert calls == [5]
