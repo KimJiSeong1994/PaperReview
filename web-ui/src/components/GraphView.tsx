@@ -8,6 +8,7 @@ import { useGraphData } from './graph/useGraphData';
 import { useThemeObserver } from '../theme';
 import {
   graphEdgeKey,
+  describeEdgeMethod,
   neighborhoodSubgraph,
   pathEdgeKeys,
   rankedSubgraph,
@@ -92,8 +93,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const [edgeOpacity, setEdgeOpacity] = useState(0.5);
   const [minCitations, setMinCitations] = useState(0);
   const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
-  const [showControls, setShowControls] = useState(true);
-  const [showAllEdges, setShowAllEdges] = useState(true);
+  const [showControls, setShowControls] = useState(false);
+  const [showAllEdges, setShowAllEdges] = useState(false);
   const [showNeighborhoodLayer, setShowNeighborhoodLayer] = useState(false);
   const [showPathLayer, setShowPathLayer] = useState(false);
   const [nodeLimit, setNodeLimit] = useState<GraphNodeLimit>(50);
@@ -151,9 +152,17 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     [nodeLimit, positionedGraphData, selectedPaperId],
   );
 
+  const effectiveHighlightedPapers = useMemo(() => {
+    if (!isPathLayerActive) return highlightedPapers;
+    return new Set(
+      strongestPath.filter(nodeId => nodeId !== selectedPaperId && nodeId !== originPaperId),
+    );
+  }, [highlightedPapers, isPathLayerActive, originPaperId, selectedPaperId, strongestPath]);
+
   const visibleGraphData = useMemo<GraphData>(() => {
     const pinnedIds = [originPaperId, selectedPaperId].filter((value): value is string => Boolean(value));
     if (isPathLayerActive) pinnedIds.push(...strongestPath);
+    pinnedIds.push(...effectiveHighlightedPapers);
     const positioned = rankedSubgraph(positionedGraphData, nodeLimit, pinnedIds);
     if (!isNeighborhoodLayerActive || !neighborhoodGraphData) return positioned;
 
@@ -167,7 +176,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         hop_distance: hopByNode.get(String(node.id)),
       })),
     };
-  }, [isNeighborhoodLayerActive, isPathLayerActive, neighborhoodGraphData, nodeLimit, originPaperId, positionedGraphData, selectedPaperId, strongestPath]);
+  }, [effectiveHighlightedPapers, isNeighborhoodLayerActive, isPathLayerActive, neighborhoodGraphData, nodeLimit, originPaperId, positionedGraphData, selectedPaperId, strongestPath]);
 
   const displayGraphData = useMemo<GraphData>(() => {
     if (showAllEdges || visibleGraphData.edges.length <= 40) return visibleGraphData;
@@ -210,6 +219,12 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         .sort((left, right) => (right.weight || 0) - (left.weight || 0))
         .slice(0, 5)
         .forEach(edge => retained.add(edgeKey(String(edge.source), String(edge.target))));
+
+      [...(incident.get(selectedPaperId) || [])]
+        .filter(edge => effectiveHighlightedPapers.has(
+          String(edge.source) === selectedPaperId ? String(edge.target) : String(edge.source),
+        ))
+        .forEach(edge => retained.add(edgeKey(String(edge.source), String(edge.target))));
     }
 
     return {
@@ -218,7 +233,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         retained.has(edgeKey(String(edge.source), String(edge.target)))
       )),
     };
-  }, [isNeighborhoodLayerActive, isPathLayerActive, selectedPaperId, showAllEdges, strongestPathEdgeKeys, visibleGraphData]);
+  }, [effectiveHighlightedPapers, isNeighborhoodLayerActive, isPathLayerActive, selectedPaperId, showAllEdges, strongestPathEdgeKeys, visibleGraphData]);
 
   const hopCounts = useMemo(() => {
     const counts = [0, 0, 0, 0];
@@ -229,13 +244,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     });
     return counts;
   }, [visibleGraphData.nodes]);
-
-  const effectiveHighlightedPapers = useMemo(() => {
-    if (!isPathLayerActive) return highlightedPapers;
-    return new Set(
-      strongestPath.filter(nodeId => nodeId !== selectedPaperId && nodeId !== originPaperId),
-    );
-  }, [highlightedPapers, isPathLayerActive, originPaperId, selectedPaperId, strongestPath]);
 
   // Sigma mode: use shared stats from useGraphData hook
   const { stats: sigmaStats } = useGraphData(
@@ -301,6 +309,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     }
     
     const selectedPaperIdForEdges = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
+    let drawnEdges = 0;
     
     // Weight 범위 계산 (투명도 매핑용)
     const weights = edges.map(e => e.weight || 0.1).filter(w => w > 0);
@@ -313,6 +322,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const hopEdgeGroups: Map<string, EdgeGroup> = new Map();
     const highlightedEdgeGroups: Map<string, EdgeGroup> = new Map();
     const focusedEdgeHover = { x: [] as number[], y: [] as number[], text: [] as string[] };
+    const edgeMethodLabel = describeEdgeMethod(graphData.meta).label;
 
     const escapeHoverText = (value: string): string => value
       .replaceAll('&', '&amp;')
@@ -324,6 +334,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       const targetNode = nodeMap.get(String(edge.target));
       
       if (sourceNode && targetNode) {
+        drawnEdges += 1;
         const sourceId = String(edge.source);
         const targetId = String(edge.target);
         const connectsSelectedToRankedNeighbor = Boolean(
@@ -391,7 +402,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           focusedEdgeHover.x.push(curve?.midpoint.x ?? (sourceNode.x + targetNode.x) / 2);
           focusedEdgeHover.y.push(curve?.midpoint.y ?? (sourceNode.y + targetNode.y) / 2);
           focusedEdgeHover.text.push(
-            `유사도 ${Math.round(edgeWeight * 100)}%${sharedTerms ? `<br>공통 단서 · ${sharedTerms}` : ''}`,
+            `${escapeHoverText(edgeMethodLabel)} ${Math.round(edgeWeight * 100)}%${sharedTerms ? `<br>공통 단서 · ${sharedTerms}` : ''}`,
           );
         }
       }
@@ -483,6 +494,14 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         normalNodes.push(n);
       }
     });
+
+    const highlightedRank = new Map(
+      Array.from(effectiveHighlightedPapers, (nodeId, index) => [nodeId, index] as const),
+    );
+    highlightedNodes.sort((left, right) => (
+      (highlightedRank.get(String(left.id)) ?? Number.POSITIVE_INFINITY) -
+      (highlightedRank.get(String(right.id)) ?? Number.POSITIVE_INFINITY)
+    ));
 
     const weightedDegree = new Map<string, number>();
     edges.forEach(edge => {
@@ -706,9 +725,9 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       labeledNodeIds.add(String(node.id));
     });
     const normalTextTrace = showLabels && !isCompactViewport ? createTextTrace(hubLabelNodes, false, false) : null;
-    const originTextTrace = showLabels && !isCompactViewport ? createTextTrace(originNodes, true, false) : null;
-    const highlightedTextTrace = showLabels && !isCompactViewport ? createTextTrace(highlightedNodes.slice(0, 3), true, false) : null;
-    const selectedTextTrace = showLabels && !isCompactViewport ? createTextTrace(selectedNodes, false, true) : null;
+    const originTextTrace = showLabels ? createTextTrace(originNodes, true, false) : null;
+    const highlightedTextTrace = showLabels ? createTextTrace(highlightedNodes.slice(0, 3), true, false) : null;
+    const selectedTextTrace = showLabels ? createTextTrace(selectedNodes, false, true) : null;
 
     const communityShapes: NonNullable<Layout['shapes']> = [];
     const communityAnnotations: NonNullable<Layout['annotations']> = [];
@@ -839,13 +858,13 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       : 0;
     const stats = {
       nodes: nodes.length,
-      edges: edges.length,
+      edges: drawnEdges,
       avgCitations,
       yearRange: [minYear, maxYear] as [number, number],
     };
 
     return { plotData, layout: plotLayout, stats };
-  }, [displayGraphData, selectedPaper, effectiveHighlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter, theme, originPaperId, isNeighborhoodLayerActive, isPathLayerActive, strongestPathEdgeKeys, isCompactViewport]);
+  }, [displayGraphData, graphData.meta, selectedPaper, effectiveHighlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter, theme, originPaperId, isNeighborhoodLayerActive, isPathLayerActive, strongestPathEdgeKeys, isCompactViewport]);
 
   // Papers를 Map으로 변환하여 빠른 조회 (useMemo로 최적화)
   const papersMap = useMemo(() => {
@@ -919,13 +938,21 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
   // Use sigma stats when in Sigma mode, Plotly stats otherwise
   const activeStats: GraphStats = useSigma ? sigmaStats : stats;
-  const edgeMethodLabel = graphData.meta?.edge_label || '논문 간 유사도';
+  const edgeMethod = describeEdgeMethod(graphData.meta);
+  const edgeMethodLabel = edgeMethod.label;
   const edgeThreshold = graphData.meta?.edge_threshold;
   const communityCount = graphData.meta?.communities?.length || 0;
+  const compactPlotLabels = !useSigma && isCompactViewport;
+  const labelToggleName = compactPlotLabels
+    ? `핵심 레이블(기준·선택·관련 최대 3편) ${showLabels ? '숨기기' : '표시'}`
+    : `주요 레이블 ${showLabels ? '숨기기' : '표시'}`;
+  const labelControlText = compactPlotLabels
+    ? '핵심 레이블(기준·선택·관련 최대 3편)'
+    : '주요 노드 레이블';
   const activeLayerSummary = [
     '기본 지형',
     isNeighborhoodLayerActive ? '3-hop' : null,
-    isPathLayerActive ? '원문 경로' : null,
+    isPathLayerActive ? '기준논문 경로' : null,
   ].filter(Boolean).join(' + ');
 
   // Shared controls UI used by both renderers
@@ -962,7 +989,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
                 onChange={(e) => setShowLabels(e.target.checked)}
                 className="control-checkbox"
               />
-              <span>주요 노드 레이블</span>
+              <span>{labelControlText}</span>
             </label>
           </div>
 
@@ -1049,12 +1076,12 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
         <div className="stats-section">
           <div className="stat-item">
-            <span className="stat-label">노드:</span>
-            <span className="stat-value">{activeStats.nodes}</span>
+            <span className="stat-label">노드 (표시/전체):</span>
+            <span className="stat-value">{activeStats.nodes}/{graphData.nodes.length}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">엣지:</span>
-            <span className="stat-value">{activeStats.edges}/{visibleGraphData.edges.length}</span>
+            <span className="stat-label">엣지 (표시/전체):</span>
+            <span className="stat-value">{activeStats.edges}/{graphData.edges.length}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">평균 인용:</span>
@@ -1086,11 +1113,11 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         aria-pressed={isPathLayerActive}
         className={isPathLayerActive ? 'active' : ''}
         disabled={!selectedPaperId || pathNodeIds.size <= 1}
-        title={!selectedPaperId || pathNodeIds.size <= 1 ? '원 논문과 연결된 논문을 선택하면 사용할 수 있습니다' : '현재 지형에 원 논문 경로를 겹쳐 표시합니다'}
+        title={!selectedPaperId || pathNodeIds.size <= 1 ? '기준논문과 연결된 논문을 선택하면 사용할 수 있습니다' : '현재 지형에 기준논문 경로를 겹쳐 표시합니다'}
         onClick={() => setShowPathLayer(value => !value)}
       >
         <span className="graph-layer-indicator" aria-hidden="true">{isPathLayerActive ? '✓' : '+'}</span>
-        원문 경로
+        기준논문 경로
       </button>
     </div>
   );
@@ -1099,15 +1126,15 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     <div className="graph-insight-bar">
       <div className="graph-insight-copy" role="status" aria-live="polite">
         <span className="graph-console-title">논문 관계 그래프</span>
-        <span className="graph-status-chip">{activeStats.nodes}편</span>
-        <span className="graph-status-chip">관계 {activeStats.edges}개</span>
+        <span className="graph-status-chip">표시 {activeStats.nodes}/{graphData.nodes.length}편</span>
+        <span className="graph-status-chip">관계 {activeStats.edges}/{graphData.edges.length}개</span>
         {communityCount > 0 && <span className="graph-status-chip">주제 {communityCount}개</span>}
-        <span className="graph-method-chip">{edgeMethodLabel}</span>
+        <span className="graph-method-chip" title={edgeMethod.explanation}>{edgeMethodLabel}</span>
         <span className="graph-layer-state">{activeLayerSummary}</span>
         <span className="graph-sr-only">
           {activeLayerSummary} 표시 중.
           {isNeighborhoodLayerActive ? ` 1-hop ${hopCounts[1]}편, 2-hop ${hopCounts[2]}편, 3-hop ${hopCounts[3]}편.` : ''}
-          {isPathLayerActive && strongestPath.length > 1 ? ` 원 논문까지 ${strongestPath.length - 1}단계.` : ''}
+          {isPathLayerActive && strongestPath.length > 1 ? ` 기준논문까지 ${strongestPath.length - 1}단계.` : ''}
         </span>
         {selectedPaper ? (
           <span className="graph-selection-summary">
@@ -1119,7 +1146,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
               <span>1-hop {hopCounts[1]} · 2-hop {hopCounts[2]} · 3-hop {hopCounts[3]}</span>
             )}
             {isPathLayerActive && strongestPath.length > 1 && (
-              <span>원 논문까지 {strongestPath.length - 1}단계</span>
+              <span>기준논문까지 {strongestPath.length - 1}단계</span>
             )}
             {relationshipSummary.sharedTerms.length > 0 && (
               <span>공통 단서 · {relationshipSummary.sharedTerms.slice(0, 2).join(' · ')}</span>
@@ -1127,7 +1154,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           </span>
         ) : (
           <span className="graph-selection-summary">
-            상위 {visibleGraphData.nodes.length}편 · 노드를 선택해 가까운 연구와 원 논문까지의 경로를 확인하세요
+            상위 {visibleGraphData.nodes.length}편 · 노드를 선택해 가까운 연구와 기준논문까지의 경로를 확인하세요
           </span>
         )}
       </div>
@@ -1150,9 +1177,9 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       <button
         type="button"
         className={showLabels ? 'active' : ''}
-        aria-label={showLabels ? '주요 레이블 숨기기' : '주요 레이블 표시'}
+        aria-label={labelToggleName}
         aria-pressed={showLabels}
-        title="주요 레이블"
+        title={labelToggleName}
         onClick={() => setShowLabels(value => !value)}
       >
         <span aria-hidden="true">Aa</span>
@@ -1182,7 +1209,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     <div className="graph-legend" aria-label="그래프 범례">
       <div className="legend-item">
         <div className="legend-node legend-node-origin"></div>
-        <span>원 논문</span>
+        <span>기준논문(검색1위)</span>
       </div>
       <div className="legend-item">
         <div className="legend-node legend-node-selected"></div>
@@ -1200,8 +1227,8 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       </div>
       <div className="legend-edge-item">
         <span className="legend-edge-line"></span>
-        <span>
-          {edgeMethodLabel}{edgeThreshold != null ? ` · 기준 ${edgeThreshold}` : ''}
+        <span title={edgeMethod.explanation}>
+          {edgeMethodLabel} · {edgeMethod.explanation}{edgeThreshold != null ? ` · 기준 ${edgeThreshold}` : ''}
           {isPathLayerActive && strongestPath.length > 1
             ? ` · 강조 경로 ${strongestPath.length - 1}개`
             : (!showAllEdges ? ` · 강한 관계 ${activeStats.edges}개` : '')}

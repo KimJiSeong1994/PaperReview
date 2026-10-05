@@ -17,6 +17,7 @@ import {
   generatePosterDirect,
 } from '../api/client';
 import type { Paper, GraphData } from '../types';
+import { rankedNeighbors } from './graph/graphPresentation';
 import { useDeepReview } from '../hooks/useDeepReview';
 import { useAuth } from '../contexts/AuthContext';
 import { generateApaCitation } from '../utils/citation';
@@ -85,7 +86,6 @@ function SearchPage() {
   // the query itself — see SearchImpression in analytics/events.
   const [searchId, setSearchId] = useState<string>('');
   const [rankingVariant, setRankingVariant] = useState<string>('');
-  const [highlightedPapers, setHighlightedPapers] = useState<Set<string>>(new Set());
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [enrichmentLoading, setEnrichmentLoading] = useState(false);
@@ -161,6 +161,25 @@ function SearchPage() {
       },
     ]),
   ), [graphData]);
+
+  const selectedKey = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
+  const neighbors = useMemo(
+    () => rankedNeighbors(graphData, selectedKey, 5),
+    [graphData, selectedKey],
+  );
+  const highlightedPapers = useMemo(
+    () => new Set(neighbors.map(neighbor => neighbor.id)),
+    [neighbors],
+  );
+  const papersByKey = useMemo(() => new Map<string, Paper>(papers.map(paper => (
+    [String(paper.result_key ?? paper.doc_id), paper] as const
+  ))), [papers]);
+  const relatedPapers = useMemo(() => neighbors.flatMap(neighbor => {
+    const paper = papersByKey.get(neighbor.id);
+    return paper
+      ? [{ paper, weight: neighbor.weight, sharedTerms: neighbor.sharedTerms }]
+      : [];
+  }), [neighbors, papersByKey]);
 
   // AbortController ref for cancelling in-flight search requests
   const searchAbortRef = useRef<AbortController | null>(null);
@@ -343,7 +362,6 @@ function SearchPage() {
         setPapers([]);
         setGraphData(null);
         setSelectedPaper(null);
-        setHighlightedPapers(new Set());
         setSelectedPapersForReview(new Set());
         setQuery('');
         setLoading(false);
@@ -396,12 +414,10 @@ function SearchPage() {
 
       if (allPapers.length > 0) {
         setSelectedPaper(allPapers[0]);
-        setHighlightedPapers(new Set());
         setSelectedPapersForReview(new Set());
         void enrichSearchResults(requestId, abortController, allPapers);
       } else {
         setSelectedPaper(null);
-        setHighlightedPapers(new Set());
         setSelectedPapersForReview(new Set());
       }
     } catch (error: any) {
@@ -430,7 +446,6 @@ function SearchPage() {
       setPapers([]);
       setGraphData(null);
       setSelectedPaper(null);
-      setHighlightedPapers(new Set());
       setSelectedPapersForReview(new Set());
       trackSearchEvent(searchQuery, 'error', 0, source, { searchId: impressionId });
     } finally {
@@ -504,30 +519,12 @@ function SearchPage() {
     trackPaperSelect('list', { searchId, rankingVariant, rank: rankOf(paper) });
     trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
-    setHighlightedPapers(new Set());
   };
 
   const handleNodeClickWithHighlight = (paper: Paper) => {
     trackPaperSelect('graph', { searchId, rankingVariant, rank: rankOf(paper) });
     trackSearchClick(queryHash, paper.doc_id || '', rankOf(paper));
     setSelectedPaper(paper);
-
-    if (graphData && graphData.edges) {
-      const paperId = paper.result_key ?? paper.doc_id;
-      const connectedPapers: Array<{ docId: string; weight: number }> = [];
-
-      graphData.edges.forEach(edge => {
-        if (edge.source === paperId || String(edge.source) === String(paperId)) {
-          connectedPapers.push({ docId: edge.target, weight: edge.weight || 0 });
-        } else if (edge.target === paperId || String(edge.target) === String(paperId)) {
-          connectedPapers.push({ docId: edge.source, weight: edge.weight || 0 });
-        }
-      });
-
-      connectedPapers.sort((a, b) => b.weight - a.weight);
-      const topSimilar = connectedPapers.slice(0, 5).map(p => String(p.docId));
-      setHighlightedPapers(new Set(topSimilar));
-    }
   };
 
   const handlePaperToggleForReview = (paperId: string) => {
@@ -1073,6 +1070,9 @@ function SearchPage() {
                 {selectedPaper ? (
                   <DetailPanel
                     paper={selectedPaper}
+                    relatedPapers={relatedPapers}
+                    edgeMeta={graphData?.meta}
+                    onSelectRelated={handlePaperSelect}
                     // The standalone viewer route is public (the blog links readers to it),
                     // so opening a PDF no longer needs an account the way MyPage did.
                     onViewPaper={(paper) => openPaperViewer(viewerHrefForPaper(paper, 'search'))}

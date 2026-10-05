@@ -103,7 +103,7 @@ function PaperList({ papers, selectedPaper, onSelect, highlightedPapers, communi
           )}
           <div className="paper-content">
           <div className="paper-role-row">
-            <div className="origin-badge">Origin</div>
+            <div className="origin-badge">기준논문</div>
             {communityMarker(papers[0].result_key ?? papers[0].doc_id)}
           </div>
           <div className="paper-title">{papers[0].title}</div>

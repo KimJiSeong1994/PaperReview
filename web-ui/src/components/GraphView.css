@@ -767,6 +767,13 @@ select.control-input {
   }
 
   .graph-status-chip,
+  .graph-status-chip:nth-of-type(3) {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .graph-status-chip:nth-of-type(n+4),
   .graph-method-chip {
     display: none;
   }
