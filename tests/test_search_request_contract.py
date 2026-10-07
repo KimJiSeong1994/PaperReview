@@ -81,8 +81,10 @@ async def test_llm_request_dispatches_only_selected_sources(runtime, monkeypatch
 
     response = await rs.search_papers(
         rs.SearchRequest(
-            query="graph learning", sources=["openalex"],
-            use_llm_search=True, save_papers=False,
+            query="graph learning",
+            sources=["openalex"],
+            use_llm_search=True,
+            save_papers=False,
         ),
         None,
     )
@@ -97,7 +99,10 @@ async def test_llm_request_dispatches_only_selected_sources(runtime, monkeypatch
     assert set(response.source_timings) == {"openalex"}
     assert response.source_timeouts == {"openalex": False}
     assert response.metadata["executed_queries"] == {"openalex": ["graph learning"]}
-    assert not (set(response.results) & {"arxiv", "google_scholar", "connected_papers", "dblp", "openalex_korean"})
+    assert not (
+        set(response.results)
+        & {"arxiv", "google_scholar", "connected_papers", "dblp", "openalex_korean"}
+    )
 
 
 def test_relevance_survives_dedup_and_provider_display_source(runtime):
@@ -341,6 +346,18 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
     import time
 
     release, finished = threading.Event(), threading.Event()
+    snapshot_published = threading.Event()
+    loop = asyncio.get_running_loop()
+    # Preparation and worker startup must not consume the snapshot's test budget.
+    clock = [time.monotonic()]
+
+    def monotonic():
+        return clock[0]
+
+    monkeypatch.setattr(
+        rs, "time", SimpleNamespace(monotonic=monotonic, time=time.time)
+    )
+    monkeypatch.setattr(loop, "time", monotonic)
     observed = {}
     analyzer = MagicMock()
     analyzer.analyze_and_prepare.return_value = {"is_academic": True, "confidence": 0}
@@ -365,7 +382,7 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
         snapshot_callback=None,
     ):
         observed.update(deadline=deadline, stop=stop_event)
-        assert deadline is not None and 0 < deadline - time.monotonic() <= 1
+        assert deadline is not None and 0 < deadline - monotonic() <= 1
         assert isinstance(stop_event, threading.Event)
         snapshot = {
             "arxiv": [{"title": "Completed", "doi": "10.1234/completed"}],
@@ -378,6 +395,8 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
             },
         }
         snapshot_callback(snapshot)
+        # Delivery and this signal are queued in order on the same event loop.
+        loop.call_soon_threadsafe(snapshot_published.set)
         release.wait(2)
         snapshot["arxiv"][0]["title"] = "Late mutation"
         snapshot_callback(snapshot)
@@ -399,7 +418,7 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
     runtime.smart_search = smart
     try:
         if entry.startswith("search_"):
-            response = await rs.search_papers(
+            request = rs.search_papers(
                 rs.SearchRequest(
                     query="topic",
                     sources=["arxiv", "openalex"],
@@ -408,20 +427,31 @@ async def test_cooperative_llm_outer_deadline_keeps_completed_snapshot(
                 ),
                 None,
             )
+        elif entry == "llm":
+            request = rs.llm_context_search(
+                rs.LLMSearchRequest(query="topic", save_papers=False), None
+            )
+        else:
+            request = rs.smart_search(
+                rs.LLMSearchRequest(query="topic", save_papers=False), None
+            )
+
+        request_task = asyncio.create_task(request)
+        snapshot_seen = await asyncio.to_thread(snapshot_published.wait, 2)
+        clock[0] += 0.051
+        await asyncio.sleep(0)
+        response = await request_task
+        assert snapshot_seen
+
+        if entry.startswith("search_"):
             papers, metadata = response.results["arxiv"], response.metadata
             assert response.source_timeouts["openalex"] is True
             assert response.stage_modes["source_search_mode"] == "timeout_partial"
             rs._set_cache.assert_not_called()
         elif entry == "llm":
-            response = await rs.llm_context_search(
-                rs.LLMSearchRequest(query="topic", save_papers=False), None
-            )
             papers, metadata = response.results["arxiv"], response.metadata
             assert metadata["partial"] is True
         else:
-            response = await rs.smart_search(
-                rs.LLMSearchRequest(query="topic", save_papers=False), None
-            )
             papers, metadata = response["papers"], response["metadata"]
             assert metadata["partial"] is True
         assert papers[0]["title"] == "Completed"
