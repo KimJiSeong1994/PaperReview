@@ -37,8 +37,8 @@ export const getPapersCount = async (): Promise<number> => {
   return response.data.count;
 };
 
-export const getGraphData = async (papers: string): Promise<GraphData> => {
-  const response = await api.post<GraphData>('/api/graph-data', { papers_json: papers });
+export const getGraphData = async (papers: string, signal?: AbortSignal): Promise<GraphData> => {
+  const response = await api.post<GraphData>('/api/graph-data', { papers_json: papers }, { signal });
   return response.data;
 };
 
@@ -73,11 +73,11 @@ export const fetchBatchReferences = async (papers: {
   title: string;
   doi?: string;
   arxiv_id?: string;
-}[]): Promise<{ references: PaperReference[] }> => {
+}[], signal?: AbortSignal): Promise<{ references: PaperReference[] }> => {
   const response = await api.post<{ references: PaperReference[] }>('/api/batch-references', {
     papers,
     max_references: 5,
-  });
+  }, { signal });
   return response.data;
 };
 

@@ -376,11 +376,10 @@ def _graphrag_expand(
 
     from src.graph_rag.search_engine import SearchEngine
 
-    engine = SearchEngine(
-        graph,
-        embeddings_index_path="data/embeddings/paper_embeddings.index",
-        id_mapping_path="data/embeddings/paper_id_mapping.json",
-    )
+    # GraphRAG expansion and keyword fallback only traverse ``graph``.  Keep
+    # the vector index paths out of this graph-only caller so constructing the
+    # helper cannot perform an unnecessary FAISS/mapping read.
+    engine = SearchEngine(graph)
 
     # 기존 검색 결과의 title → graph node_id 매핑 (lowercase)
     seed_ids: List[str] = []
@@ -1804,25 +1803,40 @@ async def search_papers(
     cached_metadata = {}
     finalization_drops = collections.Counter()
 
-    def finalize(value):
-        finalized, dropped = _finalize_results(value, filters, sources)
-        finalization_drops.update(dropped)
-        return finalized
+    def _record_timing(name, elapsed):
+        timings[name] = round(timings.get(name, 0.0) + elapsed, 3)
 
-    async def stage(name, function, timeout):
+    def finalize(value):
+        before = time.monotonic()
+        try:
+            finalized, dropped = _finalize_results(value, filters, sources)
+            finalization_drops.update(dropped)
+            return finalized
+        finally:
+            _record_timing("search_finalize", time.monotonic() - before)
+
+    async def stage(name, function, timeout, *, operation=None, aggregate=None):
         before = time.monotonic()
         try:
             return await _run_owned(
-                name, function, min(timeout, max(0.0, deadline - before)), stop
+                operation or name,
+                function,
+                min(timeout, max(0.0, deadline - before)),
+                stop,
             )
         finally:
-            timings[name] = round(timings.get(name, 0.0) + time.monotonic() - before, 3)
+            elapsed = time.monotonic() - before
+            _record_timing(name, elapsed)
+            if aggregate and aggregate != name:
+                _record_timing(aggregate, elapsed)
 
     try:
         cached = await stage(
-            "search_cache_io",
+            "search_cache_read",
             partial(_get_cached_result, cache_key, require_academic_guard=True),
             2,
+            operation="search_cache_io",
+            aggregate="search_cache_io",
         )
         if cached is not None:
             cached_metadata = cached.pop("_metadata", {})
@@ -2168,7 +2182,7 @@ async def search_papers(
             }
             try:
                 await stage(
-                    "search_cache_io",
+                    "search_cache_write",
                     partial(
                         _set_cache,
                         cache_key,
@@ -2178,6 +2192,8 @@ async def search_papers(
                         deadline=min(deadline, time.monotonic() + 2),
                     ),
                     2,
+                    operation="search_cache_io",
+                    aggregate="search_cache_io",
                 )
             except (asyncio.TimeoutError, SearchCapacityExceeded):
                 modes["cache_write"] = "not_completed"
@@ -2185,7 +2201,7 @@ async def search_papers(
         if total and not cache_hit and not stop.is_set():
             try:
                 await stage(
-                    "search_cache_io",
+                    "search_handoff",
                     partial(
                         _persist_last_search,
                         copy.deepcopy(results),
@@ -2193,6 +2209,8 @@ async def search_papers(
                         min(deadline, time.monotonic() + 2),
                     ),
                     2,
+                    operation="search_cache_io",
+                    aggregate="search_cache_io",
                 )
             except (asyncio.TimeoutError, SearchCapacityExceeded):
                 modes["last_search_write"] = "not_completed"
