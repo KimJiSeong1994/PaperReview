@@ -1,0 +1,917 @@
+/* Home workspace: history sidebar / one question + composer + rows / daily picks rail.
+   Header is fixed at 70px (App.css .main-content padding-top), so sticky offsets use it.
+   Rhythm is on a 4px grid; motion is 150-200ms and dropped under prefers-reduced-motion. */
+.home-shell {
+  --home-top: 70px;
+  --home-ease: 160ms ease;
+  --home-pad-top: clamp(32px, 7vh, 72px);
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr) 300px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  min-height: calc(100vh - var(--home-top));
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+}
+
+.home-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.home-shell kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--wov-15);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.home-sidebar {
+  position: sticky;
+  top: var(--home-top);
+  align-self: start;
+  height: calc(100vh - var(--home-top));
+  overflow-y: auto;
+  padding: 16px 12px 0;
+  border-right: 1px solid var(--wov-08);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+}
+
+.home-new-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--wov-12);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--home-ease), background var(--home-ease);
+}
+
+.home-new-search svg {
+  color: var(--indigo);
+}
+
+.home-new-search:hover {
+  border-color: var(--ibd-40);
+  background: var(--ibd-06);
+}
+
+/* Each history group is separated by a hairline, not by a big gap. */
+.home-history {
+  padding: 12px 0;
+  border-top: 1px solid var(--wov-06);
+}
+
+.home-new-search + .home-history {
+  border-top: 0;
+}
+
+.home-history h4 {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+.home-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.home-history li a,
+.home-history li button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--home-ease), color var(--home-ease);
+}
+
+.home-history li a:hover,
+.home-history li button:hover {
+  background: var(--wov-05);
+  color: var(--text-hi);
+}
+
+/* Kind as a small fixed-width tag so labels line up down the list. */
+.home-history-kind {
+  flex-shrink: 0;
+  width: 32px;
+  padding: 1px 0;
+  border-radius: 4px;
+  background: var(--wov-05);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.home-history-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-history-status {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wov-05);
+  font-size: 10.5px;
+  line-height: 16px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-history-status.is-processing {
+  background: var(--ibd-12);
+  color: var(--indigo);
+}
+
+.home-history-status.is-completed {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  color: var(--green);
+}
+
+.home-history-status.is-failed {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+.home-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.home-sidebar-empty {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-empty-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Anchored to the bottom of the sidebar even when the history scrolls. */
+.home-account {
+  position: sticky;
+  bottom: 0;
+  margin: auto -12px 0;
+  padding: 12px;
+  border-top: 1px solid var(--wov-08);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.home-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ibd-15);
+  color: var(--indigo);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.home-account-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-hi);
+}
+
+.home-account-links {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.home-account-links a,
+.home-account-links button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--home-ease), color var(--home-ease);
+}
+
+.home-account-links a:hover,
+.home-account-links button:hover {
+  background: var(--wov-05);
+  color: var(--text-hi);
+}
+
+.home-signin {
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-signin p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.home-signin-link {
+  color: var(--indigo);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.home-signin-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--indigo-mid);
+  color: var(--bg);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--home-ease);
+}
+
+.home-btn:hover {
+  background: var(--indigo);
+}
+
+/* ── Main ──────────────────────────────────────────────────────────── */
+.home-main {
+  padding: var(--home-pad-top) 40px 40px;
+  min-width: 0;
+}
+
+.home-main-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.home-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-muted);
+}
+
+.home-title {
+  margin: 8px 0 0;
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  color: var(--text-hi);
+  text-wrap: balance;
+}
+
+.home-lead {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.home-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+/* The composer is the focal point: a raised surface, a clear focus ring, no heavy shadow. */
+.home-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--wov-15);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  overflow: hidden;
+  transition: border-color var(--home-ease), box-shadow var(--home-ease);
+}
+
+.home-composer:hover {
+  border-color: var(--wov-20);
+}
+
+.home-composer:focus-within {
+  border-color: var(--indigo-mid);
+  box-shadow: 0 0 0 3px var(--ibd-15);
+}
+
+:root[data-theme='light'] .home-composer {
+  background: var(--bg-input);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+:root[data-theme='light'] .home-composer:focus-within {
+  box-shadow: 0 0 0 3px var(--ibd-15), 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.home-composer textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.home-shell .home-composer textarea:focus-visible {
+  outline: none;
+}
+
+.home-composer textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.home-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--wov-10);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: color var(--home-ease), border-color var(--home-ease), background var(--home-ease);
+}
+
+.home-attach:hover {
+  color: var(--text-hi);
+  border-color: var(--wov-20);
+  background: var(--wov-04);
+}
+
+.home-composer-hint {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.home-composer-hint kbd {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.home-send {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--indigo-mid);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--home-ease), color var(--home-ease);
+}
+
+.home-send:hover:not(:disabled) {
+  background: var(--indigo);
+}
+
+/* Empty box: a neutral, quiet control rather than a faded accent that reads as broken. */
+.home-send:disabled {
+  background: var(--wov-06);
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* Guidance sits inside the composer as its footer strip. */
+.home-composer .search-guidance {
+  margin: 4px -16px -12px;
+  padding: 10px 16px;
+  border: 0;
+  border-top: 1px solid var(--ibd-15);
+  border-radius: 0;
+  background: var(--ibd-06);
+  justify-content: flex-start;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.home-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.home-rows h2,
+.home-rail h3 {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.home-rows ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-rows li {
+  border-top: 1px solid var(--wov-08);
+}
+
+.home-rows li:last-child {
+  border-bottom: 1px solid var(--wov-08);
+}
+
+/* Rows bleed 12px past the column so hover fills read as a band while text stays aligned. */
+.home-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-sizing: border-box;
+  width: calc(100% + 24px);
+  min-height: 56px;
+  margin: 0 -12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--home-ease), color var(--home-ease);
+}
+
+.home-row em {
+  font-style: normal;
+  color: var(--indigo);
+}
+
+.home-row:hover,
+.home-row:focus-visible {
+  background: var(--wov-04);
+}
+
+.home-row-text {
+  min-width: 0;
+}
+
+.home-row-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.home-row-arrow {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  transition: transform var(--home-ease), color var(--home-ease);
+}
+
+.home-row:hover .home-row-arrow,
+.home-row:focus-visible .home-row-arrow {
+  color: var(--indigo);
+  transform: translateX(3px);
+}
+
+.home-disclaimer {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+/* ── Rail ──────────────────────────────────────────────────────────── */
+/* Same top padding as the main column so the first rail label sits on the eyebrow's line. */
+.home-rail {
+  padding: var(--home-pad-top) 24px 40px;
+  border-left: 1px solid var(--wov-08);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
+.home-rail h3 {
+  margin: 0;
+}
+
+.home-fresh {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.home-picks {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.home-picks li {
+  border-top: 1px solid var(--wov-08);
+}
+
+.home-picks li:last-child {
+  border-bottom: 1px solid var(--wov-08);
+}
+
+.home-picks a {
+  display: block;
+  margin: 0 -8px;
+  padding: 12px 8px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--home-ease);
+}
+
+.home-picks a:hover {
+  background: var(--wov-04);
+}
+
+.home-picks a:hover .home-pick-title {
+  color: var(--indigo);
+}
+
+.home-pick-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text-hi);
+  transition: color var(--home-ease);
+}
+
+.home-pick-why {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.home-pick-venue {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--indigo);
+  text-decoration: none;
+}
+
+.home-more:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.home-rail-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.home-degraded {
+  margin-top: 12px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--wov-08);
+  border-left: 2px solid var(--amber);
+  border-radius: 6px;
+  background: var(--bg-elev);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-degraded button {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--wov-12);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--home-ease);
+}
+
+.home-degraded button:hover {
+  border-color: var(--indigo-mid);
+}
+
+/* ── Drawer (mobile) ───────────────────────────────────────────────── */
+.home-menu-btn {
+  display: none;
+}
+
+.home-scrim {
+  display: none;
+}
+
+.home-shell :focus-visible {
+  outline: 2px solid var(--indigo-mid);
+  outline-offset: 2px;
+}
+
+.home-shell .home-row:focus-visible,
+.home-shell .home-picks a:focus-visible {
+  outline-offset: -2px;
+}
+
+/* 860-1100px: sidebar + main; the rail drops under main and lays its two sections side by side. */
+@media (max-width: 1100px) {
+  .home-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .home-main {
+    padding: var(--home-pad-top) 32px 32px;
+  }
+
+  .home-rail {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 32px;
+    padding: 32px;
+    border-left: 0;
+    border-top: 1px solid var(--wov-08);
+  }
+}
+
+@media (max-width: 860px) {
+  .home-shell {
+    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+  }
+
+  .home-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 14px 0 12px;
+    border: 1px solid var(--wov-12);
+    border-radius: 8px;
+    background: var(--bg-elev);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    z-index: 31;
+  }
+
+  .home-sidebar {
+    position: fixed;
+    top: var(--home-top);
+    bottom: 0;
+    left: 0;
+    width: min(320px, 86vw);
+    height: auto;
+    /* Desktop's align-self: start would shrink the fixed drawer to its content. */
+    align-self: stretch;
+    padding-top: 12px;
+    border-right: 1px solid var(--wov-10);
+    background: var(--bg);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 200ms ease, visibility 0s linear 200ms;
+    /* Above the menu button so the open drawer is not overlapped by it. */
+    z-index: 32;
+  }
+
+  .home-shell.is-drawer-open .home-sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 200ms ease;
+    box-shadow: 16px 0 40px rgba(0, 0, 0, 0.35);
+  }
+
+  :root[data-theme='light'] .home-shell.is-drawer-open .home-sidebar {
+    box-shadow: 16px 0 40px rgba(15, 23, 42, 0.12);
+  }
+
+  .home-scrim {
+    display: block;
+    position: fixed;
+    inset: var(--home-top) 0 0 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 25;
+    animation: home-fade-in 200ms ease;
+  }
+
+  :root[data-theme='light'] .home-scrim {
+    background: rgba(15, 23, 42, 0.32);
+  }
+
+  .home-scrim[hidden] {
+    display: none;
+  }
+
+  .home-history li a,
+  .home-history li button,
+  .home-account-links a,
+  .home-account-links button {
+    min-height: 44px;
+  }
+
+  .home-main {
+    padding: 72px 16px 24px;
+  }
+
+  .home-main-inner {
+    gap: 28px;
+  }
+
+  .home-title {
+    font-size: 26px;
+  }
+
+  .home-composer-hint {
+    display: none;
+  }
+
+  .home-attach,
+  .home-send {
+    min-height: 44px;
+  }
+
+  .home-send {
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+  }
+
+  .home-row {
+    font-size: 14px;
+  }
+
+  .home-rail {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 28px 16px 40px;
+  }
+}
+
+@keyframes home-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-shell *,
+  .home-shell .home-sidebar,
+  .home-shell.is-drawer-open .home-sidebar {
+    transition: none;
+    animation: none;
+  }
+
+  .home-row:hover .home-row-arrow,
+  .home-row:focus-visible .home-row-arrow {
+    transform: none;
+  }
+}
