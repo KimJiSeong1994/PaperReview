@@ -37,8 +37,20 @@ curl -fsS "http://127.0.0.1:8000/api/blog/posts?limit=1"
 - 콘텐츠 저장소 secret `CONTENT_DISPATCH_TOKEN`: PaperReview 에 "Contents: read & write" 권한이 있는 fine-grained PAT (repository_dispatch 에 필요).
 - PaperReview 의 `content-sync` 워크플로는 기존 배포 secret(`EC2_SSH_KEY`, `EC2_HOST`, `EC2_USER`)과 `production` environment 를 그대로 쓴다.
 
+## 발행 방법 (콘텐츠 저장소에서만)
+
+```bash
+cd ~/git/jiphyeonjeon-content
+python scripts/add_post.py post.json --figures ./figs   # posts/<slug>.md(.deep.md) + figures/
+python scripts/build_posts_index.py --out /tmp/posts.json
+git checkout -b publish/<slug> && git add -A && git commit && gh pr create
+```
+
+- `post.json` 은 앱의 posts index 레코드 형태(slug·title·content 필수, deep_content·tags·excerpt·thumbnail_url 선택). 기존 글 교체는 `--update`.
+- 코드 저장소의 `data/blog/posts.json`·`figures/` 는 **동결**: PR 에서 바뀌면 CI `content-frozen` 잡이 실패한다.
+- 서버에 `BLOG_CONTENT_DIR` 가 설정되면 관리자 쓰기 API(`POST/PUT/DELETE /api/blog/posts`)는 409 로 거부한다. 로컬 개발(기본 `data/blog`)에서는 그대로 동작한다.
+
 ## 전환기 규칙
 
-- 관리자 발행 API(`POST /api/blog/posts`)는 `BLOG_CONTENT_DIR` 의 `posts.json` 에 쓰지만, 그 파일은 다음 동기화에서 다시 생성되므로 **운영에서는 쓰지 않는다.** 발행은 콘텐츠 저장소에서.
 - 롤백: `BLOG_CONTENT_DIR` 를 비우고 재시작하면 `data/blog` 로 돌아간다.
 - `data/blog` 삭제와 CI `content` 경로 필터는 서버 전환이 안정된 뒤 별도 PR 로 한다(`.omc/plans/content-separation-plan.md` Phase 0·1).

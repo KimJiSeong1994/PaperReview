@@ -22,6 +22,7 @@ jobs:
     outputs:
       frontend: ${{ steps.components.outputs.frontend }}
       skillopt: ${{ steps.components.outputs.skillopt }}
+      content: ${{ steps.components.outputs.content }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -31,6 +32,9 @@ jobs:
             frontend:
               - 'web-ui/**'
               - '.github/workflows/ci.yml'
+            content:
+              - 'data/blog/posts.json'
+              - 'data/blog/figures/**'
             skillopt:
               # Shared conftest/package imports reach beyond the adapter.
               - 'src/**'
@@ -45,6 +49,17 @@ jobs:
               - 'pytest.ini'
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
+
+  content-frozen:
+    # Blog content is published from KimJiSeong1994/jiphyeonjeon-content; data/blog is a frozen fallback.
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.content == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: |
+          echo "::error::data/blog/posts.json and data/blog/figures/ are frozen. Publish with jiphyeonjeon-content/scripts/add_post.py and open a PR there (docs/content-repo-sync.md)."
+          exit 1
 
   backend-core:
     # Also covers frontend/SSR parity and documentation contracts.
