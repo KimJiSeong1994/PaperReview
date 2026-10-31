@@ -34,7 +34,6 @@ vi.mock('../components/mypage/PaperViewerPanel', async () => {
   return { default: ViewerStub };
 });
 vi.mock('../components/AgentKeyButton', () => ({ default: () => null }));
-vi.mock('../components/RecommendationBell', () => ({ default: () => null }));
 
 function Probe() {
   const location = useLocation();

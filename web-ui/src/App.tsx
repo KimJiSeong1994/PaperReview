@@ -3,7 +3,6 @@ import { Link, Routes, Route, Navigate, useLocation, useNavigate, useParams } fr
 import './App.css';
 import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
-import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
 import ThemeToggle from './components/ThemeToggle';
@@ -82,7 +81,7 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
 
   // Shared by the root route and /introduce. The other routes ship their own
   // headers (BlogPage, AdminPage, ...), so this stays a plain element rather
-  // than a component — no remount of RecommendationBell on App re-render.
+  // than a component — no remount of header children on App re-render.
   const header = (
     <header className="app-header">
       <div className="header-nav">
@@ -114,7 +113,6 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
         </a>
         <div className="header-right">
         <nav className="header-actions" aria-label={englishChrome ? 'Main navigation' : '주요 메뉴'}>
-          {isAuthenticated && <RecommendationBell />}
           {isAuthenticated && userRole === 'admin' && (
             <button className="nav-btn" onClick={() => navigate('/admin')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -377,7 +375,8 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
           }
         />
       </Routes>
-      <SiteFooter />
+      {/* The home/search workspace is an app surface; the site footer lives on the introduce, blog and other reading pages. */}
+      {location.pathname !== '/' && <SiteFooter />}
     </div>
   );
 }

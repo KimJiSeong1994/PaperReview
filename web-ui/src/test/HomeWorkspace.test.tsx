@@ -76,7 +76,7 @@ describe('HomeWorkspace', () => {
     authState.isAuthenticated = true;
     localStorage.clear();
     localStorage.setItem('username', 'jiseong');
-    localStorage.setItem('jh.recentSearches', JSON.stringify([
+    localStorage.setItem('jh.recentSearches:jiseong', JSON.stringify([
       { query: 'graph retrieval augmented generation', at: new Date().toISOString() },
     ]));
   });
@@ -96,7 +96,7 @@ describe('HomeWorkspace', () => {
     expect(await screen.findByText('Dynamic Graph RAG with Event-Centric Reasoning')).toBeTruthy();
     expect(screen.getByText('북마크한 GRAG와 제목 유사도가 높아요')).toBeTruthy();
     expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeTruthy();
-    expect(screen.getByText(/전체 7편/)).toBeTruthy();
+    expect(screen.getByText(/오늘 추천 7편/)).toBeTruthy();
     expect(screen.getByText('북마크 1편 중에서 골라 딥리뷰 만들기')).toBeTruthy();
   });
 
@@ -127,7 +127,7 @@ describe('HomeWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '로그인' }));
     expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
     expect(screen.queryByRole('heading', { name: '이어서 하기' })).toBeNull();
-    expect(await screen.findAllByText('KronLSTM 페어 리뷰')).toHaveLength(2);
+    expect(await screen.findByText('KronLSTM 페어 리뷰')).toBeTruthy();
     expect(screen.getByText(/로그인하고 논문을 3편만 북마크하면/)).toBeTruthy();
   });
 

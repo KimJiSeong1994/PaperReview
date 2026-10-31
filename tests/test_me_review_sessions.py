@@ -84,3 +84,14 @@ def test_limit_is_validated_and_applied(harness):
     assert client.get("/api/me/review-sessions", params={"limit": 21}).status_code == 422
     body = client.get("/api/me/review-sessions", params={"limit": 1}).json()
     assert len(body["sessions"]) == 1 and body["total"] == 2
+
+
+def test_created_at_is_serialized_as_utc():
+    from routers.me import _utc_iso
+
+    assert _utc_iso("") == ""
+    assert _utc_iso("not a date") == "not a date"
+    assert _utc_iso("2026-10-31T19:13:41+09:00") == "2026-10-31T10:13:41+00:00"
+    naive = _utc_iso("2026-10-31T19:13:41")
+    assert naive.endswith("+00:00")
+

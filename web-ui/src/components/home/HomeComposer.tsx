@@ -54,7 +54,7 @@ function HomeComposer({
       <textarea
         id="home-query"
         ref={textareaRef}
-        rows={2}
+        rows={1}
         value={query}
         placeholder="논문 검색"
         onChange={(event) => {
@@ -70,8 +70,8 @@ function HomeComposer({
       />
       <div className="home-composer-row">
         <Link className="home-attach" to="/paper-viewer">
-          <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
-            <path d="M4 1.75h5.25L12.5 5v9.25H4z M9 1.75V5.25h3.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+            <path d="M4 1.75h5.25L12.5 5v9.25H4z M9 1.75V5.25h3.5 M6 8.5h4M6 11h4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           PDF 열기
         </Link>
@@ -82,8 +82,9 @@ function HomeComposer({
           aria-label="논문 검색"
           disabled={!query.trim()}
         >
+          검색
           <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
-            <path d="M8 13V3.5M4 7l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 8h9.5M9 4.5 12.5 8 9 11.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>

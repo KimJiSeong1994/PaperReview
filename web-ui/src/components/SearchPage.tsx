@@ -104,7 +104,7 @@ const clearPerformanceEntry = (type: 'mark' | 'measure', name: string): void => 
 function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, setShowLoginModal } = useAuth();
+  const { isAuthenticated, setShowLoginModal, showLoginModal } = useAuth();
 
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
@@ -715,6 +715,15 @@ function SearchPage() {
   // handleSearch is recreated every render; the ref gates the replay.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  // A guest who dismisses the login dialog has not consented to that search;
+  // never let it run for whoever signs in later on this page.
+  useEffect(() => {
+    if (showLoginModal === false && !isAuthenticated && pendingSearchRef.current) {
+      pendingSearchRef.current = null;
+      setGuidanceMessage(null);
+    }
+  }, [showLoginModal, isAuthenticated]);
 
   // Auto-search from URL query param (e.g. /?q=paper+title)
   useEffect(() => {

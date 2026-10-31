@@ -14,7 +14,6 @@ import ReportViewer from './mypage/ReportViewer';
 import ChatPanel from './mypage/ChatPanel';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import AgentKeyButton from './AgentKeyButton';
-import RecommendationBell from './RecommendationBell';
 
 const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
@@ -270,7 +269,6 @@ function MyPage({ onBack }: MyPageProps) {
             <span className="mypage-brand-name">Jiphyeonjeon</span>
           </div>
           <div className="mypage-header-actions">
-            <RecommendationBell />
             <AgentKeyButton />
             <div className="mypage-tabs" role="tablist" aria-label="마이페이지">
               {MYPAGE_TABS.map(({ id, label, icon }) => (

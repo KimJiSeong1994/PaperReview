@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jwt as _pyjwt
@@ -122,6 +123,23 @@ class ReviewSessionListResponse(BaseModel):
     total: int
 
 
+def _utc_iso(value: object) -> str:
+    """Serialize a stored timestamp as timezone-aware UTC ISO 8601.
+
+    Sessions are created with a naive ``datetime.now()`` (server-local time);
+    browsers would read that as their own local time, so normalize here.
+    """
+    if not value:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return str(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.astimezone()
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
 def _summarize_session(session_id: str, session: dict) -> ReviewSessionSummary:
     papers = session.get("papers_data")
     first = papers[0] if isinstance(papers, list) and papers else None
@@ -135,7 +153,7 @@ def _summarize_session(session_id: str, session: dict) -> ReviewSessionSummary:
         status=str(session.get("status") or "unknown"),
         progress=session.get("progress") or None,
         num_papers=int(num_papers),
-        created_at=str(session.get("created_at") or ""),
+        created_at=_utc_iso(session.get("created_at")),
         title=str(title) if title else None,
     )
 

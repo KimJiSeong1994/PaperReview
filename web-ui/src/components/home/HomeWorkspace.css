@@ -1,30 +1,38 @@
-/* Home workspace: history sidebar / one question + composer + rows / daily picks rail.
-   Header is fixed at 70px (App.css .main-content padding-top), so sticky offsets use it.
-   Rhythm is on a 4px grid; motion is 150-200ms and dropped under prefers-reduced-motion. */
+/* Home workspace: history sidebar / one question + composer + rows, with today's picks beside the composer.
+   One surface (the page), hairline column dividers, one label style, one row anatomy.
+   The composer is the only elevated object. The header is fixed at 70px (App.css). */
 .home-shell {
-  --home-top: 70px;
+  --home-header: 70px;
+  --home-top: 40px;
   --home-ease: 160ms ease;
-  --home-pad-top: clamp(32px, 7vh, 72px);
+  --home-line: 1px solid var(--wov-08);
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr) 300px;
+  grid-template-columns: 300px minmax(0, 1fr);
   width: 100%;
-  max-width: 1480px;
-  margin: 0 auto;
-  min-height: calc(100vh - var(--home-top));
+  min-height: calc(100vh - var(--home-header));
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text);
 }
 
-.home-sr-only {
+.home-sidebar,
+.home-main {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: var(--home-top) 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.home-sr-only,
+.home-sidebar .home-row-meta {
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  border: 0;
 }
 
 .home-shell kbd {
@@ -41,197 +49,275 @@
   color: var(--text-muted);
 }
 
-/* ── Sidebar ───────────────────────────────────────────────────────── */
-.home-sidebar {
-  position: sticky;
-  top: var(--home-top);
-  align-self: start;
-  height: calc(100vh - var(--home-top));
-  overflow-y: auto;
-  padding: 16px 12px 0;
-  border-right: 1px solid var(--wov-08);
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  scrollbar-width: thin;
-}
-
-.home-new-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--wov-12);
-  border-radius: 8px;
-  background: var(--bg-elev);
-  color: var(--text-hi);
-  font: inherit;
-  font-size: 14px;
+/* ── Shared primitives ─────────────────────────────────────────────── */
+.home-label {
+  margin: 0 0 8px;
+  font-size: 12.5px;
   font-weight: 600;
-  cursor: pointer;
-  transition: border-color var(--home-ease), background var(--home-ease);
-}
-
-.home-new-search svg {
-  color: var(--indigo);
-}
-
-.home-new-search:hover {
-  border-color: var(--ibd-40);
-  background: var(--ibd-06);
-}
-
-/* Each history group is separated by a hairline, not by a big gap. */
-.home-history {
-  padding: 12px 0;
-  border-top: 1px solid var(--wov-06);
-}
-
-.home-new-search + .home-history {
-  border-top: 0;
-}
-
-.home-history h4 {
-  margin: 0 0 4px;
-  padding: 0 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-faint);
-}
-
-.home-history ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.home-history li a,
-.home-history li button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background var(--home-ease), color var(--home-ease);
-}
-
-.home-history li a:hover,
-.home-history li button:hover {
-  background: var(--wov-05);
-  color: var(--text-hi);
-}
-
-/* Kind as a small fixed-width tag so labels line up down the list. */
-.home-history-kind {
-  flex-shrink: 0;
-  width: 32px;
-  padding: 1px 0;
-  border-radius: 4px;
-  background: var(--wov-05);
-  font-size: 10.5px;
-  font-weight: 500;
-  line-height: 16px;
-  text-align: center;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.home-history-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-history-status {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--wov-05);
-  font-size: 10.5px;
-  line-height: 16px;
+  line-height: 18px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.home-history-status.is-processing {
+.home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-list li {
+  border-top: var(--home-line);
+}
+
+.home-list li:last-child {
+  border-bottom: var(--home-line);
+}
+
+/* Rows bleed 12px past the column so the hover band is wider than the text. */
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: calc(100% + 24px);
+  min-height: 50px;
+  margin: 0 -12px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--home-ease);
+}
+
+.home-row:hover,
+.home-row:focus-visible {
+  background: var(--wov-04);
+}
+
+.home-pick-static {
+  cursor: default;
+}
+
+.home-pick-static:hover {
+  background: transparent;
+}
+
+.home-row-lead {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  align-self: flex-start;
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-row-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.home-row em {
+  font-style: normal;
+  text-decoration: underline;
+  text-decoration-color: var(--wov-20);
+  text-underline-offset: 4px;
+}
+
+.home-row-meta,
+.home-row-why {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.home-row-arrow {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  transition: transform var(--home-ease), color var(--home-ease);
+}
+
+.home-row:hover .home-row-arrow,
+.home-row:focus-visible .home-row-arrow {
+  color: var(--text-hi);
+  transform: translateX(3px);
+}
+
+.home-chip {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wov-05);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+.home-chip.is-processing {
   background: var(--ibd-12);
   color: var(--indigo);
 }
 
-.home-history-status.is-completed {
+.home-chip.is-completed {
   background: color-mix(in srgb, var(--green) 14%, transparent);
   color: var(--green);
 }
 
-.home-history-status.is-failed {
+.home-chip.is-failed {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
 }
 
-.home-empty {
+.home-empty,
+.home-disclaimer {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-muted);
 }
 
-.home-sidebar-empty {
-  padding: 12px 8px;
+.home-disclaimer {
+  margin-top: -8px;
+  font-size: 12px;
+}
+
+.home-aside-note {
+  margin-top: 8px;
+}
+
+.home-aside {
+  grid-area: aside;
+  align-self: start;
   display: flex;
   flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
+.home-aside .home-row-title {
+  font-size: 14px;
+}
+
+.home-aside .home-row-meta,
+.home-aside .home-row-why {
+  font-size: 12.5px;
+}
+
+/* One button system: 40px tall, 8px radius. */
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--text-hi);
+  color: var(--bg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--home-ease), border-color var(--home-ease), background var(--home-ease);
 }
 
-.home-empty-hint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-faint);
+.home-btn:hover {
+  opacity: 0.88;
 }
 
-/* Anchored to the bottom of the sidebar even when the history scrolls. */
-.home-account {
+.home-btn-outline {
+  justify-content: flex-start;
+  border-color: var(--wov-15);
+  background: transparent;
+  color: var(--text-hi);
+}
+
+.home-btn-outline:hover {
+  opacity: 1;
+  border-color: var(--wov-20);
+  background: var(--wov-04);
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.home-sidebar {
   position: sticky;
-  bottom: 0;
-  margin: auto -12px 0;
-  padding: 12px;
-  border-top: 1px solid var(--wov-08);
-  background: var(--bg);
+  top: var(--home-header);
+  align-self: start;
+  height: calc(100vh - var(--home-header));
+  overflow-y: auto;
+  gap: 20px;
+  border-right: var(--home-line);
+  scrollbar-width: thin;
+}
+
+/* Sidebar rhythm: 24px under 새 검색, 20px between groups, 6px label to rows, 40px rows. */
+.home-sidebar > .home-btn {
+  margin-bottom: 4px;
+}
+
+.home-sidebar > .home-empty {
+  margin-top: -8px;
+}
+
+.home-sidebar .home-label {
+  margin-bottom: 6px;
+}
+
+.home-sidebar .home-row {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.home-sidebar .home-row-lead {
+  align-self: center;
+  margin-top: 0;
+}
+
+.home-sidebar .home-row-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* Flows 24px under the last group; only the mobile drawer pins it to the bottom. */
+.home-account {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: var(--home-line);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 13px;
 }
 
-.home-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--ibd-15);
-  color: var(--indigo);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
+.home-account .home-row-lead {
+  align-self: center;
+  margin: 0;
 }
 
 .home-account-name {
@@ -240,47 +326,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text-hi);
 }
 
-.home-account-links {
-  display: flex;
-  gap: 2px;
+.home-account a,
+.home-account button {
   flex-shrink: 0;
-}
-
-.home-account-links a,
-.home-account-links button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 6px;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
   background: none;
   color: var(--text-muted);
   font: inherit;
   font-size: 12px;
   text-decoration: none;
   cursor: pointer;
-  transition: background var(--home-ease), color var(--home-ease);
 }
 
-.home-account-links a:hover,
-.home-account-links button:hover {
-  background: var(--wov-05);
+.home-account a:hover,
+.home-account button:hover {
   color: var(--text-hi);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .home-signin {
-  margin-top: 8px;
-  padding: 16px;
-  border: 1px solid var(--wov-08);
-  border-radius: 8px;
-  background: var(--bg-elev);
-  color: var(--text-muted);
-  font-size: 13px;
+  padding-bottom: 24px;
+  border-bottom: var(--home-line);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -288,54 +361,53 @@
 
 .home-signin p {
   margin: 0;
-  line-height: 1.65;
-}
-
-.home-signin-link {
-  color: var(--indigo);
-  font-size: 12.5px;
-  text-decoration: none;
-}
-
-.home-signin-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.home-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--indigo-mid);
-  color: var(--bg);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--home-ease);
-}
-
-.home-btn:hover {
-  background: var(--indigo);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
 }
 
 /* ── Main ──────────────────────────────────────────────────────────── */
+/* Content column on the left; the picks block sits beside the composer, top-aligned with it. */
 .home-main {
-  padding: var(--home-pad-top) 40px 40px;
-  min-width: 0;
+  padding-top: 96px;
 }
 
 .home-main-inner {
-  max-width: 720px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 720px) 340px;
+  grid-template-areas:
+    "head ."
+    "ask aside"
+    "rows aside"
+    "continue aside"
+    "disclaimer aside";
+  grid-template-rows: auto auto auto auto 1fr;
+  justify-content: center;
+  column-gap: 40px;
+  row-gap: 44px;
+}
+
+.home-main-inner .home-label {
+  margin-bottom: 14px;
+}
+
+/* Hero sits 40px above the composer; the pull is on the head so the aside's top still meets the composer's. */
+.home-head { grid-area: head; margin-bottom: -4px; }
+.home-composer { grid-area: ask; }
+.home-tasks { grid-area: rows; }
+.home-continue { grid-area: continue; }
+.home-disclaimer { grid-area: disclaimer; align-self: start; }
+
+.home-hero-top {
   display: flex;
-  flex-direction: column;
-  gap: 32px;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-mascot {
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .home-eyebrow {
@@ -346,46 +418,50 @@
   color: var(--text-muted);
 }
 
+.home-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: var(--indigo);
+}
+
 .home-title {
-  margin: 8px 0 0;
-  font-size: clamp(28px, 3vw, 36px);
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
+  margin: 14px 0 0;
+  font-size: clamp(30px, 2.8vw, 36px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
   color: var(--text-hi);
   text-wrap: balance;
 }
 
+.home-title-accent {
+  color: var(--indigo);
+}
+
 .home-lead {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   font-size: 15px;
   line-height: 1.6;
   color: var(--text-muted);
   text-wrap: pretty;
 }
 
-.home-ask {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: -8px;
-}
-
-/* The composer is the focal point: a raised surface, a clear focus ring, no heavy shadow. */
 .home-composer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 16px 12px;
-  border: 1px solid var(--wov-15);
+  gap: 4px;
+  padding: 12px 12px 12px 16px;
+  border: var(--home-line);
+  border-color: var(--wov-15);
   border-radius: 12px;
-  background: var(--bg-elev);
+  background: var(--bg-input);
   overflow: hidden;
   transition: border-color var(--home-ease), box-shadow var(--home-ease);
-}
-
-.home-composer:hover {
-  border-color: var(--wov-20);
 }
 
 .home-composer:focus-within {
@@ -393,19 +469,12 @@
   box-shadow: 0 0 0 3px var(--ibd-15);
 }
 
-:root[data-theme='light'] .home-composer {
-  background: var(--bg-input);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.05);
-}
-
-:root[data-theme='light'] .home-composer:focus-within {
-  box-shadow: 0 0 0 3px var(--ibd-15), 0 4px 16px rgba(15, 23, 42, 0.05);
-}
-
 .home-composer textarea {
   width: 100%;
   min-height: 56px;
-  padding: 0;
+  max-height: 200px;
+  field-sizing: content;
+  padding: 4px 0 0;
   border: 0;
   outline: none;
   resize: none;
@@ -421,7 +490,7 @@
 }
 
 .home-composer textarea::placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .home-composer-row {
@@ -435,25 +504,24 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--wov-10);
-  border-radius: 999px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border-radius: 4px;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 500;
   text-decoration: none;
-  transition: color var(--home-ease), border-color var(--home-ease), background var(--home-ease);
 }
 
 .home-attach:hover {
   color: var(--text-hi);
-  border-color: var(--wov-20);
   background: var(--wov-04);
 }
 
 .home-composer-hint {
   margin-left: auto;
   font-size: 11.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -464,32 +532,36 @@
 
 .home-send {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px 0 16px;
   border: 0;
   border-radius: 8px;
   background: var(--indigo-mid);
   color: var(--bg);
-  display: grid;
-  place-items: center;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--home-ease), color var(--home-ease);
+  transition: background var(--home-ease);
 }
 
 .home-send:hover:not(:disabled) {
   background: var(--indigo);
 }
 
-/* Empty box: a neutral, quiet control rather than a faded accent that reads as broken. */
+/* Empty box: a tinted button that still names the action, not a faded solid that reads as broken. */
 .home-send:disabled {
-  background: var(--wov-06);
-  color: var(--text-faint);
+  background: var(--ibd-10);
+  color: var(--indigo);
   cursor: default;
 }
 
 /* Guidance sits inside the composer as its footer strip. */
 .home-composer .search-guidance {
-  margin: 4px -16px -12px;
+  margin: 4px -12px -12px -16px;
   padding: 10px 16px;
   border: 0;
   border-top: 1px solid var(--ibd-15);
@@ -500,281 +572,86 @@
   line-height: 1.5;
 }
 
-.home-note {
-  margin: 0;
-  padding: 0 4px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-muted);
-}
-
-.home-rows h2,
-.home-rail h3 {
-  margin: 0 0 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 20px;
-  letter-spacing: 0.01em;
-  color: var(--text-muted);
-}
-
-.home-rows ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.home-rows li {
-  border-top: 1px solid var(--wov-08);
-}
-
-.home-rows li:last-child {
-  border-bottom: 1px solid var(--wov-08);
-}
-
-/* Rows bleed 12px past the column so hover fills read as a band while text stays aligned. */
-.home-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  box-sizing: border-box;
-  width: calc(100% + 24px);
-  min-height: 56px;
-  margin: 0 -12px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-hi);
-  font: inherit;
-  font-size: 14.5px;
-  font-weight: 500;
-  line-height: 1.45;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background var(--home-ease), color var(--home-ease);
-}
-
-.home-row em {
-  font-style: normal;
-  color: var(--indigo);
-}
-
-.home-row:hover,
-.home-row:focus-visible {
-  background: var(--wov-04);
-}
-
-.home-row-text {
-  min-width: 0;
-}
-
-.home-row-meta {
-  display: block;
-  margin-top: 2px;
-  font-size: 12.5px;
-  font-weight: 400;
-  color: var(--text-faint);
-}
-
-.home-row-arrow {
-  flex-shrink: 0;
-  color: var(--text-faint);
-  transition: transform var(--home-ease), color var(--home-ease);
-}
-
-.home-row:hover .home-row-arrow,
-.home-row:focus-visible .home-row-arrow {
-  color: var(--indigo);
-  transform: translateX(3px);
-}
-
-.home-disclaimer {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-faint);
-}
-
-/* ── Rail ──────────────────────────────────────────────────────────── */
-/* Same top padding as the main column so the first rail label sits on the eyebrow's line. */
-.home-rail {
-  padding: var(--home-pad-top) 24px 40px;
-  border-left: 1px solid var(--wov-08);
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  min-width: 0;
-}
-
-.home-rail h3 {
-  margin: 0;
-}
-
-.home-fresh {
-  margin: 0;
-  font-size: 11.5px;
-  color: var(--text-faint);
-}
-
-.home-picks {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-}
-
-.home-picks li {
-  border-top: 1px solid var(--wov-08);
-}
-
-.home-picks li:last-child {
-  border-bottom: 1px solid var(--wov-08);
-}
-
-.home-picks a {
-  display: block;
-  margin: 0 -8px;
-  padding: 12px 8px;
-  border-radius: 6px;
-  color: inherit;
-  text-decoration: none;
-  transition: background var(--home-ease);
-}
-
-.home-picks a:hover {
-  background: var(--wov-04);
-}
-
-.home-picks a:hover .home-pick-title {
-  color: var(--indigo);
-}
-
-.home-pick-title {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--text-hi);
-  transition: color var(--home-ease);
-}
-
-.home-pick-why {
-  display: block;
-  margin-top: 4px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-muted);
-}
-
-.home-pick-venue {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
 .home-more {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--indigo);
+  color: var(--text);
   text-decoration: none;
 }
 
 .home-more:hover {
+  color: var(--text-hi);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.home-rail-note {
-  margin: 8px 0 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-
 .home-degraded {
-  margin-top: 12px;
-  padding: 8px 8px 8px 12px;
-  border: 1px solid var(--wov-08);
-  border-left: 2px solid var(--amber);
-  border-radius: 6px;
-  background: var(--bg-elev);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-muted);
+  margin-top: 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 .home-degraded button {
   flex-shrink: 0;
   min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--wov-12);
-  border-radius: 6px;
-  background: var(--bg);
+  padding: 0 12px;
+  border: 1px solid var(--wov-15);
+  border-radius: 8px;
+  background: transparent;
   color: var(--text-hi);
   font: inherit;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color var(--home-ease);
 }
 
 .home-degraded button:hover {
-  border-color: var(--indigo-mid);
+  border-color: var(--wov-20);
 }
 
-/* ── Drawer (mobile) ───────────────────────────────────────────────── */
-.home-menu-btn {
-  display: none;
-}
-
-.home-scrim {
-  display: none;
-}
-
+/* ── Focus + drawer ────────────────────────────────────────────────── */
 .home-shell :focus-visible {
   outline: 2px solid var(--indigo-mid);
   outline-offset: 2px;
 }
 
-.home-shell .home-row:focus-visible,
-.home-shell .home-picks a:focus-visible {
+.home-shell .home-row:focus-visible {
   outline-offset: -2px;
 }
 
-/* 860-1100px: sidebar + main; the rail drops under main and lays its two sections side by side. */
+.home-menu-btn,
+.home-scrim {
+  display: none;
+}
+
+/* 860-1100px: the picks block stacks after the continue rows. */
 @media (max-width: 1100px) {
   .home-shell {
     grid-template-columns: 240px minmax(0, 1fr);
   }
 
   .home-main {
-    padding: var(--home-pad-top) 32px 32px;
+    padding-top: var(--home-top);
   }
 
-  .home-rail {
-    grid-column: 2;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 32px;
-    padding: 32px;
-    border-left: 0;
-    border-top: 1px solid var(--wov-08);
+  .home-main-inner {
+    grid-template-columns: minmax(0, 720px);
+    grid-template-areas: "head" "ask" "rows" "continue" "aside" "disclaimer";
+    grid-template-rows: none;
+  }
+
+  .home-disclaimer {
+    margin-top: 0;
   }
 }
 
@@ -794,9 +671,9 @@
     min-width: 44px;
     height: 44px;
     padding: 0 14px 0 12px;
-    border: 1px solid var(--wov-12);
+    border: 1px solid var(--wov-15);
     border-radius: 8px;
-    background: var(--bg-elev);
+    background: var(--bg);
     color: var(--text);
     font: inherit;
     font-size: 13px;
@@ -807,15 +684,14 @@
 
   .home-sidebar {
     position: fixed;
-    top: var(--home-top);
+    top: var(--home-header);
     bottom: 0;
     left: 0;
     width: min(320px, 86vw);
     height: auto;
     /* Desktop's align-self: start would shrink the fixed drawer to its content. */
     align-self: stretch;
-    padding-top: 12px;
-    border-right: 1px solid var(--wov-10);
+    padding-top: 16px;
     background: var(--bg);
     transform: translateX(-100%);
     visibility: hidden;
@@ -838,7 +714,7 @@
   .home-scrim {
     display: block;
     position: fixed;
-    inset: var(--home-top) 0 0 0;
+    inset: var(--home-header) 0 0 0;
     background: rgba(0, 0, 0, 0.55);
     z-index: 25;
     animation: home-fade-in 200ms ease;
@@ -852,10 +728,14 @@
     display: none;
   }
 
-  .home-history li a,
-  .home-history li button,
-  .home-account-links a,
-  .home-account-links button {
+  .home-account {
+    margin-top: auto;
+    padding-bottom: 16px;
+  }
+
+  .home-account a,
+  .home-account button,
+  .home-more {
     min-height: 44px;
   }
 
@@ -863,12 +743,8 @@
     padding: 72px 16px 24px;
   }
 
-  .home-main-inner {
-    gap: 28px;
-  }
-
   .home-title {
-    font-size: 26px;
+    font-size: 30px;
   }
 
   .home-composer-hint {
@@ -881,20 +757,9 @@
   }
 
   .home-send {
-    width: 44px;
-    height: 44px;
     margin-left: auto;
   }
 
-  .home-row {
-    font-size: 14px;
-  }
-
-  .home-rail {
-    grid-column: 1;
-    grid-template-columns: minmax(0, 1fr);
-    padding: 28px 16px 40px;
-  }
 }
 
 @keyframes home-fade-in {
