@@ -28,7 +28,7 @@ def verify(content_dir: Path) -> tuple[int, int]:
     """Return (post count, figure count); raise if the checkout is unusable."""
     posts_file = content_dir / "posts.json"
     index = json.loads(posts_file.read_text(encoding="utf-8"))
-    posts = index["posts"] if isinstance(index, dict) else index
+    posts = index.get("posts") if isinstance(index, dict) else index
     if not isinstance(posts, list) or not posts:
         raise ValueError(f"{posts_file}: no posts")
     figures = content_dir / "figures"

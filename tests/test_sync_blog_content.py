@@ -61,13 +61,28 @@ def test_empty_index_fails_verification(tmp_path: Path) -> None:
     assert "no posts" in result.stderr
 
 
-def test_blog_router_reads_content_dir_from_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("BLOG_CONTENT_DIR", str(tmp_path / "content"))
+def test_index_without_posts_key_fails_verification(tmp_path: Path) -> None:
+    content = _stub_checkout(tmp_path)
+    (content / "posts.json").write_text(json.dumps({"items": [{"slug": "s0"}]}), encoding="utf-8")
+    result = _run("--content-dir", str(content), "--check")
+    assert result.returncode == 1
+    assert "no posts" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("content", Path("content")), ("", Path("data/blog"))],
+    ids=["set", "empty-falls-back"],
+)
+def test_blog_router_reads_content_dir_from_env(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str, expected: Path
+) -> None:
+    monkeypatch.setenv("BLOG_CONTENT_DIR", str(tmp_path / value) if value else "")
     import routers.blog as blog
 
     reloaded = importlib.reload(blog)
     try:
-        assert reloaded.BLOG_DIR == Path(os.environ["BLOG_CONTENT_DIR"])
+        assert reloaded.BLOG_DIR == (tmp_path / expected if value else expected)
         assert reloaded.POSTS_FILE == reloaded.BLOG_DIR / "posts.json"
     finally:
         monkeypatch.delenv("BLOG_CONTENT_DIR")
