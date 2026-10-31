@@ -21,6 +21,8 @@ interface HistoryItem {
   label: string;
   at: string;
   status?: string;
+  /** Raw review status, used only to tone the chip. */
+  statusKey?: string;
   to?: string;
   onClick?: () => void;
 }
@@ -54,7 +56,9 @@ function Row({ label, meta, to, onClick, external }: {
         {label}
         {meta && <span className="home-row-meta">{meta}</span>}
       </span>
-      <span className="home-row-arrow" aria-hidden="true">→</span>
+      <svg className="home-row-arrow" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+        <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </>
   );
   if (to && external) {
@@ -116,6 +120,7 @@ function HomeWorkspace({
       label: session.title ? `${session.title} 딥리뷰` : `딥리뷰 ${session.num_papers}편`,
       at: session.created_at,
       status: REVIEW_STATUS_LABEL[session.status] ?? session.status,
+      statusKey: session.status,
       to: '/mypage',
     }));
     return [...searches, ...reviews].sort((left, right) => (
@@ -136,7 +141,7 @@ function HomeWorkspace({
     : lastSearch
       ? '집현전 · 지난 검색 이어서'
       : '집현전 · 다시 오셨군요';
-  const recommendationItems = data.recommendations?.items.slice(0, 3) ?? [];
+  const recommendationItems = data.recommendations?.items?.slice(0, 3) ?? [];
   const degradedReason = data.recommendations?.degraded_reasons?.[0] ?? null;
   const latestRunLabel = data.recommendations?.latest_run_at
     ? `${relativeLabel(data.recommendations.latest_run_at, now)} 갱신`
@@ -158,19 +163,28 @@ function HomeWorkspace({
         aria-controls="home-sidebar"
         onClick={() => (drawerOpen ? closeDrawer() : setDrawerOpen(true))}
       >
-        <span aria-hidden="true">☰</span>
+        <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+          <path d="M2.5 4h11M2.5 8h11M2.5 12h7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span className="home-menu-label" aria-hidden="true">기록</span>
       </button>
       <div className="home-scrim" hidden={!drawerOpen} onClick={closeDrawer} />
 
       <nav className="home-sidebar" id="home-sidebar" aria-label="내 기록">
         <button type="button" className="home-new-search" ref={newSearchRef} onClick={startNewSearch}>
-          <span aria-hidden="true">＋</span> 새 검색
+          <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
+            <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          새 검색
         </button>
 
         {isAuthenticated ? (
           <>
             {grouped.length === 0 && (
-              <p className="home-empty">아직 기록이 없어요. 첫 검색이 여기에 쌓입니다.</p>
+              <div className="home-sidebar-empty">
+                <p className="home-empty">아직 기록이 없어요. 첫 검색이 여기에 쌓입니다.</p>
+                <p className="home-empty-hint"><kbd>/</kbd> 키로 검색창에 바로 갈 수 있어요.</p>
+              </div>
             )}
             {grouped.map(([group, items]) => (
               <div className="home-history" key={group}>
@@ -182,7 +196,7 @@ function HomeWorkspace({
                         <Link to={item.to} onClick={() => setDrawerOpen(false)}>
                           <span className="home-history-kind" aria-hidden="true">{item.kind}</span>
                           <span className="home-history-label">{item.label}</span>
-                          {item.status && <span className="home-history-status">{item.status}</span>}
+                          {item.status && <span className={`home-history-status is-${item.statusKey}`}>{item.status}</span>}
                         </Link>
                       ) : (
                         <button type="button" onClick={() => { setDrawerOpen(false); item.onClick?.(); }}>
@@ -222,7 +236,7 @@ function HomeWorkspace({
           </>
         ) : (
           <div className="home-signin">
-            <p>로그인하면 검색·딥리뷰·커리큘럼 기록을 여기서 이어서 볼 수 있어요. 검색은 지금도 바로 됩니다.</p>
+            <p>로그인하면 논문 검색과 딥리뷰·커리큘럼을 이용하고, 그 기록을 여기서 이어서 볼 수 있어요.</p>
             <button type="button" className="home-btn" onClick={() => setShowLoginModal(true)}>로그인</button>
             <Link className="home-signin-link" to="/blog/category/paper-review">공개 리뷰 먼저 읽어보기 →</Link>
           </div>
@@ -237,18 +251,20 @@ function HomeWorkspace({
             <p className="home-lead">주제나 논문 제목을 적으면 여러 소스에서 찾아 중복을 걷어내고, 근거까지 읽어 드려요.</p>
           </div>
 
-          <HomeComposer
-            key={`${attemptedQuery}#${resetKey}`}
-            initialQuery={attemptedQuery}
-            onSearch={onSearch}
-            guidanceMessage={guidanceMessage}
-            guidanceSticky={guidanceSticky}
-            onQueryChange={onQueryChange}
-            autoFocus={resetKey > 0}
-          />
-          {!isAuthenticated && (
-            <p className="home-note">검색은 로그인 없이 바로 시작할 수 있습니다.</p>
-          )}
+          <div className="home-ask">
+            <HomeComposer
+              key={`${attemptedQuery}#${resetKey}`}
+              initialQuery={attemptedQuery}
+              onSearch={onSearch}
+              guidanceMessage={guidanceMessage}
+              guidanceSticky={guidanceSticky}
+              onQueryChange={onQueryChange}
+              autoFocus={resetKey > 0}
+            />
+            {!isAuthenticated && (
+              <p className="home-note">검색은 로그인 후 이용할 수 있어요. 공개 리뷰는 바로 읽을 수 있습니다.</p>
+            )}
+          </div>
 
           <section className="home-rows" aria-labelledby="home-tasks">
             <h2 id="home-tasks">집현전에 이런 걸 맡겨 보세요</h2>

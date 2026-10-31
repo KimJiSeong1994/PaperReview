@@ -237,27 +237,16 @@ describe('SearchPage analytics instrumentation', () => {
     refsDeferred.resolve({ references: [] });
   });
 
-  it('keeps anonymous graph search public without protected reference enrichment', async () => {
+  it('asks anonymous visitors to sign in instead of searching', async () => {
     authState.isAuthenticated = false;
-    vi.mocked(searchPapers).mockResolvedValue({
-      results: {
-        arxiv: [{
-          doc_id: 'paper-public',
-          title: 'Public Graph Result',
-          authors: ['A. Researcher'],
-          year: 2026,
-          abstract: 'abstract',
-        }],
-      },
-      total: 1,
-    });
 
     renderSearchPage();
     await submitSearch('public graph search');
 
-    await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(1));
+    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+    expect(searchPapers).not.toHaveBeenCalled();
+    expect(getGraphData).not.toHaveBeenCalled();
     expect(fetchBatchReferences).not.toHaveBeenCalled();
-    expect(authState.setShowLoginModal).not.toHaveBeenCalled();
   });
 
   it('tracks poster completion for a succeeded V2 session poster', async () => {

@@ -197,6 +197,7 @@ function SearchPage() {
   // Trade-off: an expired token therefore also discards the report, and logging
   // back in as the same user does not bring it back. That is deliberate; a
   // server-derived report should not outlive the session it came from.
+  const pendingSearchRef = useRef<{ query: string; source: 'home' | 'fixed_bar' | 'url_prefill' } | null>(null);
   const [prevAuthenticated, setPrevAuthenticated] = useState(isAuthenticated);
   if (prevAuthenticated !== isAuthenticated) {
     setPrevAuthenticated(isAuthenticated);
@@ -522,6 +523,15 @@ function SearchPage() {
   const handleSearch = async (searchQuery: string, source: 'home' | 'fixed_bar' | 'url_prefill' = papers.length > 0 || query ? 'fixed_bar' : 'home') => {
     if (!searchQuery.trim()) return;
 
+    // Search is a signed-in feature. Keep the query so it runs right after login.
+    if (!isAuthenticated) {
+      pendingSearchRef.current = { query: searchQuery.trim(), source };
+      setAttemptedQuery(searchQuery);
+      setGuidanceMessage('로그인하면 이 검색을 바로 이어서 실행합니다.');
+      setShowLoginModal(true);
+      return;
+    }
+
     rememberRecentSearch(searchQuery);
     setAttemptedQuery(searchQuery);
     const impressionId = newImpressionId();
@@ -696,6 +706,15 @@ function SearchPage() {
       }
     }
   };
+
+  useEffect(() => {
+    const pending = pendingSearchRef.current;
+    if (!isAuthenticated || !pending) return;
+    pendingSearchRef.current = null;
+    handleSearch(pending.query, pending.source);
+  // handleSearch is recreated every render; the ref gates the replay.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Auto-search from URL query param (e.g. /?q=paper+title)
   useEffect(() => {
