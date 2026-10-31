@@ -81,7 +81,7 @@ describe('homepage landing content', () => {
 
   it('asks one question over a composer and offers verb-first task rows', () => {
     renderHome();
-    expect(screen.getByRole('textbox', { name: '검색어' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /비교 리뷰/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /커리큘럼 짜기/ })).toBeTruthy();
@@ -102,7 +102,7 @@ describe('homepage landing content', () => {
 
   it('submits the composer with Enter and keeps Shift+Enter for a new line', async () => {
     renderHome();
-    const box = screen.getByRole('textbox', { name: '검색어' });
+    const box = screen.getByRole('textbox', { name: '논문 검색' });
     await act(async () => {
       fireEvent.change(box, { target: { value: '그래프 신경망' } });
       fireEvent.keyDown(box, { key: 'Enter', shiftKey: true });

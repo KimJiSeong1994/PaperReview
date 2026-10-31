@@ -101,13 +101,13 @@ describe('HomeWorkspace', () => {
 
   it('clears the composer on 새 검색 and toggles the drawer accessibly', async () => {
     renderHome();
-    const box = screen.getByRole('textbox', { name: '검색어' }) as HTMLTextAreaElement;
+    const box = screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: 'draft' } });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '새 검색' }));
     });
     // 새 검색 remounts the composer, so query the fresh box.
-    expect((screen.getByRole('textbox', { name: '검색어' }) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement).value).toBe('');
 
     // Vitest loads the CSS, which hides the drawer button at desktop width; include hidden elements.
     const menu = screen.getByLabelText('기록 열기');

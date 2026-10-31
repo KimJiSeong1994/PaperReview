@@ -50,7 +50,7 @@ function HomeComposer({
       className="home-composer"
       onSubmit={(event) => { event.preventDefault(); submit(); }}
     >
-      <label htmlFor="home-query" className="home-sr-only">검색어</label>
+      <label htmlFor="home-query" className="home-sr-only">논문 검색</label>
       <textarea
         id="home-query"
         ref={textareaRef}
