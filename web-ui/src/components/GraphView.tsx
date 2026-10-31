@@ -9,13 +9,17 @@ import { useThemeObserver } from '../theme';
 import {
   graphEdgeKey,
   describeEdgeMethod,
+  hullPath,
   neighborhoodSubgraph,
   pathEdgeKeys,
+  placeLabels,
   rankedSubgraph,
   separateCommunityLayout,
   strongestPathToOrigin,
+  uniqueLabels,
   type GraphMode,
   type GraphNodeLimit,
+  type PlacedLabel,
 } from './graph/graphPresentation';
 
 const SigmaGraphView = lazy(() => import('./graph/SigmaGraphView'));
@@ -39,6 +43,10 @@ const COMMUNITY_COLORS_LIGHT = [
   [22, 135, 66],
   [180, 99, 4],
 ] as const;
+
+// Papers the backend could not place in any topic community (isolated after sparsification).
+const UNCATEGORIZED_COLOR_DARK = [148, 163, 184] as const;
+const UNCATEGORIZED_COLOR_LIGHT = [100, 116, 139] as const;
 
 const rgba = (rgb: readonly [number, number, number], alpha: number) => (
   `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`
@@ -94,7 +102,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const [minCitations, setMinCitations] = useState(0);
   const [yearFilter, setYearFilter] = useState<[number, number] | null>(null);
   const [showControls, setShowControls] = useState(false);
-  const [showAllEdges, setShowAllEdges] = useState(false);
   const [showNeighborhoodLayer, setShowNeighborhoodLayer] = useState(false);
   const [showPathLayer, setShowPathLayer] = useState(false);
   const [nodeLimit, setNodeLimit] = useState<GraphNodeLimit>(50);
@@ -113,6 +120,22 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  // Label placement needs the canvas size in px to turn axis ranges into pixels.
+  const plotStageRef = useRef<HTMLDivElement | null>(null);
+  const [plotSize, setPlotSize] = useState({ width: 900, height: 620 });
+  const hasNodes = graphData.nodes.length > 0;
+
+  useEffect(() => {
+    const stage = plotStageRef.current;
+    if (!stage || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setPlotSize({ width, height });
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [hasNodes]);
 
   const selectedPaperId = selectedPaper ? String(selectedPaper.result_key ?? selectedPaper.doc_id) : null;
   const originPaperId = papers[0] ? String(papers[0].result_key ?? papers[0].doc_id) : null;
@@ -178,63 +201,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     };
   }, [effectiveHighlightedPapers, isNeighborhoodLayerActive, isPathLayerActive, neighborhoodGraphData, nodeLimit, originPaperId, positionedGraphData, selectedPaperId, strongestPath]);
 
-  const displayGraphData = useMemo<GraphData>(() => {
-    if (showAllEdges || visibleGraphData.edges.length <= 40) return visibleGraphData;
-
-    const edgeKey = (source: string, target: string) => (
-      source < target ? `${source}--${target}` : `${target}--${source}`
-    );
-    const retained = new Set<string>();
-    const incident = new Map<string, typeof visibleGraphData.edges>();
-    const visibleHopByNode = new Map(
-      visibleGraphData.nodes.map(node => [String(node.id), node.hop_distance]),
-    );
-
-    visibleGraphData.edges.forEach(edge => {
-      const source = String(edge.source);
-      const target = String(edge.target);
-      incident.set(source, [...(incident.get(source) || []), edge]);
-      incident.set(target, [...(incident.get(target) || []), edge]);
-      const sourceHop = visibleHopByNode.get(source);
-      const targetHop = visibleHopByNode.get(target);
-      const isTraversalEdge = isNeighborhoodLayerActive &&
-        typeof sourceHop === 'number' &&
-        typeof targetHop === 'number' &&
-        Math.abs(sourceHop - targetHop) === 1;
-      const isPathEdge = isPathLayerActive && strongestPathEdgeKeys.has(graphEdgeKey(source, target));
-      if (isTraversalEdge || isPathEdge) {
-        retained.add(edgeKey(source, target));
-      }
-    });
-
-    incident.forEach(edges => {
-      [...edges]
-        .sort((a, b) => (b.weight || 0) - (a.weight || 0))
-        .slice(0, 3)
-        .forEach(edge => retained.add(edgeKey(String(edge.source), String(edge.target))));
-    });
-
-    if (selectedPaperId) {
-      [...(incident.get(selectedPaperId) || [])]
-        .sort((left, right) => (right.weight || 0) - (left.weight || 0))
-        .slice(0, 5)
-        .forEach(edge => retained.add(edgeKey(String(edge.source), String(edge.target))));
-
-      [...(incident.get(selectedPaperId) || [])]
-        .filter(edge => effectiveHighlightedPapers.has(
-          String(edge.source) === selectedPaperId ? String(edge.target) : String(edge.source),
-        ))
-        .forEach(edge => retained.add(edgeKey(String(edge.source), String(edge.target))));
-    }
-
-    return {
-      ...visibleGraphData,
-      edges: visibleGraphData.edges.filter(edge => (
-        retained.has(edgeKey(String(edge.source), String(edge.target)))
-      )),
-    };
-  }, [effectiveHighlightedPapers, isNeighborhoodLayerActive, isPathLayerActive, selectedPaperId, showAllEdges, strongestPathEdgeKeys, visibleGraphData]);
-
   const hopCounts = useMemo(() => {
     const counts = [0, 0, 0, 0];
     visibleGraphData.nodes.forEach(node => {
@@ -247,19 +213,19 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
 
   // Sigma mode: use shared stats from useGraphData hook
   const { stats: sigmaStats } = useGraphData(
-    useSigma ? displayGraphData : null,
+    useSigma ? visibleGraphData : null,
     minCitations,
     yearFilter,
     theme,
   );
 
   const { plotData, layout, stats } = useMemo(() => {
-    if (!displayGraphData || displayGraphData.nodes.length === 0) {
+    if (!visibleGraphData || visibleGraphData.nodes.length === 0) {
       return { plotData: [], layout: {}, stats: { nodes: 0, edges: 0, avgCitations: 0, yearRange: [0, 0] as [number, number] } };
     }
 
-    let nodes = displayGraphData.nodes;
-    const edges = displayGraphData.edges;
+    let nodes = visibleGraphData.nodes;
+    const edges = visibleGraphData.edges;
 
     const isLight = theme === 'light';
 
@@ -366,14 +332,16 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           opacity = Math.round((0.22 + 0.16 * normalizedWeight) * edgeOpacity * 100) / 100;
         } else {
           const hasHighlightedNodes = selectedPaper || effectiveHighlightedPapers.size > 0;
-          const baseOpacity = hasHighlightedNodes ? 0.06 : 0.1;
-          const maxOpacity = hasHighlightedNodes ? 0.2 : 0.28;
+          const baseOpacity = hasHighlightedNodes ? 0.18 : 0.26;
+          const maxOpacity = hasHighlightedNodes ? 0.4 : 0.5;
           opacity = Math.round((baseOpacity + (maxOpacity - baseOpacity) * normalizedWeight) * edgeOpacity * 100) / 100;
         }
         
-        const communityId = typeof sourceNode.community_id === 'number' ? sourceNode.community_id : 0;
-        const edgeColor = (isLight ? COMMUNITY_COLORS_LIGHT : COMMUNITY_COLORS_DARK)[communityId % 6];
-        const opacityKey = `${communityId % 6}-${opacity.toFixed(2)}`;
+        const communityId = typeof sourceNode.community_id === 'number' ? sourceNode.community_id : null;
+        const edgeColor = communityId === null
+          ? (isLight ? UNCATEGORIZED_COLOR_LIGHT : UNCATEGORIZED_COLOR_DARK)
+          : (isLight ? COMMUNITY_COLORS_LIGHT : COMMUNITY_COLORS_DARK)[communityId % 6];
+        const opacityKey = `${communityId === null ? 'none' : communityId % 6}-${opacity.toFixed(2)}`;
         const groupMap = isHighlighted
           ? highlightedEdgeGroups
           : isHopEdge
@@ -414,10 +382,10 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       y: group.y,
       mode: 'lines' as const,
       line: {
-        width: 0.62,
+        width: 0.9,
         color: rgba(
           group.color,
-          Math.min(0.22, Math.max(isNeighborhoodLayerActive || isPathLayerActive ? 0.045 : 0.08, group.opacity)),
+          Math.min(0.5, Math.max(isNeighborhoodLayerActive || isPathLayerActive ? 0.12 : 0.2, group.opacity)),
         ),
       },
       hoverinfo: 'skip' as const,
@@ -513,18 +481,30 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     });
     const maxWeightedDegree = Math.max(1, ...weightedDegree.values());
 
-    // Helper function to truncate title to a brief version
-    const truncateTitle = (title: string, maxWords: number = 5): string => {
-      if (!title) return 'Untitled';
-      const words = title.split(' ');
-      if (words.length <= maxWords) return title;
-      return words.slice(0, maxWords).join(' ') + '...';
+    type NodeStatus = 'normal' | 'origin' | 'highlighted' | 'selected';
+    const nodeKey = (n: typeof nodes[0]) => String((n as { doc_id?: string }).doc_id || n.id);
+    const labelById = uniqueLabels(
+      nodes.map(n => ({ id: nodeKey(n), title: n.title, year: n.year })),
+      graphData.meta?.common_terms ?? [],
+    );
+    const labelFontPx = (isHighlighted: boolean, isSelected: boolean) => (
+      isSelected ? 11.5 : (isHighlighted ? 10.5 : 10)
+    );
+    const markerSizeFor = (n: typeof nodes[0], status: NodeStatus): number => {
+      const nodeId = nodeKey(n);
+      const citations = Math.max(n.citations || 0, 0);
+      const degreeRatio = (weightedDegree.get(nodeId) || 0) / maxWeightedDegree;
+      const size = Math.min(22, 8 + 3 * Math.log10(citations + 1) + 8 * Math.sqrt(degreeRatio));
+      if (status === 'selected') return Math.min(30, Math.max(22, size * 1.38));
+      if (status === 'origin') return Math.min(28, Math.max(22, size * 1.3));
+      if (status === 'highlighted') return Math.min(24, size * 1.14);
+      return size;
     };
 
     // Helper function to create node trace
     const createNodeTrace = (
       nodeList: typeof nodes,
-      status: 'normal' | 'origin' | 'highlighted' | 'selected',
+      status: NodeStatus,
     ): Data | null => {
       if (nodeList.length === 0) return null;
 
@@ -545,8 +525,9 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       const nodeColors = nodeList.map(n => {
         if (isOrigin) return isLight ? 'rgba(180, 99, 4, 0.98)' : 'rgba(245, 158, 11, 0.98)';
         if (isSelected) return isLight ? 'rgba(126, 67, 177, 0.98)' : 'rgba(168, 85, 247, 0.98)';
-        const communityId = typeof n.community_id === 'number' ? n.community_id : 0;
-        const color = (isLight ? COMMUNITY_COLORS_LIGHT : COMMUNITY_COLORS_DARK)[communityId % 6];
+        const color = typeof n.community_id === 'number'
+          ? (isLight ? COMMUNITY_COLORS_LIGHT : COMMUNITY_COLORS_DARK)[n.community_id % 6]
+          : (isLight ? UNCATEGORIZED_COLOR_LIGHT : UNCATEGORIZED_COLOR_DARK);
         if (isNeighborhoodLayerActive) {
           if (typeof n.hop_distance !== 'number') return rgba(color, isLight ? 0.2 : 0.16);
           const hopAlpha = [1, 0.98, 0.9, 0.82][n.hop_distance] || 0.72;
@@ -556,20 +537,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         return rgba(color, isHighlighted ? 0.98 : dimmed);
       });
 
-      const nodeSizes = nodeList.map(n => {
-        const nodeId = String((n as any).doc_id || n.id);
-        const citations = Math.max(n.citations || 0, 0);
-        const degreeRatio = (weightedDegree.get(nodeId) || 0) / maxWeightedDegree;
-        const size = Math.min(22, 6 + 3 * Math.log10(citations + 1) + 8 * Math.sqrt(degreeRatio));
-        if (isSelected) {
-          return Math.min(30, Math.max(22, size * 1.38));
-        } else if (isOrigin) {
-          return Math.min(28, Math.max(22, size * 1.3));
-        } else if (isHighlighted) {
-          return Math.min(24, size * 1.14);
-        }
-        return size;
-      });
+      const nodeSizes = nodeList.map(n => markerSizeFor(n, status));
 
       // Ensure nodeColors is a valid array with proper color strings
       const validColors = nodeColors.length > 0 && nodeColors.every(c => typeof c === 'string' && c.startsWith('rgba'))
@@ -665,28 +633,21 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     const highlightedNodeTrace = createNodeTrace(highlightedNodes, 'highlighted');
     const selectedNodeTrace = createNodeTrace(selectedNodes, 'selected');
 
-    // Helper function to create text-only trace positioned above nodes
-    const createTextTrace = (nodeList: typeof nodes, isHighlighted: boolean, isSelected: boolean): Data | null => {
-      if (nodeList.length === 0) return null;
-      
+    // Helper function to create a text-only trace from collision-free label placements
+    const createTextTrace = (labels: PlacedLabel[], isHighlighted: boolean, isSelected: boolean): Data | null => {
+      if (labels.length === 0) return null;
+
       const hasHighlightedNodes = selectedPaper || effectiveHighlightedPapers.size > 0;
-      const textOffset = 0.065;
-      
-      const nodeX = nodeList.map(n => n.x);
-      const nodeY = nodeList.map(n => n.y + textOffset); // Move text higher
-      const nodeText = nodeList.map(n => {
-        return truncateTitle(n.title || 'Untitled', isSelected || isHighlighted ? 3 : 4);
-      });
 
       return {
-        x: nodeX,
-        y: nodeY,
+        x: labels.map(label => label.x),
+        y: labels.map(label => label.y),
         mode: 'text',
         type: 'scatter',
-        text: nodeText,
+        text: labels.map(label => label.text),
         textposition: 'middle center',
         textfont: {
-          size: isSelected ? 11 : (isHighlighted ? 10 : 9.25),
+          size: labelFontPx(isHighlighted, isSelected),
           // Light: dark-ink labels (white text is invisible on white); dark: unchanged.
           color: isLight
             ? (hasHighlightedNodes && !isSelected && !isHighlighted
@@ -724,13 +685,23 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       hubLabelNodes.push(node);
       labeledNodeIds.add(String(node.id));
     });
-    const normalTextTrace = showLabels && !isCompactViewport ? createTextTrace(hubLabelNodes, false, false) : null;
-    const originTextTrace = showLabels ? createTextTrace(originNodes, true, false) : null;
-    const highlightedTextTrace = showLabels ? createTextTrace(highlightedNodes.slice(0, 3), true, false) : null;
-    const selectedTextTrace = showLabels ? createTextTrace(selectedNodes, false, true) : null;
+    const xValues = nodes.map(node => node.x);
+    const yValues = nodes.map(node => node.y);
+    const xMin = Math.min(...xValues);
+    const xMax = Math.max(...xValues);
+    const yMin = Math.min(...yValues);
+    const yMax = Math.max(...yValues);
+    const xPadding = Math.max(0.13, (xMax - xMin) * 0.14);
+    const yPadding = Math.max(0.13, (yMax - yMin) * 0.14);
+    const plotXRange: [number, number] = [xMin - xPadding, xMax + xPadding];
+    const plotYRange: [number, number] = [yMin - yPadding, yMax + yPadding];
 
     const communityShapes: NonNullable<Layout['shapes']> = [];
     const communityAnnotations: NonNullable<Layout['annotations']> = [];
+    // Community titles take part in label placement so paper labels never sit under them.
+    const communityLabelSpecs: Array<{
+      id: string; communityLabel: string; text: string; x: number; y: number; lineColor: string;
+    }> = [];
     {
       const communityGroups = new Map<number, typeof nodes>();
       nodes.forEach(node => {
@@ -758,39 +729,92 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         const [fillcolor, lineColor] = communityPalette[communityId % communityPalette.length];
         const communityLabel = communityNodes[0].community_label || `주제 ${communityId + 1}`;
         const annotationText = `<b>${escapeHoverText(communityLabel)}</b>`;
+        const path = hullPath(communityNodes.map(node => ({ x: node.x, y: node.y })), hullPadding);
         communityShapes.push({
-          type: 'circle',
+          ...(path
+            ? { type: 'path' as const, path }
+            : { type: 'circle' as const, x0: left, x1: right, y0: bottom, y1: top }),
           xref: 'x',
           yref: 'y',
-          x0: left,
-          x1: right,
-          y0: bottom,
-          y1: top,
           fillcolor,
           line: { color: lineColor, width: 1 },
           layer: 'below',
         });
         if (!isCompactViewport) {
-          communityAnnotations.push({
+          communityLabelSpecs.push({
+            id: `community:${communityId}`,
+            communityLabel,
+            text: annotationText,
             x: (left + right) / 2,
             y: top,
-            xref: 'x',
-            yref: 'y',
-            text: annotationText,
-            showarrow: false,
-            yshift: 7,
-            font: {
-              size: 10.5,
-              color: isLight ? 'rgba(30, 41, 59, 0.86)' : 'rgba(226, 232, 240, 0.84)',
-            },
-            bgcolor: isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(6, 7, 11, 0.9)',
-            bordercolor: lineColor,
-            borderwidth: 1,
-            borderpad: 4,
+            lineColor,
           });
         }
       });
     }
+
+    const pxPerUnitX = plotSize.width / (plotXRange[1] - plotXRange[0]);
+    const pxPerUnitY = Math.max(1, plotSize.height - 20) / (plotYRange[1] - plotYRange[0]);
+    const toLabelCandidate = (node: typeof nodes[0], status: NodeStatus, priority: number) => {
+      const nodeId = nodeKey(node);
+      return {
+        id: nodeId,
+        x: node.x,
+        y: node.y,
+        text: labelById.get(nodeId) || 'Untitled',
+        priority,
+        fontPx: labelFontPx(status === 'highlighted' || status === 'origin', status === 'selected'),
+        anchorPx: markerSizeFor(node, status) / 2,
+      };
+    };
+    const communityLabelCandidates = communityLabelSpecs.map(spec => ({
+      id: spec.id,
+      x: spec.x,
+      y: spec.y,
+      text: spec.communityLabel,
+      priority: 200,
+      fontPx: 12.5,
+      anchorPx: 0,
+    }));
+    const labelCandidates = [
+      ...communityLabelCandidates,
+      ...(showLabels ? [
+      ...selectedNodes.map(node => toLabelCandidate(node, 'selected', 100)),
+      ...originNodes.map(node => toLabelCandidate(node, 'origin', 90)),
+      ...highlightedNodes.slice(0, 3).map((node, index) => toLabelCandidate(node, 'highlighted', 80 - index)),
+      ...(isCompactViewport ? [] : hubLabelNodes.map((node, index) => toLabelCandidate(node, 'normal', 50 - index))),
+      ] : []),
+    ];
+    const placedById = new Map(
+      placeLabels(labelCandidates, pxPerUnitX, pxPerUnitY).map(label => [label.id, label] as const),
+    );
+    const placedFor = (nodeList: typeof nodes) => nodeList
+      .map(node => placedById.get(nodeKey(node)))
+      .filter((label): label is PlacedLabel => Boolean(label));
+    const normalTextTrace = createTextTrace(placedFor(isCompactViewport ? [] : hubLabelNodes), false, false);
+    const originTextTrace = createTextTrace(placedFor(originNodes), true, false);
+    const highlightedTextTrace = createTextTrace(placedFor(highlightedNodes.slice(0, 3)), true, false);
+    const selectedTextTrace = createTextTrace(placedFor(selectedNodes), false, true);
+    communityLabelSpecs.forEach(spec => {
+      const placed = placedById.get(spec.id);
+      communityAnnotations.push({
+        x: spec.x,
+        y: placed ? placed.y : spec.y,
+        xref: 'x',
+        yref: 'y',
+        text: spec.text,
+        showarrow: false,
+        yshift: placed ? 0 : 7,
+        font: {
+          size: 10.5,
+          color: isLight ? 'rgba(30, 41, 59, 0.86)' : 'rgba(226, 232, 240, 0.84)',
+        },
+        bgcolor: isLight ? 'rgba(248, 250, 252, 0.94)' : 'rgba(6, 7, 11, 0.9)',
+        bordercolor: spec.lineColor,
+        borderwidth: 1,
+        borderpad: 4,
+      });
+    });
 
     // Build plot data with proper z-ordering:
     // 1. Normal edges (bottom) - weight에 따라 투명도 조절
@@ -816,17 +840,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       ...(highlightedTextTrace ? [highlightedTextTrace] : []),
       ...(selectedTextTrace ? [selectedTextTrace] : []),
     ].filter(Boolean) as Data[];
-
-    const xValues = nodes.map(node => node.x);
-    const yValues = nodes.map(node => node.y);
-    const xMin = Math.min(...xValues);
-    const xMax = Math.max(...xValues);
-    const yMin = Math.min(...yValues);
-    const yMax = Math.max(...yValues);
-    const xPadding = Math.max(0.13, (xMax - xMin) * 0.14);
-    const yPadding = Math.max(0.13, (yMax - yMin) * 0.14);
-    const plotXRange: [number, number] = [xMin - xPadding, xMax + xPadding];
-    const plotYRange: [number, number] = [yMin - yPadding, yMax + yPadding];
 
     const plotLayout: Partial<Layout> = {
       showlegend: false,
@@ -864,7 +877,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
     };
 
     return { plotData, layout: plotLayout, stats };
-  }, [displayGraphData, graphData.meta, selectedPaper, effectiveHighlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter, theme, originPaperId, isNeighborhoodLayerActive, isPathLayerActive, strongestPathEdgeKeys, isCompactViewport]);
+  }, [visibleGraphData, graphData.meta, selectedPaper, effectiveHighlightedPapers, showLabels, edgeOpacity, minCitations, yearFilter, theme, originPaperId, isNeighborhoodLayerActive, isPathLayerActive, strongestPathEdgeKeys, isCompactViewport, plotSize]);
 
   // Papers를 Map으로 변환하여 빠른 조회 (useMemo로 최적화)
   const papersMap = useMemo(() => {
@@ -942,6 +955,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
   const edgeMethodLabel = edgeMethod.label;
   const edgeThreshold = graphData.meta?.edge_threshold;
   const communityCount = graphData.meta?.communities?.length || 0;
+  const hasUncategorized = graphData.nodes.some(node => typeof node.community_id !== 'number');
   const compactPlotLabels = !useSigma && isCompactViewport;
   const labelToggleName = compactPlotLabels
     ? `핵심 레이블(기준·선택·관련 최대 3편) ${showLabels ? '숨기기' : '표시'}`
@@ -990,18 +1004,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
                 className="control-checkbox"
               />
               <span>{labelControlText}</span>
-            </label>
-          </div>
-
-          <div className="control-group">
-            <label className="control-label">
-              <input
-                type="checkbox"
-                checked={showAllEdges}
-                onChange={(e) => setShowAllEdges(e.target.checked)}
-                className="control-checkbox"
-              />
-              <span>전체 연결선 표시</span>
             </label>
           </div>
 
@@ -1074,20 +1076,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           </div>
         </div>
 
-        <div className="stats-section">
-          <div className="stat-item">
-            <span className="stat-label">노드 (표시/전체):</span>
-            <span className="stat-value">{activeStats.nodes}/{graphData.nodes.length}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">엣지 (표시/전체):</span>
-            <span className="stat-value">{activeStats.edges}/{graphData.edges.length}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">평균 인용:</span>
-            <span className="stat-value">{activeStats.avgCitations}</span>
-          </div>
-        </div>
     </div>
   );
 
@@ -1129,7 +1117,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         <span className="graph-status-chip">표시 {activeStats.nodes}/{graphData.nodes.length}편</span>
         <span className="graph-status-chip">관계 {activeStats.edges}/{graphData.edges.length}개</span>
         {communityCount > 0 && <span className="graph-status-chip">주제 {communityCount}개</span>}
-        <span className="graph-method-chip" title={edgeMethod.explanation}>{edgeMethodLabel}</span>
         <span className="graph-layer-state">{activeLayerSummary}</span>
         <span className="graph-sr-only">
           {activeLayerSummary} 표시 중.
@@ -1186,16 +1173,6 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       </button>
       <button
         type="button"
-        className={showAllEdges ? 'active' : ''}
-        aria-label={showAllEdges ? '구조 연결선만 표시' : '전체 연결선 표시'}
-        aria-pressed={showAllEdges}
-        title="전체 연결선"
-        onClick={() => setShowAllEdges(value => !value)}
-      >
-        <span aria-hidden="true">⌁</span>
-      </button>
-      <button
-        type="button"
         aria-label="그래프 위치 초기화"
         title="그래프 위치 초기화"
         onClick={() => setViewRevision(value => value + 1)}
@@ -1223,23 +1200,15 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
             style={{ background: rgba(color, 0.9) }}
           />
         ))}
-        <span>주제 커뮤니티</span>
+        {hasUncategorized && (
+          <span className="legend-community-dot" style={{ background: rgba(UNCATEGORIZED_COLOR_DARK, 0.9) }} />
+        )}
+        <span>{hasUncategorized ? '주제 커뮤니티 · 회색 = 미분류' : '주제 커뮤니티'}</span>
       </div>
       <div className="legend-edge-item">
         <span className="legend-edge-line"></span>
-        <span title={edgeMethod.explanation}>
-          {edgeMethodLabel} · {edgeMethod.explanation}{edgeThreshold != null ? ` · 기준 ${edgeThreshold}` : ''}
-          {isPathLayerActive && strongestPath.length > 1
-            ? ` · 강조 경로 ${strongestPath.length - 1}개`
-            : (!showAllEdges ? ` · 강한 관계 ${activeStats.edges}개` : '')}
-        </span>
+        <span>{edgeMethodLabel}</span>
       </div>
-      {graphData.meta?.communities?.length ? (
-        <div className="legend-item">
-          <span className="legend-community"></span>
-          <span>주제 영역</span>
-        </div>
-      ) : null}
       {isNeighborhoodLayerActive && (
         <div className="legend-hop-group" aria-label="강한 관계 확장 단계">
           <span><i className="legend-hop legend-hop-1" />1-hop</span>
@@ -1247,8 +1216,19 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
           <span><i className="legend-hop legend-hop-3" />3-hop</span>
         </div>
       )}
-      <span className="legend-text">크기 = 인용·연결 허브 · 연도 {activeStats.yearRange[0]}–{activeStats.yearRange[1]}</span>
-      <span className="graph-gesture-hint">드래그 이동 · 스크롤 확대 · 더블클릭 초기화</span>
+      <details className="graph-legend-details">
+        <summary>ⓘ 관계 계산 방식</summary>
+        <p>
+          {edgeMethod.explanation}
+          {edgeThreshold != null ? ` · 기준 ${edgeThreshold}` : ''}
+          {graphData.meta?.edge_total != null
+            ? ` · 후보 관계 ${graphData.meta.edge_total}개 중 구조 백본 ${graphData.edges.length}개만 표시`
+            : ''}
+          {isPathLayerActive && strongestPath.length > 1 ? ` · 강조 경로 ${strongestPath.length - 1}개` : ''}
+          {` · 크기 = 인용·연결 허브 · 연도 ${activeStats.yearRange[0]}–${activeStats.yearRange[1]}`}
+          {' · 드래그 이동 · 스크롤 확대 · 더블클릭 초기화'}
+        </p>
+      </details>
     </div>
   );
 
@@ -1260,11 +1240,11 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
         <div className="graph-canvas">
           {controlsUI}
           {floatingTools}
-          <div className="graph-plot-stage">
+          <div className="graph-plot-stage" ref={plotStageRef}>
             <Suspense fallback={<div className="graph-empty"><p>Loading Sigma...</p></div>}>
               <SigmaGraphView
                 key={viewRevision}
-                graphData={displayGraphData}
+                graphData={visibleGraphData}
                 selectedPaper={selectedPaper}
                 highlightedPapers={effectiveHighlightedPapers}
                 papers={papers}
@@ -1291,7 +1271,7 @@ function GraphView({ graphData, selectedPaper, highlightedPapers, papers, onNode
       <div className="graph-canvas">
         {controlsUI}
         {floatingTools}
-        <div className="graph-plot-stage">
+        <div className="graph-plot-stage" ref={plotStageRef}>
           <Plot
             key={viewRevision}
             data={plotData}

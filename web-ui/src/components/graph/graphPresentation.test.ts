@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { GraphData } from '../../types';
 import {
+  convexHull,
   describeEdgeMethod,
+  estimateTextWidthPx,
+  hullPath,
   neighborhoodSubgraph,
   pathEdgeKeys,
+  placeLabels,
   rankedNeighbors,
   rankedSubgraph,
   separateCommunityLayout,
+  shortLabel,
   strongestPathToOrigin,
+  uniqueLabels,
 } from './graphPresentation';
 
 const graph: GraphData = {
@@ -163,26 +169,53 @@ describe('graph presentation helpers', () => {
     expect(ranked.nodes.map(node => node.id)).toContain('selected');
   });
 
-  it('softly separates communities without replacing the organic layout with a grid', () => {
+  it('packs communities without overlapping hulls while keeping each community\'s own layout', () => {
     const communityGraph: GraphData = {
       nodes: [
         { id: 'a1', x: -0.4, y: 0, title: 'A1', community_id: 0 },
-        { id: 'a2', x: -0.2, y: 0, title: 'A2', community_id: 0 },
+        { id: 'a2', x: -0.2, y: 0.1, title: 'A2', community_id: 0 },
+        { id: 'a3', x: -0.3, y: -0.1, title: 'A3', community_id: 0 },
         { id: 'b1', x: 0.2, y: 0, title: 'B1', community_id: 1 },
         { id: 'b2', x: 0.4, y: 0, title: 'B2', community_id: 1 },
+        { id: 'c1', x: 0.3, y: 0.05, title: 'C1', community_id: 2 },
+        { id: 'c2', x: 0.35, y: 0.05, title: 'C2', community_id: 2 },
       ],
       edges: [],
     };
 
-    const separated = separateCommunityLayout(communityGraph);
-    const positions = Object.fromEntries(separated.nodes.map(node => [node.id, node.x]));
-    const originalCenterGap = 0.6;
-    const separatedCenterGap = ((positions.b1 + positions.b2) / 2) - ((positions.a1 + positions.a2) / 2);
+    const packed = separateCommunityLayout(communityGraph);
+    const byId = Object.fromEntries(packed.nodes.map(node => [node.id, node]));
+    const circles = [0, 1, 2].map(communityId => {
+      const members = packed.nodes.filter(node => node.community_id === communityId);
+      const cx = members.reduce((sum, node) => sum + node.x, 0) / members.length;
+      const cy = members.reduce((sum, node) => sum + node.y, 0) / members.length;
+      const r = Math.max(...members.map(node => Math.hypot(node.x - cx, node.y - cy)));
+      return { cx, cy, r };
+    });
 
-    expect(separatedCenterGap).toBeCloseTo(originalCenterGap * 0.96);
-    expect(positions.a2 - positions.a1).toBeCloseTo(0.2 * 0.88);
-    expect(positions.a1).toBeLessThan(positions.a2);
-    expect(positions.b1).toBeLessThan(positions.b2);
+    circles.forEach((left, index) => circles.slice(index + 1).forEach(right => {
+      expect(Math.hypot(left.cx - right.cx, left.cy - right.cy)).toBeGreaterThan(left.r + right.r);
+    }));
+    expect(byId.a1.x).toBeLessThan(byId.a2.x);
+    expect(byId.a3.y).toBeLessThan(byId.a2.y);
+    packed.nodes.forEach(node => {
+      expect(Math.abs(node.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(node.y)).toBeLessThanOrEqual(1);
+    });
+    expect(separateCommunityLayout({ ...communityGraph, nodes: communityGraph.nodes.slice(0, 3) }).nodes)
+      .toEqual(communityGraph.nodes.slice(0, 3));
+
+    const withLoner = separateCommunityLayout({
+      ...communityGraph,
+      nodes: [...communityGraph.nodes, { id: 'u', x: 0.1, y: 0.1, title: 'Loner', community_id: null }],
+    });
+    const loner = withLoner.nodes.find(node => node.id === 'u')!;
+    withLoner.nodes
+      .filter(node => typeof node.community_id === 'number')
+      .forEach(node => {
+        const circle = circles[node.community_id as number];
+        expect(Math.hypot(loner.x - circle.cx, loner.y - circle.cy)).toBeGreaterThan(circle.r);
+      });
   });
 
   it('expands a selected neighborhood through three similarity hops', () => {
@@ -230,5 +263,57 @@ describe('graph presentation helpers', () => {
     expect(hops.a).toBe(1);
     expect(hops.x).toBe(2);
     expect(hops.y).toBe(2);
+  });
+
+  it('shortens titles to distinctive names and keeps them unique', () => {
+    const common = ['graph', 'retrieval-augmented', 'generation'];
+    expect(shortLabel('GRAG: Graph Retrieval-Augmented Generation', common)).toBe('GRAG');
+    expect(shortLabel('Graph Retrieval-Augmented Generation: A Survey', common)).toBe('Graph Survey…');
+    expect(shortLabel('Origin paper', common)).toBe('Origin paper');
+    expect(shortLabel('   ')).toBe('Untitled');
+    expect(shortLabel('The Of And')).toBe('The Of And');
+
+    const labels = uniqueLabels([
+      { id: 'a', title: 'Federated Graph Retrieval-Augmented Generation', year: 2025 },
+      { id: 'b', title: 'Federated Graph Retrieval-Augmented Generation', year: 2026 },
+      { id: 'c', title: 'Federated Graph Retrieval-Augmented Generation', year: 2026 },
+    ], common);
+    expect(new Set(labels.values()).size).toBe(3);
+    expect(labels.get('a')).toBe('Federated Graph… (2025)');
+    expect(labels.get('c')).toBe('Federated Graph… (2026) 2');
+  });
+
+  it('places labels without overlap and drops the lowest-priority collider', () => {
+    const candidates = [
+      { id: 'a', x: 0, y: 0, text: 'Alpha paper', priority: 10, fontPx: 10, anchorPx: 6 },
+      { id: 'b', x: 0, y: 0, text: 'Beta paper', priority: 5, fontPx: 10, anchorPx: 6 },
+      { id: 'c', x: 0.5, y: 0, text: 'Gamma', priority: 1, fontPx: 10, anchorPx: 6 },
+      { id: 'd', x: 0.2, y: 0, text: 'Delta paper', priority: 0, fontPx: 10, anchorPx: 6 },
+    ];
+    const placed = placeLabels(candidates, 100, 100);
+
+    expect(placed.map(label => label.id)).toEqual(['a', 'b', 'c']);
+    expect(placed[0].y).toBeGreaterThan(0);
+    expect(placed[1].y).toBeLessThan(0);
+
+    const boxes = placed.map(label => {
+      const half = estimateTextWidthPx(label.text, 10) / 2;
+      return { x0: label.x * 100 - half, x1: label.x * 100 + half, y0: label.y * 100 - 6.5, y1: label.y * 100 + 6.5 };
+    });
+    boxes.forEach((left, i) => boxes.slice(i + 1).forEach(right => {
+      const overlap = left.x0 < right.x1 && right.x0 < left.x1 && left.y0 < right.y1 && right.y0 < left.y1;
+      expect(overlap).toBe(false);
+    }));
+    expect(placeLabels(candidates, 0, 100)).toEqual([]);
+  });
+
+  it('builds a padded convex hull path around a community', () => {
+    const points = [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: 0.5, y: 0.5 },
+    ];
+    expect(convexHull(points)).toHaveLength(4);
+    expect(convexHull(points)).not.toContainEqual({ x: 0.5, y: 0.5 });
+    expect(hullPath(points, 0.1)).toMatch(/^M -0\.07\d+,-0\.07\d+ L .* Z$/);
+    expect(hullPath(points.slice(0, 2), 0.1)).toBe('');
   });
 });

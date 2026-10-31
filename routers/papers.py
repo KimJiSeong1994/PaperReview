@@ -15,6 +15,7 @@ Paper management endpoints:
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import traceback
@@ -65,6 +66,8 @@ if os.path.exists(_JSON_PATH):
 _FAISS_THRESHOLD = FAISS_SWITCH_THRESHOLD
 _FAISS_K = FAISS_TOP_K
 _FAISS_MIN_SIM = COSINE_EDGE_THRESHOLD_RELAXED
+# Edges kept per node before layout; matches the five "next to read" neighbours.
+_SPARSE_TOP_K = 5
 
 
 def _build_edges_faiss(
@@ -144,7 +147,12 @@ def _build_edges_jaccard(
     papers_data: List[Dict[str, Any]],
     graph: nx.Graph,
 ) -> None:
-    """Original O(n^2) Jaccard + keyword edge builder (fallback for <100 papers)."""
+    """Original O(n^2) Jaccard + keyword edge builder (fallback for <100 papers).
+
+    Each channel uses IDF-weighted Jaccard, ``w(t) = ln((N + 1) / df(t))``, so a
+    token every title shares (typically the search query) contributes almost
+    nothing while a rare shared token carries the edge.
+    """
 
     def _title_tokens(text: str) -> List[str]:
         words = re.findall(r"\b\w+\b", text.lower())
@@ -174,6 +182,23 @@ def _build_edges_jaccard(
                 kw_tokens.add(kw.lower().strip())
         keyword_cache[did] = kw_tokens
 
+    n_papers = max(len(papers_data), 1)
+    title_df: Counter[str] = Counter(
+        token for tokens in token_cache.values() for token in tokens
+    )
+    keyword_df: Counter[str] = Counter(
+        token for tokens in keyword_cache.values() for token in tokens
+    )
+
+    def _weighted_jaccard(left: set, right: set, df: Counter[str]) -> float:
+        if not left or not right:
+            return 0.0
+        union = sum(math.log((n_papers + 1) / df[token]) for token in left | right)
+        if not union:
+            return 0.0
+        shared = sum(math.log((n_papers + 1) / df[token]) for token in left & right)
+        return shared / union
+
     paper_list = list(papers_data)
     for idx, paper in enumerate(paper_list):
         for jdx in range(idx + 1, len(paper_list)):
@@ -181,19 +206,16 @@ def _build_edges_jaccard(
             doc_id1 = paper.get("doc_id") or str(abs(hash(paper.get("title", ""))))
             doc_id2 = other.get("doc_id") or str(abs(hash(other.get("title", ""))))
 
-            base_tokens = token_cache.get(doc_id1, set())
-            other_tokens = token_cache.get(doc_id2, set())
-            title_score = 0.0
-            if base_tokens and other_tokens:
-                union = len(base_tokens | other_tokens)
-                title_score = len(base_tokens & other_tokens) / union if union else 0
-
-            kw1 = keyword_cache.get(doc_id1, set())
-            kw2 = keyword_cache.get(doc_id2, set())
-            kw_score = 0.0
-            if kw1 and kw2:
-                kw_union = len(kw1 | kw2)
-                kw_score = len(kw1 & kw2) / kw_union if kw_union else 0
+            title_score = _weighted_jaccard(
+                token_cache.get(doc_id1, set()),
+                token_cache.get(doc_id2, set()),
+                title_df,
+            )
+            kw_score = _weighted_jaccard(
+                keyword_cache.get(doc_id1, set()),
+                keyword_cache.get(doc_id2, set()),
+                keyword_df,
+            )
 
             score = 0.7 * title_score + 0.3 * kw_score
 
@@ -203,52 +225,187 @@ def _build_edges_jaccard(
 
 _GRAPH_LABEL_STOPWORDS = {
     "about",
+    "across",
     "after",
+    "also",
     "analysis",
     "approach",
     "based",
+    "been",
+    "being",
     "between",
+    "both",
+    "could",
+    "does",
+    "each",
+    "every",
     "from",
+    "have",
+    "into",
+    "less",
+    "make",
+    "makes",
+    "making",
+    "many",
     "model",
     "models",
+    "more",
+    "most",
+    "much",
+    "only",
+    "over",
     "paper",
     "research",
+    "should",
+    "some",
     "study",
+    "such",
     "system",
     "systems",
+    "than",
+    "that",
+    "their",
+    "then",
+    "there",
+    "these",
+    "this",
+    "those",
     "through",
     "toward",
     "towards",
+    "under",
     "using",
+    "very",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "will",
     "with",
+    "within",
+    "without",
+    "would",
+    "your",
 }
 
 
-def _paper_graph_terms(paper: Dict[str, Any]) -> tuple[set[str], set[str]]:
+_COMMON_TERM_RATIO = 0.4
+
+
+def _common_terms(papers_data: List[Dict[str, Any]]) -> frozenset[str]:
+    """Title tokens present in at least 40% of titles (min 2 papers).
+
+    These are almost always the search query echoed back by every result, so
+    they carry no information about what two papers share.
+    """
+    document_frequency: Counter[str] = Counter()
+    for paper in papers_data:
+        tokens: set[str] = set()
+        for token in re.findall(r"[A-Za-z0-9가-힣-]+", paper.get("title", "")):
+            lowered = token.lower().strip("-")
+            # Count hyphenated tokens and their parts so both tokenizers
+            # (explanations keep hyphens, Jaccard splits on them) are covered.
+            tokens.update(
+                part for part in [lowered, *lowered.split("-")] if len(part) > 3
+            )
+        document_frequency.update(tokens)
+    minimum = max(2, math.ceil(len(papers_data) * _COMMON_TERM_RATIO))
+    return frozenset(
+        term for term, count in document_frequency.items() if count >= minimum
+    )
+
+
+def _paper_graph_terms(
+    paper: Dict[str, Any],
+    common_terms: frozenset[str] = frozenset(),
+) -> tuple[set[str], set[str]]:
     """Return normalized keyword phrases and useful title tokens for graph explanations."""
     keyword_terms: set[str] = set()
     for keyword in paper.get("keywords") or []:
         if isinstance(keyword, str):
             normalized = " ".join(keyword.lower().split()).strip()
-            if len(normalized) > 2:
+            if len(normalized) > 2 and normalized not in common_terms:
                 keyword_terms.add(normalized)
 
-    title_terms = {
-        token.lower()
-        for token in re.findall(r"[A-Za-z0-9가-힣-]+", paper.get("title", ""))
-        if len(token) > 3 and token.lower() not in _GRAPH_LABEL_STOPWORDS
-    }
+    title_terms: set[str] = set()
+    for token in re.findall(r"[A-Za-z0-9가-힣-]+", paper.get("title", "")):
+        # "(knowledge)-intensive" tokenizes as "-intensive"; drop the stray hyphen.
+        lowered = token.lower().strip("-")
+        if (
+            len(lowered) > 3
+            and lowered not in _GRAPH_LABEL_STOPWORDS
+            and lowered not in common_terms
+        ):
+            title_terms.add(lowered)
     return keyword_terms, title_terms
+
+
+_MIN_COMMUNITY_SIZE = 3
+# Palette has six colours (community_id % 6); more hulls than that read as noise.
+_MAX_COMMUNITIES = 6
+
+
+def _merge_tiny_communities(graph: nx.Graph, communities: List[set]) -> None:
+    """Fold <3-node communities into their strongest neighbour, then cap at six.
+
+    Mutates ``communities`` in place. Order is deterministic (size, then min
+    node id). A tiny community with no edges to any other community cannot be
+    merged and is not counted against the cap; the caller leaves it unlabelled.
+    The cap is only reachable through merges, so more than six mutually
+    disconnected communities of three or more papers are all kept.
+    """
+
+    def _reportable(community: set) -> bool:
+        return len(community) >= _MIN_COMMUNITY_SIZE or any(
+            v not in community for u in community for v in graph.neighbors(u)
+        )
+
+    def _ordered() -> List[set]:
+        return sorted(communities, key=lambda c: (len(c), min(str(n) for n in c)))
+
+    def _strongest_neighbour(small: set) -> Optional[set]:
+        best, best_weight = None, 0.0
+        for other in _ordered():
+            if other is small:
+                continue
+            weight = sum(
+                graph.edges[u, v].get("weight", 0.1)
+                for u in small
+                for v in graph.neighbors(u)
+                if v in other
+            )
+            if weight > best_weight:
+                best, best_weight = other, weight
+        return best
+
+    def _merge_first(candidates: List[set]) -> bool:
+        for small in candidates:
+            best = _strongest_neighbour(small)
+            if best is not None:
+                best.update(small)
+                communities.remove(small)
+                return True
+        return False
+
+    while _merge_first([c for c in _ordered() if len(c) < _MIN_COMMUNITY_SIZE]):
+        pass
+    while sum(
+        1 for c in communities if _reportable(c)
+    ) > _MAX_COMMUNITIES and _merge_first([c for c in _ordered() if _reportable(c)]):
+        pass
 
 
 def _annotate_graph_explanations(
     graph: nx.Graph,
     papers_data: List[Dict[str, Any]],
+    common_terms: frozenset[str] = frozenset(),
 ) -> List[Dict[str, Any]]:
     """Attach deterministic community labels and inspectable shared edge terms."""
     paper_by_id = {str(paper.get("doc_id", "")): paper for paper in papers_data}
     terms_by_id = {
-        paper_id: _paper_graph_terms(paper) for paper_id, paper in paper_by_id.items()
+        paper_id: _paper_graph_terms(paper, common_terms)
+        for paper_id, paper in paper_by_id.items()
     }
 
     for source, target in graph.edges():
@@ -264,15 +421,57 @@ def _annotate_graph_explanations(
     if graph.number_of_nodes() == 0:
         return []
 
-    detected = nx.community.louvain_communities(graph, weight="weight", seed=42)
+    detected = [
+        set(node_set)
+        for node_set in nx.community.louvain_communities(
+            graph, weight="weight", seed=42
+        )
+    ]
+    _merge_tiny_communities(graph, detected)
+    # Tiny communities that survived the merge have no edge to any other
+    # community; reporting them would claim topics the canvas cannot show.
+    reported = [
+        node_set
+        for node_set in detected
+        if len(node_set) >= _MIN_COMMUNITY_SIZE
+        or any(v not in node_set for u in node_set for v in graph.neighbors(u))
+    ]
+    if not reported and graph.number_of_edges() > 0:
+        # Nothing qualifies but papers are connected (e.g. a two-paper graph):
+        # keep what Louvain found. An edgeless graph has no topics to report.
+        reported = detected
+    for node_set in detected:
+        if node_set not in reported:
+            for node_id in node_set:
+                graph.nodes[node_id]["community_id"] = None
+                graph.nodes[node_id]["community_label"] = ""
     ordered = sorted(
-        detected,
+        reported,
         key=lambda node_set: (
             -len(node_set),
             min(str(node_id) for node_id in node_set),
         ),
     )
     communities: List[Dict[str, Any]] = []
+
+    total_keyword_counts: Counter[str] = Counter()
+    total_title_counts: Counter[str] = Counter()
+    for keyword_terms, title_terms in terms_by_id.values():
+        total_keyword_counts.update(keyword_terms)
+        total_title_counts.update(title_terms)
+
+    # Prefer terms that are frequent here and rare elsewhere, so sibling
+    # communities do not all get labelled with the same shared vocabulary.
+    def _distinctive(
+        counts: Counter[str], totals: Counter[str]
+    ) -> List[tuple[str, float]]:
+        return sorted(
+            (
+                (term, count / (totals[term] - count + 1))
+                for term, count in counts.items()
+            ),
+            key=lambda item: (-item[1], item[0]),
+        )
 
     for community_id, node_set in enumerate(ordered):
         keyword_counts: Counter[str] = Counter()
@@ -282,18 +481,28 @@ def _annotate_graph_explanations(
             keyword_counts.update(keyword_terms)
             title_counts.update(title_terms)
 
-        ranked_keywords = sorted(
-            keyword_counts.items(), key=lambda item: (-item[1], item[0])
+        # One pool ranked by distinctiveness; keyword phrases win ties.
+        ranked = sorted(
+            [
+                *(
+                    (term, score, 0)
+                    for term, score in _distinctive(
+                        keyword_counts, total_keyword_counts
+                    )
+                ),
+                *(
+                    (term, score, 1)
+                    for term, score in _distinctive(title_counts, total_title_counts)
+                ),
+            ],
+            key=lambda item: (-item[1], item[2], item[0]),
         )
-        ranked_titles = sorted(
-            title_counts.items(), key=lambda item: (-item[1], item[0])
-        )
-        label_terms = [term for term, _ in ranked_keywords[:2]]
-        for term, _ in ranked_titles:
-            if len(label_terms) >= 2:
-                break
+        label_terms: List[str] = []
+        for term, _, _ in ranked:
             if term not in label_terms:
                 label_terms.append(term)
+            if len(label_terms) >= 2:
+                break
         label = " · ".join(label_terms) if label_terms else f"주제 {community_id + 1}"
 
         node_ids = sorted(str(node_id) for node_id in node_set)
@@ -727,6 +936,7 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     # ── Edge building strategy ──────────────────────────────────
     n_papers = len(papers_data)
     _MAX_JACCARD_PAPERS = 500  # Jaccard O(n^2) 상한
+    common_terms = _common_terms(papers_data)
     edge_method = "title_keyword_jaccard"
     edge_label = "제목·키워드 유사도"
     edge_threshold: Optional[float] = JACCARD_EDGE_THRESHOLD
@@ -754,11 +964,31 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     else:
         _build_edges_jaccard(papers_data, graph)
 
-    communities = _annotate_graph_explanations(graph, papers_data)
+    # Sparsify before community detection and layout so node positions are
+    # explained by the edges the user actually sees: each node keeps its five
+    # strongest edges, and a maximum spanning tree keeps every component
+    # connected (so a path to the origin paper always exists).
+    edge_total = graph.number_of_edges()
+    if edge_total:
+        kept = {
+            frozenset(edge)
+            for edge in nx.maximum_spanning_tree(graph, weight="weight").edges()
+        }
+        for node in graph.nodes():
+            strongest = sorted(
+                graph.edges(node, data="weight"),
+                key=lambda edge: -(edge[2] or 0.0),
+            )[:_SPARSE_TOP_K]
+            kept.update(frozenset((u, v)) for u, v, _ in strongest)
+        graph.remove_edges_from(
+            [edge for edge in graph.edges() if frozenset(edge) not in kept]
+        )
+
+    communities = _annotate_graph_explanations(graph, papers_data, common_terms)
 
     # Layout
     try:
-        layout = nx.spring_layout(graph, seed=42, k=0.75, iterations=50)
+        layout = nx.spring_layout(graph, seed=42, iterations=100)
     except ImportError:
         logger.warning("scipy not available, using random layout fallback")
         import random as _rand
@@ -834,6 +1064,8 @@ def _build_graph_sync(papers_data: List[Dict[str, Any]]) -> Dict[str, Any]:
             "edge_threshold": edge_threshold,
             "directed": False,
             "communities": communities,
+            "common_terms": sorted(common_terms),
+            "edge_total": edge_total,
         },
     }
 

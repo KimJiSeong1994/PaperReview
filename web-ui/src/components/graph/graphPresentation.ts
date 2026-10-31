@@ -196,6 +196,12 @@ export function rankedSubgraph(
   return filteredGraph(graphData, visibleIds);
 }
 
+/**
+ * Packs topic communities so their hulls never overlap: the largest community
+ * sits in the middle and the rest are placed on a ring, each scaled to a
+ * radius proportional to sqrt(size). Relative positions inside a community
+ * come from the source layout, so the organic structure is preserved.
+ */
 export function separateCommunityLayout(graphData: GraphData): GraphData {
   const communityGroups = new Map<number, typeof graphData.nodes>();
   graphData.nodes.forEach(node => {
@@ -210,35 +216,70 @@ export function separateCommunityLayout(graphData: GraphData): GraphData {
     .sort((left, right) => right[1].length - left[1].length || left[0] - right[0]);
   if (orderedGroups.length < 2) return graphData;
 
-  const assignedNodes = orderedGroups.flatMap(([, nodes]) => nodes);
-  const graphCenter = {
-    x: assignedNodes.reduce((sum, node) => sum + node.x, 0) / assignedNodes.length,
-    y: assignedNodes.reduce((sum, node) => sum + node.y, 0) / assignedNodes.length,
-  };
-  const horizontalCenterScale = 0.96;
-  const verticalCenterScale = 1.08;
-  const communityCompaction = 0.88;
-
-  const positionedById = new Map<string, { x: number; y: number }>();
-  orderedGroups.forEach(([, communityNodes]) => {
+  const gap = 0.6;
+  const groups = orderedGroups.map(([, communityNodes]) => {
     const centroidX = communityNodes.reduce((sum, node) => sum + node.x, 0) / communityNodes.length;
     const centroidY = communityNodes.reduce((sum, node) => sum + node.y, 0) / communityNodes.length;
-    const centerX = graphCenter.x + (centroidX - graphCenter.x) * horizontalCenterScale;
-    const centerY = graphCenter.y + (centroidY - graphCenter.y) * verticalCenterScale;
+    const sourceRadius = Math.max(
+      0.05,
+      ...communityNodes.map(node => Math.hypot(node.x - centroidX, node.y - centroidY)),
+    );
+    return {
+      nodes: communityNodes,
+      centroidX,
+      centroidY,
+      sourceRadius,
+      radius: Math.sqrt(communityNodes.length),
+      centerX: 0,
+      centerY: 0,
+    };
+  });
 
-    communityNodes.forEach(node => {
+  const [core, ...ring] = groups;
+  const ringCircumference = ring.reduce((sum, group) => sum + 2 * group.radius + gap, 0);
+  const ringRadius = Math.max(
+    core.radius + Math.max(...ring.map(group => group.radius)) + gap,
+    ringCircumference / (2 * Math.PI),
+  );
+  let angle = -Math.PI / 2;
+  ring.forEach(group => {
+    const span = ((2 * group.radius + gap) / ringCircumference) * 2 * Math.PI;
+    const center = angle + span / 2;
+    group.centerX = ringRadius * Math.cos(center);
+    group.centerY = ringRadius * Math.sin(center);
+    angle += span;
+  });
+
+  const positionedById = new Map<string, { x: number; y: number }>();
+  groups.forEach(group => {
+    const scale = group.radius / group.sourceRadius;
+    group.nodes.forEach(node => {
       positionedById.set(String(node.id), {
-        x: centerX + (node.x - centroidX) * communityCompaction,
-        y: centerY + (node.y - centroidY) * communityCompaction,
+        x: group.centerX + (node.x - group.centroidX) * scale,
+        y: group.centerY + (node.y - group.centroidY) * scale,
       });
     });
   });
+  // Papers without a community sit on an outer ring so they never land inside a hull.
+  const uncategorized = graphData.nodes.filter(node => typeof node.community_id !== 'number');
+  const outerRadius = ringRadius + Math.max(...ring.map(group => group.radius)) + gap;
+  uncategorized.forEach((node, index) => {
+    const theta = -Math.PI / 2 + (2 * Math.PI * index) / uncategorized.length;
+    positionedById.set(String(node.id), {
+      x: outerRadius * Math.cos(theta),
+      y: outerRadius * Math.sin(theta),
+    });
+  });
+  const extent = Math.max(
+    1e-6,
+    ...[...positionedById.values()].flatMap(position => [Math.abs(position.x), Math.abs(position.y)]),
+  );
 
   return {
     ...graphData,
     nodes: graphData.nodes.map(node => {
       const position = positionedById.get(String(node.id));
-      return position ? { ...node, ...position } : node;
+      return position ? { ...node, x: position.x / extent, y: position.y / extent } : node;
     }),
   };
 }
@@ -331,4 +372,217 @@ export function neighborhoodSubgraph(
   }
   visibleIds.add(selectedId);
   return filteredGraph(graphData, visibleIds, hopDistances);
+}
+
+// ── Labels ────────────────────────────────────────────────────────────
+
+const LABEL_FUNCTION_WORDS = new Set([
+  'a', 'an', 'the', 'of', 'for', 'on', 'in', 'with', 'to', 'and', 'or', 'via', 'from', 'by',
+  'using', 'towards', 'toward', 'at', 'as', 'is', 'are', 'its', 'into', 'over', 'under', 'vs',
+]);
+
+const normalizeLabelToken = (word: string): string => (
+  word.toLowerCase().replace(/^[^a-z0-9가-힣]+|[^a-z0-9가-힣]+$/g, '')
+);
+
+/**
+ * Short display label for a graph node.
+ *
+ * Uses the name prefix before ':' when it is at most six words and carries at
+ * least one distinctive token (e.g. "GRAG", "LogicPoison"). Otherwise keeps the
+ * first distinctive words of the title, dropping `commonTerms` (tokens most
+ * result titles share, i.e. the search query echo) and function words. The
+ * token normalization mirrors the backend (`lowercase`, hyphen preserved).
+ */
+export function shortLabel(
+  title: string,
+  commonTerms: Iterable<string> = [],
+  maxWords = 3,
+): string {
+  const common = new Set(commonTerms);
+  const cleaned = title.trim().replace(/\s+/g, ' ');
+  if (!cleaned) return 'Untitled';
+
+  const isFunctionWord = (word: string) => LABEL_FUNCTION_WORDS.has(normalizeLabelToken(word));
+  const isDistinctive = (word: string) => {
+    const token = normalizeLabelToken(word);
+    return token.length > 0 && !common.has(token) && !isFunctionWord(word);
+  };
+
+  const colonIndex = cleaned.indexOf(':');
+  if (colonIndex > 0) {
+    const prefix = cleaned.slice(0, colonIndex).trim();
+    const prefixWords = prefix.split(' ');
+    if (prefixWords.length <= 6 && prefixWords.some(isDistinctive)) return prefix;
+  }
+
+  const words = cleaned.split(' ');
+  const picked = new Set<number>();
+  words.forEach((word, index) => {
+    if (picked.size < maxWords && isDistinctive(word)) picked.add(index);
+  });
+  words.forEach((word, index) => {
+    if (picked.size < Math.min(2, words.length) && !isFunctionWord(word)) picked.add(index);
+  });
+  if (picked.size === 0) words.slice(0, maxWords).forEach((_, index) => picked.add(index));
+  const chosen = [...picked].sort((left, right) => left - right).map(index => words[index]);
+  const label = chosen.join(' ');
+  return label === cleaned ? label : `${label}…`;
+}
+
+/**
+ * Short labels that are unique across the given nodes. Duplicates are widened
+ * to five words, then suffixed with the year, then numbered.
+ */
+export function uniqueLabels(
+  nodes: Array<{ id: string; title?: string; year?: string | number }>,
+  commonTerms: Iterable<string> = [],
+): Map<string, string> {
+  const common = [...commonTerms];
+  const labels = new Map(nodes.map(node => [node.id, shortLabel(node.title || '', common)]));
+
+  const duplicates = () => {
+    const byLabel = new Map<string, typeof nodes>();
+    nodes.forEach(node => {
+      const label = labels.get(node.id)!;
+      byLabel.set(label, [...(byLabel.get(label) || []), node]);
+    });
+    return [...byLabel.values()].filter(group => group.length > 1);
+  };
+
+  duplicates().forEach(group => group.forEach(node => {
+    labels.set(node.id, shortLabel(node.title || '', common, 5));
+  }));
+  duplicates().forEach(group => group.forEach(node => {
+    if (node.year) labels.set(node.id, `${labels.get(node.id)} (${node.year})`);
+  }));
+  duplicates().forEach(group => group.forEach((node, index) => {
+    if (index > 0) labels.set(node.id, `${labels.get(node.id)} ${index + 1}`);
+  }));
+  return labels;
+}
+
+export interface LabelCandidate {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  /** Higher wins when two labels collide. */
+  priority: number;
+  fontPx: number;
+  /** Marker radius in px; the label sits just outside it. */
+  anchorPx: number;
+}
+
+export interface PlacedLabel {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
+export function estimateTextWidthPx(text: string, fontPx: number): number {
+  let em = 0;
+  for (const character of text) {
+    if (/[ㄱ-힝一-鿿]/.test(character)) em += 1;
+    else if (/[A-Z]/.test(character)) em += 0.68;
+    else em += 0.56;
+  }
+  return em * fontPx;
+}
+
+/**
+ * Greedy collision-free label placement in data coordinates.
+ *
+ * Candidates are tried in priority order, first above the marker then below;
+ * a label whose box would overlap an already placed one is dropped. Pixel
+ * scales come from the plot's axis ranges and container size, so the result
+ * is only guaranteed at the default zoom.
+ */
+export function placeLabels(
+  candidates: LabelCandidate[],
+  pxPerUnitX: number,
+  pxPerUnitY: number,
+): PlacedLabel[] {
+  if (!(pxPerUnitX > 0) || !(pxPerUnitY > 0)) return [];
+  type Box = { x0: number; x1: number; y0: number; y1: number };
+  const overlaps = (left: Box, right: Box) => (
+    left.x0 < right.x1 && right.x0 < left.x1 && left.y0 < right.y1 && right.y0 < left.y1
+  );
+  const placedBoxes: Box[] = [];
+  const placed: PlacedLabel[] = [];
+
+  [...candidates]
+    .sort((left, right) => right.priority - left.priority)
+    .forEach(candidate => {
+      const widthPx = estimateTextWidthPx(candidate.text, candidate.fontPx);
+      const heightPx = candidate.fontPx * 1.3;
+      const centerX = candidate.x * pxPerUnitX;
+      const baseY = candidate.y * pxPerUnitY;
+      const offsetPx = candidate.anchorPx + heightPx / 2 + 2;
+
+      for (const direction of [1, -1]) {
+        const centerY = baseY + direction * offsetPx;
+        const box: Box = {
+          x0: centerX - widthPx / 2,
+          x1: centerX + widthPx / 2,
+          y0: centerY - heightPx / 2,
+          y1: centerY + heightPx / 2,
+        };
+        if (placedBoxes.some(existing => overlaps(existing, box))) continue;
+        placedBoxes.push(box);
+        placed.push({
+          id: candidate.id,
+          x: candidate.x,
+          y: centerY / pxPerUnitY,
+          text: candidate.text,
+        });
+        return;
+      }
+    });
+
+  return placed;
+}
+
+// ── Community hulls ───────────────────────────────────────────────────
+
+export interface Point { x: number; y: number }
+
+/** Convex hull (Andrew's monotone chain), counter-clockwise, no repeated end point. */
+export function convexHull(points: Point[]): Point[] {
+  const sorted = [...points].sort((left, right) => left.x - right.x || left.y - right.y);
+  if (sorted.length < 3) return sorted;
+  const cross = (o: Point, a: Point, b: Point) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Point[] = [];
+  sorted.forEach(point => {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  });
+  const upper: Point[] = [];
+  [...sorted].reverse().forEach(point => {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  });
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+/**
+ * SVG path string (data coordinates) for a padded convex hull, as Plotly's
+ * `shape.type = 'path'` expects. Each hull vertex is pushed `padding` units
+ * away from the hull centroid.
+ */
+export function hullPath(points: Point[], padding: number): string {
+  const hull = convexHull(points);
+  if (hull.length < 3) return '';
+  const centroid = {
+    x: hull.reduce((sum, point) => sum + point.x, 0) / hull.length,
+    y: hull.reduce((sum, point) => sum + point.y, 0) / hull.length,
+  };
+  const padded = hull.map(point => {
+    const dx = point.x - centroid.x;
+    const dy = point.y - centroid.y;
+    const length = Math.hypot(dx, dy) || 1;
+    return { x: point.x + (dx / length) * padding, y: point.y + (dy / length) * padding };
+  });
+  return `M ${padded.map(point => `${point.x},${point.y}`).join(' L ')} Z`;
 }

@@ -244,7 +244,9 @@ function SearchPage() {
   }
 
   const communityByPaper = useMemo(() => Object.fromEntries(
-    (graphData?.nodes || []).map(node => [
+    (graphData?.nodes || [])
+      .filter(node => typeof node.community_id === 'number')
+      .map(node => [
       String(node.id),
       {
         communityId: node.community_id ?? 0,

@@ -51,27 +51,15 @@
   border-radius: 6px;
   background: rgba(148, 163, 184, 0.04);
   color: rgba(203, 213, 225, 0.68);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   box-sizing: border-box;
-}
-
-.graph-method-chip {
-  flex-shrink: 0;
-  min-height: 23px;
-  padding: 4px 7px;
-  border: 1px solid rgba(34, 211, 238, 0.2);
-  border-radius: 6px;
-  background: rgba(34, 211, 238, 0.06);
-  color: rgba(103, 232, 249, 0.9);
-  font-size: 9px;
-  font-weight: 600;
 }
 
 .graph-selection-summary {
   min-width: 0;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -81,7 +69,7 @@
   max-width: min(34vw, 430px);
   overflow: hidden;
   color: rgba(226, 232, 240, 0.84);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,7 +115,7 @@
   background: rgba(148, 163, 184, 0.025);
   color: var(--text-muted);
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -146,7 +134,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   gap: 6px;
 }
@@ -188,7 +176,7 @@
 .graph-layer-state {
   flex-shrink: 0;
   color: rgba(196, 181, 253, 0.78);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -276,6 +264,10 @@
 :root[data-theme='light'] .graph-status-chip {
   border-color: rgba(51, 65, 85, 0.12);
   background: rgba(51, 65, 85, 0.035);
+  color: rgba(51, 65, 85, 0.72);
+}
+
+:root[data-theme='light'] .graph-legend-details {
   color: rgba(51, 65, 85, 0.72);
 }
 
@@ -414,7 +406,7 @@
 
 .control-label-text {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -473,39 +465,12 @@ select.control-input {
   cursor: pointer;
 }
 
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.stat-item {
-  min-width: 0;
-  padding: 6px;
-  border-radius: 7px;
-  background: var(--wov-03);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-label {
-  color: var(--text-muted);
-  font-size: 9px;
-}
-
-.stat-value {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .graph-legend {
   min-height: 36px;
   padding: 6px 2px 0;
   border-top: 1px solid var(--wov-08);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -587,26 +552,32 @@ select.control-input {
   background: linear-gradient(90deg, var(--text-faint), var(--indigo-mid));
 }
 
-.legend-community {
-  width: 20px;
-  height: 11px;
-  border: 1px solid rgba(45, 212, 191, 0.24);
-  border-radius: 999px;
-  background: rgba(45, 212, 191, 0.05);
-}
-
-:root[data-theme='light'] .legend-community {
-  border-color: rgba(13, 148, 136, 0.24);
-  background: rgba(13, 148, 136, 0.05);
-}
-
-.legend-text {
-  color: var(--text-faint);
-}
-
-.graph-gesture-hint {
+.graph-legend-details {
   margin-left: auto;
   color: var(--text-faint);
+}
+
+.graph-legend-details summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.graph-legend-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.graph-legend-details summary:hover {
+  color: var(--text);
+}
+
+.graph-legend-details[open] summary {
+  color: var(--text);
+}
+
+.graph-legend-details p {
+  margin: 4px 0 0;
+  max-width: 100%;
+  line-height: 1.5;
 }
 
 .graph-view .modebar {
@@ -641,16 +612,8 @@ select.control-input {
     display: none;
   }
 
-  .graph-gesture-hint {
-    display: none;
-  }
-
   .graph-mode-switcher {
     grid-template-columns: repeat(3, minmax(62px, 1fr));
-  }
-
-  .graph-status-chip:nth-of-type(3) {
-    display: none;
   }
 }
 
@@ -753,10 +716,6 @@ select.control-input {
     min-height: 76vh;
   }
 
-  .graph-method-chip {
-    white-space: normal;
-  }
-
   .graph-plot-stage {
     height: min(68vh, 620px);
     min-height: 520px;
@@ -766,16 +725,8 @@ select.control-input {
     flex: 0 0 auto;
   }
 
-  .graph-status-chip,
-  .graph-status-chip:nth-of-type(3) {
-    display: inline-flex;
-    align-items: center;
+  .graph-status-chip {
     font-size: 12px;
-  }
-
-  .graph-status-chip:nth-of-type(n+4),
-  .graph-method-chip {
-    display: none;
   }
 
   .graph-layer-state {
@@ -820,12 +771,9 @@ select.control-input {
     order: 1;
   }
 
-  .graph-legend {
-    font-size: 9px;
-  }
-
-  .legend-text {
-    display: none;
+  .graph-legend-details {
+    margin-left: 0;
+    flex-basis: 100%;
   }
 }
 

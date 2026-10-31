@@ -404,11 +404,9 @@ def test_fixture_graph_presentation_in_real_plotly(
         )
         _record_assertion(
             steps,
-            "the sparse-edge toggle starts off",
-            page.get_by_role("button", name="전체 연결선 표시").get_attribute(
-                "aria-pressed"
-            )
-            == "false",
+            "no full-edge toggle exists; the backbone is the only edge set",
+            page.get_by_role("button", name="전체 연결선 표시").count() == 0
+            and page.get_by_text("관계 계산 방식").count() == 1,
         )
         _record_assertion(
             steps,
