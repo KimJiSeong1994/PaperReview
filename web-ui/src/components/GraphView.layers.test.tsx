@@ -146,16 +146,17 @@ describe('GraphView analysis layers', () => {
     vi.unstubAllGlobals();
   });
 
-  it('starts with settings collapsed and sparse edges enabled', async () => {
+  it('starts with settings collapsed and without a full-edge toggle', async () => {
     const user = userEvent.setup();
     renderGraph();
 
     const settings = screen.getByRole('button', { name: '보기 설정' });
     expect(settings).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: '전체 연결선 표시' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: '전체 연결선 표시' })).toBeNull();
+    expect(screen.getByText('ⓘ 관계 계산 방식')).toBeInTheDocument();
 
     await user.click(settings);
-    expect(screen.getByRole('checkbox', { name: '전체 연결선 표시' })).not.toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: '전체 연결선 표시' })).toBeNull();
   });
 
   it('keeps 3-hop and 기준논문 paths independently active and reports full counts', async () => {
@@ -227,7 +228,7 @@ describe('GraphView analysis layers', () => {
     expect(screen.getByText('관계 0/2개')).toBeInTheDocument();
   });
 
-  it('keeps the selected edge to a ranked neighbor in sparse mode and describes its method accurately', () => {
+  it('draws every backbone edge and describes the selected edge method accurately', () => {
     const nodes = Array.from({ length: 22 }, (_, index) => ({
       id: `node-${index}`,
       x: index,
@@ -263,12 +264,52 @@ describe('GraphView analysis layers', () => {
     }));
     renderGraph(denseGraph, densePapers[1], new Set(['node-2']), densePapers);
 
-    expect(screen.getByRole('button', { name: '전체 연결선 표시' })).toHaveAttribute('aria-pressed', 'false');
     expect(plottedNodeIds()).toContain('node-2');
     expect(focusedEdgeHoverText()).toContain('제목·키워드 유사도 1%<br>공통 단서 · rare-term');
-    const relationCount = screen.getByText(/관계 \d+\/\d+개/).textContent ?? '';
-    expect(relationCount).toMatch(new RegExp(`\\d+/${edges.length}개`));
-    expect(Number(relationCount.match(/관계 (\d+)/)?.[1])).toBeLessThan(edges.length);
+    expect(screen.getByText(`관계 ${edges.length}/${edges.length}개`)).toBeInTheDocument();
+  });
+
+  it('labels nodes with short unique names that drop the query echo', () => {
+    const titles = [
+      'GRAG: Graph Retrieval-Augmented Generation',
+      'Graph Retrieval-Augmented Generation: A Survey',
+      'Knowledge Graph Retrieval-Augmented Generation for Customized Large Language Models',
+      'Federated Graph Retrieval-Augmented Generation',
+    ];
+    const echoPapers = titles.map((title, index) => ({
+      doc_id: `echo-${index}`,
+      title,
+      authors: [],
+      year: 2024 + index,
+    }));
+    const echoGraph: GraphData = {
+      nodes: echoPapers.map((paper, index) => ({
+        id: paper.doc_id,
+        title: paper.title,
+        x: index * 2,
+        y: 0,
+        citations: 10 - index,
+        community_id: index % 2,
+      })),
+      edges: [
+        { source: 'echo-0', target: 'echo-1', weight: 0.6 },
+        { source: 'echo-0', target: 'echo-2', weight: 0.5 },
+        { source: 'echo-2', target: 'echo-3', weight: 0.4 },
+      ],
+      meta: {
+        edge_method: 'title_keyword_jaccard',
+        edge_label: '제목·키워드 유사도',
+        directed: false,
+        common_terms: ['graph', 'retrieval-augmented', 'generation'],
+      },
+    };
+    renderGraph(echoGraph, echoPapers[0], new Set(['echo-1', 'echo-2']), echoPapers);
+
+    const labels = plottedLabels();
+    expect(labels).toEqual(expect.arrayContaining(['GRAG', 'Graph Survey…', 'Federated Graph…']));
+    expect(labels).toContain('Knowledge Customized Large…');
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(screen.getByText('표시 4/4편')).toBeInTheDocument();
   });
 
   it('escapes relationship metadata before inserting it into Plotly hover markup', () => {

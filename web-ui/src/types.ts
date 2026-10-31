@@ -30,7 +30,8 @@ export interface GraphNode {
   citations?: number;
   authors?: string[];
   weight?: number;
-  community_id?: number;
+  /** null when the backend could not place the paper in any topic community. */
+  community_id?: number | null;
   community_label?: string;
   hop_distance?: number;
 }
@@ -58,6 +59,10 @@ export interface GraphData {
     edge_threshold?: number;
     directed: boolean;
     communities?: GraphCommunity[];
+    /** Tokens shared by most titles (search-query echo); excluded from labels and shared terms. */
+    common_terms?: string[];
+    /** Edge count before top-k/spanning-tree sparsification. */
+    edge_total?: number;
   };
 }
 
