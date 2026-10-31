@@ -7,6 +7,7 @@ import logging
 import requests
 from typing import List, Dict, Any, Optional
 from src.utils.logger import log_search_operation
+from src.collector.paper.semantic_scholar_client import SemanticScholarClient
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,16 @@ class ConnectedPapersSearcher:
 
     def __init__(self):
         self.base_url = "https://www.connectedpapers.com"
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
-        self.session = requests.Session()
-        self.session.headers.update(self.headers)
+        # Shared Semantic Scholar session: S2_API_KEY header + process-wide throttle.
+        self._s2 = SemanticScholarClient()
+        self.session = self._s2.session
+
+    def _get(self, url: str, params: Dict[str, Any], timeout: float = 10) -> requests.Response:
+        """Throttled GET. No retry sleeps: the search deadline owns the budget."""
+        SemanticScholarClient._rate_limiter.wait()
+        response = self.session.get(url, params=params, timeout=timeout)
+        response.raise_for_status()
+        return response
 
     def close(self):
         """Close the HTTP session."""
@@ -71,8 +75,7 @@ class ConnectedPapersSearcher:
                     'fields': 'title,authors,year,citationCount,abstract,url,fieldsOfStudy'
                 }
 
-                response = self.session.get(api_url, params=params, timeout=10)
-                response.raise_for_status()
+                response = self._get(api_url, params)
 
                 paper_data = response.json()
 
@@ -114,8 +117,7 @@ class ConnectedPapersSearcher:
                     'fields': 'title,authors,year,citationCount,abstract,url'
                 }
 
-                response = self.session.get(api_url, params=params, timeout=10)
-                response.raise_for_status()
+                response = self._get(api_url, params)
 
                 data = response.json()
                 related_papers = []
@@ -154,8 +156,7 @@ class ConnectedPapersSearcher:
                 'fields': 'title,authors,year,citationCount,abstract,url,externalIds'
             }
 
-            response = self.session.get(api_url, params=params, timeout=10)
-            response.raise_for_status()
+            response = self._get(api_url, params)
 
             data = response.json()
             papers = []
@@ -216,8 +217,7 @@ class ConnectedPapersSearcher:
                 'fields': 'title,authors,year,citationCount,abstract,url'
             }
 
-            response = self.session.get(api_url, params=params, timeout=10)
-            response.raise_for_status()
+            response = self._get(api_url, params)
 
             data = response.json()
             papers = []

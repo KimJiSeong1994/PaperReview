@@ -14,6 +14,7 @@ from typing import Dict, List, Any, Optional, TypedDict
 from dotenv import load_dotenv
 from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from src.utils.llm_usage import record_llm_usage
 from app.QueryAgent.query_analysis_contract import parse_and_normalize_query_analysis
 from app.QueryAgent.skillopt_policy import (
     SkillOptPolicy,
@@ -873,9 +874,13 @@ RULES:
                 ],
                 temperature=0.3,
                 response_format={"type": "json_object"},
+                max_tokens=1500,
             )
 
             result_text = response.choices[0].message.content or "{}"
+            usage = getattr(response, "usage", None)
+            if isinstance(getattr(usage, "total_tokens", None), int):
+                record_llm_usage("search_analysis", self.model, usage)
             if skillopt_policy.enabled:
                 result = parse_and_normalize_query_analysis(
                     result_text, original_query=query

@@ -909,7 +909,7 @@ class SearchAgent:
                     scholar_queries = [scholar_queries]
                 if not isinstance(scholar_queries, list):
                     scholar_queries = []
-                scholar_queries = list(dict.fromkeys(q.strip() for q in scholar_queries if isinstance(q, str) and q.strip()))[:3]
+                scholar_queries = list(dict.fromkeys(q.strip() for q in scholar_queries if isinstance(q, str) and q.strip()))[:2]
                 if not scholar_queries:
                     scholar_queries = [query]
 
@@ -1164,7 +1164,7 @@ class SearchAgent:
             executed[source_name] = [effective]
             if source_name == "google_scholar" and route["kind"] == "topic":
                 variants = source_queries.get("scholar_queries", [effective])
-                executed[source_name] = list(dict.fromkeys(q.strip() for q in variants if isinstance(q, str) and q.strip()))[:3]
+                executed[source_name] = list(dict.fromkeys(q.strip() for q in variants if isinstance(q, str) and q.strip()))[:2]
             source_modes[source_name] = "dispatched"
             worker_filters = {k: copy.deepcopy(v) for k, v in filters.items() if not k.startswith("_")}
             worker_filters.update(_deadline=min(deadline, started_at + timeout), _stop_event=stop, _attempts=[])

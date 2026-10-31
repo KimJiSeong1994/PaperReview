@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from src.utils.llm_usage import record_llm_usage
 from .llm_cache import get_cached, set_cache
 from .schemas import PaperReviewSchema, build_openai_strict_schema
 
@@ -241,6 +242,7 @@ def _call_with_json_schema_or_fallback(
             messages=messages,
         )
         logger.info("Paper review token usage (json_schema): %s", response.usage)
+        record_llm_usage("bookmark_review", model, response.usage, format="json_schema")
         return response.choices[0].message.content or "{}"
     except Exception as e:  # noqa: BLE001 — downgrade to json_object on ANY schema path failure
         # Re-raise timeout/rate-limit/API-error events so the caller's retry/backoff
@@ -267,6 +269,7 @@ def _call_with_json_schema_or_fallback(
             messages=messages,
         )
         logger.info("Paper review token usage (json_object fallback): %s", response.usage)
+        record_llm_usage("bookmark_review", model, response.usage, format="json_object_fallback")
         return response.choices[0].message.content or "{}"
 
 

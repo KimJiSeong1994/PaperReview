@@ -59,7 +59,11 @@ logger = logging.getLogger(__name__)
 # not a runtime condition to hide. A prior hotfix (12b424f era) was
 # reintroduced where both ImportError and constructor failure were caught
 # by a broad ``except Exception`` — every search silently lost ranking.
-from src.graph_rag.hybrid_ranker import CROSS_ENCODER_RRF_WEIGHT, HybridRanker  # noqa: E402
+from src.graph_rag.hybrid_ranker import (  # noqa: E402
+    _HYDE_EXECUTOR,
+    CROSS_ENCODER_RRF_WEIGHT,
+    HybridRanker,
+)
 from src.graph_rag.jev_reranker import ranking_cache_variant, rerank_papers
 
 # Track ranker-degradation reasons so operators + API consumers see the
@@ -659,6 +663,7 @@ _CACHE_SCHEMA_VERSION = "v5-jev-head-rerank"
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
 CACHE_TTL_SECONDS = 3600  # 1시간
+_PARTIAL_CACHE_TTL_SECONDS = 900  # a source failed: keep repeats cheap, retry sooner
 CACHE_MAX_SIZE = 200  # 최대 캐시 엔트리 수
 
 
@@ -1184,6 +1189,27 @@ def _stamp_global_rank(
 
 def _base_ranking_variant() -> str:
     return f"ce_w={CROSS_ENCODER_RRF_WEIGHT}"
+
+
+def _warm_hyde(query: str, deadline: float, stop_event: threading.Event) -> None:
+    """Start HyDE off the critical path so ``rank_papers`` finds it cached.
+
+    HyDE depends only on the query, so it can overlap query analysis and the
+    source fan-out instead of running serially inside ranking.
+    """
+    # ponytail: under executor backlog (4 workers) rank_papers may run HyDE
+    # itself and the queued warm-up then repeats it; dedupe with an in-flight
+    # map if the usage ledger shows duplicate search_hyde rows.
+    try:
+        _HYDE_EXECUTOR.submit(
+            _hybrid_ranker._generate_hyde_embedding,
+            query,
+            get_openai_client(),
+            deadline=deadline,
+            stop_event=stop_event,
+        )
+    except Exception as exc:
+        logger.debug("[Search] HyDE warm-up not submitted: %s", exc)
 
 
 async def _apply_jev_reranking(
@@ -1859,6 +1885,14 @@ async def search_papers(
             search_query = cached_metadata.get("executed_query", request.query)
         else:
             modes["cache_fast_path"] = False
+            if (
+                route["kind"] == "topic"
+                and not request.fast_mode
+                and request.sort_by == "relevance"
+                and _hybrid_ranker is not None
+                and query_analyzer
+            ):
+                _warm_hyde(request.query, deadline, stop)
             if route["kind"] != "topic":
                 guard = True
                 modes["query_analysis_mode"] = "skipped_exact_route"
@@ -2113,12 +2147,9 @@ async def search_papers(
             )
             for mode in source_modes.values()
         )
-        healthy = (
-            healthy
-            and not unhealthy
-            and not stop.is_set()
-            and not _current_degradation_markers()
-        )
+        # Pipeline-level health gates caching; a failed source only shortens the TTL.
+        cacheable = healthy and not stop.is_set() and not _current_degradation_markers()
+        healthy = cacheable and not unhealthy
         executed_queries = cached_metadata.get(
             "executed_queries", source_metadata.get("executed_queries", {})
         )
@@ -2156,10 +2187,11 @@ async def search_papers(
                 for word in ("fallback", "error", "timeout", "capacity")
             ):
                 degradation.append(f"{stage_name}:{mode}")
-        if unhealthy:
+        if unhealthy or cached_metadata.get("partial"):
             degradation.append("source_incomplete")
         metadata["partial"] = bool(
             source_metadata.get("partial")
+            or cached_metadata.get("partial")
             or unhealthy
             or stop.is_set()
             or modes.get("source_search_mode") == "timeout_partial"
@@ -2171,9 +2203,11 @@ async def search_papers(
             metadata["optional_enrichment"] = "fast_capability"
         else:
             metadata["graph_save_enrichment"] = "not_requested"
-        if not cache_hit and healthy and guard:
+        if not cache_hit and cacheable and guard:
+            partial_cache = bool(metadata["partial"])
             cache_body = copy.deepcopy(results)
             cache_body["_metadata"] = {
+                "partial": partial_cache,
                 "executed_query": search_query,
                 "executed_queries": executed_queries,
                 "jev_mode": modes.get("jev_mode", "skipped"),
@@ -2190,6 +2224,11 @@ async def search_papers(
                         _set_cache,
                         cache_key,
                         cache_body,
+                        ttl_seconds=(
+                            _PARTIAL_CACHE_TTL_SECONDS
+                            if partial_cache
+                            else CACHE_TTL_SECONDS
+                        ),
                         academic_guard_passed=True,
                         stop_event=stop,
                         deadline=min(deadline, time.monotonic() + 2),
@@ -2268,6 +2307,8 @@ async def search_papers(
                             },
                             "elapsed_ms": int(timings["total"] * 1000),
                             "cache_hit": cache_hit,
+                            "stage_timings": timings,
+                            "source_timings": metadata["source_timings"],
                         },
                     )
                 )
