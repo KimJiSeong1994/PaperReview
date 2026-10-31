@@ -72,7 +72,7 @@ def test_gpt6_luna_routes_to_responses_and_adapts_json_usage():
     ]
     assert client.responses.kwargs["text"] == {"format": {"type": "json_object"}}
     assert client.responses.kwargs["max_output_tokens"] == 20
-    assert client.responses.kwargs["reasoning"] == {"effort": "low"}
+    assert client.responses.kwargs["reasoning"] == {"effort": "none"}
     assert "temperature" not in client.responses.kwargs
     assert "top_p" not in client.responses.kwargs
     assert response.choices[0].message.content == '{"ok": true}'
@@ -123,7 +123,7 @@ def test_gpt6_luna_async_routes_to_responses_and_adapts_result():
         }
     }
     assert client.responses.kwargs["max_output_tokens"] == 32
-    assert client.responses.kwargs["reasoning"] == {"effort": "low"}
+    assert client.responses.kwargs["reasoning"] == {"effort": "none"}
     assert "temperature" not in client.responses.kwargs
     assert "top_p" not in client.responses.kwargs
     assert response.choices[0].message.content == "async result"

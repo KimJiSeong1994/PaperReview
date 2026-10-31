@@ -343,7 +343,7 @@ class GoogleScholarSearcher:
         if attempts is not None:
             attempts.append(receipt)
         try:
-            response = self._request_with_backoff(self.base_url + '/scholar', {'q': query, 'hl': 'en', 'as_sdt': '0,5', **({'scisbd': '1'} if sort_by == 'date' else {})}, deadline=deadline, stop_event=stop_event)
+            response = self._request_with_backoff(self.base_url + '/scholar', {'q': query, 'hl': 'en', 'as_sdt': '0,5', 'num': 20, **({'scisbd': '1'} if sort_by == 'date' else {})}, deadline=deadline, stop_event=stop_event)
             if self._is_captcha_response(response):
                 raise requests.HTTPError('Scholar CAPTCHA requires independent manual recovery')
             papers = self._parse_search_results(response.text, max_results)
