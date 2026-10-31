@@ -22,6 +22,7 @@ jobs:
     outputs:
       frontend: ${{ steps.components.outputs.frontend }}
       skillopt: ${{ steps.components.outputs.skillopt }}
+      content: ${{ steps.components.outputs.content }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -31,6 +32,9 @@ jobs:
             frontend:
               - 'web-ui/**'
               - '.github/workflows/ci.yml'
+            content:
+              - 'data/blog/posts.json'
+              - 'data/blog/figures/**'
             skillopt:
               # Shared conftest/package imports reach beyond the adapter.
               - 'src/**'
@@ -45,6 +49,17 @@ jobs:
               - 'pytest.ini'
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
+
+  content-frozen:
+    # Blog content is published from KimJiSeong1994/jiphyeonjeon-content; data/blog is a frozen fallback.
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.content == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: |
+          echo "::error::data/blog/posts.json and data/blog/figures/ are frozen. Publish with jiphyeonjeon-content/scripts/add_post.py and open a PR there (docs/content-repo-sync.md)."
+          exit 1
 
   backend-core:
     # Also covers frontend/SSR parity and documentation contracts.
@@ -393,14 +408,17 @@ jobs:
           "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/deployment_state.py" ensure-clear \
             --state-root "$APP_ROOT/.deploy-state"
           test -x "$APP_ROOT/venv/bin/python"
-          test -f "$APP_ROOT/data/blog/posts.json"
+          # Readiness compares the live blog with the file the service actually reads.
+          BLOG_CONTENT_DIR=$(sed -n 's/^BLOG_CONTENT_DIR=//p' "$APP_ROOT/.env" 2>/dev/null | tail -1 | tr -d "\"'")
+          POSTS_FILE="${BLOG_CONTENT_DIR:-$APP_ROOT/data/blog}/posts.json"
+          test -f "$POSTS_FILE"
           sudo -n systemctl is-active --quiet paperreview
           SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
           test "$SERVICE_PID" -gt 0
           test -r "/proc/$SERVICE_PID/cmdline"
           PREVIOUS_SHA=$(git -C "$APP_ROOT" rev-parse HEAD)
           "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/check_deploy_ready.py" \
-            --posts "$APP_ROOT/data/blog/posts.json" --attempts 1 --service-pid "$SERVICE_PID" \
+            --posts "$POSTS_FILE" --attempts 1 --service-pid "$SERVICE_PID" \
             --expected-revision "$PREVIOUS_SHA" --expected-pid "$SERVICE_PID" \
             --allow-legacy-attestation \
             --record-health-metadata "$REMOTE_RELEASE/backend.previous.health.json"
@@ -496,12 +514,15 @@ jobs:
           RELEASE_ID="$2"
           APP_ROOT="$HOME/PaperReviewAgent"
           REMOTE_RELEASE="/tmp/paperreview-deploy-$RELEASE_ID"
+          # Readiness compares the live blog with the file the service actually reads.
+          BLOG_CONTENT_DIR=$(sed -n 's/^BLOG_CONTENT_DIR=//p' "$APP_ROOT/.env" 2>/dev/null | tail -1 | tr -d "\"'")
+          POSTS_FILE="${BLOG_CONTENT_DIR:-$APP_ROOT/data/blog}/posts.json"
           sudo systemctl restart paperreview
           SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
           test "$SERVICE_PID" -gt 0
           test -r "/proc/$SERVICE_PID/cmdline"
           "$APP_ROOT/venv/bin/python" "$REMOTE_RELEASE/check_deploy_ready.py" \
-            --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+            --posts "$POSTS_FILE" --service-pid "$SERVICE_PID" \
             --request-timeout 5 --attempts 30 --interval 2 --deadline 90 \
             --expected-revision "$DEPLOY_SHA" --expected-pid "$SERVICE_PID"
           JOURNAL=$(cat "$REMOTE_RELEASE/frontend-journal.path")
@@ -557,18 +578,21 @@ jobs:
             git -C "$APP_ROOT" checkout --detach --force "$PREVIOUS_SHA" || ROLLBACK_FAILED=1
             test "$(git -C "$APP_ROOT" rev-parse HEAD)" = "$PREVIOUS_SHA" || ROLLBACK_FAILED=1
             "$APP_ROOT/venv/bin/pip" install -r "$APP_ROOT/requirements.txt" --quiet || ROLLBACK_FAILED=1
+            # Readiness compares the live blog with the file the service actually reads.
+            BLOG_CONTENT_DIR=$(sed -n 's/^BLOG_CONTENT_DIR=//p' "$APP_ROOT/.env" 2>/dev/null | tail -1 | tr -d "\"'")
+            POSTS_FILE="${BLOG_CONTENT_DIR:-$APP_ROOT/data/blog}/posts.json"
             sudo systemctl restart paperreview || ROLLBACK_FAILED=1
             SERVICE_PID=$(sudo systemctl show paperreview -p MainPID --value)
             test "$SERVICE_PID" -gt 0 || ROLLBACK_FAILED=1
             test -r "/proc/$SERVICE_PID/cmdline" || ROLLBACK_FAILED=1
             if test "$ATTESTATION_MODE" = supported; then
               "$APP_ROOT/venv/bin/python" "$READINESS_HELPER" \
-                --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+                --posts "$POSTS_FILE" --service-pid "$SERVICE_PID" \
                 --request-timeout 5 --attempts 30 --interval 2 --deadline 90 \
                 --expected-revision "$PREVIOUS_SHA" --expected-pid "$SERVICE_PID" || ROLLBACK_FAILED=1
             elif test "$ATTESTATION_MODE" = legacy; then
               "$APP_ROOT/venv/bin/python" "$READINESS_HELPER" \
-                --posts "$APP_ROOT/data/blog/posts.json" --service-pid "$SERVICE_PID" \
+                --posts "$POSTS_FILE" --service-pid "$SERVICE_PID" \
                 --request-timeout 5 --attempts 30 --interval 2 --deadline 90 || ROLLBACK_FAILED=1
             else
               ROLLBACK_FAILED=1
