@@ -18,8 +18,9 @@ import logging
 import re
 from collections import Counter
 
-from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL
+from src.utils.model_defaults import DEFAULT_RESEARCH_MODEL, DEFAULT_TOOL_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from src.utils.llm_usage import record_llm_usage
 from .llm_cache import get_cached, set_cache
 
 logger = logging.getLogger(__name__)
@@ -307,7 +308,9 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
     )
     variable_body = f"{topic_suffix}---\n{formatted_report}\n---"
 
-    model = DEFAULT_RESEARCH_MODEL
+    # Span selection over an already-written review is extraction work;
+    # the research model is not needed here.
+    model = DEFAULT_TOOL_MODEL
     temperature = 0.2
     user_prompt = f"{AUTO_HIGHLIGHT_USER_PREFIX}{variable_body}"
 
@@ -334,6 +337,7 @@ def generate_highlights(report: str, query: str, title: str, client) -> list[dic
             ],
         )
         logger.info("Auto-highlight token usage: %s", response.usage)
+        record_llm_usage("bookmark_highlights", model, response.usage)
         raw = response.choices[0].message.content or "{}"
 
         # Store response in cache

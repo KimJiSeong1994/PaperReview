@@ -8,6 +8,8 @@ import logging
 import threading
 import contextvars
 import copy
+from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from typing import List, Dict, Any, Optional
 
 # 경로 추가
@@ -18,6 +20,7 @@ from langchain_openai import ChatOpenAI
 
 from app.DeepAgent.workspace_manager import WorkspaceManager
 from src.utils.model_defaults import DEFAULT_TOOL_MODEL
+from src.utils.llm_usage import record_llm_usage
 
 from app.DeepAgent.system_prompts import (
     MASTER_AGENT_PROMPT,
@@ -216,6 +219,12 @@ def get_llm():
                 model=DEFAULT_TOOL_MODEL,
                 temperature=0.3,
                 timeout=30,
+                # LangChain bypasses openai_responses_compat, so pin the
+                # effort here; gpt-5.4-mini accepts "none" (probed 2026-10-31).
+                reasoning_effort=os.getenv("TOOL_REASONING_EFFORT", "none"),
+                # The report consumes analysis[:3000] chars; nothing else reads
+                # the full text, so do not pay for an uncapped 7-section essay.
+                max_tokens=1200,
             )
         return _llm_instance
 
@@ -357,6 +366,17 @@ Be specific, evidence-based, and cite paper content where relevant."""
         logger.info("Deep analyzing: %s...", title[:50])
         response = llm.invoke(analysis_prompt)
         analysis_text = response.content
+        usage = getattr(response, "usage_metadata", None) or {}
+        if isinstance(usage, dict):  # LangChain UsageMetadata is a TypedDict; never let telemetry drop an analysis
+            record_llm_usage(
+                "deep_analysis",
+                DEFAULT_TOOL_MODEL,
+                SimpleNamespace(
+                    prompt_tokens=usage.get("input_tokens"),
+                    completion_tokens=usage.get("output_tokens"),
+                    total_tokens=usage.get("total_tokens"),
+                ),
+            )
 
         return json.dumps({
             "success": True,
@@ -1196,8 +1216,27 @@ class DeepReviewAgent:
             except Exception:
                 logger.exception("[Deep Review] save_selected_papers failed (non-fatal)")
 
+            def _analyze(paper):
+                try:
+                    raw = analyze_paper_deep.invoke(
+                        {"paper_json": json.dumps(paper, ensure_ascii=False)}
+                    )
+                    return json.loads(raw) if isinstance(raw, str) else raw
+                except Exception:
+                    logger.exception(
+                        "[Deep Review] LLM analysis failed for paper %s",
+                        paper.get("result_key") or paper.get("id") or paper.get("title"),
+                    )
+                    return None
+
+            # Analyses are independent LLM calls; run them concurrently and
+            # keep the save loop sequential so workspace writes stay ordered.
+            # ponytail: fixed 4 workers, tune when provider rate limits bite.
+            with ThreadPoolExecutor(max_workers=4, thread_name_prefix="deep-review") as pool:
+                analysis_objs = list(pool.map(_analyze, papers))
+
             saved = 0
-            for idx, paper in enumerate(papers, 1):
+            for idx, (paper, analysis_obj) in enumerate(zip(papers, analysis_objs), 1):
                 paper_id = str(
                     paper.get("result_key") or paper.get("id") or paper.get("arxiv_id") or f"paper_{idx}"
                 )
@@ -1206,16 +1245,6 @@ class DeepReviewAgent:
                 researcher_id = (
                     f"researcher_{((idx - 1) % max(self.num_researchers, 1)) + 1}"
                 )
-                try:
-                    raw = analyze_paper_deep.invoke(
-                        {"paper_json": json.dumps(paper, ensure_ascii=False)}
-                    )
-                    analysis_obj = json.loads(raw) if isinstance(raw, str) else raw
-                except Exception:
-                    logger.exception(
-                        "[Deep Review] LLM analysis failed for paper %s", paper_id
-                    )
-                    analysis_obj = None
 
                 # Only persist usable analyses (must carry an 'analysis' body).
                 if isinstance(analysis_obj, dict) and analysis_obj.get("analysis"):

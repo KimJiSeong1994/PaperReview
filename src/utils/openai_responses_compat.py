@@ -15,6 +15,8 @@ import os
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, Iterator, Mapping, Optional
 
+from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
+
 
 def _supports_responses_api_model(model: Optional[str]) -> bool:
     """Return whether a confirmed model ID is supported by Responses routing."""
@@ -52,6 +54,9 @@ def _reasoning_for_model(model: Optional[str]) -> Dict[str, str]:
     model_s = str(model)
     if "mini" in model_s or "nano" in model_s:
         return {"effort": os.getenv("TOOL_REASONING_EFFORT", "none")}
+    if model_s == DEFAULT_SEARCH_MODEL:
+        # JSON planning/extraction calls: reasoning only adds latency and output tokens.
+        return {"effort": os.getenv("SEARCH_REASONING_EFFORT", "none")}
     return {"effort": os.getenv("RESEARCH_REASONING_EFFORT", "low")}
 
 

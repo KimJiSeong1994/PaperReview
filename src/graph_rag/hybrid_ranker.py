@@ -25,6 +25,7 @@ import numpy as np
 
 from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL, DEFAULT_SEARCH_MODEL
 from src.utils.openai_responses_compat import create_chat_completion
+from src.utils.llm_usage import record_llm_usage
 from src.utils.paper_utils import generate_result_key
 
 try:
@@ -735,6 +736,9 @@ class HybridRanker:
                 timeout=12.0,
             )
             content = response.choices[0].message.content or ""
+            usage = getattr(response, "usage", None)
+            if isinstance(getattr(usage, "total_tokens", None), int):
+                record_llm_usage("search_hyde", DEFAULT_SEARCH_MODEL, usage)
             if not content.strip():
                 raise ValueError("Empty HyDE unified response")
 
@@ -990,10 +994,10 @@ class HybridRanker:
                 return [0.0] * len(papers)
             if hasattr(self.similarity_calculator, "get_embeddings_batch"):
                 embeddings = []
-                for start in range(0, len(texts), 32):
+                for start in range(0, len(texts), 100):
                     if _cutoff_reason(deadline, stop_event):
                         return [0.0] * len(papers)
-                    embeddings.extend(self.similarity_calculator.get_embeddings_batch(texts[start:start + 32]))
+                    embeddings.extend(self.similarity_calculator.get_embeddings_batch(texts[start:start + 100]))
             else:
                 embeddings = []
                 for text in texts:
