@@ -47,7 +47,7 @@ from app.SearchAgent.search_agent import (
     apply_search_filters,
     classify_search_route,
 )
-from src.utils.paper_utils import generate_doc_id, generate_result_key
+from src.utils.paper_utils import generate_doc_id, generate_paper_id, generate_result_key
 from src.utils.model_defaults import DEFAULT_SEARCH_MODEL
 
 logger = logging.getLogger(__name__)
@@ -365,7 +365,7 @@ def _graphrag_expand(
     """검색 결과의 논문들을 기반으로 GraphRAG hybrid_deep 확장.
 
     1-hop: SIMILAR_TO + CITES 모두, 2-hop: CITES만 (인용 기반 안전 탐색).
-    기존 검색 결과의 title을 시드로 사용하여,
+    그래프 생성과 동일한 DOI 우선 정규 식별자를 시드로 사용하여,
     그래프에서 이웃 논문을 추가로 가져온다.
     실패 시 빈 리스트 반환 (graceful degradation).
     """
@@ -381,21 +381,23 @@ def _graphrag_expand(
     # helper cannot perform an unnecessary FAISS/mapping read.
     engine = SearchEngine(graph)
 
-    # 기존 검색 결과의 title → graph node_id 매핑 (lowercase)
+    # Match graph construction's DOI-or-normalized-title identity.
     seed_ids: List[str] = []
-    existing_titles: set = set()
+    existing_ids: set = set()
     for paper in initial_papers:
-        title = paper.get("title", "")
-        if title:
-            node_id = title.strip().lower()
-            existing_titles.add(node_id)
-            if node_id in graph:
-                seed_ids.append(node_id)
+        node_id = generate_paper_id(paper)
+        if node_id in existing_ids:
+            continue
+        existing_ids.add(node_id)
+        if node_id in graph:
+            seed_ids.append(node_id)
 
     if not seed_ids:
         # 시드가 없으면 키워드 fallback 시도
         fallback_ids = engine._keyword_fallback(query, top_k=max_expand)
-        fallback_ids = [pid for pid in fallback_ids if pid not in existing_titles]
+        fallback_ids = [
+            pid for pid in dict.fromkeys(fallback_ids) if pid not in existing_ids
+        ]
         if not fallback_ids:
             return []
         neighbor_ids = fallback_ids[:max_expand]
@@ -408,8 +410,9 @@ def _graphrag_expand(
         )
 
         # 기존 검색 결과와 겹치는 논문 제외
-        neighbor_ids_set = set(expanded_ids) - existing_titles - set(seed_ids)
-        neighbor_ids = list(neighbor_ids_set)[:max_expand]
+        neighbor_ids = [
+            pid for pid in dict.fromkeys(expanded_ids) if pid not in existing_ids
+        ][:max_expand]
 
     if not neighbor_ids:
         return []
