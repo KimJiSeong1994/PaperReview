@@ -270,6 +270,9 @@ describe('Poster survives closing the modal', () => {
 
     await deauthenticate(rerender);
 
+    expect(screen.queryByRole('button', { name: /tools/i })).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument();
+    await submitSearch('fresh search after logout');
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
     });
@@ -302,6 +305,8 @@ describe('Poster survives closing the modal', () => {
 
     await deauthenticate(rerender);
 
+    expect(screen.queryByRole('checkbox', { name: /리뷰 선택/ })).not.toBeInTheDocument();
+    await submitSearch('fresh search after logout');
     expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).not.toBeChecked();
   });
 });

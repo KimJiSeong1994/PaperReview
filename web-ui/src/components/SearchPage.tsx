@@ -71,6 +71,52 @@ const HOME_CHIPS = [
   'Attention Is All You Need 논문',
 ];
 
+type SearchTiming = {
+  prefix: string;
+  abortController: AbortController;
+  marks: Set<string>;
+  measures: Set<string>;
+  frameCleanup: (() => void) | null;
+  framePending: boolean;
+  listCommitMarked: boolean;
+  enrichmentDone: boolean;
+};
+
+const markPerformance = (name: string): boolean => {
+  const performanceApi = globalThis.performance;
+  if (!performanceApi || typeof performanceApi.mark !== 'function') return false;
+  try {
+    performanceApi.mark(name);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const measurePerformance = (name: string, startMark: string, endMark: string): boolean => {
+  const performanceApi = globalThis.performance;
+  if (!performanceApi || typeof performanceApi.measure !== 'function') return false;
+  try {
+    performanceApi.measure(name, startMark, endMark);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const clearPerformanceEntry = (type: 'mark' | 'measure', name: string): void => {
+  const performanceApi = globalThis.performance;
+  try {
+    if (type === 'mark') {
+      performanceApi?.clearMarks?.(name);
+    } else {
+      performanceApi?.clearMeasures?.(name);
+    }
+  } catch {
+    // Performance APIs are optional in non-browser/test environments.
+  }
+};
+
 function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,6 +135,7 @@ function SearchPage() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [enrichmentLoading, setEnrichmentLoading] = useState(false);
+  const [publishedRequestId, setPublishedRequestId] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   // Survives a failed search so the empty state can hand the query back
   // instead of dropping it (a chip click has no other copy of it).
@@ -120,6 +167,40 @@ function SearchPage() {
   const [posterPdfError, setPosterPdfError] = useState<string | null>(null);
   // Declared above the de-auth reset because that block has to abort it.
   const posterPdfAbortRef = useRef<AbortController | null>(null);
+  // A search owns the primary request and reference enrichment. Graph
+  // replacement requests get a child controller so replacing a seed graph
+  // never cancels the rest of the search lifetime.
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const graphAbortRef = useRef<AbortController | null>(null);
+  const graphAbortCleanupRef = useRef<(() => void) | null>(null);
+  const searchRequestIdRef = useRef(0);
+  const searchTimingsRef = useRef(new Map<number, SearchTiming>());
+  // Query guidance (non-academic query feedback)
+  const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
+  const [guidanceSticky, setGuidanceSticky] = useState(false);
+  const cleanupSearchTiming = useCallback((requestId: number) => {
+    const timing = searchTimingsRef.current.get(requestId);
+    if (!timing) return;
+
+    timing.frameCleanup?.();
+    timing.frameCleanup = null;
+    timing.framePending = false;
+    for (const mark of timing.marks) clearPerformanceEntry('mark', mark);
+    for (const measure of timing.measures) clearPerformanceEntry('measure', measure);
+    searchTimingsRef.current.delete(requestId);
+  }, []);
+  const invalidateSearchLifetime = useCallback(() => {
+    searchRequestIdRef.current += 1;
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+    graphAbortCleanupRef.current?.();
+    graphAbortCleanupRef.current = null;
+    graphAbortRef.current?.abort();
+    graphAbortRef.current = null;
+    for (const requestId of searchTimingsRef.current.keys()) {
+      cleanupSearchTiming(requestId);
+    }
+  }, [cleanupSearchTiming]);
   // logout() clears tokens and navigates to '/', but a SearchPage already
   // mounted there is never unmounted, so everything a session produced would be
   // inherited by whoever logs in next on this device. Reset during render
@@ -135,6 +216,20 @@ function SearchPage() {
   const [prevAuthenticated, setPrevAuthenticated] = useState(isAuthenticated);
   if (prevAuthenticated !== isAuthenticated) {
     setPrevAuthenticated(isAuthenticated);
+    invalidateSearchLifetime();
+    setPapers([]);
+    setSelectedPaper(null);
+    setGraphData(null);
+    setQueryHash('');
+    setSearchId('');
+    setRankingVariant('');
+    setLoading(false);
+    setEnrichmentLoading(false);
+    setPublishedRequestId(null);
+    setQuery('');
+    setAttemptedQuery('');
+    setGuidanceMessage(null);
+    setGuidanceSticky(false);
     setPosterHtml(null);
     setPosterOpen(false);
     // A PDF request already in flight would otherwise land as a download on
@@ -147,10 +242,6 @@ function SearchPage() {
     setSelectedPapersForReview(new Set());
     setBookmarkSaved(false);
   }
-
-  // Query guidance (non-academic query feedback)
-  const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
-  const [guidanceSticky, setGuidanceSticky] = useState(false);
 
   const communityByPaper = useMemo(() => Object.fromEntries(
     (graphData?.nodes || []).map(node => [
@@ -181,9 +272,6 @@ function SearchPage() {
       : [];
   }), [neighbors, papersByKey]);
 
-  // AbortController ref for cancelling in-flight search requests
-  const searchAbortRef = useRef<AbortController | null>(null);
-  const searchRequestIdRef = useRef(0);
   const trackedCompletedReviewRef = useRef(false);
   const toolsButtonRef = useRef<HTMLButtonElement>(null);
   const posterModalRef = useRef<HTMLDivElement>(null);
@@ -201,6 +289,10 @@ function SearchPage() {
     const timer = setTimeout(() => setGuidanceMessage(null), 8000);
     return () => clearTimeout(timer);
   }, [guidanceMessage]);
+
+  useEffect(() => () => {
+    invalidateSearchLifetime();
+  }, [invalidateSearchLifetime]);
 
   const newImpressionId = () => (
     globalThis.crypto?.randomUUID?.() ?? `s_${Math.random().toString(36).slice(2)}`
@@ -222,6 +314,129 @@ function SearchPage() {
     abortController.signal.aborted
   );
 
+  const getSearchTiming = (requestId: number): SearchTiming | undefined => (
+    searchTimingsRef.current.get(requestId)
+  );
+
+  const markSearchPhase = (timing: SearchTiming | undefined, phase: string): string | undefined => {
+    if (!timing) return undefined;
+    const name = `${timing.prefix}.${phase}`;
+    if (!timing.marks.has(name) && markPerformance(name)) {
+      timing.marks.add(name);
+    }
+    return name;
+  };
+
+  const measureSearchPhase = (
+    timing: SearchTiming | undefined,
+    phase: string,
+    startPhase: string,
+    endPhase: string,
+  ) => {
+    if (!timing) return;
+    const name = `${timing.prefix}.${phase}`;
+    if (timing.measures.has(name)) return;
+    const measured = measurePerformance(
+      name,
+      `${timing.prefix}.${startPhase}`,
+      `${timing.prefix}.${endPhase}`,
+    );
+    if (measured) timing.measures.add(name);
+  };
+
+  const completeSearchTiming = (requestId: number) => {
+    const timing = getSearchTiming(requestId);
+    if (
+      !timing
+      || !timing.listCommitMarked
+      || !timing.enrichmentDone
+      || timing.framePending
+    ) return;
+    cleanupSearchTiming(requestId);
+  };
+
+  const scheduleListFrame = (
+    requestId: number,
+    abortController: AbortController,
+  ) => {
+    const timing = getSearchTiming(requestId);
+    if (!timing || timing.framePending) return;
+
+    timing.framePending = true;
+    const onFrame = () => {
+      timing.frameCleanup = null;
+      timing.framePending = false;
+      if (isStaleSearch(requestId, abortController)) {
+        cleanupSearchTiming(requestId);
+        return;
+      }
+      markSearchPhase(timing, 'list-frame');
+      measureSearchPhase(timing, 'submit-to-list', 'submit', 'list-frame');
+      completeSearchTiming(requestId);
+    };
+
+    if (typeof globalThis.requestAnimationFrame === 'function') {
+      const frameId = globalThis.requestAnimationFrame(onFrame);
+      timing.frameCleanup = () => {
+        globalThis.cancelAnimationFrame?.(frameId);
+      };
+    } else {
+      const timeoutId = globalThis.setTimeout(onFrame, 0);
+      timing.frameCleanup = () => globalThis.clearTimeout(timeoutId);
+    }
+  };
+
+  const finishEnrichmentTiming = (
+    requestId: number,
+    abortController: AbortController,
+  ) => {
+    if (isStaleSearch(requestId, abortController)) return;
+    const timing = getSearchTiming(requestId);
+    if (!timing) return;
+    markSearchPhase(timing, 'enrichment-end');
+    measureSearchPhase(timing, 'submit-to-enrichment', 'submit', 'enrichment-end');
+    timing.enrichmentDone = true;
+    completeSearchTiming(requestId);
+  };
+
+  useEffect(() => {
+    if (publishedRequestId === null) return;
+    const timing = getSearchTiming(publishedRequestId);
+    if (!timing || isStaleSearch(publishedRequestId, timing.abortController)) return;
+    timing.listCommitMarked = true;
+    markSearchPhase(timing, 'list-commit');
+    scheduleListFrame(publishedRequestId, timing.abortController);
+  // The publication ID is the only reactive input; timing and lifetime refs
+  // are intentionally read at the post-commit boundary.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishedRequestId]);
+
+  const startGraphRequest = (parentSignal: AbortSignal): AbortController => {
+    graphAbortCleanupRef.current?.();
+    graphAbortCleanupRef.current = null;
+    graphAbortRef.current?.abort();
+
+    const graphController = new AbortController();
+    const abortFromParent = () => graphController.abort();
+    if (parentSignal.aborted) {
+      graphController.abort();
+    } else {
+      parentSignal.addEventListener('abort', abortFromParent);
+      graphAbortCleanupRef.current = () => {
+        parentSignal.removeEventListener('abort', abortFromParent);
+      };
+    }
+    graphAbortRef.current = graphController;
+    return graphController;
+  };
+
+  const finishGraphRequest = (graphController: AbortController) => {
+    if (graphAbortRef.current !== graphController) return;
+    graphAbortCleanupRef.current?.();
+    graphAbortCleanupRef.current = null;
+    graphAbortRef.current = null;
+  };
+
   const enrichSearchResults = async (
     requestId: number,
     abortController: AbortController,
@@ -233,15 +448,25 @@ function SearchPage() {
     let latestGraphRequest = 0;
     const applyGraphData = async (papersToGraph: Paper[]) => {
       const graphRequest = ++latestGraphRequest;
+      const graphController = startGraphRequest(abortController.signal);
       try {
-        const graph = await getGraphData(JSON.stringify(papersToGraph));
-        if (!isStaleSearch(requestId, abortController) && graphRequest === latestGraphRequest) {
+        const graph = await getGraphData(JSON.stringify(papersToGraph), graphController.signal);
+        if (
+          !isStaleSearch(requestId, abortController)
+          && !graphController.signal.aborted
+          && graphRequest === latestGraphRequest
+        ) {
           setGraphData(graph);
+          const timing = getSearchTiming(requestId);
+          markSearchPhase(timing, 'graph-end');
+          measureSearchPhase(timing, 'submit-to-graph', 'submit', 'graph-end');
         }
       } catch (error) {
-        if (!isStaleSearch(requestId, abortController)) {
+        if (!isStaleSearch(requestId, abortController) && !graphController.signal.aborted) {
           console.warn('Graph enrichment failed:', error);
         }
+      } finally {
+        finishGraphRequest(graphController);
       }
     };
 
@@ -257,7 +482,7 @@ function SearchPage() {
       }));
 
       try {
-        const { references } = await fetchBatchReferences(topPapers);
+        const { references } = await fetchBatchReferences(topPapers, abortController.signal);
         if (isStaleSearch(requestId, abortController) || references.length === 0) return;
 
         const existingKeys = new Set(basePapers.map(p => p.result_key ?? p.doc_id));
@@ -303,6 +528,7 @@ function SearchPage() {
     } finally {
       if (!isStaleSearch(requestId, abortController)) {
         setEnrichmentLoading(false);
+        finishEnrichmentTiming(requestId, abortController);
       }
     }
   };
@@ -313,14 +539,22 @@ function SearchPage() {
     setAttemptedQuery(searchQuery);
     const impressionId = newImpressionId();
     setSearchId(impressionId);
-    searchRequestIdRef.current += 1;
+    invalidateSearchLifetime();
     const requestId = searchRequestIdRef.current;
-
-    if (searchAbortRef.current) {
-      searchAbortRef.current.abort();
-    }
     const abortController = new AbortController();
     searchAbortRef.current = abortController;
+    const timing: SearchTiming = {
+      prefix: `search.${requestId}`,
+      abortController,
+      marks: new Set(),
+      measures: new Set(),
+      frameCleanup: null,
+      framePending: false,
+      listCommitMarked: false,
+      enrichmentDone: false,
+    };
+    searchTimingsRef.current.set(requestId, timing);
+    markSearchPhase(timing, 'submit');
 
     setGuidanceMessage(null);
     setGuidanceSticky(false);
@@ -335,6 +569,7 @@ function SearchPage() {
     }, 500);
 
     try {
+      markSearchPhase(timing, 'api-start');
       const results = await searchPapers({
         query: searchQuery,
         max_results: 50,
@@ -342,8 +577,13 @@ function SearchPage() {
         sort_by: 'relevance',
         use_llm_search: false,
       }, abortController.signal);
+      markSearchPhase(timing, 'api-end');
+      measureSearchPhase(timing, 'api', 'api-start', 'api-end');
 
-      if (isStaleSearch(requestId, abortController)) return;
+      if (isStaleSearch(requestId, abortController)) {
+        cleanupSearchTiming(requestId);
+        return;
+      }
 
       setQueryHash(results.query_hash || '');
 
@@ -365,6 +605,8 @@ function SearchPage() {
         setSelectedPapersForReview(new Set());
         setQuery('');
         setLoading(false);
+        setPublishedRequestId(requestId);
+        finishEnrichmentTiming(requestId, abortController);
         trackSearchEvent(searchQuery, 'non_academic', 0, source, { searchId: impressionId });
         return;
       }
@@ -409,6 +651,7 @@ function SearchPage() {
 
       setPapers(allPapers);
       setGraphData(null);
+      setPublishedRequestId(requestId);
       trackSearchEvent(searchQuery, allPapers.length > 0 ? 'success' : 'empty', allPapers.length, source,
         { searchId: impressionId, rankingVariant: variant });
 
@@ -419,12 +662,21 @@ function SearchPage() {
       } else {
         setSelectedPaper(null);
         setSelectedPapersForReview(new Set());
+        finishEnrichmentTiming(requestId, abortController);
       }
     } catch (error: any) {
       clearTimeout(loadingTimer);
+      markSearchPhase(timing, 'api-end');
+      measureSearchPhase(timing, 'api', 'api-start', 'api-end');
 
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
-      if (isStaleSearch(requestId, abortController)) return;
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        cleanupSearchTiming(requestId);
+        return;
+      }
+      if (isStaleSearch(requestId, abortController)) {
+        cleanupSearchTiming(requestId);
+        return;
+      }
 
       console.error('Search error:', error);
 
@@ -447,6 +699,8 @@ function SearchPage() {
       setGraphData(null);
       setSelectedPaper(null);
       setSelectedPapersForReview(new Set());
+      setPublishedRequestId(requestId);
+      finishEnrichmentTiming(requestId, abortController);
       trackSearchEvent(searchQuery, 'error', 0, source, { searchId: impressionId });
     } finally {
       clearTimeout(loadingTimer);

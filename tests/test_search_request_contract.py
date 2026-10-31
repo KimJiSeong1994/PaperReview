@@ -674,3 +674,189 @@ async def test_late_rank_worker_cannot_mutate_published_partial(runtime, monkeyp
         release.set()
     assert finished.wait(1)
     assert response.results["arxiv"][0]["title"] == "Before"
+
+
+@pytest.mark.asyncio
+async def test_search_timings_split_cache_finalize_and_handoff(runtime):
+    async def search(query, filters):
+        return {"arxiv": [{"title": "Timed result", "doi": "10.1234/timed"}]}
+
+    runtime.async_search_with_filters = search
+    response = await rs.search_papers(
+        rs.SearchRequest(
+            query="10.1234/timing-contract",
+            sources=["arxiv"],
+            save_papers=False,
+        ),
+        None,
+    )
+
+    timings = response.stage_timings
+    assert timings is not None
+    assert {
+        "search_cache_read",
+        "search_cache_write",
+        "search_finalize",
+        "search_handoff",
+        "search_cache_io",
+        "total",
+    } <= set(timings)
+    assert all(elapsed >= 0 for elapsed in timings.values())
+    assert "10.1234/timing-contract" not in timings
+    assert rs._set_cache.call_count == 1
+    assert rs._persist_last_search.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_timing_keeps_read_and_finalize_separate(runtime, monkeypatch):
+    monkeypatch.setattr(
+        rs,
+        "_get_cached_result",
+        lambda *args, **kwargs: {
+            "arxiv": [{"title": "Cached", "doi": "10.1234/cached"}],
+            "_metadata": {},
+        },
+    )
+    response = await rs.search_papers(
+        rs.SearchRequest(
+            query="cached timing",
+            sources=["arxiv"],
+            save_papers=False,
+        ),
+        None,
+    )
+
+    timings = response.stage_timings
+    assert response.cache_hit is True
+    assert timings is not None
+    assert timings["search_cache_read"] >= 0
+    assert timings["search_finalize"] >= 0
+    assert "search_cache_write" not in timings
+    assert "search_handoff" not in timings
+    assert "search_cache_io" in timings
+
+
+def test_graphrag_seed_expansion_avoids_embedding_index_load(monkeypatch):
+    import networkx as nx
+    from src.graph_rag import search_engine
+
+    graph = nx.MultiDiGraph()
+    graph.add_node("seed", title="Seed")
+    graph.add_node("neighbor", title="Neighbor", abstract="related")
+    graph.add_edge("seed", "neighbor", edge_type="CITES")
+    monkeypatch.setattr(rs, "_load_graph_cached", lambda: graph)
+    loader = MagicMock(side_effect=AssertionError("graph-only expansion loaded FAISS"))
+    fallback = MagicMock(side_effect=AssertionError("seed expansion used fallback"))
+    monkeypatch.setattr(search_engine.SearchEngine, "load_embeddings", loader)
+    monkeypatch.setattr(search_engine.SearchEngine, "_keyword_fallback", fallback)
+
+    expanded = rs._graphrag_expand(
+        "unrelated query", [{"title": "Seed"}], max_expand=5
+    )
+
+    assert [paper["title"] for paper in expanded] == ["Neighbor"]
+    loader.assert_not_called()
+    fallback.assert_not_called()
+
+
+def test_graphrag_keyword_fallback_keeps_graph_only_results(monkeypatch):
+    import networkx as nx
+    from src.graph_rag import search_engine
+
+    graph = nx.MultiDiGraph()
+    graph.add_node(
+        "fallback",
+        title="Fallback Candidate",
+        abstract="graph retrieval",
+    )
+    monkeypatch.setattr(rs, "_load_graph_cached", lambda: graph)
+    loader = MagicMock(side_effect=AssertionError("graph-only fallback loaded FAISS"))
+    monkeypatch.setattr(search_engine.SearchEngine, "load_embeddings", loader)
+
+    expanded = rs._graphrag_expand(
+        "graph retrieval", [{"title": "Missing seed"}], max_expand=5
+    )
+
+    assert [paper["title"] for paper in expanded] == ["Fallback Candidate"]
+    loader.assert_not_called()
+
+
+def test_graphrag_missing_graph_is_a_graceful_noop(monkeypatch, tmp_path):
+    missing_path = tmp_path / "missing_graph.pkl"
+    monkeypatch.setattr(rs, "_GRAPH_PATH", missing_path)
+    monkeypatch.setattr(rs, "_cached_graph", None)
+    monkeypatch.setattr(rs, "_cached_graph_mtime", 0.0)
+
+    assert rs._load_graph_cached() is None
+    assert rs._graphrag_expand("graph retrieval", [{"title": "Seed"}]) == []
+
+
+def test_graph_cache_refreshes_when_pickle_mtime_changes(monkeypatch, tmp_path):
+    import os
+    import pickle
+    import networkx as nx
+
+    graph_path = tmp_path / "paper_graph.pkl"
+    monkeypatch.setattr(rs, "_GRAPH_PATH", graph_path)
+    monkeypatch.setattr(rs, "_cached_graph", None)
+    monkeypatch.setattr(rs, "_cached_graph_mtime", 0.0)
+
+    first = nx.MultiDiGraph()
+    first.add_node("first", title="First")
+    second = nx.MultiDiGraph()
+    second.add_node("second", title="Second")
+
+    with graph_path.open("wb") as handle:
+        pickle.dump(first, handle)
+    os.utime(graph_path, ns=(1_000_000_000, 1_000_000_000))
+    loaded_first = rs._load_graph_cached()
+    assert loaded_first is not None
+    assert set(loaded_first.nodes) == {"first"}
+    assert rs._load_graph_cached() is loaded_first
+
+    with graph_path.open("wb") as handle:
+        pickle.dump(second, handle)
+    os.utime(graph_path, ns=(2_000_000_000, 2_000_000_000))
+    loaded_second = rs._load_graph_cached()
+
+    assert loaded_second is not loaded_first
+    assert set(loaded_second.nodes) == {"second"}
+
+
+def test_graphrag_does_not_open_embedding_mapping_file(monkeypatch, tmp_path):
+    import builtins
+    import os
+    import pickle
+    import networkx as nx
+
+    graph_path = tmp_path / "paper_graph.pkl"
+    graph = nx.MultiDiGraph()
+    graph.add_node("seed", title="Seed")
+    graph.add_node("neighbor", title="Neighbor", abstract="related")
+    graph.add_edge("seed", "neighbor", edge_type="CITES")
+    with graph_path.open("wb") as handle:
+        pickle.dump(graph, handle)
+
+    monkeypatch.setattr(rs, "_GRAPH_PATH", graph_path)
+    monkeypatch.setattr(rs, "_cached_graph", None)
+    monkeypatch.setattr(rs, "_cached_graph_mtime", 0.0)
+    opened_paths = []
+    real_open = builtins.open
+
+    def tracking_open(path, *args, **kwargs):
+        normalized = os.fspath(path)
+        opened_paths.append(normalized)
+        assert os.path.basename(normalized) != "paper_id_mapping.json"
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", tracking_open)
+
+    expanded = rs._graphrag_expand(
+        "unrelated query", [{"title": "Seed"}], max_expand=5
+    )
+
+    assert [paper["title"] for paper in expanded] == ["Neighbor"]
+    assert os.fspath(graph_path) in opened_paths
+    assert all(
+        os.path.basename(path) != "paper_id_mapping.json" for path in opened_paths
+    )

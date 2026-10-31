@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import { fetchBatchReferences, getGraphData, searchPapers, startDeepReview } from '../api/client';
+import { api } from '../api/base';
+import {
+  fetchBatchReferences as fetchBatchReferencesRequest,
+  getGraphData as getGraphDataRequest,
+} from '../api/search';
 import { trackPaperSelect, trackSearchEvent } from '../analytics/events';
 import { useDeepReview } from '../hooks/useDeepReview';
 import type { PaperReference } from '../api/search';
@@ -66,8 +71,12 @@ vi.mock('../api/client', async () => {
 });
 
 vi.mock('../hooks/useDeepReview', () => ({ useDeepReview: vi.fn() }));
+const authState = vi.hoisted(() => ({
+  isAuthenticated: true,
+  setShowLoginModal: vi.fn(),
+}));
 vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({ isAuthenticated: true, setShowLoginModal: vi.fn() }),
+  useAuth: () => authState,
 }));
 vi.mock('../analytics/events', () => ({
   trackBookmarkSave: vi.fn(),
@@ -84,6 +93,16 @@ vi.mock('../analytics/events', () => ({
 
 function paper(docId: string, title: string, rank?: number) {
   return { doc_id: docId, title, authors: ['A. Researcher'], year: 2026, abstract: 'a', _rank: rank };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 async function submitSearch(query: string) {
@@ -105,9 +124,36 @@ function relatedBadges(container: HTMLElement): string[] {
   );
 }
 
+describe('search API cancellation signals', () => {
+  it('passes the provided signal through to graph and reference requests', async () => {
+    const signal = new AbortController().signal;
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { nodes: [], edges: [] } } as never);
+    try {
+      await getGraphDataRequest('[]', signal);
+      await fetchBatchReferencesRequest([], signal);
+
+      expect(post).toHaveBeenNthCalledWith(
+        1,
+        '/api/graph-data',
+        { papers_json: '[]' },
+        { signal },
+      );
+      expect(post).toHaveBeenNthCalledWith(
+        2,
+        '/api/batch-references',
+        { papers: [], max_references: 5 },
+        { signal },
+      );
+    } finally {
+      post.mockRestore();
+    }
+  });
+});
+
 describe('SearchPage result ordering', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.isAuthenticated = true;
     HTMLElement.prototype.scrollIntoView = vi.fn();
     vi.mocked(useDeepReview).mockReturnValue({
       reviewSessionId: null,
@@ -146,6 +192,92 @@ describe('SearchPage result ordering', () => {
       'Arxiv Second',
       'Arxiv Third',
     ]);
+  });
+
+  it('renders the first list before graph and reference enrichment complete', async () => {
+    const graph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: [] }>();
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('first', 'First list result', 0)] },
+      total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockReturnValue(graph.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(references.promise);
+
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('first list');
+
+    expect(renderedTitles(container)).toEqual(['First list result']);
+    expect(screen.getByPlaceholderText('논문 검색')).not.toBeDisabled();
+    expect(getGraphData).toHaveBeenCalledTimes(1);
+    expect(fetchBatchReferences).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      graph.resolve({ nodes: [], edges: [] });
+      references.resolve({ references: [] });
+    });
+  });
+
+  it('marks and schedules list timing after the published list commits', async () => {
+    const graph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: [] }>();
+    const commitSnapshots: string[] = [];
+    const frameSnapshots: string[] = [];
+    const mark = vi.spyOn(globalThis.performance, 'mark').mockImplementation((name: string) => {
+      if (name.endsWith('.list-commit')) {
+        commitSnapshots.push(renderedTitles(document.body).join('|'));
+      }
+      return undefined as unknown as PerformanceMark;
+    });
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => {
+      frameSnapshots.push(renderedTitles(document.body).join('|'));
+      return 1;
+    }));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('committed', 'Committed list result', 0)] },
+      total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockReturnValue(graph.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(references.promise);
+
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('post commit timing');
+
+    expect(commitSnapshots).toEqual(['Committed list result']);
+    expect(frameSnapshots).toEqual(['Committed list result']);
+    view.unmount();
+    mark.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('publishes empty and error lists through the post-commit timing path', async () => {
+    const commitNames: string[] = [];
+    const frameNames: string[] = [];
+    const mark = vi.spyOn(globalThis.performance, 'mark').mockImplementation((name: string) => {
+      if (name.endsWith('.list-commit')) commitNames.push(name);
+      return undefined as unknown as PerformanceMark;
+    });
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => {
+      frameNames.push('frame');
+      return 1;
+    }));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(searchPapers)
+      .mockResolvedValueOnce({ results: {}, total: 0 })
+      .mockRejectedValueOnce(new Error('empty-path error'));
+
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('empty result');
+    await submitSearch('error result');
+
+    expect(commitNames).toHaveLength(2);
+    expect(frameNames).toHaveLength(2);
+    view.unmount();
+    error.mockRestore();
+    mark.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it('keeps executed queries hidden while rendering returned results', async () => {
@@ -510,7 +642,9 @@ describe('SearchPage result ordering', () => {
       .mockResolvedValueOnce({ results: { arxiv: [paper('new', 'New result', 0)] }, total: 1 });
     const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('old');
+    const oldReferenceSignal = vi.mocked(fetchBatchReferences).mock.calls[0][1] as AbortSignal;
     await submitSearch('new');
+    expect(oldReferenceSignal.aborted).toBe(true);
     fireEvent.click(screen.getByRole('checkbox'));
     await act(async () => {
       resolveOld({ references: [{
@@ -521,6 +655,216 @@ describe('SearchPage result ordering', () => {
     expect(renderedTitles(container)).toEqual(['New result']);
     expect(screen.getByRole('checkbox')).toBeChecked();
     expect(trackSearchEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses a parent signal for references and a replaceable child signal for graphs', async () => {
+    const seedGraph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: PaperReference[] }>();
+    const mergedGraph = deferred<{ nodes: []; edges: [] }>();
+    vi.mocked(searchPapers)
+      .mockResolvedValueOnce({ results: { arxiv: [paper('old', 'Old result', 0)] }, total: 1 })
+      .mockResolvedValueOnce({ results: { arxiv: [paper('new', 'New result', 0)] }, total: 1 });
+    vi.mocked(getGraphData)
+      .mockReturnValueOnce(seedGraph.promise)
+      .mockReturnValueOnce(mergedGraph.promise)
+      .mockResolvedValue({ nodes: [], edges: [] });
+    vi.mocked(fetchBatchReferences)
+      .mockReturnValueOnce(references.promise)
+      .mockResolvedValue({ references: [] });
+
+    const { container, unmount } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('old');
+
+    const parentSignal = vi.mocked(searchPapers).mock.calls[0][1] as AbortSignal;
+    const referenceSignal = vi.mocked(fetchBatchReferences).mock.calls[0][1] as AbortSignal;
+    const seedGraphSignal = vi.mocked(getGraphData).mock.calls[0][1] as AbortSignal;
+    expect(referenceSignal).toBe(parentSignal);
+    expect(seedGraphSignal).toBeInstanceOf(AbortSignal);
+    expect(seedGraphSignal).not.toBe(parentSignal);
+    expect(parentSignal.aborted).toBe(false);
+
+    await act(async () => {
+      references.resolve({
+        references: [{
+          title: 'Merged reference',
+          authors: [],
+          year: '2025',
+          citations: 0,
+          abstract: '',
+          url: '',
+          source: 'reference',
+          paper_id: 'merged-reference',
+        }],
+      });
+    });
+    await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(2));
+    const mergedGraphSignal = vi.mocked(getGraphData).mock.calls[1][1] as AbortSignal;
+    expect(seedGraphSignal.aborted).toBe(true);
+    expect(mergedGraphSignal.aborted).toBe(false);
+
+    await submitSearch('new');
+    expect(parentSignal.aborted).toBe(true);
+    expect(referenceSignal.aborted).toBe(true);
+    expect(mergedGraphSignal.aborted).toBe(true);
+
+    await act(async () => {
+      seedGraph.resolve({ nodes: [], edges: [] });
+      mergedGraph.resolve({ nodes: [], edges: [] });
+    });
+    expect(renderedTitles(container)).toEqual(['New result']);
+    unmount();
+  });
+
+  it('aborts enrichment on authentication lifetime changes and unmount', async () => {
+    const graph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: [] }>();
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('auth', 'Auth result', 0)] }, total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockReturnValue(graph.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(references.promise);
+
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('auth transition');
+    const parentSignal = vi.mocked(searchPapers).mock.calls[0][1] as AbortSignal;
+    const graphSignal = vi.mocked(getGraphData).mock.calls[0][1] as AbortSignal;
+    const referenceSignal = vi.mocked(fetchBatchReferences).mock.calls[0][1] as AbortSignal;
+    expect(screen.getByText('관계를 확장하는 중')).toBeInTheDocument();
+
+    authState.isAuthenticated = false;
+    await act(async () => {
+      view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
+    });
+    expect(parentSignal.aborted).toBe(true);
+    expect(graphSignal.aborted).toBe(true);
+    expect(referenceSignal.aborted).toBe(true);
+    expect(screen.queryByText('그래프 준비 완료')).not.toBeInTheDocument();
+    expect(screen.queryByText('관계를 확장하는 중')).not.toBeInTheDocument();
+
+    const graphCallCount = vi.mocked(getGraphData).mock.calls.length;
+    authState.isAuthenticated = true;
+    await act(async () => {
+      view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
+    });
+    expect(getGraphData).toHaveBeenCalledTimes(graphCallCount);
+
+    view.unmount();
+    await act(async () => {
+      graph.resolve({ nodes: [], edges: [] });
+      references.resolve({ references: [] });
+    });
+  });
+
+  it('clears the primary loading state when auth changes mid-search', async () => {
+    const search = deferred<{ results: Record<string, never>; total: number }>();
+    vi.mocked(searchPapers).mockReturnValue(search.promise as never);
+
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: 'mid-search logout' } });
+      fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
+    });
+    await waitFor(() => expect(screen.getByText('집현전 서고 탐색 중')).toBeInTheDocument());
+
+    authState.isAuthenticated = false;
+    await act(async () => {
+      view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
+    });
+    expect(screen.queryByText('집현전 서고 탐색 중')).not.toBeInTheDocument();
+    const searchButton = screen.getByRole('button', { name: '논문 검색' });
+    expect(searchButton).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
+      target: { value: 'fresh auth query' },
+    });
+    expect(screen.getByRole('button', { name: '논문 검색' })).not.toBeDisabled();
+
+    view.unmount();
+    await act(async () => {
+      search.resolve({ results: {}, total: 0 });
+    });
+  });
+
+  it('clears authenticated search state across logout and login on the same page', async () => {
+    const graph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: [] }>();
+    vi.mocked(searchPapers).mockResolvedValue({
+      query_hash: 'alpha-hash',
+      stage_modes: { ranking_variant: 'alpha-variant' },
+      results: { arxiv: [paper('alpha', 'Authenticated alpha', 0)] },
+      total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockReturnValue(graph.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(references.promise);
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    const { container } = view;
+    await submitSearch('alpha');
+    expect(renderedTitles(container)).toEqual(['Authenticated alpha']);
+    expect(screen.getByDisplayValue('alpha')).toBeInTheDocument();
+
+    authState.isAuthenticated = false;
+    await act(async () => {
+      view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
+    });
+    expect(renderedTitles(container)).toEqual([]);
+    expect(screen.getByPlaceholderText('논문 검색')).toHaveValue('');
+    expect(screen.queryByText('관계를 확장하는 중')).not.toBeInTheDocument();
+
+    authState.isAuthenticated = true;
+    await act(async () => {
+      view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
+    });
+    expect(renderedTitles(container)).toEqual([]);
+    expect(screen.getByPlaceholderText('논문 검색')).toHaveValue('');
+
+    await act(async () => {
+      graph.resolve({ nodes: [], edges: [] });
+      references.resolve({ references: [] });
+    });
+    expect(renderedTitles(container)).toEqual([]);
+    view.unmount();
+  });
+
+  it('keeps the primary list when graph and reference enrichment fail', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('failed', 'Primary result survives', 0)] }, total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockRejectedValue(new Error('graph failed'));
+    vi.mocked(fetchBatchReferences).mockRejectedValue(new Error('references failed'));
+
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('failed enrichment');
+
+    await waitFor(() => expect(screen.getByText('그래프 준비 완료')).toBeInTheDocument());
+    expect(renderedTitles(container)).toEqual(['Primary result survives']);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it('aborts the active search and enrichment lifetimes on unmount', async () => {
+    const graph = deferred<{ nodes: []; edges: [] }>();
+    const references = deferred<{ references: [] }>();
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { arxiv: [paper('unmount', 'Unmount result', 0)] }, total: 1,
+    } as never);
+    vi.mocked(getGraphData).mockReturnValue(graph.promise);
+    vi.mocked(fetchBatchReferences).mockReturnValue(references.promise);
+
+    const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('unmount');
+    const parentSignal = vi.mocked(searchPapers).mock.calls[0][1] as AbortSignal;
+    const graphSignal = vi.mocked(getGraphData).mock.calls[0][1] as AbortSignal;
+    const referenceSignal = vi.mocked(fetchBatchReferences).mock.calls[0][1] as AbortSignal;
+
+    view.unmount();
+    expect(parentSignal.aborted).toBe(true);
+    expect(graphSignal.aborted).toBe(true);
+    expect(referenceSignal.aborted).toBe(true);
+
+    await act(async () => {
+      graph.resolve({ nodes: [], edges: [] });
+      references.resolve({ references: [] });
+    });
   });
 
   it('graph clicks resolve exact result identity, not colliding title or storage ID', () => {
