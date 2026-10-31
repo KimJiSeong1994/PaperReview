@@ -6,7 +6,7 @@ import { searchPapers } from '../api/client';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const authState = vi.hoisted(() => ({ isAuthenticated: true, setShowLoginModal: vi.fn() }));
+const authState = vi.hoisted(() => ({ isAuthenticated: false, setShowLoginModal: vi.fn() }));
 
 vi.mock('../api/client', async () => {
   const reviewApi = await vi.importActual<typeof import('../api/review')>('../api/review');
