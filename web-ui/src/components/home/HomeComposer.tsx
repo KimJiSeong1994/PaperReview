@@ -70,21 +70,15 @@ function HomeComposer({
       />
       <div className="home-composer-row">
         <Link className="home-attach" to="/paper-viewer">
-          <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
-            <path d="M4 1.75h5.25L12.5 5v9.25H4z M9 1.75V5.25h3.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-          </svg>
-          PDF 열기
+          <span aria-hidden="true">📎</span> PDF 열기
         </Link>
-        <span className="home-composer-hint" aria-hidden="true"><kbd>Enter</kbd> 검색 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 줄바꿈</span>
         <button
           type="submit"
           className="home-send"
           aria-label="논문 검색"
           disabled={!query.trim()}
         >
-          <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
-            <path d="M8 13V3.5M4 7l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <span aria-hidden="true">↑</span>
         </button>
       </div>
       {guidanceMessage && (

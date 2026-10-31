@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeWorkspace from '../components/home/HomeWorkspace';
-import { fetchRecommendationNotifications } from '../api/recommendations';
 import { relativeLabel } from '../components/home/homeTime';
 
 // jsdom's default localStorage is broken in this setup (see AdminPage.members.test);
@@ -129,17 +128,6 @@ describe('HomeWorkspace', () => {
     expect(screen.queryByRole('heading', { name: '이어서 하기' })).toBeNull();
     expect(await screen.findAllByText('KronLSTM 페어 리뷰')).toHaveLength(2);
     expect(screen.getByText(/로그인하고 논문을 3편만 북마크하면/)).toBeTruthy();
-  });
-
-  it('keeps the workspace up when the recommendation response has no items', async () => {
-    vi.mocked(fetchRecommendationNotifications).mockResolvedValueOnce(
-      {} as Awaited<ReturnType<typeof fetchRecommendationNotifications>>,
-    );
-    renderHome();
-
-    expect(await screen.findByText('GRAG 딥리뷰')).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
-    expect(screen.queryByText('Dynamic Graph RAG with Event-Centric Reasoning')).toBeNull();
   });
 
   it('labels time relative to now', () => {

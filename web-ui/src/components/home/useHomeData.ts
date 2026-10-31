@@ -85,8 +85,7 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
     const controller = new AbortController();
-    // Same limit as the header bell so the two mounts share one request.
-    fetchRecommendationNotifications(5, controller.signal)
+    fetchRecommendationNotifications(3, controller.signal)
       .then(response => {
         if (controller.signal.aborted) return;
         setRecommendations(response);
