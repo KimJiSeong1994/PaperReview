@@ -151,6 +151,15 @@ def _install_fixture_routes(
         if not path.startswith("/api/"):
             route.continue_()
             return
+        if path == "/api/auth/verify":
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {"valid": True, "username": "fixture-user", "role": "user"}
+                ),
+            )
+            return
         if path == "/api/search":
             requests.append({"path": path, "status": search_status})
             if search_status >= 400:
@@ -323,7 +332,13 @@ def _open_fixture_search(
 ):
     context = browser.new_context(viewport=viewport, device_scale_factor=1)
     page = context.new_page()
-    page.add_init_script("localStorage.clear();")
+    # Search is a signed-in feature; start every run with a fixture session
+    # that /api/auth/verify (routed below) accepts.
+    page.add_init_script(
+        "localStorage.clear();"
+        "localStorage.setItem('access_token', 'fixture-token');"
+        "localStorage.setItem('username', 'fixture-user');"
+    )
     api_requests = _install_fixture_routes(
         page,
         graph_status=graph_status,

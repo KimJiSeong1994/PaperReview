@@ -75,6 +75,7 @@ function renderHome() {
 describe('homepage landing content', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.isAuthenticated = false;
     window.scrollTo = vi.fn();
     vi.mocked(searchPapers).mockResolvedValue({ results: {}, total: 0 } as never);
   });
@@ -90,6 +91,7 @@ describe('homepage landing content', () => {
   // A task row exists to start work, so the wiring is the whole point: the
   // comparison row must call handleSearch directly because we are already on "/".
   it('runs the comparison query when its task row is clicked', async () => {
+    authState.isAuthenticated = true;
     renderHome();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /GraphRAG와 기존 RAG, 무엇이 달라졌는지 비교 리뷰/ }));
@@ -101,6 +103,7 @@ describe('homepage landing content', () => {
   });
 
   it('submits the composer with Enter and keeps Shift+Enter for a new line', async () => {
+    authState.isAuthenticated = true;
     renderHome();
     const box = screen.getByRole('textbox', { name: '논문 검색' });
     await act(async () => {
@@ -123,9 +126,32 @@ describe('homepage landing content', () => {
     );
   });
 
-  it('says search needs no login, and offers a way to read more', () => {
+  // Search is a signed-in feature: a guest submission opens the login dialog,
+  // sends nothing, and keeps the query so it can run right after sign-in.
+  it('asks guests to sign in instead of searching, then replays the query', async () => {
+    const { rerender } = renderHome();
+    const box = screen.getByRole('textbox', { name: '논문 검색' });
+    await act(async () => {
+      fireEvent.change(box, { target: { value: '그래프 신경망' } });
+      fireEvent.keyDown(box, { key: 'Enter' });
+    });
+    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+    expect(searchPapers).not.toHaveBeenCalled();
+
+    authState.isAuthenticated = true;
+    await act(async () => {
+      rerender(
+        <MemoryRouter initialEntries={['/']}>
+          <SearchPage />
+        </MemoryRouter>,
+      );
+    });
+    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({ query: '그래프 신경망' });
+  });
+
+  it('says search needs sign-in, and offers a way to read more', () => {
     renderHome();
-    expect(screen.getByText('검색은 로그인 없이 바로 시작할 수 있습니다.')).toBeTruthy();
+    expect(screen.getByText('검색은 로그인 후 이용할 수 있어요. 공개 리뷰는 바로 읽을 수 있습니다.')).toBeTruthy();
     expect(
       screen.getByRole('link', { name: /집현전 사용법 자세히 보기/ }).getAttribute('href'),
     ).toBe('/ko/introduce/');
