@@ -40,7 +40,10 @@ router = APIRouter(prefix="/api/blog", tags=["blog"])
 # Hangul, Kana, and CJK ideographs — scripts written without spaces.
 _CJK_RE = re.compile(r"[가-힣぀-ヿ一-鿿]")
 
-BLOG_DIR = Path("data/blog")
+# Content root: posts.json + figures/. Defaults to the in-repo copy; production
+# points BLOG_CONTENT_DIR at the jiphyeonjeon-content checkout kept current by
+# scripts/sync_blog_content.py (see docs/content-repo-sync.md).
+BLOG_DIR = Path(os.environ.get("BLOG_CONTENT_DIR") or "data/blog")
 
 # Posts without a real cover carry this placeholder; the list page prefers a
 # neutral ground over 37 identical images, so it is treated as "no thumbnail".

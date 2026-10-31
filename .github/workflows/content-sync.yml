@@ -1,0 +1,40 @@
+name: content-sync
+# Triggered by jiphyeonjeon-content (repository_dispatch: content-updated) or by
+# hand. Pulls the content checkout on the server and rebuilds posts.json; the
+# app serves the new content on the next request. Separate from the release
+# pipeline on purpose: no code changes, no restart.
+on:
+  repository_dispatch:
+    types: [content-updated]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: content-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull content and rebuild the posts index on the server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash -s' <<'SCRIPT'
+          set -euo pipefail
+          APP_ROOT="$HOME/PaperReviewAgent"
+          CONTENT_DIR="${BLOG_CONTENT_DIR:-$HOME/jiphyeonjeon-content}"
+          test -d "$CONTENT_DIR/.git"
+          "$APP_ROOT/venv/bin/python" "$APP_ROOT/scripts/sync_blog_content.py" --content-dir "$CONTENT_DIR"
+          curl -fsS "http://127.0.0.1:8000/api/blog/posts?limit=1" > /dev/null
+          SCRIPT
