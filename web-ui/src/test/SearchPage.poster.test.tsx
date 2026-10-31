@@ -93,18 +93,6 @@ async function deauthenticate(rerender: (ui: ReactElement) => void) {
   });
 }
 
-/** The next user signs in on the same mounted page; search needs that now. */
-async function reauthenticate(rerender: (ui: ReactElement) => void) {
-  authState.isAuthenticated = true;
-  await act(async () => {
-    rerender(
-      <MemoryRouter initialEntries={['/']}>
-        <SearchPage />
-      </MemoryRouter>,
-    );
-  });
-}
-
 async function selectFirstPaper() {
   await act(async () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /리뷰 선택/ }));
@@ -284,7 +272,6 @@ describe('Poster survives closing the modal', () => {
 
     expect(screen.queryByRole('button', { name: /tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument();
-    await reauthenticate(rerender);
     await submitSearch('fresh search after logout');
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
@@ -319,7 +306,6 @@ describe('Poster survives closing the modal', () => {
     await deauthenticate(rerender);
 
     expect(screen.queryByRole('checkbox', { name: /리뷰 선택/ })).not.toBeInTheDocument();
-    await reauthenticate(rerender);
     await submitSearch('fresh search after logout');
     expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).not.toBeChecked();
   });

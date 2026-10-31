@@ -7,7 +7,7 @@ import { searchPapers } from '../api/client';
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({
-  isAuthenticated: true,
+  isAuthenticated: false,
   setShowLoginModal: vi.fn(),
 }));
 
