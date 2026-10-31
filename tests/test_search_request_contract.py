@@ -759,6 +759,65 @@ def test_graphrag_seed_expansion_avoids_embedding_index_load(monkeypatch):
     fallback.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "seed",
+    [
+        {"title": "DOI Seed", "doi": "https://doi.org/10.1234/SEED"},
+        {"title": "Graph-RAG: 한글 검색"},
+        {"title": "A long graph paper title " * 8},
+        {"title": "", "doi": "10.1234/titleless"},
+    ],
+)
+def test_graphrag_uses_graph_builder_identity(monkeypatch, seed):
+    import networkx as nx
+    from src.graph.node_creator import NodeCreator
+    from src.graph_rag import search_engine
+
+    node = NodeCreator().create_node(seed)
+    graph = nx.MultiDiGraph()
+    graph.add_node(node["node_id"], **node)
+    graph.add_node("neighbor", title="Neighbor", abstract="related")
+    graph.add_edge(node["node_id"], "neighbor", edge_type="CITES")
+    monkeypatch.setattr(rs, "_load_graph_cached", lambda: graph)
+    fallback = MagicMock(side_effect=AssertionError("known seed used keyword scan"))
+    monkeypatch.setattr(search_engine.SearchEngine, "_keyword_fallback", fallback)
+
+    expanded = rs._graphrag_expand("unrelated query", [seed], max_expand=5)
+
+    assert [paper["title"] for paper in expanded] == ["Neighbor"]
+    fallback.assert_not_called()
+
+
+def test_graphrag_excludes_existing_canonical_ids_and_keeps_order(monkeypatch):
+    import networkx as nx
+    from src.graph_rag import search_engine
+    from src.utils.paper_utils import generate_paper_id
+
+    seed = {"title": "Seed", "doi": "10.1234/seed"}
+    existing = {"title": "Existing", "doi": "10.1234/existing"}
+    seed_id = generate_paper_id(seed)
+    existing_id = generate_paper_id(existing)
+    graph = nx.MultiDiGraph()
+    graph.add_node(seed_id, **seed)
+    graph.add_node(existing_id, **existing)
+    graph.add_node("first", title="First")
+    graph.add_node("second", title="Second")
+    graph.add_node("third", title="Third")
+    monkeypatch.setattr(rs, "_load_graph_cached", lambda: graph)
+    expand = MagicMock(
+        return_value=[seed_id, existing_id, "second", "second", "first", "third"]
+    )
+    monkeypatch.setattr(search_engine.SearchEngine, "expand_graph", expand)
+
+    expanded = rs._graphrag_expand(
+        "unrelated query", [seed, dict(seed), existing], max_expand=2
+    )
+
+    assert [paper["title"] for paper in expanded] == ["Second", "First"]
+    assert expand.call_args.args[0] == [seed_id, existing_id]
+    assert expand.call_args.kwargs["max_expanded"] == 4
+
+
 def test_graphrag_keyword_fallback_keeps_graph_only_results(monkeypatch):
     import networkx as nx
     from src.graph_rag import search_engine
