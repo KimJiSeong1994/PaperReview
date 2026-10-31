@@ -21,13 +21,17 @@ import logging
 from pathlib import Path
 
 import jwt as _pyjwt
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel
 from starlette.requests import Request
 
 from .deps import limiter, _JWT_SECRET, _JWT_ALGORITHM
 from .deps import user_deletion
+from .deps.storage import _get_user_db, review_sessions
 from .deps.user_deletion import DeleteResult, delete_user_cascade
 from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
+from src.storage.bookmark_db import bookmark_belongs_to_account
+from src.storage.user_db import AccountLifecycleError
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +101,80 @@ async def delete_all(
     if not result.deleted:
         response.status_code = 503 if result.retryable else 409
     return result
+
+
+# ── My deep-review sessions (home "이어서 하기") ───────────────────────
+
+
+class ReviewSessionSummary(BaseModel):
+    """PII-free view of one deep-review session for the owner's home screen."""
+
+    session_id: str
+    status: str
+    progress: str | None = None
+    num_papers: int = 0
+    created_at: str = ""
+    title: str | None = None
+
+
+class ReviewSessionListResponse(BaseModel):
+    sessions: list[ReviewSessionSummary]
+    total: int
+
+
+def _summarize_session(session_id: str, session: dict) -> ReviewSessionSummary:
+    papers = session.get("papers_data")
+    first = papers[0] if isinstance(papers, list) and papers else None
+    title = first.get("title") if isinstance(first, dict) else None
+    paper_ids = session.get("paper_ids")
+    num_papers = session.get("num_papers") or (
+        len(paper_ids) if isinstance(paper_ids, list) else 0
+    )
+    return ReviewSessionSummary(
+        session_id=session_id,
+        status=str(session.get("status") or "unknown"),
+        progress=session.get("progress") or None,
+        num_papers=int(num_papers),
+        created_at=str(session.get("created_at") or ""),
+        title=str(title) if title else None,
+    )
+
+
+@router.get("/review-sessions", response_model=ReviewSessionListResponse)
+async def list_my_review_sessions(
+    limit: int = Query(5, ge=1, le=20),
+    principal: AuthenticatedPrincipal = Depends(get_authenticated_principal),
+) -> ReviewSessionListResponse:
+    """List the caller's deep-review sessions, newest first.
+
+    Ownership uses the same predicate as bookmark attachment
+    (:func:`bookmark_belongs_to_account`), so sessions of other accounts,
+    re-registered usernames, and legacy sentinel sessions never leak.
+    ``total`` counts every owned session; ``sessions`` is capped by ``limit``.
+    """
+    try:
+        with _get_user_db().account_guard(
+            principal.username, principal.account_incarnation
+        ) as account:
+            legacy_event_cutoff = account["legacy_event_cutoff"]
+    except AccountLifecycleError:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled")
+
+    owned = [
+        (session_id, session)
+        for session_id, session in list(review_sessions.items())
+        if bookmark_belongs_to_account(
+            session,
+            username=principal.username,
+            account_incarnation=principal.account_incarnation,
+            legacy_event_cutoff=legacy_event_cutoff,
+        )
+    ]
+    owned.sort(key=lambda item: str(item[1].get("created_at") or ""), reverse=True)
+    return ReviewSessionListResponse(
+        sessions=[_summarize_session(sid, session) for sid, session in owned[:limit]],
+        total=len(owned),
+    )
 
 
 # ── Legacy re-exports (kept for backward compatibility with fixtures) ──

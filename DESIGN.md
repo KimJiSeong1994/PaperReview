@@ -48,6 +48,7 @@
 
 ## Information architecture
 - Primary navigation: Home/search, 소개, Blog, My Page; admin tools appear only for authorized users.
+- Home (`/`): a three-column research workspace rather than a search-engine front page. Signed-in users get a history sidebar (recent searches on this device, their deep-review sessions, curricula, account), one question headline (`오늘은 어떤 논문부터 볼까요?`) over a composer, three verb-first task rows, `이어서 하기` rows built from their own data, and a rail with 오늘의 추천 논문 (reason, freshness, retry on failure) plus the latest public reviews. Signed-out visitors see the same shell with sign-in guidance and public outputs in place of the personal blocks; search stays available without login. Lists are hairline rows, never card grids, and the main column fits one desktop screen.
 - Core routes/screens: `/`, `/introduce`, `/blog`, `/blog/category/:category`, `/blog/series/:seriesId`, `/blog/:slug`, `/mypage`, `/paper-viewer`.
 - `/introduce/` is the canonical public product explanation. Its build artifact must keep
   meaningful Korean fallback content, crawlable internal links, and route-specific
@@ -73,7 +74,7 @@
 - Spacing/layout rhythm: 900–1120px intro canvas, 64–104px section rhythm on desktop, 40–64px on mobile, prose measure near 68ch.
 - Shape/radius/elevation: 10–18px restrained surfaces, 1px translucent borders, quiet shadows; use open editorial rows before cards.
 - Motion: short nonessential hover/focus transitions; honor reduced-motion preferences.
-- Imagery/iconography: hanok/llama assets establish the brand; product diagrams and published artifacts establish trust. Decorative imagery must not obscure text.
+- Imagery/iconography: hanok/llama assets establish the brand; product diagrams and published artifacts establish trust. Decorative imagery must not obscure text. The hanok/llama scene lives on the search loading state, the no-result state, and the introduce page, not on the home's first screen.
 - Academic poster visual contract: default generated posters use a 1600px x 1200px, 4:3 A3 landscape canvas with a 12-column grid, system-only fonts, sentence case, no forced uppercase, no negative letter spacing, and wrapping rules for long Korean/English mixed titles and technical identifiers. Poster palettes stay academic and multi-neutral rather than one-note gradients.
 
 ## Components

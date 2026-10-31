@@ -147,7 +147,7 @@ describe('SEO-sensitive routes', () => {
 
     expect(await screen.findByRole('heading', {
       level: 1,
-      name: /Jiphyeonjeon.*집현전/,
+      name: /오늘은 어떤 논문부터 볼까요/,
     })).toBeInTheDocument();
     expect(screen.getByText('논문을 찾은 뒤, 근거까지 읽습니다.')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();

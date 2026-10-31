@@ -40,6 +40,17 @@ vi.mock('../hooks/useDeepReview', () => ({
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => authState }));
 
+vi.mock('../api/recommendations', () => ({
+  fetchRecommendationNotifications: vi.fn().mockResolvedValue({
+    items: [], unread_count: 0, total_count: 0, latest_run_at: null, run_id: null,
+    scoring_mode: null, state: 'idle', freshness: 'fresh', source_statuses: {}, degraded_reasons: [],
+  }),
+}));
+vi.mock('../api/bookmarks', () => ({ getBookmarks: vi.fn().mockResolvedValue([]) }));
+vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
+vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
+vi.mock('../api/blog', () => ({ fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }) }));
+
 vi.mock('../analytics/events', () => ({
   trackBookmarkSave: vi.fn(),
   trackDeepReviewComplete: vi.fn(),
@@ -68,45 +79,47 @@ describe('homepage landing content', () => {
     vi.mocked(searchPapers).mockResolvedValue({ results: {}, total: 0 } as never);
   });
 
-  it('offers four example queries under the search box', () => {
+  it('asks one question over a composer and offers verb-first task rows', () => {
     renderHome();
-    expect(screen.getAllByRole('button', { name: /./ }).length).toBeGreaterThan(0);
-    expect(document.querySelectorAll('.home-chip')).toHaveLength(4);
-    expect(screen.getByRole('list', { name: '예시 검색어' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '검색어' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /비교 리뷰/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /커리큘럼 짜기/ })).toBeTruthy();
   });
 
-  // The chips exist to start a search, so the wiring is the whole point: a chip
-  // that renders but does not search is worse than no chip. IntroducePage routes
-  // the same strings through ?q= because it sits on another route; here we are
-  // already on "/", so the call must go straight to handleSearch.
-  it('runs the query when a chip is clicked', async () => {
+  // A task row exists to start work, so the wiring is the whole point: the
+  // comparison row must call handleSearch directly because we are already on "/".
+  it('runs the comparison query when its task row is clicked', async () => {
     renderHome();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '그래프 신경망' }));
+      fireEvent.click(screen.getByRole('button', { name: /GraphRAG와 기존 RAG, 무엇이 달라졌는지 비교 리뷰/ }));
     });
-    // searchPapers takes (payload, abortSignal), so assert on the payload
-    // rather than the whole argument list.
     expect(searchPapers).toHaveBeenCalledTimes(1);
     expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({
-      query: '그래프 신경망',
+      query: 'GraphRAG와 기존 RAG 비교',
     });
   });
 
-  it('shows one comparison query, not four topic keywords', () => {
+  it('submits the composer with Enter and keeps Shift+Enter for a new line', async () => {
     renderHome();
-    // Verified against QueryAnalyzer.analyze_query: this one classifies as
-    // intent=comparison (conf 0.97) where the bare topic nouns classify as
-    // topic_exploration. It is here to show the corpus answers comparisons,
-    // not because it is faster — nothing reachable through this analyzer is.
-    expect(screen.getByRole('button', { name: 'GraphRAG와 기존 RAG 비교' })).toBeTruthy();
+    const box = screen.getByRole('textbox', { name: '검색어' });
+    await act(async () => {
+      fireEvent.change(box, { target: { value: '그래프 신경망' } });
+      fireEvent.keyDown(box, { key: 'Enter', shiftKey: true });
+    });
+    expect(searchPapers).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.keyDown(box, { key: 'Enter' });
+    });
+    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({ query: '그래프 신경망' });
   });
 
-  it('keeps the brand h1 byte-identical to the pre-hydration copy', () => {
+  it('keeps the h1 byte-identical to the pre-hydration copy', () => {
     renderHome();
     // web-ui/index.html ships this exact H1 before React mounts. If they drift,
     // JS-rendering and non-JS crawlers see different headings for the same URL.
-    expect(document.querySelector('h1.brand-title')?.textContent?.trim()).toBe(
-      'Jiphyeonjeon (집현전)',
+    expect(document.querySelector('h1.home-title')?.textContent?.trim()).toBe(
+      '오늘은 어떤 논문부터 볼까요?',
     );
   });
 
@@ -114,7 +127,7 @@ describe('homepage landing content', () => {
     renderHome();
     expect(screen.getByText('검색은 로그인 없이 바로 시작할 수 있습니다.')).toBeTruthy();
     expect(
-      screen.getByRole('link', { name: '집현전 사용법 자세히 보기' }).getAttribute('href'),
+      screen.getByRole('link', { name: /집현전 사용법 자세히 보기/ }).getAttribute('href'),
     ).toBe('/ko/introduce/');
   });
 });
