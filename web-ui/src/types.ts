@@ -115,6 +115,54 @@ export interface SearchResponse {
   query_hash?: string;
 }
 
+// ── Conversations (home → /c/:id) ─────────────────────────────────────
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updated_at: string;
+  turn_count: number;
+  last_intent: string | null;
+}
+
+export interface SearchResultsBlock {
+  type: 'search_results';
+  query: string;
+  executed_query?: string | null;
+  total: number;
+  query_hash: string;
+  partial: boolean;
+  degraded: string[];
+  papers: Paper[];
+}
+
+export interface GraphBlock {
+  type: 'graph';
+  query_hash: string;
+  graph: GraphData;
+}
+
+export type TurnBlock = SearchResultsBlock | GraphBlock;
+
+export interface ConversationTurn {
+  id: string;
+  seq: number;
+  role: 'user' | 'assistant';
+  content: string;
+  blocks: TurnBlock[];
+  intent: string | null;
+  status: 'done' | 'running' | 'error';
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  turns: ConversationTurn[];
+}
+
 // LightRAG types
 export interface LightRAGQueryRequest {
   query: string;

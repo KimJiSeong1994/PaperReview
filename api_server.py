@@ -467,6 +467,9 @@ app.include_router(topology_router)
 app.include_router(me_router)
 app.include_router(recommendations_router)
 app.include_router(seo_router)
+from routers.conversations import router as conversations_router
+
+app.include_router(conversations_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import {
   fetchBatchReferences,
   classifyPosterError,
   classifyPosterResponse,
+  createConversation,
   downloadPosterPdf,
   generatePoster,
   generatePosterDirect,
@@ -707,11 +708,30 @@ function SearchPage() {
     }
   };
 
+  // The home composer starts a conversation; /?q= and the results bar keep the direct search.
+  const startConversation = async (searchQuery: string) => {
+    const trimmed = searchQuery.trim();
+    // Guests go through handleSearch's sign-in gate, which replays here after login.
+    if (!trimmed || !isAuthenticated) {
+      handleSearch(searchQuery, 'home');
+      return;
+    }
+    rememberRecentSearch(trimmed);
+    try {
+      const created = await createConversation(trimmed);
+      navigate(`/c/${created.id}`, { state: { run: true } });
+    } catch {
+      // ponytail: any create failure falls back to the classic results page, so the home never dead-ends.
+      handleSearch(trimmed, 'home');
+    }
+  };
+
   useEffect(() => {
     const pending = pendingSearchRef.current;
     if (!isAuthenticated || !pending) return;
     pendingSearchRef.current = null;
-    handleSearch(pending.query, pending.source);
+    if (pending.source === 'home') startConversation(pending.query);
+    else handleSearch(pending.query, pending.source);
   // handleSearch is recreated every render; the ref gates the replay.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
@@ -1053,7 +1073,7 @@ function SearchPage() {
       {!loading && papers.length === 0 && !query && (
         <HomeWorkspace
           attemptedQuery={attemptedQuery}
-          onSearch={(nextQuery) => handleSearch(nextQuery, 'home')}
+          onSearch={startConversation}
           guidanceMessage={guidanceMessage}
           guidanceSticky={guidanceSticky}
           onQueryChange={() => setGuidanceMessage(null)}

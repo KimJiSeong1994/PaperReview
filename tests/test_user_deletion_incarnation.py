@@ -564,3 +564,18 @@ def test_stale_admin_principal_cannot_delete_after_actor_recreation(stores):
     result = _delete(s, actor=s.actor)
     assert result.partial_failures == ["account_inactive_or_mismatch"]
     assert s.db.get("alice") is not None
+
+
+def test_conversations_stage_deletes_only_target_user(stores, monkeypatch):
+    from src.storage.conversation_db import ConversationDB
+
+    s = stores
+    conversations = ConversationDB(s.tmp / "conversations.db")
+    monkeypatch.setattr(s.deletion, "_get_conversation_db", lambda: conversations)
+    mine = conversations.create_conversation("alice", s.incarnation, "mine")
+    conversations.append_turn(mine["id"], "user", "hi")
+    conversations.create_conversation("bob", "bob-inc", "theirs")
+    result = _delete(s)
+    assert result.deleted and "conversations" not in result.partial_failures
+    assert conversations.get_conversation(mine["id"], "alice", s.incarnation) is None
+    assert len(conversations.list_conversations("bob", "bob-inc")) == 1

@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeWorkspace from '../components/home/HomeWorkspace';
 import { fetchRecommendationNotifications } from '../api/recommendations';
+import { fetchMyConversations } from '../api/conversations';
+import { fetchMyReviewSessions } from '../api/me';
 import { relativeLabel } from '../components/home/homeTime';
 
 // jsdom's default localStorage is broken in this setup (see AdminPage.members.test);
@@ -52,6 +54,9 @@ vi.mock('../api/me', () => ({
     total: 1,
   }),
 }));
+vi.mock('../api/conversations', () => ({
+  fetchMyConversations: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../api/blog', () => ({
   fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [{ slug: 'kronlstm', title: 'KronLSTM 페어 리뷰' }] } }),
 }));
@@ -73,6 +78,7 @@ function renderHome(onSearch = vi.fn()) {
 
 describe('HomeWorkspace', () => {
   beforeEach(() => {
+    vi.mocked(fetchMyReviewSessions).mockClear();
     authState.isAuthenticated = true;
     localStorage.clear();
     localStorage.setItem('username', 'jiseong');
@@ -86,6 +92,8 @@ describe('HomeWorkspace', () => {
 
     expect(await screen.findByText('GRAG 딥리뷰')).toBeTruthy();
     expect(screen.getByText('진행 중')).toBeTruthy();
+    // The sidebar reuses the home's review list instead of requesting it again.
+    expect(fetchMyReviewSessions).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('link', { name: /GraphRAG 입문/ })).toBeTruthy();
     expect(screen.getByText('jiseong')).toBeTruthy();
 
@@ -100,14 +108,14 @@ describe('HomeWorkspace', () => {
     expect(screen.getByText('북마크 1편 중에서 골라 딥리뷰 만들기')).toBeTruthy();
   });
 
-  it('clears the composer on 새 검색 and toggles the drawer accessibly', async () => {
+  it('clears the composer on 새 대화 and toggles the drawer accessibly', async () => {
     renderHome();
     const box = screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement;
     fireEvent.change(box, { target: { value: 'draft' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '새 검색' }));
+      fireEvent.click(screen.getByRole('button', { name: '새 대화' }));
     });
-    // 새 검색 remounts the composer, so query the fresh box.
+    // 새 대화 remounts the composer, so query the fresh box.
     expect((screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement).value).toBe('');
 
     // Vitest loads the CSS, which hides the drawer button at desktop width; include hidden elements.
@@ -140,6 +148,17 @@ describe('HomeWorkspace', () => {
     expect(await screen.findByText('GRAG 딥리뷰')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
     expect(screen.queryByText('Dynamic Graph RAG with Event-Centric Reasoning')).toBeNull();
+  });
+
+  it('lists saved conversations in the sidebar instead of device searches', async () => {
+    vi.mocked(fetchMyConversations).mockResolvedValueOnce([
+      { id: 'conv-9', title: 'LightRAG 비교', updated_at: new Date().toISOString(), turn_count: 2, last_intent: 'search' },
+    ]);
+    renderHome();
+    const nav = screen.getByRole('navigation', { name: '내 기록' });
+    const link = await within(nav).findByRole('link', { name: /LightRAG 비교/ });
+    expect(link.getAttribute('href')).toBe('/c/conv-9');
+    expect(within(nav).queryByText('graph retrieval augmented generation')).toBeNull();
   });
 
   it('labels time relative to now', () => {

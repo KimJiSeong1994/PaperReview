@@ -21,6 +21,8 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    // This suite drives the results page: a failed conversation create falls back to direct search.
+    createConversation: vi.fn().mockRejectedValue(new Error('conversations unavailable')),
     downloadPosterPdf: vi.fn(),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),

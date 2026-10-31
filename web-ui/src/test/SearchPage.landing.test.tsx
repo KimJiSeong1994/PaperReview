@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
-import { searchPapers } from '../api/client';
+import { createConversation, searchPapers } from '../api/client';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,6 +16,7 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    createConversation: vi.fn(),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
     generatePosterDirect: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock('../api/recommendations', () => ({
 vi.mock('../api/bookmarks', () => ({ getBookmarks: vi.fn().mockResolvedValue([]) }));
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
+vi.mock('../api/conversations', () => ({ fetchMyConversations: vi.fn().mockResolvedValue([]) }));
 vi.mock('../api/blog', () => ({ fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }) }));
 
 vi.mock('../analytics/events', () => ({
@@ -64,12 +66,25 @@ vi.mock('../analytics/events', () => ({
   trackSearchEvent: vi.fn(),
 }));
 
-function renderHome() {
-  return render(
+function ConversationProbe() {
+  const { id } = useParams();
+  const location = useLocation();
+  return <p>{`conversation ${id} run=${String((location.state as { run?: boolean } | null)?.run)}`}</p>;
+}
+
+function routes() {
+  return (
     <MemoryRouter initialEntries={['/']}>
-      <SearchPage />
-    </MemoryRouter>,
+      <Routes>
+        <Route path="/" element={<SearchPage />} />
+        <Route path="/c/:id" element={<ConversationProbe />} />
+      </Routes>
+    </MemoryRouter>
   );
+}
+
+function renderHome() {
+  return render(routes());
 }
 
 describe('homepage landing content', () => {
@@ -78,6 +93,7 @@ describe('homepage landing content', () => {
     authState.isAuthenticated = false;
     window.scrollTo = vi.fn();
     vi.mocked(searchPapers).mockResolvedValue({ results: {}, total: 0 } as never);
+    vi.mocked(createConversation).mockResolvedValue({ id: 'conv-1', title: 't', turn_id: 'turn-1' });
   });
 
   it('asks one question over a composer and offers verb-first task rows', () => {
@@ -89,17 +105,28 @@ describe('homepage landing content', () => {
   });
 
   // A task row exists to start work, so the wiring is the whole point: the
-  // comparison row must call handleSearch directly because we are already on "/".
-  it('runs the comparison query when its task row is clicked', async () => {
+  // comparison row starts a conversation and opens it with the run flag.
+  it('starts a conversation from the comparison task row', async () => {
     authState.isAuthenticated = true;
     renderHome();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /GraphRAG와 기존 RAG, 무엇이 달라졌는지 비교 리뷰/ }));
     });
-    expect(searchPapers).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({
-      query: 'GraphRAG와 기존 RAG 비교',
+    expect(createConversation).toHaveBeenCalledWith('GraphRAG와 기존 RAG 비교');
+    expect(searchPapers).not.toHaveBeenCalled();
+    expect(screen.getByText('conversation conv-1 run=true')).toBeTruthy();
+  });
+
+  it('falls back to the direct results search when the conversation cannot be created', async () => {
+    authState.isAuthenticated = true;
+    vi.mocked(createConversation).mockRejectedValueOnce(new Error('503'));
+    renderHome();
+    const box = screen.getByRole('textbox', { name: '논문 검색' });
+    await act(async () => {
+      fireEvent.change(box, { target: { value: '그래프 신경망' } });
+      fireEvent.keyDown(box, { key: 'Enter' });
     });
+    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({ query: '그래프 신경망' });
   });
 
   it('submits the composer with Enter and keeps Shift+Enter for a new line', async () => {
@@ -110,11 +137,11 @@ describe('homepage landing content', () => {
       fireEvent.change(box, { target: { value: '그래프 신경망' } });
       fireEvent.keyDown(box, { key: 'Enter', shiftKey: true });
     });
-    expect(searchPapers).not.toHaveBeenCalled();
+    expect(createConversation).not.toHaveBeenCalled();
     await act(async () => {
       fireEvent.keyDown(box, { key: 'Enter' });
     });
-    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({ query: '그래프 신경망' });
+    expect(createConversation).toHaveBeenCalledWith('그래프 신경망');
   });
 
   it('keeps the h1 byte-identical to the pre-hydration copy', () => {
@@ -128,7 +155,7 @@ describe('homepage landing content', () => {
 
   // Search is a signed-in feature: a guest submission opens the login dialog,
   // sends nothing, and keeps the query so it can run right after sign-in.
-  it('asks guests to sign in instead of searching, then replays the query', async () => {
+  it('asks guests to sign in instead of searching, then starts the conversation', async () => {
     const { rerender } = renderHome();
     const box = screen.getByRole('textbox', { name: '논문 검색' });
     await act(async () => {
@@ -136,17 +163,15 @@ describe('homepage landing content', () => {
       fireEvent.keyDown(box, { key: 'Enter' });
     });
     expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+    expect(createConversation).not.toHaveBeenCalled();
     expect(searchPapers).not.toHaveBeenCalled();
 
     authState.isAuthenticated = true;
     await act(async () => {
-      rerender(
-        <MemoryRouter initialEntries={['/']}>
-          <SearchPage />
-        </MemoryRouter>,
-      );
+      rerender(routes());
     });
-    expect(vi.mocked(searchPapers).mock.calls[0][0]).toMatchObject({ query: '그래프 신경망' });
+    expect(createConversation).toHaveBeenCalledWith('그래프 신경망');
+    expect(screen.getByText('conversation conv-1 run=true')).toBeTruthy();
   });
 
   it('says search needs sign-in, and offers a way to read more', () => {

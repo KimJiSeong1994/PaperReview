@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchBlogPosts } from '../../api/blog';
 import { getBookmarks } from '../../api/bookmarks';
-import { fetchCurricula } from '../../api/curriculum';
 import { fetchMyReviewSessions, type ReviewSessionSummary } from '../../api/me';
 import {
   fetchRecommendationNotifications,
   type RecommendationNotificationResponse,
 } from '../../api/recommendations';
-import type { CurriculumSummary } from '../curriculum/types';
 import type { Bookmark } from '../mypage/types';
 
 export interface HomeBlogPost {
@@ -20,7 +18,6 @@ export interface HomeData {
   recommendations: RecommendationNotificationResponse | null;
   recommendationsFailed: boolean;
   bookmarks: Bookmark[];
-  curricula: CurriculumSummary[];
   reviewSessions: ReviewSessionSummary[];
   posts: HomeBlogPost[];
   reloadRecommendations: () => void;
@@ -51,7 +48,6 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
   const [recommendations, setRecommendations] = useState<RecommendationNotificationResponse | null>(null);
   const [recommendationsFailed, setRecommendationsFailed] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [curricula, setCurricula] = useState<CurriculumSummary[]>([]);
   const [reviewSessions, setReviewSessions] = useState<ReviewSessionSummary[]>([]);
   const [posts, setPosts] = useState<HomeBlogPost[]>([]);
   const [recommendationKey, setRecommendationKey] = useState(0);
@@ -71,10 +67,6 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
     const controller = new AbortController();
     getBookmarks()
       .then(raw => { if (!controller.signal.aborted) setBookmarks(asBookmarks(raw)); })
-      .catch(() => { /* empty state */ });
-    fetchCurricula()
-      // Preset courses belong to everyone; the sidebar lists only the user's own.
-      .then(response => { if (!controller.signal.aborted) setCurricula((response.curricula ?? []).filter(course => !course.is_preset)); })
       .catch(() => { /* empty state */ });
     fetchMyReviewSessions(5, controller.signal)
       .then(response => { if (!controller.signal.aborted) setReviewSessions(response.sessions ?? []); })
@@ -102,7 +94,6 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
     recommendations: isAuthenticated ? recommendations : null,
     recommendationsFailed: isAuthenticated && recommendationsFailed,
     bookmarks: isAuthenticated ? bookmarks : [],
-    curricula: isAuthenticated ? curricula : [],
     reviewSessions: isAuthenticated ? reviewSessions : [],
     posts,
     reloadRecommendations,

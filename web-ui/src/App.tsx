@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentProps, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, type ComponentProps, type ComponentType } from 'react';
 import { Link, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
@@ -21,6 +21,7 @@ const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
 const IntroducePage = lazy(() => import('./components/IntroducePage'));
+const ConversationPage = lazy(() => import('./components/conversation/ConversationPage'));
 
 const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
@@ -39,6 +40,19 @@ type BlogComponent = ComponentType<ComponentProps<typeof LazyBlogPage>>;
 function BlogPostRoute({ isAdmin, Page }: { isAdmin: boolean; Page: BlogComponent }) {
   const { slug } = useParams<{ slug: string }>();
   return <Page isAdmin={isAdmin} slug={slug} />;
+}
+
+function ConversationRoute() {
+  const { id = '' } = useParams<{ id: string }>();
+  // One mount per conversation, so its state never leaks into the next one.
+  return <ConversationPage key={id} id={id} />;
+}
+
+/** Conversations are per account: a guest lands on the home with the login dialog open. */
+function SignInRedirect() {
+  const { setShowLoginModal } = useAuth();
+  useEffect(() => setShowLoginModal(true), [setShowLoginModal]);
+  return <Navigate to="/" replace />;
 }
 
 function BlogSeriesRoute() {
@@ -310,6 +324,21 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
           }
         />
         <Route
+          path="/c/:id"
+          element={
+            isAuthenticated ? (
+              <>
+                {header}
+                <Suspense fallback={<div className="app-loading">불러오는 중...</div>}>
+                  <ConversationRoute />
+                </Suspense>
+              </>
+            ) : (
+              <SignInRedirect />
+            )
+          }
+        />
+        <Route
           path="/introduce"
           element={
             <>
@@ -375,8 +404,8 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
           }
         />
       </Routes>
-      {/* The home/search workspace is an app surface; the site footer lives on the introduce, blog and other reading pages. */}
-      {location.pathname !== '/' && <SiteFooter />}
+      {/* The home/search workspace and conversations are app surfaces; the site footer lives on the introduce, blog and other reading pages. */}
+      {location.pathname !== '/' && !location.pathname.startsWith('/c/') && <SiteFooter />}
     </div>
   );
 }

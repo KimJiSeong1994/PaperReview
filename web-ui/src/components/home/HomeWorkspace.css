@@ -99,6 +99,10 @@
   background: var(--wov-04);
 }
 
+.home-row.is-current {
+  background: var(--wov-05);
+}
+
 .home-pick-static {
   cursor: default;
 }
@@ -700,14 +704,14 @@
     z-index: 32;
   }
 
-  .home-shell.is-drawer-open .home-sidebar {
+  .home-shell .home-sidebar.is-open {
     transform: none;
     visibility: visible;
     transition: transform 200ms ease;
     box-shadow: 16px 0 40px rgba(0, 0, 0, 0.35);
   }
 
-  :root[data-theme='light'] .home-shell.is-drawer-open .home-sidebar {
+  :root[data-theme='light'] .home-shell .home-sidebar.is-open {
     box-shadow: 16px 0 40px rgba(15, 23, 42, 0.12);
   }
 
@@ -770,7 +774,7 @@
 @media (prefers-reduced-motion: reduce) {
   .home-shell *,
   .home-shell .home-sidebar,
-  .home-shell.is-drawer-open .home-sidebar {
+  .home-shell .home-sidebar.is-open {
     transition: none;
     animation: none;
   }
