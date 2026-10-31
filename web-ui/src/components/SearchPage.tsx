@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PaperList from './PaperList';
 import DetailPanel from './DetailPanel';
 import SearchBar from './SearchBar';
@@ -18,8 +18,6 @@ import {
 } from '../api/client';
 import type { Paper, GraphData } from '../types';
 import { rankedNeighbors } from './graph/graphPresentation';
-import HomeWorkspace from './home/HomeWorkspace';
-import { rememberRecentSearch } from './home/recentSearches';
 import { useDeepReview } from '../hooks/useDeepReview';
 import { useAuth } from '../contexts/AuthContext';
 import { generateApaCitation } from '../utils/citation';
@@ -54,6 +52,24 @@ const posterPdfErrorMessage = (
     : `PDF 생성 실패: ${reason} — 잠시 후 다시 시도해 주세요.`;
 };
 
+// Four shapes of question this corpus answers, not four topics. A visitor
+// arriving at an empty box has no way to know whether it wants a keyword, a
+// title, or a comparison — these are vocabulary, not decoration. Each string
+// was run through QueryAnalyzer.analyze_query before being chosen:
+//   그래프 신경망               topic_exploration  conf 0.98
+//   LLM 에이전트 논문            topic_exploration  conf 0.93
+//   GraphRAG와 기존 RAG 비교     comparison         conf 0.97
+//   Attention Is All You Need 논문  paper_search   conf 0.99
+// They are NOT chosen for speed. classify_difficulty only returns "easy" for
+// <= 3 keywords, and the analyzer expands every natural query to 5-6, so
+// `hyde_enabled = difficulty !== "easy"` is true for all of them. No chip
+// choice can avoid the slow path; that is a QueryAnalyzer property.
+const HOME_CHIPS = [
+  '그래프 신경망',
+  'LLM 에이전트 논문',
+  'GraphRAG와 기존 RAG 비교',
+  'Attention Is All You Need 논문',
+];
 
 type SearchTiming = {
   prefix: string;
@@ -522,7 +538,6 @@ function SearchPage() {
   const handleSearch = async (searchQuery: string, source: 'home' | 'fixed_bar' | 'url_prefill' = papers.length > 0 || query ? 'fixed_bar' : 'home') => {
     if (!searchQuery.trim()) return;
 
-    rememberRecentSearch(searchQuery);
     setAttemptedQuery(searchQuery);
     const impressionId = newImpressionId();
     setSearchId(impressionId);
@@ -1023,13 +1038,42 @@ function SearchPage() {
   return (
     <main id="main" className="main-content">
       {!loading && papers.length === 0 && !query && (
-        <HomeWorkspace
-          attemptedQuery={attemptedQuery}
-          onSearch={(nextQuery) => handleSearch(nextQuery, 'home')}
-          guidanceMessage={guidanceMessage}
-          guidanceSticky={guidanceSticky}
-          onQueryChange={() => setGuidanceMessage(null)}
-        />
+        <div className="centered-search">
+          <div className="brand-section">
+            {/* Matches the pre-hydration <h1> in web-ui/index.html. React
+                replaces #root on mount, so a bare "Jiphyeonjeon" here meant
+                JS-rendering crawlers saw a different (and Hangul-free) H1 than
+                non-JS ones — and Korean brand queries are "집현전". */}
+            <h1 className="brand-title">
+              Jiphyeonjeon <span className="brand-title-ko">(집현전)</span>
+            </h1>
+            <p className="brand-tagline">논문을 찾은 뒤, 근거까지 읽습니다.</p>
+          </div>
+          <SearchBar
+            key={attemptedQuery}
+            initialQuery={attemptedQuery}
+            onSearch={handleSearch}
+            loading={loading}
+            guidanceMessage={guidanceMessage}
+            guidanceSticky={guidanceSticky}
+            onQueryChange={() => setGuidanceMessage(null)}
+          />
+          <ul className="home-chips" aria-label="예시 검색어">
+            {HOME_CHIPS.map((chip) => (
+              <li key={chip}>
+                {/* Already on "/", so search directly. IntroducePage routes the
+                    same chips through ?q= only because it sits on another route. */}
+                <button type="button" className="home-chip" onClick={() => handleSearch(chip, 'home')}>
+                  {chip}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="home-note">검색은 로그인 없이 바로 시작할 수 있습니다.</p>
+          <Link to="/ko/introduce/" className="home-more">
+            집현전 사용법 자세히 보기
+          </Link>
+        </div>
       )}
 
       {loading && (
