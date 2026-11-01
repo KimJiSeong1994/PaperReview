@@ -120,18 +120,18 @@ def test_remember_turn_deterministic_and_llm_items(souls, monkeypatch):
         {"kind": "topic", "text": "LLM 이 고른 주제는 무시"}, {"kind": "fact", "text": "넷째"}, {"kind": "fact", "text": "다섯째"},
     ]})))
     search_blocks = [{"type": "search_results", "query": "장기 대화 기억 에이전트 메모리"}, {"type": "graph"}]
-    added = asyncio.run(turn_runner.remember_turn(ALICE, "c1", "짧게 답해줘, 12월 마감이야", "…", search_blocks))
+    added = asyncio.run(turn_runner.remember_turn(ALICE, "c1", "앞으로 짧게 답해줘, 12월 마감이야", search_blocks))
     assert added == 4  # topic + preference + 2 facts (3 LLM items max, wrong kind dropped)
     texts = {m["text"] for m in souls.get_soul("alice", "inc-a")["memories"]}
     assert {"장기 대화 기억 에이전트 메모리", "답변은 짧게", "12월 학회 마감", "넷째"} == texts
 
     replies.append(_llm_reply("not json"))
     review = [{"type": "review_started", "paper_title": "APEX-MEM", "session_id": "s", "paper_index": 2}]
-    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "2번 논문 심층 리뷰 해줘", "…", review)) == 1
+    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "2번 논문 심층 리뷰 해줘", review)) == 1
     assert "심층 리뷰: APEX-MEM" in {m["text"] for m in souls.get_soul("alice", "inc-a")["memories"]}
 
     # A bare reply makes no extraction call at all (replies is empty, pop would raise).
-    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "응", "…", [])) == 0
+    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "응", [])) == 0
 
 
 def test_parse_extracted_rejects_malformed():
@@ -159,7 +159,8 @@ def test_extraction_drops_restated_requests_and_topic_preferences(souls, monkeyp
         {"kind": "preference", "text": "앞으로 답은 아주 짧게"},
         {"kind": "fact", "text": "추천시스템을 연구하는 석사생"},
     ]})
-    assert turn_runner.parse_extracted(raw, "그래프 기반 추천") == [
+    message = "앞으로 답은 아주 짧게 해줘. 나는 추천시스템을 연구하는 석사생이야. 그래프 기반 추천 논문 보고 싶어"
+    assert turn_runner.parse_extracted(raw, "그래프 기반 추천", message) == [
         {"kind": "preference", "text": "앞으로 답은 아주 짧게"},
         {"kind": "fact", "text": "추천시스템을 연구하는 석사생"},
     ]
@@ -170,7 +171,7 @@ def test_extraction_drops_restated_requests_and_topic_preferences(souls, monkeyp
     monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
     monkeypatch.setattr(turn_runner, "create_chat_completion", lambda client, **kw: _llm_reply(raw))
     blocks = [{"type": "search_results", "query": "그래프 기반 추천"}]
-    asyncio.run(turn_runner.remember_turn(ALICE, "c1", "그래프 기반 추천 논문 보고 싶어", "…", blocks))
+    asyncio.run(turn_runner.remember_turn(ALICE, "c1", message, blocks))
     texts = [m["text"] for m in souls.get_soul("alice", "inc-a")["memories"]]
     assert sorted(texts) == sorted(["그래프 기반 추천", "앞으로 답은 아주 짧게", "추천시스템을 연구하는 석사생"])
 
@@ -180,7 +181,7 @@ def test_memory_write_skipped_after_account_deletion(souls, monkeypatch):
     monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
     monkeypatch.setattr(turn_runner, "create_chat_completion", lambda client, **kw: _llm_reply('{"items": []}'))
     blocks = [{"type": "search_results", "query": "GraphRAG"}]
-    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "GraphRAG 논문", "…", blocks)) == 0
+    assert asyncio.run(turn_runner.remember_turn(ALICE, "c1", "GraphRAG 논문", blocks)) == 0
     assert souls.get_soul("alice", "inc-a")["memories"] == []
 
 
@@ -199,3 +200,41 @@ def test_touch_memories_ignores_other_owners(tmp_path):
     assert db.get_soul("bob", "inc-b")["memories"][0]["last_used_at"] == bob["last_used_at"]
     db.touch_memories("bob", "inc-b", [bob["id"]])
     assert db.get_soul("bob", "inc-b")["memories"][0]["last_used_at"] > bob["last_used_at"]
+
+
+
+def test_extractor_rejects_requests_offers_and_invented_preferences(souls, monkeypatch):
+    def items(*pairs):
+        return json.dumps({"items": [{"kind": k, "text": t} for k, t in pairs]})
+
+    parse = turn_runner.parse_extracted
+    # one-off requests and rank references
+    assert parse(items(("preference", "1번부터 8번까지 각각 한 줄로 정리해줘")), "", "앞으로 1번부터 8번까지 정리해줘") == []
+    assert parse(items(("preference", "더 자세히 설명해 주기를 원함")), "", "항상 더 자세히 설명해줘") == []
+    assert parse(items(("fact", "3번 논문에 관심이 있음")), "", "3번 핵심 내용") == []
+    # a preference the user never said is lasting, e.g. invented after an English message
+    assert parse(items(("preference", "앞으로 한국어로 답해 달라")), "", "What is GraphRAG?") == []
+    assert parse(items(("preference", "짧게 한국어로 답하는 걸 선호함")), "", "GraphRAG 논문") == []
+    # kept: a lasting wish the user stated, and a stated fact
+    kept = parse(items(("preference", "앞으로 답은 영어로"), ("fact", "추천시스템을 연구하는 석사생")),
+                 "", "앞으로 답은 영어로 해줘. 나는 추천시스템을 연구하는 석사생이야")
+    assert kept == [{"kind": "preference", "text": "앞으로 답은 영어로"},
+                    {"kind": "fact", "text": "추천시스템을 연구하는 석사생"}]
+
+    # Only the user's message reaches the extractor, never the assistant's offer.
+    seen = []
+    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
+    monkeypatch.setattr(turn_runner, "create_chat_completion",
+                        lambda client, **kw: seen.append(kw["messages"]) or _llm_reply('{"items": []}'))
+    asyncio.run(turn_runner.remember_turn(ALICE, "c1", "GraphRAG 비교해줘", []))
+    assert seen[0][1]["content"] == "사용자 메시지: GraphRAG 비교해줘"
+
+
+def test_memory_block_reserves_preference_slots_and_skips_rank_junk(souls):
+    souls.add_memories("alice", "inc-a", [{"kind": "preference", "text": "앞으로 답은 짧게"}], None)
+    souls.add_memories("alice", "inc-a", [{"kind": "fact", "text": "3번 핵심 내용을 원함"}], None)  # legacy junk
+    souls.add_memories("alice", "inc-a", [{"kind": "topic", "text": f"그래프 주제{i}"} for i in range(20)], None)
+    block = turn_runner.build_memory_block(ALICE, "그래프 주제 비교")  # every topic shares a word
+    lines = [ln for ln in block.splitlines() if ln.startswith("- [")]
+    assert lines[0] == "- [선호] 앞으로 답은 짧게" and len(lines) == 12
+    assert not any("3번" in ln for ln in lines)

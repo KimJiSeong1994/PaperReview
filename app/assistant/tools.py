@@ -6,6 +6,7 @@ are called through the ``turn_runner`` module so tests can monkeypatch them.
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 from urllib.parse import quote, urlencode, urljoin
@@ -148,7 +149,7 @@ async def _search_papers(t: Turn) -> None:
         {"role": "system", "content": tr._with_memory(tr._SEARCH_SUMMARY_PROMPT, t.memory)},
         {"role": "user", "content": (
             f"질문: {t.message}\n{previous}이번 검색어: {query}\n\n"
-            f"상위 논문:\n<papers>\n{tr._paper_list(papers, 8, 900)}\n</papers>"
+            f"상위 논문:\n<papers>\n{tr._paper_list(papers, 8, SYNTHESIS_ABSTRACT_CHARS)}\n</papers>"
         )},
     ]
     fallback = f"{len(papers)}편의 논문을 찾았습니다. 오른쪽 그래프와 목록에서 논문 사이의 관계를 살펴보세요."
@@ -161,14 +162,31 @@ async def _search_papers(t: Turn) -> None:
 
 PAPER_TEXT_CHARS = 8_000
 PAPER_TEXT_TIMEOUT_SEC = 20.0
+SYNTHESIS_ABSTRACT_CHARS = 2_000  # long abstracts keep head + tail, where the results are
+EXPLAIN_ABSTRACT_CHARS = 1_500
+MAX_LINE_PAPERS = 20
+_RESULTS_HEADING = re.compile(
+    r"\n\s*(?:\d+(?:\.\d+)*\.?\s*)?(?:experiments?|experimental\s+(?:setup|results)|results|evaluation)\b", re.I
+)
 
 
-async def fetch_paper_text(paper: Dict[str, Any]) -> str:
-    """First ~8k chars (intro, method start) of the paper's PDF within 20 s; '' on any failure."""
+async def fetch_paper_text(paper: Dict[str, Any], deeper: bool = False) -> str:
+    """8k chars of the paper's PDF within 20 s; '' on any failure.
+
+    The first pass takes the opening (intro, method start). *deeper* takes the
+    window from the Experiments/Results/Evaluation heading (else chars 8k–16k),
+    so "더 자세히" sees new material instead of the same intro.
+    """
     async def fetch() -> str:
         url = await resolve_pdf_url(paper)
         text = await extract_pdf_text(url) if url else ""
-        return text[:PAPER_TEXT_CHARS] if has_word_spaces(text) else ""
+        if not has_word_spaces(text):
+            return ""
+        start = 0
+        if deeper:
+            heading = _RESULTS_HEADING.search(text, 2000)
+            start = heading.start() if heading else PAPER_TEXT_CHARS
+        return text[start:start + PAPER_TEXT_CHARS]
 
     try:
         return await asyncio.wait_for(fetch(), PAPER_TEXT_TIMEOUT_SEC)
@@ -177,33 +195,71 @@ async def fetch_paper_text(paper: Dict[str, Any]) -> str:
         return ""
 
 
+def _has_abstract(paper: Dict[str, Any]) -> bool:
+    return bool((paper.get("abstract") or paper.get("summary") or "").strip())
+
+
+def _and_list(numbers: List[int]) -> str:
+    """"3번과 8번" / "3번, 5번, 8번"."""
+    labels = [f"{n}번" for n in numbers]
+    return f"{labels[0]}과 {labels[1]}" if len(labels) == 2 else ", ".join(labels)
+
+
 async def _answer_from_results(t: Turn) -> None:
     t.learn = True
     tr._status(t.emit, "answer", "검색 결과를 바탕으로 답변하는 중…")
     papers = t.latest["papers"]
+    outside = [n for n in tr.paper_numbers(t.message) if not 1 <= n <= len(papers)]
+    if outside:
+        t.intent = "chat"
+        t.say(f"결과는 {len(papers)}편이에요. 1–{len(papers)}번 중에서 골라 주세요.")
+        return
     refs = tr.answer_refs(t.message, t.history, papers)
+    if not refs and (tr._THIS_PAPER.search(t.message) or tr._DEEPER.search(t.message)):
+        cited = [n for n in tr._cited_papers(t.history) if 1 <= n <= len(papers)]
+        if 2 <= len(cited) <= 3:  # "그 논문" after a comparison: which one?
+            t.intent = "clarify"
+            t.say(f"{_and_list(cited)} 중 어느 논문을 더 자세히 볼까요?")
+            return
+
+    history = t.history[-8:]
+    previous = tr._last_assistant(t.history)
     if not refs and tr._SYNTHESIS_ASK.search(t.message):
+        # Whole-results synthesis: the 8 abstracts only, without the previous answer or
+        # history, which made the model re-cite whatever paper was just discussed.
         system = tr._SEARCH_SUMMARY_PROMPT
-        data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 8, 900)}\n</papers>"
+        data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 8, SYNTHESIS_ABSTRACT_CHARS)}\n</papers>"
+        history, previous = [], ""
     elif not refs:
         system = tr._ANSWER_PROMPT
         data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 15, 400)}\n</papers>"
+    elif len(refs) > 3:  # "1번부터 8번까지 각각…": one grounded line per paper
+        refs = refs[:MAX_LINE_PAPERS]
+        system = tr._LINES_PROMPT
+        data = f"정리할 논문:\n<papers>\n{tr._paper_list(papers, 0, 600, refs)}\n</papers>"
     elif len(refs) >= 2 and tr._COMPARE.search(t.message):
         system = tr._COMPARE_PROMPT
-        data = f"비교할 논문:\n<papers>\n{tr._paper_list(papers, 3, 1500, refs)}\n</papers>"
+        data = f"비교할 논문:\n<papers>\n{tr._paper_list(papers, 3, EXPLAIN_ABSTRACT_CHARS, refs)}\n</papers>"
     else:
-        system = tr._EXPLAIN_PROMPT + (tr._DEEPER_NOTE if tr._DEEPER.search(t.message) else "")
-        data = f"설명할 논문:\n<papers>\n{tr._paper_list(papers, 3, 1500, refs)}\n</papers>"
+        deeper = bool(tr._DEEPER.search(t.message))
+        system = tr._EXPLAIN_PROMPT + (tr._DEEPER_NOTE if deeper else "")
+        data = f"설명할 논문:\n<papers>\n{tr._paper_list(papers, 3, EXPLAIN_ABSTRACT_CHARS, refs)}\n</papers>"
         if len(refs) == 1:
-            text = await fetch_paper_text(papers[refs[0] - 1])
+            text = await fetch_paper_text(papers[refs[0] - 1], deeper=deeper)
             if text:
-                data += f"\n\n[{refs[0]}] 본문 앞부분:\n<paper_text>\n{text}\n</paper_text>"
+                data += f"\n\n[{refs[0]}] 본문 일부:\n<paper_text>\n{tr.as_data(text)}\n</paper_text>"
+            else:
+                data += "\n\n(본문을 가져오지 못해 초록만 있습니다. 본문을 근거로 한 것처럼 쓰지 마세요.)"
+    if refs and "<paper_text>" not in data and not any(_has_abstract(papers[i - 1]) for i in refs):
+        # Nothing but titles to go on: a model would invent the method, so say so instead.
+        t.intent = "chat"
+        t.say(f"{', '.join(f'{i}번' for i in refs)}은 초록과 본문을 가져오지 못해 제목 외 근거가 없어요. PDF를 열어 볼까요?")
+        return
     messages = [
         {"role": "system", "content": tr._with_memory(system, t.memory)},
         {"role": "user", "content": data},
     ]
-    messages += [{"role": h["role"], "content": h.get("content", "")} for h in t.history[-8:]]
-    previous = tr._last_assistant(t.history)
+    messages += [{"role": h["role"], "content": h.get("content", "")} for h in history]
     messages.append({"role": "user", "content": f"직전 답변:\n{previous}\n\n질문: {t.message}" if previous else t.message})
     t.content, t.model = await tr._speak(messages, "지금은 답변을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", t.emit)
 
@@ -427,7 +483,7 @@ async def _highlight_pdf(t: Turn) -> None:
         )
         return
     t.add({"type": "pdf_highlights", **fields, "highlights": highlights})
-    listing = "\n".join(f"[{h.get('category', '')}] {str(h.get('text', ''))[:200]}" for h in highlights[:10])
+    listing = "\n".join(f"[{h.get('category', '')}] {tr.as_data(str(h.get('text', ''))[:200])}" for h in highlights[:10])
     messages = [
         {"role": "system", "content": _HIGHLIGHT_SUMMARY_PROMPT},
         {"role": "user", "content": f"논문: {title}\n\n<highlights>\n{listing}\n</highlights>"},
@@ -477,7 +533,7 @@ def bookmark_context(selected: List[Dict[str, Any]]) -> str:
         papers = ", ".join(str(p.get("title") or "Untitled") for p in (b.get("papers") or [])[:5])
         parts.append(
             f"[B{i}] 북마크: {b.get('title') or 'Untitled'}\n검색어: {b.get('query') or '없음'}\n"
-            f"논문: {papers}\n리포트:\n{(b.get('report_markdown') or '')[:4000]}"
+            f"논문: {tr.as_data(papers)}\n리포트:\n{tr.as_data((b.get('report_markdown') or '')[:4000])}"
         )
     findings = sorted(
         (h for b in selected for h in b.get("highlights") or [] if (h.get("significance") or 3) >= 4),
