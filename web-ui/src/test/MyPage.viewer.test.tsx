@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import MyPage from '../components/MyPage';
 import { createConversation } from '../api/conversations';
@@ -24,11 +24,6 @@ vi.mock('../components/mypage/ReportViewer', () => ({
 }));
 vi.mock('../components/AgentKeyButton', () => ({ default: () => null }));
 vi.mock('../api/conversations', () => ({ createConversation: vi.fn() }));
-vi.mock('../api/soul', () => ({
-  SOUL_PROFILE_MAX: 2000,
-  fetchSoul: vi.fn().mockResolvedValue({ user_md: '', markdown: '', memories: [] }),
-  saveSoulProfile: vi.fn(), deleteSoulMemory: vi.fn(), clearSoul: vi.fn(),
-}));
 
 function Probe() {
   const location = useLocation();
@@ -97,14 +92,7 @@ describe('MyPage 대화에서 열기', () => {
   });
 });
 
-describe('MyPage tab wiring', () => {
-  it('opens the 기억 tab from the URL as its own panel, without the bookmark sidebar', async () => {
-    renderAt('/mypage?tab=memory');
-    expect(await screen.findByRole('heading', { name: '집현전이 기억하는 것' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: '기억' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.queryByTestId('sidebar')).toBeNull();
-  });
-
+describe('MyPage view wiring', () => {
   it('sends the old ?tab=curriculum link on to the curriculum route without fetching first', async () => {
     // Rendered through routes, as in the app: the redirect swaps the page out,
     // so MyPage must not have asked for bookmarks on its way to the exit.
@@ -122,59 +110,24 @@ describe('MyPage tab wiring', () => {
     expect(bm.loadBookmarks).not.toHaveBeenCalled();
   });
 
-  it('keeps the curriculum link beside the tablist, not inside it', async () => {
+  it('shows the bookmark view without a tablist, keeping the 커리큘럼 link', async () => {
     renderAt('/mypage');
     await screen.findByTestId('report');
-    const link = screen.getByRole('link', { name: '커리큘럼' });
-    expect(link.closest('[role="tablist"]')).toBeNull();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-  });
-
-  it('is a real tablist: Korean names, the default first, arrows move and open', async () => {
-    renderAt('/mypage');
-    await screen.findByTestId('report');
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['북마크', '기억']);
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByText('기억')).toBeNull();
     expect(screen.getByRole('link', { name: '커리큘럼' })).toHaveAttribute('href', '/curriculum');
-    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByRole('button', { name: 'My Page' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tabpanel', { name: '북마크' })).toBeInTheDocument();
+    const view = screen.getByRole('region', { name: '북마크' });
+    expect(view).toContainElement(screen.getByTestId('sidebar'));
+    expect(view).toContainElement(screen.getByTestId('report'));
+    expect(bm.loadBookmarks).toHaveBeenCalledTimes(1);
+  });
 
-    // The bookmark tab is the sidebar and the report: no chat panel, no PDF tab.
-    expect(screen.queryByRole('tab', { name: '논문 PDF' })).toBeNull();
+  it.each(['/mypage?tab=memory', '/mypage?tab=papers'])('opens the bookmark view for an old %s link', async (entry) => {
+    renderAt(entry);
+    expect(await screen.findByTestId('report')).toBeVisible();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-
-    fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowRight' });
-    expect(await screen.findByRole('heading', { name: '집현전이 기억하는 것' })).toBeTruthy();
-    expect(screen.getByTestId('report')).not.toBeVisible();
-    expect(screen.getByRole('tab', { name: '기억' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: '기억' })).toHaveFocus();
-    expect(screen.getByTestId('probe')).toHaveTextContent('/mypage?tab=memory|');
-
-    fireEvent.keyDown(screen.getByRole('tab', { name: '기억' }), { key: 'Home' });
-    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('seeds the roving tabindex from the URL and wraps at both ends', async () => {
-    renderAt('/mypage?tab=memory');
-    await screen.findByRole('heading', { name: '집현전이 기억하는 것' });
-    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['-1', '0']);
-
-    fireEvent.keyDown(screen.getByRole('tab', { name: '기억' }), { key: 'ArrowRight' });
-    expect(await screen.findByTestId('report')).toBeVisible();
-    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('probe')).toHaveTextContent(/^\/mypage\|/);
-
-    fireEvent.keyDown(screen.getByRole('tab', { name: '북마크' }), { key: 'ArrowLeft' });
-    expect(screen.getByRole('tab', { name: '기억' })).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(screen.getByRole('tab', { name: '기억' }), { key: 'Home' });
-    expect(screen.getAllByRole('tab').map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1']);
-  });
-
-  it('sends an old ?tab=papers link to the bookmark tab', async () => {
-    renderAt('/mypage?tab=papers');
-    expect(await screen.findByTestId('report')).toBeVisible();
-    expect(screen.getByRole('tab', { name: '북마크' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('heading', { name: '집현전이 기억하는 것' })).toBeNull();
   });
 
   it('hands the report the real popover setter instead of a no-op', async () => {

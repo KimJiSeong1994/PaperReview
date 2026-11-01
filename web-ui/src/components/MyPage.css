@@ -110,30 +110,7 @@
   color: var(--text);
 }
 
-.mypage-nav-btn-active {
-  color: var(--indigo);
-  background: rgba(99, 102, 241, 0.1);
-  /* A shape as well as a hue, for anyone who cannot tell the tint apart. */
-  box-shadow: inset 0 -2px 0 currentColor;
-}
-
-.mypage-tabs {
-  display: flex;
-  gap: 4px;
-}
-
 /* ===== 3-Panel Content ===== */
-/* A tab body is a box-less wrapper, so its panels lay out as the grid's own
-   children. The hidden attribute goes on the wrapper because the panels declare
-   display:flex, which outranks the UA's [hidden] rule. */
-.mypage-tab-body {
-  display: contents;
-}
-
-.mypage-tab-body[hidden] {
-  display: none;
-}
-
 .mypage-content {
   display: flex;
   flex: 1;

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { KeyboardEvent, ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
@@ -12,48 +11,14 @@ import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
 import ReportViewer from './mypage/ReportViewer';
 import AgentKeyButton from './AgentKeyButton';
-import SoulPanel from './mypage/SoulPanel';
 
 interface MyPageProps {
   onBack: () => void;
 }
 
-type MyPageTab = 'bookmarks' | 'memory';
-
-// The default tab comes first, so the first tab on screen is the one the page
-// opens on. "Papers" and "bookmarks" share a selection; the labels say what the
-// right-hand pane shows rather than pretending to be different places.
-const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
-  {
-    id: 'bookmarks', label: '북마크',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>,
-  },
-  {
-    // What the assistant remembers about this user; it has its own panel, no bookmark sidebar.
-    id: 'memory', label: '기억',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6c0 2.2 1.2 3.6 2.4 4.8.8.8 1.6 1.6 1.6 2.7V18h4v-1.5c0-1.1.8-1.9 1.6-2.7C16.8 12.6 18 11.2 18 9a6 6 0 0 0-6-6z" /><line x1="10" y1="21" x2="14" y2="21" /></svg>,
-  },
-];
-
 const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
 
-/**
- * `bookmarks` is the default, so it is the absence of the parameter rather than
- * a value — anything unrecognised lands there too.
- */
-export function tabFromParams(raw: string | null): MyPageTab {
-  return raw === 'memory' ? raw : 'bookmarks';
-}
-
-/** Carries the rest of the query string through; only touches its own key. */
-export function paramsWithTab(prev: URLSearchParams, tab: MyPageTab): URLSearchParams {
-  const next = new URLSearchParams(prev);
-  if (tab === 'bookmarks') next.delete('tab');
-  else next.set('tab', tab);
-  return next;
-}
-
-/** Same, for the open bookmark. */
+/** Records the open bookmark in the URL; carries the rest of the query string through. */
 export function paramsWithBookmark(prev: URLSearchParams, id: string): URLSearchParams {
   const next = new URLSearchParams(prev);
   next.set('bookmark', id);
@@ -64,32 +29,6 @@ function MyPage({ onBack }: MyPageProps) {
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  // Read once, on mount: the URL seeds the tab, and after that the tab writes
-  // to the URL. Reading it on every render instead would fight the writes.
-  const [activeTab, setActiveTab] = useState<MyPageTab>(() => tabFromParams(searchParams.get('tab')));
-
-  /** Switch tabs and record it, so a reload or a shared link lands in the same place. */
-  const changeTab = useCallback((tab: MyPageTab) => {
-    setActiveTab(tab);
-    setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
-  }, [setSearchParams]);
-
-  // Roving tabindex: arrows move between tabs and open them, Home/End jump.
-  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const order = MYPAGE_TABS.map((tab) => tab.id);
-    const index = order.indexOf(activeTab);
-    const next = event.key === 'ArrowRight' ? order[(index + 1) % order.length]
-      : event.key === 'ArrowLeft' ? order[(index - 1 + order.length) % order.length]
-        : event.key === 'Home' ? order[0]
-          : event.key === 'End' ? order[order.length - 1]
-            : null;
-    if (!next) return;
-    event.preventDefault();
-    changeTab(next);
-    document.getElementById(`mypage-tab-${next}`)?.focus();
-  };
-
-
   // ── "대화에서 열기" ──
   // The error belongs to the bookmark it was raised on, so selecting another one hides it.
   const [conversationAttempt, setConversationAttempt] = useState<{ bookmarkId: string; error: string | null } | null>(null);
@@ -203,10 +142,10 @@ function MyPage({ onBack }: MyPageProps) {
   // render only redirects, so it must not fetch on the way out.
   const redirectingToCurriculum = searchParams.get('tab') === 'curriculum';
 
-  // Refresh bookmarks when switching to bookmarks or papers tab
+  // Load bookmarks on arrival, unless this render only redirects to /curriculum.
   useEffect(() => {
     if (!redirectingToCurriculum) bm.loadBookmarks();
-  }, [activeTab, redirectingToCurriculum]);
+  }, [redirectingToCurriculum]);
 
   // One element, rendered once at the top of the shared container. Written
   // twice it was 33 props of copy-paste that had to be kept in step by hand.
@@ -266,25 +205,6 @@ function MyPage({ onBack }: MyPageProps) {
           </div>
           <div className="mypage-header-actions">
             <AgentKeyButton />
-            <div className="mypage-tabs" role="tablist" aria-label="마이페이지">
-              {MYPAGE_TABS.map(({ id, label, icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`mypage-tab-${id}`}
-                  aria-selected={activeTab === id}
-                  aria-controls={activeTab === id ? `mypage-panel-${id}` : undefined}
-                  tabIndex={activeTab === id ? 0 : -1}
-                  className={`mypage-nav-btn ${activeTab === id ? 'mypage-nav-btn-active' : ''}`}
-                  onClick={() => changeTab(id)}
-                  onKeyDown={onTabKeyDown}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
-            </div>
             <Link className="mypage-nav-btn mypage-nav-link" to="/curriculum">
               {CURRICULUM_ICON}
               커리큘럼
@@ -293,17 +213,9 @@ function MyPage({ onBack }: MyPageProps) {
         </div>
       </div>
 
-      {/* Tab content */}
-        <div
-          className={`mypage-content${activeTab === 'memory' ? ' mypage-content--memory' : ''}`}
-          role="tabpanel"
-          id={`mypage-panel-${activeTab}`}
-          aria-labelledby={`mypage-tab-${activeTab}`}
-        >
-          {activeTab !== 'memory' && bookmarkSidebar}
-          {activeTab === 'memory' && <SoulPanel />}
-          {/* A display:contents wrapper: the report stays a grid child, and stays mounted while 기억 is open. */}
-          <div className="mypage-tab-body" hidden={activeTab !== 'bookmarks'}>
+      {/* Bookmarks: the sidebar and the selected bookmark's report. */}
+        <div className="mypage-content" role="region" aria-label="북마크">
+          {bookmarkSidebar}
           <ReportViewer
             bookmarkDetail={bm.bookmarkDetail}
             loadingDetail={bm.loadingDetail}
@@ -362,8 +274,6 @@ function MyPage({ onBack }: MyPageProps) {
             openingConversation={attemptForSelected?.error === null}
             conversationError={attemptForSelected?.error ?? null}
           />
-
-          </div>
         </div>
     </div>
   );
