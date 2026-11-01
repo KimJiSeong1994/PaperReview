@@ -174,6 +174,27 @@ describe('HomeWorkspace', () => {
     expect(img.getAttribute('alt')).toBe('');
   });
 
+  it('scrolls the history between a fixed 새 대화 button and a pinned account footer', async () => {
+    renderHome();
+    const nav = screen.getByRole('navigation', { name: '내 기록' });
+    await within(nav).findByText('GRAG 딥리뷰');
+    const children = [...nav.children];
+    const scroll = nav.querySelector('.home-sidebar-scroll')!;
+    const account = nav.querySelector('.home-account')!;
+    // Order (and so focus order): 새 대화, the scrolling history, then the account.
+    expect(children.map(child => child.className)).toEqual(['home-btn home-btn-outline', 'home-sidebar-scroll', 'home-account']);
+    expect(scroll.contains(within(nav).getByText('GRAG 딥리뷰'))).toBe(true);
+    expect(scroll.contains(account)).toBe(false);
+    expect(getComputedStyle(scroll).overflowY).toBe('auto');
+  });
+
+  it('pins the guest sign-in block below the (empty) history too', () => {
+    authState.isAuthenticated = false;
+    renderHome();
+    const nav = screen.getByRole('navigation', { name: '내 기록' });
+    expect([...nav.children].map(child => child.className)).toEqual(['home-btn home-btn-outline', 'home-sidebar-scroll', 'home-signin']);
+  });
+
   it('labels time relative to now', () => {
     const now = new Date('2026-10-31T12:00:00Z');
     expect(relativeLabel('2026-10-31T11:59:40Z', now)).toBe('방금');

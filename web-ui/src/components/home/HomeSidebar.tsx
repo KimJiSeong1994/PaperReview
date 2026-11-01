@@ -176,56 +176,58 @@ function HomeSidebar({
           새 대화
         </button>
 
+        {/* History scrolls between the fixed 새 대화 button and the pinned account footer. */}
+        <div className="home-sidebar-scroll">
+          {isAuthenticated && grouped.length === 0 && (
+            <p className="home-empty">아직 기록이 없어요. 첫 질문이 여기에 쌓입니다. <kbd>/</kbd> 키로 입력창에 바로 갈 수 있어요.</p>
+          )}
+          {isAuthenticated && grouped.map(([group, items]) => (
+            <section key={group}>
+              <h4 className="home-label">{group} · {items.length}</h4>
+              <ul className="home-list">
+                {items.map(item => (
+                  <Row
+                    key={item.key}
+                    lead={<Icon name={KIND_ICON[item.kind]} />}
+                    label={item.label}
+                    meta={`${item.kind} · ${relativeLabel(item.at, now)}`}
+                    chip={item.status && <span className={`home-chip is-${item.statusKey}`}>{item.status}</span>}
+                    to={item.to}
+                    onClick={() => { setDrawerOpen(false); item.onClick?.(); }}
+                    arrow={false}
+                    current={item.key === `conversation:${activeConversationId}`}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+          {isAuthenticated && curricula.length > 0 && (
+            <section>
+              <h4 className="home-label">커리큘럼 · {curricula.length}</h4>
+              <ul className="home-list">
+                {curricula.slice(0, 4).map(course => (
+                  <Row
+                    key={course.id}
+                    lead={<Icon name="course" />}
+                    label={course.name}
+                    meta={`커리큘럼 · ${course.total_papers}편`}
+                    to="/curriculum"
+                    onClick={() => setDrawerOpen(false)}
+                    arrow={false}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
         {isAuthenticated ? (
-          <>
-            {grouped.length === 0 && (
-              <p className="home-empty">아직 기록이 없어요. 첫 질문이 여기에 쌓입니다. <kbd>/</kbd> 키로 입력창에 바로 갈 수 있어요.</p>
-            )}
-            {grouped.map(([group, items]) => (
-              <section key={group}>
-                <h4 className="home-label">{group} · {items.length}</h4>
-                <ul className="home-list">
-                  {items.map(item => (
-                    <Row
-                      key={item.key}
-                      lead={<Icon name={KIND_ICON[item.kind]} />}
-                      label={item.label}
-                      meta={`${item.kind} · ${relativeLabel(item.at, now)}`}
-                      chip={item.status && <span className={`home-chip is-${item.statusKey}`}>{item.status}</span>}
-                      to={item.to}
-                      onClick={() => { setDrawerOpen(false); item.onClick?.(); }}
-                      arrow={false}
-                      current={item.key === `conversation:${activeConversationId}`}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ))}
-            {curricula.length > 0 && (
-              <section>
-                <h4 className="home-label">커리큘럼 · {curricula.length}</h4>
-                <ul className="home-list">
-                  {curricula.slice(0, 4).map(course => (
-                    <Row
-                      key={course.id}
-                      lead={<Icon name="course" />}
-                      label={course.name}
-                      meta={`커리큘럼 · ${course.total_papers}편`}
-                      to="/curriculum"
-                      onClick={() => setDrawerOpen(false)}
-                      arrow={false}
-                    />
-                  ))}
-                </ul>
-              </section>
-            )}
-            <div className="home-account">
-              <span className="home-row-lead" aria-hidden="true"><Icon name="user" /></span>
-              <span className="home-account-name">{readUsername()}</span>
-              <Link to="/mypage">마이페이지</Link>
-              <button type="button" onClick={logout}>로그아웃</button>
-            </div>
-          </>
+          <div className="home-account">
+            <span className="home-row-lead" aria-hidden="true"><Icon name="user" /></span>
+            <span className="home-account-name">{readUsername()}</span>
+            <Link to="/mypage">마이페이지</Link>
+            <button type="button" onClick={logout}>로그아웃</button>
+          </div>
         ) : (
           <div className="home-signin">
             <p>검색은 로그인 후 이용할 수 있어요. 공개 리뷰는 바로 읽을 수 있습니다.</p>

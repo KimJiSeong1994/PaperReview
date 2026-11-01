@@ -270,9 +270,25 @@
   top: var(--home-header);
   align-self: start;
   height: calc(100vh - var(--home-header));
-  overflow-y: auto;
+  /* The sidebar itself never scrolls: 새 대화 stays on top, the account footer at the bottom,
+     and only the history in between scrolls. */
+  overflow: hidden;
+  padding-bottom: 16px;
   gap: 20px;
   border-right: var(--home-line);
+}
+
+/* Bleeds to the sidebar edges so rows keep their 12px hover band inside the scroll box. */
+.home-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0 -24px;
+  padding: 0 24px 4px;
   scrollbar-width: thin;
 }
 
@@ -281,7 +297,7 @@
   margin-bottom: 4px;
 }
 
-.home-sidebar > .home-empty {
+.home-sidebar-scroll > .home-empty {
   margin-top: -8px;
 }
 
@@ -310,7 +326,7 @@
 
 /* Flows 24px under the last group; only the mobile drawer pins it to the bottom. */
 .home-account {
-  margin-top: 4px;
+  flex-shrink: 0;
   padding-top: 16px;
   border-top: var(--home-line);
   display: flex;
@@ -356,8 +372,9 @@
 }
 
 .home-signin {
-  padding-bottom: 24px;
-  border-bottom: var(--home-line);
+  flex-shrink: 0;
+  padding-top: 16px;
+  border-top: var(--home-line);
   display: flex;
   flex-direction: column;
   gap: 12px;

@@ -716,6 +716,16 @@ describe('ConversationPage', () => {
     expect(document.querySelector('img[src="/Jiphyeonjeon_llama.webp"]')).toBeNull();
   });
 
+  it('uses the same sidebar layout: history scrolls, the account footer stays outside it', async () => {
+    renderPage(null);
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    const nav = screen.getByRole('navigation', { name: '내 기록' });
+    const scroll = nav.querySelector('.home-sidebar-scroll')!;
+    expect(await within(scroll as HTMLElement).findByRole('link', { name: /그래프 RAG/ })).toBeTruthy();
+    expect(nav.lastElementChild!.className).toBe('home-account');
+    expect(scroll.contains(nav.querySelector('.home-account'))).toBe(false);
+  });
+
   it('shows a load error with a way back', async () => {
     vi.mocked(fetchConversation).mockReset().mockRejectedValue({ response: { status: 404 } });
     renderPage(null);
