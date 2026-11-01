@@ -261,9 +261,10 @@ def test_migration_rebuilds_an_old_db_and_is_idempotent(tmp_path):
         "id": "m1", "kind": "topic", "text": "GraphRAG", "source_conversation_id": None,
         "created_at": "2026-01-01", "last_used_at": "2026-01-01", "hits": 1}
     assert db.add_memories("alice", "inc-a", [{"kind": "research", "text": "그래프 추천 연구 중"}], None) == 1
-    SoulDB(path)  # second open: already at version 1, nothing rebuilt or lost
+    SoulDB(path)  # second open: already current, nothing rebuilt or lost
     with sqlite3.connect(path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'research_profiles'").fetchone()
         assert conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0] == 2
 
 

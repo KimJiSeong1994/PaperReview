@@ -4,6 +4,7 @@
   PUT    /api/me/soul                  replace the USER.md profile
   DELETE /api/me/soul/memories/{id}    forget one memory
   DELETE /api/me/soul                  forget everything
+  GET    /api/me/research-profile      derived research profile card (no UI; recommendations/newsletter)
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,7 @@ from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 from .deps.storage import _get_soul_db
 
 router = APIRouter(prefix="/api/me/soul", tags=["soul"])
+profile_router = APIRouter(prefix="/api/me", tags=["soul"])
 
 
 class UserMdRequest(BaseModel):
@@ -49,3 +51,11 @@ async def delete_memory(memory_id: str, principal: AuthenticatedPrincipal = Depe
 async def clear_soul(principal: AuthenticatedPrincipal = Depends(get_authenticated_principal)):
     """Forget the caller's profile and all memories."""
     return {"deleted": _get_soul_db().clear(principal.username, principal.account_incarnation)}
+
+
+@profile_router.get("/research-profile")
+async def get_research_profile(principal: AuthenticatedPrincipal = Depends(get_authenticated_principal)):
+    """Return ``{profile}``: the caller's derived research profile (rebuilt if stale), or null with no soul yet."""
+    from app.assistant.profile import get_research_profile as load
+
+    return {"profile": await load(principal.username, principal.account_incarnation)}

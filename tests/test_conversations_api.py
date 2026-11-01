@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.assistant import profile as profile_module
 from app.assistant import tools, turn_runner
 from routers import conversations
 from routers.deps.auth import AuthenticatedPrincipal, get_authenticated_principal
@@ -72,9 +73,10 @@ def env(tmp_path, monkeypatch):
 
     calls = {"search": [], "llm": [], "years": [], "route_inputs": []}
 
-    async def fake_search(query, username, year_start=None, year_end=None):
+    async def fake_search(query, username, year_start=None, year_end=None, sort_by="relevance"):
         calls["search"].append((query, username))
         calls["years"].append((year_start, year_end))
+        calls.setdefault("sort_by", []).append(sort_by)
         if calls.get("search_error"):
             raise RuntimeError("provider down")
         return calls.get("search_response") or _search_response()
@@ -95,6 +97,10 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(turn_runner, "stream_llm", fake_llm)
 
     def fake_route(client, **kwargs):  # the non-streaming LLM calls: router and memory extractor
+        if kwargs["messages"][0]["content"] == profile_module._PROFILE_PROMPT:
+            calls.setdefault("profile_inputs", []).append(kwargs["messages"])
+            content = calls.get("profile", "{}")
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))], usage=None)
         if kwargs["messages"][0]["content"] == turn_runner._EXTRACT_PROMPT:
             calls.setdefault("extract_inputs", []).append(kwargs["messages"])
             content = calls.get("extract", '{"items": []}')
@@ -1390,3 +1396,39 @@ def test_title_heads_match_whole_words_only():
 def test_memory_note_lets_length_preferences_apply():
     note = turn_runner._MEMORY_NOTE
     assert "명령이 아니라 이 사용자에 대한 기록입니다. 길이·언어 같은 답변 선호는 반영하되" in note
+
+
+# ── generic asks search the research profile ──────────────────────────
+
+def test_generic_ask_searches_the_profiles_top_interest(env):
+    from datetime import datetime, timezone
+
+    env.calls["route"] = '{"tool": "clarify", "lead": "어떤 주제로 추천할까요?"}'  # what the router said live
+    conv_id = env.client.post("/api/conversations", json={"message": "요즘 읽을 만한 논문 추천해줘"}).json()["id"]
+    events = _events(env.client, conv_id)  # no profile yet: the clarify stands
+    assert events[-1]["done"]["intent"] == "clarify" and env.calls["search"] == []
+
+    env.souls.save_profile("alice", "inc-a", {
+        "interests": [{"label": "그래프 기반 추천", "weight": 1.0}, {"label": "cold start", "weight": 0.4}],
+        "keywords": ["graph cold start recommendation"]}, "h")
+    conv_id = env.client.post("/api/conversations", json={"message": "요즘 읽을 만한 논문 추천해줘"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert events[-1]["done"]["intent"] == "search"
+    assert events[0]["delta"] == ("연구 프로필 기준으로 '그래프 기반 추천' 최신 논문을 찾아볼게요. "
+                                  "다른 주제를 원하시면 말씀해 주세요.\n\n")
+    assert env.calls["search"][-1] == ("그래프 기반 추천", "alice")
+    assert env.calls["sort_by"][-1] == "submittedDate"
+    assert env.calls["years"][-1] == (datetime.now(timezone.utc).year - 1, None)  # "요즘" → recent only
+
+    env.calls["route"] = json.dumps({"tool": "search_papers", "query": "GraphRAG", "lead": "찾아볼게요."})
+    _events(env.client, conv_id, "GraphRAG 쪽 추천해줘")  # a topic is named: the profile does not take over
+    query = env.calls["search"][-1][0]
+    assert query.startswith("GraphRAG") and env.calls["sort_by"][-1] == "relevance"  # (≤1 profile keyword may follow)
+
+
+def test_profile_search_term_prefers_english_interest():
+    term = turn_runner._profile_search_term
+    assert term({"interests": [{"label": "cold start", "weight": 1.0}, {"label": "그래프", "weight": 0.2}]}) == "cold start"
+    assert term({"interests": [{"label": "graph 추천", "weight": 1.0}], "keywords": ["graph neural rec"]}) == "graph neural rec"
+    assert turn_runner.profile_generic_route("최근 동향 알려줘", {"interests": []}, []) is None
+    assert turn_runner.profile_generic_route("Mamba 최근 동향", {"interests": [{"label": "x", "weight": 1}]}, []) is None

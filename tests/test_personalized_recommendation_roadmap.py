@@ -48,7 +48,10 @@ def test_personalized_recommendation_roadmap_is_code_grounded() -> None:
             node = matches[0]
 
     for path in (
-        "web-ui/src/components/RecommendationBell.tsx",
+        # The home recommendation widget replaced the retired RecommendationBell.
+        "web-ui/src/components/home/HomeWorkspace.tsx",
+        "web-ui/src/components/home/useHomeData.ts",
+        "web-ui/src/api/recommendations.ts",
         ".github/workflows/daily-recommendations.yml",
         "scripts/evaluate_daily_recommendations.py",
         "data/recommendation_eval/public_fixture_manifest.json",
@@ -56,7 +59,12 @@ def test_personalized_recommendation_roadmap_is_code_grounded() -> None:
         assert path in text
         assert Path(path).is_file()
 
+    widget = Path("web-ui/src/components/home/useHomeData.ts").read_text(encoding="utf-8")
+    assert "fetchRecommendationNotifications" in widget  # the widget reads /api/recommendations/notifications
+    assert "/api/recommendations/notifications" in Path("web-ui/src/api/recommendations.ts").read_text(encoding="utf-8")
+
     for retired in (
+        "web-ui/src/components/RecommendationBell.tsx",
         "src/daily_recommendations.py::_user_profile",
         "src/recommendations_artifacts.py::latest_raw_file",
     ):

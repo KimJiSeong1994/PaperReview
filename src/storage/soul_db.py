@@ -4,6 +4,7 @@ Mirrors the OpenClaw/Hermes workspace memory model in-app. Ownership is the
 exact (username, account_incarnation) pair, like conversations.
 """
 
+import json
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ MAX_INTERESTS = 20  # research interest labels; fewest hits evicted first
 MAX_USER_MD = 2000
 MAX_MEMORY_TEXT = 200
 MEMORY_KINDS = ("preference", "topic", "paper", "fact", "research", "interest")
-SCHEMA_VERSION = 1  # 1: research/interest kinds + hits
+SCHEMA_VERSION = 2  # 1: research/interest kinds + hits; 2: research_profiles
 
 _SOULS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS souls (
@@ -39,6 +40,16 @@ CREATE TABLE {table} (
     created_at             TEXT NOT NULL,
     last_used_at           TEXT NOT NULL,
     hits                   INTEGER NOT NULL DEFAULT 1
+);
+"""
+_PROFILES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS research_profiles (
+    username            TEXT NOT NULL,
+    account_incarnation TEXT NOT NULL,
+    profile_json        TEXT NOT NULL,
+    source_hash         TEXT NOT NULL,
+    updated_at          TEXT NOT NULL,
+    PRIMARY KEY (username, account_incarnation)
 );
 """
 _MEMORIES_INDEX = (
@@ -132,6 +143,7 @@ class SoulDB:
                 + _MEMORIES_INDEX
                 + "COMMIT;"
             )
+        conn.executescript(_PROFILES_SCHEMA)  # v2; IF NOT EXISTS keeps it idempotent
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
 
@@ -257,18 +269,77 @@ class SoulDB:
         ) > 0
 
     def clear(self, username: str, incarnation: str) -> int:
-        """Forget everything for this account (profile too); returns deleted memory count."""
-        deleted = self._delete(
-            "DELETE FROM memories WHERE username = ? AND account_incarnation = ?", (username, incarnation)
-        )
-        self._delete("DELETE FROM souls WHERE username = ? AND account_incarnation = ?", (username, incarnation))
+        """Forget everything for this account (USER.md and research profile too); returns deleted memory count."""
+        owner = (username, incarnation)
+        deleted = self._delete("DELETE FROM memories WHERE username = ? AND account_incarnation = ?", owner)
+        self._delete("DELETE FROM souls WHERE username = ? AND account_incarnation = ?", owner)
+        self._delete("DELETE FROM research_profiles WHERE username = ? AND account_incarnation = ?", owner)
         return deleted
 
     def delete_by_username(self, username: str) -> int:
-        """Delete profiles and memories of every incarnation of *username*; returns rows deleted."""
-        return self._delete("DELETE FROM memories WHERE username = ?", (username,)) + self._delete(
-            "DELETE FROM souls WHERE username = ?", (username,)
+        """Delete USER.md, memories and research profiles of every incarnation of *username*; returns rows deleted."""
+        return sum(
+            self._delete(f"DELETE FROM {table} WHERE username = ?", (username,))
+            for table in ("memories", "souls", "research_profiles")
         )
+
+    def get_profile(self, username: str, incarnation: str) -> Optional[Dict[str, Any]]:
+        """Cached research profile row ``{profile, source_hash, updated_at}``, or None."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                row = conn.execute(
+                    "SELECT profile_json, source_hash, updated_at FROM research_profiles"
+                    " WHERE username = ? AND account_incarnation = ?",
+                    (username, incarnation),
+                ).fetchone()
+            finally:
+                conn.close()
+        if row is None:
+            return None
+        return {"profile": json.loads(row["profile_json"]), "source_hash": row["source_hash"],
+                "updated_at": row["updated_at"]}
+
+    def save_profile(self, username: str, incarnation: str, profile: Dict[str, Any], source_hash: str) -> None:
+        """Store the derived research profile for this account."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.execute(
+                    "INSERT INTO research_profiles VALUES (?, ?, ?, ?, ?) ON CONFLICT(username, account_incarnation)"
+                    " DO UPDATE SET profile_json = excluded.profile_json, source_hash = excluded.source_hash,"
+                    " updated_at = excluded.updated_at",
+                    (username, incarnation, json.dumps(profile, ensure_ascii=False), source_hash, _now()),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+    def owners(self) -> List[tuple]:
+        """Every (username, account_incarnation) that has a USER.md or any memory."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT username, account_incarnation FROM memories UNION "
+                    "SELECT username, account_incarnation FROM souls"
+                ).fetchall()
+            finally:
+                conn.close()
+        return [(r[0], r[1]) for r in rows]
+
+    def all_profiles(self) -> List[Dict[str, Any]]:
+        """Every cached profile ``{username, account_incarnation, profile}`` (newsletter export)."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT username, account_incarnation, profile_json FROM research_profiles ORDER BY username"
+                ).fetchall()
+            finally:
+                conn.close()
+        return [{"username": r["username"], "account_incarnation": r["account_incarnation"],
+                 "profile": json.loads(r["profile_json"])} for r in rows]
 
     def _delete(self, sql: str, params: tuple) -> int:
         with self._lock:
@@ -279,3 +350,25 @@ class SoulDB:
             finally:
                 conn.close()
         return cur.rowcount
+
+
+def read_profile_readonly(db_path: Path, username: str, incarnation: str) -> Optional[Dict[str, Any]]:
+    """Cached research profile from *db_path* opened read-only (offline jobs; never migrates or writes).
+
+    None when the file, the table or the row is missing, or the file cannot be read.
+    """
+    path = Path(db_path)
+    if not path.is_file():
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = conn.execute(
+                "SELECT profile_json FROM research_profiles WHERE username = ? AND account_incarnation = ?",
+                (username, incarnation),
+            ).fetchone()
+        finally:
+            conn.close()
+        return json.loads(row[0]) if row else None
+    except (sqlite3.Error, ValueError):
+        return None
