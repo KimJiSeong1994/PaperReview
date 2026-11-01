@@ -11,6 +11,8 @@ import { createConversation } from '../../api/conversations';
 import { useConversation, type ViewTurn } from '../../hooks/useConversation';
 import type { Paper } from '../../types';
 import ArtifactPanel, { type ArtifactTab } from './ArtifactPanel';
+import HighlightsBlock from './HighlightsBlock';
+import PdfBlock from './PdfBlock';
 import ReviewBlock, { type CompletedReview } from './ReviewBlock';
 import SearchResultsBlock from './SearchResultsBlock';
 import {
@@ -19,6 +21,7 @@ import {
   degradedLabels,
   linkCitations,
   normalizeEmphasis,
+  pdfBlockOf,
   resultsOf,
   reviewBlockOf,
   searchBlockOf,
@@ -43,12 +46,14 @@ function ConversationPage({ id }: ConversationPageProps) {
   const { conversation, turns, loadError, streaming, liveStatus, send, stop, retry, reload } = useConversation(id, runOnLoad);
 
   // Which turn's results the artifact shows (null = the latest), the selected paper in it,
-  // and the reader's open/closed choice for the newest graph (a newer graph re-opens).
-  // Keyed by turn seq, not query_hash: the same query asked twice is two results.
+  // and the reader's open/closed and tab choices for the newest artifact turn (a graph or a
+  // PDF): a newer one re-opens the panel on its own tab. Keyed by turn seq, not query_hash:
+  // the same query asked twice is two results.
   const [activeSeq, setActiveSeq] = useState<number | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [artifactPref, setArtifactPref] = useState<{ graphSeq: number; open: boolean } | null>(null);
-  const [tab, setTab] = useState<ArtifactTab>('graph');
+  const [artifactPref, setArtifactPref] = useState<{ artifactSeq: number; open: boolean } | null>(null);
+  const [tabPref, setTabPref] = useState<{ artifactSeq: number; tab: ArtifactTab } | null>(null);
+  const [pdfSeq, setPdfSeq] = useState<number | null>(null);
   // Reviews that finished while this page was open (or settled on their first
   // poll after a reload), newest last; the 리뷰 tab shows the chosen or latest one.
   const [reviews, setReviews] = useState<CompletedReview[]>([]);
@@ -66,15 +71,31 @@ function ConversationPage({ id }: ConversationPageProps) {
   const citations = useMemo(() => citationSources(turns), [turns]);
   const active = results.find(entry => entry.seq === activeSeq) ?? results.at(-1) ?? null;
   const activeSearch = active?.search ?? null;
+  const pdfs = useMemo(() => turns.flatMap(turn => {
+    const block = pdfBlockOf(turn);
+    return block ? [{ seq: turn.seq, block }] : [];
+  }), [turns]);
+  const activePdf = pdfs.find(entry => entry.seq === pdfSeq) ?? pdfs.at(-1) ?? null;
   const latestGraphSeq = results.filter(entry => entry.graph).at(-1)?.seq ?? -1;
-  const artifactOpen = artifactPref && artifactPref.graphSeq === latestGraphSeq
+  const latestPdfSeq = pdfs.at(-1)?.seq ?? -1;
+  const latestArtifactSeq = Math.max(latestGraphSeq, latestPdfSeq);
+  const artifactOpen = artifactPref && artifactPref.artifactSeq === latestArtifactSeq
     ? artifactPref.open
-    : latestGraphSeq >= 0;
+    : latestArtifactSeq >= 0;
+  const autoTab: ArtifactTab = latestArtifactSeq >= 0 && latestArtifactSeq === latestPdfSeq ? 'pdf' : 'graph';
+  const tab = tabPref && tabPref.artifactSeq === latestArtifactSeq ? tabPref.tab : autoTab;
+  const setTab = (next: ArtifactTab) => setTabPref({ artifactSeq: latestArtifactSeq, tab: next });
   const liveSeq = turns.find(turn => turn.id === 'live')?.seq;
   const graphPending = Boolean(streaming && active && active.seq === liveSeq);
   const selectedPaper = activeSearch?.papers.find(paper => keyOf(paper) === selectedKey) ?? null;
 
-  const setArtifactOpen = (open: boolean) => setArtifactPref({ graphSeq: latestGraphSeq, open });
+  const setArtifactOpen = (open: boolean) => setArtifactPref({ artifactSeq: latestArtifactSeq, open });
+
+  const openPdf = (seq: number) => {
+    setPdfSeq(seq);
+    setTab('pdf');
+    setArtifactOpen(true);
+  };
   const activeReview = reviews.find(review => review.sessionId === reviewSession) ?? reviews.at(-1) ?? null;
 
   const addReview = (review: CompletedReview) => setReviews(prev => [
@@ -128,12 +149,13 @@ function ConversationPage({ id }: ConversationPageProps) {
     const live = turn.id === 'live';
     const search = searchBlockOf(turn);
     const review = reviewBlockOf(turn);
+    const pdf = pdfBlockOf(turn);
     const summary = turnSummary(turn);
     const isLast = turn === lastTurn;
     const serverCancelled = turn.status === 'error' && turn.content.trim() === CANCELLED_CONTENT;
     // Search turns: lead paragraph, status, results, then the summary. Chat and
     // clarify turns stream text only and show no status line.
-    const { lead, rest } = splitLead(serverCancelled ? '' : turn.content, Boolean(search || review) || Boolean(turn.statusSeen), turn.leadLength);
+    const { lead, rest } = splitLead(serverCancelled ? '' : turn.content, Boolean(search || review || pdf) || Boolean(turn.statusSeen), turn.leadLength);
     const showLiveStatus = live && turn.status === 'running'
       && (Boolean(turn.statusSeen) || (!turn.content && turn.blocks.length === 0));
     const markdown = (text: string) => text && (
@@ -169,7 +191,7 @@ function ConversationPage({ id }: ConversationPageProps) {
               {degradedLabels(search.degraded ?? []).map(label => <li key={label}>{label}</li>)}
             </ul>
           </details>
-        ) : summary && review && !(live && turn.status === 'running') ? (
+        ) : summary && (review || pdf) && !(live && turn.status === 'running') ? (
           <p className="conv-status">{summary}</p>
         ) : null}
 
@@ -182,6 +204,8 @@ function ConversationPage({ id }: ConversationPageProps) {
         )}
 
         {review && <ReviewBlock block={review} onCompleted={addReview} onOpenReport={openReport} />}
+        {pdf?.type === 'paper_pdf' && <PdfBlock block={pdf} onOpen={() => openPdf(turn.seq)} />}
+        {pdf?.type === 'pdf_highlights' && <HighlightsBlock block={pdf} onOpen={() => openPdf(turn.seq)} />}
 
         {markdown(rest)}
 
@@ -275,6 +299,8 @@ function ConversationPage({ id }: ConversationPageProps) {
           graph={active?.graph?.graph ?? null}
           graphPending={graphPending}
           review={activeReview}
+          pdf={activePdf?.block ?? null}
+          pdfKey={activePdf ? `${activePdf.seq}:${activePdf.block.type}` : ''}
           tab={tab}
           onTab={setTab}
           selectedPaper={selectedPaper}

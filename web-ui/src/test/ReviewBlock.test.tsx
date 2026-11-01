@@ -46,14 +46,48 @@ describe('ReviewBlock', () => {
     expect(getReviewStatus).toHaveBeenCalledTimes(2);
   });
 
-  it('shows the failure with a way to 마이페이지', async () => {
+  it('shows the failure in Korean, keeping the raw error out of the text, with a way to 마이페이지', async () => {
     vi.mocked(getReviewStatus).mockResolvedValue({
-      session_id: 'rev-1', status: 'failed', error: '원문을 받지 못했어요', report_available: false,
+      session_id: 'rev-1', status: 'failed', error: 'KeyError: abstract', report_available: false,
     });
     render(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
     await tick(2000);
-    expect(screen.getByRole('alert').textContent).toContain('원문을 받지 못했어요');
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('심층 리뷰에 실패했어요.');
+    expect(alert.textContent).not.toContain('KeyError');
+    expect(screen.getByTitle('KeyError: abstract')).toBeTruthy();
     expect(screen.getByRole('link', { name: '마이페이지에서 보기' }).getAttribute('href')).toBe('/mypage');
+  });
+
+  it('maps the service\'s English progress to Korean', async () => {
+    vi.mocked(getReviewStatus).mockResolvedValue({
+      session_id: 'rev-1', status: 'processing', progress: 'AI is analysing the papers...', report_available: false,
+    });
+    render(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
+    await tick(2000);
+    expect(screen.getByRole('status').textContent).toContain('논문을 분석하는 중…');
+    expect(screen.queryByText(/analysing/)).toBeNull();
+  });
+
+  it('treats a 404 as a vanished session: final state, no more polls, no retry', async () => {
+    vi.mocked(getReviewStatus).mockRejectedValue({ response: { status: 404 } });
+    render(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
+    await tick(2000);
+    expect(screen.getByText('확인 불가')).toBeTruthy();
+    expect(screen.getByText('리뷰 세션을 더 이상 찾을 수 없어요. 다시 요청하면 새로 시작합니다.')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    await tick(60000);
+    expect(getReviewStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps polling through other errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(getReviewStatus).mockRejectedValue({ response: { status: 503 } });
+    render(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
+    await tick(2000);
+    await tick(2000);
+    expect(getReviewStatus).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('확인 불가')).toBeNull();
   });
 
   it('stops polling on unmount', async () => {

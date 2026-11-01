@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -1284,12 +1285,14 @@ async def start_review_session(
 ) -> str:
     """Create a principal-stamped review session and schedule the background review.
 
-    ``schedule(fn, **kwargs)`` defaults to a worker-thread task on the running
-    loop; the HTTP route passes ``BackgroundTasks.add_task`` instead.
+    ``schedule(fn, **kwargs)`` defaults to a task running *fn* in anyio's worker
+    pool (as BackgroundTasks does), not the default executor that routing and
+    streaming threads share; the HTTP route passes ``BackgroundTasks.add_task``.
     Raises 401 (HTTPException) when the principal's account is gone.
     """
     from app.DeepAgent.workspace_manager import WorkspaceManager
 
+    _cleanup_expired_sessions()
     workspace = WorkspaceManager()
     session_id = workspace.session_id
 
@@ -1325,7 +1328,7 @@ async def start_review_session(
     if schedule is not None:
         schedule(run_deep_review_background, **kwargs)
     else:
-        task = asyncio.create_task(asyncio.to_thread(run_deep_review_background, **kwargs))
+        task = asyncio.create_task(run_in_threadpool(run_deep_review_background, **kwargs))
         _scheduled_reviews.add(task)
         task.add_done_callback(_scheduled_reviews.discard)
     return session_id
@@ -1343,7 +1346,6 @@ async def start_deep_review(
     principal = getattr(request.state, "authenticated_principal", None)
     if username is None:
         principal = None
-    _cleanup_expired_sessions()
 
     try:
         logger.info(

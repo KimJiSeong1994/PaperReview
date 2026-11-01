@@ -31,6 +31,13 @@ vi.mock('../api/conversations', () => ({
   ]),
 }));
 vi.mock('../api/client', () => ({ getReviewStatus: vi.fn(), getReviewReport: vi.fn() }));
+vi.mock('../components/mypage/PaperViewerPanel', () => ({
+  default: ({ bookmarkDetail, highlights }: { bookmarkDetail: { papers: { title: string; pdf_url?: string }[] }; highlights?: unknown[] }) => (
+    <div data-testid="pdf-viewer">
+      {bookmarkDetail.papers[0].title}|{bookmarkDetail.papers[0].pdf_url}|{highlights ? highlights.length : 'none'}
+    </div>
+  ),
+}));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 // Plotly does not render in jsdom; the panel's wiring is what this suite checks.
@@ -411,6 +418,60 @@ describe('ConversationPage', () => {
       expect(within(artifact).getByRole('tab', { name: '리뷰' }).getAttribute('aria-selected')).toBe('true');
       expect(within(artifact).getByRole('heading', { name: '핵심 기여' })).toBeTruthy();
       expect(within(artifact).getByText(/근거 확인 70%/)).toBeTruthy();
+    });
+  });
+
+  describe('PDF tool blocks', () => {
+    const paper = {
+      paper_index: 2, paper_title: 'HippoRAG', paper_key: 'k2', pdf_url: 'https://arxiv.org/pdf/2405.14831',
+      proxy_url: '/api/pdf/proxy?url=x', viewer_url: '/paper-viewer?title=HippoRAG', authors: ['B. Gutiérrez'], year: 2024,
+    };
+
+    it('opens the artifact on the PDF tab when a paper_pdf block arrives, and PdfBlock returns to it', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onDelta('HippoRAG PDF를 열었어요.');
+        live!.onBlock({ type: 'paper_pdf', ...paper });
+        live!.onDone({ turn_id: 'a1', intent: 'pdf' });
+      });
+      const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
+      expect(within(artifact).getByRole('tab', { name: 'PDF' }).getAttribute('aria-selected')).toBe('true');
+      expect((await within(artifact).findByTestId('pdf-viewer')).textContent).toBe('HippoRAG|https://arxiv.org/pdf/2405.14831|none');
+      expect(within(artifact).getByRole('link', { name: /새 창에서 열기/ }).getAttribute('href')).toBe('/paper-viewer?title=HippoRAG');
+      expect(screen.getByText('PDF 열기')).toBeTruthy();
+
+      fireEvent.click(within(artifact).getByRole('tab', { name: '그래프' }));
+      fireEvent.click(screen.getByRole('button', { name: 'PDF 열기 →' }));
+      expect(within(artifact).getByRole('tab', { name: 'PDF' }).getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('lists highlights with Korean category chips; a click opens the PDF tab with them overlaid', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onBlock({
+          type: 'pdf_highlights', ...paper,
+          highlights: [
+            { id: 'h1', text: 'graph memory improves recall', color: '', memo: '', created_at: '', category: 'finding' },
+            { id: 'h2', text: 'only English corpora', color: '', memo: '', created_at: '', category: 'limitation' },
+            { id: 'h3', text: 'an odd one', color: '', memo: '', created_at: '', category: 'mystery' },
+          ],
+        });
+        live!.onDone({ turn_id: 'a1', intent: 'pdf' });
+      });
+      const block = screen.getByRole('region', { name: '하이라이트: HippoRAG' });
+      expect(within(block).getByText('핵심 발견')).toBeTruthy();
+      expect(within(block).getByText('한계')).toBeTruthy();
+      expect(within(block).getByText('하이라이트')).toBeTruthy();
+      expect(screen.getByText('하이라이트 3개', { selector: 'p' })).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: '아티팩트' }));
+      expect(screen.queryByRole('complementary', { name: '검색 결과 아티팩트' })).toBeNull();
+      fireEvent.click(within(block).getByRole('button', { name: /only English corpora/ }));
+      const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
+      expect(within(artifact).getByRole('tab', { name: 'PDF' }).getAttribute('aria-selected')).toBe('true');
+      expect((await within(artifact).findByTestId('pdf-viewer')).textContent).toBe('HippoRAG|https://arxiv.org/pdf/2405.14831|3');
     });
   });
 

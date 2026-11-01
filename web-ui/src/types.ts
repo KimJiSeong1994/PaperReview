@@ -1,3 +1,5 @@
+import type { HighlightItem } from './api/base';
+
 export interface Paper {
   doc_id: string;
   /** Server identity for selection; doc_id remains the storage reference. */
@@ -151,7 +153,27 @@ export interface ReviewStartedBlock {
   paper_key: string;
 }
 
-export type TurnBlock = SearchResultsBlock | GraphBlock | ReviewStartedBlock;
+/** A paper the assistant opened as a PDF (or found highlights in). */
+export interface PaperPdfBlock {
+  type: 'paper_pdf';
+  paper_index: number;
+  paper_title: string;
+  paper_key: string;
+  pdf_url: string | null;
+  proxy_url: string | null;
+  /** The standalone /paper-viewer link for "새 창에서 열기". */
+  viewer_url: string;
+  authors: string[];
+  year?: number | string | null;
+}
+
+export interface PdfHighlightsBlock extends Omit<PaperPdfBlock, 'type'> {
+  type: 'pdf_highlights';
+  /** As POST /api/pdf-highlights returns them, at most 20. */
+  highlights: HighlightItem[];
+}
+
+export type TurnBlock = SearchResultsBlock | GraphBlock | ReviewStartedBlock | PaperPdfBlock | PdfHighlightsBlock;
 
 export interface ConversationTurn {
   id: string;

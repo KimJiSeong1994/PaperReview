@@ -400,6 +400,82 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── PDF highlights block + PDF tab ─────────────────────────────────── */
+.conv-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conv-highlights .conv-review-title {
+  margin: 0;
+}
+
+.conv-highlight {
+  align-items: flex-start;
+}
+
+.conv-highlight-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* One tone per category family, as tinted chips (the PDF overlay keeps its own colours). */
+.conv-hl-chip {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wov-05);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.conv-hl-chip.is-finding { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+.conv-hl-chip.is-method { background: var(--ibd-12); color: var(--indigo); }
+.conv-hl-chip.is-limit { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.conv-hl-chip.is-assume { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+
+.conv-pdf {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.conv-pdf-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: var(--home-line);
+}
+
+.conv-pdf-bar .conv-results-more {
+  margin-top: 0;
+  text-decoration: none;
+}
+
+.conv-pdf .paper-viewer-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The artifact header already names the paper; the viewer's one-item paper list is noise here. */
+.conv-artifact .paper-viewer-list {
+  display: none;
+}
+
 .conv-note {
   margin: 0;
   font-size: 13px;

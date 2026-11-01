@@ -86,11 +86,17 @@ describe('SoulPanel', () => {
     expect(await screen.findByText('아직 기억한 것이 없어요. 대화를 나누면 여기에 쌓입니다.')).toBeTruthy();
   });
 
-  it('shows the empty state, and a retry when loading fails', async () => {
+  it('shows the empty state, with no 모두 지우기 when there is nothing to clear', async () => {
     vi.mocked(fetchSoul).mockResolvedValueOnce({ user_md: '', markdown: '', memories: [] });
     await renderPanel();
     expect(screen.getByText('아직 기억한 것이 없어요. 대화를 나누면 여기에 쌓입니다.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '모두 지우기' })).toBeNull();
+  });
+
+  it('offers 모두 지우기 when only the profile text exists', async () => {
+    vi.mocked(fetchSoul).mockResolvedValueOnce({ user_md: '대학원생이에요.', markdown: '', memories: [] });
+    await renderPanel();
+    expect(screen.getByRole('button', { name: '모두 지우기' })).toBeTruthy();
   });
 
   it('offers a retry when the memory cannot be loaded', async () => {

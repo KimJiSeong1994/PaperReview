@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { degradedLabels, linkCitations, normalizeEmphasis } from '../components/conversation/conversationBlocks';
+import { degradedLabels, linkCitations, normalizeEmphasis, reviewProgressLabel } from '../components/conversation/conversationBlocks';
 
 describe('normalizeEmphasis', () => {
   it('unwraps quoted and triple bold so CommonMark can close it before Hangul', () => {
@@ -34,5 +34,21 @@ describe('degradedLabels', () => {
       '순위 계산은 대체 방식으로 했어요.',
     ]);
     expect(degradedLabels([])).toEqual([]);
+  });
+});
+
+describe('reviewProgressLabel', () => {
+  it('maps the review service\'s progress strings and hides anything unknown', () => {
+    expect(reviewProgressLabel('')).toBe('심층 리뷰를 시작하는 중…');
+    expect(reviewProgressLabel('Starting deep research...')).toBe('심층 리뷰를 시작하는 중…');
+    expect(reviewProgressLabel('Analysing papers...')).toBe('논문을 분석하는 중…');
+    expect(reviewProgressLabel('AI is analysing the papers...')).toBe('논문을 분석하는 중…');
+    expect(reviewProgressLabel('Researchers analyzing papers with deepagents...')).toBe('논문을 분석하는 중…');
+    expect(reviewProgressLabel('Retrying analysis (attempt 2)...')).toBe('논문을 다시 분석하는 중…');
+    expect(reviewProgressLabel('Fetching paper abstracts...')).toBe('논문 정보를 모으는 중…');
+    expect(reviewProgressLabel('Verifying...')).toBe('주장을 검증하는 중…');
+    expect(reviewProgressLabel('Generating report...')).toBe('리포트를 쓰는 중…');
+    expect(reviewProgressLabel('검증 2/3')).toBe('검증 2/3');
+    expect(reviewProgressLabel('Traceback (most recent call last)')).toBe('진행 중…');
   });
 });

@@ -128,7 +128,7 @@ function SoulPanel() {
           <div className="soul-block">
             <div className="soul-row soul-list-head">
               <h3 className="soul-label">기억한 내용 · {memories.length}</h3>
-              {memories.length > 0 && (confirmClear ? (
+              {(memories.length > 0 || savedProfile.trim() !== '') && (confirmClear ? (
                 <span className="soul-confirm">
                   <span>정말 모두 지울까요?</span>
                   <button type="button" className="soul-btn soul-btn-danger" onClick={clearAll} disabled={clearing}>

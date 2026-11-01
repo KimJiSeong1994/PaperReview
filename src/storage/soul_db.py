@@ -46,6 +46,16 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_PROMPT_TAGS = ("<user_memory>", "</user_memory>", "<papers>", "</papers>")
+
+
+def sanitize(text: str) -> str:
+    """Strip prompt-delimiter tags and any angle brackets from stored text."""
+    for tag in _PROMPT_TAGS:
+        text = text.replace(tag, "")
+    return text.replace("<", "").replace(">", "")
+
+
 def normalize_memory(text: str) -> str:
     """Dedupe key: lowercase with whitespace collapsed."""
     return " ".join(str(text).lower().split())
@@ -102,7 +112,7 @@ class SoulDB:
 
     def set_user_md(self, username: str, incarnation: str, text: str) -> str:
         """Replace the USER.md profile (cut to 2000 chars); returns the stored text."""
-        text = text[:MAX_USER_MD]
+        text = sanitize(text)[:MAX_USER_MD]
         with self._lock:
             conn = self._connect()
             try:
@@ -136,7 +146,8 @@ class SoulDB:
                     )
                 }
                 for item in items:
-                    kind, text = item.get("kind"), " ".join(str(item.get("text") or "").split())[:MAX_MEMORY_TEXT]
+                    kind = item.get("kind")
+                    text = " ".join(sanitize(str(item.get("text") or "")).split())[:MAX_MEMORY_TEXT]
                     key = normalize_memory(text)
                     if kind not in MEMORY_KINDS or not key:
                         continue
@@ -160,15 +171,18 @@ class SoulDB:
                 conn.close()
         return added
 
-    def touch_memories(self, ids: List[str]) -> None:
-        """Mark memories as just used (they were put into a prompt)."""
+    def touch_memories(self, username: str, incarnation: str, ids: List[str]) -> None:
+        """Mark the caller's memories as just used (they were put into a prompt)."""
         if not ids:
             return
         now = _now()
         with self._lock:
             conn = self._connect()
             try:
-                conn.executemany("UPDATE memories SET last_used_at = ? WHERE id = ?", [(now, i) for i in ids])
+                conn.executemany(
+                    "UPDATE memories SET last_used_at = ? WHERE id = ? AND username = ? AND account_incarnation = ?",
+                    [(now, i, username, incarnation) for i in ids],
+                )
                 conn.commit()
             finally:
                 conn.close()
