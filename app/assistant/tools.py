@@ -190,6 +190,12 @@ async def _deep_review(t: Turn) -> None:
         t.say("심층 리뷰는 10분에 5편까지 시작할 수 있어요. 잠시 후 다시 시도해 주세요.")
         return
     paper, index, title, key, extra = t.paper()
+    if mode == "full" and not paper.get("pdf_url"):
+        # Claim verification links evidence in the full text, which the background
+        # task can only download when it knows a PDF URL.
+        pdf_url = await resolve_pdf_url(paper)
+        if pdf_url:
+            paper = {**paper, "pdf_url": pdf_url}
     name = f"{_label(index)} 「{tr._one_paragraph(title)}」"
     t.say(f"{name} 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.\n\n" if mode == "full"
           else f"{name} 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n")

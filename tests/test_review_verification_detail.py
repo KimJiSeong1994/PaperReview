@@ -124,3 +124,61 @@ def test_orchestrator_persists_merged_claims_and_consensus(monkeypatch):
     orchestrator._verify_facts([{"id": "p1"}, {"id": "p2"}], [], {}, verbose=False)
     assert saved["claims"][0]["verification_status"] == "verified" and saved["claims"][0]["evidence"] == "근거"
     assert saved["consensus"] == [{"topic": "t"}] and saved["refs"] == []  # consensus kept without cross-refs
+
+
+def test_full_mode_review_session_runs_claim_verification(monkeypatch, tmp_path):
+    """start_review_session(fast_mode=False) → run_deep_review_background → verify_report_claims → saved claims."""
+    import asyncio
+    from functools import partial
+    from types import SimpleNamespace
+
+    from app.DeepAgent import deep_review_agent, workspace_manager
+    from app.DeepAgent import review_orchestrator as ro
+    from routers import reviews
+
+    monkeypatch.setattr(
+        workspace_manager, "WorkspaceManager", partial(workspace_manager.WorkspaceManager, base_path=str(tmp_path))
+    )
+
+    class FakeDeepReviewAgent:  # stands in for the deepagents researchers
+        def __init__(self, model, num_researchers, workspace):
+            self.workspace = workspace
+
+        def review_papers(self, paper_ids, verbose, papers_data):
+            self.workspace.save_researcher_analysis(
+                "researcher_1", paper_ids[0], {"analysis_type": "deep_research", "analysis": "모델은 정확도 93%를 달성한다."}
+            )
+            return {"status": "completed", "workspace_path": str(self.workspace.session_path), "papers_reviewed": 1}
+
+    claim = _claim("c1")
+    seen = {}
+
+    def extract(report, papers, analyses):
+        seen.update(report=report, full_text=papers[0].get("full_text"))
+        return [claim]
+
+    monkeypatch.setattr(deep_review_agent, "DeepReviewAgent", FakeDeepReviewAgent)
+    monkeypatch.setattr(reviews, "_generate_review_report_content", lambda ws, result, ids: "# 최종 리포트")
+    monkeypatch.setattr(reviews, "_enrich_papers_with_abstracts", lambda papers: papers)
+    monkeypatch.setattr(reviews, "_fetch_full_text", lambda paper: "the model reaches 93% accuracy on the benchmark")
+    monkeypatch.setattr(ro, "ClaimExtractor", lambda: SimpleNamespace(extract_claims_sync=extract))
+    monkeypatch.setattr(ro, "EvidenceLinker", lambda: SimpleNamespace(find_all_evidence_sync=lambda claims, papers: [
+        ClaimEvidence(claim, [_evidence("c1", 0.88, VerificationStatus.VERIFIED, "93% accuracy")])]))
+
+    scheduled = {}
+    paper = {"title": "Memory Paper", "result_key": "k1", "abstract": "a"}
+    sid = asyncio.run(reviews.start_review_session(
+        [paper], ["k1"], None, fast_mode=False, schedule=lambda fn, **kw: scheduled.update(fn=fn, kw=kw)))
+    assert scheduled["kw"]["fast_mode"] is False
+    try:
+        scheduled["fn"](**scheduled["kw"])
+        session = reviews.review_sessions[sid]
+        assert session["status"] == "completed"
+        assert session["verification_stats"]["total_claims"] == 1 and session["verification_stats"]["verified"] == 1
+        assert seen["report"] == "### Paper 1: Memory Paper\n\n모델은 정확도 93%를 달성한다."
+        assert seen["full_text"] == "the model reaches 93% accuracy on the benchmark"
+        files = list((tmp_path / sid / "verifications").glob("claims_*.json"))
+        saved = json.loads(files[0].read_text(encoding="utf-8"))["claims"]
+        assert saved[0]["verification_status"] == "verified" and saved[0]["evidence"] == "93% accuracy"
+    finally:
+        reviews.review_sessions.pop(sid, None)

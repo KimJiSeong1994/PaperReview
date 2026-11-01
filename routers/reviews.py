@@ -1083,6 +1083,67 @@ def _generate_fallback_report(
     return "\n".join(report)
 
 
+def _fetch_full_text(paper: Dict[str, Any]) -> str:
+    """Full text from the paper's PDF (pdf_url or arXiv id) via the allowed-URL download; '' if unavailable."""
+    url = paper.get("pdf_url") or (
+        f"https://arxiv.org/pdf/{str(paper['arxiv_id']).split('v')[0]}" if paper.get("arxiv_id") else ""
+    )
+    if not url:
+        return ""
+    from app.assistant.tools import _download_pdf, has_word_spaces, pdf_bytes_to_text
+
+    try:
+        text = pdf_bytes_to_text(_download_pdf(url))
+    except Exception as exc:
+        logger.warning("[Deep Review] Full text unavailable for verification: %s", type(exc).__name__)
+        return ""
+    return text if has_word_spaces(text) else ""
+
+
+def _claims_source_markdown(papers: List[Dict[str, Any]], paper_ids: List[str], analyses: List[Dict[str, Any]]) -> str:
+    """'### Paper N: Title' sections from the researchers' analyses — the shape the claim extractor parses."""
+    by_id = {a.get("paper_id"): a for a in analyses}
+    parts = []
+    for i, paper in enumerate(papers):
+        entry = by_id.get(paper_ids[i] if i < len(paper_ids) else None) or (analyses[i] if i < len(analyses) else {})
+        body = (entry.get("analysis") or {}).get("analysis", "")
+        parts.append(f"### Paper {i + 1}: {paper.get('title', 'Untitled')}\n\n"
+                     f"{body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)}")
+    return "\n\n".join(parts)
+
+
+def _verify_deep_review(
+    session_id: str, workspace: Any, paper_ids: List[str], papers_data: Optional[List[Dict[str, Any]]]
+) -> Dict[str, Any]:
+    """Claim extraction + evidence linking for a full (non-fast) review; {} when it cannot run.
+
+    DeepReviewAgent has no verification step of its own, so this runs the
+    orchestrator's verify_report_claims on the researchers' analyses, with the
+    papers' full text when their PDF can be fetched (abstract otherwise).
+    """
+    if not papers_data:
+        return {}
+    papers = [dict(p) for p in papers_data]
+    for paper in papers:
+        if not paper.get("full_text"):
+            paper["full_text"] = _fetch_full_text(paper)
+    with_text = sum(1 for p in papers if p["full_text"])
+    with review_sessions_lock:
+        if session_id in review_sessions:
+            review_sessions[session_id]["progress"] = (
+                "Verifying claims against the paper text..." if with_text
+                else "Verifying claims against abstracts (PDF full text unavailable)..."
+            )
+    try:
+        from app.DeepAgent.review_orchestrator import verify_report_claims
+
+        analyses = workspace.load_all_analyses()
+        return verify_report_claims(_claims_source_markdown(papers, paper_ids, analyses), papers, analyses, workspace)
+    except Exception:
+        logger.exception("[Deep Review] Claim verification failed for session %s", session_id)
+        return {}
+
+
 def run_deep_review_background(
     session_id: str,
     paper_ids: List[str],
@@ -1180,6 +1241,9 @@ def run_deep_review_background(
                     _user_hash(uname),
                     report_error,
                 )
+
+        if not fast_mode and report_generation_error is None and result.get("status") == "completed":
+            result["verification"] = _verify_deep_review(session_id, workspace, paper_ids, papers_data)
 
         with review_sessions_lock:
             if session_id in review_sessions:

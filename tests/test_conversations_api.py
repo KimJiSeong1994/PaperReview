@@ -1028,23 +1028,32 @@ def test_precheck_review_mode():
 def test_full_review_turn_passes_mode_and_costs_two_slots(env, monkeypatch):
     started = []
 
+    papers_started = []
+
     async def fake_start(paper, key, principal, fast_mode=True):
         started.append(fast_mode)
+        papers_started.append(paper)
         return f"review_test_{len(started)}"
 
+    async def resolve(paper):
+        return "https://arxiv.org/pdf/2601.99999"
+
     monkeypatch.setattr(turn_runner, "start_review", fake_start)
+    monkeypatch.setattr(tools, "resolve_pdf_url", resolve)
     conv_id = _searched(env)
     events = _events(env.client, conv_id, "2번 논문 정밀 리뷰 해줘")
     assert events[0]["delta"] == "2번 논문 「B」 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.\n\n"
     block = events[1]["block"]
     assert (block["type"], block["mode"], started) == ("review_started", "full", [False])
     assert len(turn_runner._review_starts[("review", "alice")]) == 2
+    assert papers_started[0]["pdf_url"] == "https://arxiv.org/pdf/2601.99999"  # full mode resolves the PDF first
     saved = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]["blocks"][0]
     assert saved["mode"] == "full"
 
     events = _events(env.client, conv_id, "1번 논문 딥리뷰")
     assert events[0]["delta"] == "1번 논문 「A」 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n"
     assert events[1]["block"]["mode"] == "fast" and started == [False, True]
+    assert "pdf_url" not in papers_started[1]  # fast mode does not need full text
     assert len(turn_runner._review_starts[("review", "alice")]) == 3
 
 
