@@ -36,7 +36,11 @@ MAX_TITLE_CHARS = 24
 _ROUTE_HEAD = (
     "당신은 학술 논문 검색 도우미 '집현전'의 대화 라우터입니다. 대화와 새 메시지를 보고 JSON 객체 하나만 출력하세요.\n"
     "tool:\n"
-    "- \"chat\": 인사, 기능 질문(\"뭘 할 수 있어?\"), 잡담, 논문 없이 답할 수 있는 일반 개념 설명.\n"
+    "- \"chat\": 인사, 기능·사용법 질문(\"뭘 할 수 있어?\"), 잡담, 또는 사용자가 논문을 원하지 않는다고 분명히 말한 경우"
+    "(\"논문 말고 그냥 설명해줘\", \"간단히만\").\n"
+    "우선순위: 연구 주제·방법·모델·비교·동향에 대한 질문은 일반 개념처럼 보여도 chat 이 아니라 search_papers 입니다. "
+    "검색 후 요약이 근거와 함께 질문에 답합니다. 예: \"GraphRAG가 기존 RAG보다 나은 경우는 언제야?\" → search_papers, "
+    "\"LoRA랑 full fine-tuning 차이가 뭐야?\" → search_papers, \"멀티모달 에이전트 최근 동향 알려줘\" → search_papers.\n"
     "- \"clarify\": 검색하기엔 너무 모호한 요청(\"논문 찾아줘\", \"추천해줘\").\n"
 )
 _ROUTE_TAIL = (
@@ -80,7 +84,9 @@ _STYLE_RULES = (
 _CHAT_PROMPT = (
     "당신은 학술 논문 검색 도우미 '집현전'입니다. 한국어로 짧고 자연스럽게 대화하세요.\n"
     + _STYLE_RULES
-    + "- 1–2문장으로 답하고, 필요하면 글머리표 2개 이내를 쓰세요. 전체 120자 이내.\n"
+    + "- 인사·기능·잡담에는 1–2문장, 전체 120자 이내로 답하세요.\n"
+    "- 개념 설명을 원하는 질문이면 2–3문장으로 핵심을 설명하세요(필요하면 글머리표 3개 이내). 전체 300자 이내이며, "
+    "마지막 줄은 반드시 관련 논문 검색 제안입니다.\n"
     "- 할 수 있는 일: 여러 출처(arXiv, OpenAlex, Google Scholar 등)에서 논문 검색, 논문 관계 그래프, 검색 결과 요약·비교.\n"
     "- 마지막 줄은 제안 한 문장으로 끝내세요(예: \"관련 논문을 찾아드릴까요?\").\n"
     "- 모르는 사실은 지어내지 마세요. 심층 리뷰의 진행 상태는 절대 추측하거나 이전 답변을 흉내 내 말하지 마세요.\n"
@@ -459,6 +465,21 @@ _BOOKMARK_MARK = re.compile(r"북마크|저장한|저장해둔|내\s*리포트")
 _EXPLAIN_STRONG = re.compile(r"핵심\s*내용|요지|무슨\s*내용|어떻게\s*(동작|작동)|더\s*자세히|더\s*자세하게")
 _EXPLAIN_WEAK = re.compile(r"설명|차이|비교|요약|정리")
 _RESULTS_PLURAL = re.compile(r"논문들|결과들|전체")  # "이 결과들 정리해줘" names the whole result set
+# Before any results: a research *question* goes to search (the synthesis answers it with evidence).
+# Plain endings like "…마감이야" are statements, so 야/지/까/줘 count only in a question form.
+_QUESTION = re.compile(
+    r"[?？]\s*$|뭐|무엇|언제|어떻게|어떤|왜|차이|비교|동향|최근|장단점"
+    r"|(인가|일까|을까|는지|인지|나요|가요|거야|건가)\s*[?？.!~]*\s*$|알려\s*줘|설명해\s*줘"
+)
+# Explicit search requests already route well through the LLM router, which also sets
+# the title, lead, years and a cleaned query — leave them to it.
+_SEARCH_REQUEST = re.compile(r"찾아|검색|보여|추천|목록")
+_TECHNICAL = re.compile(
+    r"[A-Z]{2,}|[A-Z][a-z]+[A-Z]\w*|\b[A-Z][a-z]{3,}|논문|연구|모델|방법|알고리즘|기법|벤치마크|성능"
+    r"|에이전트|신경망|딥러닝|머신러닝|강화학습|학습|추론|임베딩|그래프|트랜스포머|멀티모달|데이터셋|아키텍처|최적화"
+)
+_SMALL_TALK = re.compile(r"안녕|고마워|고맙|감사|반가|뭐\s*할\s*수|할\s*수\s*있|누구야|사용법|도움말|기능")
+_DECLINE_PAPERS = re.compile(r"논문\s*(말고|없이|은\s*됐)|그냥\s*설명|간단히만")
 
 
 def precheck_route(
@@ -470,6 +491,8 @@ def precheck_route(
     Paper tools need a paper in the current results or a matching bookmarked
     paper; otherwise a bookmark marker routes to answer_from_bookmarks.
     """
+    if _DECLINE_PAPERS.search(message):
+        return finalize_route({"action": "chat"}, message, papers, bookmarks)
     in_bookmarks = bool(_bookmark_paper_matches(message, list(bookmarks)))
     for action, strong, weak in _PRECHECKS:
         if strong.search(message) or (weak and weak.search(message)):
@@ -479,6 +502,12 @@ def precheck_route(
             return finalize_route({"action": action, "paper_index": ref}, message, papers, bookmarks)
     if _BOOKMARK_MARK.search(message):
         return finalize_route({"action": "answer_from_bookmarks"}, message, papers, bookmarks)
+    if (not papers and _QUESTION.search(message) and _TECHNICAL.search(message)
+            and not _SMALL_TALK.search(message) and not _SEARCH_REQUEST.search(message)):
+        query = message.strip().rstrip("?？!. ")
+        return finalize_route(
+            {"action": "search", "query": query, "lead": "관련 논문을 찾아 근거와 함께 답해 볼게요."}, message, papers, bookmarks
+        )
     names_results = bool(answer_refs(message, history, papers) or _RESULTS_PLURAL.search(message)) if papers else False
     if papers and (_EXPLAIN_STRONG.search(message) or (_EXPLAIN_WEAK.search(message) and names_results)):
         return finalize_route({"action": "answer"}, message, papers, bookmarks)

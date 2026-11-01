@@ -1200,3 +1200,39 @@ def test_plural_results_question_uses_topic_synthesis(env):
 
     _events(env.client, conv_id, "2번 핵심 내용 설명해줘")  # single paper: explain format unchanged
     assert env.calls["llm"][-1][0]["content"].startswith(turn_runner._EXPLAIN_PROMPT[:30])
+
+
+# ── research questions go to search, not chat ──────────────────────────
+
+def test_home_example_question_searches_without_router(env):
+    conv_id = env.client.post("/api/conversations", json={"message": "GraphRAG가 기존 RAG보다 나은 경우는 언제야?"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert env.calls["route_inputs"] == [] and events[-1]["done"]["intent"] == "search"
+    assert events[0]["delta"] == "관련 논문을 찾아 근거와 함께 답해 볼게요.\n\n" and _kinds(events)[1] == "status"
+    assert env.calls["search"] == [("GraphRAG가 기존 RAG보다 나은 경우는 언제야", "alice")]
+    assert events[-1]["done"]["title"] == "GraphRAG가 기존 RAG보다 나은 경우"  # cleaned query, 24 chars
+
+
+def test_research_question_precheck_cases():
+    pre = turn_runner.precheck_route
+    for message in ("LoRA랑 full fine-tuning 차이가 뭐야?", "멀티모달 에이전트 최근 동향 알려줘", "Transformer는 어떻게 동작해",
+                    "그래프 신경망 연구에서 장단점은?"):
+        route = pre(message, [], [])
+        assert route and route["action"] == "search", message
+    for message in ("안녕!", "뭐 할 수 있어?", "고마워", "오늘 기분 어때?",  # small talk / no technical token → router
+                    "장기 기억 에이전트 논문, 12월 마감이야",  # a statement, not a question
+                    "GraphRAG 논문 찾아줘"):  # explicit search request: the router sets title/years/query
+        assert pre(message, [], []) is None, message
+    prompt = turn_runner.build_route_prompt()
+    assert "우선순위: 연구 주제·방법·모델·비교·동향에 대한 질문은 일반 개념처럼 보여도 chat 이 아니라 search_papers" in prompt
+    assert '"LoRA랑 full fine-tuning 차이가 뭐야?" → search_papers' in prompt
+
+
+def test_declined_papers_get_a_longer_chat_explanation(env):
+    conv_id = env.client.post("/api/conversations", json={"message": "논문 말고 그냥 GraphRAG 설명해줘"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert events[-1]["done"]["intent"] == "chat" and env.calls["search"] == [] and env.calls["route_inputs"] == []
+    system = env.calls["llm"][-1][0]["content"]
+    assert "인사·기능·잡담에는 1–2문장, 전체 120자 이내" in system
+    assert "개념 설명을 원하는 질문이면 2–3문장" in system and "전체 300자 이내" in system
+    assert "마지막 줄은 반드시 관련 논문 검색 제안" in system
