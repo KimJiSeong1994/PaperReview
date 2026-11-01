@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { copyToClipboard } from '../../utils/clipboard';
+import { viewerHrefForPaper } from '../../utils/blogPaperReference';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -192,6 +193,9 @@ export default function ReportViewer({
           </svg>
           <p className="mypage-report-empty-title">북마크를 선택하세요</p>
           <p className="mypage-report-empty-subtitle">왼쪽 목록에서 북마크를 고르면 리포트가 열립니다</p>
+          <p className="mypage-report-empty-subtitle">
+            북마크에 대해 묻고 싶으면 &lsquo;대화에서 열기&rsquo;를 누르거나 홈에서 &lsquo;내 북마크에서 …&rsquo;라고 물어보세요
+          </p>
         </div>
       </div>
     );
@@ -428,6 +432,15 @@ export default function ReportViewer({
                       <span className="mypage-detail-paper-meta">
                         {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
                       </span>
+                      {/* The PDF used to open in MyPage's own tab; it now opens the standalone viewer. */}
+                      <a
+                        className="mypage-detail-paper-pdf"
+                        href={viewerHrefForPaper(p, 'bookmark')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        PDF 보기 ↗
+                      </a>
                     </div>
                   ))}
                 </div>

@@ -1,29 +1,24 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import './MyPage.css';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
-import { useChat } from '../hooks/useChat';
 import { createShareLink, revokeShareLink } from '../api/client';
 import { createConversation } from '../api/conversations';
 import type { ShareInfo } from '../api/client';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
 import ReportViewer from './mypage/ReportViewer';
-import ChatPanel from './mypage/ChatPanel';
-import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import AgentKeyButton from './AgentKeyButton';
 import SoulPanel from './mypage/SoulPanel';
-
-const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
 interface MyPageProps {
   onBack: () => void;
 }
 
-type MyPageTab = 'bookmarks' | 'papers' | 'memory';
+type MyPageTab = 'bookmarks' | 'memory';
 
 // The default tab comes first, so the first tab on screen is the one the page
 // opens on. "Papers" and "bookmarks" share a selection; the labels say what the
@@ -34,15 +29,17 @@ const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>,
   },
   {
-    id: 'papers', label: '논문 PDF',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
-  },
-  {
     // What the assistant remembers about this user; it has its own panel, no bookmark sidebar.
     id: 'memory', label: '기억',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6c0 2.2 1.2 3.6 2.4 4.8.8.8 1.6 1.6 1.6 2.7V18h4v-1.5c0-1.1.8-1.9 1.6-2.7C16.8 12.6 18 11.2 18 9a6 6 0 0 0-6-6z" /><line x1="10" y1="21" x2="14" y2="21" /></svg>,
   },
 ];
+
+// Evidence terms were set only by the removed bookmark chat's citations; the report
+// still takes them, so it gets an empty, inert set.
+const NO_EVIDENCE_TERMS: string[] = [];
+const ignoreEvidenceTerms = () => {};
+const keepChildren = (children: ReactNode) => children;
 
 const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
 
@@ -51,7 +48,7 @@ const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
  * a value — anything unrecognised lands there too.
  */
 export function tabFromParams(raw: string | null): MyPageTab {
-  return raw === 'papers' || raw === 'memory' ? raw : 'bookmarks';
+  return raw === 'memory' ? raw : 'bookmarks';
 }
 
 /** Carries the rest of the query string through; only touches its own key. */
@@ -78,16 +75,8 @@ function MyPage({ onBack }: MyPageProps) {
   const [activeTab, setActiveTab] = useState<MyPageTab>(() => tabFromParams(searchParams.get('tab')));
 
   /** Switch tabs and record it, so a reload or a shared link lands in the same place. */
-  // The PDF viewer stays mounted across the bookmarks/PDF switch so its
-  // document, zoom, resolved URLs and highlights survive (scroll position does
-  // not — display:none drops the scroll box). It is not mounted until the tab
-  // is first shown, because pdf.js is a chunk bookmark-only visits should not
-  // pay for.
-  const [viewerMounted, setViewerMounted] = useState(activeTab === 'papers');
-
   const changeTab = useCallback((tab: MyPageTab) => {
     setActiveTab(tab);
-    if (tab === 'papers') setViewerMounted(true);
     setSearchParams((prev) => paramsWithTab(prev, tab), { replace: true });
   }, [setSearchParams]);
 
@@ -129,14 +118,11 @@ function MyPage({ onBack }: MyPageProps) {
     return result;
   }, [bm.handleSelectBookmark, hl.initFromDetail]);
 
-  const chat = useChat(bm.bookmarks, bm.chatBookmarkIds, selectBookmarkAndInitHighlights);
-
-  // Direct bookmark selection (clears chat highlight terms)
+  // Direct bookmark selection
   const handleSelectBookmarkDirect = useCallback(async (bookmark: Bookmark) => {
-    chat.setHighlightTerms([]);
     setSearchParams((prev) => paramsWithBookmark(prev, bookmark.id), { replace: true });
     await selectBookmarkAndInitHighlights(bookmark);
-  }, [selectBookmarkAndInitHighlights, chat.setHighlightTerms, setSearchParams]);
+  }, [selectBookmarkAndInitHighlights, setSearchParams]);
 
   /**
    * Reopen whatever the URL names, once the list it has to be found in has
@@ -215,20 +201,6 @@ function MyPage({ onBack }: MyPageProps) {
       setShareLoading(false);
     }
   }, [bm.selectedBookmark, shareLoading, bm.setBookmarkDetail, bm.setBookmarks]);
-
-  // Scroll to first highlight after render
-  useEffect(() => {
-    if (chat.scrollToHighlight && chat.highlightTerms.length > 0 && bm.bookmarkDetail && !bm.loadingDetail) {
-      const timer = setTimeout(() => {
-        const firstHighlight = reportScrollRef.current?.querySelector('.mypage-highlight');
-        if (firstHighlight) {
-          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        chat.setScrollToHighlight(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [chat.scrollToHighlight, chat.highlightTerms, bm.bookmarkDetail, bm.loadingDetail]);
 
   // Old links still say ?tab=curriculum, which has its own route now; that
   // render only redirects, so it must not fetch on the way out.
@@ -326,37 +298,23 @@ function MyPage({ onBack }: MyPageProps) {
 
       {/* Tab content */}
         <div
-          className={`mypage-content${activeTab === 'papers' ? ' mypage-content--viewer' : ''}${activeTab === 'memory' ? ' mypage-content--memory' : ''}`}
+          className={`mypage-content${activeTab === 'memory' ? ' mypage-content--memory' : ''}`}
           role="tabpanel"
           id={`mypage-panel-${activeTab}`}
           aria-labelledby={`mypage-tab-${activeTab}`}
         >
           {activeTab !== 'memory' && bookmarkSidebar}
           {activeTab === 'memory' && <SoulPanel />}
-          {/* Both bodies are grid children through display:contents wrappers, so the
-              hidden one costs no track and the shown one lays out as before. */}
-          {viewerMounted && (
-            <div className="mypage-tab-body" hidden={activeTab !== 'papers'}>
-              <LazyLoadErrorBoundary>
-                <Suspense fallback={<div className="paper-viewer-lazy-loading" role="status" aria-live="polite">뷰어 불러오는 중...</div>}>
-                  <PaperViewerPanel
-                    bookmarkDetail={bm.bookmarkDetail}
-                    loadingDetail={bm.loadingDetail}
-                    hasSelectedBookmark={!!bm.selectedBookmark}
-                  />
-                </Suspense>
-              </LazyLoadErrorBoundary>
-            </div>
-          )}
+          {/* A display:contents wrapper: the report stays a grid child, and stays mounted while 기억 is open. */}
           <div className="mypage-tab-body" hidden={activeTab !== 'bookmarks'}>
           <ReportViewer
             bookmarkDetail={bm.bookmarkDetail}
             loadingDetail={bm.loadingDetail}
             hasSelectedBookmark={!!bm.selectedBookmark}
             reportScrollRef={reportScrollRef}
-            highlightTerms={chat.highlightTerms}
-            setHighlightTerms={chat.setHighlightTerms}
-            highlightChildren={chat.highlightChildren}
+            highlightTerms={NO_EVIDENCE_TERMS}
+            setHighlightTerms={ignoreEvidenceTerms}
+            highlightChildren={keepChildren}
             userHighlights={hl.userHighlights}
             sortedHighlights={hl.sortedHighlights}
             applyUserHighlights={hl.applyUserHighlights}
@@ -411,23 +369,6 @@ function MyPage({ onBack }: MyPageProps) {
             conversationError={attemptForSelected?.error ?? null}
           />
 
-          <ChatPanel
-            messages={chat.messages}
-            inputValue={chat.inputValue}
-            setInputValue={chat.setInputValue}
-            isStreaming={chat.isStreaming}
-            streamingContent={chat.streamingContent}
-            chatEndRef={chat.chatEndRef}
-            chatTopicFilter={bm.chatTopicFilter}
-            setChatTopicFilter={bm.setChatTopicFilter}
-            allTopics={bm.allTopics}
-            selectedCount={bm.selectedIds.size}
-            onSendMessage={() => chat.handleSendMessage()}
-            onKeyDown={chat.handleKeyDown}
-            onClearChat={chat.clearChat}
-            processCitationChildren={chat.processCitationChildren}
-            handleCitationClick={chat.handleCitationClick}
-          />
           </div>
         </div>
     </div>

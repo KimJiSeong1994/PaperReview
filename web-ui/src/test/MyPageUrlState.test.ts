@@ -3,7 +3,6 @@ import { tabFromParams, paramsWithTab, paramsWithBookmark } from '../components/
 
 describe('tabFromParams', () => {
   it('reads the tab that is not the default', () => {
-    expect(tabFromParams('papers')).toBe('papers');
     expect(tabFromParams('memory')).toBe('memory');
   });
 
@@ -14,24 +13,27 @@ describe('tabFromParams', () => {
     expect(tabFromParams('nonsense')).toBe('bookmarks');
     // The old tab value is handled by MyPage as a redirect, not as a tab.
     expect(tabFromParams('curriculum')).toBe('bookmarks');
+    // The 논문 PDF tab is gone; its old links open 북마크.
+    expect(tabFromParams('papers')).toBe('bookmarks');
+    expect(tabFromParams('pdf')).toBe('bookmarks');
   });
 });
 
 describe('paramsWithTab', () => {
   it('records a non-default tab', () => {
-    expect(paramsWithTab(new URLSearchParams(), 'papers').get('tab')).toBe('papers');
+    expect(paramsWithTab(new URLSearchParams(), 'memory').get('tab')).toBe('memory');
   });
 
   it('drops the key for the default rather than writing tab=bookmarks', () => {
-    const next = paramsWithTab(new URLSearchParams('tab=papers'), 'bookmarks');
+    const next = paramsWithTab(new URLSearchParams('tab=memory'), 'bookmarks');
     expect(next.has('tab')).toBe(false);
   });
 
   it('leaves every other parameter alone', () => {
-    const next = paramsWithTab(new URLSearchParams('bookmark=bm_1&q=graph'), 'papers');
+    const next = paramsWithTab(new URLSearchParams('bookmark=bm_1&q=graph'), 'memory');
     expect(next.get('bookmark')).toBe('bm_1');
     expect(next.get('q')).toBe('graph');
-    expect(next.get('tab')).toBe('papers');
+    expect(next.get('tab')).toBe('memory');
   });
 });
 
@@ -42,14 +44,14 @@ describe('paramsWithBookmark', () => {
   });
 
   it('keeps the tab that is already recorded', () => {
-    const next = paramsWithBookmark(new URLSearchParams('tab=papers'), 'bm_1');
-    expect(next.get('tab')).toBe('papers');
+    const next = paramsWithBookmark(new URLSearchParams('tab=memory'), 'bm_1');
+    expect(next.get('tab')).toBe('memory');
   });
 });
 
 describe('round trip', () => {
   it('a written URL reads back as the same tab', () => {
-    for (const tab of ['bookmarks', 'papers'] as const) {
+    for (const tab of ['bookmarks', 'memory'] as const) {
       const written = paramsWithTab(new URLSearchParams(), tab);
       expect(tabFromParams(written.get('tab'))).toBe(tab);
     }

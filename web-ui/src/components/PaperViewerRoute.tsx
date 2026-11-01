@@ -15,6 +15,7 @@ const SOURCE_KICKER: Record<string, string> = {
   search: '검색 결과',
   recommendation: '추천 논문',
   curriculum: '커리큘럼 논문',
+  bookmark: '북마크 논문',
 };
 
 function splitAuthors(value: string | null): string[] {

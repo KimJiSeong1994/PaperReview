@@ -36,6 +36,27 @@ const setClipboard = (writeText: unknown) => {
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => setClipboard(undefined));
 
+describe('ReportViewer without a chat panel or PDF tab', () => {
+  it('points the empty state at conversations for questions about bookmarks', () => {
+    render(<ReportViewer {...base} hasSelectedBookmark={false} />);
+    expect(screen.getByText(/북마크에 대해 묻고 싶으면 ‘대화에서 열기’를 누르거나 홈에서 ‘내 북마크에서 …’라고 물어보세요/)).toBeTruthy();
+  });
+
+  it('opens each listed paper in the standalone viewer, in a new tab', () => {
+    const papers = [{ title: 'HippoRAG', authors: ['B. Gutiérrez', 'Y. Shu'], year: 2024, pdf_url: 'https://arxiv.org/pdf/2405.14831' }];
+    render(<ReportViewer {...base} bookmarkDetail={{ ...detail, papers }} papersCollapsed={false} />);
+    const link = screen.getByRole('link', { name: /PDF 보기/ });
+    const href = new URL(link.getAttribute('href')!, 'https://x');
+    expect(href.pathname).toBe('/paper-viewer');
+    expect(href.searchParams.get('title')).toBe('HippoRAG');
+    expect(href.searchParams.get('pdf_url')).toBe('https://arxiv.org/pdf/2405.14831');
+    expect(href.searchParams.get('authors')).toBe('B. Gutiérrez;Y. Shu');
+    expect(href.searchParams.get('year')).toBe('2024');
+    expect(href.searchParams.get('source')).toBe('bookmark');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+});
+
 describe('ReportViewer header', () => {
   it('offers 대화에서 열기 beside the export actions and shows its error inline', () => {
     const onOpenInConversation = vi.fn();

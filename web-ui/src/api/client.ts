@@ -8,7 +8,6 @@ export * from './search';
 export * from './review';
 export * from './bookmarks';
 export * from './paper-review';
-export * from './chat';
 export * from './curriculum';
 export * from './share';
 export * from './citations';
