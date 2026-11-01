@@ -230,28 +230,191 @@
   text-underline-offset: 3px;
 }
 
+/* Citations: quiet superscript result numbers, one popover, and a 참고 논문 list (citation UX spec). */
+.conv-cite-group {
+  margin-left: 1px;
+  font-size: 0.75em;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 6px padding with an equal negative margin: a ~24px target without changing line height. */
 .conv-cite {
-  display: inline-grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  margin: 0 2px;
-  padding: 0 4px;
+  display: inline;
+  margin: -6px 0;
+  padding: 6px 1px;
   border: 0;
-  border-radius: 4px;
-  background: var(--ibd-12);
+  border-radius: 3px;
+  background: none;
   color: var(--indigo);
   font: inherit;
-  font-size: 11px;
   font-weight: 600;
-  line-height: 18px;
-  vertical-align: 2px;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
 .conv-cite:hover {
-  background: var(--indigo);
-  color: var(--bg);
+  background: var(--ibd-15);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.conv-cite:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+}
+
+.conv-cite.is-missing {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.conv-cite-peek {
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: var(--home-line);
+  border-radius: 8px;
+  background: var(--bg-elev2);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.conv-cite-peek-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-cite-peek-meta {
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.conv-cite-peek-hint {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .conv-cite-peek {
+    animation: conv-peek-in 120ms ease-out;
+  }
+}
+
+@keyframes conv-peek-in {
+  from { opacity: 0; transform: translateY(-2px); }
+}
+
+/* ── 참고 논문 ─────────────────────────────────────────────────────── */
+.conv-refs {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: var(--home-line);
+}
+
+.conv-refs-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.conv-refs-count {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-refs-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-ref {
+  display: grid;
+  grid-template-columns: 2.5ch 1fr auto;
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.conv-ref-n {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.conv-ref-body {
+  min-width: 0;
+}
+
+.conv-ref-title {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-ref-title:hover,
+.conv-ref-title:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.conv-ref-meta {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.conv-ref-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.conv-ref-link:hover {
+  color: var(--text-hi);
+  background: var(--wov-04);
+}
+
+@media (max-width: 600px) {
+  .conv-ref-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
 
 /* ── Inline results ────────────────────────────────────────────────── */

@@ -119,7 +119,7 @@ describe('ConversationPage', () => {
     });
     expect(screen.getByText('출처 2곳 · 2편 · 그래프')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    fireEvent.click(screen.getByRole('button', { name: '참고 논문 2: HippoRAG 2024, HippoRAG' }));
     expect(screen.getByTestId('graph').textContent).toBe('graph:HippoRAG');
 
     fireEvent.click(screen.getByRole('button', { name: '아티팩트' }));
@@ -292,7 +292,7 @@ describe('ConversationPage', () => {
       live!.onDone({ turn_id: 'a2', intent: 'search' });
     });
     expect(screen.getByRole('complementary', { name: '검색 결과 아티팩트' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '1' }));
+    fireEvent.click(screen.getByRole('button', { name: '참고 논문 1: HippoRAG 2024, HippoRAG' }));
     expect((await screen.findByTestId('graph')).textContent).toBe('graph:HippoRAG');
   });
 
@@ -514,7 +514,7 @@ describe('ConversationPage', () => {
       expect(follows(strip, screen.getByText(/두 북마크 모두/))).toBe(true);
       expect(screen.getByText('북마크 2개 근거')).toBeTruthy();
 
-      fireEvent.click(screen.getByRole('button', { name: 'B1' }));
+      fireEvent.click(screen.getByRole('button', { name: '근거 북마크 B1: GraphRAG 서베이' }));
       expect(document.activeElement).toBe(first);
       expect(screen.queryByRole('complementary', { name: '검색 결과 아티팩트' })).toBeNull();
     });
@@ -578,6 +578,124 @@ describe('ConversationPage', () => {
     renderPage({ run: true, openReview: 'rev-gone', openReviewTitle: '오래된 북마크' });
     const artifact = await screen.findByRole('complementary', { name: '검색 결과 아티팩트' });
     expect((await within(artifact).findByText(/리뷰 세션을 더 이상 찾을 수 없어요/))).toBeTruthy();
+  });
+
+  describe('citations', () => {
+    const eight: Paper[] = Array.from({ length: 8 }, (_, i) => ({
+      doc_id: `d${i + 1}`, result_key: `k${i + 1}`, title: `Paper number ${i + 1} on graph memory`,
+      authors: i === 2 ? ['Jiseong Han', 'Minji Lee', 'Sora Park', 'Doyun Kim'] : i === 6 ? ['이민지'] : [`Author${i + 1} Surname${i + 1}`],
+      year: 2020 + i, source: 'arxiv', pdf_url: i === 2 ? 'https://arxiv.org/pdf/3' : undefined, url: i === 6 ? 'https://example.org/7' : undefined,
+    }));
+
+    const answer = async (text: string) => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onBlock({ type: 'search_results', query: 'q', total: 8, query_hash: 'h8', partial: false, degraded: [], papers: eight });
+        live!.onDelta(text);
+        live!.onDone({ turn_id: 'a1', intent: 'search' });
+      });
+    };
+
+    it('marks citations with superscript numbers, resolves past the top 5, and lists cited papers by number', async () => {
+      await answer('기억 그래프가 핵심이에요 [7]. 비교하면 [3][7][8] 순으로 정리됩니다.');
+
+      // [7] lies beyond the inline top 5 and still resolves.
+      const seven = screen.getAllByRole('button', { name: '참고 논문 7: 이민지 2026, Paper number 7 on graph memory' });
+      expect(seven).toHaveLength(2);
+      expect(seven[0].textContent).toBe('7');
+      expect(seven[0].hasAttribute('title')).toBe(false);
+      const group = screen.getByRole('button', { name: /^참고 논문 3: Han 2022/ }).closest('.conv-cite-group')!;
+      expect(group.tagName).toBe('SUP');
+      expect(group.textContent).toBe('3,7,8');
+
+      const refs = screen.getByRole('region', { name: '참고 논문' });
+      expect(within(refs).getByRole('heading').textContent).toContain('참고 논문');
+      expect(within(refs).getByRole('heading').textContent).toContain('3');
+      const items = within(refs).getAllByRole('listitem');
+      expect(items.map(item => item.querySelector('.conv-ref-n')!.textContent)).toEqual(['3', '7', '8']);
+      expect(items[0].textContent).toContain('Paper number 3 on graph memory');
+      expect(items[0].querySelector('.conv-ref-meta')!.textContent).toContain('Jiseong Han, Minji Lee, Sora Park et al. · 2022 · arxiv');
+      expect(refs.querySelector('.conv-ref-label')).toBeNull();
+      expect(within(items[0]).getByRole('link').getAttribute('href')).toBe('https://arxiv.org/pdf/3');
+      expect(within(items[1]).getByRole('link').getAttribute('href')).toBe('https://example.org/7');
+      expect(within(items[2]).queryByRole('link')).toBeNull();
+      expect(within(refs).queryByText(/Paper number 1 on/)).toBeNull();
+
+      fireEvent.click(within(items[2]).getByRole('button', { name: 'Paper number 8 on graph memory' }));
+      // No graph block in this turn: the artifact opens with the selected paper's detail.
+      const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
+      expect(within(artifact).getAllByText('Paper number 8 on graph memory').length).toBeGreaterThan(0);
+    });
+
+    it('shows no 참고 논문 list when the answer cites nothing', async () => {
+      await answer('8편을 찾았어요.');
+      expect(screen.queryByRole('region', { name: '참고 논문' })).toBeNull();
+    });
+
+    it('opens the popover on focus, describes the marker with it, and closes on Escape', async () => {
+      await answer('핵심은 [3] 입니다.');
+      const marker = screen.getByRole('button', { name: /^참고 논문 3:/ });
+      act(() => { marker.focus(); });
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip.textContent).toContain('Paper number 3 on graph memory');
+      expect(tooltip.textContent).toContain('Jiseong Han, Minji Lee et al. · 2022 · arxiv');
+      expect(tooltip.textContent).toContain('클릭하면 오른쪽 패널에서 열려요');
+      expect(marker.getAttribute('aria-describedby')).toBe('conv-cite-peek');
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      expect(document.activeElement).toBe(marker);
+    });
+
+    it('opens the popover 120ms after a mouse enters, closes it on leave, and never for touch', async () => {
+      await answer('핵심은 [3] 입니다.');
+      vi.useFakeTimers();
+      try {
+        const marker = screen.getByRole('button', { name: /^참고 논문 3:/ });
+        fireEvent.pointerEnter(marker, { pointerType: 'mouse' });
+        act(() => { vi.advanceTimersByTime(100); });
+        expect(screen.queryByRole('tooltip')).toBeNull();
+        act(() => { vi.advanceTimersByTime(20); });
+        expect(screen.getByRole('tooltip')).toBeTruthy();
+        fireEvent.pointerLeave(marker, { pointerType: 'mouse' });
+        expect(screen.queryByRole('tooltip')).toBeNull();
+
+        fireEvent.pointerEnter(marker, { pointerType: 'touch' });
+        act(() => { vi.advanceTimersByTime(500); });
+        expect(screen.queryByRole('tooltip')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('renders a number with no result as plain text, without a list row', async () => {
+      await answer('없는 번호 [9] 와 있는 번호 [2].');
+      const group = screen.getAllByText('9').find(node => node.classList.contains('conv-cite'))!;
+      expect(group.tagName).toBe('SPAN');
+      expect(group.classList.contains('is-missing')).toBe(true);
+      expect(screen.queryByRole('button', { name: /^참고 논문 9/ })).toBeNull();
+      const rows = within(screen.getByRole('region', { name: '참고 논문' })).getAllByRole('listitem');
+      expect(rows.map(row => row.querySelector('.conv-ref-n')!.textContent)).toEqual(['2']);
+    });
+
+    it('marks bookmark citations as B1 and focuses the strip chip', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onBlock({
+          type: 'bookmark_refs',
+          bookmarks: [{ id: 'bm_1', title: '그래프 기반 장기 기억 연구 모음과 정리 노트', query: 'q', num_papers: 2, has_report: true, url: '/mypage?bookmark=bm_1' }],
+        });
+        live!.onDelta('북마크를 보면 [B1] 이렇습니다.');
+        live!.onDone({ turn_id: 'a1', intent: 'answer_from_bookmarks' });
+      });
+      const marker = screen.getByRole('button', { name: '근거 북마크 B1: 그래프 기반 장기 기억 연구 모음과 정리 노트' });
+      expect(marker.textContent).toBe('B1');
+      act(() => { marker.focus(); });
+      expect(screen.getByRole('tooltip').textContent).toContain('북마크 · 2편 · 리포트');
+      fireEvent.click(marker);
+      expect(document.activeElement?.id).toMatch(/^bookmark-ref-\d+-1$/);
+    });
   });
 
   it('shows a load error with a way back', async () => {

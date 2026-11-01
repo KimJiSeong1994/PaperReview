@@ -1,4 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent as ReactFocusEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,6 +23,7 @@ import { useConversation, type ViewTurn } from '../../hooks/useConversation';
 import type { Paper } from '../../types';
 import ArtifactPanel, { type ArtifactTab } from './ArtifactPanel';
 import BookmarkRefsStrip from './BookmarkRefsStrip';
+import CitedPapers from './CitedPapers';
 import HighlightsBlock from './HighlightsBlock';
 import PdfBlock from './PdfBlock';
 import ReviewBlock, { type CompletedReview } from './ReviewBlock';
@@ -20,6 +32,11 @@ import {
   BOOKMARK_CITE_PREFIX,
   bookmarkRefsOf,
   CITE_PREFIX,
+  citationLabel,
+  citationOrder,
+  authorList,
+  paperYear,
+  citedNumbers,
   citationSources,
   degradedLabels,
   linkCitations,
@@ -36,6 +53,43 @@ const AVATAR_SRC = '/Jiphyeonjeon_llama.webp';
 // The server's content for a turn a newer message cancelled.
 const CANCELLED_CONTENT = '중단됨';
 const keyOf = (paper: Paper): string => String(paper.result_key ?? paper.doc_id);
+
+/** A run of citations as quiet superscript numbers: "유리합니다³˒⁷˒⁸". */
+const citationGroup = (markers: ReactNode[]) => (
+  <sup className="conv-cite-group">
+    {markers.map((marker, index) => <Fragment key={index}>{index > 0 && ','}{marker}</Fragment>)}
+  </sup>
+);
+
+/**
+ * ReactMarkdown remounts a subtree whenever a `components` entry changes
+ * identity, which would drop a marker's focus and hover each time the popover
+ * opens. So the link component is stable and reads its turn's renderer from context.
+ */
+const CitationRenderer = createContext<(href: string | undefined, children: ReactNode) => ReactNode>(
+  (href, children) => <a href={href}>{children}</a>,
+);
+
+function CitationAnchor({ href, children }: { href?: string; children?: ReactNode }) {
+  return <>{useContext(CitationRenderer)(href, children)}</>;
+}
+
+const MARKDOWN_PLUGINS = [remarkGfm];
+const MARKDOWN_COMPONENTS = { a: CitationAnchor };
+
+/** What the citation popover shows for one marker. */
+interface PeekContent {
+  title: string;
+  meta: string;
+  hint: boolean;
+}
+
+const PEEK_ID = 'conv-cite-peek';
+const PEEK_DELAY_MS = 120;
+const PEEK_GAP = 6;
+const PEEK_MAX_WIDTH = 320;
+// Flip above when this much room is not left below; an estimate, the popover is at most ~3 lines.
+const PEEK_ROOM_BELOW = 96;
 
 interface ConversationPageProps {
   id: string;
@@ -71,6 +125,9 @@ function ConversationPage({ id }: ConversationPageProps) {
     () => (navState.openReview ? { sessionId: navState.openReview, title: navState.openReviewTitle || '북마크 리뷰' } : null),
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // One citation popover for the page (hover after a short delay, or keyboard focus).
+  const [peek, setPeek] = useState<({ id: string; rect: DOMRect } & PeekContent) | null>(null);
+  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stickRef = useRef(true);
 
   // The run flag is one-shot: a reload of this entry must not re-run the turn.
@@ -141,31 +198,102 @@ function ConversationPage({ id }: ConversationPageProps) {
       .catch(() => navigate(`/?q=${encodeURIComponent(query)}`));
   };
 
+  const closePeek = () => {
+    if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    peekTimerRef.current = null;
+    setPeek(null);
+  };
+
+  /** Hover (mouse only, after 120ms) and focus (at once) open the popover; touch never does. */
+  const peekProps = (id: string, content: PeekContent) => ({
+    'aria-describedby': peek?.id === id ? PEEK_ID : undefined,
+    onPointerEnter: (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.pointerType !== 'mouse') return;
+      const target = event.currentTarget;
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+      peekTimerRef.current = setTimeout(() => {
+        peekTimerRef.current = null;
+        setPeek({ id, rect: target.getBoundingClientRect(), ...content });
+      }, PEEK_DELAY_MS);
+    },
+    onPointerLeave: closePeek,
+    onFocus: (event: ReactFocusEvent<HTMLElement>) => setPeek({ id, rect: event.currentTarget.getBoundingClientRect(), ...content }),
+    onBlur: closePeek,
+  });
+
   const renderCitation = (turn: ViewTurn, href: string | undefined, children: ReactNode) => {
-    const source = citations.get(turn.id);
     if (href?.startsWith(BOOKMARK_CITE_PREFIX)) {
-      const n = Number(href.slice(BOOKMARK_CITE_PREFIX.length));
-      if (!bookmarkRefsOf(turn)?.bookmarks[n - 1]) return <span>[B{n}]</span>;
-      // Bookmark citations stay in the thread: they point at the turn's own chip.
-      const focusChip = () => {
-        const chip = document.getElementById(`bookmark-ref-${turn.seq}-${n}`);
-        chip?.scrollIntoView?.({ block: 'nearest' });
-        chip?.focus();
-      };
-      return <button type="button" className="conv-cite" onClick={focusChip}>B{n}</button>;
+      const bookmarks = bookmarkRefsOf(turn)?.bookmarks ?? [];
+      const markers = citedNumbers(href, BOOKMARK_CITE_PREFIX).map(n => {
+        const bookmark = bookmarks[n - 1];
+        if (!bookmark) return <span key={n} className="conv-cite is-missing">B{n}</span>;
+        // Bookmark citations stay in the thread: they point at the turn's own chip.
+        const focusChip = () => {
+          const chip = document.getElementById(`bookmark-ref-${turn.seq}-${n}`);
+          chip?.scrollIntoView?.({ block: 'nearest' });
+          chip?.focus();
+        };
+        return (
+          <button
+            key={n}
+            type="button"
+            className="conv-cite"
+            aria-label={`근거 북마크 B${n}: ${bookmark.title}`}
+            onClick={focusChip}
+            {...peekProps(`${turn.seq}-B${n}`, {
+              title: bookmark.title,
+              meta: `북마크 · ${bookmark.num_papers}편${bookmark.has_report ? ' · 리포트' : ''}`,
+              hint: false,
+            })}
+          >
+            B{n}
+          </button>
+        );
+      });
+      return citationGroup(markers);
     }
     if (!href?.startsWith(CITE_PREFIX)) {
       return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
     }
-    const n = Number(href.slice(CITE_PREFIX.length));
-    const paper = source?.search.papers[n - 1];
-    if (!source || !paper) return <span>[{n}]</span>;
-    return (
-      <button type="button" className="conv-cite" title={paper.title} onClick={() => showInArtifact(source.seq, paper)}>
-        {n}
-      </button>
-    );
+    const source = citations.get(turn.id);
+    const markers = citedNumbers(href, CITE_PREFIX).map(n => {
+      const paper = source?.search.papers[n - 1];
+      if (!source || !paper) return <span key={n} className="conv-cite is-missing">{n}</span>;
+      return (
+        <button
+          key={n}
+          type="button"
+          className="conv-cite"
+          aria-label={`참고 논문 ${n}: ${citationLabel(paper)}, ${paper.title}`}
+          onClick={() => showInArtifact(source.seq, paper)}
+          {...peekProps(`${turn.seq}-${n}`, {
+            title: paper.title,
+            meta: [authorList(paper.authors, 2), paperYear(paper.year), paper.source].filter(Boolean).join(' · '),
+            hint: true,
+          })}
+        >
+          {n}
+        </button>
+      );
+    });
+    return citationGroup(markers);
   };
+
+  // While the popover is open, Escape and scrolling the thread close it.
+  useEffect(() => {
+    if (!peek) return undefined;
+    const box = scrollRef.current;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setPeek(null); };
+    const onScroll = () => setPeek(null);
+    document.addEventListener('keydown', onKeyDown);
+    box?.addEventListener('scroll', onScroll, { capture: true });
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      box?.removeEventListener('scroll', onScroll, { capture: true });
+    };
+  }, [peek]);
+
+  useEffect(() => () => { if (peekTimerRef.current) clearTimeout(peekTimerRef.current); }, []);
 
   const lastTurn = turns.at(-1);
 
@@ -184,14 +312,13 @@ function ConversationPage({ id }: ConversationPageProps) {
     const showLiveStatus = live && turn.status === 'running'
       && (Boolean(turn.statusSeen) || (!turn.content && turn.blocks.length === 0));
     const markdown = (text: string) => text && (
-      <div className="conv-markdown">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{ a: ({ href, children }) => renderCitation(turn, href, children) }}
-        >
-          {linkCitations(normalizeEmphasis(text))}
-        </ReactMarkdown>
-      </div>
+      <CitationRenderer.Provider value={(href, children) => renderCitation(turn, href, children)}>
+        <div className="conv-markdown">
+          <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
+            {linkCitations(normalizeEmphasis(text))}
+          </ReactMarkdown>
+        </div>
+      </CitationRenderer.Provider>
     );
     return (
       <li key={turn.id} className="conv-turn is-assistant">
@@ -237,6 +364,18 @@ function ConversationPage({ id }: ConversationPageProps) {
         {pdf?.type === 'pdf_highlights' && <HighlightsBlock block={pdf} onOpen={() => openPdf(turn.seq)} />}
 
         {markdown(rest)}
+
+        {(() => {
+          const source = citations.get(turn.id);
+          if (!source || serverCancelled) return null;
+          const entries = citationOrder(turn.content)
+            .flatMap(n => {
+              const paper = source.search.papers[n - 1];
+              return paper ? [{ n, paper }] : [];
+            })
+            .sort((left, right) => left.n - right.n);
+          return <CitedPapers entries={entries} turnSeq={turn.seq} onSelect={paper => showInArtifact(source.seq, paper)} />;
+        })()}
 
         {(turn.stopped || serverCancelled) && <p className="conv-note">중단됨</p>}
         {!live && turn.status === 'running' && (
@@ -321,6 +460,25 @@ function ConversationPage({ id }: ConversationPageProps) {
           <p className="conv-disclaimer">AI 답변도 틀릴 수 있어요. 중요한 주장은 원문 근거를 한 번 더 확인해 주세요.</p>
         </div>
       </main>
+
+      {peek && (
+        <div
+          id={PEEK_ID}
+          role="tooltip"
+          className="conv-cite-peek"
+          // Fixed to the viewport: the thread scrolls (overflow-y: auto) and would clip an absolute popover.
+          style={{
+            left: Math.max(16, Math.min(peek.rect.left, window.innerWidth - 16 - PEEK_MAX_WIDTH)),
+            ...(peek.rect.bottom + PEEK_GAP + PEEK_ROOM_BELOW > window.innerHeight
+              ? { bottom: window.innerHeight - peek.rect.top + PEEK_GAP }
+              : { top: peek.rect.bottom + PEEK_GAP }),
+          }}
+        >
+          <div className="conv-cite-peek-title">{peek.title}</div>
+          {peek.meta && <div className="conv-cite-peek-meta">{peek.meta}</div>}
+          {peek.hint && <div className="conv-cite-peek-hint">클릭하면 오른쪽 패널에서 열려요</div>}
+        </div>
+      )}
 
       {artifactOpen && (
         <ArtifactPanel

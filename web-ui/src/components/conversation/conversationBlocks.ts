@@ -98,21 +98,85 @@ export const normalizeEmphasis = (markdown: string): string => (
   markdown
     .replace(/\*{2,3}"([^"\n]+)"\*{2,3}/g, '**$1**')
     .replace(/\*{3}([^*\n]+)\*{3}/g, '**$1**')
+    // `**핵심 기여 [1][2]**는`: a citation before the closer leaves `]` there, which
+    // CommonMark will not close on before a letter. Move citations outside the bold.
+    .replace(/\*\*(?=[^\s*])([^*\n]*?[^\s*\]])((?:[ \t]*\[B?\d{1,2}\])+)\*\*/g, '**$1**$2')
     // `**…(…)**를`: punctuation before the closer, a letter after it. Move the
     // punctuation outside. Runs after the quote rule, which it would split.
     // The lookahead keeps a match from starting at a closing `**`.
     .replace(/\*\*(?=[^\s*])([^*\n]*?[^\s*])([)\]」』"”'’.,!?:;…]+)\*\*/g, '**$1**$2')
 );
 
+// A run of citations such as `[3][7]`, `[3], [7]` or `[3] [7]`; never a real link `[3](…)`.
+const PAPER_RUN = /\[\d{1,2}\](?:[ \t]*,?[ \t]*\[\d{1,2}\])*(?!\()/g;
+const BOOKMARK_RUN = /\[B\d{1,2}\](?:[ \t]*,?[ \t]*\[B\d{1,2}\])*(?!\()/g;
+const numbersIn = (run: string): number[] => [...run.matchAll(/\d{1,2}/g)].map(match => Number(match[0]));
+
 /**
- * Turns `[3]` into a `#cite-3` link and `[B1]` into `#bm-1`; the renderer swaps
- * them for buttons. Real links are left alone.
+ * Turns each run of `[n]` citations into one `#cite-3,7` link and each run of
+ * `[Bn]` into `#bm-1,2`; the renderer draws them as author–year chips.
  */
 export const linkCitations = (markdown: string): string => (
   markdown
-    .replace(/\[(\d{1,2})\](?!\()/g, `[$1](${CITE_PREFIX}$1)`)
-    .replace(/\[B(\d{1,2})\](?!\()/g, `[B$1](${BOOKMARK_CITE_PREFIX}$1)`)
+    .replace(PAPER_RUN, run => `[${numbersIn(run).join(',')}](${CITE_PREFIX}${numbersIn(run).join(',')})`)
+    .replace(BOOKMARK_RUN, run => `[B${numbersIn(run).join(',')}](${BOOKMARK_CITE_PREFIX}${numbersIn(run).join(',')})`)
 );
+
+/** The numbers a `#cite-3,7` / `#bm-1,2` link points at. */
+export const citedNumbers = (href: string, prefix: string): number[] => (
+  href.slice(prefix.length).split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+);
+
+/** Paper numbers an answer cites, in order of first citation. */
+export function citationOrder(markdown: string): number[] {
+  const seen = new Set<number>();
+  for (const run of markdown.match(PAPER_RUN) ?? []) numbersIn(run).forEach(n => seen.add(n));
+  return [...seen];
+}
+
+const HANGUL = /[가-힣]/;
+// Some sources put a year or a dash in the author field; without a letter it is not a name.
+const HAS_LETTER = /\p{L}/u;
+// Others put the venue or affiliation first ("Association for Computational Linguistics 2026").
+const NOT_A_PERSON = /\d{4}|\b(?:association|conference|proceedings|workshop|symposium|journal|university|institute|press)\b/i;
+
+/** Whether an author entry reads as a person: it has a letter, no year, and no venue word. */
+const isPersonName = (author: string): boolean => HAS_LETTER.test(author) && !NOT_A_PERSON.test(author);
+
+/** First author's surname: the last word of a Western name, the whole of a Korean one. */
+function firstAuthorName(author: string | undefined): string | null {
+  const name = author?.trim();
+  if (!name || !isPersonName(name)) return null;
+  if (HANGUL.test(name)) return name;
+  // "Han, Jiseong" lists the surname first.
+  const surname = name.includes(',')
+    ? name.split(',')[0].trim()
+    : name.split(/\s+/).at(-1)?.replace(/[.,;]+$/, '');
+  return surname && HAS_LETTER.test(surname) ? surname : null;
+}
+
+const yearOf = (year: unknown): string | null => {
+  const match = /\d{4}/.exec(String(year ?? ''));
+  return match ? match[0] : null;
+};
+
+const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
+
+/** A citation's reader-facing label: "Han 2026", "한지성 2025", or the title's start without authors. */
+export function citationLabel(paper: { title: string; authors?: string[]; year?: unknown }): string {
+  const who = firstAuthorName(paper.authors?.find(author => isPersonName(author.trim()))) ?? clip(paper.title.trim(), 20);
+  const year = yearOf(paper.year);
+  return year ? `${who} ${year}` : who;
+}
+
+/** "Han, Lee, Park et al." for the reference list. */
+export function authorList(authors: string[] | undefined, max = 3): string {
+  const list = (authors ?? []).map(author => author.trim()).filter(isPersonName);
+  if (list.length === 0) return '';
+  return list.length > max ? `${list.slice(0, max).join(', ')} et al.` : list.join(', ');
+}
+
+export const paperYear = yearOf;
 
 /** Collapsed status line of a finished turn: "출처 4곳 · 42편 · 그래프", "심층 리뷰 시작", "PDF 열기", "하이라이트 N개". */
 export function turnSummary(turn: ConversationTurn): string | null {
