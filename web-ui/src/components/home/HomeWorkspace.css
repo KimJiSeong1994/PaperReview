@@ -324,51 +324,81 @@
   font-weight: 500;
 }
 
-/* Flows 24px under the last group; only the mobile drawer pins it to the bottom. */
+/* Pinned footer: a user card (initials, name, role) over a row of two small text actions. */
 .home-account {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding-top: 16px;
   border-top: var(--home-line);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
 }
 
-.home-account .home-row-lead {
-  align-self: center;
-  margin: 0;
+.home-account-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.home-account-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ibd-15);
+  color: var(--indigo);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.home-account-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .home-account-name {
-  flex: 1;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-hi);
 }
 
-.home-account a,
-.home-account button {
-  flex-shrink: 0;
+.home-account-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.home-account-actions {
+  display: flex;
+  gap: 16px;
+  padding-left: 2px;
+}
+
+.home-account-actions a,
+.home-account-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   text-decoration: none;
   cursor: pointer;
 }
 
-.home-account a:hover,
-.home-account button:hover {
+.home-account-actions a:hover,
+.home-account-actions button:hover {
   color: var(--text-hi);
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .home-signin {
@@ -377,7 +407,7 @@
   border-top: var(--home-line);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .home-signin p {
@@ -762,8 +792,8 @@
     padding-bottom: 16px;
   }
 
-  .home-account a,
-  .home-account button,
+  .home-account-actions a,
+  .home-account-actions button,
   .home-more {
     min-height: 44px;
   }

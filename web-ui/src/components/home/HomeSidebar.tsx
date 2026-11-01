@@ -9,6 +9,7 @@ import type { CurriculumSummary } from '../curriculum/types';
 import { Icon, Row, type IconName } from './HomeRow';
 import { groupOf, HISTORY_GROUPS, relativeLabel, type HistoryGroup } from './homeTime';
 import { readRecentSearches } from './recentSearches';
+import { userInitials } from './userInitials';
 
 interface HomeSidebarProps {
   /** "새 대화": the home resets its composer, other pages go home. */
@@ -64,7 +65,8 @@ function HomeSidebar({
   activeConversationTitle,
   reviewSessions: givenSessions,
 }: HomeSidebarProps) {
-  const { isAuthenticated, setShowLoginModal, logout } = useAuth();
+  const { isAuthenticated, userRole, setShowLoginModal, logout } = useAuth();
+  const username = readUsername();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [fetchedSessions, setFetchedSessions] = useState<ReviewSessionSummary[]>([]);
   const reviewSessions = givenSessions ?? fetchedSessions;
@@ -223,14 +225,31 @@ function HomeSidebar({
 
         {isAuthenticated ? (
           <div className="home-account">
-            <span className="home-row-lead" aria-hidden="true"><Icon name="user" /></span>
-            <span className="home-account-name">{readUsername()}</span>
-            <Link to="/mypage">마이페이지</Link>
-            <button type="button" onClick={logout}>로그아웃</button>
+            <div className="home-account-card">
+              <span className="home-account-avatar" aria-hidden="true">{userInitials(username)}</span>
+              <span className="home-account-text">
+                <span className="home-account-name">{username}</span>
+                <span className="home-account-role">{userRole === 'admin' ? '관리자' : '연구자'}</span>
+              </span>
+            </div>
+            <div className="home-account-actions">
+              <Link to="/mypage">
+                <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
+                  <path d="M8 5.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5zM8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+                설정
+              </Link>
+              <button type="button" onClick={logout}>
+                <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14">
+                  <path d="M6.5 2.75H3.75v10.5H6.5M10.5 5.25 13.25 8l-2.75 2.75M13 8H6.25" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                로그아웃
+              </button>
+            </div>
           </div>
         ) : (
           <div className="home-signin">
-            <p>검색은 로그인 후 이용할 수 있어요. 공개 리뷰는 바로 읽을 수 있습니다.</p>
+            <p>로그인하면 대화가 저장돼요</p>
             <button type="button" className="home-btn" onClick={() => setShowLoginModal(true)}>로그인</button>
           </div>
         )}

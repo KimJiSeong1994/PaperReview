@@ -188,7 +188,7 @@ describe('homepage landing content', () => {
 
   it('says search needs sign-in, and offers a way to read more', () => {
     renderHome();
-    expect(screen.getByText('검색은 로그인 후 이용할 수 있어요. 공개 리뷰는 바로 읽을 수 있습니다.')).toBeTruthy();
+    expect(screen.getByText('로그인하면 대화가 저장돼요')).toBeTruthy();
     expect(
       screen.getByRole('link', { name: /집현전 사용법 자세히 보기/ }).getAttribute('href'),
     ).toBe('/ko/introduce/');

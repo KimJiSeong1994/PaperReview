@@ -6,6 +6,7 @@ import { fetchRecommendationNotifications } from '../api/recommendations';
 import { fetchMyConversations } from '../api/conversations';
 import { fetchMyReviewSessions } from '../api/me';
 import { relativeLabel } from '../components/home/homeTime';
+import { userInitials } from '../components/home/userInitials';
 
 // jsdom's default localStorage is broken in this setup (see AdminPage.members.test);
 // use the same in-memory shim the analytics tests rely on.
@@ -23,6 +24,7 @@ Object.defineProperty(window, 'localStorage', { configurable: true, writable: tr
 
 const authState = vi.hoisted(() => ({
   isAuthenticated: true,
+  userRole: 'user',
   setShowLoginModal: vi.fn(),
   logout: vi.fn(),
 }));
@@ -80,6 +82,7 @@ describe('HomeWorkspace', () => {
   beforeEach(() => {
     vi.mocked(fetchMyReviewSessions).mockClear();
     authState.isAuthenticated = true;
+    authState.userRole = 'user';
     localStorage.clear();
     localStorage.setItem('username', 'jiseong');
     localStorage.setItem('jh.recentSearches:jiseong', JSON.stringify([
@@ -193,6 +196,40 @@ describe('HomeWorkspace', () => {
     renderHome();
     const nav = screen.getByRole('navigation', { name: '내 기록' });
     expect([...nav.children].map(child => child.className)).toEqual(['home-btn home-btn-outline', 'home-sidebar-scroll', 'home-signin']);
+  });
+
+  it('shows a user card with initials, name and role, then 설정 and 로그아웃', () => {
+    renderHome();
+    const account = document.querySelector('.home-account') as HTMLElement;
+    expect(account.querySelector('.home-account-avatar')!.textContent).toBe('JI');
+    expect(within(account).getByText('jiseong')).toBeTruthy();
+    expect(within(account).getByText('연구자')).toBeTruthy();
+    expect(within(account).getByRole('link', { name: '설정' }).getAttribute('href')).toBe('/mypage');
+    fireEvent.click(within(account).getByRole('button', { name: '로그아웃' }));
+    expect(authState.logout).toHaveBeenCalled();
+  });
+
+  it('labels an admin account 관리자', () => {
+    authState.userRole = 'admin';
+    renderHome();
+    expect(within(document.querySelector('.home-account') as HTMLElement).getByText('관리자')).toBeTruthy();
+  });
+
+  it('gives guests a sign-in card in the same place', () => {
+    authState.isAuthenticated = false;
+    renderHome();
+    const card = document.querySelector('.home-signin') as HTMLElement;
+    expect(within(card).getByText('로그인하면 대화가 저장돼요')).toBeTruthy();
+    fireEvent.click(within(card).getByRole('button', { name: '로그인' }));
+    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+  });
+
+  it('derives avatar initials', () => {
+    expect(userInitials('jiseong')).toBe('JI');
+    expect(userInitials('home_demo')).toBe('HO');
+    expect(userInitials('한지성')).toBe('한');
+    expect(userInitials('_x')).toBe('X');
+    expect(userInitials('')).toBe('?');
   });
 
   it('labels time relative to now', () => {
