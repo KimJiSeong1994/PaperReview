@@ -164,6 +164,16 @@ describe('HomeWorkspace', () => {
     expect(within(nav).queryByText('graph retrieval augmented generation')).toBeNull();
   });
 
+  it('shows the hero face close-up next to the eyebrow', () => {
+    renderHome();
+    const eyebrow = document.querySelector('.home-eyebrow')!;
+    const img = eyebrow.parentElement!.querySelector('picture.mascot-face img')!;
+    expect(img.getAttribute('src')).toBe('/jiphyeonjeon-face.png');
+    expect(img.getAttribute('srcset')).toBe('/jiphyeonjeon-face.png 1x, /jiphyeonjeon-face@2x.png 2x');
+    expect(img.getAttribute('width')).toBe('28');
+    expect(img.getAttribute('alt')).toBe('');
+  });
+
   it('labels time relative to now', () => {
     const now = new Date('2026-10-31T12:00:00Z');
     expect(relativeLabel('2026-10-31T11:59:40Z', now)).toBe('방금');

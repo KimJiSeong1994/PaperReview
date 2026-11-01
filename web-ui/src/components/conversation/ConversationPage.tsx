@@ -17,6 +17,7 @@ import '../home/HomeWorkspace.css';
 import './ConversationPage.css';
 import HomeComposer from '../home/HomeComposer';
 import HomeSidebar from '../home/HomeSidebar';
+import MascotFace from '../home/MascotFace';
 import { rememberRecentSearch } from '../home/recentSearches';
 import { createConversation } from '../../api/conversations';
 import { useConversation, type ViewTurn } from '../../hooks/useConversation';
@@ -49,7 +50,6 @@ import {
   turnSummary,
 } from './conversationBlocks';
 
-const AVATAR_SRC = '/Jiphyeonjeon_llama.webp';
 // The server's content for a turn a newer message cancelled.
 const CANCELLED_CONTENT = '중단됨';
 const keyOf = (paper: Paper): string => String(paper.result_key ?? paper.doc_id);
@@ -323,8 +323,10 @@ function ConversationPage({ id }: ConversationPageProps) {
     return (
       <li key={turn.id} className="conv-turn is-assistant">
         <div className="conv-assistant-head">
-          <img className="conv-avatar" src={AVATAR_SRC} alt="" width="28" height="28" />
+          {/* Shown from the first moment, including while the turn is still "생각하는 중…". */}
+          <MascotFace size={32} className="conv-avatar" />
           <span className="conv-assistant-name">집현전</span>
+          <span className="conv-assistant-role">논문 연구 도우미</span>
         </div>
         {bookmarkRefs && (
           <BookmarkRefsStrip block={bookmarkRefs} idPrefix={`bookmark-ref-${turn.seq}`} onOpenReview={openReport} />

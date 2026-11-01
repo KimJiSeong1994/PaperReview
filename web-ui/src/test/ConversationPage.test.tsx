@@ -698,6 +698,24 @@ describe('ConversationPage', () => {
     });
   });
 
+  it('gives the assistant the hero face as its avatar, with its role, from the first waiting moment', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    // Waiting: no event has arrived yet, and the mascot is already there.
+    expect(screen.getByRole('status').textContent).toContain('생각하는 중…');
+    const turn = screen.getByRole('status').closest('.conv-turn')!;
+    const picture = turn.querySelector('picture.mascot-face')!;
+    expect(picture.querySelector('source')!.getAttribute('type')).toBe('image/webp');
+    expect(picture.querySelector('source')!.getAttribute('srcset')).toBe('/jiphyeonjeon-face.webp 1x, /jiphyeonjeon-face@2x.webp 2x');
+    const img = picture.querySelector('img')!;
+    expect(img.getAttribute('srcset')).toContain('/jiphyeonjeon-face@2x.png 2x');
+    expect(img.getAttribute('alt')).toBe('');
+    expect(img.getAttribute('width')).toBe('32');
+    expect(within(turn as HTMLElement).getByText('집현전')).toBeTruthy();
+    expect(within(turn as HTMLElement).getByText('논문 연구 도우미')).toBeTruthy();
+    expect(document.querySelector('img[src="/Jiphyeonjeon_llama.webp"]')).toBeNull();
+  });
+
   it('shows a load error with a way back', async () => {
     vi.mocked(fetchConversation).mockReset().mockRejectedValue({ response: { status: 404 } });
     renderPage(null);

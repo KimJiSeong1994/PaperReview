@@ -408,10 +408,18 @@
   gap: 12px;
 }
 
-.home-mascot {
+/* The hero llama's face as an avatar: circle, 1px ring in the surface border, faint indigo behind. */
+.mascot-face {
+  display: inline-flex;
   flex-shrink: 0;
+}
+
+.mascot-face img {
+  display: block;
   border-radius: 50%;
   object-fit: cover;
+  background: color-mix(in srgb, var(--indigo) 10%, transparent);
+  box-shadow: 0 0 0 1px var(--wov-12);
 }
 
 .home-eyebrow {

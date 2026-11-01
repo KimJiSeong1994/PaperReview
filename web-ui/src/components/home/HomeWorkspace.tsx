@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import HomeComposer from './HomeComposer';
 import { Icon, Row, type IconName } from './HomeRow';
 import HomeSidebar from './HomeSidebar';
+import MascotFace from './MascotFace';
 import { relativeLabel } from './homeTime';
 import { readRecentSearches } from './recentSearches';
 import { useHomeData } from './useHomeData';
@@ -37,7 +38,6 @@ const describeDegradedReason = (code: string): string => (
   DEGRADED_REASON_LABEL[code] ?? '추천 일부를 불러오지 못했어요.'
 );
 
-const MASCOT_SRC = '/Jiphyeonjeon_llama.webp';
 
 // Starter rows put an editable question in the composer instead of submitting it.
 const STARTER_QUESTIONS: { text: string; meta: string; icon: IconName }[] = [
@@ -100,7 +100,7 @@ function HomeWorkspace({
         <div className="home-main-inner">
           <div className="home-head">
             <div className="home-hero-top">
-              <img className="home-mascot" src={MASCOT_SRC} alt="" width="48" height="48" />
+              <MascotFace size={28} className="home-mascot" />
               <p className="home-eyebrow">{eyebrow}</p>
             </div>
             <h1 id="home-title" className="home-title">오늘은 <span className="home-title-accent">어떤 논문</span>부터 볼까요?</h1>
