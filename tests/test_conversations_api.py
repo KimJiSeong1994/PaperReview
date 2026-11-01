@@ -1089,8 +1089,11 @@ def test_search_summary_explains_with_long_abstracts(env):
     conv_id = env.client.post("/api/conversations", json={"message": "에이전트 메모리"}).json()["id"]
     _events(env.client, conv_id)
     system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
-    for section in ("**핵심 내용**", "**비교·정리**", "**주제 또는 제목 [n]**", "400–700자", "어떤 문제를"):
-        assert section in system
+    for rule in ("**핵심 설명**", "주제 섹션 3–4개", "**공통점과 엇갈리는 점**", "500–800자",
+                 "결론 2–3문장", "논문 목록은 화면에 이미 따로 보이므로 논문을 나열하지 마세요"):
+        assert rule in system
+    assert "금지: 논문마다 섹션을 하나씩 만드는 것, 섹션 머리나 섹션 첫머리를 논문 제목으로 시작하는 것" in system
+    assert "**접근 방식의 차이**" in system and "**주제 또는 제목 [n]**" not in system  # thematic few-shot
     assert "답변 길이 선호(예: \"짧게\")가 있으면 그 선호가 이 글의 글자 예산보다 우선합니다" in system
     assert "- [선호] 답은 아주 짧게" in system  # the preference itself reaches the prompt
     assert "[8] Paper 8: about memory (2024, ACL)" in data and "[9]" not in data
@@ -1181,3 +1184,19 @@ def test_fetch_paper_text_bounds_and_failures(monkeypatch):
     assert asyncio.run(tools.fetch_paper_text({})) == ""
     state["url"] = None
     assert asyncio.run(tools.fetch_paper_text({})) == ""
+
+
+
+def test_plural_results_question_uses_topic_synthesis(env):
+    conv_id = _with_results(env)
+    for message in ("이 논문들 요지가 뭐야", "이 결과들 정리해줘"):
+        events = _events(env.client, conv_id, message)
+        assert events[-1]["done"]["intent"] == "answer"
+        system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+        assert system.startswith(turn_runner._SEARCH_SUMMARY_PROMPT[:40]) and "**핵심 설명**" in system
+        assert data.startswith("검색 결과:\n<papers>\n[1] ") and "[4] " in data
+        assert len(data.split("[1] Paper 1: about memory (2024, ACL)\n", 1)[1].split("\n\n", 1)[0]) == 900
+    assert "paper_text_for" not in env.calls  # no single paper → no PDF fetch
+
+    _events(env.client, conv_id, "2번 핵심 내용 설명해줘")  # single paper: explain format unchanged
+    assert env.calls["llm"][-1][0]["content"].startswith(turn_runner._EXPLAIN_PROMPT[:30])

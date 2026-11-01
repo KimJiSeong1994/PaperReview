@@ -182,7 +182,10 @@ async def _answer_from_results(t: Turn) -> None:
     tr._status(t.emit, "answer", "검색 결과를 바탕으로 답변하는 중…")
     papers = t.latest["papers"]
     refs = tr.answer_refs(t.message, t.history, papers)
-    if not refs:
+    if not refs and tr._SYNTHESIS_ASK.search(t.message):
+        system = tr._SEARCH_SUMMARY_PROMPT
+        data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 8, 900)}\n</papers>"
+    elif not refs:
         system = tr._ANSWER_PROMPT
         data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 15, 400)}\n</papers>"
     elif len(refs) >= 2 and tr._COMPARE.search(t.message):

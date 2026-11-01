@@ -104,28 +104,36 @@ _GROUNDING_RULES = (
     "- <user_memory> 에 답변 길이 선호(예: \"짧게\")가 있으면 그 선호가 이 글의 글자 예산보다 우선합니다.\n"
 )
 _SEARCH_SUMMARY_PROMPT = (
-    "당신은 학술 논문 검색 도우미입니다. 검색된 논문의 초록을 근거로, 무엇을 찾았는지가 아니라 그 내용이 무엇인지 "
-    "한국어로 설명하세요. 아래 형식을 따르세요.\n"
-    "1. 첫 문단: 결과가 사용자의 질문에 대해 말해 주는 것을 한 줄 결론으로. \"N편을 찾았습니다\" 같은 문장 금지.\n"
-    "2. 빈 줄 후 굵은 소제목 줄 \"**핵심 내용**\", 그 아래 항목 3–5개. 각 항목은 \"**주제 또는 제목 [n]**\" 한 줄(굵게, 따옴표 없음, 줄바꿈) 다음에 "
-    "2–3문장: 어떤 문제를, 어떤 접근으로 다루고, 어떤 결과·주장을 내는지, 왜 중요한지. 같은 접근을 쓰는 논문은 "
-    "한 항목으로 묶고 [n] 을 여러 개 붙이세요.\n"
-    "3. 빈 줄 후 굵은 소제목 줄 \"**비교·정리**\", 그 아래 논문들의 차이나 공통점 1–2문장.\n"
+    "당신은 학술 논문 검색 도우미입니다. 검색된 논문들의 초록을 종합해 사용자의 질문에 주제별로 답하세요. "
+    "논문 목록은 화면에 이미 따로 보이므로 논문을 나열하지 마세요. 아래 형식을 따르세요.\n"
+    "1. 첫 문단: 질문에 대한 직접적인 결론 2–3문장. 여러 논문을 종합한 답이어야 합니다.\n"
+    "2. 빈 줄 후 굵은 소제목 줄 \"**핵심 설명**\", 그 아래 주제 섹션 3–4개. 섹션 머리는 질문과 초록에서 뽑은 "
+    "개념·관점(예: \"**접근 방식의 차이**\", \"**성능이 갈리는 조건**\", \"**비용과 한계**\")을 굵게 한 줄로 쓰고, "
+    "그 아래 2–4문장으로 생각을 설명하며 문장 안에 [n] 으로 근거를 답니다. 한 문장에 여러 [n] 을 써도 됩니다.\n"
+    "3. 빈 줄 후 굵은 소제목 줄 \"**공통점과 엇갈리는 점**\", 그 아래 1–2문장.\n"
     "4. 이전 검색어가 주어졌을 때만 무엇이 바뀌었는지 한 문장을 3번에 덧붙이세요.\n"
     "5. 빈 줄 후 마지막 줄: 다음 단계 질문 한 문장.\n"
-    "- 글자 수 예산: 논문 제목을 뺀 본문 400–700자. 굵게는 두 소제목과 항목 머리에만 쓰세요. n 은 아래 목록 번호.\n"
+    "- 금지: 논문마다 섹션을 하나씩 만드는 것, 섹션 머리나 섹션 첫머리를 논문 제목으로 시작하는 것, 논문 목록을 되풀이하는 것.\n"
+    "- 논문 제목은 특정 논문을 꼭 짚어야 할 때만 문장 안에서 씁니다.\n"
+    "- 모든 주장은 초록에 근거하고 [n] 을 답니다. n 은 아래 목록 번호.\n"
+    "- 글자 수 예산: [n] 표시를 뺀 본문 500–800자. 굵게는 소제목과 섹션 머리에만 쓰세요.\n"
     + _EXPLAIN_STYLE
     + _GROUNDING_RULES
-    + "\n형식 예시(내용은 따라 하지 말고 구성과 줄바꿈만 따르세요):\n"
-    "그래프를 쓰는 RAG는 여러 문서를 잇는 질문에서 정확도가 높아집니다.\n\n"
-    "**핵심 내용**\n\n"
-    "**커뮤니티 요약 기반 검색 [1][3]**\n"
-    "전역 질문은 일반 RAG로 답하기 어렵습니다. 문서 그래프를 커뮤니티로 나눠 요약합니다. 요약을 모아 답을 만듭니다.\n\n"
-    "**경량 그래프 인덱스 [2]**\n"
-    "그래프 구축 비용이 문제입니다. 이중 단계 검색으로 비용을 줄입니다.\n\n"
-    "**비교·정리**\n\n"
-    "[1][3]은 품질을, [2]는 비용을 우선합니다.\n\n"
-    "구축 비용을 줄인 방법만 더 살펴볼까요?"
+    + "\n형식 예시(내용은 따라 하지 말고 주제별 구성과 줄바꿈만 따르세요):\n"
+    "그래프를 쓰는 RAG는 여러 문서를 이어야 하는 질문에서 일반 RAG보다 낫습니다[1][3]. "
+    "단순 사실 질문에서는 차이가 작고, 그래프 구축 비용이 부담이 됩니다[2].\n\n"
+    "**핵심 설명**\n\n"
+    "**접근 방식의 차이**\n"
+    "한쪽은 문서 그래프를 커뮤니티로 묶어 요약을 미리 만듭니다[1][3]. 다른 쪽은 그래프를 가볍게 두고 검색 시점에 "
+    "이웃을 따라갑니다[2].\n\n"
+    "**성능이 갈리는 조건**\n"
+    "여러 문서를 종합해야 하는 전역 질문에서 요약 기반 방식의 이점이 큽니다[1]. 국소적인 사실 질문에서는 일반 RAG와 "
+    "비슷합니다[3].\n\n"
+    "**비용과 한계**\n"
+    "커뮤니티 요약은 색인 비용이 큽니다[1]. 경량 방식은 비용을 줄이지만 전역 질문에서는 손해를 봅니다[2].\n\n"
+    "**공통점과 엇갈리는 점**\n"
+    "모두 관계 정보가 검색을 돕는다고 봅니다[1][2][3]. 갈리는 지점은 품질과 비용 중 무엇을 우선하느냐입니다.\n\n"
+    "비용을 줄인 방식만 더 살펴볼까요?"
 )
 _EXPLAIN_PROMPT = (
     "당신은 학술 논문 도우미입니다. 질문한 논문의 내용을 초록과 본문 일부를 근거로 한국어로 설명하세요.\n"
@@ -190,6 +198,8 @@ def _paper_list(
 
 _COMPARE = re.compile(r"차이|비교|다른\s*점|vs\.?|versus", re.I)
 _DEEPER = re.compile(r"더\s*자세히|더\s*자세하게|더\s*깊게")
+# A question about the results as a whole ("이 논문들 요지", "결과들 정리") → topic synthesis.
+_SYNTHESIS_ASK = re.compile(r"논문들|결과들|전체|종합|요지|정리")
 
 
 def answer_refs(message: str, history: List[Dict[str, Any]], papers: List[Dict[str, Any]]) -> List[int]:
@@ -448,6 +458,7 @@ _BOOKMARK_MARK = re.compile(r"북마크|저장한|저장해둔|내\s*리포트")
 # Content questions about the results → answer_from_results (explain format), not a new search.
 _EXPLAIN_STRONG = re.compile(r"핵심\s*내용|요지|무슨\s*내용|어떻게\s*(동작|작동)|더\s*자세히|더\s*자세하게")
 _EXPLAIN_WEAK = re.compile(r"설명|차이|비교|요약|정리")
+_RESULTS_PLURAL = re.compile(r"논문들|결과들|전체")  # "이 결과들 정리해줘" names the whole result set
 
 
 def precheck_route(
@@ -468,7 +479,8 @@ def precheck_route(
             return finalize_route({"action": action, "paper_index": ref}, message, papers, bookmarks)
     if _BOOKMARK_MARK.search(message):
         return finalize_route({"action": "answer_from_bookmarks"}, message, papers, bookmarks)
-    if papers and (_EXPLAIN_STRONG.search(message) or (_EXPLAIN_WEAK.search(message) and answer_refs(message, history, papers))):
+    names_results = bool(answer_refs(message, history, papers) or _RESULTS_PLURAL.search(message)) if papers else False
+    if papers and (_EXPLAIN_STRONG.search(message) or (_EXPLAIN_WEAK.search(message) and names_results)):
         return finalize_route({"action": "answer"}, message, papers, bookmarks)
     return None
 
