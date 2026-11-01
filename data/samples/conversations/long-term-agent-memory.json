@@ -1,0 +1,1955 @@
+{
+ "id": "sample-long-term-agent-memory",
+ "slug": "long-term-agent-memory",
+ "title": "장기 대화 기억 에이전트 메모리",
+ "question": "장기 대화 기억을 다루는 에이전트 메모리 논문 보여줘",
+ "asof": "2026-11-02",
+ "turns": [
+  {
+   "seq": 1,
+   "role": "user",
+   "content": "장기 대화 기억을 다루는 에이전트 메모리 논문 보여줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 2,
+   "role": "assistant",
+   "content": "장기 대화 기억을 다루는 에이전트 메모리 논문을 찾아볼게요.\n\n장기 대화 기억용 에이전트 메모리를 모았습니다.\n\n- On Memory Construction and Retrieval for Personalized Conversational Agents [1] — 메모리 단위 비교\n- Memory That Doesn't Expire: Agentic Long-Term Memory for Conversational Agents on a Single Consumer GPU [2] — 로컬 장기기억 관리\n- Memoria: A Scalable Agentic Memory Framework for Personalized Conversational AI [5] — 모듈형 메모리 프레임워크\n- Development of a Human-inspired Long-Term Memory for Interactive Conversational Agents [6] — 인간형 장기기억 설계\n- A Graph-Native Bitemporal Memory Store for Conversational AI Agents [8] — 이중시점 그래프 저장\n\n더 볼까요?",
+   "blocks": [
+    {
+     "type": "search_results",
+     "query": "장기 대화 기억 에이전트 메모리",
+     "executed_query": "(ti:\"long-term conversational memory\" OR ti:\"agent memory\") OR (abs:\"conversational agents\" AND abs:\"persistent memory\")",
+     "total": 20,
+     "query_hash": "2b77cc9c39d3",
+     "partial": true,
+     "degraded": [
+      "source_incomplete"
+     ],
+     "year_start": null,
+     "year_end": null,
+     "papers": [
+      {
+       "title": "On Memory Construction and Retrieval for Personalized Conversational Agents",
+       "authors": [
+        "Zhuoshi Pan",
+        "Qianhui Wu",
+        "Huiqiang Jiang",
+        "Xufang Luo",
+        "Cheng, Hao",
+        "Li, Dongsheng",
+        "Yuqing Yang",
+        "Chin-Yew Lin",
+        "Zhao, H. Vicky",
+        "Lili Qiu",
+        "Jianfeng Gao"
+       ],
+       "abstract": "To deliver coherent and personalized experiences in long-term conversations, existing approaches typically perform retrieval augmented response generation by constructing memory banks from conversation history at either the turn-level, session-level, or through summarization techniques.In this paper, we present two key findings: (1) The granularity of memory unit matters: turn-level, session-level, and summarization-based methods each exhibit limitations in both memory retrieval accuracy and the semantic quality of the retrieved content. (2) Prompt compression methods, such as LLMLingua-2, can effectively serve as a denoising mechanism, enhancing memory retrieval accuracy across different granularities. Building on these insights, we propose SeCom, a method that constructs the memory bank at segment level by introducing a conversation segmentation model that partitions long-term conversations into topically coherent segments, while applying compression based denoising on memory units to enhance memory retrieval. Experimental results show that SeCom exhibits a significant performance advantage over baselines on long-term conversation benchmarks LOCOMO and Long-MT-Bench+. Additionally, the proposed conversation segmentation method demonstrates superior performance on dialogue segmentation datasets such as DialSeg711, TIAGE, and SuperDialSeg.",
+       "url": "http://arxiv.org/abs/2502.05589",
+       "pdf_url": "https://arxiv.org/pdf/2502.05589",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 2,
+       "doi": "10.48550/arxiv.2502.05589",
+       "openalex_id": "https://openalex.org/W4407385160",
+       "relevance_score": 84.08873,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2502.05589",
+       "doc_id": "229735501",
+       "_rank": 0,
+       "_hybrid_score": 0.04669647292598113,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5141,
+        "citations": 0.2401,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.015152,
+        "rrf_citations": 0.015152,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 802,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 254
+        }
+       }
+      },
+      {
+       "title": "Memory That Doesn't Expire: Agentic Long-Term Memory for Conversational Agents on a Single Consumer GPU",
+       "authors": [
+        "Muhammad Abdullah Shaheer"
+       ],
+       "abstract": "Conversational agents forget: once a dialogue outgrows the context window, a model must either be reminded through retrieval or have its history truncated. Recent memory systems address this with extraction and retrieval, but they assume a large, often API-hosted model as the memory manager, an assumption that rules out private, local deployment. We ask whether a small local model, on a single consumer GPU, can manage long-term memory well, and how the answer depends on model size. We evaluate four memory strategies (no memory, full-history stuffing, raw-turn retrieval, and an agentic protocol that extracts typed, dated, deduplicated facts) on LoCoMo (1,986 questions over 10 long multi-session conversations), scored by an independent LLM judge. Full-context stuffing wins aggregate accuracy when the answer still lies inside the window, but its advantage is an artifact of conversation length: split by whether a question's evidence survives truncation, stuffing collapses by 76% beyond the window while agentic memory stays flat, outperforming stuffing 2.0x on the 39% of questions that already exceed it. Agentic memory further gives the best temporal reasoning of any strategy (via absolute-date grounding at write time) using ~67x less context. Varying the extractor from 3B to 14B, we find quality scales with size and that temporal grounding is the first capability to break under compression, setting a minimum viable memory-manager size of ~7-14B, comfortably within a 12 GB GPU. A hand-verified audit of 200 stored memories finds 199 faithful to their source turn, with no fabrications. We release the system, the benchmark harness, and the raw judged outputs behind every reported number. Code: https://github.com/MasHasNoLife/yuna-aiPaper source: https://github.com/MasHasNoLife/memory-that-doesnt-expireRaw run outputs: https://doi.org/10.5281/zenodo.21702651",
+       "url": "https://doi.org/10.5281/zenodo.21964737",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.5281/zenodo.21964737",
+       "openalex_id": "https://openalex.org/W7203575977",
+       "relevance_score": 83.62662,
+       "venue": "Zenodo (CERN European Organization for Nuclear Research)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.5281/zenodo.21964737",
+       "doc_id": "965900239",
+       "_rank": 1,
+       "_hybrid_score": 0.045965088632953,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5245,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.015873,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 1008,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 223
+        }
+       }
+      },
+      {
+       "title": "A Cognitive Long-Term Memory Architecture for Interactive Conversational Agents",
+       "authors": [
+        "CRISTINA MARIA RITA LOMBARDO"
+       ],
+       "abstract": "Long-term interaction between a person and an Interactive Conversational Agent requires the agent to maintain a persistent, evolving model of that person across many separate conversations. Current architectures rely on a short context window and have no mechanism for retaining, consolidating and retrieving what they learn. When a person talks to an assistant over weeks or months, they expect it to know them. They expect not to explain again who their sister is, not to be asked the same question twice, and not to be told something that contradicts what they said last month. Conversational assistants today cannot do this. Each conversation begins with nothing, and everything is gone the moment the session closes. The obvious remedy is to keep the transcript and read it back later. But a transcript grows without limit and almost all of it is irrelevant to any particular question. This thesis takes a different approach, borrowed from the way human memory is described in cognitive psychology. It is a cognitively inspired memory architecture that addresses those limitations, together with its implementation and an empirical evaluation. The system never stores the conversation, it stores what it understood. The system holds memory at three timescales. A volatile layer keeps the current conversation, the tracked mood of the user, and a short-term planning buffer carrying the agent’s own pending commitments. An episodic memory stores self-contained summaries of what happened. A semantic memory holds a knowledge graph of the people, places, objects and topics in the user’s life, with the relations between them. Every long-term memory is text the system generated itself, and raw turns are discarded once they have been summarised. Both memory types carry affect. Each episode records the emotions attributed to it, and each entity in the graph carries a stigmergic trace: a sparse field over the valence–arousal plane onto which every episode mentioning that entity deposits, and which decays when the entity is neglected, so what the agent knows about a person includes not only what is true of them, but what has been difficult, or good, or worrying. Retrieval ranks episodic and semantic candidates through a composite score whose components (semantic similarity, recency, affective intensity, congruence with the user’s current mood and the number of supporting episodes) are bounded on a common scale, so that the two memory types remain directly comparable. Seman tic retrieval also exploits a degree-corrected personalized PageRank over the user’s graph, which recovers memories that are relevant by connection. The thesis presents the design of this architecture, its implementation as a work ing system, and its evaluation on public datasets of long conversations such as Lo CoMo and LongMemEval and of emotional narratives with IDEST. It reports what the evaluation established, what it ruled out, and where the architecture’s remaining limits lie.",
+       "url": "https://etd.adm.unipi.it/theses/available/etd-09142026-122141/",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "",
+       "openalex_id": "https://openalex.org/W7223429642",
+       "relevance_score": 80.79794,
+       "venue": "Electronic Theses and Dissertations Repository (University of Pisa)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "provider:openalex:https://openalex.org/W7223429642",
+       "doc_id": "1992596405",
+       "_rank": 2,
+       "_hybrid_score": 0.04417657980219064,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4944,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.014085,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 1135,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 225
+        }
+       }
+      },
+      {
+       "title": "TiMem: Temporal-Hierarchical Memory Consolidation for Long-Horizon Conversational Agents",
+       "authors": [
+        "Kai Li",
+        "Xuanqing Yu",
+        "Ziyi Ni",
+        "Yi Zeng",
+        "Yao Xu",
+        "Zheqing Zhang",
+        "Xin Li",
+        "Jitao Sang",
+        "Xiaogang Duan",
+        "Xuelei Wang",
+        "Chengbao Liu",
+        "Jie Tan"
+       ],
+       "abstract": "Long-horizon conversational agents have to manage ever-growing interaction histories that quickly exceed the finite context windows of large language models (LLMs). Existing memory frameworks provide limited support for temporally structured information across hierarchical levels, often leading to fragmented memories and unstable long-horizon personalization. We present TiMem, a temporal--hierarchical memory framework that organizes conversations through a Temporal Memory Tree (TMT), enabling systematic memory consolidation from raw conversational observations to progressively abstracted persona representations. TiMem is characterized by three core properties: (1) temporal--hierarchical organization through TMT; (2) semantic-guided consolidation that enables memory integration across hierarchical levels without fine-tuning; and (3) complexity-aware memory recall that balances precision and efficiency across queries of varying complexity. Under a consistent evaluation setup, TiMem achieves state-of-the-art accuracy on both benchmarks, reaching 75.30% on LoCoMo and 76.88% on LongMemEval-S. It outperforms all evaluated baselines while reducing the recalled memory length by 52.20% on LoCoMo. Manifold analysis indicates clear persona separation on LoCoMo and reduced dispersion on LongMemEval-S. Overall, TiMem treats temporal continuity as a first-class organizing principle for long-horizon memory in conversational agents. The code is available at https://github.com/TiMEM-AI/timem.",
+       "url": "https://arxiv.org/abs/2601.02845",
+       "pdf_url": "https://arxiv.org/pdf/2601.02845",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 1,
+       "doi": "10.48550/arxiv.2601.02845",
+       "openalex_id": "https://openalex.org/W7118272298",
+       "relevance_score": 80.312355,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2601.02845",
+       "doc_id": "1987616738",
+       "_rank": 3,
+       "_hybrid_score": 0.04293438901722356,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4656,
+        "citations": 0.1515,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.012048,
+        "rrf_citations": 0.014493,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 878,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 171
+        }
+       }
+      },
+      {
+       "title": "Memoria: A Scalable Agentic Memory Framework for Personalized Conversational AI",
+       "authors": [
+        "Samarth Sarin",
+        "Lovepreet Singh",
+        "Bhaskarjit Sarmah",
+        "Dhagash B. Mehta"
+       ],
+       "abstract": "Agentic memory is emerging as a key enabler for large language models (LLM) to maintain continuity, personalization, and long-term context in extended user interactions, critical capabilities for deploying LLMs as truly interactive and adaptive agents. Agentic memory refers to the memory that provides an LLM with agent-like persistence: the ability to retain and act upon information across conversations, similar to how a human would. We present Memoria, a modular memory framework that augments LLM-based conversational systems with persistent, interpretable, and context-rich memory. Memoria integrates two complementary components: dynamic session-level summarization and a weighted knowledge graph (KG)-based user modeling engine that incrementally captures user traits, preferences, and behavioral patterns as structured entities and relationships. This hybrid architecture enables both short-term dialogue coherence and long-term personalization while operating within the token constraints of modern LLMs. We demonstrate how Memoria enables scalable, personalized conversational artificial intelligence (AI) by bridging the gap between stateless LLM interfaces and agentic memory systems, offering a practical solution for industry applications requiring adaptive and evolving user experiences.",
+       "url": "https://doi.org/10.1109/aimlsystems67835.2025.11330332",
+       "pdf_url": "https://arxiv.org/pdf/2512.12686",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 1,
+       "doi": "10.1109/aimlsystems67835.2025.11330332",
+       "openalex_id": "https://openalex.org/W7124837470",
+       "relevance_score": 82.71037,
+       "venue": "International Conference on AI-ML Systems (AIMLSystems)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1109/aimlsystems67835.2025.11330332",
+       "doc_id": "1426739243",
+       "_rank": 4,
+       "_hybrid_score": 0.04727963886909005,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5276,
+        "citations": 0.1515,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.016393,
+        "rrf_citations": 0.014493,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 805,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 228
+        }
+       }
+      },
+      {
+       "title": "Development of a Human-inspired Long-Term Memory for Interactive Conversational Agents",
+       "authors": [
+        "Angelo De Marco",
+        "Federico A. Galatolo",
+        "Lorenzo Cominelli",
+        "Marco Pardini",
+        "Mario G.C.A. Cimino",
+        "Alberto Greco",
+        "Enzo Pasquale Scilingo"
+       ],
+       "abstract": "The ability to establish and maintain relationships with users is crucial for Interactive Conversational Agents (ICAs). This involves remembering information from previous interactions and utilizing it in future conversations-key behaviors that build rapport and demonstrate interest in the user, which are essential for sustained engagement. Current conversational agents typically rely on context from recent conversational turns. To enhance interaction quality, agents should be equipped with a Long-Term Memory (LTM) that encompasses entire past conversations. The state-of-the-art approach to incorporating LTM in ICAs involves saving all previous turns in an external storage system (e.g., a plain database). Despite achieving considerable results, this method is not biologically inspired and diverges from how human memory works-where only essential information is stored and reconstructed generatively using semantic memory. We propose a hierarchical memory system inspired by human memory stratification. It dynamically updates and retrieves contextually relevant episodic and declarative memories to support semantically enriched interactions. A significant innovation in our approach is the use of a Large Language Model (LLM) Agent to determine what structured information should be stored during conversations. Our preliminary results suggest that our approach maintains competitive performance compared to existing methods while introducing novel features such as graph-based persona representation and a reduced need for storing entire past dialogues.",
+       "url": "https://doi.org/10.1109/metroxraine66377.2025.11340339",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 1,
+       "doi": "10.1109/metroxraine66377.2025.11340339",
+       "openalex_id": "https://openalex.org/W7125587830",
+       "relevance_score": 79.61454,
+       "venue": "IEEE International Conference on Metrology for eXtended Reality, Artificial Intelligence and Neural Engineering (MetroXRAINE)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1109/metroxraine66377.2025.11340339",
+       "doc_id": "770214434",
+       "_rank": 5,
+       "_hybrid_score": 0.04537894986932763,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5006,
+        "citations": 0.1515,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.014493,
+        "rrf_citations": 0.014493,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 835,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 406
+        }
+       }
+      },
+      {
+       "title": "Cognis: Context-Aware Memory for Conversational AI Agents",
+       "authors": [
+        "Parshva Daftari",
+        "Khush Patel",
+        "Shreyas Kapale",
+        "Jithin George",
+        "Siva Surendira"
+       ],
+       "abstract": "LLM agents lack persistent memory, causing conversations to reset each session and preventing personalization over time. We present Lyzr Cognis, a unified memory architecture for conversational AI agents that addresses this limitation through a multi-stage retrieval pipeline. Cognis combines a dual-store backend pairing OpenSearch BM25 keyword matching with Matryoshka vector similarity search, fused via Reciprocal Rank Fusion. Its context-aware ingestion pipeline retrieves existing memories before extraction, enabling intelligent version tracking that preserves full memory history while keeping the store consistent. Temporal boosting enhances time-sensitive queries, and a BGE-2 cross-encoder reranker refines final result quality. We evaluate Cognis on two independent benchmarks -- LoCoMo and LongMemEval -- across eight answer generation models, demonstrating state-of-the-art performance on both. The system is open-source and deployed in production serving conversational AI applications.",
+       "url": "https://arxiv.org/abs/2604.19771",
+       "pdf_url": "https://arxiv.org/pdf/2604.19771",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2604.19771",
+       "openalex_id": "https://openalex.org/W7155387038",
+       "relevance_score": 86.61924,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2604.19771",
+       "doc_id": "107261351",
+       "_rank": 6,
+       "_hybrid_score": 0.04291258558044994,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4787,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.012821,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 750,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 166
+        }
+       }
+      },
+      {
+       "title": "A Graph-Native Bitemporal Memory Store for Conversational AI Agents",
+       "authors": [
+        "Alp Niksarli",
+        "Gopesh Baheti"
+       ],
+       "abstract": "Conversational AI agents commonly lack persistent memory across sessions. The obvious fixes like injecting full chat histories into the context window, or delegating to a third-party memory service, either exhaust the model's context budget or send personal data through infrastructure the user does not control. We describe a memory store that avoids both problems: an agent-local Neo4j property graph augmented with HNSW vector indexes and a full bitemporal data model. Each memory is stored as an immutable identity node linked to versioned content nodes carrying two closed-open time intervals: valid time (when the fact was true in the world) and transaction time (when the database recorded it). This design supports point-in-time semantic retrieval without physically overwriting history. Semantic edges between related memories are maintained automatically at write time using cosine similarity over 1024-dimensional embeddings. We evaluate the system on LongMemEval, a 500-question benchmark spanning six question types designed to stress long-term memory. Across 60 sampled questions, the current-state semantic search path achieves 46.7% R@10 overall, rising to 80% on knowledge-update questions. The time-travel path yields 80% R@10 on knowledge-update but decreases recall on temporal-reasoning questions (50% to 37.5%), a consequence of post-filter dilution that points directly to a concrete design improvement. We discuss what these results reveal about the limits of pure retrieval for different question types and what each failure mode suggests for future work.",
+       "url": "https://arxiv.org/abs/2607.26520",
+       "pdf_url": "https://arxiv.org/pdf/2607.26520",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2607.26520",
+       "openalex_id": "https://openalex.org/W7171869971",
+       "relevance_score": 81.30721,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2607.26520",
+       "doc_id": "1917562525",
+       "_rank": 7,
+       "_hybrid_score": 0.04275030060803839,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4737,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.012658,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 876,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 171
+        }
+       }
+      },
+      {
+       "title": "DMF: A Deterministic Memory Framework for Conversational AI Agents",
+       "authors": [
+        "Matteo Stabile",
+        "Enrico Zimuel"
+       ],
+       "abstract": "Conversational AI agents require memory systems that are both scalable and semantically coherent across long interaction horizons. Existing approaches rely predominantly on large language model (LLM)-based summarisation at write time, which introduces non-determinism, escalating token costs, and opacity in pruning decisions. We present the Deterministic Memory Framework (DMF), a CPU-first approach that replaces generative memory compression with a fully deterministic pipeline grounded in classical NLP analysis, vector geometry, and mathematical scoring. DMF assigns each conversational interaction a Survival Score $Ω$ computed from deterministic content signals, conversational cues, and structured provenance, combined through a logistic projection. An interaction-count decay law, denoted as $Ω_{\\mathrm{eff}}(Δn)$, governs how relevance evolves as new turns arrive, where $Δn$ is the number of newer interactions rather than wall-clock time, preserving full determinism. We present the mathematical formulation of DMF, its structured recall pipeline, the pruning decision procedure, and the evaluation protocol. Experiments are conducted on a purpose-built benchmark using the LoCoMo and LongMemEval datasets. We compare DMF against Mem0, a popular memory layer for AI agents. DMF achieves comparable accuracy while using zero tokens to prepare the memory context and 5x to 242x fewer tokens over the entire conversation. These results show that it is possible to eliminate LLM calls from the memory-management loop, reducing token costs to nearly zero and enabling deterministic memory systems for conversational AI agents.",
+       "url": "https://arxiv.org/abs/2606.03463",
+       "pdf_url": "https://arxiv.org/pdf/2606.03463",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2606.03463",
+       "openalex_id": "https://openalex.org/W7163364060",
+       "relevance_score": 87.16236,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2606.03463",
+       "doc_id": "445718780",
+       "_rank": 8,
+       "_hybrid_score": 0.04199683466469903,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.465,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.011905,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 890,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 166
+        }
+       }
+      },
+      {
+       "title": "SaliMory: Orchestrating Cognitive Memory for Conversational Agents",
+       "authors": [
+        "Kai Zhang",
+        "Xinyuan Zhang",
+        "Hongda Jiang",
+        "Shiun-Zu Kuo",
+        "Hyokun Yun",
+        "Ejaz Ahmed",
+        "Shereen Oraby",
+        "Ziyun Li",
+        "Sanat Sharma",
+        "Ann Lee",
+        "Ahmed A Aly",
+        "Anuj Kumar",
+        "Raffay Hamid",
+        "Xin Luna Dong"
+       ],
+       "abstract": "Conversational agents that serve as lifelong companions must maintain persistent memory across all interactions. However, simply expanding context windows with raw retrieval degrades reasoning quality, while training memory agents via standard reinforcement learning creates a severe credit assignment bottleneck in a multi-stage pipeline. To solve this, we introduce SALIMORY, a framework that trains a single language model to manage a cognitively-structured memory-spanning user facts, preferences, and working memory. By introducing a hierarchical stage-wise process reward and reward-decomposed contrastive refinement, SALIMORY provides isolated supervision for distinct memory operations (selective filtering, consolidation, and cue-driven recall) end-to-end. SALIMORY cuts memory-attributed failures by one-third, outperforms the state-of-the-art by over 10% in end-to-end accuracy, and more than doubles the Good Personalization rate.",
+       "url": "https://arxiv.org/abs/2606.04120",
+       "pdf_url": "https://arxiv.org/pdf/2606.04120",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2606.04120",
+       "openalex_id": "https://openalex.org/W7163530584",
+       "relevance_score": 90.00335,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "published_date": "2026-06-02",
+       "updated_date": "2026-08-24",
+       "arxiv_id": "2606.04120v2",
+       "categories": [
+        "cs.CL",
+        "cs.AI"
+       ],
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.48550/arxiv.2606.04120",
+       "doc_id": "217007151",
+       "_rank": 9,
+       "_hybrid_score": 0.041856778642290066,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4619,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.011765,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 745,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 190
+        }
+       }
+      },
+      {
+       "title": "Beyond Memory Construction: Rethinking Memory Access for LLM-based Conversational Agents",
+       "authors": [
+        "Donghua Cai",
+        "Yongheng Deng",
+        "Yifei Wang",
+        "Zijun Shen",
+        "Ju Ren"
+       ],
+       "abstract": "Memory is a core component of conversational agents, enabling coherent and context-aware behavior over long interactions. Recent approaches commonly rely on LLM-based memory construction, where raw interactions are rewritten into structured memory units and later retrieved via a RAG pipeline. While effective in controlled settings, we show that this paradigm breaks down in long-horizon, high-entropy conversations: memory construction becomes increasingly lossy and unstable as context length and information complexity grow, and incurs prohibitive cost due to repeated LLM invocation. To address these limitations, we propose Threader, a memory system that shifts the focus from memory construction to efficient, structure-aware access over raw interactions. Instead of rewriting interactions, Threader preserves them as first-class memory, organizes them into topic-coherent segments via lightweight incremental segmentation, and enables accurate retrieval through multi-view representation. At query time, it performs multi-signal retrieval that combines segment-level access with localized evidence matching, ensuring both completeness and coherence. Extensive experiments demonstrate that Threader consistently improves answer accuracy and evidence recall, while significantly reducing the memory construction overhead.",
+       "url": "https://arxiv.org/abs/2609.33226",
+       "pdf_url": "https://arxiv.org/pdf/2609.33226",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2609.33226",
+       "openalex_id": "https://openalex.org/W7214722902",
+       "relevance_score": 83.03254,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2609.33226",
+       "doc_id": "1216771431",
+       "_rank": 10,
+       "_hybrid_score": 0.04547668814455251,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5146,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.015385,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.98,
+         "confidence": 0.99,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.01,
+          "3": 0.99
+         },
+         "usage": {
+          "input_tokens": 790,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 256
+        }
+       }
+      },
+      {
+       "title": "MemRouter: Memory-as-Embedding Routing for Long-Term Conversational Agents",
+       "authors": [
+        "Tianyu Hu",
+        "Weikai Lin",
+        "Weizhi Zhang",
+        "Jing Ma",
+        "Song Wang"
+       ],
+       "abstract": "Long-term conversational agents must decide which turns to store in external memory, yet recent systems rely on autoregressive LLM generation at every turn to make that decision. We present MemRouter, a write-side memory router that decouples memory admission from the downstream answer backbone and replaces per-turn memory-management decoding with an embedding-based routing policy. MemRouter encodes each turn together with recent context, projects the resulting embeddings through a frozen LLM backbone, and predicts whether the turn should be stored using lightweight classification heads while training only 12M parameters. Under a controlled matched-harness comparison on LoCoMo, where the retrieval pipeline, answer prompts, and QA backbone (Qwen2.5-7B) are held identical, MemRouter outperforms an LLM-based memory manager on every question category (overall F1 52.0 vs 45.6, non-overlapping 95% CIs) while reducing memory-management p50 latency from 970ms to 58ms. Descriptive factorial averaging further shows that learned admission improves mean F1 by +10.3 over random storage, category-specific prompting adds +5.2 over a generic prompt, and retrieval contributes +0.7. These results suggest that write-side memory admission can be learned by a small supervised router, while answer generation remains a separate downstream component in long-horizon conversational QA.",
+       "url": "https://arxiv.org/abs/2605.00356",
+       "pdf_url": "https://arxiv.org/pdf/2605.00356",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2605.00356",
+       "openalex_id": "https://openalex.org/W7160116345",
+       "relevance_score": 82.164505,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2605.00356",
+       "doc_id": "435925200",
+       "_rank": 11,
+       "_hybrid_score": 0.043980961648826006,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.492,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.013889,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.98,
+         "confidence": 0.98,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.02,
+          "3": 0.98
+         },
+         "usage": {
+          "input_tokens": 865,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 180
+        }
+       }
+      },
+      {
+       "title": "MemCog: From Memory-as-Tool to Memory-as-Cognition in Conversational Agents",
+       "authors": [
+        "Zihan Li",
+        "Xingyu Fan",
+        "Feifei Li",
+        "Wenhui Que"
+       ],
+       "abstract": "Existing agent memory systems universally follow what we term a Memory-as-Tool paradigm where a single query triggers one-shot retrieval of flat passage lists, suffering from passive invocation, reasoning-retrieval decoupling, and structural mismatch between retrieved fragments and the agent's navigational needs. We propose MemCog, a Memory-as-Cognition system that makes memory access an integral part of the reasoning process. MemCog organizes user knowledge as Navigable Memory Store with associative link graphs, exposes Cross-Dimensional Navigation Interface for multi-step reasoning-driven traversal, and employs Proactive Reasoning Protocol that drives agents to spontaneously initiate memory exploration from conversational context. We additionally construct ProactiveMemBench, the first benchmark for evaluating proactive memory triggering. Experiments show that MemCog achieves state-of-the-art on passive QA benchmarks (92.98 on LoCoMo, 95.8 on LongMemEval) while substantially outperforming baselines on ProactiveMemBench, demonstrating the advantage of Memory-as-Cognition.",
+       "url": "https://arxiv.org/abs/2605.28046",
+       "pdf_url": "https://arxiv.org/pdf/2605.28046",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2605.28046",
+       "openalex_id": "https://openalex.org/W7162631394",
+       "relevance_score": 90.233536,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2605.28046",
+       "doc_id": "1092974624",
+       "_rank": 12,
+       "_hybrid_score": 0.04360558627345064,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4889,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.013514,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.98,
+         "confidence": 0.98,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.02,
+          "3": 0.98
+         },
+         "usage": {
+          "input_tokens": 788,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 184
+        }
+       }
+      },
+      {
+       "title": "Contextual Coherence in Conversational AI: Leveraging a Memory Agent",
+       "authors": [
+        "Vidya Vishal Wadkar"
+       ],
+       "abstract": "This study presents a Memory Agent Framework specifically designed for engaging conversational AI while addressing context coherence and memory scalability. The design is based on a Model Context Protocol (MCP) to synchronise many conversational agents over four memory layers inspired by cognitive functions (Short-Term, Episodic, Semantic, and Procedural). The Python-based asynchronous orchestration helps quickly retrieve memories, using FAISS/Pinecone vector storage and a Neo4j knowledge graph to dynamically reason a conversation (like a human would use memories). When the Memory Agent Framework was evaluated in three different modes (baseline, fine-tuned, and embedding-enhanced), it showed a real performance advantage through the Memory Agent Framework compared with baseline evaluation mode. In the Short-Term Memory, each perplexity level decreased from 327.18 to 294.47; in the Episodic Memory, it decreased from 348.49 to 313.64; and in Semantic Memory, it decreased from 344.22 to 309.79. However, the semantic coherence improved by 28.5% in contextual reliability, reaching 0.5499. The fine-tuned models achieve BLEU and ROUGE-L scores above 0.5, indicating improved grammatical correctness and relevance. These results suggest that the Memory-driven paradigm improves multi-turn conversation comprehension, contextual fragmentation, and episodic interaction continuity and understanding. Overall, the Memory Agent architecture supports scalable, context-rich conversation systems that promote coherence and adaptive reasoning in real-world communication.",
+       "url": "https://doi.org/10.14445/22312803/ijctt-v73i11p103",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 0,
+       "doi": "10.14445/22312803/ijctt-v73i11p103",
+       "openalex_id": "https://openalex.org/W4417351858",
+       "relevance_score": 85.90494,
+       "venue": "International Journal of Computer Trends and Technology",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.14445/22312803/ijctt-v73i11p103",
+       "doc_id": "1993187283",
+       "_rank": 13,
+       "_hybrid_score": 0.043790702896923425,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4903,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.013699,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.96,
+         "confidence": 0.97,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.03,
+          "3": 0.97
+         },
+         "usage": {
+          "input_tokens": 901,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 203
+        }
+       }
+      },
+      {
+       "title": "Mem-Gallery: Benchmarking Multimodal Long-Term Conversational Memory for MLLM Agents",
+       "authors": [
+        "Association for Computational Linguistics 2026",
+        "Yuanchen Bei",
+        "Hendrik F. Hamann",
+        "Jingrui He",
+        "Xiao Lin",
+        "Zhining Liu",
+        "Xuying Ning",
+        "Hanghang Tong",
+        "Tianxin Wei",
+        "Yanjun Zhao",
+        "Yada Zhu"
+       ],
+       "abstract": "Long-term memory is a critical capability for multimodal large language model (MLLM) agents, particularly in conversational settings where information accumulates and evolves over time. However, existing benchmarks either evaluate multi-session memory in text-only conversations or assess multimodal understanding within localized contexts, failing to evaluate how multimodal memory is preserved, organized, and evolved across long-term conversational trajectories. Thus, we introduce Mem-Gallery, a new benchmark for evaluating multimodal long-term conversational memory in MLLM agents. Mem-Gallery features high-quality multi-session conversations grounded in both visual and textual information, with long interaction horizons and rich multimodal dependencies. Building on this dataset, we propose a systematic evaluation framework that assesses key memory capabilities along three functional dimensions: memory extraction and test-time adaptation, memory reasoning, and memory knowledge management. Extensive benchmarking across twelve memory systems reveals several key findings, highlighting the necessity of explicit multimodal information retention and memory organization, the persistent limitations in memory reasoning and knowledge management, as well as the efficiency bottleneck of current models. Our benchmark and dataset are available at https://github.com/YuanchenBei/Mem-Gallery.",
+       "url": "https://doi.org/10.48448/bmn5-hj91",
+       "pdf_url": "https://arxiv.org/pdf/2601.03515v1",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48448/bmn5-hj91",
+       "openalex_id": "https://openalex.org/W7168626880",
+       "relevance_score": 81.9775,
+       "venue": "Underline Science Inc.",
+       "_result_source": "openalex",
+       "published_date": "2026-01-07",
+       "updated_date": "2026-01-07",
+       "arxiv_id": "2601.03515v1",
+       "categories": [
+        "cs.CL",
+        "cs.AI"
+       ],
+       "comment": "34 pages, 18 figures",
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.48448/bmn5-hj91",
+       "doc_id": "314638614",
+       "_rank": 14,
+       "_hybrid_score": 0.04259207275993712,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4679,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.0125,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.96,
+         "confidence": 0.97,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.03,
+          "3": 0.97
+         },
+         "usage": {
+          "input_tokens": 820,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 165
+        }
+       }
+      },
+      {
+       "title": "Memory Makes the Difference: Evaluating How Different Memory Roles Shape Conversational Agents",
+       "authors": [
+        "Yuxin Wang",
+        "Paul Thomas",
+        "Zhiwei Yu",
+        "Yuan Gao",
+        "Saeed Hassanpour",
+        "Soroush Vosoughi",
+        "Robert Sim",
+        "Nick Craswell"
+       ],
+       "abstract": "Memory is a critical component of modern conversational systems.Prior research on memory mechanisms in RAG-based conversational systems has focused on how memory is stored and retrieved.However, less is known about how memories with different functional roles influence response quality, shape agents' responses across conversational contexts, and lead to distinct response behaviors.Existing evaluations are also largely reference-based, often missing response nuances that address users' preferences differently.In this work, we study the impact of different memory types on agent responses.We present a fine-grained taxonomy of conversational memory, classify retrieved memories by functional role, and design a user-centric evaluation framework that simulates user perspectives.Through comparative experiments on long-term datasets and frontier LLMs, our analysis reveals differentiated effects of memory: e.g., clarifying memory is associated with improved factual accuracy and constraint awareness, making responses more correct and personalized, while irrelevant memory reduces topic relevance and degrades constraint awareness.These findings show that, despite the power of frontier LLMs, different memory types can be leveraged to produce responses better aligned with a user's stated constraints, and motivate further research in this direction.Our code is available at: https: //github.com/audreycs/MemoryEffect.",
+       "url": "https://doi.org/10.18653/2026.groundlm-1.30",
+       "pdf_url": "https://aclanthology.org/2026.groundlm-1.30.pdf",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.18653/2026.groundlm-1.30",
+       "openalex_id": "https://openalex.org/W7165916144",
+       "relevance_score": 82.26859,
+       "venue": "",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.18653/2026.groundlm-1.30",
+       "doc_id": "1489575828",
+       "_rank": 16,
+       "_hybrid_score": 0.04342540609327046,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4862,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.013333,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.92,
+         "confidence": 0.92,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.08,
+          "3": 0.92
+         },
+         "usage": {
+          "input_tokens": 819,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 176
+        }
+       }
+      },
+      {
+       "title": "Memory Sandbox: Transparent and Interactive Memory Management for Conversational Agents",
+       "authors": [
+        "Ziheng Huang",
+        "Sebastian Gutierrez",
+        "Hemanth Kamana",
+        "Stephen MacNeil"
+       ],
+       "abstract": "The recent advent of large language models (LLM) has resulted in high-performing conversational agents such as ChatGPT. These agents must remember key information from an ongoing conversation to provide responses that are contextually relevant to the user. However, these agents have limited memory and can be distracted by irrelevant parts of the conversation. While many strategies exist to manage conversational memory, users currently lack affordances for viewing and controlling what the agent remembers, resulting in a poor mental model and conversational breakdowns. In this paper, we present Memory Sandbox, an interactive system and design probe that allows users to manage the conversational memory of LLM-powered agents. By treating memories as data objects that can be viewed, manipulated, recorded, summarized, and shared across conversations, Memory Sandbox provides interaction affordances for users to manage how the agent should ‘see’ the conversation.",
+       "url": "https://doi.org/10.1145/3586182.3615796",
+       "pdf_url": "https://dl.acm.org/doi/pdf/10.1145/3586182.3615796",
+       "source": "OpenAlex",
+       "year": "2023",
+       "citations": 34,
+       "doi": "10.1145/3586182.3615796",
+       "openalex_id": "https://openalex.org/W4387993371",
+       "relevance_score": 110.736,
+       "venue": "ACM Symposium on User Interface Software and Technology (UIST)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1145/3586182.3615796",
+       "doc_id": "1591328616",
+       "_rank": 17,
+       "_hybrid_score": 0.04156790921496804,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5024,
+        "citations": 0.7772,
+        "recency": 0.7,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.014706,
+        "rrf_citations": 0.015873,
+        "rrf_recency": 0.010989,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.9,
+         "confidence": 0.91,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.09,
+          "3": 0.91
+         },
+         "usage": {
+          "input_tokens": 746,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 196
+        }
+       }
+      },
+      {
+       "title": "A memory fabric for conversational AI agents enabling shared and persistent multiuser memory",
+       "authors": [
+        "Anjikya Tiwari",
+        "Vibhuti Gupta"
+       ],
+       "abstract": "Conversational artificial intelligence is now the most widely adopted platform for interfacing with large language models. Alongside large language models these artificial intelligence systems rely on contexts derived from past conversations and preferences to provide accurate and the most relevant responses to users. The knowledge base and past experiences contribute to long-term memory, while processing ongoing conversations generates short-term memory. Both long-term and short-term memories together provide a comprehensive and coherent context to the user. While most architectures focus on a single user context, there is an emerging need in conversational artificial intelligence to provide a system to generate context from multiple individuals and/or agents. Building on this foundation, we introduce memory fabric, a framework that allows conversational artificial intelligence to leverage context drawn from multiple users to generate coherent responses in a multiuser setting. This review is a synthesis of foundational memory architectures, from early models such as Neural Turing Machines and Key-Value Memory Networks to recent systems like AutoGen, Shared Recurrent Memory Transformer, AgentVerse, and Secured Agent Memory Exchange Protocol evaluated through the lens of memory fabric. It also addresses work on dialogue and agent memory, multi-agent shared-memory designs, privacy and provenance strategies, benchmarking standards, and system-level considerations. A systematic review of english articles using Institute of Electrical and Electronics Engineers Xplore, Association of Computing Machinery, arXiv, SpringerLink, and Association of Computational Linguistics anthology databases was performed. Only full-text studies reported between 2014 and 2025 were included for analysis. Following Preferred Reporting Items for System Reviews and Meta-Analyses guidelines, a total of 662 studies were identified, of which 27 studies met the inclusion criteria. Overall, this review presents a detailed analysis on leveraging contexts from multiple users in a shared environment in foundational memory architectures, offering an in-depth analysis of their strengths and shortcomings, along with recommendations and future research directions.",
+       "url": "https://doi.org/10.1007/s44163-026-00992-z",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.1007/s44163-026-00992-z",
+       "openalex_id": "https://openalex.org/W7129728849",
+       "relevance_score": 83.35396,
+       "venue": "Discover Artificial Intelligence",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1007/s44163-026-00992-z",
+       "doc_id": "1450870920",
+       "_rank": 18,
+       "_hybrid_score": 0.045717072759937125,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5178,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.015625,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.79,
+         "confidence": 0.79,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.21,
+          "3": 0.79
+         },
+         "usage": {
+          "input_tokens": 958,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 257
+        }
+       }
+      },
+      {
+       "title": "Memory Fabric for Conversational AI Agents: Enabling Shared and Persistent Memory Across Users",
+       "authors": [
+        "Anjikya Tiwari",
+        "Vibhuti Gupta"
+       ],
+       "abstract": "Conversational AI is now the most widely adopted platform for interfacing with LLMs. Alongside LLMs these AI systems rely on contexts derived from past conversations and preferences to provide accurate and the most relevant responses to users. The knowledge base and past experiences contribute to long-term memory, while processing ongoing conversations generates short-term memory. Both long-term and short-term memories together provide a comprehensive and coherent context to the user. While most architectures focus on a single user context, there is an emerging need in conversational AI to provide a system to generate context from multiple individuals and/or agents. Building on this foundation, we introduce memory fabric, a framework that allows conversational AI to leverage context drawn from multiple users to generate coherent responses in a multiuser setting. This review is a synthesis of foundational memory architectures, from early models such as Neural Turing Machines and Key-Value Memory Networks to recent systems like AutoGen, SRMT, AgentVerse, and SAMEP evaluated through the lens of memory fabric. It also addresses work on dialogue and agent memory, multi-agent shared-memory designs, privacy and provenance strategies, benchmarking standards, and system-level considerations. A systematic review of English articles using IEEE Xplore, ACM, arXiv, SpringerLink, and ACL anthology databases was performed. Only full-text studies reported between 2014 and 2025 were included for analysis. Following PRISMA guidelines, a total of 662 studies were identified, of which 27 studies met the inclusion criteria. Overall, this review presents a detailed analysis on leveraging contexts from multiple users in a shared environment in foundational memory architectures, offering an in-depth analysis of their strengths and shortcomings, along with recommendations and future research directions.",
+       "url": "https://doi.org/10.36227/techrxiv.176523350.08289935/v1",
+       "pdf_url": "https://www.techrxiv.org/doi/pdf/10.36227/techrxiv.176523350.08289935",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 0,
+       "doi": "10.36227/techrxiv.176523350.08289935/v1",
+       "openalex_id": "https://openalex.org/W4417136827",
+       "relevance_score": 81.75882,
+       "venue": "",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.36227/techrxiv.176523350.08289935/v1",
+       "doc_id": "2063386734",
+       "_rank": 19,
+       "_hybrid_score": 0.04622110501800164,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.5257,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.016129,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.68,
+         "confidence": 0.7,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.3,
+          "3": 0.7
+         },
+         "usage": {
+          "input_tokens": 926,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 362
+        }
+       }
+      },
+      {
+       "title": "When Users Don’t Ask: Benchmarking Context-Driven Memory Retrieval in Conversational Agents",
+       "authors": [
+        "Wen-Yu Chang",
+        "Yun-Nung Chen"
+       ],
+       "abstract": "Large language models (LLMs) are increasingly deployed as long-horizon conversational agents, motivating growing interest in memory systems.However, existing benchmarks primarily evaluate memory through QA-style probing rather than in-situ conversational usage.We introduce LOCOMO-CONV, a conversational memory benchmark derived from Lo-CoMo with four query styles: dialog, implicit, counterfactual, and composed.Across five representative memory systems, we evaluate both retrieval recall and end-to-end response quality.Our experiments show that conversational framing exposes substantial retrieval gaps overlooked by QA benchmarks, especially on implicit and composed queries, which multi-facet query rewriting narrows for raw-turn memory but not abstractive memory.We further find that strong retrieval does not fully translate into response quality, and that implicit queries exhibit silent grounding, where memory improves contextual grounding without explicitly surfacing the gold fact.These results point to reasoning-based memory elaboration as a promising direction, and we release auxiliary supportive_memory annotations capturing conversationally useful context beyond the original gold evidence.1",
+       "url": "https://doi.org/10.18653/2026.findings-emnlp.1289",
+       "pdf_url": "https://aclanthology.org/2026.findings-emnlp.1289.pdf",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.18653/2026.findings-emnlp.1289",
+       "openalex_id": "https://openalex.org/W7208738929",
+       "relevance_score": 80.37187,
+       "venue": "Findings of the Association for Computational Linguistics: EMNLP (Findings of EMNLP)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.18653/2026.findings-emnlp.1289",
+       "doc_id": "1506209422",
+       "_rank": 20,
+       "_hybrid_score": 0.04096163797732842,
+       "_score_breakdown": {
+        "bm25": 0.0,
+        "semantic": 0.4512,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "bm25": "constant",
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.0,
+        "rrf_semantic": 0.01087,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true
+       }
+      }
+     ]
+    },
+    {
+     "type": "graph",
+     "query_hash": "2b77cc9c39d3",
+     "graph": {
+      "nodes": [
+       {
+        "id": "doi:10.48550/arxiv.2502.05589",
+        "x": 0.2581936270759655,
+        "y": -0.1425256372794402,
+        "title": "On Memory Construction and Retrieval for Personalized Conversational Agents",
+        "year": "2025",
+        "citations": 2,
+        "authors": [
+         "Zhuoshi Pan",
+         "Qianhui Wu",
+         "Huiqiang Jiang",
+         "Xufang Luo",
+         "Cheng, Hao",
+         "Li, Dongsheng",
+         "Yuqing Yang",
+         "Chin-Yew Lin",
+         "Zhao, H. Vicky",
+         "Lili Qiu",
+         "Jianfeng Gao"
+        ],
+        "abstract": "To deliver coherent and personalized experiences in long-term conversations, existing approaches typically perform retrieval augmented response generation by constructing memory banks from conversation history at either the turn-level, session-level, or through summarization techniques.In this paper, we present two key findings: (1) The granularity of memory unit matters: turn-level, session-level, and summarization-based methods each exhibit limitations in both memory retrieval accuracy and the semantic quality of the retrieved content. (2) Prompt compression methods, such as LLMLingua-2, can effectively serve as a denoising mechanism, enhancing memory retrieval accuracy across different granularities. Building on these insights, we propose SeCom, a method that constructs the memory bank at segment level by introducing a conversation segmentation model that partitions long-term conversations into topically coherent segments, while applying compression based denoising on memory units to enhance memory retrieval. Experimental results show that SeCom exhibits a significant performance advantage over baselines on long-term conversation benchmarks LOCOMO and Long-MT-Bench+. Additionally, the proposed conversation segmentation method demonstrates superior performance on dialogue segmentation datasets such as DialSeg711, TIAGE, and SuperDialSeg.",
+        "url": "http://arxiv.org/abs/2502.05589",
+        "pdf_url": "https://arxiv.org/pdf/2502.05589",
+        "doi": "10.48550/arxiv.2502.05589",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2502.05589",
+        "weight": 2,
+        "community_id": 2,
+        "community_label": "construction · agentir"
+       },
+       {
+        "id": "doi:10.5281/zenodo.21964737",
+        "x": 0.7821382572018868,
+        "y": 0.5883303259319165,
+        "title": "Memory That Doesn't Expire: Agentic Long-Term Memory for Conversational Agents on a Single Consumer GPU",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Muhammad Abdullah Shaheer"
+        ],
+        "abstract": "Conversational agents forget: once a dialogue outgrows the context window, a model must either be reminded through retrieval or have its history truncated. Recent memory systems address this with extraction and retrieval, but they assume a large, often API-hosted model as the memory manager, an assumption that rules out private, local deployment. We ask whether a small local model, on a single consumer GPU, can manage long-term memory well, and how the answer depends on model size. We evaluate four memory strategies (no memory, full-history stuffing, raw-turn retrieval, and an agentic protocol that extracts typed, dated, deduplicated facts) on LoCoMo (1,986 questions over 10 long multi-session conversations), scored by an independent LLM judge. Full-context stuffing wins aggregate accuracy when the answer still lies inside the window, but its advantage is an artifact of conversation length: split by whether a question's evidence survives truncation, stuffing collapses by 76% beyond the window while agentic memory stays flat, outperforming stuffing 2.0x on the 39% of questions that already exceed it. Agentic memory further gives the best temporal reasoning of any strategy (via absolute-date grounding at write time) using ~67x less context. Varying the extractor from 3B to 14B, we find quality scales with size and that temporal grounding is the first capability to break under compression, setting a minimum viable memory-manager size of ~7-14B, comfortably within a 12 GB GPU. A hand-verified audit of 200 stored memories finds 199 faithful to their source turn, with no fabrications. We release the system, the benchmark harness, and the raw judged outputs behind every reported number. Code: https://github.com/MasHasNoLife/yuna-aiPaper source: https://github.com/MasHasNoLife/memory-that-doesnt-expireRaw run outputs: https://doi.org/10.5281/zenodo.21702651",
+        "url": "https://doi.org/10.5281/zenodo.21964737",
+        "pdf_url": "",
+        "doi": "10.5281/zenodo.21964737",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.5281/zenodo.21964737",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "provider:openalex:https://openalex.org/W7223429642",
+        "x": -0.03787736341035526,
+        "y": -0.2569742011508724,
+        "title": "A Cognitive Long-Term Memory Architecture for Interactive Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "CRISTINA MARIA RITA LOMBARDO"
+        ],
+        "abstract": "Long-term interaction between a person and an Interactive Conversational Agent requires the agent to maintain a persistent, evolving model of that person across many separate conversations. Current architectures rely on a short context window and have no mechanism for retaining, consolidating and retrieving what they learn. When a person talks to an assistant over weeks or months, they expect it to know them. They expect not to explain again who their sister is, not to be asked the same question twice, and not to be told something that contradicts what they said last month. Conversational assistants today cannot do this. Each conversation begins with nothing, and everything is gone the moment the session closes. The obvious remedy is to keep the transcript and read it back later. But a transcript grows without limit and almost all of it is irrelevant to any particular question. This thesis takes a different approach, borrowed from the way human memory is described in cognitive psychology. It is a cognitively inspired memory architecture that addresses those limitations, together with its implementation and an empirical evaluation. The system never stores the conversation, it stores what it understood. The system holds memory at three timescales. A volatile layer keeps the current conversation, the tracked mood of the user, and a short-term planning buffer carrying the agent’s own pending commitments. An episodic memory stores self-contained summaries of what happened. A semantic memory holds a knowledge graph of the people, places, objects and topics in the user’s life, with the relations between them. Every long-term memory is text the system generated itself, and raw turns are discarded once they have been summarised. Both memory types carry affect. Each episode records the emotions attributed to it, and each entity in the graph carries a stigmergic trace: a sparse field over the valence–arousal plane onto which every episode mentioning that entity deposits, and which decays when the entity is neglected, so what the agent knows about a person includes not only what is true of them, but what has been difficult, or good, or worrying. Retrieval ranks episodic and semantic candidates through a composite score whose components (semantic similarity, recency, affective intensity, congruence with the user’s current mood and the number of supporting episodes) are bounded on a common scale, so that the two memory types remain directly comparable. Seman tic retrieval also exploits a degree-corrected personalized PageRank over the user’s graph, which recovers memories that are relevant by connection. The thesis presents the design of this architecture, its implementation as a work ing system, and its evaluation on public datasets of long conversations such as Lo CoMo and LongMemEval and of emotional narratives with IDEST. It reports what the evaluation established, what it ruled out, and where the architecture’s remaining limits lie.",
+        "url": "https://etd.adm.unipi.it/theses/available/etd-09142026-122141/",
+        "pdf_url": "",
+        "doi": "",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "provider:openalex:https://openalex.org/W7223429642",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "cognitive · agent"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2601.02845",
+        "x": -0.7586710504466676,
+        "y": 0.6247109266585302,
+        "title": "TiMem: Temporal-Hierarchical Memory Consolidation for Long-Horizon Conversational Agents",
+        "year": "2026",
+        "citations": 1,
+        "authors": [
+         "Kai Li",
+         "Xuanqing Yu",
+         "Ziyi Ni",
+         "Yi Zeng",
+         "Yao Xu",
+         "Zheqing Zhang",
+         "Xin Li",
+         "Jitao Sang",
+         "Xiaogang Duan",
+         "Xuelei Wang",
+         "Chengbao Liu",
+         "Jie Tan"
+        ],
+        "abstract": "Long-horizon conversational agents have to manage ever-growing interaction histories that quickly exceed the finite context windows of large language models (LLMs). Existing memory frameworks provide limited support for temporally structured information across hierarchical levels, often leading to fragmented memories and unstable long-horizon personalization. We present TiMem, a temporal--hierarchical memory framework that organizes conversations through a Temporal Memory Tree (TMT), enabling systematic memory consolidation from raw conversational observations to progressively abstracted persona representations. TiMem is characterized by three core properties: (1) temporal--hierarchical organization through TMT; (2) semantic-guided consolidation that enables memory integration across hierarchical levels without fine-tuning; and (3) complexity-aware memory recall that balances precision and efficiency across queries of varying complexity. Under a consistent evaluation setup, TiMem achieves state-of-the-art accuracy on both benchmarks, reaching 75.30% on LoCoMo and 76.88% on LongMemEval-S. It outperforms all evaluated baselines while reducing the recalled memory length by 52.20% on LoCoMo. Manifold analysis indicates clear persona separation on LoCoMo and reduced dispersion on LongMemEval-S. Overall, TiMem treats temporal continuity as a first-class organizing principle for long-horizon memory in conversational agents. The code is available at https://github.com/TiMEM-AI/timem.",
+        "url": "https://arxiv.org/abs/2601.02845",
+        "pdf_url": "https://arxiv.org/pdf/2601.02845",
+        "doi": "10.48550/arxiv.2601.02845",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2601.02845",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1109/aimlsystems67835.2025.11330332",
+        "x": 0.43774147990891576,
+        "y": 0.851086356375558,
+        "title": "Memoria: A Scalable Agentic Memory Framework for Personalized Conversational AI",
+        "year": "2025",
+        "citations": 1,
+        "authors": [
+         "Samarth Sarin",
+         "Lovepreet Singh",
+         "Bhaskarjit Sarmah",
+         "Dhagash B. Mehta"
+        ],
+        "abstract": "Agentic memory is emerging as a key enabler for large language models (LLM) to maintain continuity, personalization, and long-term context in extended user interactions, critical capabilities for deploying LLMs as truly interactive and adaptive agents. Agentic memory refers to the memory that provides an LLM with agent-like persistence: the ability to retain and act upon information across conversations, similar to how a human would. We present Memoria, a modular memory framework that augments LLM-based conversational systems with persistent, interpretable, and context-rich memory. Memoria integrates two complementary components: dynamic session-level summarization and a weighted knowledge graph (KG)-based user modeling engine that incrementally captures user traits, preferences, and behavioral patterns as structured entities and relationships. This hybrid architecture enables both short-term dialogue coherence and long-term personalization while operating within the token constraints of modern LLMs. We demonstrate how Memoria enables scalable, personalized conversational artificial intelligence (AI) by bridging the gap between stateless LLM interfaces and agentic memory systems, offering a practical solution for industry applications requiring adaptive and evolving user experiences.",
+        "url": "https://doi.org/10.1109/aimlsystems67835.2025.11330332",
+        "pdf_url": "https://arxiv.org/pdf/2512.12686",
+        "doi": "10.1109/aimlsystems67835.2025.11330332",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1109/aimlsystems67835.2025.11330332",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1109/metroxraine66377.2025.11340339",
+        "x": -0.0953956704135687,
+        "y": -0.32555469012273625,
+        "title": "Development of a Human-inspired Long-Term Memory for Interactive Conversational Agents",
+        "year": "2025",
+        "citations": 1,
+        "authors": [
+         "Angelo De Marco",
+         "Federico A. Galatolo",
+         "Lorenzo Cominelli",
+         "Marco Pardini",
+         "Mario G.C.A. Cimino",
+         "Alberto Greco",
+         "Enzo Pasquale Scilingo"
+        ],
+        "abstract": "The ability to establish and maintain relationships with users is crucial for Interactive Conversational Agents (ICAs). This involves remembering information from previous interactions and utilizing it in future conversations-key behaviors that build rapport and demonstrate interest in the user, which are essential for sustained engagement. Current conversational agents typically rely on context from recent conversational turns. To enhance interaction quality, agents should be equipped with a Long-Term Memory (LTM) that encompasses entire past conversations. The state-of-the-art approach to incorporating LTM in ICAs involves saving all previous turns in an external storage system (e.g., a plain database). Despite achieving considerable results, this method is not biologically inspired and diverges from how human memory works-where only essential information is stored and reconstructed generatively using semantic memory. We propose a hierarchical memory system inspired by human memory stratification. It dynamically updates and retrieves contextually relevant episodic and declarative memories to support semantically enriched interactions. A significant innovation in our approach is the use of a Large Language Model (LLM) Agent to determine what structured information should be stored during conversations. Our preliminary results suggest that our approach maintains competitive performance compared to existing methods while introducing novel features such as graph-based persona representation and a reduced need for storing entire past dialogues.",
+        "url": "https://doi.org/10.1109/metroxraine66377.2025.11340339",
+        "pdf_url": "",
+        "doi": "10.1109/metroxraine66377.2025.11340339",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1109/metroxraine66377.2025.11340339",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "cognitive · agent"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2604.19771",
+        "x": 0.8260899373399583,
+        "y": -0.6347212115078383,
+        "title": "Cognis: Context-Aware Memory for Conversational AI Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Parshva Daftari",
+         "Khush Patel",
+         "Shreyas Kapale",
+         "Jithin George",
+         "Siva Surendira"
+        ],
+        "abstract": "LLM agents lack persistent memory, causing conversations to reset each session and preventing personalization over time. We present Lyzr Cognis, a unified memory architecture for conversational AI agents that addresses this limitation through a multi-stage retrieval pipeline. Cognis combines a dual-store backend pairing OpenSearch BM25 keyword matching with Matryoshka vector similarity search, fused via Reciprocal Rank Fusion. Its context-aware ingestion pipeline retrieves existing memories before extraction, enabling intelligent version tracking that preserves full memory history while keeping the store consistent. Temporal boosting enhances time-sensitive queries, and a BGE-2 cross-encoder reranker refines final result quality. We evaluate Cognis on two independent benchmarks -- LoCoMo and LongMemEval -- across eight answer generation models, demonstrating state-of-the-art performance on both. The system is open-source and deployed in production serving conversational AI applications.",
+        "url": "https://arxiv.org/abs/2604.19771",
+        "pdf_url": "https://arxiv.org/pdf/2604.19771",
+        "doi": "10.48550/arxiv.2604.19771",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2604.19771",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2607.26520",
+        "x": -0.36884476041609116,
+        "y": -0.9301123355164543,
+        "title": "A Graph-Native Bitemporal Memory Store for Conversational AI Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Alp Niksarli",
+         "Gopesh Baheti"
+        ],
+        "abstract": "Conversational AI agents commonly lack persistent memory across sessions. The obvious fixes like injecting full chat histories into the context window, or delegating to a third-party memory service, either exhaust the model's context budget or send personal data through infrastructure the user does not control. We describe a memory store that avoids both problems: an agent-local Neo4j property graph augmented with HNSW vector indexes and a full bitemporal data model. Each memory is stored as an immutable identity node linked to versioned content nodes carrying two closed-open time intervals: valid time (when the fact was true in the world) and transaction time (when the database recorded it). This design supports point-in-time semantic retrieval without physically overwriting history. Semantic edges between related memories are maintained automatically at write time using cosine similarity over 1024-dimensional embeddings. We evaluate the system on LongMemEval, a 500-question benchmark spanning six question types designed to stress long-term memory. Across 60 sampled questions, the current-state semantic search path achieves 46.7% R@10 overall, rising to 80% on knowledge-update questions. The time-travel path yields 80% R@10 on knowledge-update but decreases recall on temporal-reasoning questions (50% to 37.5%), a consequence of post-filter dilution that points directly to a concrete design improvement. We discuss what these results reveal about the limits of pure retrieval for different question types and what each failure mode suggests for future work.",
+        "url": "https://arxiv.org/abs/2607.26520",
+        "pdf_url": "https://arxiv.org/pdf/2607.26520",
+        "doi": "10.48550/arxiv.2607.26520",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2607.26520",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2606.03463",
+        "x": -0.7899222412767439,
+        "y": 0.4506468687597835,
+        "title": "DMF: A Deterministic Memory Framework for Conversational AI Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Matteo Stabile",
+         "Enrico Zimuel"
+        ],
+        "abstract": "Conversational AI agents require memory systems that are both scalable and semantically coherent across long interaction horizons. Existing approaches rely predominantly on large language model (LLM)-based summarisation at write time, which introduces non-determinism, escalating token costs, and opacity in pruning decisions. We present the Deterministic Memory Framework (DMF), a CPU-first approach that replaces generative memory compression with a fully deterministic pipeline grounded in classical NLP analysis, vector geometry, and mathematical scoring. DMF assigns each conversational interaction a Survival Score $Ω$ computed from deterministic content signals, conversational cues, and structured provenance, combined through a logistic projection. An interaction-count decay law, denoted as $Ω_{\\mathrm{eff}}(Δn)$, governs how relevance evolves as new turns arrive, where $Δn$ is the number of newer interactions rather than wall-clock time, preserving full determinism. We present the mathematical formulation of DMF, its structured recall pipeline, the pruning decision procedure, and the evaluation protocol. Experiments are conducted on a purpose-built benchmark using the LoCoMo and LongMemEval datasets. We compare DMF against Mem0, a popular memory layer for AI agents. DMF achieves comparable accuracy while using zero tokens to prepare the memory context and 5x to 242x fewer tokens over the entire conversation. These results show that it is possible to eliminate LLM calls from the memory-management loop, reducing token costs to nearly zero and enabling deterministic memory systems for conversational AI agents.",
+        "url": "https://arxiv.org/abs/2606.03463",
+        "pdf_url": "https://arxiv.org/pdf/2606.03463",
+        "doi": "10.48550/arxiv.2606.03463",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2606.03463",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2606.04120",
+        "x": 0.052825081769190416,
+        "y": -0.14583043099620355,
+        "title": "SaliMory: Orchestrating Cognitive Memory for Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Kai Zhang",
+         "Xinyuan Zhang",
+         "Hongda Jiang",
+         "Shiun-Zu Kuo",
+         "Hyokun Yun",
+         "Ejaz Ahmed",
+         "Shereen Oraby",
+         "Ziyun Li",
+         "Sanat Sharma",
+         "Ann Lee",
+         "Ahmed A Aly",
+         "Anuj Kumar",
+         "Raffay Hamid",
+         "Xin Luna Dong"
+        ],
+        "abstract": "Conversational agents that serve as lifelong companions must maintain persistent memory across all interactions. However, simply expanding context windows with raw retrieval degrades reasoning quality, while training memory agents via standard reinforcement learning creates a severe credit assignment bottleneck in a multi-stage pipeline. To solve this, we introduce SALIMORY, a framework that trains a single language model to manage a cognitively-structured memory-spanning user facts, preferences, and working memory. By introducing a hierarchical stage-wise process reward and reward-decomposed contrastive refinement, SALIMORY provides isolated supervision for distinct memory operations (selective filtering, consolidation, and cue-driven recall) end-to-end. SALIMORY cuts memory-attributed failures by one-third, outperforms the state-of-the-art by over 10% in end-to-end accuracy, and more than doubles the Good Personalization rate.",
+        "url": "https://arxiv.org/abs/2606.04120",
+        "pdf_url": "https://arxiv.org/pdf/2606.04120",
+        "doi": "10.48550/arxiv.2606.04120",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2606.04120",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "cognitive · agent"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2609.33226",
+        "x": 0.3534188652272663,
+        "y": -0.17583552028807495,
+        "title": "Beyond Memory Construction: Rethinking Memory Access for LLM-based Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Donghua Cai",
+         "Yongheng Deng",
+         "Yifei Wang",
+         "Zijun Shen",
+         "Ju Ren"
+        ],
+        "abstract": "Memory is a core component of conversational agents, enabling coherent and context-aware behavior over long interactions. Recent approaches commonly rely on LLM-based memory construction, where raw interactions are rewritten into structured memory units and later retrieved via a RAG pipeline. While effective in controlled settings, we show that this paradigm breaks down in long-horizon, high-entropy conversations: memory construction becomes increasingly lossy and unstable as context length and information complexity grow, and incurs prohibitive cost due to repeated LLM invocation. To address these limitations, we propose Threader, a memory system that shifts the focus from memory construction to efficient, structure-aware access over raw interactions. Instead of rewriting interactions, Threader preserves them as first-class memory, organizes them into topic-coherent segments via lightweight incremental segmentation, and enables accurate retrieval through multi-view representation. At query time, it performs multi-signal retrieval that combines segment-level access with localized evidence matching, ensuring both completeness and coherence. Extensive experiments demonstrate that Threader consistently improves answer accuracy and evidence recall, while significantly reducing the memory construction overhead.",
+        "url": "https://arxiv.org/abs/2609.33226",
+        "pdf_url": "https://arxiv.org/pdf/2609.33226",
+        "doi": "10.48550/arxiv.2609.33226",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2609.33226",
+        "weight": 1,
+        "community_id": 2,
+        "community_label": "construction · agentir"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2605.00356",
+        "x": -0.7829614038236363,
+        "y": -0.5224061229224194,
+        "title": "MemRouter: Memory-as-Embedding Routing for Long-Term Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Tianyu Hu",
+         "Weikai Lin",
+         "Weizhi Zhang",
+         "Jing Ma",
+         "Song Wang"
+        ],
+        "abstract": "Long-term conversational agents must decide which turns to store in external memory, yet recent systems rely on autoregressive LLM generation at every turn to make that decision. We present MemRouter, a write-side memory router that decouples memory admission from the downstream answer backbone and replaces per-turn memory-management decoding with an embedding-based routing policy. MemRouter encodes each turn together with recent context, projects the resulting embeddings through a frozen LLM backbone, and predicts whether the turn should be stored using lightweight classification heads while training only 12M parameters. Under a controlled matched-harness comparison on LoCoMo, where the retrieval pipeline, answer prompts, and QA backbone (Qwen2.5-7B) are held identical, MemRouter outperforms an LLM-based memory manager on every question category (overall F1 52.0 vs 45.6, non-overlapping 95% CIs) while reducing memory-management p50 latency from 970ms to 58ms. Descriptive factorial averaging further shows that learned admission improves mean F1 by +10.3 over random storage, category-specific prompting adds +5.2 over a generic prompt, and retrieval contributes +0.7. These results suggest that write-side memory admission can be learned by a small supervised router, while answer generation remains a separate downstream component in long-horizon conversational QA.",
+        "url": "https://arxiv.org/abs/2605.00356",
+        "pdf_url": "https://arxiv.org/pdf/2605.00356",
+        "doi": "10.48550/arxiv.2605.00356",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2605.00356",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2605.28046",
+        "x": 0.20146042024593494,
+        "y": 0.9311933065229591,
+        "title": "MemCog: From Memory-as-Tool to Memory-as-Cognition in Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Zihan Li",
+         "Xingyu Fan",
+         "Feifei Li",
+         "Wenhui Que"
+        ],
+        "abstract": "Existing agent memory systems universally follow what we term a Memory-as-Tool paradigm where a single query triggers one-shot retrieval of flat passage lists, suffering from passive invocation, reasoning-retrieval decoupling, and structural mismatch between retrieved fragments and the agent's navigational needs. We propose MemCog, a Memory-as-Cognition system that makes memory access an integral part of the reasoning process. MemCog organizes user knowledge as Navigable Memory Store with associative link graphs, exposes Cross-Dimensional Navigation Interface for multi-step reasoning-driven traversal, and employs Proactive Reasoning Protocol that drives agents to spontaneously initiate memory exploration from conversational context. We additionally construct ProactiveMemBench, the first benchmark for evaluating proactive memory triggering. Experiments show that MemCog achieves state-of-the-art on passive QA benchmarks (92.98 on LoCoMo, 95.8 on LongMemEval) while substantially outperforming baselines on ProactiveMemBench, demonstrating the advantage of Memory-as-Cognition.",
+        "url": "https://arxiv.org/abs/2605.28046",
+        "pdf_url": "https://arxiv.org/pdf/2605.28046",
+        "doi": "10.48550/arxiv.2605.28046",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2605.28046",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.14445/22312803/ijctt-v73i11p103",
+        "x": -0.925393247418728,
+        "y": 0.13605374809221052,
+        "title": "Contextual Coherence in Conversational AI: Leveraging a Memory Agent",
+        "year": "2025",
+        "citations": 0,
+        "authors": [
+         "Vidya Vishal Wadkar"
+        ],
+        "abstract": "This study presents a Memory Agent Framework specifically designed for engaging conversational AI while addressing context coherence and memory scalability. The design is based on a Model Context Protocol (MCP) to synchronise many conversational agents over four memory layers inspired by cognitive functions (Short-Term, Episodic, Semantic, and Procedural). The Python-based asynchronous orchestration helps quickly retrieve memories, using FAISS/Pinecone vector storage and a Neo4j knowledge graph to dynamically reason a conversation (like a human would use memories). When the Memory Agent Framework was evaluated in three different modes (baseline, fine-tuned, and embedding-enhanced), it showed a real performance advantage through the Memory Agent Framework compared with baseline evaluation mode. In the Short-Term Memory, each perplexity level decreased from 327.18 to 294.47; in the Episodic Memory, it decreased from 348.49 to 313.64; and in Semantic Memory, it decreased from 344.22 to 309.79. However, the semantic coherence improved by 28.5% in contextual reliability, reaching 0.5499. The fine-tuned models achieve BLEU and ROUGE-L scores above 0.5, indicating improved grammatical correctness and relevance. These results suggest that the Memory-driven paradigm improves multi-turn conversation comprehension, contextual fragmentation, and episodic interaction continuity and understanding. Overall, the Memory Agent architecture supports scalable, context-rich conversation systems that promote coherence and adaptive reasoning in real-world communication.",
+        "url": "https://doi.org/10.14445/22312803/ijctt-v73i11p103",
+        "pdf_url": "",
+        "doi": "10.14445/22312803/ijctt-v73i11p103",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.14445/22312803/ijctt-v73i11p103",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48448/bmn5-hj91",
+        "x": 0.06643772696121679,
+        "y": -0.11928200998309296,
+        "title": "Mem-Gallery: Benchmarking Multimodal Long-Term Conversational Memory for MLLM Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Association for Computational Linguistics 2026",
+         "Yuanchen Bei",
+         "Hendrik F. Hamann",
+         "Jingrui He",
+         "Xiao Lin",
+         "Zhining Liu",
+         "Xuying Ning",
+         "Hanghang Tong",
+         "Tianxin Wei",
+         "Yanjun Zhao",
+         "Yada Zhu"
+        ],
+        "abstract": "Long-term memory is a critical capability for multimodal large language model (MLLM) agents, particularly in conversational settings where information accumulates and evolves over time. However, existing benchmarks either evaluate multi-session memory in text-only conversations or assess multimodal understanding within localized contexts, failing to evaluate how multimodal memory is preserved, organized, and evolved across long-term conversational trajectories. Thus, we introduce Mem-Gallery, a new benchmark for evaluating multimodal long-term conversational memory in MLLM agents. Mem-Gallery features high-quality multi-session conversations grounded in both visual and textual information, with long interaction horizons and rich multimodal dependencies. Building on this dataset, we propose a systematic evaluation framework that assesses key memory capabilities along three functional dimensions: memory extraction and test-time adaptation, memory reasoning, and memory knowledge management. Extensive benchmarking across twelve memory systems reveals several key findings, highlighting the necessity of explicit multimodal information retention and memory organization, the persistent limitations in memory reasoning and knowledge management, as well as the efficiency bottleneck of current models. Our benchmark and dataset are available at https://github.com/YuanchenBei/Mem-Gallery.",
+        "url": "https://doi.org/10.48448/bmn5-hj91",
+        "pdf_url": "https://arxiv.org/pdf/2601.03515v1",
+        "doi": "10.48448/bmn5-hj91",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48448/bmn5-hj91",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "cognitive · agent"
+       },
+       {
+        "id": "doi:10.18653/2026.groundlm-1.30",
+        "x": 0.5882728140157214,
+        "y": -0.8242534591053899,
+        "title": "Memory Makes the Difference: Evaluating How Different Memory Roles Shape Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Yuxin Wang",
+         "Paul Thomas",
+         "Zhiwei Yu",
+         "Yuan Gao",
+         "Saeed Hassanpour",
+         "Soroush Vosoughi",
+         "Robert Sim",
+         "Nick Craswell"
+        ],
+        "abstract": "Memory is a critical component of modern conversational systems.Prior research on memory mechanisms in RAG-based conversational systems has focused on how memory is stored and retrieved.However, less is known about how memories with different functional roles influence response quality, shape agents' responses across conversational contexts, and lead to distinct response behaviors.Existing evaluations are also largely reference-based, often missing response nuances that address users' preferences differently.In this work, we study the impact of different memory types on agent responses.We present a fine-grained taxonomy of conversational memory, classify retrieved memories by functional role, and design a user-centric evaluation framework that simulates user perspectives.Through comparative experiments on long-term datasets and frontier LLMs, our analysis reveals differentiated effects of memory: e.g., clarifying memory is associated with improved factual accuracy and constraint awareness, making responses more correct and personalized, while irrelevant memory reduces topic relevance and degrades constraint awareness.These findings show that, despite the power of frontier LLMs, different memory types can be leveraged to produce responses better aligned with a user's stated constraints, and motivate further research in this direction.Our code is available at: https: //github.com/audreycs/MemoryEffect.",
+        "url": "https://doi.org/10.18653/2026.groundlm-1.30",
+        "pdf_url": "https://aclanthology.org/2026.groundlm-1.30.pdf",
+        "doi": "10.18653/2026.groundlm-1.30",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.18653/2026.groundlm-1.30",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1145/3586182.3615796",
+        "x": -0.4821788623210063,
+        "y": 0.8688641832024081,
+        "title": "Memory Sandbox: Transparent and Interactive Memory Management for Conversational Agents",
+        "year": "2023",
+        "citations": 34,
+        "authors": [
+         "Ziheng Huang",
+         "Sebastian Gutierrez",
+         "Hemanth Kamana",
+         "Stephen MacNeil"
+        ],
+        "abstract": "The recent advent of large language models (LLM) has resulted in high-performing conversational agents such as ChatGPT. These agents must remember key information from an ongoing conversation to provide responses that are contextually relevant to the user. However, these agents have limited memory and can be distracted by irrelevant parts of the conversation. While many strategies exist to manage conversational memory, users currently lack affordances for viewing and controlling what the agent remembers, resulting in a poor mental model and conversational breakdowns. In this paper, we present Memory Sandbox, an interactive system and design probe that allows users to manage the conversational memory of LLM-powered agents. By treating memories as data objects that can be viewed, manipulated, recorded, summarized, and shared across conversations, Memory Sandbox provides interaction affordances for users to manage how the agent should ‘see’ the conversation.",
+        "url": "https://doi.org/10.1145/3586182.3615796",
+        "pdf_url": "https://dl.acm.org/doi/pdf/10.1145/3586182.3615796",
+        "doi": "10.1145/3586182.3615796",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1145/3586182.3615796",
+        "weight": 34,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1007/s44163-026-00992-z",
+        "x": 0.9261841296254928,
+        "y": 0.08303911166459726,
+        "title": "A memory fabric for conversational AI agents enabling shared and persistent multiuser memory",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Anjikya Tiwari",
+         "Vibhuti Gupta"
+        ],
+        "abstract": "Conversational artificial intelligence is now the most widely adopted platform for interfacing with large language models. Alongside large language models these artificial intelligence systems rely on contexts derived from past conversations and preferences to provide accurate and the most relevant responses to users. The knowledge base and past experiences contribute to long-term memory, while processing ongoing conversations generates short-term memory. Both long-term and short-term memories together provide a comprehensive and coherent context to the user. While most architectures focus on a single user context, there is an emerging need in conversational artificial intelligence to provide a system to generate context from multiple individuals and/or agents. Building on this foundation, we introduce memory fabric, a framework that allows conversational artificial intelligence to leverage context drawn from multiple users to generate coherent responses in a multiuser setting. This review is a synthesis of foundational memory architectures, from early models such as Neural Turing Machines and Key-Value Memory Networks to recent systems like AutoGen, Shared Recurrent Memory Transformer, AgentVerse, and Secured Agent Memory Exchange Protocol evaluated through the lens of memory fabric. It also addresses work on dialogue and agent memory, multi-agent shared-memory designs, privacy and provenance strategies, benchmarking standards, and system-level considerations. A systematic review of english articles using Institute of Electrical and Electronics Engineers Xplore, Association of Computing Machinery, arXiv, SpringerLink, and Association of Computational Linguistics anthology databases was performed. Only full-text studies reported between 2014 and 2025 were included for analysis. Following Preferred Reporting Items for System Reviews and Meta-Analyses guidelines, a total of 662 studies were identified, of which 27 studies met the inclusion criteria. Overall, this review presents a detailed analysis on leveraging contexts from multiple users in a shared environment in foundational memory architectures, offering an in-depth analysis of their strengths and shortcomings, along with recommendations and future research directions.",
+        "url": "https://doi.org/10.1007/s44163-026-00992-z",
+        "pdf_url": "",
+        "doi": "10.1007/s44163-026-00992-z",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1007/s44163-026-00992-z",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.36227/techrxiv.176523350.08289935/v1",
+        "x": 0.8776762006462289,
+        "y": 0.07233249792318275,
+        "title": "Memory Fabric for Conversational AI Agents: Enabling Shared and Persistent Memory Across Users",
+        "year": "2025",
+        "citations": 0,
+        "authors": [
+         "Anjikya Tiwari",
+         "Vibhuti Gupta"
+        ],
+        "abstract": "Conversational AI is now the most widely adopted platform for interfacing with LLMs. Alongside LLMs these AI systems rely on contexts derived from past conversations and preferences to provide accurate and the most relevant responses to users. The knowledge base and past experiences contribute to long-term memory, while processing ongoing conversations generates short-term memory. Both long-term and short-term memories together provide a comprehensive and coherent context to the user. While most architectures focus on a single user context, there is an emerging need in conversational AI to provide a system to generate context from multiple individuals and/or agents. Building on this foundation, we introduce memory fabric, a framework that allows conversational AI to leverage context drawn from multiple users to generate coherent responses in a multiuser setting. This review is a synthesis of foundational memory architectures, from early models such as Neural Turing Machines and Key-Value Memory Networks to recent systems like AutoGen, SRMT, AgentVerse, and SAMEP evaluated through the lens of memory fabric. It also addresses work on dialogue and agent memory, multi-agent shared-memory designs, privacy and provenance strategies, benchmarking standards, and system-level considerations. A systematic review of English articles using IEEE Xplore, ACM, arXiv, SpringerLink, and ACL anthology databases was performed. Only full-text studies reported between 2014 and 2025 were included for analysis. Following PRISMA guidelines, a total of 662 studies were identified, of which 27 studies met the inclusion criteria. Overall, this review presents a detailed analysis on leveraging contexts from multiple users in a shared environment in foundational memory architectures, offering an in-depth analysis of their strengths and shortcomings, along with recommendations and future research directions.",
+        "url": "https://doi.org/10.36227/techrxiv.176523350.08289935/v1",
+        "pdf_url": "https://www.techrxiv.org/doi/pdf/10.36227/techrxiv.176523350.08289935",
+        "doi": "10.36227/techrxiv.176523350.08289935/v1",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.36227/techrxiv.176523350.08289935/v1",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.18653/2026.findings-emnlp.1289",
+        "x": 0.18843774122197485,
+        "y": 0.09869570832040496,
+        "title": "When Users Don’t Ask: Benchmarking Context-Driven Memory Retrieval in Conversational Agents",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Wen-Yu Chang",
+         "Yun-Nung Chen"
+        ],
+        "abstract": "Large language models (LLMs) are increasingly deployed as long-horizon conversational agents, motivating growing interest in memory systems.However, existing benchmarks primarily evaluate memory through QA-style probing rather than in-situ conversational usage.We introduce LOCOMO-CONV, a conversational memory benchmark derived from Lo-CoMo with four query styles: dialog, implicit, counterfactual, and composed.Across five representative memory systems, we evaluate both retrieval recall and end-to-end response quality.Our experiments show that conversational framing exposes substantial retrieval gaps overlooked by QA benchmarks, especially on implicit and composed queries, which multi-facet query rewriting narrows for raw-turn memory but not abstractive memory.We further find that strong retrieval does not fully translate into response quality, and that implicit queries exhibit silent grounding, where memory improves contextual grounding without explicitly surfacing the gold fact.These results point to reasoning-based memory elaboration as a promising direction, and we release auxiliary supportive_memory annotations capturing conversationally useful context beyond the original gold evidence.1",
+        "url": "https://doi.org/10.18653/2026.findings-emnlp.1289",
+        "pdf_url": "https://aclanthology.org/2026.findings-emnlp.1289.pdf",
+        "doi": "10.18653/2026.findings-emnlp.1289",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.18653/2026.findings-emnlp.1289",
+        "weight": 1,
+        "community_id": 1,
+        "community_label": "autonomous · balancing"
+       }
+      ],
+      "edges": [
+       {
+        "source": "doi:10.48550/arxiv.2502.05589",
+        "target": "doi:10.48550/arxiv.2609.33226",
+        "weight": 0.125,
+        "shared_terms": [
+         "construction"
+        ]
+       },
+       {
+        "source": "provider:openalex:https://openalex.org/W7223429642",
+        "target": "doi:10.1109/metroxraine66377.2025.11340339",
+        "weight": 0.171,
+        "shared_terms": [
+         "interactive",
+         "long-term"
+        ]
+       },
+       {
+        "source": "provider:openalex:https://openalex.org/W7223429642",
+        "target": "doi:10.48550/arxiv.2606.04120",
+        "weight": 0.138,
+        "shared_terms": [
+         "cognitive"
+        ]
+       },
+       {
+        "source": "doi:10.48550/arxiv.2606.04120",
+        "target": "doi:10.48448/bmn5-hj91",
+        "weight": 0.318,
+        "shared_terms": []
+       },
+       {
+        "source": "doi:10.1007/s44163-026-00992-z",
+        "target": "doi:10.36227/techrxiv.176523350.08289935/v1",
+        "weight": 0.386,
+        "shared_terms": [
+         "enabling",
+         "fabric",
+         "persistent",
+         "shared"
+        ]
+       }
+      ],
+      "meta": {
+       "edge_method": "title_keyword_jaccard",
+       "edge_label": "제목·키워드 유사도",
+       "edge_threshold": 0.12,
+       "directed": false,
+       "communities": [
+        {
+         "community_id": 0,
+         "label": "cognitive · agent",
+         "nodes": [
+          "arxiv:2603.29493",
+          "arxiv:2605.11814",
+          "arxiv:2605.26252",
+          "arxiv:2607.17621",
+          "doi:10.1109/metroxraine66377.2025.11340339",
+          "doi:10.18653/v1/2024.acl-long.747",
+          "doi:10.48448/bmn5-hj91",
+          "doi:10.48550/arxiv.2606.04120",
+          "doi:10.5281/zenodo.19697774",
+          "provider:openalex:https://openalex.org/W7223429642"
+         ],
+         "size": 10
+        },
+        {
+         "community_id": 1,
+         "label": "autonomous · balancing",
+         "nodes": [
+          "arxiv:2511.17208",
+          "arxiv:2604.02280",
+          "arxiv:2604.27695",
+          "arxiv:2608.30508",
+          "arxiv:2609.12354",
+          "doi:10.18653/2026.findings-emnlp.1289"
+         ],
+         "size": 6
+        },
+        {
+         "community_id": 2,
+         "label": "construction · agentir",
+         "nodes": [
+          "arxiv:2605.25092",
+          "arxiv:2607.00017",
+          "arxiv:2609.07093",
+          "doi:10.48550/arxiv.2502.05589",
+          "doi:10.48550/arxiv.2609.33226"
+         ],
+         "size": 5
+        }
+       ],
+       "common_terms": [
+        "agents",
+        "conversational",
+        "memory"
+       ],
+       "edge_total": 68
+      }
+     }
+    }
+   ],
+   "intent": "search"
+  },
+  {
+   "seq": 3,
+   "role": "user",
+   "content": "1번 논문 딥리뷰 해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 4,
+   "role": "assistant",
+   "content": "1번 논문 「On Memory Construction and Retrieval for Personalized Conversational Agents」 심층 리뷰를 시작할게요. 몇 분 걸립니다.",
+   "blocks": [],
+   "intent": "review"
+  },
+  {
+   "seq": 5,
+   "role": "user",
+   "content": "2번 논문 정밀 리뷰 해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 6,
+   "role": "assistant",
+   "content": "2번 논문 「Memory That Doesn't Expire: Agentic Long-Term Memory for Conversational Agents on a Single Consumer GPU」 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.",
+   "blocks": [],
+   "intent": "review"
+  },
+  {
+   "seq": 7,
+   "role": "user",
+   "content": "3번 논문 정밀 리뷰 해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 8,
+   "role": "assistant",
+   "content": "3번 논문 「A Cognitive Long-Term Memory Architecture for Interactive Conversational Agents」 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.",
+   "blocks": [],
+   "intent": "review"
+  }
+ ]
+}

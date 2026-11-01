@@ -21,7 +21,7 @@ import MascotFace from '../home/MascotFace';
 import { rememberRecentSearch } from '../home/recentSearches';
 import { createConversation } from '../../api/conversations';
 import { useConversation, type ViewTurn } from '../../hooks/useConversation';
-import type { Paper } from '../../types';
+import type { Conversation, Paper } from '../../types';
 import ArtifactPanel, { type ArtifactTab } from './ArtifactPanel';
 import BookmarkRefsStrip from './BookmarkRefsStrip';
 import CitedPapers from './CitedPapers';
@@ -95,15 +95,78 @@ interface ConversationPageProps {
   id: string;
 }
 
-/** One saved conversation: thread with a follow-up composer, results in the artifact panel. */
+interface NavState {
+  run?: boolean;
+  openReview?: string | null;
+  openReviewTitle?: string;
+}
+
+/** One saved conversation: the live thread with a follow-up composer. */
 function ConversationPage({ id }: ConversationPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   // One-shot navigation state: run the pending turn, and (from MyPage's 대화에서 열기)
   // open that bookmark's review in the 리뷰 tab right away.
-  const [navState] = useState(() => (location.state ?? {}) as { run?: boolean; openReview?: string | null; openReviewTitle?: string });
+  const [navState] = useState(() => (location.state ?? {}) as NavState);
   const runOnLoad = Boolean(navState.run);
   const { conversation, turns, loadError, streaming, liveStatus, send, stop, retry, reload } = useConversation(id, runOnLoad);
+
+  // The run flag is one-shot: a reload of this entry must not re-run the turn.
+  useEffect(() => {
+    if (runOnLoad) navigate(location.pathname, { replace: true, state: null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <ConversationView
+      id={id}
+      conversation={conversation}
+      turns={turns}
+      loadError={loadError}
+      streaming={streaming}
+      liveStatus={liveStatus}
+      retry={retry}
+      reload={reload}
+      navState={navState}
+      footer={(
+        <HomeComposer
+          variant="reply"
+          initialQuery=""
+          onSearch={send}
+          guidanceMessage={null}
+          guidanceSticky={false}
+          onQueryChange={() => {}}
+          busy={streaming || !conversation}
+          onStop={streaming ? stop : undefined}
+        />
+      )}
+    />
+  );
+}
+
+interface ConversationViewProps {
+  /** Highlighted in the sidebar; a sample passes an id no conversation has. */
+  id: string;
+  conversation: Conversation | null;
+  turns: ViewTurn[];
+  loadError: string | null;
+  streaming: boolean;
+  liveStatus: string | null;
+  retry: () => void;
+  reload: () => void;
+  navState: NavState;
+  /** Below the thread: the composer, or a sample's sign-in call to action. */
+  footer: ReactNode;
+}
+
+/**
+ * The thread, its blocks and citations, and the artifact panel. Live
+ * conversations and read-only samples render through this one view.
+ */
+export function ConversationView({
+  id, conversation, turns, loadError, streaming, liveStatus, retry, reload, navState, footer,
+}: ConversationViewProps) {
+  const navigate = useNavigate();
 
   // Which turn's results the artifact shows (null = the latest), the selected paper in it,
   // and the reader's open/closed and tab choices for the newest artifact turn (a graph or a
@@ -129,12 +192,6 @@ function ConversationPage({ id }: ConversationPageProps) {
   const [peek, setPeek] = useState<({ id: string; rect: DOMRect } & PeekContent) | null>(null);
   const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stickRef = useRef(true);
-
-  // The run flag is one-shot: a reload of this entry must not re-run the turn.
-  useEffect(() => {
-    if (runOnLoad) navigate(location.pathname, { replace: true, state: null });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const results = useMemo(() => resultsOf(turns), [turns]);
   const citations = useMemo(() => citationSources(turns), [turns]);
@@ -186,8 +243,13 @@ function ConversationPage({ id }: ConversationPageProps) {
     setArtifactOpen(true);
   };
 
+  // Follow the thread while the reader is at the bottom; a new turn (a sent
+  // question, a run starting) always brings them back down.
+  const turnCountRef = useRef(0);
   useEffect(() => {
     const box = scrollRef.current;
+    if (turns.length > turnCountRef.current) stickRef.current = true;
+    turnCountRef.current = turns.length;
     if (box && stickRef.current) box.scrollTop = box.scrollHeight;
   }, [turns, liveStatus]);
 
@@ -449,16 +511,7 @@ function ConversationPage({ id }: ConversationPageProps) {
         </div>
 
         <div className="conv-composer">
-          <HomeComposer
-            variant="reply"
-            initialQuery=""
-            onSearch={message => { stickRef.current = true; send(message); }}
-            guidanceMessage={null}
-            guidanceSticky={false}
-            onQueryChange={() => {}}
-            busy={streaming || !conversation}
-            onStop={streaming ? stop : undefined}
-          />
+          {footer}
           <p className="conv-disclaimer">AI 답변도 틀릴 수 있어요. 중요한 주장은 원문 근거를 한 번 더 확인해 주세요.</p>
         </div>
       </main>

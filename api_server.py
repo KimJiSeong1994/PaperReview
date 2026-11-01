@@ -474,6 +474,9 @@ from routers.soul import profile_router as research_profile_router, router as so
 
 app.include_router(soul_router)
 app.include_router(research_profile_router)
+from routers.samples import router as samples_router
+
+app.include_router(samples_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────
