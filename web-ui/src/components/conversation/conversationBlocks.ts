@@ -1,4 +1,5 @@
 import type {
+  BookmarkRefsBlock,
   ConversationTurn,
   GraphBlock,
   PaperPdfBlock,
@@ -8,6 +9,7 @@ import type {
 } from '../../types';
 
 export const CITE_PREFIX = '#cite-';
+export const BOOKMARK_CITE_PREFIX = '#bm-';
 
 export const searchBlockOf = (turn: ConversationTurn): SearchResultsBlock | null => (
   turn.blocks.find((block): block is SearchResultsBlock => block.type === 'search_results') ?? null
@@ -19,6 +21,10 @@ export const graphBlockOf = (turn: ConversationTurn): GraphBlock | null => (
 
 export const reviewBlockOf = (turn: ConversationTurn): ReviewStartedBlock | null => (
   turn.blocks.find((block): block is ReviewStartedBlock => block.type === 'review_started') ?? null
+);
+
+export const bookmarkRefsOf = (turn: ConversationTurn): BookmarkRefsBlock | null => (
+  turn.blocks.find((block): block is BookmarkRefsBlock => block.type === 'bookmark_refs') ?? null
 );
 
 /** The paper a turn opened (paper_pdf) or highlighted (pdf_highlights); highlights win. */
@@ -98,13 +104,20 @@ export const normalizeEmphasis = (markdown: string): string => (
     .replace(/\*\*(?=[^\s*])([^*\n]*?[^\s*])([)\]」』"”'’.,!?:;…]+)\*\*/g, '**$1**$2')
 );
 
-/** Turns `[3]` into a `#cite-3` link the renderer swaps for a button; leaves real links alone. */
+/**
+ * Turns `[3]` into a `#cite-3` link and `[B1]` into `#bm-1`; the renderer swaps
+ * them for buttons. Real links are left alone.
+ */
 export const linkCitations = (markdown: string): string => (
-  markdown.replace(/\[(\d{1,2})\](?!\()/g, `[$1](${CITE_PREFIX}$1)`)
+  markdown
+    .replace(/\[(\d{1,2})\](?!\()/g, `[$1](${CITE_PREFIX}$1)`)
+    .replace(/\[B(\d{1,2})\](?!\()/g, `[B$1](${BOOKMARK_CITE_PREFIX}$1)`)
 );
 
 /** Collapsed status line of a finished turn: "출처 4곳 · 42편 · 그래프", "심층 리뷰 시작", "PDF 열기", "하이라이트 N개". */
 export function turnSummary(turn: ConversationTurn): string | null {
+  const bookmarks = bookmarkRefsOf(turn);
+  if (bookmarks) return `북마크 ${bookmarks.bookmarks.length}개 근거`;
   if (reviewBlockOf(turn)) return '심층 리뷰 시작';
   const pdf = pdfBlockOf(turn);
   if (pdf) return pdf.type === 'pdf_highlights' ? `하이라이트 ${pdf.highlights.length}개` : 'PDF 열기';

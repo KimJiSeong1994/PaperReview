@@ -37,6 +37,17 @@ beforeEach(() => vi.clearAllMocks());
 afterEach(() => setClipboard(undefined));
 
 describe('ReportViewer header', () => {
+  it('offers 대화에서 열기 beside the export actions and shows its error inline', () => {
+    const onOpenInConversation = vi.fn();
+    const { rerender } = render(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} />);
+    fireEvent.click(screen.getByRole('button', { name: /대화에서 열기/ }));
+    expect(onOpenInConversation).toHaveBeenCalledTimes(1);
+    rerender(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} openingConversation />);
+    expect(screen.getByRole('button', { name: /여는 중/ })).toBeDisabled();
+    rerender(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} conversationError="대화를 시작하지 못했어요." />);
+    expect(screen.getByRole('alert').textContent).toBe('대화를 시작하지 못했어요.');
+  });
+
   it('calls the highlight pass what it is, and shows the question the report answered', () => {
     render(<ReportViewer {...base} />);
     expect(screen.queryByText('Auto Review')).not.toBeInTheDocument();

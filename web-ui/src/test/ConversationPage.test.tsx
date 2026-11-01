@@ -475,6 +475,49 @@ describe('ConversationPage', () => {
     });
   });
 
+  describe('bookmark-grounded answers', () => {
+    it('shows the 근거 북마크 strip above the answer, links [B1] to its chip, and summarises the turn', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onBlock({
+          type: 'bookmark_refs',
+          bookmarks: [
+            { id: 'bm_1', title: 'GraphRAG 서베이', query: 'graphrag', num_papers: 5, has_report: true, url: '/mypage?bookmark=bm_1' },
+            { id: 'bm_2', title: '장기 기억', query: 'memory', num_papers: 3, has_report: false, url: '/mypage?bookmark=bm_2' },
+          ],
+        });
+        live!.onDelta('두 북마크 모두 그래프 기반 검색을 다뤄요 [B1].');
+        live!.onDone({ turn_id: 'a1', intent: 'answer_from_bookmarks' });
+      });
+      const strip = screen.getByRole('navigation', { name: '근거 북마크' });
+      const first = within(strip).getByRole('link', { name: /GraphRAG 서베이/ });
+      expect(first.getAttribute('href')).toBe('/mypage?bookmark=bm_1');
+      expect(first.textContent).toContain('5편 · 리포트');
+      expect(within(strip).getByRole('link', { name: /장기 기억/ }).textContent).not.toContain('리포트');
+      const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(follows(strip, screen.getByText(/두 북마크 모두/))).toBe(true);
+      expect(screen.getByText('북마크 2개 근거')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'B1' }));
+      expect(document.activeElement).toBe(first);
+      expect(screen.queryByRole('complementary', { name: '검색 결과 아티팩트' })).toBeNull();
+    });
+
+    it('tags a paper block that came from a bookmark', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: '그래프 RAG' });
+      act(() => {
+        live!.onBlock({
+          type: 'paper_pdf', paper_index: 1, paper_title: 'HippoRAG', paper_key: 'k', pdf_url: null, proxy_url: null,
+          viewer_url: '/paper-viewer?title=HippoRAG', authors: [], year: 2024, source: 'bookmark', bookmark_id: 'bm_1',
+        });
+        live!.onDone({ turn_id: 'a1', intent: 'pdf' });
+      });
+      expect(within(screen.getByRole('region', { name: 'PDF: HippoRAG' })).getByText('북마크')).toBeTruthy();
+    });
+  });
+
   it('shows a load error with a way back', async () => {
     vi.mocked(fetchConversation).mockReset().mockRejectedValue({ response: { status: 404 } });
     renderPage(null);

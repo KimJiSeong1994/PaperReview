@@ -7,6 +7,7 @@ import { useHighlights } from '../hooks/useHighlights';
 import { useExploration } from '../hooks/useExploration';
 import { useChat } from '../hooks/useChat';
 import { createShareLink, revokeShareLink } from '../api/client';
+import { createConversation } from '../api/conversations';
 import type { ShareInfo } from '../api/client';
 import type { Bookmark } from './mypage/types';
 import BookmarkSidebar from './mypage/BookmarkSidebar';
@@ -106,6 +107,10 @@ function MyPage({ onBack }: MyPageProps) {
   };
 
 
+  // ── "대화에서 열기" ──
+  // The error belongs to the bookmark it was raised on, so selecting another one hides it.
+  const [conversationAttempt, setConversationAttempt] = useState<{ bookmarkId: string; error: string | null } | null>(null);
+
   // ── Share state ──
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
@@ -173,6 +178,22 @@ function MyPage({ onBack }: MyPageProps) {
       setShareLoading(false);
     }
   }, [bm.selectedBookmark, shareLoading, bm.setBookmarkDetail, bm.setBookmarks]);
+
+  const handleOpenInConversation = async () => {
+    const bookmarkId = bm.selectedBookmark?.id;
+    const title = bm.bookmarkDetail?.title ?? bm.selectedBookmark?.title;
+    if (!bookmarkId || !title || conversationAttempt?.error === null) return;
+    setConversationAttempt({ bookmarkId, error: null });
+    try {
+      const created = await createConversation(`북마크 "${title}"의 리포트를 바탕으로 이야기해 줘`);
+      navigate(`/c/${created.id}`, { state: { run: true } });
+    } catch {
+      setConversationAttempt({ bookmarkId, error: '대화를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.' });
+    }
+  };
+  const attemptForSelected = conversationAttempt && conversationAttempt.bookmarkId === bm.selectedBookmark?.id
+    ? conversationAttempt
+    : null;
 
   const handleRevokeShare = useCallback(async () => {
     if (!bm.selectedBookmark || shareLoading) return;
@@ -385,6 +406,9 @@ function MyPage({ onBack }: MyPageProps) {
             shareLoading={shareLoading}
             onCreateShare={handleCreateShare}
             onRevokeShare={handleRevokeShare}
+            onOpenInConversation={handleOpenInConversation}
+            openingConversation={attemptForSelected?.error === null}
+            conversationError={attemptForSelected?.error ?? null}
           />
 
           <ChatPanel

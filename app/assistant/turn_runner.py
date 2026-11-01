@@ -16,7 +16,7 @@ import re
 import threading
 import time
 from collections import deque
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from routers.deps.openai_client import get_openai_client
 from src.utils.llm_usage import record_llm_usage
@@ -225,7 +225,7 @@ def normalize_query(query: str) -> str:
 # Registry tool name → turn intent (the done/turn `intent` values stay as before).
 TOOL_ACTIONS = {
     "search_papers": "search", "answer_from_results": "answer", "deep_review": "review",
-    "open_pdf": "open_pdf", "highlight_pdf": "highlight_pdf",
+    "open_pdf": "open_pdf", "highlight_pdf": "highlight_pdf", "answer_from_bookmarks": "answer_from_bookmarks",
 }
 ACTION_TOOLS = {action: tool for tool, action in TOOL_ACTIONS.items()}
 _PAPER_QUESTIONS = {
@@ -243,7 +243,53 @@ def _which_paper(action: str, papers: List[Dict[str, Any]]) -> str:
     return f"{_PAPER_QUESTIONS[action]}\n\n{top}"
 
 
-def parse_route(raw: str, message: str, papers: List[Dict[str, Any]]) -> Dict[str, Any]:
+def load_owned_bookmarks(principal: Any, include_reports: bool = False) -> List[Dict[str, Any]]:
+    """The principal's bookmarks (newest first), filtered by the same ownership rule as /api/bookmarks.
+
+    Returns [] when the account is no longer current or storage fails.
+    """
+    from routers.deps.storage import _get_user_db, load_bookmarks_for_user
+    from src.storage.bookmark_db import bookmark_belongs_to_account
+
+    try:
+        with _get_user_db().account_guard(principal.username, principal.account_incarnation) as account:
+            cutoff = account.get("legacy_event_cutoff")
+        bookmarks = load_bookmarks_for_user(principal.username, include_reports=include_reports)
+    except Exception:
+        logger.warning("bookmarks unavailable for this turn")
+        return []
+    return [
+        b for b in bookmarks
+        if bookmark_belongs_to_account(
+            b, username=principal.username, account_incarnation=principal.account_incarnation,
+            legacy_event_cutoff=cutoff,
+        )
+    ]
+
+
+def _bookmark_hint(bookmarks: List[Dict[str, Any]]) -> str:
+    """One-line router hint: "북마크 N개 (최근: 제목1; 제목2; 제목3)"."""
+    if not bookmarks:
+        return "북마크 없음"
+    recent = "; ".join(_one_paragraph(b.get("title")) for b in bookmarks[:3])
+    return f"북마크 {len(bookmarks)}개 (최근: {recent})"
+
+
+def _bookmark_paper_matches(message: str, bookmarks: List[Dict[str, Any]]) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Bookmarked papers whose title head (before ':', ≥4 chars) appears in *message*, unique by title."""
+    text, found = _norm_title(message), {}
+    for bookmark in bookmarks:
+        for paper in bookmark.get("papers") or []:
+            title = _norm_title(paper.get("title"))
+            head = _norm_title(str(paper.get("title") or "").split(":")[0])
+            if len(head) >= 4 and head in text and title not in found:
+                found[title] = (paper, bookmark)
+    return list(found.values())
+
+
+def parse_route(
+    raw: str, message: str, papers: List[Dict[str, Any]], bookmarks: Sequence[Dict[str, Any]] = ()
+) -> Dict[str, Any]:
     """Validate the router's JSON reply; anything unusable becomes a plain search of *message*.
 
     *papers* is the latest search block's list (empty when nothing was searched yet).
@@ -252,19 +298,35 @@ def parse_route(raw: str, message: str, papers: List[Dict[str, Any]]) -> Dict[st
         data = json.loads(raw[raw.find("{"): raw.rfind("}") + 1], strict=False)  # tolerate raw newlines
     except ValueError:
         data = None
-    return finalize_route(data if isinstance(data, dict) else {}, message, papers)
+    return finalize_route(data if isinstance(data, dict) else {}, message, papers, bookmarks)
 
 
-def finalize_route(data: Dict[str, Any], message: str, papers: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Normalise a routing decision. ``tool`` (registry name) and the legacy ``action`` are aliases."""
+def finalize_route(
+    data: Dict[str, Any], message: str, papers: List[Dict[str, Any]], bookmarks: Sequence[Dict[str, Any]] = ()
+) -> Dict[str, Any]:
+    """Normalise a routing decision. ``tool`` (registry name) and the legacy ``action`` are aliases.
+
+    A paper tool whose paper is not in the current results falls back to the
+    user's bookmarked papers (``paper`` + ``bookmark_id`` in the route).
+    """
     name = data.get("tool") or data.get("action")
     action = TOOL_ACTIONS.get(name, name)
     lead = _one_paragraph(data.get("lead"))
     if action not in ("chat", "clarify", *ACTION_TOOLS) or (action == "answer" and not papers):
         action, lead = "search", ""
     paper_index = resolve_paper_index(data.get("paper_index"), papers) if action in _PAPER_QUESTIONS else None
+    paper, bookmark_id = None, None
     if action in _PAPER_QUESTIONS and paper_index is None:
-        action, lead = "clarify", _which_paper(action, papers)
+        matches = _bookmark_paper_matches(message, list(bookmarks))
+        if len(matches) == 1:
+            paper, bookmark_id = matches[0][0], matches[0][1].get("id")
+        elif matches:
+            options = "\n".join(
+                f"- {_one_paragraph(p.get('title'))} (북마크: {_one_paragraph(b.get('title'))})" for p, b in matches[:3]
+            )
+            action, lead = "clarify", f"어느 논문인지 제목을 조금 더 알려주세요.\n\n{options}"
+        else:
+            action, lead = "clarify", _which_paper(action, papers)
     query = data.get("query")
     query = (normalize_query(query) if isinstance(query, str) else "") or message
     start, end = _year(data.get("year_start")), _year(data.get("year_end"))
@@ -273,7 +335,8 @@ def finalize_route(data: Dict[str, Any], message: str, papers: List[Dict[str, An
     title = _one_paragraph(data.get("title"))[:MAX_TITLE_CHARS].strip() or None
     return {
         "action": action, "tool": ACTION_TOOLS.get(action), "query": query, "year_start": start,
-        "year_end": end, "paper_index": paper_index, "lead": lead, "title": title,
+        "year_end": end, "paper_index": paper_index, "paper": paper, "bookmark_id": bookmark_id,
+        "lead": lead, "title": title,
     }
 
 
@@ -315,21 +378,33 @@ def _paper_reference(message: str, history: List[Dict[str, Any]], papers: List[D
     return None
 
 
-def precheck_route(message: str, history: List[Dict[str, Any]], papers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Route paper-tool requests deterministically, before the LLM router; None when no marker applies."""
-    if not papers:
-        return None
+_BOOKMARK_MARK = re.compile(r"북마크|저장한|저장해둔|내\s*리포트")
+
+
+def precheck_route(
+    message: str, history: List[Dict[str, Any]], papers: List[Dict[str, Any]],
+    bookmarks: Sequence[Dict[str, Any]] = (),
+) -> Optional[Dict[str, Any]]:
+    """Route tool requests deterministically, before the LLM router; None when no marker applies.
+
+    Paper tools need a paper in the current results or a matching bookmarked
+    paper; otherwise a bookmark marker routes to answer_from_bookmarks.
+    """
+    in_bookmarks = bool(_bookmark_paper_matches(message, list(bookmarks)))
     for action, strong, weak in _PRECHECKS:
         if strong.search(message) or (weak and weak.search(message)):
-            ref = _paper_reference(message, history, papers)
-            if ref is None and not strong.search(message):
+            ref = _paper_reference(message, history, papers) if papers else None
+            if ref is None and not in_bookmarks and (not papers or not strong.search(message)):
                 continue
-            return finalize_route({"action": action, "paper_index": ref}, message, papers)
+            return finalize_route({"action": action, "paper_index": ref}, message, papers, bookmarks)
+    if _BOOKMARK_MARK.search(message):
+        return finalize_route({"action": "answer_from_bookmarks"}, message, papers, bookmarks)
     return None
 
 
 async def route_turn(
-    history: List[Dict[str, Any]], message: str, papers: List[Dict[str, Any]], memory: str = ""
+    history: List[Dict[str, Any]], message: str, papers: List[Dict[str, Any]], memory: str = "",
+    bookmarks: Sequence[Dict[str, Any]] = (),
 ) -> Dict[str, Any]:
     """Route every turn with the tool model; failures fall back to searching *message*."""
     convo = "\n".join(f"{t['role']}: {t.get('content', '')[:500]}" for t in history[-6:]) or "(첫 메시지)"
@@ -340,6 +415,7 @@ async def route_turn(
     else:
         context = "현재 검색 결과: 없음"
     context += f"\n직전 제안: {pending_offer(history) or '없음'}\n직전 행동: {_describe_previous(history)}"
+    context += f"\n{_bookmark_hint(list(bookmarks))}"
     if memory:
         context += f"\n사용자 메모리:\n<user_memory>\n{memory}\n</user_memory>"
 
@@ -361,7 +437,7 @@ async def route_turn(
     except Exception as exc:  # timeout, transport, empty reply
         logger.warning("route_turn fell back to search: %s", type(exc).__name__)
         raw = ""
-    return parse_route(raw, message, papers)
+    return parse_route(raw, message, papers, bookmarks)
 
 
 async def run_search(
@@ -495,8 +571,10 @@ def repeat_reply(
         if bare and (same_number or not bare.group(1).isdigit()):
             return _review_status_reply(previous)
     if route["action"] == "review" and previous:
-        key = papers[route["paper_index"] - 1].get("result_key") if route["paper_index"] else None
-        if route["paper_index"] == previous.get("paper_index") or (key and key == previous.get("paper_key")):
+        paper = route.get("paper") or (papers[route["paper_index"] - 1] if route["paper_index"] else {})
+        key = paper.get("result_key") or paper.get("doc_id") or paper.get("title")
+        same_index = route["paper_index"] is not None and route["paper_index"] == previous.get("paper_index")
+        if same_index or (key and key == previous.get("paper_key")):
             return _review_status_reply(previous)
     previous = blocks.get("search_results")
     if route["action"] == "search" and previous:
@@ -651,7 +729,8 @@ def parse_extracted(raw: str, topic: str = "") -> List[Dict[str, str]]:
 
 
 async def remember_turn(
-    principal: Any, conversation_id: str, message: str, content: str, blocks: List[Dict[str, Any]]
+    principal: Any, conversation_id: str, message: str, content: str, blocks: List[Dict[str, Any]],
+    extra_items: Sequence[Dict[str, str]] = (),
 ) -> int:
     """Store what this finished turn taught about the user; returns the number of new memories.
 
@@ -661,7 +740,7 @@ async def remember_turn(
     """
     from routers.deps.storage import _get_soul_db
 
-    items = []
+    items = list(extra_items)
     for block in blocks:
         if block.get("type") == "search_results":
             items.append({"kind": "topic", "text": block["query"]})
@@ -732,12 +811,14 @@ async def run_turn(
     history = turns[:-1]
     content, blocks, intent, model, title = "", [], "search", None, None
     learn = False  # set by branches whose outcome says something about the user
+    memory_items: List[Dict[str, str]] = []  # extra deterministic memories a tool found
     try:
         latest = _latest_search_block(history)
         latest_papers = latest["papers"] if latest else []
         memory = build_memory_block(principal, message)
-        route = precheck_route(message, history, latest_papers) or await route_turn(
-            history, message, latest_papers, memory
+        bookmarks = load_owned_bookmarks(principal)  # summaries only; the bookmark tool loads reports
+        route = precheck_route(message, history, latest_papers, bookmarks) or await route_turn(
+            history, message, latest_papers, memory, bookmarks
         )
         intent = route["action"]
         # The title follows the conversation until its first search, then stays.
@@ -774,7 +855,8 @@ async def run_turn(
         else:
             from app.assistant.tools import TOOLS_BY_NAME, Turn
 
-            turn = Turn(message, history, principal, route, latest, latest_papers, memory, emit, intent=intent)
+            turn = Turn(message, history, principal, route, latest, latest_papers, memory, emit,
+                        intent=intent, bookmarks=bookmarks)
             try:
                 # Outer bound for every tool; cancelling abandons any worker thread it awaits.
                 await asyncio.wait_for(TOOLS_BY_NAME[route["tool"]].run(turn), TOOL_DEADLINE_SEC)
@@ -783,6 +865,7 @@ async def run_turn(
                 content, blocks = turn.content, turn.blocks
                 raise _TurnError("시간이 너무 오래 걸려 중단했어요. 다시 시도해 주세요.")
             content, blocks, intent, model, learn = turn.content, turn.blocks, turn.intent, turn.model, turn.learn
+            memory_items = turn.memory_items
         status = "done"
     except Exception as exc:
         status = "error"
@@ -801,7 +884,7 @@ async def run_turn(
         emit({"error": error_text})
     if status == "done" and learn:
         # After `done`: the client stream has already ended, so this never delays it.
-        await remember_turn(principal, conversation_id, message, content, blocks)
+        await remember_turn(principal, conversation_id, message, content, blocks, memory_items)
 
 
 class _TurnError(Exception):

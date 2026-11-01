@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import MyPage from '../components/MyPage';
+import { createConversation } from '../api/conversations';
 
 // MyPage is wiring; every panel and hook is replaced so the test sees only the
 // wiring: which tab renders, what the URL says, what the report is handed.
@@ -34,6 +35,7 @@ vi.mock('../components/mypage/PaperViewerPanel', async () => {
   return { default: ViewerStub };
 });
 vi.mock('../components/AgentKeyButton', () => ({ default: () => null }));
+vi.mock('../api/conversations', () => ({ createConversation: vi.fn() }));
 vi.mock('../api/soul', () => ({
   SOUL_PROFILE_MAX: 2000,
   fetchSoul: vi.fn().mockResolvedValue({ user_md: '', markdown: '', memories: [] }),
@@ -53,6 +55,53 @@ const renderAt = (entry: string | { pathname: string; state: unknown }) => rende
 );
 
 beforeEach(() => { vi.clearAllMocks(); viewerMounts.count = 0; });
+
+describe('MyPage 대화에서 열기', () => {
+  it('starts a conversation about the selected bookmark and opens it with the run flag', async () => {
+    Object.assign(bm, {
+      selectedBookmark: { id: 'bm_1', title: 'GraphRAG 서베이' },
+      bookmarkDetail: { id: 'bm_1', title: 'GraphRAG 서베이', papers: [] },
+    });
+    vi.mocked(createConversation).mockResolvedValue({ id: 'conv-9', title: 't', turn_id: 'u' });
+    try {
+      render(
+        <MemoryRouter initialEntries={['/mypage']}>
+          <Routes>
+            <Route path="/mypage" element={<MyPage onBack={() => {}} />} />
+            <Route path="/c/:id" element={<Probe />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      await screen.findByTestId('report');
+      const props = reportSpy.mock.calls.at(-1)![0] as { onOpenInConversation: () => Promise<void> };
+      await act(async () => { await props.onOpenInConversation(); });
+      expect(createConversation).toHaveBeenCalledWith('북마크 "GraphRAG 서베이"의 리포트를 바탕으로 이야기해 줘');
+      expect(screen.getByTestId('probe')).toHaveTextContent('/c/conv-9|state');
+    } finally {
+      Object.assign(bm, { selectedBookmark: null, bookmarkDetail: null });
+    }
+  });
+
+  it('hands the report an inline error when the conversation cannot be created', async () => {
+    Object.assign(bm, {
+      selectedBookmark: { id: 'bm_1', title: 'GraphRAG 서베이' },
+      bookmarkDetail: { id: 'bm_1', title: 'GraphRAG 서베이', papers: [] },
+    });
+    vi.mocked(createConversation).mockRejectedValue(new Error('503'));
+    try {
+      renderAt('/mypage');
+      await screen.findByTestId('report');
+      const props = reportSpy.mock.calls.at(-1)![0] as { onOpenInConversation: () => Promise<void> };
+      await act(async () => { await props.onOpenInConversation(); });
+      expect(reportSpy.mock.calls.at(-1)![0]).toMatchObject({
+        conversationError: '대화를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.',
+        openingConversation: false,
+      });
+    } finally {
+      Object.assign(bm, { selectedBookmark: null, bookmarkDetail: null });
+    }
+  });
+});
 
 describe('MyPage tab wiring', () => {
   it('opens the 기억 tab from the URL as its own panel, without the bookmark sidebar', async () => {

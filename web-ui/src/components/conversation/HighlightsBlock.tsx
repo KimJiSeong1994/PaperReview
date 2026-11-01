@@ -11,7 +11,7 @@ interface HighlightsBlockProps {
 function HighlightsBlock({ block, onOpen }: HighlightsBlockProps) {
   return (
     <section className="conv-highlights" aria-label={`하이라이트: ${block.paper_title}`}>
-      <p className="conv-review-title">{block.paper_title}</p>
+      <p className="conv-review-title">{block.paper_title}{block.source === 'bookmark' && <span className="home-chip conv-bookmark-tag">북마크</span>}</p>
       {block.highlights.length === 0 ? (
         <p className="conv-note">표시할 문장을 찾지 못했어요.</p>
       ) : (

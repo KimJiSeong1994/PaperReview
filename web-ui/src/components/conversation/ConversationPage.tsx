@@ -11,11 +11,14 @@ import { createConversation } from '../../api/conversations';
 import { useConversation, type ViewTurn } from '../../hooks/useConversation';
 import type { Paper } from '../../types';
 import ArtifactPanel, { type ArtifactTab } from './ArtifactPanel';
+import BookmarkRefsStrip from './BookmarkRefsStrip';
 import HighlightsBlock from './HighlightsBlock';
 import PdfBlock from './PdfBlock';
 import ReviewBlock, { type CompletedReview } from './ReviewBlock';
 import SearchResultsBlock from './SearchResultsBlock';
 import {
+  BOOKMARK_CITE_PREFIX,
+  bookmarkRefsOf,
   CITE_PREFIX,
   citationSources,
   degradedLabels,
@@ -130,6 +133,17 @@ function ConversationPage({ id }: ConversationPageProps) {
 
   const renderCitation = (turn: ViewTurn, href: string | undefined, children: ReactNode) => {
     const source = citations.get(turn.id);
+    if (href?.startsWith(BOOKMARK_CITE_PREFIX)) {
+      const n = Number(href.slice(BOOKMARK_CITE_PREFIX.length));
+      if (!bookmarkRefsOf(turn)?.bookmarks[n - 1]) return <span>[B{n}]</span>;
+      // Bookmark citations stay in the thread: they point at the turn's own chip.
+      const focusChip = () => {
+        const chip = document.getElementById(`bookmark-ref-${turn.seq}-${n}`);
+        chip?.scrollIntoView?.({ block: 'nearest' });
+        chip?.focus();
+      };
+      return <button type="button" className="conv-cite" onClick={focusChip}>B{n}</button>;
+    }
     if (!href?.startsWith(CITE_PREFIX)) {
       return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
     }
@@ -150,6 +164,7 @@ function ConversationPage({ id }: ConversationPageProps) {
     const search = searchBlockOf(turn);
     const review = reviewBlockOf(turn);
     const pdf = pdfBlockOf(turn);
+    const bookmarkRefs = bookmarkRefsOf(turn);
     const summary = turnSummary(turn);
     const isLast = turn === lastTurn;
     const serverCancelled = turn.status === 'error' && turn.content.trim() === CANCELLED_CONTENT;
@@ -174,6 +189,8 @@ function ConversationPage({ id }: ConversationPageProps) {
           <img className="conv-avatar" src={AVATAR_SRC} alt="" width="28" height="28" />
           <span className="conv-assistant-name">집현전</span>
         </div>
+        {bookmarkRefs && <BookmarkRefsStrip block={bookmarkRefs} idPrefix={`bookmark-ref-${turn.seq}`} />}
+
         {markdown(lead)}
 
         {showLiveStatus ? (
@@ -191,7 +208,7 @@ function ConversationPage({ id }: ConversationPageProps) {
               {degradedLabels(search.degraded ?? []).map(label => <li key={label}>{label}</li>)}
             </ul>
           </details>
-        ) : summary && (review || pdf) && !(live && turn.status === 'running') ? (
+        ) : summary && (review || pdf || bookmarkRefs) && !(live && turn.status === 'running') ? (
           <p className="conv-status">{summary}</p>
         ) : null}
 

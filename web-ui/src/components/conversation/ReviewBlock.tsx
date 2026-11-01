@@ -41,7 +41,7 @@ function ReviewBlock({ block, onCompleted, onOpenReport }: ReviewBlockProps) {
 
   return (
     <section className="conv-review" aria-label={`심층 리뷰: ${block.paper_title}`}>
-      <p className="conv-review-title">{block.paper_title}</p>
+      <p className="conv-review-title">{block.paper_title}{block.source === 'bookmark' && <span className="home-chip conv-bookmark-tag">북마크</span>}</p>
       {gone ? (
         <div className="conv-review-row" role="status">
           <span className="home-chip">확인 불가</span>

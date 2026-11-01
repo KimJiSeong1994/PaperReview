@@ -145,18 +145,24 @@ export interface GraphBlock {
 }
 
 /** A deep review the assistant started for one paper; progress is polled by session. */
-export interface ReviewStartedBlock {
+/** Set on paper blocks whose paper came from one of the user's bookmarks. */
+export interface BookmarkSourced {
+  source?: 'bookmark';
+  bookmark_id?: string;
+}
+
+export interface ReviewStartedBlock extends BookmarkSourced {
   type: 'review_started';
   session_id: string;
-  paper_index: number;
+  paper_index: number | null;
   paper_title: string;
   paper_key: string;
 }
 
 /** A paper the assistant opened as a PDF (or found highlights in). */
-export interface PaperPdfBlock {
+export interface PaperPdfBlock extends BookmarkSourced {
   type: 'paper_pdf';
-  paper_index: number;
+  paper_index: number | null;
   paper_title: string;
   paper_key: string;
   pdf_url: string | null;
@@ -173,7 +179,29 @@ export interface PdfHighlightsBlock extends Omit<PaperPdfBlock, 'type'> {
   highlights: HighlightItem[];
 }
 
-export type TurnBlock = SearchResultsBlock | GraphBlock | ReviewStartedBlock | PaperPdfBlock | PdfHighlightsBlock;
+export interface BookmarkRef {
+  id: string;
+  title: string;
+  query: string;
+  num_papers: number;
+  has_report: boolean;
+  /** /mypage?bookmark=<id> */
+  url: string;
+}
+
+/** The bookmarks an answer_from_bookmarks turn draws on; `[B1]` cites the first. */
+export interface BookmarkRefsBlock {
+  type: 'bookmark_refs';
+  bookmarks: BookmarkRef[];
+}
+
+export type TurnBlock =
+  | SearchResultsBlock
+  | GraphBlock
+  | ReviewStartedBlock
+  | PaperPdfBlock
+  | PdfHighlightsBlock
+  | BookmarkRefsBlock;
 
 export interface ConversationTurn {
   id: string;

@@ -78,6 +78,10 @@ export interface ReportViewerProps {
   shareLoading: boolean;
   onCreateShare: () => void;
   onRevokeShare: () => void;
+  /** "대화에서 열기": start a conversation about this bookmark's report. */
+  onOpenInConversation?: () => void;
+  openingConversation?: boolean;
+  conversationError?: string | null;
 }
 
 export default function ReportViewer({
@@ -98,6 +102,7 @@ export default function ReportViewer({
   onGenerateCitationTree, onDeleteCitationTree,
   onRenameBookmark,
   shareInfo, shareLoading, onCreateShare, onRevokeShare,
+  onOpenInConversation, openingConversation = false, conversationError = null,
 }: ReportViewerProps) {
   const shareExpired = isShareExpired(shareInfo);
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
@@ -290,6 +295,19 @@ export default function ReportViewer({
               </>
             )}
           </button>
+          {onOpenInConversation && (
+            <button
+              className="mypage-export-btn"
+              onClick={onOpenInConversation}
+              disabled={openingConversation}
+              title="이 북마크의 리포트를 바탕으로 대화를 시작합니다"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {openingConversation ? '여는 중…' : '대화에서 열기'}
+            </button>
+          )}
           {bookmarkDetail.report_markdown && (
             <button className="mypage-export-btn" onClick={onExportReport} title="마크다운으로 내보내기">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
@@ -358,6 +376,10 @@ export default function ReportViewer({
               : `${new Date(shareInfo.expires_at).toLocaleDateString()}까지 유효`}
           </div>
         </div>
+      )}
+
+      {conversationError && (
+        <div className="mypage-citation-table-error" role="alert">{conversationError}</div>
       )}
 
       {/* Tab bar */}

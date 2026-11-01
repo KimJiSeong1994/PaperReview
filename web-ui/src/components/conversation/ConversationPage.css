@@ -476,6 +476,74 @@
   display: none;
 }
 
+/* ── Bookmark references ──────────────────────────────────────────── */
+.conv-bookmarks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.conv-bookmarks-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.conv-bookmarks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-bookmark-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--wov-12);
+  border-radius: 8px;
+  color: var(--text-hi);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: background var(--home-ease), border-color var(--home-ease);
+}
+
+.conv-bookmark-chip:hover,
+.conv-bookmark-chip:focus-visible {
+  background: var(--wov-04);
+  border-color: var(--wov-20);
+}
+
+.conv-bookmark-n {
+  font-weight: 700;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-bookmark-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.conv-bookmark-meta {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.conv-bookmark-tag {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
 .conv-note {
   margin: 0;
   font-size: 13px;

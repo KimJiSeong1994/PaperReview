@@ -12,7 +12,7 @@ function PdfBlock({ block, onOpen }: PdfBlockProps) {
     .join(' · ');
   return (
     <section className="conv-review" aria-label={`PDF: ${block.paper_title}`}>
-      <p className="conv-review-title">{block.paper_title}</p>
+      <p className="conv-review-title">{block.paper_title}{block.source === 'bookmark' && <span className="home-chip conv-bookmark-tag">북마크</span>}</p>
       <div className="conv-review-row">
         {meta && <span className="conv-review-progress">{meta}</span>}
         <button type="button" className="conv-results-more" onClick={onOpen}>PDF 열기 →</button>

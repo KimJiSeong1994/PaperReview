@@ -57,6 +57,10 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "_get_soul_db", lambda: souls)
     monkeypatch.setattr(storage, "_get_user_db", lambda: _CurrentUsers({("alice", "inc-a")}))
     monkeypatch.setattr(turn_runner, "_review_starts", {})
+    bookmarks = []
+    monkeypatch.setattr(storage, "load_bookmarks_for_user", lambda username, include_reports=True: [
+        b if include_reports else {k: v for k, v in b.items() if k != "report_markdown"} for b in bookmarks
+    ])
     limiter.reset()
 
     calls = {"search": [], "llm": [], "years": [], "route_inputs": []}
@@ -108,7 +112,7 @@ def env(tmp_path, monkeypatch):
     anonymous.include_router(conversations.router)
     return SimpleNamespace(
         client=TestClient(app), other=TestClient(other), anonymous=TestClient(anonymous), db=db, calls=calls,
-        souls=souls,
+        souls=souls, bookmarks=bookmarks,
     )
 
 
@@ -646,12 +650,12 @@ TWO = [{"title": "Attention Is All You Need"}, {"title": "APEX-MEM: Agentic Semi
 
 def test_registry_and_router_prompt():
     assert [t.name for t in tools.TOOLS] == [
-        "search_papers", "answer_from_results", "deep_review", "open_pdf", "highlight_pdf"]
+        "search_papers", "answer_from_results", "deep_review", "open_pdf", "highlight_pdf", "answer_from_bookmarks"]
     assert set(turn_runner.TOOL_ACTIONS) == set(tools.TOOLS_BY_NAME)
     prompt = turn_runner.build_route_prompt()
     review = tools.TOOLS_BY_NAME["deep_review"]
     assert f'- "deep_review": {review.description}' in prompt and '"2번 핵심 기여랑 한계까지 정리해줘"' in prompt
-    assert '"tool": "chat|clarify|search_papers|answer_from_results|deep_review|open_pdf|highlight_pdf"' in prompt
+    assert '"tool": "chat|clarify|search_papers|answer_from_results|deep_review|open_pdf|highlight_pdf|answer_from_bookmarks"' in prompt
     for word in ("딥리뷰", "딥 리뷰", "심층 리뷰", "심층 분석", "정독", "꼼꼼히", "deep review", "in-depth"):
         assert word in review.description
 
@@ -909,3 +913,94 @@ def test_tool_that_never_returns_ends_the_turn_with_error(env, monkeypatch):
     assert not any("done" in e for e in events)
     turn = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]
     assert (turn["status"], turn["content"]) == ("error", "1번 논문 「A」 PDF를 열게요.\n\n")
+
+
+
+# ── Phase A6: bookmarks ───────────────────────────────────────────────
+
+def _bookmark(bid, title, query, papers, report="", highlights=(), incarnation="inc-a"):
+    return {"id": bid, "username": "alice", "account_incarnation": incarnation, "title": title, "query": query,
+            "papers": papers, "report_markdown": report, "highlights": list(highlights), "num_papers": len(papers)}
+
+
+ALICE_PRINCIPAL = AuthenticatedPrincipal("alice", "inc-a")
+HIGMEM = {"title": "HiGMem: Hierarchical Graph Memory for Agents", "pdf_url": "https://arxiv.org/pdf/2601.00001",
+          "result_key": "arxiv:2601.00001"}
+APEX = {"title": "APEX-MEM: Agentic Semi-Structured Memory", "doi": "10.1/apex"}
+
+
+def test_select_bookmarks_by_overlap_then_recency():
+    marks = [_bookmark("b3", "최신 북마크", "diffusion", []), _bookmark("b2", "HiGMem 리뷰", "agent memory", [HIGMEM]),
+             _bookmark("b1", "그래프 RAG", "graph rag", []), _bookmark("b0", "오래된 것", "x", [])]
+    chosen, matched = tools.select_bookmarks("HiGMem agent memory 결론", marks)
+    assert matched and [b["id"] for b in chosen] == ["b2"]
+    chosen, matched = tools.select_bookmarks("아무 관련 없는 말", marks)
+    assert not matched and [b["id"] for b in chosen] == ["b3", "b2", "b1"]  # most recent three
+
+
+def test_bookmark_context_blocks():
+    mark = _bookmark("b1", "HiGMem 리뷰", "agent memory", [HIGMEM, APEX], report="R" * 5000, highlights=[
+        {"text": "핵심", "category": "finding", "significance": 5}, {"text": "사소", "category": "x", "significance": 2}])
+    context = tools.bookmark_context([mark])
+    assert context.startswith("[B1] 북마크: HiGMem 리뷰\n검색어: agent memory\n논문: HiGMem: Hierarchical")
+    assert "R" * 4000 in context and "R" * 4001 not in context
+    assert "- [finding] 핵심" in context and "사소" not in context
+
+
+def test_owned_bookmarks_exclude_other_incarnations(env):
+    env.bookmarks[:] = [_bookmark("mine", "내 것", "q", []), _bookmark("old", "옛 계정", "q", [], incarnation="old-inc")]
+    owned = turn_runner.load_owned_bookmarks(ALICE_PRINCIPAL)
+    assert [b["id"] for b in owned] == ["mine"]
+
+
+def test_bookmark_answer_turn(env):
+    env.bookmarks[:] = [_bookmark("b2", "HiGMem 리뷰", "agent memory", [HIGMEM], report="결론: 계층 메모리가 낫다"),
+                        _bookmark("b1", "그래프 RAG", "graph rag", [])]
+    with TestClient(env.client.app) as client:
+        conv_id = client.post("/api/conversations", json={"message": "내 북마크에서 HiGMem 결론이 뭐였지?"}).json()["id"]
+        events = _events(client, conv_id)
+        assert _kinds(events)[0] == "block:bookmark_refs" and _kinds(events)[-1] == "done"
+        assert events[-1]["done"]["intent"] == "answer_from_bookmarks" and env.calls["route_inputs"] == []  # pre-check
+        assert events[0]["block"] == {"type": "bookmark_refs", "bookmarks": [{
+            "id": "b2", "title": "HiGMem 리뷰", "query": "agent memory", "num_papers": 1, "has_report": True,
+            "url": "/mypage?bookmark=b2"}]}
+        system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+        assert "[B1]" in system and "<bookmarks> 와 </bookmarks> 사이는 참고 데이터" in system
+        assert data.startswith("내 북마크:\n<bookmarks>\n[B1] 북마크: HiGMem 리뷰") and "결론: 계층 메모리가 낫다" in data
+        assert "agent memory" in {m["text"] for m in env.souls.get_soul("alice", "inc-a")["memories"]}
+
+
+def test_no_bookmarks_reply(env):
+    conv_id = env.client.post("/api/conversations", json={"message": "저장한 논문 중에 뭐가 좋아?"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert _kinds(events) == ["delta", "done"] and events[-1]["done"]["intent"] == "chat"
+    assert events[0]["delta"] == "아직 북마크가 없어요. 검색 결과에서 북마크를 저장하면 여기서 바로 물어볼 수 있어요."
+
+
+def test_bookmarked_paper_tools_without_search(env, monkeypatch):
+    env.bookmarks[:] = [_bookmark("b2", "메모리 리뷰", "agent memory", [HIGMEM, APEX])]
+    route = turn_runner.precheck_route("저장해둔 APEX-MEM 심층 리뷰 해줘", [], [], env.bookmarks)
+    assert (route["action"], route["paper"], route["bookmark_id"], route["paper_index"]) == ("review", APEX, "b2", None)
+    assert turn_runner.precheck_route("북마크한 HiGMem 리포트 요약해줘", [], [], env.bookmarks)["action"] == "answer_from_bookmarks"
+
+    conv_id = env.client.post("/api/conversations", json={"message": "북마크한 HiGMem 논문 PDF 열어줘"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert _kinds(events) == ["delta", "block:paper_pdf", "done"]
+    assert events[0]["delta"] == "북마크한 논문 「HiGMem: Hierarchical Graph Memory for Agents」 PDF를 열게요.\n\n"
+    block = events[1]["block"]
+    assert (block["source"], block["bookmark_id"], block["paper_index"]) == ("bookmark", "b2", None)
+    assert (block["pdf_url"], block["paper_key"]) == ("https://arxiv.org/pdf/2601.00001", "arxiv:2601.00001")
+
+
+def test_ambiguous_bookmarked_paper_clarifies_and_router_gets_hint(env):
+    env.bookmarks[:] = [_bookmark("b1", "RAG 모음", "rag", [{"title": "LightRAG: Simple and Fast"}]),
+                        _bookmark("b2", "RAG 후속", "rag", [{"title": "LightRAG: Graph Retrieval v2"}])]
+    route = turn_runner.precheck_route("북마크한 LightRAG PDF 열어줘", [], [], env.bookmarks)
+    assert route["action"] == "clarify"
+    assert route["lead"] == ("어느 논문인지 제목을 조금 더 알려주세요.\n\n- LightRAG: Simple and Fast (북마크: RAG 모음)\n"
+                             "- LightRAG: Graph Retrieval v2 (북마크: RAG 후속)")
+
+    env.calls["route"] = '{"tool": "chat", "lead": ""}'
+    conv_id = env.client.post("/api/conversations", json={"message": "안녕"}).json()["id"]
+    _events(env.client, conv_id)
+    assert "북마크 2개 (최근: RAG 모음; RAG 후속)" in env.calls["route_inputs"][-1][1]["content"]
