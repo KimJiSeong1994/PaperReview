@@ -8,7 +8,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin
 
 from starlette.concurrency import run_in_threadpool
 
@@ -17,9 +17,16 @@ from app.assistant import turn_runner as tr
 logger = logging.getLogger(__name__)
 
 MAX_PDF_TEXT = 40_000
+MAX_PDF_BYTES = 50 * 1024 * 1024
+MAX_PDF_REDIRECTS = 3
 PDF_TEXT_TIMEOUT_SEC = 60.0
 PDF_RESOLVE_TIMEOUT_SEC = 20.0
 MAX_HIGHLIGHTS = 20
+# generate_pdf_highlights_llm makes ONE LLM call (no chunking) on ≤30k chars with a
+# 110 s request timeout, but SDK retries can stretch that to minutes: bound it, and
+# send at most 20k chars so the single call stays small.
+HIGHLIGHT_LLM_TIMEOUT_SEC = 120.0
+HIGHLIGHT_LLM_CHARS = 20_000
 
 
 @dataclass
@@ -205,33 +212,76 @@ async def resolve_pdf_url(paper: Dict[str, Any]) -> Optional[str]:
     return result.pdf_url
 
 
-async def extract_pdf_text(pdf_url: str) -> str:
-    """Download and extract the PDF text (first 40k chars) in anyio's pool; '' when not possible.
+def pdf_bytes_to_text(data: bytes) -> str:
+    """Text of a PDF via PyMuPDF (keeps word spaces, unlike pdfplumber's defaults); first 40k chars."""
+    import fitz
 
-    Only domains the PDF proxy allows are fetched, so this is no SSRF path.
-    """
+    parts, total = [], 0
+    with fitz.open(stream=data, filetype="pdf") as doc:
+        for page in doc:
+            parts.append(page.get_text("text"))
+            total += len(parts[-1])
+            if total >= MAX_PDF_TEXT:
+                break
+    return "\n\n".join(parts)[:MAX_PDF_TEXT]
+
+
+def has_word_spaces(text: str) -> bool:
+    """False for spaceless extractions ("Weevaluateallmethods…"): fewer than 1 space per 15 chars."""
+    return text.count(" ") * 15 >= len(text)
+
+
+def _download_pdf(pdf_url: str) -> bytes:
+    """Fetch a PDF (≤50 MB), following at most 3 redirects, each to a proxy-allowed URL only."""
+    import requests
+
     from routers.pdf_proxy import _is_allowed_url
-    from src.collector.paper.text_extractor import TextExtractor
 
-    if not _is_allowed_url(pdf_url):
-        return ""
+    url = pdf_url
+    with requests.Session() as session:
+        for _ in range(MAX_PDF_REDIRECTS + 1):
+            if not _is_allowed_url(url):
+                raise ValueError("PDF URL not allowed")
+            resp = session.get(url, timeout=30, stream=True, allow_redirects=False,
+                               headers={"User-Agent": "Mozilla/5.0 (compatible; jiphyeonjeon)"})
+            if resp.is_redirect:
+                url = urljoin(url, resp.headers.get("location", ""))
+                resp.close()
+                continue
+            resp.raise_for_status()
+            data = bytearray()
+            for chunk in resp.iter_content(65536):
+                data += chunk
+                if len(data) > MAX_PDF_BYTES:
+                    raise ValueError("PDF too large")
+            return bytes(data)
+    raise ValueError("too many redirects")
 
-    def work() -> str:
-        extractor = TextExtractor(use_scihub=False)
-        try:
-            return extractor._extract_from_arxiv_pdf({"pdf_url": pdf_url}) or ""
-        finally:
-            extractor.close()
 
-    text = await asyncio.wait_for(run_in_threadpool(work), PDF_TEXT_TIMEOUT_SEC)
-    return text[:MAX_PDF_TEXT]
+async def extract_pdf_text(pdf_url: str) -> str:
+    """Download and extract the PDF text (first 40k chars) in anyio's pool within 60 s.
+
+    Only URLs the PDF proxy allows are fetched (every redirect hop too), so this
+    is no SSRF path. Raises on download or parse failure.
+    """
+    text = await asyncio.wait_for(
+        run_in_threadpool(lambda: pdf_bytes_to_text(_download_pdf(pdf_url))), PDF_TEXT_TIMEOUT_SEC
+    )
+    return text
 
 
 async def generate_highlights(text: str, title: str) -> List[Dict[str, Any]]:
-    """Run the existing PDF highlight generator; returns HighlightItem dicts (max 20)."""
+    """Run the existing PDF highlight generator on the first 20k chars within 120 s.
+
+    Returns HighlightItem dicts (max 20). Raises TimeoutError when the model is
+    too slow; the worker thread is then abandoned, never awaited.
+    """
     from routers.paper_reviews import build_pdf_highlights, generate_pdf_highlights_llm
 
-    raw = await run_in_threadpool(generate_pdf_highlights_llm, text, title, tr.get_openai_client())
+    raw = await asyncio.wait_for(
+        run_in_threadpool(generate_pdf_highlights_llm, text[:HIGHLIGHT_LLM_CHARS], title, tr.get_openai_client()),
+        HIGHLIGHT_LLM_TIMEOUT_SEC,
+    )
     return build_pdf_highlights(raw, text)[:MAX_HIGHLIGHTS]
 
 
@@ -297,18 +347,24 @@ async def _highlight_pdf(t: Turn) -> None:
     t.say(f"{index}번 논문 「{tr._one_paragraph(title)}」에서 핵심 문장을 표시할게요.\n\n")
     t.learn = True
     fields = _pdf_fields(paper, index, title, key, pdf_url)
+    stage = "extract"
     try:
         text = await extract_pdf_text(pdf_url)
-        if len(text.strip()) < 50:
-            raise ValueError("PDF text too short")
+        if len(text.strip()) < 50 or not has_word_spaces(text):
+            raise ValueError("PDF text too short or without word spaces")
+        stage = "generate"
         highlights = await generate_highlights(text, title)
         if not highlights:
             raise ValueError("no highlights")
     except Exception as exc:
+        slow = stage == "generate" and isinstance(exc, TimeoutError)
         logger.warning("assistant highlight fell back to the viewer: %s", type(exc).__name__)
         tr._release_start("highlight", user)
         t.add({"type": "paper_pdf", **fields})
-        t.say("본문 추출이 안 돼 뷰어에서 자동 하이라이트를 눌러 주세요.")
+        t.say(
+            "하이라이트 생성이 오래 걸려 PDF만 열었어요. 뷰어에서 자동 하이라이트를 눌러 주세요." if slow
+            else "본문 추출이 안 돼 뷰어에서 자동 하이라이트를 눌러 주세요."
+        )
         return
     t.add({"type": "pdf_highlights", **fields, "highlights": highlights})
     listing = "\n".join(f"[{h.get('category', '')}] {str(h.get('text', ''))[:200]}" for h in highlights[:10])

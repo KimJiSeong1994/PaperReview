@@ -793,10 +793,119 @@ def test_pdf_helpers_resolver_extractor_and_highlight_shape(monkeypatch):
     assert asyncio.run(tools.resolve_pdf_url(paper)) == "https://arxiv.org/pdf/2.pdf"
     assert seen == {"args": ("T", "10.1/x", "2"), "cached": "https://arxiv.org/pdf/2.pdf"}
 
-    assert asyncio.run(tools.extract_pdf_text("http://10.0.0.1/internal.pdf")) == ""  # not an allowed domain
+    with pytest.raises(ValueError, match="not allowed"):  # private / non-academic hosts are never fetched
+        asyncio.run(tools.extract_pdf_text("http://10.0.0.1/internal.pdf"))
 
     raw = [{"text": f"Important sentence number {i}.", "category": "finding", "reason": "r"} for i in range(25)]
     monkeypatch.setattr(paper_reviews, "generate_pdf_highlights_llm", lambda text, title, client: raw)
     monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
     out = asyncio.run(tools.generate_highlights("Important sentence number 0. " * 10, "T"))
     assert len(out) == 20 and {"id", "text", "color", "memo", "category", "significance"} <= set(out[0])
+
+
+def test_pdf_text_keeps_word_spaces_and_spaceless_text_is_rejected():
+    fitz = pytest.importorskip("fitz")
+    doc = fitz.open()
+    doc.new_page().insert_text((72, 72), "We evaluate all methods on two representative text-based tasks.")
+    text = tools.pdf_bytes_to_text(doc.tobytes())
+    assert "We evaluate all methods on two representative" in text and tools.has_word_spaces(text)
+
+    assert not tools.has_word_spaces("Weevaluateallmethodsontworepresentativetext-basedtasks:Acrossbothdatasets")
+    assert tools.has_word_spaces("We evaluate all methods on two representative text-based tasks.")
+
+
+def test_pdf_download_checks_every_redirect_hop(monkeypatch):
+    import requests
+
+    class Resp:
+        def __init__(self, location=None, body=b"%PDF-1.4"):
+            self.is_redirect, self.headers, self.body = location is not None, {"location": location}, body
+
+        def close(self):
+            pass
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, size):
+            yield self.body
+
+    hops = {"https://arxiv.org/pdf/1": Resp("https://arxiv.org/pdf/1v2"), "https://arxiv.org/pdf/1v2": Resp()}
+    monkeypatch.setattr(requests.Session, "get", lambda self, url, **kw: hops[url])
+    assert tools._download_pdf("https://arxiv.org/pdf/1") == b"%PDF-1.4"
+
+    hops["https://arxiv.org/pdf/1"] = Resp("http://169.254.169.254/latest/meta-data")
+    with pytest.raises(ValueError, match="not allowed"):
+        tools._download_pdf("https://arxiv.org/pdf/1")
+
+
+def test_spaceless_extraction_falls_back_to_viewer(env, monkeypatch):
+    async def resolve(paper):
+        return "https://arxiv.org/pdf/2502.11371"
+
+    async def extract(url):
+        return "Weevaluateallmethodsontworepresentativetext-basedtasks:" * 20
+
+    async def highlights(text, title):
+        raise AssertionError("spaceless text must not reach the LLM")
+
+    monkeypatch.setattr(tools, "resolve_pdf_url", resolve)
+    monkeypatch.setattr(tools, "extract_pdf_text", extract)
+    monkeypatch.setattr(tools, "generate_highlights", highlights)
+    conv_id = _searched(env)
+    events = _events(env.client, conv_id, "1번 논문 하이라이트 해줘")
+    assert _kinds(events) == ["delta", "block:paper_pdf", "delta", "done"]
+    assert events[2]["delta"] == "본문 추출이 안 돼 뷰어에서 자동 하이라이트를 눌러 주세요."
+
+
+def test_slow_highlight_generation_falls_back_within_timeout(env, monkeypatch):
+    import threading
+    import time
+
+    from routers import paper_reviews
+
+    release = threading.Event()
+
+    def stuck_llm(text, title, client):
+        stuck_llm.chars = len(text)
+        release.wait(5)  # the abandoned worker thread exits once the test is done
+        return []
+
+    async def resolve(paper):
+        return "https://arxiv.org/pdf/2604.09666"
+
+    async def extract(url):
+        return "We evaluate all methods on two tasks. " * 1500  # ~57k chars
+
+    monkeypatch.setattr(tools, "resolve_pdf_url", resolve)
+    monkeypatch.setattr(tools, "extract_pdf_text", extract)
+    monkeypatch.setattr(paper_reviews, "generate_pdf_highlights_llm", stuck_llm)
+    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
+    monkeypatch.setattr(tools, "HIGHLIGHT_LLM_TIMEOUT_SEC", 0.2)
+    conv_id = _searched(env)
+    try:
+        started = time.monotonic()
+        events = _events(env.client, conv_id, "2번 논문에서 핵심 문장 표시해줘")
+        assert time.monotonic() - started < 3
+    finally:
+        release.set()
+    assert _kinds(events) == ["delta", "block:paper_pdf", "delta", "done"]
+    assert events[2]["delta"] == "하이라이트 생성이 오래 걸려 PDF만 열었어요. 뷰어에서 자동 하이라이트를 눌러 주세요."
+    assert stuck_llm.chars == tools.HIGHLIGHT_LLM_CHARS  # only the first 20k chars reach the model
+
+
+def test_tool_that_never_returns_ends_the_turn_with_error(env, monkeypatch):
+    import asyncio
+
+    async def forever(t):
+        t.say("1번 논문 「A」 PDF를 열게요.\n\n")
+        await asyncio.sleep(3600)
+
+    monkeypatch.setitem(tools.TOOLS_BY_NAME, "open_pdf", tools.Tool("open_pdf", "d", (), forever))
+    monkeypatch.setattr(turn_runner, "TOOL_DEADLINE_SEC", 0.1)
+    conv_id = _searched(env)
+    events = _events(env.client, conv_id, "1번 논문 PDF 열어줘")
+    assert events[-1] == {"error": "시간이 너무 오래 걸려 중단했어요. 다시 시도해 주세요."}
+    assert not any("done" in e for e in events)
+    turn = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]
+    assert (turn["status"], turn["content"]) == ("error", "1번 논문 「A」 PDF를 열게요.\n\n")

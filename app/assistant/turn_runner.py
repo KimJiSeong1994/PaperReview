@@ -562,6 +562,7 @@ async def _speak(messages: List[Dict[str, str]], fallback: str, emit: Emit) -> t
     return fallback, None
 
 
+TOOL_DEADLINE_SEC = 300.0  # outer bound per tool run (search keeps its own ~100 s budget)
 MAX_PROMPT_MEMORIES = 12
 EXTRACT_TIMEOUT_SEC = 8.0
 _MEMORY_NOTE = (
@@ -774,7 +775,13 @@ async def run_turn(
             from app.assistant.tools import TOOLS_BY_NAME, Turn
 
             turn = Turn(message, history, principal, route, latest, latest_papers, memory, emit, intent=intent)
-            await TOOLS_BY_NAME[route["tool"]].run(turn)
+            try:
+                # Outer bound for every tool; cancelling abandons any worker thread it awaits.
+                await asyncio.wait_for(TOOLS_BY_NAME[route["tool"]].run(turn), TOOL_DEADLINE_SEC)
+            except TimeoutError:
+                logger.warning("tool %s exceeded %ss", route["tool"], TOOL_DEADLINE_SEC)
+                content, blocks = turn.content, turn.blocks
+                raise _TurnError("시간이 너무 오래 걸려 중단했어요. 다시 시도해 주세요.")
             content, blocks, intent, model, learn = turn.content, turn.blocks, turn.intent, turn.model, turn.learn
         status = "done"
     except Exception as exc:
