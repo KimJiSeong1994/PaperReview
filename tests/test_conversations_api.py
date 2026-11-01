@@ -351,3 +351,24 @@ def test_title_follows_chat_turns_until_first_search(env):
     env.calls["route"] = '{"action": "search", "query": "LightRAG", "lead": "찾아볼게요.", "title": "다른 제목"}'
     assert _events(env.client, conv_id, "LightRAG도 찾아줘")[-1]["done"]["title"] is None
     assert env.client.get(f"/api/conversations/{conv_id}").json()["title"] == "GraphRAG 연구 동향"
+
+
+def test_router_keyword_soup_is_normalised():
+    soup = "agent memory long conversation memory long-term memory agent memory paper"
+    route = turn_runner.parse_route(json.dumps({"action": "search", "query": soup}), "원문", False)
+    assert route["query"] == "agent memory long conversation long-term"
+    assert turn_runner.normalize_query('  "장기  대화 기억   에이전트 메모리 논문" ') == "장기 대화 기억 에이전트 메모리"
+    assert turn_runner.normalize_query(" ".join(f"w{i}" for i in range(20))) == " ".join(f"w{i}" for i in range(12))
+    assert turn_runner.parse_route('{"action": "search", "query": " \\"papers\\" "}', "원문", False)["query"] == "원문"
+
+
+def test_search_without_router_title_uses_query_as_title(env):
+    env.calls["route"] = '{"action": "search", "query": "장기 대화 기억 에이전트 메모리", "lead": "찾아볼게요.", "title": null}'
+    conv_id = env.client.post(
+        "/api/conversations", json={"message": "장기 대화 기억을 다루는 에이전트 메모리 논문을 보고 싶어"}
+    ).json()["id"]
+    assert _events(env.client, conv_id)[-1]["done"]["title"] == "장기 대화 기억 에이전트 메모리"
+    assert env.client.get(f"/api/conversations/{conv_id}").json()["title"] == "장기 대화 기억 에이전트 메모리"
+
+    env.calls["route"] = '{"action": "search", "query": "LightRAG", "lead": "찾아볼게요.", "title": null}'
+    assert _events(env.client, conv_id, "LightRAG도")[-1]["done"]["title"] is None  # already searched
