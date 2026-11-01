@@ -26,7 +26,7 @@ async def get_soul(principal: AuthenticatedPrincipal = Depends(get_authenticated
     soul = _get_soul_db().get_soul(principal.username, principal.account_incarnation)
     return {
         "user_md": soul["user_md"],
-        "memories": [{k: m[k] for k in ("id", "kind", "text", "created_at")} for m in soul["memories"]],
+        "memories": [{k: m[k] for k in ("id", "kind", "text", "created_at", "hits")} for m in soul["memories"]],
         "markdown": render_markdown(soul),
     }
 

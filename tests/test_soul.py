@@ -95,7 +95,7 @@ def test_routes_auth_ownership_and_clear(souls):
     souls.add_memories("bob", "inc-b", [{"kind": "topic", "text": "남의 메모리"}], None)
     body = client.get("/api/me/soul").json()
     assert body["user_md"] == "박사과정" and [m["text"] for m in body["memories"]] == ["GraphRAG"]
-    assert set(body["memories"][0]) == {"id", "kind", "text", "created_at"}
+    assert set(body["memories"][0]) == {"id", "kind", "text", "created_at", "hits"}
     assert body["markdown"].startswith("# USER.md\n\n박사과정")
 
     bob_id = souls.get_soul("bob", "inc-b")["memories"][0]["id"]
@@ -238,3 +238,110 @@ def test_memory_block_reserves_preference_slots_and_skips_rank_junk(souls):
     lines = [ln for ln in block.splitlines() if ln.startswith("- [")]
     assert lines[0] == "- [선호] 앞으로 답은 짧게" and len(lines) == 12
     assert not any("3번" in ln for ln in lines)
+
+
+
+# ── Phase A8: research + interest memories ───────────────────────────
+
+def test_migration_rebuilds_an_old_db_and_is_idempotent(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    with sqlite3.connect(path) as conn:  # the v0 schema, as shipped before research/interest
+        conn.executescript(
+            "CREATE TABLE souls (username TEXT NOT NULL, account_incarnation TEXT NOT NULL, user_md TEXT NOT NULL "
+            "DEFAULT '', updated_at TEXT NOT NULL, PRIMARY KEY (username, account_incarnation));"
+            "CREATE TABLE memories (id TEXT PRIMARY KEY, username TEXT NOT NULL, account_incarnation TEXT NOT NULL, "
+            "kind TEXT NOT NULL CHECK (kind IN ('preference', 'topic', 'paper', 'fact')), text TEXT NOT NULL, "
+            "source_conversation_id TEXT, created_at TEXT NOT NULL, last_used_at TEXT NOT NULL);"
+            "INSERT INTO memories VALUES ('m1', 'alice', 'inc-a', 'topic', 'GraphRAG', NULL, '2026-01-01', '2026-01-01');"
+        )
+    db = SoulDB(path)
+    assert db.get_soul("alice", "inc-a")["memories"][0] == {
+        "id": "m1", "kind": "topic", "text": "GraphRAG", "source_conversation_id": None,
+        "created_at": "2026-01-01", "last_used_at": "2026-01-01", "hits": 1}
+    assert db.add_memories("alice", "inc-a", [{"kind": "research", "text": "그래프 추천 연구 중"}], None) == 1
+    SoulDB(path)  # second open: already at version 1, nothing rebuilt or lost
+    with sqlite3.connect(path) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0] == 2
+
+
+def test_interest_hits_and_caps(tmp_path):
+    from src.storage.soul_db import MAX_INTERESTS, MAX_RESEARCH
+
+    db = SoulDB(tmp_path / "s.db")
+    for _ in range(3):
+        db.add_memories("alice", "inc-a", [{"kind": "interest", "text": "그래프 기반 추천"}], None)
+    db.add_memories("alice", "inc-a", [{"kind": "interest", "text": f"분야 {i}"} for i in range(MAX_INTERESTS)], None)
+    interests = [m for m in db.get_soul("alice", "inc-a")["memories"] if m["kind"] == "interest"]
+    assert len(interests) == MAX_INTERESTS
+    assert next(m for m in interests if m["text"] == "그래프 기반 추천")["hits"] == 3  # kept: most hits
+    assert "분야 0" not in {m["text"] for m in interests}  # the oldest single-hit label was evicted
+
+    for i in range(MAX_RESEARCH + 2):
+        db.add_memories("alice", "inc-a", [{"kind": "research", "text": f"연구 {i}"}], None)
+    research = [m["text"] for m in db.get_soul("alice", "inc-a")["memories"] if m["kind"] == "research"]
+    assert sorted(research) == ["연구 2", "연구 3", "연구 4"]  # the newest replace the oldest
+
+
+def test_research_and_interest_extraction(souls, monkeypatch):
+    def items(*pairs, query_interests=()):
+        return json.dumps({"items": [{"kind": k, "text": t} for k, t in pairs], "query_interests": list(query_interests)})
+
+    parse = turn_runner.parse_extracted
+    for message, text in (("나는 추천시스템에서 콜드스타트 완화를 연구해", "추천시스템 콜드스타트 완화 연구"),
+                          ("내 졸업 논문 주제는 에이전트 장기 기억이야", "졸업 논문: 에이전트 장기 기억"),
+                          ("지금 GraphRAG 평가 벤치마크를 만들고 있어", "GraphRAG 평가 벤치마크 제작 중")):
+        assert parse(items(("research", text)), "", message) == [{"kind": "research", "text": text}], message
+    # a request that merely mentions 연구 is not the user's research
+    assert parse(items(("research", "GraphRAG 연구 동향")), "", "GraphRAG 연구 동향 알려줘") == []
+    assert parse(items(("research", "LLM 에이전트 연구")), "", "LLM 에이전트 연구 찾아줘") == []
+    assert parse(items(("interest", "에이전트 장기 기억")), "", "요즘 에이전트 장기 기억에 관심 있어") == [
+        {"kind": "interest", "text": "에이전트 장기 기억"}]
+    assert parse(items(("interest", "에이전트 장기 기억")), "", "에이전트 장기 기억 논문") == []  # never said
+    assert parse(items(("interest", "너무 길어서 분야 이름이 될 수 없는 문장입니다")), "", "관심 있어") == []
+
+    # every search turn maps its query to 1–2 area labels
+    seen = []
+    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
+    monkeypatch.setattr(turn_runner, "create_chat_completion", lambda client, **kw: seen.append(kw["messages"])
+                        or _llm_reply(items(query_interests=["에이전트 장기 기억", "대화 메모리 평가", "셋째"])))
+    blocks = [{"type": "search_results", "query": "장기 대화 기억 에이전트 메모리"}]
+    asyncio.run(turn_runner.remember_turn(ALICE, "c1", "장기 기억 에이전트 논문", blocks))
+    asyncio.run(turn_runner.remember_turn(ALICE, "c2", "에이전트 기억 다시 찾아줘", blocks))
+    assert seen[0][1]["content"] == "사용자 메시지: 장기 기억 에이전트 논문\n이번 검색어: 장기 대화 기억 에이전트 메모리"
+    memories = souls.get_soul("alice", "inc-a")["memories"]
+    interests = {m["text"]: m["hits"] for m in memories if m["kind"] == "interest"}
+    assert interests == {"에이전트 장기 기억": 2, "대화 메모리 평가": 2}  # max 2 labels, hits count up
+    assert "장기 대화 기억 에이전트 메모리" in {m["text"] for m in memories if m["kind"] == "topic"}
+
+
+def test_memory_block_and_markdown_put_research_and_interests_first(souls):
+    souls.add_memories("alice", "inc-a", [{"kind": "preference", "text": "앞으로 답은 짧게"}], None)
+    souls.add_memories("alice", "inc-a", [{"kind": "research", "text": "추천시스템 콜드스타트 연구 중"}], None)
+    for label, times in (("그래프 기반 추천", 3), ("에이전트 장기 기억", 1)):
+        for _ in range(times):
+            souls.add_memories("alice", "inc-a", [{"kind": "interest", "text": label}], None)
+    souls.add_memories("alice", "inc-a", [{"kind": "topic", "text": "GraphRAG"}], None)
+    block = turn_runner.build_memory_block(ALICE, "아무 질문")
+    assert block.split("# MEMORY.md\n\n", 1)[1] == (
+        "## 연구 내용\n- 추천시스템 콜드스타트 연구 중\n\n"
+        "## 관심 분야\n- 그래프 기반 추천 · 에이전트 장기 기억\n\n"
+        "- [선호] 앞으로 답은 짧게\n- [관심 주제] GraphRAG"
+    )
+    assert "연구 내용·관심 분야는 예시와 다음 단계를 사용자에 맞추는 데 쓰되" in turn_runner._MEMORY_NOTE
+
+
+def test_get_soul_returns_research_and_interest_with_hits(souls):
+    app = FastAPI()
+    app.include_router(soul_router.router)
+    app.dependency_overrides[get_authenticated_principal] = lambda: ALICE
+    client = TestClient(app)
+    souls.add_memories("alice", "inc-a", [{"kind": "interest", "text": "GraphRAG 평가"}] * 2, None)
+    souls.add_memories("alice", "inc-a", [{"kind": "research", "text": "GraphRAG 평가 연구 중"}], None)
+    body = client.get("/api/me/soul").json()
+    by_kind = {m["kind"]: m for m in body["memories"]}
+    assert by_kind["interest"]["hits"] == 2 and by_kind["research"]["hits"] == 1
+    assert body["markdown"].index("## 연구 내용") < body["markdown"].index("## 관심 분야")
+    assert client.delete(f"/api/me/soul/memories/{by_kind['interest']['id']}").json() == {"ok": True}

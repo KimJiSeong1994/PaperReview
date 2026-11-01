@@ -11,12 +11,15 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import uuid4
 
-MAX_MEMORIES = 60
+MAX_MEMORIES = 60  # preference/topic/paper/fact, least recently used evicted
+MAX_RESEARCH = 3  # the user's own research; the newest replace the oldest
+MAX_INTERESTS = 20  # research interest labels; fewest hits evicted first
 MAX_USER_MD = 2000
 MAX_MEMORY_TEXT = 200
-MEMORY_KINDS = ("preference", "topic", "paper", "fact")
+MEMORY_KINDS = ("preference", "topic", "paper", "fact", "research", "interest")
+SCHEMA_VERSION = 1  # 1: research/interest kinds + hits
 
-_SCHEMA = """
+_SOULS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS souls (
     username            TEXT NOT NULL,
     account_incarnation TEXT NOT NULL,
@@ -24,21 +27,29 @@ CREATE TABLE IF NOT EXISTS souls (
     updated_at          TEXT NOT NULL,
     PRIMARY KEY (username, account_incarnation)
 );
-CREATE TABLE IF NOT EXISTS memories (
+"""
+_MEMORIES_SCHEMA = """
+CREATE TABLE {table} (
     id                     TEXT PRIMARY KEY,
     username               TEXT NOT NULL,
     account_incarnation    TEXT NOT NULL,
-    kind                   TEXT NOT NULL CHECK (kind IN ('preference', 'topic', 'paper', 'fact')),
+    kind                   TEXT NOT NULL CHECK (kind IN ('preference', 'topic', 'paper', 'fact', 'research', 'interest')),
     text                   TEXT NOT NULL,
     source_conversation_id TEXT,
     created_at             TEXT NOT NULL,
-    last_used_at           TEXT NOT NULL
+    last_used_at           TEXT NOT NULL,
+    hits                   INTEGER NOT NULL DEFAULT 1
 );
-CREATE INDEX IF NOT EXISTS idx_memories_owner
-    ON memories (username, account_incarnation, last_used_at DESC);
 """
+_MEMORIES_INDEX = (
+    "CREATE INDEX IF NOT EXISTS idx_memories_owner ON memories (username, account_incarnation, last_used_at DESC);"
+)
+_V0_COLUMNS = "id, username, account_incarnation, kind, text, source_conversation_id, created_at, last_used_at"
 
-_KIND_LABELS = {"preference": "선호", "topic": "관심 주제", "paper": "논문", "fact": "사실"}
+_KIND_LABELS = {
+    "preference": "선호", "topic": "관심 주제", "paper": "논문", "fact": "사실",
+    "research": "연구 내용", "interest": "관심 분야",
+}
 
 
 def _now() -> str:
@@ -61,11 +72,28 @@ def normalize_memory(text: str) -> str:
     return " ".join(str(text).lower().split())
 
 
+def top_interests(memories: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    """Interest memories by hits, then most recent use."""
+    interests = [m for m in memories if m["kind"] == "interest"]
+    return sorted(interests, key=lambda m: (m.get("hits") or 1, m["last_used_at"]), reverse=True)[:limit]
+
+
 def render_markdown(soul: Dict[str, Any]) -> str:
-    """Render a soul as ``# USER.md`` + ``# MEMORY.md`` markdown."""
+    """Render a soul as ``# USER.md`` + ``# MEMORY.md``; research and interests come first as sections."""
     user_md = soul.get("user_md", "").strip() or "(비어 있음)"
-    lines = [f"- [{_KIND_LABELS.get(m['kind'], m['kind'])}] {m['text']}" for m in soul.get("memories", [])]
-    return f"# USER.md\n\n{user_md}\n\n# MEMORY.md\n\n" + ("\n".join(lines) or "(비어 있음)")
+    memories = soul.get("memories", [])
+    parts = []
+    research = [m for m in memories if m["kind"] == "research"]
+    if research:
+        parts.append("## 연구 내용\n" + "\n".join(f"- {m['text']}" for m in research))
+    interests = top_interests(memories, MAX_INTERESTS)
+    if interests:
+        parts.append("## 관심 분야\n- " + " · ".join(m["text"] for m in interests))
+    lines = [f"- [{_KIND_LABELS.get(m['kind'], m['kind'])}] {m['text']}"
+             for m in memories if m["kind"] not in ("research", "interest")]
+    if lines:
+        parts.append("\n".join(lines))
+    return f"# USER.md\n\n{user_md}\n\n# MEMORY.md\n\n" + ("\n\n".join(parts) or "(비어 있음)")
 
 
 class SoulDB:
@@ -78,10 +106,34 @@ class SoulDB:
         with self._lock:
             conn = self._connect()
             try:
-                conn.executescript(_SCHEMA)
-                conn.commit()
+                conn.executescript(_SOULS_SCHEMA)
+                self._migrate(conn)
             finally:
                 conn.close()
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Bring ``memories`` to SCHEMA_VERSION; idempotent (PRAGMA user_version records it).
+
+        SQLite cannot alter a CHECK constraint, so v0 → v1 rebuilds the table:
+        copy every row into the new schema (hits = 1), drop, rename.
+        """
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'memories'").fetchone()
+        if not exists:
+            conn.executescript(_MEMORIES_SCHEMA.format(table="memories") + _MEMORIES_INDEX)
+        elif version < 1:
+            conn.executescript(
+                "BEGIN;"
+                + _MEMORIES_SCHEMA.format(table="memories_v1")
+                + f"INSERT INTO memories_v1 ({_V0_COLUMNS}, hits) SELECT {_V0_COLUMNS}, 1 FROM memories;"
+                "DROP TABLE memories;"
+                "ALTER TABLE memories_v1 RENAME TO memories;"
+                + _MEMORIES_INDEX
+                + "COMMIT;"
+            )
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
 
     def _connect(self) -> sqlite3.Connection:
         """Open a WAL-mode connection with Row factory."""
@@ -102,7 +154,7 @@ class SoulDB:
                     (username, incarnation),
                 ).fetchone()
                 memories = conn.execute(
-                    "SELECT id, kind, text, source_conversation_id, created_at, last_used_at FROM memories"
+                    "SELECT id, kind, text, source_conversation_id, created_at, last_used_at, hits FROM memories"
                     " WHERE username = ? AND account_incarnation = ? ORDER BY last_used_at DESC",
                     (username, incarnation),
                 ).fetchall()
@@ -129,9 +181,11 @@ class SoulDB:
     def add_memories(
         self, username: str, incarnation: str, items: Iterable[Dict[str, str]], source_conversation_id: Optional[str]
     ) -> int:
-        """Add new ``{kind, text}`` items; a duplicate (normalised text) is refreshed instead.
+        """Add new ``{kind, text}`` items; a duplicate (normalised text) is refreshed instead,
+        and a repeated interest also gains a hit.
 
-        Keeps at most 60 memories per account, evicting the least recently used.
+        Caps per account: 3 research (oldest dropped), 20 interests (fewest hits,
+        then least recent, dropped), 60 of the other kinds (least recently used dropped).
         Returns how many new memories were stored.
         """
         added = 0
@@ -153,19 +207,27 @@ class SoulDB:
                         continue
                     now = _now()
                     if key in existing:
-                        conn.execute("UPDATE memories SET last_used_at = ? WHERE id = ?", (now, existing[key]))
+                        conn.execute(
+                            "UPDATE memories SET last_used_at = ?, hits = hits + (kind = 'interest') WHERE id = ?",
+                            (now, existing[key]),
+                        )
                         continue
                     existing[key] = uuid4().hex
                     conn.execute(
-                        "INSERT INTO memories VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        f"INSERT INTO memories ({_V0_COLUMNS}, hits) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
                         (existing[key], username, incarnation, kind, text, source_conversation_id, now, now),
                     )
                     added += 1
-                conn.execute(
-                    "DELETE FROM memories WHERE id IN (SELECT id FROM memories"
-                    " WHERE username = ? AND account_incarnation = ? ORDER BY last_used_at DESC LIMIT -1 OFFSET ?)",
-                    (username, incarnation, MAX_MEMORIES),
-                )
+                for kinds, order, cap in (
+                    ("kind NOT IN ('research', 'interest')", "last_used_at DESC", MAX_MEMORIES),
+                    ("kind = 'research'", "created_at DESC", MAX_RESEARCH),
+                    ("kind = 'interest'", "hits DESC, last_used_at DESC", MAX_INTERESTS),
+                ):
+                    conn.execute(
+                        f"DELETE FROM memories WHERE id IN (SELECT id FROM memories WHERE username = ? AND "
+                        f"account_incarnation = ? AND {kinds} ORDER BY {order} LIMIT -1 OFFSET ?)",
+                        (username, incarnation, cap),
+                    )
                 conn.commit()
             finally:
                 conn.close()
