@@ -1135,6 +1135,8 @@ def test_compare_two_papers_and_deeper_pass(env):
     _events(env.client, conv_id, "1번이랑 2번 차이 설명해줘")
     system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
     assert '"- 문제:", "- 방법:", "- 결과:", "- 데이터:"' in system.replace("\\", "")
+    assert "[n] 은 그 절의 끝(마침표 앞)에 붙이세요. [n] 으로 절을 시작하지 마세요" in system
+    assert '"- 문제: 1번은 GraphRAG의 사용 시점을 묻습니다[1]. 2번은 상대적 성능을 비교합니다[2]."' in system
     assert data.startswith("비교할 논문:\n<papers>\n[1] ") and "\n\n[2] " in data and "<paper_text>" not in data
     assert "paper_text_for" not in env.calls  # no PDF fetch for comparisons
 
