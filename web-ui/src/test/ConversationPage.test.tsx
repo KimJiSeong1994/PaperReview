@@ -360,7 +360,7 @@ describe('ConversationPage', () => {
     });
     expect(screen.getByRole('heading', { name: '인사와 주제 고르기' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '이어서 물어보세요' }).getAttribute('placeholder'))
-      .toBe('이어서 물어보거나 조건을 바꿔 보세요 (예: 2024년 이후만)');
+      .toBe('이어서 물어보세요 (예: 2번 핵심 내용 설명해줘, 2024년 이후만)');
   });
 
   it('ignores a block type it does not know', async () => {

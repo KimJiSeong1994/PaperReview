@@ -42,7 +42,7 @@ const MASCOT_SRC = '/Jiphyeonjeon_llama.webp';
 // Starter rows put an editable question in the composer instead of submitting it.
 const STARTER_QUESTIONS: { text: string; meta: string; icon: IconName }[] = [
   { text: 'GraphRAG가 기존 RAG보다 나은 경우는 언제야?', meta: '비교 질문도 평소 말투 그대로 물어보면 돼요', icon: 'compare' },
-  { text: '최근 1년 사이 나온 장기 대화 기억 논문만 보여줘', meta: '기간·조건도 문장으로 적으면 돼요', icon: 'search' },
+  { text: '최근 장기 대화 기억 논문을 찾아서 핵심 내용 설명해줘', meta: '기간·조건도 문장으로 적으면 돼요', icon: 'search' },
 ];
 
 /**

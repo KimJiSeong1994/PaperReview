@@ -105,9 +105,9 @@ describe('HomeWorkspace', () => {
     expect(screen.getByText('북마크한 GRAG와 제목 유사도가 높아요')).toBeTruthy();
     expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeTruthy();
     expect(screen.getByText(/오늘 추천 7편/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /최근 1년 사이 나온 장기 대화 기억 논문만 보여줘/ }));
+    fireEvent.click(screen.getByRole('button', { name: /최근 장기 대화 기억 논문을 찾아서 핵심 내용 설명해줘/ }));
     expect((screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement).value)
-      .toBe('최근 1년 사이 나온 장기 대화 기억 논문만 보여줘');
+      .toBe('최근 장기 대화 기억 논문을 찾아서 핵심 내용 설명해줘');
     expect(onSearch).toHaveBeenCalledTimes(1);
   });
 

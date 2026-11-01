@@ -148,7 +148,7 @@ async def _search_papers(t: Turn) -> None:
         {"role": "system", "content": tr._with_memory(tr._SEARCH_SUMMARY_PROMPT, t.memory)},
         {"role": "user", "content": (
             f"질문: {t.message}\n{previous}이번 검색어: {query}\n\n"
-            f"상위 논문:\n<papers>\n{tr._paper_list(papers, 8, 500)}\n</papers>"
+            f"상위 논문:\n<papers>\n{tr._paper_list(papers, 8, 900)}\n</papers>"
         )},
     ]
     fallback = f"{len(papers)}편의 논문을 찾았습니다. 오른쪽 그래프와 목록에서 논문 사이의 관계를 살펴보세요."
@@ -159,12 +159,45 @@ async def _search_papers(t: Turn) -> None:
 # ── answer_from_results ───────────────────────────────────────────────
 
 
+PAPER_TEXT_CHARS = 8_000
+PAPER_TEXT_TIMEOUT_SEC = 20.0
+
+
+async def fetch_paper_text(paper: Dict[str, Any]) -> str:
+    """First ~8k chars (intro, method start) of the paper's PDF within 20 s; '' on any failure."""
+    async def fetch() -> str:
+        url = await resolve_pdf_url(paper)
+        text = await extract_pdf_text(url) if url else ""
+        return text[:PAPER_TEXT_CHARS] if has_word_spaces(text) else ""
+
+    try:
+        return await asyncio.wait_for(fetch(), PAPER_TEXT_TIMEOUT_SEC)
+    except Exception as exc:
+        logger.info("paper text unavailable for explanation: %s", type(exc).__name__)
+        return ""
+
+
 async def _answer_from_results(t: Turn) -> None:
     t.learn = True
     tr._status(t.emit, "answer", "검색 결과를 바탕으로 답변하는 중…")
+    papers = t.latest["papers"]
+    refs = tr.answer_refs(t.message, t.history, papers)
+    if not refs:
+        system = tr._ANSWER_PROMPT
+        data = f"검색 결과:\n<papers>\n{tr._paper_list(papers, 15, 400)}\n</papers>"
+    elif len(refs) >= 2 and tr._COMPARE.search(t.message):
+        system = tr._COMPARE_PROMPT
+        data = f"비교할 논문:\n<papers>\n{tr._paper_list(papers, 3, 1500, refs)}\n</papers>"
+    else:
+        system = tr._EXPLAIN_PROMPT + (tr._DEEPER_NOTE if tr._DEEPER.search(t.message) else "")
+        data = f"설명할 논문:\n<papers>\n{tr._paper_list(papers, 3, 1500, refs)}\n</papers>"
+        if len(refs) == 1:
+            text = await fetch_paper_text(papers[refs[0] - 1])
+            if text:
+                data += f"\n\n[{refs[0]}] 본문 앞부분:\n<paper_text>\n{text}\n</paper_text>"
     messages = [
-        {"role": "system", "content": tr._with_memory(tr._ANSWER_PROMPT, t.memory)},
-        {"role": "user", "content": f"검색 결과:\n<papers>\n{tr._paper_list(t.latest['papers'], 15, 400)}\n</papers>"},
+        {"role": "system", "content": tr._with_memory(system, t.memory)},
+        {"role": "user", "content": data},
     ]
     messages += [{"role": h["role"], "content": h.get("content", "")} for h in t.history[-8:]]
     previous = tr._last_assistant(t.history)
@@ -491,9 +524,11 @@ TOOLS: List[Tool] = [
     ),
     Tool(
         "answer_from_results",
-        "현재 검색 결과에 대한 가벼운 질문(요약, 비교, 차이). 검색 결과가 없으면 고르지 마세요. "
-        "한 논문을 깊이 분석해 달라는 요청은 deep_review.",
-        ("1번이랑 3번 차이가 뭐야?", "결과를 한 줄씩 요약해줘", "이 중에 제일 최신 건?"),
+        "현재 검색 결과나 그 중 논문의 내용을 설명·요약·비교하는 질문(핵심 내용, 요지, 무슨 내용인지, 어떻게 동작하는지, "
+        "차이, 더 자세히). 새 검색이 아니라 이 도구입니다. 검색 결과가 없으면 고르지 마세요. "
+        "몇 분 걸리는 파이프라인 분석을 원하면 deep_review.",
+        ("2번 핵심 내용 설명해줘", "이 논문들 요지가 뭐야", "1번이랑 3번 차이 설명해줘", "그거 어떻게 동작해?",
+         "더 자세히", "결과를 한 줄씩 요약해줘"),
         _answer_from_results,
     ),
     Tool(

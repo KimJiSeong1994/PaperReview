@@ -101,7 +101,7 @@ describe('homepage landing content', () => {
     expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /GraphRAG가 기존 RAG보다 나은 경우는 언제야\?/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /최근 1년 사이 나온 장기 대화 기억 논문만 보여줘/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /최근 장기 대화 기억 논문을 찾아서 핵심 내용 설명해줘/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /주제 입문 커리큘럼 짜기/ }).getAttribute('href')).toBe('/curriculum');
     expect(screen.getByRole('textbox', { name: '논문 검색' }).getAttribute('placeholder'))
       .toBe('궁금한 주제나 질문을 편하게 적어 주세요');

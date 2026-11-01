@@ -31,7 +31,7 @@ function HomeComposer({
   const reply = variant === 'reply';
   // The accessible name stays short; the placeholder invites a natural question.
   const label = reply ? '이어서 물어보세요' : '논문 검색';
-  const placeholder = reply ? '이어서 물어보거나 조건을 바꿔 보세요 (예: 2024년 이후만)' : '궁금한 주제나 질문을 편하게 적어 주세요';
+  const placeholder = reply ? '이어서 물어보세요 (예: 2번 핵심 내용 설명해줘, 2024년 이후만)' : '궁금한 주제나 질문을 편하게 적어 주세요';
   const [query, setQuery] = useState(initialQuery);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 

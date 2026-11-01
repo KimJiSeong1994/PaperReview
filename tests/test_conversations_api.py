@@ -57,6 +57,12 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "_get_soul_db", lambda: souls)
     monkeypatch.setattr(storage, "_get_user_db", lambda: _CurrentUsers({("alice", "inc-a")}))
     monkeypatch.setattr(turn_runner, "_review_starts", {})
+
+    async def no_paper_text(paper):  # never reach the network from the explain path
+        calls.setdefault("paper_text_for", []).append(paper.get("result_key"))
+        return calls.get("paper_text", "")
+
+    monkeypatch.setattr(tools, "fetch_paper_text", no_paper_text)
     bookmarks = []
     monkeypatch.setattr(storage, "load_bookmarks_for_user", lambda username, include_reports=True: [
         b if include_reports else {k: v for k, v in b.items() if k != "report_markdown"} for b in bookmarks
@@ -1065,3 +1071,113 @@ def test_review_slot_accounting_with_cost():
     turn_runner._release_start("review", user, 2)
     assert len(turn_runner._review_starts[("review", user)]) == 3
     turn_runner._review_starts.pop(("review", user))
+
+
+
+# ── Phase A7: explain the content ─────────────────────────────────────
+
+def _many_papers(n=10):
+    return {"openalex": [
+        {"result_key": f"k{i}", "_rank": i, "title": f"Paper {i}: about memory", "year": 2024, "venue": "ACL",
+         "abstract": f"ABS{i} " + "x" * 2000}
+        for i in range(1, n + 1)]}
+
+
+def test_search_summary_explains_with_long_abstracts(env):
+    env.souls.add_memories("alice", "inc-a", [{"kind": "preference", "text": "답은 아주 짧게"}], None)
+    env.calls["search_response"] = _search_response(results=_many_papers())
+    conv_id = env.client.post("/api/conversations", json={"message": "에이전트 메모리"}).json()["id"]
+    _events(env.client, conv_id)
+    system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+    for section in ("**핵심 내용**", "**비교·정리**", "**주제 또는 제목 [n]**", "400–700자", "어떤 문제를"):
+        assert section in system
+    assert "답변 길이 선호(예: \"짧게\")가 있으면 그 선호가 이 글의 글자 예산보다 우선합니다" in system
+    assert "- [선호] 답은 아주 짧게" in system  # the preference itself reaches the prompt
+    assert "[8] Paper 8: about memory (2024, ACL)" in data and "[9]" not in data
+    abstract = data.split("[1] Paper 1: about memory (2024, ACL)\n", 1)[1].split("\n\n", 1)[0]
+    assert len(abstract) == 900
+
+
+def _with_results(env):
+    env.calls["search_response"] = _search_response(results=_many_papers(4))
+    conv_id = env.client.post("/api/conversations", json={"message": "에이전트 메모리"}).json()["id"]
+    _events(env.client, conv_id)
+    return conv_id
+
+
+def test_explain_one_paper_attaches_pdf_text_or_falls_back(env):
+    conv_id = _with_results(env)
+    routed = len(env.calls["route_inputs"])
+    env.calls["paper_text"] = "INTRO AND METHOD TEXT"
+    events = _events(env.client, conv_id, "2번 핵심 내용 설명해줘")
+    assert events[-1]["done"]["intent"] == "answer" and len(env.calls["route_inputs"]) == routed  # pre-check, no router
+    system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+    assert "짧은 문단 2–3개로 쓰세요(글머리표 금지): ① 문제·접근 ② 핵심 결과" in system
+    assert "③ 한계·의의. 문단마다 2–4문장, [n] 인용은 문단마다 한 번만" in system and "700자 이내" in system
+    assert data.startswith("설명할 논문:\n<papers>\n[2] Paper 2: about memory (2024, ACL)\n")
+    assert len(data.split("\n", 3)[3].split("\n</papers>")[0]) == 1500  # full abstract up to 1500 chars
+    assert "<paper_text>\nINTRO AND METHOD TEXT\n</paper_text>" in data and env.calls["paper_text_for"] == ["k2"]
+
+    env.calls["paper_text"] = ""  # PDF fetch failed → abstract only, silently
+    _events(env.client, conv_id, "3번 무슨 내용이야?")
+    data = env.calls["llm"][-1][1]["content"]
+    assert data.startswith("설명할 논문:\n<papers>\n[3] ") and "<paper_text>" not in data
+
+
+def test_compare_two_papers_and_deeper_pass(env):
+    conv_id = _with_results(env)
+    _events(env.client, conv_id, "1번이랑 2번 차이 설명해줘")
+    system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+    assert '"- 문제:", "- 방법:", "- 결과:", "- 데이터:"' in system.replace("\\", "")
+    assert data.startswith("비교할 논문:\n<papers>\n[1] ") and "\n\n[2] " in data and "<paper_text>" not in data
+    assert "paper_text_for" not in env.calls  # no PDF fetch for comparisons
+
+    # The last answer cited only [3]; "더 자세히" goes deeper on that paper with its PDF text.
+    env.calls["paper_text"] = "DEEP TEXT"
+    real = turn_runner._last_assistant
+    try:
+        turn_runner._last_assistant = lambda history: "요지입니다 [3]."
+        _events(env.client, conv_id, "더 자세히")
+    finally:
+        turn_runner._last_assistant = real
+    system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
+    assert "더 자세한 설명을 원합니다" in system and data.startswith("설명할 논문:\n<papers>\n[3] ")
+    assert "<paper_text>\nDEEP TEXT" in data
+
+
+def test_content_questions_route_to_answer():
+    papers = [{"title": "LightRAG: Simple"}, {"title": "HippoRAG: Memory"}, {"title": "Third"}]
+    single = [{"role": "assistant", "status": "done", "content": "설명 [2].", "blocks": []}]
+    for message in ("핵심 내용 설명해줘", "이 논문들 요지가 뭐야", "무슨 내용이야?", "그거 어떻게 동작해?",
+                    "LightRAG 설명해줘", "1번이랑 3번 차이 설명해줘"):
+        route = turn_runner.precheck_route(message, single, papers)
+        assert route and route["action"] == "answer", message
+    assert turn_runner.precheck_route("RAG가 뭔지 설명해줘", [], papers) is None  # no paper named → LLM router
+    assert turn_runner.precheck_route("핵심 내용 설명해줘", [], []) is None  # nothing searched yet
+    assert turn_runner.answer_refs("이 논문들 요지가 뭐야", single, papers) == []  # plural → all results
+    assert turn_runner.answer_refs("이 논문 더 자세히", single, papers) == [2]
+    assert turn_runner.answer_refs("1번, 3번 비교", [], papers) == [1, 3]
+
+
+def test_fetch_paper_text_bounds_and_failures(monkeypatch):
+    import asyncio
+
+    state = {"url": "https://arxiv.org/pdf/1", "text": "word " * 4000}
+
+    async def resolve(paper):
+        return state["url"]
+
+    async def extract(url):
+        if isinstance(state["text"], Exception):
+            raise state["text"]
+        return state["text"]
+
+    monkeypatch.setattr(tools, "resolve_pdf_url", resolve)
+    monkeypatch.setattr(tools, "extract_pdf_text", extract)
+    assert len(asyncio.run(tools.fetch_paper_text({}))) == tools.PAPER_TEXT_CHARS
+    state["text"] = ValueError("download failed")
+    assert asyncio.run(tools.fetch_paper_text({})) == ""
+    state["text"] = "nospaces" * 100
+    assert asyncio.run(tools.fetch_paper_text({})) == ""
+    state["url"] = None
+    assert asyncio.run(tools.fetch_paper_text({})) == ""
