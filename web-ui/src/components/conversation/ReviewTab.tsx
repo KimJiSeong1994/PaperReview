@@ -159,6 +159,9 @@ function ReviewTab({ sessionId, title }: ReviewTabProps) {
           <p className="conv-note">검증 상세를 불러오지 못했어요.</p>
         ) : !verification ? (
           <p className="conv-note" role="status">검증 상세를 불러오는 중…</p>
+        ) : claims.length === 0 && !stats ? (
+          // Fast reviews (the chat default) skip claim verification entirely.
+          <p className="conv-note">빠른 리뷰에는 주장 검증 단계가 없어요. &lsquo;정밀 리뷰 해줘&rsquo;라고 요청하면 주장 검증까지 수행합니다.</p>
         ) : claims.length === 0 ? (
           <p className="conv-note">검증한 주장이 없어요.</p>
         ) : (

@@ -90,6 +90,18 @@ describe('ReviewBlock', () => {
     expect(screen.queryByText('확인 불가')).toBeNull();
   });
 
+  it('labels the review mode next to the title when the block says it', () => {
+    vi.mocked(getReviewStatus).mockResolvedValue({ session_id: 'rev-1', status: 'processing', report_available: false });
+    const { rerender } = render(
+      <MemoryRouter><ReviewBlock block={{ ...block, mode: 'fast' }} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>,
+    );
+    expect(screen.getByText('빠른 리뷰')).toBeTruthy();
+    rerender(<MemoryRouter><ReviewBlock block={{ ...block, mode: 'full' }} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
+    expect(screen.getByText('정밀 리뷰')).toBeTruthy();
+    rerender(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);
+    expect(screen.queryByText(/빠른 리뷰|정밀 리뷰/)).toBeNull();
+  });
+
   it('stops polling on unmount', async () => {
     vi.mocked(getReviewStatus).mockResolvedValue({ session_id: 'rev-1', status: 'processing', report_available: false });
     const { unmount } = render(<MemoryRouter><ReviewBlock block={block} onCompleted={vi.fn()} onOpenReport={vi.fn()} /></MemoryRouter>);

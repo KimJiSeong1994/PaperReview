@@ -153,6 +153,8 @@ export interface BookmarkSourced {
 
 export interface ReviewStartedBlock extends BookmarkSourced {
   type: 'review_started';
+  /** fast: no claim verification (the chat default); full: verified claims. */
+  mode?: 'fast' | 'full';
   session_id: string;
   paper_index: number | null;
   paper_title: string;

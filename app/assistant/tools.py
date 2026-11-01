@@ -180,23 +180,27 @@ async def _deep_review(t: Turn) -> None:
     if running:
         t.intent = "chat"
         note = tr._status_note(tr._review_session(running["session_id"]))  # "(상태: 분석 중)" or ""
-        detail = f"{running['paper_index']}번 논문" + (f", {note[1:-1]}" if note else "")
+        detail = _label(running["paper_index"]) + (f", {note[1:-1]}" if note else "")
         t.say(f"이미 진행 중인 심층 리뷰가 있어요({detail}). 끝나면 결과를 보여드릴게요.")
         return
-    if not tr._reserve_start("review", t.principal.username):
+    mode = t.route.get("review_mode") or "fast"
+    cost = 2 if mode == "full" else 1  # a full review counts as two of the 5 slots
+    if not tr._reserve_start("review", t.principal.username, cost):
         t.intent = "chat"
         t.say("심층 리뷰는 10분에 5편까지 시작할 수 있어요. 잠시 후 다시 시도해 주세요.")
         return
     paper, index, title, key, extra = t.paper()
-    t.say(f"{_label(index)} 「{tr._one_paragraph(title)}」 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n")
+    name = f"{_label(index)} 「{tr._one_paragraph(title)}」"
+    t.say(f"{name} 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.\n\n" if mode == "full"
+          else f"{name} 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n")
     try:
-        session_id = await tr.start_review(paper, key, t.principal)
+        session_id = await tr.start_review(paper, key, t.principal, fast_mode=mode == "fast")
     except Exception:
         logger.exception("assistant deep review start failed")
-        tr._release_start("review", t.principal.username)
+        tr._release_start("review", t.principal.username, cost)
         raise tr._TurnError("심층 리뷰를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.")
     t.add({"type": "review_started", "session_id": session_id, "paper_index": index,
-           "paper_title": title, "paper_key": key, **extra})
+           "paper_title": title, "paper_key": key, "mode": mode, **extra})
     t.learn = True
 
 
@@ -491,7 +495,9 @@ TOOLS: List[Tool] = [
         "현재 결과 중 특정 논문 하나를 기존 심층 리뷰 파이프라인으로 깊이 분석(몇 분 걸림). 딥리뷰, 딥 리뷰, 심층 리뷰, "
         "심층 분석, 자세히·깊게·제대로 분석하거나 파고들기, 정독, 꼼꼼히 봐 달라는 요청, \"deep review\", \"in-depth\", "
         "그리고 한 논문을 제대로 알고 싶다거나 핵심 기여와 한계까지 정리해 달라는 암묵적 요청. "
-        "paper_index 에 목록 번호(정수) 또는 제목 일부(문자열). 사용자가 북마크한 논문도 제목으로 지칭할 수 있음.",
+        "paper_index 에 목록 번호(정수) 또는 제목 일부(문자열). 사용자가 북마크한 논문도 제목으로 지칭할 수 있음. "
+        "정밀 리뷰·전체 리뷰·검증까지·꼼꼼한 리뷰·full review 요청이면 review_mode \"full\"(주장 검증 포함, 10분 안팎), "
+        "아니면 \"fast\".",
         ("3번 논문 딥리뷰", "2번 심층 분석해줘", "이 논문 제대로 알고 싶어", "2번 핵심 기여랑 한계까지 정리해줘",
          "LightRAG 꼼꼼히 봐줘", "deep review paper 1"),
         _deep_review,

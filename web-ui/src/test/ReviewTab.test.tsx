@@ -86,6 +86,29 @@ describe('ReviewTab', () => {
     expect(screen.getByTitle('HippoRAG 포스터 미리보기').getAttribute('srcdoc')).toBe('<h1>Direct</h1>');
   });
 
+  it('explains that a fast review has no claim verification, without a summary line', async () => {
+    vi.mocked(getReviewReport).mockResolvedValue({ ...report, verification_stats: undefined } as never);
+    vi.mocked(getVerificationDetail).mockResolvedValue({
+      session_id: 'rev-1', claims: [], cross_references: [], consensus: [], verification_stats: null,
+    });
+    render(<ReviewTab sessionId="rev-1" title="HippoRAG" />);
+    expect(await screen.findByText(/빠른 리뷰에는 주장 검증 단계가 없어요/)).toBeTruthy();
+    expect(screen.getByText(/정밀 리뷰 해줘/)).toBeTruthy();
+    expect(screen.queryByText(/근거 확인/)).toBeNull();
+    expect(screen.queryByText('검증한 주장이 없어요.')).toBeNull();
+  });
+
+  it('keeps the plain empty text for a review that verified and found no claims', async () => {
+    const stats = { total_claims: 0, verifiable_claims: 0, verified: 0, partially_verified: 0, unverified: 0, contradicted: 0, verification_rate: 0 };
+    vi.mocked(getReviewReport).mockResolvedValue({ ...report, verification_stats: stats } as never);
+    vi.mocked(getVerificationDetail).mockResolvedValue({
+      session_id: 'rev-1', claims: [], cross_references: [], consensus: [], verification_stats: stats,
+    });
+    render(<ReviewTab sessionId="rev-1" title="HippoRAG" />);
+    expect(await screen.findByText('검증한 주장이 없어요.')).toBeTruthy();
+    expect(screen.queryByText(/빠른 리뷰에는/)).toBeNull();
+  });
+
   it('reads a vanished session as 확인 불가', async () => {
     vi.mocked(getReviewReport).mockRejectedValue({ response: { status: 404 } });
     render(<ReviewTab sessionId="gone" title="HippoRAG" />);

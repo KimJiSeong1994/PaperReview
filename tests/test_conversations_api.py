@@ -1010,3 +1010,49 @@ def test_ambiguous_bookmarked_paper_clarifies_and_router_gets_hint(env):
     conv_id = env.client.post("/api/conversations", json={"message": "안녕"}).json()["id"]
     _events(env.client, conv_id)
     assert "북마크 2개 (최근: RAG 모음; RAG 후속)" in env.calls["route_inputs"][-1][1]["content"]
+
+
+# ── deep_review mode: fast vs full (정밀) ─────────────────────────────
+
+def test_precheck_review_mode():
+    full = turn_runner.precheck_route("3번 논문 정밀 리뷰 해줘", [], TWO)
+    assert (full["action"], full["paper_index"], full["review_mode"]) == ("review", 3, "full")
+    fast = turn_runner.precheck_route("3번 논문 딥리뷰", [], TWO)
+    assert (fast["action"], fast["review_mode"]) == ("review", "fast")
+    assert turn_runner.precheck_route("2번 검증까지 해줘", [], TWO)["review_mode"] == "full"  # weak marker + paper
+    assert turn_runner.parse_route('{"tool": "deep_review", "paper_index": 1, "review_mode": "full"}', "1번", TWO)[
+        "review_mode"] == "full"
+    assert turn_runner.parse_route('{"tool": "deep_review", "paper_index": 1}', "1번 리뷰", TWO)["review_mode"] == "fast"
+
+
+def test_full_review_turn_passes_mode_and_costs_two_slots(env, monkeypatch):
+    started = []
+
+    async def fake_start(paper, key, principal, fast_mode=True):
+        started.append(fast_mode)
+        return f"review_test_{len(started)}"
+
+    monkeypatch.setattr(turn_runner, "start_review", fake_start)
+    conv_id = _searched(env)
+    events = _events(env.client, conv_id, "2번 논문 정밀 리뷰 해줘")
+    assert events[0]["delta"] == "2번 논문 「B」 정밀 리뷰(주장 검증 포함)를 시작할게요. 10분 안팎 걸립니다.\n\n"
+    block = events[1]["block"]
+    assert (block["type"], block["mode"], started) == ("review_started", "full", [False])
+    assert len(turn_runner._review_starts[("review", "alice")]) == 2
+    saved = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]["blocks"][0]
+    assert saved["mode"] == "full"
+
+    events = _events(env.client, conv_id, "1번 논문 딥리뷰")
+    assert events[0]["delta"] == "1번 논문 「A」 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n"
+    assert events[1]["block"]["mode"] == "fast" and started == [False, True]
+    assert len(turn_runner._review_starts[("review", "alice")]) == 3
+
+
+def test_review_slot_accounting_with_cost():
+    user = "slot-user"
+    assert turn_runner._reserve_start("review", user, 2) and turn_runner._reserve_start("review", user, 2)
+    assert not turn_runner._reserve_start("review", user, 2)  # 4 used, a full review needs 2 more
+    assert turn_runner._reserve_start("review", user)  # a fast one still fits: 5/5
+    turn_runner._release_start("review", user, 2)
+    assert len(turn_runner._review_starts[("review", user)]) == 3
+    turn_runner._review_starts.pop(("review", user))

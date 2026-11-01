@@ -65,7 +65,8 @@ def build_route_prompt() -> str:
     return (
         _ROUTE_HEAD + tools + _ROUTE_TAIL
         + f'형식: {{"tool": "{names}", "query": "..." 또는 null, "year_start": 정수 또는 null, '
-        '"year_end": 정수 또는 null, "paper_index": 정수·문자열 또는 null, "lead": "...", "title": "..." 또는 null}'
+        '"year_end": 정수 또는 null, "paper_index": 정수·문자열 또는 null, "review_mode": "fast|full", '
+        '"lead": "...", "title": "..." 또는 null}'
     )
 
 
@@ -222,6 +223,9 @@ def normalize_query(query: str) -> str:
     return " ".join(list(dict.fromkeys(tokens))[:MAX_QUERY_TOKENS])
 
 
+# A deep review with claim verification (the full pipeline) instead of the fast one.
+_FULL_REVIEW = re.compile(r"정밀\s*리뷰|전체\s*리뷰|검증까지|꼼꼼한\s*리뷰|full\s*review|in-depth with verification", re.I)
+
 # Registry tool name → turn intent (the done/turn `intent` values stay as before).
 TOOL_ACTIONS = {
     "search_papers": "search", "answer_from_results": "answer", "deep_review": "review",
@@ -333,9 +337,11 @@ def finalize_route(
     if start and end and start > end:
         start, end = None, None
     title = _one_paragraph(data.get("title"))[:MAX_TITLE_CHARS].strip() or None
+    review_mode = "full" if data.get("review_mode") == "full" or _FULL_REVIEW.search(message) else "fast"
     return {
         "action": action, "tool": ACTION_TOOLS.get(action), "query": query, "year_start": start,
         "year_end": end, "paper_index": paper_index, "paper": paper, "bookmark_id": bookmark_id,
+        "review_mode": review_mode,
         "lead": lead, "title": title,
     }
 
@@ -346,8 +352,8 @@ _PRECHECKS = [
     ("highlight_pdf", re.compile(r"하이라이트|핵심\s*문장|중요한\s*부분\s*표시", re.I), None),
     (
         "review",
-        re.compile(r"딥\s*리뷰|심층\s*(리뷰|분석)|deep\s*review|in-depth", re.I),
-        re.compile(r"파고들|정독|꼼꼼히|제대로\s*(알고|분석|읽)|깊게\s*(분석|읽|파)|자세히\s*분석"),
+        re.compile(r"딥\s*리뷰|심층\s*(리뷰|분석)|정밀\s*리뷰|전체\s*리뷰|꼼꼼한\s*리뷰|deep\s*review|full\s*review|in-depth", re.I),
+        re.compile(r"파고들|정독|꼼꼼히|검증까지|제대로\s*(알고|분석|읽)|깊게\s*(분석|읽|파)|자세히\s*분석"),
     ),
     ("open_pdf", re.compile(r"pdf|원문|전문(?!가)", re.I), None),
 ]
@@ -494,24 +500,25 @@ _review_starts: Dict[tuple, deque] = {}
 _review_starts_lock = threading.Lock()
 
 
-def _reserve_start(kind: str, username: str) -> bool:
-    """Take one of the user's *kind* starts in the 10-minute window; False when none is left."""
+def _reserve_start(kind: str, username: str, cost: int = 1) -> bool:
+    """Take *cost* of the user's *kind* slots in the 10-minute window; False when not enough are left."""
     now = time.monotonic()
     with _review_starts_lock:
         starts = _review_starts.setdefault((kind, username), deque())
         while starts and now - starts[0] > START_WINDOW_SEC:
             starts.popleft()
-        if len(starts) >= START_LIMITS[kind]:
+        if len(starts) + cost > START_LIMITS[kind]:
             return False
-        starts.append(now)
+        starts.extend([now] * cost)
         return True
 
 
-def _release_start(kind: str, username: str) -> None:
-    """Give back the slot of a run that failed before doing its expensive work."""
+def _release_start(kind: str, username: str, cost: int = 1) -> None:
+    """Give back the slots of a run that failed before doing its expensive work."""
     with _review_starts_lock:
-        if _review_starts.get((kind, username)):
-            _review_starts[(kind, username)].pop()
+        starts = _review_starts.get((kind, username))
+        for _ in range(min(cost, len(starts or ()))):
+            starts.pop()
 
 
 def _review_status_reply(block: Dict[str, Any]) -> Optional[str]:
@@ -586,11 +593,14 @@ def repeat_reply(
     return None
 
 
-async def start_review(paper: Dict[str, Any], paper_key: str, principal: Any) -> str:
-    """Start the existing deep review for one paper, owned by *principal*; returns the session id."""
+async def start_review(paper: Dict[str, Any], paper_key: str, principal: Any, fast_mode: bool = True) -> str:
+    """Start the existing deep review for one paper, owned by *principal*; returns the session id.
+
+    ``fast_mode=False`` runs the full pipeline, which includes claim verification.
+    """
     from routers.reviews import start_review_session
 
-    return await start_review_session([paper], [paper_key], principal, fast_mode=True, num_researchers=3)
+    return await start_review_session([paper], [paper_key], principal, fast_mode=fast_mode, num_researchers=3)
 
 
 async def build_graph(papers: List[Dict[str, Any]]) -> Dict[str, Any]:
