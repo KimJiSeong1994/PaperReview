@@ -11,6 +11,7 @@ import { createConversation } from '../../api/conversations';
 import { useConversation, type ViewTurn } from '../../hooks/useConversation';
 import type { Paper } from '../../types';
 import ArtifactPanel, { type ArtifactTab } from './ArtifactPanel';
+import ReviewBlock, { type CompletedReview } from './ReviewBlock';
 import SearchResultsBlock from './SearchResultsBlock';
 import {
   CITE_PREFIX,
@@ -19,6 +20,7 @@ import {
   linkCitations,
   normalizeEmphasis,
   resultsOf,
+  reviewBlockOf,
   searchBlockOf,
   splitLead,
   turnSummary,
@@ -47,6 +49,10 @@ function ConversationPage({ id }: ConversationPageProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [artifactPref, setArtifactPref] = useState<{ graphSeq: number; open: boolean } | null>(null);
   const [tab, setTab] = useState<ArtifactTab>('graph');
+  // Reviews that finished while this page was open (or settled on their first
+  // poll after a reload), newest last; the 리뷰 tab shows the chosen or latest one.
+  const [reviews, setReviews] = useState<CompletedReview[]>([]);
+  const [reviewSession, setReviewSession] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickRef = useRef(true);
 
@@ -69,6 +75,18 @@ function ConversationPage({ id }: ConversationPageProps) {
   const selectedPaper = activeSearch?.papers.find(paper => keyOf(paper) === selectedKey) ?? null;
 
   const setArtifactOpen = (open: boolean) => setArtifactPref({ graphSeq: latestGraphSeq, open });
+  const activeReview = reviews.find(review => review.sessionId === reviewSession) ?? reviews.at(-1) ?? null;
+
+  const addReview = (review: CompletedReview) => setReviews(prev => [
+    ...prev.filter(item => item.sessionId !== review.sessionId),
+    review,
+  ]);
+
+  const openReport = (sessionId: string) => {
+    setReviewSession(sessionId);
+    setTab('review');
+    setArtifactOpen(true);
+  };
 
   const showInArtifact = (seq: number, paper: Paper | null, nextTab?: ArtifactTab) => {
     setActiveSeq(seq);
@@ -109,12 +127,13 @@ function ConversationPage({ id }: ConversationPageProps) {
   const renderAssistant = (turn: ViewTurn) => {
     const live = turn.id === 'live';
     const search = searchBlockOf(turn);
+    const review = reviewBlockOf(turn);
     const summary = turnSummary(turn);
     const isLast = turn === lastTurn;
     const serverCancelled = turn.status === 'error' && turn.content.trim() === CANCELLED_CONTENT;
     // Search turns: lead paragraph, status, results, then the summary. Chat and
     // clarify turns stream text only and show no status line.
-    const { lead, rest } = splitLead(serverCancelled ? '' : turn.content, Boolean(search) || Boolean(turn.statusSeen), turn.leadLength);
+    const { lead, rest } = splitLead(serverCancelled ? '' : turn.content, Boolean(search || review) || Boolean(turn.statusSeen), turn.leadLength);
     const showLiveStatus = live && turn.status === 'running'
       && (Boolean(turn.statusSeen) || (!turn.content && turn.blocks.length === 0));
     const markdown = (text: string) => text && (
@@ -150,6 +169,8 @@ function ConversationPage({ id }: ConversationPageProps) {
               {degradedLabels(search.degraded ?? []).map(label => <li key={label}>{label}</li>)}
             </ul>
           </details>
+        ) : summary && review && !(live && turn.status === 'running') ? (
+          <p className="conv-status">{summary}</p>
         ) : null}
 
         {search && search.papers.length > 0 && (
@@ -159,6 +180,8 @@ function ConversationPage({ id }: ConversationPageProps) {
             onShowAll={() => showInArtifact(turn.seq, null, 'list')}
           />
         )}
+
+        {review && <ReviewBlock block={review} onCompleted={addReview} onOpenReport={openReport} />}
 
         {markdown(rest)}
 
@@ -251,6 +274,7 @@ function ConversationPage({ id }: ConversationPageProps) {
           search={activeSearch}
           graph={active?.graph?.graph ?? null}
           graphPending={graphPending}
+          review={activeReview}
           tab={tab}
           onTab={setTab}
           selectedPaper={selectedPaper}

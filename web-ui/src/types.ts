@@ -142,7 +142,16 @@ export interface GraphBlock {
   graph: GraphData;
 }
 
-export type TurnBlock = SearchResultsBlock | GraphBlock;
+/** A deep review the assistant started for one paper; progress is polled by session. */
+export interface ReviewStartedBlock {
+  type: 'review_started';
+  session_id: string;
+  paper_index: number;
+  paper_title: string;
+  paper_key: string;
+}
+
+export type TurnBlock = SearchResultsBlock | GraphBlock | ReviewStartedBlock;
 
 export interface ConversationTurn {
   id: string;

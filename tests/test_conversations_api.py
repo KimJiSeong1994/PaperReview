@@ -194,7 +194,9 @@ def test_follow_up_answer_path_uses_latest_results(env, monkeypatch):
     assert system["role"] == "system" and "[1]" not in system["content"]
     assert papers["role"] == "user" and papers["content"].rstrip().endswith("</papers>")
     assert "[1] A (2020)" in papers["content"] and "[2] B (2021)" in papers["content"]
-    assert env.calls["llm"][-1][-1] == {"role": "user", "content": "첫 번째 논문을 설명해줘"}
+    last = env.calls["llm"][-1][-1]
+    assert last["role"] == "user" and last["content"].endswith("질문: 첫 번째 논문을 설명해줘")
+    assert last["content"].startswith("직전 답변:\n'트랜스포머'(으)로 찾아볼게요.")
 
 
 def test_stream_llm_preserves_chunk_order_and_run_search_wiring(monkeypatch):
@@ -280,21 +282,21 @@ async def _async(value):
 
 def test_parse_route_actions_and_malformed_fallback():
     parse = turn_runner.parse_route
-    chat = parse('{"action": "chat", "lead": "안녕하세요", "title": "인사"}', "안녕", False)
+    chat = parse('{"action": "chat", "lead": "안녕하세요", "title": "인사"}', "안녕", [])
     assert chat["action"] == "chat" and chat["title"] == "인사"
     search = parse(
         '```json\n{"action": "search", "query": "GraphRAG vs RAG", "year_start": 2024, "year_end": null,'
-        ' "lead": "비교 연구를\n찾아볼게요.", "title": "' + "가" * 40 + '"}\n```', "GraphRAG랑 RAG 비교 논문 찾아줘", False
+        ' "lead": "비교 연구를\n찾아볼게요.", "title": "' + "가" * 40 + '"}\n```', "GraphRAG랑 RAG 비교 논문 찾아줘", []
     )
     assert (search["query"], search["year_start"], search["year_end"]) == ("GraphRAG vs RAG", 2024, None)
     assert search["lead"] == "비교 연구를 찾아볼게요." and len(search["title"]) == 24
-    assert parse('{"action": "answer"}', "2번 자세히", True)["action"] == "answer"
-    assert parse('{"action": "answer"}', "2번 자세히", False)["action"] == "search"  # no results to answer from
-    clarify = parse('{"action": "clarify", "lead": "어떤 분야인가요?"}', "논문 찾아줘", False)
+    assert parse('{"action": "answer"}', "2번 자세히", [{"title": "A"}])["action"] == "answer"
+    assert parse('{"action": "answer"}', "2번 자세히", [])["action"] == "search"  # no results to answer from
+    clarify = parse('{"action": "clarify", "lead": "어떤 분야인가요?"}', "논문 찾아줘", [])
     assert clarify["action"] == "clarify" and clarify["lead"] == "어떤 분야인가요?"
-    assert parse('{"action": "search", "year_start": 2025, "year_end": 2020}', "q", False)["year_start"] is None
+    assert parse('{"action": "search", "year_start": 2025, "year_end": 2020}', "q", [])["year_start"] is None
     for raw in ("", "not json", '["search"]', '{"action": "dance"}'):
-        route = parse(raw, "원문 메시지", False)
+        route = parse(raw, "원문 메시지", [])
         assert (route["action"], route["query"], route["lead"], route["title"]) == ("search", "원문 메시지", "", None)
 
 
@@ -355,11 +357,11 @@ def test_title_follows_chat_turns_until_first_search(env):
 
 def test_router_keyword_soup_is_normalised():
     soup = "agent memory long conversation memory long-term memory agent memory paper"
-    route = turn_runner.parse_route(json.dumps({"action": "search", "query": soup}), "원문", False)
+    route = turn_runner.parse_route(json.dumps({"action": "search", "query": soup}), "원문", [])
     assert route["query"] == "agent memory long conversation long-term"
     assert turn_runner.normalize_query('  "장기  대화 기억   에이전트 메모리 논문" ') == "장기 대화 기억 에이전트 메모리"
     assert turn_runner.normalize_query(" ".join(f"w{i}" for i in range(20))) == " ".join(f"w{i}" for i in range(12))
-    assert turn_runner.parse_route('{"action": "search", "query": " \\"papers\\" "}', "원문", False)["query"] == "원문"
+    assert turn_runner.parse_route('{"action": "search", "query": " \\"papers\\" "}', "원문", [])["query"] == "원문"
 
 
 def test_search_without_router_title_uses_query_as_title(env):
@@ -372,3 +374,156 @@ def test_search_without_router_title_uses_query_as_title(env):
 
     env.calls["route"] = '{"action": "search", "query": "LightRAG", "lead": "찾아볼게요.", "title": null}'
     assert _events(env.client, conv_id, "LightRAG도")[-1]["done"]["title"] is None  # already searched
+
+
+PAPER_LIST = [{"title": "Attention Is All You Need"}, {"title": "From Local to Global: A GraphRAG Approach"}]
+
+
+def test_parse_route_review_index_and_title_resolution():
+    parse = turn_runner.parse_route
+    assert parse('{"action": "review", "paper_index": 2}', "2번 심층 리뷰", PAPER_LIST)["paper_index"] == 2
+    assert parse('{"action": "review", "paper_index": "1"}', "1번 리뷰해줘", PAPER_LIST)["paper_index"] == 1
+    by_title = parse('{"action": "review", "paper_index": "graphrag approach"}', "GraphRAG 논문 리뷰", PAPER_LIST)
+    assert (by_title["action"], by_title["paper_index"]) == ("review", 2)
+    for bad in ('{"action": "review", "paper_index": 7}', '{"action": "review", "paper_index": null}',
+                '{"action": "review", "paper_index": "없는 제목"}', '{"action": "review", "paper_index": true}'):
+        route = parse(bad, "리뷰해줘", PAPER_LIST)
+        assert route["action"] == "clarify" and route["lead"].startswith("몇 번 논문인지 알려주세요")
+    assert parse('{"action": "review", "paper_index": 1}', "리뷰해줘", [])["action"] == "clarify"
+
+
+def test_pending_offer_is_last_sentence_of_last_answer():
+    history = [
+        {"role": "user", "content": "q", "status": "done"},
+        {"role": "assistant", "content": "리드.\n\n- A [1] — x\n\n요약입니다. 관련 비교 논문과 함께 볼까요?", "status": "done"},
+    ]
+    assert turn_runner.pending_offer(history) == "관련 비교 논문과 함께 볼까요?"
+    assert turn_runner.pending_offer([]) == ""
+
+
+def test_review_turn_starts_owned_deep_review(env, monkeypatch, tmp_path):
+    import threading
+    from functools import partial
+
+    from app.DeepAgent import workspace_manager
+    from routers import reviews
+    from src.storage.user_db import UserDB
+
+    users = UserDB(tmp_path / "users.db")
+    principal = AuthenticatedPrincipal("alice", users.create_account("alice", {})["account_incarnation"])
+    monkeypatch.setattr(reviews, "_get_user_db", lambda: users)
+    monkeypatch.setattr(
+        workspace_manager, "WorkspaceManager", partial(workspace_manager.WorkspaceManager, base_path=str(tmp_path / "ws"))
+    )
+    started, ran = {}, threading.Event()
+
+    def fake_background(**kwargs):
+        started.update(kwargs)
+        ran.set()
+
+    monkeypatch.setattr(reviews, "run_deep_review_background", fake_background)
+    app = env.client.app
+    app.dependency_overrides[get_authenticated_principal] = lambda: principal
+
+    with TestClient(app) as client:  # keep the loop alive until the scheduled review runs
+        conv_id = client.post("/api/conversations", json={"message": "트랜스포머"}).json()["id"]
+        _events(client, conv_id)
+        env.calls["route"] = '{"action": "review", "paper_index": 2, "lead": ""}'
+        events = _events(client, conv_id, "2번 논문에 대해서 심층 리뷰 해줘")
+        assert ran.wait(5)
+
+    assert _kinds(events) == ["delta", "block:review_started", "done"] and events[-1]["done"]["intent"] == "review"
+    assert events[0]["delta"] == "2번 논문 「B」 심층 리뷰를 시작할게요. 몇 분 걸립니다.\n\n"
+    block = events[1]["block"]
+    assert (block["paper_index"], block["paper_title"], block["paper_key"]) == (2, "B", "k1")
+    # The real pipeline moves to "analyzing"; any non-terminal status counts as running.
+    with reviews.review_sessions_lock:
+        reviews.review_sessions[block["session_id"]].update(status="analyzing", progress="논문 분석 중")
+
+    # Same paper again (e.g. a bare "2"): no re-run, report its progress instead.
+    env.calls["route"] = '{"action": "review", "paper_index": 2, "lead": ""}'
+    repeat = _events(env.client, conv_id, "2")
+    assert _kinds(repeat) == ["delta", "done"] and repeat[-1]["done"]["intent"] == "chat"
+    assert repeat[0]["delta"].startswith("2번 논문 심층 리뷰는 이미 진행 중이에요(상태: 분석 중).")
+    assert "직전 행동: review 2번 논문(B) 심층 리뷰 시작" in env.calls["route_inputs"][-1][1]["content"]
+
+    # Another paper while one is analyzing: the duplicate guard answers.
+    env.calls["route"] = '{"action": "review", "paper_index": 1, "lead": ""}'
+    again = _events(env.client, conv_id, "1번도 심층 리뷰 해줘")
+    assert _kinds(again) == ["delta", "done"] and again[-1]["done"]["intent"] == "chat"
+    assert again[0]["delta"] == "이미 진행 중인 심층 리뷰가 있어요(2번 논문, 상태: 분석 중). 끝나면 결과를 보여드릴게요."
+    session = reviews.review_sessions.pop(block["session_id"])
+    assert (session["username"], session["account_incarnation"]) == ("alice", principal.account_incarnation)
+    assert session["paper_ids"] == ["k1"] and session["papers_data"][0]["result_key"] == "k1"
+    assert started["owner_principal"] == principal and started["session_id"] == block["session_id"]
+    assert started["paper_ids"] == ["k1"] and started["fast_mode"] is True and started["num_researchers"] == 3
+    assert "직전 제안: 없음" not in env.calls["route_inputs"][-1][1]["content"]  # previous summary closed with an offer
+    turn = client.get(f"/api/conversations/{conv_id}").json()["turns"][-5]
+    assert turn["intent"] == "review" and turn["blocks"] == [block]
+
+    # Once the review is no longer processing, a new review may start.
+    session["status"] = "completed"
+    reviews.review_sessions[block["session_id"]] = session
+    assert turn_runner._running_review([{"blocks": [block]}]) is None
+    reviews.review_sessions.pop(block["session_id"])
+
+
+def test_invalid_review_index_clarifies_and_offer_reaches_router(env):
+    conv_id = env.client.post("/api/conversations", json={"message": "트랜스포머"}).json()["id"]
+    _events(env.client, conv_id)  # summary closes with the fake "요약 [1]"
+    env.calls["route"] = '{"action": "review", "paper_index": 9, "lead": ""}'
+    events = _events(env.client, conv_id, "9번 리뷰해줘")
+    assert _kinds(events) == ["delta", "done"] and events[-1]["done"]["intent"] == "clarify"
+    assert events[0]["delta"].startswith("몇 번 논문인지 알려주세요")
+    router_input = env.calls["route_inputs"][-1][1]["content"]
+    assert "직전 제안: 요약 [1]" in router_input and "[1] A" in router_input and "[2] B" in router_input
+
+
+def test_same_search_as_previous_turn_is_not_rerun(env):
+    route = {"action": "search", "query": "GraphRAG", "year_start": 2024, "year_end": None, "lead": "찾아볼게요."}
+    env.calls["route"] = json.dumps(route)
+    conv_id = env.client.post("/api/conversations", json={"message": "GraphRAG 2024년 이후"}).json()["id"]
+    first = _events(env.client, conv_id)
+    block = next(e["block"] for e in first if "block" in e)
+    assert (block["year_start"], block["year_end"]) == (2024, None)
+
+    repeat = _events(env.client, conv_id, "1")
+    assert _kinds(repeat) == ["delta", "done"] and repeat[-1]["done"]["intent"] == "chat"
+    assert repeat[0]["delta"] == "같은 조건의 검색 결과를 이미 보여드렸어요. 조건을 바꾸거나 특정 논문을 골라 주세요."
+    assert len(env.calls["search"]) == 1
+    assert "직전 행동: search 'GraphRAG'" in env.calls["route_inputs"][-1][1]["content"]
+
+    env.calls["route"] = json.dumps({**route, "year_start": 2025})  # changed condition → runs
+    assert any("block" in e for e in _events(env.client, conv_id, "2025년 이후만"))
+    assert len(env.calls["search"]) == 2
+
+
+def test_bare_reply_after_review_reports_that_turns_own_session(env, monkeypatch):
+    from routers.deps import storage
+
+    sessions = {
+        "s-old": {"status": "completed", "progress": "Restored from workspace"},
+        "s-new": {"status": "analyzing", "progress": "AI is analysing the papers..."},
+    }
+    monkeypatch.setattr(storage, "review_sessions", sessions)
+
+    def review_turn(sid, n):
+        return {"role": "assistant", "status": "done", "content": "리드", "blocks": [
+            {"type": "review_started", "session_id": sid, "paper_index": n, "paper_title": "T", "paper_key": f"k{n}"}]}
+
+    history = [review_turn("s-old", 1), {"role": "user", "status": "done", "content": "2번 리뷰"}, review_turn("s-new", 2)]
+    chat_route = {"action": "chat", "query": "", "year_start": None, "year_end": None, "paper_index": None}
+    reply = turn_runner.repeat_reply(chat_route, history, [], "2")  # router said chat; code still answers
+    assert reply.startswith("2번 논문 심층 리뷰는 이미 진행 중이에요(상태: 분석 중).") and "Restored" not in reply
+    assert turn_runner.repeat_reply(chat_route, history, [], "응").startswith("2번 논문 심층 리뷰는 이미 진행 중이에요")
+    assert turn_runner.repeat_reply(chat_route, history, [], "1") is None  # another number goes to the router
+    assert turn_runner.repeat_reply(chat_route, history, [], "2번 요약해줘") is None
+
+    sessions["s-new"]["status"] = "completed"
+    assert "이미 끝났어요(상태: 완료)" in turn_runner.repeat_reply(chat_route, history, [], "2")
+    sessions["s-new"]["status"] = "verifying"  # unknown status → no parenthetical, raw progress never shown
+    assert turn_runner.repeat_reply(chat_route, history, [], "2").startswith("2번 논문 심층 리뷰는 이미 진행 중이에요. ")
+    sessions["s-new"]["status"] = "failed"  # a failed review may be started again
+    assert turn_runner.repeat_reply(chat_route, history, [], "2") is None
+    del sessions["s-new"]
+    assert "(상태: 확인 불가)" in turn_runner.repeat_reply(chat_route, history, [], "2")

@@ -16,7 +16,7 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -1268,6 +1268,69 @@ def run_deep_review_background(
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 
+# Strong references for reviews scheduled outside a request's BackgroundTasks.
+_scheduled_reviews: set = set()
+
+
+async def start_review_session(
+    papers: Optional[List[Dict[str, Any]]],
+    paper_ids: List[str],
+    principal: Optional[AuthenticatedPrincipal],
+    *,
+    fast_mode: Optional[bool] = True,
+    num_researchers: Optional[int] = 3,
+    model: Optional[str] = None,
+    schedule: Optional[Callable[..., Any]] = None,
+) -> str:
+    """Create a principal-stamped review session and schedule the background review.
+
+    ``schedule(fn, **kwargs)`` defaults to a worker-thread task on the running
+    loop; the HTTP route passes ``BackgroundTasks.add_task`` instead.
+    Raises 401 (HTTPException) when the principal's account is gone.
+    """
+    from app.DeepAgent.workspace_manager import WorkspaceManager
+
+    workspace = WorkspaceManager()
+    session_id = workspace.session_id
+
+    with (
+        _account_guard(principal) if principal is not None else nullcontext(),
+        review_sessions_lock,
+    ):
+        review_sessions[session_id] = {
+            "status": "processing",
+            "paper_ids": paper_ids,
+            "papers_data": papers,
+            "num_papers": len(paper_ids),
+            "workspace_path": str(workspace.session_path),
+            "created_at": datetime.now().isoformat(),
+            "username": principal.username if principal is not None else None,
+            "account_incarnation": principal.account_incarnation
+            if principal is not None
+            else None,
+        }
+
+    mcp_measurement = await record_job_started("deep_review", session_id)
+    kwargs = dict(
+        session_id=session_id,
+        paper_ids=paper_ids,
+        papers_data=papers,
+        num_researchers=num_researchers,
+        model=model,
+        workspace=workspace,
+        fast_mode=fast_mode,
+        mcp_measurement=mcp_measurement,
+        owner_principal=principal,
+    )
+    if schedule is not None:
+        schedule(run_deep_review_background, **kwargs)
+    else:
+        task = asyncio.create_task(asyncio.to_thread(run_deep_review_background, **kwargs))
+        _scheduled_reviews.add(task)
+        task.add_done_callback(_scheduled_reviews.discard)
+    return session_id
+
+
 @router.post("/deep-review")
 @limiter.limit("5/minute")
 async def start_deep_review(
@@ -1283,44 +1346,17 @@ async def start_deep_review(
     _cleanup_expired_sessions()
 
     try:
-        from app.DeepAgent.workspace_manager import WorkspaceManager
-
         logger.info(
             "[Deep Review] Starting with %s papers", len(review_request.paper_ids)
         )
-
-        workspace = WorkspaceManager()
-        session_id = workspace.session_id
-
-        with (
-            _account_guard(principal) if principal is not None else nullcontext(),
-            review_sessions_lock,
-        ):
-            review_sessions[session_id] = {
-                "status": "processing",
-                "paper_ids": review_request.paper_ids,
-                "papers_data": review_request.papers,
-                "num_papers": len(review_request.paper_ids),
-                "workspace_path": str(workspace.session_path),
-                "created_at": datetime.now().isoformat(),
-                "username": principal.username if principal is not None else None,
-                "account_incarnation": principal.account_incarnation
-                if principal is not None
-                else None,
-            }
-
-        mcp_measurement = await record_job_started("deep_review", session_id)
-        background_tasks.add_task(
-            run_deep_review_background,
-            session_id=session_id,
-            paper_ids=review_request.paper_ids,
-            papers_data=review_request.papers,
+        session_id = await start_review_session(
+            review_request.papers,
+            review_request.paper_ids,
+            principal,
+            fast_mode=review_request.fast_mode,
             num_researchers=review_request.num_researchers,
             model=review_request.model,
-            workspace=workspace,
-            fast_mode=review_request.fast_mode,
-            mcp_measurement=mcp_measurement,
-            owner_principal=principal,
+            schedule=background_tasks.add_task,
         )
 
         attribution = [{"status": "not_attributed", "reason": "anonymous"}]

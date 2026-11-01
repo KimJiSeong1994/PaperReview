@@ -1,4 +1,4 @@
-import type { ConversationTurn, GraphBlock, SearchResultsBlock } from '../../types';
+import type { ConversationTurn, GraphBlock, ReviewStartedBlock, SearchResultsBlock } from '../../types';
 
 export const CITE_PREFIX = '#cite-';
 
@@ -8,6 +8,10 @@ export const searchBlockOf = (turn: ConversationTurn): SearchResultsBlock | null
 
 export const graphBlockOf = (turn: ConversationTurn): GraphBlock | null => (
   turn.blocks.find((block): block is GraphBlock => block.type === 'graph') ?? null
+);
+
+export const reviewBlockOf = (turn: ConversationTurn): ReviewStartedBlock | null => (
+  turn.blocks.find((block): block is ReviewStartedBlock => block.type === 'review_started') ?? null
 );
 
 /** A turn's search and its graph, keyed by the turn's seq so a repeated query stays distinct. */
@@ -85,8 +89,9 @@ export const linkCitations = (markdown: string): string => (
   markdown.replace(/\[(\d{1,2})\](?!\()/g, `[$1](${CITE_PREFIX}$1)`)
 );
 
-/** Collapsed status line of a finished search turn: "출처 4곳 · 42편 · 그래프". */
+/** Collapsed status line of a finished turn: "출처 4곳 · 42편 · 그래프", or "심층 리뷰 시작". */
 export function turnSummary(turn: ConversationTurn): string | null {
+  if (reviewBlockOf(turn)) return '심층 리뷰 시작';
   const search = searchBlockOf(turn);
   if (!search) return null;
   const sources = new Set(search.papers.map(paper => paper.source).filter(Boolean)).size;

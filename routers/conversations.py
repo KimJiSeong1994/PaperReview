@@ -106,7 +106,7 @@ async def run_turn(
 
     queue: asyncio.Queue = asyncio.Queue()
     task = asyncio.create_task(
-        turn_runner.run_turn(db, conversation_id, turn_id, principal.username, history, queue.put_nowait)
+        turn_runner.run_turn(db, conversation_id, turn_id, principal, history, queue.put_nowait)
     )
     _running_turns[conversation_id] = task
     task.add_done_callback(

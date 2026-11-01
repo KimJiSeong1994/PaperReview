@@ -1,9 +1,10 @@
 import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ConversationPage from '../components/conversation/ConversationPage';
 import { fetchConversation, streamTurn, type TurnStreamHandlers } from '../api/conversations';
+import { getReviewReport, getReviewStatus } from '../api/client';
 import type { Paper } from '../types';
 
 const storage = new Map<string, string>();
@@ -29,6 +30,7 @@ vi.mock('../api/conversations', () => ({
     { id: 'conv-1', title: '그래프 RAG', updated_at: new Date().toISOString(), turn_count: 1, last_intent: null },
   ]),
 }));
+vi.mock('../api/client', () => ({ getReviewStatus: vi.fn(), getReviewReport: vi.fn() }));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 // Plotly does not render in jsdom; the panel's wiring is what this suite checks.
@@ -339,6 +341,77 @@ describe('ConversationPage', () => {
     expect(screen.getByRole('heading', { name: '인사와 주제 고르기' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '이어서 물어보세요' }).getAttribute('placeholder'))
       .toBe('이어서 물어보거나 조건을 바꿔 보세요 (예: 2024년 이후만)');
+  });
+
+  it('ignores a block type it does not know', async () => {
+    vi.mocked(fetchConversation).mockResolvedValueOnce({
+      id: 'conv-1', title: '그래프 RAG', created_at: '', updated_at: '',
+      turns: [
+        { id: 'u1', seq: 1, role: 'user', content: '질문', blocks: [], intent: null, status: 'done', created_at: '' },
+        {
+          id: 'a1', seq: 2, role: 'assistant', content: '답했어요.', intent: 'answer', status: 'done', created_at: '',
+          blocks: [{ type: 'future_widget', payload: 1 } as unknown as never],
+        },
+      ],
+    });
+    renderPage(null);
+    expect(await screen.findByText('답했어요.')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  describe('deep review turns', () => {
+    const reviewConversation = () => ({
+      id: 'conv-1', title: '그래프 RAG', created_at: '', updated_at: '',
+      turns: [
+        { id: 'u1', seq: 1, role: 'user' as const, content: '2번 리뷰해줘', blocks: [], intent: null, status: 'done' as const, created_at: '' },
+        {
+          id: 'a1', seq: 2, role: 'assistant' as const, content: 'HippoRAG 심층 리뷰를 시작했어요.\n\n끝나면 알려드릴게요.',
+          intent: 'review', status: 'done' as const, created_at: '',
+          blocks: [{ type: 'review_started' as const, session_id: 'rev-1', paper_index: 2, paper_title: 'HippoRAG', paper_key: 'k2' }],
+        },
+      ],
+    });
+    const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.mocked(getReviewStatus).mockReset();
+      vi.mocked(getReviewReport).mockReset();
+      vi.mocked(fetchConversation).mockResolvedValueOnce(reviewConversation());
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it('resumes polling a running review when the conversation is reloaded', async () => {
+      vi.mocked(getReviewStatus).mockResolvedValue({ session_id: 'rev-1', status: 'processing', progress: '검증 2/3', report_available: false });
+      renderPage(null);
+      await tick(0); // resolve the conversation fetch
+      expect(screen.getByText('심층 리뷰 시작')).toBeTruthy();
+      await tick(2000);
+      await tick(2000);
+      expect(getReviewStatus).toHaveBeenCalledTimes(2);
+      expect(getReviewStatus).toHaveBeenCalledWith('rev-1');
+      expect(screen.getByRole('region', { name: '심층 리뷰: HippoRAG' }).textContent).toContain('검증 2/3');
+      expect(screen.queryByText(/출처 \d+곳/)).toBeNull();
+    });
+
+    it('opens the report in the 리뷰 tab', async () => {
+      vi.mocked(getReviewStatus).mockResolvedValue({ session_id: 'rev-1', status: 'completed', report_available: true });
+      vi.mocked(getReviewReport).mockResolvedValue({
+        session_id: 'rev-1', report_markdown: '## 핵심 기여\n\n그래프 기반 기억.', num_papers: 1, created_at: '',
+        verification_stats: {
+          total_claims: 10, verifiable_claims: 8, verified: 6, partially_verified: 1, unverified: 1, contradicted: 0, verification_rate: 0.7,
+        } as never,
+      });
+      renderPage(null);
+      await tick(0); // resolve the conversation fetch
+      await tick(2000);
+      fireEvent.click(screen.getByRole('button', { name: '리포트 보기 →' }));
+
+      const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
+      expect(within(artifact).getByRole('tab', { name: '리뷰' }).getAttribute('aria-selected')).toBe('true');
+      expect(within(artifact).getByRole('heading', { name: '핵심 기여' })).toBeTruthy();
+      expect(within(artifact).getByText(/근거 확인 70%/)).toBeTruthy();
+    });
   });
 
   it('shows a load error with a way back', async () => {

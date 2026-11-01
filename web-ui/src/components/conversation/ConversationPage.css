@@ -353,6 +353,53 @@
   margin-left: 8px;
 }
 
+/* ── Deep review block + report ────────────────────────────────────── */
+.conv-review {
+  padding: 12px 0;
+  border-top: var(--home-line);
+  border-bottom: var(--home-line);
+}
+
+.conv-review-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-hi);
+}
+
+.conv-review-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 13px;
+}
+
+.conv-review-row .conv-results-more {
+  margin-top: 0;
+}
+
+.conv-review-progress {
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.conv-report {
+  padding: 16px 20px 24px;
+}
+
+.conv-report-stats {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--wov-04);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .conv-note {
   margin: 0;
   font-size: 13px;
